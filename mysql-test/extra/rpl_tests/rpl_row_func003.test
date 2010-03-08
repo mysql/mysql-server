@@ -3,10 +3,7 @@
 # Original Date: Aug/15/2005                                                #
 # Update: 08/29/2005 Comment out sleep. Only needed for debugging           #
 #############################################################################
-# Note: Many lines are commented out in this test case. These were used for #
-#       creating the test case and debugging and are being left for         #
-#       debugging, but they can not be used for the regular testing as the  #
-#       Time changes and is not deteministic, so instead we dump both the   #
+# Note: Time changes and is not deteministic, so instead we dump both the   #
 #       master and slave and diff the dumps. If the dumps differ then the   #
 #       test case will fail. To run during diff failuers, comment out the   #
 #       diff.                                                               #
@@ -28,7 +25,6 @@ DROP TABLE IF EXISTS test.t1;
 
 --enable_warnings
 
-
 eval CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT, c CHAR(16),PRIMARY KEY(a))ENGINE=$engine_type;
 
 delimiter |;
@@ -47,17 +43,9 @@ delimiter ;|
 
 --disable_warnings
 INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
-sleep 6;
 INSERT INTO test.t1 VALUES (null,test.f1()),(null,test.f1()),(null,test.f1());
-sleep 6;
 --enable_warnings
 
-#Select in this test are used for debugging
-#select * from test.t1;
-#connection slave;
-#select * from test.t1;
-
-connection master;
 SET AUTOCOMMIT=0;
 START TRANSACTION;
 --disable_warnings
@@ -65,18 +53,17 @@ INSERT INTO test.t1 VALUES (null,test.f1());
 --enable_warnings
 ROLLBACK;
 SET AUTOCOMMIT=1;
-#select * from test.t1;
-#sleep 6;
 
-#connection slave;
-#select * from test.t1;
+# Sync master and slave for all engines except NDB
+if (`SELECT UPPER(LEFT('$engine_type', 3)) != 'NDB'`) {
+  sync_slave_with_master;
+  connection master;
+}
+# Sync master and slave for NDB engine
+let $wait_time= 6;
+--source include/wait_for_ndb_to_binlog.inc
 
-#connection master;
-
-#used for debugging
-#show binlog events;
-
-# time to dump the databases and so we can see if they match
+# Time to dump the databases and so we can see if they match
 
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func003_master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/func003_slave.sql
@@ -93,5 +80,8 @@ DROP TABLE test.t1;
 
 diff_files $MYSQLTEST_VARDIR/tmp/func003_master.sql $MYSQLTEST_VARDIR/tmp/func003_slave.sql;
 
+# Clean up
+remove_file $MYSQLTEST_VARDIR/tmp/func003_master.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/func003_slave.sql;
 
 # End of 5.0 test case

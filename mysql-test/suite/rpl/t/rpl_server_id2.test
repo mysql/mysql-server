@@ -7,9 +7,11 @@ create table t1 (n int);
 reset master;
 # replicate ourselves
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_port=$SLAVE_MYPORT;
 start slave;
+--source include/wait_for_slave_to_start.inc
 insert into t1 values (1);
 save_master_pos;
 sync_with_master;
@@ -18,6 +20,7 @@ select * from t1; # check that indeed 2 were inserted
 # 'drop table t1' executed twice, so an error in the slave.err
 # (not critical).
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 drop table t1;
 
 

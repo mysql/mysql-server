@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include "rpl_handler.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
+#include "transaction.h"
 #include <errno.h>
 #include "probes_mysql.h"
 
@@ -307,7 +308,6 @@ const char **get_handler_errmsgs()
 int ha_init_errors(void)
 {
 #define SETMSG(nr, msg) handler_errmsgs[(nr) - HA_ERR_FIRST]= (msg)
-  const char    **errmsgs;
 
   /* Allocate a pointer array for the error message strings. */
   /* Zerofill it to avoid uninitialized gaps. */
@@ -888,16 +888,16 @@ void ha_close_connection(THD* thd)
   a transaction in a given engine is read-write and will not
   involve the two-phase commit protocol!
 
-  At the end of a statement, server call
-  ha_autocommit_or_rollback() is invoked. This call in turn
-  invokes handlerton::prepare() for every involved engine.
-  Prepare is followed by a call to handlerton::commit_one_phase()
-  If a one-phase commit will suffice, handlerton::prepare() is not
-  invoked and the server only calls handlerton::commit_one_phase().
-  At statement commit, the statement-related read-write engine
-  flag is propagated to the corresponding flag in the normal
-  transaction.  When the commit is complete, the list of registered
-  engines is cleared.
+  At the end of a statement, server call trans_commit_stmt is
+  invoked. This call in turn invokes handlerton::prepare()
+  for every involved engine. Prepare is followed by a call
+  to handlerton::commit_one_phase() If a one-phase commit
+  will suffice, handlerton::prepare() is not invoked and
+  the server only calls handlerton::commit_one_phase().
+  At statement commit, the statement-related read-write
+  engine flag is propagated to the corresponding flag in the
+  normal transaction.  When the commit is complete, the list
+  of registered engines is cleared.
 
   Rollback is handled in a similar fashion.
 
@@ -908,7 +908,7 @@ void ha_close_connection(THD* thd)
   do not "register" in thd->transaction lists, and thus do not
   modify the transaction state. Besides, each DDL in
   MySQL is prefixed with an implicit normal transaction commit
-  (a call to end_active_trans()), and thus leaves nothing
+  (a call to trans_commit_implicit()), and thus leaves nothing
   to modify.
   However, as it has been pointed out with CREATE TABLE .. SELECT,
   some DDL statements can start a *new* transaction.
@@ -992,7 +992,7 @@ int ha_prepare(THD *thd)
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
   Ha_trx_info *ha_info= trans->ha_list;
   DBUG_ENTER("ha_prepare");
-#ifdef USING_TRANSACTIONS
+
   if (ha_info)
   {
     for (; ha_info; ha_info= ha_info->next())
@@ -1018,7 +1018,7 @@ int ha_prepare(THD *thd)
       }
     }
   }
-#endif /* USING_TRANSACTIONS */
+
   DBUG_RETURN(error);
 }
 
@@ -1146,13 +1146,13 @@ int ha_commit_trans(THD *thd, bool all)
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(2);
   }
-#ifdef USING_TRANSACTIONS
+
   if (ha_info)
   {
     uint rw_ha_count;
     bool rw_trans;
 
-    DBUG_EXECUTE_IF("crash_commit_before", abort(););
+    DBUG_EXECUTE_IF("crash_commit_before", DBUG_ABORT(););
 
     /* Close all cursors that can not survive COMMIT */
     if (is_real_trans)                          /* not a statement commit */
@@ -1163,7 +1163,7 @@ int ha_commit_trans(THD *thd, bool all)
     rw_trans= is_real_trans && (rw_ha_count > 0);
 
     if (rw_trans &&
-        wait_if_global_read_lock(thd, 0, 0))
+        thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, FALSE))
     {
       ha_rollback_trans(thd, all);
       DBUG_RETURN(1);
@@ -1204,7 +1204,7 @@ int ha_commit_trans(THD *thd, bool all)
         }
         status_var_increment(thd->status_var.ha_prepare_count);
       }
-      DBUG_EXECUTE_IF("crash_commit_after_prepare", abort(););
+      DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_ABORT(););
       if (error || (is_real_trans && xid &&
                     (error= !(cookie= tc_log->log_xid(thd, xid)))))
       {
@@ -1212,22 +1212,21 @@ int ha_commit_trans(THD *thd, bool all)
         error= 1;
         goto end;
       }
-      DBUG_EXECUTE_IF("crash_commit_after_log", abort(););
+      DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_ABORT(););
     }
     error=ha_commit_one_phase(thd, all) ? (cookie ? 2 : 1) : 0;
-    DBUG_EXECUTE_IF("crash_commit_before_unlog", abort(););
+    DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_ABORT(););
     if (cookie)
       tc_log->unlog(cookie, xid);
-    DBUG_EXECUTE_IF("crash_commit_after", abort(););
+    DBUG_EXECUTE_IF("crash_commit_after", DBUG_ABORT(););
     RUN_HOOK(transaction, after_commit, (thd, FALSE));
 end:
     if (rw_trans)
-      start_waiting_global_read_lock(thd);
+      thd->global_read_lock.start_waiting_global_read_lock(thd);
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   else if (is_real_trans)
     thd->transaction.cleanup();
-#endif /* USING_TRANSACTIONS */
   DBUG_RETURN(error);
 }
 
@@ -1249,7 +1248,7 @@ int ha_commit_one_phase(THD *thd, bool all)
   bool is_real_trans=all || thd->transaction.all.ha_list == 0;
   Ha_trx_info *ha_info= trans->ha_list, *ha_info_next;
   DBUG_ENTER("ha_commit_one_phase");
-#ifdef USING_TRANSACTIONS
+
   if (ha_info)
   {
     for (; ha_info; ha_info= ha_info_next)
@@ -1279,7 +1278,7 @@ int ha_commit_one_phase(THD *thd, bool all)
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
     thd->transaction.cleanup();
-#endif /* USING_TRANSACTIONS */
+
   DBUG_RETURN(error);
 }
 
@@ -1319,7 +1318,7 @@ int ha_rollback_trans(THD *thd, bool all)
     my_error(ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG, MYF(0));
     DBUG_RETURN(1);
   }
-#ifdef USING_TRANSACTIONS
+
   if (ha_info)
   {
     /* Close all cursors that can not survive ROLLBACK */
@@ -1350,7 +1349,6 @@ int ha_rollback_trans(THD *thd, bool all)
   /* Always cleanup. Even if there nht==0. There may be savepoints. */
   if (is_real_trans)
     thd->transaction.cleanup();
-#endif /* USING_TRANSACTIONS */
   if (all)
     thd->transaction_rollback_request= FALSE;
 
@@ -1369,48 +1367,6 @@ int ha_rollback_trans(THD *thd, bool all)
                  ER_WARNING_NOT_COMPLETE_ROLLBACK,
                  ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
   RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  DBUG_RETURN(error);
-}
-
-/**
-  This is used to commit or rollback a single statement depending on
-  the value of error.
-
-  @note
-    Note that if the autocommit is on, then the following call inside
-    InnoDB will commit or rollback the whole transaction (= the statement). The
-    autocommit mechanism built into InnoDB is based on counting locks, but if
-    the user has used LOCK TABLES then that mechanism does not know to do the
-    commit.
-*/
-int ha_autocommit_or_rollback(THD *thd, int error)
-{
-  DBUG_ENTER("ha_autocommit_or_rollback");
-#ifdef USING_TRANSACTIONS
-  if (thd->transaction.stmt.ha_list)
-  {
-    if (!error)
-    {
-      if (ha_commit_trans(thd, 0))
-	error=1;
-    }
-    else 
-    {
-      (void) ha_rollback_trans(thd, 0);
-      if (thd->transaction_rollback_request && !thd->in_sub_stmt)
-        (void) ha_rollback(thd);
-    }
-
-    thd->variables.tx_isolation=thd->session_tx_isolation;
-  }
-  else
-#endif
-  {
-    if (!error)
-      RUN_HOOK(transaction, after_commit, (thd, FALSE));
-    else
-      RUN_HOOK(transaction, after_rollback, (thd, FALSE));
-  }
   DBUG_RETURN(error);
 }
 
@@ -1686,7 +1642,7 @@ bool mysql_xa_recover(THD *thd)
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_RETURN(1);
 
-  pthread_mutex_lock(&LOCK_xid_cache);
+  mysql_mutex_lock(&LOCK_xid_cache);
   while ((xs= (XID_STATE*) my_hash_element(&xid_cache, i++)))
   {
     if (xs->xa_state==XA_PREPARED)
@@ -1699,13 +1655,13 @@ bool mysql_xa_recover(THD *thd)
                       &my_charset_bin);
       if (protocol->write())
       {
-        pthread_mutex_unlock(&LOCK_xid_cache);
+        mysql_mutex_unlock(&LOCK_xid_cache);
         DBUG_RETURN(1);
       }
     }
   }
 
-  pthread_mutex_unlock(&LOCK_xid_cache);
+  mysql_mutex_unlock(&LOCK_xid_cache);
   my_eof(thd);
   DBUG_RETURN(0);
 }
@@ -1812,7 +1768,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
                                         &thd->transaction.all);
   Ha_trx_info *ha_info= trans->ha_list;
   DBUG_ENTER("ha_savepoint");
-#ifdef USING_TRANSACTIONS
+
   for (; ha_info; ha_info= ha_info->next())
   {
     int err;
@@ -1836,7 +1792,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
     engines are prepended to the beginning of the list.
   */
   sv->ha_list= trans->ha_list;
-#endif /* USING_TRANSACTIONS */
+
   DBUG_RETURN(error);
 }
 
@@ -2108,6 +2064,10 @@ THD *handler::ha_thd(void) const
   return (table && table->in_use) ? table->in_use : current_thd;
 }
 
+PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
+{
+  return share->m_psi;
+}
 
 /** @brief
   Open database-handler.
@@ -2490,7 +2450,7 @@ int handler::update_auto_increment()
                                           variables->auto_increment_increment);
     auto_inc_intervals_count++;
     /* Row-based replication does not need to store intervals in binlog */
-    if (mysql_bin_log.is_open() && !thd->current_stmt_binlog_row_based)
+    if (mysql_bin_log.is_open() && !thd->is_current_stmt_binlog_format_row())
         thd->auto_inc_intervals_in_cur_stmt_for_binlog.append(auto_inc_interval_for_cur_row.minimum(),
                                                               auto_inc_interval_for_cur_row.values(),
                                                               variables->auto_increment_increment);
@@ -2997,27 +2957,21 @@ static bool update_frm_version(TABLE *table)
 
   strxmov(path, table->s->normalized_path.str, reg_ext, NullS);
 
-  if ((file= my_open(path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
+  if ((file= mysql_file_open(key_file_frm,
+                             path, O_RDWR|O_BINARY, MYF(MY_WME))) >= 0)
   {
     uchar version[4];
-    char *key= table->s->table_cache_key.str;
-    uint key_length= table->s->table_cache_key.length;
-    TABLE *entry;
-    HASH_SEARCH_STATE state;
 
     int4store(version, MYSQL_VERSION_ID);
 
-    if ((result= my_pwrite(file,(uchar*) version,4,51L,MYF_RW)))
+    if ((result= mysql_file_pwrite(file, (uchar*) version, 4, 51L, MYF_RW)))
       goto err;
 
-    for (entry=(TABLE*) my_hash_first(&open_cache,(uchar*) key,key_length, &state);
-         entry;
-         entry= (TABLE*) my_hash_next(&open_cache,(uchar*) key,key_length, &state))
-      entry->s->mysql_version= MYSQL_VERSION_ID;
+    table->s->mysql_version= MYSQL_VERSION_ID;
   }
 err:
   if (file >= 0)
-    VOID(my_close(file,MYF(MY_WME)));
+    (void) mysql_file_close(file, MYF(MY_WME));
   DBUG_RETURN(result);
 }
 
@@ -3064,7 +3018,7 @@ int handler::delete_table(const char *name)
   for (const char **ext=bas_ext(); *ext ; ext++)
   {
     fn_format(buff, name, "", *ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
-    if (my_delete_with_symlink(buff, MYF(0)))
+    if (mysql_file_delete_with_symlink(key_file_misc, buff, MYF(0)))
     {
       if (my_errno != ENOENT)
       {
@@ -3246,36 +3200,6 @@ handler::ha_reset_auto_increment(ulonglong value)
   mark_trx_read_write();
 
   return reset_auto_increment(value);
-}
-
-
-/**
-  Backup table: public interface.
-
-  @sa handler::backup()
-*/
-
-int
-handler::ha_backup(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  mark_trx_read_write();
-
-  return backup(thd, check_opt);
-}
-
-
-/**
-  Restore table: public interface.
-
-  @sa handler::restore()
-*/
-
-int
-handler::ha_restore(THD* thd, HA_CHECK_OPT* check_opt)
-{
-  mark_trx_read_write();
-
-  return restore(thd, check_opt);
 }
 
 
@@ -3536,7 +3460,7 @@ int ha_enable_transaction(THD *thd, bool on)
       So, let's commit an open transaction (if any) now.
     */
     if (!(error= ha_commit_trans(thd, 0)))
-      error= end_trans(thd, COMMIT);
+      error= trans_commit_implicit(thd);
   }
   DBUG_RETURN(error);
 }
@@ -3650,7 +3574,7 @@ int ha_create_table(THD *thd, const char *path,
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
   error= table.file->ha_create(name, &table, create_info);
-  VOID(closefrm(&table, 0));
+  (void) closefrm(&table, 0);
   if (error)
   {
     strxmov(name_buff, db, ".", table_name, NullS);
@@ -3721,7 +3645,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 
   get_canonical_filename(table.file, path, path);
   error=table.file->ha_create(path, &table, &create_info);
-  VOID(closefrm(&table, 1));
+  (void) closefrm(&table, 1);
 
   DBUG_RETURN(error != 0);
 }
@@ -3729,7 +3653,6 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
 void st_ha_check_opt::init()
 {
   flags= sql_flags= 0;
-  sort_buffer_size = current_thd->variables.myisam_sort_buff_size;
 }
 
 
@@ -3752,12 +3675,12 @@ int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
 
   if (!key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     uint tmp_block_size= (uint) key_cache->param_block_size;
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!init_key_cache(key_cache,
 				tmp_block_size,
 				tmp_buff_size,
@@ -3776,12 +3699,12 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
 
   if (key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
     long tmp_block_size= (long) key_cache->param_block_size;
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!resize_key_cache(key_cache, tmp_block_size,
 				  tmp_buff_size,
 				  division_limit, age_threshold));
@@ -3797,21 +3720,12 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
 {
   if (key_cache->key_cache_inited)
   {
-    pthread_mutex_lock(&LOCK_global_system_variables);
+    mysql_mutex_lock(&LOCK_global_system_variables);
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
-    pthread_mutex_unlock(&LOCK_global_system_variables);
+    mysql_mutex_unlock(&LOCK_global_system_variables);
     change_key_cache_param(key_cache, division_limit, age_threshold);
   }
-  return 0;
-}
-
-/**
-  Free memory allocated by a key cache.
-*/
-int ha_end_key_cache(KEY_CACHE *key_cache)
-{
-  end_key_cache(key_cache, 1);		// Can never fail
   return 0;
 }
 
@@ -4520,9 +4434,9 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
   DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
               table->s->cached_row_logging_check == 1);
 
-  return (thd->current_stmt_binlog_row_based &&
+  return (thd->is_current_stmt_binlog_format_row() &&
           table->s->cached_row_logging_check &&
-          (thd->options & OPTION_BIN_LOG) &&
+          (thd->variables.option_bits & OPTION_BIN_LOG) &&
           mysql_bin_log.is_open());
 }
 
@@ -4537,9 +4451,7 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
 
    DESCRIPTION
        This function will generate and write table maps for all tables
-       that are locked by the thread 'thd'.  Either manually locked
-       (stored in THD::locked_tables) and automatically locked (stored
-       in THD::lock) are considered.
+       that are locked by the thread 'thd'.
 
    RETURN VALUE
        0   All OK
@@ -4547,25 +4459,22 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
 
    SEE ALSO
        THD::lock
-       THD::locked_tables
 */
 
 static int write_locked_table_maps(THD *thd)
 {
   DBUG_ENTER("write_locked_table_maps");
-  DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx  thd->locked_tables: 0x%lx  "
+  DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx "
                        "thd->extra_lock: 0x%lx",
-                       (long) thd, (long) thd->lock,
-                       (long) thd->locked_tables, (long) thd->extra_lock));
+                       (long) thd, (long) thd->lock, (long) thd->extra_lock));
 
   DBUG_PRINT("debug", ("get_binlog_table_maps(): %d", thd->get_binlog_table_maps()));
 
   if (thd->get_binlog_table_maps() == 0)
   {
-    MYSQL_LOCK *locks[3];
+    MYSQL_LOCK *locks[2];
     locks[0]= thd->extra_lock;
     locks[1]= thd->lock;
-    locks[2]= thd->locked_tables;
     for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
     {
       MYSQL_LOCK const *const lock= locks[i];
@@ -4582,7 +4491,21 @@ static int write_locked_table_maps(THD *thd)
         if (table->current_lock == F_WRLCK &&
             check_table_binlog_row_based(thd, table))
         {
-          int const has_trans= table->file->has_transactions();
+          /*
+            We need to have a transactional behavior for SQLCOM_CREATE_TABLE
+            (e.g. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
+            compatible behavior with the STMT based replication even when
+            the table is not transactional. In other words, if the operation
+            fails while executing the insert phase nothing is written to the
+            binlog.
+
+            Note that at this point, we check the type of a set of tables to
+            create the table map events. In the function binlog_log_row(),
+            which calls the current function, we check the type of the table
+            of the current row.
+          */
+          bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+                                table->file->has_transactions();
           int const error= thd->binlog_write_table_map(table, has_trans);
           /*
             If an error occurs, it is the responsibility of the caller to
@@ -4631,10 +4554,20 @@ static int binlog_log_row(TABLE* table,
     {
       bitmap_set_all(&cols);
       if (likely(!(error= write_locked_table_maps(thd))))
-        error= (*log_func)(thd, table, table->file->has_transactions(),
-                           &cols, table->s->fields,
+      {
+        /*
+          We need to have a transactional behavior for SQLCOM_CREATE_TABLE
+          (i.e. CREATE TABLE... SELECT * FROM TABLE) in order to keep a
+          compatible behavior with the STMT based replication even when
+          the table is not transactional. In other words, if the operation
+          fails while executing the insert phase nothing is written to the
+          binlog.
+        */
+        bool const has_trans= thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
+                             table->file->has_transactions();
+        error= (*log_func)(thd, table, has_trans, &cols, table->s->fields,
                            before_record, after_record);
-
+      }
       if (!use_bitbuf)
         bitmap_free(&cols);
     }
@@ -4838,7 +4771,8 @@ int example_of_iterator_using_for_logs_cleanup(handlerton *hton)
   {
     printf("%s\n", data.filename.str);
     if (data.status == HA_LOG_STATUS_FREE &&
-        my_delete(data.filename.str, MYF(MY_WME)))
+        mysql_file_delete(INSTRUMENT_ME,
+                          data.filename.str, MYF(MY_WME)))
       goto err;
   }
   res= 0;
@@ -4866,7 +4800,7 @@ err:
 enum log_status fl_get_log_status(char *log)
 {
   MY_STAT stat_buff;
-  if (my_stat(log, &stat_buff, MYF(0)))
+  if (mysql_file_stat(INSTRUMENT_ME, log, &stat_buff, MYF(0)))
     return HA_LOG_STATUS_INUSE;
   return HA_LOG_STATUS_NOSUCHLOG;
 }

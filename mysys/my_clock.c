@@ -24,7 +24,7 @@ long my_clock(void)
 {
 #if !defined(__WIN__) && !defined(__NETWARE__)
   struct tms tmsbuf;
-  VOID(times(&tmsbuf));
+  (void) times(&tmsbuf);
   return (tmsbuf.tms_utime + tmsbuf.tms_stime);
 #else
   return clock();

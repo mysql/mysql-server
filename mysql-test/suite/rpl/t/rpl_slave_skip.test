@@ -1,3 +1,9 @@
+# Every statement in this test is either executing under ROW or
+# STATEMENT format, which requires the slave thread to be able to apply
+# both statement and row events. Hence, we only need to execute this
+# test for MIXED mode.
+source include/have_binlog_format_mixed.inc;
+
 source include/master-slave.inc;
 source include/have_innodb.inc;
 
@@ -5,6 +11,7 @@ source include/have_innodb.inc;
 connection slave;
 source include/have_innodb.inc;
 STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
 
 --echo **** On Master ****
 connection master;
@@ -27,7 +34,7 @@ connection slave;
 
 # Stop when reaching the the first table map event.
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=762;
--- source include/wait_for_slave_sql_to_stop.inc
+--source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 #
 query_vertical SHOW SLAVE STATUS;
@@ -37,6 +44,7 @@ query_vertical SHOW SLAVE STATUS;
 # changed.
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
+--source include/wait_for_slave_to_start.inc
 sync_with_master;
 
 # These values should be what was inserted, not what was
@@ -47,6 +55,7 @@ SELECT * FROM t1;
 SELECT * FROM t2;
 
 STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 connection master;
 RESET MASTER;
@@ -59,9 +68,10 @@ source include/show_binlog_events.inc;
 
 connection slave;
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=106;
--- source include/wait_for_slave_sql_to_stop.inc
+--source include/wait_for_slave_sql_to_stop.inc
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
+--source include/wait_for_slave_to_start.inc
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 #

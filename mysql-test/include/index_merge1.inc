@@ -303,7 +303,7 @@ drop table t4;
 create table t4 (a int);
 insert into t4 values (1),(4),(3);
 set @save_join_buffer_size=@@join_buffer_size;
-set join_buffer_size= 4000;
+set join_buffer_size= 4096;
 explain select max(A.key1 + B.key1 + A.key2 + B.key2 + A.key3 + B.key3 + A.key4 + B.key4 + A.key5 + B.key5)
  from t0 as A force index(i1,i2), t0 as B force index (i1,i2)
   where (A.key1 < 500000 or A.key2 < 3)

@@ -26,7 +26,7 @@ socket		= @MYSQL_UNIX_ADDR@
 [mysqld]
 port		= @MYSQL_TCP_PORT@
 socket		= @MYSQL_UNIX_ADDR@
-skip-locking
+skip-external-locking
 key_buffer_size = 16K
 max_allowed_packet = 1M
 table_open_cache = 4
@@ -50,6 +50,13 @@ server-id	= 1
 
 # binary logging format - mixed recommended
 #binlog_format=mixed
+
+# Causes updates to non-transactional engines using statement format to be
+# written directly to binary log. Before using this option make sure that
+# there are no dependencies between transactional and non-transactional
+# tables such as in the statement INSERT INTO t_myisam SELECT * FROM
+# t_innodb; otherwise, slaves may diverge from the master.
+#binlog_direct_non_transactional_updates=TRUE
 
 # Uncomment the following if you are using InnoDB tables
 #innodb_data_home_dir = @localstatedir@/

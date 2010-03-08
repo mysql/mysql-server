@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "transaction.h"
 
 /**
   Implement DELETE SQL word.
@@ -56,7 +57,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     THD::STMT_QUERY_TYPE :
     THD::ROW_QUERY_TYPE;
 
-  if (open_and_lock_tables(thd, table_list))
+  if (open_and_lock_tables(thd, table_list, TRUE, 0))
     DBUG_RETURN(TRUE);
   if (!(table= table_list->table))
   {
@@ -92,7 +93,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   }
 
   const_cond= (!conds || conds->const_item());
-  safe_update=test(thd->options & OPTION_SAFE_UPDATES);
+  safe_update=test(thd->variables.option_bits & OPTION_SAFE_UPDATES);
   if (safe_update && const_cond)
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
@@ -131,7 +132,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   if (!using_limit && const_cond_result &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
       (thd->lex->sql_command == SQLCOM_TRUNCATE ||
-       (!thd->current_stmt_binlog_row_based &&
+       (!thd->is_current_stmt_binlog_format_row() &&
         !(table->triggers && table->triggers->has_delete_triggers()))))
   {
     /* Update the table->file->stats.records number */
@@ -385,7 +386,8 @@ cleanup:
   transactional_table= table->file->has_transactions();
 
   if (!transactional_table && deleted > 0)
-    thd->transaction.stmt.modified_non_trans_table= TRUE;
+    thd->transaction.stmt.modified_non_trans_table=
+      thd->transaction.all.modified_non_trans_table= TRUE;
   
   /* See similar binlogging code in sql_update.cc, for comments */
   if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
@@ -414,15 +416,13 @@ cleanup:
       */
       int log_result= thd->binlog_query(query_type,
                                         thd->query(), thd->query_length(),
-                                        is_trans, FALSE, errcode);
+                                        is_trans, FALSE, FALSE, errcode);
 
       if (log_result)
       {
 	error=1;
       }
     }
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
   }
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
@@ -461,19 +461,6 @@ int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
   DBUG_ENTER("mysql_prepare_delete");
   List<Item> all_fields;
 
-  /*
-    Statement-based replication of DELETE ... LIMIT is not safe as order of
-    rows is not defined, so in mixed mode we go to row-based.
-
-    Note that we may consider a statement as safe if ORDER BY primary_key
-    is present. However it may confuse users to see very similiar statements
-    replicated differently.
-  */
-  if (thd->lex->current_select->select_limit)
-  {
-    thd->lex->set_stmt_unsafe();
-    thd->set_current_stmt_binlog_row_based_if_mixed();
-  }
   thd->lex->allow_sum_func= 0;
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
@@ -631,7 +618,7 @@ multi_delete::initialize_tables(JOIN *join)
   Unique **tempfiles_ptr;
   DBUG_ENTER("initialize_tables");
 
-  if ((thd->options & OPTION_SAFE_UPDATES) && error_if_full_join(join))
+  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && error_if_full_join(join))
     DBUG_RETURN(1);
 
   table_map tables_to_delete_from=0;
@@ -822,6 +809,9 @@ void multi_delete::abort()
   if (deleted)
     query_cache_invalidate3(thd, delete_tables, 1);
 
+  if (thd->transaction.stmt.modified_non_trans_table)
+    thd->transaction.all.modified_non_trans_table= TRUE;
+
   /*
     If rows from the first table only has been deleted and it is
     transactional, just do rollback.
@@ -852,10 +842,9 @@ void multi_delete::abort()
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
       /* possible error of writing binary log is ignored deliberately */
       (void) thd->binlog_query(THD::ROW_QUERY_TYPE,
-                              thd->query(), thd->query_length(),
-                              transactional_tables, FALSE, errcode);
+                               thd->query(), thd->query_length(),
+                               transactional_tables, FALSE, FALSE, errcode);
     }
-    thd->transaction.all.modified_non_trans_table= true;
   }
   DBUG_VOID_RETURN;
 }
@@ -1008,6 +997,9 @@ bool multi_delete::send_eof()
   /* reset used flags */
   thd_proc_info(thd, "end");
 
+  if (thd->transaction.stmt.modified_non_trans_table)
+    thd->transaction.all.modified_non_trans_table= TRUE;
+
   /*
     We must invalidate the query cache before binlog writing and
     ha_autocommit_...
@@ -1027,14 +1019,12 @@ bool multi_delete::send_eof()
         errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
       if (thd->binlog_query(THD::ROW_QUERY_TYPE,
                             thd->query(), thd->query_length(),
-                            transactional_tables, FALSE, errcode) &&
+                            transactional_tables, FALSE, FALSE, errcode) &&
           !normal_tables)
       {
 	local_error=1;  // Log write failed: roll back the SQL statement
       }
     }
-    if (thd->transaction.stmt.modified_non_trans_table)
-      thd->transaction.all.modified_non_trans_table= TRUE;
   }
   if (local_error != 0)
     error_handled= TRUE; // to force early leave from ::send_error()
@@ -1059,15 +1049,26 @@ bool multi_delete::send_eof()
 
 static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
 {
-  bool error, save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  bool error, save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
   DBUG_ENTER("mysql_truncate_by_delete");
   table_list->lock_type= TL_WRITE;
+  table_list->mdl_request.set_type(MDL_SHARED_WRITE);
   mysql_init_select(thd->lex);
-  thd->clear_current_stmt_binlog_row_based();
+  thd->clear_current_stmt_binlog_format_row();
+  /* Delete all rows from table */
   error= mysql_delete(thd, table_list, NULL, NULL, HA_POS_ERROR, LL(0), TRUE);
-  ha_autocommit_or_rollback(thd, error);
-  end_trans(thd, error ? ROLLBACK : COMMIT);
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
+  /*
+    All effects of a TRUNCATE TABLE operation are rolled back if a row by row
+    deletion fails. Otherwise, operation is automatically committed at the end.
+  */
+  if (error)
+  {
+    DBUG_ASSERT(thd->stmt_da->is_error());
+    trans_rollback_stmt(thd);
+    trans_rollback(thd);
+  }
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(error);
 }
 
@@ -1081,7 +1082,8 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
     normally can't safely do this.
   - We don't want an ok to be sent to the end user.
   - We don't want to log the truncate command
-  - If we want to have a name lock on the table on exit without errors.
+  - If we want to keep exclusive metadata lock on the table (obtained by
+    caller) on exit without errors.
 */
 
 bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
@@ -1089,15 +1091,22 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   HA_CREATE_INFO create_info;
   char path[FN_REFLEN + 1];
   TABLE *table;
-  bool error;
+  bool error= TRUE;
   uint path_length;
+  /*
+    Is set if we're under LOCK TABLES, and used
+    to downgrade the exclusive lock after the
+    table was truncated.
+  */
+  MDL_ticket *mdl_ticket= NULL;
+  bool has_mdl_lock= FALSE;
   bool is_temporary_table= false;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
 
   /* Remove tables from the HANDLER's hash. */
-  mysql_ha_rm_tables(thd, table_list, FALSE);
+  mysql_ha_rm_tables(thd, table_list);
 
   /* If it is a temporary table, close and regenerate it */
   if (!dont_send_ok && (table= find_temporary_table(thd, table_list)))
@@ -1110,7 +1119,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
       goto trunc_by_del;
 
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
-    
+
     close_temporary_table(thd, table, 0, 0);    // Don't free share
     ha_create_table(thd, share->normalized_path.str,
                     share->db.str, share->table_name.str, &create_info, 1);
@@ -1137,6 +1146,12 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   if (!dont_send_ok)
   {
     enum legacy_db_type table_type;
+    /*
+      FIXME: Code of TRUNCATE breaks the meta-data
+      locking protocol since it tries to find out the table storage
+      engine and therefore accesses table in some way without holding
+      any kind of meta-data lock.
+    */
     mysql_frm_type(thd, path, &table_type);
     if (table_type == DB_TYPE_UNKNOWN)
     {
@@ -1162,41 +1177,87 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
         thd->lex->alter_info.flags & ALTER_ADMIN_PARTITION)
       goto trunc_by_del;
 
-    if (lock_and_wait_for_table_name(thd, table_list))
-      DBUG_RETURN(TRUE);
+
+    if (thd->locked_tables_mode)
+    {
+      if (!(table= find_table_for_mdl_upgrade(thd->open_tables, table_list->db,
+                                              table_list->table_name, FALSE)))
+        DBUG_RETURN(TRUE);
+      mdl_ticket= table->mdl_ticket;
+      if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
+        goto end;
+      close_all_tables_for_name(thd, table->s, FALSE);
+    }
+    else
+    {
+      MDL_request mdl_global_request, mdl_request;
+      MDL_request_list mdl_requests;
+      /*
+        Even though we could use the previous execution branch
+        here just as well, we must not try to open the table: 
+        MySQL manual documents that TRUNCATE can be used to 
+        repair a damaged table, i.e. a table that can not be
+        fully "opened". In particular MySQL manual says:
+
+        As long as the table format file tbl_name.frm  is valid,
+        the table can be re-created as an empty table with TRUNCATE
+        TABLE, even if the data or index files have become corrupted.
+      */
+
+      mdl_global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE);
+      mdl_request.init(MDL_key::TABLE, table_list->db, table_list->table_name,
+                       MDL_EXCLUSIVE);
+      mdl_requests.push_front(&mdl_request);
+      mdl_requests.push_front(&mdl_global_request);
+
+      if (thd->mdl_context.acquire_locks(&mdl_requests,
+                                         thd->variables.lock_wait_timeout))
+        DBUG_RETURN(TRUE);
+
+      has_mdl_lock= TRUE;
+      mysql_mutex_lock(&LOCK_open);
+      tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table_list->db,
+                       table_list->table_name);
+      mysql_mutex_unlock(&LOCK_open);
+    }
   }
 
-  // Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
-  // crashes, replacement works.  *(path + path_length - reg_ext_length)=
-  // '\0';
+  /*
+    Remove the .frm extension AIX 5.2 64-bit compiler bug (BUG#16155): this
+    crashes, replacement works.  *(path + path_length - reg_ext_length)=
+     '\0';
+  */
   path[path_length - reg_ext_length] = 0;
-  VOID(pthread_mutex_lock(&LOCK_open));
+  mysql_mutex_lock(&LOCK_open);
   error= ha_create_table(thd, path, table_list->db, table_list->table_name,
                          &create_info, 1);
-  VOID(pthread_mutex_unlock(&LOCK_open));
+  mysql_mutex_unlock(&LOCK_open);
   query_cache_invalidate3(thd, table_list, 0);
 
 end:
   if (!dont_send_ok)
   {
+    if (thd->locked_tables_mode && thd->locked_tables_list.reopen_tables(thd))
+      thd->locked_tables_list.unlink_all_closed_tables(thd, NULL, 0);
+    /*
+      Even if we failed to reopen some tables,
+      the operation itself succeeded, write the binlog.
+    */
     if (!error)
     {
       /* In RBR, the statement is not binlogged if the table is temporary. */
-      if (!is_temporary_table || !thd->current_stmt_binlog_row_based)
+      if (!is_temporary_table || !thd->is_current_stmt_binlog_format_row())
         error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
       if (!error)
-        my_ok(thd);		// This should return record count
+        my_ok(thd);             // This should return record count
     }
-    VOID(pthread_mutex_lock(&LOCK_open));
-    unlock_table_name(thd, table_list);
-    VOID(pthread_mutex_unlock(&LOCK_open));
+    if (has_mdl_lock)
+      thd->mdl_context.release_transactional_locks();
+    if (mdl_ticket)
+      mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
   }
-  else if (error)
-  {
-    VOID(pthread_mutex_lock(&LOCK_open));
-    unlock_table_name(thd, table_list);
-    VOID(pthread_mutex_unlock(&LOCK_open));
-  }
+
+  DBUG_PRINT("exit", ("error: %d", error));
   DBUG_RETURN(error);
 
 trunc_by_del:

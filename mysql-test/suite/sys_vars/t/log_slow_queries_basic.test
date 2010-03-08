@@ -1,0 +1,186 @@
+##################### mysql-test\t\slow_query_log_basic.test ###################
+#                                                                              #
+# Variable Name: log_slow_queries                                                #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: BOOLEAN                                                           #
+# Default Value: OFF                                                           #
+# Valid Values: ON, OFF                                                        #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-16                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "log_slow_queries"        #
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#              server-options.html#option_mysqld_event-scheduler               #
+#                                                                              #
+#                                                                              #
+# 2010-01-20 OBN - Added check for variable value matching I_S tables after    #
+#                  variable value change                                       #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+###########################################################
+#           START OF log_slow_queries TESTS                 #
+###########################################################
+
+
+######################################################################
+#   Saving initial value of log_slow_queries in a temporary variable   #
+######################################################################
+
+SET @start_value = @@global.log_slow_queries;
+SELECT @start_value;
+
+
+--echo '#---------------------FN_DYNVARS_004_01-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.log_slow_queries = DEFAULT;
+SELECT @@global.log_slow_queries = 0;
+
+
+--echo '#--------------------FN_DYNVARS_004_02------------------------#'
+######################################################################
+#        Change the value of log_slow_queries to a valid value         #
+######################################################################
+
+SET @@global.log_slow_queries = ON;
+SELECT @@global.log_slow_queries;
+SET @@global.log_slow_queries = OFF;
+SELECT @@global.log_slow_queries;
+
+--echo '#--------------------FN_DYNVARS_004_03-------------------------#'
+######################################################################
+#        Change the value of log_slow_queries to invalid value         #
+######################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = TRUEF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = TRUE_F;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = FALSE0;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = OON;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = ONN;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = OOFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = 0FF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = ' ';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = " ";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@global.log_slow_queries = '';
+
+
+--echo '#-------------------FN_DYNVARS_004_04----------------------------#'
+##################################################################
+#         Test if accessing session log_slow_queries gives error   #
+##################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.log_slow_queries = OFF;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.log_slow_queries;
+
+
+--echo '#----------------------FN_DYNVARS_004_05------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL Tables matches values in variable             #
+##############################################################################
+
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
+
+
+--echo '#---------------------FN_DYNVARS_004_06----------------------#'
+################################################################
+#        Check if 0 and 1 values can be used on variable       #
+################################################################
+
+SET @@global.log_slow_queries = 0;
+SELECT @@global.log_slow_queries;
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
+SET @@global.log_slow_queries = 1;
+SELECT @@global.log_slow_queries;
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
+
+--echo '#---------------------FN_DYNVARS_004_07----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.log_slow_queries = TRUE;
+SELECT @@global.log_slow_queries;
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
+SET @@global.log_slow_queries = FALSE;
+SELECT @@global.log_slow_queries;
+SELECT IF(@@global.log_slow_queries, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='log_slow_queries';
+
+--echo '#---------------------FN_DYNVARS_004_08----------------------#'
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+#    to same session variable                                                #
+##############################################################################
+
+SET @@global.log_slow_queries = ON;
+SELECT @@log_slow_queries = @@global.log_slow_queries;
+
+--echo '#---------------------FN_DYNVARS_004_09----------------------#'
+######################################################################
+#   Check if log_slow_queries can be accessed with and without @@ sign #
+######################################################################
+--Error ER_GLOBAL_VARIABLE
+SET log_slow_queries = ON;
+--Error ER_PARSE_ERROR
+SET local.log_slow_queries = OFF;
+--Error ER_UNKNOWN_TABLE
+SELECT local.log_slow_queries;
+--Error ER_PARSE_ERROR
+SET global.log_slow_queries = ON;
+--Error ER_UNKNOWN_TABLE
+SELECT global.log_slow_queries;
+--Error ER_BAD_FIELD_ERROR
+SELECT log_slow_queries = @@session.log_slow_queries;
+
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.log_slow_queries = @start_value;
+SELECT @@global.log_slow_queries;
+
+
+####################################################
+#       END OF log_slow_queries TESTS                #
+####################################################

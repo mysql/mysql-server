@@ -156,7 +156,7 @@ COMMIT;
 
 --echo ## Inserting rows should give error here because connection should ##
 --echo ## disconnect after using COMMIT ##
---Error 2006,2013,ER_SERVER_SHUTDOWN
+--Error 2006,2013,ER_QUERY_INTERRUPTED
 INSERT INTO t1 VALUES(4,'Record_4');
 
 --echo switch to connection test_con2
@@ -171,7 +171,7 @@ INSERT INTO t1 VALUES(12,'Record_12');
 ROLLBACK;
 
 --echo ## Expect a failure due to COMMIT/ROLLBACK AND RELEASE behavior ##
---Error 2006,2013,ER_SERVER_SHUTDOWN,
+--Error 2006,2013,ER_QUERY_INTERRUPTED
 INSERT INTO t1 VALUES(4,'Record_4');
 
 connection default;

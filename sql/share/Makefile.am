@@ -15,8 +15,9 @@
 
 ## Process this file with automake to create Makefile.in
 
-EXTRA_DIST= errmsg-utf8.txt
-
+EXTRA_DIST= errmsg-utf8.txt \
+	CMakeLists.txt
+	
 dist-hook:
 	for dir in charsets @AVAILABLE_LANGUAGES@; do \
 	  test -d $(distdir)/$$dir || mkdir $(distdir)/$$dir; \
@@ -43,8 +44,8 @@ install-data-local:
 			        $(DESTDIR)$(pkgdatadir)/$$lang/errmsg.sys; \
 	done
 	$(mkinstalldirs) $(DESTDIR)$(pkgdatadir)/charsets
-		$(INSTALL_DATA) $(builddir)/errmsg-utf8.txt \
-	        $(DESTDIR)$(pkgdatadir)/errmsg-utf8.txt; \
+	$(INSTALL_DATA) $(builddir)/errmsg-utf8.txt \
+        $(DESTDIR)$(pkgdatadir)/errmsg-utf8.txt; \
 	$(INSTALL_DATA) $(srcdir)/charsets/README $(DESTDIR)$(pkgdatadir)/charsets/README
 	$(INSTALL_DATA) $(srcdir)/charsets/*.xml $(DESTDIR)$(pkgdatadir)/charsets
 

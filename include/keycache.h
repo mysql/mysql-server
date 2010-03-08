@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,10 +67,10 @@ typedef struct st_key_cache
   HASH_LINK *free_hash_list;     /* list of free hash links                  */
   BLOCK_LINK *free_block_list;   /* list of free blocks */
   BLOCK_LINK *block_root;        /* memory for block links                   */
-  uchar HUGE_PTR *block_mem;     /* memory for block buffers                 */
+  uchar *block_mem;              /* memory for block buffers                 */
   BLOCK_LINK *used_last;         /* ptr to the last block of the LRU chain   */
   BLOCK_LINK *used_ins;          /* ptr to the insertion block in LRU chain  */
-  pthread_mutex_t cache_lock;    /* to lock access to the cache structure    */
+  mysql_mutex_t cache_lock;      /* to lock access to the cache structure    */
   KEYCACHE_WQUEUE resize_queue;  /* threads waiting during resize operation  */
   /*
     Waiting for a zero resize count. Using a queue for symmetry though
@@ -87,10 +87,10 @@ typedef struct st_key_cache
     initializing the key cache.
   */
 
-  ulonglong param_buff_size;    /* size the memory allocated for the cache  */
-  ulong param_block_size;       /* size of the blocks in the key cache      */
-  ulong param_division_limit;   /* min. percentage of warm blocks           */
-  ulong param_age_threshold;    /* determines when hot block is downgraded  */
+  ulonglong param_buff_size;      /* size the memory allocated for the cache  */
+  ulonglong param_block_size;     /* size of the blocks in the key cache      */
+  ulonglong param_division_limit; /* min. percentage of warm blocks           */
+  ulonglong param_age_threshold;  /* determines when hot block is downgraded  */
 
   /* Statistics variables. These are reset in reset_key_cache_counters(). */
   ulong global_blocks_changed;	/* number of currently dirty blocks         */

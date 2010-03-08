@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (C) 2000-2006 MySQL AB, 2009 Sun Microsystems, Inc
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -19,18 +19,21 @@ BUILT_SOURCES =		$(HEADERS_GEN_MAKE) link_sources probes_mysql_nodtrace.h
 HEADERS_GEN_CONFIGURE =		mysql_version.h
 HEADERS_GEN_MAKE =		my_config.h
 HEADERS_ABI =		mysql.h mysql_com.h mysql_time.h \
-			my_list.h my_alloc.h typelib.h mysql/plugin.h
+			my_list.h my_alloc.h typelib.h mysql/plugin.h \
+			mysql/plugin_audit.h mysql/plugin_ftparser.h
 pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h mysql/services.h \
 			mysql/service_my_snprintf.h mysql/service_thd_alloc.h \
 		  	my_pthread.h my_no_pthread.h \
+			mysql/psi/psi.h mysql/psi/mysql_thread.h \
+			mysql/psi/mysql_file.h \
 			decimal.h errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			m_ctype.h my_attribute.h $(HEADERS_GEN_CONFIGURE) \
 			$(HEADERS_GEN_MAKE) probes_mysql.h probes_mysql_nodtrace.h
 
-noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
+noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			heap.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
@@ -38,12 +41,16 @@ noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
 			my_handler.h my_time.h service_versions.h \
+			my_rdtsc.h mysql/psi/psi_abi_v1.h mysql/psi/psi_abi_v2.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
-			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
-                        atomic/solaris.h \
-			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h
+			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
+			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
+			atomic/solaris.h
 
-EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base 
+EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base \
+			CMakeLists.txt \
+			mysql/psi/psi_abi_v1.h.pp \
+			mysql/psi/psi_abi_v2.h.pp
 
 # Remove built files and the symlinked directories
 CLEANFILES =            $(BUILT_SOURCES) readline openssl probes_mysql.d probes_mysql_nodtrace.h

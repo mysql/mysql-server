@@ -160,7 +160,13 @@ parse_arguments() {
   fi
 
   for arg do
-    val=`echo "$arg" | sed -e "s;--[^=]*=;;"`
+    # the parameter after "=", or the whole $arg if no match
+    val=`echo "$arg" | sed -e 's;^--[^=]*=;;'`
+    # what's before "=", or the whole $arg if no match
+    optname=`echo "$arg" | sed -e 's/^\(--[^=]*\)=.*$/\1/'`
+    # replace "_" by "-" ; mysqld_safe must accept "_" like mysqld does.
+    optname_subst=`echo "$optname" | sed 's/_/-/g'`
+    arg=`echo $arg | sed "s/^$optname/$optname_subst/"`
     case "$arg" in
       # these get passed explicitly to mysqld
       --basedir=*) MY_BASEDIR_VERSION="$val" ;;
@@ -355,6 +361,9 @@ then
   if test -x "$MY_BASEDIR_VERSION/libexec/mysqld"
   then
     ledir="$MY_BASEDIR_VERSION/libexec"
+  elif test -x "$MY_BASEDIR_VERSION/sbin/mysqld"
+  then
+    ledir="$MY_BASEDIR_VERSION/sbin"
   else
     ledir="$MY_BASEDIR_VERSION/bin"
   fi
@@ -367,6 +376,10 @@ elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/libexec/mysqld"
 then
   MY_BASEDIR_VERSION="$MY_PWD"		# Where libexec, share and var are
   ledir="$MY_PWD/libexec"		# Where mysqld is
+elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/sbin/mysqld"
+then
+  MY_BASEDIR_VERSION="$MY_PWD"		# Where sbin, share and var are
+  ledir="$MY_PWD/sbin"			# Where mysqld is
 # Since we didn't find anything, used the compiled-in defaults
 else
   MY_BASEDIR_VERSION='@prefix@'

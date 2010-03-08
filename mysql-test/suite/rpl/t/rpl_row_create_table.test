@@ -25,8 +25,10 @@ sync_slave_with_master;
 --disable_query_log
 set @storage_engine = @@global.storage_engine;
 STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
 SET GLOBAL storage_engine=memory;
 START SLAVE;
+--source include/wait_for_slave_to_start.inc
 --enable_query_log
 
 --source include/reset_master_and_slave.inc
@@ -129,8 +131,10 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
 sync_slave_with_master;
 # Here we reset the value of the default storage engine
 STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
 SET GLOBAL storage_engine=@storage_engine;
 START SLAVE;
+--source include/wait_for_slave_to_start.inc
 --enable_ps_protocol
 
 # BUG#22864 (Rollback following CREATE ... SELECT discards 'CREATE
@@ -138,11 +142,13 @@ START SLAVE;
 --echo ================ BUG#22864 ================
 connection slave;
 STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 connection master;
 RESET MASTER;
 connection slave;
 START SLAVE;
+--source include/wait_for_slave_to_start.inc
 connection master;
 SET AUTOCOMMIT=0;
 CREATE TABLE t1 (a INT);
@@ -190,6 +196,7 @@ sync_slave_with_master;
 # Some tests with temporary tables
 connection slave;
 STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
 RESET SLAVE;
 
 connection master;
@@ -197,6 +204,7 @@ RESET MASTER;
 
 connection slave;
 START SLAVE;
+--source include/wait_for_slave_to_start.inc
 
 connection master;
 CREATE TABLE t1 (a INT);

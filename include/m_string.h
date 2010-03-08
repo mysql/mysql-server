@@ -92,9 +92,6 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 extern char NEAR _dig_vec_upper[];
 extern char NEAR _dig_vec_lower[];
 
-/* Defined in strtod.c */
-extern const double log_10[309];
-
 #ifndef strmov
 #define strmov_overlapp(A,B) strmov(A,B)
 #define strmake_overlapp(A,B,C) strmake(A,B,C)
@@ -196,8 +193,42 @@ extern char *strstr(const char *, const char *);
 extern int is_prefix(const char *, const char *);
 
 /* Conversion routines */
+typedef enum {
+  MY_GCVT_ARG_FLOAT,
+  MY_GCVT_ARG_DOUBLE
+} my_gcvt_arg_type;
+
 double my_strtod(const char *str, char **end, int *error);
 double my_atof(const char *nptr);
+size_t my_fcvt(double x, int precision, char *to, my_bool *error);
+size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
+               my_bool *error);
+
+#define NOT_FIXED_DEC 31
+
+/*
+  The longest string my_fcvt can return is 311 + "precision" bytes.
+  Here we assume that we never cal my_fcvt() with precision >= NOT_FIXED_DEC
+  (+ 1 byte for the terminating '\0').
+*/
+#define FLOATING_POINT_BUFFER (311 + NOT_FIXED_DEC)
+
+/*
+  We want to use the 'e' format in some cases even if we have enough space
+  for the 'f' one just to mimic sprintf("%.15g") behavior for large integers,
+  and to improve it for numbers < 10^(-4).
+  That is, for |x| < 1 we require |x| >= 10^(-15), and for |x| > 1 we require
+  it to be integer and be <= 10^DBL_DIG for the 'f' format to be used.
+  We don't lose precision, but make cases like "1e200" or "0.00001" look nicer.
+*/
+#define MAX_DECPT_FOR_F_FORMAT DBL_DIG
+
+/*
+  The maximum possible field width for my_gcvt() conversion.
+  (DBL_DIG + 2) significant digits + sign + "." + ("e-NNN" or
+  MAX_DECPT_FOR_F_FORMAT zeros for cases when |x|<1 and the 'f' format is used).
+*/
+#define MY_GCVT_MAX_FIELD_WIDTH (DBL_DIG + 4 + max(5, MAX_DECPT_FOR_F_FORMAT)) \
 
 extern char *llstr(longlong value,char *buff);
 extern char *ullstr(longlong value,char *buff);
@@ -212,7 +243,7 @@ extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
 longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #if SIZEOF_LONG == SIZEOF_LONG_LONG
-#define longlong2str(A,B,C) int2str((A),(B),(C),1)
+#define ll2str(A,B,C,D) int2str((A),(B),(C),(D))
 #define longlong10_to_str(A,B,C) int10_to_str((A),(B),(C))
 #undef strtoll
 #define strtoll(A,B,C) strtol((A),(B),(C))
@@ -225,7 +256,7 @@ longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #endif
 #else
 #ifdef HAVE_LONG_LONG
-extern char *longlong2str(longlong val,char *dst,int radix);
+extern char *ll2str(longlong val,char *dst,int radix, int upcase);
 extern char *longlong10_to_str(longlong val,char *dst,int radix);
 #if (!defined(HAVE_STRTOULL) || defined(NO_STRTOLL_PROTO))
 extern longlong strtoll(const char *str, char **ptr, int base);
@@ -233,6 +264,7 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 #endif
 #endif
 #endif
+#define longlong2str(A,B,C) ll2str((A),(B),(C),1)
 
 /* my_vsnprintf.c */
 
@@ -256,5 +288,81 @@ typedef struct st_mysql_lex_string LEX_STRING;
 #define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))
 #define USTRING_WITH_LEN(X) ((uchar*) X), ((size_t) (sizeof(X) - 1))
 #define C_STRING_WITH_LEN(X) ((char *) (X)), ((size_t) (sizeof(X) - 1))
+
+struct st_mysql_const_lex_string
+{
+  const char *str;
+  size_t length;
+};
+typedef struct st_mysql_const_lex_string LEX_CSTRING;
+
+/* SPACE_INT is a word that contains only spaces */
+#if SIZEOF_INT == 4
+#define SPACE_INT 0x20202020
+#elif SIZEOF_INT == 8
+#define SPACE_INT 0x2020202020202020
+#else
+#error define the appropriate constant for a word full of spaces
+#endif
+
+/**
+  Skip trailing space.
+
+  On most systems reading memory in larger chunks (ideally equal to the size of
+  the chinks that the machine physically reads from memory) causes fewer memory
+  access loops and hence increased performance.
+  This is why the 'int' type is used : it's closest to that (according to how
+  it's defined in C).
+  So when we determine the amount of whitespace at the end of a string we do
+  the following :
+    1. We divide the string into 3 zones :
+      a) from the start of the string (__start) to the first multiple
+        of sizeof(int)  (__start_words)
+      b) from the end of the string (__end) to the last multiple of sizeof(int)
+        (__end_words)
+      c) a zone that is aligned to sizeof(int) and can be safely accessed
+        through an int *
+    2. We start comparing backwards from (c) char-by-char. If all we find is
+       space then we continue
+    3. If there are elements in zone (b) we compare them as unsigned ints to a
+       int mask (SPACE_INT) consisting of all spaces
+    4. Finally we compare the remaining part (a) of the string char by char.
+       This covers for the last non-space unsigned int from 3. (if any)
+
+   This algorithm works well for relatively larger strings, but it will slow
+   the things down for smaller strings (because of the additional calculations
+   and checks compared to the naive method). Thus the barrier of length 20
+   is added.
+
+   @param     ptr   pointer to the input string
+   @param     len   the length of the string
+   @return          the last non-space character
+*/
+
+static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
+{
+  const uchar *end= ptr + len;
+
+  if (len > 20)
+  {
+    const uchar *end_words= (const uchar *)(intptr)
+      (((ulonglong)(intptr)end) / SIZEOF_INT * SIZEOF_INT);
+    const uchar *start_words= (const uchar *)(intptr)
+       ((((ulonglong)(intptr)ptr) + SIZEOF_INT - 1) / SIZEOF_INT * SIZEOF_INT);
+
+    DBUG_ASSERT(((ulonglong)(intptr)ptr) >= SIZEOF_INT);
+    if (end_words > ptr)
+    {
+      while (end > end_words && end[-1] == 0x20)
+        end--;
+      if (end[-1] == 0x20 && start_words < end_words)
+        while (end > start_words && ((unsigned *)end)[-1] == SPACE_INT)
+          end -= SIZEOF_INT;
+    }
+  }
+  while (end > ptr && end[-1] == 0x20)
+    end--;
+  return (end);
+}
 
 #endif

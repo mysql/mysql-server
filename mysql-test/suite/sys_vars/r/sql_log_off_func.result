@@ -19,7 +19,6 @@ UPDATE t1 SET a = 'aa1' WHERE a = 'aa1-updated';
 Checking if log contains the executed statement
 SELECT argument FROM mysql.general_log WHERE argument = 'UPDATE t1 SET a = \'aa1\' WHERE a = \'aa1-updated\'';
 argument
-UPDATE t1 SET a = 'aa1' WHERE a = 'aa1-updated'
 '#--------------------FN_DYNVARS_158_03--------------------------#'
 ** Connecting con_int1 using root **
 ** Connection con_int1 **

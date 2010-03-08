@@ -107,15 +107,10 @@ SET @@global.query_cache_type = -1;
 SET @@global.query_cache_type = ONDEMAND;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_type = 'ON,OFF';
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_type = 'OF';
-SELECT @@global.query_cache_type;
-
---echo 'Bug# 34828: OF is taken as OFF.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_type = YES;
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_type = ' ';
 
@@ -156,30 +151,8 @@ SELECT @@global.query_cache_type;
 
 # use of decimal values
 
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.query_cache_type = 0.4;
-SELECT @@global.query_cache_type;
-
-SET @@global.query_cache_type = 1.0;
-SELECT @@global.query_cache_type;
-
-SET @@global.query_cache_type = 1.1;
-SELECT @@global.query_cache_type;
-
-SET @@global.query_cache_type = 1.5;
-SELECT @@global.query_cache_type;
-
-SET @@global.query_cache_type = 2.49;
-SELECT @@global.query_cache_type;
-
-SET @@session.query_cache_type = 0.5;
-SELECT @@session.query_cache_type;
-
-SET @@session.query_cache_type = 1.6;
-SELECT @@session.query_cache_type;
-
-
---echo 'Bug: Decimal values can be used within the range [0.0-2.5). Values';
---echo 'are rounded to 0,1,2 as evident from outcome.';
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.query_cache_type = 3;

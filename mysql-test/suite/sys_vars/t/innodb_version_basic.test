@@ -1,0 +1,28 @@
+
+#
+#  2010-01-27 OBN - Added 
+#
+
+--source include/have_innodb.inc
+
+#
+# show the global and session values;
+#
+--let $inno_ver= `select @@global.innodb_version`
+--replace_result $inno_ver x.y.z
+select @@global.innodb_version;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_version;
+--echo show global variables like 'innodb_version' disabled so to not change with every version;
+--echo show session variables like 'innodb_version' disabled so to not change with every version;
+select VARIABLE_VALUE=@@global.innodb_version from information_schema.global_variables where variable_name='innodb_version';
+select VARIABLE_VALUE=@@global.innodb_version from information_schema.session_variables where variable_name='innodb_version';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_version=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_version=1;
+

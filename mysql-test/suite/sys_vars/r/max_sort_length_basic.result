@@ -93,8 +93,8 @@ Warning	1292	Truncated incorrect max_sort_length value: '0'
 SELECT @@global.max_sort_length;
 @@global.max_sort_length
 4
-SET @@global.max_sort_length = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.max_sort_length = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
 SELECT @@global.max_sort_length;
 @@global.max_sort_length
 4
@@ -127,8 +127,8 @@ Warning	1292	Truncated incorrect max_sort_length value: '0'
 SELECT @@session.max_sort_length;
 @@session.max_sort_length
 4
-SET @@session.max_sort_length = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.max_sort_length = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
 SET @@session.max_sort_length = 10737418241;
 Warnings:
 Warning	1292	Truncated incorrect max_sort_length value: '10737418241'

@@ -112,7 +112,7 @@ handlerton *example_hton;
 static HASH example_open_tables;
 
 /* The mutex used to init the hash; variable for example share methods */
-pthread_mutex_t example_mutex;
+mysql_mutex_t example_mutex;
 
 /**
   @brief
@@ -126,13 +126,39 @@ static uchar* example_get_key(EXAMPLE_SHARE *share, size_t *length,
   return (uchar*) share->table_name;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key ex_key_mutex_example, ex_key_mutex_EXAMPLE_SHARE_mutex;
+
+static PSI_mutex_info all_example_mutexes[]=
+{
+  { &ex_key_mutex_example, "example", PSI_FLAG_GLOBAL},
+  { &ex_key_mutex_EXAMPLE_SHARE_mutex, "EXAMPLE_SHARE::mutex", 0}
+};
+
+static void init_example_psi_keys()
+{
+  const char* category= "example";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_example_mutexes);
+  PSI_server->register_mutex(category, all_example_mutexes, count);
+}
+#endif
+
 
 static int example_init_func(void *p)
 {
   DBUG_ENTER("example_init_func");
 
+#ifdef HAVE_PSI_INTERFACE
+  init_example_psi_keys();
+#endif
+
   example_hton= (handlerton *)p;
-  VOID(pthread_mutex_init(&example_mutex,MY_MUTEX_INIT_FAST));
+  mysql_mutex_init(ex_key_mutex_example, &example_mutex, MY_MUTEX_INIT_FAST);
   (void) my_hash_init(&example_open_tables,system_charset_info,32,0,0,
                       (my_hash_get_key) example_get_key,0,0);
 
@@ -152,7 +178,7 @@ static int example_done_func(void *p)
   if (example_open_tables.records)
     error= 1;
   my_hash_free(&example_open_tables);
-  pthread_mutex_destroy(&example_mutex);
+  mysql_mutex_destroy(&example_mutex);
 
   DBUG_RETURN(0);
 }
@@ -172,7 +198,7 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
   uint length;
   char *tmp_name;
 
-  pthread_mutex_lock(&example_mutex);
+  mysql_mutex_lock(&example_mutex);
   length=(uint) strlen(table_name);
 
   if (!(share=(EXAMPLE_SHARE*) my_hash_search(&example_open_tables,
@@ -185,7 +211,7 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
                           &tmp_name, length+1,
                           NullS)))
     {
-      pthread_mutex_unlock(&example_mutex);
+      mysql_mutex_unlock(&example_mutex);
       return NULL;
     }
 
@@ -196,15 +222,16 @@ static EXAMPLE_SHARE *get_share(const char *table_name, TABLE *table)
     if (my_hash_insert(&example_open_tables, (uchar*) share))
       goto error;
     thr_lock_init(&share->lock);
-    pthread_mutex_init(&share->mutex,MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(ex_key_mutex_EXAMPLE_SHARE_mutex,
+                     &share->mutex, MY_MUTEX_INIT_FAST);
   }
   share->use_count++;
-  pthread_mutex_unlock(&example_mutex);
+  mysql_mutex_unlock(&example_mutex);
 
   return share;
 
 error:
-  pthread_mutex_destroy(&share->mutex);
+  mysql_mutex_destroy(&share->mutex);
   my_free(share, MYF(0));
 
   return NULL;
@@ -219,15 +246,15 @@ error:
 
 static int free_share(EXAMPLE_SHARE *share)
 {
-  pthread_mutex_lock(&example_mutex);
+  mysql_mutex_lock(&example_mutex);
   if (!--share->use_count)
   {
     my_hash_delete(&example_open_tables, (uchar*) share);
     thr_lock_delete(&share->lock);
-    pthread_mutex_destroy(&share->mutex);
+    mysql_mutex_destroy(&share->mutex);
     my_free(share, MYF(0));
   }
-  pthread_mutex_unlock(&example_mutex);
+  mysql_mutex_unlock(&example_mutex);
 
   return 0;
 }
@@ -356,7 +383,13 @@ int ha_example::close(void)
 int ha_example::write_row(uchar *buf)
 {
   DBUG_ENTER("ha_example::write_row");
-  DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  /*
+    Example of a successful write_row. We don't store the data
+    anywhere; they are thrown away. A real implementation will
+    probably need to do something with 'buf'. We report a success
+    here, to pretend that the insert was successful.
+  */
+  DBUG_RETURN(0);
 }
 
 

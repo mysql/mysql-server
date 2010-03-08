@@ -69,7 +69,7 @@ EXTRA_DIST =		$(EXTRA_SCRIPTS) \
 			make_win_bin_dist \
 			mysql_fix_privilege_tables_sql.c \
 			mysql_system_tables_fix.sql \
-			CMakeLists.txt
+			CMakeLists.txt 
 
 dist_pkgdata_DATA =	fill_help_tables.sql \
 			mysql_fix_privilege_tables.sql \

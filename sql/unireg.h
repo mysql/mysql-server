@@ -96,8 +96,8 @@
 
 #define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
 
-#define MAX_SORT_MEMORY (2048*1024-MALLOC_OVERHEAD)
-#define MIN_SORT_MEMORY (32*1024-MALLOC_OVERHEAD)
+#define MAX_SORT_MEMORY 2048*1024
+#define MIN_SORT_MEMORY 32*1024
 
 /* Memory allocated when parsing a statement / saving a statement */
 #define MEM_ROOT_BLOCK_SIZE       8192
@@ -129,7 +129,7 @@
 #define SPECIAL_SAME_DB_NAME   16		/* form name = file name */
 #define SPECIAL_ENGLISH        32		/* English error messages */
 #define SPECIAL_NO_RESOLVE     64		/* Don't use gethostname */
-#define SPECIAL_NO_PRIOR	128		/* Don't prioritize threads */
+#define SPECIAL_NO_PRIOR	128		/* Obsolete */
 #define SPECIAL_BIG_SELECTS	256		/* Don't use heap tables */
 #define SPECIAL_NO_HOST_CACHE	512		/* Don't cache hosts */
 #define SPECIAL_SHORT_LOG_FORMAT 1024
@@ -197,6 +197,11 @@
 */
 #define OPTIMIZE_I_S_TABLE     OPEN_VIEW_FULL*2
 
+/*
+  The flag means that we need to process trigger files only.
+*/
+#define OPEN_TRIGGER_ONLY      OPTIMIZE_I_S_TABLE*2
+
 #define SC_INFO_LENGTH 4		/* Form format constant */
 #define TE_INFO_LENGTH 3
 #define MTYP_NOEMPTY_BIT 128
@@ -216,7 +221,6 @@
 */
 
 #define BIN_LOG_HEADER_SIZE    4 
-#define FLOATING_POINT_BUFFER 331
 
 #define DEFAULT_KEY_CACHE_NAME "default"
 

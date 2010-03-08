@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,6 @@ typedef DWORD		 pthread_t;
 typedef struct thread_attr {
     DWORD dwStackSize ;
     DWORD dwCreatingFlag ;
-    int priority ;
 } pthread_attr_t ;
 
 typedef struct { int dummy; } pthread_condattr_t;
@@ -103,9 +102,22 @@ struct timespec {
   (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000); \
 }
 
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
+   ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
+
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
-int pthread_create(pthread_t *,pthread_attr_t *,pthread_handler,void *);
+int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
 int pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr);
 int pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex);
 int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
@@ -115,7 +127,6 @@ int pthread_cond_broadcast(pthread_cond_t *cond);
 int pthread_cond_destroy(pthread_cond_t *cond);
 int pthread_attr_init(pthread_attr_t *connect_att);
 int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
-int pthread_attr_setprio(pthread_attr_t *connect_att,int priority);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 int my_pthread_once(my_pthread_once_t *once_control,void (*init_routine)(void));
 struct tm *localtime_r(const time_t *timep,struct tm *tmp);
@@ -123,9 +134,11 @@ struct tm *gmtime_r(const time_t *timep,struct tm *tmp);
 
 void pthread_exit(void *a);
 int pthread_join(pthread_t thread, void **value_ptr);
+int pthread_cancel(pthread_t thread);
 
-
+#ifndef ETIMEDOUT
 #define ETIMEDOUT 145		    /* Win32 doesn't have this */
+#endif
 #define HAVE_LOCALTIME_R		1
 #define _REENTRANT			1
 #define HAVE_PTHREAD_ATTR_SETSTACKSIZE	1
@@ -145,21 +158,19 @@ int pthread_join(pthread_t thread, void **value_ptr);
 #define pthread_mutex_init(A,B)  (InitializeCriticalSection(A),0)
 #define pthread_mutex_lock(A)	 (EnterCriticalSection(A),0)
 #define pthread_mutex_trylock(A) win_pthread_mutex_trylock((A))
-#define pthread_mutex_unlock(A)  LeaveCriticalSection(A)
-#define pthread_mutex_destroy(A) DeleteCriticalSection(A)
-#define my_pthread_setprio(A,B)  SetThreadPriority(GetCurrentThread(), (B))
+#define pthread_mutex_unlock(A)  (LeaveCriticalSection(A), 0)
+#define pthread_mutex_destroy(A) (DeleteCriticalSection(A), 0)
 #define pthread_kill(A,B) pthread_dummy((A) ? 0 : ESRCH)
 
 
 /* Dummy defines for easier code */
 #define pthread_attr_setdetachstate(A,B) pthread_dummy(0)
-#define my_pthread_attr_setprio(A,B) pthread_attr_setprio(A,B)
 #define pthread_attr_setscope(A,B)
 #define pthread_detach_this_thread()
 #define pthread_condattr_init(A)
 #define pthread_condattr_destroy(A)
-
-#define my_pthread_getprio(thread_id) pthread_dummy(0)
+#define pthread_yield() SwitchToThread()
+#define my_sigset(A,B) signal(A,B)
 
 #else /* Normal threads */
 
@@ -186,8 +197,6 @@ int pthread_join(pthread_t thread, void **value_ptr);
 void my_pthread_exit(void *status);
 #define pthread_exit(A) my_pthread_exit(A)
 #endif
-
-extern int my_pthread_getprio(pthread_t thread_id);
 
 #define pthread_key(T,V) pthread_key_t V
 #define my_pthread_getspecific_ptr(T,V) my_pthread_getspecific(T,(V))
@@ -262,32 +271,6 @@ int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #define my_sigset(A,B) sigset((A),(B))
 #elif !defined(my_sigset)
 #define my_sigset(A,B) signal((A),(B))
-#endif
-
-#ifndef my_pthread_setprio
-#if defined(HAVE_PTHREAD_SETPRIO_NP)		/* FSU threads */
-#define my_pthread_setprio(A,B) pthread_setprio_np((A),(B))
-#elif defined(HAVE_PTHREAD_SETPRIO)
-#define my_pthread_setprio(A,B) pthread_setprio((A),(B))
-#elif defined(HAVE_PTHREAD_SETSCHEDPRIO) && !defined (__GNUC__)
-/*
-   Workaround for bug on Solaris where pthread.h have bug in GNU
-   version of pthread.h => configure says yes, header files says
-   no. So not used with gcc and issue is Solaris only, so will
-   be used on Solaris using SunStudio.
-*/
-#define my_pthread_setprio(A,B) pthread_setschedprio((A),(B))
-#else
-extern void my_pthread_setprio(pthread_t thread_id,int prior);
-#endif
-#endif
-
-#ifndef my_pthread_attr_setprio
-#ifdef HAVE_PTHREAD_ATTR_SETPRIO
-#define my_pthread_attr_setprio(A,B) pthread_attr_setprio((A),(B))
-#else
-extern void my_pthread_attr_setprio(pthread_attr_t *attr, int priority);
-#endif
 #endif
 
 #if !defined(HAVE_PTHREAD_ATTR_SETSCOPE) || defined(HAVE_DEC_3_2_THREADS)
@@ -395,6 +378,17 @@ void my_pthread_attr_getstacksize(pthread_attr_t *attrib, size_t *size);
 int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif
 
+#if !defined(HAVE_PTHREAD_YIELD_ONE_ARG) && !defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
+/* no pthread_yield() available */
+#ifdef HAVE_SCHED_YIELD
+#define pthread_yield() sched_yield()
+#elif defined(HAVE_PTHREAD_YIELD_NP) /* can be Mac OS X */
+#define pthread_yield() pthread_yield_np()
+#elif defined(HAVE_THR_YIELD)
+#define pthread_yield() thr_yield()
+#endif
+#endif
+
 /*
   The defines set_timespec and set_timespec_nsec should be used
   for calculating an absolute time at which
@@ -434,6 +428,33 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
   (ABSTIME).tv_nsec= (long) (now % ULL(10000000) * 100 + ((NSEC) % 100)); \
 }
 #endif /* !set_timespec_nsec */
+#endif /* HAVE_TIMESPEC_TS_SEC */
+
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#ifdef HAVE_TIMESPEC_TS_SEC
+#ifndef cmp_timespec
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.ts_sec > TS2.ts_sec || \
+    (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec > TS2.ts_nsec)) ? 1 : \
+   ((TS1.ts_sec < TS2.ts_sec || \
+     (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec < TS2.ts_nsec)) ? -1 : 0))
+#endif /* !cmp_timespec */
+#else
+#ifndef cmp_timespec
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv_sec > TS2.tv_sec || \
+    (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec > TS2.tv_nsec)) ? 1 : \
+   ((TS1.tv_sec < TS2.tv_sec || \
+     (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
+#endif /* !cmp_timespec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
 	/* safe_mutex adds checking to mutex for easier debugging */
@@ -579,30 +600,76 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 #define my_rwlock_init(A,B) rwlock_init((A),USYNC_THREAD,0)
 #else
 /* Use our own version of read/write locks */
-typedef struct _my_rw_lock_t {
-	pthread_mutex_t lock;		/* lock for structure		*/
-	pthread_cond_t	readers;	/* waiting readers		*/
-	pthread_cond_t	writers;	/* waiting writers		*/
-	int		state;		/* -1:writer,0:free,>0:readers	*/
-	int		waiters;	/* number of waiting writers	*/
-} my_rw_lock_t;
-
+#define NEED_MY_RW_LOCK 1
 #define rw_lock_t my_rw_lock_t
+#define my_rwlock_init(A,B) my_rw_init((A), 0)
 #define rw_rdlock(A) my_rw_rdlock((A))
 #define rw_wrlock(A) my_rw_wrlock((A))
 #define rw_tryrdlock(A) my_rw_tryrdlock((A))
 #define rw_trywrlock(A) my_rw_trywrlock((A))
 #define rw_unlock(A) my_rw_unlock((A))
-#define rwlock_destroy(A) my_rwlock_destroy((A))
+#define rwlock_destroy(A) my_rw_destroy((A))
+#endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
 
-extern int my_rwlock_init(my_rw_lock_t *, void *);
-extern int my_rwlock_destroy(my_rw_lock_t *);
+
+/*
+  Portable read-write locks which prefer readers.
+
+  Required by some algorithms in order to provide correctness.
+*/
+
+#if defined(HAVE_PTHREAD_RWLOCK_RDLOCK) && defined(HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP)
+/*
+  On systems which have a way to specify that readers should
+  be preferred through attribute mechanism (e.g. Linux) we use
+  system implementation of read/write locks.
+*/
+#define rw_pr_lock_t pthread_rwlock_t
+extern int rw_pr_init(rw_pr_lock_t *);
+#define rw_pr_rdlock(A) pthread_rwlock_rdlock(A)
+#define rw_pr_wrlock(A) pthread_rwlock_wrlock(A)
+#define rw_pr_tryrdlock(A) pthread_rwlock_tryrdlock(A)
+#define rw_pr_trywrlock(A) pthread_rwlock_trywrlock(A)
+#define rw_pr_unlock(A) pthread_rwlock_unlock(A)
+#define rw_pr_destroy(A) pthread_rwlock_destroy(A)
+#else
+/* Otherwise we have to use our own implementation of read/write locks. */
+#define NEED_MY_RW_LOCK 1
+struct st_my_rw_lock_t;
+#define rw_pr_lock_t my_rw_lock_t
+extern int rw_pr_init(struct st_my_rw_lock_t *);
+#define rw_pr_rdlock(A) my_rw_rdlock((A))
+#define rw_pr_wrlock(A) my_rw_wrlock((A))
+#define rw_pr_tryrdlock(A) my_rw_tryrdlock((A))
+#define rw_pr_trywrlock(A) my_rw_trywrlock((A))
+#define rw_pr_unlock(A) my_rw_unlock((A))
+#define rw_pr_destroy(A) my_rw_destroy((A))
+#endif /* defined(HAVE_PTHREAD_RWLOCK_RDLOCK) && defined(HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP) */
+
+
+#ifdef NEED_MY_RW_LOCK
+/*
+  On systems which don't support native read/write locks, or don't support
+  read/write locks which prefer readers we have to use own implementation.
+*/
+typedef struct st_my_rw_lock_t {
+	pthread_mutex_t lock;		/* lock for structure		*/
+	pthread_cond_t	readers;	/* waiting readers		*/
+	pthread_cond_t	writers;	/* waiting writers		*/
+	int		state;		/* -1:writer,0:free,>0:readers	*/
+	int             waiters;        /* number of waiting writers	*/
+	my_bool         prefer_readers;
+} my_rw_lock_t;
+
+extern int my_rw_init(my_rw_lock_t *, my_bool *);
+extern int my_rw_destroy(my_rw_lock_t *);
 extern int my_rw_rdlock(my_rw_lock_t *);
 extern int my_rw_wrlock(my_rw_lock_t *);
 extern int my_rw_unlock(my_rw_lock_t *);
 extern int my_rw_tryrdlock(my_rw_lock_t *);
 extern int my_rw_trywrlock(my_rw_lock_t *);
-#endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
+#endif /* NEED_MY_RW_LOCK */
+
 
 #define GETHOSTBYADDR_BUFF_SIZE 2048
 
@@ -636,6 +703,8 @@ extern pthread_mutexattr_t my_errorcheck_mutexattr;
 typedef ulong my_thread_id;
 
 extern my_bool my_thread_global_init(void);
+extern my_bool my_thread_basic_global_init(void);
+extern void my_thread_basic_global_reinit(void);
 extern void my_thread_global_end(void);
 extern my_bool my_thread_init(void);
 extern void my_thread_end(void);
@@ -659,13 +728,17 @@ extern int pthread_dummy(int);
 #endif
 #endif
 
+#include <mysql/psi/mysql_thread.h>
+
+#define INSTRUMENT_ME 0
+
 struct st_my_thread_var
 {
   int thr_errno;
-  pthread_cond_t suspend;
-  pthread_mutex_t mutex;
-  pthread_mutex_t * volatile current_mutex;
-  pthread_cond_t * volatile current_cond;
+  mysql_cond_t suspend;
+  mysql_mutex_t mutex;
+  mysql_mutex_t * volatile current_mutex;
+  mysql_cond_t * volatile current_cond;
   pthread_t pthread_self;
   my_thread_id id;
   int cmp_length;
@@ -673,6 +746,7 @@ struct st_my_thread_var
   my_bool init;
   struct st_my_thread_var *next,**prev;
   void *opt_info;
+  void  *stack_ends_here;
 #ifndef DBUG_OFF
   void *dbug;
   char name[THREAD_NAME_SIZE+1];
@@ -709,23 +783,30 @@ extern uint thd_lib_detected;
   Warning:
   When compiling without threads, this file is not included.
   See the *other* declarations of thread_safe_xxx in include/my_global.h
-
-  Second warning:
-  See include/config-win.h, for yet another implementation.
 */
 #ifdef THREAD
 #ifndef thread_safe_increment
+#ifdef _WIN32
+#define thread_safe_increment(V,L) InterlockedIncrement((long*) &(V))
+#define thread_safe_decrement(V,L) InterlockedDecrement((long*) &(V))
+#else
 #define thread_safe_increment(V,L) \
-        (pthread_mutex_lock((L)), (V)++, pthread_mutex_unlock((L)))
+        (mysql_mutex_lock((L)), (V)++, mysql_mutex_unlock((L)))
 #define thread_safe_decrement(V,L) \
-        (pthread_mutex_lock((L)), (V)--, pthread_mutex_unlock((L)))
+        (mysql_mutex_lock((L)), (V)--, mysql_mutex_unlock((L)))
+#endif
 #endif
 
 #ifndef thread_safe_add
+#ifdef _WIN32
+#define thread_safe_add(V,C,L) InterlockedExchangeAdd((long*) &(V),(C))
+#define thread_safe_sub(V,C,L) InterlockedExchangeAdd((long*) &(V),-(long) (C))
+#else
 #define thread_safe_add(V,C,L) \
-        (pthread_mutex_lock((L)), (V)+=(C), pthread_mutex_unlock((L)))
+        (mysql_mutex_lock((L)), (V)+=(C), mysql_mutex_unlock((L)))
 #define thread_safe_sub(V,C,L) \
-        (pthread_mutex_lock((L)), (V)-=(C), pthread_mutex_unlock((L)))
+        (mysql_mutex_lock((L)), (V)-=(C), mysql_mutex_unlock((L)))
+#endif
 #endif
 #endif
 

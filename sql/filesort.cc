@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB  
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1121,8 +1121,9 @@ uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 
   if ((count=(uint) min((ha_rows) buffpek->max_keys,buffpek->count)))
   {
-    if (my_pread(fromfile->file,(uchar*) buffpek->base,
-		 (length= rec_length*count),buffpek->file_pos,MYF_RW))
+    if (mysql_file_pread(fromfile->file, (uchar*) buffpek->base,
+                         (length= rec_length*count),
+                         buffpek->file_pos, MYF_RW))
       return((uint) -1);			/* purecov: inspected */
     buffpek->key=buffpek->base;
     buffpek->file_pos+= length;			/* New filepos */
@@ -1320,7 +1321,7 @@ int merge_buffers(SORTPARAM *param, IO_CACHE *from_file,
         if (!(error= (int) read_to_buffer(from_file,buffpek,
                                           rec_length)))
         {
-          VOID(queue_remove(&queue,0));
+          (void) queue_remove(&queue,0);
           reuse_freed_buff(&queue, buffpek, rec_length);
           break;                        /* One buffer have been removed */
         }

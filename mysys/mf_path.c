@@ -42,7 +42,7 @@ char * my_path(char * to, const char *progname,
 		   ((prog=getenv("_")) != 0 &&
                     dirname_part(to, prog, &to_length))))
   {
-    VOID(intern_filename(to,to));
+    (void) intern_filename(to,to);
     if (!test_if_hard_path(to))
     {
       if (!my_getwd(curr_dir,FN_REFLEN,MYF(0)))
@@ -60,11 +60,11 @@ char * my_path(char * to, const char *progname,
       end= (char*) "/my/";
 #endif
     }
-    VOID(intern_filename(to,end));
+    (void) intern_filename(to,end);
     to=strend(to);
     if (to != start && to[-1] != FN_LIBCHAR)
       *to++ = FN_LIBCHAR;
-    VOID(strmov(to,own_pathname_part));
+    (void) strmov(to,own_pathname_part);
   }
   DBUG_PRINT("exit",("to: '%s'",start));
   DBUG_RETURN(start);

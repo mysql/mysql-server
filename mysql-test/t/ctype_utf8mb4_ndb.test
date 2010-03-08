@@ -1,0 +1,7 @@
+--source include/have_utf8mb4.inc
+--source include/have_ndb.inc
+
+let $engine= ndb;
+let $is_ndb= 1;
+--source include/ctype_utf8mb4.inc
+

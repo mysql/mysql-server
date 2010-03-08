@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001, 2004 MySQL AB
+/* Copyright (C) 2000-2001, 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,3 +27,35 @@ static const char *merge_insert_methods[] =
 { "FIRST", "LAST", NullS };
 TYPELIB merge_insert_method= { array_elements(merge_insert_methods)-1,"",
 			       merge_insert_methods, 0};
+
+#ifdef HAVE_PSI_INTERFACE
+PSI_mutex_key rg_key_mutex_MYRG_INFO_mutex;
+
+static PSI_mutex_info all_myisammrg_mutexes[]=
+{
+  { &rg_key_mutex_MYRG_INFO_mutex, "MYRG_INFO::mutex", 0}
+};
+
+PSI_file_key rg_key_file_MRG;
+
+static PSI_file_info all_myisammrg_files[]=
+{
+  { &rg_key_file_MRG, "MRG", 0}
+};
+
+void init_myisammrg_psi_keys()
+{
+  const char* category= "myisammrg";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_myisammrg_mutexes);
+  PSI_server->register_mutex(category, all_myisammrg_mutexes, count);
+
+  count= array_elements(all_myisammrg_files);
+  PSI_server->register_file(category, all_myisammrg_files, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+

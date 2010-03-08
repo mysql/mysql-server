@@ -7,6 +7,9 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
 
 --echo # Bug#37938 Test "mysqldump" lacks various insert statements
 --echo # Turn off concurrent inserts to avoid random errors
@@ -46,9 +49,6 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (a double);
 INSERT INTO t1 VALUES ('-9e999999');
-# The following replaces is here because some systems replaces the above
-# double with '-inf' and others with MAX_DOUBLE
---replace_result (-1.79769313486232e+308) (RES) (NULL) (RES)
 --exec $MYSQL_DUMP --compact test t1
 DROP TABLE t1;
 
@@ -168,7 +168,7 @@ drop database mysqldump_test_db;
 
 CREATE TABLE t1 (a  CHAR(10));
 INSERT INTO t1  VALUES (_latin1 '����');
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments test t1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments test t1
 
 --echo #
 --echo # Bug#8063 make test mysqldump [ fail ]
@@ -178,10 +178,10 @@ INSERT INTO t1  VALUES (_latin1 '����');
 --echo # checking that "mysqldump" is compiled with "latin1"
 --echo #
 
-#--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --compatible=mysql323 test t1
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --compatible=mysql323 --default-character-set=cp850 test t1
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=cp850 --compatible=mysql323 test t1
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 test t1
+#--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments --compatible=mysql323 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments --compatible=mysql323 --default-character-set=cp850 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments --default-character-set=cp850 --compatible=mysql323 test t1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments --default-character-set=utf8 --compatible=mysql323 test t1
 DROP TABLE t1;
 
 --echo #
@@ -875,8 +875,13 @@ select * from t1;
 create  view v1 as
 select * from v3 where b in (1, 2, 3, 4, 5, 6, 7);
 
+# Disable warnings since LIMIT warning for unsafe statement if
+# binlog_format = STATEMENT. Note: after BUG#45832, the warning should
+# not be issued.
+--disable_warnings
 create  view v2 as
 select v3.a from v3, v1 where v1.a=v3.a and v3.b=3 limit 1;
+--enable_warnings
 
 --exec $MYSQL_DUMP --skip-comments test
 
@@ -1673,14 +1678,14 @@ drop database db42635;
 
 SET NAMES utf8;
 CREATE TABLE `straße` ( f1 INT );
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 test
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=latin1 --compatible=mysql323 test
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments --default-character-set=utf8 --compatible=mysql323 test
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments --default-character-set=latin1 --compatible=mysql323 test
 DROP TABLE `straße`;
 
 CREATE TABLE `כדשגכחךלדגכחשךדגחכךלדגכ` ( f1 INT );
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=utf8 --compatible=mysql323 test
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments --default-character-set=utf8 --compatible=mysql323 test
 --error 2
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --skip-comments --default-character-set=latin1 --compatible=mysql323 test
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --skip-comments --default-character-set=latin1 --compatible=mysql323 test
 DROP TABLE `כדשגכחךלדגכחשךדגחכךלדגכ`;
 SET NAMES latin1;
 
@@ -1837,7 +1842,7 @@ set names latin1;
 --echo
 --echo # Dump mysqldump_test_db to bug30027.sql.
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --default-character-set=latin1 --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/bug30027.sql
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=latin1 --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/bug30027.sql
 
 --echo
 --echo # Drop mysqldump_test_db.
@@ -1923,7 +1928,7 @@ WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
 --echo
 
 --echo ---> Dumping mysqldump_test_db to bug30217.sql
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/bug30217.sql
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/bug30217.sql
 
 --echo
 
@@ -2079,7 +2084,7 @@ INSERT INTO t1 VALUES (1, 'ABC-АБВ', 'DEF-ÂÃÄ'), (2, NULL, NULL);
 
 --echo # default '--default-charset' (binary):
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --tab=$MYSQLTEST_VARDIR/tmp/ test t1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --tab=$MYSQLTEST_VARDIR/tmp/ test t1
 --echo ##################################################
 --cat_file $file
 --echo ##################################################
@@ -2092,7 +2097,7 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 
 --echo # utf8:
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --default-character-set=utf8 --tab=$MYSQLTEST_VARDIR/tmp/ test t1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=utf8 --tab=$MYSQLTEST_VARDIR/tmp/ test t1
 --echo ##################################################
 --cat_file $file
 --echo ##################################################
@@ -2105,7 +2110,7 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 
 --echo # latin1 (data corruption is expected):
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --default-character-set=latin1 --tab=$MYSQLTEST_VARDIR/tmp/ test t1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=latin1 --tab=$MYSQLTEST_VARDIR/tmp/ test t1
 --echo ##################################################
 --cat_file $file
 --echo ##################################################
@@ -2118,7 +2123,7 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 
 --echo # koi8r (data corruption is expected):
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --default-character-set=koi8r --tab=$MYSQLTEST_VARDIR/tmp/ test t1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=koi8r --tab=$MYSQLTEST_VARDIR/tmp/ test t1
 --echo ##################################################
 --cat_file $file
 --echo ##################################################
