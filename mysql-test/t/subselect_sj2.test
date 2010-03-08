@@ -650,3 +650,22 @@ SELECT * FROM v1;
 drop view v1;
 drop table t1;
 
+
+#
+# BUG#35550 "Semi-join subquery in ON clause and no WHERE crashes the server"
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1(a int, b int);
+insert into t1 values (0,0),(1,1),(2,2);
+create table t2 as select * from t1;
+
+create table t3 (pk int, a int, primary key(pk));
+insert into t3 select a,a from t0;
+
+explain 
+select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
+
+drop table t0, t1, t2, t3;
+

@@ -31,6 +31,9 @@ select * from t1 where a in (select pk from t10);
 explain select * from t1 where a in (select a from t10 where pk=12);
 select * from t1 where a in (select a from t10 where pk=12);
 
+explain select * from t1 where a in (select a from t10 where pk=9);
+select * from t1 where a in (select a from t10 where pk=9);
+
 --echo An empty table inside
 explain select * from t1 where a in (select a from t11);
 select * from t1 where a in (select a from t11);

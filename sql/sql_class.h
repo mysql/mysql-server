@@ -1621,12 +1621,7 @@ public:
   union 
   { 
     /*
-      Used by subquery optimizations to inform subquery->fix_fields() calls 
-      where the subquery predicates are located.
-        (TABLE_LIST*) 1   - the predicate is an AND-part of the WHERE
-        join nest pointer - the predicate is an AND-part of ON expression
-                            of a join nest   
-        NULL              - for all other locations
+      Used by subquery optimizations, see Item_in_subselect::emb_on_expr_nest.
     */
     TABLE_LIST *emb_on_expr_nest;
   } thd_marker;
