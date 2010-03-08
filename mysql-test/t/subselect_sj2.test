@@ -550,3 +550,91 @@ where t1.a not in (select 1 from t1
                   group by  t1.b);
 drop table t1;
 
+#
+# BUG#33743 "nested subqueries, unique index, wrong result"
+#
+CREATE TABLE t1
+ (EMPNUM   CHAR(3) NOT NULL,
+  EMPNAME  CHAR(20),
+  GRADE    DECIMAL(4),
+  CITY     CHAR(15));
+
+CREATE TABLE t2
+ (PNUM     CHAR(3) NOT NULL,
+  PNAME    CHAR(20),
+  PTYPE    CHAR(6),
+  BUDGET   DECIMAL(9),
+  CITY     CHAR(15));
+
+CREATE TABLE t3
+ (EMPNUM   CHAR(3) NOT NULL,
+  PNUM     CHAR(3) NOT NULL,
+  HOURS    DECIMAL(5));
+
+INSERT INTO t1 VALUES ('E1','Alice',12,'Deale');
+INSERT INTO t1 VALUES ('E2','Betty',10,'Vienna');
+INSERT INTO t1 VALUES ('E3','Carmen',13,'Vienna');
+INSERT INTO t1 VALUES ('E4','Don',12,'Deale');
+INSERT INTO t1 VALUES ('E5','Ed',13,'Akron');
+
+INSERT INTO t2 VALUES ('P1','MXSS','Design',10000,'Deale');
+INSERT INTO t2 VALUES ('P2','CALM','Code',30000,'Vienna');
+INSERT INTO t2 VALUES ('P3','SDP','Test',30000,'Tampa');
+INSERT INTO t2 VALUES ('P4','SDP','Design',20000,'Deale');
+INSERT INTO t2 VALUES ('P5','IRM','Test',10000,'Vienna');
+INSERT INTO t2 VALUES ('P6','PAYR','Design',50000,'Deale');
+
+INSERT INTO t3 VALUES  ('E1','P1',40);
+INSERT INTO t3 VALUES  ('E1','P2',20);
+INSERT INTO t3 VALUES  ('E1','P3',80);
+INSERT INTO t3 VALUES  ('E1','P4',20);
+INSERT INTO t3 VALUES  ('E1','P5',12);
+INSERT INTO t3 VALUES  ('E1','P6',12);
+INSERT INTO t3 VALUES  ('E2','P1',40);
+INSERT INTO t3 VALUES  ('E2','P2',80);
+INSERT INTO t3 VALUES  ('E3','P2',20);
+INSERT INTO t3 VALUES  ('E4','P2',20);
+INSERT INTO t3 VALUES  ('E4','P4',40);
+INSERT INTO t3 VALUES  ('E4','P5',80);
+
+
+SELECT * FROM t1;
+CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
+--sorted_result
+SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+DROP INDEX t1_IDX ON t1;
+CREATE INDEX t1_IDX ON t1(EMPNUM);
+--sorted_result
+SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+DROP INDEX t1_IDX ON t1;
+--sorted_result
+SELECT EMPNAME
+FROM t1
+WHERE EMPNUM IN
+   (SELECT EMPNUM
+    FROM t3
+    WHERE PNUM IN
+       (SELECT PNUM
+        FROM t2
+        WHERE PTYPE = 'Design'));
+
+DROP TABLE t1, t2, t3;
+

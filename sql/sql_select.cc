@@ -954,12 +954,17 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
   TABLE_LIST *embedding= join_tab->table->pos_in_table_list->embedding;
   if (join_tab->type == JT_EQ_REF)
   {
-    Table_map_iterator it(join_tab->ref.depend_map & ~PSEUDO_TABLE_BITS);
+    table_map depends_on= 0;
     uint idx;
+    
+    for (uint kp= 0; kp < join_tab->ref.key_parts; kp++)
+      depends_on |= join_tab->ref.items[kp]->used_tables();
+
+    Table_map_iterator it(depends_on & ~PSEUDO_TABLE_BITS);
     while ((idx= it.next_bit())!=Table_map_iterator::BITMAP_END)
     {
-      JOIN_TAB *ref_tab= join->join_tab + idx;
-      if (embedding == ref_tab->table->pos_in_table_list->embedding)
+      JOIN_TAB *ref_tab= join->map2table[idx];
+      if (embedding != ref_tab->table->pos_in_table_list->embedding)
         return TRUE;
     }
     /* Ok, functionally dependent */
@@ -1220,6 +1225,12 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, uint no_jbuf_
         dealing_with_jbuf= FALSE;
         dups_ranges[++cur_range].strategy= 0;
       }
+      else
+      {
+        /* We don't support interleaving for InsideOut*/
+        if (!tab->emb_sj_nest)
+          emb_insideout_nest= NULL;
+      }
     }
   }
 
@@ -1306,11 +1317,11 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, uint no_jbuf_
     /* Create the FirstMatch tail */
     for (; tab < join->join_tab + dups_ranges[j].end_idx; tab++)
     {
-      if (tab->emb_sj_nest)
-        tab->do_firstmatch= jump_to; 
-      else
+      if (!tab->emb_sj_nest)
         jump_to= tab;
     }
+    if (tab - 1 != jump_to)
+      tab[-1].do_firstmatch= jump_to;
   }
   DBUG_RETURN(FALSE);
 }
@@ -5561,7 +5572,7 @@ ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest,
     */
     if (!(item->used_tables() & remaining_tables))
     {
-      res |= 1ULL < i;
+      res |= 1ULL << i;
     }
   }
   return res;
@@ -5629,14 +5640,19 @@ best_access_path(JOIN      *join,
         3. We're not within a semi-join range (i.e. all semi-joins either have
            all or none of their tables in join_table_map), except
            s->emb_sj_nest (which we've just entered).
-        3. All correlation references from this sj-nest are bound
+        4. All non-IN-equality correlation references from this sj-nest are 
+           bound
+        5. But some of the IN-equalities aren't (so this can't be handled by 
+           FirstMatch strategy)
     */
-    if (s->emb_sj_nest &&                                                 // (1)
+    if (s->emb_sj_nest &&                                               // (1)
         s->emb_sj_nest->sj_in_exprs < 64 && 
-        ((remaining_tables & s->emb_sj_nest->sj_inner_tables) ==           // (2)
-         s->emb_sj_nest->sj_inner_tables) &&                               // (2)
-        join->cur_emb_sj_nests == s->emb_sj_nest->sj_inner_tables &&       // (3)
-        !(remaining_tables & s->emb_sj_nest->nested_join->sj_corr_tables)) // (4)
+        ((remaining_tables & s->emb_sj_nest->sj_inner_tables) ==        // (2)
+         s->emb_sj_nest->sj_inner_tables) &&                            // (2)
+        join->cur_emb_sj_nests == s->emb_sj_nest->sj_inner_tables &&    // (3)
+        !(remaining_tables & 
+          s->emb_sj_nest->nested_join->sj_corr_tables) &&               // (4)
+        remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on)  // (5)
     {
       /* This table is an InsideOut scan candidate */
       bound_sj_equalities= get_bound_sj_equalities(s->emb_sj_nest, 
