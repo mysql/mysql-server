@@ -7817,7 +7817,15 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  thd->lex->current_select->master_unit() ==
 	  &thd->lex->unit)		// not upper level SELECT
         join->const_table_map|=RAND_TABLE_BIT;
-      {						// Check const tables
+
+      /*
+        Extract expressions that depend on constant tables
+        1. Const part of the join's WHERE clause can be checked immediately
+           and if it is not satisfied then the join has empty result
+        2. Constant parts of outer joins' ON expressions must be attached 
+           there inside the triggers.
+      */
+      {
         COND *const_cond=
 	  make_cond_for_table(cond,
                               join->const_table_map,
@@ -8062,9 +8070,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	    tab->keys=sel->quick_keys;
             tab->keys.merge(sel->needed_reg);
 	    tab->use_quick= (!sel->needed_reg.is_clear_all() &&
-			     (select->quick_keys.is_clear_all() ||
-			      (select->quick &&
-			       (select->quick->records >= 100L)))) ?
+			     (sel->quick_keys.is_clear_all() ||
+			      (sel->quick &&
+			       (sel->quick->records >= 100L)))) ?
 	      2 : 1;
 	    sel->read_tables= used_tables & ~current_map;
 	  }
