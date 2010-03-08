@@ -139,6 +139,7 @@ void toku_os_full_write (int fd, const void *buf, size_t len) __attribute__((__v
 int toku_os_write (int fd, const void *buf, size_t len) __attribute__((__visibility__("default")));
 
 // wrapper around fsync
+int toku_file_fsync_without_accounting(int fd);
 int toku_file_fsync(int fd);
 
 // get the number of fsync calls and the fsync times

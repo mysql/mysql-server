@@ -1323,8 +1323,6 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	time_t now = time(NULL);
         format_time(&now, engstat->now);
 
-	engstat->logger_lock_ctr = toku_logger_get_lock_ctr();
-
 	{
 	    SCHEDULE_STATUS_S schedstat;
 	    toku_ydb_lock_get_status(&schedstat);
@@ -1418,7 +1416,6 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "time_ydb_lock_held_unavailable   %"PRIu64"\n", engstat.time_ydb_lock_held_unavailable);
     n += snprintf(buff + n, bufsiz - n, "max_time_ydb_lock_held           %"PRIu64"\n", engstat.max_time_ydb_lock_held);
     n += snprintf(buff + n, bufsiz - n, "total_time_ydb_lock_held         %"PRIu64"\n", engstat.total_time_ydb_lock_held);
-    n += snprintf(buff + n, bufsiz - n, "logger_lock_ctr                  %"PRIu64"\n", engstat.logger_lock_ctr);
     n += snprintf(buff + n, bufsiz - n, "checkpoint_period                %d \n", engstat.checkpoint_period);
     n += snprintf(buff + n, bufsiz - n, "checkpoint_footprint             %d \n", engstat.checkpoint_footprint);
     n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin            %s \n", engstat.checkpoint_time_begin);
@@ -1608,8 +1605,17 @@ static void ydb_yield (voidfp f, void *UU(v)) {
     toku_ydb_lock();
 }
 
+static void release_ydb_lock_callback (void *ignore __attribute__((__unused__))) {
+    //printf("%8.6fs Thread %ld release\n", get_tdiff(), pthread_self());
+    toku_ydb_unlock(); 
+}
+static void reacquire_ydb_lock_callback (void *ignore __attribute__((__unused__))) {
+    //printf("%8.6fs Thread %ld reacquire\n", get_tdiff(), pthread_self());
+    toku_ydb_lock(); 
+}
+
 static int toku_txn_commit(DB_TXN * txn, u_int32_t flags,
-                           TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
+			   TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
     if (!txn) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
     //Recursively kill off children
@@ -1648,7 +1654,9 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags,
 	// frees the tokutxn
 	// Calls ydb_yield(NULL) occasionally
         //r = toku_logger_commit(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
-        r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL, poll, poll_extra);
+        r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL,
+				poll, poll_extra,
+				release_ydb_lock_callback, reacquire_ydb_lock_callback, NULL);
 
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
         txn->mgrp->i->is_panicked = r;
@@ -5292,8 +5300,10 @@ include_toku_pthread_yield (void) {
 // For test purposes only, translate dname to iname
 static int 
 env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
+    toku_ydb_lock();
     DB *directory = env->i->directory;
     int r = autotxn_db_get(directory, NULL, dname_dbt, iname_dbt, DB_PRELOCKED); // allocates memory for iname
+    toku_ydb_unlock();
     return r;
 }
 

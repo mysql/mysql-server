@@ -12,8 +12,6 @@ int toku_logger_open (const char *directory, TOKULOGGER logger);
 int toku_logger_shutdown(TOKULOGGER logger);
 int toku_logger_close(TOKULOGGER *loggerp);
 
-u_int32_t toku_logger_get_lock_ctr(void);
-
 int toku_logger_fsync (TOKULOGGER logger);
 void toku_logger_panic (TOKULOGGER logger, int err);
 int toku_logger_panicked(TOKULOGGER logger);

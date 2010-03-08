@@ -931,7 +931,10 @@ static int toku_recover_commit (struct logtype_commit *l, RECOVER_ENV renv) {
     }
 
     // commit the transaction
-    r = toku_txn_commit_with_lsn(txn, TRUE, recover_yield, NULL, l->lsn, NULL, NULL);
+    r = toku_txn_commit_with_lsn(txn, TRUE, recover_yield, NULL, l->lsn,
+				 NULL, NULL,
+				 // No need to release locks during recovery.
+				 NULL, NULL, NULL);
     assert(r == 0);
 
     // close the transaction

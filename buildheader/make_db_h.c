@@ -427,7 +427,6 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        time_ydb_lock_held_unavailable;  /* number of times a thread migrated and theld is unavailable */ \n");
     printf("  u_int64_t        max_time_ydb_lock_held;  /* max time a client thread held the ydb lock  */ \n");
     printf("  u_int64_t        total_time_ydb_lock_held;/* total time client threads held the ydb lock  */ \n");
-    printf("  u_int64_t        logger_lock_ctr;         /* how many times has logger lock been taken/released */ \n");
     printf("  u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ \n");
     printf("  u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ \n");
     printf("  char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ \n");

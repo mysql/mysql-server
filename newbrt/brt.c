@@ -5459,8 +5459,6 @@ toku_brt_lock_init(void) {
     int r = 0;
     if (r==0)
         r = toku_pwrite_lock_init();
-    if (r==0)
-        r = toku_logger_lock_init();
     return r;
 }
 
@@ -5469,8 +5467,6 @@ toku_brt_lock_destroy(void) {
     int r = 0;
     if (r==0) 
         r = toku_pwrite_lock_destroy();
-    if (r==0) 
-        r = toku_logger_lock_destroy();
     return r;
 }
 
