@@ -1090,6 +1090,11 @@ public:
       cost Item::execution_cost(),
     where 'cost' is either 'double' or some structure of various cost
     parameters.
+
+    NOTE
+      This function is now used to prevent evaluation of materialized IN
+      subquery predicates before it is allowed. grep for 
+      DontEvaluateMaterializedSubqueryTooEarly to see the uses.
   */
   virtual bool is_expensive()
   {

@@ -184,8 +184,6 @@ public:
                 Item_transformer transformer, uchar *arg_t);
   void traverse_cond(Cond_traverser traverser,
                      void * arg, traverse_order order);
-  bool is_expensive_processor(uchar *arg);
-  virtual bool is_expensive() { return 0; }
   inline double fix_result(double value)
   {
     if (isfinite(value))
