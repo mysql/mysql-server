@@ -19,14 +19,6 @@
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
-#ifdef DBUG_OFF
-#define plugin_ref_to_int(A) A
-#define plugin_int_to_ref(A) A
-#else
-#define plugin_ref_to_int(A) (A ? A[0] : NULL)
-#define plugin_int_to_ref(A) &(A)
-#endif
-
 extern struct st_mysql_plugin *mysqld_builtins[];
 
 /**
@@ -658,13 +650,13 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
 }
 
 
-plugin_ref plugin_lock(THD *thd, plugin_ref *ptr CALLER_INFO_PROTO)
+plugin_ref plugin_lock(THD *thd, plugin_ref ptr CALLER_INFO_PROTO)
 {
   LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc;
   DBUG_ENTER("plugin_lock");
   pthread_mutex_lock(&LOCK_plugin);
-  rc= my_intern_plugin_lock_ci(lex, *ptr);
+  rc= my_intern_plugin_lock_ci(lex, ptr);
   pthread_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(rc);
 }

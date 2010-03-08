@@ -899,7 +899,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           replacing it with a globally locked version of tmp_plugin
         */
         plugin_unlock(NULL, share->db_plugin);
-        share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
+        share->db_plugin= my_plugin_lock(NULL, tmp_plugin);
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                             str_db_type_length, next_chunk + 2,
                             ha_legacy_type(share->db_type())));

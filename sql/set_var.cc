@@ -3845,7 +3845,7 @@ uchar *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
   LEX_STRING *engine_name;
   plugin_ref plugin= thd->variables.*offset;
   if (type == OPT_GLOBAL)
-    plugin= my_plugin_lock(thd, &(global_system_variables.*offset));
+    plugin= my_plugin_lock(thd, global_system_variables.*offset);
   hton= plugin_data(plugin, handlerton*);
   engine_name= hton_name(hton);
   result= (uchar *) thd->strmake(engine_name->str, engine_name->length);
@@ -3866,7 +3866,7 @@ void sys_var_thd_storage_engine::set_default(THD *thd, enum_var_type type)
   else
   {
     value= &(thd->variables.*offset);
-    new_value= my_plugin_lock(NULL, &(global_system_variables.*offset));
+    new_value= my_plugin_lock(NULL, global_system_variables.*offset);
   }
   DBUG_ASSERT(new_value);
   old_value= *value;
@@ -3883,7 +3883,7 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
   old_value= *value;
   if (old_value != var->save_result.plugin)
   {
-    *value= my_plugin_lock(NULL, &var->save_result.plugin);
+    *value= my_plugin_lock(NULL, var->save_result.plugin);
     plugin_unlock(NULL, old_value);
   }
   return 0;

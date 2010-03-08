@@ -11014,7 +11014,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   delete table->file;
   table->file=0;
   plugin_unlock(0, table->s->db_plugin);
-  share.db_plugin= my_plugin_lock(0, &share.db_plugin);
+  share.db_plugin= my_plugin_lock(0, share.db_plugin);
   new_table.s= table->s;                       // Keep old share
   *table= new_table;
   *table->s= share;
