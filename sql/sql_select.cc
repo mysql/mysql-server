@@ -6878,13 +6878,6 @@ best_extension_by_limited_search(JOIN      *join,
       double current_record_count, current_read_time;
       advance_sj_state(remaining_tables, s);
 
-      /*
-        psergey-insideout-todo: 
-          when best_access_path() detects it could do an InsideOut scan or 
-          some other scan, have it return an insideout scan and a flag that 
-          requests to "fork" this loop iteration. (Q: how does that behave 
-          when the depth is insufficient??)
-      */
       /* Find the best access method from 's' to the current partial plan */
       best_access_path(join, s, thd, remaining_tables, idx,
                        record_count, read_time);
@@ -12367,9 +12360,11 @@ err:
   SYNOPSIS
 
     create_duplicate_weedout_tmp_table()
-      thd
-      uniq_tuple_length_arg
-      SJ_TMP_TABLE 
+      thd                    Thread handle
+      uniq_tuple_length_arg  Length of the table's column
+      sjtbl                  Update sjtbl->[start_]recinfo values which 
+                             will be needed if we'll need to convert the 
+                             created temptable from HEAP to MyISAM/Maria.
 
   DESCRIPTION
     Create a temporary table to weed out duplicate rowid combinations. The
@@ -13606,7 +13601,14 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
 
   SYNPOSIS
     do_sj_dups_weedout()
-      
+      thd    Thread handle
+      sjtbl  Duplicate weedout table
+
+  DESCRIPTION
+    Try storing current record combination of outer tables (i.e. their
+    rowids) in the temporary table. This records the fact that we've seen 
+    this record combination and also tells us if we've seen it before.
+
   RETURN
     -1  Error
     1   The row combination is a duplicate (discard it)
@@ -13668,7 +13670,6 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
         create_myisam_from_heap(thd, sjtbl->tmp_table, sjtbl->start_recinfo, 
                                 &sjtbl->recinfo, error, 1))
       return -1;
-    //return (error == HA_ERR_FOUND_DUPP_KEY || error== HA_ERR_FOUND_DUPP_UNIQUE) ? 1: -1;
     return 1;
   }
   return 0;

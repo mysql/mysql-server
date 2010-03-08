@@ -277,10 +277,10 @@ typedef struct st_join_table {
   /* Buffer to save index tuple to be able to skip duplicates */
   uchar *insideout_buf;
   
-  /* How many key components to store in the above */
+  /* Length of key tuple (depends on #keyparts used) to store in the above */
   uint insideout_key_len;
 
-  /* Used by InsideOut scan. Just set to true when have found a row. */
+  /* Used by LooseScan. TRUE<=> there has been a matching record combination */
   bool found_match;
 
   enum { 
