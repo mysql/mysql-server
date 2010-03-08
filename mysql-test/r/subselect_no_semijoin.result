@@ -1327,6 +1327,10 @@ create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
 create table t3 (a int, b int, index a (a));
 insert into t1 values (1,10), (2,20), (3,30), (4,40);
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+insert into t1
+select rand()*100000+200,rand()*100000 from t0 A, t0 B, t0 C, t0 D;
 insert into t2 values (2), (3), (4), (5);
 insert into t3 values (10,3), (20,4), (30,5);
 select * from t2 where t2.a in (select a from t1);
@@ -1377,7 +1381,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	SUBQUERY	t1	index	NULL	a	10	NULL	10005	100.00	Using where; Using index
 Warnings:
 Note	1003	select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key)))
-drop table t1, t2, t3;
+drop table t0, t1, t2, t3;
 create table t1 (a int, b int);
 create table t2 (a int, b int);
 create table t3 (a int, b int);
@@ -4323,15 +4327,20 @@ Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
 Note	1003	select 2 AS `2` from `test`.`t1` where exists((select 1 AS `1` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)) union (select 1 AS `1` from `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`a`)))
 DROP TABLE t1,t2;
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(f11 int, f12 int);
 create table t2(f21 int unsigned not null, f22 int, f23 varchar(10));
 insert into t1 values(1,1),(2,2), (3, 3);
+insert into t2 
+select -1 , (@a:=(A.a + 10 * (B.a + 10 * (C.a+10*D.a))))/5000 + 1, @a 
+from t0 A, t0 B, t0 C, t0 D;
 set session sort_buffer_size= 33*1024;
 select count(*) from t1 where f12 =
 (select f22 from t2 where f22 = f12 order by f21 desc, f22, f23 limit 1);
 count(*)
 3
-drop table t1,t2;
+drop table t0,t1,t2;
 CREATE TABLE t4 (
 f7 varchar(32) collate utf8_bin NOT NULL default '',
 f10 varchar(32) collate utf8_bin default NULL,
