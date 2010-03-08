@@ -94,3 +94,43 @@ explain extended select * from t1 where a in (select pk from t10 where pk<3);
 
 drop table t0, t1, t2;
 drop table t10, t11, t12;
+
+--echo
+--echo BUG#37120 optimizer_switch allowable values not according to specification
+--echo
+
+select @@optimizer_switch; 
+
+set optimizer_switch='default';
+set optimizer_switch='materialization=off';
+select @@optimizer_switch; 
+
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off';
+select @@optimizer_switch; 
+
+set optimizer_switch='default';
+set optimizer_switch='loosescan=off';
+select @@optimizer_switch; 
+
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,materialization=off';
+select @@optimizer_switch; 
+
+set optimizer_switch='default';
+set optimizer_switch='materialization=off,semijoin=off';
+select @@optimizer_switch; 
+
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,materialization=off,loosescan=off';
+select @@optimizer_switch; 
+
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,loosescan=off';
+select @@optimizer_switch; 
+
+set optimizer_switch='default';
+set optimizer_switch='materialization=off,loosescan=off';
+select @@optimizer_switch; 
+set optimizer_switch='default';
+
