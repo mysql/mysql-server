@@ -1258,8 +1258,8 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, uint no_jbuf_
       tab->insideout_match_tab= join->join_tab + dups_ranges[j].end_idx - 1;
       
       /* Calculate key length */
-      uint nparts= join->positions[dups_ranges[j].start_idx].insideout_parts;
-      uint keyno= join->positions[dups_ranges[j].start_idx].insideout_key;
+      uint nparts= join->best_positions[dups_ranges[j].start_idx].insideout_parts;
+      uint keyno= join->best_positions[dups_ranges[j].start_idx].insideout_key;
       uint keylen= 0;
       for (uint kp=0; kp < nparts; kp++)
         keylen += tab->table->key_info[keyno].key_part[kp].store_length;
@@ -5667,7 +5667,9 @@ best_access_path(JOIN      *join,
   uint sj_insideout_quick_max_sj_keypart;
   uint sj_inside_out_scan= MAX_KEY;
   DBUG_ENTER("best_access_path");
-
+  
+  LINT_INIT(best_sj_keyparts); // Protected by sj_inside_out_scan
+  LINT_INIT(sj_insideout_quick_max_sj_keypart); // Protected by sj_insideout_quick_*
   if (s->keyuse)
   {                                            /* Use key if possible */
     TABLE *table= s->table;
