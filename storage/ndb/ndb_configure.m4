@@ -307,7 +307,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   have_clusterj=no
   if test X"$ndb_java_supported" = Xyes
   then
-    if [[[ $CHARSETS =~ "ucs2" ]]]
+    if echo $CHARSETS | grep -q ucs2
     then
       AC_MSG_RESULT([-- including Cluster/J])
       have_clusterj=yes
