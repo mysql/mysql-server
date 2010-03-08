@@ -8,7 +8,7 @@ connection master;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,10);
 sync_slave_with_master;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 
 # Now we feed it a load data infile, which should make it stop with a
 # fatal error.
@@ -17,7 +17,7 @@ LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1;
 
 connection slave;
 wait_for_slave_to_stop;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 
 connection slave;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;

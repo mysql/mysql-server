@@ -33,6 +33,14 @@
 #define SQLSTATE_LENGTH 5
 
 /*
+  Maximum length of comments
+*/
+#define TABLE_COMMENT_INLINE_MAXLEN 180 /* pre 6.0: 60 characters */
+#define TABLE_COMMENT_MAXLEN 2048
+#define COLUMN_COMMENT_MAXLEN 1024
+#define INDEX_COMMENT_MAXLEN 1024
+
+/*
   USER_HOST_BUFF_SIZE -- length of string buffer, that is enough to contain
   username and hostname parts of the user identifier with trailing zero in
   MySQL standard format:
@@ -117,6 +125,12 @@ enum enum_server_command
 					   thread */
 #define REFRESH_MASTER          128     /* Remove all bin logs in the index
 					   and truncate the index */
+#define REFRESH_ERROR_LOG       256 /* Rotate only the erorr log */
+#define REFRESH_ENGINE_LOG      512 /* Flush all storage engine logs */
+#define REFRESH_BINARY_LOG     1024 /* Flush the binary log */
+#define REFRESH_RELAY_LOG      2048 /* Flush the relay log */
+#define REFRESH_GENERAL_LOG    4096 /* Flush the general log */
+#define REFRESH_SLOW_LOG       8192 /* Flush the slow query log */
 
 /* The following can't be set with mysql_refresh() */
 #define REFRESH_READ_LOCK	16384	/* Lock tables for read */
@@ -524,4 +538,5 @@ uchar *net_store_length(uchar *pkg, ulonglong length);
 #define MYSQL_STMT_HEADER       4
 #define MYSQL_LONG_DATA_HEADER  6
 
+#define NOT_FIXED_DEC           31
 #endif

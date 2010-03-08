@@ -71,8 +71,8 @@ Warning	1292	Truncated incorrect net_write_timeout value: '655360354'
 SELECT @@global.net_write_timeout;
 @@global.net_write_timeout
 31536000
-SET @@global.net_write_timeout = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.net_write_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'net_write_timeout'
 SELECT @@global.net_write_timeout;
 @@global.net_write_timeout
 31536000
@@ -93,15 +93,14 @@ Warning	1292	Truncated incorrect net_write_timeout value: '-2'
 SELECT @@session.net_write_timeout;
 @@session.net_write_timeout
 1
-SET @@session.net_write_timeout = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.net_write_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'net_write_timeout'
 SET @@session.net_write_timeout = 6555015425;
 Warnings:
 Warning	1292	Truncated incorrect net_write_timeout value: '6555015425'
 SELECT @@session.net_write_timeout;
 @@session.net_write_timeout
 31536000
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.net_write_timeout = test;
 ERROR 42000: Incorrect argument type to variable 'net_write_timeout'
 SELECT @@session.net_write_timeout;

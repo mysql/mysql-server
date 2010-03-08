@@ -2,6 +2,8 @@
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
 
+connection slave;
+let $bit_field_special = ALL_LOSSY;
 let $type= 'INNODB' ;
 let $extra_index= ;
 -- source extra/rpl_tests/rpl_row_basic.test

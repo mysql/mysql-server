@@ -3547,11 +3547,11 @@ CREATE VIEW v1 or REPLACE AS Select * from tb2 my_table;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'or REPLACE AS Select * from tb2 my_table' at line 1
 CREATE VIEW v1 WITH CASCADED CHECK OPTION AS Select *
 from tb2 my_table limit 50;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CASCADED CHECK OPTION AS Select *
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CASCADED CHECK OPTION AS Select *
 from tb2 my_table limit 50' at line 1
 CREATE VIEW v1 WITH LOCAL CHECK OPTION AS Select *
 from tb2 my_table limit 50;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH LOCAL CHECK OPTION AS Select *
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'LOCAL CHECK OPTION AS Select *
 from tb2 my_table limit 50' at line 1
 SELECT * FROM tb2 my_table CREATE VIEW As v1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CREATE VIEW As v1' at line 1
@@ -3581,7 +3581,7 @@ FROM test.tb2 my_table CHECK OPTION WITH CASCADED;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHECK OPTION WITH CASCADED' at line 2
 CREATE OR REPLACE VIEW v1 WITH CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CASCADED CHECK OPTION
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table' at line 1
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table VIEW v1 WITH CASCADED CHECK OPTION;
@@ -3610,7 +3610,7 @@ FROM test.tb2 my_table CHECK OPTION WITH LOCAL;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CHECK OPTION WITH LOCAL' at line 2
 CREATE OR REPLACE VIEW v1 WITH CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'WITH CASCADED CHECK OPTION
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CASCADED CHECK OPTION
 AS SELECT F59, F60 FROM test.tb2 my_table' at line 1
 CREATE OR REPLACE AS SELECT F59, F60
 FROM test.tb2 my_table VIEW v1 WITH LOCAL CHECK OPTION;
@@ -22826,7 +22826,7 @@ f1	f2
 ABC	3
 SELECT * FROM v1 order by 2;
 f1	my_sqrt
-ABC	1.73205080756888
+ABC	1.7320508075688772
 ALTER TABLE t1 CHANGE COLUMN f2 f2 VARCHAR(30);
 INSERT INTO t1   SET f1 = 'ABC', f2 = 'DEF';
 DESCRIBE t1;
@@ -22844,7 +22844,7 @@ ABC	DEF
 SELECT * FROM v1 order by 2;
 f1	my_sqrt
 ABC	0
-ABC	1.73205080756888
+ABC	1.7320508075688772
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
@@ -22867,7 +22867,7 @@ my_sqrt	double	YES		NULL
 SELECT * FROM v2 order by 2;
 f1	my_sqrt
 ABC	0
-ABC	1.73205080756888
+ABC	1.7320508075688772
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
 Warning	1292	Truncated incorrect DOUBLE value: 'DEF'
@@ -22878,7 +22878,7 @@ SELECT * FROM t2 order by 2;
 f1	ABC
 my_sqrt	0
 f1	ABC
-my_sqrt	1.73205080756888
+my_sqrt	1.7320508075688772
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v1;
 Warnings:
@@ -22887,7 +22887,7 @@ SELECT * FROM t2 order by 2;
 f1	ABC
 my_sqrt	0
 f1	ABC
-my_sqrt	1.73205080756888
+my_sqrt	1.7320508075688772
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v2;
 Warnings:
@@ -22896,7 +22896,7 @@ SELECT * FROM t2 order by 2;
 f1	ABC
 my_sqrt	0
 f1	ABC
-my_sqrt	1.73205080756888
+my_sqrt	1.7320508075688772
 DROP TABLE t1;
 DROP TABLE t2;
 DROP VIEW  v1;

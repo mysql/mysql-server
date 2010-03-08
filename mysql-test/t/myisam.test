@@ -503,6 +503,7 @@ insert into t2 values(2,0);
 disconnect root;
 connection default;
 select straight_join * from t1,t2 force index (primary) where t1.a=t2.a;
+unlock tables;
 drop table t1,t2;
 #
 # Full key.
@@ -520,6 +521,7 @@ disconnect con1;
 connection default;
 SELECT t1.c1 AS t1c1, t2.c1 AS t2c1 FROM t1, t2
   WHERE t1.c1 = t2.c1 HAVING t1c1 != t2c1;
+UNLOCK TABLES;
 DROP TABLE t1,t2;
 
 # End of 4.0 tests

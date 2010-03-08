@@ -4,6 +4,8 @@ SELECT @start_value;
 0
 '#--------------------FN_DYNVARS_082_01------------------------#'
 SET @@global.max_relay_log_size = 5000;
+Warnings:
+Warning	1292	Truncated incorrect max_relay_log_size value: '5000'
 SET @@global.max_relay_log_size = DEFAULT;
 SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size
@@ -13,13 +15,14 @@ SET @@global.max_relay_log_size = @start_value;
 SELECT @@global.max_relay_log_size = 1024;
 @@global.max_relay_log_size = 1024
 0
-'Bug# 34876: This variable has invalid default value as compared to documentation';
 '#--------------------FN_DYNVARS_082_03------------------------#'
 SET @@global.max_relay_log_size = 0;
 SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size
 0
 SET @@global.max_relay_log_size = 1;
+Warnings:
+Warning	1292	Truncated incorrect max_relay_log_size value: '1'
 SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size
 0
@@ -28,14 +31,17 @@ SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size
 1073741824
 SET @@global.max_relay_log_size = 1073741823;
+Warnings:
+Warning	1292	Truncated incorrect max_relay_log_size value: '1073741823'
 SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size
 1073737728
 SET @@global.max_relay_log_size = 65535;
+Warnings:
+Warning	1292	Truncated incorrect max_relay_log_size value: '65535'
 SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size
 61440
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 '#--------------------FN_DYNVARS_082_04-------------------------#'
 SET @@global.max_relay_log_size = -1;
 Warnings:
@@ -72,7 +78,6 @@ Warning	1292	Truncated incorrect max_relay_log_size value: '10737418241'
 SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size
 1073741824
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.max_relay_log_size = ON;
 ERROR 42000: Incorrect argument type to variable 'max_relay_log_size'
 SELECT @@global.max_relay_log_size;
@@ -101,6 +106,8 @@ WHERE VARIABLE_NAME='max_relay_log_size';
 1
 '#---------------------FN_DYNVARS_082_07----------------------#'
 SET @@global.max_relay_log_size = TRUE;
+Warnings:
+Warning	1292	Truncated incorrect max_relay_log_size value: '1'
 SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size
 0
@@ -110,6 +117,8 @@ SELECT @@global.max_relay_log_size;
 0
 '#---------------------FN_DYNVARS_082_08----------------------#'
 SET @@global.max_relay_log_size = 5000;
+Warnings:
+Warning	1292	Truncated incorrect max_relay_log_size value: '5000'
 SELECT @@max_relay_log_size = @@global.max_relay_log_size;
 @@max_relay_log_size = @@global.max_relay_log_size
 1

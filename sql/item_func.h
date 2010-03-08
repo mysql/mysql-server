@@ -160,22 +160,24 @@ public:
 
   my_decimal *val_decimal(my_decimal *);
 
-  bool agg_arg_collations(DTCollation &c, Item **items, uint nitems,
-                          uint flags)
-  {
-    return agg_item_collations(c, func_name(), items, nitems, flags, 1);
-  }
-  bool agg_arg_collations_for_comparison(DTCollation &c,
-                                         Item **items, uint nitems,
-                                         uint flags)
-  {
-    return agg_item_collations_for_comparison(c, func_name(),
-                                              items, nitems, flags);
-  }
   bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems,
                         uint flags, int item_sep)
   {
     return agg_item_charsets(c, func_name(), items, nitems, flags, item_sep);
+  }
+  bool agg_arg_charsets_for_string_result(DTCollation &c,
+                                          Item **items, uint nitems,
+                                          int item_sep= 1)
+  {
+    return agg_item_charsets_for_string_result(c, func_name(),
+                                               items, nitems, item_sep);
+  }
+  bool agg_arg_charsets_for_comparison(DTCollation &c,
+                                       Item **items, uint nitems,
+                                       int item_sep= 1)
+  {
+    return agg_item_charsets_for_comparison(c, func_name(),
+                                            items, nitems, item_sep);
   }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
@@ -226,10 +228,10 @@ public:
 class Item_real_func :public Item_func
 {
 public:
-  Item_real_func() :Item_func() {}
-  Item_real_func(Item *a) :Item_func(a) {}
-  Item_real_func(Item *a,Item *b) :Item_func(a,b) {}
-  Item_real_func(List<Item> &list) :Item_func(list) {}
+  Item_real_func() :Item_func() { collation.set_numeric(); }
+  Item_real_func(Item *a) :Item_func(a) { collation.set_numeric(); }
+  Item_real_func(Item *a,Item *b) :Item_func(a,b) { collation.set_numeric(); }
+  Item_real_func(List<Item> &list) :Item_func(list) { collation.set_numeric(); }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *decimal_value);
   longlong val_int()
@@ -246,13 +248,13 @@ protected:
   Item_result hybrid_type;
 public:
   Item_func_numhybrid(Item *a) :Item_func(a), hybrid_type(REAL_RESULT)
-  {}
+  { collation.set_numeric(); }
   Item_func_numhybrid(Item *a,Item *b)
     :Item_func(a,b), hybrid_type(REAL_RESULT)
-  {}
+  { collation.set_numeric(); }
   Item_func_numhybrid(List<Item> &list)
     :Item_func(list), hybrid_type(REAL_RESULT)
-  {}
+  { collation.set_numeric(); }
 
   enum Item_result result_type () const { return hybrid_type; }
   void fix_length_and_dec();
@@ -335,13 +337,18 @@ class Item_num_op :public Item_func_numhybrid
 class Item_int_func :public Item_func
 {
 public:
-  Item_int_func() :Item_func() { max_length= 21; }
-  Item_int_func(Item *a) :Item_func(a) { max_length= 21; }
-  Item_int_func(Item *a,Item *b) :Item_func(a,b) { max_length= 21; }
+  Item_int_func() :Item_func()
+  { collation.set_numeric(); fix_char_length(21); }
+  Item_int_func(Item *a) :Item_func(a)
+  { collation.set_numeric(); fix_char_length(21); }
+  Item_int_func(Item *a,Item *b) :Item_func(a,b)
+  { collation.set_numeric(); fix_char_length(21); }
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c)
-  { max_length= 21; }
-  Item_int_func(List<Item> &list) :Item_func(list) { max_length= 21; }
-  Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item) {}
+  { collation.set_numeric(); fix_char_length(21); }
+  Item_int_func(List<Item> &list) :Item_func(list)
+  { collation.set_numeric(); fix_char_length(21); }
+  Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item)
+  { collation.set_numeric(); }
   double val_real();
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
@@ -370,7 +377,7 @@ public:
   longlong val_int();
   longlong val_int_from_str(int *error);
   void fix_length_and_dec()
-  { max_length=args[0]->max_length; unsigned_flag=0; }
+  { fix_char_length(args[0]->max_char_length()); unsigned_flag=0; }
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
@@ -383,7 +390,8 @@ public:
   const char *func_name() const { return "cast_as_unsigned"; }
   void fix_length_and_dec()
   {
-    max_length= min(args[0]->max_length, DECIMAL_MAX_PRECISION + 2);
+    fix_char_length(min(args[0]->max_char_length(),
+                        DECIMAL_MAX_PRECISION + 2));
     unsigned_flag=1;
   }
   longlong val_int();
@@ -398,8 +406,9 @@ public:
   Item_decimal_typecast(Item *a, int len, int dec) :Item_func(a)
   {
     decimals= dec;
-    max_length= my_decimal_precision_to_length_no_truncation(len, dec,
-                                                             unsigned_flag);
+    collation.set_numeric();
+    fix_char_length(my_decimal_precision_to_length_no_truncation(len, dec,
+                                                                 unsigned_flag));
   }
   String *val_str(String *str);
   double val_real();

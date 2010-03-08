@@ -27,7 +27,7 @@ connect (con1,localhost,root,,test,$MASTER_MYPORT,);
 connection default;
 
 set @initial_query_cache_size = @@global.query_cache_size;
-set @@global.query_cache_size=100000;
+set @@global.query_cache_size=102400;
 flush status;
 --disable_warnings
 drop table if exists t1;
@@ -178,7 +178,7 @@ show status like 'Qcache_hits';
 # then QC is re-enabled for more EXECUTE.
 --echo ---- switch to connection default ----
 connection default;
-set global query_cache_size=100000;
+set global query_cache_size=102400;
 # Expect to see additional Qcache_hits.
 # The fact that the QC was temporary disabled should have no affect
 # except that the first execute will not hit results from the
@@ -235,7 +235,7 @@ prepare stmt3 from "select * from t1 where c1=10";
 --echo ---- switch to connection default ----
 connection default;
 # then QC is enabled at EXECUTE
-set global query_cache_size=100000;
+set global query_cache_size=102400;
 show status like 'Qcache_hits';
 execute stmt1;
 show status like 'Qcache_hits';
@@ -260,7 +260,7 @@ connection default;
 set global query_cache_size=0;
 prepare stmt1 from "select * from t1 where c1=?";
 # then QC is enabled at EXECUTE
-set global query_cache_size=100000;
+set global query_cache_size=102400;
 show status like 'Qcache_hits';
 set @a=1;
 execute stmt1 using @a;
@@ -509,7 +509,7 @@ execute stmt;
 set @@global.query_cache_size=0;
 alter table t1 add column b int;
 execute stmt;
-set @@global.query_cache_size=100000;
+set @@global.query_cache_size=102400;
 execute stmt;
 execute stmt;
 --echo #

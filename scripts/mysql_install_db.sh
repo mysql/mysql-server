@@ -358,9 +358,15 @@ do
     mkdir -p $dir
     chmod 700 $dir
   fi
-  if test -w / -a ! -z "$user"
+  if test -n "$user"
   then
     chown $user $dir
+    if test $? -ne 0
+    then
+      echo "Cannot change ownership of the database directories to the '$user'"
+      echo "user.  Check that you have the necessary permissions and try again."
+      exit 1
+    fi
   fi
 done
 

@@ -495,10 +495,10 @@ c15	0000000000
 c16	-9223372036854775808
 c17	0
 c18	00000000000000000000
-c19	-3.40282e+38
+c19	-3.40282e38
 c20	1.17549e-38
 c21	000000000000
-c22	-1.7976931348623e+308
+c22	-1.7976931348623e308
 c23	2.2250738585072e-308
 c24	0000000000000000000000
 c25	-9999999999
@@ -574,12 +574,12 @@ c15	4294967295
 c16	9223372036854775807
 c17	18446744073709551615
 c18	18446744073709551615
-c19	3.40282e+38
-c20	3.40282e+38
-c21	03.40282e+38
-c22	1.7976931348623e+308
-c23	1.7976931348623e+308
-c24	001.7976931348623e+308
+c19	3.40282e38
+c20	3.40282e38
+c21	003.40282e38
+c22	1.7976931348623e308
+c23	1.7976931348623e308
+c24	0001.7976931348623e308
 c25	9999999999
 c26	9999999999
 c27	9999999999
@@ -1557,12 +1557,12 @@ c15	4294967295
 c16	9223372036854775807
 c17	18446744073709551615
 c18	18446744073709551615
-c19	3.40282e+38
-c20	3.40282e+38
-c21	03.40282e+38
-c22	1.7976931348623e+308
-c23	1.7976931348623e+308
-c24	001.7976931348623e+308
+c19	3.40282e38
+c20	3.40282e38
+c21	003.40282e38
+c22	1.7976931348623e308
+c23	1.7976931348623e308
+c24	0001.7976931348623e308
 c25	9999999999
 c26	9999999999
 c27	9999999999
@@ -1636,10 +1636,10 @@ c15	0000000000
 c16	-9223372036854775808
 c17	0
 c18	00000000000000000000
-c19	-3.40282e+38
+c19	-3.40282e38
 c20	1.17549e-38
 c21	000000000000
-c22	-1.7976931348623e+308
+c22	-1.7976931348623e308
 c23	2.2250738585072e-308
 c24	0000000000000000000000
 c25	-9999999999
@@ -2256,7 +2256,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -2365,7 +2365,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
-###   @1=b'00000000' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -2458,7 +2458,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
-###   @1=b'00000001' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -2553,7 +2553,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO test.t1
 ### SET
-###   @1=NULL /* type=16 meta=256 nullable=1 is_null=1 */
+###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
 ###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
 ###   @3=NULL /* type=1 meta=0 nullable=1 is_null=1 */
 ###   @4=NULL /* type=1 meta=0 nullable=1 is_null=1 */
@@ -2580,7 +2580,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -2634,7 +2634,7 @@ BEGIN
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
 ### INSERT INTO test.t1
 ### SET
-###   @1=b'00000001' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -2727,7 +2727,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
-###   @1=b'00000000' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -2807,7 +2807,7 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 ### SET
-###   @1=b'00000001' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -2900,7 +2900,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
-###   @1=b'00000001' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -2980,7 +2980,7 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 ### SET
-###   @1=b'00000000' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -3073,7 +3073,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
-###   @1=NULL /* type=16 meta=256 nullable=1 is_null=1 */
+###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
 ###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
 ###   @3=NULL /* type=1 meta=0 nullable=1 is_null=1 */
 ###   @4=NULL /* type=1 meta=0 nullable=1 is_null=1 */
@@ -3100,7 +3100,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -3153,7 +3153,7 @@ BEGIN
 ###   @78=NULL /* TIMESTAMP meta=63489 nullable=1 is_null=1 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
 ### SET
-###   @1=b'00000001' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -3246,7 +3246,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
 ### UPDATE test.t1
 ### WHERE
-###   @1=b'00000001' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -3326,7 +3326,7 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 ### SET
-###   @1=NULL /* type=16 meta=256 nullable=1 is_null=1 */
+###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
 ###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
 ###   @3=NULL /* type=1 meta=0 nullable=1 is_null=1 */
 ###   @4=NULL /* type=1 meta=0 nullable=1 is_null=1 */
@@ -3353,7 +3353,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -3419,7 +3419,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
-###   @1=b'00000001' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -3512,7 +3512,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
-###   @1=b'00000000' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -3605,7 +3605,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
-###   @1=b'00000001' /* BIT(8) meta=256 nullable=1 is_null=0 */
+###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
@@ -3698,7 +3698,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM test.t1
 ### WHERE
-###   @1=NULL /* type=16 meta=256 nullable=1 is_null=1 */
+###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
 ###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
 ###   @3=NULL /* type=1 meta=0 nullable=1 is_null=1 */
 ###   @4=NULL /* type=1 meta=0 nullable=1 is_null=1 */
@@ -3725,7 +3725,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -3879,7 +3879,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -4246,7 +4246,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -4807,7 +4807,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;

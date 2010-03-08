@@ -33,15 +33,23 @@ class sp_pcontext;
 class st_alter_tablespace;
 class partition_info;
 class Event_parse_data;
+class set_var_base;
+class sys_var;
+
+/**
+  used by the parser to store internal variable name
+*/
+struct sys_var_with_base
+{
+  sys_var *var;
+  LEX_STRING base_name;
+};
 
 #ifdef MYSQL_SERVER
 /*
   The following hack is needed because mysql_yacc.cc does not define
   YYSTYPE before including this file
 */
-
-#include "set_var.h"
-
 #ifdef MYSQL_YACC
 #define LEX_YYSTYPE void *
 #else
@@ -89,10 +97,10 @@ enum enum_sql_command {
   SQLCOM_ROLLBACK, SQLCOM_ROLLBACK_TO_SAVEPOINT,
   SQLCOM_COMMIT, SQLCOM_SAVEPOINT, SQLCOM_RELEASE_SAVEPOINT,
   SQLCOM_SLAVE_START, SQLCOM_SLAVE_STOP,
-  SQLCOM_BEGIN, SQLCOM_LOAD_MASTER_TABLE, SQLCOM_CHANGE_MASTER,
-  SQLCOM_RENAME_TABLE, SQLCOM_BACKUP_TABLE, SQLCOM_RESTORE_TABLE,
+  SQLCOM_BEGIN, SQLCOM_CHANGE_MASTER,
+  SQLCOM_RENAME_TABLE,
   SQLCOM_RESET, SQLCOM_PURGE, SQLCOM_PURGE_BEFORE, SQLCOM_SHOW_BINLOGS,
-  SQLCOM_SHOW_OPEN_TABLES, SQLCOM_LOAD_MASTER_DATA,
+  SQLCOM_SHOW_OPEN_TABLES,
   SQLCOM_HA_OPEN, SQLCOM_HA_CLOSE, SQLCOM_HA_READ,
   SQLCOM_SHOW_SLAVE_HOSTS, SQLCOM_DELETE_MULTI, SQLCOM_UPDATE_MULTI,
   SQLCOM_SHOW_BINLOG_EVENTS, SQLCOM_SHOW_NEW_MASTER, SQLCOM_DO,
@@ -403,6 +411,8 @@ public:
 struct LEX;
 class st_select_lex;
 class st_select_lex_unit;
+
+
 class st_select_lex_node {
 protected:
   st_select_lex_node *next, **prev,   /* neighbor list */
@@ -440,8 +450,17 @@ public:
   { return (void*) alloc_root(mem_root, (uint) size); }
   static void operator delete(void *ptr,size_t size) { TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root) {}
-  st_select_lex_node(): linkage(UNSPECIFIED_TYPE) {}
+
+  // Ensures that at least all members used during cleanup() are initialized.
+  st_select_lex_node()
+    : next(NULL), prev(NULL),
+      master(NULL), slave(NULL),
+      link_next(NULL), link_prev(NULL),
+      linkage(UNSPECIFIED_TYPE)
+  {
+  }
   virtual ~st_select_lex_node() {}
+
   inline st_select_lex_node* get_master() { return master; }
   virtual void init_query();
   virtual void init_select();
@@ -487,6 +506,8 @@ class select_result;
 class JOIN;
 class select_union;
 class Procedure;
+
+
 class st_select_lex_unit: public st_select_lex_node {
 protected:
   TABLE_LIST result_table_list;
@@ -498,6 +519,14 @@ protected:
   bool saved_error;
 
 public:
+  // Ensures that at least all members used during cleanup() are initialized.
+  st_select_lex_unit()
+    : union_result(NULL), table(NULL), result(NULL),
+      cleaned(false),
+      fake_select_lex(NULL)
+  {
+  }
+
   bool  prepared, // prepare phase already performed for UNION (unit)
     optimized, // optimize phase already performed for UNION (unit)
     executed, // already executed
@@ -638,11 +667,6 @@ public:
   uint select_n_where_fields;
   enum_parsing_place parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
-  /* 
-    PS or SP cond natural joins was alredy processed with permanent
-    arena and all additional items which we need alredy stored in it
-  */
-  bool conds_processed_with_permanent_arena;
 
   ulong table_join_options;
   uint in_sum_expr;
@@ -1054,25 +1078,168 @@ public:
     }
   }
 
+  /** Return a pointer to the last element in query table list. */
+  TABLE_LIST *last_table()
+  {
+    /* Don't use offsetof() macro in order to avoid warnings. */
+    return query_tables ?
+           (TABLE_LIST*) ((char*) query_tables_last -
+                          ((char*) &(query_tables->next_global) -
+                           (char*) query_tables)) :
+           0;
+  }
+
   /**
-     Has the parser/scanner detected that this statement is unsafe?
-   */
+    Enumeration listing of all types of unsafe statement.
+
+    @note The order of elements of this enumeration type must
+    correspond to the order of the elements of the @c explanations
+    array defined in the body of @c THD::issue_unsafe_warnings.
+  */
+  enum enum_binlog_stmt_unsafe {
+    /**
+      SELECT..LIMIT is unsafe because the set of rows returned cannot
+      be predicted.
+    */
+    BINLOG_STMT_UNSAFE_LIMIT= 0,
+    /**
+      INSERT DELAYED is unsafe because the time when rows are inserted
+      cannot be predicted.
+    */
+    BINLOG_STMT_UNSAFE_INSERT_DELAYED,
+    /**
+      Access to log tables is unsafe because slave and master probably
+      log different things.
+    */
+    BINLOG_STMT_UNSAFE_SYSTEM_TABLE,
+    /**
+      Inserting into an autoincrement column in a stored routine is unsafe.
+      Even with just one autoincrement column, if the routine is invoked more than 
+      once slave is not guaranteed to execute the statement graph same way as 
+      the master.
+      And since it's impossible to estimate how many times a routine can be invoked at 
+      the query pre-execution phase (see lock_tables), the statement is marked
+      pessimistically unsafe. 
+    */
+    BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS,
+    /**
+      Using a UDF (user-defined function) is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_UDF,
+    /**
+      Using most system variables is unsafe, because slave may run
+      with different options than master.
+    */
+    BINLOG_STMT_UNSAFE_SYSTEM_VARIABLE,
+    /**
+      Using some functions is unsafe (e.g., UUID).
+    */
+    BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION,
+
+    /**
+      Mixing transactional and non-transactional statements are unsafe if
+      non-transactional reads or writes are occur after transactional
+      reads or writes inside a transaction.
+    */
+    BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS,
+
+    /* The last element of this enumeration type. */
+    BINLOG_STMT_UNSAFE_COUNT
+  };
+  /**
+    This has all flags from 0 (inclusive) to BINLOG_STMT_FLAG_COUNT
+    (exclusive) set.
+  */
+  static const int BINLOG_STMT_UNSAFE_ALL_FLAGS=
+    ((1 << BINLOG_STMT_UNSAFE_COUNT) - 1);
+
+  /**
+    Maps elements of enum_binlog_stmt_unsafe to error codes.
+  */
+  static const int binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT];
+
+  /**
+    Determine if this statement is marked as unsafe.
+
+    @retval 0 if the statement is not marked as unsafe.
+    @retval nonzero if the statement is marked as unsafe.
+  */
   inline bool is_stmt_unsafe() const {
-    return binlog_stmt_flags & (1U << BINLOG_STMT_FLAG_UNSAFE);
+    return get_stmt_unsafe_flags() != 0;
   }
 
   /**
-     Flag the current (top-level) statement as unsafe.
+    Flag the current (top-level) statement as unsafe.
+    The flag will be reset after the statement has finished.
 
-     The flag will be reset after the statement has finished.
-
-   */
-  inline void set_stmt_unsafe() {
-    binlog_stmt_flags|= (1U << BINLOG_STMT_FLAG_UNSAFE);
+    @param unsafe_type The type of unsafety: one of the @c
+    BINLOG_STMT_FLAG_UNSAFE_* flags in @c enum_binlog_stmt_flag.
+  */
+  inline void set_stmt_unsafe(enum_binlog_stmt_unsafe unsafe_type) {
+    DBUG_ENTER("set_stmt_unsafe");
+    DBUG_ASSERT(unsafe_type >= 0 && unsafe_type < BINLOG_STMT_UNSAFE_COUNT);
+    binlog_stmt_flags|= (1U << unsafe_type);
+    DBUG_VOID_RETURN;
   }
 
+  /**
+    Set the bits of binlog_stmt_flags determining the type of
+    unsafeness of the current statement.  No existing bits will be
+    cleared, but new bits may be set.
+
+    @param flags A binary combination of zero or more bits, (1<<flag)
+    where flag is a member of enum_binlog_stmt_unsafe.
+  */
+  inline void set_stmt_unsafe_flags(uint32 flags) {
+    DBUG_ENTER("set_stmt_unsafe_flags");
+    DBUG_ASSERT((flags & ~BINLOG_STMT_UNSAFE_ALL_FLAGS) == 0);
+    binlog_stmt_flags|= flags;
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Return a binary combination of all unsafe warnings for the
+    statement.  If the statement has been marked as unsafe by the
+    'flag' member of enum_binlog_stmt_unsafe, then the return value
+    from this function has bit (1<<flag) set to 1.
+  */
+  inline uint32 get_stmt_unsafe_flags() const {
+    DBUG_ENTER("get_stmt_unsafe_flags");
+    DBUG_RETURN(binlog_stmt_flags & BINLOG_STMT_UNSAFE_ALL_FLAGS);
+  }
+
+  /**
+    Mark the current statement as safe; i.e., clear all bits in
+    binlog_stmt_flags that correspond to elements of
+    enum_binlog_stmt_unsafe.
+  */
   inline void clear_stmt_unsafe() {
-    binlog_stmt_flags&= ~(1U << BINLOG_STMT_FLAG_UNSAFE);
+    DBUG_ENTER("clear_stmt_unsafe");
+    binlog_stmt_flags&= ~BINLOG_STMT_UNSAFE_ALL_FLAGS;
+    DBUG_VOID_RETURN;
+  }
+
+  /**
+    Determine if this statement is a row injection.
+
+    @retval 0 if the statement is not a row injection
+    @retval nonzero if the statement is a row injection
+  */
+  inline bool is_stmt_row_injection() const {
+    return binlog_stmt_flags &
+      (1U << (BINLOG_STMT_UNSAFE_COUNT + BINLOG_STMT_TYPE_ROW_INJECTION));
+  }
+
+  /**
+    Flag the statement as a row injection.  A row injection is either
+    a BINLOG statement, or a row event in the relay log executed by
+    the slave SQL thread.
+  */
+  inline void set_stmt_row_injection() {
+    DBUG_ENTER("set_stmt_row_injection");
+    binlog_stmt_flags|=
+      (1U << (BINLOG_STMT_UNSAFE_COUNT + BINLOG_STMT_TYPE_ROW_INJECTION));
+    DBUG_VOID_RETURN;
   }
 
   /**
@@ -1083,16 +1250,37 @@ public:
   { return sroutines_list.elements != 0; }
 
 private:
-  enum enum_binlog_stmt_flag {
-    BINLOG_STMT_FLAG_UNSAFE,
-    BINLOG_STMT_FLAG_COUNT
+
+  /**
+    Enumeration listing special types of statements.
+
+    Currently, the only possible type is ROW_INJECTION.
+  */
+  enum enum_binlog_stmt_type {
+    /**
+      The statement is a row injection (i.e., either a BINLOG
+      statement or a row event executed by the slave SQL thread).
+    */
+    BINLOG_STMT_TYPE_ROW_INJECTION = 0,
+
+    /** The last element of this enumeration type. */
+    BINLOG_STMT_TYPE_COUNT
   };
 
-  /*
-    Tells if the parsing stage detected properties of the statement,
-    for example: that some items require row-based binlogging to give
-    a reliable binlog/replication, or if we will use stored functions
-    or triggers which themselves need require row-based binlogging.
+  /**
+    Bit field indicating the type of statement.
+
+    There are two groups of bits:
+
+    - The low BINLOG_STMT_UNSAFE_COUNT bits indicate the types of
+      unsafeness that the current statement has.
+
+    - The next BINLOG_STMT_TYPE_COUNT bits indicate if the statement
+      is of some special type.
+
+    This must be a member of LEX, not of THD: each stored procedure
+    needs to remember its unsafeness state between calls and each
+    stored procedure has its own LEX object (but no own THD object).
   */
   uint32 binlog_stmt_flags;
 };
@@ -1416,6 +1604,17 @@ public:
   /** Interface with bison, value of the last token parsed. */
   LEX_YYSTYPE yylval;
 
+  /**
+    LALR(2) resolution, look ahead token.
+    Value of the next token to return, if any,
+    or -1, if no token was parsed in advance.
+    Note: 0 is a legal token, and represents YYEOF.
+  */
+  int lookahead_token;
+
+  /** LALR(2) resolution, value of the look ahead token.*/
+  LEX_YYSTYPE lookahead_yylval;
+
 private:
   /** Pointer to the current position in the raw input stream. */
   const char *m_ptr;
@@ -1718,7 +1917,9 @@ struct LEX: public Query_tables_list
   uint profile_options;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
-  uint fk_delete_opt, fk_update_opt, fk_match_option;
+  enum Foreign_key::fk_match_opt fk_match_option;
+  enum Foreign_key::fk_option fk_update_opt;
+  enum Foreign_key::fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int nest_level;
   /*
@@ -1753,6 +1954,12 @@ struct LEX: public Query_tables_list
   bool subqueries, ignore;
   st_parsing_options parsing_options;
   Alter_info alter_info;
+  /*
+    For CREATE TABLE statement last element of table list which is not
+    part of SELECT or LIKE part (i.e. either element for table we are
+    creating or last of tables referenced by foreign keys).
+  */
+  TABLE_LIST *create_last_non_select_table;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
   /*

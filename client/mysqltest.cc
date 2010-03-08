@@ -73,23 +73,26 @@
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
 
+#ifndef HAVE_SETENV
+static int setenv(const char *name, const char *value, int overwrite);
+#endif
+
 enum {
   OPT_SKIP_SAFEMALLOC=OPT_MAX_CLIENT_OPTION,
   OPT_PS_PROTOCOL, OPT_SP_PROTOCOL, OPT_CURSOR_PROTOCOL, OPT_VIEW_PROTOCOL,
-  OPT_MAX_CONNECT_RETRIES, OPT_MAX_CONNECTIONS,
-  OPT_MARK_PROGRESS, OPT_LOG_DIR, OPT_TAIL_LINES
+  OPT_MAX_CONNECT_RETRIES, OPT_MAX_CONNECTIONS, OPT_MARK_PROGRESS,
+  OPT_LOG_DIR, OPT_TAIL_LINES, OPT_RESULT_FORMAT_VERSION, 
 };
 
 static int record= 0, opt_sleep= -1;
 static char *opt_db= 0, *opt_pass= 0;
 const char *opt_user= 0, *opt_host= 0, *unix_sock= 0, *opt_basedir= "./";
-#ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
-#endif
 const char *opt_logdir= "";
 const char *opt_include= 0, *opt_charsets_dir;
 static int opt_port= 0;
 static int opt_max_connect_retries;
+static int opt_result_format_version;
 static int opt_max_connections= DEFAULT_MAX_CONN;
 static my_bool opt_compress= 0, silent= 0, verbose= 0;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
@@ -218,7 +221,6 @@ typedef struct
   int alloced_len;
   int int_dirty; /* do not update string if int is updated until first read */
   int alloced;
-  char *env_s;
 } VAR;
 
 /*Perl/shell-like variable registers */
@@ -292,11 +294,12 @@ enum enum_commands {
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
   Q_LIST_FILES, Q_LIST_FILES_WRITE_FILE, Q_LIST_FILES_APPEND_FILE,
   Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
+  Q_RESULT_FORMAT_VERSION,
   Q_MOVE_FILE, Q_REMOVE_FILES_WILDCARD, Q_SEND_EVAL,
-
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
-  Q_COMMENT_WITH_COMMAND
+  Q_COMMENT_WITH_COMMAND,
+  Q_EMPTY_LINE
 };
 
 
@@ -387,6 +390,7 @@ const char *command_names[]=
   "list_files_append_file",
   "send_shutdown",
   "shutdown_server",
+  "result_format",
   "move_file",
   "remove_files_wildcard",
   "send_eval",
@@ -704,12 +708,12 @@ pthread_handler_t send_one_query(void *arg)
   struct st_connection *cn= (struct st_connection*)arg;
 
   mysql_thread_init();
-  VOID(mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len));
+  (void) mysql_send_query(&cn->mysql, cn->cur_query, cn->cur_query_len);
 
   mysql_thread_end();
   pthread_mutex_lock(&cn->mutex);
   cn->query_done= 1;
-  VOID(pthread_cond_signal(&cn->cond));
+  pthread_cond_signal(&cn->cond);
   pthread_mutex_unlock(&cn->mutex);
   pthread_exit(0);
   return 0;
@@ -1934,13 +1938,20 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
                                                   + name_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  tmp_var->name = (name) ? (char*) tmp_var + sizeof(*tmp_var) : 0;
+  if (name != NULL)
+  {
+    tmp_var->name= reinterpret_cast<char*>(tmp_var) + sizeof(*tmp_var);
+    memcpy(tmp_var->name, name, name_len);
+    tmp_var->name[name_len]= 0;
+  }
+  else
+    tmp_var->name= NULL;
+
   tmp_var->alloced = (v == 0);
 
   if (!(tmp_var->str_val = (char*)my_malloc(val_alloc_len+1, MYF(MY_WME))))
     die("Out of memory");
 
-  memcpy(tmp_var->name, name, name_len);
   if (val)
   {
     memcpy(tmp_var->str_val, val, val_len);
@@ -1951,7 +1962,6 @@ VAR *var_init(VAR *v, const char *name, int name_len, const char *val,
   tmp_var->alloced_len = val_alloc_len;
   tmp_var->int_val = (val) ? atoi(val) : 0;
   tmp_var->int_dirty = 0;
-  tmp_var->env_s = 0;
   return tmp_var;
 }
 
@@ -2079,20 +2089,15 @@ void var_set(const char *var_name, const char *var_name_end,
 
   if (env_var)
   {
-    char buf[1024], *old_env_s= v->env_s;
     if (v->int_dirty)
     {
       sprintf(v->str_val, "%d", v->int_val);
       v->int_dirty= 0;
       v->str_val_len= strlen(v->str_val);
     }
-    my_snprintf(buf, sizeof(buf), "%.*s=%.*s",
-                v->name_len, v->name,
-                v->str_val_len, v->str_val);
-    if (!(v->env_s= my_strdup(buf, MYF(MY_WME))))
-      die("Out of memory");
-    putenv(v->env_s);
-    my_free(old_env_s, MYF(MY_ALLOW_ZERO_PTR));
+    /* setenv() expects \0-terminated strings */
+    DBUG_ASSERT(v->name[v->name_len] == 0);
+    setenv(v->name, v->str_val, 1);
   }
   DBUG_VOID_RETURN;
 }
@@ -2204,6 +2209,59 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 
   mysql_free_result(res);
   DBUG_VOID_RETURN;
+}
+
+
+static void
+set_result_format_version(ulong new_version)
+{
+  switch (new_version){
+  case 1:
+    /* The first format */
+    break;
+  case 2:
+    /* New format that also writes comments and empty lines
+       from test file to result */
+    break;
+  default:
+    die("Version format %lu has not yet been implemented", new_version);
+    break;
+  }
+  opt_result_format_version= new_version;
+}
+
+
+/*
+  Set the result format version to use when generating
+  the .result file
+*/
+
+static void
+do_result_format_version(struct st_command *command)
+{
+  long version;
+  static DYNAMIC_STRING ds_version;
+  const struct command_arg result_format_args[] = {
+    {"version", ARG_STRING, TRUE, &ds_version, "Version to use"}
+  };
+
+  DBUG_ENTER("do_result_format_version");
+
+  check_command_args(command, command->first_argument,
+                     result_format_args,
+                     sizeof(result_format_args)/sizeof(struct command_arg),
+                     ',');
+
+  /* Convert version  number to int */
+  if (!str2int(ds_version.str, 10, (long) 0, (long) INT_MAX, &version))
+    die("Invalid version number: '%s'", ds_version.str);
+
+  set_result_format_version(version);
+
+  dynstr_append(&ds_res, "result_format: ");
+  dynstr_append_mem(&ds_res, ds_version.str, ds_version.length);
+  dynstr_append(&ds_res, "\n");
+  dynstr_free(&ds_version);
 }
 
 
@@ -4402,12 +4460,13 @@ typedef struct
 {
   const char *name;
   uint        code;
+  const char *text;
 } st_error;
 
 static st_error global_error_names[] =
 {
 #include <mysqld_ername.h>
-  { 0, 0 }
+  { 0, 0, 0 }
 };
 
 uint get_errcode_from_name(char *error_name, char *error_end)
@@ -5402,7 +5461,7 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  char c, UNINIT_VAR(last_quote);
+  char c, UNINIT_VAR(last_quote), last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   enum {R_NORMAL, R_Q, R_SLASH_IN_Q,
@@ -5500,14 +5559,24 @@ int read_line(char *buf, int size)
       }
       else if (my_isspace(charset_info, c))
       {
-        /* Skip all space at begining of line */
 	if (c == '\n')
         {
+          if (last_char == '\n')
+          {
+            /* Two new lines in a row, return empty line */
+            DBUG_PRINT("info", ("Found two new lines in a row"));
+            *p++= c;
+            *p= 0;
+            DBUG_RETURN(0);
+          }
+
           /* Query hasn't started yet */
 	  start_lineno= cur_file->lineno;
           DBUG_PRINT("info", ("Query hasn't started yet, start_lineno: %d",
                               start_lineno));
         }
+
+        /* Skip all space at begining of line */
 	skip_char= 1;
       }
       else if (end_of_query(c))
@@ -5547,6 +5616,8 @@ int read_line(char *buf, int size)
       break;
 
     }
+
+    last_char= c;
 
     if (!skip_char)
     {
@@ -5757,9 +5828,10 @@ int read_command(struct st_command** command_ptr)
     DBUG_RETURN(1);
   }
 
-  convert_to_format_v1(read_command_buf);
+  if (opt_result_format_version == 1)
+    convert_to_format_v1(read_command_buf);
 
-  DBUG_PRINT("info", ("query: %s", read_command_buf));
+  DBUG_PRINT("info", ("query: '%s'", read_command_buf));
   if (*p == '#')
   {
     command->type= Q_COMMENT;
@@ -5768,6 +5840,10 @@ int read_command(struct st_command** command_ptr)
   {
     command->type= Q_COMMENT_WITH_COMMAND;
     p+= 2; /* Skip past -- */
+  }
+  else if (*p == '\n')
+  {
+    command->type= Q_EMPTY_LINE;
   }
 
   /* Skip leading spaces */
@@ -5868,16 +5944,19 @@ static struct my_option my_long_options[] =
   {"result-file", 'R', "Read/store result from/in this file.",
    (uchar**) &result_file_name, (uchar**) &result_file_name, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"result-format-version", OPT_RESULT_FORMAT_VERSION,
+   "Version of the result file format to use",
+   (uchar**) &opt_result_format_version,
+   (uchar**) &opt_result_format_version, 0,
+   GET_INT, REQUIRED_ARG, 1, 1, 2, 0, 0, 0},
   {"server-arg", 'A', "Send option value to embedded server as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-file", 'F', "Read embedded server arguments from file.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (uchar**) &shared_memory_base_name, 
    (uchar**) &shared_memory_base_name, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 
    0, 0, 0},
-#endif
   {"silent", 's', "Suppress all normal output. Synonym for --quiet.",
    (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
@@ -6077,6 +6156,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     sf_malloc_quick=1;
 #endif
     break;
+  case OPT_RESULT_FORMAT_VERSION:
+    set_result_format_version(opt_result_format_version);
+    break;
   case 'V':
     print_version();
     exit(0);
@@ -6090,7 +6172,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int parse_args(int argc, char **argv)
 {
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+    exit(1);
+
   default_argv= argv;
 
   if ((handle_options(&argc, &argv, my_long_options, get_one_option)))
@@ -6204,6 +6288,8 @@ void init_win_path_patterns()
                           "$MYSQL_TMP_DIR",
                           "$MYSQLTEST_VARDIR",
                           "$MASTER_MYSOCK",
+                          "$MYSQL_SHAREDIR",
+                          "$MYSQL_LIBDIR",
                           "./test/" };
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
@@ -7156,7 +7242,7 @@ int util_query(MYSQL* org_mysql, const char* query){
     cur_con->util_mysql= mysql;
   }
 
-  return mysql_query(mysql, query);
+ DBUG_RETURN(mysql_query(mysql, query));
 }
 
 
@@ -7802,6 +7888,7 @@ int main(int argc, char **argv)
     cur_file->file_name= my_strdup("<stdin>", MYF(MY_WME));
     cur_file->lineno= 1;
   }
+  var_set_string("MYSQLTEST_FILE", cur_file->file_name);
   init_re();
   ps_protocol_enabled= ps_protocol;
   sp_protocol_enabled= sp_protocol;
@@ -7968,6 +8055,7 @@ int main(int argc, char **argv)
       case Q_MOVE_FILE: do_move_file(command); break;
       case Q_CHMOD_FILE: do_chmod_file(command); break;
       case Q_PERL: do_perl(command); break;
+      case Q_RESULT_FORMAT_VERSION: do_result_format_version(command); break;
       case Q_DELIMITER:
         do_delimiter(command);
 	break;
@@ -8092,9 +8180,38 @@ int main(int argc, char **argv)
 	do_sync_with_master2(command, 0);
 	break;
       }
-      case Q_COMMENT:				/* Ignore row */
+      case Q_COMMENT:
+      {
         command->last_argument= command->end;
+
+        /* Don't output comments in v1 */
+        if (opt_result_format_version == 1)
+          break;
+
+        /* Don't output comments if query logging is off */
+        if (disable_query_log)
+          break;
+
+        /* Write comment's with two starting #'s to result file */
+        const char* p= command->query;
+        if (p && *p == '#' && *(p+1) == '#')
+        {
+          dynstr_append_mem(&ds_res, command->query, command->query_len);
+          dynstr_append(&ds_res, "\n");
+        }
 	break;
+      }
+      case Q_EMPTY_LINE:
+        /* Don't output newline in v1 */
+        if (opt_result_format_version == 1)
+          break;
+
+        /* Don't output newline if query logging is off */
+        if (disable_query_log)
+          break;
+
+        dynstr_append(&ds_res, "\n");
+        break;
       case Q_PING:
         handle_command_error(command, mysql_ping(&cur_con->mysql));
         break;
@@ -9111,7 +9228,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     free_sets(&sets);
     DBUG_RETURN(0);
   }
-  VOID(make_new_set(&sets));			/* Set starting set */
+  (void) make_new_set(&sets);			/* Set starting set */
   make_sets_invisible(&sets);			/* Hide previus sets */
   used_sets=-1;
   word_states=make_new_set(&sets);		/* Start of new word */
@@ -9582,7 +9699,7 @@ int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
   pa->flag[pa->typelib.count]=0;			/* Reset flag */
   pa->typelib.type_names[pa->typelib.count++]= (char*) pa->str+pa->length;
   pa->typelib.type_names[pa->typelib.count]= NullS;	/* Put end-mark */
-  VOID(strmov((char*) pa->str+pa->length,name));
+  (void) strmov((char*) pa->str+pa->length,name);
   pa->length+=length;
   DBUG_RETURN(0);
 } /* insert_pointer_name */
@@ -9727,3 +9844,18 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
   delete_dynamic(&lines);
   DBUG_VOID_RETURN;
 }
+
+#ifndef HAVE_SETENV
+static int setenv(const char *name, const char *value, int overwrite)
+{
+  size_t buflen= strlen(name) + strlen(value) + 2;
+  char *envvar= (char *)malloc(buflen);
+  if(!envvar)
+    return ENOMEM;
+  strcpy(envvar, name);
+  strcat(envvar, "=");
+  strcat(envvar, value);
+  putenv(envvar);
+  return 0;
+}
+#endif

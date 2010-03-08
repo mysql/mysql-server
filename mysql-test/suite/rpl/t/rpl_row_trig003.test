@@ -120,9 +120,7 @@ DELETE FROM test.t1 WHERE id = 1;
 
 DELETE FROM test.t2 WHERE id = 1;
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 connection master;
 
 # time to dump the databases and so we can see if they match

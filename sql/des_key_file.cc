@@ -1,4 +1,4 @@
-/* Copyright (C) 2001-2003, 2005 MySQL AB
+/* Copyright (C) 2001-2003, 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,8 +43,9 @@ load_des_key_file(const char *file_name)
   DBUG_ENTER("load_des_key_file");
   DBUG_PRINT("enter",("name: %s",file_name));
 
-  VOID(pthread_mutex_lock(&LOCK_des_key_file));
-  if ((file=my_open(file_name,O_RDONLY | O_BINARY ,MYF(MY_WME))) < 0 ||
+  mysql_mutex_lock(&LOCK_des_key_file);
+  if ((file= mysql_file_open(key_file_des_key_file, file_name,
+                             O_RDONLY | O_BINARY, MYF(MY_WME))) < 0 ||
       init_io_cache(&io, file, IO_SIZE*2, READ_CACHE, 0, 0, MYF(MY_WME)))
     goto error;
 
@@ -93,10 +94,10 @@ load_des_key_file(const char *file_name)
 error:
   if (file >= 0)
   {
-    my_close(file,MYF(0));
+    mysql_file_close(file, MYF(0));
     end_io_cache(&io);
   }
-  VOID(pthread_mutex_unlock(&LOCK_des_key_file));
+  mysql_mutex_unlock(&LOCK_des_key_file);
   DBUG_RETURN(result);
 }
 #endif /* HAVE_OPENSSL */

@@ -1,0 +1,70 @@
+# Copyright (C) 2008-2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 12 # 14 #
+select * from performance_schema.EVENTS_WAITS_HISTORY
+  where event_name like 'Wait/Synch/%' limit 1;
+
+select * from performance_schema.EVENTS_WAITS_HISTORY
+  where event_name='FOO';
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 12 # 14 #
+select * from performance_schema.EVENTS_WAITS_HISTORY
+  where event_name like 'Wait/Synch/%' order by timer_wait limit 1;
+
+--replace_column 1 # 2 # 3 # 4 # 5 # 6 # 7 # 8 # 12 # 14 #
+select * from performance_schema.EVENTS_WAITS_HISTORY
+  where event_name like 'Wait/Synch/%' order by timer_wait desc limit 1;
+
+--replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
+--error ER_TABLEACCESS_DENIED_ERROR
+insert into performance_schema.EVENTS_WAITS_HISTORY
+  set thread_id='1', event_id=1,
+  event_name='FOO', timer_start=1, timer_end=2, timer_wait=3;
+
+--replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.EVENTS_WAITS_HISTORY
+  set timer_start=12;
+
+--replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
+--error ER_TABLEACCESS_DENIED_ERROR
+update performance_schema.EVENTS_WAITS_HISTORY
+  set timer_start=12 where thread_id=0;
+
+--replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.EVENTS_WAITS_HISTORY
+  where thread_id=1;
+
+--replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
+--error ER_TABLEACCESS_DENIED_ERROR
+delete from performance_schema.EVENTS_WAITS_HISTORY;
+
+--replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.EVENTS_WAITS_HISTORY READ;
+UNLOCK TABLES;
+
+--replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
+-- error ER_TABLEACCESS_DENIED_ERROR
+LOCK TABLES performance_schema.EVENTS_WAITS_HISTORY WRITE;
+UNLOCK TABLES;
+

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #else
 #include <my_no_pthread.h>
 #endif
+#include <mysql/psi/mysql_file.h>
 
 #if defined(my_write) && !defined(MAP_TO_USE_RAID)
 #undef my_write				/* undef map from my_nosys; We need test-if-disk full */
@@ -165,6 +166,7 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   MI_COLUMNDEF *rec;			/* Pointer to field information */
   MI_PACK    pack;			/* Data about packed records */
   MI_BLOB    *blobs;			/* Pointer to blobs */
+  LIST *in_use;                         /* List of threads using this table */
   char  *unique_file_name;		/* realpath() of index file */
   char  *data_file_name,		/* Resolved path names from symlinks */
         *index_file_name;
@@ -213,13 +215,13 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
     concurrent_insert;
 #ifdef THREAD
   THR_LOCK lock;
-  pthread_mutex_t intern_lock;		/* Locking for use with _locking */
-  rw_lock_t *key_root_lock;
+  mysql_mutex_t intern_lock;            /* Locking for use with _locking */
+  mysql_rwlock_t *key_root_lock;
 #endif
   my_off_t mmaped_length;
   uint     nonmmaped_inserts;           /* counter of writing in non-mmaped
                                            area */
-  rw_lock_t mmap_lock;
+  mysql_rwlock_t mmap_lock;
 } MYISAM_SHARE;
 
 
@@ -242,6 +244,7 @@ struct st_myisam_info {
   DYNAMIC_ARRAY *ft1_to_ft2;            /* used only in ft1->ft2 conversion */
   MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param; /* share info between init/deinit   */
+  LIST in_use;                          /* Thread using this table          */
   char *filename;			/* parameter to open filename       */
   uchar *buff,				/* Temp area for key                */
 	*lastkey,*lastkey2;		/* Last used search key             */
@@ -385,8 +388,10 @@ typedef struct st_mi_sort_param
 #define mi_putint(x,y,nod) { uint16 boh=(nod ? (uint16) 32768 : 0) + (uint16) (y);\
 			  mi_int2store(x,boh); }
 #define mi_test_if_nod(x) (x[0] & 128 ? info->s->base.key_reflength : 0)
+#define mi_report_crashed(A, B) _mi_report_crashed((A), (B), __FILE__, __LINE__)
 #define mi_mark_crashed(x) do{(x)->s->state.changed|= STATE_CRASHED; \
                               DBUG_PRINT("error", ("Marked table crashed")); \
+                              mi_report_crashed((x), 0); \
                            }while(0)
 #define mi_mark_crashed_on_repair(x) do{(x)->s->state.changed|= \
                                         STATE_CRASHED|STATE_CRASHED_ON_REPAIR; \
@@ -459,12 +464,12 @@ typedef struct st_mi_sort_param
 #define mi_unique_store(A,B)    mi_int4store((A),(B))
 
 #ifdef THREAD
-extern pthread_mutex_t THR_LOCK_myisam;
+extern mysql_mutex_t THR_LOCK_myisam;
 #endif
 #if !defined(THREAD) || defined(DONT_USE_RW_LOCKS)
-#define rw_wrlock(A) {}
-#define rw_rdlock(A) {}
-#define rw_unlock(A) {}
+#define mysql_rwlock_wrlock(A) {}
+#define mysql_rwlock_rdlock(A) {}
+#define mysql_rwlock_unlock(A) {}
 #endif
 
 	/* Some extern variables */
@@ -763,6 +768,8 @@ int mi_open_keyfile(MYISAM_SHARE *share);
 void mi_setup_functions(register MYISAM_SHARE *share);
 my_bool mi_dynmap_file(MI_INFO *info, my_off_t size);
 void mi_remap_file(MI_INFO *info, my_off_t size);
+void _mi_report_crashed(MI_INFO *file, const char *message,
+                        const char *sfile, uint sline);
 
     /* Functions needed by mi_check */
 volatile int *killed_ptr(MI_CHECK *param);
@@ -783,4 +790,23 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages, ulong);
 #ifdef __cplusplus
 }
 #endif
+
+#ifdef HAVE_PSI_INTERFACE
+C_MODE_START
+extern PSI_mutex_key mi_key_mutex_MYISAM_SHARE_intern_lock,
+  mi_key_mutex_MI_SORT_INFO_mutex, mi_key_mutex_MI_CHECK_print_msg;
+
+extern PSI_rwlock_key mi_key_rwlock_MYISAM_SHARE_key_root_lock,
+  mi_key_rwlock_MYISAM_SHARE_mmap_lock;
+
+extern PSI_cond_key mi_key_cond_MI_SORT_INFO_cond;
+
+extern PSI_file_key mi_key_file_datatmp, mi_key_file_dfile, mi_key_file_kfile,
+  mi_key_file_log;
+
+extern PSI_thread_key mi_key_thread_find_all_keys;
+
+void init_myisam_psi_keys();
+C_MODE_END
+#endif /* HAVE_PSI_INTERFACE */
 

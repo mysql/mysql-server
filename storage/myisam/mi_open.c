@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     DBUG_RETURN (NULL);
   }
 
-  pthread_mutex_lock(&THR_LOCK_myisam);
+  mysql_mutex_lock(&THR_LOCK_myisam);
   if (!(old_info=test_if_reopen(name_buff)))
   {
     share= &share_buff;
@@ -120,17 +120,21 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
                       my_errno= HA_ERR_CRASHED;
                       goto err;
                     });
-    if ((kfile=my_open(name_buff,(open_mode=O_RDWR) | O_SHARE,MYF(0))) < 0)
+    if ((kfile= mysql_file_open(mi_key_file_kfile,
+                                name_buff,
+                                (open_mode= O_RDWR) | O_SHARE, MYF(0))) < 0)
     {
       if ((errno != EROFS && errno != EACCES) ||
 	  mode != O_RDONLY ||
-	  (kfile=my_open(name_buff,(open_mode=O_RDONLY) | O_SHARE,MYF(0))) < 0)
+          (kfile= mysql_file_open(mi_key_file_kfile,
+                                  name_buff,
+                                  (open_mode= O_RDONLY) | O_SHARE, MYF(0))) < 0)
 	goto err;
     }
     share->mode=open_mode;
     errpos=1;
-    if (my_read(kfile, share->state.header.file_version, head_length,
-		MYF(MY_NABP)))
+    if (mysql_file_read(kfile, share->state.header.file_version, head_length,
+                        MYF(MY_NABP)))
     {
       my_errno= HA_ERR_NOT_A_TABLE;
       goto err;
@@ -181,7 +185,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     end_pos=disk_cache+info_length;
     errpos=2;
 
-    VOID(my_seek(kfile,0L,MY_SEEK_SET,MYF(0)));
+    mysql_file_seek(kfile, 0L, MY_SEEK_SET, MYF(0));
     if (!(open_flags & HA_OPEN_TMP_TABLE))
     {
       if ((lock_error=my_lock(kfile,F_RDLCK,0L,F_TO_EOF,
@@ -191,7 +195,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	goto err;
     }
     errpos=3;
-    if (my_read(kfile,disk_cache,info_length,MYF(MY_NABP)))
+    if (mysql_file_read(kfile, disk_cache, info_length, MYF(MY_NABP)))
     {
       my_errno=HA_ERR_CRASHED;
       goto err;
@@ -309,9 +313,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 			 &share->state.key_del,
 			 (share->state.header.max_block_size_index*sizeof(my_off_t)),
 #ifdef THREAD
-			 &share->key_root_lock,sizeof(rw_lock_t)*keys,
+                         &share->key_root_lock, sizeof(mysql_rwlock_t)*keys,
 #endif
-			 &share->mmap_lock,sizeof(rw_lock_t),
+                         &share->mmap_lock, sizeof(mysql_rwlock_t),
 			 NullS))
       goto err;
     errpos=4;
@@ -482,7 +486,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 
     if (! lock_error)
     {
-      VOID(my_lock(kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE)));
+      (void) my_lock(kfile,F_UNLCK,0L,F_TO_EOF,MYF(MY_SEEK_NOT_DONE));
       lock_error=1;			/* Database unlocked */
     }
 
@@ -522,10 +526,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     share->is_log_table= FALSE;
 #ifdef THREAD
     thr_lock_init(&share->lock);
-    VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
+    mysql_mutex_init(mi_key_mutex_MYISAM_SHARE_intern_lock,
+                     &share->intern_lock, MY_MUTEX_INIT_FAST);
     for (i=0; i<keys; i++)
-      VOID(my_rwlock_init(&share->key_root_lock[i], NULL));
-    VOID(my_rwlock_init(&share->mmap_lock, NULL));
+      mysql_rwlock_init(mi_key_rwlock_MYISAM_SHARE_key_root_lock,
+                        &share->key_root_lock[i]);
+    mysql_rwlock_init(mi_key_rwlock_MYISAM_SHARE_mmap_lock, &share->mmap_lock);
     if (!thr_lock_inited)
     {
       /* Probably a single threaded program; Don't use concurrent inserts */
@@ -611,7 +617,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   info.ft1_to_ft2=0;
   info.errkey= -1;
   info.page_changed=1;
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
   info.read_record=share->read_record;
   share->reopen++;
   share->write_flag=MYF(MY_NABP | MY_WAIT_IF_FULL);
@@ -635,7 +641,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       myisam_delay_key_write)
     share->delay_key_write=1;
   info.state= &share->state.state;	/* Change global values by default */
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
 
   /* Allocate buffer for one record */
 
@@ -651,7 +657,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   m_info->open_list.data=(void*) m_info;
   myisam_open_list=list_add(myisam_open_list,&m_info->open_list);
 
-  pthread_mutex_unlock(&THR_LOCK_myisam);
+  mysql_mutex_unlock(&THR_LOCK_myisam);
   if (myisam_log_file >= 0)
   {
     intern_filename(name_buff,share->index_file_name);
@@ -670,7 +676,7 @@ err:
     my_free((uchar*) m_info,MYF(0));
     /* fall through */
   case 5:
-    VOID(my_close(info.dfile,MYF(0)));
+    (void) mysql_file_close(info.dfile, MYF(0));
     if (old_info)
       break;					/* Don't remove open table */
     /* fall through */
@@ -679,19 +685,19 @@ err:
     /* fall through */
   case 3:
     if (! lock_error)
-      VOID(my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE)));
+      (void) my_lock(kfile, F_UNLCK, 0L, F_TO_EOF, MYF(MY_SEEK_NOT_DONE));
     /* fall through */
   case 2:
     my_afree(disk_cache);
     /* fall through */
   case 1:
-    VOID(my_close(kfile,MYF(0)));
+    (void) mysql_file_close(kfile, MYF(0));
     /* fall through */
   case 0:
   default:
     break;
   }
-  pthread_mutex_unlock(&THR_LOCK_myisam);
+  mysql_mutex_unlock(&THR_LOCK_myisam);
   my_errno=save_errno;
   DBUG_RETURN (NULL);
 } /* mi_open */
@@ -924,10 +930,10 @@ uint mi_state_info_write(File file, MI_STATE_INFO *state, uint pWrite)
   }
 
   if (pWrite & 1)
-    DBUG_RETURN(my_pwrite(file, buff, (size_t) (ptr-buff), 0L,
-			  MYF(MY_NABP | MY_THREADSAFE)) != 0);
-  DBUG_RETURN(my_write(file, buff, (size_t) (ptr-buff),
-		       MYF(MY_NABP)) != 0);
+    DBUG_RETURN(mysql_file_pwrite(file, buff, (size_t) (ptr-buff), 0L,
+                                  MYF(MY_NABP | MY_THREADSAFE)) != 0);
+  DBUG_RETURN(mysql_file_write(file, buff, (size_t) (ptr-buff),
+                               MYF(MY_NABP)) != 0);
 }
 
 
@@ -992,10 +998,10 @@ uint mi_state_info_read_dsk(File file, MI_STATE_INFO *state, my_bool pRead)
   {
     if (pRead)
     {
-      if (my_pread(file, buff, state->state_length,0L, MYF(MY_NABP)))
+      if (mysql_file_pread(file, buff, state->state_length, 0L, MYF(MY_NABP)))
 	return 1;
     }
-    else if (my_read(file, buff, state->state_length,MYF(MY_NABP)))
+    else if (mysql_file_read(file, buff, state->state_length, MYF(MY_NABP)))
       return 1;
     mi_state_info_read(buff, state);
   }
@@ -1038,7 +1044,7 @@ uint mi_base_info_write(File file, MI_BASE_INFO *base)
   mi_int2store(ptr,base->raid_chunks);			ptr +=2;
   mi_int4store(ptr,base->raid_chunksize);		ptr +=4;
   bzero(ptr,6);						ptr +=6; /* extra */
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 
@@ -1098,7 +1104,7 @@ uint mi_keydef_write(File file, MI_KEYDEF *keydef)
   mi_int2store(ptr,keydef->keylength);		ptr +=2;
   mi_int2store(ptr,keydef->minlength);		ptr +=2;
   mi_int2store(ptr,keydef->maxlength);		ptr +=2;
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 uchar *mi_keydef_read(uchar *ptr, MI_KEYDEF *keydef)
@@ -1142,7 +1148,7 @@ int mi_keyseg_write(File file, const HA_KEYSEG *keyseg)
   mi_int4store(ptr, pos);
   ptr+=4;
   
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 
@@ -1184,7 +1190,7 @@ uint mi_uniquedef_write(File file, MI_UNIQUEDEF *def)
   *ptr++=  (uchar) def->key;
   *ptr++ = (uchar) def->null_are_equal;
 
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 uchar *mi_uniquedef_read(uchar *ptr, MI_UNIQUEDEF *def)
@@ -1208,7 +1214,7 @@ uint mi_recinfo_write(File file, MI_COLUMNDEF *recinfo)
   mi_int2store(ptr,recinfo->length);	ptr +=2;
   *ptr++ = recinfo->null_bit;
   mi_int2store(ptr,recinfo->null_pos);	ptr+= 2;
-  return my_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
+  return mysql_file_write(file, buff, (size_t) (ptr-buff), MYF(MY_NABP)) != 0;
 }
 
 uchar *mi_recinfo_read(uchar *ptr, MI_COLUMNDEF *recinfo)
@@ -1261,15 +1267,18 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *org_name,
   }
   else
 #endif
-    info->dfile=my_open(data_name, share->mode | O_SHARE, MYF(MY_WME));
+    info->dfile= mysql_file_open(mi_key_file_dfile,
+                                 data_name, share->mode | O_SHARE, MYF(MY_WME));
   return info->dfile >= 0 ? 0 : 1;
 }
 
 
 int mi_open_keyfile(MYISAM_SHARE *share)
 {
-  if ((share->kfile=my_open(share->unique_file_name, share->mode | O_SHARE,
-                            MYF(MY_WME))) < 0)
+  if ((share->kfile= mysql_file_open(mi_key_file_kfile,
+                                     share->unique_file_name,
+                                     share->mode | O_SHARE,
+                                     MYF(MY_WME))) < 0)
     return 1;
   return 0;
 }

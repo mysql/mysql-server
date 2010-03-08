@@ -289,7 +289,6 @@ Sensitive_cursor::Sensitive_cursor(THD *thd, select_result *result_arg)
   Save THD state into cursor.
 
   @todo
-    - XXX: thd->locked_tables is not changed.
     -  What problems can we have with it if cursor is open?
     - TODO: must be fixed because of the prelocked mode.
 */
@@ -322,7 +321,7 @@ Sensitive_cursor::post_open(THD *thd)
   lock=           thd->lock;
   query_id=       thd->query_id;
   free_list=      thd->free_list;
-  change_list=    thd->change_list;
+  thd->change_list.move_elements_to(&change_list);
   reset_thd(thd);
   /* Now we have an active cursor and can cause a deadlock */
   thd->lock_info.n_cursors++;
@@ -342,7 +341,6 @@ Sensitive_cursor::post_open(THD *thd)
     }
   }
   /*
-    XXX: thd->locked_tables is not changed.
     What problems can we have with it if cursor is open?
     TODO: must be fixed because of the prelocked mode.
   */
@@ -438,8 +436,8 @@ Sensitive_cursor::fetch(ulong num_rows)
   thd->derived_tables= derived_tables;
   thd->open_tables= open_tables;
   thd->lock= lock;
-  thd->query_id= query_id;
-  thd->change_list= change_list;
+  thd->set_query_id(query_id);
+  change_list.move_elements_to(&thd->change_list);
   /* save references to memory allocated during fetch */
   thd->set_n_backup_active_arena(this, &backup_arena);
 
@@ -461,7 +459,7 @@ Sensitive_cursor::fetch(ulong num_rows)
   /* Grab free_list here to correctly free it in close */
   thd->restore_active_arena(this, &backup_arena);
 
-  change_list= thd->change_list;
+  thd->change_list.move_elements_to(&change_list);
   reset_thd(thd);
 
   for (info= ht_info; info->read_view; info++)
@@ -508,7 +506,7 @@ Sensitive_cursor::close()
     info->ht= 0;
   }
 
-  thd->change_list= change_list;
+  change_list.move_elements_to(&thd->change_list);
   {
     /*
       XXX: Another hack: we need to set THD state as if in a fetch to be
@@ -534,7 +532,6 @@ Sensitive_cursor::close()
   join= 0;
   stmt_arena= 0;
   free_items();
-  change_list.empty();
   DBUG_VOID_RETURN;
 }
 
@@ -721,7 +718,7 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
 {
   DBUG_ASSERT(table == 0);
   if (create_result_table(unit->thd, unit->get_unit_column_types(),
-                          FALSE, thd->options | TMP_TABLE_ALL_COLUMNS, ""))
+                          FALSE, thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS, ""))
     return TRUE;
 
   materialized_cursor= new (&table->mem_root)

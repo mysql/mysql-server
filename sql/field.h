@@ -25,7 +25,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#define NOT_FIXED_DEC			31
 #define DATETIME_DEC                     6
 const uint32 max_field_size= (uint32) 4294967295U;
 
@@ -167,22 +166,13 @@ public:
     table, which is located on disk).
   */
   virtual uint32 pack_length_in_rec() const { return pack_length(); }
-  virtual int compatible_field_size(uint field_metadata,
-                                    const Relay_log_info *);
+  virtual bool compatible_field_size(uint metadata, Relay_log_info *rli,
+                                     uint16 mflags, int *order);
   virtual uint pack_length_from_metadata(uint field_metadata)
-  { return field_metadata; }
-  /*
-    This method is used to return the size of the data in a row-based
-    replication row record. The default implementation of returning 0 is
-    designed to allow fields that do not use metadata to return TRUE (1)
-    from compatible_field_size() which uses this function in the comparison.
-    The default value for field metadata for fields that do not have 
-    metadata is 0. Thus, 0 == 0 means the fields are compatible in size.
-
-    Note: While most classes that override this method return pack_length(),
-    the classes Field_string, Field_varstring, and Field_blob return 
-    field_length + 1, field_length, and pack_length_no_ptr() respectfully.
-  */
+  {
+    DBUG_ENTER("Field::pack_length_from_metadata");
+    DBUG_RETURN(field_metadata);
+  }
   virtual uint row_pack_length() { return 0; }
   virtual int save_field_metadata(uchar *first_byte)
   { return do_save_field_metadata(first_byte); }
@@ -410,32 +400,11 @@ public:
     DBUG_RETURN(result);
   }
 
-  virtual uchar *pack_key(uchar* to, const uchar *from,
-                          uint max_length, bool low_byte_first)
-  {
-    return pack(to, from, max_length, low_byte_first);
-  }
-  virtual uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-					uint max_length, bool low_byte_first)
-  {
-    return pack(to, from, max_length, low_byte_first);
-  }
-  virtual const uchar *unpack_key(uchar* to, const uchar *from,
-                                  uint max_length, bool low_byte_first)
-  {
-    return unpack(to, from, max_length, low_byte_first);
-  }
   virtual uint packed_col_length(const uchar *to, uint length)
   { return length;}
   virtual uint max_packed_col_length(uint max_length)
   { return max_length;}
 
-  virtual int pack_cmp(const uchar *a,const uchar *b, uint key_length_arg,
-                       my_bool insert_or_update)
-  { return cmp(a,b); }
-  virtual int pack_cmp(const uchar *b, uint key_length_arg,
-                       my_bool insert_or_update)
-  { return cmp(ptr,b); }
   uint offset(uchar *record)
   {
     return (uint) (ptr - record);
@@ -445,11 +414,14 @@ public:
   virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual bool get_time(MYSQL_TIME *ltime);
   virtual CHARSET_INFO *charset(void) const { return &my_charset_bin; }
+  virtual CHARSET_INFO *charset_for_protocol(void) const
+  { return binary() ? &my_charset_bin : charset(); }
   virtual CHARSET_INFO *sort_charset(void) const { return charset(); }
   virtual bool has_charset(void) const { return FALSE; }
   virtual void set_charset(CHARSET_INFO *charset_arg) { }
   virtual enum Derivation derivation(void) const
   { return DERIVATION_IMPLICIT; }
+  virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
   bool set_warning(MYSQL_ERROR::enum_warning_level, unsigned int code,
                    int cuted_increment);
@@ -500,7 +472,6 @@ public:
   }
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
-  friend bool reopen_table(THD *,struct st_table *,bool);
   friend int cre_myisam(char * name, register TABLE *form, uint options,
 			ulonglong auto_increment_value);
   friend class Copy_field;
@@ -631,6 +602,9 @@ public:
 	    const char *field_name_arg,
             uint8 dec_arg, bool zero_arg, bool unsigned_arg);
   Item_result result_type () const { return REAL_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
   void prepend_zeros(String *value);
   void add_zerofill_and_unsigned(String &res) const;
   friend class Create_field;
@@ -641,6 +615,13 @@ public:
   int store_decimal(const my_decimal *);
   my_decimal *val_decimal(my_decimal *);
   uint is_equal(Create_field *new_field);
+  uint row_pack_length() { return pack_length(); }
+  uint32 pack_length_from_metadata(uint field_metadata) {
+    uint32 length= pack_length();
+    DBUG_PRINT("result", ("pack_length_from_metadata(%d): %u",
+                          field_metadata, length));
+    return length;
+  }
   int check_int(CHARSET_INFO *cs, const char *str, int length,
                 const char *int_end, int error);
   bool get_int(CHARSET_INFO *cs, const char *from, uint len, 
@@ -805,8 +786,8 @@ public:
   uint32 pack_length() const { return (uint32) bin_size; }
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length() { return pack_length(); }
-  int compatible_field_size(uint field_metadata,
-                            const Relay_log_info *rli);
+  bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
+                             uint16 mflags, int *order_var);
   uint is_equal(Create_field *new_field);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
@@ -1194,6 +1175,10 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_TIMESTAMP;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
@@ -1286,14 +1271,18 @@ public:
 	     CHARSET_INFO *cs)
     :Field_str(ptr_arg, MAX_DATE_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
-    {}
+    { flags|= BINARY_FLAG; }
   Field_date(bool maybe_null_arg, const char *field_name_arg,
              CHARSET_INFO *cs)
     :Field_str((uchar*) 0, MAX_DATE_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, cs) {}
+	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONG_INT; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   int store(const char *to,uint length,CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);
@@ -1330,15 +1319,19 @@ public:
 		CHARSET_INFO *cs)
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
-    {}
+    { flags|= BINARY_FLAG; }
   Field_newdate(bool maybe_null_arg, const char *field_name_arg,
                 CHARSET_INFO *cs)
     :Field_str((uchar*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
-               NONE, field_name_arg, cs) {}
+               NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
   enum_field_types real_type() const { return MYSQL_TYPE_NEWDATE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_UINT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
   int  store(longlong nr, bool unsigned_val);
@@ -1366,14 +1359,18 @@ public:
 	     CHARSET_INFO *cs)
     :Field_str(ptr_arg, 8, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
-    {}
+    { flags|= BINARY_FLAG; }
   Field_time(bool maybe_null_arg, const char *field_name_arg,
              CHARSET_INFO *cs)
     :Field_str((uchar*) 0,8, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, cs) {}
+	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_TIME;}
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_INT24; }
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   int store_time(MYSQL_TIME *ltime, timestamp_type type);
   int store(const char *to,uint length,CHARSET_INFO *charset);
   int store(double nr);
@@ -1401,16 +1398,20 @@ public:
 		 CHARSET_INFO *cs)
     :Field_str(ptr_arg, MAX_DATETIME_WIDTH, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
-    {}
+    { flags|= BINARY_FLAG; }
   Field_datetime(bool maybe_null_arg, const char *field_name_arg,
 		 CHARSET_INFO *cs)
     :Field_str((uchar*) 0, MAX_DATETIME_WIDTH, maybe_null_arg ? (uchar*) "": 0,0,
-	       NONE, field_name_arg, cs) {}
+	       NONE, field_name_arg, cs) { flags|= BINARY_FLAG; }
   enum_field_types type() const { return MYSQL_TYPE_DATETIME;}
 #ifdef HAVE_LONG_LONG
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_ULONGLONG; }
 #endif
   enum Item_result cmp_type () const { return INT_RESULT; }
+  enum Derivation derivation(void) const { return DERIVATION_NUMERIC; }
+  uint repertoire(void) const { return MY_REPERTOIRE_NUMERIC; }
+  CHARSET_INFO *charset(void) const { return &my_charset_numeric; }
+  bool binary() const { return 1; }
   uint decimals() const { return DATETIME_DEC; }
   int  store(const char *to,uint length,CHARSET_INFO *charset);
   int  store(double nr);
@@ -1501,9 +1502,9 @@ public:
       return row_pack_length();
     return (((field_metadata >> 4) & 0x300) ^ 0x300) + (field_metadata & 0x00ff);
   }
-  int compatible_field_size(uint field_metadata,
-                            const Relay_log_info *rli);
-  uint row_pack_length() { return (field_length + 1); }
+  bool compatible_field_size(uint field_metadata, Relay_log_info *rli,
+                             uint16 mflags, int *order_var);
+  uint row_pack_length() { return field_length; }
   int pack_cmp(const uchar *a,const uchar *b,uint key_length,
                my_bool insert_or_update);
   int pack_cmp(const uchar *b,uint key_length,my_bool insert_or_update);
@@ -1580,16 +1581,8 @@ public:
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
-  uchar *pack_key(uchar *to, const uchar *from, uint max_length, bool low_byte_first);
-  uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-                                 uint max_length, bool low_byte_first);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
-  const uchar *unpack_key(uchar* to, const uchar *from,
-                          uint max_length, bool low_byte_first);
-  int pack_cmp(const uchar *a, const uchar *b, uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
   int cmp_binary(const uchar *a,const uchar *b, uint32 max_length=~0L);
   int key_cmp(const uchar *,const uchar*);
   int key_cmp(const uchar *str, uint length);
@@ -1765,17 +1758,8 @@ public:
   }
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
-  uchar *pack_key(uchar *to, const uchar *from,
-                  uint max_length, bool low_byte_first);
-  uchar *pack_key_from_key_image(uchar* to, const uchar *from,
-                                 uint max_length, bool low_byte_first);
   virtual const uchar *unpack(uchar *to, const uchar *from,
                               uint param_data, bool low_byte_first);
-  const uchar *unpack_key(uchar* to, const uchar *from,
-                          uint max_length, bool low_byte_first);
-  int pack_cmp(const uchar *a, const uchar *b, uint key_length,
-               my_bool insert_or_update);
-  int pack_cmp(const uchar *b, uint key_length,my_bool insert_or_update);
   uint packed_col_length(const uchar *col_ptr, uint length);
   uint max_packed_col_length(uint max_length);
   void free() { value.free(); }
@@ -1973,8 +1957,8 @@ public:
   uint pack_length_from_metadata(uint field_metadata);
   uint row_pack_length()
   { return (bytes_in_rec + ((bit_len > 0) ? 1 : 0)); }
-  int compatible_field_size(uint field_metadata,
-                            const Relay_log_info *rli);
+  bool compatible_field_size(uint metadata, Relay_log_info *rli,
+                             uint16 mflags, int *order_var);
   void sql_type(String &str) const;
   virtual uchar *pack(uchar *to, const uchar *from,
                       uint max_length, bool low_byte_first);
@@ -2077,7 +2061,8 @@ public:
   /* Init for a tmp table field. To be extended if need be. */
   void init_for_tmp_table(enum_field_types sql_type_arg,
                           uint32 max_length, uint32 decimals,
-                          bool maybe_null, bool is_unsigned);
+                          bool maybe_null, bool is_unsigned,
+                          uint pack_length = ~0U);
 
   bool init(THD *thd, char *field_name, enum_field_types type, char *length,
             char *decimals, uint type_modifier, Item *default_value,

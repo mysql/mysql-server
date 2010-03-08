@@ -1,10 +1,7 @@
 stop slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 reset master;
-reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-start slave;
-stop slave;
 grant replication slave on *.* to replicate@localhost identified by 'aaaaaaaaaaaaaaab';
 grant replication slave on *.* to replicate@127.0.0.1 identified by 'aaaaaaaaaaaaaaab';
 start slave;

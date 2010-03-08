@@ -1,4 +1,4 @@
-drop table if exists t1,t2;
+drop table if exists t1,t2,t3;
 CREATE TABLE t1 (  `id` int(11) NOT NULL default '0', `id2` int(11) NOT NULL default '0', `id3` int(11) NOT NULL default '0', `dummy1` char(30) default NULL, PRIMARY KEY  (`id`,`id2`), KEY `index_id3` (`id3`)) ENGINE=MyISAM;
 insert into t1 (id,id2) values (1,1),(1,2),(1,3);
 LOCK TABLE t1 WRITE;
@@ -41,12 +41,15 @@ lock tables t1 write;
 check table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	check	Error	Table 't2' was not locked with LOCK TABLES
-test.t2	check	error	Corrupt
+test.t2	check	status	Operation failed
 insert into t1 select index1,nr from t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 unlock tables;
 lock tables t1 write, t1 as t1_alias read;
 insert into t1 select index1,nr from t1 as t1_alias;
+drop table t1,t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables;
 drop table t1,t2;
 create table t1 (c1 int);
 create table t2 (c1 int);
@@ -69,6 +72,9 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 delete t2 from t1,t2 where t1.a=t2.a;
 ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 drop table t1,t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+unlock tables;
+drop table t2,t1;
 End of 4.1 tests.
 drop table if exists t1;
 create table t1 (a int);
@@ -122,13 +128,14 @@ select * from v_bug5719;
 1
 1
 drop view v_bug5719;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
 
 sic: did not left LOCK TABLES mode automatically
 
 select * from t1;
 ERROR HY000: Table 't1' was not locked with LOCK TABLES
 unlock tables;
-create view v_bug5719 as select * from t1;
+create or replace view v_bug5719 as select * from t1;
 lock tables v_bug5719 write;
 select * from v_bug5719;
 a
@@ -144,6 +151,12 @@ select * from t2;
 a
 select * from t3;
 ERROR HY000: Table 't3' was not locked with LOCK TABLES
+Dropping of implicitly locked table is disallowed.
+drop table t1;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+unlock tables;
+Now let us also lock table explicitly and drop it.
+lock tables t1 write, v_bug5719 write;
 drop table t1;
 
 sic: left LOCK TABLES mode
@@ -194,3 +207,266 @@ ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
 UNLOCK TABLES;
 DROP TABLE t1,t2;
 End of 5.1 tests.
+#
+# Ensure that FLUSH TABLES doesn't substitute a base locked table
+# with a temporary one.
+#
+drop table if exists t1, t2;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+create temporary table t1 (a int);
+flush table t1;
+drop temporary table t1;
+select * from t1;
+a
+unlock tables;
+drop table t1, t2;
+#
+# Ensure that REPAIR .. USE_FRM works under LOCK TABLES.
+#
+drop table if exists t1, t2;
+create table t1 (a int);
+create table t2 (a int);
+lock table t1 write, t2 write;
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+repair table t1 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	status	OK
+select * from t1;
+a
+select * from t2;
+a
+repair table t2 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+repair table t2 use_frm;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	status	OK
+select * from t1;
+a
+unlock tables;
+drop table t1, t2;
+#
+# Ensure that mi_copy_status is called for two instances
+# of the same table when it is reopened after a flush.
+# 
+drop table if exists t1;
+drop view if exists v1;
+create table t1 (c1 int);
+create view v1 as select * from t1;
+lock tables t1 write, v1 write;
+flush table t1;
+insert into t1 values (33);
+flush table t1;
+select * from t1;
+c1
+33
+unlock tables;
+drop table t1;
+drop view v1;
+#
+# WL#4284: Transactional DDL locking
+#
+drop table if exists t1;
+create table t1 (a int);
+set autocommit= 0;
+insert into t1 values (1);
+lock table t1 write;
+# Disconnect
+# Ensure that metadata locks will be released if there is an open
+# transaction (autocommit=off) in conjunction with lock tables.
+drop table t1;
+# Same problem but now for BEGIN
+drop table if exists t1;
+create table t1 (a int);
+begin;
+insert into t1 values (1);
+# Disconnect
+# Ensure that metadata locks held by the transaction are released.
+drop table t1;
+#
+# Coverage for situations when we try to execute DDL on tables
+# which are locked by LOCK TABLES only implicitly.
+#
+drop tables if exists t1, t2;
+drop view if exists v1;
+drop function if exists f1;
+create table t1 (i int);
+create table t2 (j int);
+#
+# Try to perform DDL on table which is locked through view.
+create view v1 as select * from t2;
+lock tables t1 write, v1 write;
+flush table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+drop table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+alter table t2 add column k int;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+create trigger t2_bi before insert on t2 for each row set @a:=1;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+# Repair produces error as part of its result set.
+repair table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	Error	Table 't2' was locked with a READ lock and can't be updated
+test.t2	repair	status	Operation failed
+unlock tables;
+drop view v1;
+#
+# Now, try  DDL on table which is locked through routine.
+create function f1 () returns int
+begin
+insert into t2 values (1);
+return 0;
+end|
+create view v1 as select f1() from t1;
+lock tables v1 read;
+flush table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+drop table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+alter table t2 add column k int;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+create trigger t2_bi before insert on t2 for each row set @a:=1;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+# Repair produces error as part of its result set.
+repair table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	Error	Table 't2' was locked with a READ lock and can't be updated
+test.t2	repair	status	Operation failed
+unlock tables;
+drop view v1;
+drop function f1;
+#
+# Finally, try DDL on table which is locked thanks to trigger.
+create trigger t1_ai after insert on t1 for each row insert into t2 values (1);
+lock tables t1 write;
+flush table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+drop table t2;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+alter table t2 add column k int;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+create trigger t2_bi before insert on t2 for each row set @a:=1;
+ERROR HY000: Table 't2' was locked with a READ lock and can't be updated
+# Repair produces error as part of its result set.
+repair table t2;
+Table	Op	Msg_type	Msg_text
+test.t2	repair	Error	Table 't2' was locked with a READ lock and can't be updated
+test.t2	repair	status	Operation failed
+unlock tables;
+drop trigger t1_ai;
+drop tables t1, t2;
+#
+# Bug#45035 " Altering table under LOCK TABLES results in 
+# "Error 1213 Deadlock found..."
+#
+# When reopening tables under LOCK TABLES after ALTER TABLE,
+# 6.0 used to be taking thr_lock locks one by one, and
+# that would lead to a lock conflict. 
+# Check that taking all locks at once works.
+#
+drop table if exists t1;
+create table t1 (i int);
+lock tables t1 write, t1 as a read, t1 as b read;
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+create temporary table t1 (i int);
+#
+# This is just for test coverage purposes, 
+# when this is allowed, remove the --error.
+#
+lock tables t1 write, t1 as a read, t1 as b read;
+ERROR HY000: Can't reopen table: 't1'
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+#
+# Separate case for partitioned tables is important
+# because each partition has an own thr_lock object.
+#
+create table t1 (i int) partition by list (i)
+(partition p0 values in (1),
+partition p1 values in (2,3),
+partition p2 values in (4,5));
+lock tables t1 write, t1 as a read, t1 as b read;
+alter table t1 add column j int;
+unlock tables;
+drop table t1;
+#
+# Bug #43272 HANDLER SQL command does not work under LOCK TABLES
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a INT);
+LOCK TABLE t1 WRITE;
+# HANDLER commands are not allowed in LOCK TABLES mode
+HANDLER t1 OPEN;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+HANDLER t1 READ FIRST;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+HANDLER t1 CLOSE;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# Bug#45066 FLUSH TABLES WITH READ LOCK deadlocks against 
+#           LOCK TABLE 
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(a INT);
+LOCK TABLE t1 READ;
+FLUSH TABLES;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+LOCK TABLE t1 WRITE;
+FLUSH TABLES;
+#
+# If you allow the next combination, you reintroduce bug Bug#45066
+# 
+LOCK TABLE t1 READ;
+FLUSH TABLES WITH READ LOCK;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+LOCK TABLE t1 WRITE;
+FLUSH TABLES WITH READ LOCK;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+UNLOCK TABLES;
+DROP TABLE t1;
+#
+# Simplified test for bug #48538 "Assertion in thr_lock() on LOAD DATA
+# CONCURRENT INFILE".
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (f1 INT, f2 INT) ENGINE = MEMORY;
+CREATE TRIGGER t1_ai AFTER INSERT ON t1 FOR EACH ROW 
+UPDATE LOW_PRIORITY t1 SET f2 = 7;
+# Statement below should fail with ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+# error instead of failing on assertion in table-level locking subsystem.
+INSERT INTO t1(f1) VALUES(0);
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+DROP TABLE t1;
+#
+# Bug#43685 Lock table affects other non-related tables
+#
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (id INT);
+CREATE TABLE t2 (id INT);
+# Connection default
+LOCK TABLE t1 WRITE;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	Table is already up to date
+# Connection con2
+LOCK TABLE t2 WRITE;
+# This used to hang until the first connection
+# unlocked t1.
+FLUSH TABLE t2;
+UNLOCK TABLES;
+# Connection default
+UNLOCK TABLES;
+DROP TABLE t1, t2;
+#
+# End of 6.0 tests.
+#

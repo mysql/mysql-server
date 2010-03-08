@@ -7,6 +7,9 @@
 #############################################################
 --source include/have_innodb.inc
 
+# Use wait_for_slave_to_(start|stop) for current connections
+let $keep_connection= 1;
+
 # Set up circular ring and new names for servers
 --echo *** Set up circular ring by schema A->B->C->D->A *** 
 --source include/circular_rpl_for_4_hosts_init.inc

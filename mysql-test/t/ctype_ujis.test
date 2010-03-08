@@ -1212,3 +1212,105 @@ DROP TABLE t2;
 set names default;
 set character_set_database=default;
 set character_set_server=default;
+
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # Testing WL#4583 Case conversion in Asian character sets 
+--echo #
+#
+# Populate t1 with all hex digits
+#
+SET NAMES utf8;
+SET collation_connection=ujis_japanese_ci;
+CREATE TABLE t1 (b VARCHAR(2));
+INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+#
+# Populate tables head and tail with values '00'-'FF'
+#
+CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 b2;
+CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
+DROP TABLE t1;
+#
+# Populate table t1 with all ujis codes.
+# 
+#
+CREATE TABLE t1 AS SELECT 'XXXXXX' AS code, ' ' AS a LIMIT 0;
+#
+# Pupulate JIS-X-0201 range (Half Width Kana)
+# Valid characters: [8E][A1-DF]
+#
+INSERT INTO t1 (code) SELECT concat('8E', head) FROM head
+WHERE (head BETWEEN 'A1' AND 'DF') ORDER BY head;
+#
+# Populate JIS-X-0208 range
+# Expected valid range: [A1..FE][A1..FE]
+#
+INSERT INTO t1 (code) SELECT concat(head, tail)
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (head NOT BETWEEN '8E' AND '8F')
+AND   (tail BETWEEN '20' AND 'FF')
+ORDER BY head, tail;
+#
+# Populate JIS-X-0212 range
+# Expected valid range: [8F][A1..FE][A1..FE]
+#
+INSERT INTO t1 (code) SELECT concat('8F', head, tail)
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (tail BETWEEN '80' AND 'FF')
+ORDER BY head, tail;
+DROP TEMPORARY TABLE head, tail;
+SHOW CREATE TABLE t1;
+
+UPDATE t1 SET a=unhex(code) ORDER BY code;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE a<>'';
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=2;
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=3;
+#
+# Display all characters that have upper or lower case mapping.
+#
+SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a) FROM t1 WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a)) ORDER BY code;
+#
+# Make sure all possible conversion happened
+#
+# Expect U+0122 LATIN CAPITAL LETTER G WITH CEDILLA
+#
+SELECT * FROM t1
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+#
+# U+00F0 LATIN SMALL LETTER ETH
+# U+01F5 LATIN SMALL LETTER G WITH ACUTE
+#
+SELECT * FROM t1
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+
+--echo #
+--echo # WL#3090 Japanese Character Set adjustments
+--echo # Test sjis->Unicode conversion
+--echo #
+SELECT HEX(a), HEX(CONVERT(a USING utf8)) as b FROM t1
+WHERE a<>'' HAVING b<>'3F' ORDER BY code;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # WL#3090 Japanese Character Set adjustments
+--echo # Test Unicode->sjis conversion
+--echo #
+--source include/ctype_utf8_table.inc
+SELECT HEX(a), HEX(CONVERT(a using sjis)) as b FROM t1 HAVING b<>'3F' ORDER BY BINARY a;
+DROP TABLE t1;
+
+
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

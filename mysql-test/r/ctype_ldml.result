@@ -1,8 +1,40 @@
 drop table if exists t1;
+In the following tests we change the order of letter "b"
+making it equal to letter "a", and check that it works
+with all Unicode character sets
 set names utf8;
 show variables like 'character_sets_dir%';
 Variable_name	Value
 character_sets_dir	MYSQL_TEST_DIR/std_data/
+show collation like 'utf8_phone_ci';
+Collation	Charset	Id	Default	Compiled	Sortlen
+utf8_phone_ci	utf8	352			8
+CREATE TABLE t1 (
+name VARCHAR(64),
+phone VARCHAR(64) CHARACTER SET utf8 COLLATE utf8_phone_ci
+);
+INSERT INTO t1 VALUES ('Svoj','+7 912 800 80 02');
+INSERT INTO t1 VALUES ('Hf','+7 (912) 800 80 04');
+INSERT INTO t1 VALUES ('Bar','+7-912-800-80-01');
+INSERT INTO t1 VALUES ('Ramil','(7912) 800 80 03');
+INSERT INTO t1 VALUES ('Sanja','+380 (912) 8008005');
+SELECT * FROM t1 ORDER BY phone;
+name	phone
+Sanja	+380 (912) 8008005
+Bar	+7-912-800-80-01
+Svoj	+7 912 800 80 02
+Ramil	(7912) 800 80 03
+Hf	+7 (912) 800 80 04
+SELECT * FROM t1 WHERE phone='+7(912)800-80-01';
+name	phone
+Bar	+7-912-800-80-01
+SELECT * FROM t1 WHERE phone='79128008001';
+name	phone
+Bar	+7-912-800-80-01
+SELECT * FROM t1 WHERE phone='7 9 1 2 8 0 0 8 0 0 1';
+name	phone
+Bar	+7-912-800-80-01
+DROP TABLE t1;
 show collation like 'utf8_test_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen
 utf8_test_ci	utf8	353			8
@@ -16,6 +48,33 @@ show collation like 'ucs2_test_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen
 ucs2_test_ci	ucs2	358			8
 create table t1 (c1 char(1) character set ucs2 collate ucs2_test_ci);
+insert into t1 values ('a');
+select * from t1 where c1='b';
+c1
+a
+drop table t1;
+show collation like 'utf8mb4_test_ci';
+Collation	Charset	Id	Default	Compiled	Sortlen
+utf8mb4_test_ci	utf8mb4	326			8
+create table t1 (c1 char(1) character set utf8mb4 collate utf8mb4_test_ci);
+insert into t1 values ('a');
+select * from t1 where c1='b';
+c1
+a
+drop table t1;
+show collation like 'utf16_test_ci';
+Collation	Charset	Id	Default	Compiled	Sortlen
+utf16_test_ci	utf16	327			8
+create table t1 (c1 char(1) character set utf16 collate utf16_test_ci);
+insert into t1 values ('a');
+select * from t1 where c1='b';
+c1
+a
+drop table t1;
+show collation like 'utf32_test_ci';
+Collation	Charset	Id	Default	Compiled	Sortlen
+utf32_test_ci	utf32	391			8
+create table t1 (c1 char(1) character set utf32 collate utf32_test_ci);
 insert into t1 values ('a');
 select * from t1 where c1='b';
 c1
@@ -341,15 +400,22 @@ select "foo" = "foo " collate latin1_test;
 The following tests check that two-byte collation IDs work
 select * from information_schema.collations where id>256 order by id;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
+utf8mb4_test_ci	utf8mb4	326			8
+utf16_test_ci	utf16	327			8
+utf8_phone_ci	utf8	352			8
 utf8_test_ci	utf8	353			8
 ucs2_test_ci	ucs2	358			8
 ucs2_vn_ci	ucs2	359			8
+utf32_test_ci	utf32	391			8
 utf8_maxuserid_ci	utf8	2047			8
 show collation like '%test%';
 Collation	Charset	Id	Default	Compiled	Sortlen
 latin1_test	latin1	99		Yes	1
 utf8_test_ci	utf8	353			8
 ucs2_test_ci	ucs2	358			8
+utf8mb4_test_ci	utf8mb4	326			8
+utf16_test_ci	utf16	327			8
+utf32_test_ci	utf32	391			8
 show collation like 'ucs2_vn_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen
 ucs2_vn_ci	ucs2	359			8
@@ -369,8 +435,8 @@ s1
 a
 b
 DROP TABLE t1;
-SET NAMES utf8 COLLATE utf8_test_ci;
-SHOW COLLATION LIKE 'utf8_test_ci';
+SET NAMES utf8 COLLATE utf8_phone_ci;
+SHOW COLLATION LIKE 'utf8_phone_ci';
 Collation	Charset	Id	Default	Compiled	Sortlen
-utf8_test_ci	utf8	353			8
+utf8_phone_ci	utf8	352			8
 SET NAMES utf8;

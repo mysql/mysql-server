@@ -34,6 +34,32 @@
 #define SP_BODY_TOO_LONG    -10
 #define SP_FLD_STORE_FAILED -11
 
+/* DB storage of Stored PROCEDUREs and FUNCTIONs */
+enum
+{
+  MYSQL_PROC_FIELD_DB = 0,
+  MYSQL_PROC_FIELD_NAME,
+  MYSQL_PROC_MYSQL_TYPE,
+  MYSQL_PROC_FIELD_SPECIFIC_NAME,
+  MYSQL_PROC_FIELD_LANGUAGE,
+  MYSQL_PROC_FIELD_ACCESS,
+  MYSQL_PROC_FIELD_DETERMINISTIC,
+  MYSQL_PROC_FIELD_SECURITY_TYPE,
+  MYSQL_PROC_FIELD_PARAM_LIST,
+  MYSQL_PROC_FIELD_RETURNS,
+  MYSQL_PROC_FIELD_BODY,
+  MYSQL_PROC_FIELD_DEFINER,
+  MYSQL_PROC_FIELD_CREATED,
+  MYSQL_PROC_FIELD_MODIFIED,
+  MYSQL_PROC_FIELD_SQL_MODE,
+  MYSQL_PROC_FIELD_COMMENT,
+  MYSQL_PROC_FIELD_CHARACTER_SET_CLIENT,
+  MYSQL_PROC_FIELD_COLLATION_CONNECTION,
+  MYSQL_PROC_FIELD_DB_COLLATION,
+  MYSQL_PROC_FIELD_BODY_UTF8,
+  MYSQL_PROC_FIELD_COUNT
+};
+
 /* Drop all routines in database 'db' */
 int
 sp_drop_db_routines(THD *thd, char *db);
@@ -41,6 +67,15 @@ sp_drop_db_routines(THD *thd, char *db);
 sp_head *
 sp_find_routine(THD *thd, int type, sp_name *name,
                 sp_cache **cp, bool cache_only);
+
+int
+sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
+                 bool lookup_only, sp_head **sp);
+
+
+int
+sp_cache_routine(THD *thd, int type, sp_name *name,
+                 bool lookup_only, sp_head **sp);
 
 bool
 sp_exist_routines(THD *thd, TABLE_LIST *procs, bool any);
@@ -60,22 +95,57 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics);
 int
 sp_drop_routine(THD *thd, int type, sp_name *name);
 
-/*
-  Procedures for pre-caching of stored routines and building table list
-  for prelocking.
+
+/**
+  Structure that represents element in the set of stored routines
+  used by statement or routine.
 */
-void sp_get_prelocking_info(THD *thd, bool *need_prelocking, 
-                            bool *first_no_prelocking);
-void sp_add_used_routine(LEX *lex, Query_arena *arena,
+
+class Sroutine_hash_entry
+{
+public:
+  /**
+    Metadata lock request for routine.
+    MDL_key in this request is also used as a key for set.
+  */
+  MDL_request mdl_request;
+  /**
+    Next element in list linking all routines in set. See also comments
+    for LEX::sroutine/sroutine_list and sp_head::m_sroutines.
+  */
+  Sroutine_hash_entry *next;
+  /**
+    Uppermost view which directly or indirectly uses this routine.
+    0 if routine is not used in view. Note that it also can be 0 if
+    statement uses routine both via view and directly.
+  */
+  TABLE_LIST *belong_to_view;
+  /**
+    This is for prepared statement validation purposes.
+    A statement looks up and pre-loads all its stored functions
+    at prepare. Later on, if a function is gone from the cache,
+    execute may fail.
+    Remember the version of sp_head at prepare to be able to
+    invalidate the prepared statement at execute if it
+    changes.
+  */
+  ulong m_sp_cache_version;
+};
+
+
+/*
+  Procedures for handling sets of stored routines used by statement or routine.
+*/
+void sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          sp_name *rt, char rt_type);
-void sp_remove_not_own_routines(LEX *lex);
+bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
+                         const MDL_key *key, TABLE_LIST *belong_to_view);
+void sp_remove_not_own_routines(Query_tables_list *prelocking_ctx);
 bool sp_update_sp_used_routines(HASH *dst, HASH *src);
-int sp_cache_routines_and_add_tables(THD *thd, LEX *lex,
-                                     bool first_no_prelock);
-int sp_cache_routines_and_add_tables_for_view(THD *thd, LEX *lex,
-                                              TABLE_LIST *view);
-int sp_cache_routines_and_add_tables_for_triggers(THD *thd, LEX *lex,
-                                                  TABLE_LIST *table);
+void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
+                                  HASH *src, TABLE_LIST *belong_to_view);
+void sp_update_stmt_used_routines(THD *thd, Query_tables_list *prelocking_ctx,
+                                  SQL_LIST *src, TABLE_LIST *belong_to_view);
 
 extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
                                   my_bool first);
@@ -84,6 +154,12 @@ extern "C" uchar* sp_sroutine_key(const uchar *ptr, size_t *plen,
   Routines which allow open/lock and close mysql.proc table even when
   we already have some tables open and locked.
 */
-TABLE *open_proc_table_for_read(THD *thd, Open_tables_state *backup);
+TABLE *open_proc_table_for_read(THD *thd, Open_tables_backup *backup);
+
+sp_head *
+sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
+                               String *name, ulong sql_mode, int type,
+                               const char *returns, const char *params,
+                               bool *free_sp_head);
 
 #endif /* _SP_H_ */

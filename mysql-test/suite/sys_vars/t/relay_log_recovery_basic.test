@@ -1,0 +1,49 @@
+
+
+#
+# 2010-01-10 - Added check for I_S values aver variable value change
+#
+
+--source include/not_embedded.inc
+
+SET @start_global_value = @@global.relay_log_recovery;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.relay_log_recovery;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.relay_log_recovery;
+show global variables like 'relay_log_recovery';
+show session variables like 'relay_log_recovery';
+select * from information_schema.global_variables where variable_name='relay_log_recovery';
+select * from information_schema.session_variables where variable_name='relay_log_recovery';
+
+#
+# show that it's writable
+#
+set global relay_log_recovery=1;
+select @@global.relay_log_recovery;
+select * from information_schema.global_variables where variable_name='relay_log_recovery';
+select * from information_schema.session_variables where variable_name='relay_log_recovery';
+set global relay_log_recovery=OFF;
+select @@global.relay_log_recovery;
+select * from information_schema.global_variables where variable_name='relay_log_recovery';
+select * from information_schema.session_variables where variable_name='relay_log_recovery';
+--error ER_GLOBAL_VARIABLE
+set session relay_log_recovery=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global relay_log_recovery=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global relay_log_recovery=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global relay_log_recovery="foo";
+
+SET @@global.relay_log_recovery = @start_global_value;
+SELECT @@global.relay_log_recovery;
+

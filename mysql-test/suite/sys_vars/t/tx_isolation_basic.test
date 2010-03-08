@@ -46,16 +46,11 @@ SELECT @session_start_value;
 ####################################################################
 
 SET @@global.tx_isolation = 'READ-UNCOMMITTED';
---Error ER_NO_DEFAULT
 SET @@global.tx_isolation = DEFAULT;
---echo 'Bug# 34878: Documentation specifies a DEFAULT value of REPEATABLE-READ';
---echo 'where as DEFAULT is not supported here.';
+SELECT @@global.tx_isolation;
 
-SET @@session.tx_isolation = 'SERIALIZABLE';
 SET @@session.tx_isolation = DEFAULT;
 SELECT @@session.tx_isolation;
---echo 'Bug# 34876: Documentation specifies a DEFAULT value of REPEATABLE-READ';
---echo 'where as DEFAULT here as no effect.';
 
 --echo '#---------------------FN_DYNVARS_183_02-------------------------#'
 ######################################################### 
@@ -115,18 +110,12 @@ SELECT @@session.tx_isolation;
 SET @@global.tx_isolation = -1;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.tx_isolation = READUNCOMMITTED;
-
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.tx_isolation = 'REPEATABLE';
-SELECT @@global.tx_isolation;
---echo 'Bug# 34833: REPEATABLE is not documented as as valid tx_isolation level'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.tx_isolation = OFF;
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.tx_isolation = ON;
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.tx_isolation = 'NON-SERIALIZABLE';
 
@@ -136,11 +125,8 @@ SET @@global.tx_isolation = 'NON-SERIALIZABLE';
 SET @@tx_isolation = -1;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@tx_isolation = READUNCOMMITTED;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@tx_isolation = 'REPEATABLE';
-SELECT @@tx_isolation;
---echo 'Bug# 34833: REPEATABLE is not documented as as valid tx_isolation level'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@tx_isolation = 'NONE';
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -183,29 +169,8 @@ SELECT @@global.tx_isolation;
 SET @@global.tx_isolation = 3;
 SELECT @@global.tx_isolation;
 
-# use of decimal values
-
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.tx_isolation = 0.4;
-SELECT @@global.tx_isolation;
-
-SET @@global.tx_isolation = 1.1;
-SELECT @@global.tx_isolation;
-
-SET @@global.tx_isolation = 1.5;
-SELECT @@global.tx_isolation;
-
-SET @@global.tx_isolation = 2.9;
-SELECT @@global.tx_isolation;
-
-SET @@session.tx_isolation = 3.49;
-SELECT @@session.tx_isolation;
-
---Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.tx_isolation = 3.6;
-
---echo 'Bug: Decimal values can be used within the range [0.0-3.5).';
---echo 'Values are rounded to 0,1,2,3 as evident from outcome.';
-
 
 --echo '#---------------------FN_DYNVARS_183_08----------------------#'
 ################################################################### 

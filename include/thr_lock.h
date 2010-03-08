@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -83,7 +83,6 @@ enum enum_thr_lock_result { THR_LOCK_SUCCESS= 0, THR_LOCK_ABORTED= 1,
 
 
 extern ulong max_write_lock_count;
-extern ulong table_lock_wait_timeout;
 extern my_bool thr_lock_inited;
 extern enum thr_lock_type thr_upgraded_concurrent_insert_lock;
 
@@ -115,10 +114,11 @@ typedef struct st_thr_lock_data {
   THR_LOCK_OWNER *owner;
   struct st_thr_lock_data *next,**prev;
   struct st_thr_lock *lock;
-  pthread_cond_t *cond;
+  mysql_cond_t *cond;
   enum thr_lock_type type;
   void *status_param;			/* Param to status functions */
   void *debug_print_param;
+  struct PSI_table *m_psi;
 } THR_LOCK_DATA;
 
 struct st_lock_list {
@@ -127,7 +127,7 @@ struct st_lock_list {
 
 typedef struct st_thr_lock {
   LIST list;
-  pthread_mutex_t mutex;
+  mysql_mutex_t mutex;
   struct st_lock_list read_wait;
   struct st_lock_list read;
   struct st_lock_list write_wait;
@@ -144,7 +144,7 @@ typedef struct st_thr_lock {
 
 
 extern LIST *thr_lock_thread_list;
-extern pthread_mutex_t THR_LOCK_lock;
+extern mysql_mutex_t THR_LOCK_lock;
 
 my_bool init_thr_lock(void);		/* Must be called once/thread */
 #define thr_lock_owner_init(owner, info_arg) (owner)->info= (info_arg)
@@ -155,19 +155,25 @@ void thr_lock_data_init(THR_LOCK *lock,THR_LOCK_DATA *data,
 			void *status_param);
 enum enum_thr_lock_result thr_lock(THR_LOCK_DATA *data,
                                    THR_LOCK_OWNER *owner,
-                                   enum thr_lock_type lock_type);
+                                   enum thr_lock_type lock_type,
+                                   ulong lock_wait_timeout);
 void thr_unlock(THR_LOCK_DATA *data);
 enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data,
-                                         uint count, THR_LOCK_OWNER *owner);
+                                         uint count, THR_LOCK_OWNER *owner,
+                                         ulong lock_wait_timeout);
 void thr_multi_unlock(THR_LOCK_DATA **data,uint count);
+void
+thr_lock_merge_status(THR_LOCK_DATA **data, uint count);
 void thr_abort_locks(THR_LOCK *lock, my_bool upgrade_lock);
 my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread);
 void thr_print_locks(void);		/* For debugging */
 my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data,
-                                     enum thr_lock_type new_lock_type);
+                                     enum thr_lock_type new_lock_type,
+                                     ulong lock_wait_timeout);
 void    thr_downgrade_write_lock(THR_LOCK_DATA *data,
                                  enum thr_lock_type new_lock_type);
-my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data);
+my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data,
+                                  ulong lock_wait_timeout);
 #ifdef	__cplusplus
 }
 #endif

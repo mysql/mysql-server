@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,8 @@ static void netware_init();
 #endif
 
 my_bool my_init_done= 0;
+/** True if @c my_basic_init() has been called. */
+my_bool my_basic_init_done= 0;
 uint	mysys_usage_id= 0;              /* Incremented for each my_init() */
 ulong   my_thread_stack_size= 65536;
 
@@ -55,6 +57,72 @@ static ulong atoi_octal(const char *str)
 	  (*str == '0' ? 8 : 10),       /* Octalt or decimalt */
 	  0, INT_MAX, &tmp);
   return (ulong) tmp;
+}
+
+MYSQL_FILE *mysql_stdin= NULL;
+static MYSQL_FILE instrumented_stdin;
+
+/**
+  Perform a limited initialisation of mysys.
+  This initialisation is sufficient to:
+  - allocate memory,
+  - read configuration files,
+  - parse command lines arguments.
+  To complete the mysys initialisation,
+  call my_init().
+  @return 0 on success
+*/
+my_bool my_basic_init(void)
+{
+  char * str;
+
+  if (my_basic_init_done)
+    return 0;
+  my_basic_init_done= 1;
+
+  mysys_usage_id++;
+  my_umask= 0660;                       /* Default umask for new files */
+  my_umask_dir= 0700;                   /* Default umask for new directories */
+
+#ifndef VMS
+  /* Default creation of new files */
+  if ((str= getenv("UMASK")) != 0)
+    my_umask= (int) (atoi_octal(str) | 0600);
+  /* Default creation of new dir's */
+  if ((str= getenv("UMASK_DIR")) != 0)
+    my_umask_dir= (int) (atoi_octal(str) | 0700);
+#endif
+
+  /* $HOME is needed early to parse configuration files located in ~/ */
+  if ((home_dir= getenv("HOME")) != 0)
+    home_dir= intern_filename(home_dir_buff, home_dir);
+
+  init_glob_errs();
+
+  instrumented_stdin.m_file= stdin;
+  instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
+  mysql_stdin= & instrumented_stdin;
+
+#if defined(THREAD)
+  if (my_thread_global_init())
+    return 1;
+#  if defined(SAFE_MUTEX)
+  safe_mutex_global_init();		/* Must be called early */
+#  endif
+#endif
+#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
+  fastmutex_global_init();              /* Must be called early */
+#endif
+  netware_init();
+#ifdef THREAD
+#if defined(HAVE_PTHREAD_INIT)
+  pthread_init();			/* Must be called before DBUG_ENTER */
+#endif
+  if (my_thread_basic_global_init())
+    return 1;
+#endif
+
+  return 0;
 }
 
 
@@ -71,29 +139,16 @@ static ulong atoi_octal(const char *str)
 
 my_bool my_init(void)
 {
-  char * str;
   if (my_init_done)
     return 0;
-  my_init_done=1;
-  mysys_usage_id++;
-  my_umask= 0660;                       /* Default umask for new files */
-  my_umask_dir= 0700;                   /* Default umask for new directories */
-  init_glob_errs();
-#if defined(THREAD)
+  my_init_done= 1;
+
+  if (my_basic_init())
+    return 1;
+
+#ifdef THREAD
   if (my_thread_global_init())
     return 1;
-#  if defined(SAFE_MUTEX)
-  safe_mutex_global_init();		/* Must be called early */
-#  endif
-#endif
-#if defined(THREAD) && defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
-  fastmutex_global_init();              /* Must be called early */
-#endif
-  netware_init();
-#ifdef THREAD
-#if defined(HAVE_PTHREAD_INIT)
-  pthread_init();			/* Must be called before DBUG_ENTER */
-#endif
 #if !defined( __WIN__) && !defined(__NETWARE__)
   sigfillset(&my_signals);		/* signals blocked by mf_brkhant */
 #endif
@@ -101,24 +156,11 @@ my_bool my_init(void)
   {
     DBUG_ENTER("my_init");
     DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
-    if (!home_dir)
-    {					/* Don't initialize twice */
-      my_win_init();
-      if ((home_dir=getenv("HOME")) != 0)
-	home_dir=intern_filename(home_dir_buff,home_dir);
-#ifndef VMS
-      /* Default creation of new files */
-      if ((str=getenv("UMASK")) != 0)
-	my_umask=(int) (atoi_octal(str) | 0600);
-	/* Default creation of new dir's */
-      if ((str=getenv("UMASK_DIR")) != 0)
-	my_umask_dir=(int) (atoi_octal(str) | 0700);
-#endif
+    my_win_init();
 #ifdef VMS
-      init_ctype();			/* Stupid linker don't link _ctype.c */
+    init_ctype();                       /* Stupid linker don't link _ctype.c */
 #endif
-      DBUG_PRINT("exit",("home: '%s'",home_dir));
-    }
+    DBUG_PRINT("exit", ("home: '%s'", home_dir));
 #ifdef __WIN__
     win32_init_tcp_ip();
 #endif
@@ -238,6 +280,7 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
     WSACleanup();
 #endif /* __WIN__ */
   my_init_done=0;
+  my_basic_init_done= 0;
 } /* my_end */
 
 
@@ -537,3 +580,118 @@ static void netware_init()
   DBUG_VOID_RETURN;
 }
 #endif /* __NETWARE__ */
+
+#ifdef HAVE_PSI_INTERFACE
+
+#if !defined(HAVE_PREAD) && !defined(_WIN32)
+PSI_mutex_key key_my_file_info_mutex;
+#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
+
+#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
+PSI_mutex_key key_LOCK_localtime_r;
+#endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
+
+#ifndef HAVE_GETHOSTBYNAME_R
+PSI_mutex_key key_LOCK_gethostbyname_r;
+#endif /* HAVE_GETHOSTBYNAME_R */
+
+PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
+  key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
+  key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
+  key_THR_LOCK_isam, key_THR_LOCK_lock, key_THR_LOCK_malloc,
+  key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
+  key_THR_LOCK_open, key_THR_LOCK_threads, key_THR_LOCK_time,
+  key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
+
+static PSI_mutex_info all_mysys_mutexes[]=
+{
+#if defined(THREAD) && !defined(HAVE_PREAD) && !defined(_WIN32)
+  { &key_my_file_info_mutex, "st_my_file_info:mutex", 0},
+#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
+#if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
+  { &key_LOCK_localtime_r, "LOCK_localtime_r", PSI_FLAG_GLOBAL},
+#endif /* !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R) */
+#ifndef HAVE_GETHOSTBYNAME_R
+  { &key_LOCK_gethostbyname_r, "LOCK_gethostbyname_r", PSI_FLAG_GLOBAL},
+#endif /* HAVE_GETHOSTBYNAME_R */
+  { &key_BITMAP_mutex, "BITMAP::mutex", 0},
+  { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
+  { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},
+  { &key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0},
+  { &key_LOCK_alarm, "LOCK_alarm", PSI_FLAG_GLOBAL},
+  { &key_my_thread_var_mutex, "my_thread_var::mutex", 0},
+  { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_isam, "THR_LOCK_isam", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_mutex, "THR_LOCK::mutex", 0},
+  { &key_THR_LOCK_myisam, "THR_LOCK_myisam", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_net, "THR_LOCK_net", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_time, "THR_LOCK_time", PSI_FLAG_GLOBAL},
+  { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_GLOBAL},
+  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
+};
+
+PSI_cond_key key_COND_alarm, key_IO_CACHE_SHARE_cond,
+  key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
+  key_THR_COND_threads;
+
+static PSI_cond_info all_mysys_conds[]=
+{
+  { &key_COND_alarm, "COND_alarm", PSI_FLAG_GLOBAL},
+  { &key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0},
+  { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0},
+  { &key_my_thread_var_suspend, "my_thread_var::suspend", 0},
+  { &key_THR_COND_threads, "THR_COND_threads", 0}
+};
+
+#ifdef USE_ALARM_THREAD
+PSI_thread_key key_thread_alarm;
+
+static PSI_thread_info all_mysys_threads[]=
+{
+  { &key_thread_alarm, "alarm", PSI_FLAG_GLOBAL}
+};
+#endif /* USE_ALARM_THREAD */
+
+#ifdef HUGETLB_USE_PROC_MEMINFO
+PSI_file_key key_file_proc_meminfo;
+#endif /* HUGETLB_USE_PROC_MEMINFO */
+PSI_file_key key_file_charset, key_file_cnf;
+
+static PSI_file_info all_mysys_files[]=
+{
+#ifdef HUGETLB_USE_PROC_MEMINFO
+  { &key_file_proc_meminfo, "proc_meminfo", 0},
+#endif /* HUGETLB_USE_PROC_MEMINFO */
+  { &key_file_charset, "charset", 0},
+  { &key_file_cnf, "cnf", 0}
+};
+
+void my_init_mysys_psi_keys()
+{
+  const char* category= "mysys";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= sizeof(all_mysys_mutexes)/sizeof(all_mysys_mutexes[0]);
+  PSI_server->register_mutex(category, all_mysys_mutexes, count);
+
+  count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
+  PSI_server->register_cond(category, all_mysys_conds, count);
+
+#ifdef USE_ALARM_THREAD
+  count= sizeof(all_mysys_threads)/sizeof(all_mysys_threads[0]);
+  PSI_server->register_thread(category, all_mysys_threads, count);
+#endif /* USE_ALARM_THREAD */
+
+  count= sizeof(all_mysys_files)/sizeof(all_mysys_files[0]);
+  PSI_server->register_file(category, all_mysys_files, count);
+}
+#endif /* HAVE_PSI_INTERFACE */
+

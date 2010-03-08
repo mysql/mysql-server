@@ -1,4 +1,3 @@
-RESET MASTER;
 create table foo (a int);
 flush logs;
 create temporary table tmp1_foo like foo;
