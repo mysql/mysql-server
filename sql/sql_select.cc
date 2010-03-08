@@ -645,7 +645,7 @@ JOIN::prepare(Item ***rref_pointer_array,
               Subquery is correlated to any query outer to IN predicate ||
               (Subquery is correlated to the immediate outer query &&
                Subquery !contains {GROUP BY, ORDER BY [LIMIT],
-               aggregate functions) && subquery predicate is not under "NOT IN"))
+               aggregate functions}) && subquery predicate is not under "NOT IN"))
           6. No execution method was already chosen (by a prepared statement).
 
           (*) The subquery must be part of a SELECT statement. The current

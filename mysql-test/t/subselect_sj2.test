@@ -7,7 +7,6 @@ drop table if exists t0, t1, t2, t3;
 drop view if exists v1;
 --enable_warnings
 
-
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
@@ -642,8 +641,6 @@ DROP TABLE t1, t2, t3;
 #
 # BUG#33245 "Crash on VIEW referencing FROM table in an IN clause"
 # 
---disconnect default
---connect (default,localhost,root,,test)
 CREATE TABLE t1 (f1 INT NOT NULL);
 CREATE VIEW v1 (a) AS SELECT f1 IN (SELECT f1 FROM t1) FROM t1;
 SELECT * FROM v1;
@@ -688,6 +685,6 @@ set join_buffer_size=1;
 --enable_warnings
 
 select * from t2 where filler1 in ( select a from t1);
-set join_buffer_size=@save_join_buffer_size;
+set join_buffer_size=default;
 
 drop table t1, t2; 

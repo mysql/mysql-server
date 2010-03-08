@@ -524,5 +524,5 @@ set @save_join_buffer_size=@@join_buffer_size;
 set join_buffer_size=1;
 select * from t2 where filler1 in ( select a from t1);
 a	b	c	filler1
-set join_buffer_size=@save_join_buffer_size;
+set join_buffer_size=default;
 drop table t1, t2;
