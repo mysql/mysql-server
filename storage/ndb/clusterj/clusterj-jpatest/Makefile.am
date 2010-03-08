@@ -80,7 +80,8 @@ clusterj_jpatest_java = \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/TimeAsUtilDateTest.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/TimestampAsSqlTimestampTest.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/TimestampAsUtilDateTest.java \
-  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/SlowTest.java
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/SlowTest.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/Ignore.java
 
 EXTRA_DIST= \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/*.java \

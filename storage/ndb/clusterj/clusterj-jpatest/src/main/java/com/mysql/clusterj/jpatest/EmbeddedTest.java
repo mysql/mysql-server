@@ -39,6 +39,7 @@ create unique index idx_unique_hash_magic using hash on t_basic(magic);
 create index idx_btree_age on t_basic(age);
 
 */
+@Ignore
 public class EmbeddedTest extends AbstractJPABaseTest {
 
     private int NUMBER_OF_INSTANCES = 10;
