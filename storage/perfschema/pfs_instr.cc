@@ -66,7 +66,7 @@ ulong events_waits_history_per_thread;
 /** Number of instruments class per thread. */
 ulong instr_class_per_thread;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
-ulong locker_lost;
+ulong locker_lost= 0;
 
 /**
   Mutex instrumentation instances array.
@@ -746,8 +746,23 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
     }
   }
 
-  if (len >= sizeof(pfs->m_filename))
-    len= sizeof(pfs->m_filename) - 1;
+  /*
+    Normalize the file name to avoid duplicates when using aliases:
+    - absolute or relative paths
+    - symbolic links
+  */
+  char buffer[FN_REFLEN];
+  const char *normalized_filename;
+  int normalized_length;
+
+  /*
+    Ignore errors, the file may not exist.
+    my_realpath always provide a best effort result in buffer.
+  */
+  (void) my_realpath(buffer, filename, MYF(0));
+
+  normalized_filename= buffer;
+  normalized_length= strlen(normalized_filename);
 
   PFS_file **entry;
   uint retry_count= 0;
@@ -755,7 +770,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
 search:
   entry= reinterpret_cast<PFS_file**>
     (lf_hash_search(&filename_hash, thread->m_filename_hash_pins,
-                    filename, len));
+                    normalized_filename, normalized_length));
   if (entry && (entry != MY_ERRPTR))
   {
     pfs= *entry;
@@ -783,9 +798,9 @@ search:
         if (pfs->m_lock.free_to_dirty())
         {
           pfs->m_class= klass;
-          strncpy(pfs->m_filename, filename, len);
-          pfs->m_filename[len]= '\0';
-          pfs->m_filename_length= len;
+          strncpy(pfs->m_filename, normalized_filename, normalized_length);
+          pfs->m_filename[normalized_length]= '\0';
+          pfs->m_filename_length= normalized_length;
           pfs->m_file_stat.m_open_count= 1;
           pfs->m_wait_stat.m_control_flag=
             &flag_events_waits_summary_by_instance;

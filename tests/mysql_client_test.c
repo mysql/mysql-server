@@ -5673,7 +5673,7 @@ static void test_stmt_close()
 }
 
 
-/* Test simple set-variable prepare */
+/* Test simple set variable prepare */
 
 static void test_set_variable()
 {

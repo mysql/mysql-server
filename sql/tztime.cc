@@ -1667,8 +1667,8 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     We need to open only mysql.time_zone_leap_second, but we try to
     open all time zone tables to see if they exist.
   */
-  if (open_and_lock_tables_derived(thd, tz_tables, FALSE,
-                                   MYSQL_LOCK_IGNORE_FLUSH))
+  if (open_and_lock_tables(thd, tz_tables, FALSE,
+                           MYSQL_LOCK_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
                       "trying to live without them", thd->stmt_da->message());

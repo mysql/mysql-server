@@ -2158,6 +2158,10 @@ u_decimal	hex(utf8mb4_encoding)
 INSERT INTO t1 VALUES (1114111, x'f5808080');
 Warnings:
 Warning	1366	Incorrect string value: '\xF5\x80\x80\x80' for column 'utf8mb4_encoding' at row 1
+SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
+table_name= 't1' AND column_name= 'utf8mb4_encoding';
+character_maximum_length	character_octet_length
+10	40
 DROP TABLE IF EXISTS t2;
 CREATE TABLE t2 (
 u_decimal int NOT NULL,
@@ -2168,20 +2172,197 @@ INSERT INTO t2 VALUES (65131, x'efb9ab');
 INSERT INTO t2 VALUES (1114111, x'f48fbfbf');
 Warnings:
 Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBF' for column 'utf8mb3_encoding' at row 1
+SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
+table_name= 't2' AND column_name= 'utf8mb3_encoding';
+character_maximum_length	character_octet_length
+10	30
+UPDATE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
+Warnings:
+Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBD' for column 'utf8mb3_encoding' at row 1
+UPDATE t2 SET utf8mb3_encoding= _utf8mb4 x'ea9da8' where u_decimal= 42856;
+SELECT HEX(CONCAT(utf8mb4_encoding, _utf8 x'ea9da8')) FROM t1;
+HEX(CONCAT(utf8mb4_encoding, _utf8 x'ea9da8'))
+F09D8480EA9DA8
+F09D849EEA9DA8
+F09D859EEA9DA8
+F09D878FEA9DA8
+F09D9C9FEA9DA8
+F09D9E9FEA9DA8
+F48FBFBFEA9DA8
+F3A087AFEA9DA8
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EA9DA8
+EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9ABEA9DA8
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EA9DA8
+EA9DA8
+SELECT HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding)) FROM t1,t2;
+HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding))
+F09D8480EA9DA8
+F09D8480EFB9AB
+F09D8480
+F09D849EEA9DA8
+F09D849EEFB9AB
+F09D849E
+F09D859EEA9DA8
+F09D859EEFB9AB
+F09D859E
+F09D878FEA9DA8
+F09D878FEFB9AB
+F09D878F
+F09D9C9FEA9DA8
+F09D9C9FEFB9AB
+F09D9C9F
+F09D9E9FEA9DA8
+F09D9E9FEFB9AB
+F09D9E9F
+F48FBFBFEA9DA8
+F48FBFBFEFB9AB
+F48FBFBF
+F3A087AFEA9DA8
+F3A087AFEFB9AB
+F3A087AF
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EA9DA8
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EFB9AB
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480
+EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9ABEA9DA8
+EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9ABEFB9AB
+EFB9ABF09D849EF09D859EF09D859EF09D8480F09D859FEFB9ABEFB9ABF09D85A0EFB9AB
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EA9DA8
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480EFB9AB
+F09D849EF09D859EF09D859EF09D8480F09D859FF09D859FF09D859FF09D85A0F09D85A0F09D8480
+EA9DA8
+EFB9AB
+
+SELECT count(*) FROM t1, t2
+WHERE t1.utf8mb4_encoding > t2.utf8mb3_encoding;
+count(*)
+33
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8;
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9D\x84\x80' for column 'utf8mb4_encoding' at row 1
+Warning	1366	Incorrect string value: '\xF0\x9D\x84\x9E' for column 'utf8mb4_encoding' at row 2
+Warning	1366	Incorrect string value: '\xF0\x9D\x85\x9E' for column 'utf8mb4_encoding' at row 3
+Warning	1366	Incorrect string value: '\xF0\x9D\x87\x8F' for column 'utf8mb4_encoding' at row 4
+Warning	1366	Incorrect string value: '\xF0\x9D\x9C\x9F' for column 'utf8mb4_encoding' at row 5
+Warning	1366	Incorrect string value: '\xF0\x9D\x9E\x9F' for column 'utf8mb4_encoding' at row 6
+Warning	1366	Incorrect string value: '\xF4\x8F\xBF\xBF' for column 'utf8mb4_encoding' at row 7
+Warning	1366	Incorrect string value: '\xF3\xA0\x87\xAF' for column 'utf8mb4_encoding' at row 8
+Warning	1366	Incorrect string value: '\xF0\x9D\x84\x9E\xF0\x9D...' for column 'utf8mb4_encoding' at row 9
+Warning	1366	Incorrect string value: '\xF0\x9D\x84\x9E\xF0\x9D...' for column 'utf8mb4_encoding' at row 10
+Warning	1366	Incorrect string value: '\xF0\x9D\x84\x9E\xF0\x9D...' for column 'utf8mb4_encoding' at row 11
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int(11) NOT NULL,
   `utf8mb4_encoding` varchar(10) NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb4_encoding),utf8mb4_encoding FROM t1;
+u_decimal	hex(utf8mb4_encoding)	utf8mb4_encoding
+119040	3F	?
+119070	3F	?
+119134	3F	?
+119247	3F	?
+120607	3F	?
+120735	3F	?
+1114111	3F	?
+917999	3F	?
+119070	3F3F3F3F3F3F3F3F3F3F	??????????
+65131	EFB9AB3F3F3F3F3FEFB9ABEFB9AB3FEFB9AB	﹫?????﹫﹫?﹫
+119070	3F3F3F3F3F3F3F3F3F3F	??????????
+1114111		
+ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb4;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb3_encoding` varchar(10) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
+u_decimal	hex(utf8mb3_encoding)
+42856	EA9DA8
+65131	EFB9AB
+1114111	
+ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb3;
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `u_decimal` int(11) NOT NULL,
   `utf8mb3_encoding` varchar(10) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
+u_decimal	hex(utf8mb3_encoding)
+42856	EA9DA8
+65131	EFB9AB
+1114111	
+ALTER TABLE t1 MODIFY utf8mb4_encoding VARCHAR(10) CHARACTER SET utf8mb3;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb4_encoding` varchar(10) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
+u_decimal	hex(utf8mb4_encoding)
+119040	3F
+119070	3F
+119134	3F
+119247	3F
+120607	3F
+120735	3F
+1114111	3F
+917999	3F
+119070	3F3F3F3F3F3F3F3F3F3F
+65131	EFB9AB3F3F3F3F3FEFB9ABEFB9AB3FEFB9AB
+119070	3F3F3F3F3F3F3F3F3F3F
+1114111	
+ALTER TABLE t1 MODIFY utf8mb4_encoding VARCHAR(10) CHARACTER SET utf8mb4;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb4_encoding` varchar(10) CHARACTER SET utf8mb4 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
+u_decimal	hex(utf8mb4_encoding)
+119040	3F
+119070	3F
+119134	3F
+119247	3F
+120607	3F
+120735	3F
+1114111	3F
+917999	3F
+119070	3F3F3F3F3F3F3F3F3F3F
+65131	EFB9AB3F3F3F3F3FEFB9ABEFB9AB3FEFB9AB
+119070	3F3F3F3F3F3F3F3F3F3F
+1114111	
+ALTER TABLE t2 MODIFY utf8mb3_encoding VARCHAR(10) CHARACTER SET utf8mb4;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `u_decimal` int(11) NOT NULL,
+  `utf8mb3_encoding` varchar(10) CHARACTER SET utf8mb4 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
+u_decimal	hex(utf8mb3_encoding)
+42856	EA9DA8
+65131	EFB9AB
+1114111	
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t3 (
+u_decimal int NOT NULL,
+utf8mb3_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8;
+INSERT INTO t3 SELECT * FROM t1;
+DROP TABLE IF EXISTS t4;
+CREATE TABLE t4 (
+u_decimal int NOT NULL,
+utf8mb4_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8mb4;
+INSERT INTO t3 SELECT * FROM t2;
 DROP TABLE t1;
 DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
 #
 # Testing that mixing utf8 and utf8mb4 collations returns utf8mb4
 #
@@ -2229,6 +2410,62 @@ SELECT CONCAT(utf8mb4, _utf8 '�') FROM t1;
 ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
 SELECT CONCAT('a', _utf8 '�') FROM t1;
 ERROR HY000: Illegal mix of collations (utf8mb4_general_ci,COERCIBLE) and (utf8_general_ci,COERCIBLE) for operation 'concat'
+DROP TABLE t1;
+#
+# Bug#51675 Server crashes on inserting 4 byte char.
+# after ALTER TABLE to 'utf8mb4' 
+#
+SET NAMES utf8;
+CREATE TABLE t1 ( 
+subject varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci, 
+p VARCHAR(15) CHARACTER SET utf8 
+) DEFAULT CHARSET=latin1;
+ALTER TABLE t1 ADD INDEX (subject);
+ALTER TABLE t1
+DEFAULT CHARACTER SET utf8,
+MODIFY subject varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+MODIFY p varchar(255) CHARACTER SET utf8;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+Warning	1071	Specified key was too long; max key length is 1000 bytes
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `p` varchar(255) DEFAULT NULL,
+  KEY `subject` (`subject`(250))
+) ENGINE=MyISAM DEFAULT CHARSET=utf8
+INSERT INTO t1(subject) VALUES ('abcd');
+INSERT INTO t1(subject) VALUES(x'f0909080');
+DROP TABLE t1;
+#
+# Bug #51676 Server crashes on SELECT, ORDER BY on 'utf8mb4' column
+#
+SET NAMES utf8mb4;
+CREATE TABLE t1 ( 
+subject varchar(255) character set utf8mb4 collate utf8mb4_unicode_ci, 
+p varchar(15) character set utf8mb4 
+) DEFAULT CHARSET=latin1;
+INSERT INTO t1(subject) VALUES(0xF0909080);
+INSERT INTO t1(subject) VALUES(0x616263F0909080646566);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `p` varchar(15) CHARACTER SET utf8mb4 DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SELECT *  FROM t1 ORDER BY 1;
+subject	p
+abc𐐀def	NULL
+𐐀	NULL
+SELECT hex(subject), length(subject), char_length(subject), octet_length(subject) FROM t1 ORDER BY 1;
+hex(subject)	length(subject)	char_length(subject)	octet_length(subject)
+616263F0909080646566	10	7	10
+F0909080	4	1	4
+SELECT subject FROM t1 ORDER BY 1;
+subject
+abc𐐀def
+𐐀
 DROP TABLE t1;
 #
 # End of 5.5 tests
