@@ -3815,7 +3815,8 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
       pending->server_id != serv_id || 
       pending->get_table_id() != table->s->table_map_id ||
       pending->get_type_code() != type_code || 
-      pending->get_data_size() + needed > opt_binlog_rows_event_max_size) 
+      pending->get_data_size() + needed > opt_binlog_rows_event_max_size ||
+      !bitmap_cmp(pending->get_cols(), table->write_set)) 
   {
     /* Create a new RowsEventT... */
     Rows_log_event* const
