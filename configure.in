@@ -27,7 +27,7 @@ AC_PREREQ(2.59)
 # Remember to also update version.c in ndb.
 # When changing major version number please also check switch statement
 # in client/mysqlbinlog.cc:check_master_version().
-AC_INIT([MySQL Server], [5.5.99-m3], [], [mysql])
+AC_INIT([MySQL Server], [5.6.99-m4], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 # USTAR format gives us the possibility to store longer path names in
@@ -2271,7 +2271,8 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   locking longjmp lrand48 madvise mallinfo memcpy memmove \
   mkstemp mlockall perror poll pread pthread_attr_create mmap mmap64 getpagesize \
   pthread_attr_getstacksize pthread_attr_setstacksize pthread_condattr_create \
-  pthread_getsequence_np pthread_key_delete pthread_rwlock_rdlock pthread_sigmask \
+  pthread_getsequence_np pthread_key_delete pthread_rwlock_rdlock \
+  pthread_rwlockattr_setkind_np pthread_sigmask \
   readlink realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask port_create sleep thr_yield \

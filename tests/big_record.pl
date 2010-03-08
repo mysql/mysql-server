@@ -2,7 +2,7 @@
 
 # This is a test with stores big records in a blob.
 # Note that for the default test the mysql server should have been
-# started with at least 'mysqld -O max_allowed_packet=30M' and you should have
+# started with at least 'mysqld --max_allowed_packet=30M' and you should have
 # at least 256M memory in your computer.
 
 use DBI;

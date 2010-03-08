@@ -2348,7 +2348,7 @@ static int open_ndb_binlog_index(THD *thd, TABLE **ndb_binlog_index)
   tables->required_type= FRMTYPE_TABLE;
   uint counter;
   thd->clear_error();
-  if (simple_open_n_lock_tables(thd, tables))
+  if (open_and_lock_tables(thd, tables, FALSE, 0))
   {
     if (thd->killed)
       sql_print_error("NDB Binlog: Opening ndb_binlog_index: killed");
@@ -3675,6 +3675,8 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   my_net_init(&thd->net, 0);
   thd->main_security_ctx.master_access= ~0;
   thd->main_security_ctx.priv_user= 0;
+  /* Do not use user-supplied timeout value for system threads. */
+  thd->variables.lock_wait_timeout= LONG_TIMEOUT;
 
   /*
     Set up ndb binlog

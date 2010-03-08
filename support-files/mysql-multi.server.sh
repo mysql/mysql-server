@@ -18,8 +18,8 @@
 # A typical multi-instance /etc/my.cnf file would look like:
 # [mysqld]
 # basedir=...
-# set-variable = key_buffer_size=16M
-# set-variable = max_allowed_packet=1M
+# key_buffer_size=16M
+# max_allowed_packet=1M
 # [mysql_multi_server]
 # svr1-datadir=/foo1/bar
 # svr2-datadir=/foo2/bar

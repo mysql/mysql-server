@@ -3997,7 +3997,7 @@ sub mysqld_arguments ($$$$) {
     my $slave_load_path= "../tmp";
     mtr_add_arg($args, "%s--slave-load-tmpdir=%s", $prefix,
                 $slave_load_path);
-    mtr_add_arg($args, "%s--set-variable=slave_net_timeout=120", $prefix);
+    mtr_add_arg($args, "%s--slave_net_timeout=120", $prefix);
 
     if ( @$slave_master_info )
     {
