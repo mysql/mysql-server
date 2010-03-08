@@ -41,9 +41,9 @@ public class AllTests {
         return false;
     } 
 
-    private static boolean isDisabledTestAnnotationPresent(Class candidate) {
+    private static boolean isIgnoreAnnotationPresent(Class candidate) {
         for (Annotation annotation: candidate.getAnnotations()) {
-            if (annotation.getClass().getName().contains("DisabledTest")) {
+            if (annotation.getClass().getName().contains("Ignore")) {
                 return true;
             }
         }
@@ -61,7 +61,7 @@ public class AllTests {
     }
 
     private static boolean isTestDisabled(Class klass) {
-	return isDisabledTestAnnotationPresent(klass);
+	return isIgnoreAnnotationPresent(klass);
     }
 
     private static List<Class> getClasses(File jarFile) throws IOException, ClassNotFoundException {
