@@ -2,21 +2,23 @@
 
 #
 # BUG#5551 "Failed OPTIMIZE TABLE is logged to binary log"
-# Replication should work when OPTIMIZE TABLE timeouts, and 
-# when OPTIMIZE TABLE is executed on a non-existing table
+# Replication should work when when OPTIMIZE TABLE is 
+# executed on a non-existing table.
 #
+# Due to patch for BUG#989, checking that an OPTIMIZE
+# that fails due to a lock wait timeout on an InnoDB table
+# is not valid anymore, as an mdl lock is hit before,
+# thence no timeout occurs, but instead a deadlock.
+#
+
 
 eval CREATE TABLE t1 ( a int ) ENGINE=$engine_type;
 BEGIN;
 INSERT INTO t1 VALUES (1);
 
 connection master1;
-OPTIMIZE TABLE t1;
-
 OPTIMIZE TABLE non_existing;  
 sync_slave_with_master;
-
-# End of 4.1 tests
 
 connection master;
 select * from t1;
