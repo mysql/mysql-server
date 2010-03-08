@@ -15148,7 +15148,8 @@ static bool replace_where_subcondition(JOIN *join, TABLE_LIST *emb_nest,
       }
     }
   }
-
+  // If we came here it means there were an error during prerequisites check.
+  DBUG_ASSERT(0);
   return TRUE;
 }
 

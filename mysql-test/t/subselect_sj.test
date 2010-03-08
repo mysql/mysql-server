@@ -134,3 +134,25 @@ set optimizer_switch='materialization=off,loosescan=off';
 select @@optimizer_switch; 
 set optimizer_switch='default';
 
+
+--echo
+--echo Bug#37899: Wrongly checked optimization prerequisite caused failed
+--echo            assertion.
+--echo
+CREATE TABLE t1 (
+  `pk` int(11),
+  `varchar_nokey` varchar(5)
+);
+
+INSERT INTO t1 VALUES
+(1,'qk'),(2,'j'),(3,'aew');
+
+SELECT *
+FROM t1
+WHERE varchar_nokey IN (
+ SELECT
+ varchar_nokey
+ FROM
+ t1
+) XOR pk = 30;
+drop table t1;
