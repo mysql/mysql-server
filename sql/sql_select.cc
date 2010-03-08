@@ -3526,7 +3526,7 @@ bool JOIN::flatten_subqueries()
   arena= thd->activate_stmt_arena_if_needed(&backup);
   for (in_subq= sj_subselects.front(); 
        in_subq != in_subq_end && 
-       tables + ((*in_subq)->sj_convert_priority % MAX_TABLES) < MAX_TABLES;
+       tables + (*in_subq)->unit->first_select()->join->tables < MAX_TABLES;
        in_subq++)
   {
     if (replace_where_subcondition(this, (*in_subq)->emb_on_expr_nest,
@@ -3536,7 +3536,7 @@ bool JOIN::flatten_subqueries()
  
   for (in_subq= sj_subselects.front(); 
        in_subq != in_subq_end && 
-       tables + ((*in_subq)->sj_convert_priority % MAX_TABLES) < MAX_TABLES;
+       tables + (*in_subq)->unit->first_select()->join->tables < MAX_TABLES;
        in_subq++)
   {
     if (convert_subq_to_sj(this, *in_subq))
@@ -3564,9 +3564,6 @@ bool JOIN::flatten_subqueries()
     if (replace_where_subcondition(this, (*in_subq)->emb_on_expr_nest, 
                                    *in_subq, substitute, do_fix_fields))
       DBUG_RETURN(TRUE);
-
-    //if ((*in_subq)->fix_fields(thd, (*in_subq)->ref_ptr))
-    //  DBUG_RETURN(TRUE);
   }
   sj_subselects.clear();
   DBUG_RETURN(FALSE);
@@ -15073,6 +15070,7 @@ static bool replace_where_subcondition(JOIN *join, TABLE_LIST *emb_nest,
     *expr= new_cond;
     if (do_fix_fields)
       new_cond->fix_fields(join->thd, expr);
+    join->select_lex->where= *expr;
     return FALSE;
   }
   
