@@ -34,7 +34,7 @@ public class AllTests {
 
     private static boolean isSlowTestAnnotationPresent(Class candidate) {
         for (Annotation annotation: candidate.getAnnotations()) {
-            if (annotation.getClass().getName().contains("SlowTest")) {
+            if (annotation.toString().contains("SlowTest")) {
                 return true;
             }
         }
@@ -43,7 +43,7 @@ public class AllTests {
 
     private static boolean isIgnoreAnnotationPresent(Class candidate) {
         for (Annotation annotation: candidate.getAnnotations()) {
-            if (annotation.getClass().getName().contains("Ignore")) {
+            if (annotation.toString().contains("Ignore")) {
                 return true;
             }
         }
@@ -128,8 +128,8 @@ public class AllTests {
 		}
 	    }
             System.out.println("Running all tests in '" + jarFile + "'");
-	    TestSuite suite = (TestSuite) suite();
-            System.out.println("Found '" + suite.testCount() + "' tests in jar file.");
+            TestSuite suite = (TestSuite) suite();
+            System.out.println("Found '" + suite.testCount() + "' test classes in jar file.");
             TestResult res = junit.textui.TestRunner.run(suite);
             System.exit(res.wasSuccessful() ? 0 : 1);
         } else {
