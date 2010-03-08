@@ -1727,7 +1727,6 @@ create table t1 (a int);
 insert into t1 values (1), (2), (3);
 SELECT 1 FROM t1 WHERE (SELECT 1) in (SELECT 1);
 drop table t1;
-
 #
 # subselect into HAVING clause (code covarage improvement)
 #
@@ -2598,24 +2597,15 @@ DROP TABLE t1,t2;
 #           slow with big sort_buffer_size
 #
 
-CREATE TABLE t1 (a int, b int auto_increment, PRIMARY KEY (b));
+CREATE TABLE t1 (a int, b int, PRIMARY KEY (b));
 CREATE TABLE t2 (x int auto_increment, y int, z int,
                  PRIMARY KEY (x), FOREIGN KEY (y) REFERENCES t1 (b));
+create table t3 (a int);
+insert into t3 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 
-disable_query_log;
-let $1=3000;
-while ($1)
-{
-  eval INSERT INTO t1(a) VALUES(RAND()*1000);
-  eval SELECT MAX(b) FROM t1 INTO @id;
-  let $2=10;
-  while ($2)
-  {
-    eval INSERT INTO t2(y,z) VALUES(@id,RAND()*1000);
-    dec $2;
-  }
-  dec $1;
-}
+insert into t1 select RAND()*1000, A.a + 10*(B.a+10*(C.a+10*D.a))
+from t3 A, t3 B, t3 C, t3 D where D.a<3;
+insert into t2(y,z) select t1.b, RAND()*1000 from t1, t3;
 enable_query_log;
 
 SET SESSION sort_buffer_size = 32 * 1024;
@@ -2628,7 +2618,7 @@ SELECT SQL_NO_CACHE COUNT(*)
   FROM (SELECT  a, b, (SELECT x FROM t2 WHERE y=b ORDER BY z DESC LIMIT 1) c
           FROM t1) t;
 
-DROP TABLE t1,t2;
+DROP TABLE t1,t2,t3;
 
 
 #
