@@ -199,3 +199,50 @@ Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t10` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t10`.`pk`) and (`test`.`t10`.`pk` < 3))
 drop table t0, t1, t2;
 drop table t10, t11, t12;
+
+BUG#37120 optimizer_switch allowable values not according to specification
+
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on
+set optimizer_switch='default';
+set optimizer_switch='materialization=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=on,loosescan=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=off,loosescan=on
+set optimizer_switch='default';
+set optimizer_switch='loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=off
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,materialization=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=on
+set optimizer_switch='default';
+set optimizer_switch='materialization=off,semijoin=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,materialization=off,loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=off
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=off,loosescan=off
+set optimizer_switch='default';
+set optimizer_switch='materialization=off,loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=on,loosescan=off
+set optimizer_switch='default';
