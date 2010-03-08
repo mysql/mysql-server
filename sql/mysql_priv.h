@@ -630,7 +630,8 @@ protected:
 #define OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN (1ULL << 4)
 #define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 5)
 #define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 6)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 7)
+#define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 7)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 8)
 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
@@ -639,7 +640,8 @@ protected:
                                   OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
                                   OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
                                   OPTIMIZER_SWITCH_MATERIALIZATION | \
-                                  OPTIMIZER_SWITCH_SEMIJOIN )
+                                  OPTIMIZER_SWITCH_SEMIJOIN | \
+                                  OPTIMIZER_SWITCH_LOOSE_SCAN)
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you

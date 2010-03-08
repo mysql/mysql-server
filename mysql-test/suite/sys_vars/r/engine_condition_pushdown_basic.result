@@ -9,7 +9,7 @@ SELECT @global_start_value;
 select @old_session_opt_switch:=@@session.optimizer_switch,
 @old_global_opt_switch:=@@global.optimizer_switch;
 @old_session_opt_switch:=@@session.optimizer_switch	@old_global_opt_switch:=@@global.optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on
 '#--------------------FN_DYNVARS_028_01------------------------#'
 SET @@session.engine_condition_pushdown = 0;
 Warnings:
@@ -212,7 +212,7 @@ select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on
 set @@session.engine_condition_pushdown = TRUE;
 Warnings:
 Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
@@ -220,7 +220,7 @@ select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-1	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on
+1	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on
 set @@session.engine_condition_pushdown = FALSE;
 Warnings:
 Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
@@ -228,7 +228,7 @@ select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on
 set @@global.engine_condition_pushdown = TRUE;
 Warnings:
 Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
@@ -236,7 +236,7 @@ select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-0	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on
+0	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on
 set @@global.engine_condition_pushdown = FALSE;
 Warnings:
 Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
@@ -244,31 +244,31 @@ select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on
 set @@session.optimizer_switch = "engine_condition_pushdown=on";
 select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-1	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on
+1	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on
 set @@session.optimizer_switch = "engine_condition_pushdown=off";
 select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on
 set @@global.optimizer_switch = "engine_condition_pushdown=on";
 select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-0	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on
+0	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on
 set @@global.optimizer_switch = "engine_condition_pushdown=off";
 select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on
+0	0	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=off,materialization=on,semijoin=on,loosescan=on
 SET @@session.engine_condition_pushdown = @session_start_value;
 Warnings:
 Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
@@ -287,4 +287,4 @@ select @@session.engine_condition_pushdown,
 @@global.engine_condition_pushdown,
 @@session.optimizer_switch, @@global.optimizer_switch;
 @@session.engine_condition_pushdown	@@global.engine_condition_pushdown	@@session.optimizer_switch	@@global.optimizer_switch
-1	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on
+1	1	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on
