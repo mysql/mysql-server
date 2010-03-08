@@ -5325,6 +5325,7 @@ void THD::reset_for_next_command()
   thd->warning_info->reset_for_next_command();
   thd->rand_used= 0;
   thd->sent_row_count= thd->examined_row_count= 0;
+  thd->thd_marker.emb_on_expr_nest= NULL;
 
   thd->reset_current_stmt_binlog_format_row();
   thd->binlog_unsafe_warning_flags= 0;
