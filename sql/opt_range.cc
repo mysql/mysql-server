@@ -5631,8 +5631,12 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
     }
     DBUG_RETURN(tree);
   }
-  /* Here when simple cond */
-  if (cond->const_item())
+  /* 
+    Here when simple cond 
+    There are limits on what kinds of const items we can evaluate, grep for
+    DontEvaluateMaterializedSubqueryTooEarly.
+  */
+  if (cond->const_item() && !cond->is_expensive())
   {
     /*
       During the cond->val_int() evaluation we can come across a subselect 

@@ -1139,3 +1139,14 @@ a
 2
 3
 drop table t1, t2, t3;
+create table t2 (a int, b int, key(a), key(b));
+insert into t2 values (3,3),(3,3),(3,3);
+select 1 from t2 where  
+t2.a > 1 
+or 
+t2.a = 3 and not t2.a not in (select t2.b from t2);
+1
+1
+1
+1
+drop table t2;
