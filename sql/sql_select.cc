@@ -3552,7 +3552,14 @@ bool JOIN::flatten_subqueries()
     Item_subselect::trans_res res;
     (*in_subq)->changed= 0;
     (*in_subq)->fixed= 0;
+
+    SELECT_LEX *save_select_lex= thd->lex->current_select;
+    thd->lex->current_select= (*in_subq)->unit->first_select();
+
     res= (*in_subq)->select_transformer(child_join);
+
+    thd->lex->current_select= save_select_lex;
+
     if (res == Item_subselect::RES_ERROR)
       DBUG_RETURN(TRUE);
 
