@@ -285,7 +285,6 @@ protected:
   Item_in_optimizer *optimizer;
   bool was_null;
   bool abort_on_null;
-
 public:
   /* Used to trigger on/off conditions that were pushed down to subselect */
   bool *pushed_cond_guards;
@@ -293,6 +292,16 @@ public:
   /* Priority of this predicate in the convert-to-semi-join-nest process. */
   int sj_convert_priority;
 
+  /*
+    Used by subquery optimizations to keep track about in which clause this
+    subquery predicate is located: 
+      (TABLE_LIST*) 1   - the predicate is an AND-part of the WHERE
+      join nest pointer - the predicate is an AND-part of ON expression
+                          of a join nest   
+      NULL              - for all other locations
+    See also THD::emb_on_expr_nest.
+  */
+  TABLE_LIST *emb_on_expr_nest;
   /* The method chosen to execute the IN predicate.  */
   enum enum_exec_method {
     NOT_TRANSFORMED, /* No execution method was chosen for this IN. */
