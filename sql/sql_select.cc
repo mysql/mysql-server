@@ -172,6 +172,10 @@ int join_read_next_same_or_null(READ_RECORD *info);
 static COND *make_cond_for_table(COND *cond,table_map table,
 				 table_map used_table,
                                  bool exclude_expensive_cond);
+static COND *make_cond_for_table_from_pred(COND *root_cond, COND *cond,
+                                           table_map tables,
+                                           table_map used_table,
+                                           bool exclude_expensive_cond);
 static Item* part_of_refkey(TABLE *form,Field *field);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
@@ -232,10 +236,11 @@ static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
-static bool test_if_ref(Item_field *left_item,Item *right_item);
 static bool replace_where_subcondition(JOIN *join, TABLE_LIST *emb_nest, 
                                        Item *old_cond, Item *new_cond,
                                        bool do_fix_fields);
+static bool test_if_ref(COND *root_cond, 
+                        Item_field *left_item,Item *right_item);
 
 /*
   This is used to mark equalities that were made from i-th IN-equality.
@@ -880,7 +885,8 @@ void JOIN::remove_subq_pushed_predicates(Item **where)
       ((Item_func *)this->conds)->functype() == Item_func::EQ_FUNC &&
       ((Item_func *)conds)->arguments()[0]->type() == Item::REF_ITEM &&
       ((Item_func *)conds)->arguments()[1]->type() == Item::FIELD_ITEM &&
-      test_if_ref ((Item_field *)((Item_func *)conds)->arguments()[1],
+      test_if_ref (this->conds, 
+                   (Item_field *)((Item_func *)conds)->arguments()[1],
                    ((Item_func *)conds)->arguments()[0]))
   {
     *where= 0;
@@ -7931,7 +7937,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
         }
 
       }
-      if (tmp || !cond || tab->type == JT_REF)
+      if (tmp || !cond || tab->type == JT_REF || first_inner_tab)
       {
         DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
@@ -7958,7 +7964,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
              and the condition is not guarded */
           tab->table->file->pushed_cond= NULL;
 	  if (thd->variables.optimizer_switch &
-              OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)
+              OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN && !first_inner_tab)
           {
             COND *push_cond= 
               make_cond_for_table(tmp, current_map, current_map, 0);
@@ -8180,6 +8186,8 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
             if (!cond_tab->select_cond)
 	      DBUG_RETURN(1);
             cond_tab->select_cond->quick_fix_field();
+            if (cond_tab->select)
+              cond_tab->select->cond= cond_tab->select_cond; 
           }              
         }
         first_inner_tab= first_inner_tab->first_upper;       
@@ -15066,11 +15074,15 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     1 if right_item is used removable reference key on left_item
 */
 
-static bool test_if_ref(Item_field *left_item,Item *right_item)
+static bool test_if_ref(COND *root_cond, 
+                        Item_field *left_item,Item *right_item)
 {
   Field *field=left_item->field;
-  // No need to change const test. We also have to keep tests on LEFT JOIN
-  if (!field->table->const_table && !field->table->maybe_null)
+  JOIN_TAB *join_tab= field->table->reginfo.join_tab;
+  // No need to change const test
+  if (!field->table->const_table && join_tab &&
+      (!join_tab->first_inner ||
+       *join_tab->first_inner->on_expr_ref == root_cond))
   {
     Item *ref_item=part_of_refkey(field->table,field);
     if (ref_item && ref_item->eq(right_item,1))
@@ -15163,6 +15175,7 @@ static bool replace_where_subcondition(JOIN *join, TABLE_LIST *emb_nest,
       tables       Tables for which "current field values" are available
       used_table   Table that we're extracting the condition for (may 
                    also include PSEUDO_TABLE_BITS
+      exclude_expensive_cond  Do not push expensive conditions
 
   DESCRIPTION
     Extract the condition that can be checked after reading the table
@@ -15190,6 +15203,15 @@ static COND *
 make_cond_for_table(COND *cond, table_map tables, table_map used_table,
                     bool exclude_expensive_cond)
 {
+  return make_cond_for_table_from_pred(cond, cond, tables, used_table,
+                                       exclude_expensive_cond);
+}
+               
+static COND *
+make_cond_for_table_from_pred(COND *root_cond, COND *cond,
+                              table_map tables, table_map used_table,
+                              bool exclude_expensive_cond)
+{
   if (used_table && !(cond->used_tables() & used_table) &&
       /*
         Exclude constant conditions not checked at optimization time if
@@ -15211,8 +15233,9 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table,
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table(item,tables,used_table,
-                                      exclude_expensive_cond);
+	Item *fix=make_cond_for_table_from_pred(root_cond, item, 
+                                                tables, used_table,
+                                                exclude_expensive_cond);
 	if (fix)
 	  new_cond->argument_list()->push_back(fix);
       }
@@ -15242,7 +15265,9 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table,
       Item *item;
       while ((item=li++))
       {
-	Item *fix=make_cond_for_table(item,tables,0L, exclude_expensive_cond);
+	Item *fix=make_cond_for_table_from_pred(root_cond, item,
+                                                tables, 0L,
+                                                exclude_expensive_cond);
 	if (!fix)
 	  return (COND*) 0;			// Always true
 	new_cond->argument_list()->push_back(fix);
@@ -15274,18 +15299,19 @@ make_cond_for_table(COND *cond, table_map tables, table_map used_table,
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
     return cond;				// Not boolean op
 
-  if (((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
+  if (cond->type() == Item::FUNC_ITEM &&
+      ((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
   {
-    Item *left_item=	((Item_func*) cond)->arguments()[0];
-    Item *right_item= ((Item_func*) cond)->arguments()[1];
+    Item *left_item= ((Item_func*) cond)->arguments()[0]->real_item();
+    Item *right_item= ((Item_func*) cond)->arguments()[1]->real_item();
     if (left_item->type() == Item::FIELD_ITEM &&
-	test_if_ref((Item_field*) left_item,right_item))
+	test_if_ref(root_cond, (Item_field*) left_item,right_item))
     {
       cond->marker=3;			// Checked when read
       return (COND*) 0;
     }
     if (right_item->type() == Item::FIELD_ITEM &&
-	test_if_ref((Item_field*) right_item,left_item))
+	test_if_ref(root_cond, (Item_field*) right_item,left_item))
     {
       cond->marker=3;			// Checked when read
       return (COND*) 0;
