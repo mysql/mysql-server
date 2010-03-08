@@ -1,3 +1,8 @@
+2010-03-08	The InnoDB Team
+
+	* fil/fil0fil.c:
+	Fix ALTER TABLE ... IMPORT TABLESPACE of compressed tables.
+
 2010-03-03	The InnoDB Team
 
 	* handler/handler0alter.cc, innodb-index.result, innodb-index.test,
