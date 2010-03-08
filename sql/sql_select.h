@@ -267,13 +267,18 @@ typedef struct st_join_table {
   struct st_join_table  *do_firstmatch;
  
   /* 
-     ptr  - this join tab should do an InsideOut scan. Points 
-            to the tab for which we'll need to check tab->found_match.
-
+     ptr  - We're doing and InsideOut scan, and this is the first (aka
+            "driving" join tab). ptr to the last tab, for which we'll need 
+            to check tab->found_match to see if the current value group had
+            a match.
      NULL - Not an insideout scan.
   */
   struct st_join_table *insideout_match_tab;
-  uchar *insideout_buf; // Buffer to save index tuple to be able to skip dups
+  /* Buffer to save index tuple to be able to skip duplicates */
+  uchar *insideout_buf;
+  
+  /* How many key components to store in the above */
+  uint insideout_key_len;
 
   /* Used by InsideOut scan. Just set to true when have found a row. */
   bool found_match;
@@ -348,8 +353,16 @@ typedef struct st_position
 
   /* If ref-based access is used: bitmap of tables this table depends on  */
   table_map ref_depend_map;
-
-  bool use_insideout_scan;
+  
+  /* 
+    keyno  - This is an insideout scan on this key. If keyuse is NULL then
+              this is a full index scan, otherwise this is a ref + insideout
+              scan (and keyno matches the KEUSE's)
+    MAX_KEY - This is not an InsideOut scan
+  */
+  uint insideout_key;
+  /* Number of key parts to be used by insideout */
+  uint insideout_parts;
 } POSITION;
 
 

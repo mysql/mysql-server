@@ -1322,7 +1322,7 @@ static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
-  "materialization", "semijoin", "default", NullS
+  "materialization", "semijoin", "loosescan", "default", NullS
 };
 /** propagates changes to @@engine_condition_pushdown */
 static bool fix_optimizer_switch(sys_var *self, THD *thd,
@@ -1338,7 +1338,7 @@ static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
        "index_merge_intersection, engine_condition_pushdown, materialization, "
-       "semijoin}"
+       "semijoin, loosescan}"
        " and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),

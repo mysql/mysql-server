@@ -402,8 +402,8 @@ The following options may be given as the first argument:
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
  index_merge_sort_union, index_merge_intersection,
- engine_condition_pushdown, materialization, semijoin} and
- val is one of {on, off, default}
+ engine_condition_pushdown, materialization, semijoin,
+ loosescan} and val is one of {on, off, default}
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-waits-history-long-size=# 
@@ -851,7 +851,7 @@ old-passwords FALSE
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on
 performance-schema FALSE
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10
