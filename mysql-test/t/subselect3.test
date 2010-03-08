@@ -841,3 +841,10 @@ FROM t2;
 DROP TABLE t1,t2;
 
 --echo End of 5.6 tests
+--echo #  
+--echo # BUG#36896: Server crash on SELECT FROM DUAL
+--echo # 
+create table t1 (a int);
+select 1 as res from dual where (1) in (select * from t1);
+drop table t1;
+

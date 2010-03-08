@@ -568,7 +568,7 @@ JOIN::prepare(Item ***rref_pointer_array,
           4. Subquery does not use aggregate functions or HAVING
           5. Subquery predicate is at the AND-top-level of ON/WHERE clause
           6. No execution method was already chosen (by a prepared statement).
-
+          7. Parent SELECT is not a confluent "SELECT ... FROM DUAL" w/o tables
           (*). We are not in a subquery of a single table UPDATE/DELETE that 
                doesn't have a JOIN (TODO: We should handle this at some
                point by switching to multi-table UPDATE/DELETE)
@@ -585,7 +585,8 @@ JOIN::prepare(Item ***rref_pointer_array,
           select_lex->master_unit()->first_select()->leaf_tables &&     // (**) 
           select_lex->outer_select()->leaf_tables &&
           do_semijoin &&
-          in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED)   // 6
+          in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED && // 6
+          select_lex->outer_select()->leaf_tables)                     // 7
       {
         DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
 
@@ -633,6 +634,11 @@ JOIN::prepare(Item ***rref_pointer_array,
           2. Subquery is a single SELECT (not a UNION)
           3. Subquery is not a table-less query. In this case there is no
              point in materializing.
+          3A The upper query is not a confluent SELECT ... FROM DUAL. We
+             can't do materialization for SELECT .. FROM DUAL because it
+             does not call setup_subquery_materialization(). We could make 
+             SELECT ... FROM DUAL call that function but that doesn't seem
+             to be the case that is worth handling.
           4. Subquery predicate is a top-level predicate
              (this implies it is not negated)
              TODO: this is a limitation that should be lifeted once we
@@ -659,7 +665,8 @@ JOIN::prepare(Item ***rref_pointer_array,
             in_subs  &&                                                   // 1
             !select_lex->master_unit()->first_select()->next_select() &&  // 2
             select_lex->master_unit()->first_select()->leaf_tables &&     // 3
-            thd->lex->sql_command == SQLCOM_SELECT)                       // *
+            thd->lex->sql_command == SQLCOM_SELECT &&                     // *
+            select_lex->outer_select()->leaf_tables)                      // 3A
         {
           if (in_subs->is_top_level_item() &&                             // 4
               !in_subs->is_correlated &&                                  // 5
