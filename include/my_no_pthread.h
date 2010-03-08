@@ -1,7 +1,7 @@
 #ifndef MY_NO_PTHREAD_INCLUDED
 #define MY_NO_PTHREAD_INCLUDED
 
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,6 +47,17 @@
 #define rw_wrlock(A)
 #define rw_unlock(A)
 #define rwlock_destroy(A)
+
+#define mysql_mutex_init(A, B, C) do {} while (0)
+#define mysql_mutex_lock(A) do {} while (0)
+#define mysql_mutex_unlock(A) do {} while (0)
+#define mysql_mutex_destroy(A) do {} while (0)
+
+#define mysql_rwlock_init(A, B, C) do {} while (0)
+#define mysql_rwlock_rdlock(A) do {} while (0)
+#define mysql_rwlock_wrlock(A) do {} while (0)
+#define mysql_rwlock_unlock(A) do {} while (0)
+#define mysql_rwlock_destroy(A) do {} while (0)
 
 typedef int my_pthread_once_t;
 #define MY_PTHREAD_ONCE_INIT 0

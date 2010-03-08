@@ -74,12 +74,12 @@ typedef long my_time_t;
                                 TIME_MAX_MINUTE * 60L + TIME_MAX_SECOND)
 
 my_bool check_date(const MYSQL_TIME *ltime, my_bool not_zero_date,
-                   ulong flags, int *was_cut);
+                   ulonglong flags, int *was_cut);
 enum enum_mysql_timestamp_type
 str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
-                uint flags, int *was_cut);
+                ulonglong flags, int *was_cut);
 longlong number_to_datetime(longlong nr, MYSQL_TIME *time_res,
-                            uint flags, int *was_cut);
+                            ulonglong flags, int *was_cut);
 ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *);

@@ -1788,7 +1788,7 @@ Variable_name	Value
 innodb_thread_concurrency	0
 set global innodb_thread_concurrency=1001;
 Warnings:
-Warning	1292	Truncated incorrect thread_concurrency value: '1001'
+Warning	1292	Truncated incorrect innodb_thread_concurrency value: '1001'
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	1000
@@ -1809,7 +1809,7 @@ Variable_name	Value
 innodb_concurrency_tickets	1000
 set global innodb_concurrency_tickets=0;
 Warnings:
-Warning	1292	Truncated incorrect concurrency_tickets value: '0'
+Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '0'
 show variables like "innodb_concurrency_tickets";
 Variable_name	Value
 innodb_concurrency_tickets	1
@@ -2834,10 +2834,10 @@ t2	CREATE TABLE `t2` (
 DROP TABLE t2,t1;
 create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
 insert into t1(a) values (1),(2),(3);
+create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
 commit;
 set autocommit = 0;
 update t1 set b = 5 where a = 2;
-create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
 set autocommit = 0;
 insert into t1(a) values (10),(20),(30),(40),(50),(60),(70),(80),(90),(100),
 (11),(21),(31),(41),(51),(61),(71),(81),(91),(101),
@@ -2884,6 +2884,7 @@ insert into t1(a) values(7);
 insert into t2(a) values(8);
 delete from t2 where a = 3;
 update t4 set b = b + 1 where a = 3;
+commit;
 commit;
 drop trigger t1t;
 drop trigger t2t;

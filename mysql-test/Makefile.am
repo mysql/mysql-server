@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -71,10 +71,15 @@ SUBDIRS =	lib/My/SafeProcess
 
 EXTRA_DIST =	README \
 		$(test_SCRIPTS) \
-		$(nobase_test_DATA)
+		$(nobase_test_DATA) \
+		CMakeLists.txt  \
+		mtr.out-of-source 
+
 
 # List of directories containing test + result files and the
 # related test data files that should be copied
+# If you want to add a new suite, please check DEFAULT_SUITES in
+# mysql-test-run.pl.
 TEST_DIRS = t r include std_data std_data/parts collections \
 	std_data/ndb_backup50 std_data/ndb_backup51 \
 	std_data/ndb_backup51_data_be std_data/ndb_backup51_data_le \
@@ -99,7 +104,10 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/ndb suite/ndb/t suite/ndb/r \
 	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
 	suite/parts suite/parts/t suite/parts/r suite/parts/inc \
-	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include
+	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include \
+	suite/sys_vars suite/sys_vars/t suite/sys_vars/inc suite/sys_vars/r \
+        suite/perfschema suite/perfschema/t suite/perfschema/r \
+        suite/perfschema/include
 
 # Used by dist-hook and install-data-local to copy all
 # test files into either dist or install directory

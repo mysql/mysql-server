@@ -52,7 +52,7 @@ String *Item_func_geometry_from_text::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   Geometry_buffer buffer;
   String arg_val;
-  String *wkt= args[0]->val_str(&arg_val);
+  String *wkt= args[0]->val_str_ascii(&arg_val);
 
   if ((null_value= args[0]->null_value))
     return 0;
@@ -110,7 +110,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 }
 
 
-String *Item_func_as_wkt::val_str(String *str)
+String *Item_func_as_wkt::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String arg_val;
@@ -134,6 +134,7 @@ String *Item_func_as_wkt::val_str(String *str)
 
 void Item_func_as_wkt::fix_length_and_dec()
 {
+  collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   max_length=MAX_BLOB_WIDTH;
   maybe_null= 1;
 }
@@ -157,7 +158,7 @@ String *Item_func_as_wkb::val_str(String *str)
 }
 
 
-String *Item_func_geometry_type::val_str(String *str)
+String *Item_func_geometry_type::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(str);

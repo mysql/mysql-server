@@ -8,9 +8,7 @@ connection master;
 delete from mysql.user where user=_binary'rpl_do_grant';
 delete from mysql.db where user=_binary'rpl_do_grant';
 flush privileges;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 # if these DELETE did nothing on the master, we need to do them manually on the
 # slave.
 delete from mysql.user where user=_binary'rpl_ignore_grant';
@@ -21,17 +19,13 @@ flush privileges;
 connection master;
 grant select on *.* to rpl_do_grant@localhost;
 grant drop on test.* to rpl_do_grant@localhost;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 show grants for rpl_do_grant@localhost;
 
 # test replication of SET PASSWORD
 connection master;
 set password for rpl_do_grant@localhost=password("does it work?");
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select password<>_binary'' from mysql.user where user=_binary'rpl_do_grant';
 
 #
@@ -44,9 +38,7 @@ select password<>'' from mysql.user where user='rpl_do_grant';
 set sql_mode='ANSI_QUOTES';
 set password for rpl_do_grant@localhost=password('does it work?');
 set sql_mode='';
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select password<>'' from mysql.user where user='rpl_do_grant';
 
 

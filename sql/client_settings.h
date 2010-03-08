@@ -30,10 +30,6 @@
 #define set_sigpipe(mysql)
 #define reset_sigpipe(mysql)
 #define read_user_name(A) {}
-#define mysql_rpl_query_type(A,B) MYSQL_RPL_ADMIN
-#define mysql_master_send_query(A, B, C) 1
-#define mysql_slave_send_query(A, B, C) 1
-#define mysql_rpl_probe(mysql) 0
 #undef HAVE_SMEM
 #undef _CUSTOMCONFIG_
 

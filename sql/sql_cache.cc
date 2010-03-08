@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -341,18 +341,14 @@ TODO list:
 #endif
 
 #if !defined(EXTRA_DBUG) && !defined(DBUG_OFF)
-#define MUTEX_LOCK(M) { DBUG_PRINT("lock", ("mutex lock 0x%lx", (ulong)(M))); \
-  pthread_mutex_lock(M);}
-#define MUTEX_UNLOCK(M) {DBUG_PRINT("lock", ("mutex unlock 0x%lx",\
-  (ulong)(M))); pthread_mutex_unlock(M);}
 #define RW_WLOCK(M) {DBUG_PRINT("lock", ("rwlock wlock 0x%lx",(ulong)(M))); \
-  if (!rw_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")); \
+  if (!mysql_rwlock_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")); \
   else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
 #define RW_RLOCK(M) {DBUG_PRINT("lock", ("rwlock rlock 0x%lx", (ulong)(M))); \
-  if (!rw_rdlock(M)) DBUG_PRINT("lock", ("rwlock rlock ok")); \
+  if (!mysql_rwlock_rdlock(M)) DBUG_PRINT("lock", ("rwlock rlock ok")); \
   else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
 #define RW_UNLOCK(M) {DBUG_PRINT("lock", ("rwlock unlock 0x%lx",(ulong)(M))); \
-  if (!rw_unlock(M)) DBUG_PRINT("lock", ("rwlock unlock ok")); \
+  if (!mysql_rwlock_unlock(M)) DBUG_PRINT("lock", ("rwlock unlock ok")); \
   else DBUG_PRINT("lock", ("rwlock unlock FAILED %d", errno)); }
 #define BLOCK_LOCK_WR(B) {DBUG_PRINT("lock", ("%d LOCK_WR 0x%lx",\
   __LINE__,(ulong)(B))); \
@@ -395,24 +391,15 @@ static void debug_wait_for_kill(const char *info)
 }
 
 #else
-#define MUTEX_LOCK(M) pthread_mutex_lock(M)
-#define MUTEX_UNLOCK(M) pthread_mutex_unlock(M)
-#define RW_WLOCK(M) rw_wrlock(M)
-#define RW_RLOCK(M) rw_rdlock(M)
-#define RW_UNLOCK(M) rw_unlock(M)
+#define RW_WLOCK(M) mysql_rwlock_wrlock(M)
+#define RW_RLOCK(M) mysql_rwlock_rdlock(M)
+#define RW_UNLOCK(M) mysql_rwlock_unlock(M)
 #define BLOCK_LOCK_WR(B) B->query()->lock_writing()
 #define BLOCK_LOCK_RD(B) B->query()->lock_reading()
 #define BLOCK_UNLOCK_WR(B) B->query()->unlock_writing()
 #define BLOCK_UNLOCK_RD(B) B->query()->unlock_reading()
 #define DUMP(C)
 #endif
-
-const char *query_cache_type_names[]= { "OFF", "ON", "DEMAND",NullS };
-TYPELIB query_cache_type_typelib=
-{
-  array_elements(query_cache_type_names)-1,"", query_cache_type_names, NULL
-};
-
 
 /**
   Serialize access to the query cache.
@@ -437,7 +424,7 @@ bool Query_cache::try_lock(bool use_timeout)
   bool interrupt= FALSE;
   DBUG_ENTER("Query_cache::try_lock");
 
-  pthread_mutex_lock(&structure_guard_mutex);
+  mysql_mutex_lock(&structure_guard_mutex);
   while (1)
   {
     if (m_cache_lock_status == Query_cache::UNLOCKED)
@@ -470,8 +457,8 @@ bool Query_cache::try_lock(bool use_timeout)
       {
         struct timespec waittime;
         set_timespec_nsec(waittime,(ulong)(50000000L));  /* Wait for 50 msec */
-        int res= pthread_cond_timedwait(&COND_cache_status_changed,
-                                        &structure_guard_mutex,&waittime);
+        int res= mysql_cond_timedwait(&COND_cache_status_changed,
+                                      &structure_guard_mutex, &waittime);
         if (res == ETIMEDOUT)
         {
           interrupt= TRUE;
@@ -480,11 +467,11 @@ bool Query_cache::try_lock(bool use_timeout)
       }
       else
       {
-        pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
+        mysql_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
       }
     }
   }
-  pthread_mutex_unlock(&structure_guard_mutex);
+  mysql_mutex_unlock(&structure_guard_mutex);
 
   DBUG_RETURN(interrupt);
 }
@@ -505,9 +492,9 @@ void Query_cache::lock_and_suspend(void)
 {
   DBUG_ENTER("Query_cache::lock_and_suspend");
 
-  pthread_mutex_lock(&structure_guard_mutex);
+  mysql_mutex_lock(&structure_guard_mutex);
   while (m_cache_lock_status != Query_cache::UNLOCKED)
-    pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
+    mysql_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED_NO_WAIT;
 #ifndef DBUG_OFF
   THD *thd= current_thd;
@@ -515,8 +502,8 @@ void Query_cache::lock_and_suspend(void)
     m_cache_lock_thread_id= thd->thread_id;
 #endif
   /* Wake up everybody, a whole cache flush is starting! */
-  pthread_cond_broadcast(&COND_cache_status_changed);
-  pthread_mutex_unlock(&structure_guard_mutex);
+  mysql_cond_broadcast(&COND_cache_status_changed);
+  mysql_mutex_unlock(&structure_guard_mutex);
 
   DBUG_VOID_RETURN;
 }
@@ -533,16 +520,16 @@ void Query_cache::lock(void)
 {
   DBUG_ENTER("Query_cache::lock");
 
-  pthread_mutex_lock(&structure_guard_mutex);
+  mysql_mutex_lock(&structure_guard_mutex);
   while (m_cache_lock_status != Query_cache::UNLOCKED)
-    pthread_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
+    mysql_cond_wait(&COND_cache_status_changed, &structure_guard_mutex);
   m_cache_lock_status= Query_cache::LOCKED;
 #ifndef DBUG_OFF
   THD *thd= current_thd;
   if (thd)
     m_cache_lock_thread_id= thd->thread_id;
 #endif
-  pthread_mutex_unlock(&structure_guard_mutex);
+  mysql_mutex_unlock(&structure_guard_mutex);
 
   DBUG_VOID_RETURN;
 }
@@ -555,7 +542,7 @@ void Query_cache::lock(void)
 void Query_cache::unlock(void)
 {
   DBUG_ENTER("Query_cache::unlock");
-  pthread_mutex_lock(&structure_guard_mutex);
+  mysql_mutex_lock(&structure_guard_mutex);
 #ifndef DBUG_OFF
   THD *thd= current_thd;
   if (thd)
@@ -565,8 +552,8 @@ void Query_cache::unlock(void)
               m_cache_lock_status == Query_cache::LOCKED_NO_WAIT);
   m_cache_lock_status= Query_cache::UNLOCKED;
   DBUG_PRINT("Query_cache",("Sending signal"));
-  pthread_cond_signal(&COND_cache_status_changed);
-  pthread_mutex_unlock(&structure_guard_mutex);
+  mysql_cond_signal(&COND_cache_status_changed);
+  mysql_mutex_unlock(&structure_guard_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -735,7 +722,7 @@ inline void Query_cache_query::lock_writing()
 my_bool Query_cache_query::try_lock_writing()
 {
   DBUG_ENTER("Query_cache_block::try_lock_writing");
-  if (rw_trywrlock(&lock)!=0)
+  if (mysql_rwlock_trywrlock(&lock) != 0)
   {
     DBUG_PRINT("info", ("can't lock rwlock"));
     DBUG_RETURN(0);
@@ -767,7 +754,7 @@ void Query_cache_query::init_n_lock()
 {
   DBUG_ENTER("Query_cache_query::init_n_lock");
   res=0; wri = 0; len = 0;
-  my_rwlock_init(&lock, NULL);
+  mysql_rwlock_init(key_rwlock_query_cache_query_lock, &lock);
   lock_writing();
   DBUG_PRINT("qcache", ("inited & locked query for block 0x%lx",
 			(long) (((uchar*) this) -
@@ -787,7 +774,7 @@ void Query_cache_query::unlock_n_destroy()
     active semaphore
   */
   this->unlock_writing();
-  rwlock_destroy(&lock);
+  mysql_rwlock_destroy(&lock);
   DBUG_VOID_RETURN;
 }
 
@@ -1074,12 +1061,12 @@ Query_cache::Query_cache(ulong query_cache_limit_arg,
   :query_cache_size(0),
    query_cache_limit(query_cache_limit_arg),
    queries_in_cache(0), hits(0), inserts(0), refused(0),
-   total_blocks(0), lowmem_prunes(0),
+   total_blocks(0), lowmem_prunes(0), m_query_cache_is_disabled(FALSE),
    min_allocation_unit(ALIGN_SIZE(min_allocation_unit_arg)),
    min_result_data_size(ALIGN_SIZE(min_result_data_size_arg)),
    def_query_hash_size(ALIGN_SIZE(def_query_hash_size_arg)),
    def_table_hash_size(ALIGN_SIZE(def_table_hash_size_arg)),
-   initialized(0), m_query_cache_is_disabled(FALSE)
+   initialized(0)
 {
   ulong min_needed= (ALIGN_SIZE(sizeof(Query_cache_block)) +
 		     ALIGN_SIZE(sizeof(Query_cache_block_table)) +
@@ -1159,7 +1146,7 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
     See also a note on double-check locking usage above.
   */
-  if (thd->locked_tables || query_cache_size == 0)
+  if (thd->locked_tables_mode || query_cache_size == 0)
     DBUG_VOID_RETURN;
   uint8 tables_type= 0;
 
@@ -1360,12 +1347,12 @@ end:
   @param thd Pointer to the thread handler
   @param sql A pointer to the sql statement *
   @param query_length Length of the statement in characters
- 
+
   @return status code
-  @retval 1  Query was not cached.
-  @retval 0  The query was cached and user was sent the result.
-  @retval -1 The query was cached but we didn't have rights to use it. 
-  
+  @retval 0  Query was not cached.
+  @retval 1  The query was cached and user was sent the result.
+  @retval -1 The query was cached but we didn't have rights to use it.
+
   In case of -1, no error is sent to the client.
 
   *) The buffer must be allocated memory of size:
@@ -1393,7 +1380,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
     See also a note on double-check locking usage above.
   */
-  if (is_disabled() || thd->locked_tables ||
+  if (is_disabled() || thd->locked_tables_mode ||
       thd->variables.query_cache_type == 0 || query_cache_size == 0)
     goto err;
 
@@ -1548,7 +1535,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
   }
   DBUG_PRINT("qcache", ("Query have result 0x%lx", (ulong) query));
 
-  if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
+  if (thd->in_multi_stmt_transaction() &&
       (query->tables_type() & HA_CACHE_TBL_TRANSACT))
   {
     DBUG_PRINT("qcache",
@@ -1705,8 +1692,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  using_transactions= using_transactions &&
-    (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+  using_transactions= using_transactions && thd->in_multi_stmt_transaction();
   for (; tables_used; tables_used= tables_used->next_local)
   {
     DBUG_ASSERT(!using_transactions || tables_used->table!=0);
@@ -1790,8 +1776,7 @@ void Query_cache::invalidate(THD *thd, TABLE *table,
   if (is_disabled())
     DBUG_VOID_RETURN;
 
-  using_transactions= using_transactions &&
-    (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+  using_transactions= using_transactions && thd->in_multi_stmt_transaction();
   if (using_transactions && 
       (table->file->table_cache_type() == HA_CACHE_TBL_TRANSACT))
     thd->add_changed_table(table);
@@ -1809,8 +1794,7 @@ void Query_cache::invalidate(THD *thd, const char *key, uint32  key_length,
   if (is_disabled())
    DBUG_VOID_RETURN;
 
-  using_transactions= using_transactions &&
-    (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
+  using_transactions= using_transactions && thd->in_multi_stmt_transaction();
   if (using_transactions) // used for innodb => has_transactions() is TRUE
     thd->add_changed_table(key, key_length);
   else
@@ -1991,8 +1975,8 @@ void Query_cache::destroy()
     free_cache();
     unlock();
 
-    pthread_cond_destroy(&COND_cache_status_changed);
-    pthread_mutex_destroy(&structure_guard_mutex);
+    mysql_cond_destroy(&COND_cache_status_changed);
+    mysql_mutex_destroy(&structure_guard_mutex);
     initialized = 0;
   }
   DBUG_VOID_RETURN;
@@ -2006,8 +1990,10 @@ void Query_cache::destroy()
 void Query_cache::init()
 {
   DBUG_ENTER("Query_cache::init");
-  pthread_mutex_init(&structure_guard_mutex,MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND_cache_status_changed, NULL);
+  mysql_mutex_init(key_structure_guard_mutex,
+                   &structure_guard_mutex, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_cache_status_changed,
+                  &COND_cache_status_changed, NULL);
   m_cache_lock_status= Query_cache::UNLOCKED;
   initialized = 1;
   /*
@@ -2157,9 +2143,9 @@ ulong Query_cache::init_cache()
 
   DUMP(this);
 
-  VOID(my_hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
-                    query_cache_query_get_key, 0, 0));
-#ifndef FN_NO_CASE_SENCE
+  (void) my_hash_init(&queries, &my_charset_bin, def_query_hash_size, 0, 0,
+                      query_cache_query_get_key, 0, 0);
+#ifndef FN_NO_CASE_SENSE
   /*
     If lower_case_table_names!=0 then db and table names are already 
     converted to lower case and we can use binary collation for their 
@@ -2168,8 +2154,8 @@ ulong Query_cache::init_cache()
     lower_case_table_names == 0 then we should distinguish my_table
     and MY_TABLE cases and so again can use binary collation.
   */
-  VOID(my_hash_init(&tables, &my_charset_bin, def_table_hash_size, 0, 0,
-                    query_cache_table_get_key, 0, 0));
+  (void) my_hash_init(&tables, &my_charset_bin, def_table_hash_size, 0, 0,
+                      query_cache_table_get_key, 0, 0);
 #else
   /*
     On windows, OS/2, MacOS X with HFS+ or any other case insensitive
@@ -2179,10 +2165,11 @@ ulong Query_cache::init_cache()
     file system) and so should use case insensitive collation for
     comparison.
   */
-  VOID(my_hash_init(&tables,
-                    lower_case_table_names ? &my_charset_bin :
-                    files_charset_info,
-                    def_table_hash_size, 0, 0,query_cache_table_get_key, 0, 0));
+  (void) my_hash_init(&tables,
+                      lower_case_table_names ? &my_charset_bin :
+                      files_charset_info,
+                      def_table_hash_size, 0, 0,query_cache_table_get_key,
+                      0, 0);
 #endif
 
   queries_in_cache = 0;
@@ -3579,7 +3566,7 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
                                                 tables_type)))
       DBUG_RETURN(0);
 
-    if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) &&
+    if (thd->in_multi_stmt_transaction() &&
 	((*tables_type)&HA_CACHE_TBL_TRANSACT))
     {
       DBUG_PRINT("qcache", ("not in autocommin mode"));
@@ -3852,7 +3839,7 @@ my_bool Query_cache::move_by_type(uchar **border,
       } while ( result_block != first_result_block );
     }
     Query_cache_query *new_query= ((Query_cache_query *) new_block->data());
-    my_rwlock_init(&new_query->lock, NULL);
+    mysql_rwlock_init(key_rwlock_query_cache_query_lock, &new_query->lock);
 
     /* 
       If someone is writing to this block, inform the writer that the block

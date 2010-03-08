@@ -458,7 +458,7 @@ struct ilink
   struct ilink **prev,*next;
   static void *operator new(size_t size) throw ()
   {
-    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE));
+    return (void*)my_malloc((uint)size, MYF(MY_WME | MY_FAE | ME_FATALERROR));
   }
   static void operator delete(void* ptr_arg, size_t size)
   {
@@ -504,15 +504,12 @@ public:
 
 template <class T> class I_List_iterator;
 
-/*
-  WARNING: copy constructor of this class does not create a usable
-  copy, as its members may point at each other.
-*/
 
 class base_ilist
 {
+  struct ilink *first;
+  struct ilink last;
 public:
-  struct ilink *first,last;
   inline void empty() { first= &last; last.prev= &first; }
   base_ilist() { empty(); }
   inline bool is_empty() {  return first == &last; }
@@ -540,7 +537,31 @@ public:
   {
     return (first != &last) ? first : 0;
   }
-  friend class base_list_iterator;
+
+  /**
+    Moves list elements to new owner, and empties current owner (i.e. this).
+
+    @param[in,out]  new_owner  The new owner of the list elements.
+                               Should be empty in input.
+  */
+
+  void move_elements_to(base_ilist *new_owner)
+  {
+    DBUG_ASSERT(new_owner->is_empty());
+    new_owner->first= first;
+    new_owner->last= last;
+    empty();
+  }
+
+  friend class base_ilist_iterator;
+ private:
+  /*
+    We don't want to allow copying of this class, as that would give us
+    two list heads containing the same elements.
+    So we declare, but don't define copy CTOR and assignment operator.
+  */
+  base_ilist(const base_ilist&);
+  void operator=(const base_ilist&);
 };
 
 
@@ -573,6 +594,9 @@ public:
   inline void push_back(T* a)	{ base_ilist::push_back(a); }
   inline T* get()		{ return (T*) base_ilist::get(); }
   inline T* head()		{ return (T*) base_ilist::head(); }
+  inline void move_elements_to(I_List<T>* new_owner) {
+    base_ilist::move_elements_to(new_owner);
+  }
 #ifndef _lint
   friend class I_List_iterator<T>;
 #endif

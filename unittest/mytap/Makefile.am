@@ -13,14 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-AM_CPPFLAGS  = -I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir)
+AM_CPPFLAGS	   = -I$(top_srcdir)/include
 
 noinst_LIBRARIES   = libmytap.a
 noinst_HEADERS     = tap.h
 
 libmytap_a_SOURCES = tap.c
 
-SUBDIRS            = . t
+EXTRA_DIST         = CMakeLists.txt 
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
+SUBDIRS            = . t

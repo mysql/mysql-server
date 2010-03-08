@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,10 @@ int heap_panic(handlerton *hton, ha_panic_function flag)
 int heap_init(void *p)
 {
   handlerton *heap_hton;
+
+#ifdef HAVE_PSI_INTERFACE
+  init_heap_psi_keys();
+#endif
 
   heap_hton= (handlerton *)p;
   heap_hton->state=      SHOW_OPTION_YES;
@@ -106,9 +110,9 @@ int ha_heap::open(const char *name, int mode, uint test_if_locked)
       if (!file)
       {
          /* Couldn't open table; Remove the newly created table */
-        pthread_mutex_lock(&THR_LOCK_heap);
+        mysql_mutex_lock(&THR_LOCK_heap);
         hp_free(internal_share);
-        pthread_mutex_unlock(&THR_LOCK_heap);
+        mysql_mutex_unlock(&THR_LOCK_heap);
       }
       implicit_emptied= 1;
     }
@@ -685,7 +689,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
       if (field->flags & (ENUM_FLAG | SET_FLAG))
         seg->charset= &my_charset_bin;
       else
-        seg->charset= field->charset();
+        seg->charset= field->charset_for_protocol();
       if (field->null_ptr)
       {
 	seg->null_bit= field->null_bit;

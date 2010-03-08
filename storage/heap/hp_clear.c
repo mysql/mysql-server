@@ -31,8 +31,8 @@ void hp_clear(HP_SHARE *info)
   DBUG_ENTER("hp_clear");
 
   if (info->block.levels)
-    VOID(hp_free_level(&info->block,info->block.levels,info->block.root,
-			(uchar*) 0));
+    (void) hp_free_level(&info->block,info->block.levels,info->block.root,
+			(uchar*) 0);
   info->block.levels=0;
   hp_clear_keys(info);
   info->records= info->deleted= 0;
@@ -94,7 +94,7 @@ void hp_clear_keys(HP_SHARE *info)
     {
       HP_BLOCK *block= &keyinfo->block;
       if (block->levels)
-        VOID(hp_free_level(block,block->levels,block->root,(uchar*) 0));
+        (void) hp_free_level(block,block->levels,block->root,(uchar*) 0);
       block->levels=0;
       block->last_allocated=0;
       keyinfo->hash_buckets= 0;

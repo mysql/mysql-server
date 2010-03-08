@@ -5414,4 +5414,60 @@ foo
 
 
 DROP TABLE t1;
+#
+# Test for the following cases
+# 1) integers and strings enclosed in quotes
+# 2) integers and strings not enclosed in quotes
+# 3) \X  characters with quotes
+# 4) \X  characters outside quotes
+#
+CREATE TABLE t1(c1 INT NOT NULL, c2 VARCHAR(50) NOT NULL) ENGINE=csv;
+# remove the already existing .CSV file if any
+# create the .CSV file that contains the hard-coded data used in
+# testing
+1,"integer sans quotes"
+1,string sans quotes
+1,quotes"in between" strings 
+"1",Integer with quote and string with no quote
+1,"escape sequence \n \" \\ \r \a within quotes"
+1,escape sequence \n \" \\ \r \a without quotes
+# select from the table in which the data has been filled in using
+# the hard-coded .CSV file
+SELECT * FROM t1;
+c1	c2
+1	integer sans quotes
+1	string sans quotes
+1	quotes"in between" strings 
+1	Integer with quote and string with no quote
+1	escape sequence 
+ " \  \a within quotes
+1	escape sequence 
+ " \  \a without quotes
+DROP TABLE t1;
+# Test for the case when a field begins with a quote, but does not end in a
+# quote.
+# Note: This results in an error.
+CREATE TABLE t1(c1 INT NOT NULL, c2 VARCHAR(50) NOT NULL) ENGINE=csv;
+# remove the already existing .CSV file if any
+# create the .CSV file that contains the hard-coded data used in
+# testing
+1,"string only at the beginning quotes
+# select from the table in which the data has been filled in using
+# the hard-coded .CSV file
+SELECT * FROM t1;
+ERROR HY000: Table 't1' is marked as crashed and should be repaired
+DROP TABLE t1;
+# Test for the case when a field ends with a quote, but does not begin in a
+# quote.
+# Note: This results in an error.
+CREATE TABLE t1(c1 INT NOT NULL, c2 VARCHAR(50) NOT NULL) ENGINE=csv;
+# remove the already existing .CSV file if any
+# create the .CSV file that contains the hard-coded data used in
+# testing
+1,string with only ending quotes"
+# select from the table in which the data has been filled in using
+# the hard-coded .CSV file
+SELECT * FROM t1;
+ERROR HY000: Table 't1' is marked as crashed and should be repaired
+DROP TABLE t1;
 End of 5.1 tests

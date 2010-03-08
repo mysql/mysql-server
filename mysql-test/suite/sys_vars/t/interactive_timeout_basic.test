@@ -104,8 +104,8 @@ SET @@global.interactive_timeout = -1024;
 SELECT @@global.interactive_timeout;
 SET @@global.interactive_timeout = 1000000000;
 SELECT @@global.interactive_timeout;
---Error ER_PARSE_ERROR
-SET @@global.interactive_timeout = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.interactive_timeout = 65530.34;
 SELECT @@global.interactive_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.interactive_timeout = test;
@@ -115,11 +115,10 @@ SET @@session.interactive_timeout = 0;
 SELECT @@session.interactive_timeout;
 SET @@session.interactive_timeout = -2;
 SELECT @@session.interactive_timeout;
---Error ER_PARSE_ERROR
-SET @@session.interactive_timeout = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.interactive_timeout = 65530.34;
 SET @@session.interactive_timeout = 100000000;
 SELECT @@session.interactive_timeout;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.interactive_timeout = test;

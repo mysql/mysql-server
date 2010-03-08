@@ -70,7 +70,6 @@ Warning	1292	Truncated incorrect slow_launch_time value: '42949672950'
 SELECT @@global.slow_launch_time;
 @@global.slow_launch_time
 31536000
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.slow_launch_time = ON;
 ERROR 42000: Incorrect argument type to variable 'slow_launch_time'
 SELECT @@global.slow_launch_time;

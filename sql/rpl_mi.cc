@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 
 #ifdef HAVE_REPLICATION
 
+#define DEFAULT_CONNECT_RETRY 60
 
 // Defined in slave.cc
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
@@ -31,9 +32,10 @@ int init_dynarray_intvar_from_file(DYNAMIC_ARRAY* arr, IO_CACHE* f);
 
 Master_info::Master_info(bool is_slave_recovery)
   :Slave_reporting_capability("I/O"),
-   ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), inited(0),
-   rli(is_slave_recovery), abort_slave(0), slave_running(0),
-   slave_run_id(0), sync_counter(0),
+   ssl(0), ssl_verify_server_cert(0), fd(-1), io_thd(0), 
+   rli(is_slave_recovery), port(MYSQL_PORT),
+   connect_retry(DEFAULT_CONNECT_RETRY), inited(0), abort_slave(0),
+   slave_running(0), slave_run_id(0), sync_counter(0),
    heartbeat_period(0), received_heartbeats(0), master_id(0)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
@@ -42,21 +44,21 @@ Master_info::Master_info(bool is_slave_recovery)
 
   my_init_dynamic_array(&ignore_server_ids, sizeof(::server_id), 16, 16);
   bzero((char*) &file, sizeof(file));
-  pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
-  pthread_mutex_init(&data_lock, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&data_cond, NULL);
-  pthread_cond_init(&start_cond, NULL);
-  pthread_cond_init(&stop_cond, NULL);
+  mysql_mutex_init(key_master_info_run_lock, &run_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_master_info_data_lock, &data_lock, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_master_info_data_cond, &data_cond, NULL);
+  mysql_cond_init(key_master_info_start_cond, &start_cond, NULL);
+  mysql_cond_init(key_master_info_stop_cond, &stop_cond, NULL);
 }
 
 Master_info::~Master_info()
 {
   delete_dynamic(&ignore_server_ids);
-  pthread_mutex_destroy(&run_lock);
-  pthread_mutex_destroy(&data_lock);
-  pthread_cond_destroy(&data_cond);
-  pthread_cond_destroy(&start_cond);
-  pthread_cond_destroy(&stop_cond);
+  mysql_mutex_destroy(&run_lock);
+  mysql_mutex_destroy(&data_lock);
+  mysql_cond_destroy(&data_cond);
+  mysql_cond_destroy(&start_cond);
+  mysql_cond_destroy(&stop_cond);
 }
 
 /**
@@ -97,33 +99,13 @@ bool Master_info::shall_ignore_server_id(ulong s_id)
       != NULL;
 }
 
-void init_master_info_with_options(Master_info* mi)
+void init_master_log_pos(Master_info* mi)
 {
-  DBUG_ENTER("init_master_info_with_options");
+  DBUG_ENTER("init_master_log_pos");
 
   mi->master_log_name[0] = 0;
   mi->master_log_pos = BIN_LOG_HEADER_SIZE;             // skip magic number
 
-  if (master_host)
-    strmake(mi->host, master_host, sizeof(mi->host) - 1);
-  if (master_user)
-    strmake(mi->user, master_user, sizeof(mi->user) - 1);
-  if (master_password)
-    strmake(mi->password, master_password, MAX_PASSWORD_LENGTH);
-  mi->port = master_port;
-  mi->connect_retry = master_connect_retry;
-
-  mi->ssl= master_ssl;
-  if (master_ssl_ca)
-    strmake(mi->ssl_ca, master_ssl_ca, sizeof(mi->ssl_ca)-1);
-  if (master_ssl_capath)
-    strmake(mi->ssl_capath, master_ssl_capath, sizeof(mi->ssl_capath)-1);
-  if (master_ssl_cert)
-    strmake(mi->ssl_cert, master_ssl_cert, sizeof(mi->ssl_cert)-1);
-  if (master_ssl_cipher)
-    strmake(mi->ssl_cipher, master_ssl_cipher, sizeof(mi->ssl_cipher)-1);
-  if (master_ssl_key)
-    strmake(mi->ssl_key, master_ssl_key, sizeof(mi->ssl_key)-1);
   /* Intentionally init ssl_verify_server_cert to 0, no option available  */
   mi->ssl_verify_server_cert= 0;
   /* 
@@ -193,7 +175,7 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
     keep other threads from reading bogus info
   */
 
-  pthread_mutex_lock(&mi->data_lock);
+  mysql_mutex_lock(&mi->data_lock);
   fd = mi->fd;
 
   /* does master.info exist ? */
@@ -202,7 +184,7 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
   {
     if (abort_if_no_master_info_file)
     {
-      pthread_mutex_unlock(&mi->data_lock);
+      mysql_mutex_unlock(&mi->data_lock);
       DBUG_RETURN(0);
     }
     /*
@@ -210,8 +192,9 @@ int init_master_info(Master_info* mi, const char* master_info_fname,
       the old descriptor and re-create the old file
     */
     if (fd >= 0)
-      my_close(fd, MYF(MY_WME));
-    if ((fd = my_open(fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+      mysql_file_close(fd, MYF(MY_WME));
+    if ((fd= mysql_file_open(key_file_master_info,
+                             fname, O_CREAT|O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
     {
       sql_print_error("Failed to create a new master info file (\
 file '%s', errno %d)", fname, my_errno);
@@ -226,7 +209,7 @@ file '%s')", fname);
     }
 
     mi->fd = fd;
-    init_master_info_with_options(mi);
+    init_master_log_pos(mi);
 
   }
   else // file exists
@@ -235,7 +218,8 @@ file '%s')", fname);
       reinit_io_cache(&mi->file, READ_CACHE, 0L,0,0);
     else
     {
-      if ((fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
+      if ((fd= mysql_file_open(key_file_master_info,
+                               fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0 )
       {
         sql_print_error("Failed to open the existing master info file (\
 file '%s', errno %d)", fname, my_errno);
@@ -299,36 +283,34 @@ file '%s')", fname);
       lines= 7;
 
     if (init_intvar_from_file(&master_log_pos, &mi->file, 4) ||
-        init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file,
-                              master_host) ||
-        init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file,
-                              master_user) ||
+        init_strvar_from_file(mi->host, sizeof(mi->host), &mi->file, 0) ||
+        init_strvar_from_file(mi->user, sizeof(mi->user), &mi->file, "test") ||
         init_strvar_from_file(mi->password, SCRAMBLED_PASSWORD_CHAR_LENGTH+1,
-                              &mi->file, master_password) ||
-        init_intvar_from_file(&port, &mi->file, master_port) ||
+                              &mi->file, 0) ||
+        init_intvar_from_file(&port, &mi->file, MYSQL_PORT) ||
         init_intvar_from_file(&connect_retry, &mi->file,
-                              master_connect_retry))
+                              DEFAULT_CONNECT_RETRY))
       goto errwithmsg;
 
     /*
        If file has ssl part use it even if we have server without
-       SSL support. But these option will be ignored later when
+       SSL support. But these options will be ignored later when
        slave will try connect to master, so in this case warning
        is printed.
      */
     if (lines >= LINES_IN_MASTER_INFO_WITH_SSL)
     {
-      if (init_intvar_from_file(&ssl, &mi->file, master_ssl) ||
+      if (init_intvar_from_file(&ssl, &mi->file, 0) ||
           init_strvar_from_file(mi->ssl_ca, sizeof(mi->ssl_ca),
-                                &mi->file, master_ssl_ca) ||
+                                &mi->file, 0) ||
           init_strvar_from_file(mi->ssl_capath, sizeof(mi->ssl_capath),
-                                &mi->file, master_ssl_capath) ||
+                                &mi->file, 0) ||
           init_strvar_from_file(mi->ssl_cert, sizeof(mi->ssl_cert),
-                                &mi->file, master_ssl_cert) ||
+                                &mi->file, 0) ||
           init_strvar_from_file(mi->ssl_cipher, sizeof(mi->ssl_cipher),
-                                &mi->file, master_ssl_cipher) ||
+                                &mi->file, 0) ||
           init_strvar_from_file(mi->ssl_key, sizeof(mi->ssl_key),
-                                &mi->file, master_ssl_key))
+                                &mi->file, 0))
         goto errwithmsg;
 
       /*
@@ -360,8 +342,8 @@ file '%s')", fname);
 #ifndef HAVE_OPENSSL
     if (ssl)
       sql_print_warning("SSL information in the master info file "
-                      "('%s') are ignored because this MySQL slave was compiled "
-                      "without SSL support.", fname);
+                      "('%s') are ignored because this MySQL slave was "
+                      "compiled without SSL support.", fname);
 #endif /* HAVE_OPENSSL */
 
     /*
@@ -389,7 +371,7 @@ file '%s')", fname);
   reinit_io_cache(&mi->file, WRITE_CACHE, 0L, 0, 1);
   if ((error=test(flush_master_info(mi, TRUE, TRUE))))
     sql_print_error("Failed to flush master info file");
-  pthread_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(error);
 
 errwithmsg:
@@ -398,11 +380,11 @@ errwithmsg:
 err:
   if (fd >= 0)
   {
-    my_close(fd, MYF(0));
+    mysql_file_close(fd, MYF(0));
     end_io_cache(&mi->file);
   }
   mi->fd= -1;
-  pthread_mutex_unlock(&mi->data_lock);
+  mysql_mutex_unlock(&mi->data_lock);
   DBUG_RETURN(1);
 }
 
@@ -438,17 +420,17 @@ int flush_master_info(Master_info* mi,
   */
   if (flush_relay_log_cache)
   {
-    pthread_mutex_t *log_lock= mi->rli.relay_log.get_log_lock();
+    mysql_mutex_t *log_lock= mi->rli.relay_log.get_log_lock();
     IO_CACHE *log_file= mi->rli.relay_log.get_log_file();
 
     if (need_lock_relay_log)
-      pthread_mutex_lock(log_lock);
+      mysql_mutex_lock(log_lock);
 
-    safe_mutex_assert_owner(log_lock);
+    mysql_mutex_assert_owner(log_lock);
     err= flush_io_cache(log_file);
 
     if (need_lock_relay_log)
-      pthread_mutex_unlock(log_lock);
+      mysql_mutex_unlock(log_lock);
 
     if (err)
       DBUG_RETURN(2);
@@ -527,7 +509,7 @@ void end_master_info(Master_info* mi)
   if (mi->fd >= 0)
   {
     end_io_cache(&mi->file);
-    (void)my_close(mi->fd, MYF(MY_WME));
+    mysql_file_close(mi->fd, MYF(MY_WME));
     mi->fd = -1;
   }
   mi->inited = 0;

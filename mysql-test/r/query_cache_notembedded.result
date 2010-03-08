@@ -93,6 +93,7 @@ a
 3
 SELECT * FROM t1;
 a
+UNLOCK TABLES;
 drop table t1;
 flush query cache;
 reset query cache;

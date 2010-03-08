@@ -31,15 +31,15 @@ select @@innodb_file_format_check;
 
 # Following are negative tests, all should fail.
 --disable_warnings
---error ER_WRONG_ARGUMENTS
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format_check = cheetah;
 
---error ER_WRONG_ARGUMENTS
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format_check = Bear;
 
---error ER_WRONG_ARGUMENTS
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format_check = on;
 
---error ER_WRONG_ARGUMENTS
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format_check = off;
 --enable_warnings

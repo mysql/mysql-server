@@ -241,7 +241,7 @@ void mysql_client_binlog_statement(THD* thd)
   my_ok(thd);
 
 end:
-  rli->clear_tables_to_lock();
+  rli->slave_close_thread_tables(thd);
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_VOID_RETURN;
 }

@@ -44,12 +44,12 @@ try
             case "EXTRA_DEBUG":
             case "WITH_EMBEDDED_SERVER":
             case "WITHOUT_ATOMICS":
-                    configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
+                    configfile.WriteLine("SET (" + args.Item(i) + " TRUE CACHE BOOL \"\")");
                     break;
             case "MYSQL_SERVER_SUFFIX":
             case "MYSQLD_EXE_SUFFIX":
                     configfile.WriteLine("SET (" + parts[0] + " \""
-                                         + parts[1] + "\")");
+                                         + parts[1] + "\" CACHE STRING \"\")");
                     break;
             case "COMPILATION_COMMENT":
                     default_comment = parts[1];
@@ -93,26 +93,26 @@ try
 	}
 
     configfile.WriteLine("SET (COMPILATION_COMMENT \"" +
-                         default_comment + "\")");
+                         default_comment + "\" CACHE STRING \"\" )");
 
     configfile.WriteLine("SET (PROTOCOL_VERSION \"" +
-                         GetValue(configureIn, "PROTOCOL_VERSION") + "\")");
+                         GetValue(configureIn, "PROTOCOL_VERSION") + "\" CACHE STRING \"\")");
     configfile.WriteLine("SET (DOT_FRM_VERSION \"" +
-                         GetValue(configureIn, "DOT_FRM_VERSION") + "\")");
-    configfile.WriteLine("SET (MYSQL_TCP_PORT_DEFAULT \"" + default_port + "\")");
-    configfile.WriteLine("SET (MYSQL_TCP_PORT \"" + actual_port + "\")");
+                         GetValue(configureIn, "DOT_FRM_VERSION") + "\" CACHE STRING \"\")");
+    configfile.WriteLine("SET (MYSQL_TCP_PORT_DEFAULT \"" + default_port + "\" CACHE STRING \"\")");
+    configfile.WriteLine("SET (MYSQL_TCP_PORT \"" + actual_port + "\" CACHE STRING \"\")");
     configfile.WriteLine("SET (MYSQL_UNIX_ADDR \"" +
-                         GetValue(configureIn, "MYSQL_UNIX_ADDR_DEFAULT") + "\")");
+                         GetValue(configureIn, "MYSQL_UNIX_ADDR_DEFAULT") + "\" CACHE STRING \"\")");
     var version = GetVersion(configureIn);
-    configfile.WriteLine("SET (VERSION \"" + version + "\")");
+    configfile.WriteLine("SET (VERSION \"" + version + "\" CACHE STRING \"\")");
     configfile.WriteLine("SET (MYSQL_BASE_VERSION \"" +
-                         GetBaseVersion(version) + "\")");
+                         GetBaseVersion(version) + "\" CACHE STRING \"\")");
     configfile.WriteLine("SET (MYSQL_VERSION_ID \"" +
-                         GetVersionId(version) + "\")");
+                         GetVersionId(version) + "\" CACHE STRING \"\")");
     var engineOptions = ParsePlugins();
     for (option in engineOptions)
     {
-       configfile.WriteLine("SET(" + engineOptions[option] + " TRUE)");
+       configfile.WriteLine("SET(" + engineOptions[option] + " TRUE CACHE BOOL \"\")");
     }
     configfile.Close();
     

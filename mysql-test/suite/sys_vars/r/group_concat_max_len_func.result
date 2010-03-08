@@ -41,7 +41,10 @@ id	rollno	GROUP_CONCAT(name)
 4	3	Reco
 7	4	Reco
 Warnings:
-Warning	1260	4 line(s) were cut by GROUP_CONCAT()
+Warning	1260	Row 1 was cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
+Warning	1260	Row 4 was cut by GROUP_CONCAT()
 ## Changing session value of variable and verifying its behavior, ##
 ## warning should come here ##
 SET @@session.group_concat_max_len = 10;
@@ -52,7 +55,9 @@ id	rollno	GROUP_CONCAT(name)
 4	3	Record_4,R
 7	4	Record_7,R
 Warnings:
-Warning	1260	3 line(s) were cut by GROUP_CONCAT()
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
+Warning	1260	Row 5 was cut by GROUP_CONCAT()
+Warning	1260	Row 7 was cut by GROUP_CONCAT()
 '#--------------------FN_DYNVARS_034_03-------------------------#'
 ## Connecting with new connection test_con2 ##
 ## Verifying initial value of variable. It should be 4 ##
@@ -71,7 +76,7 @@ id	rollno	GROUP_CONCAT(name)
 4	3	Record_4,Record_6
 7	4	Record_7,Record_8
 Warnings:
-Warning	1260	1 line(s) were cut by GROUP_CONCAT()
+Warning	1260	Row 3 was cut by GROUP_CONCAT()
 '#--------------------FN_DYNVARS_034_04-------------------------#'
 ## Setting session value of variable to 26. No warning should appear here ##
 ## because the value after concatination is less than 30 ##

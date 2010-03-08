@@ -3,6 +3,8 @@
 #
 # Don't test this under valgrind, memory leaks will occur
 # Binary must be compiled with debug for crash to occur
+call mtr.add_suppression("Got an error from thread_id=.*ha_myisam.cc:");
+call mtr.add_suppression("MySQL thread id .*, query id .* localhost.*root Checking table");
 SET GLOBAL delay_key_write=ALL;
 CREATE TABLE t1(a INT, 
 b INT, 

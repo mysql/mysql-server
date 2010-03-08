@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
 
 /* To avoid problems with alarms in debug code, we disable DBUG here */
 #define FORCE_DBUG_OFF
+#include "mysys_priv.h"
 #include <my_global.h>
 
 #if defined(THREAD) && !defined(DONT_USE_THR_ALARM)
@@ -43,8 +44,8 @@ static sig_handler process_alarm_part2(int sig);
 
 #if !defined(__WIN__)
 
-static pthread_mutex_t LOCK_alarm;
-static pthread_cond_t COND_alarm;
+static mysql_mutex_t LOCK_alarm;
+static mysql_cond_t COND_alarm;
 static sigset_t full_signal_set;
 static QUEUE alarm_queue;
 static uint max_used_alarms=0;
@@ -52,7 +53,7 @@ pthread_t alarm_thread;
 
 #ifdef USE_ALARM_THREAD
 static void *alarm_handler(void *arg);
-#define reschedule_alarms() pthread_cond_signal(&COND_alarm)
+#define reschedule_alarms() mysql_cond_signal(&COND_alarm)
 #else
 #define reschedule_alarms() pthread_kill(alarm_thread,THR_SERVER_ALARM)
 #endif
@@ -75,8 +76,8 @@ void init_thr_alarm(uint max_alarms)
   init_queue(&alarm_queue,max_alarms+1,offsetof(ALARM,expire_time),0,
 	     compare_ulong,NullS);
   sigfillset(&full_signal_set);			/* Neaded to block signals */
-  pthread_mutex_init(&LOCK_alarm,MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND_alarm,NULL);
+  mysql_mutex_init(key_LOCK_alarm, &LOCK_alarm, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_alarm, &COND_alarm, NULL);
   if (thd_lib_detected == THD_LIB_LT)
     thr_client_alarm= SIGALRM;
   else
@@ -97,10 +98,9 @@ void init_thr_alarm(uint max_alarms)
     pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
     pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
     pthread_attr_setstacksize(&thr_attr,8196);
-
-    my_pthread_attr_setprio(&thr_attr,100);	/* Very high priority */
-    VOID(pthread_create(&alarm_thread,&thr_attr,alarm_handler,NULL));
-    VOID(pthread_attr_destroy(&thr_attr));
+    mysql_thread_create(key_thread_alarm,
+                        &alarm_thread, &thr_attr, alarm_handler, NULL);
+    pthread_attr_destroy(&thr_attr);
   }
 #elif defined(USE_ONE_SIGNAL_HAND)
   pthread_sigmask(SIG_BLOCK, &s, NULL);		/* used with sigwait() */
@@ -119,14 +119,14 @@ void init_thr_alarm(uint max_alarms)
 
 void resize_thr_alarm(uint max_alarms)
 {
-  pthread_mutex_lock(&LOCK_alarm);
+  mysql_mutex_lock(&LOCK_alarm);
   /*
     It's ok not to shrink the queue as there may be more pending alarms than
     than max_alarms
   */
   if (alarm_queue.elements < max_alarms)
     resize_queue(&alarm_queue,max_alarms+1);
-  pthread_mutex_unlock(&LOCK_alarm);
+  mysql_mutex_unlock(&LOCK_alarm);
 }
 
 
@@ -164,12 +164,12 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 #ifndef USE_ONE_SIGNAL_HAND
   pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
 #endif
-  pthread_mutex_lock(&LOCK_alarm);        /* Lock from threads & alarms */
+  mysql_mutex_lock(&LOCK_alarm);        /* Lock from threads & alarms */
   if (alarm_aborted > 0)
   {					/* No signal thread */
     DBUG_PRINT("info", ("alarm aborted"));
     *alrm= 0;					/* No alarm */
-    pthread_mutex_unlock(&LOCK_alarm);
+    mysql_mutex_unlock(&LOCK_alarm);
 #ifndef USE_ONE_SIGNAL_HAND
     pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
 #endif
@@ -185,7 +185,7 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
       DBUG_PRINT("info", ("alarm queue full"));
       fprintf(stderr,"Warning: thr_alarm queue is full\n");
       *alrm= 0;					/* No alarm */
-      pthread_mutex_unlock(&LOCK_alarm);
+      mysql_mutex_unlock(&LOCK_alarm);
 #ifndef USE_ONE_SIGNAL_HAND
       pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
 #endif
@@ -200,7 +200,7 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
     {
       DBUG_PRINT("info", ("failed my_malloc()"));
       *alrm= 0;					/* No alarm */
-      pthread_mutex_unlock(&LOCK_alarm);
+      mysql_mutex_unlock(&LOCK_alarm);
 #ifndef USE_ONE_SIGNAL_HAND
       pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
 #endif
@@ -228,7 +228,7 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
     else
       reschedule_alarms();			/* Reschedule alarms */
   }
-  pthread_mutex_unlock(&LOCK_alarm);
+  mysql_mutex_unlock(&LOCK_alarm);
 #ifndef USE_ONE_SIGNAL_HAND
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
 #endif
@@ -253,7 +253,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
 #ifndef USE_ONE_SIGNAL_HAND
   pthread_sigmask(SIG_BLOCK,&full_signal_set,&old_mask);
 #endif
-  pthread_mutex_lock(&LOCK_alarm);
+  mysql_mutex_lock(&LOCK_alarm);
 
   alarm_data= (ALARM*) ((uchar*) *alarmed - offsetof(ALARM,alarmed));
   for (i=0 ; i < alarm_queue.elements ; i++)
@@ -278,7 +278,7 @@ void thr_end_alarm(thr_alarm_t *alarmed)
     DBUG_PRINT("warning",("Didn't find alarm 0x%lx in queue\n",
 			  (long) *alarmed));
   }
-  pthread_mutex_unlock(&LOCK_alarm);
+  mysql_mutex_unlock(&LOCK_alarm);
 #ifndef USE_ONE_SIGNAL_HAND
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
 #endif
@@ -321,14 +321,14 @@ sig_handler process_alarm(int sig __attribute__((unused)))
 
 #ifndef USE_ALARM_THREAD
   pthread_sigmask(SIG_SETMASK,&full_signal_set,&old_mask);
-  pthread_mutex_lock(&LOCK_alarm);
+  mysql_mutex_lock(&LOCK_alarm);
 #endif
   process_alarm_part2(sig);
 #ifndef USE_ALARM_THREAD
 #if defined(DONT_REMEMBER_SIGNAL) && !defined(USE_ONE_SIGNAL_HAND)
   my_sigset(THR_SERVER_ALARM,process_alarm);
 #endif
-  pthread_mutex_unlock(&LOCK_alarm);
+  mysql_mutex_unlock(&LOCK_alarm);
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
 #endif
   return;
@@ -436,7 +436,7 @@ void end_thr_alarm(my_bool free_structures)
   DBUG_ENTER("end_thr_alarm");
   if (alarm_aborted != 1)			/* If memory not freed */
   {
-    pthread_mutex_lock(&LOCK_alarm);
+    mysql_mutex_lock(&LOCK_alarm);
     DBUG_PRINT("info",("Resheduling %d waiting alarms",alarm_queue.elements));
     alarm_aborted= -1;				/* mark aborted */
     if (alarm_queue.elements || (alarm_thread_running && free_structures))
@@ -456,21 +456,21 @@ void end_thr_alarm(my_bool free_structures)
       set_timespec(abstime, 10);		/* Wait up to 10 seconds */
       while (alarm_thread_running)
       {
-	int error= pthread_cond_timedwait(&COND_alarm, &LOCK_alarm, &abstime);
+        int error= mysql_cond_timedwait(&COND_alarm, &LOCK_alarm, &abstime);
 	if (error == ETIME || error == ETIMEDOUT)
 	  break;				/* Don't wait forever */
       }
       delete_queue(&alarm_queue);
       alarm_aborted= 1;
-      pthread_mutex_unlock(&LOCK_alarm);
+      mysql_mutex_unlock(&LOCK_alarm);
       if (!alarm_thread_running)              /* Safety */
       {
-        pthread_mutex_destroy(&LOCK_alarm);
-        pthread_cond_destroy(&COND_alarm);
+        mysql_mutex_destroy(&LOCK_alarm);
+        mysql_cond_destroy(&COND_alarm);
       }
     }
     else
-      pthread_mutex_unlock(&LOCK_alarm);
+      mysql_mutex_unlock(&LOCK_alarm);
   }
   DBUG_VOID_RETURN;
 }
@@ -485,7 +485,7 @@ void thr_alarm_kill(my_thread_id thread_id)
   uint i;
   if (alarm_aborted)
     return;
-  pthread_mutex_lock(&LOCK_alarm);
+  mysql_mutex_lock(&LOCK_alarm);
   for (i=0 ; i < alarm_queue.elements ; i++)
   {
     if (((ALARM*) queue_element(&alarm_queue,i))->thread_id == thread_id)
@@ -497,13 +497,13 @@ void thr_alarm_kill(my_thread_id thread_id)
       break;
     }
   }
-  pthread_mutex_unlock(&LOCK_alarm);
+  mysql_mutex_unlock(&LOCK_alarm);
 }
 
 
 void thr_alarm_info(ALARM_INFO *info)
 {
-  pthread_mutex_lock(&LOCK_alarm);
+  mysql_mutex_lock(&LOCK_alarm);
   info->next_alarm_time= 0;
   info->max_used_alarms= max_used_alarms;
   if ((info->active_alarms=  alarm_queue.elements))
@@ -514,7 +514,7 @@ void thr_alarm_info(ALARM_INFO *info)
     time_diff= (long) (alarm_data->expire_time - now);
     info->next_alarm_time= (ulong) (time_diff < 0 ? 0 : time_diff);
   }
-  pthread_mutex_unlock(&LOCK_alarm);
+  mysql_mutex_unlock(&LOCK_alarm);
 }
 
 /*
@@ -551,7 +551,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
 #endif
   my_thread_init();
   alarm_thread_running= 1;
-  pthread_mutex_lock(&LOCK_alarm);
+  mysql_mutex_lock(&LOCK_alarm);
   for (;;)
   {
     if (alarm_queue.elements)
@@ -566,7 +566,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
 	abstime.tv_sec=sleep_time;
 	abstime.tv_nsec=0;
         next_alarm_expire_time= sleep_time;
-	if ((error=pthread_cond_timedwait(&COND_alarm,&LOCK_alarm,&abstime)) &&
+        if ((error= mysql_cond_timedwait(&COND_alarm, &LOCK_alarm, &abstime)) &&
 	    error != ETIME && error != ETIMEDOUT)
 	{
 #ifdef MAIN
@@ -581,7 +581,7 @@ static void *alarm_handler(void *arg __attribute__((unused)))
     else
     {
       next_alarm_expire_time= ~ (time_t) 0;
-      if ((error=pthread_cond_wait(&COND_alarm,&LOCK_alarm)))
+      if ((error= mysql_cond_wait(&COND_alarm, &LOCK_alarm)))
       {
 #ifdef MAIN
         printf("Got error: %d from ptread_cond_wait (errno: %d)\n",
@@ -593,8 +593,8 @@ static void *alarm_handler(void *arg __attribute__((unused)))
   }
   bzero((char*) &alarm_thread,sizeof(alarm_thread)); /* For easy debugging */
   alarm_thread_running= 0;
-  pthread_cond_signal(&COND_alarm);
-  pthread_mutex_unlock(&LOCK_alarm);
+  mysql_cond_signal(&COND_alarm);
+  mysql_mutex_unlock(&LOCK_alarm);
   pthread_exit(0);
   return 0;					/* Impossible */
 }
@@ -696,8 +696,8 @@ void resize_thr_alarm(uint max_alarms)
 #ifdef MAIN
 #if defined(THREAD) && !defined(DONT_USE_THR_ALARM)
 
-static pthread_cond_t COND_thread_count;
-static pthread_mutex_t LOCK_thread_count;
+static mysql_cond_t COND_thread_count;
+static mysql_mutex_t LOCK_thread_count;
 static uint thread_count;
 
 #ifdef HPUX10
@@ -774,7 +774,7 @@ static void *test_thread(void *arg)
 		break;
 	      continue;
 	    }
-	    VOID(getchar());			/* Somebody was playing */
+	    (void) getchar();			/* Somebody was playing */
 	  }
 	}
       }
@@ -784,10 +784,10 @@ static void *test_thread(void *arg)
     thr_end_alarm(&got_alarm);
     fflush(stdout);
   }
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thread_count--;
-  VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_cond_signal(&COND_thread_count); /* Tell main we are ready */
+  mysql_mutex_unlock(&LOCK_thread_count);
   free((uchar*) arg);
   return 0;
 }
@@ -814,9 +814,9 @@ static void *signal_hand(void *arg __attribute__((unused)))
   my_thread_init();
   pthread_detach_this_thread();
   init_thr_alarm(10);				/* Setup alarm handler */
-  pthread_mutex_lock(&LOCK_thread_count);	/* Required by bsdi */
-  VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);         /* Required by bsdi */
+  mysql_cond_signal(&COND_thread_count);        /* Tell main we are ready */
+  mysql_mutex_unlock(&LOCK_thread_count);
 
   sigemptyset(&set);				/* Catch all signals */
   sigaddset(&set,SIGINT);
@@ -887,8 +887,8 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   {
     DBUG_PUSH(argv[1]+2);
   }
-  pthread_mutex_init(&LOCK_thread_count,MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND_thread_count,NULL);
+  mysql_mutex_init(0, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(0, &COND_thread_count, NULL);
 
   /* Start a alarm handling thread */
   sigemptyset(&set);
@@ -906,7 +906,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 #ifdef NOT_USED
   sigemptyset(&set);
   sigaddset(&set, thr_client_alarm);
-  VOID(pthread_sigmask(SIG_UNBLOCK, &set, (sigset_t*) 0));
+  pthread_sigmask(SIG_UNBLOCK, &set, (sigset_t*) 0);
 #endif
 
   pthread_attr_init(&thr_attr);
@@ -915,10 +915,11 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   pthread_attr_setstacksize(&thr_attr,65536L);
 
   /* Start signal thread and wait for it to start */
-  VOID(pthread_mutex_lock(&LOCK_thread_count));
-  pthread_create(&tid,&thr_attr,signal_hand,NULL);
-  VOID(pthread_cond_wait(&COND_thread_count,&LOCK_thread_count));
-  VOID(pthread_mutex_unlock(&LOCK_thread_count));
+  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_thread_create(0,
+                      &tid, &thr_attr, signal_hand, NULL);
+  mysql_cond_wait(&COND_thread_count, &LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info",("signal thread created"));
 
   thr_setconcurrency(3);
@@ -928,32 +929,34 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   {
     param=(int*) malloc(sizeof(int));
     *param= i;
-    pthread_mutex_lock(&LOCK_thread_count);
-    if ((error=pthread_create(&tid,&thr_attr,test_thread,(void*) param)))
+    mysql_mutex_lock(&LOCK_thread_count);
+    if ((error= mysql_thread_create(0,
+                                    &tid, &thr_attr, test_thread,
+                                    (void*) param)))
     {
       printf("Can't create thread %d, error: %d\n",i,error);
       exit(1);
     }
     thread_count++;
-    pthread_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thread_count);
   }
 
   pthread_attr_destroy(&thr_attr);
-  pthread_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_count);
   thr_alarm_info(&alarm_info);
   printf("Main_thread:  Alarms: %u  max_alarms: %u  next_alarm_time: %lu\n",
 	 alarm_info.active_alarms, alarm_info.max_used_alarms,
 	 alarm_info.next_alarm_time);
   while (thread_count)
   {
-    VOID(pthread_cond_wait(&COND_thread_count,&LOCK_thread_count));
+    mysql_cond_wait(&COND_thread_count, &LOCK_thread_count);
     if (thread_count == 1)
     {
       printf("Calling end_thr_alarm. This should cancel the last thread\n");
       end_thr_alarm(0);
     }
   }
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   thr_alarm_info(&alarm_info);
   end_thr_alarm(1);
   printf("Main_thread:  Alarms: %u  max_alarms: %u  next_alarm_time: %lu\n",

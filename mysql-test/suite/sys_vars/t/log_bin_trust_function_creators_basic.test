@@ -37,10 +37,6 @@
 
 SET @start_global_value = @@global.log_bin_trust_function_creators;
 SELECT @start_global_value;
---echo 'Bug# 34876: TRUE value is coming as Default'
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @start_session_value = @@session.log_bin_trust_function_creators;
---echo 'Bug# 34881: According to documentation the scope of this variable is GLOBAL as well as SESSION too';
 
 --echo '#--------------------FN_DYNVARS_063_01-------------------------#'
 ########################################################################
@@ -99,10 +95,8 @@ SELECT @@session.log_bin_trust_function_creators;
 SET @@global.log_bin_trust_function_creators = 'ONN';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_bin_trust_function_creators = "OFFF";
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_bin_trust_function_creators = OF;
-
---echo 'Bug# 34828: OF is also working as OFF and no error is coming';
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_bin_trust_function_creators = TTRUE;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -111,7 +105,7 @@ SET @@global.log_bin_trust_function_creators = FELSE;
 SET @@global.log_bin_trust_function_creators = -1024;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_bin_trust_function_creators = 65536;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.log_bin_trust_function_creators = 65530.34;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_bin_trust_function_creators = test;

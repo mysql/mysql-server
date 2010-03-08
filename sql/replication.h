@@ -1,4 +1,4 @@
-/* Copyright (C) 2008 MySQL AB
+/* Copyright (C) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -470,8 +470,8 @@ MYSQL *rpl_connect_master(MYSQL *mysql);
                    held before call this function
    @param msg      The new process message for the thread
 */
-const char* thd_enter_cond(MYSQL_THD thd, pthread_cond_t *cond,
-                           pthread_mutex_t *mutex, const char *msg);
+const char* thd_enter_cond(MYSQL_THD thd, mysql_cond_t *cond,
+                           mysql_mutex_t *mutex, const char *msg);
 
 /**
    Set thread leaving a condition

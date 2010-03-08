@@ -128,10 +128,10 @@ DROP DATABASE IF EXISTS `ó`;
 #
 --echo
 --echo iso88592
---exec LC_ALL=cs_CZ.iso88592 $MYSQL --character-sets-dir=$CHARSETSDIR --default-character-set=auto test -e "SELECT @@character_set_client"
---exec LC_ALL=cs_CZ.iso88592 $MYSQLADMIN --character-sets-dir=$CHARSETSDIR  -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
---exec LC_ALL=cs_CZ.iso88592 $MYSQL_SHOW --character-sets-dir=$CHARSETSDIR --default-character-set=auto ó
---exec LC_ALL=cs_CZ.iso88592 $MYSQL_CHECK --character-sets-dir=$CHARSETSDIR--default-character-set=auto "ó"
+--exec LC_ALL=cs_CZ.iso88592 $MYSQL --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=cs_CZ.iso88592 $MYSQLADMIN --character-sets-dir=$MYSQL_SHAREDIR/charsets  -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=cs_CZ.iso88592 $MYSQL_SHOW --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=auto ó
+--exec LC_ALL=cs_CZ.iso88592 $MYSQL_CHECK --character-sets-dir=$MYSQL_SHAREDIR/charsets--default-character-set=auto "ó"
 
 
 #  {"iso88597",       "greek",    my_cs_exact},
@@ -163,10 +163,10 @@ DROP DATABASE IF EXISTS `ó`;
 
 --echo
 --echo koi8r
---exec LC_ALL=ru_RU.koi8r $MYSQL --character-sets-dir=$CHARSETSDIR --default-character-set=auto test -e "SELECT @@character_set_client"
---exec LC_ALL=ru_RU.koi8r $MYSQLADMIN --character-sets-dir=$CHARSETSDIR -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
---exec LC_ALL=ru_RU.koi8r $MYSQL_SHOW --character-sets-dir=$CHARSETSDIR --default-character-set=auto ó
---exec LC_ALL=ru_RU.koi8r $MYSQL_CHECK --character-sets-dir=$CHARSETSDIR --default-character-set=auto "ó"
+--exec LC_ALL=ru_RU.koi8r $MYSQL --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=auto test -e "SELECT @@character_set_client"
+--exec LC_ALL=ru_RU.koi8r $MYSQLADMIN --character-sets-dir=$MYSQL_SHAREDIR/charsets -uroot -S $MASTER_MYSOCK -P $MASTER_MYPORT --default-character-set=auto create ó
+--exec LC_ALL=ru_RU.koi8r $MYSQL_SHOW --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=auto ó
+--exec LC_ALL=ru_RU.koi8r $MYSQL_CHECK --character-sets-dir=$MYSQL_SHAREDIR/charsets --default-character-set=auto "ó"
 
 
 #  {"Shift_JIS",      "sjis",     my_cs_exact},

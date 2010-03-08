@@ -1,4 +1,4 @@
-/* Copyright (C) 2002 MySQL AB
+/* Copyright (C) 2002 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "sp_cache.h"
 #include "sp_head.h"
 
-static pthread_mutex_t Cversion_lock;
+static mysql_mutex_t Cversion_lock;
 static ulong volatile Cversion= 0;
 
 
@@ -31,8 +31,6 @@ static ulong volatile Cversion= 0;
 class sp_cache
 {
 public:
-  ulong version;
-
   sp_cache();
   ~sp_cache();
 
@@ -54,25 +52,10 @@ public:
                                       namelen);
   }
 
-#ifdef NOT_USED
-  inline bool remove(char *name, uint namelen)
+  inline void remove(sp_head *sp)
   {
-    sp_head *sp= lookup(name, namelen);
-    if (sp)
-    {
-      hash_delete(&m_hashtable, (uchar *)sp);
-      return TRUE;
-    }
-    return FALSE;
+    my_hash_delete(&m_hashtable, (uchar *)sp);
   }
-#endif 
-
-  inline void remove_all()
-  {
-    cleanup();
-    init();
-  }
-
 private:
   void init();
   void cleanup();
@@ -81,12 +64,36 @@ private:
   HASH m_hashtable;
 }; // class sp_cache
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key key_Cversion_lock;
+
+static PSI_mutex_info all_sp_cache_mutexes[]=
+{
+  { &key_Cversion_lock, "Cversion_lock", PSI_FLAG_GLOBAL}
+};
+
+static void init_sp_cache_psi_keys(void)
+{
+  const char* category= "sql";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_sp_cache_mutexes);
+  PSI_server->register_mutex(category, all_sp_cache_mutexes, count);
+}
+#endif
 
 /* Initialize the SP caching once at startup */
 
 void sp_cache_init()
 {
-  pthread_mutex_init(&Cversion_lock, MY_MUTEX_INIT_FAST);
+#ifdef HAVE_PSI_INTERFACE
+  init_sp_cache_psi_keys();
+#endif
+
+  mysql_mutex_init(key_Cversion_lock, &Cversion_lock, MY_MUTEX_INIT_FAST);
 }
 
 
@@ -135,8 +142,9 @@ void sp_cache_insert(sp_cache **cp, sp_head *sp)
   {
     if (!(c= new sp_cache()))
       return;                                   // End of memory error
-    c->version= Cversion;      // No need to lock when reading long variable
   }
+  /* Reading a ulong variable with no lock. */
+  sp->set_sp_cache_version(Cversion);
   DBUG_PRINT("info",("sp_cache: inserting: %.*s", (int) sp->m_qname.length,
                      sp->m_qname.str));
   c->insert(sp);
@@ -188,46 +196,34 @@ void sp_cache_invalidate()
 }
 
 
-/*
-  Remove out-of-date SPs from the cache. 
-  
-  SYNOPSIS
-    sp_cache_flush_obsolete()
-      cp  Cache to flush
+/**
+  Remove an out-of-date SP from the cache.
 
-  NOTE
-    This invalidates pointers to sp_head objects this thread uses.
-    In practice that means 'dont call this function when inside SP'.
+  @param[in] cp  Cache to flush
+  @param[in] sp  SP to remove.
+
+  @note This invalidates pointers to sp_head objects this thread
+  uses. In practice that means 'dont call this function when
+  inside SP'.
 */
 
-void sp_cache_flush_obsolete(sp_cache **cp)
+void sp_cache_flush_obsolete(sp_cache **cp, sp_head **sp)
 {
-  sp_cache *c= *cp;
-  if (c)
+  if ((*sp)->sp_cache_version() < Cversion && !(*sp)->is_invoked())
   {
-    ulong v;
-    v= Cversion;                 // No need to lock when reading long variable
-    if (c->version < v)
-    {
-      DBUG_PRINT("info",("sp_cache: deleting all functions"));
-      /* We need to delete all elements. */
-      c->remove_all();
-      c->version= v;
-    }
+    (*cp)->remove(*sp);
+    *sp= NULL;
   }
 }
 
 
 /**
-  Return the current version of the cache.
+  Return the current global version of the cache.
 */
 
-ulong sp_cache_version(sp_cache **cp)
+ulong sp_cache_version()
 {
-  sp_cache *c= *cp;
-  if (c)
-    return c->version;
-  return 0;
+  return Cversion;
 }
 
 
@@ -272,7 +268,6 @@ sp_cache::init()
 {
   my_hash_init(&m_hashtable, system_charset_info, 0, 0, 0,
                hash_get_key_for_sp_head, hash_free_sp_head, 0);
-  version= 0;
 }
 
 

@@ -17,6 +17,8 @@ reset slave;
 set @my_max_binlog_size= @@global.max_binlog_size;
 set global max_binlog_size=8192;
 set global max_relay_log_size=8192-1;
+Warnings:
+Warning	1292	Truncated incorrect max_relay_log_size value: '8191'
 select @@global.max_relay_log_size;
 @@global.max_relay_log_size
 4096

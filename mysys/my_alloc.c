@@ -155,7 +155,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
   length+=ALIGN_SIZE(sizeof(USED_MEM));
-  if (!(next = (USED_MEM*) my_malloc(length,MYF(MY_WME))))
+  if (!(next = (USED_MEM*) my_malloc(length,MYF(MY_WME | ME_FATALERROR))))
   {
     if (mem_root->error_handler)
       (*mem_root->error_handler)();
@@ -198,7 +198,7 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     get_size= length+ALIGN_SIZE(sizeof(USED_MEM));
     get_size= max(get_size, block_size);
 
-    if (!(next = (USED_MEM*) my_malloc(get_size,MYF(MY_WME))))
+    if (!(next = (USED_MEM*) my_malloc(get_size,MYF(MY_WME | ME_FATALERROR))))
     {
       if (mem_root->error_handler)
 	(*mem_root->error_handler)();

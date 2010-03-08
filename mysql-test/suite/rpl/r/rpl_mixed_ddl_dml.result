@@ -13,8 +13,8 @@ n
 2001
 2002
 show slave hosts;
-Server_id	Host	Port	Rpl_recovery_rank	Master_id
-2	127.0.0.1	9999	0	1
+Server_id	Host	Port	Master_id
+2	127.0.0.1	9999	1
 drop table t1;
 stop slave;
 create table t2(id int auto_increment primary key, created datetime);

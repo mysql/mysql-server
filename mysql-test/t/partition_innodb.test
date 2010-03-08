@@ -252,7 +252,6 @@ engine = innodb
 partition by list (a)
 (partition p0 values in (0));
 
--- error ER_MIX_HANDLER_ERROR
 alter table t1 engine = x;
 show create table t1;
 drop table t1;
@@ -351,6 +350,7 @@ DROP TABLE t1;
 # Before the fix it should show extra file like #sql-2405_2.par
 --list_files $MYSQLD_DATADIR/test/ *
 
+--disable_parsing
 --echo #
 --echo # Bug#47343: InnoDB fails to clean-up after lock wait timeout on
 --echo #            REORGANIZE PARTITION
@@ -391,3 +391,4 @@ connection default;
 SELECT * FROM t1;
 COMMIT;
 DROP TABLE t1;
+--enable_parsing

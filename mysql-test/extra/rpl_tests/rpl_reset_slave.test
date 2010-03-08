@@ -22,6 +22,7 @@ source include/show_slave_status2.inc;
 reset slave;
 source include/show_slave_status2.inc;
 
+change master to master_user='root';
 start slave;
 sync_with_master;
 source include/show_slave_status2.inc;

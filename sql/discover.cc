@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,15 +57,16 @@ int readfrm(const char *name, uchar **frmdata, size_t *len)
   *frmdata= NULL;      // In case of errors
   *len= 0;
   error= 1;
-  if ((file=my_open(fn_format(index_file,name,"",reg_ext,
-                              MY_UNPACK_FILENAME|MY_APPEND_EXT),
-		    O_RDONLY | O_SHARE,
-		    MYF(0))) < 0)  
+  if ((file= mysql_file_open(key_file_frm,
+                             fn_format(index_file, name, "", reg_ext,
+                               MY_UNPACK_FILENAME|MY_APPEND_EXT),
+                             O_RDONLY | O_SHARE,
+                             MYF(0))) < 0)
     goto err_end; 
   
   // Get length of file
   error= 2;
-  if (my_fstat(file, &state, MYF(0)))
+  if (mysql_file_fstat(file, &state, MYF(0)))
     goto err;
   read_len= state.st_size;  
 
@@ -82,7 +83,7 @@ int readfrm(const char *name, uchar **frmdata, size_t *len)
   
  err:
   if (file > 0)
-    VOID(my_close(file,MYF(MY_WME)));
+    (void) mysql_file_close(file, MYF(MY_WME));
   
  err_end:		      /* Here when no file */
   DBUG_RETURN (error);
@@ -112,13 +113,15 @@ int writefrm(const char *name, const uchar *frmdata, size_t len)
   DBUG_PRINT("enter",("name: '%s' len: %lu ",name, (ulong) len));
 
   error= 0;
-  if ((file=my_create(fn_format(index_file,name,"",reg_ext,
-                      MY_UNPACK_FILENAME|MY_APPEND_EXT),
-		      CREATE_MODE,O_RDWR | O_TRUNC,MYF(MY_WME))) >= 0)
+  if ((file= mysql_file_create(key_file_frm,
+                               fn_format(index_file, name, "", reg_ext,
+                                         MY_UNPACK_FILENAME | MY_APPEND_EXT),
+                               CREATE_MODE, O_RDWR | O_TRUNC,
+                               MYF(MY_WME))) >= 0)
   {
-    if (my_write(file, frmdata, len,MYF(MY_WME | MY_NABP)))
+    if (mysql_file_write(file, frmdata, len, MYF(MY_WME | MY_NABP)))
       error= 2;
-    VOID(my_close(file,MYF(0)));
+    (void) mysql_file_close(file, MYF(0));
   }
   DBUG_RETURN(error);
 } /* writefrm */

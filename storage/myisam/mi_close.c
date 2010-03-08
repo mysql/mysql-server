@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ int mi_close(register MI_INFO *info)
 		      (long) info, (uint) share->reopen,
                       (uint) share->tot_locks));
 
-  pthread_mutex_lock(&THR_LOCK_myisam);
+  mysql_mutex_lock(&THR_LOCK_myisam);
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */
 
@@ -40,7 +40,7 @@ int mi_close(register MI_INFO *info)
     if (mi_lock_database(info,F_UNLCK))
       error=my_errno;
   }
-  pthread_mutex_lock(&share->intern_lock);
+  mysql_mutex_lock(&share->intern_lock);
 
   if (share->options & HA_OPTION_READ_ONLY_DATA)
   {
@@ -55,7 +55,7 @@ int mi_close(register MI_INFO *info)
   }
   flag= !--share->reopen;
   myisam_open_list=list_delete(myisam_open_list,&info->open_list);
-  pthread_mutex_unlock(&share->intern_lock);
+  mysql_mutex_unlock(&share->intern_lock);
 
   my_free(mi_get_rec_buff_ptr(info, info->rec_buff), MYF(MY_ALLOW_ZERO_PTR));
   if (flag)
@@ -79,7 +79,7 @@ int mi_close(register MI_INFO *info)
 	mi_state_info_write(share->kfile, &share->state, 1);
       /* Decrement open count must be last I/O on this file. */
       _mi_decrement_open_count(info);
-      if (my_close(share->kfile,MYF(0)))
+      if (mysql_file_close(share->kfile, MYF(0)))
         error = my_errno;
     }
 #ifdef HAVE_MMAP
@@ -93,25 +93,25 @@ int mi_close(register MI_INFO *info)
     }
 #ifdef THREAD
     thr_lock_delete(&share->lock);
-    VOID(pthread_mutex_destroy(&share->intern_lock));
+    mysql_mutex_destroy(&share->intern_lock);
     {
       int i,keys;
       keys = share->state.header.keys;
-      VOID(rwlock_destroy(&share->mmap_lock));
+      mysql_rwlock_destroy(&share->mmap_lock);
       for(i=0; i<keys; i++) {
-	VOID(rwlock_destroy(&share->key_root_lock[i]));
+        mysql_rwlock_destroy(&share->key_root_lock[i]);
       }
     }
 #endif
     my_free((uchar*) info->s,MYF(0));
   }
-  pthread_mutex_unlock(&THR_LOCK_myisam);
+  mysql_mutex_unlock(&THR_LOCK_myisam);
   if (info->ftparser_param)
   {
     my_free((uchar*)info->ftparser_param, MYF(0));
     info->ftparser_param= 0;
   }
-  if (info->dfile >= 0 && my_close(info->dfile,MYF(0)))
+  if (info->dfile >= 0 && mysql_file_close(info->dfile, MYF(0)))
     error = my_errno;
 
   myisam_log_command(MI_LOG_CLOSE,info,NULL,0,error);

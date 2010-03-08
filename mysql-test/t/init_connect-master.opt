@@ -1,1 +1,1 @@
---set-variable=init_connect="set @a='a\\0c'"
+--init_connect="set @a='a\\0c'"

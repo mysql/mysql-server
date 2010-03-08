@@ -29,6 +29,8 @@ ERROR 42S22: Unknown column 'session' in 'field list'
 SET global character_set_server=utf8;
 SELECT global character_set_server;
 ERROR 42S22: Unknown column 'global' in 'field list'
+SET @@character_set_server = null;
+ERROR 42000: Variable 'character_set_server' can't be set to the value of 'NULL'
 '#--------------------FN_DYNVARS_009_02-------------------------#'
 SET @@character_set_server = latin5;
 SET @@character_set_server = DEFAULT;
@@ -417,13 +419,6 @@ SELECT @@global.character_set_server;
 cp1250
 SET @@global.character_set_server = 100;
 ERROR 42000: Unknown character set: '100'
-SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
-SELECT @total_charset;
-@total_charset
-36
-'Bug # 34843: character sets are mapped in such a way that 100 and following ';
-'numbers gives error, and before 100 the 36 mapped wraps arround ';
-'several times.';
 '#--------------------FN_DYNVARS_009_10-------------------------#'
 SET @@character_set_server = abc;
 ERROR 42000: Unknown character set: 'abc'

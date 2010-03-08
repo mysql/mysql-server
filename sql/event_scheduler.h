@@ -1,6 +1,6 @@
 #ifndef _EVENT_SCHEDULER_H_
 #define _EVENT_SCHEDULER_H_
-/* Copyright (C) 2004-2006 MySQL AB
+/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,7 +115,7 @@ private:
   cond_wait(THD *thd, struct timespec *abstime, const char* msg,
             const char *func, uint line);
 
-  pthread_mutex_t LOCK_scheduler_state;
+  mysql_mutex_t LOCK_scheduler_state;
 
   enum enum_state
   {
@@ -129,7 +129,7 @@ private:
 
   THD *scheduler_thd;
 
-  pthread_cond_t COND_state;
+  mysql_cond_t COND_state;
 
   Event_queue *queue;
 

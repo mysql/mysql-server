@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004, 2006 MySQL AB
+/* Copyright (C) 2000-2004, 2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx,
     DBUG_RETURN(HA_POS_ERROR);
   info->update&= (HA_STATE_CHANGED+HA_STATE_ROW_CHANGED);
   if (info->s->concurrent_insert)
-    rw_rdlock(&info->s->key_root_lock[inx]);
+    mysql_rwlock_rdlock(&info->s->key_root_lock[inx]);
 
   switch(info->s->keyinfo[inx].key_alg){
 #ifdef HAVE_RTREE_KEYS
@@ -106,7 +106,7 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx,
   }
 
   if (info->s->concurrent_insert)
-    rw_unlock(&info->s->key_root_lock[inx]);
+    mysql_rwlock_unlock(&info->s->key_root_lock[inx]);
   fast_mi_writeinfo(info);
 
   DBUG_PRINT("info",("records: %ld",(ulong) (res)));

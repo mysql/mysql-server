@@ -9,6 +9,8 @@ DROP TABLE IF EXISTS t1;
 *** Create "wider" table on slave ***
 STOP SLAVE;
 RESET SLAVE;
+SET @saved_slave_type_conversions = @@slave_type_conversions;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 CREATE TABLE t1 (
 a float     (47),
 b double    (143,9),
@@ -177,3 +179,4 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 *** Cleanup  ***
 DROP TABLE t1;
+SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
