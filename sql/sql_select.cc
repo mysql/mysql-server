@@ -3733,10 +3733,10 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
      - It is accessed 
 
     POSTCONDITIONS
-     * Pulled out tables have JOIN_TAB::emb_sj_nest == NULL (like the outer
-       tables)
-     * Tables that were not pulled out have JOIN_TAB::emb_sj_nest.
-     * Semi-join nests TABLE_LIST::sj_inner_tables
+     * Tables that were pulled out have JOIN_TAB::emb_sj_nest == NULL
+     * Tables that were not pulled out have JOIN_TAB::emb_sj_nest pointing 
+       to semi-join nest they are in.
+     * Semi-join nests' TABLE_LIST::sj_inner_tables is updated accordingly
 
     This operation is (and should be) performed at each PS execution since
     tables may become/cease to be constant across PS reexecutions.
