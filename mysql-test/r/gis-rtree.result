@@ -1544,8 +1544,8 @@ HANDLER t1 OPEN;
 HANDLER t1 READ a FIRST;
 a
 INSERT INTO t1 VALUES (GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
+# should not crash
 HANDLER t1 READ a NEXT;
-a
 HANDLER t1 CLOSE;
 DROP TABLE t1;
 End of 5.0 tests.
