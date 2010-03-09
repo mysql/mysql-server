@@ -135,7 +135,7 @@ namespace AQP
   }
 
   /** Get the JOIN_TAB object that corresponds to this operation.*/
-  inline const JOIN_TAB* Table_access::get_join_tab() const
+  const JOIN_TAB* Table_access::get_join_tab() const
   {
     return m_root_tab + m_tab_no;
   }
@@ -331,7 +331,7 @@ namespace AQP
   // Table_access::compute_type_and_index()
 
 
-  inline Table_access::Table_access()
+  Table_access::Table_access()
     :m_root_tab(NULL),
      m_tab_no(0),
      m_access_type(AT_VOID),

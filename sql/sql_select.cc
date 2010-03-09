@@ -6096,7 +6096,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
   COND *tmp;
   DBUG_ASSERT(cond != 0);
   /**
-  /*  SPJ MERGE TODO Bug#48971:
+   *  SPJ MERGE TODO Bug#48971:
    *  BEWARE: Temp fix for Bug#48971 in SPJ branch as permanent 
    *  fix has not been merged to this branch yet.
    *  Needed as this was a showstopper for further SPJ testing.
