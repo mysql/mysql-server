@@ -148,12 +148,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       query_type= THD::STMT_QUERY_TYPE;
       error= -1;				// ok
       deleted= maybe_deleted;
+      save_binlog_row_based= thd->current_stmt_binlog_row_based;
       goto cleanup;
     }
     if (error != HA_ERR_WRONG_COMMAND)
     {
       table->file->print_error(error,MYF(0));
       error=0;
+      save_binlog_row_based= thd->current_stmt_binlog_row_based;
       goto cleanup;
     }
     /* Handler didn't support fast delete; Delete rows one by one */
@@ -348,7 +350,6 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     else
       table->file->unlock_row();  // Row failed selection, release lock on it
   }
-  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   killed_status= thd->killed;
   if (killed_status != THD::NOT_KILLED || thd->is_error())
     error= 1;					// Aborted
@@ -434,6 +435,7 @@ cleanup:
     if (thd->transaction.stmt.modified_non_trans_table)
       thd->transaction.all.modified_non_trans_table= TRUE;
   }
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
   if (error < 0 || 
