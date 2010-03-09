@@ -248,11 +248,11 @@ readHeader(azio_stream* f, BackupFormat::FileHeader * dst){
   {
     ndbout_c("Incorrect file-header!");
     printf("Found:  ");
-    for (int i = 0; i<sizeof(BACKUP_MAGIC); i++)
+    for (unsigned i = 0; i<sizeof(BACKUP_MAGIC); i++)
       printf("0x%.2x ", (Uint32)(Uint8)dst->Magic[i]);
     printf("\n");
     printf("Expect: ");
-    for (int i = 0; i<sizeof(BACKUP_MAGIC); i++)
+    for (unsigned i = 0; i<sizeof(BACKUP_MAGIC); i++)
       printf("0x%.2x ", (Uint32)(Uint8)BACKUP_MAGIC[i]);
     printf("\n");
     
