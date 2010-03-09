@@ -585,7 +585,7 @@ sub optimize_cases {
     # Check that engine selected by
     # --default-storage-engine=<engine> is supported
     # =======================================================
-    my %builtin_engines = ('myisam' => 1, 'memory' => 1);
+    my %builtin_engines = ('myisam' => 1, 'memory' => 1, 'csv' => 1);
 
     foreach my $opt ( @{$tinfo->{master_opt}} ) {
       my $default_engine=
