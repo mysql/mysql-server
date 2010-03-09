@@ -511,7 +511,7 @@ int testQueryBuilder(Ndb &myNdb)
   // (Possibly multiple ::execute() or multiple NdbQueryDef instances 
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
-  void* paramList[] = {dept_no, &emp_no};
+  NdbQueryParamValue paramList[] = {dept_no, emp_no};
 
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
@@ -625,9 +625,9 @@ int testQueryBuilder(Ndb &myNdb)
   // within the same NdbTransaction::execute(). )
   ////////////////////////////////////////////////////
 
-//void* paramList_q4[] = {&emp_no};
-//void* paramList_q4[] = {dept_no};
-  void* paramList_q4[] = {&emp_no, dept_no};
+//NdbQueryParamValue paramList_q4[] = {emp_no};
+//NdbQueryParamValue paramList_q4[] = {dept_no};
+  NdbQueryParamValue paramList_q4[] = {emp_no, dept_no};
 
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
@@ -731,7 +731,7 @@ int testQueryBuilder(Ndb &myNdb)
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  void* paramList_q5[] = {&emp_no};
+  NdbQueryParamValue paramList_q5[] = {emp_no};
   myQuery = myTransaction->createQuery(q5,paramList_q5);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
@@ -832,7 +832,7 @@ int testQueryBuilder(Ndb &myNdb)
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  myQuery = myTransaction->createQuery(q6, 0);
+  myQuery = myTransaction->createQuery(q6, (NdbQueryParamValue*)0);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());
 
@@ -963,7 +963,7 @@ int testQueryBuilder(Ndb &myNdb)
   myTransaction= myNdb.startTransaction();
   if (myTransaction == NULL) APIERROR(myNdb.getNdbError());
 
-  void* paramList_q6_1[] = {&emp_no};
+  NdbQueryParamValue paramList_q6_1[] = {emp_no};
   myQuery = myTransaction->createQuery(q6_1, paramList_q6_1);
   if (myQuery == NULL)
     APIERROR(myTransaction->getNdbError());

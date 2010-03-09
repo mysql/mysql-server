@@ -297,6 +297,55 @@ private:
 
 }; // class NdbQueryOperation
 
+ 
+class NdbQueryParamValue
+{
+public:
 
+  // Raw data:
+  // NOTE: This is how mysqld prepare parameter values!
+  NdbQueryParamValue(const void* val);
+
+  // C-type string, terminated by '\0'
+  NdbQueryParamValue(const char* val);
+
+  // NULL-value, also used as optional end marker 
+  NdbQueryParamValue();
+  NdbQueryParamValue(Uint16 val);
+  NdbQueryParamValue(Uint32 val);
+  NdbQueryParamValue(Uint64 val);
+  NdbQueryParamValue(double val);
+
+  // More parameter C'tor to be added when required:
+//NdbQueryParamValue(Uint8 val);
+//NdbQueryParamValue(Int8 val);
+//NdbQueryParamValue(Int16 val);
+//NdbQueryParamValue(Int32 val);
+//NdbQueryParamValue(Int64 val);
+
+  // Get parameter value with required typeconversion to fit format
+  // expected by paramOp
+  int getValue(const class NdbParamOperandImpl& paramOp,
+               const void*& addr, size_t& len,
+               bool& is_null) const;
+
+private:
+  int m_type;
+
+  union
+  {
+    Uint8     uint8;
+    Int8      int8;
+    Uint16    uint16;
+    Int16     int16;
+    Uint32    uint32;
+    Int32     int32;
+    Uint64    uint64;
+    Int64     int64;
+    double    dbl;
+    const char* string;
+    const void* raw;
+  } m_value;
+};
 
 #endif

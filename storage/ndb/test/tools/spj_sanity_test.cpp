@@ -278,8 +278,7 @@ namespace SPJSanityTest{
 
   template <typename Row>
   void Query<Row>::submit(NdbTransaction& transaction){
-    const void* const params[] = {NULL};
-    m_query = transaction.createQuery(m_queryDef, params);
+    m_query = transaction.createQuery(m_queryDef);
     ASSERT_ALWAYS(m_query!=NULL);
     submitOperation(*m_root);
   }

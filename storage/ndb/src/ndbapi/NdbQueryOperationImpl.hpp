@@ -117,7 +117,7 @@ public:
    *  Memory location used as source for parameter values don't have
    *  to be valid after this assignment.
    */
-  int assignParameters(const constVoidPtr paramValues[]);
+  int assignParameters(const NdbQueryParamValue paramValues[]);
 
   int setBound(const NdbRecord *keyRecord,
                const NdbIndexScanOperation::IndexBound *bound);
@@ -614,7 +614,7 @@ private:
 
   /** Serialize parameter values.
    *  @return possible error code.*/
-  int serializeParams(const constVoidPtr paramValues[]);
+  int serializeParams(const NdbQueryParamValue* paramValues);
 
   int serializeProject(Uint32Buffer& attrInfo);
 
@@ -624,6 +624,26 @@ private:
   /** Prepare ATTRINFO for execution. (Add execution params++)
    *  @return possible error code.*/
   int prepareAttrInfo(Uint32Buffer& attrInfo);
+
+  /**
+   * Expand keys and bounds for the root operation into the KEYINFO section.
+   * @param keyInfo Actuall KEYINFO section the key / bounds are 
+   *                put into
+   * @param actualParam Instance values for NdbParamOperands.
+   * Returns: 0 if OK, or possible an errorcode.
+   */
+  int prepareKeyInfo(Uint32Buffer& keyInfo,
+                     const NdbQueryParamValue* actualParam);
+
+  int prepareLookupKeyInfo(
+                     Uint32Buffer& keyInfo,
+                     const NdbQueryOperandImpl* const keys[],
+                     const NdbQueryParamValue* actualParam);
+
+  int prepareIndexKeyInfo(
+                     Uint32Buffer& keyInfo,
+                     const NdbQueryOperationDefImpl::IndexBound* bounds,
+                     const NdbQueryParamValue* actualParam);
 
   /** Return I-value (for putting in object map) for a receiver pointing back 
    * to this object. TCKEYCONF is processed by first looking up an 
