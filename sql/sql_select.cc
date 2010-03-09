@@ -5635,7 +5635,11 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
     uint blob_length=(uint) (join_tab->table->file->stats.mean_rec_length-
 			     (join_tab->table->s->reclength-rec_length));
     rec_length+=(uint) max(4,blob_length);
-  }
+  }  
+  /*
+    psergey-todo: why we don't count here rowid that we might need to store
+    when using DuplicateElimination?
+  */
   join_tab->used_fields=fields;
   join_tab->used_fieldlength=rec_length;
   join_tab->used_blobs=blobs;
@@ -6355,10 +6359,17 @@ make_outerjoin_info(JOIN *join)
       }
       if (!tab->first_inner)  
         tab->first_inner= nested_join->first_nested;
+      if (tab->table->reginfo.not_exists_optimize)
+        tab->first_inner->table->reginfo.not_exists_optimize= 1;         
       if (++nested_join->counter < nested_join->n_tables)
         break;
       /* Table tab is the last inner table for nested join. */
       nested_join->first_nested->last_inner= tab;
+      if (tab->first_inner->table->reginfo.not_exists_optimize)
+      {
+        for (JOIN_TAB *join_tab= tab->first_inner; join_tab <= tab; join_tab++)
+          join_tab->table->reginfo.not_exists_optimize= 1;
+      } 
     }
   }
   DBUG_VOID_RETURN;
@@ -7112,18 +7123,14 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   if (tab->use_quick == 2)
     goto no_join_cache;
   /*
-    Use join cache with FirstMatch semi-join strategy only when semi-join
-    contains only one table.
-  */
-  if (tab->is_inner_table_of_semi_join_with_first_match() &&
-      !tab->is_single_inner_of_semi_join_with_first_match())
-    goto no_join_cache;
-  /*
     Non-linked join buffers can't guarantee one match
   */
-  if (force_unlinked_cache && 
-      (tab->is_inner_table_of_outer_join() &&
-       !tab->is_single_inner_of_outer_join()))
+   if (force_unlinked_cache && 
+       (!tab->type == JT_ALL || cache_level <= 4) && 
+       ((tab->is_inner_table_of_semi_join_with_first_match() &&
+         !tab->is_single_inner_of_semi_join_with_first_match()) ||
+        (tab->is_inner_table_of_outer_join() &&
+         !tab->is_single_inner_of_outer_join())))
     goto no_join_cache;
 
   /*

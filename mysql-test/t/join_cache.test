@@ -1823,3 +1823,27 @@ SELECT t1.*, t2.*, LENGTH(t2.c1), LENGTH(t2.c2) FROM t1,t2
 set join_cache_level=default;
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug #51092: linked join buffer is used for a 3-way cross join query 
+--echo #             that selects only records of the first table
+--echo #
+
+create table t1 (a int, b int);
+insert into t1 values (1,1),(2,2);
+create table t2 (a int, b int);
+insert into t2 values (1,1),(2,2);
+create table t3 (a int, b int);
+insert into t3 values (1,1),(2,2);
+
+explain select t1.* from t1,t2,t3;
+select t1.* from t1,t2,t3; 
+
+set join_cache_level=2;
+
+explain select t1.* from t1,t2,t3;
+select t1.* from t1,t2,t3; 
+
+set join_cache_level=default;
+
+drop table t1,t2,t3;

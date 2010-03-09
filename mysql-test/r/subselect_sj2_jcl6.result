@@ -268,8 +268,8 @@ explain select *
 from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	
-1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Start temporary; Using join buffer
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Start temporary
+1	PRIMARY	t1	index	NULL	a	5	NULL	10	Using index; Using join buffer
 1	PRIMARY	t2	ref	a	a	5	test.t1.a	1	Using index
 1	PRIMARY	t3	ref	a	a	5	test.t1.a	1	Using where; Using index; End temporary
 drop table t0, t1,t2,t3;
@@ -421,20 +421,23 @@ explain extended select * from t0
 where t0.a in ( select t1.a from t1,t2 where t2.a=t0.a and
 t1.b=t2.b);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	
-1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Start temporary; Using join buffer
+1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Start temporary
+1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Using join buffer
 1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t0.a	1	100.00	Using where; End temporary; Using join buffer
 Warnings:
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = `test`.`t0`.`a`) and (`test`.`t2`.`a` = `test`.`t0`.`a`))
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
-
+# Not anymore:
 # The following query gives wrong result due to Bug#49129
 select * from t0 where t0.a in 
 (select t1.a from t1, t2 where t2.a=t0.a and t1.b=t2.b);
 a
 0
+1
+2
+3
 drop table t0, t1, t2;
 CREATE TABLE t1 (
 id int(11) NOT NULL,
@@ -713,9 +716,9 @@ c2 in (select 1 from t3, t2) and
 c1 in (select convert(c6,char(1)) from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
-1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	FirstMatch(t2)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using join buffer
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	FirstMatch(t2); Using join buffer
 drop table t2, t3;
 set join_cache_level=default;
 show variables like 'join_cache_level';

@@ -31,6 +31,8 @@
 #include "sql_select.h"
 #include "opt_subselect.h"
 
+#define NO_MORE_RECORDS_IN_BUFFER  (uint)(-1)
+
 
 /*****************************************************************************
  *  Join cache module
@@ -407,8 +409,10 @@ void JOIN_CACHE::set_constants()
     However at this moment we don't know whether we have referenced fields for
     the cache or not. Later when a referenced field is registered for the cache
     we adjust the value of the flag 'with_length'.
-  */        
-  with_length= is_key_access() || with_match_flag;
+  */ 
+  with_length= is_key_access() || 
+               join_tab->is_inner_table_of_semi_join_with_first_match() ||
+               join_tab->is_inner_table_of_outer_join();
   /* 
      At this moment we don't know yet the value of 'referenced_fields',
      but in any case it can't be greater than the value of 'fields'.
@@ -604,7 +608,12 @@ int JOIN_CACHE_BKA::init()
       copy_end= cache->field_descr+cache->fields;
       for (copy= cache->field_descr+cache->flag_fields; copy < copy_end; copy++)
       {
-        if (copy->field->table == tab->table &&
+        /*
+          (1) - when we store rowids for DuplicateWeedout, they have
+                copy->field==NULL
+        */
+        if (copy->field &&  // (1)
+            copy->field->table == tab->table &&
             bitmap_is_set(key_read_set, copy->field->field_index))
         {
           *copy_ptr++= copy; 
@@ -1235,7 +1244,7 @@ bool JOIN_CACHE::get_record()
     prev_rec_ptr= prev_cache->get_rec_ref(pos);
   }
   curr_rec_pos= pos;
-  if (!(res= read_all_record_fields() == 0))
+  if (!(res= read_all_record_fields() == NO_MORE_RECORDS_IN_BUFFER))
   {
     pos+= referenced_fields*size_of_fld_ofs;
     if (prev_cache)
@@ -1304,7 +1313,7 @@ bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
     uchar *prev_rec_ptr= prev_cache->get_rec_ref(rec_ptr);
     return prev_cache->get_match_flag_by_pos(prev_rec_ptr);
   } 
-  DBUG_ASSERT(1);
+  DBUG_ASSERT(0);
   return FALSE;
 }
 
@@ -1324,7 +1333,8 @@ bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
     read data. 
 
   RETURN
-    length of the data read from the join buffer
+    (-1) - if there is no more records in the join buffer
+    length of the data read from the join buffer - otherwise
 */
 
 uint JOIN_CACHE::read_all_record_fields()
@@ -1332,7 +1342,7 @@ uint JOIN_CACHE::read_all_record_fields()
   uchar *init_pos= pos;
   
   if (pos > last_rec_pos || !records)
-    return 0;
+    return NO_MORE_RECORDS_IN_BUFFER;
 
   /* First match flag, read null bitmaps and null_row flag for each table */
   read_flag_fields();
@@ -1538,12 +1548,12 @@ bool JOIN_CACHE::read_referenced_field(CACHE_FIELD *copy,
 
 bool JOIN_CACHE::skip_record_if_match()
 {
-  DBUG_ASSERT(with_match_flag && with_length);
+  DBUG_ASSERT(with_length);
   uint offset= size_of_rec_len;
   if (prev_cache)
     offset+= prev_cache->get_size_of_rec_offset();
   /* Check whether the match flag is on */
-  if (test(*(pos+offset)))
+  if (get_match_flag_by_pos(pos+offset))
   {
     pos+= size_of_rec_len + get_rec_length(pos);
     return TRUE;

@@ -583,7 +583,7 @@ update t2 set b=11 where a=3;
 
 if (`select @@join_cache_level=6`)
 {
-  --echo 
+  --echo # Not anymore:
   --echo # The following query gives wrong result due to Bug#49129
 }
 select * from t0 where t0.a in 
