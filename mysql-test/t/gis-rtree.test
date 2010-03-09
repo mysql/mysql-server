@@ -918,7 +918,10 @@ HANDLER t1 CLOSE;
 HANDLER t1 OPEN;
 HANDLER t1 READ a FIRST;
 INSERT INTO t1 VALUES (GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
+--echo # should not crash
+--disable_result_log
 HANDLER t1 READ a NEXT;
+--enable_result_log
 HANDLER t1 CLOSE;
 
 DROP TABLE t1;
