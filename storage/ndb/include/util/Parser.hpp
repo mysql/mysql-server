@@ -22,13 +22,13 @@
 #include "Vector.hpp"
 #include "Properties.hpp"
 #include "InputStream.hpp"
-#include "NdbOut.hpp"
 
 class ParserImpl;
 template<class T> struct ParserRow;
 
 //#define PARSER_DEBUG
 #ifdef PARSER_DEBUG
+#include "NdbOut.hpp"
 #define DEBUG(x) \
   ndbout_c("%s:%d:%s", __FILE__, __LINE__, x);
 #else 
