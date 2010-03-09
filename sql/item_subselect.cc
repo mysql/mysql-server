@@ -1776,6 +1776,10 @@ int subselect_single_select_engine::prepare()
 {
   if (prepared)
     return 0;
+  if (select_lex->join)
+  {
+    select_lex->cleanup();
+  }
   join= new JOIN(thd, select_lex->item_list,
 		 select_lex->options | SELECT_NO_UNLOCK, result);
   if (!join || !result)
