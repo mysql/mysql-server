@@ -1433,5 +1433,70 @@ engine ndb;
 drop logfile group lg1
 engine ndb;
 
+# Test ndb$info counters for SPJ block.
+
+--source have_ndbinfo.inc
+
+if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
+{
+  # Run the ndbinfo.sql script that creates ndbinfo database, tables and views
+  --disable_warnings
+  --disable_query_log
+  --disable_result_log
+  set @ndbinfo_skip_version_check=1;
+  source $NDBINFO_SQL;
+  --enable_result_log
+  --enable_query_log
+  --enable_warnings
+}
+
+# Store old counter values.
+create temporary table old_count 
+       select counter_name, sum(val) AS val 
+       from ndbinfo.counters 
+       where block_name='DBSPJ' 
+       group by counter_name;
+
+create table T1 (a int NOT NULL, 
+                 b int NOT NULL,
+       		 c int NOT NULL,
+		 primary key(a)) 
+		 engine = ndb;
+
+insert into T1 values (10, 11, 11);
+insert into T1 values (11, 12, 12);
+insert into T1 values (12, 13, 13);
+
+# Run some queries that should increment the counters.
+select * from T1 t1, T1 t2 where t1.a = 11 and t2.a = t1.b; 
+
+select count(*) from T1 t1, T1 t2 where t2.a = t1.b; 
+
+select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t2.a = t1.b; 
+
+drop table T1;
+
+# Get new counter values.
+create temporary table new_count 
+       select counter_name, sum(val) AS val 
+       from ndbinfo.counters 
+       where block_name='DBSPJ' 
+       group by counter_name;
+
+# Compute the difference.
+--sorted_result
+select new_count.counter_name, new_count.val - old_count.val 
+       from new_count, old_count 
+       where new_count.counter_name = old_count.counter_name;
+
+drop table old_count;
+drop table new_count;
+
+if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
+{
+  --disable_query_log
+  DROP DATABASE ndbinfo;
+  --enable_query_log
+}
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;

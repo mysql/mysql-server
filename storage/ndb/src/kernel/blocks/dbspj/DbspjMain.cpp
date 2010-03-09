@@ -185,6 +185,7 @@ void Dbspj::execSTTOR(Signal* signal)
 void Dbspj::execLQHKEYREQ(Signal* signal)
 {
   jamEntry();
+  c_Counters.incr_counter(CI_READS_RECEIVED, 1);
 
   const LqhKeyReq* req = reinterpret_cast<const LqhKeyReq*>(signal->getDataPtr());
 
@@ -1363,6 +1364,15 @@ Dbspj::lookup_send(Signal* signal,
   printf("ATTRINFO: ");
   print(handle.m_ptr[1], stdout);
 #endif
+  
+  if (refToNode(ref) == getOwnNodeId())
+  {
+    c_Counters.incr_counter(CI_LOCAL_READS_SENT, 1);
+  }
+  else
+  {
+    c_Counters.incr_counter(CI_REMOTE_READS_SENT, 1);
+  }
 
   sendSignal(ref, GSN_LQHKEYREQ, signal,
 	     NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
@@ -1950,6 +1960,15 @@ Dbspj::scanFrag_start(Signal* signal,
   Uint32 noDiskFlag = ScanFragReq::getNoDiskFlag(requestInfo);
   Uint32 scanPrio = ScanFragReq::getScanPrio(requestInfo);
 
+  if (rangeScanFlag)
+  {
+    c_Counters.incr_counter(CI_RANGE_SCANS_RECEIVED, 1);
+  }
+  else
+  {
+    c_Counters.incr_counter(CI_TABLE_SCANS_RECEIVED, 1);
+  }
+
   ScanFragReq * dst =(ScanFragReq*)treeNodePtr.p->m_scanfrag_data.m_scanFragReq;
   Uint32 dst_requestInfo = dst->requestInfo;
 
@@ -2067,6 +2086,15 @@ Dbspj::scanFrag_send(Signal* signal,
     print(handle.m_ptr[1], stdout);
   }
 #endif
+
+  if (ScanFragReq::getRangeScanFlag(req->requestInfo))
+  {
+    c_Counters.incr_counter(CI_LOCAL_RANGE_SCANS_SENT, 1);
+  }
+  else
+  {
+    c_Counters.incr_counter(CI_LOCAL_TABLE_SCANS_SENT, 1);
+  }
 
   sendSignal(ref, GSN_SCAN_FRAGREQ, signal,
 	     NDB_ARRAY_SIZE(treeNodePtr.p->m_scanfrag_data.m_scanFragReq),
@@ -3383,3 +3411,70 @@ Dbspj::parseDA(Build_context& ctx,
 /**
  * END - MODULE COMMON PARSE/UNPACK
  */
+
+/**
+ * Process a scan request for an ndb$info table. (These are used for monitoring
+ * purposes and do not contain application data.)
+ */
+void Dbspj::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  const Ndbinfo::ScanCursor* cursor =
+    (Ndbinfo::ScanCursor*)DbinfoScan::getCursorPtr(&req);
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+
+  switch(req.tableId){
+
+  // The SPJ block only implements the ndbinfo.counters table. 
+  case Ndbinfo::COUNTERS_TABLEID:
+  {
+    Ndbinfo::counter_entry counters[] = {
+      { Ndbinfo::READS_RECEIVED_COUNTER, 
+        c_Counters.get_counter(CI_READS_RECEIVED) },
+      { Ndbinfo::LOCAL_READS_SENT_COUNTER, 
+        c_Counters.get_counter(CI_LOCAL_READS_SENT) },
+      { Ndbinfo::REMOTE_READS_SENT_COUNTER, 
+        c_Counters.get_counter(CI_REMOTE_READS_SENT) },
+      { Ndbinfo::TABLE_SCANS_RECEIVED_COUNTER, 
+        c_Counters.get_counter(CI_TABLE_SCANS_RECEIVED) },
+      { Ndbinfo::LOCAL_TABLE_SCANS_SENT_COUNTER, 
+        c_Counters.get_counter(CI_LOCAL_TABLE_SCANS_SENT) },
+      { Ndbinfo::RANGE_SCANS_RECEIVED_COUNTER, 
+        c_Counters.get_counter(CI_RANGE_SCANS_RECEIVED) },
+      { Ndbinfo::LOCAL_RANGE_SCANS_SENT_COUNTER, 
+        c_Counters.get_counter(CI_LOCAL_RANGE_SCANS_SENT) }
+    };
+    const size_t num_counters = sizeof(counters) / sizeof(counters[0]);
+
+    Uint32 i = cursor->data[0];
+    const BlockNumber bn = blockToMain(number());
+    while(i < num_counters)
+    {
+      jam();
+      Ndbinfo::Row row(signal, req);
+      row.write_uint32(getOwnNodeId());
+      row.write_uint32(bn);           // block number
+      row.write_uint32(instance());   // block instance
+      row.write_uint32(counters[i].id);
+
+      row.write_uint64(counters[i].val);
+      ndbinfo_send_row(signal, req, row, rl);
+      i++;
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, i);
+        return;
+      }
+    }
+    break;
+  }
+
+  default:
+    break;
+  }
+
+  ndbinfo_send_scan_conf(signal, req, rl);
+} // Dbspj::execDBINFO_SCANREQ(Signal *signal)

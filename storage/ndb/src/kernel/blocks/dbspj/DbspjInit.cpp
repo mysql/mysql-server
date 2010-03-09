@@ -32,6 +32,7 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbspj::execDUMP_STATE_ORD);
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbspj::execREAD_CONFIG_REQ);
   addRecSignal(GSN_STTOR, &Dbspj::execSTTOR);
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbspj::execDBINFO_SCANREQ);
 
   /**
    * Signals from TC

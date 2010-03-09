@@ -59,6 +59,7 @@ private:
   void execDUMP_STATE_ORD(Signal* signal){}
   void execREAD_CONFIG_REQ(Signal* signal);
   void execSTTOR(Signal* signal);
+  void execDBINFO_SCANREQ(Signal* signal); 
 
 protected:
   //virtual bool getParam(const char* name, Uint32* count);
@@ -469,6 +470,87 @@ public:
   };
 
 private:
+  /**
+   * These are the rows in ndbinfo.counters that concerns the SPJ block.
+   * @see Ndbinfo::counter_id.
+   */
+  enum CounterId
+  {
+    /**
+     * This is the number of incomming LQHKEYREQ messages (i.e queries with a
+     * lookup as root).
+     */
+    CI_READS_RECEIVED = 0,
+
+    /**
+     * This is the number of lookup operations (LQHKEYREQ) sent to a local
+     * LQH block.
+     */
+    CI_LOCAL_READS_SENT = 1,
+
+    /**
+     * This is the number of lookup operations (LQHKEYREQ) sent to a remote
+     * LQH block.
+     */
+    CI_REMOTE_READS_SENT = 2,
+
+    /**
+     * This is the number of incomming queries where the root operation is a 
+     * fragment scan and this is a "direct scan" that does not go via an index.
+     */
+    CI_TABLE_SCANS_RECEIVED = 3,
+
+    /**
+     * This is the number of "direct" fragment scans (i.e. no via an ordered 
+     * index)sent to the local LQH block.
+     */
+    CI_LOCAL_TABLE_SCANS_SENT = 4,
+
+    /**
+     * This is the number of incomming queries where the root operation is a 
+     * fragment scan which scans the fragment via an ordered index..
+     */
+    CI_RANGE_SCANS_RECEIVED = 5,
+
+    /**
+     * This the number of scans using ordered indexes that have been sent to the
+     * local LQH block.
+     */
+    CI_LOCAL_RANGE_SCANS_SENT = 6,
+
+    CI_END = 7 // End marker - not a valid counter id. 
+  };
+
+  /**
+   * This is a set of counters for monitoring the behavior of the SPJ block.
+   * They may be read through the ndbinfo.counters SQL table.
+   */
+  class MonotonicCounters {
+  public:
+
+    MonotonicCounters()
+    {
+      for(int i = 0; i < CI_END; i++)
+      {
+        m_counters[i] = 0;
+      }
+    }
+
+    Uint64 get_counter(CounterId id) const
+    {
+      return m_counters[id];
+    }
+
+    void incr_counter(CounterId id, Uint64 delta)
+    {
+      m_counters[id] += delta;
+    }
+
+  private:
+    Uint64 m_counters[CI_END];
+
+  } c_Counters;
+
   typedef RecordPool<Request, ArenaPool> Request_pool;
   typedef DLListImpl<Request_pool, Request> Request_list;
   typedef LocalDLListImpl<Request_pool, Request> Local_Request_list;
