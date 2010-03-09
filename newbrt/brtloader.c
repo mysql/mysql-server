@@ -890,7 +890,7 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 
 
 static void write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk) {
-    struct brt_header h = {.layout_version   = 11,
+    struct brt_header h = {.layout_version   = BRT_LAYOUT_VERSION,
 			   .checkpoint_count = 1,
 			   .checkpoint_lsn   = (LSN){0xFFFFFFFFFFFFFFFF}, // (max_uint_long means that this doesn't need any kind of recovery
 			   .nodesize         = nodesize,
