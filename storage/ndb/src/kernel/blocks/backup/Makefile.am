@@ -17,6 +17,7 @@
 ndbtools_PROGRAMS = ndb_print_backup_file
 ndb_print_backup_file_SOURCES = read.cpp
 ndb_print_backup_file_LDFLAGS = @ndb_bin_am_ldflags@ \
+  $(top_builddir)/storage/ndb/src/common/util/libndbazio.la \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
          $(top_builddir)/mysys/libmysyslt.la \
          $(top_builddir)/dbug/libdbuglt.la \
