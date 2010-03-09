@@ -42,7 +42,6 @@ ADD_LIBRARY(ndbgeneral STATIC
             NdbOut.cpp
             BaseString.cpp
             NdbSqlUtil.cpp
-            new.cpp
             uucode.c
             random.c
             ndb_rand.c
