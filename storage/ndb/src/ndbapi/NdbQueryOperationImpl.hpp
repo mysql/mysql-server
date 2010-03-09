@@ -373,9 +373,6 @@ private:
   /* Number of IndexBounds set by API (index scans only) */
   Uint32 m_num_bounds;
 
-  /* Most recently added IndexBound's range number */
-  Uint32 m_previous_range_num;
-
   /**
    * Signal building section:
    */
