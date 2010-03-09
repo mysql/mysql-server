@@ -20,6 +20,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+--source include/have_lowercase0.inc
 
 --disable_warnings
 drop table if exists test.user_table;
