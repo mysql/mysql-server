@@ -13,6 +13,28 @@ static int delete_logfile(TOKULOGGER logger, long long index);
 static void grab_output(TOKULOGGER logger, LSN *fsynced_lsn);
 static void release_output(TOKULOGGER logger, LSN fsynced_lsn);
 
+// added for #2424
+static BOOL is_a_logfile(char *name) {
+    int r=0;
+    long long num = 0;
+    int len = strlen(name);
+    char num_str[128];
+    if ( len < 11 ) goto not_logfile;
+    // check 'log'
+    r = strncmp(&name[0], "log", 3);             
+    if (r!=0) goto not_logfile; 
+    // check number
+    r = snprintf(&num_str[0], len-11, &name[3]);
+    r = sscanf(num_str, "%lld", &num);              
+    if (r!=1) goto not_logfile;
+    // check '.tokulog'
+    r = strncmp(&name[len-8], ".tokulog", 8);    
+    if (r!=0) goto not_logfile;
+    return TRUE;
+not_logfile:
+    return FALSE;
+}
+
 int toku_logger_create (TOKULOGGER *resultp) {
     int r;
     TAGMALLOC(TOKULOGGER, result);
@@ -386,8 +408,11 @@ int toku_logger_find_next_unused_log_file(const char *directory, long long *resu
     while ((de=readdir(d))) {
 	if (de==0) return errno;
 	long long thisl;
-	int r = sscanf(de->d_name, "log%lld.tokulog", &thisl);
-	if (r==1 && thisl>maxf) maxf=thisl;
+        int r = 0;
+        if ( is_a_logfile(de->d_name) ) { // #2424
+            r = sscanf(de->d_name, "log%lld.tokulog", &thisl);
+        }
+	if (r==1 && thisl>maxf) maxf=thisl; 
     }
     *result=maxf+1;
     int r = closedir(d);
@@ -418,6 +443,7 @@ int toku_logger_find_logfiles (const char *directory, char ***resultp, int *n_lo
     int dirnamelen = strlen(directory);
     while ((de=readdir(d))) {
 	long long thisl;
+        if ( !(is_a_logfile(de->d_name)) ) continue; //#2424: Skip over files that don't match the exact logfile template 
 	int r = sscanf(de->d_name, "log%lld.tokulog", &thisl);
 	if (r!=1) continue; // Skip over non-log files.
 	if (n_results+1>=result_limit) {
