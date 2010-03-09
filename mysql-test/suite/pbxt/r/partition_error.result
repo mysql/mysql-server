@@ -107,7 +107,7 @@ primary key(a,b))
 partition by hash (rand(a))
 partitions 2
 (partition x1, partition x2);
-ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')
 partitions 2
 (partition x1, partition x2)' at line 6
 CREATE TABLE t1 (
@@ -118,7 +118,7 @@ primary key(a,b))
 partition by range (rand(a))
 partitions 2
 (partition x1 values less than (0), partition x2 values less than (2));
-ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')
 partitions 2
 (partition x1 values less than (0), partition x2 values less than' at line 6
 CREATE TABLE t1 (
@@ -129,7 +129,7 @@ primary key(a,b))
 partition by list (rand(a))
 partitions 2
 (partition x1 values in (1), partition x2 values in (2));
-ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')
 partitions 2
 (partition x1 values in (1), partition x2 values in (2))' at line 6
 CREATE TABLE t1 (
@@ -244,7 +244,7 @@ c int not null,
 primary key (a,b))
 partition by key (a)
 subpartition by hash (rand(a+b));
-ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')' at line 7
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')' at line 7
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -341,7 +341,7 @@ partition by range (3+4)
 partitions 2
 (partition x1 values less than (4) tablespace ts1,
 partition x2 values less than (8) tablespace ts2);
-ERROR HY000: Constant/Random expression in (sub)partitioning function is not allowed
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
 CREATE TABLE t1 ( 
 a int not null,
 b int not null,
@@ -511,7 +511,7 @@ partition by list (3+4)
 partitions 2 
 (partition x1 values in (4) tablespace ts1,
 partition x2 values in (8) tablespace ts2);
-ERROR HY000: Constant/Random expression in (sub)partitioning function is not allowed
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -603,13 +603,13 @@ partition by range (ascii(v))
 ERROR HY000: This partition function is not allowed
 create table t1 (a int)
 partition by hash (rand(a));
-ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')' at line 2
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')' at line 2
 create table t1 (a int)
 partition by hash(CURTIME() + a);
-ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')' at line 2
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')' at line 2
 create table t1 (a int)
 partition by hash (NOW()+a);
-ERROR 42000: Constant/Random expression in (sub)partitioning function is not allowed near ')' at line 2
+ERROR 42000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed near ')' at line 2
 create table t1 (a int)
 partition by hash (extract(hour from convert_tz(a, '+00:00', '+00:00')));
 ERROR HY000: This partition function is not allowed

@@ -8287,8 +8287,7 @@ uint Field_blob::is_equal(Create_field *new_field)
 
   return ((new_field->sql_type == get_blob_type_from_length(max_data_length()))
           && new_field->charset == field_charset &&
-          ((Field_blob *)new_field->field)->max_data_length() ==
-          max_data_length());
+          new_field->pack_length == pack_length());
 }
 
 

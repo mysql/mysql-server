@@ -201,10 +201,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=     15; # 15 minutes
-my $opt_suite_timeout   =    360; # 6 hours
-my $opt_shutdown_timeout=     10; # 10 seconds
-my $opt_start_timeout   =    180; # 180 seconds
+my $opt_testcase_timeout= $ENV{MTR_TESTCASE_TIMEOUT} ||  15; # minutes
+my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 360; # minutes
+my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
+my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
@@ -4018,6 +4018,8 @@ sub extract_warning_lines ($) {
      qr/Error reading packet/,
      qr/Slave: Can't drop database.* database doesn't exist/,
      qr/Slave: Operation DROP USER failed for 'create_rout_db'/,
+     qr|Checking table:   '\./mtr/test_suppressions'|,
+     qr|mysqld: Table '\./mtr/test_suppressions' is marked as crashed and should be repaired|
     );
 
   my $matched_lines= [];

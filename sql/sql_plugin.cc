@@ -2100,7 +2100,7 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
                      &error, &error_len, &not_used);
     if (error_len)
     {
-      strmake(buff, error, min(sizeof(buff), error_len));
+      strmake(buff, error, min(sizeof(buff) - 1, error_len));
       strvalue= buff;
       goto err;
     }

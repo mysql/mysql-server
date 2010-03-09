@@ -47,4 +47,12 @@
 #define rw_unlock(A)
 #define rwlock_destroy(A)
 
+typedef int my_pthread_once_t;
+#define MY_PTHREAD_ONCE_INIT 0
+#define MY_PTHREAD_ONCE_DONE 1
+
+#define my_pthread_once(C,F) do { \
+    if (*(C) != MY_PTHREAD_ONCE_DONE) { F(); *(C)= MY_PTHREAD_ONCE_DONE; } \
+  } while(0)
+
 #endif
