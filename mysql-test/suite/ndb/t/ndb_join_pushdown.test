@@ -1311,7 +1311,6 @@ insert into t3 values ('Dole', 0x2f, 2, 0x2f);
 insert into t3 values ('Doffen', 0x3f, 2, 0x3f);
 
 # Varchar is lookup key
-# NOTE: currently NOT pushed...2010-01-08
 explain
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;

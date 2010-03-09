@@ -656,9 +656,11 @@ private:
   NDB_INDEX_TYPE get_index_type_from_key(uint index_no, KEY *key_info, 
                                          bool primary) const;
   bool has_null_in_unique_index(uint idx_no) const;
+  bool check_index_fields_not_null(KEY *key_info);
+
   bool check_if_pushable(const NdbQueryOperationTypeWrapper& type) const;
   bool check_is_pushed() const;
-  bool check_index_fields_not_null(KEY *key_info);
+  NdbQuery* exec_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
 
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,

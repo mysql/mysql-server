@@ -1951,8 +1951,8 @@ insert into t3 values ('Doffen', 0x3f, 2, 0x3f);
 explain
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	x	const	PRIMARY	PRIMARY	22	const,const	1	Using where with pushed condition
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	Using where with pushed condition
+1	SIMPLE	x	const	PRIMARY	PRIMARY	22	const,const	1	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	Child of pushed join@1; Using where with pushed condition
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 a3	b3	c3	d3	a3	b3	c3	d3
 Dole	47	2	47	Dole	47	2	47
