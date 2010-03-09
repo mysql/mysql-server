@@ -3070,15 +3070,12 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
         !is_replace_into(thd) && 
         !is_insert_ignore(thd)) 
     {
-printf("yes overwrite due to unique checks");
         put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
     }
     else if (do_ignore_opt && is_replace_into(thd)) {
-printf("doing replace into opt!\n");
         put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
     }
     else if (do_ignore_opt && is_insert_ignore(thd)) {
-printf("doing insert ignore opt!\n");
         put_flags = DB_NOOVERWRITE_NO_ERROR;
     }
 
