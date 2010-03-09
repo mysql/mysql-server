@@ -914,15 +914,17 @@ HANDLER t1 READ a PREV;
 HANDLER t1 READ a LAST;
 HANDLER t1 CLOSE;
 
+#TODO: re-enable this test please when bug #51877 is solved
 # second crash fixed when the tree has changed since the last search.
-HANDLER t1 OPEN;
-HANDLER t1 READ a FIRST;
-INSERT INTO t1 VALUES (GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
---echo # should not crash
---disable_result_log
-HANDLER t1 READ a NEXT;
---enable_result_log
-HANDLER t1 CLOSE;
+#HANDLER t1 OPEN;
+#HANDLER t1 READ a FIRST;
+#INSERT INTO t1 VALUES (GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
+#--echo # should not crash
+#--disable_result_log
+#HANDLER t1 READ a NEXT;
+#--enable_result_log
+#HANDLER t1 CLOSE;
+#TODO: end of the 51877 dependent section
 
 DROP TABLE t1;
 
