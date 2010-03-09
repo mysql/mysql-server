@@ -503,3 +503,19 @@ f1	f2-f3
 5	0
 DROP TABLE t1;
 End of 5.0 tests
+
+Bug#50888 valgrind warnings in Field_timestamp::val_str
+
+SET TIMESTAMP=0;
+CREATE TABLE t1(a timestamp);
+INSERT INTO t1 VALUES ('2008-02-23 09:23:45'), ('2010-03-05 11:08:02');
+FLUSH TABLES t1;
+SELECT MAX(a) FROM t1;
+MAX(a)
+2010-03-05 11:08:02
+SELECT a FROM t1;
+a
+2008-02-23 09:23:45
+2010-03-05 11:08:02
+DROP TABLE t1;
+End of Bug#50888
