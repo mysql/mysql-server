@@ -247,6 +247,7 @@ extern CHARSET_INFO compiled_charsets[];
 /* statistics */
 extern ulong	my_file_opened,my_stream_opened, my_tmp_file_created;
 extern ulong    my_file_total_opened;
+extern ulong    my_sync_count;
 extern uint	mysys_usage_id;
 extern my_bool	my_init_done;
 

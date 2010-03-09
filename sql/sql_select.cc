@@ -10168,7 +10168,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   /* future: storage engine selection can be made dynamic? */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
+      OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM) ||
+      !thd->variables.tmp_table_size)
   {
     share->db_plugin= ha_lock_engine(0, TMP_ENGINE_HTON);
     table->file= get_new_handler(share, &table->mem_root,
@@ -10707,7 +10708,7 @@ static bool create_internal_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     {
       /* Create an unique key */
       bzero((char*) &keydef,sizeof(keydef));
-      keydef.flag=HA_NOSAME | HA_BINARY_PACK_KEY | HA_PACK_KEY;
+      keydef.flag=HA_NOSAME;
       keydef.keysegs=  keyinfo->key_parts;
       keydef.seg= seg;
     }
@@ -10732,7 +10733,7 @@ static bool create_internal_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
 	seg->type= keyinfo->key_part[i].type;
         /* Tell handler if it can do suffic space compression */
 	if (field->real_type() == MYSQL_TYPE_STRING &&
-	    keyinfo->key_part[i].length > 4)
+	    keyinfo->key_part[i].length > 32)
 	  seg->flag|= HA_SPACE_PACK;
       }
       if (!(field->flags & NOT_NULL_FLAG))

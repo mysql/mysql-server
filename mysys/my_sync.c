@@ -17,6 +17,8 @@
 #include "mysys_err.h"
 #include <errno.h>
 
+ulong my_sync_count;                           /* Count number of sync calls */
+
 /*
   Sync data in file to disk
 
@@ -46,6 +48,7 @@ int my_sync(File fd, myf my_flags)
   DBUG_ENTER("my_sync");
   DBUG_PRINT("my",("fd: %d  my_flags: %d", fd, my_flags));
 
+  statistic_increment(my_sync_count,&THR_LOCK_open);
   do
   {
 #if defined(F_FULLFSYNC)

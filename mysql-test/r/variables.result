@@ -575,8 +575,6 @@ set storage_engine=myisam;
 set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
-Warnings:
-Warning	1292	Truncated incorrect tmp_table_size value: '100'
 set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set log_warnings=1;

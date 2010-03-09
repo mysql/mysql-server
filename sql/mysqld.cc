@@ -7273,10 +7273,10 @@ The minimum value for this variable is 4096.",
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmp_table_size", OPT_TMP_TABLE_SIZE,
    "If an internal in-memory temporary table exceeds this size, MySQL will"
-   " automatically convert it to an on-disk MyISAM table.",
+   " automatically convert it to an on-disk MyISAM/Maria table.",
    (uchar**) &global_system_variables.tmp_table_size,
    (uchar**) &max_system_variables.tmp_table_size, 0, GET_ULL,
-   REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
+   REQUIRED_ARG, 16*1024*1024L, 0, MAX_MEM_TABLE_SIZE, 0, 1, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (uchar**) &global_system_variables.trans_alloc_block_size,
@@ -7778,6 +7778,7 @@ SHOW_VAR status_vars[]= {
   {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
   {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
 #endif /* HAVE_OPENSSL */
+  {"Syncs",                    (char*) &my_sync_count,          SHOW_LONG_NOFLUSH},
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
 #ifdef HAVE_MMAP
