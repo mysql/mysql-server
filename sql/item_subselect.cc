@@ -249,9 +249,13 @@ bool Item_subselect::exec()
 {
   int res;
 
-  if (thd->is_error())
-  /* Do not execute subselect in case of a fatal error */
+  /*
+    Do not execute subselect in case of a fatal error
+    or if the query has been killed.
+  */
+  if (thd->is_error() || thd->killed)
     return 1;
+
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.
