@@ -50,6 +50,7 @@ STATIC_CONST(Err_ReceiveFromNdbFailed = 4008);
 STATIC_CONST(Err_NodeFailCausedAbort = 4028);
 STATIC_CONST(Err_MixRecAttrAndRecord = 4284);
 STATIC_CONST(Err_DifferentTabForKeyRecAndAttrRec = 4287);
+STATIC_CONST(Err_KeyIsNULL = 4316);
 STATIC_CONST(Err_FinaliseNotCalled = 4519);
 STATIC_CONST(Err_InterpretedCodeWrongTab = 4524);
 
@@ -811,6 +812,158 @@ int NdbQueryOperation::setInterpretedCode(NdbInterpretedCode& code) const
   return m_impl.setInterpretedCode(code);
 }
 
+/////////////////////////////////////////////////
+/////////  NdbQueryParamValue methods ///////////
+/////////////////////////////////////////////////
+
+enum Type
+{
+  Type_NULL,
+  Type_raw,     // Raw data formated according to NdbRecord::Attr spec. 
+  Type_string,  // '\0' terminated C-type string, char/varchar data only
+  Type_Uint16,
+  Type_Uint32,
+  Type_Uint64,
+  Type_Double
+};
+
+NdbQueryParamValue::NdbQueryParamValue(Uint16 val) : m_type(Type_Uint16)
+{ m_value.uint16 = val; }
+
+NdbQueryParamValue::NdbQueryParamValue(Uint32 val) : m_type(Type_Uint32)
+{ m_value.uint32 = val; }
+
+NdbQueryParamValue::NdbQueryParamValue(Uint64 val) : m_type(Type_Uint64)
+{ m_value.uint64 = val; }
+
+NdbQueryParamValue::NdbQueryParamValue(double val) : m_type(Type_Double)
+{ m_value.dbl = val; }
+
+// C-type string, terminated by '\0'
+NdbQueryParamValue::NdbQueryParamValue(const char* val) : m_type(Type_string)
+{ m_value.string = val; }
+
+// Raw data
+NdbQueryParamValue::NdbQueryParamValue(const void* val) : m_type(Type_raw)
+{ m_value.raw = val; }
+
+// NULL-value, also used as optional end marker 
+NdbQueryParamValue::NdbQueryParamValue() : m_type(Type_NULL)
+{}
+
+
+int NdbQueryParamValue::getValue(const NdbParamOperandImpl& param,
+                                 const void*& addr, size_t& len,
+                                 bool& is_null) const
+{
+  const NdbColumnImpl* const column  = param.getColumn();
+  size_t maxSize = column->getSizeInBytes();
+  is_null = false;
+
+  // Fetch parameter value and length.
+  // Rudimentary typecheck of paramvalue: At least length should be as expected:
+  //  - Extend with more types if required
+  //  - Considder to add simple type conversion, ex: Int64 -> Int32
+  //  - Or 
+  //     -- Represent all exact numeric as Int64 and convert to 'smaller' int
+  //     -- Represent all floats as Double and convert to smaller floats
+  //
+  switch(m_type)
+  {
+    case Type_NULL:
+      addr = NULL;
+      len  = 0;
+      is_null = true;
+      return 0;
+    case Type_Uint16:
+      if (unlikely(column->getType() != NdbDictionary::Column::Smallint &&
+                   column->getType() != NdbDictionary::Column::Smallunsigned))
+        return QRY_PARAMETER_HAS_WRONG_TYPE;
+      addr = &m_value;
+      len = sizeof(m_value.uint16);
+      DBUG_ASSERT(len == maxSize);
+      break;
+    case Type_Uint32:
+      if (unlikely(column->getType() != NdbDictionary::Column::Int &&
+                   column->getType() != NdbDictionary::Column::Unsigned))
+        return QRY_PARAMETER_HAS_WRONG_TYPE;
+      addr = &m_value;
+      len = sizeof(m_value.uint32);
+      DBUG_ASSERT(len == maxSize);
+      break;
+    case Type_Uint64:
+      if (unlikely(column->getType() != NdbDictionary::Column::Bigint &&
+                   column->getType() != NdbDictionary::Column::Bigunsigned))
+        return QRY_PARAMETER_HAS_WRONG_TYPE;
+      addr = &m_value;
+      len = sizeof(m_value.uint64);
+      DBUG_ASSERT(len == maxSize);
+      break;
+    case Type_Double:
+      if (unlikely(column->getType() != NdbDictionary::Column::Double))
+        return QRY_PARAMETER_HAS_WRONG_TYPE;
+      addr = &m_value;
+      len = sizeof(m_value.dbl);
+      DBUG_ASSERT(len == maxSize);
+      break;
+    case Type_string:
+      if (unlikely(column->getType() != NdbDictionary::Column::Char &&
+                   column->getType() != NdbDictionary::Column::Varchar &&
+                   column->getType() != NdbDictionary::Column::Longvarchar))
+        return QRY_PARAMETER_HAS_WRONG_TYPE;
+      addr = m_value.string;
+      len  = strlen(m_value.string);
+      if (unlikely(len > maxSize))
+        return QRY_CHAR_PARAMETER_TRUNCATED;
+      break;
+
+    case Type_raw:
+      if (likely(column->m_arrayType == NDB_ARRAYTYPE_FIXED))
+      {
+        len  = maxSize;
+        addr = m_value.raw;
+
+        if (column->getType() == NdbDictionary::Column::Char ||
+            column->getType() == NdbDictionary::Column::Binary)
+        { 
+          DBUG_ASSERT((size_t)column->getLength() == maxSize);
+          if (unlikely(strlen(m_value.string) != (size_t)column->getLength()))
+            return QRY_PARAMETER_HAS_WRONG_TYPE;
+        }
+      }
+      else if (column->m_arrayType == NDB_ARRAYTYPE_SHORT_VAR)
+      {
+        addr = m_value.string;
+        len  = strlen(m_value.string);
+
+        DBUG_ASSERT(column->getType() == NdbDictionary::Column::Varchar ||
+                    column->getType() == NdbDictionary::Column::Varbinary);
+        DBUG_ASSERT((size_t)column->getLength() == maxSize);
+        if (unlikely(len > (size_t)column->getLength()))
+          return QRY_CHAR_PARAMETER_TRUNCATED;
+      }
+      else if (column->m_arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
+      {
+        addr = m_value.string;
+        len  = strlen(m_value.string);
+
+        DBUG_ASSERT(column->getType() == NdbDictionary::Column::Longvarchar ||
+                    column->getType() == NdbDictionary::Column::Longvarbinary);
+        DBUG_ASSERT((size_t)column->getLength() == maxSize);
+        if (unlikely(len > (size_t)column->getLength()))
+          return QRY_CHAR_PARAMETER_TRUNCATED;
+      }
+      else
+      {
+        DBUG_ASSERT(0);
+      }
+      break;
+    default:
+      assert(false);
+  }
+  return 0;
+} // NdbQueryParamValue::getValue
+
 ///////////////////////////////////////////
 /////////  NdbQueryImpl methods ///////////
 ///////////////////////////////////////////
@@ -917,7 +1070,7 @@ NdbQueryImpl::buildQuery(NdbTransaction& trans,
  *  to be valid after this assignment.
  */
 int
-NdbQueryImpl::assignParameters(const constVoidPtr paramValues[])
+NdbQueryImpl::assignParameters(const NdbQueryParamValue paramValues[])
 {
   /**
    * Immediately build the serialized parameter representation in order 
@@ -925,7 +1078,7 @@ NdbQueryImpl::assignParameters(const constVoidPtr paramValues[])
    * Also calculates prunable property, and possibly its hashValue.
    */
   // Build explicit key/filter/bounds for root operation, possibly refering paramValues
-  const int error = getRoot().getQueryOperationDef().prepareKeyInfo(m_keyInfo, paramValues);
+  const int error = getRoot().prepareKeyInfo(m_keyInfo, paramValues);
   if (unlikely(error != 0))
     return error;
 
@@ -943,7 +1096,7 @@ NdbQueryImpl::assignParameters(const constVoidPtr paramValues[])
   assert(m_state<Defined);
   m_state = Defined;
   return 0;
-}
+} // NdbQueryImpl::assignParameters
 
 
 static int
@@ -2900,7 +3053,7 @@ NdbQueryOperationImpl::serializeProject(Uint32Buffer& attrInfo)
 } // NdbQueryOperationImpl::serializeProject
 
 
-int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
+int NdbQueryOperationImpl::serializeParams(const NdbQueryParamValue* paramValues)
 {
   if (unlikely(paramValues == NULL))
   {
@@ -2911,11 +3064,7 @@ int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
   for (Uint32 i=0; i<def.getNoOfParameters(); i++)
   {
     const NdbParamOperandImpl& paramDef = def.getParameter(i);
-    const constVoidPtr paramValue = paramValues[paramDef.getParamIx()];
-    if (unlikely(paramValue == NULL))  // FIXME: May also indicate a NULL value....
-    {
-      return QRY_NEED_PARAMETER;
-    }
+    const NdbQueryParamValue& paramValue = paramValues[paramDef.getParamIx()];
 
     /**
      *  Add parameter value to serialized data.
@@ -2923,9 +3072,17 @@ int NdbQueryOperationImpl::serializeParams(const constVoidPtr paramValues[])
      *  the actuall value. Allocation is in Uint32 units with unused bytes
      *  zero padded.
      **/
-    Uint32 len = paramDef.getSizeInBytes(paramValue);
+    const void* addr;
+    size_t len;
+    bool null;
+    const int error = paramValue.getValue(paramDef,addr,len,null);
+    if (unlikely(error))
+      return error;
+    if (unlikely(null))
+      return QRY_NEED_PARAMETER;
+
     m_params.append(len);          // paramValue length in #bytes
-    m_params.append(paramValue,len);
+    m_params.append(addr,len);
 
     if(unlikely(m_params.isMemoryExhausted())){
       return Err_MemoryAlloc;
@@ -3129,6 +3286,267 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
 
   return 0;
 } // NdbQueryOperationImpl::prepareAttrInfo
+
+
+int 
+NdbQueryOperationImpl::prepareKeyInfo(
+                     Uint32Buffer& keyInfo,
+                     const NdbQueryParamValue* actualParam)
+{
+  assert(this == &getRoot()); // Should only be called for root operation.
+#ifdef TRACE_SERIALIZATION
+  int startPos = keyInfo.getSize();
+#endif
+
+  const NdbQueryOperationDefImpl::IndexBound* bounds = m_operationDef.getBounds();
+  if (bounds)
+  {
+    const int error = prepareIndexKeyInfo(keyInfo, bounds, actualParam);
+    if (unlikely(error))
+      return error;
+  }
+
+  const NdbQueryOperandImpl* const* keys = m_operationDef.getKeyOperands();
+  if (keys)
+  {
+    const int error = prepareLookupKeyInfo(keyInfo, keys, actualParam);
+    if (unlikely(error))
+      return error;
+  }
+
+  if (unlikely(keyInfo.isMemoryExhausted())) {
+    return Err_MemoryAlloc;
+  }
+
+#ifdef TRACE_SERIALIZATION
+  ndbout << "Serialized KEYINFO for NdbQuery root : ";
+  for (Uint32 i = startPos; i < keyInfo.getSize(); i++) {
+    char buf[12];
+    sprintf(buf, "%.8x", keyInfo.get(i));
+    ndbout << buf << " ";
+  }
+  ndbout << endl;
+#endif
+
+  return 0;
+} // NdbQueryOperationImpl::prepareKeyInfo
+
+
+static int
+formatAttr(const NdbColumnImpl* column,
+           const void* &value, size_t& len,
+           char* buffer, size_t buflen)
+{
+  // Check that column->shrink_varchar() not specified, only used by mySQL
+  // assert (!(column->flags & NdbDictionary::RecMysqldShrinkVarchar));
+
+  switch (column->getArrayType()) {
+    case NdbDictionary::Column::ArrayTypeFixed:
+      break;
+    case NdbDictionary::Column::ArrayTypeShortVar:
+      if (unlikely(len > 0xFF || len+1 > buflen))
+        return QRY_CHAR_OPERAND_TRUNCATED;
+      buffer[0] = (unsigned char)len;
+      memcpy(buffer+1, value, len);
+      len+=1;
+      value = buffer;
+      break;
+    case NdbDictionary::Column::ArrayTypeMediumVar:
+      if (unlikely(len > 0xFFFF || len+2 > buflen))
+        return QRY_CHAR_OPERAND_TRUNCATED;
+      buffer[0] = (unsigned char)(len & 0xFF);
+      buffer[1] = (unsigned char)(len >> 8);
+      memcpy(buffer+2, value, len);
+      len+=2;
+      value = buffer;
+      break;
+    default:
+      assert(false);
+  }
+  return 0;
+} // static formatAttr
+
+
+static int
+appendBound(Uint32Buffer& keyInfo,
+            NdbIndexScanOperation::BoundType type, const NdbQueryOperandImpl* bound,
+            const NdbQueryParamValue* actualParam) 
+{
+  size_t len = 0;
+  const void* boundValue = NULL;
+
+  assert (bound);
+  switch(bound->getKind()){
+  case NdbQueryOperandImpl::Const:
+  {
+    const NdbConstOperandImpl* constOp = static_cast<const NdbConstOperandImpl*>(bound);
+    boundValue = constOp->getAddr();
+    len = constOp->getSizeInBytes();
+    break;
+  }
+  case NdbQueryOperandImpl::Param:
+  {
+    const NdbParamOperandImpl* const paramOp 
+      = static_cast<const NdbParamOperandImpl*>(bound);
+    int paramNo = paramOp->getParamIx();
+    assert(actualParam != NULL);
+
+    bool null;
+    const int error = actualParam[paramNo].getValue(*paramOp,boundValue,len,null);
+    if (unlikely(error))
+      return error;
+    if (unlikely(null))
+      return Err_KeyIsNULL;
+    break;
+  }
+  case NdbQueryOperandImpl::Linked:    // Root operation cannot have linked operands.
+  default:
+    assert(false);
+  }
+    
+  char tmp[NDB_MAX_KEY_SIZE];
+  const NdbColumnImpl* column = bound->getColumn();
+
+  int error = formatAttr(column, boundValue, len, tmp, sizeof(tmp));
+  if (unlikely(error))
+    return error;
+
+  AttributeHeader ah(column->m_attrId, len);
+
+  keyInfo.append(type);
+  keyInfo.append(ah.m_value);
+  keyInfo.append(boundValue,len);
+
+  return 0;
+} // static appendBound()
+
+
+int
+NdbQueryOperationImpl::prepareIndexKeyInfo(
+                     Uint32Buffer& keyInfo,
+                     const NdbQueryOperationDefImpl::IndexBound* bounds,
+                     const NdbQueryParamValue* actualParam)
+{
+  int startPos = keyInfo.getSize();
+  assert (startPos == 0);  // Assumed by ::checkPrunable
+
+  const unsigned key_count = 
+     (bounds->lowKeys >= bounds->highKeys) ? bounds->lowKeys : bounds->highKeys;
+
+  for (unsigned keyNo = 0; keyNo < key_count; keyNo++)
+  {
+    NdbIndexScanOperation::BoundType bound_type;
+
+    /* If upper and lower limit is equal, a single BoundEQ is sufficient */
+    if (bounds->low[keyNo] == bounds->high[keyNo])
+    {
+      /* Inclusive if defined, or matching rows can include this value */
+      bound_type= NdbIndexScanOperation::BoundEQ;
+      int error = appendBound(keyInfo, bound_type, bounds->low[keyNo], actualParam);
+      if (unlikely(error))
+        return error;
+
+    } else {
+
+      /* If key is part of lower bound */
+      if (keyNo < bounds->lowKeys)
+      {
+        /* Inclusive if defined, or matching rows can include this value */
+        bound_type= bounds->lowIncl  || keyNo+1 < bounds->lowKeys ?
+            NdbIndexScanOperation::BoundLE : NdbIndexScanOperation::BoundLT;
+
+        int error = appendBound(keyInfo, bound_type, bounds->low[keyNo], actualParam);
+        if (unlikely(error))
+          return error;
+      }
+
+      /* If key is part of upper bound */
+      if (keyNo < bounds->highKeys)
+      {
+        /* Inclusive if defined, or matching rows can include this value */
+        bound_type= bounds->highIncl  || keyNo+1 < bounds->highKeys ?
+            NdbIndexScanOperation::BoundGE : NdbIndexScanOperation::BoundGT;
+
+        int error = appendBound(keyInfo, bound_type, bounds->high[keyNo], actualParam);
+        if (unlikely(error))
+          return error;
+      }
+    }
+  }
+
+  size_t length = keyInfo.getSize()-startPos;
+  if (unlikely(keyInfo.isMemoryExhausted())) {
+    return Err_MemoryAlloc;
+  } else if (unlikely(length > 0xFFFF)) {
+    return QRY_DEFINITION_TOO_LARGE; // Query definition too large.
+  } else if (likely(length > 0)) {
+    keyInfo.put(startPos, keyInfo.get(startPos) | (length << 16));
+  }
+
+  return 0;
+} // NdbQueryOperationImpl::prepareIndexKeyInfo
+
+
+int
+NdbQueryOperationImpl::prepareLookupKeyInfo(
+                     Uint32Buffer& keyInfo,
+                     const NdbQueryOperandImpl* const keys[],
+                     const NdbQueryParamValue* actualParam)
+{
+  const int keyCount = m_operationDef.getIndex()!=NULL ? 
+    static_cast<int>(m_operationDef.getIndex()->getNoOfColumns()) :
+    m_operationDef.getTable().getNoOfPrimaryKeys();
+
+  for (int keyNo = 0; keyNo<keyCount; keyNo++)
+  {
+    size_t len = 0;
+    const void* boundValue = NULL;
+
+    switch(keys[keyNo]->getKind()){
+    case NdbQueryOperandImpl::Const:
+    {
+      const NdbConstOperandImpl* const constOp 
+        = static_cast<const NdbConstOperandImpl*>(keys[keyNo]);
+      boundValue = constOp->getAddr();
+      len = constOp->getSizeInBytes();
+      break;
+    }
+    case NdbQueryOperandImpl::Param:
+    {
+      const NdbParamOperandImpl* const paramOp 
+        = static_cast<const NdbParamOperandImpl*>(keys[keyNo]);
+      int paramNo = paramOp->getParamIx();
+      assert(actualParam != NULL);
+
+      bool null;
+      const int error = actualParam[paramNo].getValue(*paramOp,boundValue,len,null);
+      if (unlikely(error))
+        return error;
+      if (unlikely(null))
+        return Err_KeyIsNULL;
+      break;
+    }
+    case NdbQueryOperandImpl::Linked:    // Root operation cannot have linked operands.
+    default:
+      assert(false);
+    }
+
+    char tmp[NDB_MAX_KEY_SIZE];
+    const NdbColumnImpl* column = keys[keyNo]->getColumn();
+
+    int error = formatAttr(column, boundValue, len, tmp, sizeof(tmp));
+    if (unlikely(error))
+      return error;
+
+    keyInfo.append(boundValue,len);
+  }
+
+  if (unlikely(keyInfo.isMemoryExhausted())) {
+    return Err_MemoryAlloc;
+  }
+
+  return 0;
+} // NdbQueryOperationImpl::prepareLookupKeyInfo
 
 
 bool 

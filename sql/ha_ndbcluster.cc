@@ -3986,7 +3986,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
 
   uint i;
   Uint32 offset= 0;
-  const void* paramValues[ha_pushed_join::MAX_KEY_PART + ha_pushed_join::MAX_REFERRED_FIELDS]= {NULL};
+  NdbQueryParamValue paramValues[ha_pushed_join::MAX_KEY_PART + ha_pushed_join::MAX_REFERRED_FIELDS]= {};
 
   // Bind key values defining root of pushed join
   for (i = 0, key_part= key_def->key_part; i < key_def->key_parts; i++, key_part++)
@@ -3995,11 +3995,11 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     {
       DBUG_ASSERT(idx != table_share->primary_key); // PK can't be nullable
       DBUG_ASSERT(*(key+offset)==0);                // Null values not allowed in key
-      paramValues[i]= (key+offset+1);               // Value is imm. after NULL indicator
+      paramValues[i]= (void*)(key+offset+1);        // Value is imm. after NULL indicator
     }
     else                                            // Non-nullable column
     {
-      paramValues[i]= (key+offset);
+      paramValues[i]= (void*)(key+offset);
     }
     offset+= key_part->store_length;
   }
@@ -4010,7 +4010,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   {
     Field* field= m_pushed_join->get_field_ref(i);
     DBUG_ASSERT(!field->is_real_null());
-    paramValues[key_def->key_parts+i]= field->ptr;
+    paramValues[key_def->key_parts+i]= (void*)(field->ptr);
   }
 
   DBUG_ASSERT(m_active_query==NULL);
@@ -4192,7 +4192,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     DBUG_ASSERT(m_index[active_index].index == expected_index);
 #endif
 
-    const void* paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {NULL};
+    NdbQueryParamValue paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {};
 
     // There may be referrences to Field values from tables outside the scope of
     // our pushed join: These are expected to be supplied as paramValues()
@@ -4200,7 +4200,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     {
       Field* field= m_pushed_join->get_field_ref(i);
       DBUG_ASSERT(!field->is_real_null());
-      paramValues[i]= field->ptr;
+      paramValues[i]= (void*)(field->ptr);
     }
 
     DBUG_ASSERT(m_active_query==NULL);
@@ -4418,7 +4418,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
                 m_pushed_join->get_table(0)->alias)
                );
 
-    const void* paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {NULL};
+    NdbQueryParamValue paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {};
 
     // There may be referrences to Field values from tables outside the scope of
     // our pushed join: These are expected to be supplied as paramValues()
@@ -4426,7 +4426,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     {
       Field* field= m_pushed_join->get_field_ref(i);
       DBUG_ASSERT(!field->is_real_null());
-      paramValues[i]= field->ptr;
+      paramValues[i]= (void*)(field->ptr);
     }
 
     DBUG_ASSERT(m_active_query==NULL);
@@ -12644,7 +12644,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
              m_pushed_join->get_operation_count() - 1,
              m_pushed_join->get_table(0)->alias));
 
-          const void* paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {NULL};
+          NdbQueryParamValue paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {};
 
           // There may be referrences to Field values from tables outside the scope of
           // our pushed join: These are expected to be supplied as paramValues()
@@ -12652,7 +12652,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           {
             Field* field= m_pushed_join->get_field_ref(i);
             DBUG_ASSERT(!field->is_real_null());
-            paramValues[i]= field->ptr;
+            paramValues[i]= (void*)(field->ptr);
           }
 
           DBUG_ASSERT(m_active_query==NULL);

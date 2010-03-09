@@ -42,6 +42,8 @@
 #define QRY_ILLEGAL_STATE 4818
 #define QRY_WRONG_OPERATION_TYPE 4819
 #define QRY_SCAN_ORDER_ALREADY_SET 4820
+#define QRY_PARAMETER_HAS_WRONG_TYPE 4821
+#define QRY_CHAR_PARAMETER_TRUNCATED 4822
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -56,6 +58,7 @@ class NdbColumnImpl;
 class NdbQueryBuilderImpl;
 class NdbQueryDefImpl;
 class NdbQueryOperationDefImpl;
+class NdbQueryParamValue;
 class NdbParamOperandImpl;
 class NdbConstOperandImpl;
 class NdbLinkedOperandImpl;
@@ -245,9 +248,6 @@ private:
 // Implementation of NdbQueryOperation interface
 ////////////////////////////////////////////////
 
-/** For making complex declarations more readable.*/
-typedef const void* constVoidPtr;
-
 class NdbQueryOperationDefImpl
 {
   friend class NdbQueryOperationDef;
@@ -255,6 +255,14 @@ class NdbQueryOperationDefImpl
   friend class NdbQueryImpl;
 
 public:
+
+  struct IndexBound {     // Limiting 'bound ' definition for indexScan
+    NdbQueryOperandImpl* low[MAX_ATTRIBUTES_IN_INDEX];
+    NdbQueryOperandImpl* high[MAX_ATTRIBUTES_IN_INDEX];
+    Uint32 lowKeys, highKeys;
+    bool lowIncl, highIncl;
+    bool eqBound;         // True if 'low == high'
+  };
 
   Uint32 getNoOfParentOperations() const
   { return m_parents.size(); }
@@ -303,6 +311,12 @@ public:
   virtual const NdbIndexImpl* getIndex() const
   { return NULL; }
 
+  virtual const NdbQueryOperandImpl* const* getKeyOperands() const
+  { return NULL; } 
+
+  virtual const IndexBound* getBounds() const
+  { return NULL; } 
+
   // Return 'true' is query type is a multi-row scan
   virtual bool isScanOperation() const = 0;
 
@@ -320,18 +334,6 @@ public:
   const Vector<const NdbColumnImpl*>& getSPJProjection() const {
     return m_spjProjection;
   }
-
-  /**
-   * Expand keys and bounds for the root operation into the KEYINFO section.
-   * @param keyInfo Actuall KEYINFO section the key / bounds are 
-   *                put into
-   * @param actualParam Instance values for NdbParamOperands.
-   * @param isPruned 'true' for a scan of pruned to single partition.
-   * @param hashValue Valid only if 'isPruned'.
-   * Returns: 0 if OK, or possible an errorcode.
-   */
-  virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
-                             const constVoidPtr actualParam[]) const = 0;
 
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
                              bool&   isPruned,
@@ -439,12 +441,12 @@ public:
   virtual NdbQueryOperationDef::Type getType() const
   { return NdbQueryOperationDef::OrderedIndexScan; }
 
-  virtual int prepareKeyInfo(Uint32Buffer& keyInfo,
-                             const constVoidPtr actualParam[]) const;
-
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
                             bool&   isPruned,
                             Uint32& hashValue) const;
+
+  virtual const IndexBound* getBounds() const
+  { return &m_bound; } 
 
   /** Define result ordering. Alternatively, ordering may be set when the 
    * query definition has been instantiated, using 
@@ -472,13 +474,7 @@ private:
   NdbQueryIndexScanOperationDef m_interface;
   const NdbIndexImpl& m_index;
 
-  struct bound {  // Limiting 'bound ' definition
-    NdbQueryOperandImpl* low[MAX_ATTRIBUTES_IN_INDEX];
-    NdbQueryOperandImpl* high[MAX_ATTRIBUTES_IN_INDEX];
-    Uint32 lowKeys, highKeys;
-    bool lowIncl, highIncl;
-    bool eqBound;  // True if 'low == high'
-  } m_bound;
+  IndexBound m_bound;
 
   /** Ordering of scan results.*/
   NdbScanOrdering m_ordering;
@@ -666,8 +662,6 @@ public:
   Uint32 getParamIx() const
   { return m_paramIx; }
 
-  size_t getSizeInBytes(const constVoidPtr paramValue) const;
-
   virtual const NdbParamOperand& getInterface() const
   { return m_interface; }
 
@@ -693,7 +687,7 @@ class NdbConstOperandImpl : public NdbQueryOperandImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 public:
-  size_t getSizeInBytes()    const
+  size_t getSizeInBytes() const
   { return m_converted.len; }
   const void* getAddr() const
   { return likely(m_converted.buffer==NULL) ? &m_converted.val : m_converted.buffer; }

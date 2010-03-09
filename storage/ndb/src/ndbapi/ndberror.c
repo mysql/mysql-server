@@ -786,6 +786,10 @@ ErrorBundle ErrorCodes[] = {
     "index scan)."},
   { QRY_SCAN_ORDER_ALREADY_SET, DMEC, AE, 
     "Index scan order was already set in query definition."},
+  { QRY_PARAMETER_HAS_WRONG_TYPE, DMEC, AE, 
+    "Parameter value has an incompatible datatype" },
+  { QRY_CHAR_PARAMETER_TRUNCATED, DMEC, AE, 
+    "Character Parameter was right truncated" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},
