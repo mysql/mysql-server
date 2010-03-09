@@ -73,7 +73,7 @@ libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			thr_mutex.c thr_rwlock.c \
 			mf_soundex.c \
 			my_conio.c my_wincond.c my_winthread.c \
-			my_socket.cc
+			my_socket.c
 
 if NEED_THREAD
 # mf_keycache is used only in the server, so it is safe to leave the file
