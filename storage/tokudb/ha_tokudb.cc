@@ -4708,6 +4708,8 @@ int ha_tokudb::info(uint flag) {
         stats.deleted = 0;
         if (!(flag & HA_STATUS_NO_LOCK)) {
             u_int64_t num_rows = 0;
+            TOKU_DB_FRAGMENTATION_S frag_info = {0};
+            u_int64_t num_deleted_bytes = 0;
             error = db_env->txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
             if (error) { goto cleanup; }
 
@@ -4719,6 +4721,12 @@ int ha_tokudb::info(uint flag) {
             else {
                 goto cleanup;
             }
+            error = share->file->get_fragmentation(
+                share->file,
+                &frag_info
+                );
+            if (error) { goto cleanup; }
+            stats.delete_length = frag_info.unused_bytes;
 
             error = share->file->stat64(
                 share->file, 
@@ -4757,6 +4765,13 @@ int ha_tokudb::info(uint flag) {
                     );
                 if (error) { goto cleanup; }
                 stats.index_file_length += dict_stats.bt_dsize;
+
+                error = share->file->get_fragmentation(
+                    share->file,
+                    &frag_info
+                    );
+                if (error) { goto cleanup; }
+                stats.delete_length += frag_info.unused_bytes;
             }
         }
     }
