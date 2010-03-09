@@ -343,6 +343,8 @@ struct system_variables
   ulong mrr_buff_size;
   ulong div_precincrement;
   ulong sortbuff_size;
+  /* Total size of all buffers used by the subselect_rowid_merge_engine. */
+  ulong rowid_merge_buff_size;
   ulong thread_handling;
   ulong tx_isolation;
   ulong completion_type;

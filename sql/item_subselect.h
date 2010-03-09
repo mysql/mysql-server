@@ -436,7 +436,7 @@ public:
   friend class Item_in_optimizer;
   friend class subselect_indexsubquery_engine;
   friend class subselect_hash_sj_engine;
-  friend class subselect_rowid_merge_engine;
+  friend class subselect_partial_match_engine;
 };
 
 
@@ -472,7 +472,7 @@ public:
   enum enum_engine_type {ABSTRACT_ENGINE, SINGLE_SELECT_ENGINE,
                          UNION_ENGINE, UNIQUESUBQUERY_ENGINE,
                          INDEXSUBQUERY_ENGINE, HASH_SJ_ENGINE,
-                         ROR_INTERSECT_ENGINE};
+                         ROWID_MERGE_ENGINE, TABLE_SCAN_ENGINE};
 
   subselect_engine(Item_subselect *si, select_result_interceptor *res)
     :thd(0)
@@ -716,6 +716,109 @@ inline bool Item_subselect::is_uncacheable() const
 }
 
 
+/**
+  Compute an IN predicate via a hash semi-join. This class is responsible for
+  the materialization of the subquery, and the selection of the correct and
+  optimal execution method (e.g. direct index lookup, or partial matching) for
+  the IN predicate.
+*/
+
+class subselect_hash_sj_engine : public subselect_engine
+{
+protected:
+  /* The table into which the subquery is materialized. */
+  TABLE *tmp_table;
+  /* TRUE if the subquery was materialized into a temp table. */
+  bool is_materialized;
+  /*
+    The old engine already chosen at parse time and stored in permanent memory.
+    Through this member we can re-create and re-prepare materialize_join for
+    each execution of a prepared statement. We also reuse the functionality
+    of subselect_single_select_engine::[prepare | cols].
+  */
+  subselect_single_select_engine *materialize_engine;
+  /* The engine used to compute the IN predicate. */
+  subselect_engine *lookup_engine;
+  /*
+    QEP to execute the subquery and materialize its result into a
+    temporary table. Created during the first call to exec().
+  */
+  JOIN *materialize_join;
+
+  /* Keyparts of the only non-NULL composite index in a rowid merge. */
+  MY_BITMAP non_null_key_parts;
+  /* Keyparts of the single column indexes with NULL, one keypart per index. */
+  MY_BITMAP partial_match_key_parts;
+  uint count_partial_match_columns;
+  uint count_null_only_columns;
+  /*
+    A conjunction of all the equality condtions between all pairs of expressions
+    that are arguments of an IN predicate. We need these to post-filter some
+    IN results because index lookups sometimes match values that are actually
+    not equal to the search key in SQL terms.
+ */
+  Item_cond_and *semi_join_conds;
+  /* Possible execution strategies that can be used to compute hash semi-join.*/
+  enum exec_strategy {
+    UNDEFINED,
+    COMPLETE_MATCH, /* Use regular index lookups. */
+    PARTIAL_MATCH,  /* Use some partial matching strategy. */
+    PARTIAL_MATCH_MERGE, /* Use partial matching through index merging. */
+    PARTIAL_MATCH_SCAN,  /* Use partial matching through table scan. */
+    IMPOSSIBLE      /* Subquery materialization is not applicable. */
+  };
+  /* The chosen execution strategy. Computed after materialization. */
+  exec_strategy strategy;
+protected:
+  exec_strategy get_strategy_using_schema();
+  exec_strategy get_strategy_using_data();
+  size_t rowid_merge_buff_size(bool has_non_null_key,
+                               bool has_covering_null_row,
+                               MY_BITMAP *partial_match_key_parts);
+  void choose_partial_match_strategy(bool has_non_null_key,
+                                     bool has_covering_null_row,
+                                     MY_BITMAP *partial_match_key_parts);
+  bool make_semi_join_conds();
+  subselect_uniquesubquery_engine* make_unique_engine();
+
+public:
+  subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
+                           subselect_single_select_engine *old_engine)
+    :subselect_engine(in_predicate, NULL), tmp_table(NULL),
+    is_materialized(FALSE), materialize_engine(old_engine), lookup_engine(NULL),
+    materialize_join(NULL), count_partial_match_columns(0),
+    count_null_only_columns(0), semi_join_conds(NULL), strategy(UNDEFINED)
+  {
+    set_thd(thd);
+  }
+  ~subselect_hash_sj_engine();
+
+  bool init_permanent(List<Item> *tmp_columns);
+  bool init_runtime();
+  void cleanup();
+  int prepare() { return 0; } /* Override virtual function in base class. */
+  int exec();
+  virtual void print(String *str, enum_query_type query_type);
+  uint cols()
+  {
+    return materialize_engine->cols();
+  }
+  uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
+  table_map upper_select_const_tables() { return 0; }
+  bool no_rows() { return !tmp_table->file->stats.records; }
+  virtual enum_engine_type engine_type() { return HASH_SJ_ENGINE; }
+  /*
+    TODO: factor out all these methods in a base subselect_index_engine class
+    because all of them have dummy implementations and should never be called.
+  */
+  void fix_length_and_dec(Item_cache** row);//=>base class
+  void exclude(); //=>base class
+  //=>base class
+  bool change_result(Item_subselect *si, select_result_interceptor *result);
+  bool no_tables();//=>base class
+};
+
+
 /*
   Distinguish the type od (0-based) row numbers from the type of the index into
   an array of row numbers.
@@ -745,7 +848,7 @@ typedef ha_rows rownum_t;
     PS (re)execution, however most of the comprising objects can be reused.
 */
 
-class Ordered_key
+class Ordered_key : public Sql_alloc
 {
 protected:
   /*
@@ -761,6 +864,8 @@ protected:
   uint key_column_count;
   /*
     An expression, or sequence of expressions that forms the search key.
+    The search key is a sequence when it is Item_row. Each element of the
+    sequence is accessible via Item::element_index(int i).
   */
   Item *search_key;
 
@@ -808,8 +913,6 @@ protected:
   int cmp_key_with_search_key(rownum_t row_num);
 
 public:
-  static void *operator new(size_t size) throw ()
-  { return sql_alloc(size); }
   Ordered_key(uint keyid_arg, TABLE *tbl_arg,
               Item *search_key_arg, ha_rows null_count_arg,
               ha_rows min_null_row_arg, ha_rows max_null_row_arg,
@@ -828,6 +931,10 @@ public:
     DBUG_ASSERT(i < key_column_count);
     return key_columns[i]->field->field_index;
   }
+  /*
+    Get the search key element that corresponds to the i-th key part of this
+    index.
+  */
   Item *get_search_key(uint i)
   {
     return search_key->element_index(key_columns[i]->field->field_index);
@@ -899,7 +1006,7 @@ public:
 };
 
 
-class subselect_rowid_merge_engine: public subselect_engine
+class subselect_partial_match_engine : public subselect_engine
 {
 protected:
   /* The temporary table that contains a materialized subquery. */
@@ -910,6 +1017,51 @@ protected:
     FALSE and UNKNOWN.
   */
   subselect_uniquesubquery_engine *lookup_engine;
+  /* A list of equalities between each pair of IN operands. */
+  List<Item> *equi_join_conds;
+  /*
+    If there is a row, such that all its NULL-able components are NULL, this
+    member is set to the number of covered columns. If there is no covering
+    row, then this is 0.
+  */
+  uint covering_null_row_width;
+protected:
+  virtual bool partial_match()= 0;
+public:
+  subselect_partial_match_engine(subselect_uniquesubquery_engine *engine_arg,
+                                 TABLE *tmp_table_arg, Item_subselect *item_arg,
+                                 select_result_interceptor *result_arg,
+                                 List<Item> *equi_join_conds_arg,
+                                 uint covering_null_row_width_arg);
+  int prepare() { return 0; }
+  int exec();
+  void fix_length_and_dec(Item_cache**) {}
+  uint cols() { /* TODO: what is the correct value? */ return 1; }
+  uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
+  void exclude() {}
+  table_map upper_select_const_tables() { return 0; }
+  bool change_result(Item_subselect*, select_result_interceptor*)
+  { DBUG_ASSERT(FALSE); return false; }
+  bool no_tables() { return false; }
+  bool no_rows()
+  {
+    /*
+      TODO: It is completely unclear what is the semantics of this
+      method. The current result is computed so that the call to no_rows()
+      from Item_in_optimizer::val_int() sets Item_in_optimizer::null_value
+      correctly.
+    */
+    return !(((Item_in_subselect *) item)->null_value);
+  }
+  void print(String*, enum_query_type);
+
+  friend void subselect_hash_sj_engine::cleanup();
+};
+
+
+class subselect_rowid_merge_engine: public subselect_partial_match_engine
+{
+protected:
   /*
     Mapping from row numbers to row ids. The rowids are stored sequentially
     in the array - rowid[i] is located in row_num_to_rowid + i * rowid_length.
@@ -953,8 +1105,6 @@ protected:
     This queue is used by the partial match algorithm in method exec().
   */
   QUEUE pq;
-  /* True if there is a NULL (sub)row that covers all NULLable columns. */
-  bool has_covering_null_row;
 protected:
   /*
     Comparison function to compare keys in order of decreasing bitmap
@@ -972,143 +1122,34 @@ protected:
 public:
   subselect_rowid_merge_engine(subselect_uniquesubquery_engine *engine_arg,
                                TABLE *tmp_table_arg, uint keys_count_arg,
-                               uint has_covering_null_row_arg,
+                               uint covering_null_row_width_arg,
                                Item_subselect *item_arg,
-                               select_result_interceptor *result_arg)
-    :subselect_engine(item_arg, result_arg),
-    tmp_table(tmp_table_arg), lookup_engine(engine_arg),
-    keys_count(keys_count_arg), non_null_key(NULL),
-    has_covering_null_row(has_covering_null_row_arg)
+                               select_result_interceptor *result_arg,
+                               List<Item> *equi_join_conds_arg)
+    :subselect_partial_match_engine(engine_arg, tmp_table_arg, item_arg,
+                                    result_arg, equi_join_conds_arg,
+                                    covering_null_row_width_arg),
+    keys_count(keys_count_arg), non_null_key(NULL)
   {
     thd= lookup_engine->get_thd();
   }
   ~subselect_rowid_merge_engine();
   bool init(MY_BITMAP *non_null_key_parts, MY_BITMAP *partial_match_key_parts);
   void cleanup();
-  int prepare() { return 0; }
-  void fix_length_and_dec(Item_cache**) {}
-  int exec();
-  uint cols() { /* TODO: what is the correct value? */ return 1; }
-  uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
-  void exclude() {}
-  table_map upper_select_const_tables() { return 0; }
-  void print(String*, enum_query_type);
-  bool change_result(Item_subselect*, select_result_interceptor*)
-  { DBUG_ASSERT(FALSE); return false; }
-  bool no_tables() { return false; }
-  bool no_rows()
-  {
-    /*
-      TODO: It is completely unclear what is the semantics of this
-      method. The current result is computed so that the call to no_rows()
-      from Item_in_optimizer::val_int() sets Item_in_optimizer::null_value
-      correctly.
-    */
-    return !(((Item_in_subselect *) item)->null_value);
-  }
+  virtual enum_engine_type engine_type() { return ROWID_MERGE_ENGINE; }
 };
 
 
-/**
-  Compute an IN predicate via a hash semi-join. This class is responsible for
-  the materialization of the subquery, and the selection of the correct and
-  optimal execution method (e.g. direct index lookup, or partial matching) for
-  the IN predicate.
-*/
-
-class subselect_hash_sj_engine : public subselect_engine
+class subselect_table_scan_engine: public subselect_partial_match_engine
 {
 protected:
-  /* The table into which the subquery is materialized. */
-  TABLE *tmp_table;
-  /* TRUE if the subquery was materialized into a temp table. */
-  bool is_materialized;
-  /*
-    The old engine already chosen at parse time and stored in permanent memory.
-    Through this member we can re-create and re-prepare materialize_join for
-    each execution of a prepared statement. We also reuse the functionality
-    of subselect_single_select_engine::[prepare | cols].
-  */
-  subselect_single_select_engine *materialize_engine;
-  /* The engine used to compute the IN predicate. */
-  subselect_engine *lookup_engine;
-  /*
-    QEP to execute the subquery and materialize its result into a
-    temporary table. Created during the first call to exec().
-  */
-  JOIN *materialize_join;
-  /*
-    TRUE if the subquery result has an all-NULL column, which means that
-    there at best can be a partial match for any IN execution.
-  */
-  bool inner_partial_match;
-  /*
-    TRUE if the materialized subquery contains a whole row only of NULLs.
-  */
-  bool has_null_row;
-
-  /* Keyparts of the only non-NULL composite index in a rowid merge. */
-  MY_BITMAP non_null_key_parts;
-  /* Keyparts of the single column indexes with NULL, one keypart per index. */
-  MY_BITMAP partial_match_key_parts;
-  uint count_partial_match_columns;
-  uint count_null_only_columns;
-  /*
-    A conjunction of all the equality condtions between all pairs of expressions
-    that are arguments of an IN predicate. We need these to post-filter some
-    IN results because index lookups sometimes match values that are actually
-    not equal to the search key in SQL terms.
- */
-  Item *semi_join_conds;
-  /* Possible execution strategies that can be used to compute hash semi-join.*/
-  enum exec_strategy {
-    COMPLETE_MATCH, /* Use regular index lookups. */
-    PARTIAL_MATCH,  /* Use some partial matching strategy. */
-    PARTIAL_MATCH_INDEX, /* Use partial matching through index merging. */
-    PARTIAL_MATCH_SCAN,  /* Use partial matching through table scan. */
-    IMPOSSIBLE      /* Subquery materialization is not applicable. */
-  };
-  /* The chosen execution strategy. Computed after materialization. */
-  exec_strategy strategy;
-protected:
-  void set_strategy_using_schema();
-  void set_strategy_using_data();
-  bool make_semi_join_conds();
-  subselect_uniquesubquery_engine* make_unique_engine();
-
+  bool partial_match();
 public:
-  subselect_hash_sj_engine(THD *thd, Item_subselect *in_predicate,
-                           subselect_single_select_engine *old_engine)
-    :subselect_engine(in_predicate, NULL), tmp_table(NULL),
-    is_materialized(FALSE), materialize_engine(old_engine), lookup_engine(NULL),
-    materialize_join(NULL), count_partial_match_columns(0),
-    count_null_only_columns(0), semi_join_conds(NULL)
-  {
-    set_thd(thd);
-  }
-  ~subselect_hash_sj_engine();
-
-  bool init_permanent(List<Item> *tmp_columns);
-  bool init_runtime();
+  subselect_table_scan_engine(subselect_uniquesubquery_engine *engine_arg,
+                              TABLE *tmp_table_arg, Item_subselect *item_arg,
+                              select_result_interceptor *result_arg,
+                              List<Item> *equi_join_conds_arg,
+                              uint covering_null_row_width_arg);
   void cleanup();
-  int prepare() { return 0; } /* Override virtual function in base class. */
-  int exec();
-  virtual void print (String *str, enum_query_type query_type);
-  uint cols()
-  {
-    return materialize_engine->cols();
-  }
-  uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
-  table_map upper_select_const_tables() { return 0; }
-  bool no_rows() { return !tmp_table->file->stats.records; }
-  virtual enum_engine_type engine_type() { return HASH_SJ_ENGINE; }
-  /*
-    TODO: factor out all these methods in a base subselect_index_engine class
-    because all of them have dummy implementations and should never be called.
-  */
-  void fix_length_and_dec(Item_cache** row);//=>base class
-  void exclude(); //=>base class
-  //=>base class
-  bool change_result(Item_subselect *si, select_result_interceptor *result);
-  bool no_tables();//=>base class
+  virtual enum_engine_type engine_type() { return TABLE_SCAN_ENGINE; }
 };

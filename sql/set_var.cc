@@ -540,6 +540,9 @@ static sys_var_long_ptr	sys_query_cache_size(&vars, "query_cache_size",
 
 static sys_var_thd_ulong	sys_range_alloc_block_size(&vars, "range_alloc_block_size",
 						   &SV::range_alloc_block_size);
+static sys_var_thd_ulong	sys_rowid_merge_buff_size(&vars, "rowid_merge_buff_size",
+					   &SV::rowid_merge_buff_size);
+
 static sys_var_thd_ulong	sys_query_alloc_block_size(&vars, "query_alloc_block_size",
 						   &SV::query_alloc_block_size,
 						   0, fix_thd_mem_root);
