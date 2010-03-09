@@ -8659,19 +8659,25 @@ innodb_show_status(
 }
 
 /************************************************************************//**
-Implements the SHOW MUTEX STATUS command. . */
+Implements the SHOW MUTEX STATUS command.
+@return TRUE on failure, FALSE on success. */
 static
 bool
 innodb_mutex_show_status(
 /*=====================*/
-	handlerton*	hton,	/*!< in: the innodb handlerton */
+	handlerton*	hton,		/*!< in: the innodb handlerton */
 	THD*		thd,		/*!< in: the MySQL query thread of the
 					caller */
-	stat_print_fn*	stat_print)
+	stat_print_fn*	stat_print)	/*!< in: function for printing
+					statistics */
 {
 	char buf1[IO_SIZE], buf2[IO_SIZE];
 	mutex_t*	mutex;
 	rw_lock_t*	lock;
+	ulint		block_mutex_oswait_count = 0;
+	ulint		block_lock_oswait_count = 0;
+	mutex_t*	block_mutex = NULL;
+	rw_lock_t*	block_lock = NULL;
 #ifdef UNIV_DEBUG
 	ulint	  rw_lock_count= 0;
 	ulint	  rw_lock_count_spin_loop= 0;
@@ -8686,12 +8692,16 @@ innodb_mutex_show_status(
 
 	mutex_enter(&mutex_list_mutex);
 
-	mutex = UT_LIST_GET_FIRST(mutex_list);
+	for (mutex = UT_LIST_GET_FIRST(mutex_list); mutex != NULL;
+	     mutex = UT_LIST_GET_NEXT(list, mutex)) {
+		if (mutex->count_os_wait == 0) {
+			continue;
+		}
 
-	while (mutex != NULL) {
-		if (mutex->count_os_wait == 0
-		    || buf_pool_is_block_mutex(mutex)) {
-			goto next_mutex;
+		if (buf_pool_is_block_mutex(mutex)) {
+			block_mutex = mutex;
+			block_mutex_oswait_count += mutex->count_os_wait;
+			continue;
 		}
 #ifdef UNIV_DEBUG
 		if (mutex->mutex_type != 1) {
@@ -8718,8 +8728,7 @@ innodb_mutex_show_status(
 					DBUG_RETURN(1);
 				}
 			}
-		}
-		else {
+		} else {
 			rw_lock_count += mutex->count_using;
 			rw_lock_count_spin_loop += mutex->count_spin_loop;
 			rw_lock_count_spin_rounds += mutex->count_spin_rounds;
@@ -8731,7 +8740,7 @@ innodb_mutex_show_status(
 		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
 				     mutex->cfile_name, (ulong) mutex->cline);
 		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
-				     mutex->count_os_wait);
+				     (ulong) mutex->count_os_wait);
 
 		if (stat_print(thd, innobase_hton_name,
 			       hton_name_len, buf1, buf1len,
@@ -8740,45 +8749,83 @@ innodb_mutex_show_status(
 			DBUG_RETURN(1);
 		}
 #endif /* UNIV_DEBUG */
+	}
 
-next_mutex:
-		mutex = UT_LIST_GET_NEXT(list, mutex);
+	if (block_mutex) {
+		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
+					     "combined %s:%lu",
+					     block_mutex->cfile_name,
+					     (ulong) block_mutex->cline);
+		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
+					     "os_waits=%lu",
+					     (ulong) block_mutex_oswait_count);
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len, buf1, buf1len,
+			       buf2, buf2len)) {
+			mutex_exit(&mutex_list_mutex);
+			DBUG_RETURN(1);
+		}
 	}
 
 	mutex_exit(&mutex_list_mutex);
 
 	mutex_enter(&rw_lock_list_mutex);
 
-	lock = UT_LIST_GET_FIRST(rw_lock_list);
-
-	while (lock != NULL) {
-		if (lock->count_os_wait
-		    && !buf_pool_is_block_lock(lock)) {
-			buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-                                    lock->cfile_name, (ulong) lock->cline);
-			buf2len= my_snprintf(buf2, sizeof(buf2),
-                                    "os_waits=%lu", lock->count_os_wait);
-
-			if (stat_print(thd, innobase_hton_name,
-				       hton_name_len, buf1, buf1len,
-				       buf2, buf2len)) {
-				mutex_exit(&rw_lock_list_mutex);
-				DBUG_RETURN(1);
-			}
+	for (lock = UT_LIST_GET_FIRST(rw_lock_list); lock != NULL;
+	     lock = UT_LIST_GET_NEXT(list, lock)) {
+		if (lock->count_os_wait) {
+			continue;
 		}
-		lock = UT_LIST_GET_NEXT(list, lock);
+
+		if (buf_pool_is_block_lock(lock)) {
+			block_lock = lock;
+			block_lock_oswait_count += lock->count_os_wait;
+			continue;
+		}
+
+		buf1len = my_snprintf(buf1, sizeof buf1, "%s:%lu",
+				     lock->cfile_name, (ulong) lock->cline);
+		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
+				      (ulong) lock->count_os_wait);
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len, buf1, buf1len,
+			       buf2, buf2len)) {
+			mutex_exit(&rw_lock_list_mutex);
+			DBUG_RETURN(1);
+		}
+	}
+
+	if (block_lock) {
+		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
+					     "combined %s:%lu",
+					     block_lock->cfile_name,
+					     (ulong) block_lock->cline);
+		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
+					     "os_waits=%lu",
+					     (ulong) block_lock_oswait_count);
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len, buf1, buf1len,
+			       buf2, buf2len)) {
+			mutex_exit(&rw_lock_list_mutex);
+			DBUG_RETURN(1);
+		}
 	}
 
 	mutex_exit(&rw_lock_list_mutex);
 
 #ifdef UNIV_DEBUG
-	buf2len= my_snprintf(buf2, sizeof(buf2),
-		"count=%lu, spin_waits=%lu, spin_rounds=%lu, "
-		"os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
-		rw_lock_count, rw_lock_count_spin_loop,
-		rw_lock_count_spin_rounds,
-		rw_lock_count_os_wait, rw_lock_count_os_yield,
-		(ulong) (rw_lock_wait_time/1000));
+	buf2len = my_snprintf(buf2, sizeof buf2,
+			     "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
+			     "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
+			      (ulong) rw_lock_count,
+			      (ulong) rw_lock_count_spin_loop,
+			      (ulong) rw_lock_count_spin_rounds,
+			      (ulong) rw_lock_count_os_wait,
+			      (ulong) rw_lock_count_os_yield,
+			      (ulong) (rw_lock_wait_time / 1000));
 
 	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
