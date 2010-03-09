@@ -302,9 +302,9 @@ class NdbQueryParamValue
 {
 public:
 
-  // Raw data:
+  // Raw data formated according to bound Column format.
   // NOTE: This is how mysqld prepare parameter values!
-  NdbQueryParamValue(const void* val);
+  NdbQueryParamValue(const void* val, bool shrinkVarChar= false);
 
   // C-type string, terminated by '\0'
   NdbQueryParamValue(const char* val);

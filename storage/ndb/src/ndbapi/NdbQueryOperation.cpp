@@ -819,8 +819,9 @@ int NdbQueryOperation::setInterpretedCode(NdbInterpretedCode& code) const
 enum Type
 {
   Type_NULL,
-  Type_raw,     // Raw data formated according to NdbRecord::Attr spec. 
-  Type_string,  // '\0' terminated C-type string, char/varchar data only
+  Type_raw,        // Raw data formated according to bound Column format.
+  Type_raw_shrink, // As Type_raw, except short VarChar has to be shrinked.
+  Type_string,     // '\0' terminated C-type string, char/varchar data only
   Type_Uint16,
   Type_Uint32,
   Type_Uint64,
@@ -844,7 +845,8 @@ NdbQueryParamValue::NdbQueryParamValue(const char* val) : m_type(Type_string)
 { m_value.string = val; }
 
 // Raw data
-NdbQueryParamValue::NdbQueryParamValue(const void* val) : m_type(Type_raw)
+NdbQueryParamValue::NdbQueryParamValue(const void* val, bool shrinkVarChar)
+ : m_type(shrinkVarChar ? Type_raw_shrink : Type_raw)
 { m_value.raw = val; }
 
 // NULL-value, also used as optional end marker 
@@ -918,6 +920,7 @@ int NdbQueryParamValue::getValue(const NdbParamOperandImpl& param,
       break;
 
     case Type_raw:
+      // 'Raw' data is readily formated according to the bound column 
       if (likely(column->m_arrayType == NDB_ARRAYTYPE_FIXED))
       {
         len  = maxSize;
@@ -933,23 +936,21 @@ int NdbQueryParamValue::getValue(const NdbParamOperandImpl& param,
       }
       else if (column->m_arrayType == NDB_ARRAYTYPE_SHORT_VAR)
       {
-        addr = m_value.string;
-        len  = strlen(m_value.string);
+        len  = *((Uint8*)(m_value.raw));
+        addr = ((Uint8*)m_value.raw)+1;
 
         DBUG_ASSERT(column->getType() == NdbDictionary::Column::Varchar ||
                     column->getType() == NdbDictionary::Column::Varbinary);
-        DBUG_ASSERT((size_t)column->getLength() == maxSize);
         if (unlikely(len > (size_t)column->getLength()))
           return QRY_CHAR_PARAMETER_TRUNCATED;
       }
       else if (column->m_arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
       {
-        addr = m_value.string;
-        len  = strlen(m_value.string);
+        len  = uint2korr((Uint8*)m_value.raw);
+        addr = ((Uint8*)m_value.raw)+2;
 
         DBUG_ASSERT(column->getType() == NdbDictionary::Column::Longvarchar ||
                     column->getType() == NdbDictionary::Column::Longvarbinary);
-        DBUG_ASSERT((size_t)column->getLength() == maxSize);
         if (unlikely(len > (size_t)column->getLength()))
           return QRY_CHAR_PARAMETER_TRUNCATED;
       }
@@ -958,6 +959,22 @@ int NdbQueryParamValue::getValue(const NdbParamOperandImpl& param,
         DBUG_ASSERT(0);
       }
       break;
+
+    case Type_raw_shrink:
+      // Only short VarChar can be shrinked
+      if (unlikely(column->m_arrayType != NDB_ARRAYTYPE_SHORT_VAR))
+        return QRY_PARAMETER_HAS_WRONG_TYPE;
+
+      DBUG_ASSERT(column->getType() == NdbDictionary::Column::Varchar ||
+                  column->getType() == NdbDictionary::Column::Varbinary);
+
+      len  = uint2korr((Uint8*)m_value.raw);
+      addr = ((Uint8*)m_value.raw)+2;
+
+      if (unlikely(len > (size_t)column->getLength()))
+        return QRY_CHAR_PARAMETER_TRUNCATED;
+      break;
+
     default:
       assert(false);
   }

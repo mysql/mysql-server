@@ -345,6 +345,7 @@ const char* get_referred_table_access_name(const Item_field* field_item){
   return field_item->field->table->alias;
 }
 
+
 /***************************************************************
  *  field_ref_is_join_pushable()
  *
@@ -603,23 +604,6 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
 } // field_ref_is_join_pushable
 
 
-/**
- * To be removed once we fixed MysqldShrinkVarchar
- */
-static
-bool
-is_short_varsize(KEY_PART_INFO * kp)
-{
-  Field *field= kp->field;
-  if (field->real_type() ==  MYSQL_TYPE_VARCHAR)
-  {
-    if (((Field_varstring*)field)->length_bytes == 1)
-      return true;
-  }
-  
-  return false;
-}
-
 uint
 ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
 {
@@ -732,11 +716,6 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
         const NdbQueryOperand* root_key[ha_pushed_join::MAX_KEY_PART+1]= {NULL};
         for (uint i= 0; i < key->key_parts; i++)
         {
-          /**
-           * TODO: Handle MysqldShrinkVarchar
-           */
-          if (is_short_varsize(key->key_part+i))
-            DBUG_RETURN(0);
           root_key[i]= builder.paramValue();
           if (unlikely(!root_key[i]))
             DBUG_RETURN(0);
@@ -866,8 +845,6 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
             DBUG_PRINT("info", ("Too many Field refs ( >= MAX_REFERRED_FIELDS) encountered"));
             DBUG_RETURN(0);
           }
-          if (is_short_varsize(key_part))
-            DBUG_RETURN(0);
           referred_fields[fld_refs++]= field_item->field;
           linked_key[i]= builder.paramValue();
         }
@@ -934,6 +911,40 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
 
   DBUG_RETURN(push_cnt);
 } // ha_ndbcluster::make_pushed_join()
+
+
+static
+bool
+is_shrinked_varchar(const Field *field)
+{
+  if (field->real_type() ==  MYSQL_TYPE_VARCHAR)
+  {
+    if (((Field_varstring*)field)->length_bytes == 1)
+      return true;
+  }
+  
+  return false;
+}
+
+
+NdbQuery*
+ha_ndbcluster::exec_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs)
+{
+  // There may be referrences to Field values from tables outside the scope of
+  // our pushed join: These are expected to be supplied as paramValues()
+  for (uint i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
+  {
+    Field* field= m_pushed_join->get_field_ref(i);
+    bool shrinkVarChar= is_shrinked_varchar(field);
+    DBUG_ASSERT(!field->is_real_null());
+    paramValues[paramOffs+i]= NdbQueryParamValue(field->ptr, shrinkVarChar);
+  }
+
+  DBUG_ASSERT(m_active_query==NULL);
+  m_active_query= m_thd_ndb->trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
+  return m_active_query;
+
+} // ha_ndbcluster::exec_pushed_join
 
 
 uint 
@@ -3986,39 +3997,30 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
 
   uint i;
   Uint32 offset= 0;
-  NdbQueryParamValue paramValues[ha_pushed_join::MAX_KEY_PART + ha_pushed_join::MAX_REFERRED_FIELDS]= {};
+  NdbQueryParamValue paramValues[ha_pushed_join::MAX_KEY_PART + ha_pushed_join::MAX_REFERRED_FIELDS];
 
   // Bind key values defining root of pushed join
   for (i = 0, key_part= key_def->key_part; i < key_def->key_parts; i++, key_part++)
   {
+    bool shrinkVarChar= is_shrinked_varchar(key_part->field);
+
     if (key_part->null_bit)                         // Column is nullable
     {
       DBUG_ASSERT(idx != table_share->primary_key); // PK can't be nullable
       DBUG_ASSERT(*(key+offset)==0);                // Null values not allowed in key
-      paramValues[i]= (void*)(key+offset+1);        // Value is imm. after NULL indicator
+                                                    // Value is imm. after NULL indicator
+      paramValues[i]= NdbQueryParamValue(key+offset+1,shrinkVarChar);
     }
     else                                            // Non-nullable column
     {
-      paramValues[i]= (void*)(key+offset);
+      paramValues[i]= NdbQueryParamValue(key+offset,shrinkVarChar);
     }
     offset+= key_part->store_length;
   }
 
-  // There may be referrences to Field values from tables outside the scope of
-  // our pushed join: These are expected to be supplied as paramValues()
-  for (i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
-  {
-    Field* field= m_pushed_join->get_field_ref(i);
-    DBUG_ASSERT(!field->is_real_null());
-    paramValues[key_def->key_parts+i]= (void*)(field->ptr);
-  }
-
-  DBUG_ASSERT(m_active_query==NULL);
-  NdbQuery* const query= 
-    m_thd_ndb->trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
+  NdbQuery* const query= exec_pushed_join(paramValues, key_def->key_parts);
   if (unlikely(!query))
     DBUG_RETURN(NULL);
-  m_active_query= query;
 
   for (uint i = 0; i < m_pushed_join->get_operation_count(); i++)
   {
@@ -4192,22 +4194,10 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     DBUG_ASSERT(m_index[active_index].index == expected_index);
 #endif
 
-    NdbQueryParamValue paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {};
-
-    // There may be referrences to Field values from tables outside the scope of
-    // our pushed join: These are expected to be supplied as paramValues()
-    for (uint i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
-    {
-      Field* field= m_pushed_join->get_field_ref(i);
-      DBUG_ASSERT(!field->is_real_null());
-      paramValues[i]= (void*)(field->ptr);
-    }
-
-    DBUG_ASSERT(m_active_query==NULL);
-    NdbQuery* const query= trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
+    NdbQueryParamValue paramValues[ha_pushed_join::MAX_REFERRED_FIELDS];
+    NdbQuery* const query= exec_pushed_join(paramValues);
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
-    m_active_query= query;
 
     if (sorted && query->getQueryOperation(0U)
                        ->setOrdering(descending ? NdbScanOrdering_descending
@@ -4418,22 +4408,10 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
                 m_pushed_join->get_table(0)->alias)
                );
 
-    NdbQueryParamValue paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {};
-
-    // There may be referrences to Field values from tables outside the scope of
-    // our pushed join: These are expected to be supplied as paramValues()
-    for (uint i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
-    {
-      Field* field= m_pushed_join->get_field_ref(i);
-      DBUG_ASSERT(!field->is_real_null());
-      paramValues[i]= (void*)(field->ptr);
-    }
-
-    DBUG_ASSERT(m_active_query==NULL);
-    NdbQuery* const query= trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
+    NdbQueryParamValue paramValues[ha_pushed_join::MAX_REFERRED_FIELDS];
+    NdbQuery* const query= exec_pushed_join(paramValues);
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
-    m_active_query= query;
 
     if (!key_info)
     {
@@ -12644,24 +12622,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
              m_pushed_join->get_operation_count() - 1,
              m_pushed_join->get_table(0)->alias));
 
-          NdbQueryParamValue paramValues[ha_pushed_join::MAX_REFERRED_FIELDS]= {};
-
-          // There may be referrences to Field values from tables outside the scope of
-          // our pushed join: These are expected to be supplied as paramValues()
-          for (uint i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
-          {
-            Field* field= m_pushed_join->get_field_ref(i);
-            DBUG_ASSERT(!field->is_real_null());
-            paramValues[i]= (void*)(field->ptr);
-          }
-
-          DBUG_ASSERT(m_active_query==NULL);
-          NdbQuery* const query= 
-            trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
-
+          NdbQueryParamValue paramValues[ha_pushed_join::MAX_REFERRED_FIELDS];
+          NdbQuery* const query= exec_pushed_join(paramValues);
           if (unlikely(!query))
             ERR_RETURN(trans->getNdbError());
-          m_active_query= query;
 
           if (sorted && query->getQueryOperation(0U)->setOrdering(NdbScanOrdering_ascending))
             ERR_RETURN(query->getNdbError());
