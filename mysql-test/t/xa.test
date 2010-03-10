@@ -136,7 +136,7 @@ INSERT INTO t1 VALUES(1);
 XA END 'x';
 XA COMMIT 'x' ONE PHASE;
 DROP TABLE t1;
-SET SESSION autocommit=DEFAULT;
+SET SESSION autocommit=1;
 
 --echo End of 5.0 tests
 
