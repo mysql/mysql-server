@@ -1,0 +1,68 @@
+-- source include/master-slave.inc
+-- source include/have_binlog_format_row.inc
+
+#
+# BUG#51787 Assertion `(n % 4) == 0' on slave upon INSERT into a table with UTF32
+#
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1 (c1 char(255) DEFAULT NULL, KEY c1 (c1)) DEFAULT CHARSET=utf32;
+SET SQL_LOG_BIN=1;
+
+-- connection slave
+
+-- let $reset_slave_type_conversions= 0
+
+SET @saved_slave_type_conversions= @@global.slave_type_conversions;
+
+#
+#  Force test to cover conversion execution path in the
+#  slave, which also makes use of sql_type method, thence
+#  can ultimately trigger the assertion.
+#
+-- source include/stop_slave.inc
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+-- source include/start_slave.inc
+
+SET SQL_LOG_BIN=0;
+CREATE TABLE t1 ( c1 varchar(255) DEFAULT NULL, KEY c1 (c1)) DEFAULT CHARSET=utf32;
+SET SQL_LOG_BIN=1;
+
+-- connection master
+
+INSERT INTO t1(c1) VALUES ('insert into t1');
+DROP TABLE t1;
+
+--sync_slave_with_master
+
+# assertion: the slave woul hit an/several assertions:
+#            before and during slave conversion procedure
+#            Now that is fixed, it wont.
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS= @saved_slave_type_conversions;
+-- source include/stop_slave.inc
+-- source include/start_slave.inc
+-- connection master
+
+#
+# BUG#51716: Char column with utf16 character set gives wrong padding on slave
+#
+
+CREATE TABLE t1(c1 CHAR(10) CHARACTER SET utf16 DEFAULT 'ola');
+INSERT INTO t1 VALUES ('abc');  # explicit value is inserted and encoded correctly
+INSERT INTO t1 VALUES ();       # default value is inserted and encoded correctly
+
+-- echo #### ON MASTER
+--query_vertical SELECT c1, hex(c1) from t1; 
+
+-- sync_slave_with_master
+
+-- echo #### ON SLAVE
+--query_vertical SELECT c1, hex(c1) FROM t1; 
+
+# assertion: tables don't differ
+-- let $diff_table_1=master:test.t1
+-- let $diff_table_2=slave:test.t1
+-- source include/diff_tables.inc
+
+DROP TABLE t1;
