@@ -3399,15 +3399,14 @@ ibuf_insert_low(
 		goto function_exit;
 	}
 
-	/* After this point, buf_pool_watch_occurred(space, page_no)
-	may still become true, but we do not have to care about it,
-	since we are holding a latch on the insert buffer leaf page
-	that contains buffered changes for (space, page_no).  If
-	buf_pool_watch_occurred(space, page_no) becomes true,
-	buf_page_io_complete() for (space, page_no) will have to
-	acquire a latch on the same insert buffer leaf page, which it
-	cannot do until we have buffered the IBUF_OP_DELETE and done
-	mtr_commit(&mtr) to release the latch. */
+	/* After this point, the page could still be loaded to the
+	buffer pool, but we do not have to care about it, since we are
+	holding a latch on the insert buffer leaf page that contains
+	buffered changes for (space, page_no).  If the page enters the
+	buffer pool, buf_page_io_complete() for (space, page_no) will
+	have to acquire a latch on the same insert buffer leaf page,
+	which it cannot do until we have buffered the IBUF_OP_DELETE
+	and done mtr_commit(&mtr) to release the latch. */
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a((buffered == 0) || ibuf_count_get(space, page_no));
@@ -3602,7 +3601,7 @@ ibuf_insert(
 		case IBUF_USE_INSERT:
 		case IBUF_USE_INSERT_DELETE_MARK:
 		case IBUF_USE_ALL:
-			goto notify;
+			goto check_watch;
 		case IBUF_USE_COUNT:
 			break;
 		}
@@ -3617,7 +3616,7 @@ ibuf_insert(
 		case IBUF_USE_INSERT_DELETE_MARK:
 		case IBUF_USE_ALL:
 			ut_ad(!no_counter);
-			goto notify;
+			goto check_watch;
 		case IBUF_USE_COUNT:
 			break;
 		}
@@ -3632,7 +3631,7 @@ ibuf_insert(
 		case IBUF_USE_DELETE:
 		case IBUF_USE_ALL:
 			ut_ad(!no_counter);
-			goto skip_notify;
+			goto skip_watch;
 		case IBUF_USE_COUNT:
 			break;
 		}
@@ -3644,23 +3643,39 @@ ibuf_insert(
 	/* unknown op or use */
 	ut_error;
 
-notify:
-	/* If another thread buffers an insert on a page while
-	the purge is in progress, the purge for the same page
-	must not be buffered, because it could remove a record
-	that was re-inserted later.
+check_watch:
+	/* If a thread attempts to buffer an insert on a page while a
+	purge is in progress on the same page, the purge must not be
+	buffered, because it could remove a record that was
+	re-inserted later.  For simplicity, we block the buffering of
+	all operations on a page that has a purge pending.
 
-	We do not call this in the IBUF_OP_DELETE case,
-	because that would always trigger the buffer pool
-	watch during purge and thus prevent the buffering of
-	delete operations.  We assume that IBUF_OP_DELETE
-	operations are only issued by the purge thread. */
+	We do not check this in the IBUF_OP_DELETE case, because that
+	would always trigger the buffer pool watch during purge and
+	thus prevent the buffering of delete operations.  We assume
+	that the issuer of IBUF_OP_DELETE has called
+	buf_pool_watch_set(space, page_no). */
 
-	buf_pool_mutex_enter();
-	buf_pool_watch_notify(space, page_no);
-	buf_pool_mutex_exit();
+	{
+		buf_page_t*	bpage;
+		ulint		fold = buf_page_address_fold(space, page_no);
 
-skip_notify:
+		buf_pool_mutex_enter();
+		bpage = buf_page_hash_get_low(space, page_no, fold);
+		buf_pool_mutex_exit();
+
+		if (UNIV_LIKELY_NULL(bpage)) {
+			/* A buffer pool watch has been set or the
+			page has been read into the buffer pool.
+			Do not buffer the request.  If a purge operation
+			is being buffered, have this request executed
+			directly on the page in the buffer pool after the
+			buffered entries for this page have been merged. */
+			return(FALSE);
+		}
+	}
+
+skip_watch:
 	entry_size = rec_get_converted_size(index, entry, 0);
 
 	if (entry_size

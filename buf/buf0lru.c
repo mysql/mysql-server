@@ -1454,8 +1454,10 @@ alloc:
 			buf_page_t*	prev_b	= UT_LIST_GET_PREV(LRU, b);
 			const ulint	fold	= buf_page_address_fold(
 				bpage->space, bpage->offset);
+			buf_page_t*	hash_b	= buf_page_hash_get_low(
+				bpage->space, bpage->offset, fold);
 
-			ut_a(!buf_page_hash_get(bpage->space, bpage->offset));
+			ut_a(!hash_b);
 
 			b->state = b->oldest_modification
 				? BUF_BLOCK_ZIP_DIRTY
@@ -1680,6 +1682,7 @@ buf_LRU_block_remove_hashed_page(
 	ibool		zip)	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
 {
+	ulint			fold;
 	const buf_page_t*	hashed_bpage;
 	ut_ad(bpage);
 	ut_ad(buf_pool_mutex_own());
@@ -1763,7 +1766,9 @@ buf_LRU_block_remove_hashed_page(
 		break;
 	}
 
-	hashed_bpage = buf_page_hash_get(bpage->space, bpage->offset);
+	fold = buf_page_address_fold(bpage->space, bpage->offset);
+	hashed_bpage = buf_page_hash_get_low(bpage->space, bpage->offset,
+					     fold);
 
 	if (UNIV_UNLIKELY(bpage != hashed_bpage)) {
 		fprintf(stderr,
@@ -1795,9 +1800,7 @@ buf_LRU_block_remove_hashed_page(
 	ut_ad(!bpage->in_zip_hash);
 	ut_ad(bpage->in_page_hash);
 	ut_d(bpage->in_page_hash = FALSE);
-	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash,
-		    buf_page_address_fold(bpage->space, bpage->offset),
-		    bpage);
+	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
 		ut_ad(!bpage->in_free_list);
