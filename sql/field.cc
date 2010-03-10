@@ -6613,8 +6613,7 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
     local_char_length= my_charpos(field_charset, from, from+length,
                                   local_char_length);
   set_if_smaller(length, local_char_length);
-  while (length && from[length-1] == field_charset->pad_char)
-    length--;
+  length= field_charset->cset->lengthsp(field_charset, (const char*) from, length);
 
   // Length always stored little-endian
   *to++= (uchar) length;
@@ -6680,7 +6679,7 @@ Field_string::unpack(uchar *to,
 
   memcpy(to, from, length);
   // Pad the string with the pad character of the fields charset
-  bfill(to + length, field_length - length, field_charset->pad_char);
+  field_charset->cset->fill(field_charset, (char*) to + length, field_length - length, field_charset->pad_char);
   return from+length;
 }
 
