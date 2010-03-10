@@ -37,9 +37,20 @@ LOCK TABLE bug38231 WRITE;
 TRUNCATE TABLE bug38231;
 
 -- connection con1
-# give time to TRUNCATE and others to be executed; without sleep, sometimes
-# UNLOCK executes before TRUNCATE
--- sleep 0.2
+# Wait for TRUNCATE and the other two LOCKs to be executed; without this,
+# sometimes UNLOCK executes before them. We assume there are no other
+# sessions executing at the same time with the same SQL commands.
+let $wait_condition =
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = 'TRUNCATE TABLE bug38231';
+-- source include/wait_condition.inc
+let $wait_condition =
+  SELECT COUNT(*) = 2 FROM information_schema.processlist
+  WHERE info = 'LOCK TABLE bug38231 WRITE';
+-- source include/wait_condition.inc
+# the above enables query log, re-disable it
+-- disable_query_log
+
 # this crashes the server if the bug is present
 UNLOCK TABLES;
 
