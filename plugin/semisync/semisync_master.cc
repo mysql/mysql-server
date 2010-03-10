@@ -679,7 +679,8 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
       abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
       abstime.max_timeout_msec= (long)wait_timeout_;
 #else
-      unsigned long diff_nsecs = start_ts.tv_nsec + wait_timeout_ * TIME_MILLION;
+      unsigned long long diff_nsecs =
+        start_ts.tv_nsec + (unsigned long long)wait_timeout_ * TIME_MILLION;
       abstime.tv_sec = start_ts.tv_sec;
       while (diff_nsecs >= TIME_BILLION)
       {
