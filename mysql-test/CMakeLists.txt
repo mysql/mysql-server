@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,16 +14,16 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 INSTALL(
- DIRECTORY .
- DESTINATION ${INSTALL_MYSQLTESTDIR}
- PATTERN "var/" EXCLUDE
- PATTERN "lib/My/SafeProcess" EXCLUDE
- PATTERN "CPack" EXCLUDE
- PATTERN "CMake*" EXCLUDE
- PATTERN "mtr.out*" EXCLUDE
- PATTERN ".cvsignore" EXCLUDE
- PATTERN "*.am" EXCLUDE
- PATTERN "*.in" EXCLUDE
+  DIRECTORY .
+  DESTINATION ${INSTALL_MYSQLTESTDIR}
+  PATTERN "var/" EXCLUDE
+  PATTERN "lib/My/SafeProcess" EXCLUDE
+  PATTERN "CPack" EXCLUDE
+  PATTERN "CMake*" EXCLUDE
+  PATTERN "mtr.out*" EXCLUDE
+  PATTERN ".cvsignore" EXCLUDE
+  PATTERN "*.am" EXCLUDE
+  PATTERN "*.in" EXCLUDE
 )
 
 
@@ -38,15 +38,15 @@ IF(NOT ${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 ENDIF()
 IF(UNIX)
   EXECUTE_PROCESS(
-  COMMAND chmod +x  mysql-test-run.pl
-  COMMAND ${CMAKE_COMMAND} -E create_symlink 
-   ./mysql-test-run.pl mtr
-  COMMAND ${CMAKE_COMMAND} -E create_symlink 
-   ./mysql-test-run.pl mysql-test-run
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMAND chmod +x  mysql-test-run.pl
+    COMMAND ${CMAKE_COMMAND} -E create_symlink 
+     ./mysql-test-run.pl mtr
+    COMMAND ${CMAKE_COMMAND} -E create_symlink 
+     ./mysql-test-run.pl mysql-test-run
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   ) 
   INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mtr 
-          ${CMAKE_CURRENT_BINARY_DIR}/mysql-test-run DESTINATION mysql-test)
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql-test-run DESTINATION mysql-test)
 ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Visual Studio")
@@ -67,25 +67,9 @@ ENDIF()
 
 SET(EXP --experimental=collections/default.experimental)
 IF(WIN32)
- SET(SET_ENV set)
+  SET(SET_ENV set)
 ELSE()
- SET(SET_ENV export)
-ENDIF()
-
-
-SET(MTR_FORCE perl ./mysql-test-run.pl --force)
-IF(EXISTS ${CMAKE_SOURCE_DIR}/mysql-test/suite/nist)
-  SET(TEST_NIST ${MTR_FORCE} --comment=nist suite=nist ${EXP} && 
-    ${MTR_FORCE} --comment=nist --force --suite=nist+ps ${EXP})
-ELSE()
-  SET(TEST_NIST echo "NIST tests not found")
-ENDIF()
-
-IF(WITH_EMBEDDED_SERVER)
- SET(TEST_EMBEDDED  ${MTR_FORCE} --comment=embedded  --timer  --embedded-server 
-   --skip-rpl --skip-ndbcluster $(EXP))
-ELSE()
- SET(TEST_EMBEDDED echo "Can not test embedded, not compiled in")
+  SET(SET_ENV export)
 ENDIF()
 
 SET(TEST_BT_START
@@ -96,30 +80,20 @@ SET(TEST_BT_START
 
 ADD_CUSTOM_TARGET(test-force
   ${TEST_BT_START}
-  COMMAND ${MTR_FORCE}
+  COMMAND perl ./mysql-test-run.pl --force ${EXP}
 )
 
-ADD_CUSTOM_TARGET(test-bt
-  ${TEST_BT_START}
-  COMMAND ${MTR_FORCE} --comment=normal --timer  --skip-ndbcluster --report-features ${EXP}
-  COMMAND ${MTR_FORCE} --comment=ps --timer	 --skip-ndbcluster --ps-protocol ${EXP}
-  COMMAND ${MTR_FORCE} --comment=funcs1+ps --ps-protocol --reorder --suite=funcs_1 ${EXP}
-  COMMAND ${MTR_FORCE} --comment=funcs2 --suite=funcs_2 ${EXP}
-  COMMAND ${MTR_FORCE} --comment=partitions --suite=parts ${EXP}
-  COMMAND ${MTR_FORCE} --comment=stress --suite=stress ${EXP}
-  COMMAND ${MTR_FORCE} --force --comment=jp --suite=jp ${EXP}
-  COMMAND ${TEST_NIST}
-  COMMAND ${TEST_EMBEDDED}
-)
-
-ADD_CUSTOM_TARGET(test-bt-fast
-  ${TEST_BT_START}
-  COMMAND ${MTR_FORCE}  --comment=ps  --timer  --skip-ndbcluster --ps-protocol --report-features ${EXP}
-  COMMAND ${MTR_FORCE} --comment=stress --suite=stress ${EXP}
-)
-
-ADD_CUSTOM_TARGET(test-bt-debug
-  ${TEST_BT_START}
-  COMMAND ${MTR_FORCE} --comment=debug --timer  --skip-ndbcluster --skip-rpl --report-features ${EXP}
-)
-
+FOREACH(collection test-bt test-bt-fast test-bt-debug)
+  IF(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/collections/${collection})
+    MESSAGE(FATAL_ERROR 
+      "${CMAKE_CURRENT_SOURCE_DIR}/collections/${collection} does not exist")
+  ENDIF()
+  SET(SCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/collections/${collection})
+  CONFIGURE_FILE(${CMAKE_SOURCE_DIR}/cmake/run_collection.cmake.in 
+    ${CMAKE_CURRENT_BINARY_DIR}/run_collection_${collection}.cmake @ONLY)
+  ADD_CUSTOM_TARGET(
+    ${collection}
+    COMMAND ${TEST_BT_START}
+    COMMAND ${CMAKE_COMMAND} -P run_collection_${collection}.cmake
+  )
+ENDFOREACH()
