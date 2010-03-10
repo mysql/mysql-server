@@ -1,3 +1,10 @@
+2010-03-10	The InnoDB Team
+
+	* log/log0recv.c:
+	Remove a bogus assertion about page numbers exceeding 0x90000000
+	in the redo log.  Abort when encountering a corrupted redo log
+	record, unless innodb_force_recovery is set.
+
 2010-03-09	The InnoDB Team
 
 	* handler/ha_innodb.cc:
