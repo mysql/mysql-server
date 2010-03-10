@@ -376,7 +376,7 @@ twiddle_32(Uint32 in)
 
 Uint32 readFromFile(FILE * f, Uint32 *toPtr, Uint32 sizeInWords) {
   Uint32 noOfReadWords;
-  if ( !(noOfReadWords = fread(toPtr, sizeof(Uint32), sizeInWords, f)) ) {
+  if ( !(noOfReadWords = (Uint32)fread(toPtr, sizeof(Uint32), sizeInWords, f))){
     ndbout << "Error reading file" << endl;
     doExit();
   } 

@@ -371,7 +371,7 @@ Tup_varsize_page::rebuild_index(Uint32* index_ptr)
     if ((* index_ptr) & FREE)
     {
       * index_ptr= FREE | next;
-      next= (end - index_ptr);
+      next= Uint32(end - index_ptr);
       * prev_ptr |= (next << PREV_SHIFT);
       prev_ptr = index_ptr;
     }

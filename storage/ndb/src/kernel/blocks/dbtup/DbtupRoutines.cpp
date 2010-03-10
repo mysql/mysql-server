@@ -3093,7 +3093,7 @@ Dbtup::read_lcp(const Uint32* inBuf, Uint32 inPos,
     varstart = (char*)req_struct->m_var_data[MM].m_offset_array_ptr;
     char * end = req_struct->m_var_data->m_dyn_data_ptr + 
       4*req_struct->m_var_data[MM].m_dyn_part_len;
-    varlen = end - varstart;
+    varlen = Uint32(end - varstart);
     varlen = (varlen + 3) & ~(Uint32)3;
     ndbassert(varlen < 32768);
   }
@@ -3194,7 +3194,7 @@ Dbtup::read_lcp_keys(Uint32 tableId,
         dst->m_var_len_offset= 1;
         dst->m_max_var_offset= varlen;
         
-        Uint32 dynlen = src_len - (dynstart - src_data);
+        Uint32 dynlen = Uint32(src_len - (dynstart - src_data));
         dst->m_dyn_data_ptr= (char*)dynstart;
         dst->m_dyn_part_len= dynlen;
       }

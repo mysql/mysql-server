@@ -779,8 +779,9 @@ RestoreDataIterator::free_bitfield_storage()
 Uint32
 RestoreDataIterator::get_free_bitfield_storage() const
 {
-  return (m_bitfield_storage_ptr + m_bitfield_storage_len) - 
-    m_bitfield_storage_curr_ptr;
+  
+  return Uint32((m_bitfield_storage_ptr + m_bitfield_storage_len) - 
+    m_bitfield_storage_curr_ptr);
 }
 
 Uint32*

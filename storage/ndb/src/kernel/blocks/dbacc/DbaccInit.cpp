@@ -80,7 +80,7 @@ void Dbacc::initRecords()
       const Uint32 cnt = 4 * chunks[i].cnt; // 4 8k per 32k
       Page8* base = (Page8*)pagePtr.p;
       ndbrequire(base >= page8);
-      const Uint32 ptrI = base - page8;
+      const Uint32 ptrI = Uint32(base - page8);
       for (Uint32 j = 0; j < cnt; j++)
       {
         refresh_watch_dog();
