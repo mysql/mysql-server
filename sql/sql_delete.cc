@@ -335,8 +335,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 	  InnoDB it can fail in a FOREIGN KEY error or an
 	  out-of-tablespace error.
 	*/
- 	error= 1;
-	break;
+        if (!select_lex->no_error)
+        {
+          error= 1;
+          break;
+        }
       }
     }
     else
