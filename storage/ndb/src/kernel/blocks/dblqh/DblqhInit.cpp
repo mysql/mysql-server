@@ -148,7 +148,7 @@ void Dblqh::initRecords()
       m_shared_page_pool.getPtr(pagePtr, chunks[i].ptrI);
       LogPageRecord * base = (LogPageRecord*)pagePtr.p;
       ndbrequire(base >= logPageRecord);
-      const Uint32 ptrI = base - logPageRecord;
+      const Uint32 ptrI = Uint32(base - logPageRecord);
 
       for (Uint32 j = 0; j<cnt; j++)
       {

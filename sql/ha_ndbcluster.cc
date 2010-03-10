@@ -1757,11 +1757,11 @@ ndb_set_record_specification(uint field_no,
                              const NdbDictionary::Table *ndb_table)
 {
   spec->column= ndb_table->getColumn(field_no);
-  spec->offset= table->field[field_no]->ptr - table->record[0];
+  spec->offset= Uint32(table->field[field_no]->ptr - table->record[0]);
   if (table->field[field_no]->null_ptr)
   {
     spec->nullbit_byte_offset=
-      table->field[field_no]->null_ptr - table->record[0];
+      Uint32(table->field[field_no]->null_ptr - table->record[0]);
     spec->nullbit_bit_in_byte=
       null_bit_mask_to_bit_number(table->field[field_no]->null_bit);
   }
@@ -1770,7 +1770,7 @@ ndb_set_record_specification(uint field_no,
     /* We need to store the position of the overflow bits. */
     const Field_bit* field_bit= static_cast<Field_bit*>(table->field[field_no]);
     spec->nullbit_byte_offset=
-      field_bit->bit_ptr - table->record[0];
+      Uint32(field_bit->bit_ptr - table->record[0]);
     spec->nullbit_bit_in_byte= field_bit->bit_ofs;
   }
   else
@@ -6991,7 +6991,7 @@ int ha_ndbcluster::create(const char *name,
   DBUG_PRINT("info",
              ("setFrm data: 0x%lx  len: %lu", (long) pack_data,
               (ulong) pack_length));
-  tab.setFrm(pack_data, pack_length);      
+  tab.setFrm(pack_data, Uint32(pack_length));      
   my_free((char*)data, MYF(0));
   my_free((char*)pack_data, MYF(0));
   
@@ -12872,7 +12872,7 @@ int ha_ndbcluster::alter_frm(THD *thd, const char *file,
     const NDBTAB *old_tab= alter_data->old_table;
     NdbDictionary::Table *new_tab= alter_data->new_table;
 
-    new_tab->setFrm(pack_data, pack_length);
+    new_tab->setFrm(pack_data, (Uint32)pack_length);
     if (dict->alterTableGlobal(*old_tab, *new_tab))
     {
       DBUG_PRINT("info", ("On-line alter of table %s failed", m_tabname));
