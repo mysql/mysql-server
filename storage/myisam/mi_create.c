@@ -175,6 +175,13 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     }
   }
 
+  /*
+    Don't set HA_OPTION_NULL_FIELDS if no checksums, as this flag makes
+    that file incompatible with MySQL.  This is ok, as this flag is only
+    used if one specifics table level checksums.
+  */
+  if (!(options & HA_OPTION_CHECKSUM))
+    options&= ~HA_OPTION_NULL_FIELDS;
   if (packed || (flags & HA_PACK_RECORD))
     options|=HA_OPTION_PACK_RECORD;	/* Must use packed records */
   /* We can't use checksum with static length rows */
