@@ -2053,6 +2053,8 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   ulong ret_value=0;
   DBUG_ENTER("get_form_pos");
 
+  LINT_INIT(buf);
+
   names=uint2korr(head+8);
   a_length=(names+2)*sizeof(char *);		/* Room for two extra */
 

@@ -735,10 +735,12 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
   }
 
   end=page+length-key_ref_length;
+  DBUG_ASSERT(page < end);
   *key='\0';
   length=0;
   lastpos=page;
-  while (page < end)
+
+  do
   {
     prevpos=lastpos; lastpos=page;
     last_length=length;
@@ -749,7 +751,8 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(0);
     }
-  }
+  } while (page < end);
+
   *return_key_length=last_length;
   *after_key=lastpos;
   DBUG_PRINT("exit",("returns: 0x%lx  page: 0x%lx  end: 0x%lx",

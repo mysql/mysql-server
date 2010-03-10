@@ -4102,7 +4102,7 @@ sub start_check_warnings ($$) {
      error         => $errfile,
      output        => $errfile,
      args          => \$args,
-     user_data     => $errfile,
+     user_data     => [$errfile, $mysqld],
      verbose       => $opt_verbose,
     );
   mtr_verbose("Started $proc");
@@ -4148,7 +4148,7 @@ sub check_warnings ($) {
     if ( delete $started{$proc->pid()} ) {
       # One check warning process returned
       my $res= $proc->exit_status();
-      my $err_file= $proc->user_data();
+      my ($err_file, $mysqld)= @{$proc->user_data()};
 
       if ( $res == 0 or $res == 62 ){
 
@@ -4184,7 +4184,8 @@ sub check_warnings ($) {
 	my $report= mtr_grab_file($err_file);
 	$tinfo->{comment}.=
 	  "Could not execute 'check-warnings' for ".
-	    "testcase '$tname' (res: $res):\n";
+	    "testcase '$tname' (res: $res) server: '".
+              $mysqld->name() .":\n";
 	$tinfo->{comment}.= $report;
 
 	$result= 2;
