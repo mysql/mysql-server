@@ -6045,9 +6045,11 @@ create_table_def(
 
 	if (error == DB_DUPLICATE_KEY) {
 		char buf[100];
-		innobase_convert_identifier(buf, sizeof buf,
-					    table_name, strlen(table_name),
-					    trx->mysql_thd, TRUE);
+		char* buf_end = innobase_convert_identifier(
+			buf, sizeof buf - 1, table_name, strlen(table_name),
+			trx->mysql_thd, TRUE);
+
+		*buf_end = '\0';
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), buf);
 	}
 
