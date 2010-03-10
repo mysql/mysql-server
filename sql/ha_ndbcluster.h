@@ -50,7 +50,7 @@ class ha_ndbcluster_cond;
 class Ndb_event_data;
 class NdbQuery;
 class NdbQueryOperationTypeWrapper;
-class ha_query_def_list;
+class ndb_query_def_list;
 
 namespace AQP{
   class Join_plan;
@@ -373,7 +373,7 @@ class Thd_ndb
     This is a list of NdbQueryDef objects that should be released when the
     transaction ends.
   */
-  const ha_query_def_list* m_query_defs;
+  const ndb_query_def_list* m_query_defs;
   bool valid_ndb(void);
   bool recycle_ndb(THD* thd);
   void release_query_defs();
@@ -896,7 +896,7 @@ private:
   ha_rows m_autoincrement_prefetch;
 
   // Joins pushed to NDB.
-  const class ha_pushed_join *m_pushed_join;  // Pushed join def. if I am parent
+  const class ndb_pushed_join *m_pushed_join; // Pushed join def. if I am parent
   const ha_ndbcluster *m_pushed_join_member;  // Parent handler instance
   bool m_disable_pushed_join;            // Execution allowed?
 
