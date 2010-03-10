@@ -142,7 +142,7 @@ class NdbGenericConstOperandImpl : public NdbConstOperandImpl
 {
 public:
   explicit NdbGenericConstOperandImpl (const void* value,
-                                       size_t len)
+                                       Uint32 len)
   : NdbConstOperandImpl(),
     m_value(value),
     m_len(len)
@@ -152,7 +152,7 @@ private:
   int convert2ColumnType();
 
   const void* const m_value;
-  const size_t m_len;
+  const Uint32 m_len;
 };
 
 ////////////////////////////////////////////////
@@ -565,7 +565,7 @@ NdbQueryBuilder::constValue(const char* value)
   return &constOp->m_interface;
 }
 NdbConstOperand* 
-NdbQueryBuilder::constValue(const void* value, size_t len)
+NdbQueryBuilder::constValue(const void* value, Uint32 len)
 {
   returnErrIf(value == 0, QRY_REQ_ARG_IS_NULL);
   NdbConstOperandImpl* constOp = new NdbGenericConstOperandImpl(value,len);
@@ -1004,7 +1004,7 @@ int NdbInt64ConstOperandImpl::convertUint8()
   if (unlikely(m_value < 0 || m_value > 0xFF))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.uint8 = (Uint8)m_value;
-  m_converted.len = sizeof(m_converted.val.uint8);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.uint8));
   return 0;
 }
 int NdbInt64ConstOperandImpl::convertInt8()
@@ -1012,7 +1012,7 @@ int NdbInt64ConstOperandImpl::convertInt8()
   if (unlikely(m_value < -0x80L || m_value > 0x7F))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.int8 = (Int8)m_value;
-  m_converted.len = sizeof(m_converted.val.int8);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.int8));
   return 0;
 }
 int NdbInt64ConstOperandImpl::convertUint16()
@@ -1020,7 +1020,7 @@ int NdbInt64ConstOperandImpl::convertUint16()
   if (unlikely(m_value < 0 || m_value > 0xFFFF))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.uint16 = (Uint16)m_value;
-  m_converted.len = sizeof(m_converted.val.uint16);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.uint16));
   return 0;
 }
 int NdbInt64ConstOperandImpl::convertInt16()
@@ -1028,7 +1028,7 @@ int NdbInt64ConstOperandImpl::convertInt16()
   if (unlikely(m_value < -0x8000L || m_value > 0x7FFF))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.int16 = (Int16)m_value;
-  m_converted.len = sizeof(m_converted.val.int16);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.int16));
   return 0;
 }
 int NdbInt64ConstOperandImpl::convertUint24()
@@ -1036,7 +1036,7 @@ int NdbInt64ConstOperandImpl::convertUint24()
   if (unlikely(m_value < 0 || m_value > 0xFFFFFF))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.uint32 = (Uint32)m_value;
-  m_converted.len = sizeof(m_converted.val.uint32);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.uint32));
   return 0;
 }
 int NdbInt64ConstOperandImpl::convertInt24()
@@ -1044,7 +1044,7 @@ int NdbInt64ConstOperandImpl::convertInt24()
   if (unlikely(m_value < -0x800000L || m_value > 0x7FFFFF))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.int32 = (Int32)m_value;
-  m_converted.len = sizeof(m_converted.val.int32);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.int32));
   return 0;
 }
 int NdbInt64ConstOperandImpl::convertUint32()
@@ -1052,7 +1052,7 @@ int NdbInt64ConstOperandImpl::convertUint32()
   if (unlikely(m_value < 0 || m_value > 0xFFFFFFFF))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.uint32 = (Uint32)m_value;
-  m_converted.len = sizeof(m_converted.val.uint32);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.uint32));
   return 0;
 }
 int NdbInt64ConstOperandImpl::convertInt32()
@@ -1060,39 +1060,39 @@ int NdbInt64ConstOperandImpl::convertInt32()
   if (unlikely(m_value < -((Int64)0x80000000L) || m_value > 0x7FFFFFFF))
     return QRY_NUM_OPERAND_RANGE;
   m_converted.val.int32 = (Int32)m_value;
-  m_converted.len = sizeof(m_converted.val.int32);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.int32));
   return 0;
 }
 int NdbInt64ConstOperandImpl::convertInt64()
 {
   m_converted.val.int64 = m_value;
-  m_converted.len = sizeof(m_converted.val.int64);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.int64));
   return 0;
 }
 int NdbInt64ConstOperandImpl::convertUint64()
 {
   m_converted.val.uint64 = (Uint64)m_value;
-  m_converted.len = sizeof(m_converted.val.uint64);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.uint64));
   return 0;
 }
 
 int NdbDoubleConstOperandImpl::convertFloat()
 {
   m_converted.val.flt = (float)m_value;
-  m_converted.len = sizeof(m_converted.val.flt);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.flt));
   return 0;
 }
 int NdbDoubleConstOperandImpl::convertDouble()
 {
   m_converted.val.dbl = m_value;
-  m_converted.len = sizeof(m_converted.val.dbl);
+  m_converted.len = static_cast<Uint32>(sizeof(m_converted.val.dbl));
   return 0;
 }
 
 int NdbCharConstOperandImpl::convertChar()
 {
-  size_t len = m_column->getLength();
-  size_t srclen = (m_value) ? strlen(m_value) : 0;
+  Uint32 len = m_column->getLength();
+  Uint32 srclen = (m_value) ? strlen(m_value) : 0;
   if (unlikely(srclen > len)) {
     // TODO: Truncates: May silently remove trailing spaces:
     return QRY_CHAR_OPERAND_TRUNCATED;
@@ -1113,8 +1113,8 @@ int NdbCharConstOperandImpl::convertChar()
 
 int NdbCharConstOperandImpl::convertVChar()
 {
-  size_t maxlen = m_column->getLength();
-  size_t len = (m_value) ? strlen(m_value) : 0;
+  Uint32 maxlen = m_column->getLength();
+  Uint32 len = (m_value) ? strlen(m_value) : 0;
   if (unlikely(len > maxlen)) {
     // TODO: Truncates: May silently remove trailing spaces:
     return QRY_CHAR_OPERAND_TRUNCATED;
@@ -1136,8 +1136,8 @@ int NdbCharConstOperandImpl::convertVChar()
 int
 NdbGenericConstOperandImpl::convert2ColumnType()
 {
-  size_t len = m_len;
-  size_t maxSize = (size_t)m_column->getSizeInBytes();
+  Uint32 len = m_len;
+  Uint32 maxSize = m_column->getSizeInBytes();
 
   char* dst = NULL;
 
@@ -1586,7 +1586,7 @@ NdbQueryOperationDefImpl::addColumnRef(const NdbColumnImpl* column)
  */
 class Uint16Sequence{
 public:
-  explicit Uint16Sequence(Uint32Buffer& buffer, size_t size):
+  explicit Uint16Sequence(Uint32Buffer& buffer, Uint32 size):
     m_seq(NULL),
     m_size(size),
     m_pos(0),
@@ -1635,8 +1635,8 @@ private:
   Uint16Sequence& operator=(Uint16Sequence&);
 
   Uint32*       m_seq;      // Preallocated buffer to append Uint16's into
-  const size_t  m_size;     // Uint16 words available in m_seq
-  size_t        m_pos;      // Current Uint16 word to fill in
+  const Uint32  m_size;     // Uint16 words available in m_seq
+  Uint32        m_pos;      // Current Uint16 word to fill in
   bool          m_finished; // Debug assert of correct call convention
 };
 
@@ -1663,7 +1663,7 @@ appendKeyPattern(Uint32Buffer& serializedDef,
   Uint32 appendedPattern = 0;
   if (keys[0]!=NULL)
   {
-    size_t startPos = serializedDef.getSize();
+    Uint32 startPos = serializedDef.getSize();
     serializedDef.append(0);     // Grab first word for length field, updated at end
     int paramCnt = 0;
     int keyNo = 0;
@@ -1703,7 +1703,7 @@ appendKeyPattern(Uint32Buffer& serializedDef,
     } while (key!=NULL);
 
     // Set total length of key pattern.
-    size_t len = serializedDef.getSize() - startPos -1;
+    Uint32 len = serializedDef.getSize() - startPos -1;
     serializedDef.put(startPos, (paramCnt << 16) | (len));
   }
 
@@ -1721,7 +1721,7 @@ NdbQueryPKLookupOperationDefImpl
 
   // Reserve memory for LookupNode, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
-  size_t startPos = serializedDef.getSize();
+  Uint32 startPos = serializedDef.getSize();
   serializedDef.alloc(QN_LookupNode::NodeSize);
   Uint32 requestInfo = 0;
 
@@ -1767,7 +1767,7 @@ NdbQueryPKLookupOperationDefImpl
   node->tableId = getTable().getObjectId();
   node->tableVersion = getTable().getObjectVersion();
   node->requestInfo = requestInfo;
-  const size_t length = serializedDef.getSize() - startPos;
+  const Uint32 length = serializedDef.getSize() - startPos;
   if (unlikely(length > 0xFFFF)) {
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   } else {
@@ -1803,7 +1803,7 @@ NdbQueryIndexOperationDefImpl
   {
     // Reserve memory for Index LookupNode, fill in contents later when
     // 'length' and 'requestInfo' has been calculated.
-    size_t startPos = serializedDef.getSize();
+    Uint32 startPos = serializedDef.getSize();
     serializedDef.alloc(QN_LookupNode::NodeSize);
     Uint32 requestInfo = 0;
 
@@ -1837,7 +1837,7 @@ NdbQueryIndexOperationDefImpl
     node->tableId = getIndex()->getObjectId();
     node->tableVersion = getIndex()->getObjectVersion();
     node->requestInfo = requestInfo;
-    const size_t length = serializedDef.getSize() - startPos;
+    const Uint32 length = serializedDef.getSize() - startPos;
     if (unlikely(length > 0xFFFF)) {
       return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
     } else {
@@ -1857,7 +1857,7 @@ NdbQueryIndexOperationDefImpl
 
   // Reserve memory for LookupNode, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
-  size_t startPos = serializedDef.getSize();
+  Uint32 startPos = serializedDef.getSize();
   serializedDef.alloc(QN_LookupNode::NodeSize);
   Uint32 requestInfo = 0;
 
@@ -1906,7 +1906,7 @@ NdbQueryIndexOperationDefImpl
   node->tableId = getTable().getObjectId();
   node->tableVersion = getTable().getObjectVersion();
   node->requestInfo = requestInfo;
-  const size_t length = serializedDef.getSize() - startPos;
+  const Uint32 length = serializedDef.getSize() - startPos;
   if (unlikely(length > 0xFFFF)) {
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   } else {
@@ -1936,7 +1936,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   m_isPrepared = true;
   // Reserve memory for ScanFragNode, fill in contents later when
   // 'length' and 'requestInfo' has been calculated.
-  size_t startPos = serializedDef.getSize();
+  Uint32 startPos = serializedDef.getSize();
   serializedDef.alloc(QN_ScanFragNode::NodeSize);
   Uint32 requestInfo = 0;
 
@@ -1973,7 +1973,7 @@ NdbQueryScanOperationDefImpl::serialize(Uint32Buffer& serializedDef,
   node->tableVersion = tableOrIndex.getObjectVersion();
   node->requestInfo = requestInfo;
 
-  const size_t length = serializedDef.getSize() - startPos;
+  const Uint32 length = serializedDef.getSize() - startPos;
   if (unlikely(length > 0xFFFF)) {
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
   } else {

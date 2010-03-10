@@ -333,7 +333,7 @@ private:
 
   /** The operations constituting this query.*/
   NdbQueryOperationImpl *m_operations;  // 'Array of ' OperationImpls
-  size_t m_countOperations;             // #elements in above array
+  Uint32 m_countOperations;             // #elements in above array
 
   /** Number of root fragments not yet completed within the current batch.*/
   Uint32 m_pendingFrags;
