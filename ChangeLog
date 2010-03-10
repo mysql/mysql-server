@@ -1,5 +1,17 @@
 2010-03-10	The InnoDB Team
 
+	* trx/trx0sys.c:
+	Fix Bug #51653 outdated reference to set-variable
+
+2010-03-10	The InnoDB Team
+
+	* handler/ha_innodb.cc, mysql-test/innodb_bug21704.result,
+	mysql-test/innodb_bug47621.result, mysql-test/innodb_bug47621.test:
+	Fix Bug #47621 MySQL and InnoDB data dictionaries will become
+	out of sync when renaming columns
+
+2010-03-10	The InnoDB Team
+
 	* handler/ha_innodb.cc:
 	Fix Bug #51356 Many Valgrind errors in error messages
 	with concurrent DDL
