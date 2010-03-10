@@ -86,6 +86,8 @@ The enumeration values must be 0..7. */
 enum buf_page_state {
 	BUF_BLOCK_ZIP_FREE = 0,		/*!< contains a free
 					compressed page */
+	BUF_BLOCK_POOL_WATCH = 0,	/*!< a sentinel for the buffer pool
+					watch, element of buf_pool_watch[] */
 	BUF_BLOCK_ZIP_PAGE,		/*!< contains a clean
 					compressed page */
 	BUF_BLOCK_ZIP_DIRTY,		/*!< contains a compressed
@@ -290,8 +292,8 @@ buf_page_get_gen(
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/*!< in: guessed block or NULL */
 	ulint		mode,	/*!< in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH, BUF_GET_NOWAIT or
-				BUF_GET_IF_IN_POOL_WATCH */
+				BUF_GET_NO_LATCH or
+				BUF_GET_IF_IN_POOL_OR_WATCH */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
@@ -994,6 +996,16 @@ Returns the control block of a file page, NULL if not found.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
+buf_page_hash_get_low(
+/*==================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset,	/*!< in: offset of the page within space */
+	ulint	fold);	/*!< in: buf_page_address_fold(space, offset) */
+/******************************************************************//**
+Returns the control block of a file page, NULL if not found.
+@return	block, NULL if not found or not a real control block */
+UNIV_INLINE
+buf_page_t*
 buf_page_hash_get(
 /*==============*/
 	ulint	space,	/*!< in: space id */
@@ -1015,30 +1027,48 @@ UNIV_INTERN
 ulint
 buf_get_free_list_len(void);
 /*=======================*/
+
 /********************************************************************
-Stop watching if the marked page is read in. */
+Determine if a block is a sentinel for a buffer pool watch.
+@return	TRUE if a sentinel for a buffer pool watch, FALSE if not */
+UNIV_INTERN
+ibool
+buf_pool_watch_is(
+/*==============*/
+	const buf_page_t*	bpage)	/*!< in: block */
+	__attribute__((nonnull, warn_unused_result));
+/****************************************************************//**
+Add watch for the given page to be read in. Caller must have the buffer pool
+@return NULL if watch set, block if the page is in the buffer pool */
+UNIV_INTERN
+buf_page_t*
+buf_pool_watch_set(
+/*===============*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset,	/*!< in: page number */
+	ulint	fold)	/*!< in: buf_page_address_fold(space, offset) */
+	__attribute__((warn_unused_result));
+/****************************************************************//**
+Stop watching if the page has been read in.
+buf_pool_watch_set(space,offset) must have returned NULL before. */
 UNIV_INTERN
 void
-buf_pool_watch_clear(void);
-/*======================*/
-/************************************************************************
-Set watch occurred flag. */
-UNIV_INTERN
-void
-buf_pool_watch_notify(
-/*==================*/
-	ulint	space,	/*!< in: space id of page read in */
-	ulint	offset);/*!< in: offset of page read in */
-/********************************************************************
-Check if the given page is being watched and has been read to the buffer
-pool.
-@return	TRUE if the given page is being watched and it has been read in */
+buf_pool_watch_unset(
+/*=================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset);/*!< in: page number */
+/****************************************************************//**
+Check if the page has been read in.
+This may only be called after buf_pool_watch_set(space,offset)
+has returned NULL and before invoking buf_pool_watch_unset(space,offset).
+@return	FALSE if the given page was not read in, TRUE if it was */
 UNIV_INTERN
 ibool
 buf_pool_watch_occurred(
 /*====================*/
-	ulint	space,		/*!< in: space id */
-	ulint	page_no);	/*!< in: page number */
+	ulint	space,	/*!< in: space id */
+	ulint	offset)	/*!< in: page number */
+	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 
 /** The common buffer control block structure
@@ -1079,7 +1109,10 @@ struct buf_page_struct{
 #endif /* !UNIV_HOTBACKUP */
 	page_zip_des_t	zip;		/*!< compressed page; zip.data
 					(but not the data it points to) is
-					also protected by buf_pool_mutex */
+					also protected by buf_pool_mutex;
+					state == BUF_BLOCK_ZIP_PAGE and
+					zip.data == NULL means an active
+					buf_pool_watch */
 #ifndef UNIV_HOTBACKUP
 	buf_page_t*	hash;		/*!< node used in chaining to
 					buf_pool->page_hash or
@@ -1434,18 +1467,7 @@ struct buf_pool_struct{
 					set to zero when a buffer block is
 					allocated */
 	/* @} */
-	/** @name Buffer pool watch
-	This is needed for implementing delete buffering. */
-	/* @{ */
-	/*--------------------------*/
-	ibool		watch_active;	/* if TRUE, set watch_occurred
-					when watch_space, watch_page_no
-					is read in. */
-	ulint		watch_space;	/* space id of watched page */
-	ulint		watch_page_no;	/* page number of watched page */
-	ibool		watch_occurred;	/* has watched page been read in */
-	/*--------------------------*/
-	/* @} */
+
 	/** @name LRU replacement algorithm fields */
 	/* @{ */
 
