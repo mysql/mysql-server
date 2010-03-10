@@ -628,7 +628,7 @@ private:
           important as deadlock detector won't work correctly
           otherwise. @sa Comment for MDL_lock::m_rwlock.
   */
-  rw_pr_lock_t m_waiting_for_lock;
+  mysql_prlock_t m_waiting_for_lock;
   MDL_ticket *m_waiting_for;
   uint m_deadlock_weight;
   /**
@@ -652,9 +652,9 @@ private:
 
   void will_wait_for(MDL_ticket *pending_ticket)
   {
-    rw_pr_wrlock(&m_waiting_for_lock);
+    mysql_prlock_wrlock(&m_waiting_for_lock);
     m_waiting_for= pending_ticket;
-    rw_pr_unlock(&m_waiting_for_lock);
+    mysql_prlock_unlock(&m_waiting_for_lock);
   }
 
   void set_deadlock_weight(uint weight)
@@ -670,9 +670,9 @@ private:
 
   void stop_waiting()
   {
-    rw_pr_wrlock(&m_waiting_for_lock);
+    mysql_prlock_wrlock(&m_waiting_for_lock);
     m_waiting_for= NULL;
-    rw_pr_unlock(&m_waiting_for_lock);
+    mysql_prlock_unlock(&m_waiting_for_lock);
   }
 
   void wait_reset()
