@@ -2562,7 +2562,7 @@ Dbspj::buildRowHeader(RowRef::Header * header, SegmentedSectionPtr ptr)
     * dst++ = tmp;
   } while (r0.step(len));
 
-  return header->m_len = (dst - save);
+  return header->m_len = static_cast<Uint32>(dst - save);
 }
 
 /**
@@ -2582,7 +2582,7 @@ Dbspj::buildRowHeader(RowRef::Header * header, const Uint32 *& src, Uint32 len)
     src += tmp_len;
   }
 
-  return header->m_len = (dst - save);
+  return header->m_len = static_cast<Uint32>(dst - save);
 }
 
 Uint32
@@ -3431,19 +3431,19 @@ void Dbspj::execDBINFO_SCANREQ(Signal *signal)
   case Ndbinfo::COUNTERS_TABLEID:
   {
     Ndbinfo::counter_entry counters[] = {
-      { Ndbinfo::READS_RECEIVED_COUNTER, 
+      { Ndbinfo::SPJ_READS_RECEIVED_COUNTER, 
         c_Counters.get_counter(CI_READS_RECEIVED) },
-      { Ndbinfo::LOCAL_READS_SENT_COUNTER, 
+      { Ndbinfo::SPJ_LOCAL_READS_SENT_COUNTER, 
         c_Counters.get_counter(CI_LOCAL_READS_SENT) },
-      { Ndbinfo::REMOTE_READS_SENT_COUNTER, 
+      { Ndbinfo::SPJ_REMOTE_READS_SENT_COUNTER, 
         c_Counters.get_counter(CI_REMOTE_READS_SENT) },
-      { Ndbinfo::TABLE_SCANS_RECEIVED_COUNTER, 
+      { Ndbinfo::SPJ_TABLE_SCANS_RECEIVED_COUNTER, 
         c_Counters.get_counter(CI_TABLE_SCANS_RECEIVED) },
-      { Ndbinfo::LOCAL_TABLE_SCANS_SENT_COUNTER, 
+      { Ndbinfo::SPJ_LOCAL_TABLE_SCANS_SENT_COUNTER, 
         c_Counters.get_counter(CI_LOCAL_TABLE_SCANS_SENT) },
-      { Ndbinfo::RANGE_SCANS_RECEIVED_COUNTER, 
+      { Ndbinfo::SPJ_RANGE_SCANS_RECEIVED_COUNTER, 
         c_Counters.get_counter(CI_RANGE_SCANS_RECEIVED) },
-      { Ndbinfo::LOCAL_RANGE_SCANS_SENT_COUNTER, 
+      { Ndbinfo::SPJ_LOCAL_RANGE_SCANS_SENT_COUNTER, 
         c_Counters.get_counter(CI_LOCAL_RANGE_SCANS_SENT) }
     };
     const size_t num_counters = sizeof(counters) / sizeof(counters[0]);

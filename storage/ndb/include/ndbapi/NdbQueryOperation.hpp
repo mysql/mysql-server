@@ -326,7 +326,7 @@ public:
   // Get parameter value with required typeconversion to fit format
   // expected by paramOp
   int getValue(const class NdbParamOperandImpl& paramOp,
-               const void*& addr, size_t& len,
+               const void*& addr, Uint32& len,
                bool& is_null) const;
 
 private:

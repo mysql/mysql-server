@@ -127,16 +127,16 @@ public:
    *       isMemoryExhausted. This will also cause further
    *       alloc() / append() to be skipped.
    */   
-  Uint32* alloc(size_t count) {
-    size_t reqSize = m_size+count;
+  Uint32* alloc(Uint32 count) {
+    Uint32 reqSize = m_size+count;
     if(unlikely(reqSize >= m_avail)) {
       if (unlikely(m_memoryExhausted)) {
         return NULL;
       }
 #if defined(TEST_Uint32Buffer)
-      size_t newSize = reqSize; // -> Always expand on next alloc
+      Uint32 newSize = reqSize; // -> Always expand on next alloc
 #else
-      size_t newSize = reqSize*2;
+      Uint32 newSize = reqSize*2;
 #endif
 //    ndbout << "Uint32Buffer::alloc() Extend buffer from: " << m_avail
 //           << ", to: " << newSize << endl;
@@ -183,7 +183,7 @@ public:
    */
   void append(const Uint32Buffer& src) {
     assert (!src.isMemoryExhausted());
-    size_t len = src.getSize();
+    Uint32 len = src.getSize();
     if (likely(len > 0)) {
       Uint32* dst = alloc(len);
       if (likely(dst!=NULL)) {
@@ -195,9 +195,10 @@ public:
   /** append 'src' *bytes* to end of this buffer
    *  Zero pad possibly odd bytes in last Uint32 word
    */
-  void append(const void* src, size_t len) {
+  void append(const void* src, Uint32 len) {
     if (likely(len > 0)) {
-      size_t wordCount = (len + sizeof(Uint32)-1) / sizeof(Uint32);
+      Uint32 wordCount = 
+        static_cast<Uint32>((len + sizeof(Uint32)-1) / sizeof(Uint32));
       Uint32* dst = alloc(wordCount);
       if (likely(dst!=NULL)) {
         // Make sure that any trailing bytes in the last word are zero.
@@ -226,7 +227,7 @@ public:
     return m_memoryExhausted;
   }
 
-  size_t getSize() const {
+  Uint32 getSize() const {
     return m_size;
   }
 
@@ -687,7 +688,7 @@ class NdbConstOperandImpl : public NdbQueryOperandImpl
 {
   friend class NdbQueryBuilder;  // Allow privat access from builder interface
 public:
-  size_t getSizeInBytes() const
+  Uint32 getSizeInBytes() const
   { return m_converted.len; }
   const void* getAddr() const
   { return likely(m_converted.buffer==NULL) ? &m_converted.val : m_converted.buffer; }
@@ -751,7 +752,7 @@ protected:
       if (buffer) delete[] ((char*)buffer);
     };
 
-    char* getCharBuffer(size_t size) {
+    char* getCharBuffer(Uint32 size) {
       char* dst = val.shortChar;
       if (unlikely(size > sizeof(val.shortChar))) {
         dst = new char[size];
@@ -780,7 +781,7 @@ protected:
       char      shortChar[maxShortChar];
     } val;
 
-    size_t len;
+    Uint32 len;
     void*  buffer;  // Optional; storage for converted value
   } m_converted;
 

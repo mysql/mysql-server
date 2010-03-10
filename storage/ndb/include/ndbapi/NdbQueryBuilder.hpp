@@ -306,7 +306,7 @@ public:
   // Fixed sized datatypes requires 'len' to exactly match the destination column.
   // Fixed sized character values should be spacepadded to required length.
   // Variable sized datatypes requires 'len <= max(len)'.
-  NdbConstOperand* constValue(const void* value, size_t len);
+  NdbConstOperand* constValue(const void* value, Uint32 len);
 
   // ::paramValue() is a placeholder for a parameter value to be specified when
   // a query instance is created for execution.
