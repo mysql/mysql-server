@@ -176,7 +176,17 @@ public:
     ABORTS_COUNTER = 7,
     TABLE_SCANS_COUNTER = 8,
     RANGE_SCANS_COUNTER = 9,
-    OPERATIONS_COUNTER = 10
+    OPERATIONS_COUNTER = 10,
+    /* Counters fetched from the SPJ block. The SPJ block is not in this 
+     * branch yet, but the numbers are reserved to prevent duplicate
+     * id numbers during future merging.*/
+    SPJ_READS_RECEIVED_COUNTER = 11,
+    SPJ_LOCAL_READS_SENT_COUNTER = 12,
+    SPJ_REMOTE_READS_SENT_COUNTER = 13,
+    SPJ_TABLE_SCANS_RECEIVED_COUNTER = 14,
+    SPJ_LOCAL_TABLE_SCANS_SENT_COUNTER = 15,
+    SPJ_RANGE_SCANS_RECEIVED_COUNTER = 16,
+    SPJ_LOCAL_RANGE_SCANS_SENT_COUNTER = 17
   };
 
   struct counter_entry {
