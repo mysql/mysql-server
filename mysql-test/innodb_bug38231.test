@@ -46,12 +46,15 @@ UNLOCK TABLES;
 # clean up
 
 -- connection con2
+-- reap
 UNLOCK TABLES;
 
 -- connection con3
+-- reap
 UNLOCK TABLES;
 
 -- connection default
+-- reap
 
 -- disconnect con1
 -- disconnect con2
