@@ -527,7 +527,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	p0,p4	ALL	NULL	NULL	NULL	NULL	910	Using where
 explain partitions select * from t2 where (a > 100 AND a < 600);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2,p3	ALL	NULL	NULL	NULL	NULL	910	Using where
+1	SIMPLE	t2	p0,p1,p2	ALL	NULL	NULL	NULL	NULL	910	Using where
 analyze table t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK

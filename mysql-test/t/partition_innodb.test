@@ -5,6 +5,8 @@
 drop table if exists t1;
 --enable_warnings
 
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
 #
 # Bug#47029: Crash when reorganize partition with subpartition
 #
@@ -296,6 +298,47 @@ CREATE TABLE t1 (a INT) ENGINE=InnoDB
   PARTITION BY list(a) (PARTITION p1 VALUES IN (1));
 CREATE INDEX i1 ON t1 (a);
 DROP TABLE t1;
-let $MYSQLD_DATADIR= `SELECT @@datadir`;
+
 # Before the fix it should show extra file like #sql-2405_2.par
 --list_files $MYSQLD_DATADIR/test/ *
+
+--echo #
+--echo # Bug#47343: InnoDB fails to clean-up after lock wait timeout on
+--echo #            REORGANIZE PARTITION
+--echo #
+CREATE TABLE t1 (
+	a INT,
+	b DATE NOT NULL,
+	PRIMARY KEY (a, b)
+) ENGINE=InnoDB
+PARTITION BY RANGE (a) (
+	PARTITION pMAX VALUES LESS THAN MAXVALUE
+) ;
+
+INSERT INTO t1 VALUES (1, '2001-01-01'), (2, '2002-02-02'), (3, '2003-03-03');
+
+START TRANSACTION;
+SELECT * FROM t1 FOR UPDATE;
+
+connect (con1, localhost, root,,);
+--echo # Connection con1
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 REORGANIZE PARTITION pMAX INTO
+(PARTITION p3 VALUES LESS THAN (3),
+ PARTITION pMAX VALUES LESS THAN MAXVALUE);
+SHOW WARNINGS;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 REORGANIZE PARTITION pMAX INTO
+(PARTITION p3 VALUES LESS THAN (3),
+ PARTITION pMAX VALUES LESS THAN MAXVALUE);
+SHOW WARNINGS;
+
+#Contents of the 'test' database directory:
+--list_files $MYSQLD_DATADIR/test
+
+disconnect con1;
+connection default;
+--echo # Connection default
+SELECT * FROM t1;
+COMMIT;
+DROP TABLE t1;

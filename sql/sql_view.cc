@@ -268,11 +268,11 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
     table (i.e. user will not get some privileges by view creation)
   */
   if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
-                    0, 0, is_schema_db(view->db)) ||
+                    0, 0, is_schema_db(view->db, view->db_length)) ||
        check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
       (mode != VIEW_CREATE_NEW &&
        (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
-                     0, 0, is_schema_db(view->db)) ||
+                     0, 0, is_schema_db(view->db, view->db_length)) ||
         check_grant(thd, DROP_ACL, view, 0, 1, 0))))
     goto err;
 
@@ -662,8 +662,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(views->source.str, views->source.length);
 
     int errcode= query_error_code(thd, TRUE);
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      buff.ptr(), buff.length(), FALSE, FALSE, errcode);
+    if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                          buff.ptr(), buff.length(), FALSE, FALSE, errcode))
+      res= TRUE;
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1652,7 +1653,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     /* if something goes wrong, bin-log with possible error code,
        otherwise bin-log with error code cleared.
      */
-    write_bin_log(thd, !something_wrong, thd->query(), thd->query_length());
+    if (write_bin_log(thd, !something_wrong, thd->query(), thd->query_length()))
+      something_wrong= 1;
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -1771,7 +1773,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
       {
         thd->mark_used_columns= save_mark_used_columns;
-        return TRUE;
+        DBUG_RETURN(TRUE);
       }
     }
     thd->mark_used_columns= save_mark_used_columns;

@@ -351,12 +351,22 @@ public:
 
 class Item_func_encode :public Item_str_func
 {
+private:
+  /** Whether the PRNG has already been seeded. */
+  bool seeded;
+protected:
+  SQL_CRYPT sql_crypt;
 public:
   Item_func_encode(Item *a, Item *seed):
     Item_str_func(a, seed) {}
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "encode"; }
+protected:
+  virtual void crypto_transform(String *);
+private:
+  /** Provide a seed for the PRNG sequence. */
+  bool seed();
 };
 
 
@@ -364,8 +374,9 @@ class Item_func_decode :public Item_func_encode
 {
 public:
   Item_func_decode(Item *a, Item *seed): Item_func_encode(a, seed) {}
-  String *val_str(String *);
   const char *func_name() const { return "decode"; }
+protected:
+  void crypto_transform(String *);
 };
 
 

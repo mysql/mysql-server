@@ -24,11 +24,6 @@
 #include <my_global.h>
 #include "m_string.h"
 
-#ifdef BAD_STRING_COMPILER
-#undef strmov
-#define strmov strmov_overlapp
-#endif
-
 #ifndef strmov
 
 #if !defined(MC68000) && !defined(DS90)
