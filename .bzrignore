@@ -3080,3 +3080,4 @@ libmysqld/keycaches.cc
 client/dtoa.c
 libmysqld/sql_audit.cc
 configure.am
+run_collection*.cmake
