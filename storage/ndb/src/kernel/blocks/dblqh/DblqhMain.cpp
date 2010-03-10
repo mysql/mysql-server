@@ -6049,7 +6049,9 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
   UintR tcurrentFilepage;
   TcConnectionrecPtr tmpTcConnectptr;
 
-  if (cnoOfLogPages < ZMIN_LOG_PAGES_OPERATION || ERROR_INSERTED(5032)) {
+  if (unlikely(cnoOfLogPages < ZMIN_LOG_PAGES_OPERATION) || 
+      ERROR_INSERTED(5032))
+  {
     jam();
     if(ERROR_INSERTED(5032)){
       CLEAR_ERROR_INSERT_VALUE;
@@ -6063,6 +6065,7 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
     abortErrorLab(signal);
     return;
   }//if
+
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   logPartPtr.i = regTcPtr->m_log_part_ptr_i;
   ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
@@ -6075,6 +6078,14 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
 /*       RESTART WHEN THE LOG PART IS FREE AGAIN.     */
 /* -------------------------------------------------- */
   LogPartRecord * const regLogPartPtr = logPartPtr.p;
+
+  if (unlikely(regLogPartPtr->m_tail_problem))
+  {
+    jam();
+    terrorCode = ZTAIL_PROBLEM_IN_LOG_ERROR;
+    abortErrorLab(signal);
+    return;
+  }
 
   if(ERROR_INSERTED(5033)){
     jam();
@@ -6124,14 +6135,8 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
       signal->theData[1] = logPartPtr.i;
       sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
     }//if
-    if (regLogPartPtr->logPartState == LogPartRecord::TAIL_PROBLEM) {
-      jam();
-      terrorCode = ZTAIL_PROBLEM_IN_LOG_ERROR;
-    } else {
-      ndbrequire(regLogPartPtr->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM);
-      jam();
-      terrorCode = ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR;
-    }//if
+    ndbrequire(regLogPartPtr->logPartState == LogPartRecord::FILE_CHANGE_PROBLEM);
+    terrorCode = ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR;
     abortErrorLab(signal);
     return;
   }//if
@@ -13510,19 +13515,7 @@ retry:
       if (tailmoved && mb > c_free_mb_tail_problem_limit)
       {
         jam();
-        if (sltLogPartPtr.p->logPartState == LogPartRecord::TAIL_PROBLEM)
-        {
-          if (sltLogPartPtr.p->firstLogQueue == RNIL)
-          {
-            jam();
-            sltLogPartPtr.p->logPartState = LogPartRecord::IDLE;
-          }
-          else
-          {
-            jam();
-            sltLogPartPtr.p->logPartState = LogPartRecord::ACTIVE;
-          }
-        }
+        sltLogPartPtr.p->m_tail_problem = false;
       }
       else if (!tailmoved && mb <= c_free_mb_force_lcp_limit)
       {
@@ -14559,7 +14552,6 @@ void Dblqh::timeSup(Signal* signal)
       return;
       break;
     case LogPartRecord::IDLE:
-    case LogPartRecord::TAIL_PROBLEM:
       jam();
 /*---------------------------------------------------------------------------*/
 /* IDLE AND NOT WRITTEN TO DISK IN A SECOND. ALSO WHEN WE HAVE A TAIL PROBLEM*/
@@ -14865,6 +14857,15 @@ void Dblqh::writePageZeroLab(Signal* signal, Uint32 from)
     {
       jam();
       logPartPtr.p->logPartState = LogPartRecord::ACTIVE;
+      if (logPartPtr.p->LogLqhKeyReqSent == ZFALSE)
+      {
+        jam();
+
+        logPartPtr.p->LogLqhKeyReqSent = ZTRUE;
+        signal->theData[0] = ZLOG_LQHKEYREQ;
+        signal->theData[1] = logPartPtr.i;
+        sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+      }
     }
   }
   
@@ -16273,6 +16274,26 @@ Dblqh::rebuildOrderedIndexes(Signal* signal, Uint32 tableId)
   if (tableId >= ctabrecFileSize)
   {
     jam();
+
+    for (logPartPtr.i = 0; logPartPtr.i < clogPartFileSize; logPartPtr.i++)
+    {
+      jam();
+      ptrCheckGuard(logPartPtr, clogPartFileSize, logPartRecord);
+      LogFileRecordPtr logFile;
+      logFile.i = logPartPtr.p->currentLogfile;
+      ptrCheckGuard(logFile, clogFileFileSize, logFileRecord);
+      
+      LogPosition head = { logFile.p->fileNo, logFile.p->currentMbyte };
+      LogPosition tail = { logPartPtr.p->logTailFileNo, 
+                           logPartPtr.p->logTailMbyte};
+      Uint64 mb = free_log(head, tail, logPartPtr.p->noLogFiles, clogFileSize);
+      if (mb <= c_free_mb_tail_problem_limit)
+      {
+        jam();
+        logPartPtr.p->m_tail_problem = true;
+      }
+    }
+    
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
     conf->senderData = cstartRecReqData;
@@ -16390,8 +16411,29 @@ void Dblqh::execSTART_EXEC_SR(Signal* signal)
       execFragReq->fragId = fragptr.p->fragId;
       execFragReq->startGci = fragptr.p->srStartGci[index];
       execFragReq->lastGci = fragptr.p->srLastGci[index];
-      sendSignal(ref, GSN_EXEC_FRAGREQ, signal, 
-		 ExecFragReq::SignalLength, JBB);
+      execFragReq->dst = ref;
+
+      if (isNdbMtLqh())
+      {
+        jam();
+        // send via local proxy
+        sendSignal(DBLQH_REF, GSN_EXEC_FRAGREQ, signal,
+                   ExecFragReq::SignalLength, JBB);
+      }
+      else if (ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
+      {
+        jam();
+        // send via remote proxy
+        sendSignal(numberToRef(DBLQH, refToNode(ref)), GSN_EXEC_FRAGREQ, signal,
+                   ExecFragReq::SignalLength, JBB);
+      }
+      else
+      {
+        jam();
+        // send direct
+        sendSignal(ref, GSN_EXEC_FRAGREQ, signal,
+                   ExecFragReq::SignalLength, JBB);
+      }
     }
     signal->theData[0] = next;
     sendSignal(cownref, GSN_START_EXEC_SR, signal, 1, JBB);
@@ -16481,13 +16523,6 @@ void Dblqh::execEXEC_FRAGREF(Signal* signal)
 /* *************** */
 void Dblqh::execEXEC_SRCONF(Signal* signal) 
 {
-  // wl4391_todo workaround until timing fixed
-  if (cnoOutstandingExecFragReq != 0) {
-    ndbout << "delay: reqs=" << cnoOutstandingExecFragReq << endl;
-    sendSignalWithDelay(reference(), GSN_EXEC_SRCONF,
-                        signal, 10, signal->getLength());
-    return;
-  }
   jamEntry();
   Uint32 nodeId = signal->theData[0];
   arrGuard(nodeId, MAX_NDB_NODES);
@@ -16502,12 +16537,29 @@ void Dblqh::execEXEC_SRCONF(Signal* signal)
      * ----------------------------------------------------------------- */
     return;
   }
+
+  if (cnoOutstandingExecFragReq != 0)
+  {
+    /**
+     * This should now have been fixed!
+     *   but could occur during upgrade
+     * old: wl4391_todo workaround until timing fixed
+     */
+    jam();
+    ndbassert(false);
+    m_sr_exec_sr_conf.clear(nodeId);
+    ndbout << "delay: reqs=" << cnoOutstandingExecFragReq << endl;
+    sendSignalWithDelay(reference(), GSN_EXEC_SRCONF,
+                        signal, 10, signal->getLength());
+    return;
+  }
   
   /* ------------------------------------------------------------------------
    *  CLEAR NODE SYSTEM RESTART EXECUTION STATE TO PREPARE FOR NEXT PHASE OF
    *  LOG EXECUTION.
    * ----------------------------------------------------------------------- */
   m_sr_exec_sr_conf.clear();
+  cnoFragmentsExecSr = 0;
 
   /* ------------------------------------------------------------------------
    *  NOW CHECK IF ALL FRAGMENTS IN THIS PHASE HAVE COMPLETED. IF SO START THE
@@ -17973,9 +18025,31 @@ void Dblqh::sendExecConf(Signal* signal)
       ndbrequire(fragptr.p->execSrNoReplicas - 1 < MAX_REPLICAS);
       for (Uint32 i = 0; i < fragptr.p->execSrNoReplicas; i++) {
         jam();
+        Uint32 ref = fragptr.p->execSrBlockref[i];
         signal->theData[0] = fragptr.p->execSrUserptr[i];
-        sendSignal(fragptr.p->execSrBlockref[i], GSN_EXEC_FRAGCONF, 
-		   signal, 1, JBB);
+
+        if (isNdbMtLqh())
+        {
+          jam();
+          // send via own proxy
+          signal->theData[1] = ref;
+          sendSignal(DBLQH_REF, GSN_EXEC_FRAGCONF, signal, 2, JBB);
+        }
+        else if (refToInstance(ref) != 0 &&
+                 ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
+        {
+          jam();
+          // send via remote proxy
+          signal->theData[1] = ref;
+          sendSignal(numberToRef(refToMain(ref), refToNode(ref)),
+                     GSN_EXEC_FRAGCONF, signal, 2, JBB);
+        }
+        else
+        {
+          jam();
+          // send direct
+          sendSignal(ref, GSN_EXEC_FRAGCONF, signal, 1, JBB);
+        }
       }//for
       fragptr.p->execSrNoReplicas = 0;
     }//if
@@ -19186,6 +19260,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     csrPhasesCompleted = 0;
     cmasterDihBlockref = 0;
     cnoFragmentsExecSr = 0;
+    cnoOutstandingExecFragReq = 0;
     clcpCompletedState = LCP_IDLE;
     csrExecUndoLogState = EULS_IDLE;
     c_lcpId = 0;
@@ -19497,7 +19572,7 @@ void Dblqh::initLogpart(Signal* signal)
   logPartPtr.p->headFileNo = ZNIL;
   logPartPtr.p->headPageNo = ZNIL;
   logPartPtr.p->headPageIndex = ZNIL;
-
+  logPartPtr.p->m_tail_problem = 0;
   NdbLogPartInfo lpinfo(instance());
   ndbrequire(lpinfo.partCount == clogPartFileSize);
   logPartPtr.p->logPartNo = lpinfo.partNo[logPartPtr.i];
@@ -20506,8 +20581,6 @@ void Dblqh::sendLqhTransconf(Signal* signal, LqhTransConf::OperationStatus stat)
  * ------------------------------------------------------------------------- */
 void Dblqh::startExecSr(Signal* signal) 
 {
-  cnoFragmentsExecSr = 0;
-  cnoOutstandingExecFragReq = 0;
   c_lcp_complete_fragments.first(fragptr);
   signal->theData[0] = fragptr.i;
   sendSignal(cownref, GSN_START_EXEC_SR, signal, 1, JBB);
@@ -20914,10 +20987,12 @@ void Dblqh::writeNextLog(Signal* signal)
       char buf[100];
       BaseString::snprintf(buf, sizeof(buf), 
                            "Head/Tail met in REDO log, logpart: %u"
-                           " file: %u mbyte: %u",
+                           " file: %u mbyte: %u state: %u tail-problem: %u",
                            logPartPtr.i,
                            logFilePtr.p->fileNo,
-                           logFilePtr.p->currentMbyte);
+                           logFilePtr.p->currentMbyte,
+                           logPartPtr.p->logPartState,
+                           logPartPtr.p->m_tail_problem);
 
 
       signal->theData[0] = 2398;
@@ -20949,14 +21024,10 @@ void Dblqh::writeNextLog(Signal* signal)
     force_lcp(signal);
   }
 
-  if (logPartPtr.p->logPartState == LogPartRecord::ACTIVE ||
-      logPartPtr.p->logPartState == LogPartRecord::IDLE)
+  if (free_mb <= c_free_mb_tail_problem_limit)
   {
-    if (free_mb <= c_free_mb_tail_problem_limit)
-    {
-      jam();
-      logPartPtr.p->logPartState = LogPartRecord::TAIL_PROBLEM;
-    }
+    jam();
+    logPartPtr.p->m_tail_problem = true;
   }
 }//Dblqh::writeNextLog()
 

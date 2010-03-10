@@ -15672,7 +15672,7 @@ void Dbtc::executeReorgTrigger(Signal* signal,
     copy(dataPtr, attrValues, attrIter[1], aiInThis);
   }
 
-  Uint32 len = (dataPtr - start);
+  Uint32 len = Uint32(dataPtr - start);
 
   /**
    * Fix savepoint id -

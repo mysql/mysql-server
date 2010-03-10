@@ -1,0 +1,156 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+set @saved_slave_type_conversions = @@global.slave_type_conversions;
+CREATE TABLE type_conversions (
+TestNo INT AUTO_INCREMENT PRIMARY KEY,
+Source TEXT,
+Target TEXT,
+Flags TEXT,
+On_Master TEXT,
+On_Slave TEXT,
+Expected TEXT,
+Compare INT,
+Error TEXT);
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='';
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+ALL_NON_LOSSY
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY';
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+ALL_LOSSY
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY';
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+ALL_LOSSY,ALL_NON_LOSSY
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_LOSSY,ALL_NON_LOSSY,NONEXISTING_BIT';
+ERROR 42000: Variable 'slave_type_conversions' can't be set to the value of 'NONEXISTING_BIT'
+SELECT @@global.slave_type_conversions;
+@@global.slave_type_conversions
+ALL_LOSSY,ALL_NON_LOSSY
+SET GLOBAL SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+**** Running tests with @@SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY' ****
+**** Resetting master and slave ****
+include/stop_slave.inc
+RESET SLAVE;
+RESET MASTER;
+include/start_slave.inc
+**** Result of conversions ****
+Source_Type	Target_Type	All_Type_Conversion_Flags	Value_On_Slave
+GEOMETRY       	GEOMETRY       	ALL_NON_LOSSY            	<Correct value>
+BIT(1)         	BIT(1)         	ALL_NON_LOSSY            	<Correct value>
+DATE           	DATE           	ALL_NON_LOSSY            	<Correct value>
+ENUM('master','	ENUM('master','	ALL_NON_LOSSY            	<Correct value>
+CHAR(10)       	ENUM('master','	ALL_NON_LOSSY            	<Correct error>
+CHAR(10)       	SET('master','s	ALL_NON_LOSSY            	<Correct error>
+ENUM('master','	CHAR(10)       	ALL_NON_LOSSY            	<Correct error>
+SET('master','s	CHAR(10)       	ALL_NON_LOSSY            	<Correct error>
+SET('master','s	SET('master','s	ALL_NON_LOSSY            	<Correct value>
+SET('master','s	SET('master','s	ALL_NON_LOSSY            	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_NON_LOSSY            	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_NON_LOSSY            	<Correct value>
+SET('0','1','2'	SET('0','1','2'	ALL_NON_LOSSY            	<Correct error>
+SET('0','1','2'	SET('0','1','2'	ALL_NON_LOSSY            	<Correct error>
+TINYINT        	TINYINT        	ALL_NON_LOSSY            	<Correct value>
+TINYINT        	SMALLINT       	ALL_NON_LOSSY            	<Correct value>
+TINYINT        	MEDIUMINT      	ALL_NON_LOSSY            	<Correct value>
+TINYINT        	INT            	ALL_NON_LOSSY            	<Correct value>
+TINYINT        	BIGINT         	ALL_NON_LOSSY            	<Correct value>
+SMALLINT       	TINYINT        	ALL_NON_LOSSY            	<Correct error>
+SMALLINT       	TINYINT        	ALL_NON_LOSSY            	<Correct error>
+SMALLINT       	TINYINT UNSIGNE	ALL_NON_LOSSY            	<Correct error>
+SMALLINT       	SMALLINT       	ALL_NON_LOSSY            	<Correct value>
+SMALLINT       	MEDIUMINT      	ALL_NON_LOSSY            	<Correct value>
+SMALLINT       	INT            	ALL_NON_LOSSY            	<Correct value>
+SMALLINT       	BIGINT         	ALL_NON_LOSSY            	<Correct value>
+MEDIUMINT      	TINYINT        	ALL_NON_LOSSY            	<Correct error>
+MEDIUMINT      	TINYINT        	ALL_NON_LOSSY            	<Correct error>
+MEDIUMINT      	TINYINT UNSIGNE	ALL_NON_LOSSY            	<Correct error>
+MEDIUMINT      	SMALLINT       	ALL_NON_LOSSY            	<Correct error>
+MEDIUMINT      	MEDIUMINT      	ALL_NON_LOSSY            	<Correct value>
+MEDIUMINT      	INT            	ALL_NON_LOSSY            	<Correct value>
+MEDIUMINT      	BIGINT         	ALL_NON_LOSSY            	<Correct value>
+INT            	TINYINT        	ALL_NON_LOSSY            	<Correct error>
+INT            	TINYINT        	ALL_NON_LOSSY            	<Correct error>
+INT            	TINYINT UNSIGNE	ALL_NON_LOSSY            	<Correct error>
+INT            	SMALLINT       	ALL_NON_LOSSY            	<Correct error>
+INT            	MEDIUMINT      	ALL_NON_LOSSY            	<Correct error>
+INT            	INT            	ALL_NON_LOSSY            	<Correct value>
+INT            	BIGINT         	ALL_NON_LOSSY            	<Correct value>
+BIGINT         	TINYINT        	ALL_NON_LOSSY            	<Correct error>
+BIGINT         	SMALLINT       	ALL_NON_LOSSY            	<Correct error>
+BIGINT         	MEDIUMINT      	ALL_NON_LOSSY            	<Correct error>
+BIGINT         	INT            	ALL_NON_LOSSY            	<Correct error>
+BIGINT         	BIGINT         	ALL_NON_LOSSY            	<Correct value>
+CHAR(20)       	CHAR(20)       	ALL_NON_LOSSY            	<Correct value>
+CHAR(20)       	CHAR(30)       	ALL_NON_LOSSY            	<Correct value>
+CHAR(20)       	CHAR(10)       	ALL_NON_LOSSY            	<Correct error>
+CHAR(20)       	VARCHAR(20)    	ALL_NON_LOSSY            	<Correct value>
+CHAR(20)       	VARCHAR(30)    	ALL_NON_LOSSY            	<Correct value>
+CHAR(20)       	VARCHAR(10)    	ALL_NON_LOSSY            	<Correct error>
+CHAR(20)       	TINYTEXT       	ALL_NON_LOSSY            	<Correct value>
+CHAR(20)       	TEXT           	ALL_NON_LOSSY            	<Correct value>
+CHAR(20)       	MEDIUMTEXT     	ALL_NON_LOSSY            	<Correct value>
+CHAR(20)       	LONGTEXT       	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(20)    	VARCHAR(20)    	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(20)    	VARCHAR(30)    	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(20)    	VARCHAR(10)    	ALL_NON_LOSSY            	<Correct error>
+VARCHAR(20)    	CHAR(30)       	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(20)    	CHAR(10)       	ALL_NON_LOSSY            	<Correct error>
+VARCHAR(20)    	TINYTEXT       	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(20)    	TEXT           	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(20)    	MEDIUMTEXT     	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(20)    	LONGTEXT       	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(500)   	VARCHAR(500)   	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(500)   	VARCHAR(510)   	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(500)   	VARCHAR(255)   	ALL_NON_LOSSY            	<Correct error>
+VARCHAR(500)   	TINYTEXT       	ALL_NON_LOSSY            	<Correct error>
+VARCHAR(500)   	TEXT           	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(500)   	MEDIUMTEXT     	ALL_NON_LOSSY            	<Correct value>
+VARCHAR(500)   	LONGTEXT       	ALL_NON_LOSSY            	<Correct value>
+TINYTEXT       	VARCHAR(500)   	ALL_NON_LOSSY            	<Correct value>
+TEXT           	VARCHAR(500)   	ALL_NON_LOSSY            	<Correct error>
+MEDIUMTEXT     	VARCHAR(500)   	ALL_NON_LOSSY            	<Correct error>
+LONGTEXT       	VARCHAR(500)   	ALL_NON_LOSSY            	<Correct error>
+TINYTEXT       	CHAR(255)      	ALL_NON_LOSSY            	<Correct value>
+TINYTEXT       	CHAR(250)      	ALL_NON_LOSSY            	<Correct error>
+TEXT           	CHAR(255)      	ALL_NON_LOSSY            	<Correct error>
+MEDIUMTEXT     	CHAR(255)      	ALL_NON_LOSSY            	<Correct error>
+LONGTEXT       	CHAR(255)      	ALL_NON_LOSSY            	<Correct error>
+TINYTEXT       	TINYTEXT       	ALL_NON_LOSSY            	<Correct value>
+TINYTEXT       	TEXT           	ALL_NON_LOSSY            	<Correct value>
+TEXT           	TINYTEXT       	ALL_NON_LOSSY            	<Correct error>
+DECIMAL(10,5)  	DECIMAL(10,5)  	ALL_NON_LOSSY            	<Correct value>
+DECIMAL(10,5)  	DECIMAL(10,6)  	ALL_NON_LOSSY            	<Correct value>
+DECIMAL(10,5)  	DECIMAL(11,5)  	ALL_NON_LOSSY            	<Correct value>
+DECIMAL(10,5)  	DECIMAL(11,6)  	ALL_NON_LOSSY            	<Correct value>
+DECIMAL(10,5)  	DECIMAL(10,4)  	ALL_NON_LOSSY            	<Correct error>
+DECIMAL(10,5)  	DECIMAL(9,5)   	ALL_NON_LOSSY            	<Correct error>
+DECIMAL(10,5)  	DECIMAL(9,4)   	ALL_NON_LOSSY            	<Correct error>
+FLOAT          	DECIMAL(10,5)  	ALL_NON_LOSSY            	<Correct error>
+DOUBLE         	DECIMAL(10,5)  	ALL_NON_LOSSY            	<Correct error>
+DECIMAL(10,5)  	FLOAT          	ALL_NON_LOSSY            	<Correct error>
+DECIMAL(10,5)  	DOUBLE         	ALL_NON_LOSSY            	<Correct error>
+FLOAT          	FLOAT          	ALL_NON_LOSSY            	<Correct value>
+DOUBLE         	DOUBLE         	ALL_NON_LOSSY            	<Correct value>
+FLOAT          	DOUBLE         	ALL_NON_LOSSY            	<Correct value>
+DOUBLE         	FLOAT          	ALL_NON_LOSSY            	<Correct error>
+BIT(5)         	BIT(5)         	ALL_NON_LOSSY            	<Correct value>
+BIT(5)         	BIT(6)         	ALL_NON_LOSSY            	<Correct value>
+BIT(6)         	BIT(5)         	ALL_NON_LOSSY            	<Correct error>
+BIT(5)         	BIT(12)        	ALL_NON_LOSSY            	<Correct value>
+BIT(12)        	BIT(5)         	ALL_NON_LOSSY            	<Correct error>
+DROP TABLE type_conversions;
+DROP TABLE t1;
+set global slave_type_conversions = @saved_slave_type_conversions;

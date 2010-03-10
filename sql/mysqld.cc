@@ -534,6 +534,8 @@ ulong slave_net_timeout, slave_trans_retries;
 ulong slave_exec_mode_options;
 const char *slave_exec_mode_str= "STRICT";
 my_bool slave_allow_batching;
+ulong slave_type_conversions_options;
+const char *slave_type_conversions_default= "";
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
@@ -5756,6 +5758,7 @@ enum options_mysqld
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   OPT_OLD_MODE,
   OPT_SLAVE_EXEC_MODE,
+  OPT_SLAVE_TYPE_CONVERSIONS,
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
   OPT_IGNORE_BUILTIN_INNODB
@@ -6544,6 +6547,15 @@ replicating a LOAD DATA INFILE command.",
   {"slave-exec-mode", OPT_SLAVE_EXEC_MODE,
    "Modes for how replication events should be executed.  Legal values are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode, replication will not stop for operations that are idempotent. In STRICT mode, replication will stop on any unexpected difference between the master and the slave.",
    (uchar**) &slave_exec_mode_str, (uchar**) &slave_exec_mode_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"slave-type-conversions", OPT_SLAVE_TYPE_CONVERSIONS,
+   "Set of slave type conversions that are enabled. Legal values are:"
+   " ALL_LOSSY to enable lossy conversions and"
+   " ALL_NON_LOSSY to enable non-lossy conversions."
+   " If the variable is assigned the empty set, no conversions are"
+   " allowed and it is expected that the types match exactly.",
+   (uchar**) &slave_type_conversions_default,
+   (uchar**) &slave_type_conversions_default,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"slow-query-log", OPT_SLOW_LOG,
    "Enable|disable slow query log", (uchar**) &opt_slow_log,
@@ -7842,6 +7854,11 @@ static int mysql_init_variables(void)
   slave_exec_mode_options= (uint)
     find_bit_type_or_exit(slave_exec_mode_str, &slave_exec_mode_typelib, NULL,
                           &error);
+  /* Slave type conversions */
+  slave_type_conversions_options= 0;
+  slave_type_conversions_options=
+    find_bit_type_or_exit(slave_type_conversions_default, &slave_type_conversions_typelib,
+                          NULL, &error);
   if (error)
     return 1;
   opt_specialflag= SPECIAL_ENGLISH;
@@ -8069,6 +8086,12 @@ mysqld_get_one_option(int optid,
   case OPT_SLAVE_EXEC_MODE:
     slave_exec_mode_options= (uint)
       find_bit_type_or_exit(argument, &slave_exec_mode_typelib, "", &error);
+    if (error)
+      return 1;
+    break;
+  case OPT_SLAVE_TYPE_CONVERSIONS:
+    slave_type_conversions_options= (uint)
+      find_bit_type_or_exit(argument, &slave_type_conversions_typelib, "", &error);
     if (error)
       return 1;
     break;

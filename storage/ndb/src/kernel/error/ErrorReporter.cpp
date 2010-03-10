@@ -160,15 +160,21 @@ ErrorReporter::formatMessage(int thr_no,
     for (Uint32 i = 1 ; i < num_threads; i++)
     {
       sofar = strlen(messptr);
-      BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
-                           " %s_t%u", theNameOfTheTraceFile, i);
+      if(sofar < MESSAGE_LENGTH)
+      {
+	BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
+			     " %s_t%u", theNameOfTheTraceFile, i);
+      }
     }
   }
 
   sofar = strlen(messptr);
-  BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
-                       "\n"
-                       "***EOM***\n");
+  if(sofar < MESSAGE_LENGTH)
+  {
+    BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
+                         "\n"
+                         "***EOM***\n");
+  }
 
   // Add trailing blanks to get a fixed length of the message
   while (strlen(messptr) <= MESSAGE_LENGTH-3){

@@ -7,8 +7,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include <my_config.h>
-
 #define MY_SOCKET_FORMAT "%d"
 #define MY_SOCKET_FORMAT_VALUE(x) (x.fd)
 

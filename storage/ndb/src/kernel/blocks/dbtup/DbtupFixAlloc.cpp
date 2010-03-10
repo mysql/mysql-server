@@ -137,7 +137,7 @@ void Dbtup::convertThPage(Fix_page* regPagePtr,
   if (regTabPtr->m_bits & Tablerec::TR_RowGCI)
   {
     Tuple_header* ptr = 0;
-    gci_pos = ptr->get_mm_gci(regTabPtr) - (Uint32*)ptr;
+    gci_pos = Uint32(ptr->get_mm_gci(regTabPtr) - (Uint32*)ptr);
     gci_val = 0;
   }
   while (pos + nextTuple <= Fix_page::DATA_WORDS)

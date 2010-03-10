@@ -2369,6 +2369,114 @@ runTestGetVersionUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 
+int runTestDumpEvents(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  // Test with unsupported logevent_type
+  {
+    const Ndb_logevent_type unsupported = NDB_LE_NDBStopForced;
+    g_info << "ndb_mgm_dump_events(" << unsupported << ")" << endl;
+
+    const struct ndb_mgm_events* events =
+      ndb_mgm_dump_events(mgmd.handle(), unsupported, 0, 0);
+    if (events != NULL)
+    {
+      g_err << "ndb_mgm_dump_events returned events "
+            << "for unsupported Ndb_logevent_type" << endl;
+      return NDBT_FAILED;
+    }
+
+    if (ndb_mgm_get_latest_error(mgmd.handle()) != NDB_MGM_USAGE_ERROR ||
+        strcmp("ndb_logevent_type 59 not supported",
+               ndb_mgm_get_latest_error_desc(mgmd.handle())))
+    {
+      g_err << "Unexpected error for unsupported logevent type, "
+            << ndb_mgm_get_latest_error(mgmd.handle())
+            << ", desc: " << ndb_mgm_get_latest_error_desc(mgmd.handle())
+            << endl;
+      return NDBT_FAILED;
+    }
+  }
+
+  // Test with nodes >= MAX_NDB_NODES
+  for (int i = MAX_NDB_NODES; i < MAX_NDB_NODES + 3; i++)
+  {
+    g_info << "ndb_mgm_dump_events(NDB_LE_MemoryUsage, 1, "
+           << i << ")" << endl;
+
+    const struct ndb_mgm_events* events =
+      ndb_mgm_dump_events(mgmd.handle(), NDB_LE_MemoryUsage, 1, &i);
+    if (events != NULL)
+    {
+      g_err << "ndb_mgm_dump_events returned events "
+            << "for too large nodeid" << endl;
+      return NDBT_FAILED;
+    }
+
+    int invalid_nodeid;
+    if (ndb_mgm_get_latest_error(mgmd.handle()) != NDB_MGM_USAGE_ERROR ||
+        sscanf(ndb_mgm_get_latest_error_desc(mgmd.handle()),
+               "invalid nodes: '%d'", &invalid_nodeid) != 1 ||
+        invalid_nodeid != i)
+    {
+      g_err << "Unexpected error for too large nodeid, "
+            << ndb_mgm_get_latest_error(mgmd.handle())
+            << ", desc: " << ndb_mgm_get_latest_error_desc(mgmd.handle())
+            << endl;
+      return NDBT_FAILED;
+    }
+
+  }
+
+  int l = 0;
+  int loops = ctx->getNumLoops();
+  while (l<loops)
+  {
+    const Ndb_logevent_type supported[] =
+      {
+        NDB_LE_MemoryUsage,
+        NDB_LE_BackupStatus,
+        (Ndb_logevent_type)0
+      };
+
+    // Test with supported logevent_type
+    for (int i = 0; supported[i]; i++)
+    {
+      g_info << "ndb_mgm_dump_events(" << supported[i] << ")" << endl;
+
+      struct ndb_mgm_events* events =
+        ndb_mgm_dump_events(mgmd.handle(), supported[i], 0, 0);
+      if (events == NULL)
+      {
+        g_err << "ndb_mgm_dump_events failed, type: " << supported[i]
+              << ", error: " << ndb_mgm_get_latest_error(mgmd.handle())
+              << ", msg: " << ndb_mgm_get_latest_error_msg(mgmd.handle())
+              << endl;
+        return NDBT_FAILED;
+      }
+
+      if (events->no_of_events < 0)
+      {
+        g_err << "ndb_mgm_dump_events returned a negative number of events: "
+              << events->no_of_events << endl;
+        free(events);
+        return NDBT_FAILED;
+      }
+
+      g_info << "Got " << events->no_of_events << " events" << endl;
+      free(events);
+    }
+
+    l++;
+  }
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -2491,6 +2599,14 @@ TESTCASE("Stress2",
 TESTCASE("Bug45497",
          "Connect to ndb_mgmd until it can't handle more connections"){
   STEP(runTestBug45497);
+}
+TESTCASE("TestGetVersion",
+ 	 "Test 'get version' and 'ndb_mgm_get_version'"){
+  STEPS(runTestGetVersion, 20);
+}
+TESTCASE("TestDumpEvents",
+ 	 "Test 'dump events'"){
+  STEPS(runTestDumpEvents, 1);
 }
 NDBT_TESTSUITE_END(testMgm);
 

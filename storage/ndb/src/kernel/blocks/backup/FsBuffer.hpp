@@ -186,7 +186,8 @@ FsBuffer::setup(Uint32 * Buffer,
   m_start = align(Buffer, Block*4, false);
   Uint32 * stop = align(Buffer + Size - MaxWrite, Block*4, true);
   if(stop > m_start){
-    m_size = stop - m_start;
+    assert(UintPtr(stop - m_start) >> 32 == 0);
+    m_size = Uint32(stop - m_start);
   } else {
     m_size = 0;
   }
