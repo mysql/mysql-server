@@ -239,7 +239,7 @@ TransporterCallbackKernel::reportError(NodeId nodeId,
   case TE_SIGNAL_LOST_SEND_BUFFER_FULL:
   {
     char msg[64];
-    BaseString::snprintf(msg, sizeof(msg), "Remote note id %d.%s%s", nodeId,
+    BaseString::snprintf(msg, sizeof(msg), "Remote node id %d.%s%s", nodeId,
 	     info ? " " : "", info ? info : "");
     ErrorReporter::handleError(NDBD_EXIT_SIGNAL_LOST_SEND_BUFFER_FULL,
 			       msg, __FILE__, NST_ErrorHandler);

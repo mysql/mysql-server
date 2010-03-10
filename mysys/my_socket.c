@@ -20,13 +20,13 @@
 #include "m_string.h"
 #include "my_socket.h"
 
-C_MODE_START
 
 /*
   Implement my_socketpair() so that it works both on UNIX and windows
 */
 
 #if defined _WIN32
+
 int my_socketpair(my_socket s[2])
 {
   struct sockaddr_in addr;
@@ -77,22 +77,25 @@ int my_socketpair(my_socket s[2])
   return 0;
 
 err:
-  int ret = my_socket_errno();
+  {
+    int save_errno = my_socket_errno();
 
-  if (my_socket_valid(listener))
-    my_socket_close(listener);
+    if (my_socket_valid(listener))
+      my_socket_close(listener);
 
-  if (my_socket_valid(s[0]))
-    my_socket_close(s[0]);
+    if (my_socket_valid(s[0]))
+      my_socket_close(s[0]);
 
-  if (my_socket_valid(s[1]))
-    my_socket_close(s[1]);
+    if (my_socket_valid(s[1]))
+      my_socket_close(s[1]);
 
-  my_socket_set_errno(ret);
+    my_socket_set_errno(save_errno);
+  }
   return -1;
 }
 
 #else
+
 int my_socketpair(my_socket s[2])
 {
   int ret;
@@ -108,4 +111,3 @@ int my_socketpair(my_socket s[2])
 
 #endif
 
-C_MODE_END

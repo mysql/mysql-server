@@ -21,7 +21,9 @@
 #include <ndb_global.h>
 #include <getarg.h>
 #include "CpcClient.hpp"
-#include <NdbEnv.h>
+
+#include <portlib/NdbEnv.h>
+#include <util/NdbOut.hpp>
 
 #define DEFAULT_PORT 1234
 #define ENV_HOSTS "NDB_CPCC_HOSTS"

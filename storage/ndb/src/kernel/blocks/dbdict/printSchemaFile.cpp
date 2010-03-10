@@ -256,7 +256,7 @@ NDB_COMMAND(printSchemafile,
       exitcode = 1;
       continue;
     }
-    Uint32 sz = fread(buf, 1, bytes, f);
+    Uint32 sz = (Uint32)fread(buf, 1, bytes, f);
     fclose(f);
     if (sz != bytes) {
       ndbout << filename << ": read failed errno=" << errno << endl;

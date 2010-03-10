@@ -481,18 +481,22 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
   switch (signal->theData[0]) {
   case DumpStateOrd::BackupStatus:
   {
+    BlockReference result_ref = CMVMI_REF;
+    if (signal->length() == 2)
+      result_ref = signal->theData[1];
+
     BackupRecordPtr ptr;
     int reported = 0;
     for(c_backups.first(ptr); ptr.i != RNIL; c_backups.next(ptr))
     {
       if (!ptr.p->is_lcp())
       {
-        reportStatus(signal, ptr);
+        reportStatus(signal, ptr, result_ref);
         reported++;
       }
     }
     if (!reported)
-      reportStatus(signal, ptr);
+      reportStatus(signal, ptr, result_ref);
     return;
   }
   default:
@@ -1182,7 +1186,7 @@ Backup::checkNodeFail(Signal* signal,
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       gsn= GSN_DEFINE_BACKUP_REF;
       len= DefineBackupRef::SignalLength;
-      pos= &ref->nodeId - signal->getDataPtr();
+      pos= Uint32(&ref->nodeId - signal->getDataPtr());
       break;
     }
     case GSN_START_BACKUP_REQ:
@@ -1193,7 +1197,7 @@ Backup::checkNodeFail(Signal* signal,
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       gsn= GSN_START_BACKUP_REF;
       len= StartBackupRef::SignalLength;
-      pos= &ref->nodeId - signal->getDataPtr();
+      pos= Uint32(&ref->nodeId - signal->getDataPtr());
       break;
     }
     case GSN_BACKUP_FRAGMENT_REQ:
@@ -1204,7 +1208,7 @@ Backup::checkNodeFail(Signal* signal,
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       gsn= GSN_BACKUP_FRAGMENT_REF;
       len= BackupFragmentRef::SignalLength;
-      pos= &ref->nodeId - signal->getDataPtr();
+      pos= Uint32(&ref->nodeId - signal->getDataPtr());
       break;
     }
     case GSN_STOP_BACKUP_REQ:
@@ -1216,7 +1220,7 @@ Backup::checkNodeFail(Signal* signal,
       ref->nodeId = getOwnNodeId();
       gsn= GSN_STOP_BACKUP_REF;
       len= StopBackupRef::SignalLength;
-      pos= &ref->nodeId - signal->getDataPtr();
+      pos= Uint32(&ref->nodeId - signal->getDataPtr());
       break;
     }
     case GSN_WAIT_GCP_REQ:
@@ -2714,19 +2718,20 @@ Backup::checkReportStatus(Signal *signal, BackupRecordPtr ptr)
 }
 
 void
-Backup::reportStatus(Signal* signal, BackupRecordPtr ptr)
+Backup::reportStatus(Signal* signal, BackupRecordPtr ptr,
+                     BlockReference ref)
 {
   const int signal_length = 11;
 
   signal->theData[0] = NDB_LE_BackupStatus;
   for (int i= 1; i < signal_length; i++)
-    signal->theData[1] = 0;
+    signal->theData[i] = 0;
 
   if (ptr.i == RNIL ||
       (ptr.p->m_gsn == 0 &&
        ptr.p->masterData.gsn == 0))
   {
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, signal_length, JBB);
+    sendSignal(ref, GSN_EVENT_REP, signal, signal_length, JBB);
     return;
   }
   signal->theData[1] = ptr.p->clientRef;
@@ -2734,7 +2739,7 @@ Backup::reportStatus(Signal* signal, BackupRecordPtr ptr)
 
   if (ptr.p->dataFilePtr == RNIL)
   {
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, signal_length, JBB);
+    sendSignal(ref, GSN_EVENT_REP, signal, signal_length, JBB);
     return;
   }
 
@@ -2747,7 +2752,7 @@ Backup::reportStatus(Signal* signal, BackupRecordPtr ptr)
  
   if (ptr.p->logFilePtr == RNIL)
   {
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, signal_length, JBB);
+    sendSignal(ref, GSN_EVENT_REP, signal, signal_length, JBB);
     return;
   }
 
@@ -2758,7 +2763,7 @@ Backup::reportStatus(Signal* signal, BackupRecordPtr ptr)
   signal->theData[9] = (Uint32)(logFilePtr.p->operation.m_records_total & 0xFFFFFFFF);
   signal->theData[10]= (Uint32)(logFilePtr.p->operation.m_records_total >> 32);
 
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, signal_length, JBB);
+  sendSignal(ref, GSN_EVENT_REP, signal, signal_length, JBB);
 }
 
 /*****************************************************************************
@@ -3784,7 +3789,7 @@ Backup::parseTableDescription(Signal* signal,
     }
   }
 
-  tabPtr.p->attrInfoLen = list - tabPtr.p->attrInfo;
+  tabPtr.p->attrInfoLen = Uint32(list - tabPtr.p->attrInfo);
 
   if (lcp)
   {
@@ -4238,7 +4243,7 @@ Backup::OperationRecord::fragComplete(Uint32 tableId, Uint32 fragNo, bool fill_r
       new_tmp = (Uint32 *)(((UintPtr)new_tmp + sizeof(Page32)-1) &
                             ~(UintPtr)(sizeof(Page32)-1));
       /* new write sz */
-      sz = new_tmp - tmp;
+      sz = Uint32(new_tmp - tmp);
     }
   }
 
@@ -4303,7 +4308,7 @@ Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
   ndbrequire(opLen == total_len);
   opNoConf = opNoDone;
   
-  const Uint32 len = (scanStop - scanStart);
+  const Uint32 len = Uint32(scanStop - scanStart);
   ndbrequire(len < dataBuffer.getMaxWrite());
   dataBuffer.updateWritePtr(len);
   noOfBytes += (len << 2);
@@ -4697,7 +4702,7 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
     req->userPointer   = filePtr.i;
     req->userReference = reference();
     req->varIndex      = 0;
-    req->offset        = tmp - c_startOfPages;
+    req->offset        = tmp - c_startOfPages; // CHECK
     req->size          = sz;
     req->synch_flag    = 0;
     

@@ -19,6 +19,7 @@
 #include "DblqhCommon.hpp"
 
 #include <signaldata/StartFragReq.hpp>
+#include <signaldata/ExecFragReq.hpp>
 
 DblqhProxy::DblqhProxy(Block_context& ctx) :
   LocalProxy(DBLQH, ctx),
@@ -88,6 +89,10 @@ DblqhProxy::DblqhProxy(Block_context& ctx) :
   // GSN_EXEC_SRREQ
   addRecSignal(GSN_EXEC_SRREQ, &DblqhProxy::execEXEC_SRREQ);
   addRecSignal(GSN_EXEC_SRCONF, &DblqhProxy::execEXEC_SRCONF);
+
+  // GSN_EXEC_FRAG
+  addRecSignal(GSN_EXEC_FRAGREQ, &DblqhProxy::execEXEC_FRAGREQ);
+  addRecSignal(GSN_EXEC_FRAGCONF, &DblqhProxy::execEXEC_FRAGCONF);
 
   // GSN_DROP_FRAG_REQ
   addRecSignal(GSN_DROP_FRAG_REQ, &DblqhProxy::execDROP_FRAG_REQ);
@@ -1601,6 +1606,55 @@ DblqhProxy::sendEXEC_SR_2(Signal* signal, Uint32 ssId)
   sendSignal(rg, ss.m_gsn, signal, 1, JBB);
 
   ssRelease<Ss_EXEC_SR_2>(ssId);
+}
+
+// GSN_EXEC_FRAGREQ
+void
+DblqhProxy::execEXEC_FRAGREQ(Signal* signal)
+{
+  Uint32 ref = ((ExecFragReq*)signal->getDataPtr())->dst;
+
+  if (refToNode(ref) == getOwnNodeId())
+  {
+    jam();
+    sendSignal(ref, GSN_EXEC_FRAGREQ, signal, signal->getLength(), JBB);
+  }
+  else if (ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
+  {
+    jam();
+    sendSignal(numberToRef(DBLQH, refToNode(ref)), GSN_EXEC_FRAGREQ, signal,
+               signal->getLength(), JBB);
+  }
+  else
+  {
+    jam();
+    sendSignal(ref, GSN_EXEC_FRAGREQ, signal,
+               signal->getLength(), JBB);
+  }
+}
+
+// GSN_EXEC_FRAGCONF
+void
+DblqhProxy::execEXEC_FRAGCONF(Signal* signal)
+{
+  Uint32 ref = signal->theData[1];
+
+  if (refToNode(ref) == getOwnNodeId())
+  {
+    jam();
+    sendSignal(ref, GSN_EXEC_FRAGCONF, signal, 1, JBB);
+  }
+  else if (ndb_route_exec_frag(getNodeInfo(refToNode(ref)).m_version))
+  {
+    jam();
+    sendSignal(numberToRef(DBLQH, refToNode(ref)), GSN_EXEC_FRAGCONF,
+               signal, 2, JBB);
+  }
+  else
+  {
+    jam();
+    sendSignal(ref, GSN_EXEC_FRAGCONF, signal, 2, JBB);
+  }
 }
 
 // GSN_DROP_FRAG_REQ

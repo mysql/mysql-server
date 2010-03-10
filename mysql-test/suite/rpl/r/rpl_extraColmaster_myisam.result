@@ -569,8 +569,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Last_Errno	1642
+Last_Error	Column 2 of table 'test.t10' cannot be converted from type 'double' to type 'char(5)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -587,8 +587,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Last_SQL_Errno	1642
+Last_SQL_Error	Column 2 of table 'test.t10' cannot be converted from type 'double' to type 'char(5)'
 Master_Bind	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
@@ -647,8 +647,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Last_Errno	1642
+Last_Error	Column 2 of table 'test.t11' cannot be converted from type 'tinyblob' to type 'varchar(254)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -665,8 +665,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Last_SQL_Errno	1642
+Last_SQL_Error	Column 2 of table 'test.t11' cannot be converted from type 'tinyblob' to type 'varchar(254)'
 Master_Bind	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
@@ -1731,8 +1731,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Last_Errno	1642
+Last_Error	Column 2 of table 'test.t10' cannot be converted from type 'double' to type 'char(5)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -1749,8 +1749,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Last_SQL_Errno	1642
+Last_SQL_Error	Column 2 of table 'test.t10' cannot be converted from type 'double' to type 'char(5)'
 Master_Bind	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
@@ -1809,8 +1809,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Last_Errno	1642
+Last_Error	Column 2 of table 'test.t11' cannot be converted from type 'tinyblob' to type 'varchar(254)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -1827,8 +1827,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Last_SQL_Errno	1642
+Last_SQL_Error	Column 2 of table 'test.t11' cannot be converted from type 'tinyblob' to type 'varchar(254)'
 Master_Bind	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
@@ -2893,8 +2893,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Last_Errno	1642
+Last_Error	Column 2 of table 'test.t10' cannot be converted from type 'double' to type 'char(5)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -2911,8 +2911,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Last_SQL_Errno	1642
+Last_SQL_Error	Column 2 of table 'test.t10' cannot be converted from type 'double' to type 'char(5)'
 Master_Bind	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
@@ -2971,8 +2971,8 @@ Replicate_Do_Table
 Replicate_Ignore_Table	
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
-Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Last_Errno	1642
+Last_Error	Column 2 of table 'test.t11' cannot be converted from type 'tinyblob' to type 'varchar(254)'
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -2989,8 +2989,8 @@ Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
-Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Last_SQL_Errno	1642
+Last_SQL_Error	Column 2 of table 'test.t11' cannot be converted from type 'tinyblob' to type 'varchar(254)'
 Master_Bind	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1

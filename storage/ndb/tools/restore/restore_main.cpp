@@ -502,10 +502,9 @@ BaseString
 makeExternalTableName(const BaseString &internalName)
 {
    // Make dbname/def/table1 into dbname.table1
-  int idx;
   BaseString externalName;
   
-  idx = internalName.indexOf('/');
+  ssize_t idx = internalName.indexOf('/');
   externalName = internalName.substr(0,idx);
   externalName.append(".");
   externalName.append(internalName.substr(idx + SCHEMA_NAME_SIZE,
@@ -926,12 +925,11 @@ static bool check_include_exclude(BaseString database, BaseString table)
 static inline bool
 checkDoRestore(const TableS* table)
 {
-  int idx;
   bool ret = true;
   BaseString db, tbl;
   
   tbl.assign(getTableName(table));
-  idx = tbl.indexOf('/');
+  ssize_t idx = tbl.indexOf('/');
   db = tbl.substr(0, idx);
   
   /*

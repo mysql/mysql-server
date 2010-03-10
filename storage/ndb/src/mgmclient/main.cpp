@@ -41,35 +41,13 @@ extern "C" int write_history(const char *command);
 
 #include "ndb_mgmclient.hpp"
 
-const char *progname = "ndb_mgm";
 const char *load_default_groups[]= { "mysql_cluster","ndb_mgm",0 };
 
 
 static Ndb_mgmclient* com;
 
-#ifndef NDB_WIN32
-extern "C"
-void 
-handler(int sig)
-{
-  DBUG_ENTER("handler");
-  switch(sig){
-  case SIGPIPE:
-    /**
-     * Will happen when connection to mgmsrv is broken
-     * Reset connected flag
-     */
-    printf("Got SIGPIPE!\n");
-    if (com)
-      com->disconnect();
-    break;
-  }
-  DBUG_VOID_RETURN;
-}
-#endif
-
 static const char default_prompt[]= "ndb_mgm> ";
-static unsigned _try_reconnect;
+static unsigned opt_try_reconnect;
 static const char *prompt= default_prompt;
 static char *opt_execute_str= 0;
 static unsigned opt_verbose = 1;
@@ -83,7 +61,7 @@ static struct my_option my_long_options[] =
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "try-reconnect", 't',
     "Specify number of tries for connecting to ndb_mgmd (0 = infinite)", 
-    (uchar**) &_try_reconnect, (uchar**) &_try_reconnect, 0,
+    (uchar**) &opt_try_reconnect, (uchar**) &opt_try_reconnect, 0,
     GET_UINT, REQUIRED_ARG, 3, 0, 0, 0, 0, 0 },
   { "verbose", 'v',
     "Control the amount of printout",
@@ -102,8 +80,8 @@ static void usage()
   ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
-static int 
-read_and_execute(int _try_reconnect) 
+static bool
+read_and_execute(int try_reconnect)
 {
   static char *line_read = (char *)NULL;
 
@@ -132,7 +110,7 @@ read_and_execute(int _try_reconnect)
     line_read= strdup(linebuffer);
   }
 #endif
-  return com->execute(line_read, _try_reconnect, 1);
+  return com->execute(line_read, try_reconnect, 1);
 }
 
 int main(int argc, char** argv){
@@ -162,13 +140,6 @@ int main(int argc, char** argv){
     prompt= 0;
   }
 
-  // Install our own signal handler for SIGPIPE that calls
-  // 'Ndb_mgmclient' disconnect. In order to avoid that the
-  // mgmapi installs its own SIGPIPE handler, the Ndb_mgmclient will
-  // use 'ndb_mgm_set_ignore_sigpipe(handle, 0)'
-#if defined SIGPIPE && !defined _WIN32
-  signal(SIGPIPE, handler);
-#endif
   com = new Ndb_mgmclient(opt_connect_str,opt_verbose);
   int ret= 0;
   BaseString histfile;
@@ -188,7 +159,8 @@ int main(int argc, char** argv){
 #endif
 
     ndbout << "-- NDB Cluster -- Management Client --" << endl;
-    while(read_and_execute(_try_reconnect));
+    while(read_and_execute(opt_try_reconnect))
+      ;
 
 #ifdef HAVE_READLINE
     if (histfile.length())
@@ -203,11 +175,15 @@ int main(int argc, char** argv){
   }
   else
   {
-    com->execute(opt_execute_str,_try_reconnect, 0, &ret);
+    com->execute(opt_execute_str, opt_try_reconnect, 0, &ret);
   }
   delete com;
 
   ndb_end(opt_ndb_endinfo ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+
+  // Don't allow negative return code
+  if (ret < 0)
+    ret = 255;
   return ret;
 }
 
