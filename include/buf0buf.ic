@@ -902,20 +902,19 @@ Returns the control block of a file page, NULL if not found.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
-buf_page_hash_get(
-/*==============*/
+buf_page_hash_get_low(
+/*==================*/
 	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: offset of the page within space */
+	ulint	offset,	/*!< in: offset of the page within space */
+	ulint	fold)	/*!< in: buf_page_address_fold(space, offset) */
 {
 	buf_page_t*	bpage;
-	ulint		fold;
 
 	ut_ad(buf_pool);
 	ut_ad(buf_pool_mutex_own());
+	ut_ad(fold == buf_page_address_fold(space, offset));
 
 	/* Look for the page in the hash table */
-
-	fold = buf_page_address_fold(space, offset);
 
 	HASH_SEARCH(hash, buf_pool->page_hash, fold, buf_page_t*, bpage,
 		    ut_ad(bpage->in_page_hash && !bpage->in_zip_hash
@@ -932,6 +931,26 @@ buf_page_hash_get(
 }
 
 /******************************************************************//**
+Returns the control block of a file page, NULL if not found.
+@return	block, NULL if not found or not a real control block */
+UNIV_INLINE
+buf_page_t*
+buf_page_hash_get(
+/*==============*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset)	/*!< in: offset of the page within space */
+{
+	ulint		fold	= buf_page_address_fold(space, offset);
+	buf_page_t*	bpage	= buf_page_hash_get_low(space, offset, fold);
+
+	if (bpage && UNIV_UNLIKELY(buf_pool_watch_is(bpage))) {
+		bpage = NULL;
+	}
+
+	return(bpage);
+}
+
+/******************************************************************//**
 Returns the control block of a file page, NULL if not found
 or an uncompressed page frame does not exist.
 @return	block, NULL if not found */
@@ -942,7 +961,11 @@ buf_block_hash_get(
 	ulint	space,	/*!< in: space id */
 	ulint	offset)	/*!< in: offset of the page within space */
 {
-	return(buf_page_get_block(buf_page_hash_get(space, offset)));
+	buf_block_t*	block;
+
+	block = buf_page_get_block(buf_page_hash_get(space, offset));
+
+	return(block);
 }
 
 /********************************************************************//**

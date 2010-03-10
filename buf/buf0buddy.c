@@ -457,6 +457,8 @@ buf_buddy_relocate(
 			return(FALSE);
 		}
 
+		ut_ad(!buf_pool_watch_is(bpage));
+
 		if (page_zip_get_size(&bpage->zip) != size) {
 			/* The block is of different size.  We would
 			have to relocate all blocks covered by src.
