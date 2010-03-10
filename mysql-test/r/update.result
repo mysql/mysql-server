@@ -514,3 +514,16 @@ ALTER TABLE t2 COMMENT = 'ABC';
 UPDATE t2, t1 SET t2.f1 = 2, t1.f1 = 9;
 ALTER TABLE t2 COMMENT = 'DEF';
 DROP TABLE t1, t2;
+#
+# Bug#50545: Single table UPDATE IGNORE crashes on join view in
+# sql_safe_updates mode.
+#
+CREATE TABLE t1 ( a INT, KEY( a ) );
+INSERT INTO t1 VALUES (0), (1);
+CREATE VIEW v1 AS SELECT t11.a, t12.a AS b FROM t1 t11, t1 t12;
+SET SESSION sql_safe_updates = 1;
+UPDATE IGNORE v1 SET a = 1;
+ERROR HY000: You are using safe update mode and you tried to update a table without a WHERE that uses a KEY column
+SET SESSION sql_safe_updates = DEFAULT;
+DROP TABLE t1;
+DROP VIEW v1;
