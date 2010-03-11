@@ -1179,15 +1179,21 @@ struct buf_block_struct{
 	rw_lock_t	lock;		/*!< read-write lock of the buffer
 					frame */
 	unsigned	lock_hash_val:32;/*!< hashed value of the page address
-					in the record lock hash table */
-	unsigned	check_index_page_at_flush:1;
+					in the record lock hash table;
+					protected by buf_block_t::lock
+					(or buf_block_t::mutex, buf_pool_mutex
+				        in buf_page_get_gen(),
+					buf_page_init_for_read()
+					and buf_page_create()) */
+	ibool		check_index_page_at_flush;
 					/*!< TRUE if we know that this is
 					an index page, and want the database
 					to check its consistency before flush;
 					note that there may be pages in the
 					buffer pool which are index pages,
 					but this flag is not set because
-					we do not keep track of all pages */
+					we do not keep track of all pages;
+					NOT protected by any mutex */
 	/* @} */
 	/** @name Optimistic search field */
 	/* @{ */
