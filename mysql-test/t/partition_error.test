@@ -7,7 +7,41 @@
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
- 
+
+--echo #
+--echo # Bug#42954: SQL MODE 'NO_DIR_IN_CREATE' does not work with
+--echo #            subpartitions
+SET @org_mode=@@sql_mode;
+SET @@sql_mode='NO_DIR_IN_CREATE';
+SELECT @@sql_mode;
+CREATE TABLE t1 (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased))
+(PARTITION p0 VALUES LESS THAN MAXVALUE
+  DATA DIRECTORY = '/tmp/not-existing' 
+  INDEX DIRECTORY = '/tmp/not-existing');
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) SUBPARTITIONS 2
+(PARTITION p0 VALUES LESS THAN MAXVALUE
+ (SUBPARTITION sp0
+   DATA DIRECTORY = '/tmp/not-existing' 
+   INDEX DIRECTORY = '/tmp/not-existing',
+  SUBPARTITION sp1));
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+(PARTITION p0 VALUES LESS THAN MAXVALUE
+  DATA DIRECTORY = '/tmp/not-existing' 
+  INDEX DIRECTORY = '/tmp/not-existing');
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SET @@sql_mode= @org_mode;
+
 #
 # Bug#38719: Partitioning returns a different error code for a
 # duplicate key error
