@@ -1396,7 +1396,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
     {
       memmove(m_buffer, m_buffer_ptr, m_buffer_data_left);
       int error;
-      size_t r = azread(&m_file,
+      Uint32 r = azread(&m_file,
                         ((char *)m_buffer) + m_buffer_data_left,
                         m_buffer_sz - m_buffer_data_left, &error);
       m_file_pos += r;
