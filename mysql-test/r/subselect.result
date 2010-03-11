@@ -1,4 +1,6 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 select (select 2);
 (select 2)
 2
@@ -4803,4 +4805,5 @@ SELECT 1 FROM t1 GROUP BY
 1
 1
 DROP TABLE t1;
+set @@optimizer_switch=@save_optimizer_switch;
 End of 5.1 tests.

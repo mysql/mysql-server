@@ -163,6 +163,9 @@ create table t1
 ) engine = MYISAM ;
 create table t2 like t1;
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+
 set @stmt= ' explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25 ' ;
 prepare stmt1 from @stmt ;
 execute stmt1 ;
@@ -170,6 +173,8 @@ execute stmt1 ;
 explain SELECT (SELECT SUM(c1 + c12 + 0.0) FROM t2 where (t1.c2 - 0e-3) = t2.c2 GROUP BY t1.c15 LIMIT 1) as scalar_s, exists (select 1.0e+0 from t2 where t2.c3 * 9.0000000000 = t1.c4) as exists_s, c5 * 4 in (select c6 + 0.3e+1 from t2) as in_s, (c7 - 4, c8 - 4) in (select c9 + 4.0, c10 + 40e-1 from t2) as in_row_s FROM t1, (select c25 x, c32 y from t2) tt WHERE x * 1 = c25;
 deallocate prepare stmt1;
 drop tables t1,t2;
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 #
 # parameters from variables (for field creation)

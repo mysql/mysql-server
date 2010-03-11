@@ -59,9 +59,13 @@ select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
 show status like 'Handler_read_rnd_next';
 select ' ^ This must show 11' Z;
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+
 # This must show trigcond:
 explain extended select a in (select max(ie) from t1 where oref=4 group by grp) from t3;
 
+set @@optimizer_switch=@save_optimizer_switch;
 drop table t1, t2, t3;
 
 # 
@@ -529,6 +533,9 @@ SELECT a, MAX(b),
 
 DROP TABLE t1, t2;
 
+# The next three test cases must be executed with the IN=>EXISTS strategy
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 
 #
 # Bug #27870: crash of an equijoin query with WHERE condition containing 
@@ -587,6 +594,8 @@ SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
 EXPLAIN SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
 
 DROP TABLE t1, t2;
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 #
 # Bug #34763: item_subselect.cc:1235:Item_in_subselect::row_value_transformer:

@@ -206,39 +206,39 @@ BUG#37120 optimizer_switch allowable values not according to specification
 
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on
 set optimizer_switch='default,materialization=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on
 set optimizer_switch='default,semijoin=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=off
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on
 set optimizer_switch='default,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=on,semijoin=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on
 set optimizer_switch='default,semijoin=off,materialization=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=off
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on
 set optimizer_switch='default,materialization=off,semijoin=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=off
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=off,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on
 set optimizer_switch='default,semijoin=off,materialization=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=off,semijoin=off
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=off,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on
 set optimizer_switch='default,semijoin=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=on,semijoin=off
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=on,semijoin=off,partial_match_rowid_merge=on,partial_match_table_scan=on
 set optimizer_switch='default,materialization=off,loosescan=off';
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=off,semijoin=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=off,materialization=off,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on
 set optimizer_switch=default;
 drop table t0, t1, t2;
 drop table t10, t11, t12;

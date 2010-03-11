@@ -394,7 +394,7 @@ drop table t0, t1;
 #   - engine_condition_pushdown does not affect ICP
 select @@optimizer_switch;
 @@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,index_condition_pushdown=on,firstmatch=on,loosescan=on,materialization=on,semijoin=on,partial_match_rowid_merge=on,partial_match_table_scan=on
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 (a int, b int, key(a));

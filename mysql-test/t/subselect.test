@@ -11,6 +11,9 @@
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 --enable_warnings
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+
 select (select 2);
 explain extended select (select 2);
 SELECT (SELECT 1) UNION SELECT (SELECT 2);
@@ -4060,5 +4063,7 @@ INSERT INTO t1 SET a = 'aaaa';
 SELECT 1 FROM t1 GROUP BY
   (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
 DROP TABLE t1;
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 --echo End of 5.1 tests.
