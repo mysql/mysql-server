@@ -38,6 +38,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
+#include "page0page.h"
 #include "page0zip.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
@@ -1097,9 +1098,11 @@ fil_space_create(
 	fil_space_t*	space;
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
 	ut_a(flags != DICT_TF_COMPACT);
 	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
@@ -2583,9 +2586,11 @@ fil_create_new_single_table_tablespace(
 
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
 	ut_a(flags != DICT_TF_COMPACT);
 	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
@@ -2788,6 +2793,7 @@ fil_reset_too_high_lsns(
 	ib_int64_t	offset;
 	ulint		zip_size;
 	ibool		success;
+	page_zip_des_t	page_zip;
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
@@ -2835,6 +2841,12 @@ fil_reset_too_high_lsns(
 	space_id = fsp_header_get_space_id(page);
 	zip_size = fsp_header_get_zip_size(page);
 
+	page_zip_des_init(&page_zip);
+	page_zip_set_size(&page_zip, zip_size);
+	if (zip_size) {
+		page_zip.data = page + UNIV_PAGE_SIZE;
+	}
+
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		"  InnoDB: Flush lsn in the tablespace file %lu"
@@ -2869,20 +2881,23 @@ fil_reset_too_high_lsns(
 			/* We have to reset the lsn */
 
 			if (zip_size) {
-				memcpy(page + UNIV_PAGE_SIZE, page, zip_size);
+				memcpy(page_zip.data, page, zip_size);
 				buf_flush_init_for_writing(
-					page, page + UNIV_PAGE_SIZE,
-					current_lsn);
+					page, &page_zip, current_lsn);
+				success = os_file_write(
+					filepath, file, page_zip.data,
+					(ulint) offset & 0xFFFFFFFFUL,
+					(ulint) (offset >> 32), zip_size);
 			} else {
 				buf_flush_init_for_writing(
 					page, NULL, current_lsn);
+				success = os_file_write(
+					filepath, file, page,
+					(ulint)(offset & 0xFFFFFFFFUL),
+					(ulint)(offset >> 32),
+					UNIV_PAGE_SIZE);
 			}
-			success = os_file_write(filepath, file, page,
-						(ulint)(offset & 0xFFFFFFFFUL),
-						(ulint)(offset >> 32),
-						zip_size
-						? zip_size
-						: UNIV_PAGE_SIZE);
+
 			if (!success) {
 
 				goto func_exit;
@@ -2958,10 +2973,11 @@ fil_open_single_table_tablespace(
 	filepath = fil_make_ibd_name(name, FALSE);
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should be equal to
-	table->flags & ~(~0 << DICT_TF_BITS). */
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
 	ut_a(flags != DICT_TF_COMPACT);
 	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 

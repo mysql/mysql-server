@@ -3308,6 +3308,9 @@ ha_innobase::innobase_initialize_autoinc()
 		ulint		err;
 
 		update_thd(ha_thd());
+
+		ut_a(prebuilt->trx == thd_to_trx(user_thd));
+
 		col_name = field->field_name;
 		index = innobase_get_index(table->s->next_number_index);
 
@@ -3498,31 +3501,86 @@ retry:
 	of length ref_length! */
 
 	if (!row_table_got_default_clust_index(ib_table)) {
-		if (primary_key >= MAX_KEY) {
-		  sql_print_error("Table %s has a primary key in InnoDB data "
-				  "dictionary, but not in MySQL!", name);
-		}
 
 		prebuilt->clust_index_was_generated = FALSE;
 
-		/* MySQL allocates the buffer for ref. key_info->key_length
-		includes space for all key columns + one byte for each column
-		that may be NULL. ref_length must be as exact as possible to
-		save space, because all row reference buffers are allocated
-		based on ref_length. */
+		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)) {
+			sql_print_error("Table %s has a primary key in "
+					"InnoDB data dictionary, but not "
+					"in MySQL!", name);
 
-		ref_length = table->key_info[primary_key].key_length;
+			/* This mismatch could cause further problems
+			if not attended, bring this to the user's attention
+			by printing a warning in addition to log a message
+			in the errorlog */
+			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+					    ER_NO_SUCH_INDEX,
+					    "InnoDB: Table %s has a "
+					    "primary key in InnoDB data "
+					    "dictionary, but not in "
+					    "MySQL!", name);
+
+			/* If primary_key >= MAX_KEY, its (primary_key)
+			value could be out of bound if continue to index
+			into key_info[] array. Find InnoDB primary index,
+			and assign its key_length to ref_length.
+			In addition, since MySQL indexes are sorted starting
+			with primary index, unique index etc., initialize
+			ref_length to the first index key length in
+			case we fail to find InnoDB cluster index.
+
+			Please note, this will not resolve the primary
+			index mismatch problem, other side effects are
+			possible if users continue to use the table.
+			However, we allow this table to be opened so
+			that user can adopt necessary measures for the
+			mismatch while still being accessible to the table
+			date. */
+			ref_length = table->key_info[0].key_length;
+
+			/* Find correspoinding cluster index
+			key length in MySQL's key_info[] array */
+			for (ulint i = 0; i < table->s->keys; i++) {
+				dict_index_t*	index;
+				index = innobase_get_index(i);
+				if (dict_index_is_clust(index)) {
+					ref_length =
+						 table->key_info[i].key_length;
+				}
+			}
+		} else {
+			/* MySQL allocates the buffer for ref.
+			key_info->key_length includes space for all key
+			columns + one byte for each column that may be
+			NULL. ref_length must be as exact as possible to
+			save space, because all row reference buffers are
+			allocated based on ref_length. */
+
+			ref_length = table->key_info[primary_key].key_length;
+		}
 	} else {
 		if (primary_key != MAX_KEY) {
-		  sql_print_error("Table %s has no primary key in InnoDB data "
-				  "dictionary, but has one in MySQL! If you "
-				  "created the table with a MySQL version < "
-				  "3.23.54 and did not define a primary key, "
-				  "but defined a unique key with all non-NULL "
-				  "columns, then MySQL internally treats that "
-				  "key as the primary key. You can fix this "
-				  "error by dump + DROP + CREATE + reimport "
-				  "of the table.", name);
+			sql_print_error(
+				"Table %s has no primary key in InnoDB data "
+				"dictionary, but has one in MySQL! If you "
+				"created the table with a MySQL version < "
+				"3.23.54 and did not define a primary key, "
+				"but defined a unique key with all non-NULL "
+				"columns, then MySQL internally treats that "
+				"key as the primary key. You can fix this "
+				"error by dump + DROP + CREATE + reimport "
+				"of the table.", name);
+
+			/* This mismatch could cause further problems
+			if not attended, bring this to the user attention
+			by printing a warning in addition to log a message
+			in the errorlog */
+			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+					    ER_NO_SUCH_INDEX,
+					    "InnoDB: Table %s has no "
+					    "primary key in InnoDB data "
+					    "dictionary, but has one in "
+					    "MySQL!", name);
 		}
 
 		prebuilt->clust_index_was_generated = TRUE;
@@ -5406,9 +5464,6 @@ ha_innobase::innobase_get_index(
 	DBUG_ENTER("innobase_get_index");
 	ha_statistic_increment(&SSV::ha_read_key_count);
 
-	ut_ad(user_thd == ha_thd());
-	ut_a(prebuilt->trx == thd_to_trx(user_thd));
-
 	if (keynr != MAX_KEY && table->s->keys > 0) {
 		key = table->key_info + keynr;
 
@@ -5994,9 +6049,11 @@ create_table_def(
 
 	if (error == DB_DUPLICATE_KEY) {
 		char buf[100];
-		innobase_convert_identifier(buf, sizeof buf,
-					    table_name, strlen(table_name),
-					    trx->mysql_thd, TRUE);
+		char* buf_end = innobase_convert_identifier(
+			buf, sizeof buf - 1, table_name, strlen(table_name),
+			trx->mysql_thd, TRUE);
+
+		*buf_end = '\0';
 		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), buf);
 	}
 
@@ -8663,19 +8720,25 @@ innodb_show_status(
 }
 
 /************************************************************************//**
-Implements the SHOW MUTEX STATUS command. . */
+Implements the SHOW MUTEX STATUS command.
+@return TRUE on failure, FALSE on success. */
 static
 bool
 innodb_mutex_show_status(
 /*=====================*/
-	handlerton*	hton,	/*!< in: the innodb handlerton */
+	handlerton*	hton,		/*!< in: the innodb handlerton */
 	THD*		thd,		/*!< in: the MySQL query thread of the
 					caller */
-	stat_print_fn*	stat_print)
+	stat_print_fn*	stat_print)	/*!< in: function for printing
+					statistics */
 {
 	char buf1[IO_SIZE], buf2[IO_SIZE];
 	mutex_t*	mutex;
 	rw_lock_t*	lock;
+	ulint		block_mutex_oswait_count = 0;
+	ulint		block_lock_oswait_count = 0;
+	mutex_t*	block_mutex = NULL;
+	rw_lock_t*	block_lock = NULL;
 #ifdef UNIV_DEBUG
 	ulint	  rw_lock_count= 0;
 	ulint	  rw_lock_count_spin_loop= 0;
@@ -8690,12 +8753,16 @@ innodb_mutex_show_status(
 
 	mutex_enter(&mutex_list_mutex);
 
-	mutex = UT_LIST_GET_FIRST(mutex_list);
+	for (mutex = UT_LIST_GET_FIRST(mutex_list); mutex != NULL;
+	     mutex = UT_LIST_GET_NEXT(list, mutex)) {
+		if (mutex->count_os_wait == 0) {
+			continue;
+		}
 
-	while (mutex != NULL) {
-		if (mutex->count_os_wait == 0
-		    || buf_pool_is_block_mutex(mutex)) {
-			goto next_mutex;
+		if (buf_pool_is_block_mutex(mutex)) {
+			block_mutex = mutex;
+			block_mutex_oswait_count += mutex->count_os_wait;
+			continue;
 		}
 #ifdef UNIV_DEBUG
 		if (mutex->mutex_type != 1) {
@@ -8722,8 +8789,7 @@ innodb_mutex_show_status(
 					DBUG_RETURN(1);
 				}
 			}
-		}
-		else {
+		} else {
 			rw_lock_count += mutex->count_using;
 			rw_lock_count_spin_loop += mutex->count_spin_loop;
 			rw_lock_count_spin_rounds += mutex->count_spin_rounds;
@@ -8735,7 +8801,7 @@ innodb_mutex_show_status(
 		buf1len= (uint) my_snprintf(buf1, sizeof(buf1), "%s:%lu",
 				     mutex->cfile_name, (ulong) mutex->cline);
 		buf2len= (uint) my_snprintf(buf2, sizeof(buf2), "os_waits=%lu",
-				     mutex->count_os_wait);
+				     (ulong) mutex->count_os_wait);
 
 		if (stat_print(thd, innobase_hton_name,
 			       hton_name_len, buf1, buf1len,
@@ -8744,45 +8810,83 @@ innodb_mutex_show_status(
 			DBUG_RETURN(1);
 		}
 #endif /* UNIV_DEBUG */
+	}
 
-next_mutex:
-		mutex = UT_LIST_GET_NEXT(list, mutex);
+	if (block_mutex) {
+		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
+					     "combined %s:%lu",
+					     block_mutex->cfile_name,
+					     (ulong) block_mutex->cline);
+		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
+					     "os_waits=%lu",
+					     (ulong) block_mutex_oswait_count);
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len, buf1, buf1len,
+			       buf2, buf2len)) {
+			mutex_exit(&mutex_list_mutex);
+			DBUG_RETURN(1);
+		}
 	}
 
 	mutex_exit(&mutex_list_mutex);
 
 	mutex_enter(&rw_lock_list_mutex);
 
-	lock = UT_LIST_GET_FIRST(rw_lock_list);
-
-	while (lock != NULL) {
-		if (lock->count_os_wait
-		    && !buf_pool_is_block_lock(lock)) {
-			buf1len= my_snprintf(buf1, sizeof(buf1), "%s:%lu",
-                                    lock->cfile_name, (ulong) lock->cline);
-			buf2len= my_snprintf(buf2, sizeof(buf2),
-                                    "os_waits=%lu", lock->count_os_wait);
-
-			if (stat_print(thd, innobase_hton_name,
-				       hton_name_len, buf1, buf1len,
-				       buf2, buf2len)) {
-				mutex_exit(&rw_lock_list_mutex);
-				DBUG_RETURN(1);
-			}
+	for (lock = UT_LIST_GET_FIRST(rw_lock_list); lock != NULL;
+	     lock = UT_LIST_GET_NEXT(list, lock)) {
+		if (lock->count_os_wait) {
+			continue;
 		}
-		lock = UT_LIST_GET_NEXT(list, lock);
+
+		if (buf_pool_is_block_lock(lock)) {
+			block_lock = lock;
+			block_lock_oswait_count += lock->count_os_wait;
+			continue;
+		}
+
+		buf1len = my_snprintf(buf1, sizeof buf1, "%s:%lu",
+				     lock->cfile_name, (ulong) lock->cline);
+		buf2len = my_snprintf(buf2, sizeof buf2, "os_waits=%lu",
+				      (ulong) lock->count_os_wait);
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len, buf1, buf1len,
+			       buf2, buf2len)) {
+			mutex_exit(&rw_lock_list_mutex);
+			DBUG_RETURN(1);
+		}
+	}
+
+	if (block_lock) {
+		buf1len = (uint) my_snprintf(buf1, sizeof buf1,
+					     "combined %s:%lu",
+					     block_lock->cfile_name,
+					     (ulong) block_lock->cline);
+		buf2len = (uint) my_snprintf(buf2, sizeof buf2,
+					     "os_waits=%lu",
+					     (ulong) block_lock_oswait_count);
+
+		if (stat_print(thd, innobase_hton_name,
+			       hton_name_len, buf1, buf1len,
+			       buf2, buf2len)) {
+			mutex_exit(&rw_lock_list_mutex);
+			DBUG_RETURN(1);
+		}
 	}
 
 	mutex_exit(&rw_lock_list_mutex);
 
 #ifdef UNIV_DEBUG
-	buf2len= my_snprintf(buf2, sizeof(buf2),
-		"count=%lu, spin_waits=%lu, spin_rounds=%lu, "
-		"os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
-		rw_lock_count, rw_lock_count_spin_loop,
-		rw_lock_count_spin_rounds,
-		rw_lock_count_os_wait, rw_lock_count_os_yield,
-		(ulong) (rw_lock_wait_time/1000));
+	buf2len = my_snprintf(buf2, sizeof buf2,
+			     "count=%lu, spin_waits=%lu, spin_rounds=%lu, "
+			     "os_waits=%lu, os_yields=%lu, os_wait_times=%lu",
+			      (ulong) rw_lock_count,
+			      (ulong) rw_lock_count_spin_loop,
+			      (ulong) rw_lock_count_spin_rounds,
+			      (ulong) rw_lock_count_os_wait,
+			      (ulong) rw_lock_count_os_yield,
+			      (ulong) (rw_lock_wait_time / 1000));
 
 	if (stat_print(thd, innobase_hton_name, hton_name_len,
 			STRING_WITH_LEN("rw_lock_mutexes"), buf2, buf2len)) {
@@ -9733,33 +9837,60 @@ innobase_set_cursor_view(
 				  (cursor_view_t*) curview);
 }
 
+/*******************************************************************//**
+If col_name is not NULL, check whether the named column is being
+renamed in the table. If col_name is not provided, check
+whether any one of columns in the table is being renamed.
+@return true if the column is being renamed */
+static
+bool
+check_column_being_renamed(
+/*=======================*/
+	const TABLE*	table,		/*!< in: MySQL table */
+	const char*	col_name)	/*!< in: name of the column */
+{
+	uint		k;
+	Field*		field;
 
-/***********************************************************************
-Check whether any of the given columns is being renamed in the table. */
+	for (k = 0; k < table->s->fields; k++) {
+		field = table->field[k];
+
+		if (field->flags & FIELD_IS_RENAMED) {
+
+			/* If col_name is not provided, return
+			if the field is marked as being renamed. */
+			if (!col_name) {
+				return(true);
+			}
+
+			/* If col_name is provided, return only
+			if names match */
+			if (innobase_strcasecmp(field->field_name,
+						col_name) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/*******************************************************************//**
+Check whether any of the given columns is being renamed in the table.
+@return true if any of col_names is being renamed in table */
 static
 bool
 column_is_being_renamed(
 /*====================*/
-					/* out: true if any of col_names is
-					being renamed in table */
-	TABLE*		table,		/* in: MySQL table */
-	uint		n_cols,		/* in: number of columns */
-	const char**	col_names)	/* in: names of the columns */
+	TABLE*		table,		/*!< in: MySQL table */
+	uint		n_cols,		/*!< in: number of columns */
+	const char**	col_names)	/*!< in: names of the columns */
 {
 	uint		j;
-	uint		k;
-	Field*		field;
-	const char*	col_name;
 
 	for (j = 0; j < n_cols; j++) {
-		col_name = col_names[j];
-		for (k = 0; k < table->s->fields; k++) {
-			field = table->field[k];
-			if ((field->flags & FIELD_IS_RENAMED)
-			    && innobase_strcasecmp(field->field_name,
-						   col_name) == 0) {
-				return(true);
-			}
+		if (check_column_being_renamed(table, col_names[j])) {
+			return(true);
 		}
 	}
 
@@ -9841,6 +9972,15 @@ ha_innobase::check_if_incompatible_data(
 		info->auto_increment_value != 0) {
 
 		return(COMPATIBLE_DATA_NO);
+	}
+
+	/* For column rename operation, MySQL does not supply enough
+	information (new column name etc.) for InnoDB to make appropriate
+	system metadata change. To avoid system metadata inconsistency,
+	currently we can just request a table rebuild/copy by returning
+	COMPATIBLE_DATA_NO */
+	if (check_column_being_renamed(table, NULL)) {
+		return COMPATIBLE_DATA_NO;
 	}
 
 	/* Check if a column participating in a foreign key is being renamed.
