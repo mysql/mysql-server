@@ -1,3 +1,10 @@
+2010-03-11	The InnoDB Team
+
+	* buf0buf.h, buf0buf.ic:
+	Fix and clarify the latching of some buf_block_t members.
+	Note that check_index_page_at_flush is not protected by any mutex.
+	Note and assert that lock_hash_val is protected by the rw-latch.
+
 2010-03-10	The InnoDB Team
 
 	* trx/trx0sys.c:
