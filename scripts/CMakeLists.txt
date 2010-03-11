@@ -65,7 +65,7 @@ ADD_CUSTOM_TARGET(GenFixPrivs
 
 IF(UNIX)
  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution 
-   "cd ${CMAKE_BINARY_DIR} && ${CMAKE_CPACK_COMMAND} -G TGZ --config CPackConfig.cmake" )
+   "cd ${CMAKE_BINARY_DIR} && '${CMAKE_CPACK_COMMAND}' -G TGZ --config CPackConfig.cmake" )
  EXECUTE_PROCESS(
   COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution
 )
