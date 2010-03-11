@@ -67,6 +67,12 @@ int toku_os_initialize_settings(int verbosity)  __attribute__((__visibility__("d
 //
 int toku_os_is_absolute_name(const char* path)  __attribute__((__visibility__("default")));
 
+// Get file system write information
+// *enospc_last_time is the last time ENOSPC was returned by write or pwrite
+// *enospc_current   is the number of threads waiting on space
+// *enospc_total     is the number of times ENOSPC was returned by write or pwrite
+void toku_fs_get_write_info(uint64_t *enospc_last_time, uint64_t *enospc_current, uint64_t *enospc_total);
+
 #if TOKU_WINDOWS
 #include <sys/types.h>
 #include <sys/stat.h>
