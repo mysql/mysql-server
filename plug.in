@@ -14,7 +14,7 @@
 # Place, Suite 330, Boston, MA 02111-1307 USA
 #
 
-MYSQL_STORAGE_ENGINE(innobase,  innodb, [InnoDB Storage Engine],
+MYSQL_STORAGE_ENGINE(innobase, innodb, [InnoDB Storage Engine],
         [Transactional Tables using InnoDB], [max,max-no-ndb])
 MYSQL_PLUGIN_DIRECTORY(innobase, [storage/innobase])
 MYSQL_PLUGIN_STATIC(innobase,   [libinnobase.a])
