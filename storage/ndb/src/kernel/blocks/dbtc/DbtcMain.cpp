@@ -13319,8 +13319,11 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
    */
   jam();
   if (transIdOk)
+  {
+    jam();
     abortTransFromTrigger(signal, transPtr, ZGET_DATAREC_ERROR);
-  
+  }
+
   return;
 }
 
