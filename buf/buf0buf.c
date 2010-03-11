@@ -3174,7 +3174,7 @@ err_exit:
 			/* Preserve the reference count. */
 			ulint	buf_fix_count = watch_page->buf_fix_count;
 			ut_a(buf_fix_count > 0);
-			block->page.buf_fix_count += buf_fix_count;
+			bpage->buf_fix_count += buf_fix_count;
 			ut_ad(buf_pool_watch_is(watch_page));
 			buf_pool_watch_remove(fold, watch_page);
 		}
