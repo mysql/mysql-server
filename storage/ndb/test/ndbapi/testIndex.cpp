@@ -34,7 +34,6 @@
 #define CHECKRET(b) if (!(b)) { \
   g_err << "ERR: "<< step->getName() \
          << " failed on line " << __LINE__ << endl; \
-  abort(); /* Remove */                             \
   return NDBT_FAILED;                             \
 } 
 
@@ -149,6 +148,7 @@ int create_index(NDBT_Context* ctx, int indxNum,
 		 const NdbDictionary::Table* pTab, 
 		 Ndb* pNdb, Attrib* attr, bool logged){
   bool orderedIndex = ctx->getProperty("OrderedIndex", (unsigned)0);
+  bool notOnlyPkId = ctx->getProperty("NotOnlyPkId", (unsigned)0);
   int result  = NDBT_OK;
 
   HugoCalculator calc(*pTab);
@@ -173,12 +173,42 @@ int create_index(NDBT_Context* ctx, int indxNum,
     pIdx.setType(NdbDictionary::Index::OrderedIndex);
   else
     pIdx.setType(NdbDictionary::Index::UniqueHashIndex);
+  
+  bool includesOnlyPkIdCols = true;
   for (int c = 0; c< attr->numAttribs; c++){
     int attrNo = attr->attribs[c];
-    pIdx.addIndexColumn(pTab->getColumn(attrNo)->getName());
-    ndbout << pTab->getColumn(attrNo)->getName()<<" ";
+    const NdbDictionary::Column* col = pTab->getColumn(attrNo);
+    switch(col->getType())
+    {
+    case NDB_TYPE_BIT:
+    case NDB_TYPE_BLOB:
+    case NDB_TYPE_TEXT:
+      /* Not supported */
+      ndbout << col->getName() << " - bad type )" << endl;
+      return SKIP_INDEX;
+    default:
+      break;
+    }
+    if (col->getStorageType() == NDB_STORAGETYPE_DISK)
+    {
+      ndbout << col->getName() << " - disk based )" << endl;
+      return SKIP_INDEX;
+    }
+
+    pIdx.addIndexColumn(col->getName());
+    ndbout << col->getName()<<" ";
+
+    if (! (col->getPrimaryKey() ||
+           calc.isIdCol(attrNo)))
+      includesOnlyPkIdCols = false;
   }
-  
+
+  if (notOnlyPkId && includesOnlyPkIdCols)
+  {
+    ndbout << " Only PK/id cols included - skipping" << endl;
+    return SKIP_INDEX;
+  }
+
   if (!orderedIndex)
   {
     /**
@@ -2329,6 +2359,120 @@ runBug50118(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runTrigOverload(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* Test inserts, deletes and updates via
+   * PK with error inserts
+   */
+  Ndb* pNdb = GETNDB(step);
+  HugoOperations hugoOps(*ctx->getTab());
+  NdbRestarter restarter;
+
+  unsigned numScenarios = 3;
+  unsigned errorInserts[3] = {8085, 8086, 0};
+  int results[3] = {218, 218, 0};
+
+  unsigned iterations = 50;
+
+  /* Insert some records */
+  if (hugoOps.startTransaction(pNdb) ||
+      hugoOps.pkInsertRecord(pNdb, 0, iterations) ||
+      hugoOps.execute_Commit(pNdb))
+  {
+    g_err << "Failed on initial insert "
+          << pNdb->getNdbError()
+          << endl;
+    return NDBT_FAILED;
+  }
+  
+  hugoOps.closeTransaction(pNdb);
+
+  for(unsigned i = 0 ; i < iterations; i++)
+  {
+    unsigned scenario = i % numScenarios;
+    unsigned errorVal = errorInserts[ scenario ];
+    g_err << "Iteration :" << i 
+          << " inserting error " << errorVal
+          << " expecting result : " << results[scenario]
+          << endl;
+    restarter.insertErrorInAllNodes(errorVal);
+    //    NdbSleep_MilliSleep(500); // Error insert latency?
+    
+    CHECKRET(hugoOps.startTransaction(pNdb) == 0);
+
+    CHECKRET(hugoOps.pkInsertRecord(pNdb, iterations + i, 1) == 0);
+
+    hugoOps.execute_Commit(pNdb);
+
+    int errorCode = hugoOps.getTransaction()->getNdbError().code;
+    
+    if (errorCode != results[scenario])
+    {
+      g_err << "For Insert in scenario " << scenario 
+            << " expected code " << results[scenario]
+            << " but got " << hugoOps.getTransaction()->getNdbError()
+            << endl;
+      return NDBT_FAILED;
+    }
+    
+    hugoOps.closeTransaction(pNdb);
+    
+    CHECKRET(hugoOps.startTransaction(pNdb) == 0);
+    
+    CHECKRET(hugoOps.pkUpdateRecord(pNdb, i, 1, iterations) == 0);
+    
+    hugoOps.execute_Commit(pNdb);
+
+    errorCode = hugoOps.getTransaction()->getNdbError().code;
+    
+    if (errorCode != results[scenario])
+    {
+      g_err << "For Update in scenario " << scenario 
+            << " expected code " << results[scenario]
+            << " but got " << hugoOps.getTransaction()->getNdbError()
+            << endl;
+      return NDBT_FAILED;
+    }
+    
+    hugoOps.closeTransaction(pNdb);
+
+    CHECKRET(hugoOps.startTransaction(pNdb) == 0);
+    
+    CHECKRET(hugoOps.pkDeleteRecord(pNdb, i, 1) == 0);
+    
+    hugoOps.execute_Commit(pNdb);
+
+    errorCode = hugoOps.getTransaction()->getNdbError().code;
+    
+    if (errorCode != results[scenario])
+    {
+      g_err << "For Delete in scenario " << scenario 
+            << " expected code " << results[scenario]
+            << " but got " << hugoOps.getTransaction()->getNdbError()
+            << endl;
+      return NDBT_FAILED;
+    }
+    
+    hugoOps.closeTransaction(pNdb);
+
+  }
+
+  restarter.insertErrorInAllNodes(0);
+  
+  return NDBT_OK;
+}
+
+int
+runClearError(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+
+  restarter.insertErrorInAllNodes(0);
+
+  return NDBT_OK;
+}
+
 
 NDBT_TESTSUITE(testIndex);
 TESTCASE("CreateAll", 
@@ -2720,6 +2864,17 @@ TESTCASE("Bug50118", ""){
   FINALIZER(createPkIndex_Drop);
   FINALIZER(runClearTable);
 }
+TESTCASE("FireTrigOverload", ""){
+  TC_PROPERTY("LoggedIndexes", (unsigned)0);
+  TC_PROPERTY("NotOnlyPkId", (unsigned)1); // Index must be non PK to fire triggers
+  TC_PROPERTY(NDBT_TestCase::getStepThreadStackSizePropName(), 128*1024);
+  INITIALIZER(createRandomIndex);
+  INITIALIZER(runClearTable);
+  STEP(runTrigOverload);
+  FINALIZER(runClearError);
+  FINALIZER(createRandomIndex_Drop);
+}
+  
 NDBT_TESTSUITE_END(testIndex);
 
 int main(int argc, const char** argv){
