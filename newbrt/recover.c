@@ -1174,10 +1174,10 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         if (tokudb_recovery_trace) 
             recover_trace_le(__FUNCTION__, __LINE__, r, le);
         if (r != 0) {
-            if (r == DB_RUNRECOVERY) {
-                rr = DB_RUNRECOVERY; goto errorexit;
-            }
-            break;
+            if (r == DB_NOTFOUND)
+                break;
+            rr = DB_RUNRECOVERY; 
+            goto errorexit;
         }
 
         // trace progress
@@ -1238,7 +1238,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         if (r != 0) {
             if (tokudb_recovery_trace) 
                 fprintf(stderr, "DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
-            rr = DB_RUNRECOVERY; goto errorexit;
+            rr = DB_RUNRECOVERY; 
+            goto errorexit;
         }
 
         // get the next log entry
@@ -1247,10 +1248,10 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         if (tokudb_recovery_trace) 
             recover_trace_le(__FUNCTION__, __LINE__, r, le);
         if (r != 0) {
-            if (r == DB_RUNRECOVERY) {
-                rr = DB_RUNRECOVERY; goto errorexit;
-            }
-            break;
+            if (r == DB_NOTFOUND)
+                break;
+            rr = DB_RUNRECOVERY; 
+            goto errorexit;
         }        
     }
 
