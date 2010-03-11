@@ -4273,6 +4273,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 {
   DBUG_ENTER("prep_alter_part_table");
 
+  /* Foreign keys on partitioned tables are not supported, waits for WL#148 */
+  if (table->part_info && (alter_info->flags & ALTER_FOREIGN_KEY))
+  {
+    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   /*
     We are going to manipulate the partition info on the table object
     so we need to ensure that the data structure of the table object
