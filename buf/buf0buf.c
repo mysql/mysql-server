@@ -2041,6 +2041,7 @@ buf_page_get_gen(
 	ulint		retries = 0;
 
 	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH)
 	      || (rw_latch == RW_X_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
@@ -2397,7 +2398,9 @@ buf_page_optimistic_get(
 	ibool		success;
 	ulint		fix_type;
 
-	ut_ad(mtr && block);
+	ut_ad(block);
+	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
 	mutex_enter(&block->mutex);
@@ -2509,6 +2512,7 @@ buf_page_get_known_nowait(
 	ulint		fix_type;
 
 	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad((rw_latch == RW_S_LATCH) || (rw_latch == RW_X_LATCH));
 
 	mutex_enter(&block->mutex);
@@ -2607,6 +2611,9 @@ buf_page_try_get_func(
 	buf_block_t*	block;
 	ibool		success;
 	ulint		fix_type;
+
+	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 
 	buf_pool_mutex_enter();
 	block = buf_block_hash_get(space_id, page_no);
@@ -2981,6 +2988,7 @@ buf_page_create(
 	ulint		time_ms		= ut_time_ms();
 
 	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(space || !zip_size);
 
 	free_block = buf_LRU_get_free_block(0);
