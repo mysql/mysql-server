@@ -4392,11 +4392,26 @@ loop:
 				btr_pcur_store_position(&pcur, &mtr);
 				btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
+				mtr_start(&mtr);
+
+				if (block) {
+					ibool	success;
+					success = buf_page_get_known_nowait(
+						RW_X_LATCH, block,
+						BUF_KEEP_OLD,
+						__FILE__, __LINE__, &mtr);
+					ut_a(success);
+
+					buf_block_dbg_add_level(
+						block, SYNC_TREE_NODE);
+				}
+
 				if (!ibuf_restore_pos(space, page_no,
 						      search_tuple,
 						      BTR_MODIFY_LEAF,
 						      &pcur, &mtr)) {
 
+					mtr_commit(&mtr);
 					mops[op]++;
 					ibuf_dummy_index_free(dummy_index);
 					goto loop;
