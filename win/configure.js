@@ -183,9 +183,9 @@ function GetVersionExt(str)
           if (pos == -1) 
           {
               // try AC_INIT([mysql], [5.1.41-ndb-7.1.2-beta])
-              key = "AC_INIT([mysql], [";
+              key = "AC_INIT([MySQL Server], [";
               pos = line.indexOf(key); 
-              endsym = "])";
+              endsym = "]";
           }
           if(pos != -1) 
           { 
