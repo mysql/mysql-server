@@ -23,6 +23,7 @@ import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbScanFilter;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
 
+import com.mysql.clusterj.core.query.QueryExecutionContextImpl;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.store.ScanOperation;
@@ -48,10 +49,12 @@ class ScanOperationImpl extends OperationImpl implements ScanOperation {
         handleError(returnCode, ndbScanOperation);
     }
 
-    public ScanFilter getScanFilter() {
+    public ScanFilter getScanFilter(QueryExecutionContextImpl context) {
         NdbScanFilter ndbScanFilter = NdbScanFilter.create(ndbScanOperation);
         handleError(ndbScanFilter, ndbScanOperation);
-        return new ScanFilterImpl(ndbScanFilter);
+        ScanFilter scanFilter = new ScanFilterImpl(ndbScanFilter);
+        context.addFilter(scanFilter);
+        return scanFilter;
     }
 
     public int nextResult(boolean fetch) {

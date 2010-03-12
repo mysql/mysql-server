@@ -95,6 +95,7 @@ javah: $(MYJAPI_CLASSES)
 
 ## automake flags (overridden by per-target flags, added before user flags)
 AM_CPPFLAGS = \
+	-I$(top_srcdir)/storage/ndb/include \
 	-I../../../utils \
 	-I../.. \
 	-I../myapi \

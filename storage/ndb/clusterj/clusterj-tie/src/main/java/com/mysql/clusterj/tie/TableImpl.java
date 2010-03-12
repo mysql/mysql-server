@@ -80,8 +80,7 @@ class TableImpl implements Table {
     public ColumnImpl getColumn(String columnName) {
         ColumnConst ndbColumn = ndbTable.getColumn(columnName);
         if (ndbColumn == null) {
-            throw new ClusterJUserException(
-                    local.message("ERR_No_Column", ndbTable.getName(), columnName));
+            return null;
         }
         return new ColumnImpl(ndbTable, ndbColumn);
     }

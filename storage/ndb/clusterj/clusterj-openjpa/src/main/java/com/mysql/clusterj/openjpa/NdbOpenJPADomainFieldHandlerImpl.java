@@ -19,12 +19,12 @@
 package com.mysql.clusterj.openjpa;
 
 import com.mysql.clusterj.ClusterJFatalInternalException;
-import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.ClusterJUserException;
 
 import com.mysql.clusterj.core.metadata.AbstractDomainFieldHandlerImpl;
 import com.mysql.clusterj.core.query.QueryDomainTypeImpl;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.store.IndexScanOperation;
 import com.mysql.clusterj.core.store.IndexScanOperation.BoundType;
@@ -33,6 +33,7 @@ import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.PartitionKey;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
+import com.mysql.clusterj.core.store.Table;
 import com.mysql.clusterj.core.store.ScanFilter.BinaryCondition;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -78,9 +79,6 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(NdbOpenJPADomainFieldHandlerImpl.class);
 
-    /** The domain type handler factory */
-    NdbOpenJPAConfigurationImpl domainTypeHandlerFactory = null;
-
     private static com.mysql.clusterj.core.store.Column[] emptyStoreColumns = new com.mysql.clusterj.core.store.Column[] {};
     /** The openjpa field mapping for this field */
     private FieldMapping fieldMapping;
@@ -124,14 +122,22 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
     /** The name of the related field */
     private String relatedFieldName;
 
+    /** If this field is supported for clusterjpa */
+    private boolean supported = true;
+
+    /** The reason the field is not supported */
+    private String reason = "";
+
+    private RelatedFieldLoadManager relatedFieldLoadManager;
+
     public FieldMapping getFieldMapping() {
         return fieldMapping;
     }
 
     public NdbOpenJPADomainFieldHandlerImpl(Dictionary dictionary, NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler,
-            NdbOpenJPAConfigurationImpl domainTypeHandlerFactory, FieldMapping fieldMapping) {
+            NdbOpenJPAConfigurationImpl domainTypeHandlerFactory, final FieldMapping fieldMapping) {
 
-        this.domainTypeHandlerFactory = domainTypeHandlerFactory;
+        String message = null;
         this.fieldMapping = fieldMapping;
         this.domainTypeHandler = domainTypeHandler;
         this.name = fieldMapping.getName();
@@ -144,11 +150,11 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
         this.isToOne = fieldMapping.getStrategy() instanceof RelationFieldStrategy;
         if (isMappedBy) {
             relatedType = mappedByMapping.getDeclaringType();
+            relatedFieldMapping = fieldMapping.getMappedByMapping();
         }
         // TODO are these valid for every field?
         this.relatedTypeMapping = fieldMapping.getDeclaredTypeMapping();
         if (relatedTypeMapping != null) {
-            relatedFieldMapping = fieldMapping.getMappedByMapping();
             relatedType = relatedTypeMapping.getDescribedType();
         }
         if (relatedType != null) {
@@ -164,7 +170,13 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 // each field is mapped to one column
                 this.column = columns[0];
                 this.columnName = column.getName();
-                this.storeColumn = domainTypeHandler.getTable().getColumn(columnName);
+                Table table = domainTypeHandler.getTable();
+                this.storeColumn = table.getColumn(columnName);
+                if (storeColumn == null) {
+                    message = local.message("ERR_No_Column", name, table.getName(), columnName);
+                    setUnsupported(message);
+                    return;
+                }
                 this.storeColumns = new com.mysql.clusterj.core.store.Column[] {storeColumn};
                 charsetName = storeColumn.getCharsetName();
                 // set up the default object operation handler for the column type
@@ -172,12 +184,14 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 this.javaType = column.getJavaType();
                 this.objectOperationHandlerDelegate = getObjectOperationHandler(javaType);
                 if (objectOperationHandlerUnsupportedType.equals(objectOperationHandlerDelegate)) {
-                    throw new ClusterJFatalUserException(
-                            local.message("ERR_Unsupported_Meta_Type", javaType));
-                }
-                this.javaTypeName = NdbOpenJPAUtility.getJavaTypeName(javaType);
-                if (storeColumn.isPrimaryKey()) {
-                    domainTypeHandler.registerPrimaryKeyColumn(this, storeColumn.getName());
+                    message = local.message("ERR_Unsupported_Meta_Type", javaType);
+                    setUnsupported(message);
+                    return;
+                } else {
+                    this.javaTypeName = NdbOpenJPAUtility.getJavaTypeName(javaType);
+                    if (storeColumn.isPrimaryKey()) {
+                        domainTypeHandler.registerPrimaryKeyColumn(this, storeColumn.getName());
+                    }
                 }
             } else if (columns.length > 1) {
                 // error, no support
@@ -188,34 +202,40 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                     buffer.append(errorColumn.getName());
                     separator = ", ";
                 }
-                String message = local.message("ERR_More_Than_One_Column_Mapped_To_A_Field",
+                message = local.message("ERR_More_Than_One_Column_Mapped_To_A_Field",
                         domainTypeHandler.getName(), name, buffer);
-                logger.error(message);
-                throw new ClusterJFatalUserException(message);
+                logger.info(message);
+                setUnsupported(message);
+                return;
             } else if (columns.length == 0) {
-                String message = local.message("ERR_No_Column_Mapped_To_A_Field",
+                message = local.message("ERR_No_Column_Mapped_To_A_Field",
                         domainTypeHandler.getName(), name, fieldMapping.getTable(), fieldMapping.getStrategy().getClass().getName());
                 logger.info(message);
-                throw new ClusterJFatalUserException(message);
+                setUnsupported(message);
+                return;
             }
             if (this.primaryKey) {
                 // each field is mapped to its own column
                 // if using a user-defined openJPAId class, set up the value handler
-                oidField = getFieldForOidClass(domainTypeHandler.getOidClass(), name);
+                oidField = getFieldForOidClass(this, domainTypeHandler.getOidClass(), name);
                 indexNames.add("PRIMARY");
                 switch (javaType) {
-                    case JavaTypes.INT: this.objectOperationHandlerDelegate =
-                            objectOperationHandlerKeyInt;
+                    case JavaTypes.INT: 
+                    case JavaTypes.INT_OBJ: 
+                        this.objectOperationHandlerDelegate = objectOperationHandlerKeyInt;
                         break;
-                    case JavaTypes.LONG: this.objectOperationHandlerDelegate =
-                            objectOperationHandlerKeyLong;
+                    case JavaTypes.LONG:
+                    case JavaTypes.LONG_OBJ: 
+                        this.objectOperationHandlerDelegate = objectOperationHandlerKeyLong;
                         break;
-                    case JavaTypes.STRING: this.objectOperationHandlerDelegate =
-                            objectOperationHandlerKeyString;
+                   case JavaTypes.STRING: this.objectOperationHandlerDelegate =
+                        objectOperationHandlerKeyString;
                         break;
-                    default: throw new ClusterJFatalUserException(
-                            local.message("ERR_Illegal_Foreign_Key_Type",
-                            domainTypeHandler.getName(), name, javaTypeName));
+                    default: 
+                        message = local.message("ERR_Illegal_Primary_Key_Type",
+                            domainTypeHandler.getName(), name, columnName, javaTypeName);
+                        logger.info(message);
+                        setUnsupported(message);
                 }
             }
         } else if (isRelation) {
@@ -224,19 +244,31 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 this.column = columns[0];
                 this.columnName = column.getName();
                 this.columnNames = new String[] {columnName};
-                this.storeColumn = domainTypeHandler.getTable().getColumn(columnName);
+                Table table = domainTypeHandler.getTable();
+                this.storeColumn = table.getColumn(columnName);
+                if (storeColumn == null) {
+                    message = local.message("ERR_No_Column", name, table.getName(), columnName);
+                    setUnsupported(message);
+                    return;
+                }
                 this.storeColumns = new com.mysql.clusterj.core.store.Column[] {storeColumn};
                 // set up the default object operation handler for the column type
                 this.javaType = column.getJavaType();
                 this.javaTypeName = NdbOpenJPAUtility.getJavaTypeName(javaType);
                 this.objectOperationHandlerDelegate = getObjectOperationHandlerRelationDelegate(javaType);
+                if (objectOperationHandlerDelegate == null) {
+                    // unsupported primary key type
+                    return;
+                }
             } else if (columns.length == 0) {
                 if (isMappedBy) {
                     // this is the case of a OneToMany field mapped by columns in another table
                     this.objectOperationHandlerDelegate = objectOperationHandlerVirtualType;
                 } else {
-                    throw new ClusterJUserException(local.message("ERR_No_Columns_And_Not_Mapped_By",
-                            this.domainTypeHandler.getName(), this.name));
+                    message = local.message("ERR_No_Columns_And_Not_Mapped_By",
+                            this.domainTypeHandler.getName(), this.name);
+                    logger.info(message);
+                    setUnsupported(message);
                 }
             } else {
                 // multiple columns for related object
@@ -261,23 +293,38 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                     this.columnNames = new String[columns.length];
                     this.storeColumns = new com.mysql.clusterj.core.store.Column[columns.length];
                     for (int i = 0; i < columns.length; ++i) {
-                        StringBuffer message = new StringBuffer();
+                        StringBuffer detailMessage = new StringBuffer();
                         Column localColumn = columns[i];
                         String localColumnName = localColumn.getName();
-                        com.mysql.clusterj.core.store.Column localStoreColumn = domainTypeHandler.getTable().getColumn(localColumnName);
+                        Table table = domainTypeHandler.getTable();
+                        com.mysql.clusterj.core.store.Column localStoreColumn = table.getColumn(localColumnName);
+                        if (localStoreColumn == null) {
+                            message = local.message("ERR_No_Column", name, table.getName(), localColumnName);
+                            logger.info(message);
+                            setUnsupported(message);
+                            return;
+                        }
                         this.storeColumns[i] = localStoreColumn;
                         this.columnNames[i] = localColumnName;
                         ForeignKey foreignKey = fieldMapping.getForeignKey();
                         // get the primary key column corresponding to the local column
                         Column pkColumn = foreignKey.getPrimaryKeyColumn(localColumn);
                         if (logger.isDetailEnabled()) {
-                            message.append(" column: " + localColumnName);
-                            message.append(" fk-> " + foreignKey);
-                            message.append(" pkColumn-> " + pkColumn);
-                            logger.detail(message.toString());
+                            detailMessage.append(" column: " + localColumnName);
+                            detailMessage.append(" fk-> " + foreignKey);
+                            detailMessage.append(" pkColumn-> " + pkColumn);
+                            logger.detail(detailMessage.toString());
                         }
-                        this.compositeDomainFieldHandlers[i] =
-                                new NdbOpenJPADomainFieldHandlerImpl(this, localColumn, pkColumn);
+                        NdbOpenJPADomainFieldHandlerImpl relatedFieldHandler = 
+                            new NdbOpenJPADomainFieldHandlerImpl(this, localColumn, pkColumn);
+                        if (relatedFieldHandler.isSupported()) {
+                            this.compositeDomainFieldHandlers[i] = relatedFieldHandler;
+                        } else {
+                            message = relatedFieldHandler.getReason();
+                            setUnsupported(message);
+                            return;
+                        }
+                                
                     }
                     this.objectOperationHandlerDelegate =
                             objectOperationHandlerRelationCompositeField;
@@ -285,23 +332,31 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
             }
         } else {
             // embedded field
-            throw new ClusterJUserException(local.message("ERR_Embedded_Fields_Not_Supported",
-                    this.domainTypeHandler.getName(), this.name));
+            message = local.message("ERR_Embedded_Fields_Not_Supported",
+                    this.domainTypeHandler.getName(), this.name);
+            logger.info(message);
+            setUnsupported(message);
+            return;
         }
-        // now handle indexes
+        // now handle indexes, for supported field types
         Index index = fieldMapping.getJoinIndex();
         // TODO: where is this annotation used?
         if (index != null) {
-            StringBuffer buffer = null;
-            if (logger.isDetailEnabled())  buffer = new StringBuffer("Found index name ");
             String indexName = index.getName();
-            if (logger.isDetailEnabled())  buffer.append(indexName); buffer.append(" [");
             Column[] indexColumns = index.getColumns();
-            for (Column indexColumn : indexColumns) {
-                if (logger.isDetailEnabled()) buffer.append(indexColumn.getName()); buffer.append(" ");
+            if (logger.isDetailEnabled()) {
+                StringBuilder buffer = new StringBuilder("Found index name ");
+                buffer.append(indexName);
+                buffer.append(" [");
+                for (Column indexColumn : indexColumns) {
+                    if (logger.isDetailEnabled()) {
+                        buffer.append(indexColumn.getName());
+                        buffer.append(" ");
+                    }
+                }
+                buffer.append("]");
+                logger.detail(buffer.toString());
             }
-            if (logger.isDetailEnabled()) buffer.append("]");
-            if (logger.isDetailEnabled()) logger.detail(buffer.toString());
         }
         index = fieldMapping.getValueIndex();
         // Value indexes are used for ManyToOne and OneToOne relationship indexes on the mapped side
@@ -329,6 +384,95 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                     " Java type: " + javaType +
                     " strategy: " + toString(fieldMapping.getStrategy()) +
                     " ObjectOperationHandler: " + objectOperationHandlerDelegate.handler());
+        }
+    }
+
+    /** Initialize relationship handling. There are three types of relationships
+     * supported by clusterjpa:
+     * <ul><li>direct ToOne relationship mapped by a foreign key on this side
+     * </li><li>ToOne relationship mapped by a foreign key on the other side
+     * </li><li>ToMany relationship mapped by a foreign key on the other side
+     * </li></ul>
+     * 
+     */
+    public void initializeRelations() {
+        if (isRelation) {
+            // set up related field load handler
+            if (isMappedBy && isToOne) {
+                // mapped by other side with one instance
+                this.relatedDomainTypeHandler = ((NdbOpenJPADomainTypeHandlerImpl<?>)domainTypeHandler)
+                        .registerDependency(relatedTypeMapping);
+                this.relatedFieldName = relatedFieldMapping.getName();
+                relatedFieldLoadManager = new RelatedFieldLoadManager() {
+                    public void load(OpenJPAStateManager sm, NdbOpenJPAStoreManager store, 
+                            JDBCFetchConfiguration fetch) throws SQLException {
+                        SessionSPI session = store.getSession();
+                        session.startAutoTransaction();
+                        NdbOpenJPAResult queryResult = queryRelated(sm, store);
+                        Object related = null;
+                        try {
+                            if (queryResult.next()) {
+                                // instantiate the related object from the result of the query
+                                related = store.load(relatedTypeMapping, fetch, (BitSet) null, queryResult);
+                            }
+                            if (logger.isDetailEnabled()) logger.detail("related object is: " + related);
+                            // store the value of the related object in this field
+                            sm.storeObjectField(fieldNumber, related);
+                            session.endAutoTransaction();
+                        } catch (Exception e) {
+                            session.failAutoTransaction();
+                        }
+                    }
+                };
+                if (logger.isDetailEnabled()) logger.detail("Single-valued relationship field " + name
+                        + " is mapped by " + relatedTypeName + " field " + relatedFieldName
+                        + " with relatedDomainTypeHandler " + relatedDomainTypeHandler.getName());
+            } else if (isMappedBy && !isToOne) {
+                // mapped by other side with multiple instances
+                this.relatedTypeMapping = mappedByMapping.getDeclaringMapping();
+                this.relatedDomainTypeHandler = ((NdbOpenJPADomainTypeHandlerImpl<?>)domainTypeHandler)
+                        .registerDependency(relatedTypeMapping);
+                this.relatedFieldName = mappedByMapping.getName();
+                relatedTypeName = relatedDomainTypeHandler.getName();
+                if (logger.isDetailEnabled()) logger.detail("Multi-valued relationship field " + name
+                        + " is mapped by " + relatedTypeName + " field " + relatedFieldName);
+                    relatedFieldLoadManager = new RelatedFieldLoadManager() {
+                        public void load(OpenJPAStateManager sm, NdbOpenJPAStoreManager store, 
+                                JDBCFetchConfiguration fetch) throws SQLException {
+                            SessionSPI session = store.getSession();
+                            session.startAutoTransaction();
+                            try {
+                                NdbOpenJPAResult queryResult = queryRelated(sm, store);
+                                while (queryResult.next()) {
+                                    store.load(relatedTypeMapping, fetch, (BitSet) null, queryResult);
+                                }
+                                fieldMapping.load(sm, store, fetch);
+                                session.endAutoTransaction();
+                            } catch (Exception e) {
+                                session.failAutoTransaction();
+                            }
+                    }
+                };
+            } else {
+                // this side contains foreign key to other side
+                if (logger.isDetailEnabled()) logger.detail("NdbOpenJPADomainFieldHandlerImpl.initializeRelations for " 
+                        + fieldMapping.getName() + " column " + (column==null?"null":column.getName())
+                        + " relatedFieldName " + relatedFieldName
+                        + " relatedFieldMapping " + relatedFieldMapping
+                        + " relatedTypeMapping " + relatedTypeMapping);
+                // record dependency to related type if not null
+                if (relatedTypeMapping != null) {
+                    this.relatedDomainTypeHandler = ((NdbOpenJPADomainTypeHandlerImpl<?>)domainTypeHandler)
+                        .registerDependency(relatedTypeMapping);
+                    relatedFieldLoadManager = new RelatedFieldLoadManager() {
+                        public void load(OpenJPAStateManager sm, NdbOpenJPAStoreManager store, 
+                                JDBCFetchConfiguration fetch) throws SQLException {
+                            if (logger.isDetailEnabled()) logger.detail("Loading field " + name + "from stored key");
+                            fieldMapping.load(sm, store, fetch);
+                        }
+                    };
+                }
+            }
         }
     }
 
@@ -386,11 +530,23 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
      */
     public NdbOpenJPADomainFieldHandlerImpl(NdbOpenJPADomainFieldHandlerImpl parent,
             Column localColumn, Column pkColumn) {
+        String message = null;
         if (logger.isDetailEnabled()) logger.detail("NdbOpenJPADomainFieldHandlerImpl<init> for localColumn: " + localColumn + " pkColumn: " + pkColumn);
         this.column = localColumn;
-        this.storeColumn = parent.domainTypeHandler.getStoreTable().getColumn(localColumn.getName());
+        Table table = parent.domainTypeHandler.getStoreTable();
+        this.storeColumn = table.getColumn(localColumn.getName());
+        if (storeColumn == null) {
+            message = local.message("ERR_No_Column", parent.getName(), table.getName(), columnName);
+            setUnsupported(message);
+            logger.info(message);
+            return;
+        }
         this.javaType = column.getJavaType();
         this.objectOperationHandlerDelegate = getObjectOperationHandlerRelationDelegate(javaType);
+        if (objectOperationHandlerDelegate == null) {
+            // unsupported primary key type
+            return;
+        }
         this.columnName = column.getName();
         this.fieldNumber = parent.fieldNumber;
         this.domainTypeHandler = parent.domainTypeHandler;
@@ -409,14 +565,16 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
             if (rcs.length == 1 && rcs[0].equals(pkColumn)) {
                 // found the corresponding pk field
                 String pkFieldName = rfm.getName();
-                oidField = getFieldForOidClass(relatedTypeMapping.getObjectIdType(), pkFieldName);
+                oidField = getFieldForOidClass(this, relatedTypeMapping.getObjectIdType(), pkFieldName);
             if (logger.isDetailEnabled()) logger.detail("NdbOpenJPADomainFieldHandlerImpl<init> found primary key column: " + rcs[0] + " for field: " + pkFieldName);
                 break;
             }
         }
         if (oidField == null) {
-            throw new ClusterJUserException(
-                    local.message("ERR_No_Oid_Field", pkColumn));
+            message = local.message("ERR_No_Oid_Field", pkColumn);
+            setUnsupported(message);
+            logger.info(message);
+            return;
         }
         if (logger.isTraceEnabled()) {
             logger.trace(" Relation Field Handler for column: " + columnName +
@@ -429,6 +587,11 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
 
     }
 
+    interface RelatedFieldLoadManager {
+        public void load(OpenJPAStateManager sm, NdbOpenJPAStoreManager store, 
+                JDBCFetchConfiguration fetch) throws SQLException ;
+    }
+
     /** Load the value of this field. This will be done here only for relationship fields,
      * since basic fields are loaded when the instance is first initialized.
      *  
@@ -439,41 +602,11 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
      */
     public void load(OpenJPAStateManager sm, NdbOpenJPAStoreManager store, JDBCFetchConfiguration fetch)
             throws SQLException {
-        // TODO: move initialization of relatedDomainTypeHandler etc. to a new post-create method.
-        if (isMappedBy && isToOne) {
-            // for single-valued fields, query for the object whose foreign key matches this primary key
-            this.relatedDomainTypeHandler = domainTypeHandlerFactory.getDomainTypeHandler(relatedTypeMapping, store.getDictionary());
-            this.relatedFieldName = relatedFieldMapping.getName();
-            if (logger.isDetailEnabled()) logger.detail("Single-valued relationship field " + name + " is mapped by " + relatedTypeName + " field " + relatedFieldName + " with relatedDomainTypeHandler " + relatedDomainTypeHandler.getName());
-            NdbOpenJPAResult queryResult = queryRelated(sm, store);
-            Object related = null;
-            if (queryResult.next()) {
-                // instantiate the related object from the result of the query
-                related = store.load(relatedTypeMapping, fetch, (BitSet) null, queryResult);
-            }
-            if (logger.isDetailEnabled()) logger.detail("related object is: " + related);
-            // store the value of the related object in this field
-            sm.storeObjectField(fieldNumber, related);
-        } else if (isMappedBy && !isToOne) {
-            // for multi-valued fields, query for the objects whose foreign key matches this primary key
-            this.relatedTypeMapping = mappedByMapping.getDeclaringMapping();
-            this.relatedDomainTypeHandler = domainTypeHandlerFactory.getDomainTypeHandler(relatedTypeMapping, store.getDictionary());
-            this.relatedFieldName = mappedByMapping.getName();
-            relatedTypeName = relatedDomainTypeHandler.getName();
-            if (logger.isDetailEnabled()) logger.detail("Multi-valued relationship field " + name + " is mapped by " + relatedTypeName + " field " + relatedFieldName);
-
-            NdbOpenJPAResult queryResult = queryRelated(sm, store);
-            while (queryResult.next()) {
-                store.load(relatedTypeMapping, fetch, (BitSet) null, queryResult);
-            }
-            // during loading of the related instances (above), 
-           // the relationship was established to this field
-            fieldMapping.load(sm, store, fetch);
-        } else {
-            // this field already contains the primary key of the other side
-            if (logger.isDetailEnabled()) logger.detail("Loading field " + name + "from stored key");
-            fieldMapping.load(sm, store, fetch);
+        if (!isRelation) {
+            throw new ClusterJFatalInternalException("load called for non-relationship field "
+                    + this.getName() + " mapped to column " + this.columnName);
         }
+        relatedFieldLoadManager.load(sm, store, fetch);
     }
 
     /** Query the related type for instance(s) whose related field refers to this instance.
@@ -492,6 +625,7 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
         queryDomainType.where(predicate);
         Map<String, Object> parameterList = new HashMap<String, Object>();
         parameterList.put(relatedFieldName, thisOid);
+        if (logger.isDetailEnabled()) logger.detail(parameterList.toString());
         NdbOpenJPAResult queryResult = store.executeQuery(relatedDomainTypeHandler, queryDomainType, parameterList);
         // debug query result
         if (logger.isDetailEnabled()) {
@@ -527,7 +661,7 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
 
     public ObjectOperationHandler[] objectOperationHandlers =
             new ObjectOperationHandler[] {
-        objectOperationHandlerUnsupportedType, /* 0: boolean */
+        objectOperationHandlerBoolean,         /* 0: boolean */
         objectOperationHandlerByte,            /* 1: byte */
         objectOperationHandlerUnsupportedType, /* 2: char */
         objectOperationHandlerDouble,          /* 3: double */
@@ -543,7 +677,7 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
         objectOperationHandlerUnsupportedType, /* 13: Map */
         objectOperationHandlerJavaUtilDate,    /* 14: java.util.Date */
         objectOperationHandlerUnsupportedType, /* 15: PC */
-        objectOperationHandlerUnsupportedType, /* 16: Boolean */
+        objectOperationHandlerObjectBoolean,   /* 16: Boolean */
         objectOperationHandlerObjectByte,      /* 17: Byte */
         objectOperationHandlerUnsupportedType, /* 18: Character */
         objectOperationHandlerObjectDouble,    /* 19: Double */
@@ -558,7 +692,7 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
         objectOperationHandlerUnsupportedType, /* 28: Calendar */
         objectOperationHandlerUnsupportedType, /* 29: OID */
         objectOperationHandlerUnsupportedType, /* 30: InputStream */
-        objectOperationHandlerUnsupportedType /* 31: InputReader */        
+        objectOperationHandlerUnsupportedType  /* 31: InputReader */        
     };
 
     public int compareTo(Object o) {
@@ -600,7 +734,10 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
         return oidField;
     }
 
-    protected static Field getFieldForOidClass(Class<?> oidClass, String fieldName) {
+    protected static Field getFieldForOidClass(
+            NdbOpenJPADomainFieldHandlerImpl ndbOpenJPADomainFieldHandlerImpl,
+            Class<?> oidClass, String fieldName) {
+        String message = null;
         Field result = null;
         if (logger.isDetailEnabled()) logger.detail("Oid class: " + oidClass.getName());
         // the openJPAId class might be a simple type or a user-defined type
@@ -613,29 +750,38 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 if (logger.isDetailEnabled()) logger.detail("OidField: " + result);
                 return result;
             } catch (NoSuchFieldException ex) {
-                logger.error("Oid class " + oidClass.getName() + " does not define a field named " + fieldName);
-                throw new ClusterJUserException(
-                        local.message("ERR_No_Field_In_Oid_Class", fieldName));
+                message = local.message("ERR_No_Field_In_Oid_Class", oidClass.getName(), fieldName);
+                logger.info(message);
+                ndbOpenJPADomainFieldHandlerImpl.setUnsupported(message);
+                return null;
             } catch (SecurityException ex) {
-                logger.error("Security exception getting Field from Oid class " + oidClass.getName());
-                throw new ClusterJUserException(
-                        local.message("ERR_Security_Violation_For_Oid_Class", oidClass.getName()));
+                message = local.message("ERR_Security_Violation_For_Oid_Class", oidClass.getName());
+                logger.info(message);
+                ndbOpenJPADomainFieldHandlerImpl.setUnsupported(message);
+                return null;
             }
         }
     }
 
     protected ObjectOperationHandler getObjectOperationHandlerRelationDelegate(int javaType) {
+        String message;
         switch (javaType) {
-            case JavaTypes.INT: return objectOperationHandlerRelationIntField;
+            case JavaTypes.INT:
+            case JavaTypes.INT_OBJ:
+                return objectOperationHandlerRelationIntField;
 
-            case JavaTypes.LONG: return objectOperationHandlerRelationLongField;
+            case JavaTypes.LONG:
+            case JavaTypes.LONG_OBJ:
+                return objectOperationHandlerRelationLongField;
 
-            case JavaTypes.STRING: return objectOperationHandlerRelationStringField;
+            case JavaTypes.STRING:
+                return objectOperationHandlerRelationStringField;
 
             default:
-                throw new ClusterJFatalUserException(
-                    local.message("ERR_Illegal_Primary_Key_Type",
-                    domainTypeHandler.getName(), name, javaType));
+                message = local.message("ERR_Illegal_Foreign_Key_Type",
+                        domainTypeHandler.getName(), name, columnName, javaType);
+                setUnsupported(message);
+                return null;
         }
     }
 
@@ -789,9 +935,16 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 if (logger.isDetailEnabled()) logger.detail("Related object is null");
                 op.setNull(fmd.getStoreColumn());
             } else {
-                int oid = getInt(rel.getObjectId());
-                if (logger.isDetailEnabled()) logger.detail("Related object class: " + rel.getMetaData().getTypeAlias() + " key: " + oid);
-                op.setInt(fmd.getStoreColumn(), oid);
+                Object objid = rel.getObjectId();
+                if (objid == null) {
+                    // TODO: doesn't seem right
+                    op.setNull(fmd.getStoreColumn());
+                    if (logger.isDetailEnabled()) logger.detail("Related object class: " + rel.getMetaData().getTypeAlias() + " object id: " + objid);
+                } else {
+                    int oid = getInt(objid);
+                    if (logger.isDetailEnabled()) logger.detail("Related object class: " + rel.getMetaData().getTypeAlias() + " key: " + oid);
+                    op.setInt(fmd.getStoreColumn(), oid);
+                }
             }
         }
 
@@ -1025,7 +1178,7 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
          * 
          * @param fmd the domain field handler
          * @param oid the value to set
-         * @param type the bound type (i.e. EQ, NE, LE, LT, GE, GT)
+         * @param type the bound type (i.e. EQ, LE, LT, GE, GT)
          * @param op the index operation
          */
         public void operationSetBounds(AbstractDomainFieldHandlerImpl fmd, Object oid, BoundType type, IndexScanOperation op) {
@@ -1040,6 +1193,19 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
 
     public com.mysql.clusterj.core.store.Column[] getStoreColumns() {
         return storeColumns;
+    }
+
+    public boolean isSupported() {
+        return supported;
+    }
+
+    public String getReason() {
+        return reason;
+    }
+
+    private void setUnsupported(String reason) {
+        this.supported = false;
+        this.reason = reason;
     }
 
 }

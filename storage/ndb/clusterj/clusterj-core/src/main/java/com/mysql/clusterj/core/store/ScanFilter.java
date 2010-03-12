@@ -59,5 +59,7 @@ public interface ScanFilter {
     public void end();
 
     public void isNull(Column storeColumn);
+    
+    public void delete();
 
 }

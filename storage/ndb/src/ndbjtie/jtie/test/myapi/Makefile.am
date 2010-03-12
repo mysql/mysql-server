@@ -19,7 +19,7 @@ include $(top_srcdir)/storage/ndb/config/common.mk.am
 ## ----------------------------------------------------------------------
 
 ## automake flags (overridden by per-target flags, added before user flags)
-AM_CPPFLAGS = -I../../../utils
+AM_CPPFLAGS = -I../../../utils -I$(top_srcdir)/storage/ndb/include
 
 ## ----------------------------------------------------------------------
 

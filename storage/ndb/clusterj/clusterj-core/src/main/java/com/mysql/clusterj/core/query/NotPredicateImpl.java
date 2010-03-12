@@ -56,7 +56,7 @@ public class NotPredicateImpl extends PredicateImpl {
     public void filterCmpValue(QueryExecutionContextImpl context,
             ScanOperation op) {
         try {
-            ScanFilter filter = op.getScanFilter();
+            ScanFilter filter = op.getScanFilter(context);
             filter.begin(Group.GROUP_NAND);
             predicate.filterCmpValue(context, op, filter);
             filter.end();

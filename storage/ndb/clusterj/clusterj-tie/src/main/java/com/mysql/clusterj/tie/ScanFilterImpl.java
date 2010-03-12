@@ -202,4 +202,8 @@ class ScanFilterImpl implements ScanFilter {
         }
     }
 
+    public void delete() {
+        NdbScanFilter.delete(ndbScanFilter);
+    }
+
 }

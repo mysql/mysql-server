@@ -157,6 +157,10 @@ public class NdbOpenJPAResult extends AbstractResult implements Result {
             case JavaSQLTypes.BYTES:
                 result = resultData.getBytes(columnName);
                 break;
+            case JavaTypes.BOOLEAN:
+            case JavaTypes.BOOLEAN_OBJ:
+                result = resultData.getObjectBoolean(columnName);
+                break;
             default:
                 if (logger.isDetailEnabled()) {
                     logger.detail("Unsupported Meta Type: " + metaType);
