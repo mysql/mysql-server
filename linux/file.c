@@ -8,19 +8,16 @@
 #include <string.h>
 #include <time.h>
 
-static uint64_t get_tnow(void) {
-    struct timeval tv;
-    int r = gettimeofday(&tv, NULL); assert(r == 0);
-    return tv.tv_sec * 1000000ULL + tv.tv_usec;
-}
-
-#define DO_ASSERT_ON_ENOSPC 1
-
+static int toku_assert_on_write_enospc = 0;
 static const int toku_write_enospc_sleep = 1;
 static uint64_t toku_write_enospc_last_report;
 static uint64_t toku_write_enospc_last_time;
 static uint32_t toku_write_enospc_current;
 static uint64_t toku_write_enospc_total;
+
+void toku_set_assert_on_write_enospc(int do_assert) {
+    toku_assert_on_write_enospc = do_assert;
+}
 
 void
 toku_fs_get_write_info(uint64_t *enospc_last_time, uint64_t *enospc_current, uint64_t *enospc_total) {
@@ -48,46 +45,45 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
 	break;
     }
     case ENOSPC: {
-#if DO_ASSERT_ON_ENOSPC
-        toku_write_enospc_last_report = get_tnow();
-	char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
-	snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", (uint64_t)len, fd);
-	perror(err_msg);
-	fflush(stderr);
-	int out_of_disk_space = 1;
-	assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
-#else
-        toku_sync_fetch_and_increment_uint64(&toku_write_enospc_total);
-        toku_sync_fetch_and_increment_uint32(&toku_write_enospc_current);
-
-        uint64_t tnow = get_tnow();
-        toku_write_enospc_last_time = tnow;
-        if (toku_write_enospc_last_report == 0 || tnow - toku_write_enospc_last_report >= 60*1000000) {
-            toku_write_enospc_last_report = tnow;
-
-            const int tstr_length = 26;
-            char tstr[tstr_length];
-            time_t t = time(0);
-            ctime_r(&t, tstr);
-
-            const int MY_MAX_PATH = 256;
-            char fname[MY_MAX_PATH], symname[MY_MAX_PATH];
-            sprintf(fname, "/proc/%d/fd/%d", getpid(), fd);
-            ssize_t n = readlink(fname, symname, MY_MAX_PATH);
-
-            if ((int)n == -1)
-                fprintf(stderr, "%.24s Tokudb No space when writing %"PRIu64" bytes to fd=%d ", tstr, (uint64_t) len, fd);
-            else
-                fprintf(stderr, "%.24s Tokudb No space when writing %"PRIu64" bytes to %*s ", tstr, (uint64_t) len, (int) n, symname); 
-            fprintf(stderr, "retry in %d second%s\n", toku_write_enospc_sleep, toku_write_enospc_sleep > 1 ? "s" : "");
+        if (toku_assert_on_write_enospc) {
+            char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
+            snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", (uint64_t)len, fd);
+            perror(err_msg);
             fflush(stderr);
+            int out_of_disk_space = 1;
+            assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
+        } else {
+            toku_sync_fetch_and_increment_uint64(&toku_write_enospc_total);
+            toku_sync_fetch_and_increment_uint32(&toku_write_enospc_current);
+
+            time_t tnow = time(0);
+            toku_write_enospc_last_time = tnow;
+            if (toku_write_enospc_last_report == 0 || tnow - toku_write_enospc_last_report >= 60) {
+                toku_write_enospc_last_report = tnow;
+
+                const int tstr_length = 26;
+                char tstr[tstr_length];
+                time_t t = time(0);
+                ctime_r(&t, tstr);
+
+                const int MY_MAX_PATH = 256;
+                char fname[MY_MAX_PATH], symname[MY_MAX_PATH];
+                sprintf(fname, "/proc/%d/fd/%d", getpid(), fd);
+                ssize_t n = readlink(fname, symname, MY_MAX_PATH);
+
+                if ((int)n == -1)
+                    fprintf(stderr, "%.24s Tokudb No space when writing %"PRIu64" bytes to fd=%d ", tstr, (uint64_t) len, fd);
+                else
+                    fprintf(stderr, "%.24s Tokudb No space when writing %"PRIu64" bytes to %*s ", tstr, (uint64_t) len, (int) n, symname); 
+                fprintf(stderr, "retry in %d second%s\n", toku_write_enospc_sleep, toku_write_enospc_sleep > 1 ? "s" : "");
+                fflush(stderr);
+            }
+            sleep(toku_write_enospc_sleep);
+            try_again = 1;
+            toku_sync_fetch_and_decrement_uint32(&toku_write_enospc_current);
+            break;
         }
-	sleep(toku_write_enospc_sleep);
-	try_again = 1;
-        toku_sync_fetch_and_decrement_uint32(&toku_write_enospc_current);
-	break;
-#endif
-        }
+    }
     default:
 	break;
     }
@@ -197,6 +193,11 @@ toku_file_fsync_without_accounting (int fd) {
     return r;
 }
 
+static uint64_t get_tnow(void) {
+    struct timeval tv;
+    int r = gettimeofday(&tv, NULL); assert(r == 0);
+    return tv.tv_sec * 1000000ULL + tv.tv_usec;
+}
 
 // keep trying if fsync fails because of EINTR
 int
