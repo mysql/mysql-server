@@ -69,7 +69,22 @@ let $_fake_relay_log_purge= `SELECT @@global.relay_log_purge`;
 # Create relay log file.
 copy_file $fake_relay_log $_fake_relay_log;
 # Create relay log index.
---exec echo $_fake_filename-fake.000001 > $_fake_relay_index
+
+if (`SELECT LENGTH(@@secure_file_priv) > 0`)
+{
+  -- let $_file_priv_dir= `SELECT @@secure_file_priv`;
+  -- let $_suffix= `SELECT UUID()`
+  -- let $_tmp_file= $_file_priv_dir/fake-index.$_suffix
+
+  -- eval select '$_fake_filename-fake.000001\n' into dumpfile '$_tmp_file'
+  -- copy_file $_tmp_file $_fake_relay_index
+  -- remove_file $_tmp_file
+}
+
+if (`SELECT LENGTH(@@secure_file_priv) = 0`)
+{
+  -- eval select '$_fake_filename-fake.000001\n' into dumpfile '$_fake_relay_index'
+}
 
 # Setup replication from existing relay log.
 eval CHANGE MASTER TO MASTER_HOST='dummy.localdomain', RELAY_LOG_FILE='$_fake_filename-fake.000001', RELAY_LOG_POS=4;

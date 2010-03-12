@@ -566,7 +566,7 @@ set sql_log_bin=1;
 set sql_log_off=1;
 set sql_log_update=1;
 Warnings:
-Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored
+Note	1315	The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored. This option will be removed in MySQL 5.6.
 set sql_low_priority_updates=1;
 set sql_max_join_size=200;
 select @@sql_max_join_size,@@max_join_size;
@@ -1018,6 +1018,12 @@ ERROR HY000: Variable 'hostname' is a read only variable
 show variables like 'hostname';
 Variable_name	Value
 hostname	#
+#
+# BUG#37408 - Compressed MyISAM files should not require/use mmap()
+#
+# Test 'myisam_mmap_size' option is not dynamic
+SET @@myisam_mmap_size= 500M;
+ERROR HY000: Variable 'myisam_mmap_size' is a read only variable
 End of 5.0 tests
 set join_buffer_size=1;
 Warnings:

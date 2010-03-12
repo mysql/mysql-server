@@ -149,6 +149,10 @@ int handle_options(int *argc, char ***argv,
       {                                       /* --set-variable, or -O  */
 	if (*cur_arg == 'O')
 	{
+          my_getopt_error_reporter(WARNING_LEVEL, 
+                                   "%s: Option '-O' is deprecated. "
+                                   "Use --variable-name=value instead.",
+                                   my_progname);
 	  must_be_var= 1;
 
 	  if (!(*++cur_arg))	/* If not -Ovar=# */
@@ -168,6 +172,11 @@ int handle_options(int *argc, char ***argv,
 	}
 	else if (!getopt_compare_strings(cur_arg, "-set-variable", 13))
 	{
+          my_getopt_error_reporter(WARNING_LEVEL, 
+                                   "%s: Option '--set-variable' is deprecated. "
+                                   "Use --variable-name=value instead.",
+                                   my_progname);
+                                   
 	  must_be_var= 1;
 	  if (cur_arg[13] == '=')
 	  {
@@ -416,17 +425,17 @@ invalid value '%s'",
 	else if (optp->arg_type == OPT_ARG &&
 		 (((optp->var_type & GET_TYPE_MASK) == GET_BOOL) ||
                    (optp->var_type & GET_TYPE_MASK) == GET_ENUM))
-	{
-	  if (optend == disabled_my_option)
-	    *((my_bool*) value)= (my_bool) 0;
-	  else
-	  {
-	    if (!optend) /* No argument -> enable option */
-	      *((my_bool*) value)= (my_bool) 1;
-            else
-              argument= optend;
-	  }
-	}
+  {
+    if (optend == disabled_my_option)
+      init_one_value(optp, value, 0);
+    else
+    {
+      if (!optend) /* No argument -> enable option */
+        init_one_value(optp, value, 1);
+      else
+        argument= optend;
+    }
+  }
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
 	  /* Check if there are more arguments after this one */

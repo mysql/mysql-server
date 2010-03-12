@@ -1061,4 +1061,16 @@ ALTER TABLE t1 CHANGE COLUMN f1 f1_no_real_change TIMESTAMP NULL DEFAULT NULL;
 --disable_info
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug #31145: ALTER TABLE DROP COLUMN, ADD COLUMN crashes (linux) 
+--echo #   or freezes (win) the server
+--echo #
+
+CREATE TABLE t1 (a TEXT, id INT, b INT);
+ALTER TABLE t1 DROP COLUMN a, ADD COLUMN c TEXT FIRST;
+
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests

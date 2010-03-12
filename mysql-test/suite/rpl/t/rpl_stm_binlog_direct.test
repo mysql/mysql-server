@@ -1,0 +1,230 @@
+################################################################################
+# This test case checks if the option "binlog-direct-non-transactional-updates"
+# makes non-transactional changes in the statement format to be written to the
+# binary log as soon as the statement commits.
+#
+# In what follows, we use the include file rpl_mixing_engines.inc to generate
+# sql commands from a format string. The format string consists of a sequence of
+# 'codes' separated by spaces. Before it set of commands, we paste the expected
+# sequence in the binary log. The following codes exist:
+#
+# - Define the scope of a transaction:
+# B - Begin.
+# C - Commit.
+# R - Rollback.
+#
+# - Change only T-Tables:
+# T - Updates a T-Table.
+# T-trig - Updates T-Tables through a trigger.
+# T-func - Updates T-Tables through a function.
+# T-proc - Updates T-Tables through a procedure.
+# eT - Fails while updating the first tuple in a T-Table.
+# Te - Fails while updating an n-tuple (n > 1) in a T-Table.
+# Te-trig - Fails while updating an n-tuple (n > 1) in a T-Table.
+# Te-func - Fails while updating an n-tuple (n > 1) in a T-Table.
+#
+# - Change only N-Tables 
+# N - Updates a N-Table.
+# N-trig - Updates N-Tables through a trigger.
+# N-func - Updates N-Tables through a function.
+# N-proc - Updates N-Tables through a procedure.
+# eN - Fails while updating the first tuple in a N-Table.
+# Ne - Fails while updating an n-tuple (n > 1) in a N-Table.
+# Ne-trig - Fails while updating an n-tuple (n > 1) in a N-Table.
+# Ne-func - Fails while updating an n-tuple (n > 1) in a N-Table.
+################################################################################
+
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+--source include/have_innodb.inc
+
+set @@session.binlog_direct_non_transactional_updates= TRUE;
+
+--echo #########################################################################
+--echo #                            CONFIGURATION
+--echo #########################################################################
+
+--let $engine_type= Innodb
+SET @commands= 'configure';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+--echo #########################################################################
+--echo #                          1 - BINLOG ORDER
+--echo #########################################################################
+connection master;
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #3) Generates in the binlog what follows:
+--echo #       --> STMT  "N B T C" entries, format S.
+--echo #
+SET @commands= 'B T N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-trig C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-func C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-proc C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #3.e) Generates in the binlog what follows if T-* fails:
+--echo #       --> STMT  "N" entry, format S.
+--echo #     Otherwise, what follows if N-* fails and a N-Table is changed:
+--echo #       --> STMT  "N B T C" entries, format S.
+--echo #
+SET @commands= 'B eT N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te N C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T eN C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Ne C';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #4) Generates in the binlog what follows:
+--echo #     --> STMT  "N B T R" entries, format S.
+--echo #
+SET @commands= 'B T N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-trig N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-func N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-trig R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-func R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T-proc N-proc R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo
+--echo
+--echo
+--echo
+--echo #
+--echo #4.e) Generates in the binlog what follows if T* fails:
+--echo #       --> STMT  "B N C" entry, format S.
+--echo #     Otherwise, what follows if N* fails and a N-Table is changed:
+--echo #       --> STMT  "N" entries, format S.
+--echo #
+SET @commands= 'B eT N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B Te N R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T eN R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+SET @commands= 'B T Ne R';
+--source extra/rpl_tests/rpl_mixing_engines.inc
+
+
+--echo ###################################################################################
+--echo #                               CHECK CONSISTENCY 
+--echo ###################################################################################
+connection master;
+sync_slave_with_master;
+  
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
+--diff_files $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
+  
+--echo ###################################################################################
+--echo #                                        CLEAN
+--echo ###################################################################################
+SET @commands= 'clean';
+--source extra/rpl_tests/rpl_mixing_engines.inc
