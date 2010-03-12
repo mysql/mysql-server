@@ -779,6 +779,12 @@ set @@hostname= "anothername";
 --replace_column 2 #
 show variables like 'hostname';
 
+--echo #
+--echo # BUG#37408 - Compressed MyISAM files should not require/use mmap()
+--echo #
+--echo # Test 'myisam_mmap_size' option is not dynamic
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@myisam_mmap_size= 500M;
 --echo End of 5.0 tests
 
 #
