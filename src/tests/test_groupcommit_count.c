@@ -121,7 +121,7 @@ do_test (int N) {
 int log_max_n_threads_over_10 = 3;
 
 static void
-my_parse_args (int argc, char *argv[]) {
+my_parse_args (int argc, char *const argv[]) {
     verbose=1; // use -q to turn off the talking.
     env_path = toku_strdup(ENVDIR);
     const char *argv0=argv[0];
