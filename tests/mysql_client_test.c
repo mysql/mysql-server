@@ -19373,7 +19373,7 @@ static struct my_tests_st my_tests[]= {
 #endif
   { "test_bug41078", test_bug41078 },
   { "test_bug44495", test_bug44495 },
-  /* XXX { "test_bug49972", test_bug49972 }, */
+  { "test_bug49972", test_bug49972 },
   { 0, 0 }
 };
 
