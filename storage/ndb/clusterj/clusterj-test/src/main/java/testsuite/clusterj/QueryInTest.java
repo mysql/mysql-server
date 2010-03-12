@@ -18,6 +18,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 package testsuite.clusterj;
 
+import java.util.Arrays;
+import java.util.HashSet;
+
 import com.mysql.clusterj.ClusterJUserException;
 
 import testsuite.clusterj.model.AllPrimitives;
@@ -86,6 +89,11 @@ public class QueryInTest extends AbstractQueryTest {
         equalOrInQuery("int_not_null_btree", 4, "int_null_none", new Object[] {6, 9}, "none", 4, 6, 9);
         equalOrInQuery("int_null_btree", 4, "int_null_none", new Object[] {4, 6, 9}, "none", 4, 6, 9);
         equalOrInQuery("int_null_btree", 4, "int_null_none", new Object[] {6, 6, 6, 9}, "none", 4, 6, 9);
+
+        equalOrInQuery("int_not_null_btree", 4, "int_null_none", Arrays.asList(new Object[] {}), "none", 4);
+        equalOrInQuery("int_not_null_btree", 4, "int_null_none", Arrays.asList(new Integer[] {6, 9}), "none", 4, 6, 9);
+        equalOrInQuery("int_null_btree", 4, "int_null_none", new HashSet<Integer>(Arrays.asList(new Integer[] {4, 6, 9})), "none", 4, 6, 9);
+        equalOrInQuery("int_null_btree", 4, "int_null_none", new HashSet<Integer>(Arrays.asList(new Integer[] {6, 6, 6, 9})), "none", 4, 6, 9);
         failOnError();        
     }
 

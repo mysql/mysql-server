@@ -91,7 +91,7 @@ public class AndPredicateImpl extends PredicateImpl {
     public void filterCmpValue(QueryExecutionContextImpl context,
             ScanOperation op) {
         try {
-            ScanFilter filter = op.getScanFilter();
+            ScanFilter filter = op.getScanFilter(context);
             filter.begin(ScanFilter.Group.GROUP_AND);
             for (PredicateImpl predicate: predicates) {
                 predicate.filterCmpValue(context, op, filter);

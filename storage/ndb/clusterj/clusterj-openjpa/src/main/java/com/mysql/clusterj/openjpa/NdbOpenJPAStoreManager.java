@@ -43,6 +43,8 @@ import org.apache.openjpa.util.OpenJPAId;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJException;
+import com.mysql.clusterj.ClusterJFatalInternalException;
+import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.SessionFactory;
 import com.mysql.clusterj.Transaction;
@@ -92,6 +94,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         storeContext = ctx;
         ndbConfiguration = conf;
         sessionFactory = conf.getSessionFactory();
+        getSession();
     }
 
     protected NdbOpenJPADomainTypeHandlerImpl<?> getDomainTypeHandler(OpenJPAStateManager sm) {
@@ -111,7 +114,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         return session.deletePersistentAll(base);
     }
 
-    private SessionSPI getSession() {
+    protected SessionSPI getSession() {
         if (session == null) {
             session = (SessionSPI) sessionFactory.getSession();
             dictionary = session.getDictionary();
@@ -125,7 +128,8 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
     public Object find(Object oid, ValueMapping vm,
         JDBCFetchConfiguration fetch) {
         if (logger.isDebugEnabled()) {
-            logger.debug("NdbStoreManager.find(Object oid, ValueMapping vm, JDBCFetchConfiguration fetch) delegated to super.");
+            logger.debug("NdbStoreManager.find(Object oid, ValueMapping vm, "
+                    + "JDBCFetchConfiguration fetch) delegated to super.");
         }
         return super.find(oid, vm, fetch);
     }
@@ -144,7 +148,8 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
     public boolean load(OpenJPAStateManager sm, BitSet fields,
             FetchConfiguration fetch, int lockLevel, Object context) {
         if (logger.isDebugEnabled()) {
-            logger.debug("NdbStoreManager.load(OpenJPAStateManager sm, BitSet fields, FetchConfiguration fetch, int lockLevel, Object context)...");
+            logger.debug("NdbStoreManager.load(OpenJPAStateManager sm, BitSet fields, "
+                    + "FetchConfiguration fetch, int lockLevel, Object context)...");
             logger.debug("Id: " + sm.getId() + " requested fields: " + printBitSet(sm, fields));
         }
         NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = getDomainTypeHandler(sm);
@@ -162,7 +167,9 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
     public Object load(ClassMapping mapping, JDBCFetchConfiguration fetch,
         BitSet exclude, Result result) throws SQLException {
         if (logger.isDebugEnabled()) {
-            logger.debug("NdbStoreManager.load(ClassMapping mapping, JDBCFetchConfiguration fetch, BitSet exclude, Result result) for " +  mapping.getDescribedType().getName() + " delegated to super.");
+            logger.debug("NdbStoreManager.load(ClassMapping mapping, JDBCFetchConfiguration fetch, "
+                    + "BitSet exclude, Result result) for " +  mapping.getDescribedType().getName()
+                    + " delegated to super.");
         }
         return super.load(mapping, fetch, exclude, result);
     }
@@ -172,7 +179,8 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
     public Collection loadAll(Collection sms, PCState state, int load,
         FetchConfiguration fetch, Object context) {
         if (logger.isDebugEnabled()) {
-            logger.debug("NdbStoreManager.loadAll(Collection sms, PCState state, int load, FetchConfiguration fetch, Object context) delegated to super.");
+            logger.debug("NdbStoreManager.loadAll(Collection sms, PCState state, int load, "
+                    + "FetchConfiguration fetch, Object context) delegated to super.");
         }
         return super.loadAll(sms, state, load, fetch, context);
     }
@@ -181,20 +189,37 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
     public boolean initialize(OpenJPAStateManager sm, PCState state,
         FetchConfiguration fetch, Object context) {
         if (logger.isDebugEnabled()) {
-            logger.debug("NdbStoreManager.initialize(OpenJPAStateManager sm, PCState state, FetchConfiguration fetch, Object context)");
+            logger.debug("NdbStoreManager.initialize(OpenJPAStateManager sm, PCState state, "
+                    + "FetchConfiguration fetch, Object context)");
         }
         // TODO: support user-defined oid types
         OpenJPAId id = (OpenJPAId)sm.getId();
         if (logger.isTraceEnabled()) {
             logger.trace("Id: " + id.getClass() + " " + id);
         }
+        // get domain type handler for StateManager
+        NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = getDomainTypeHandler(sm);
 
+        if (!domainTypeHandler.isSupportedType()) {
+            if (logger.isDebugEnabled()) logger.debug(
+                    "NdbOpenJPAStoreManager.initialize found unsupported class " + domainTypeHandler.getName());
+            if (ndbConfiguration.getFailOnJDBCPath()) {
+                throw new ClusterJFatalUserException(
+                        local.message("ERR_JDBC_Path", domainTypeHandler.getName()));
+            }
+            // if not supported, go the jdbc route
+            boolean result = super.initialize(sm, state, fetch, context);
+            if (logger.isDebugEnabled()) logger.debug(
+                    "NdbOpenJPAStoreManager.initialize delegated to super: returned " + result);
+            return result;
+        }
         try {
             // get session from session factory
             getSession();
+            session.startAutoTransaction();
             // get domain type handler for StateManager
-            NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler =
-                    getDomainTypeHandler(sm);
+//            NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler =
+//                    getDomainTypeHandler(sm);
 //                Object instance = session.initializeFromDatabase(
 //                    domainTypeHandler, null,
 //                    domainTypeHandler.getValueHandler(sm),
@@ -229,12 +254,18 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
                         sm.getPCState().getClass().getSimpleName() + " " +
                         printLoaded(sm));
             }
+            session.endAutoTransaction();
             return true;
 
+        } catch (ClusterJException e) {
+            session.failAutoTransaction();
+            throw e;
         } catch (Exception e) {
+            session.failAutoTransaction();
             e.printStackTrace();
+            throw new ClusterJFatalInternalException("Unexpected exception.", e);
             // if any problem, fall back
-            return super.initialize(sm, state, fetch, context);
+            // return super.initialize(sm, state, fetch, context);
         }
     }
 
@@ -280,6 +311,12 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         for (OpenJPAStateManager sm: stateManagers) {
             DomainTypeHandler<?> domainTypeHandler = getDomainTypeHandler(sm);
             if (!domainTypeHandler.isSupportedType()) {
+                if (logger.isDetailEnabled()) logger.detail("Found unsupported class "
+                        + domainTypeHandler.getName());
+                if (ndbConfiguration.getFailOnJDBCPath()) {
+                    throw new ClusterJFatalUserException(
+                            local.message("ERR_JDBC_Path", domainTypeHandler.getName()));
+                }
                 allSupportedTypes = false;
             }
             if (logger.isTraceEnabled()) {
@@ -290,7 +327,11 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
                 logger.trace(buffer.toString());
         }
         if (!allSupportedTypes) {
-            return super.flush(sms);
+            // not all instances are of supported types; delegate to super
+            Collection<Exception> exceptions = super.flush(sms);
+            if (logger.isDetailEnabled()) logger.detail("Found unsupported class(es); "
+                    + "super resulted in exceptions: " + exceptions);
+            return exceptions;
         }
         // now flush changes to the cluster back end
         getSession();
@@ -312,6 +353,11 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
                 } else if (pcState == PCState.PDIRTY) {
                     // flush dirty instance
                     session.update(domainTypeHandler, valueHandler);
+                } else if (pcState == PCState.PNEWFLUSHEDDELETED) {
+                    // flush new flushed deleted instance
+                    session.delete(domainTypeHandler, valueHandler);
+                } else if (pcState == PCState.PNEWFLUSHEDDELETEDFLUSHED) {
+                    // nothing to do
                 } else {
                     throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Flush_Operation",
@@ -352,7 +398,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         if (logger.isTraceEnabled()) {
             logger.trace(" Transaction " + hashCode() + printIsActive(tx));
         }
-//        super.beginOptimistic();
+        super.beginOptimistic();
         try {
             getSession();
             tx = session.currentTransaction();
@@ -384,7 +430,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
                     e.getMessage());
         }
         // TODO: handle JDBC connection for queries
-//        super.begin();
+        super.begin();
     }
 
     @Override
@@ -398,7 +444,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
                     local.message("ERR_Commit_Failed", ex.toString()));
         }
         // TODO: handle JDBC connection for queries
-//        super.commit();
+        super.commit();
     }
 
     @Override
@@ -406,7 +452,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         if (logger.isTraceEnabled()) {logger.trace(" Transaction " + hashCode() + printIsActive(tx));}
         session.rollback();
         // TODO: handle JDBC connection for queries
-//        super.rollback();
+        super.rollback();
     }
 
     @Override
@@ -484,7 +530,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
      * @return the query domain type
      */
     public <T> QueryDomainType<T> createQueryDomainType(Class<T> type) {
-	return session.getQueryBuilder().createQueryDefinition(type);
+        return session.getQueryBuilder().createQueryDefinition(type);
     }
 
     /** Execute the query and return the result list. 

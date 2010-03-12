@@ -132,6 +132,10 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
                             + " is " + columnDefaultValue);
             }
             storeColumn = table.getColumn(columnName);
+            if (storeColumn == null) {
+                throw new ClusterJUserException(local.message("ERR_No_Column",
+                        name, table.getName(), columnName));
+            }
             storeColumnType = storeColumn.getType();
             charsetName = storeColumn.getCharsetName();
             if (logger.isDebugEnabled())

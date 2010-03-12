@@ -31,12 +31,14 @@ import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
 import org.apache.openjpa.jdbc.conf.JDBCConfigurationImpl;
 import org.apache.openjpa.jdbc.meta.ClassMapping;
+import org.apache.openjpa.lib.conf.BooleanValue;
 import org.apache.openjpa.lib.conf.IntValue;
 import org.apache.openjpa.lib.conf.ProductDerivations;
 import org.apache.openjpa.lib.conf.StringValue;
@@ -66,6 +68,7 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
     public StringValue password;
     public StringValue database;
     public IntValue maxTransactions;
+    public BooleanValue failOnJDBCPath;
     public SessionFactoryImpl sessionFactory;
     private final Map<Class<?>, NdbOpenJPADomainTypeHandlerImpl<?>> domainTypeHandlerMap =
             new HashMap<Class<?>, NdbOpenJPADomainTypeHandlerImpl<?>>();
@@ -112,6 +115,8 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
         database.set("test");
         maxTransactions = addInt("ndb.maxTransactions");
         maxTransactions.set(1024);
+        failOnJDBCPath = addBoolean("ndb.failOnJDBCPath");
+        failOnJDBCPath.set(false);
 
         sessionFactory = null;
 
@@ -210,6 +215,14 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
         maxTransactions.set(value);
     }
 
+    public boolean getFailOnJDBCPath() {
+        return failOnJDBCPath.get();
+    }
+
+    public void setFailOnJDBCPath(boolean value) {
+        failOnJDBCPath.set(value);
+    }
+
     public SessionFactoryImpl getSessionFactory() {
         if (sessionFactory == null) {
             sessionFactory = createSessionFactory();
@@ -263,8 +276,13 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
         synchronized(domainTypeHandlerMap) {
             result = domainTypeHandlerMap.get(domainClass);
             if (result == null) {
+                if (logger.isDebugEnabled()) logger.debug("domain class: " + domainClass.getName());
                 result = createDomainTypeHandler(cmd, dictionary);
                 domainTypeHandlerMap.put(domainClass, result);
+                result.initializeRelations();
+                logger.info("New domain type " + result.getName()
+                        + (result.isSupportedType()?" is supported.":
+                            " is not known to be supported because " + result.getReasons()));
             }
         }
         return result;

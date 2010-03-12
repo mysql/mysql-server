@@ -63,7 +63,7 @@ public class InPredicateImpl extends PredicateImpl {
     public void filterCmpValue(QueryExecutionContextImpl context,
             ScanOperation op) {
         try {
-            ScanFilter filter = op.getScanFilter();
+            ScanFilter filter = op.getScanFilter(context);
             filterCmpValue(context, op, filter);
         } catch (ClusterJException ex) {
             throw ex;
