@@ -388,7 +388,7 @@ NdbReceiver::receive_packed_recattr(NdbRecAttr** recAttr,
     }
   }
   * recAttr = currRecAttr;
-  return ((Uint32*)pad(src, 0, bitPos)) - aDataPtr;
+  return (Uint32)(((Uint32*)pad(src, 0, bitPos)) - aDataPtr);
 
 err:
   abort();
@@ -574,7 +574,7 @@ NdbReceiver::receive_packed_ndbrecord(Uint32 bmlen,
     }
   }
 
-  return ((Uint32*)pad(src, 0, bitPos)) - aDataPtr;
+  return (Uint32)(((Uint32*)pad(src, 0, bitPos)) - aDataPtr);
 }
 
 

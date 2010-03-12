@@ -1047,8 +1047,8 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
 
     ndbrequire(disk == false); // Not supported...
     ndbrequire(rowid == true);
-    keyLen = keyData - key_start;
-    attrLen = attrData - attr_start;
+    keyLen = Uint32(keyData - key_start);
+    attrLen = Uint32(attrData - attr_start);
     if (desc->noOfKeyAttr != desc->noOfVarKeys)
     {
       reorder_key(desc, key_start, keyLen);

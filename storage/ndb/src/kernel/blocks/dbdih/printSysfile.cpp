@@ -156,7 +156,7 @@ NDB_COMMAND(printSysfile,
       delete [] buf;
       continue;
     }
-    Uint32 sz = fread(buf, 1, bytes, f);
+    Uint32 sz = (Uint32)fread(buf, 1, bytes, f);
     fclose(f);
     if(sz != bytes){
       ndbout << "Failure while reading file" << endl;

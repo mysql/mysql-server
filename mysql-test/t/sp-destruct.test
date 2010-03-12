@@ -12,6 +12,9 @@
 # mysqltest should be fixed to allow REPLACE_RESULT in error message
 -- source include/not_embedded.inc
 
+# Supress warnings written to the log file
+call mtr.add_suppression("Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted");
+
 # Backup proc table
 let $MYSQLD_DATADIR= `select @@datadir`;
 --copy_file $MYSQLD_DATADIR/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/proc.frm
@@ -38,15 +41,14 @@ create trigger t1_ai after insert on t1 for each row call bug14233();
 
 # Unsupported tampering with the mysql.proc definition
 alter table mysql.proc drop type;
---replace_result $MYSQL_TEST_DIR .
---error ER_SP_PROC_TABLE_CORRUPT
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
 call bug14233();
---replace_result $MYSQL_TEST_DIR .
---error ER_SP_PROC_TABLE_CORRUPT
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
 create view v1 as select bug14233_f();
---replace_result $MYSQL_TEST_DIR .
---error ER_SP_PROC_TABLE_CORRUPT
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
 insert into t1 values (0);
+--error ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+show procedure status;
 
 flush table mysql.proc;
 
@@ -155,3 +157,43 @@ drop procedure bug14233_3;
 # Assert: These should show nothing.
 show procedure status where db=DATABASE();
 show function status where db=DATABASE();
+
+#
+# Bug#41726 upgrade from 5.0 to 5.1.30 crashes if you didn't run mysql_upgrade
+#
+
+
+--disable_warnings
+DROP TABLE IF EXISTS proc_backup;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+--echo # Backup the proc table
+
+RENAME TABLE mysql.proc TO proc_backup;
+CREATE TABLE mysql.proc LIKE proc_backup;
+FLUSH TABLE mysql.proc;
+
+--echo # Test with a valid table.
+
+CREATE PROCEDURE p1()
+  SET @foo = 10;
+CALL p1();
+--replace_column 5 '0000-00-00 00:00:00' 6 '0000-00-00 00:00:00'
+SHOW PROCEDURE STATUS;
+
+--echo # Modify a field of the table.
+
+ALTER TABLE mysql.proc MODIFY comment CHAR (32);
+
+--error ER_CANNOT_LOAD_FROM_TABLE
+CREATE PROCEDURE p2()
+  SET @foo = 10;
+--echo # Procedure loaded from the cache
+CALL p1();
+--error ER_CANNOT_LOAD_FROM_TABLE
+SHOW PROCEDURE STATUS;
+
+DROP TABLE mysql.proc;
+RENAME TABLE proc_backup TO mysql.proc;
+FLUSH TABLE mysql.proc;

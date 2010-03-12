@@ -489,5 +489,51 @@ EXPLAIN SELECT * FROM t1 WHERE a = 'TEST' AND
   c >= '2009-10-09 00:00:00.001' AND c <= '2009-10-09 00:00:00.00';
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #46175: NULL read_view and consistent read assertion
+--echo #
+
+CREATE TABLE t1(a CHAR(13),KEY(a)) ENGINE=innodb;
+CREATE TABLE t2(b DATETIME,KEY(b)) ENGINE=innodb;
+INSERT INTO t1 VALUES (),();
+INSERT INTO t2 VALUES (),();
+CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2 
+  WHERE b =(SELECT a FROM t1 LIMIT 1);
+
+--disable_query_log
+--disable_result_log
+CONNECT (con1, localhost, root,,);
+--enable_query_log
+--enable_result_log
+CONNECTION default;
+
+DELIMITER |;
+CREATE PROCEDURE p1(num INT)
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  REPEAT
+    SHOW CREATE VIEW v1;
+    SET i:=i+1;
+  UNTIL i>num END REPEAT;
+END|
+DELIMITER ;|
+
+--echo # Should not crash
+--disable_query_log
+--disable_result_log
+--send CALL p1(1000)
+CONNECTION con1;
+--echo # Should not crash
+CALL p1(1000);
+
+CONNECTION default;
+--reap
+--enable_query_log
+--enable_result_log
+
+DISCONNECT con1;
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1,t2;
 
 --echo End of 5.1 tests

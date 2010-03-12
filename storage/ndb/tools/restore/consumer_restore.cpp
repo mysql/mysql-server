@@ -557,7 +557,7 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
     my_free(new_data, MYF(0));
     DBUG_RETURN(TRUE);
   }
-  table->setFrm(new_pack_data, new_pack_len);
+  table->setFrm(new_pack_data, (Uint32)new_pack_len);
   DBUG_RETURN(FALSE);
 }
 

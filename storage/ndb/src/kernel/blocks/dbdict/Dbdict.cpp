@@ -14691,7 +14691,7 @@ void Dbdict::execCREATE_EVNT_REF(Signal* signal)
        *   but makes case more explicit
        */
       ptr[0].p = (Uint32 *)evntRecPtr.p->m_eventRec.TABLE_NAME;
-      ptr[0].sz = (strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4;
+      ptr[0].sz = Uint32((strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4);
       ptr0 = ptr;
       noLSP = 1;
     }

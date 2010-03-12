@@ -1186,7 +1186,7 @@ Backup::checkNodeFail(Signal* signal,
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       gsn= GSN_DEFINE_BACKUP_REF;
       len= DefineBackupRef::SignalLength;
-      pos= &ref->nodeId - signal->getDataPtr();
+      pos= Uint32(&ref->nodeId - signal->getDataPtr());
       break;
     }
     case GSN_START_BACKUP_REQ:
@@ -1197,7 +1197,7 @@ Backup::checkNodeFail(Signal* signal,
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       gsn= GSN_START_BACKUP_REF;
       len= StartBackupRef::SignalLength;
-      pos= &ref->nodeId - signal->getDataPtr();
+      pos= Uint32(&ref->nodeId - signal->getDataPtr());
       break;
     }
     case GSN_BACKUP_FRAGMENT_REQ:
@@ -1208,7 +1208,7 @@ Backup::checkNodeFail(Signal* signal,
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
       gsn= GSN_BACKUP_FRAGMENT_REF;
       len= BackupFragmentRef::SignalLength;
-      pos= &ref->nodeId - signal->getDataPtr();
+      pos= Uint32(&ref->nodeId - signal->getDataPtr());
       break;
     }
     case GSN_STOP_BACKUP_REQ:
@@ -1220,7 +1220,7 @@ Backup::checkNodeFail(Signal* signal,
       ref->nodeId = getOwnNodeId();
       gsn= GSN_STOP_BACKUP_REF;
       len= StopBackupRef::SignalLength;
-      pos= &ref->nodeId - signal->getDataPtr();
+      pos= Uint32(&ref->nodeId - signal->getDataPtr());
       break;
     }
     case GSN_WAIT_GCP_REQ:
@@ -3789,7 +3789,7 @@ Backup::parseTableDescription(Signal* signal,
     }
   }
 
-  tabPtr.p->attrInfoLen = list - tabPtr.p->attrInfo;
+  tabPtr.p->attrInfoLen = Uint32(list - tabPtr.p->attrInfo);
 
   if (lcp)
   {
@@ -4243,7 +4243,7 @@ Backup::OperationRecord::fragComplete(Uint32 tableId, Uint32 fragNo, bool fill_r
       new_tmp = (Uint32 *)(((UintPtr)new_tmp + sizeof(Page32)-1) &
                             ~(UintPtr)(sizeof(Page32)-1));
       /* new write sz */
-      sz = new_tmp - tmp;
+      sz = Uint32(new_tmp - tmp);
     }
   }
 
@@ -4308,7 +4308,7 @@ Backup::OperationRecord::scanConf(Uint32 noOfOps, Uint32 total_len)
   ndbrequire(opLen == total_len);
   opNoConf = opNoDone;
   
-  const Uint32 len = (scanStop - scanStart);
+  const Uint32 len = Uint32(scanStop - scanStart);
   ndbrequire(len < dataBuffer.getMaxWrite());
   dataBuffer.updateWritePtr(len);
   noOfBytes += (len << 2);
@@ -4697,12 +4697,13 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   else if (sz > 0)
   {
     jam();
+    ndbassert((Uint64(tmp - c_startOfPages) >> 32) == 0); // 4Gb buffers!
     FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
     req->filePointer   = filePtr.p->filePointer;
     req->userPointer   = filePtr.i;
     req->userReference = reference();
     req->varIndex      = 0;
-    req->offset        = tmp - c_startOfPages;
+    req->offset        = Uint32(tmp - c_startOfPages); // 4Gb buffers!
     req->size          = sz;
     req->synch_flag    = 0;
     

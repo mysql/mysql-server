@@ -2,38 +2,39 @@
 # BUG#42749: infinite loop writing to row based binlog - processlist shows
 # "freeing items"
 #
+#
 # WHY
 # ===
-#   
-#   This bug would make table map event to report data_written one byte less
-#   than what would actually be written in its body. This would cause one byte shorter
-#   event end_log_pos. The ultimate impact was that it would make fixing the
-#   position in MYSQL_BIN_LOG::write_cache bogus or end up in an infinite loop.
+#
+#   This bug would make table map event to report data_written one
+#   byte less than what would actually be written in its body. This
+#   would cause one byte shorter event end_log_pos. The ultimate
+#   impact was that it would make fixing the position in
+#   MYSQL_BIN_LOG::write_cache bogus or end up in an infinite loop.
 #
 # HOW
 # ===
 #
 #   Checking that the patch fixes the problem is done as follows:
-#     i) a table with several fields is created;
+#
+#     i) one table with m_field_metadata sized at 290
 #    ii) an insert is performed;
 #   iii) the logs are flushed;
 #    iv) mysqlbinlog is used to check if it succeeds.
 # 
-#   In step iv), before the bug was fixed, the test case would fail with
-#   mysqlbinlog reporting that it was unable to succeed in reading the event.
-#
+#   In step iv), before the bug was fixed, the test case would fail
+#   with mysqlbinlog reporting that it was unable to succeed in
+#   reading the event.
 
--- source include/have_log_bin.inc
+-- source include/master-slave.inc
 -- source include/have_innodb.inc
 -- source include/have_binlog_format_row.inc
--- connection default
-
-RESET MASTER;
 
 -- disable_warnings
 DROP TABLE IF EXISTS `t1`;
 -- enable_warnings
 
+-- echo ### TABLE with field_metadata_size == 290
 CREATE TABLE `t1` (
   `c1` int(11) NOT NULL AUTO_INCREMENT,
   `c2` varchar(30) NOT NULL,
@@ -185,15 +186,155 @@ CREATE TABLE `t1` (
 ) ENGINE=InnoDB;
 
 LOCK TABLES `t1` WRITE;
+INSERT INTO `t1`(c2) VALUES ('1');
+FLUSH LOGS;
 
-INSERT INTO `t1` VALUES ('1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1');
+-- sync_slave_with_master
+-- connection master
+
+-- echo ### assertion: the slave replicated event successfully and tables match
+-- let $diff_table_1=master:test.t1
+-- let $diff_table_2=slave:test.t1
+-- source include/diff_tables.inc
 
 DROP TABLE `t1`;
 
-FLUSH LOGS;
+-- connection master
+-- sync_slave_with_master
+-- connection master
 
 -- echo === Using mysqlbinlog to detect failure. Before the patch mysqlbinlog would find a corrupted event, thence would fail.
 
 -- let $MYSQLD_DATADIR= `SELECT @@datadir`;
 -- exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug42749.binlog
 -- remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug42749.binlog
+
+#############################################################
+# BUG#50018: binlog corruption when table has many columns
+#
+# Same test from BUG#42749, but now we generate some SQL which
+# creates and inserts into tables with metadata size from 249
+# to 258.
+# 
+# The test works as follows:
+#  1. SQL for several CREATE TABLE and INSERTS are generated 
+#     into a file.
+#  2. This file is then "sourced"
+#  3. The slave is synchronized with the master
+#  4. FLUSH LOGS on master
+#  5. Compare tables on master and slave.
+#  6. run mysqlbinlog on  master's binary log
+#
+# Steps #5 and #6 assert that binary log is not corrupted 
+# in both cases: when slave is replaying events and when
+# mysqlbinlog is used to read the binary log
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+# Create several tables with field_metadata_size ranging
+# from 249 to 258 (so that we cover 251 and 255 range).
+# This should exercise the switch between using 1 or 3
+# bytes to pack m_field_metadata_size.
+# 
+# Each varchar field takes up to 2 metadata bytes, see:
+#
+#  Field_varstring::do_save_field_metadata (field.cc)
+#
+# The float field takes 1 byte, see:
+#
+#  Field_float::do_save_field_metadata (field.cc)
+#
+
+-- let $generated_sql= $MYSQLTEST_VARDIR/tmp/b50018.sql
+-- let B50018_FILE= $generated_sql
+
+-- echo ### action: generating several tables with different metadata 
+-- echo ###         sizes (resorting to perl)
+-- perl
+my $file= $ENV{'B50018_FILE'};
+open(FILE, ">", "$file") or die "Unable to open bug 50018 generated SQL file: $!" ;
+
+my $tables= "";
+my $ntables= 10;
+my $base_ncols= 124;
+
+for my $i (1..$ntables)
+{
+  my $ncols= $base_ncols + $i;
+  my $metadata_size= $ncols_variable * 2 + 1; 
+
+  print FILE "-- echo ### testing table with " . ($base_ncols*2 + $i) . " field metadata size.\n";
+  print FILE "CREATE TABLE t$i (\n";
+  for my $n (1..$base_ncols)
+  {
+    print FILE "c$n VARCHAR(30) NOT NULL DEFAULT 'BUG#50018',\n";
+  }
+
+  for my $n (1..$i)
+  {
+    print FILE "c" . ($base_ncols+$n) . " FLOAT NOT NULL DEFAULT 0";
+    if ($n < $i)
+    {
+      print FILE ",\n";
+    }
+  }
+
+  print FILE ") Engine=InnoDB;\n";
+
+  $tables.= " t$i WRITE";
+  if ($i < $ntables)
+  {
+    $tables .=",";
+  }
+    
+  print FILE "LOCK TABLES t$i WRITE;\n";
+  print FILE "INSERT INTO t$i(c". ($base_ncols+1) . ") VALUES (50018);\n";
+  print FILE "UNLOCK TABLES;";
+}
+
+close(FILE);
+
+EOF
+
+## we don't need this in the result file
+## however, for debugging purposes you 
+## may want to reactivate query logging
+-- disable_query_log 
+-- source $generated_sql
+-- enable_query_log
+
+-- sync_slave_with_master
+-- connection master
+
+FLUSH LOGS;
+
+-- let $ntables=10
+while($ntables)
+{
+  -- echo ### assertion: the slave replicated event successfully and tables match for t$ntables
+  -- let $diff_table_1=master:test.t$ntables
+  -- let $diff_table_2=slave:test.t$ntables
+  -- source include/diff_tables.inc
+
+  -- connection master
+  -- disable_query_log
+  -- eval DROP TABLE t$ntables
+  -- enable_query_log
+  -- sync_slave_with_master
+  -- connection master
+
+  -- dec $ntables
+}
+
+-- echo ### assertion: check that binlog is not corrupt. Using mysqlbinlog to 
+-- echo ###            detect failure. Before the patch mysqlbinlog would find 
+-- echo ###            a corrupted event, thence would fail.
+-- let $MYSQLD_DATADIR= `SELECT @@datadir`;
+-- exec $MYSQL_BINLOG -v --hex $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug50018.binlog
+
+## clean up
+## For debugging purposes you might want not to remove these
+-- remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug50018.binlog
+-- remove_file $generated_sql
+-- source include/master-slave-end.inc

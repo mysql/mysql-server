@@ -67,4 +67,57 @@ SHOW EVENTS in mysqltest;
 
 connection master;
 DROP DATABASE IF EXISTS mysqltest;
+
+#
+# BUG#47418 RBR fails, failure with mixup of base/temporary/view TABLE DDL
+# 
+# Before the patch for this bug, 'CREATE TABLE IF NOT EXIST ... SELECT'
+# statement was binlogged as a TEMPORARY table if the object existed as
+# a temporary table.  This was caused by that the temporary table was opened
+# and the results of the 'SELECT' was inserted into the temporary table if
+# a temporary table existed with the same name.
+# 
+# After the patch for this bug, the base table is created and the results of
+# the 'SELECT' are inserted into it, even though a temporary table exists with
+# the same name, and the statement is still binlogged as a base table.
+#
+
+echo -------------BUG#47418-------------;
+connection master;
+USE test;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+CREATE TABLE t3(c1 INTEGER);
+INSERT INTO t3 VALUES(33);
+
+CREATE TEMPORARY TABLE t1(c1 INTEGER);
+CREATE TEMPORARY TABLE t2(c1 INTEGER);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+
+CREATE TABLE IF NOT EXISTS t1(c1 INTEGER) SELECT c1 FROM t3;
+CREATE TABLE t2(c1 INTEGER) SELECT c1 FROM t3;
+
+# In these two statements, t1 and t2 are the temporary table. there is only
+# value '1' in them.  The records of t2 are not inserted into them.  
+SELECT * FROM t1; 
+SELECT * FROM t2; 
+sync_slave_with_master; 
+
+# In these two statements, t1 and t2 are the base table. The recoreds of t2
+# are inserted into it when CREATE TABLE ...  SELECT was executed.  
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+connection master; 
+DROP TEMPORARY TABLE t1; 
+DROP TEMPORARY TABLE t2; 
+#In these two statements, t1 and t2 are the base table.
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
 source include/master-slave-end.inc;
