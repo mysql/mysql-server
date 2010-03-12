@@ -130,12 +130,12 @@ uninstall-local:
 # mtr - a shortcut for executing mysql-test-run.pl
 mtr:
 	$(RM) -f mtr
-	$(LN_S) $(srcdir)/mysql-test-run.pl mtr
+	$(LN_S) mysql-test-run.pl mtr
 
 # mysql-test-run - a shortcut for executing mysql-test-run.pl
 mysql-test-run:
 	$(RM) -f mysql-test-run
-	$(LN_S) $(srcdir)/mysql-test-run.pl mysql-test-run
+	$(LN_S) mysql-test-run.pl mysql-test-run
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
