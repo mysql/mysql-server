@@ -1123,8 +1123,16 @@ size_t my_numcells_mb(CHARSET_INFO *cs, const char *b, const char *e)
       continue;
     }
     b+= mb_len;
-    pg= (wc >> 8) & 0xFF;
-    clen+= utr11_data[pg].p ? utr11_data[pg].p[wc & 0xFF] : utr11_data[pg].page;
+    if (wc > 0xFFFF)
+    {
+      if (wc >= 0x20000 && wc <= 0x3FFFD) /* CJK Ideograph Extension B, C */
+        clen+= 1;
+    }
+    else
+    {
+      pg= (wc >> 8) & 0xFF;
+      clen+= utr11_data[pg].p ? utr11_data[pg].p[wc & 0xFF] : utr11_data[pg].page;
+    }
     clen++;
   }
   return clen;
@@ -1136,7 +1144,7 @@ int my_mb_ctype_mb(CHARSET_INFO *cs, int *ctype,
 {
   my_wc_t wc;
   int res= cs->cset->mb_wc(cs, &wc, s, e);
-  if (res <= 0)
+  if (res <= 0 || wc > 0xFFFF)
     *ctype= 0;
   else
     *ctype= my_uni_ctype[wc>>8].ctype ?
