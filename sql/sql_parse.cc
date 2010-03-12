@@ -1631,6 +1631,14 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
   - you can't flush WITH READ LOCK a non-existent table
   - you can't flush WITH READ LOCK under LOCK TABLES
   - currently incompatible with the GRL (@todo: fix)
+
+  Effect on views and temporary tables.
+  ------------------------------------
+  You can only apply this command to existing base tables.
+  If a view with such name exists, ER_WRONG_OBJECT is returned.
+  If a temporary table with such name exists, it's ignored:
+  if there is a base table, it's used, otherwise ER_NO_SUCH_TABLE
+  is returned.
 */
 
 static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
@@ -1664,6 +1672,21 @@ static bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables)
   */
   if (lock_table_names(thd, all_tables))
     goto error;
+
+  for (table_list= all_tables; table_list;
+       table_list= table_list->next_global)
+  {
+    /* Remove the table from cache. */
+    mysql_mutex_lock(&LOCK_open);
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL,
+                     table_list->db,
+                     table_list->table_name);
+    mysql_mutex_unlock(&LOCK_open);
+
+    /* Skip views and temporary tables. */
+    table_list->required_type= FRMTYPE_TABLE; /* Don't try to flush views. */
+    table_list->open_type= OT_BASE_ONLY;      /* Ignore temporary tables. */
+  }
 
   if  (open_and_lock_tables(thd, all_tables, FALSE,
                             MYSQL_OPEN_HAS_MDL_LOCK,
