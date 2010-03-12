@@ -3203,9 +3203,17 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     need to commit any outstanding transactions.
    */
   if (var->save_result.ulong_value != 0 &&
-      (thd->options & OPTION_NOT_AUTOCOMMIT) &&
-      ha_commit(thd))
-    return 1;
+      (thd->options & OPTION_NOT_AUTOCOMMIT))
+  {
+    if (thd->transaction.xid_state.xa_state != XA_NOTR)
+    {
+      my_error(ER_XAER_RMFAIL, MYF(0),
+               xa_state_names[thd->transaction.xid_state.xa_state]);
+      return 1;
+    }
+    if (ha_commit(thd))
+      return 1;
+  }
 
   if (var->save_result.ulong_value != 0)
     thd->options&= ~((sys_var_thd_bit*) var->var)->bit_flag;
@@ -3217,13 +3225,6 @@ static bool set_option_autocommit(THD *thd, set_var *var)
     if ((org_options & OPTION_NOT_AUTOCOMMIT))
     {
       /* We changed to auto_commit mode */
-      if (thd->transaction.xid_state.xa_state != XA_NOTR)
-      {
-        thd->options= org_options;
-        my_error(ER_XAER_RMFAIL, MYF(0),
-                 xa_state_names[thd->transaction.xid_state.xa_state]);
-        return 1;
-      }
       thd->options&= ~(ulonglong) (OPTION_BEGIN | OPTION_KEEP_LOG);
       thd->transaction.all.modified_non_trans_table= FALSE;
       thd->server_status|= SERVER_STATUS_AUTOCOMMIT;
