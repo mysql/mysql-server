@@ -215,35 +215,13 @@ const char *ha_myisammrg::index_type(uint key_number)
 static int myisammrg_parent_open_callback(void *callback_param,
                                           const char *filename)
 {
-  ha_myisammrg  *ha_myrg;
-  TABLE         *parent;
+  ha_myisammrg  *ha_myrg= (ha_myisammrg*) callback_param;
+  TABLE         *parent= ha_myrg->table_ptr();
   TABLE_LIST    *child_l;
-  const char    *db;
-  const char    *table_name;
   size_t        dirlen;
   char          dir_path[FN_REFLEN];
+  char          name_buf[NAME_LEN];
   DBUG_ENTER("myisammrg_parent_open_callback");
-
-  /* Extract child table name and database name from filename. */
-  dirlen= dirname_length(filename);
-  if (dirlen >= FN_REFLEN)
-  {
-    /* purecov: begin inspected */
-    DBUG_PRINT("error", ("name too long: '%.64s'", filename));
-    my_errno= ENAMETOOLONG;
-    DBUG_RETURN(1);
-    /* purecov: end */
-  }
-  table_name= filename + dirlen;
-  dirlen--; /* Strip off trailing '/'. */
-  memcpy(dir_path, filename, dirlen);
-  dir_path[dirlen]= '\0';
-  db= base_name(dir_path);
-  dirlen-= db - dir_path; /* This is now the length of 'db'. */
-  DBUG_PRINT("myrg", ("open: '%s'.'%s'", db, table_name));
-
-  ha_myrg= (ha_myisammrg*) callback_param;
-  parent= ha_myrg->table_ptr();
 
   /* Get a TABLE_LIST object. */
   if (!(child_l= (TABLE_LIST*) alloc_root(&parent->mem_root,
@@ -256,13 +234,69 @@ static int myisammrg_parent_open_callback(void *callback_param,
   }
   bzero((char*) child_l, sizeof(TABLE_LIST));
 
-  /* Set database (schema) name. */
-  child_l->db_length= dirlen;
-  child_l->db= strmake_root(&parent->mem_root, db, dirlen);
-  /* Set table name. */
-  child_l->table_name_length= strlen(table_name);
-  child_l->table_name= strmake_root(&parent->mem_root, table_name,
-                                    child_l->table_name_length);
+  /*
+    Depending on MySQL version, filename may be encoded by table name to
+    file name encoding or not. Always encoded if parent table is created
+    by 5.1.46+. Encoded if parent is created by 5.1.6+ and child table is
+    in different database.
+  */
+  if (!has_path(filename))
+  {
+    /* Child is in the same database as parent. */
+    child_l->db_length= parent->s->db.length;
+    child_l->db= strmake_root(&parent->mem_root, parent->s->db.str,
+                              child_l->db_length);
+    /* Child table name is encoded in parent dot-MRG starting with 5.1.46. */
+    if (parent->s->mysql_version >= 50146)
+    {
+      child_l->table_name_length= filename_to_tablename(filename, name_buf,
+                                                        sizeof(name_buf));
+      child_l->table_name= strmake_root(&parent->mem_root, name_buf,
+                                        child_l->table_name_length);
+    }
+    else
+    {
+      child_l->table_name_length= strlen(filename);
+      child_l->table_name= strmake_root(&parent->mem_root, filename,
+                                        child_l->table_name_length);
+    }
+  }
+  else
+  {
+    DBUG_ASSERT(strlen(filename) < sizeof(dir_path));
+    fn_format(dir_path, filename, "", "", 0);
+    /* Extract child table name and database name from filename. */
+    dirlen= dirname_length(dir_path);
+    /* Child db/table name is encoded in parent dot-MRG starting with 5.1.6. */
+    if (parent->s->mysql_version >= 50106)
+    {
+      child_l->table_name_length= filename_to_tablename(dir_path + dirlen,
+                                                        name_buf,
+                                                        sizeof(name_buf));
+      child_l->table_name= strmake_root(&parent->mem_root, name_buf,
+                                        child_l->table_name_length);
+      dir_path[dirlen - 1]= 0;
+      dirlen= dirname_length(dir_path);
+      child_l->db_length= filename_to_tablename(dir_path + dirlen, name_buf,
+                                                sizeof(name_buf));
+      child_l->db= strmake_root(&parent->mem_root, name_buf, child_l->db_length);
+    }
+    else
+    {
+      child_l->table_name_length= strlen(dir_path + dirlen);
+      child_l->table_name= strmake_root(&parent->mem_root, dir_path + dirlen,
+                                        child_l->table_name_length);
+      dir_path[dirlen - 1]= 0;
+      dirlen= dirname_length(dir_path);
+      child_l->db_length= strlen(dir_path + dirlen);
+      child_l->db= strmake_root(&parent->mem_root, dir_path + dirlen,
+                                child_l->db_length);
+    }
+  }
+
+  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", child_l->db_length, child_l->db,
+                      child_l->table_name_length, child_l->table_name));
+
   /* Convert to lowercase if required. */
   if (lower_case_table_names && child_l->table_name_length)
     child_l->table_name_length= my_casedn_str(files_charset_info,
@@ -1155,7 +1189,7 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
   /* Create child path names. */
   for (pos= table_names; tables; tables= tables->next_local)
   {
-    const char *table_name;
+    const char *table_name= buff;
 
     /*
       Construct the path to the MyISAM table. Try to meet two conditions:
@@ -1181,10 +1215,12 @@ int ha_myisammrg::create(const char *name, register TABLE *form,
       as the MyISAM tables are from the same database as the MERGE table.
     */
     if ((dirname_length(buff) == dirlgt) && ! memcmp(buff, name, dirlgt))
-      table_name= tables->table_name;
-    else
-      if (! (table_name= thd->strmake(buff, length)))
-        DBUG_RETURN(HA_ERR_OUT_OF_MEM); /* purecov: inspected */
+    {
+      table_name+= dirlgt;
+      length-= dirlgt;
+    }
+    if (!(table_name= thd->strmake(table_name, length)))
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM); /* purecov: inspected */
 
     *pos++= table_name;
   }
@@ -1205,7 +1241,7 @@ void ha_myisammrg::append_create_info(String *packet)
   const char *current_db;
   size_t db_length;
   THD *thd= current_thd;
-  MYRG_TABLE *open_table, *first;
+  TABLE_LIST *open_table, *first;
 
   if (file->merge_insert_method != MERGE_INSERT_DISABLED)
   {
@@ -1223,14 +1259,11 @@ void ha_myisammrg::append_create_info(String *packet)
   current_db= table->s->db.str;
   db_length=  table->s->db.length;
 
-  for (first=open_table=file->open_tables ;
-       open_table != file->end_table ;
-       open_table++)
+  for (first= open_table= table->child_l;;
+       open_table= open_table->next_global)
   {
-    LEX_STRING db, name;
-    LINT_INIT(db.str);
+    LEX_STRING db= { open_table->db, open_table->db_length };
 
-    split_file_name(open_table->table->filename, &db, &name);
     if (open_table != first)
       packet->append(',');
     /* Report database for mapped table if it isn't in current database */
@@ -1241,7 +1274,10 @@ void ha_myisammrg::append_create_info(String *packet)
       append_identifier(thd, packet, db.str, db.length);
       packet->append('.');
     }
-    append_identifier(thd, packet, name.str, name.length);
+    append_identifier(thd, packet, open_table->table_name,
+                      open_table->table_name_length);
+    if (&open_table->next_global == table->child_last_l)
+      break;
   }
   packet->append(')');
 }

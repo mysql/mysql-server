@@ -1523,6 +1523,7 @@ void close_temporary_tables(THD *thd)
   {
     if (is_user_table(table))
     {
+      bool save_thread_specific_used= thd->thread_specific_used;
       my_thread_id save_pseudo_thread_id= thd->variables.pseudo_thread_id;
       /* Set pseudo_thread_id to be that of the processed table */
       thd->variables.pseudo_thread_id= tmpkeyval(thd, table);
@@ -1552,6 +1553,7 @@ void close_temporary_tables(THD *thd)
       thd->clear_error();
       CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
+      thd->thread_specific_used= TRUE;
       Query_log_event qinfo(thd, s_query.ptr(),
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, 0);
@@ -1564,6 +1566,7 @@ void close_temporary_tables(THD *thd)
                      "Failed to write the DROP statement for temporary tables to binary log");
       }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
+      thd->thread_specific_used= save_thread_specific_used;
     }
     else
     {

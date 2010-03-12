@@ -1742,7 +1742,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a` AS `a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((select `test`.`t1`.`a` AS `a`) + 0)
+Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by ((select `test`.`t1`.`a`) + 0)
 EXPLAIN EXTENDED
 SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -1750,7 +1750,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1276	Field or reference 'test.t1.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select (select `test`.`t1`.`a` AS `a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((select `test`.`t1`.`a` AS `a`))
+Note	1003	select (select `test`.`t1`.`a`) AS `aa`,count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by -((select `test`.`t1`.`a`))
 # should return only one record
 SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
 GROUP BY aa;
