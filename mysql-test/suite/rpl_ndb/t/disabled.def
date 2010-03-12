@@ -11,4 +11,4 @@
 ##############################################################################
 
 rpl_ndb_ctype_ucs2_def : bug #34661 rpl_ndb_ctype_ucs2_def fails in 6.2
-rpl_ndb_set_null       : bug #
+rpl_ndb_set_null       : bug #51100

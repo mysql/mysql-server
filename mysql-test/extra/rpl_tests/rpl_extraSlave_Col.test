@@ -455,10 +455,10 @@ sync_slave_with_master;
   #SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
   #START SLAVE;
 
-#--echo *** Drop t9  ***
-#connection master;
-#DROP TABLE t9;
-#sync_slave_with_master;
+--echo *** Drop t9  ***
+connection master;
+DROP TABLE t9;
+sync_slave_with_master;
 
 ############################################
 # More columns in slave at middle of table #

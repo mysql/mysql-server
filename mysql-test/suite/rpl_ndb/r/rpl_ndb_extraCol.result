@@ -431,6 +431,8 @@ set @b1 = concat(@b1,@b1);
 INSERT INTO t9 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 select * from t9;
 a	b	c	d	e	f	g	h	i
+*** Drop t9  ***
+DROP TABLE t9;
 *** Create t10 on slave  ***
 STOP SLAVE;
 RESET SLAVE;
