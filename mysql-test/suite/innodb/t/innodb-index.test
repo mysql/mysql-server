@@ -1,5 +1,7 @@
 -- source include/have_innodb.inc
 
+let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
 commit;
@@ -398,6 +400,7 @@ create index t1u on t1 (u(1));
 drop table t1;
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
+eval set global innodb_file_format_check=$format;
 
 #
 # Test to check whether CREATE INDEX handles implicit foreign key
@@ -532,3 +535,10 @@ disconnect a;
 disconnect b;
 
 DROP TABLE t1;
+
+#
+# restore environment to the state it was before this test execution
+#
+
+-- disable_query_log
+eval SET GLOBAL innodb_file_format_check=$innodb_file_format_check_orig;

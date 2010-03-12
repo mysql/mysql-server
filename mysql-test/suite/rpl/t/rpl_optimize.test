@@ -13,6 +13,8 @@
 -- source include/not_ndb_default.inc
 -- source include/master-slave.inc
 
+CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
+
 create table t1 (a int not null auto_increment primary key, b int, key(b));
 INSERT INTO t1 (a) VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 INSERT INTO t1 (a) SELECT null FROM t1;
@@ -30,8 +32,8 @@ INSERT INTO t1 (a) SELECT null FROM t1;
 INSERT INTO t1 (a) SELECT null FROM t1;
 save_master_pos;
 # a few updates to force OPTIMIZE to do something
-update t1 set b=(a/2*rand());
 --disable_warnings
+update t1 set b=(a/2*rand());
 delete from t1 order by b limit 10000;
 --enable_warnings
 

@@ -98,6 +98,7 @@ public:
         case MYSQL_TYPE_LONG_BLOB:
         case MYSQL_TYPE_DOUBLE:
         case MYSQL_TYPE_FLOAT:
+        case MYSQL_TYPE_GEOMETRY:
         {
           /*
             These types store a single byte.

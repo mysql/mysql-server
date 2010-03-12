@@ -578,6 +578,23 @@ lock_sys_create(
 }
 
 /*********************************************************************//**
+Closes the lock system at database shutdown. */
+UNIV_INTERN
+void
+lock_sys_close(void)
+/*================*/
+{
+	if (lock_latest_err_file != NULL) {
+		fclose(lock_latest_err_file);
+		lock_latest_err_file = NULL;
+	}
+
+	hash_table_free(lock_sys->rec_hash);
+	mem_free(lock_sys);
+	lock_sys = NULL;
+}
+
+/*********************************************************************//**
 Gets the size of a lock struct.
 @return	size in bytes */
 UNIV_INTERN
@@ -4307,11 +4324,6 @@ lock_print_info_summary(
 /*====================*/
 	FILE*	file)	/*!< in: file where to print */
 {
-	/* We must protect the MySQL thd->query field with a MySQL mutex, and
-	because the MySQL mutex must be reserved before the kernel_mutex of
-	InnoDB, we call innobase_mysql_prepare_print_arbitrary_thd() here. */
-
-	innobase_mysql_prepare_print_arbitrary_thd();
 	lock_mutex_enter_kernel();
 
 	if (lock_deadlock_found) {
@@ -4394,7 +4406,6 @@ loop:
 
 	if (trx == NULL) {
 		lock_mutex_exit_kernel();
-		innobase_mysql_end_print_arbitrary_thd();
 
 		ut_ad(lock_validate());
 
@@ -4478,7 +4489,6 @@ loop:
 			}
 
 			lock_mutex_exit_kernel();
-			innobase_mysql_end_print_arbitrary_thd();
 
 			mtr_start(&mtr);
 
@@ -4489,7 +4499,6 @@ loop:
 
 			load_page_first = FALSE;
 
-			innobase_mysql_prepare_print_arbitrary_thd();
 			lock_mutex_enter_kernel();
 
 			goto loop;

@@ -47,6 +47,8 @@
 # BUG#34768: nondeterministic INSERT using LIMIT logged in stmt mode if binlog_format=mixed
 # BUG#41980, SBL, INSERT .. SELECT .. LIMIT = ERROR, even when @@SQL_LOG_BIN is 0
 # BUG#42640: mysqld crashes when unsafe statements are executed (STRICT_TRANS_TABLES mode)
+# BUG#47995: Mark user functions as unsafe
+# BUG#49222: Mare RAND() unsafe
 #
 # ==== Related test cases ====
 #
@@ -388,4 +390,58 @@ DELETE FROM t1 LIMIT 1;
 
 DROP TABLE t1, t2;
 SET @@SESSION.SQL_MODE = @save_sql_mode;
+
+#
+# BUG#47995: Mark user functions as unsafe
+# BUG#49222: Mare RAND() unsafe
+#
+# Test that the system functions that are supposed to be marked unsafe
+# generate a warning.  Each INSERT statement below should generate a
+# warning.
+#
+
+CREATE TABLE t1 (a VARCHAR(1000));
+INSERT INTO t1 VALUES (CURRENT_USER());       #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (FOUND_ROWS());         #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));   #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat')); #marked unsafe in BUG#39701
+INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));  #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (ROW_COUNT());          #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (SESSION_USER());       #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (SLEEP(1));             #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (SYSDATE());            #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (SYSTEM_USER());        #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (USER());               #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (UUID());               #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (UUID_SHORT());         #marked unsafe before BUG#47995
+INSERT INTO t1 VALUES (VERSION());            #marked unsafe in BUG#47995
+INSERT INTO t1 VALUES (RAND());               #marked unsafe in BUG#49222
+DELETE FROM t1;
+
+# Since we replicate the TIMESTAMP variable, functions affected by the
+# TIMESTAMP variable are safe to replicate.  So we check that the
+# following following functions that depend on the TIMESTAMP variable
+# are not unsafe and don't generate a warning.
+
+SET TIMESTAMP=1000000;
+INSERT INTO t1 VALUES
+  (CURDATE()),
+  (CURRENT_DATE()),
+  (CURRENT_TIME()),
+  (CURRENT_TIMESTAMP()),
+  (CURTIME()),
+  (LOCALTIME()),
+  (LOCALTIMESTAMP()),
+  (NOW()),
+  (UNIX_TIMESTAMP()),
+  (UTC_DATE()),
+  (UTC_TIME()),
+  (UTC_TIMESTAMP());
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
 --echo "End of tests"
