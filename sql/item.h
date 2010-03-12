@@ -1402,6 +1402,7 @@ public:
              const char *db_name_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_ident(THD *thd, Item_ident *item);
+  Item_ident(TABLE_LIST *view_arg, const char *field_name_arg);
   const char *full_name() const;
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
@@ -2222,6 +2223,8 @@ public:
   Item_ref(Name_resolution_context *context_arg, Item **item,
            const char *table_name_arg, const char *field_name_arg,
            bool alias_name_used_arg= FALSE);
+  Item_ref(TABLE_LIST *view_arg, Item **item,
+           const char *field_name_arg, bool alias_name_used_arg= FALSE);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
@@ -2337,6 +2340,12 @@ public:
   {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+  Item_direct_ref(TABLE_LIST *view_arg, Item **item,
+                  const char *field_name_arg,
+                  bool alias_name_used_arg= FALSE)
+    :Item_ref(view_arg, item, field_name_arg,
+              alias_name_used_arg)
+  {}
 
   double val_real();
   longlong val_int();
@@ -2362,6 +2371,10 @@ public:
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
     :Item_direct_ref(thd, item) {}
+  Item_direct_view_ref(TABLE_LIST *view_arg, Item **item,
+                       const char *field_name_arg)
+    :Item_direct_ref(view_arg, item, field_name_arg)
+  {}
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
