@@ -24,6 +24,8 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Date;
 
+import org.junit.Ignore;
+
 import testsuite.clusterj.model.IdBase;
 import testsuite.clusterj.model.TimestampAsUtilDateTypes;
 
@@ -48,6 +50,7 @@ create index idx_timestamp_not_null_btree on timestamptypes(timestamp_not_null_b
 create unique index idx_timestamp_not_null_both on timestamptypes(timestamp_not_null_both);
 
  */
+@Ignore
 public class TimestampAsUtilDateTypesTest extends AbstractClusterJModelTest {
 
     @Override

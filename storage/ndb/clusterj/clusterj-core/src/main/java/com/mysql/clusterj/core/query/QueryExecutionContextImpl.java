@@ -22,12 +22,15 @@ import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.store.ResultData;
+import com.mysql.clusterj.core.store.ScanFilter;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.query.QueryDomainType;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** This is the execution context for a query. It contains the
@@ -47,6 +50,9 @@ public class QueryExecutionContextImpl {
 
     /** The session for this query */
     protected SessionSPI session;
+
+    /** The filters used in the query */
+    private List<ScanFilter> filters = new ArrayList<ScanFilter>();
 
     /** Create a new execution context with an empty map of parameters.
      * @param session the session for this context
@@ -73,8 +79,8 @@ public class QueryExecutionContextImpl {
      * @param parameterMap the parameter map for this context
      */
     public QueryExecutionContextImpl(SessionSPI session, Map<String, Object> parameterMap) {
-	this.session = session;
-	this.boundParameters = parameterMap;
+        this.session = session;
+        this.boundParameters = parameterMap;
     }
 
     /** Bind the value of a parameter for this query execution.
@@ -109,10 +115,27 @@ public class QueryExecutionContextImpl {
     }
 
     public SessionSPI getSession() {
-	return session;
+        return session;
     }
 
     public ResultData getResultData(QueryDomainType<?> queryDomainType) {
-	return ((QueryDomainTypeImpl<?>)queryDomainType).getResultData(this);
+        return ((QueryDomainTypeImpl<?>)queryDomainType).getResultData(this);
     }
+
+    /** Add a filter to the list of filters created for this query.
+     * @param scanFilter the filter
+     */
+    public void addFilter(ScanFilter scanFilter) {
+        filters.add(scanFilter);
+    }
+
+    /** Delete all the filters created for this query.
+     */
+    public void deleteFilters() {
+        for (ScanFilter filter: filters) {
+            filter.delete();
+        }
+        filters.clear();
+    }
+
 }

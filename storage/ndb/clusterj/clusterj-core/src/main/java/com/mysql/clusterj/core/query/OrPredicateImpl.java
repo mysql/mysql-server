@@ -89,7 +89,7 @@ public class OrPredicateImpl extends PredicateImpl {
     public void filterCmpValue(QueryExecutionContextImpl context,
             ScanOperation op) {
         try {
-            ScanFilter filter = op.getScanFilter();
+            ScanFilter filter = op.getScanFilter(context);
             filter.begin(Group.GROUP_OR);
             for (PredicateImpl predicate: predicates) {
                 predicate.filterCmpValue(context, op, filter);

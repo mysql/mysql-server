@@ -134,7 +134,7 @@ public abstract class PredicateImpl implements Predicate {
     public void filterCmpValue(QueryExecutionContextImpl context,
             ScanOperation op) {
         try {
-            ScanFilter filter = op.getScanFilter();
+            ScanFilter filter = op.getScanFilter(context);
             filter.begin();
             filterCmpValue(context, op, filter);
             filter.end();

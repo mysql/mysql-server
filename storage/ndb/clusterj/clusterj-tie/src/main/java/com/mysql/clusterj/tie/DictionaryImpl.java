@@ -51,7 +51,7 @@ class DictionaryImpl implements com.mysql.clusterj.core.store.Dictionary {
     public Table getTable(String tableName) {
         TableConst ndbTable = ndbDictionary.getTable(tableName);
         if (ndbTable == null) {
-            // try the lower case name in case it's a simple user misunderstanding
+            // try the lower case table name
             ndbTable = ndbDictionary.getTable(tableName.toLowerCase());
         }
         handleError(ndbTable, ndbDictionary, tableName);
@@ -62,6 +62,10 @@ class DictionaryImpl implements com.mysql.clusterj.core.store.Dictionary {
 
     public Index getIndex(String indexName, String tableName, String indexAlias) {
         IndexConst ndbIndex = ndbDictionary.getIndex(indexName, tableName);
+        if (ndbIndex == null) {
+            // try the lower case table name
+            ndbIndex = ndbDictionary.getIndex(indexName, tableName.toLowerCase());
+        }
         handleError(ndbIndex, ndbDictionary, indexAlias);
         return new IndexImpl(ndbIndex, indexAlias);
     }

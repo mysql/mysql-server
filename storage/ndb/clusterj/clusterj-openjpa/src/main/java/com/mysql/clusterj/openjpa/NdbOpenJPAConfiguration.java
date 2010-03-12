@@ -88,5 +88,9 @@ public interface NdbOpenJPAConfiguration
     public SessionFactory getSessionFactory();
     public void setSessionFactory(SessionFactory value);
 
+    public boolean getFailOnJDBCPath();
+    public void setFailOnJDBCPath(boolean value);
+
     public NdbOpenJPADomainTypeHandlerImpl<?> getDomainTypeHandler(ClassMapping cmd, Dictionary dictionary);
+
 }
