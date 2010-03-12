@@ -333,7 +333,7 @@ static inline void free_plugin_mem(struct st_plugin_dl *p)
     dlclose(p->handle);
 #endif
   my_free(p->dl.str, MYF(MY_ALLOW_ZERO_PTR));
-  if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
+  if (p->allocated)
     my_free((uchar*)p->plugins, MYF(MY_ALLOW_ZERO_PTR));
 }
 
@@ -454,33 +454,37 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 #endif
     }
 
-    for (i= 0;
-         ((struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
-         i++)
-      /* no op */;
-
-    cur= (struct st_mysql_plugin*)
-          my_malloc(i*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
-    if (!cur)
+    if (sizeof_st_plugin != sizeof(st_mysql_plugin))
     {
-      free_plugin_mem(&plugin_dl);
-      if (report & REPORT_TO_USER)
-        my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
-      if (report & REPORT_TO_LOG)
-        sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
-      DBUG_RETURN(0);
-    }
-    /*
-      All st_plugin fields not initialized in the plugin explicitly, are
-      set to 0. It matches C standard behaviour for struct initializers that
-      have less values than the struct definition.
-    */
-    for (i=0;
-         (old=(struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
-         i++)
-      memcpy(cur+i, old, min(sizeof(cur[i]), sizeof_st_plugin));
+      for (i= 0;
+           ((struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
+           i++)
+        /* no op */;
 
-    sym= cur;
+      cur= (struct st_mysql_plugin*)
+            my_malloc((i+1)*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
+      if (!cur)
+      {
+        free_plugin_mem(&plugin_dl);
+        if (report & REPORT_TO_USER)
+          my_error(ER_OUTOFMEMORY, MYF(0), plugin_dl.dl.length);
+        if (report & REPORT_TO_LOG)
+          sql_print_error(ER(ER_OUTOFMEMORY), plugin_dl.dl.length);
+        DBUG_RETURN(0);
+      }
+      /*
+        All st_plugin fields not initialized in the plugin explicitly, are
+        set to 0. It matches C standard behaviour for struct initializers that
+        have less values than the struct definition.
+      */
+      for (i=0;
+           (old=(struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
+           i++)
+        memcpy(cur+i, old, min(sizeof(cur[i]), sizeof_st_plugin));
+
+      sym= cur;
+      plugin_dl.allocated= true;
+    }
   }
   plugin_dl.plugins= (struct st_mysql_plugin *)sym;
 
