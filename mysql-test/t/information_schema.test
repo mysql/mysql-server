@@ -1419,6 +1419,33 @@ SET TIMESTAMP=@@TIMESTAMP + 10000000;
 SELECT 'OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
 SET TIMESTAMP=DEFAULT;
 
+
+--echo #
+--echo # Bug #50276: Security flaw in INFORMATION_SCHEMA.TABLES
+--echo #
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (id INT);
+CREATE USER nonpriv;
+USE test;
+
+connect (nonpriv_con, localhost, nonpriv,,);
+connection nonpriv_con;
+--echo # connected as nonpriv
+--echo # Should return 0
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
+USE INFORMATION_SCHEMA;
+--echo # Should return 0
+SELECT COUNT(*) FROM TABLES WHERE TABLE_NAME='t1';
+
+connection default;
+--echo # connected as root
+disconnect nonpriv_con;
+DROP USER nonpriv;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
+
+
 --echo End of 5.1 tests.
 
 # Wait till all disconnects are completed

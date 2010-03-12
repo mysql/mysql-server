@@ -307,7 +307,7 @@ TCP_Transporter::doSend() {
   {
     send_cnt++;
     Uint32 iovcnt = cnt > m_os_max_iovec ? m_os_max_iovec : cnt;
-    int nBytesSent = my_socket_writev(theSocket, iov+pos, iovcnt);
+    int nBytesSent = (int)my_socket_writev(theSocket, iov+pos, iovcnt);
     assert(nBytesSent <= (int)remain);
 
     if (Uint32(nBytesSent) == remain)

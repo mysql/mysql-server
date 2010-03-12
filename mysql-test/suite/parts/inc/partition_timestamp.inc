@@ -33,42 +33,48 @@ select count(*) from t2;
 select * from t2;
 drop table t2;
 
-eval create table t3 (a timestamp not null, primary key(a)) engine=$engine 
-partition by range (month(a)) subpartition by key (a)
-subpartitions 3 (
-partition quarter1 values less than (4),
-partition quarter2 values less than (7),
-partition quarter3 values less than (10), 
-partition quarter4 values less than (13)
-);
-show create table t3;
-let $count=12;
---echo $count inserts;
-while ($count)
-{
-eval insert into t3 values (date_add('1970-01-01 00:00:00',interval $count-1 month));
-dec $count;
-}
-select count(*) from t3;
-select * from t3;
-drop table t3;
+################################################################################
+# The following 2 tests are no longer valid after bug #42849 has been fixed:
+# it is not possible to use a timezone-dependent (such as month(timestamp_col)
+# or just a timestamp_col in a numeric context) anymore.
+################################################################################
 
-eval create table t4 (a timestamp not null, primary key(a)) engine=$engine 
-partition by list (month(a)) subpartition by key (a)
-subpartitions 3 (
-partition quarter1 values in (0,1,2,3),
-partition quarter2 values in (4,5,6),
-partition quarter3 values in (7,8,9), 
-partition quarter4 values in (10,11,12)
-);
-show create table t4;
-let $count=12;
---echo $count inserts;
-while ($count)
-{
-eval insert into t4 values (date_add('1970-01-01 00:00:00',interval $count-1 month));
-dec $count;
-}
-select count(*) from t4;
-select * from t4;
-drop table t4;
+# eval create table t3 (a timestamp not null, primary key(a)) engine=$engine 
+# partition by range (month(a)) subpartition by key (a)
+# subpartitions 3 (
+# partition quarter1 values less than (4),
+# partition quarter2 values less than (7),
+# partition quarter3 values less than (10), 
+# partition quarter4 values less than (13)
+# );
+# show create table t3;
+# let $count=12;
+# --echo $count inserts;
+# while ($count)
+# {
+# eval insert into t3 values (date_add('1970-01-01 00:00:00',interval $count-1 month));
+# dec $count;
+# }
+# select count(*) from t3;
+# select * from t3;
+# drop table t3;
+
+# eval create table t4 (a timestamp not null, primary key(a)) engine=$engine 
+# partition by list (month(a)) subpartition by key (a)
+# subpartitions 3 (
+# partition quarter1 values in (0,1,2,3),
+# partition quarter2 values in (4,5,6),
+# partition quarter3 values in (7,8,9), 
+# partition quarter4 values in (10,11,12)
+# );
+# show create table t4;
+# let $count=12;
+# --echo $count inserts;
+# while ($count)
+# {
+# eval insert into t4 values (date_add('1970-01-01 00:00:00',interval $count-1 month));
+# dec $count;
+# }
+# select count(*) from t4;
+# select * from t4;
+# drop table t4;

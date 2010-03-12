@@ -382,10 +382,12 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
   {
     UintPtr start = UintPtr(chunks[i].m_ptr) - UintPtr(m_base_page);
     start >>= (2 + BMW_2LOG);
-    UintPtr last = start + chunks[i].m_cnt;
-    chunks[i].m_start = start;
     assert((Uint64(start) >> 32) == 0);
-    
+    chunks[i].m_start = Uint32(start);
+    Uint64 last64 = start + chunks[i].m_cnt;
+    assert((last64 >> 32) == 0);
+    Uint32 last = Uint32(last64);
+
     if (last > max_page)
       max_page = last;
   }

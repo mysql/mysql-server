@@ -1444,6 +1444,36 @@ FROM t3;
 2
 NULL
 DROP TABLE t1, t2, t3;
+#
+# Bug #42760: Select doesn't return desired results when we have null
+# values
+#
+CREATE TABLE t1 (
+a INT,
+c INT,
+UNIQUE KEY a_c (a,c),
+KEY (a));
+INSERT INTO t1 VALUES (1, 10), (2, NULL);
+# Must use ref-or-null on the a_c index
+EXPLAIN
+SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref_or_null	a_c,a	a_c	10	const,const	1	Using where
+# Must return 1 row
+SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c;
+col
+1
+# Must use ref-or-null on the a_c index
+EXPLAIN
+SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	ref_or_null	a_c,a	x	x	x	x	x
+# Must return 1 row
+SELECT 1 AS col FROM t1 WHERE a=2 AND (c=10 OR c IS NULL) ORDER BY c DESC;
+col
+1
+DROP TABLE t1;
+End of 5.0 tests
 CREATE TABLE t2 (a varchar(32), b int(11), c float, d double, 
 UNIQUE KEY a (a,b,c), KEY b (b), KEY c (c));
 CREATE TABLE t1 (a varchar(32), b char(3), UNIQUE KEY a (a,b), KEY b (b));

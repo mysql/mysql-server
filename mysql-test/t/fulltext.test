@@ -484,3 +484,75 @@ PREPARE s FROM
 EXECUTE s;
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #49250 : spatial btree index corruption and crash
+--echo # Part two : fulltext syntax check
+--echo #
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(col1 TEXT,
+  FULLTEXT INDEX USING BTREE (col1));
+CREATE TABLE t2(col1 TEXT);
+--error ER_PARSE_ERROR
+CREATE FULLTEXT INDEX USING BTREE ON t2(col);
+--error ER_PARSE_ERROR
+ALTER TABLE t2 ADD FULLTEXT INDEX USING BTREE (col1);
+
+DROP TABLE t2;
+
+
+--echo End of 5.0 tests
+
+
+--echo #
+--echo # Bug #47930: MATCH IN BOOLEAN MODE returns too many results 
+--echo #  inside subquery
+--echo #
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1), (2);
+
+CREATE TABLE t2 (a int, b2 char(10), FULLTEXT KEY b2 (b2));
+INSERT INTO t2 VALUES (1,'Scargill');
+
+CREATE TABLE t3 (a int, b int);
+INSERT INTO t3 VALUES (1,1), (2,1);
+
+--echo # t2 should use full text index
+EXPLAIN
+SELECT count(*) FROM t1 WHERE 
+  not exists(
+   SELECT 1 FROM t2, t3
+   WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+  );
+
+--echo # should return 0
+SELECT count(*) FROM t1 WHERE 
+  not exists(
+   SELECT 1 FROM t2, t3
+   WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+  );
+
+--echo # should return 0
+SELECT count(*) FROM t1 WHERE 
+  not exists(
+   SELECT 1 FROM t2 IGNORE INDEX (b2), t3
+   WHERE t3.a=t1.a AND MATCH(b2) AGAINST('scargill' IN BOOLEAN MODE)
+  );
+
+DROP TABLE t1,t2,t3;
+
+
+--echo #
+--echo # Bug #49445: Assertion failed: 0, file .\item_row.cc, line 55 with 
+--echo #   fulltext search and row op
+--echo #
+
+CREATE TABLE t1(a CHAR(1),FULLTEXT(a));
+SELECT 1 FROM t1 WHERE MATCH(a) AGAINST ('') AND ROW(a,a) > ROW(1,1);
+DROP TABLE t1;
+
+
+--echo End of 5.1 tests

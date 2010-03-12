@@ -478,32 +478,6 @@ INSERT INTO t2 SELECT c1 FROM t1;
 INSERT INTO t2 SELECT NULL FROM t1;
 DROP TABLE t1;
 DROP TABLE t2;
-#
-# 44030: Error: (1500) Couldn't read the MAX(ID) autoinc value from
-# the index (PRIMARY)
-# This test requires a restart of the server
-SET @@SESSION.AUTO_INCREMENT_INCREMENT=1, @@SESSION.AUTO_INCREMENT_OFFSET=1;
-CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
-INSERT INTO t1 VALUES (null);
-INSERT INTO t1 VALUES (null);
-ALTER TABLE t1 CHANGE c1 d1 INT NOT NULL AUTO_INCREMENT;
-SELECT * FROM t1;
-# Restart the server
--- source include/restart_mysqld.inc
-# The MySQL and InnoDB data dictionaries should now be out of sync.
-# The select should print message to the error log
-SELECT * FROM t1;
-# MySQL have made a change (http://lists.mysql.com/commits/75268) that no
-# longer results in the two data dictionaries being out of sync. If they
-# revert their changes then this check for ER_AUTOINC_READ_FAILED will need
-# to be enabled.
--- error ER_AUTOINC_READ_FAILED,1467
-INSERT INTO t1 VALUES(null);
-ALTER TABLE t1 AUTO_INCREMENT = 3;
-SHOW CREATE TABLE t1;
-INSERT INTO t1 VALUES(null);
-SELECT * FROM t1;
-DROP TABLE t1;
 
 # If the user has specified negative values for an AUTOINC column then
 # InnoDB should ignore those values when setting the table's max value.
@@ -614,9 +588,46 @@ DROP TABLE t1;
 # 47125: auto_increment start value is ignored if an index is created
 # and engine=innodb
 #
-CREATE TABLE T1 (c1 INT AUTO_INCREMENT, c2 INT, PRIMARY KEY(c1)) AUTO_INCREMENT=10 ENGINE=InnoDB;
-CREATE INDEX i1 on T1(c2);
-SHOW CREATE TABLE T1;
-INSERT INTO T1 (c2) values (0);
-SELECT * FROM T1;
-DROP TABLE T1;
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT, c2 INT, PRIMARY KEY(c1)) AUTO_INCREMENT=10 ENGINE=InnoDB;
+CREATE INDEX i1 on t1(c2);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 (c2) values (0);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+##
+# 49032: Use the correct function to read the AUTOINC column value
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(C1 DOUBLE AUTO_INCREMENT KEY, C2 CHAR(10)) ENGINE=InnoDB;
+INSERT INTO t1(C1, C2) VALUES (1, 'innodb'), (3, 'innodb');
+# Restart the server
+-- source include/restart_mysqld.inc
+INSERT INTO t1(C2) VALUES ('innodb');
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1(C1 FLOAT AUTO_INCREMENT KEY, C2 CHAR(10)) ENGINE=InnoDB;
+INSERT INTO t1(C1, C2) VALUES (1, 'innodb'), (3, 'innodb');
+# Restart the server
+-- source include/restart_mysqld.inc
+INSERT INTO t1(C2) VALUES ('innodb');
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+##
+# 47720: REPLACE INTO Autoincrement column with negative values
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 SET c1 = 1;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 SET c1 = 2;
+INSERT INTO t1 SET c1 = -1;
+SELECT * FROM t1;
+-- error ER_DUP_ENTRY,1062
+INSERT INTO t1 SET c1 = -1;
+SHOW CREATE TABLE t1;
+REPLACE INTO t1 VALUES (-1);
+SELECT * FROM t1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

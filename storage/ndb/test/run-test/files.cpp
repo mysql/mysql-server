@@ -281,7 +281,7 @@ setup_files(atrt_config& config, int setup, int sshx)
 	for (size_t k = 0; env[k]; k++)
 	{
 	  tmp = env[k];
-	  int pos = tmp.indexOf('=');
+	  ssize_t pos = tmp.indexOf('=');
 	  require(pos > 0);
 	  env[k][pos] = 0;
 	  fprintf(fenv, "%s=\"%s\"\n", env[k], env[k]+pos+1);

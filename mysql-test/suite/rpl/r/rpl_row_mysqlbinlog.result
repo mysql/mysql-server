@@ -152,6 +152,7 @@ c1	c3	c4	c5
 5	2006-02-22 00:00:00	Tested in Texas	11
 
 --- Test 2 position test --
+Warning: The option '--position' is deprecated and will be removed in a future release. Please use --start-position instead.
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -314,6 +315,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 
 --- Test 7 reading stdin w/position --
+Warning: The option '--position' is deprecated and will be removed in a future release. Please use --start-position instead.
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;

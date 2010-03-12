@@ -1,11 +1,11 @@
-# Copyright (C) 2000-2001, 2003-2006 MySQL AB
-#  All rights reserved. Use is subject to license terms.
+# Copyright (C) 2000-2006 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; version 2 of the License.
+# This library is free software; you can redistribute it and/or
+# modify it under the terms of the GNU Library General Public
+# License as published by the Free Software Foundation; version 2
+# of the License.
 #
-# This program is distributed in the hope that it will be useful,
+# This library is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
@@ -120,6 +120,7 @@ SUFFIXES = .sh
 	  -e 's!@''SHARED_LIB_VERSION''@!@SHARED_LIB_VERSION@!' \
 	  -e 's!@''MYSQL_BASE_VERSION''@!@MYSQL_BASE_VERSION@!' \
 	  -e 's!@''MYSQL_NO_DASH_VERSION''@!@MYSQL_NO_DASH_VERSION@!' \
+	  -e 's!@''MYSQL_U_SCORE_VERSION''@!@MYSQL_U_SCORE_VERSION@!' \
 	  -e 's!@''MYSQL_COPYRIGHT_YEAR''@!@MYSQL_COPYRIGHT_YEAR@!' \
 	  -e 's!@''MYSQL_TCP_PORT''@!@MYSQL_TCP_PORT@!' \
 	  -e 's!@''PERL_DBI_VERSION''@!@PERL_DBI_VERSION@!' \

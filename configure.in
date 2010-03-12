@@ -1,35 +1,28 @@
 dnl -*- ksh -*-
 dnl Process this file with autoconf to produce a configure script.
 
-AC_PREREQ(2.52)dnl		Minimum Autoconf version required.
+# Minimum Autoconf version required.
+AC_PREREQ(2.59)
 
-# The Docs Makefile.am parses this line!
-# remember to also update version.c in ndb
-#
+# Remember to also update version.c in ndb.
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-# To support global Automake options, we need to switch from the old form
-#   AC_INIT(sql/mysqld.cc)
-#   AM_INIT_AUTOMAKE(mysql, 5.1.39-ndb-6.3.28)
-# to the modern single-argument form; see
-#   http://www.gnu.org/software/automake/manual/automake.html#Public-Macros
-#
-AC_INIT([mysql], [5.1.41-ndb-7.1.3-beta])
+AC_INIT([MySQL Server], [5.1.44-ndb-7.1.3-beta], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
+# USTAR format gives us the possibility to store longer path names in
+# TAR files, the path name is split into two parts, a 155 chacater
+# first part and a 100 character second part.
+AM_INIT_AUTOMAKE([1.9 tar-ustar])
+AC_PROG_LIBTOOL
 
-# Global Automake Options:
-# - tar format to use when generating tarballs with ‘make dist’;
-#   see http://www.gnu.org/software/automake/manual/automake.html#Options
-#   and http://www.gnu.org/software/tar/manual/tar.html#SEC125
-#   - tar-ustar (Uniform Standard Tape Archive) selects the format defined
-#     by POSIX 1003.1-1988; believed to be old enough to be portable; fully
-#     supports empty directories and file names with up to 256 characters,
-#     provided that the file name can be split at directory separator in two
-#     parts, first of them being at most 155 bytes long.
-#   Some NDB Java file paths exceed the 99 character limit, hence using ustar.
-AM_INIT_AUTOMAKE([tar-ustar])
-AM_CONFIG_HEADER([include/config.h:config.h.in])
+AM_CONFIG_HEADER([include/config.h])
+
+# Request support for automake silent-rules if available.
+# Default to verbose output. One can use the configure-time
+# option --enable-silent-rules or make V=0 to activate
+# silent rules.
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 
 NDB_VERSION_MAJOR=7
 NDB_VERSION_MINOR=1
@@ -48,12 +41,14 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 # Remember that regexps needs to quote [ and ] since this is run through m4
 # We take some made up examples
 #
-#  VERSION                  5.1.40sp1-alpha     5.0.34a
-#  MYSQL_NO_DASH_VERSION    5.1.40sp1           5.0.34a
-#  MYSQL_NUMERIC_VERSION    5.1.40              5.0.34
-#  MYSQL_BASE_VERSION       5.1                 5.0
-#  MYSQL_VERSION_ID         50140               50034
+#  VERSION                  5.1.40sp1-alpha     5.0.34a  5.5.1-m2
+#  MYSQL_U_SCORE_VERSION    5.1.40sp1_alpha     5.0.34a  5.5.1_m2
+#  MYSQL_NO_DASH_VERSION    5.1.40sp1           5.0.34a  5.5.1
+#  MYSQL_NUMERIC_VERSION    5.1.40              5.0.34   5.5.1
+#  MYSQL_BASE_VERSION       5.1                 5.0      5.5
+#  MYSQL_VERSION_ID         50140               50034    50501
 #
+MYSQL_U_SCORE_VERSION=`echo $VERSION | sed -e "s|-|_|"`
 MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
 MYSQL_NUMERIC_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|[[a-z]][[a-z0-9]]*$||"`
 MYSQL_BASE_VERSION=`echo $MYSQL_NUMERIC_VERSION | sed -e "s|\.[[^.]]*$||"`
@@ -89,6 +84,7 @@ romanian russian serbian slovak spanish swedish ukrainian"
 #####
 #####
 
+AC_SUBST(MYSQL_U_SCORE_VERSION)
 AC_SUBST(MYSQL_NO_DASH_VERSION)
 AC_SUBST(MYSQL_BASE_VERSION)
 AC_SUBST(MYSQL_VERSION_ID)
@@ -2151,7 +2147,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
   backtrace backtrace_symbols backtrace_symbols_fd \
-  posix_fallocate posix_memalign memalign sysconf directio atomic_swap_32)
+  posix_fallocate posix_memalign memalign sysconf directio atomic_swap_32 printstack)
 
 #
 #
@@ -3056,17 +3052,12 @@ AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
 
 AC_OUTPUT
 
-echo
-echo "MySQL has a Web site at http://www.mysql.com/ which carries details on the"
-echo "latest release, upcoming features, and other information to make your"
-echo "work or play with MySQL more productive. There you can also find"
-echo "information about mailing lists for MySQL discussion."
-echo
-echo "Remember to check the platform specific part of the reference manual for"
-echo "hints about installing MySQL on your platform. Also have a look at the"
-echo "files in the Docs directory."
-echo
-# The following text is checked in ./Do-compile to verify that configure
+# The first line "Thank you ..." is checked in ./Do-compile to verify that configure
 # ended sucessfully - don't remove it.
+echo
 echo "Thank you for choosing MySQL!"
+echo
+echo "Remember to check the platform specific part of the reference manual"
+echo "for hints about installing MySQL on your platform."
+echo "Also have a look at the files in the Docs directory."
 echo

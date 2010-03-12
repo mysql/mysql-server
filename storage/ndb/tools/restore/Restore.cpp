@@ -594,29 +594,26 @@ RestoreMetaData::fixBlobs()
 bool
 RestoreMetaData::readGCPEntry() {
 
-  Uint32 data[4];
+  BackupFormat::CtlFile::GCPEntry dst;
   
-  BackupFormat::CtlFile::GCPEntry * dst = 
-    (BackupFormat::CtlFile::GCPEntry *)&data[0];
-  
-  if(buffer_read(dst, 4, 4) != 4){
+  if(buffer_read(&dst, 1, sizeof(dst)) != sizeof(dst)){
     err << "readGCPEntry read error" << endl;
     return false;
   }
   
-  dst->SectionType = ntohl(dst->SectionType);
-  dst->SectionLength = ntohl(dst->SectionLength);
+  dst.SectionType = ntohl(dst.SectionType);
+  dst.SectionLength = ntohl(dst.SectionLength);
   
-  if(dst->SectionType != BackupFormat::GCP_ENTRY){
+  if(dst.SectionType != BackupFormat::GCP_ENTRY){
     err << "readGCPEntry invalid format" << endl;
     return false;
   }
   
-  dst->StartGCP = ntohl(dst->StartGCP);
-  dst->StopGCP = ntohl(dst->StopGCP);
+  dst.StartGCP = ntohl(dst.StartGCP);
+  dst.StopGCP = ntohl(dst.StopGCP);
   
-  m_startGCP = dst->StartGCP;
-  m_stopGCP = dst->StopGCP;
+  m_startGCP = dst.StartGCP;
+  m_stopGCP = dst.StopGCP;
   return true;
 }
 
@@ -782,8 +779,9 @@ RestoreDataIterator::free_bitfield_storage()
 Uint32
 RestoreDataIterator::get_free_bitfield_storage() const
 {
-  return (m_bitfield_storage_ptr + m_bitfield_storage_len) - 
-    m_bitfield_storage_curr_ptr;
+  
+  return Uint32((m_bitfield_storage_ptr + m_bitfield_storage_len) - 
+    m_bitfield_storage_curr_ptr);
 }
 
 Uint32*
@@ -1390,7 +1388,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
         }
       }
       m_file_pos -= r;
-      m_buffer_data_left += r;
+      m_buffer_data_left += (Uint32)r;
       //move to the end of buffer
       m_buffer_ptr = buffer_end;
     }
@@ -1398,7 +1396,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
     {
       memmove(m_buffer, m_buffer_ptr, m_buffer_data_left);
       int error;
-      size_t r = azread(&m_file,
+      Uint32 r = azread(&m_file,
                         ((char *)m_buffer) + m_buffer_data_left,
                         m_buffer_sz - m_buffer_data_left, &error);
       m_file_pos += r;

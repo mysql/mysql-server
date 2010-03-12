@@ -338,7 +338,7 @@ void
 Win32AsyncFile::appendReq(Request * request){
 
   const char * buf = request->par.append.buf;
-  Uint32 size = request->par.append.size;
+  Uint32 size = Uint32(request->par.append.size);
 
   m_write_wo_sync += size;
 

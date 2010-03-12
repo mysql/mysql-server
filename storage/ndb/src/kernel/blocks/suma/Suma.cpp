@@ -5993,7 +5993,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
   }
   else
   {
-    pos = (ptr - page->m_data);
+    pos = Uint32(ptr - page->m_data);
   }
   
 next:

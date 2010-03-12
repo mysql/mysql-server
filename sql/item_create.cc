@@ -3527,6 +3527,7 @@ Create_func_get_lock Create_func_get_lock::s_singleton;
 Item*
 Create_func_get_lock::create(THD *thd, Item *arg1, Item *arg2)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_get_lock(arg1, arg2);
 }
@@ -3638,6 +3639,7 @@ Create_func_is_free_lock Create_func_is_free_lock::s_singleton;
 Item*
 Create_func_is_free_lock::create(THD *thd, Item *arg1)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_is_free_lock(arg1);
 }
@@ -3648,6 +3650,7 @@ Create_func_is_used_lock Create_func_is_used_lock::s_singleton;
 Item*
 Create_func_is_used_lock::create(THD *thd, Item *arg1)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_is_used_lock(arg1);
 }
@@ -3964,6 +3967,8 @@ Create_func_master_pos_wait::create_native(THD *thd, LEX_STRING name,
   Item *func= NULL;
   int arg_count= 0;
 
+  thd->lex->set_stmt_unsafe();
+
   if (item_list != NULL)
     arg_count= item_list->elements;
 
@@ -4176,6 +4181,16 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
   if (item_list != NULL)
     arg_count= item_list->elements;
 
+  /*
+    When RAND() is binlogged, the seed is binlogged too.  So the
+    sequence of random numbers is the same on a replication slave as
+    on the master.  However, if several RAND() values are inserted
+    into a table, the order in which the rows are modified may differ
+    between master and slave, because the order is undefined.  Hence,
+    the statement is unsafe to log in statement format.
+  */
+  thd->lex->set_stmt_unsafe();
+
   switch (arg_count) {
   case 0:
   {
@@ -4206,6 +4221,7 @@ Create_func_release_lock Create_func_release_lock::s_singleton;
 Item*
 Create_func_release_lock::create(THD *thd, Item *arg1)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_release_lock(arg1);
 }
@@ -4328,6 +4344,7 @@ Create_func_sleep Create_func_sleep::s_singleton;
 Item*
 Create_func_sleep::create(THD *thd, Item *arg1)
 {
+  thd->lex->set_stmt_unsafe();
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_sleep(arg1);
 }
@@ -4594,6 +4611,7 @@ Create_func_version Create_func_version::s_singleton;
 Item*
 Create_func_version::create(THD *thd)
 {
+  thd->lex->set_stmt_unsafe();
   return new (thd->mem_root) Item_static_string_func("version()",
                                                      server_version,
                                                      (uint) strlen(server_version),

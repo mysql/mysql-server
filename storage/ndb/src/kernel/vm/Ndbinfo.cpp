@@ -64,7 +64,7 @@ Ndbinfo::Row::write_string(const char* str)
 {
   const size_t clen = strlen(str) + 1;
   // Create AttributeHeader
-  AttributeHeader ah(col_counter++, clen);
+  AttributeHeader ah(col_counter++, (Uint32)clen);
   check_attribute_type(ah, Ndbinfo::String);
   if (!check_buffer_space(ah))
     return;

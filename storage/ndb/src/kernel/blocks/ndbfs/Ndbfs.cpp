@@ -616,7 +616,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
 	}//if
 	request->par.readWrite.pages[i].buf = &tWA[varIndex * tClusterSize];
 	request->par.readWrite.pages[i].size = tPageSize;
-	request->par.readWrite.pages[i].offset = fileOffset * tPageSize;
+	request->par.readWrite.pages[i].offset = (off_t)(fileOffset*tPageSize);
       }//for
       request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
       break;
@@ -632,7 +632,7 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
       const UintPtr varIndex = fsRWReq->data.arrayOfPages.varIndex;
       const UintPtr fileOffset = fsRWReq->data.arrayOfPages.fileOffset;
       
-      request->par.readWrite.pages[0].offset = fileOffset * tPageSize;
+      request->par.readWrite.pages[0].offset = (off_t)(fileOffset * tPageSize);
       request->par.readWrite.pages[0].size = tPageSize * fsRWReq->numberOfPages;
       request->par.readWrite.numberOfPages = 1;
       request->par.readWrite.pages[0].buf = &tWA[varIndex * tPageSize];
@@ -656,7 +656,8 @@ Ndbfs::readWriteRequest(int action, Signal * signal)
 	}//if
 	request->par.readWrite.pages[i].buf = &tWA[varIndex * tClusterSize];
 	request->par.readWrite.pages[i].size = tPageSize;
-	request->par.readWrite.pages[i].offset = tPageOffset + (i*tPageSize);
+	request->par.readWrite.pages[i].offset = (off_t)
+          (tPageOffset + (i*tPageSize));
       }//for
       request->par.readWrite.numberOfPages = fsRWReq->numberOfPages;
       break;
@@ -1200,7 +1201,7 @@ Ndbfs::report(Request * request, Signal* signal)
     }
     case Request:: readPartial: {
       jam();
-      fsConf->bytes_read = request->par.readWrite.pages[0].size;
+      fsConf->bytes_read = Uint32(request->par.readWrite.pages[0].size);
       sendSignal(ref, GSN_FSREADCONF, signal, 2, JBA);
       break;
     }
@@ -1213,7 +1214,7 @@ Ndbfs::report(Request * request, Signal* signal)
     case Request::append_synch:
     {
       jam();
-      signal->theData[1] = request->par.append.size;
+      signal->theData[1] = Uint32(request->par.append.size);
       sendSignal(ref, GSN_FSAPPENDCONF, signal, 2, JBA);
       break;
     }
