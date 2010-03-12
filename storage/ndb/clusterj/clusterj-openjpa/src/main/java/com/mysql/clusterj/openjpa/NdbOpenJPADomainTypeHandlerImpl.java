@@ -18,8 +18,10 @@
 
 package com.mysql.clusterj.openjpa;
 
+import java.lang.reflect.Modifier;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.HashSet;
 import java.util.List;
@@ -33,14 +35,12 @@ import org.apache.openjpa.kernel.PCState;
 
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.core.CacheManager;
-import com.mysql.clusterj.core.metadata.DomainFieldHandlerImpl;
 import com.mysql.clusterj.core.metadata.IndexHandlerImpl;
 import com.mysql.clusterj.core.metadata.KeyValueHandlerImpl;
 import com.mysql.clusterj.core.query.CandidateIndexImpl;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.ValueHandler;
-import com.mysql.clusterj.core.store.ClusterTransaction;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.PartitionKey;
@@ -73,8 +73,6 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
             new ArrayList<NdbOpenJPADomainFieldHandlerImpl>();
     private ClassMapping classMapping;
 
-    /** Reason for this class to be unsupported. */
-    private Object unsupportedReason = null;
     /** The field handlers for this persistent type*/
     private NdbOpenJPADomainFieldHandlerImpl[] fieldHandlers;
 
@@ -91,19 +89,51 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
 
     private NdbOpenJPADomainFieldHandlerImpl[] partitionKeyFieldHandlers;
 
+    private NdbOpenJPAConfigurationImpl domainTypeHandlerFactory;
+
+    private Dictionary dictionary;
+
+    private Set<NdbOpenJPADomainTypeHandlerImpl<?>> dependencies =
+        new HashSet<NdbOpenJPADomainTypeHandlerImpl<?>>();
+
+    private Status status = Status.IN_PROCESS;
+
+    /** Reasons why this class is not supported by clusterjpa */
+    private List<String> reasons = new ArrayList<String>();
+
     @SuppressWarnings("unchecked")
     NdbOpenJPADomainTypeHandlerImpl(
             Dictionary dictionary, ClassMapping classMapping, 
             NdbOpenJPAConfigurationImpl domainTypeHandlerFactory) {
+        String message = null;
+        this.dictionary = dictionary;
+        this.domainTypeHandlerFactory = domainTypeHandlerFactory;
         this.classMapping = classMapping;
         classMapping.resolve(0xffffffff);
         oidClass = classMapping.getObjectIdType();
         this.describedType = classMapping.getDescribedType();
+        if (classMapping.getPCSuperclass() != null) {
+            // persistent subclasses are not supported
+            message = local.message("ERR_Subclass", this.describedType);
+            setUnsupported(message);
+        }
+        if (classMapping.getPCSubclasses() != null && classMapping.getPCSubclasses().length > 0) {
+            // persistent superclasses are not supported
+            message = local.message("ERR_Superclass", this.describedType);
+            setUnsupported(message);
+        }
+        int modifiers = describedType.getClass().getModifiers();
+        if (Modifier.isAbstract(modifiers)) {
+            // abstract classes are not supported
+            message = local.message("ERR_Abstract_Class", describedType.getClass().getName());
+            setUnsupported(message);
+        }
         this.typeName = describedType.getName();
         this.tableName = classMapping.getTable().getFullName();
         this.storeTable = dictionary.getTable(tableName);
         if (logger.isTraceEnabled()) {
-            logger.trace("initialize for class: " + typeName + " mapped to table: " + storeTable.getName());
+            logger.trace("initialize for class: " + typeName
+                    + " mapped to table: " + storeTable.getName());
         }
         
         // set up the partition keys
@@ -111,17 +141,26 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         partitionKeyColumnNames = storeTable.getPartitionKeyColumnNames();
         numberOfPartitionKeyColumns = partitionKeyColumnNames.length;
         partitionKeyFieldHandlers = new NdbOpenJPADomainFieldHandlerImpl[numberOfPartitionKeyColumns];
-
+        if (logger.isDetailEnabled()) {
+            logger.detail("partition key columns for class: "+ typeName
+                    + " partition key columns: " + numberOfPartitionKeyColumns
+                    + " names: " + Arrays.toString(partitionKeyColumnNames));
+        }
+        // set up the fields
         for (FieldMapping fm: classMapping.getDefinedFieldMappings()) {
             NdbOpenJPADomainFieldHandlerImpl fmd = new NdbOpenJPADomainFieldHandlerImpl(
                     dictionary, this, domainTypeHandlerFactory, fm);
             fields.add(fmd);
-            // add column names to allColumnNames
-            for (com.mysql.clusterj.core.store.Column column: fmd.getStoreColumns()) {
-                allStoreColumns.add(column);
-            }
-            if (fmd.isPrimaryKey()) {
-                primaryKeyFields.add(fmd);
+            if (!fmd.isSupported()) {
+                setUnsupported(fmd.getReason());
+            } else {
+                // add column names to allColumnNames
+                for (com.mysql.clusterj.core.store.Column column: fmd.getStoreColumns()) {
+                    allStoreColumns.add(column);
+                }
+                if (fmd.isPrimaryKey()) {
+                    primaryKeyFields.add(fmd);
+                }
             }
         }
         primaryKeyFieldNumbers = new int[primaryKeyFields.size()];
@@ -130,6 +169,13 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
             primaryKeyFieldNumbers[i++] = fmd.getFieldNumber();
         }
         fieldHandlers = fields.toArray(new NdbOpenJPADomainFieldHandlerImpl[fields.size()]);
+        // check to make sure all partition keys have registered
+        for (int j = 0; j < numberOfPartitionKeyColumns; ++j) {
+            if (partitionKeyFieldHandlers[j] == null) {
+                setUnsupported();
+                reasons.add("Unmapped partition key " + partitionKeyColumnNames[j]);
+            }
+        }
     }
 
     /** Register a primary key column field. This is used to associate
@@ -146,6 +192,11 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         for (int j = 0; j < partitionKeyColumnNames.length; ++j) {
             if (partitionKeyColumnNames[j].equals(columnName)) {
                 partitionKeyFieldHandlers[j] = fmd;
+            } else {
+                if (logger.isDetailEnabled()) logger.detail(
+                        "NdbOpenJPADomainTypeHandlerImpl.registerPrimaryKeyColumn "
+                        + "mismatch between partition key column name: " + partitionKeyColumnNames[j]
+                        + " and primary key column name: " + columnName);
             }
         }
         return;
@@ -232,7 +283,8 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
     public void operationSetKeys(ValueHandler handler, Operation op) {
         for (NdbOpenJPADomainFieldHandlerImpl fmd: primaryKeyFields) {
             if (logger.isDetailEnabled()) {
-                logger.detail("Class: " + typeName + " Primary Key Field: " + fmd.getName() + handler.pkToString(this));
+                logger.detail("Class: " + typeName
+                        + " Primary Key Field: " + fmd.getName() + handler.pkToString(this));
             }
             fmd.operationSetValue(handler, op);
         }
@@ -253,7 +305,7 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
             }
         } catch (Exception exception) {
             exception.printStackTrace();
-            throw new RuntimeException("NdbOpenJPADomainTypeHandlerImpl.operationSetValuesExcept caught " + exception);
+            throw new RuntimeException("NdbOpenJPADomainTypeHandlerImpl.operationSetValuesExcept caught exception", exception);
         }
     }
 
@@ -313,10 +365,6 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         return new NdbOpenJPAValueHandler(sm, store);
     }
 
-    public boolean isSupportedType() {
-        return unsupportedReason == null;
-    }
-
     public int[] getKeyFieldNumbers() {
         return primaryKeyFieldNumbers;
     }
@@ -356,7 +404,9 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
                 // this field is not loaded
                 NdbOpenJPADomainFieldHandlerImpl fieldHandler = fieldHandlers[i];
                 loadedAny = true;
-                if (logger.isDebugEnabled()) logger.debug("loading field " + fieldHandler.getName() + " for column " + fieldHandler.getColumnName());
+                if (logger.isDebugEnabled()) logger.debug(
+                        "loading field " + fieldHandler.getName()
+                        + " for column " + fieldHandler.getColumnName());
                 fieldHandler.load(sm, store, fetch);
             }
         }
@@ -372,7 +422,8 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
     public void load(OpenJPAStateManager sm, NdbOpenJPAStoreManager store, 
             JDBCFetchConfiguration fetch, NdbOpenJPAResult result) throws SQLException {
         for (NdbOpenJPADomainFieldHandlerImpl fieldHandler: fieldHandlers) {
-            if (logger.isDebugEnabled()) logger.debug("loading field " + fieldHandler.getName() + " for column " + fieldHandler.getColumnName() + " from result data.");
+            if (logger.isDebugEnabled()) logger.debug("loading field " + fieldHandler.getName()
+                    + " for column " + fieldHandler.getColumnName() + " from result data.");
             fieldHandler.load(sm, store, fetch, result);
         }
     }
@@ -459,6 +510,126 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
             fmd.partitionKeySetPart(result, handler);
         }
         return result;
+    }
+
+    /** Register a dependency on another class. If the class is not already known,
+     * add it to the list of dependencies.
+     */
+    public NdbOpenJPADomainTypeHandlerImpl<?> registerDependency(ClassMapping mapping) {
+        NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = 
+            domainTypeHandlerFactory.getDomainTypeHandler(mapping, dictionary);
+        dependencies.add(domainTypeHandler);
+        return domainTypeHandler;
+    }
+
+    /** Status of this class with regard to usability with clusterjpa.
+     * 
+     */
+    private enum Status {
+        IN_PROCESS,
+        GOOD,
+        BAD;
+    }
+
+    private Status supportStatus() {
+        return status;
+    }
+
+    public void initializeRelations() {
+        for (NdbOpenJPADomainFieldHandlerImpl fieldHandler: fieldHandlers) {
+            fieldHandler.initializeRelations();
+        }
+
+        // iterate the dependencies and see if any are not supported
+        boolean supported = status != Status.BAD;
+        boolean workToDo = !supported;
+        for (NdbOpenJPADomainTypeHandlerImpl<?> dependent: dependencies) {
+            // top level class will have recursive list of dependencies including itself
+            this.dependencies.addAll(dependent.getDependencies());
+            switch (dependent.supportStatus()) {
+                case IN_PROCESS:
+                    workToDo = true;
+                    break;
+                case GOOD:
+                    break;
+                case BAD:
+                    setUnsupported();
+                    supported = false;
+                    workToDo = true;
+                    String message = local.message("ERR_Bad_Dependency", dependent.typeName);
+                    reasons.add(message);
+                    if (logger.isDebugEnabled()) logger.debug(message);
+            }
+            String message = "Processing class " + typeName + " found dependency " + dependent.typeName
+            + " support status is: " + dependent.supportStatus();
+            if (logger.isDetailEnabled()) logger.detail(message);
+        }
+        if (workToDo) {
+            if (!supported) {
+                // found an unsupported class in the dependency list
+                for (NdbOpenJPADomainTypeHandlerImpl<?> dependent: dependencies) {
+                    dependent.setUnsupported();
+                }
+            } else {
+                for (NdbOpenJPADomainTypeHandlerImpl<?> dependent: dependencies) {
+                    dependent.setSupported();
+                }
+            }
+        } else {
+            this.setSupported();
+        }
+        if (logger.isDetailEnabled()) logger.detail("Processing class " + typeName + " has dependencies " + dependencies);
+        if (logger.isDetailEnabled()) logger.detail("Processing class " + typeName + " has dependencies " + dependencies);
+    }
+
+    private Set<NdbOpenJPADomainTypeHandlerImpl<?>> getDependencies() {
+        return dependencies;
+    }
+
+    private void setUnsupported() {
+        if (status != Status.BAD) {
+            if (logger.isDetailEnabled()) logger.detail("Class " + typeName + " marked as BAD.");
+            status = Status.BAD;
+        }
+    }
+
+    private void setUnsupported(String reason) {
+        if (status != Status.BAD) {
+            if (logger.isDetailEnabled()) logger.detail("Class " + typeName + " marked as BAD.");
+            status = Status.BAD;
+        }
+        reasons.add(reason);
+    }
+
+    private void setSupported() {
+        if (status != Status.GOOD) {
+            if (logger.isDetailEnabled()) logger.detail("Class " + typeName + " marked as GOOD.");
+            status = Status.GOOD;
+        }
+    }
+
+    public boolean isSupportedType() {
+        return Status.GOOD == status;
+    }
+
+    public String getReasons() {
+        if (reasons.size() == 0) {
+            return null;
+        }
+        StringBuilder result = new StringBuilder(
+                local.message("MSG_Unsupported_Class", getName()));
+        for (String reason:reasons) {
+            result.append('\n');
+            result.append(reason);
+            result.append(';');
+        }
+        result.append('\n');
+        return result.toString();
+    }
+
+    @Override
+    public String toString() {
+        return "NdbOpenJPADomainTypeHandlerImpl:" + typeName;
     }
 
 }

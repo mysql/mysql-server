@@ -207,6 +207,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         explain = new HashMap<String, Object>();
         explain.put("ScanType", scanType.toString());
         explain.put("IndexUsed", theIndexUsed);
+        ResultData result = null;
 
         switch (scanType) {
 
@@ -218,8 +219,8 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 // set the expected columns into the operation
                 domainTypeHandler.operationGetValues(op);
                 // execute the select and get results
-                ResultData rs = op.resultData();
-                return rs;
+                result = op.resultData();
+                break;
             }
 
             case INDEX_SCAN: {
@@ -238,8 +239,8 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 // set additional filter conditions
                 where.filterCmpValue(context, op);
                 // execute the scan and get results
-                ResultData rs = op.resultData();
-                return rs;
+                result = op.resultData();
+                break;
             }
 
             case TABLE_SCAN: {
@@ -253,8 +254,8 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     where.filterCmpValue(context, op);
                 }
                 // execute the scan and get results
-                ResultData rs = op.resultData();
-                return rs;
+                result = op.resultData();
+                break;
             }
 
             case UNIQUE_SCAN: {
@@ -271,8 +272,8 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 //domainTypeHandler.operationGetValuesExcept(op, indexName);
                 domainTypeHandler.operationGetValues(op);
                 // execute the select and get results
-                ResultData rs = op.resultData();
-                return rs;
+                result = op.resultData();
+                break;
             }
 
             default:
@@ -280,6 +281,8 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 throw new ClusterJFatalInternalException(
                         local.message("ERR_Illegal_Scan_Type", scanType));
         }
+        context.deleteFilters();
+        return result;
     }
 
     protected CandidateIndexImpl[] createCandidateIndexes() {

@@ -50,23 +50,26 @@ public class NdbOpenJPAStoreQuery extends JDBCStoreQuery {
         ClassMetaData[] metas, boolean subclasses, ExpressionFactory[] facts,
         QueryExpressions[] exps, Object[] params) {
         if (logger.isDebugEnabled()) {
-            logger.debug("NdbStoreManager.executeDelete(Executor ex, ClassMetaData base, " +
+            logger.debug("NdbOpenJPAStoreQuery.executeDelete(Executor ex, ClassMetaData base, " +
                     "ClassMetaData[] metas, boolean subclasses, ExpressionFactory[] facts, " +
-                    "QueryExpressions[] exps, Object[] params) maybe delegated to super.\n" +
+                    "QueryExpressions[] exps, Object[] params).\n" +
                     "Class: " + base.getTypeAlias() + 
                     " query expressions: " + exps + "[" + exps.length + "]" +
                     " exps[0].filter: " + exps[0].filter);
         }
-        if (exps.length == 1 && exps[0].filter.getClass().getName().contains("EmptyExpression")) {
+        NdbOpenJPAStoreManager store = (NdbOpenJPAStoreManager)getStore();
+        NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = store.getDomainTypeHandler((ClassMapping)base);
+        if (domainTypeHandler.isSupportedType() 
+                && exps.length == 1 
+                && exps[0].filter.getClass().getName().contains("EmptyExpression")) {
             // filter is empty so delete the entire extent
             if (logger.isDebugEnabled()) {
                 logger.debug("Empty Expression for delete will delete the entire extent.");
             }
-            NdbOpenJPAStoreManager store = (NdbOpenJPAStoreManager)getStore();
-            NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = store.getDomainTypeHandler((ClassMapping)base);
             int count = store.deleteAll(domainTypeHandler);
             return count;
         } else {
+            if (logger.isDebugEnabled()) logger.debug("NdbOpenJPAStoreQuery.executeDelete delegated to super.");
             return super.executeDelete(ex, base, metas, subclasses, facts, exps, params);
         }
     }

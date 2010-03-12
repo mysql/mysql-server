@@ -18,6 +18,8 @@
 
 package com.mysql.clusterj.core.store;
 
+import com.mysql.clusterj.core.query.QueryExecutionContextImpl;
+
 /**
  *
  */
@@ -27,7 +29,7 @@ public interface ScanOperation extends Operation {
 
     public void deleteCurrentTuple();
 
-    public ScanFilter getScanFilter();
+    public ScanFilter getScanFilter(QueryExecutionContextImpl context);
 
     public int nextResult(boolean fetch);
 

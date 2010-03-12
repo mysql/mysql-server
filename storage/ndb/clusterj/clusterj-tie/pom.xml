@@ -108,7 +108,7 @@
         <configuration>
           <instructions>
             <Export-Package>com.mysql.clusterj.tie.*</Export-Package>
-            <Import-Package>com.mysql.clusterj,com.mysql.clusterj.core.store,com.mysql.clusterj.core.util,com.mysql.ndbjtie.mysql,com.mysql.ndbjtie.ndbapi</Import-Package>
+            <Import-Package>com.mysql.clusterj,com.mysql.clusterj.core.store,com.mysql.clusterj.core.query,com.mysql.clusterj.core.util,com.mysql.ndbjtie.mysql,com.mysql.ndbjtie.ndbapi</Import-Package>
           </instructions>
         </configuration>
       </plugin>
