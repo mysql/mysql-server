@@ -146,7 +146,8 @@ extern ibool	srv_print_innodb_tablespace_monitor;
 extern ibool	srv_print_verbose_log;
 extern ibool	srv_print_innodb_table_monitor;
 
-extern ibool	srv_lock_timeout_and_monitor_active;
+extern ibool	srv_lock_timeout_active;
+extern ibool	srv_monitor_active;
 extern ibool	srv_error_monitor_active;
 
 extern ulong	srv_n_spin_wait_rounds;
@@ -427,12 +428,21 @@ srv_release_mysql_thread_if_suspended(
 	que_thr_t*	thr);	/* in: query thread associated with the
 				MySQL OS thread	 */
 /*************************************************************************
-A thread which wakes up threads whose lock wait may have lasted too long.
-This also prints the info output by various InnoDB monitors. */
+A thread which wakes up threads whose lock wait may have lasted too
+long. */
 
 os_thread_ret_t
-srv_lock_timeout_and_monitor_thread(
-/*================================*/
+srv_lock_timeout_thread(
+/*====================*/
+			/* out: a dummy parameter */
+	void*	arg);	/* in: a dummy parameter required by
+			os_thread_create */
+/*************************************************************************
+A thread which prints the info output by various InnoDB monitors. */
+
+os_thread_ret_t
+srv_monitor_thread(
+/*===============*/
 			/* out: a dummy parameter */
 	void*	arg);	/* in: a dummy parameter required by
 			os_thread_create */
@@ -449,10 +459,14 @@ srv_error_monitor_thread(
 /**********************************************************************
 Outputs to a file the output of the InnoDB Monitor. */
 
-void
+ibool
 srv_printf_innodb_monitor(
 /*======================*/
+				/* out: FALSE if not all information printed
+				due to failure to obtain necessary mutex */
 	FILE*	file,		/* in: output stream */
+	ibool	nowait,		/* in: whether to wait for kernel
+				mutex. */
 	ulint*	trx_start,	/* out: file position of the start of
 				the list of active transactions */
 	ulint*	trx_end);	/* out: file position of the end of

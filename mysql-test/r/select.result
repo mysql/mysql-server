@@ -4427,6 +4427,168 @@ ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1))
 INTO @var0;
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
+#
+# Bug #48458: simple query tries to allocate enormous amount of
+#   memory
+#
+CREATE TABLE t1(a INT NOT NULL, b YEAR);
+INSERT INTO t1 VALUES ();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+CREATE TABLE t2(c INT);
+# Should not err out because of out-of-memory
+SELECT 1 FROM t2 JOIN t1 ON 1=1
+WHERE a != '1' AND NOT a >= b OR NOT ROW(b,a )<> ROW(a,a);
+1
+DROP TABLE t1,t2;
+#
+# Bug #49199: Optimizer handles incorrectly: 
+# field='const1' AND field='const2' in some cases
+
+CREATE TABLE t1(a DATETIME NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+a
+2001-01-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select '2001-01-01 00:00:00' AS `a` from `test`.`t1` where 1
+DROP TABLE t1;
+CREATE TABLE t1(a DATE NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+a
+2001-01-01
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select '2001-01-01' AS `a` from `test`.`t1` where 1
+DROP TABLE t1;
+CREATE TABLE t1(a TIMESTAMP NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+a
+2001-01-01 00:00:00
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select '2001-01-01 00:00:00' AS `a` from `test`.`t1` where 1
+DROP TABLE t1;
+CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+a	b
+2001-01-01 00:00:00	2001-01-01
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from `test`.`t1` where 1
+DROP TABLE t1;
+CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+a	b
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from `test`.`t1` where 0
+SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
+a	b
+2001-01-01 00:00:00	2001-01-01
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select '2001-01-01 00:00:00' AS `a`,'2001-01-01' AS `b` from `test`.`t1` where 1
+DROP TABLE t1;
+CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
+SELECT x.a, y.a, z.a FROM t1 x 
+JOIN t1 y ON x.a=y.a 
+JOIN t1 z ON y.a=z.a 
+WHERE x.a='2001-01-01' AND z.a='2001-01-01 00:00:00';
+a	a	a
+2001-01-01 00:00:00	2001-01-01 00:00:00	2001-01-01 00:00:00
+EXPLAIN EXTENDED SELECT x.a, y.a, z.a FROM t1 x 
+JOIN t1 y ON x.a=y.a 
+JOIN t1 z ON y.a=z.a 
+WHERE x.a='2001-01-01' AND z.a='2001-01-01 00:00:00';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	x	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	y	system	NULL	NULL	NULL	NULL	1	100.00	
+1	SIMPLE	z	system	NULL	NULL	NULL	NULL	1	100.00	
+Warnings:
+Note	1003	select '2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a`,'2001-01-01 00:00:00' AS `a` from `test`.`t1` `x` join `test`.`t1` `y` join `test`.`t1` `z` where 1
+DROP TABLE t1;
+#
+# Bug #49897: crash in ptr_compare when char(0) NOT NULL 
+# column is used for ORDER BY
+#
+SET @old_sort_buffer_size= @@session.sort_buffer_size;
+SET @@sort_buffer_size= 40000;
+CREATE TABLE t1(a CHAR(0) NOT NULL);
+INSERT INTO t1 VALUES (0), (0), (0);
+INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	
+SELECT a FROM t1 ORDER BY a;
+DROP TABLE t1;
+CREATE TABLE t1(a CHAR(0) NOT NULL, b CHAR(0) NOT NULL, c int);
+INSERT INTO t1 VALUES (0, 0, 0), (0, 0, 2), (0, 0, 1);
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	
+SELECT a FROM t1 ORDER BY a LIMIT 5;
+a
+
+
+
+
+
+EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	
+SELECT * FROM t1 ORDER BY a, b LIMIT 5;
+a	b	c
+		0
+		2
+		1
+		0
+		2
+EXPLAIN SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	Using filesort
+SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
+a	b	c
+		0
+		0
+		0
+		0
+		0
+EXPLAIN SELECT * FROM t1 ORDER BY c, a LIMIT 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	24492	Using filesort
+SELECT * FROM t1 ORDER BY c, a LIMIT 5;
+a	b	c
+		0
+		0
+		0
+		0
+		0
+SET @@sort_buffer_size= @old_sort_buffer_size;
+DROP TABLE t1;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
@@ -4577,4 +4739,47 @@ field2
 15:13:38
 drop table A,AA,B,BB;
 #end of test for bug#45266
+# 
+# BUG#48052: Valgrind warning - uninitialized value in init_read_record()
+# 
+CREATE TABLE t1 (
+pk int(11) NOT NULL,
+i int(11) DEFAULT NULL,
+v varchar(1) DEFAULT NULL,
+PRIMARY KEY (pk)
+);
+INSERT INTO t1 VALUES (2,7,'m');
+INSERT INTO t1 VALUES (3,9,'m');
+SELECT  v
+FROM t1
+WHERE NOT pk > 0  
+HAVING v <= 't' 
+ORDER BY pk;
+v
+DROP TABLE t1;
+#
+# Bug#49489 Uninitialized cache led to a wrong result.
+#
+CREATE TABLE t1(c1 DOUBLE(5,4));
+INSERT INTO t1 VALUES (9.1234);
+SELECT * FROM t1 WHERE c1 < 9.12345;
+c1
+9.1234
+DROP TABLE t1;
+# End of test for bug#49489.
+#
+# Bug #49517: Inconsistent behavior while using 
+# NULLable BIGINT and INT columns in comparison
+#
+CREATE TABLE t1(a BIGINT UNSIGNED NOT NULL, b BIGINT NULL, c INT NULL);
+INSERT INTO t1 VALUES(105, NULL, NULL);
+SELECT * FROM t1 WHERE b < 102;
+a	b	c
+SELECT * FROM t1 WHERE c < 102;
+a	b	c
+SELECT * FROM t1 WHERE 102 < b;
+a	b	c
+SELECT * FROM t1 WHERE 102 < c;
+a	b	c
+DROP TABLE t1;
 End of 5.1 tests

@@ -116,8 +116,10 @@ SET @@session.sql_select_limit=10, @@session.sql_log_bin=0;
 SELECT @@session.sql_select_limit = @save_select_limit; #shouldn't have changed
 # Now as root, to be sure it works
 connection con2;
+SET @save_conn_id= connection_id();
 SET @@session.pseudo_thread_id=100;
 SET @@session.pseudo_thread_id=connection_id();
+SET @@session.pseudo_thread_id=@save_conn_id;
 SET @@session.sql_log_bin=0;
 SET @@session.sql_log_bin=1;
 

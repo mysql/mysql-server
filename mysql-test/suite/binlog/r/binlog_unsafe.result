@@ -327,4 +327,89 @@ Warnings:
 Note	1592	Statement may not be safe to log in statement format.
 DROP TABLE t1, t2;
 SET @@SESSION.SQL_MODE = @save_sql_mode;
+CREATE TABLE t1 (a VARCHAR(1000));
+INSERT INTO t1 VALUES (CURRENT_USER());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (FOUND_ROWS());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (GET_LOCK('tmp', 1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (IS_FREE_LOCK('tmp'));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (IS_USED_LOCK('tmp'));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (LOAD_FILE('../../std_data/words2.dat'));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (MASTER_POS_WAIT('dummy arg', 4711, 1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (RELEASE_LOCK('tmp'));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (ROW_COUNT());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (SESSION_USER());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (SLEEP(1));
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (SYSDATE());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (SYSTEM_USER());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (USER());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (UUID());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (UUID_SHORT());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (VERSION());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+INSERT INTO t1 VALUES (RAND());
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
+DELETE FROM t1;
+SET TIMESTAMP=1000000;
+INSERT INTO t1 VALUES
+(CURDATE()),
+(CURRENT_DATE()),
+(CURRENT_TIME()),
+(CURRENT_TIMESTAMP()),
+(CURTIME()),
+(LOCALTIME()),
+(LOCALTIMESTAMP()),
+(NOW()),
+(UNIX_TIMESTAMP()),
+(UTC_DATE()),
+(UTC_TIME()),
+(UTC_TIMESTAMP());
+SELECT * FROM t1;
+a
+1970-01-12
+1970-01-12
+16:46:40
+1970-01-12 16:46:40
+16:46:40
+1970-01-12 16:46:40
+1970-01-12 16:46:40
+1970-01-12 16:46:40
+1000000
+1970-01-12
+13:46:40
+1970-01-12 13:46:40
+DROP TABLE t1;
 "End of tests"

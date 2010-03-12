@@ -336,3 +336,42 @@ SELECT * FROM t2;
 SELECT * FROM t3;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #46425 crash in Diagnostics_area::set_ok_status, 
+--echo #            empty statement, DELETE IGNORE
+--echo #
+
+CREATE table t1 (i INTEGER);
+
+INSERT INTO t1 VALUES (1);
+
+--delimiter |
+
+CREATE TRIGGER tr1 AFTER DELETE ON t1 FOR EACH ROW 
+BEGIN 
+  INSERT INTO t1 SELECT * FROM t1 AS A;
+END |
+
+--delimiter ;
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+DELETE IGNORE FROM t1;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #49552 : sql_buffer_result cause crash + not found records 
+--echo #   in multitable delete/subquery
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+SET SESSION SQL_BUFFER_RESULT=1;
+DELETE t1 FROM (SELECT SUM(a) a FROM t1) x,t1;
+
+SET SESSION SQL_BUFFER_RESULT=DEFAULT;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo End of 5.1 tests

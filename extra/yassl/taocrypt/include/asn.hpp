@@ -305,6 +305,7 @@ private:
     bool   ValidateSignature(SignerList*);
     bool   ConfirmSignature(Source&);
     void   GetKey();
+    char*  AddTag(char*, const char*, const char*, word32, word32);
     void   GetName(NameType);
     void   GetValidity();
     void   GetDate(DateType);
