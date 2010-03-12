@@ -600,7 +600,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
 }
 
 
-static bool add_create_index_prepare (LEX *lex, Table_ident *table)
+static bool add_create_index_prepare (LEX *lex, Table_ident *table, enum ha_build_method method)
 {
   lex->sql_command= SQLCOM_CREATE_INDEX;
   if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
@@ -608,6 +608,7 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
     return TRUE;
   lex->alter_info.reset();
   lex->alter_info.flags= ALTER_ADD_INDEX;
+  lex->alter_info.build_method= method;
   lex->col_list.empty();
   lex->change= NullS;
   return FALSE;
@@ -1890,98 +1891,37 @@ create:
                                 $5->table.str);
           }
         }
-	| CREATE build_method opt_unique INDEX_SYM ident key_alg 
-          ON table_ident
-	  {
-	    LEX *lex=Lex;
-	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $8,
-							NULL,
-							TL_OPTION_UPDATING))
-	      MYSQL_YYABORT;
-            lex->alter_info.reset();
-            lex->alter_info.flags= ALTER_ADD_INDEX;
-            lex->alter_info.build_method= $2;
-            lex->col_list.empty();
-            lex->change=NullS;
+	| CREATE build_method opt_unique INDEX_SYM ident key_alg ON table_ident
+          {
+            if (add_create_index_prepare(Lex, $8, $2))
+              MYSQL_YYABORT;
           }
           '(' key_list ')' normal_key_options
           {
-            LEX *lex=Lex;
-            Key *key;
-            if ($3 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
+            if (add_create_index(Lex, $3, $5.str))
               MYSQL_YYABORT;
-            }
-            key= new Key($3, $5.str, &lex->key_create_info, 0,
-                         lex->col_list);
-            if (key == NULL)
-              MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty();
           }
-	| CREATE build_method fulltext INDEX_SYM ident key_alg 
-          ON table_ident
-	  {
-	    LEX *lex=Lex;
-	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $8,
-							NULL,
-							TL_OPTION_UPDATING))
-	      MYSQL_YYABORT;
-            lex->alter_info.reset();
-            lex->alter_info.flags= ALTER_ADD_INDEX;
-            lex->alter_info.build_method= $2;
-            lex->col_list.empty();
-            lex->change=NullS;
+	| CREATE build_method fulltext INDEX_SYM ident init_key_options ON
+          table_ident
+          {
+            if (add_create_index_prepare(Lex, $8, $2))
+              MYSQL_YYABORT;
           }
           '(' key_list ')' fulltext_key_options
           {
-            LEX *lex=Lex;
-            Key *key;
-            if ($3 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
+            if (add_create_index(Lex, $3, $5.str))
               MYSQL_YYABORT;
-            }
-            key= new Key($3, $5.str, &lex->key_create_info, 0,
-                         lex->col_list);
-            if (key == NULL)
-              MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty();
           }
         | CREATE build_method spatial INDEX_SYM ident init_key_options ON
           table_ident
-	  {
-	    LEX *lex=Lex;
-	    lex->sql_command= SQLCOM_CREATE_INDEX;
-	    if (!lex->current_select->add_table_to_list(lex->thd, $8,
-							NULL,
-							TL_OPTION_UPDATING))
-	      MYSQL_YYABORT;
-            lex->alter_info.reset();
-            lex->alter_info.flags= ALTER_ADD_INDEX;
-            lex->alter_info.build_method= $2;
-            lex->col_list.empty();
-            lex->change=NullS;
+          {
+            if (add_create_index_prepare(Lex, $8, $2))
+              MYSQL_YYABORT;
           }
           '(' key_list ')' spatial_key_options
           {
-            LEX *lex=Lex;
-            Key *key;
-            if ($3 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
+            if (add_create_index(Lex, $3, $5.str))
               MYSQL_YYABORT;
-            }
-            key= new Key($3, $5.str, &lex->key_create_info, 0,
-                         lex->col_list);
-            if (key == NULL)
-              MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty();
           }
         | CREATE DATABASE opt_if_not_exists ident
           {

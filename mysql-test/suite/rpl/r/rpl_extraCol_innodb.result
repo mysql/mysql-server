@@ -434,6 +434,8 @@ a	b	c	d	e	f	g	h	i
 1	b1b1b1b1b1b1b1b1	Kyle	0000-00-00 00:00:00	0		NULL		NULL
 2	b1b1b1b1b1b1b1b1	JOE	0000-00-00 00:00:00	0		NULL		NULL
 3	b1b1b1b1b1b1b1b1	QA	0000-00-00 00:00:00	0		NULL		NULL
+*** Drop t9  ***
+DROP TABLE t9;
 *** Create t10 on slave  ***
 STOP SLAVE;
 RESET SLAVE;
