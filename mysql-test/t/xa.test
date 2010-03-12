@@ -122,6 +122,22 @@ xa start 'a','c';
 --connection default
 drop table t1;
 
+--echo #
+--echo # BUG#51342 - more xid crashing
+--echo #
+CREATE TABLE t1(a INT) ENGINE=InnoDB;
+XA START 'x';
+SET SESSION autocommit=0;
+INSERT INTO t1 VALUES(1);
+--error ER_XAER_RMFAIL
+SET SESSION autocommit=1;
+SELECT @@autocommit;
+INSERT INTO t1 VALUES(1);
+XA END 'x';
+XA COMMIT 'x' ONE PHASE;
+DROP TABLE t1;
+SET SESSION autocommit=1;
+
 --echo End of 5.0 tests
 
 #
