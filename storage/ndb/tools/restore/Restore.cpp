@@ -1388,7 +1388,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
         }
       }
       m_file_pos -= r;
-      m_buffer_data_left += r;
+      m_buffer_data_left += (Uint32)r;
       //move to the end of buffer
       m_buffer_ptr = buffer_end;
     }
