@@ -556,6 +556,18 @@ Item_ident::Item_ident(Name_resolution_context *context_arg,
 }
 
 
+Item_ident::Item_ident(TABLE_LIST *view_arg, const char *field_name_arg)
+  :orig_db_name(NullS), orig_table_name(view_arg->table_name),
+   orig_field_name(field_name_arg), context(&view_arg->view->select_lex.context),
+   db_name(NullS), table_name(view_arg->alias),
+   field_name(field_name_arg),
+   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
+   cached_table(NULL), depended_from(NULL)
+{
+  name = (char*) field_name_arg;
+}
+
+
 /**
   Constructor used by Item_field & Item_*_ref (see Item comment)
 */
@@ -5715,6 +5727,20 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
   alias_name_used= alias_name_used_arg;
   /*
     This constructor used to create some internals references over fixed items
+  */
+  if (ref && *ref && (*ref)->fixed)
+    set_properties();
+}
+
+
+Item_ref::Item_ref(TABLE_LIST *view_arg, Item **item,
+                   const char *field_name_arg, bool alias_name_used_arg)
+  :Item_ident(view_arg, field_name_arg),
+   result_field(NULL), ref(item)
+{
+  alias_name_used= alias_name_used_arg;
+  /*
+    This constructor is used to create some internal references over fixed items
   */
   if (ref && *ref && (*ref)->fixed)
     set_properties();
