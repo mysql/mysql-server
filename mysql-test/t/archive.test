@@ -1623,3 +1623,24 @@ INSERT INTO t1 VALUES('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
 SELECT COUNT(t1.a) FROM t1, t1 a, t1 b, t1 c, t1 d, t1 e;
 DROP TABLE t1;
 SET @@join_buffer_size= @save_join_buffer_size;
+
+#
+# BUG#47012 archive tables are not upgradeable, and server crashes on any access
+#
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+copy_file std_data/bug47012.frm $MYSQLD_DATADIR/test/t1.frm;
+copy_file std_data/bug47012.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
+copy_file std_data/bug47012.ARM $MYSQLD_DATADIR/test/t1.ARM;
+
+--error ER_TABLE_NEEDS_UPGRADE
+SHOW CREATE TABLE t1;
+
+--error ER_TABLE_NEEDS_UPGRADE
+SELECT * FROM t1;
+
+--error ER_TABLE_NEEDS_UPGRADE
+INSERT INTO t1 (col1, col2) VALUES (1, "value");
+
+REPAIR TABLE t1;
+DROP TABLE t1;
+remove_file $MYSQLD_DATADIR/test/t1.ARM;

@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
 drop table if exists t1, t2;
 create table t1 (a int) engine=innodb;
 create table t2 (a int) engine=myisam;
@@ -224,6 +225,8 @@ create table t0 (n int);
 insert t0 select * from t1;
 set autocommit=1;
 insert into t0 select GET_LOCK("lock1",null);
+Warnings:
+Note	1592	Statement may not be safe to log in statement format.
 set autocommit=0;
 create table t2 (n int) engine=innodb;
 insert into t2 values (3);
@@ -625,7 +628,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
-master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t4` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (a, @b) SET b=((@b) + `bug27417`(2)) ;file_id=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t4` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, @b) SET `b`=((@b) + `bug27417`(2)) ;file_id=#
 master-bin.000001	#	Query	#	#	ROLLBACK
 /* the output must denote there is the query */;
 drop trigger trg_del_t2;
@@ -863,7 +866,7 @@ master-bin.000001	#	User var	#	#	@`b`=_latin1 0x3135 COLLATE latin1_swedish_ci
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	User var	#	#	@`b`=_latin1 0x3135 COLLATE latin1_swedish_ci
-master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t4` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (a, @b) SET b=((@b) + `bug27417`(2)) ;file_id=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE `t4` FIELDS TERMINATED BY '\t' ENCLOSED BY '' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a`, @b) SET `b`=((@b) + `bug27417`(2)) ;file_id=#
 master-bin.000001	#	Query	#	#	ROLLBACK
 drop trigger trg_del_t2;
 drop table t1,t2,t3,t4,t5;

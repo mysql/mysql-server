@@ -15,6 +15,15 @@ drop table if exists t1, t2;
 --enable_warnings
 
 #
+# Bug#48276: can't add column if subpartition exists
+CREATE TABLE t1 (a INT, b INT)
+PARTITION BY LIST (a)
+SUBPARTITION BY HASH (b)
+(PARTITION p1 VALUES IN (1));
+ALTER TABLE t1 ADD COLUMN c INT;
+DROP TABLE t1;
+
+#
 # Bug#46639: 1030 (HY000): Got error 124 from storage engine on
 # INSERT ... SELECT ...
 CREATE TABLE t1 (
@@ -44,8 +53,8 @@ CREATE TABLE t1 (
   b varchar(10),
   PRIMARY KEY (a)
 )
-PARTITION BY RANGE (to_days(a)) (
- PARTITION p1 VALUES LESS THAN (733407),
+PARTITION BY RANGE (UNIX_TIMESTAMP(a)) (
+ PARTITION p1 VALUES LESS THAN (1199134800),
  PARTITION pmax VALUES LESS THAN MAXVALUE
 );
 
@@ -55,11 +64,22 @@ INSERT INTO t1 VALUES ('2009-09-21 17:31:42', 'pmax');
 
 SELECT * FROM t1;
 ALTER TABLE t1 REORGANIZE PARTITION pmax INTO (
- PARTITION p3 VALUES LESS THAN (733969),
+ PARTITION p3 VALUES LESS THAN (1247688000),
  PARTITION pmax VALUES LESS THAN MAXVALUE);
 SELECT * FROM t1;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+
+#
+# Bug#45904: Error when CHARSET=utf8 and subpartitioning
+#
+create table t1 (a int NOT NULL, b varchar(5) NOT NULL)
+default charset=utf8
+partition by list (a)
+subpartition by key (b)
+(partition p0 values in (1),
+ partition p1 values in (2));
+drop table t1;
 
 #
 # Bug#44059: rec_per_key on empty partition gives weird optimiser results
@@ -2031,11 +2051,14 @@ DROP TABLE t1;
 --echo #
 --echo # Bug #45807: crash accessing partitioned table and sql_mode 
 --echo #   contains ONLY_FULL_GROUP_BY
+--echo # Bug#46923: select count(*) from partitioned table fails with
+--echo # ONLY_FULL_GROUP_BY
 --echo #
 
 SET SESSION SQL_MODE='ONLY_FULL_GROUP_BY';
 CREATE TABLE t1(id INT,KEY(id)) ENGINE=MYISAM 
   PARTITION BY HASH(id) PARTITIONS 2;
+SELECT COUNT(*) FROM t1;
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
 

@@ -1,7 +1,12 @@
 source include/master-slave.inc;
 
+CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
+
 create table t1(n int);
+# Use of get_lock gives a warning for unsafeness if binlog_format=statement
+--disable_warnings
 insert into t1 values(get_lock("lock",2));
+--enable_warnings
 dirty_close master;
 connection master1;
 select get_lock("lock",2);

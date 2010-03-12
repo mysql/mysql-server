@@ -1,0 +1,27 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CALL mtr.add_suppression('Statement may not be safe to log in statement format.');
+CREATE TABLE t1 (a VARCHAR(1000));
+INSERT INTO t1 VALUES (CONNECTION_ID());
+INSERT INTO t1 VALUES (CONNECTION_ID());
+INSERT INTO t1 VALUES
+(CURDATE()),
+(CURRENT_DATE()),
+(CURRENT_TIME()),
+(CURRENT_TIMESTAMP()),
+(CURTIME()),
+(LOCALTIME()),
+(LOCALTIMESTAMP()),
+(NOW()),
+(UNIX_TIMESTAMP()),
+(UTC_DATE()),
+(UTC_TIME()),
+(UTC_TIMESTAMP());
+INSERT INTO t1 VALUES (RAND());
+INSERT INTO t1 VALUES (LAST_INSERT_ID());
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE t1;

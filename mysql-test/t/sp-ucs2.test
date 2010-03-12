@@ -26,3 +26,32 @@ drop table t3|
 
 
 delimiter ;|
+
+#
+# Bug#48766 SHOW CREATE FUNCTION returns extra data in return clause
+#
+SET NAMES utf8;
+--disable_warnings
+DROP FUNCTION IF EXISTS bug48766;
+--enable_warnings
+#
+# Test that Latin letters are not prepended with extra '\0'.
+#
+CREATE FUNCTION bug48766 ()
+  RETURNS ENUM( 'w' ) CHARACTER SET ucs2
+  RETURN 0;
+SHOW CREATE FUNCTION bug48766;
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_NAME='bug48766';
+DROP FUNCTION bug48766;
+#
+# Test non-Latin characters
+#
+CREATE FUNCTION bug48766 ()
+  RETURNS ENUM('а','б','в','г') CHARACTER SET ucs2
+  RETURN 0;
+SHOW CREATE FUNCTION bug48766;
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_NAME='bug48766';
+
+DROP FUNCTION bug48766;
