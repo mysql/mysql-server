@@ -15,6 +15,7 @@
 #include <toku_pthread.h>
 #include <sys/types.h>
 #include <string.h>
+#include <dirent.h>
 
 // Locking for the logger
 //  For most purposes we use the big ydb lock.
@@ -71,6 +72,7 @@ struct tokulogger {
     BOOL trim_log_files; // for test purposes
     int panic_errno;
     char *directory;  // file system directory
+    DIR *dir; // descriptor for directory
     int fd;
     CACHETABLE ct;
     int lg_max; // The size of the single file in the log.  Default is 100MB in TokuDB
