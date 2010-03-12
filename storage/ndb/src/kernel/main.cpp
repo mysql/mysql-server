@@ -171,17 +171,7 @@ int main(int argc, char** argv)
     g_eventLogger->error("Failed to init Configuration");
     exit(-1);
   }
-  char*cfg= getenv("WIN_NDBD_CFG");
-  if(cfg) {
-    int x,y,z;
-    if(3!=sscanf(cfg,"%d %d %d",&x,&y,&z)) {
-      g_eventLogger->error("internal error: couldn't find 3 parameters");
-      exit(1);
-    }
-    theConfig->setInitialStart(x);
-    globalData.theRestartFlag= (restartStates)y;
-    globalData.ownId= z;
-  }
+
   { // Do configuration
     theConfig->fetch_configuration(opt_connect_str, opt_bind_address);
   }

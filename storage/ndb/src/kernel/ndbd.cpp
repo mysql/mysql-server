@@ -356,83 +356,12 @@ childReportError(int error)
 void
 childExit(int code, Uint32 currentStartPhase)
 {
-#ifndef NDB_WIN
   writeChildInfo("sphase", currentStartPhase);
   writeChildInfo("exit", code);
   fprintf(child_info_file_w, "\n");
   fclose(child_info_file_r);
   fclose(child_info_file_w);
   ndbd_exit(code);
-#else
-  {
-    Configuration* theConfig=globalEmulatorData.theConfiguration;
-    theConfig->closeConfiguration(true);
-    switch (code) {
-    case NRT_Default:
-      g_eventLogger->info("Angel shutting down");
-      reportShutdown(theConfig, 0, 0, currentStartPhase);
-      ndbd_exit(0);
-      break;
-    case NRT_NoStart_Restart:
-      theConfig->setInitialStart(false);
-      globalData.theRestartFlag=initial_state;
-      break;
-    case NRT_NoStart_InitialStart:
-      theConfig->setInitialStart(true);
-      globalData.theRestartFlag=initial_state;
-      break;
-    case NRT_DoStart_InitialStart:
-      theConfig->setInitialStart(true);
-      globalData.theRestartFlag=perform_start;
-      break;
-    default:
-      if (theConfig->stopOnError())
-      {
-        /**
-         * Error shutdown && stopOnError()
-         */
-        reportShutdown(theConfig, 1, 0, currentStartPhase);
-        ndbd_exit(0);
-      }
-      // Fall-through
-    case NRT_DoStart_Restart:
-      theConfig->setInitialStart(false);
-      globalData.theRestartFlag=perform_start;
-      break;
-    }
-    char buf[80];
-    BaseString::snprintf(buf, sizeof (buf), "WIN_NDBD_CFG=%d %d %d",
-                         theConfig->getInitialStart(),
-                         globalData.theRestartFlag, globalData.ownId);
-    _putenv(buf);
-
-    char exe[MAX_PATH];
-    GetModuleFileName(0, exe, sizeof (exe));
-
-    STARTUPINFO sinfo;
-    ZeroMemory(&sinfo, sizeof (sinfo));
-    sinfo.cb=sizeof (STARTUPINFO);
-    sinfo.dwFlags=STARTF_USESHOWWINDOW;
-    sinfo.wShowWindow=SW_HIDE;
-
-    PROCESS_INFORMATION pinfo;
-    if (reportShutdown(theConfig, 0, 1, currentStartPhase))
-    {
-      g_eventLogger->error("unable to shutdown");
-      ndbd_exit(1);
-    }
-    g_eventLogger->info("Ndb has terminated.  code=%d", code);
-    if (code == NRT_NoStart_Restart)
-      globalTransporterRegistry.disconnectAll();
-    g_eventLogger->info("Ndb has terminated.  Restarting");
-    if (CreateProcess(exe, GetCommandLine(), NULL, NULL, TRUE, 0, NULL, NULL,
-                      &sinfo, &pinfo) == 0)
-    {
-      g_eventLogger->error("Angel was unable to create child ndbd process"
-                           " error: %d", GetLastError());
-    }
-  }
-#endif
 }
 
 void
