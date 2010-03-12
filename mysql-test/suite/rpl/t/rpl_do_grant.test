@@ -216,4 +216,104 @@ connection slave;
 USE mtr;
 call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
 
+# BUG#49119: Master crashes when executing 'REVOKE ... ON
+# {PROCEDURE|FUNCTION} FROM ...'
+# 
+# The tests are divided into two test cases:
+#
+#  i) a test case that mimics the one in the bug report.
+#
+#     - We show that, despite the fact, that a revoke command fails
+#       when binlogging is active, the master will not hit an
+#       assertion.
+#
+# ii) a test case that partially succeeds on the master will also
+#      partially succeed on the slave.
+#
+#     - The revoke statement that partially succeeds tries to revoke
+#       an EXECUTE grant for two users, and only one of the user has
+#       the specific grant. This will cause mysql to drop one of the
+#       grants and report error for the statement. The slave should
+#       also drop the grants that the master succeed and the SQL
+#       thread should not stop on statement failure.
+
+-- echo ######## BUG#49119 #######
+-- echo ### i) test case from the 'how to repeat section'
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t1(c1 INT);
+DELIMITER |;
+CREATE PROCEDURE p1() SELECT * FROM t1 |
+DELIMITER ;|
+-- error ER_NONEXISTING_PROC_GRANT
+REVOKE EXECUTE ON PROCEDURE p1 FROM 'root'@'localhost';
+
+-- sync_slave_with_master
+
+-- connection master
+DROP TABLE t1;
+DROP PROCEDURE p1;
+
+-- sync_slave_with_master
+
+-- echo ### ii) Test case in which REVOKE partially succeeds
+
+-- connection master
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t1(c1 INT);
+DELIMITER |;
+CREATE PROCEDURE p1() SELECT * FROM t1 |
+DELIMITER ;|
+
+CREATE USER 'user49119'@'localhost';
+GRANT EXECUTE ON PROCEDURE p1 TO 'user49119'@'localhost';
+
+-- echo ##############################################################
+-- echo ### Showing grants for both users: root and user49119 (master)
+SHOW GRANTS FOR 'user49119'@'localhost';
+SHOW GRANTS FOR CURRENT_USER;
+-- echo ##############################################################
+
+-- sync_slave_with_master
+
+-- echo ##############################################################
+-- echo ### Showing grants for both users: root and user49119 (master)
+SHOW GRANTS FOR 'user49119'@'localhost';
+SHOW GRANTS FOR CURRENT_USER;
+-- echo ##############################################################
+
+-- connection master
+
+-- echo ## This statement will make the revoke fail because root has no
+-- echo ## execute grant. However, it will still revoke the grant for
+-- echo ## user49119.
+-- error ER_NONEXISTING_PROC_GRANT
+REVOKE EXECUTE ON PROCEDURE p1 FROM 'user49119'@'localhost', 'root'@'localhost';
+
+-- echo ##############################################################
+-- echo ### Showing grants for both users: root and user49119 (master)
+-- echo ### after revoke statement failure
+SHOW GRANTS FOR 'user49119'@'localhost';
+SHOW GRANTS FOR CURRENT_USER;
+-- echo ##############################################################
+
+-- sync_slave_with_master
+
+-- echo #############################################################
+-- echo ### Showing grants for both users: root and user49119 (slave)
+-- echo ### after revoke statement failure (should match 
+SHOW GRANTS FOR 'user49119'@'localhost';
+SHOW GRANTS FOR CURRENT_USER;
+-- echo ##############################################################
+
+-- connection master
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DROP USER 'user49119'@'localhost';
+
+-- sync_slave_with_master
+
 --echo "End of test"

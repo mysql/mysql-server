@@ -310,4 +310,16 @@ a	b
 2	2
 drop table t1;
 set global low_priority_updates = @old_delayed_updates;
+#
+# Bug #47682 strange behaviour of INSERT DELAYED
+#
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (f1 integer);
+CREATE TABLE t2 (f1 integer);
+FLUSH TABLES WITH READ LOCK;
+LOCK TABLES t1 READ;
+INSERT DELAYED INTO t2 VALUES (1);
+Got one of the listed errors
+UNLOCK TABLES;
+DROP TABLE t1, t2;
 End of 5.1 tests

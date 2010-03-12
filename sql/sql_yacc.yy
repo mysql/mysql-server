@@ -392,6 +392,138 @@ void case_stmt_action_end_case(LEX *lex, bool simple)
   lex->sphead->do_cont_backpatch();
 }
 
+
+static bool
+find_sys_var_null_base(THD *thd, struct sys_var_with_base *tmp)
+{
+  tmp->var= find_sys_var(thd, tmp->base_name.str, tmp->base_name.length);
+
+  if (tmp->var == NULL)
+    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), tmp->base_name.str);
+  else
+    tmp->base_name= null_lex_str;
+
+  return thd->is_error();
+}
+
+
+/**
+  Helper action for a SET statement.
+  Used to push a system variable into the assignment list.
+
+  @param thd      the current thread
+  @param tmp      the system variable with base name
+  @param var_type the scope of the variable
+  @param val      the value being assigned to the variable
+
+  @return TRUE if error, FALSE otherwise.
+*/
+
+static bool
+set_system_variable(THD *thd, struct sys_var_with_base *tmp,
+                    enum enum_var_type var_type, Item *val)
+{
+  set_var *var;
+  LEX *lex= thd->lex;
+
+  /* No AUTOCOMMIT from a stored function or trigger. */
+  if (lex->spcont && tmp->var == &sys_autocommit)
+    lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
+
+  if (! (var= new set_var(var_type, tmp->var, &tmp->base_name, val)))
+    return TRUE;
+
+  return lex->var_list.push_back(var);
+}
+
+
+/**
+  Helper action for a SET statement.
+  Used to push a SP local variable into the assignment list.
+
+  @param thd      the current thread
+  @param var_type the SP local variable
+  @param val      the value being assigned to the variable
+
+  @return TRUE if error, FALSE otherwise.
+*/
+
+static bool
+set_local_variable(THD *thd, sp_variable_t *spv, Item *val)
+{
+  Item *it;
+  LEX *lex= thd->lex;
+  sp_instr_set *sp_set;
+
+  if (val)
+    it= val;
+  else if (spv->dflt)
+    it= spv->dflt;
+  else
+  {
+    it= new (thd->mem_root) Item_null();
+    if (it == NULL)
+      return TRUE;
+  }
+
+  sp_set= new sp_instr_set(lex->sphead->instructions(), lex->spcont,
+                           spv->offset, it, spv->type, lex, TRUE);
+
+  return (sp_set == NULL || lex->sphead->add_instr(sp_set));
+}
+
+
+/**
+  Helper action for a SET statement.
+  Used to SET a field of NEW row.
+
+  @param thd      the current thread
+  @param name     the field name
+  @param val      the value being assigned to the row
+
+  @return TRUE if error, FALSE otherwise.
+*/
+
+static bool
+set_trigger_new_row(THD *thd, LEX_STRING *name, Item *val)
+{
+  LEX *lex= thd->lex;
+  Item_trigger_field *trg_fld;
+  sp_instr_set_trigger_field *sp_fld;
+
+  /* QQ: Shouldn't this be field's default value ? */
+  if (! val)
+    val= new Item_null();
+
+  DBUG_ASSERT(lex->trg_chistics.action_time == TRG_ACTION_BEFORE &&
+              (lex->trg_chistics.event == TRG_EVENT_INSERT ||
+               lex->trg_chistics.event == TRG_EVENT_UPDATE));
+
+  trg_fld= new (thd->mem_root)
+            Item_trigger_field(lex->current_context(),
+                               Item_trigger_field::NEW_ROW,
+                               name->str, UPDATE_ACL, FALSE);
+
+  if (trg_fld == NULL)
+    return TRUE;
+
+  sp_fld= new sp_instr_set_trigger_field(lex->sphead->instructions(),
+                                         lex->spcont, trg_fld, val, lex);
+
+  if (sp_fld == NULL)
+    return TRUE;
+
+  /*
+    Let us add this item to list of all Item_trigger_field
+    objects in trigger.
+  */
+  lex->trg_table_fields.link_in_list((uchar *) trg_fld,
+                                     (uchar **) &trg_fld->next_trg_field);
+
+  return lex->sphead->add_instr(sp_fld);
+}
+
+
 /**
   Helper to resolve the SQL:2003 Syntax exception 1) in <in predicate>.
   See SQL:2003, Part 2, section 8.4 <in predicate>, Note 184, page 383.
@@ -465,6 +597,35 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
     result= new (thd->mem_root) Item_func_ne(left, expr);
 
   DBUG_RETURN(result);
+}
+
+
+static bool add_create_index_prepare (LEX *lex, Table_ident *table)
+{
+  lex->sql_command= SQLCOM_CREATE_INDEX;
+  if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
+                                              TL_OPTION_UPDATING))
+    return TRUE;
+  lex->alter_info.reset();
+  lex->alter_info.flags= ALTER_ADD_INDEX;
+  lex->col_list.empty();
+  lex->change= NullS;
+  return FALSE;
+}
+
+
+static bool add_create_index (LEX *lex, Key::Keytype type, const char *name, 
+  KEY_CREATE_INFO *info= NULL, bool generated= 0)
+{
+  Key *key;
+  key= new Key(type, name, info ? info : &lex->key_create_info, generated, 
+               lex->col_list);
+  if (key == NULL)
+    return TRUE;
+
+  lex->alter_info.key_list.push_back(key);
+  lex->col_list.empty();
+  return FALSE;
 }
 
 %}
@@ -1209,7 +1370,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         option_type opt_var_type opt_var_ident_type
 
 %type <key_type>
-        key_type opt_unique_or_fulltext constraint_key_type
+        normal_key_type opt_unique constraint_key_type fulltext spatial
 
 %type <key_alg>
         btree_or_rtree
@@ -1312,7 +1473,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         view_suid view_tail view_list_opt view_list view_select
         view_check_option trigger_tail sp_tail sf_tail udf_tail event_tail
         install uninstall partition_entry binlog_base64_event
-        init_key_options key_options key_opts key_opt key_using_alg
+        init_key_options normal_key_options normal_key_opts all_key_opt 
+        spatial_key_options fulltext_key_options normal_key_opt 
+        fulltext_key_opt spatial_key_opt fulltext_key_opts spatial_key_opts
+        key_using_alg
         server_def server_options_list server_option
         definer_opt no_definer definer
 END_OF_INPUT
@@ -1772,7 +1936,7 @@ create:
                                 $5->table.str);
           }
         }
-	| CREATE build_method opt_unique_or_fulltext INDEX_SYM ident key_alg 
+	| CREATE build_method opt_unique INDEX_SYM ident key_alg 
           ON table_ident
 	  {
 	    LEX *lex=Lex;
@@ -1787,7 +1951,69 @@ create:
             lex->col_list.empty();
             lex->change=NullS;
           }
-          '(' key_list ')' key_options
+          '(' key_list ')' normal_key_options
+          {
+            LEX *lex=Lex;
+            Key *key;
+            if ($3 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+            key= new Key($3, $5.str, &lex->key_create_info, 0,
+                         lex->col_list);
+            if (key == NULL)
+              MYSQL_YYABORT;
+            lex->alter_info.key_list.push_back(key);
+            lex->col_list.empty();
+          }
+	| CREATE build_method fulltext INDEX_SYM ident key_alg 
+          ON table_ident
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_CREATE_INDEX;
+	    if (!lex->current_select->add_table_to_list(lex->thd, $8,
+							NULL,
+							TL_OPTION_UPDATING))
+	      MYSQL_YYABORT;
+            lex->alter_info.reset();
+            lex->alter_info.flags= ALTER_ADD_INDEX;
+            lex->alter_info.build_method= $2;
+            lex->col_list.empty();
+            lex->change=NullS;
+          }
+          '(' key_list ')' fulltext_key_options
+          {
+            LEX *lex=Lex;
+            Key *key;
+            if ($3 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+            key= new Key($3, $5.str, &lex->key_create_info, 0,
+                         lex->col_list);
+            if (key == NULL)
+              MYSQL_YYABORT;
+            lex->alter_info.key_list.push_back(key);
+            lex->col_list.empty();
+          }
+        | CREATE build_method spatial INDEX_SYM ident init_key_options ON
+          table_ident
+	  {
+	    LEX *lex=Lex;
+	    lex->sql_command= SQLCOM_CREATE_INDEX;
+	    if (!lex->current_select->add_table_to_list(lex->thd, $8,
+							NULL,
+							TL_OPTION_UPDATING))
+	      MYSQL_YYABORT;
+            lex->alter_info.reset();
+            lex->alter_info.flags= ALTER_ADD_INDEX;
+            lex->alter_info.build_method= $2;
+            lex->col_list.empty();
+            lex->change=NullS;
+          }
+          '(' key_list ')' spatial_key_options
           {
             LEX *lex=Lex;
             Key *key;
@@ -2412,8 +2638,8 @@ sp_decl:
             }
 
             pctx->declare_var_boundary(0);
-            lex->sphead->restore_lex(YYTHD);
-
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
             $$.vars= $2;
             $$.conds= $$.hndlrs= $$.curs= 0;
           }
@@ -2523,7 +2749,8 @@ sp_cursor_stmt:
             }
             lex->sp_lex_in_use= TRUE;
             $$= lex;
-            lex->sphead->restore_lex(YYTHD);
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -2742,7 +2969,8 @@ sp_proc_stmt_statement:
                     sp->add_instr(i))
                 MYSQL_YYABORT;
             }
-            sp->restore_lex(thd);
+            if (sp->restore_lex(thd))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -2770,7 +2998,8 @@ sp_proc_stmt_return:
                 MYSQL_YYABORT;
               sp->m_flags|= sp_head::HAS_RETURN;
             }
-            sp->restore_lex(YYTHD);
+            if (sp->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
         ;
 
@@ -3010,7 +3239,8 @@ sp_if:
                 sp->add_cont_backpatch(i) ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
-            sp->restore_lex(YYTHD);
+            if (sp->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           sp_proc_stmts1
           {
@@ -3056,7 +3286,9 @@ simple_case_stmt:
             if (case_stmt_action_expr(lex, $3))
               MYSQL_YYABORT;
 
-            lex->sphead->restore_lex(YYTHD); /* For expr $3 */
+            /* For expr $3 */
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           simple_when_clause_list
           else_clause_opt
@@ -3106,7 +3338,9 @@ simple_when_clause:
             LEX *lex= Lex;
             if (case_stmt_action_when(lex, $3, true))
               MYSQL_YYABORT;
-            lex->sphead->restore_lex(YYTHD); /* For expr $3 */
+            /* For expr $3 */
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           THEN_SYM
           sp_proc_stmts1
@@ -3127,7 +3361,9 @@ searched_when_clause:
             LEX *lex= Lex;
             if (case_stmt_action_when(lex, $3, false))
               MYSQL_YYABORT;
-            lex->sphead->restore_lex(YYTHD); /* For expr $3 */
+            /* For expr $3 */
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           THEN_SYM
           sp_proc_stmts1
@@ -3304,7 +3540,8 @@ sp_unlabeled_control:
                 sp->new_cont_backpatch(i) ||
                 sp->add_instr(i))
               MYSQL_YYABORT;
-            sp->restore_lex(YYTHD);
+            if (sp->restore_lex(YYTHD))
+              MYSQL_YYABORT;
           }
           sp_proc_stmts1 END WHILE_SYM
           {
@@ -3330,7 +3567,8 @@ sp_unlabeled_control:
             if (i == NULL ||
                 lex->sphead->add_instr(i))
               MYSQL_YYABORT;
-            lex->sphead->restore_lex(YYTHD);
+            if (lex->sphead->restore_lex(YYTHD))
+              MYSQL_YYABORT;
             /* We can shortcut the cont_backpatch here */
             i->m_cont_dest= ip+1;
           }
@@ -4015,7 +4253,7 @@ part_func_expr:
             lex->safe_to_cache_query= 1;
             if (not_corr_func)
             {
-              my_parse_error(ER(ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR));
+              my_parse_error(ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
               MYSQL_YYABORT;
             }
             $$=$1;
@@ -4761,32 +4999,28 @@ column_def:
         ;
 
 key_def:
-          key_type opt_ident key_alg '(' key_list ')' key_options
+          normal_key_type opt_ident key_alg '(' key_list ')' normal_key_options
           {
-            LEX *lex=Lex;
-            if ($1 != Key::FULLTEXT && lex->key_create_info.parser_name.str)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
+            if (add_create_index (Lex, $1, $2))
               MYSQL_YYABORT;
-            }
-            Key *key= new Key($1, $2, &lex->key_create_info, 0,
-                              lex->col_list);
-            if (key == NULL)
+          }
+        | fulltext opt_key_or_index opt_ident init_key_options 
+            '(' key_list ')' fulltext_key_options
+          {
+            if (add_create_index (Lex, $1, $3))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty(); /* Alloced by sql_alloc */
+          }
+        | spatial opt_key_or_index opt_ident init_key_options 
+            '(' key_list ')' spatial_key_options
+          {
+            if (add_create_index (Lex, $1, $3))
+              MYSQL_YYABORT;
           }
         | opt_constraint constraint_key_type opt_ident key_alg
-          '(' key_list ')' key_options
+          '(' key_list ')' normal_key_options
           {
-            LEX *lex=Lex;
-            const char *key_name= $3 ? $3 : $1;
-            Key *key= new Key($2, key_name, &lex->key_create_info, 0,
-                              lex->col_list);
-            if (key == NULL)
+            if (add_create_index (Lex, $2, $3 ? $3 : $1))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty(); /* Alloced by sql_alloc */
           }
         | opt_constraint FOREIGN KEY_SYM opt_ident '(' key_list ')' references
           {
@@ -4802,13 +5036,9 @@ key_def:
             if (key == NULL)
               MYSQL_YYABORT;
             lex->alter_info.key_list.push_back(key);
-            key= new Key(Key::MULTIPLE, key_name,
-                         &default_key_create_info, 1,
-                         lex->col_list);
-            if (key == NULL)
+            if (add_create_index (lex, Key::MULTIPLE, key_name, 
+                                  &default_key_create_info, 1))
               MYSQL_YYABORT;
-            lex->alter_info.key_list.push_back(key);
-            lex->col_list.empty(); /* Alloced by sql_alloc */
             /* Only used for ALTER TABLE. Ignored otherwise. */
             lex->alter_info.flags|= ALTER_FOREIGN_KEY;
           }
@@ -5403,19 +5633,8 @@ delete_option:
         | SET DEFAULT   { $$= (int) Foreign_key::FK_OPTION_DEFAULT;  }
         ;
 
-key_type:
+normal_key_type:
           key_or_index { $$= Key::MULTIPLE; }
-        | FULLTEXT_SYM opt_key_or_index { $$= Key::FULLTEXT; }
-        | SPATIAL_SYM opt_key_or_index
-          {
-#ifdef HAVE_SPATIAL
-            $$= Key::SPATIAL;
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0),
-                     sym_group_geom.name, sym_group_geom.needed_define);
-            MYSQL_YYABORT;
-#endif
-          }
         ;
 
 constraint_key_type:
@@ -5439,11 +5658,17 @@ keys_or_index:
         | INDEXES {}
         ;
 
-opt_unique_or_fulltext:
+opt_unique:
           /* empty */  { $$= Key::MULTIPLE; }
         | UNIQUE_SYM   { $$= Key::UNIQUE; }
-        | FULLTEXT_SYM { $$= Key::FULLTEXT;}
-        | SPATIAL_SYM
+        ;
+
+fulltext:
+          FULLTEXT_SYM { $$= Key::FULLTEXT;}
+        ;
+
+spatial:
+          SPATIAL_SYM
           {
 #ifdef HAVE_SPATIAL
             $$= Key::SPATIAL;
@@ -5472,14 +5697,34 @@ key_alg:
         | init_key_options key_using_alg
         ;
 
-key_options:
+normal_key_options:
           /* empty */ {}
-        | key_opts
+        | normal_key_opts
         ;
 
-key_opts:
-          key_opt
-        | key_opts key_opt
+fulltext_key_options:
+          /* empty */ {}
+        | fulltext_key_opts
+        ;
+
+spatial_key_options:
+          /* empty */ {}
+        | spatial_key_opts
+        ;
+
+normal_key_opts:
+          normal_key_opt
+        | normal_key_opts normal_key_opt
+        ;
+
+spatial_key_opts:
+          spatial_key_opt
+        | spatial_key_opts spatial_key_opt
+        ;
+
+fulltext_key_opts:
+          fulltext_key_opt
+        | fulltext_key_opts fulltext_key_opt
         ;
 
 key_using_alg:
@@ -5487,10 +5732,22 @@ key_using_alg:
         | TYPE_SYM btree_or_rtree  { Lex->key_create_info.algorithm= $2; }
         ;
 
-key_opt:
-          key_using_alg
-        | KEY_BLOCK_SIZE opt_equal ulong_num
+all_key_opt:
+          KEY_BLOCK_SIZE opt_equal ulong_num
           { Lex->key_create_info.block_size= $3; }
+        ;
+
+normal_key_opt:
+          all_key_opt
+        | key_using_alg
+        ;
+
+spatial_key_opt:
+          all_key_opt
+        ;
+
+fulltext_key_opt:
+          all_key_opt
         | WITH PARSER_SYM IDENT_sys
           {
             if (plugin_is_ready(&$3, MYSQL_FTPARSER_PLUGIN))
@@ -7676,6 +7933,14 @@ function_call_nonkeyword:
           }
         | SYSDATE optional_braces
           {
+            /*
+              Unlike other time-related functions, SYSDATE() is
+              replication-unsafe because it is not affected by the
+              TIMESTAMP variable.  It is unsafe even if
+              sysdate_is_now=1, because the slave may have
+              sysdate_is_now=0.
+            */
+            Lex->set_stmt_unsafe();
             if (global_system_variables.sysdate_is_now == 0)
               $$= new (YYTHD->mem_root) Item_func_sysdate_local();
             else
@@ -8880,7 +9145,7 @@ interval_time_stamp:
                                     implementation without changing its
                                     resolution.
                                   */
-                                  WARN_DEPRECATED(yythd, "6.2", "FRAC_SECOND", "MICROSECOND");
+                                  WARN_DEPRECATED(yythd, VER_CELOSIA, "FRAC_SECOND", "MICROSECOND");
                                 }
 	;
 
@@ -11926,7 +12191,8 @@ option_type_value:
                 if (sp->add_instr(i))
                   MYSQL_YYABORT;
               }
-              lex->sphead->restore_lex(thd);
+              if (lex->sphead->restore_lex(thd))
+                MYSQL_YYABORT;
             }
           }
         ;
@@ -11966,98 +12232,42 @@ sys_option_value:
           option_type internal_variable_name equal set_expr_or_default
           {
             THD *thd= YYTHD;
-            LEX *lex=Lex;
+            LEX *lex= Lex;
+            LEX_STRING *name= &$2.base_name;
 
             if ($2.var == trg_new_row_fake_var)
             {
               /* We are in trigger and assigning value to field of new row */
-              Item *it;
-              Item_trigger_field *trg_fld;
-              sp_instr_set_trigger_field *sp_fld;
-              LINT_INIT(sp_fld);
               if ($1)
               {
                 my_parse_error(ER(ER_SYNTAX_ERROR));
                 MYSQL_YYABORT;
               }
-              if ($4)
-                it= $4;
-              else
-              {
-                /* QQ: Shouldn't this be field's default value ? */
-                it= new Item_null();
-              }
-
-              DBUG_ASSERT(lex->trg_chistics.action_time == TRG_ACTION_BEFORE &&
-                          (lex->trg_chistics.event == TRG_EVENT_INSERT ||
-                           lex->trg_chistics.event == TRG_EVENT_UPDATE));
-
-              trg_fld= new (thd->mem_root)
-                         Item_trigger_field(Lex->current_context(),
-                                            Item_trigger_field::NEW_ROW,
-                                            $2.base_name.str,
-                                            UPDATE_ACL, FALSE);
-              if (trg_fld == NULL)
-                MYSQL_YYABORT;
-
-              sp_fld= new sp_instr_set_trigger_field(lex->sphead->
-                                                     instructions(),
-                                                     lex->spcont,
-                                                     trg_fld,
-                                                     it, lex);
-              if (sp_fld == NULL)
-                MYSQL_YYABORT;
-
-              /*
-                Let us add this item to list of all Item_trigger_field
-                objects in trigger.
-              */
-              lex->trg_table_fields.link_in_list((uchar *)trg_fld,
-                                                 (uchar **) &trg_fld->
-                                                   next_trg_field);
-
-              if (lex->sphead->add_instr(sp_fld))
+              if (set_trigger_new_row(YYTHD, name, $4))
                 MYSQL_YYABORT;
             }
             else if ($2.var)
-            { /* System variable */
+            {
               if ($1)
                 lex->option_type= $1;
-              set_var *var= new set_var(lex->option_type, $2.var,
-                                        &$2.base_name, $4);
-              if (var == NULL)
+
+              /* It is a system variable. */
+              if (set_system_variable(thd, &$2, lex->option_type, $4))
                 MYSQL_YYABORT;
-              lex->var_list.push_back(var);
             }
             else
             {
-              /* An SP local variable */
-              sp_pcontext *ctx= lex->spcont;
-              sp_variable_t *spv;
-              sp_instr_set *sp_set;
-              Item *it;
+              sp_pcontext *spc= lex->spcont;
+              sp_variable_t *spv= spc->find_variable(name);
+
               if ($1)
               {
                 my_parse_error(ER(ER_SYNTAX_ERROR));
                 MYSQL_YYABORT;
               }
 
-              spv= ctx->find_variable(&$2.base_name);
-
-              if ($4)
-                it= $4;
-              else if (spv->dflt)
-                it= spv->dflt;
-              else
-              {
-                it= new (thd->mem_root) Item_null();
-                if (it == NULL)
-                  MYSQL_YYABORT;
-              }
-              sp_set= new sp_instr_set(lex->sphead->instructions(), ctx,
-                                       spv->offset, it, spv->type, lex, TRUE);
-              if (sp_set == NULL ||
-                  lex->sphead->add_instr(sp_set))
+              /* It is a local variable. */
+              if (set_local_variable(thd, spv, $4))
                 MYSQL_YYABORT;
             }
           }
@@ -12093,11 +12303,16 @@ option_value:
           }
         | '@' '@' opt_var_ident_type internal_variable_name equal set_expr_or_default
           {
-            LEX *lex=Lex;
-            set_var *var= new set_var($3, $4.var, &$4.base_name, $6);
-            if (var == NULL)
+            THD *thd= YYTHD;
+            struct sys_var_with_base tmp= $4;
+            /* Lookup if necessary: must be a system variable. */
+            if (tmp.var == NULL)
+            {
+              if (find_sys_var_null_base(thd, &tmp))
+                MYSQL_YYABORT;
+            }
+            if (set_system_variable(thd, &tmp, $3, $6))
               MYSQL_YYABORT;
-            lex->var_list.push_back(var);
           }
         | charset old_or_new_charset_name_or_default
           {
@@ -12190,31 +12405,26 @@ internal_variable_name:
           ident
           {
             THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            sp_pcontext *spc= lex->spcont;
+            sp_pcontext *spc= thd->lex->spcont;
             sp_variable_t *spv;
 
-            /* We have to lookup here since local vars can shadow sysvars */
+            /* Best effort lookup for system variable. */
             if (!spc || !(spv = spc->find_variable(&$1)))
             {
+              struct sys_var_with_base tmp= {NULL, $1};
+
               /* Not an SP local variable */
-              sys_var *tmp=find_sys_var(thd, $1.str, $1.length);
-              if (!tmp)
+              if (find_sys_var_null_base(thd, &tmp))
                 MYSQL_YYABORT;
-              $$.var= tmp;
-              $$.base_name= null_lex_str;
-              if (spc && tmp == &sys_autocommit)
-              {
-                /*
-                  We don't allow setting AUTOCOMMIT from a stored function
-                  or trigger.
-                */
-                lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-              }
+
+              $$= tmp;
             }
             else
             {
-              /* An SP local variable */
+              /*
+                Possibly an SP local variable (or a shadowed sysvar).
+                Will depend on the context of the SET statement.
+              */
               $$.var= NULL;
               $$.base_name= $1;
             }
