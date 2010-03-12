@@ -43,11 +43,7 @@
  * definitions should add and use corresponding JTie type mapping aliases.
  */
 
-// XXX bad hack: have autoconf set HAVE_STDINT_H
-// (VC7 = VS2003 = 1310, VC8 = VS2005 = 1400, VC9 = VS2008 = 1500, ...?):
-#if !defined(_MSC_VER) || (_MSC_VER >= 1600)
-#  define HAVE_STDINT_H 1
-#endif
+#include <ndb_global.h>
 
 #ifdef HAVE_STDINT_H
 
