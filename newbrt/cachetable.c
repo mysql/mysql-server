@@ -484,7 +484,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
     if (reserved) assert(with_filenum);
     r = toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
-        r=errno; close(fd); 
+        r=errno; close(fd); // no change for t:2444
         return r;
     }
     r = toku_pthread_mutex_lock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
@@ -504,7 +504,7 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
 		goto try_again;    // other thread has closed this file, go create a new cachefile
 	    }	    
             assert(!is_filenum_reserved(ct, extant->filenum));
-	    r = close(fd);
+	    r = close(fd);  // no change for t:2444
             assert(r == 0);
 	    // re-use pre-existing cachefile 
 	    *cfptr = extant;
@@ -601,7 +601,10 @@ int toku_cachefile_redirect (CACHEFILE cf, int newfd, const char *fname_in_env, 
     assert(!cf->is_dev_null);
     assert(cf->closefd_waiting == 0);
 
+    r = toku_file_fsync_without_accounting(cf->fd); //t:2444
+    assert(r == 0);   
     close(cf->fd);                         // close the old file
+
     toku_free(cf->fname_in_env);           // free old iname string
     cf->fname_in_env = NULL;               // hygiene
     toku_free(cf->fname_in_cwd);           // free old iname string
@@ -636,7 +639,7 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
     struct fileid fileid;
     r=toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
-        r=errno; close(fd); return r; 
+        r=errno; close(fd); return r; // no change for t:2444
     }
     if (cf->close_userdata && (r = cf->close_userdata(cf, cf->userdata, 0, FALSE, ZERO_LSN))) {
         return r;
@@ -647,7 +650,7 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname_in_env) {
     cf->end_checkpoint_userdata = NULL;
     cf->userdata = NULL;
 
-    close(cf->fd);
+    close(cf->fd); // no change for t:2444
     cf->fd = -1;
     if (cf->fname_in_env) {
 	toku_free(cf->fname_in_env);
@@ -762,6 +765,11 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
             rwlock_destroy(&cf->fdlock);
 	    if (cf->fname_in_env) toku_free(cf->fname_in_env);
 	    if (cf->fname_in_cwd) toku_free(cf->fname_in_cwd);
+
+            if ( !toku_cachefile_is_dev_null(cf) ) {
+                int r3 = toku_file_fsync_without_accounting(cf->fd); //t:2444
+                if (r3!=0) fprintf(stderr, "%s:%d During error handling, could not fsync file r=%d errno=%d\n", __FILE__, __LINE__, r3, errno);
+            }
 	    int r2 = close(cf->fd);
 	    if (r2!=0) fprintf(stderr, "%s:%d During error handling, could not close file r=%d errno=%d\n", __FILE__, __LINE__, r2, errno);
 	    //assert(r == 0);
@@ -804,6 +812,11 @@ int toku_cachefile_close (CACHEFILE *cfp, char **error_string, BOOL oplsn_valid,
         }
         rwlock_destroy(&cf->fdlock);
         cachetable_unlock(ct);
+
+        if ( !toku_cachefile_is_dev_null(cf) ) {
+            r = toku_file_fsync_without_accounting(cf->fd); //t:2444
+            assert(r == 0);   
+        }
 	r = close(cf->fd);
 	assert(r == 0);
         cf->fd = -1;
@@ -2268,7 +2281,7 @@ int toku_cachefile_redirect_nullfd (CACHEFILE cf) {
     assert(null_fd>=0);
     int r = toku_os_get_unique_file_id(null_fd, &fileid);
     assert(r==0);
-    close(cf->fd);
+    close(cf->fd);  // no change for t:2444
     cf->fd = null_fd;
     char *saved_fname_in_env = cf->fname_in_env;
     char *saved_fname_in_cwd = cf->fname_in_cwd;
