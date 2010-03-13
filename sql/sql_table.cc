@@ -1811,7 +1811,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
   bool error;
-  Drop_table_error_handler err_handler(thd->get_internal_handler());
+  Drop_table_error_handler err_handler;
 
   DBUG_ENTER("mysql_rm_table");
 
