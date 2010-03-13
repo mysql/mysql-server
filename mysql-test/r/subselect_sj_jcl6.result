@@ -876,6 +876,42 @@ DROP TABLE t1, t2, t3;
 DROP VIEW v2, v3;
 # End of Bug#49198
 #
+# Bug#45174: Incorrectly applied equality propagation caused wrong
+# result on a query with a materialized semi-join.
+#
+CREATE TABLE `t1` (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`varchar_key` varchar(1) NOT NULL,
+`varchar_nokey` varchar(1) NOT NULL,
+PRIMARY KEY (`pk`),
+KEY `varchar_key` (`varchar_key`)
+);
+INSERT INTO `t1` VALUES (11,'m','m'),(12,'j','j'),(13,'z','z'),(14,'a','a'),(15,'',''),(16,'e','e'),(17,'t','t'),(19,'b','b'),(20,'w','w'),(21,'m','m'),(23,'',''),(24,'w','w'),(26,'e','e'),(27,'e','e'),(28,'p','p');
+CREATE TABLE `t2` (
+`varchar_nokey` varchar(1) NOT NULL
+);
+INSERT INTO `t2` VALUES ('v'),('u'),('n'),('l'),('h'),('u'),('n'),('j'),('k'),('e'),('i'),('u'),('n'),('b'),('x'),(''),('q'),('u');
+EXPLAIN EXTENDED SELECT varchar_nokey
+FROM t2  
+WHERE ( `varchar_nokey`  , `varchar_nokey`  )  IN (  
+SELECT `varchar_key`  , `varchar_nokey`  
+FROM t1  
+WHERE `varchar_nokey`  < 'n' XOR `pk`  )   ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	18	100.00	
+1	PRIMARY	t1	ALL	varchar_key	NULL	NULL	NULL	15	100.00	Using where; Materialize
+Warnings:
+Note	1003	select `test`.`t2`.`varchar_nokey` AS `varchar_nokey` from `test`.`t2` semi join (`test`.`t1`) where ((`test`.`t1`.`varchar_nokey` = `test`.`t1`.`varchar_key`) and ((`test`.`t1`.`varchar_nokey` < 'n') xor `test`.`t1`.`pk`))
+SELECT varchar_nokey
+FROM t2  
+WHERE ( `varchar_nokey`  , `varchar_nokey`  )  IN (  
+SELECT `varchar_key`  , `varchar_nokey`  
+FROM t1  
+WHERE `varchar_nokey`  < 'n' XOR `pk`  )   ;
+varchar_nokey
+DROP TABLE t1, t2;
+# End of the test for bug#45174.
+#
 # BUG#49129: Wrong result with IN-subquery with join_cache_level=6 and firstmatch=off
 #
 CREATE TABLE t0 (a INT);

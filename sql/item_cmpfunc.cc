@@ -5369,7 +5369,7 @@ longlong Item_equal::val_int()
 
 void Item_equal::fix_length_and_dec()
 {
-  Item *item= get_first();
+  Item *item= get_first(NULL);
   eval_item= cmp_item::get_comparator(item->result_type(),
                                       item->collation.collation);
 }
@@ -5432,3 +5432,128 @@ void Item_equal::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+
+/*
+  @brief Get the first equal field of multiple equality.
+  @param[in] field   the field to get equal field to
+
+  @details Get the first field of multiple equality that is equal to the
+  given field. In order to make semi-join materialization strategy work
+  correctly we can't propagate equal fields from upper select to a
+  materialized semi-join.
+  Thus the fields is returned according to following rules:
+
+  1) If the given field belongs to a semi-join then the first field in
+     multiple equality which belong to the same semi-join is returned.
+     Otherwise NULL is returned.
+  2) If the given field doesn't belong to a semi-join then
+     the first field in the multiple equality that doesn't belong to any
+     semi-join is returned.
+     If all fields in the equality are belong to semi-join(s) then NULL
+     is returned.
+  3) If no field is given then the first field in the multiple equality
+     is returned without regarding whether it belongs to a semi-join or not.
+
+  @retval Found first field in the multiple equality.
+  @retval 0 if no field found.
+*/
+
+Item_field* Item_equal::get_first(Item_field *field)
+{
+  List_iterator<Item_field> it(fields);
+  Item_field *item;
+  JOIN_TAB *field_tab;
+
+  if (!field)
+    return fields.head();
+
+  /*
+    Of all equal fields, return the first one we can use. Normally, this is the
+    field which belongs to the table that is the first in the join order.
+
+    There is one exception to this: When semi-join materialization strategy is
+    used, and the given field belongs to a table within the semi-join nest, we
+    must pick the first field in the semi-join nest.
+
+    Example: suppose we have a join order:
+
+       ot1 ot2  SJ-Mat(it1  it2  it3)  ot3
+
+    and equality ot2.col = it1.col = it2.col
+    If we're looking for best substitute for 'it2.col', we should pick it1.col
+    and not ot2.col.
+    
+    eliminate_item_equal() also has code that deals with equality substitution
+    in presense of SJM nests.
+  */
+
+  field_tab= field->field->table->reginfo.join_tab;
+
+  TABLE_LIST *emb_nest= field->field->table->pos_in_table_list->embedding;
+
+  if (emb_nest && emb_nest->sj_mat_info && emb_nest->sj_mat_info->is_used)
+  {
+    /*
+      It's a field from an materialized semi-join. We can substitute it only
+      for a field from the same semi-join.
+    */
+    JOIN_TAB *first;
+    JOIN *join= field_tab->join;
+    uint tab_idx= field_tab - field_tab->join->join_tab;
+
+    /* Find the first table of this semi-join nest */
+    for (uint i= tab_idx; i != join->const_tables; i--)
+    {
+      if (join->join_tab[i].table->map & emb_nest->sj_inner_tables)
+        first= join->join_tab + i;
+      else
+        // Found first tab that doesn't belong to current SJ.
+        break;
+    }
+    /* Find an item to substitute for. */
+    while ((item= it++))
+    {
+      if (item->field->table->reginfo.join_tab >= first)
+      {
+        /*
+          If we found given field then return NULL to avoid unnecessary
+          substitution.
+        */
+        return (item != field) ? item : NULL;
+      }
+    }
+  }
+  else
+  {
+#if 0    
+    /*
+      The field is not in SJ-Materialization nest. We must return the first
+      field that's not embedded in a SJ-Materialization nest.
+      Example: suppose we have a join order:
+
+          SJ-Mat(it1  it2)  ot1  ot2
+
+      and equality ot2.col = ot1.col = it2.col
+      If we're looking for best substitute for 'ot2.col', we should pick ot1.col
+      and not it2.col, because when we run a join between ot1 and ot2
+      execution of SJ-Mat(...) has already finished and we can't rely on the
+      value of it*.*.
+      psergey-fix-fix: ^^ THAT IS INCORRECT ^^. Pick the first, whatever that
+      is.
+    */
+    while ((item= it++))
+    {
+      TABLE_LIST *emb_nest= item->field->table->pos_in_table_list->embedding;
+      if (!emb_nest || !emb_nest->sj_mat_info || 
+          !emb_nest->sj_mat_info->is_used)
+      {
+        return item;
+      }
+    }
+#endif
+    return fields.head();
+  }
+  // Shouldn't get here.
+  DBUG_ASSERT(0);
+  return NULL;
+}

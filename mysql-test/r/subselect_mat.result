@@ -1219,3 +1219,28 @@ SELECT pk FROM t1 WHERE (b,c,d) IN (SELECT b,c,d FROM t2 WHERE pk > 0);
 pk
 2
 DROP TABLE t1, t2;
+#
+# BUG#50019: Wrong result for IN-subquery with materialization
+#
+create table t1(i int);
+insert into t1 values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+create table t2(i int);
+insert into t2 values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+create table t3(i int);
+insert into t3 values (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+select * from t1 where t1.i in (select t2.i from t2 join t3 where t2.i + t3.i = 5);
+i
+1
+2
+3
+4
+set @save_optimizer_switch=@@optimizer_switch;
+set session optimizer_switch='materialization=off';
+select * from t1 where t1.i in (select t2.i from t2 join t3 where t2.i + t3.i = 5);
+i
+1
+2
+3
+4
+set session optimizer_switch=@save_optimizer_switch;
+drop table t1, t2, t3;

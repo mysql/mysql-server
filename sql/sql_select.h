@@ -279,6 +279,13 @@ typedef struct st_join_table {
   /* NestedOuterJoins: Bitmap of nested joins this table is part of */
   nested_join_map embedding_map;
 
+  /*
+    Semi-join strategy to be used for this join table. This is a copy of
+    POSITION::sj_strategy field. This field is set up by the
+    fix_semijion_strategies_for_picked_join_order.
+  */
+  uint sj_strategy;
+
   void cleanup();
   inline bool is_using_loose_index_scan()
   {

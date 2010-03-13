@@ -2159,6 +2159,8 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     if (tablenr != first)
       pos->sj_strategy= SJ_OPT_NONE;
     remaining_tables |= s->table->map;
+    //s->sj_strategy= pos->sj_strategy;
+    join->join_tab[first].sj_strategy= join->best_positions[first].sj_strategy;
   }
 }
 

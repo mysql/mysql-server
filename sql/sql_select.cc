@@ -8867,6 +8867,15 @@ static int compare_fields_by_table_order(Item_field *field1,
 }
 
 
+static TABLE_LIST* embedding_sjm(Item_field *item_field)
+{
+  TABLE_LIST *nest= item_field->field->table->pos_in_table_list->embedding;
+  if (nest && nest->sj_mat_info && nest->sj_mat_info->is_used)
+    return nest;
+  else
+    return NULL;
+}
+
 /**
   Generate minimal set of simple equalities equivalent to a multiple equality.
 
@@ -8900,6 +8909,23 @@ static int compare_fields_by_table_order(Item_field *field1,
     So only t1.a=t3.c should be left in the lower level.
     If cond is equal to 0, then not more then one equality is generated
     and a pointer to it is returned as the result of the function.
+    
+    Equality substutution and semi-join materialization nests:
+
+       In case join order looks like this:
+
+          outer_tbl1 outer_tbl2 SJM (inner_tbl1 inner_tbl2) outer_tbl3 
+
+        We must not construct equalities like 
+
+           outer_tbl1.col = inner_tbl1.col 
+
+        because they would get attached to inner_tbl1 and will get evaluated
+        during materialization phase, when we don't have current value of
+        outer_tbl1.col.
+
+        Item_equal::get_first() also takes similar measures for dealing with
+        equality substitution in presense of SJM nests.
 
   @return
     - The condition with generated simple equalities or
@@ -8917,18 +8943,44 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   Item *item_const= item_equal->get_const();
   Item_equal_iterator it(*item_equal);
   Item *head;
+  TABLE_LIST *current_sjm= NULL;
+  Item *current_sjm_head= NULL;
+
+  /* 
+    Pick the "head" item: the constant one or the first in the join order
+    that's not inside some SJM nest.
+  */
   if (item_const)
     head= item_const;
   else
   {
-    head= item_equal->get_first();
+    TABLE_LIST *emb_nest;
+    Item_field *item_field;
+    head= item_field= item_equal->get_first(NULL);
     it++;
+    if ((emb_nest= embedding_sjm(item_field)))
+    {
+      current_sjm= emb_nest;
+      current_sjm_head= head;
+    }
   }
+
   Item_field *item_field;
+  /*
+    For each other item, generate "item=head" equality (except the tables that 
+    are within SJ-Materialization nests, for those "head" is defined
+    differently)
+  */
   while ((item_field= it++))
   {
     Item_equal *upper= item_field->find_item_equal(upper_levels);
     Item_field *item= item_field;
+    TABLE_LIST *field_sjm= embedding_sjm(item_field);
+
+    /* 
+      Check if "item_field=head" equality is already guaranteed to be true 
+      on upper AND-levels.
+    */
     if (upper)
     { 
       if (item_const && upper->get_const())
@@ -8943,65 +8995,29 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
         }
       }
     }
-    if (item == item_field)
+    
+    bool produce_equality= test(item == item_field);
+    if (!item_const && field_sjm && field_sjm != current_sjm)
+    {
+      /* Entering an SJM nest */
+      current_sjm_head= item_field;
+      if (!field_sjm->sj_mat_info->is_sj_scan)
+        produce_equality= FALSE;
+    }
+
+    if (produce_equality)
     {
       if (eq_item)
         eq_list.push_back(eq_item);
-      /*
-        item_field might refer to a table that is within a semi-join
-        materialization nest. In that case, the join order looks like this:
+      
+      eq_item= new Item_func_eq(item_field, current_sjm? current_sjm_head: head);
 
-          outer_tbl1 outer_tbl2 SJM (inner_tbl1 inner_tbl2) outer_tbl3 
-
-        We must not construct equalities like 
-
-           outer_tbl1.col = inner_tbl1.col 
-
-        because they would get attached to inner_tbl1 and will get evaluated
-        during materialization phase, when we don't have current value of
-        outer_tbl1.col.
-      */
-      TABLE_LIST *emb_nest= 
-        item_field->field->table->pos_in_table_list->embedding;
-      if (!item_const && emb_nest && emb_nest->sj_mat_info &&
-          emb_nest->sj_mat_info->is_used)
-      {
-        /* 
-          Find the first equal expression that refers to a table that is
-          within the semijoin nest. If we can't find it, do nothing
-        */
-        List_iterator<Item_field> fit(item_equal->fields);
-        Item_field *head_in_sjm;
-        bool found= FALSE;
-        while ((head_in_sjm= fit++))
-        {
-          if (head_in_sjm->used_tables() & emb_nest->sj_inner_tables)
-          {
-            if (head_in_sjm == item_field)
-            {
-              /* This is the first table inside the semi-join*/
-              eq_item= new Item_func_eq(item_field, head);
-              /* Tell make_cond_for_table don't use this. */
-              eq_item->marker=3;
-            }
-            else
-            {
-              eq_item= new Item_func_eq(item_field, head_in_sjm);
-              found= TRUE;
-            }
-            break;
-          }
-        }
-        if (!found)
-          continue;
-      }
-      else
-        eq_item= new Item_func_eq(item_field, head);
       if (!eq_item)
         return 0;
       eq_item->set_cmp_func();
       eq_item->quick_fix_field();
     }
+    current_sjm= field_sjm;
   }
 
   if (!cond && !eq_list.head())

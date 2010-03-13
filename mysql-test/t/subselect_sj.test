@@ -770,3 +770,42 @@ DROP TABLE t1, t2, t3;
 DROP VIEW v2, v3;
 
 --echo # End of Bug#49198
+
+--echo #
+--echo # Bug#45174: Incorrectly applied equality propagation caused wrong
+--echo # result on a query with a materialized semi-join.
+--echo #
+
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `varchar_key` varchar(1) NOT NULL,
+  `varchar_nokey` varchar(1) NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `varchar_key` (`varchar_key`)
+);
+
+INSERT INTO `t1` VALUES (11,'m','m'),(12,'j','j'),(13,'z','z'),(14,'a','a'),(15,'',''),(16,'e','e'),(17,'t','t'),(19,'b','b'),(20,'w','w'),(21,'m','m'),(23,'',''),(24,'w','w'),(26,'e','e'),(27,'e','e'),(28,'p','p');
+
+CREATE TABLE `t2` (
+  `varchar_nokey` varchar(1) NOT NULL
+);
+
+INSERT INTO `t2` VALUES ('v'),('u'),('n'),('l'),('h'),('u'),('n'),('j'),('k'),('e'),('i'),('u'),('n'),('b'),('x'),(''),('q'),('u');
+
+EXPLAIN EXTENDED SELECT varchar_nokey
+FROM t2  
+WHERE ( `varchar_nokey`  , `varchar_nokey`  )  IN (  
+SELECT `varchar_key`  , `varchar_nokey`  
+FROM t1  
+WHERE `varchar_nokey`  < 'n' XOR `pk`  )   ;
+
+SELECT varchar_nokey
+FROM t2  
+WHERE ( `varchar_nokey`  , `varchar_nokey`  )  IN (  
+SELECT `varchar_key`  , `varchar_nokey`  
+FROM t1  
+WHERE `varchar_nokey`  < 'n' XOR `pk`  )   ;
+
+DROP TABLE t1, t2;
+
+--echo # End of the test for bug#45174.
