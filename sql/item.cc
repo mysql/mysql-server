@@ -7113,7 +7113,7 @@ double Item_cache_decimal::val_real()
   DBUG_ASSERT(fixed);
   double res;
   if (!value_cached && !cache_value())
-    return NULL;
+    return (double)0;
   my_decimal2double(E_DEC_FATAL_ERROR, &decimal_value, &res);
   return res;
 }
