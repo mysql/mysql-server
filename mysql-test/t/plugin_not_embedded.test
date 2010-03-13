@@ -12,7 +12,6 @@ eval INSTALL PLUGIN example SONAME $HA_EXAMPLE_SO;
 UNINSTALL PLUGIN example;
 connection default;
 GRANT DELETE ON mysql.plugin TO bug51770@localhost;
-FLUSH PRIVILEGES;
 connection con1;
 UNINSTALL PLUGIN example;
 disconnect con1;
