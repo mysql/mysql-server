@@ -1607,6 +1607,9 @@ buf_pool_watch_set(
 	should be modified to return a special non-NULL value and the
 	caller should purge the record directly. */
 	ut_error;
+
+	/* Fix compiler warning */
+	return(NULL);
 }
 
 /****************************************************************//**
