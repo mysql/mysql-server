@@ -3474,7 +3474,7 @@ Dbtup::shrink_tuple(KeyReqStruct* req_struct, Uint32 sizes[2],
       }
     }
     
-    Uint32 varpart_len= dst_ptr - varstart;
+    Uint32 varpart_len= Uint32(dst_ptr - varstart);
     vp->m_len = varpart_len;
     sizes[MM] = varpart_len;
     ptr->m_header_bits |= (varpart_len) ? Tuple_header::VAR_PART : 0;

@@ -41,7 +41,11 @@ int runTestApiSession(NDBT_Context* ctx, NDBT_Step* step)
   h= ndb_mgm_create_handle();
   ndb_mgm_set_connectstring(h, mgmd.getConnectString());
   ndb_mgm_connect(h,0,0,0);
+#ifdef NDB_WIN
+  SOCKET s = ndb_mgm_get_fd(h);
+#else
   int s= ndb_mgm_get_fd(h);
+#endif
   session_id= ndb_mgm_get_session_id(h);
   ndbout << "MGM Session id: " << session_id << endl;
   send(s,"get",3,0);

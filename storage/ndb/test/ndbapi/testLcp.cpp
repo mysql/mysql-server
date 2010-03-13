@@ -386,13 +386,13 @@ static int pause_lcp(int error)
       int id;
       if(sscanf(tmp, "%*[^:]: LCP: %d ", &id) == 1 && id == error &&
 	 --nodes == 0){
-	close(fd);
+	my_socket_close(my_fd);
 	return 0;
       }
     }
   } while(count++ < 30);
   
-  close(fd);
+  my_socket_close(my_fd);
   return -1;
 }
 
@@ -495,13 +495,13 @@ static int continue_lcp(int error)
 	int id;
 	if(sscanf(tmp, "%*[^:]: LCP: %d ", &id) == 1 && id == error &&
 	   --nodes == 0){
-	  close(fd);
+	  my_socket_close(my_fd);
 	  return 0;
 	}
       }
     } while(count++ < 30);
     
-    close(fd);
+    my_socket_close(my_fd);
   }
   return 0;
 }

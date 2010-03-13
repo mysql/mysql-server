@@ -87,8 +87,8 @@ static os_file_t	files[1000];
 static mutex_t		ios_mutex;
 static ulint		ios;
 
-static ulint		n[SRV_MAX_N_IO_THREADS + 5];
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
+static ulint		n[SRV_MAX_N_IO_THREADS + 6];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6];
 
 /* We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1596,15 +1596,20 @@ innobase_start_or_create_for_mysql(void)
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
-	/* Create the thread which watches the timeouts for lock waits
-	and prints InnoDB monitor info */
+	/* Create the thread which watches the timeouts for lock
+	waits */
 
-	os_thread_create(&srv_lock_timeout_and_monitor_thread, NULL,
+	os_thread_create(&srv_lock_timeout_thread, NULL,
 			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
 
 	/* Create the thread which warns of long semaphore waits */
 	os_thread_create(&srv_error_monitor_thread, NULL,
 			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
+
+	/* Create the thread which prints InnoDB monitor info */
+	os_thread_create(&srv_monitor_thread, NULL,
+			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
 	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
 

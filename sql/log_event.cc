@@ -2302,10 +2302,22 @@ bool Query_log_event::write(IO_CACHE* file)
     int8store(start, table_map_for_update);
     start+= 8;
   }
+  if (master_data_written != 0)
+  {
+    /*
+      Q_MASTER_DATA_WRITTEN_CODE only exists in relay logs where the master
+      has binlog_version<4 and the slave has binlog_version=4. See comment
+      for master_data_written in log_event.h for details.
+    */
+    *start++= Q_MASTER_DATA_WRITTEN_CODE;
+    int4store(start, master_data_written);
+    start+= 4;
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
-    the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update function
-    code_name in this file.
+    the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
+    code_name() in this file.
    
     Here there could be code like
     if (command-line-option-which-says-"log_this_variable" && inited)
@@ -2381,7 +2393,8 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
    auto_increment_offset(thd_arg->variables.auto_increment_offset),
    lc_time_names_number(thd_arg->variables.lc_time_names->number),
    charset_database_number(0),
-   table_map_for_update((ulonglong)thd_arg->table_map_for_update)
+   table_map_for_update((ulonglong)thd_arg->table_map_for_update),
+   master_data_written(0)
 {
   time_t end_time;
 
@@ -2505,6 +2518,7 @@ code_name(int code)
   case Q_LC_TIME_NAMES_CODE: return "Q_LC_TIME_NAMES_CODE";
   case Q_CHARSET_DATABASE_CODE: return "Q_CHARSET_DATABASE_CODE";
   case Q_TABLE_MAP_FOR_UPDATE_CODE: return "Q_TABLE_MAP_FOR_UPDATE_CODE";
+  case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;
@@ -2542,7 +2556,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
    flags2_inited(0), sql_mode_inited(0), charset_inited(0),
    auto_increment_increment(1), auto_increment_offset(1),
    time_zone_len(0), lc_time_names_number(0), charset_database_number(0),
-   table_map_for_update(0)
+   table_map_for_update(0), master_data_written(0)
 {
   ulong data_len;
   uint32 tmp;
@@ -2598,6 +2612,18 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     DBUG_PRINT("info", ("Query_log_event has status_vars_len: %u",
                         (uint) status_vars_len));
     tmp-= 2;
+  } 
+  else
+  {
+    /*
+      server version < 5.0 / binlog_version < 4 master's event is 
+      relay-logged with storing the original size of the event in
+      Q_MASTER_DATA_WRITTEN_CODE status variable.
+      The size is to be restored at reading Q_MASTER_DATA_WRITTEN_CODE-marked
+      event from the relay log.
+    */
+    DBUG_ASSERT(description_event->binlog_version < 4);
+    master_data_written= data_written;
   }
   /*
     We have parsed everything we know in the post header for QUERY_EVENT,
@@ -2688,6 +2714,11 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       CHECK_SPACE(pos, end, 8);
       table_map_for_update= uint8korr(pos);
       pos+= 8;
+      break;
+    case Q_MASTER_DATA_WRITTEN_CODE:
+      CHECK_SPACE(pos, end, 4);
+      data_written= master_data_written= uint4korr(pos);
+      pos+= 4;
       break;
     default:
       /* That's why you must write status vars in growing order of code */
@@ -3178,7 +3209,18 @@ START SLAVE; . Query: '%s'", expected_error, thd->query());
 
 compare_errors:
 
-     /*
+    /*
+      In the slave thread, we may sometimes execute some DROP / * 40005
+      TEMPORARY * / TABLE that come from parts of binlogs (likely if we
+      use RESET SLAVE or CHANGE MASTER TO), while the temporary table
+      has already been dropped. To ignore such irrelevant "table does
+      not exist errors", we silently clear the error if TEMPORARY was used.
+    */
+    if (thd->lex->sql_command == SQLCOM_DROP_TABLE && thd->lex->drop_temporary &&
+        thd->is_error() && thd->main_da.sql_errno() == ER_BAD_TABLE_ERROR &&
+        !expected_error)
+      thd->main_da.reset_diagnostics_area();
+    /*
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
@@ -4014,6 +4056,7 @@ uint Load_log_event::get_query_buffer_length()
   return
     5 + db_len + 3 +                        // "use DB; "
     18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
+    11 +                                    // "CONCURRENT "
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
     13 + table_name_len*2 +                 // "INTO TABLE `table`"
@@ -4040,6 +4083,9 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
   }
 
   pos= strmov(pos, "LOAD DATA ");
+
+  if (thd->lex->lock_option == TL_WRITE_CONCURRENT_INSERT)
+    pos= strmov(pos, "CONCURRENT ");
 
   if (fn_start)
     *fn_start= pos;
@@ -4518,6 +4564,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     as the present method does not call mysql_parse().
   */
   lex_start(thd);
+  thd->lex->local_file= local_fname;
   mysql_reset_thd_for_next_command(thd);
 
   if (!use_rli_only_for_errors)
@@ -5856,7 +5903,7 @@ Slave_log_event::Slave_log_event(const char* buf, uint event_len)
 int Slave_log_event::do_apply_event(Relay_log_info const *rli)
 {
   if (mysql_bin_log.is_open())
-    mysql_bin_log.write(this);
+    return mysql_bin_log.write(this);
   return 0;
 }
 #endif /* !MYSQL_CLIENT */
@@ -7639,7 +7686,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    thd->binlog_flush_pending_rows_event(true);
+    error= thd->binlog_flush_pending_rows_event(true);
 
     /*
       If this event is not in a transaction, the call below will, if some
@@ -7650,7 +7697,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    error= ha_autocommit_or_rollback(thd, 0);
+    error|= ha_autocommit_or_rollback(thd, error);
 
     /*
       Now what if this is not a transactional engine? we still need to
@@ -7957,10 +8004,10 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     plus one or three bytes (see pack.c:net_store_length) for number of 
     elements in the field metadata array.
   */
-  if (m_field_metadata_size > 255)
-    m_data_size+= m_field_metadata_size + 3; 
-  else
+  if (m_field_metadata_size < 251)
     m_data_size+= m_field_metadata_size + 1; 
+  else
+    m_data_size+= m_field_metadata_size + 3; 
 
   bzero(m_null_bits, num_null_bytes);
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
@@ -8499,13 +8546,17 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   auto_afree_ptr<char> key(NULL);
 
   /* fill table->record[0] with default values */
-
+  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   if ((error= prepare_record(table, m_width,
-                             TRUE /* check if columns have def. values */)))
+                             table->file->ht->db_type != DB_TYPE_NDBCLUSTER,
+                             abort_on_warnings, m_curr_row == m_rows_buf)))
     DBUG_RETURN(error);
   
   /* unpack row into table->record[0] */
-  error= unpack_current_row(rli); // TODO: how to handle errors?
+  if ((error= unpack_current_row(rli, abort_on_warnings)))
+    DBUG_RETURN(error);
+
   if (m_curr_row == m_rows_buf)
   {
     /* this is the first row to be inserted, we estimate the rows with
@@ -9318,8 +9369,12 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   store_record(m_table,record[1]);
 
+  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+                           (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   m_curr_row= m_curr_row_end;
-  error= unpack_current_row(rli); // this also updates m_curr_row_end
+  /* this also updates m_curr_row_end */
+  if ((error= unpack_current_row(rli, abort_on_warnings)))
+    return error;
 
   /*
     Now we have the right row to update.  The old row (the one we're

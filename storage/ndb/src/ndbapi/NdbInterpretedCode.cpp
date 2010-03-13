@@ -1114,7 +1114,7 @@ NdbInterpretedCode::finalise()
 
       assert(info.type == Label);
       
-      Uint32 currOffset = ip - firstInstruction;
+      Uint32 currOffset = Uint32(ip - firstInstruction);
       Uint32 labelOffset= info.firstInstrPos;
       
       if (labelOffset >= m_instructions_length)

@@ -1,3 +1,4 @@
+call mtr.add_suppression("Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted");
 use test;
 drop procedure if exists bug14233;
 drop function if exists bug14233;
@@ -11,11 +12,13 @@ create table t1 (id int);
 create trigger t1_ai after insert on t1 for each row call bug14233();
 alter table mysql.proc drop type;
 call bug14233();
-ERROR HY000: Failed to load routine test.bug14233. The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
+ERROR HY000: Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
 create view v1 as select bug14233_f();
-ERROR HY000: Failed to load routine test.bug14233_f. The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
+ERROR HY000: Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
 insert into t1 values (0);
-ERROR HY000: Failed to load routine test.bug14233. The table mysql.proc is missing, corrupt, or contains bad data (internal code -5)
+ERROR HY000: Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
+show procedure status;
+ERROR HY000: Column count of mysql.proc is wrong. Expected 20, found 19. The table is probably corrupted
 flush table mysql.proc;
 call bug14233();
 ERROR HY000: Incorrect information in file: './mysql/proc.frm'
@@ -88,3 +91,28 @@ show procedure status where db=DATABASE();
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 show function status where db=DATABASE();
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+DROP TABLE IF EXISTS proc_backup;
+DROP PROCEDURE IF EXISTS p1;
+# Backup the proc table
+RENAME TABLE mysql.proc TO proc_backup;
+CREATE TABLE mysql.proc LIKE proc_backup;
+FLUSH TABLE mysql.proc;
+# Test with a valid table.
+CREATE PROCEDURE p1()
+SET @foo = 10;
+CALL p1();
+SHOW PROCEDURE STATUS;
+Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
+test	p1	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
+# Modify a field of the table.
+ALTER TABLE mysql.proc MODIFY comment CHAR (32);
+CREATE PROCEDURE p2()
+SET @foo = 10;
+ERROR HY000: Cannot load from mysql.proc. The table is probably corrupted
+# Procedure loaded from the cache
+CALL p1();
+SHOW PROCEDURE STATUS;
+ERROR HY000: Cannot load from mysql.proc. The table is probably corrupted
+DROP TABLE mysql.proc;
+RENAME TABLE proc_backup TO mysql.proc;
+FLUSH TABLE mysql.proc;
