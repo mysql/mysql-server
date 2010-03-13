@@ -126,7 +126,7 @@ ERROR HY000: This partition function is not allowed
 create table t1 (col1 date)
 partition by range(unix_timestamp(col1))
 (partition p0 values less than (10), partition p1 values less than (30));
-ERROR HY000: This partition function is not allowed
+ERROR HY000: Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed
 create table t1 (col1 datetime)
 partition by range(week(col1))
 (partition p0 values less than (10), partition p1 values less than (30));

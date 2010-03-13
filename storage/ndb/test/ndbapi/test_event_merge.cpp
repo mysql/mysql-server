@@ -372,7 +372,7 @@ createtable(Tab& t)
     char pk2[1 + g_charlen + 1];
     pk1 = g_maxpk;
     sprintf(pk2 + 1, "%-u", pk1);
-    *(uchar*)pk2 = strlen(pk2 + 1);
+    *(uchar*)pk2 = (uchar)(strlen(pk2 + 1));
     chkdb(g_op->equal("pk1", (char*)&pk1) == 0);
     chkdb(g_op->equal("pk2", (char*)&pk2[0]) == 0);
     chkdb(g_con->execute(Commit) == 0);
@@ -1244,7 +1244,7 @@ waitgci(uint ngci)
       char pk2[1 + g_charlen + 1];
       pk1 = g_maxpk;
       sprintf(pk2 + 1, "%-u", pk1);
-      *(uchar*)pk2 = strlen(pk2 + 1);
+      *(uchar*)pk2 = (uchar)(strlen(pk2 + 1));
       chkdb((g_op = g_con->getNdbOperation(t.tabname)) != 0);
       chkdb(g_op->readTuple() == 0);
       chkdb(g_op->equal("pk1", (char*)&pk1) == 0);

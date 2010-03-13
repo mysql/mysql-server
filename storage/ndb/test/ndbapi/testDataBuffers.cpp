@@ -132,7 +132,7 @@ static bool isAligned(char* p)
 {
     return isAligned(UintPtr(p));
 }
-static unsigned toAligned(UintPtr x)
+static unsigned toAligned(unsigned x)
 {
     while (! isAligned(x))
 	x++;

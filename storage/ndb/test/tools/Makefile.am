@@ -39,7 +39,7 @@ listen_event_SOURCES = listen.cpp
 eventlog_SOURCES = log_listner.cpp
 rep_latency_SOURCES = rep_latency.cpp
 ndb_connect_SOURCES = connect.cpp
-test_spj_SOURCES = test_spj.cpp
+# test_spj_SOURCES = test_spj.cpp
 spj_sanity_test_SOURCES = spj_sanity_test.cpp
 spj_performance_test_SOURCES = spj_performance_test.cpp
 

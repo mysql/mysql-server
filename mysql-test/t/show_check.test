@@ -1207,6 +1207,28 @@ connection default;
 DROP USER test_u@localhost;
 
 
+--echo #
+--echo # Bug #48985: show create table crashes if previous access to the table
+--echo #    was killed
+--echo #
+
+connect(con1,localhost,root,,);
+CONNECTION con1;
+LET $ID= `SELECT connection_id()`;
+
+CONNECTION default;
+--disable_query_log
+eval KILL QUERY $ID;
+--enable_query_log
+
+CONNECTION con1;
+--error ER_QUERY_INTERRUPTED
+SHOW CREATE TABLE non_existent;
+
+CONNECTION default;
+DISCONNECT con1;
+
+
 --echo End of 5.1 tests
 
 # Wait till all disconnects are completed

@@ -96,6 +96,8 @@ log. */
 						to become available again */
 #define	OS_FILE_SHARING_VIOLATION	76
 #define	OS_FILE_ERROR_NOT_SPECIFIED	77
+						/* 78 is used in the plugin */
+#define	OS_FILE_OPERATION_ABORTED	79
 
 /* Types for aio operations */
 #define OS_FILE_READ	10

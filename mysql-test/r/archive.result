@@ -12717,3 +12717,14 @@ COUNT(t1.a)
 729
 DROP TABLE t1;
 SET @@join_buffer_size= @save_join_buffer_size;
+SHOW CREATE TABLE t1;
+ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+SELECT * FROM t1;
+ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+INSERT INTO t1 (col1, col2) VALUES (1, "value");
+ERROR HY000: Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+REPAIR TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
+test.t1	repair	error	Corrupt
+DROP TABLE t1;

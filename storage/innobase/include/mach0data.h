@@ -266,8 +266,8 @@ UNIV_INLINE
 double
 mach_double_read(
 /*=============*/
-			/* out: double read */
-	byte*	b);	 /* in: pointer to memory from where to read */
+				/* out: double read */
+	const byte*	b);	 /* in: pointer to memory from where to read */
 /*************************************************************
 Writes a double. It is stored in a little-endian format. */
 UNIV_INLINE
@@ -282,8 +282,8 @@ UNIV_INLINE
 float
 mach_float_read(
 /*============*/
-			/* out: float read */
-	byte*	b);	 /* in: pointer to memory from where to read */
+				/* out: float read */
+	const byte*	b);	 /* in: pointer to memory from where to read */
 /*************************************************************
 Writes a float. It is stored in a little-endian format. */
 UNIV_INLINE

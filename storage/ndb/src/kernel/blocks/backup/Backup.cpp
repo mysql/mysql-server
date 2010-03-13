@@ -4697,12 +4697,13 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   else if (sz > 0)
   {
     jam();
+    ndbassert((Uint64(tmp - c_startOfPages) >> 32) == 0); // 4Gb buffers!
     FsAppendReq * req = (FsAppendReq *)signal->getDataPtrSend();
     req->filePointer   = filePtr.p->filePointer;
     req->userPointer   = filePtr.i;
     req->userReference = reference();
     req->varIndex      = 0;
-    req->offset        = tmp - c_startOfPages; // CHECK
+    req->offset        = Uint32(tmp - c_startOfPages); // 4Gb buffers!
     req->size          = sz;
     req->synch_flag    = 0;
     
