@@ -6,6 +6,5 @@ INSTALL PLUGIN example SONAME 'ha_example.so';
 UNINSTALL PLUGIN example;
 ERROR 42000: DELETE command denied to user 'bug51770'@'localhost' for table 'plugin'
 GRANT DELETE ON mysql.plugin TO bug51770@localhost;
-FLUSH PRIVILEGES;
 UNINSTALL PLUGIN example;
 DROP USER bug51770@localhost;
