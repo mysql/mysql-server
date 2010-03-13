@@ -2396,7 +2396,8 @@ void kill_delayed_threads(void)
 bool Delayed_insert::open_and_lock_table()
 {
   if (!(table= open_n_lock_single_table(&thd, &table_list,
-                                        TL_WRITE_DELAYED, 0)))
+                                        TL_WRITE_DELAYED,
+                                        MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK)))
   {
     thd.fatal_error();				// Abort waiting inserts
     return TRUE;
@@ -2557,7 +2558,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
       if (di->tables_in_use && ! thd->lock && !thd->killed)
       {
-        bool need_reopen;
         /*
           Request for new delayed insert.
           Lock the table, but avoid to be blocked by a global read lock.
@@ -2568,30 +2568,10 @@ pthread_handler_t handle_delayed_insert(void *arg)
           handler will close the table and finish when the outstanding
           inserts are done.
         */
-        if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1,
-                                            MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK,
-                                            &need_reopen)))
+        if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1, 0)))
         {
-          if (need_reopen && !thd->killed)
-          {
-            /*
-              We were waiting to obtain TL_WRITE_DELAYED (probably due to
-              someone having or requesting TL_WRITE_ALLOW_READ) and got
-              aborted. Try to reopen table and if it fails die.
-            */
-            TABLE_LIST *tl_ptr = &di->table_list;
-            close_tables_for_reopen(thd, &tl_ptr, NULL);
-            di->table= 0;
-            if (di->open_and_lock_table())
-            {
-              thd->killed= THD::KILL_CONNECTION;
-            }
-          }
-          else
-          {
-            /* Fatal error */
-            thd->killed= THD::KILL_CONNECTION;
-          }
+          /* Fatal error */
+          thd->killed= THD::KILL_CONNECTION;
         }
         mysql_cond_broadcast(&di->cond_client);
       }
@@ -3542,7 +3522,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   List_iterator_fast<Item> it(*items);
   Item *item;
   Field *tmp_field;
-  bool not_used;
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
@@ -3667,7 +3646,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     the table) and thus can't get aborted.
   */
   if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
-                                    MYSQL_LOCK_IGNORE_FLUSH, &not_used)) ||
+                                    MYSQL_LOCK_IGNORE_FLUSH)) ||
         hooks->postlock(&table, 1))
   {
     if (*lock)

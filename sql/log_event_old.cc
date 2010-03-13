@@ -1455,8 +1455,6 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
   */
   if (!thd->lock)
   {
-    bool need_reopen= 1; /* To execute the first lap of the loop below */
-
     /*
       lock_tables() reads the contents of thd->lex, so they must be
       initialized. Contrary to in
@@ -1465,80 +1463,31 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     lex_start(thd);
 
-    while ((error= lock_tables(thd, rli->tables_to_lock,
-                               rli->tables_to_lock_count, 0,
-                               &need_reopen)))
+    if ((error= lock_tables(thd, rli->tables_to_lock,
+                               rli->tables_to_lock_count, 0)))
     {
-      if (!need_reopen)
+      if (thd->is_slave_error || thd->is_fatal_error)
       {
-        if (thd->is_slave_error || thd->is_fatal_error)
-        {
-          /*
-            Error reporting borrowed from Query_log_event with many excessive
-            simplifications (we don't honour --slave-skip-errors)
-          */
-          uint actual_error= thd->net.last_errno;
-          rli->report(ERROR_LEVEL, actual_error,
-                      "Error '%s' in %s event: when locking tables",
-                      (actual_error ? thd->net.last_error :
-                       "unexpected success or fatal error"),
-                      get_type_str());
-          thd->is_fatal_error= 1;
-        }
-        else
-        {
-          rli->report(ERROR_LEVEL, error,
-                      "Error in %s event: when locking tables",
-                      get_type_str());
-        }
-        const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
-        DBUG_RETURN(error);
+        /*
+          Error reporting borrowed from Query_log_event with many excessive
+          simplifications (we don't honour --slave-skip-errors)
+        */
+        uint actual_error= thd->net.last_errno;
+        rli->report(ERROR_LEVEL, actual_error,
+                    "Error '%s' in %s event: when locking tables",
+                    (actual_error ? thd->net.last_error :
+                     "unexpected success or fatal error"),
+                    get_type_str());
+        thd->is_fatal_error= 1;
       }
-
-      /*
-        So we need to reopen the tables.
-
-        We need to flush the pending RBR event, since it keeps a
-        pointer to an open table.
-
-        ALTERNATIVE SOLUTION (not implemented): Extract a pointer to
-        the pending RBR event and reset the table pointer after the
-        tables has been reopened.
-
-        NOTE: For this new scheme there should be no pending event:
-        need to add code to assert that is the case.
-       */
-      error= thd->binlog_flush_pending_rows_event(FALSE);
-      if (error)
+      else
       {
-        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                    ER(ER_SLAVE_FATAL_ERROR),
-                    "call to binlog_flush_pending_rows_event() failed");
-        thd->is_slave_error= 1;
-        DBUG_RETURN(error);
+        rli->report(ERROR_LEVEL, error,
+                    "Error in %s event: when locking tables",
+                    get_type_str());
       }
-      TABLE_LIST *tables= rli->tables_to_lock;
-      close_tables_for_reopen(thd, &tables, NULL);
-
-      uint tables_count= rli->tables_to_lock_count;
-      if ((error= open_tables(thd, &tables, &tables_count, 0)))
-      {
-        if (thd->is_slave_error || thd->is_fatal_error)
-        {
-          /*
-            Error reporting borrowed from Query_log_event with many excessive
-            simplifications (we don't honour --slave-skip-errors)
-          */
-          uint actual_error= thd->net.last_errno;
-          rli->report(ERROR_LEVEL, actual_error,
-                      "Error '%s' on reopening tables",
-                      (actual_error ? thd->net.last_error :
-                       "unexpected success or fatal error"));
-          thd->is_slave_error= 1;
-        }
-        const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
-        DBUG_RETURN(error);
-      }
+      const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
+      DBUG_RETURN(error);
     }
 
     /*
