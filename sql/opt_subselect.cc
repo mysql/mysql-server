@@ -322,7 +322,13 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
     default:
       ;/* suitable for materialization */
     }
+
+    // Materialization does not work with BLOB columns
+    if (inner->field_type() == MYSQL_TYPE_BLOB || 
+	inner->field_type() == MYSQL_TYPE_GEOMETRY)
+        DBUG_RETURN(FALSE);
   }
+    
   in_subs->types_allow_materialization= TRUE;
   in_subs->sjm_scan_allowed= all_are_fields;
   DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
