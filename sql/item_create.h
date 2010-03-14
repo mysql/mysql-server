@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,7 @@ public:
     @param item_list The list of arguments to the function, can be NULL
     @return An item representing the parsed function call, or NULL
   */
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list) = 0;
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list) = 0;
 
 protected:
   /** Constructor */
@@ -80,7 +80,7 @@ public:
     @param item_list The list of arguments to the function, can be NULL
     @return An item representing the parsed function call
   */
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     The builder create method, for qualified functions.
@@ -127,7 +127,7 @@ extern Create_qfunc * find_qualified_function_builder(THD *thd);
 class Create_udf_func : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     The builder create method, for User Defined Functions.

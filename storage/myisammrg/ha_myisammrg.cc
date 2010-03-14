@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -427,24 +427,24 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
   @detail This function initializes the MERGE storage engine structures
     and adds a child list of TABLE_LIST to the parent TABLE.
 
-  @param[in]    name            MERGE table path name
-  @param[in]    mode            read/write mode, unused
-  @param[in]    test_if_locked  open flags
+  @param[in]    name                MERGE table path name
+  @param[in]    mode                read/write mode, unused
+  @param[in]    test_if_locked_arg  open flags
 
   @return       status
-    @retval     0               OK
-    @retval     -1              Error, my_errno gives reason
+    @retval     0                   OK
+    @retval     -1                  Error, my_errno gives reason
 */
 
 int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
-                       uint test_if_locked)
+                       uint test_if_locked_arg)
 {
   DBUG_ENTER("ha_myisammrg::open");
   DBUG_PRINT("myrg", ("name: '%s'  table: 0x%lx", name, (long) table));
-  DBUG_PRINT("myrg", ("test_if_locked: %u", test_if_locked));
+  DBUG_PRINT("myrg", ("test_if_locked_arg: %u", test_if_locked_arg));
 
   /* Save for later use. */
-  this->test_if_locked= test_if_locked;
+  test_if_locked= test_if_locked_arg;
 
   /* retrieve children table list. */
   my_errno= 0;
