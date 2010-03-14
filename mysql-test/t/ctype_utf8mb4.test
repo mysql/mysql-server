@@ -1603,6 +1603,8 @@ SELECT u_decimal, hex(utf8mb4_encoding) FROM t1 ORDER BY utf8mb4_encoding COLLAT
 # First invalid 4 byte value
 INSERT INTO t1 VALUES (1114111, x'f5808080');
 
+SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
+       table_name= 't1' AND column_name= 'utf8mb4_encoding';
 
 --disable_warnings
 DROP TABLE IF EXISTS t2;
@@ -1618,11 +1620,84 @@ INSERT INTO t2 VALUES (65131, x'efb9ab');
 # <Plane 16 Private Use, Last> (last 4 byte character)
 INSERT INTO t2 VALUES (1114111, x'f48fbfbf');
 
+SELECT character_maximum_length, character_octet_length FROM information_schema.columns WHERE
+       table_name= 't2' AND column_name= 'utf8mb3_encoding';
+
+#  Update a 3-byte char col with a 4-byte char, error
+UPDATE t2 SET utf8mb3_encoding= x'f48fbfbd' where u_decimal= 42856;
+
+#  Update to a 3-byte char casted to 4-byte, error?
+UPDATE t2 SET utf8mb3_encoding= _utf8mb4 x'ea9da8' where u_decimal= 42856;
+
+# Returns utfmb4
+SELECT HEX(CONCAT(utf8mb4_encoding, _utf8 x'ea9da8')) FROM t1;
+SELECT HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding)) FROM t1,t2;
+
+#--error ER_INVALID_CHARACTER_STRING
+#SELECT CONCAT(_utf8 utf8mb4_encoding, _utf8 '|') FROM t1;
+#--error ER_INVALID_CHARACTER_STRING
+#SELECT CONCAT(_utf8mb3 utf8mb4_encoding, _utf8 '|') FROM t1;
+
+SELECT count(*) FROM t1, t2
+   WHERE t1.utf8mb4_encoding > t2.utf8mb3_encoding;
+
+# Alter from 4-byte charset to 3-byte charset, error
+ALTER TABLE t1 CONVERT TO CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
+SELECT u_decimal,hex(utf8mb4_encoding),utf8mb4_encoding FROM t1;
+
+# Alter table from utf8 to utf8mb4
+ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb4;
 SHOW CREATE TABLE t2;
+SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
+
+# Alter table back from utf8mb4 to utf8
+ALTER TABLE t2 CONVERT TO CHARACTER SET utf8mb3;
+SHOW CREATE TABLE t2;
+SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
+
+# ALter of utf8mb4 column to utf8
+ALTER TABLE t1 MODIFY utf8mb4_encoding VARCHAR(10) CHARACTER SET utf8mb3;
+SHOW CREATE TABLE t1;
+SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
+
+# ALter of utf8 column to utf8mb4
+ALTER TABLE t1 MODIFY utf8mb4_encoding VARCHAR(10) CHARACTER SET utf8mb4;
+SHOW CREATE TABLE t1;
+SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
+
+# ALter of utf8 column to utf8mb4
+ALTER TABLE t2 MODIFY utf8mb3_encoding VARCHAR(10) CHARACTER SET utf8mb4;
+SHOW CREATE TABLE t2;
+SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
+
+--disable_warnings
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+CREATE TABLE t3 (
+        u_decimal int NOT NULL,
+        utf8mb3_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8;
+
+# Insert select utf8mb4 (4-byte) into utf8 (3-byte), error
+#--error ER_INVALID_CHARACTER_STRING
+INSERT INTO t3 SELECT * FROM t1;
+
+--disable_warnings
+DROP TABLE IF EXISTS t4;
+--enable_warnings
+CREATE TABLE t4 (
+        u_decimal int NOT NULL,
+        utf8mb4_encoding VARCHAR(10) NOT NULL
+) CHARACTER SET utf8mb4;
+
+# Insert select utf8 (3-byte) into utf8mb4 (4-byte)
+INSERT INTO t3 SELECT * FROM t2;
 
 DROP TABLE t1;
 DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
 
 --echo #
 --echo # Testing that mixing utf8 and utf8mb4 collations returns utf8mb4
@@ -1660,6 +1735,58 @@ INSERT INTO t1 VALUES (x'f48fbfbf');
 SELECT CONCAT(utf8mb4, _utf8 '¿') FROM t1;
 --error ER_CANT_AGGREGATE_2COLLATIONS
 SELECT CONCAT('a', _utf8 '¿') FROM t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#51675 Server crashes on inserting 4 byte char.
+--echo # after ALTER TABLE to 'utf8mb4' 
+--echo #
+SET NAMES utf8;
+CREATE TABLE t1 ( 
+  subject varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci, 
+  p VARCHAR(15) CHARACTER SET utf8 
+) DEFAULT CHARSET=latin1; 
+
+# Alter old table, add index 
+ALTER TABLE t1 ADD INDEX (subject); 
+
+# Alter old 'utf8' table to new 'utf8mb4'
+ALTER TABLE t1
+  DEFAULT CHARACTER SET utf8,
+  MODIFY subject varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  MODIFY p varchar(255) CHARACTER SET utf8;
+SHOW CREATE TABLE t1; 
+
+INSERT INTO t1(subject) VALUES ('abcd'); 
+# Insert 4 byte characters
+INSERT INTO t1(subject) VALUES(x'f0909080');
+DROP TABLE t1;
+
+#
+# Make sure fulltext does not crash on supplementary characters
+#
+CREATE TABLE t1 (a TEXT CHARACTER SET utf8mb4, FULLTEXT INDEX(a));
+INSERT INTO t1 VALUES (0xF0A08080 /* U+20000 */ );
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #51676 Server crashes on SELECT, ORDER BY on 'utf8mb4' column
+--echo #
+SET NAMES utf8mb4; 
+CREATE TABLE t1 ( 
+  subject varchar(255) character set utf8mb4 collate utf8mb4_unicode_ci, 
+  p varchar(15) character set utf8mb4 
+) DEFAULT CHARSET=latin1; 
+# Insert 4 byte characters 
+# 4byte character 
+INSERT INTO t1(subject) VALUES(0xF0909080);
+# mix of 3 byte & 4 byte 
+INSERT INTO t1(subject) VALUES(0x616263F0909080646566);
+SHOW CREATE TABLE t1; 
+SELECT *  FROM t1 ORDER BY 1;
+SELECT hex(subject), length(subject), char_length(subject), octet_length(subject) FROM t1 ORDER BY 1; 
+SELECT subject FROM t1 ORDER BY 1;
 DROP TABLE t1;
 
 --echo #

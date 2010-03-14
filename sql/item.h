@@ -3122,14 +3122,16 @@ protected:
   bool value_cached;
 public:
   Item_cache():
-    example(0), used_table_map(0), cached_field(0), cached_field_type(MYSQL_TYPE_STRING),
+    example(0), used_table_map(0), cached_field(0),
+    cached_field_type(MYSQL_TYPE_STRING),
     value_cached(0)
   {
     fixed= 1; 
     null_value= 1;
   }
   Item_cache(enum_field_types field_type_arg):
-    example(0), used_table_map(0), cached_field(0), cached_field_type(field_type_arg),
+    example(0), used_table_map(0), cached_field(0),
+    cached_field_type(field_type_arg),
     value_cached(0)
   {
     fixed= 1;
@@ -3233,10 +3235,9 @@ class Item_cache_str: public Item_cache
   
 public:
   Item_cache_str(const Item *item) :
-    Item_cache(), value(0),
+    Item_cache(item->field_type()), value(0),
     is_varbinary(item->type() == FIELD_ITEM &&
-                 ((const Item_field *) item)->field->type() ==
-                   MYSQL_TYPE_VARCHAR &&
+                 cached_field_type == MYSQL_TYPE_VARCHAR &&
                  !((const Item_field *) item)->field->has_charset())
   {}
   double val_real();

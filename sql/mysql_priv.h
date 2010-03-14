@@ -1575,26 +1575,16 @@ open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
   return open_tables(thd, tables, counter, flags, &prelocking_strategy);
 }
 /* open_and_lock_tables with optional derived handling */
-bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
-                                 bool derived, uint flags,
-                                 Prelocking_strategy *prelocking_strategy);
-inline bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
-                                        bool derived, uint flags)
+bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
+                          bool derived, uint flags,
+                          Prelocking_strategy *prelocking_strategy);
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
+                                 bool derived, uint flags)
 {
   DML_prelocking_strategy prelocking_strategy;
 
-  return open_and_lock_tables_derived(thd, tables, derived, flags,
-                                      &prelocking_strategy);
-}
-/* simple open_and_lock_tables without derived handling */
-inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  return open_and_lock_tables_derived(thd, tables, FALSE, 0);
-}
-/* open_and_lock_tables with derived handling */
-inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  return open_and_lock_tables_derived(thd, tables, TRUE, 0);
+  return open_and_lock_tables(thd, tables, derived, flags,
+                              &prelocking_strategy);
 }
 /* simple open_and_lock_tables without derived handling for single table */
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
@@ -1988,7 +1978,8 @@ extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_connect_errors, connect_timeout;
-extern ulong slave_net_timeout, slave_trans_retries;
+extern ulong slave_trans_retries;
+extern uint  slave_net_timeout;
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
@@ -2028,7 +2019,7 @@ extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 extern bool opt_large_files, server_id_supplied;
-extern bool opt_update_log, opt_bin_log, opt_error_log;
+extern bool opt_bin_log, opt_error_log;
 extern my_bool opt_log, opt_slow_log;
 extern ulonglong log_output_options;
 extern my_bool opt_log_queries_not_using_indexes;
@@ -2184,11 +2175,17 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
   in parser.
 */
 #define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL   0x0800
+/**
+  When opening or locking the table, use the maximum timeout
+  (LONG_TIMEOUT = 1 year) rather than the user-supplied timeout value.
+*/
+#define MYSQL_LOCK_IGNORE_TIMEOUT               0x1000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_LOCK_IGNORE_FLUSH |\
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |\
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
+                            MYSQL_LOCK_IGNORE_TIMEOUT |\
                             MYSQL_OPEN_GET_NEW_TABLE |\
                             MYSQL_OPEN_SKIP_TEMPORARY |\
                             MYSQL_OPEN_HAS_MDL_LOCK)
@@ -2690,7 +2687,8 @@ enum options_mysqld
   OPT_SSL_CIPHER,
   OPT_SSL_KEY,
   OPT_WANT_CORE,
-  OPT_ENGINE_CONDITION_PUSHDOWN
+  OPT_ENGINE_CONDITION_PUSHDOWN,
+  OPT_LOG_ERROR
 };
 
 #endif /* MYSQL_SERVER */

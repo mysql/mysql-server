@@ -24,10 +24,10 @@ ${CMAKE_BINARY_DIR}/sql
 )
 
 SET(GEN_SOURCES
-${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
-${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
-${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-${CMAKE_BINARY_DIR}/sql/lex_hash.h 
+${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
+${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
+${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
@@ -238,8 +238,12 @@ ADD_CUSTOM_TARGET(dist
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-
-
+ADD_CUSTOM_TARGET(distclean
+  COMMAND ${CMAKE_COMMAND} -E echo  WARNING: distclean target is not functional
+  COMMAND ${CMAKE_COMMAND} -E echo  Use 'bzr clean-tree' with --unknown and/or
+    --ignored parameter instead
+  VERBATIM
+  )
 
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
