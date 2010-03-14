@@ -1,0 +1,6 @@
+--source include/have_utf8mb4.inc
+--source include/have_innodb.inc
+
+let $engine= InnoDB;
+--source include/ctype_utf8mb4.inc
+

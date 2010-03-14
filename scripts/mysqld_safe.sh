@@ -54,6 +54,8 @@ Usage: $0 [OPTIONS]
   --mysqld=FILE              Use the specified file as mysqld
   --mysqld-version=VERSION   Use "mysqld-VERSION" as mysqld
   --nice=NICE                Set the scheduling priority of mysqld
+  --plugin-dir=DIR           Plugins are under DIR or DIR/VERSION, if
+                             VERSION is given
   --skip-kill-mysqld         Don't try to kill stray mysqld processes
   --syslog                   Log messages to syslog with 'logger'
   --skip-syslog              Log messages to error log (default)
@@ -172,6 +174,7 @@ parse_arguments() {
       --basedir=*) MY_BASEDIR_VERSION="$val" ;;
       --datadir=*) DATADIR="$val" ;;
       --pid-file=*) pid_file="$val" ;;
+      --plugin-dir=*) PLUGIN_DIR="$val" ;;
       --user=*) user="$val"; SET_USER=1 ;;
 
       # these might have been set in a [mysqld_safe] section of my.cnf
@@ -189,6 +192,7 @@ parse_arguments() {
         if test -n "$val"
         then
           MYSQLD="mysqld-$val"
+          PLUGIN_VARIANT="/$val"
         else
           MYSQLD="mysqld"
         fi
@@ -695,8 +699,10 @@ fi
 
 cmd="`mysqld_ld_preload_text`$NOHUP_NICENESS"
 
+plugin_dir="${PLUGIN_DIR:-@PLUGINDIR@}${PLUGIN_VARIANT}"
+
 for i in  "$ledir/$MYSQLD" "$defaults" "--basedir=$MY_BASEDIR_VERSION" \
-  "--datadir=$DATADIR" "$USER_OPTION"
+  "--datadir=$DATADIR" "--plugin-dir=$plugin_dir" "$USER_OPTION"
 do
   cmd="$cmd "`shell_quote_string "$i"`
 done

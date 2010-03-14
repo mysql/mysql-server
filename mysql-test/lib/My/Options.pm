@@ -67,9 +67,6 @@ sub _split_option {
   elsif ($option=~ /^(.*)=(.*)$/){
     return ($1, $2)
   }
-  elsif ($option=~ /^-O$/){
-    return (undef, undef);
-  }
   die "Unknown option format '$option'";
 }
 
@@ -169,20 +166,11 @@ sub toSQL {
   my @sql;
 
   foreach my $option (@options) {
-    my ($name, $value)= _split_option($option);
-    #print "name: $name\n";
+    my ($sql_name, $value)= _split_option($option);
+    #print "name: $sql_name\n";
     #print "value: $value\n";
-    if ($name =~ /^O, (.*)/){
-      push(@sql, "SET GLOBAL $1=$value");
-    }
-    elsif ($name =~ /^set-variable=(.*)/){
-      push(@sql, "SET GLOBAL $1=$value");
-    }
-    else {
-      my $sql_name= $name;
-      $sql_name=~ s/-/_/g;
-      push(@sql, "SET GLOBAL $sql_name=$value");
-    }
+    $sql_name=~ s/-/_/g;
+    push(@sql, "SET GLOBAL $sql_name=$value");
   }
   return join("; ", @sql);
 }
