@@ -322,7 +322,13 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
     default:
       ;/* suitable for materialization */
     }
+
+    // Materialization does not work with BLOB columns
+    if (inner->field_type() == MYSQL_TYPE_BLOB || 
+	inner->field_type() == MYSQL_TYPE_GEOMETRY)
+        DBUG_RETURN(FALSE);
   }
+    
   in_subs->types_allow_materialization= TRUE;
   in_subs->sjm_scan_allowed= all_are_fields;
   DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
@@ -2181,6 +2187,8 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     if (tablenr != first)
       pos->sj_strategy= SJ_OPT_NONE;
     remaining_tables |= s->table->map;
+    //s->sj_strategy= pos->sj_strategy;
+    join->join_tab[first].sj_strategy= join->best_positions[first].sj_strategy;
   }
 }
 

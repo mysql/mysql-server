@@ -1589,7 +1589,7 @@ public:
   void add(Item_field *f);
   uint members();
   bool contains(Field *field);
-  Item_field* get_first() { return fields.head(); }
+  Item_field* get_first(Item_field *field);
   uint n_fields() { return fields.elements; }
   void merge(Item_equal *item);
   void update_const();
