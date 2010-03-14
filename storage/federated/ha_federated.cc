@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB
+/* Copyright (c) 2004, 2010 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1253,7 +1253,7 @@ bool ha_federated::create_where_from_key(String *to,
                                          const key_range *start_key,
                                          const key_range *end_key,
                                          bool from_records_in_range,
-                                         bool eq_range)
+                                         bool eq_range_arg)
 {
   bool both_not_null=
     (start_key != NULL && end_key != NULL) ? TRUE : FALSE;
@@ -1360,7 +1360,7 @@ bool ha_federated::create_where_from_key(String *to,
         }
         break;
       case HA_READ_AFTER_KEY:
-        if (eq_range)
+        if (eq_range_arg)
         {
           if (tmp.append("1=1"))                // Dummy
             goto err;
@@ -3208,14 +3208,14 @@ bool ha_federated::get_error_message(int error, String* buf)
   @details    Call @c mysql_store_result() to save a result set then
               append it to the stored results array.
 
-  @param[in]  mysql  MySLQ connection structure.
+  @param[in]  mysql_arg  MySLQ connection structure.
 
   @return     Stored result set (MYSQL_RES object).
 */
 
-MYSQL_RES *ha_federated::store_result(MYSQL *mysql)
+MYSQL_RES *ha_federated::store_result(MYSQL *mysql_arg)
 {
-  MYSQL_RES *result= mysql_store_result(mysql);
+  MYSQL_RES *result= mysql_store_result(mysql_arg);
   DBUG_ENTER("ha_federated::store_result");
   if (result)
   {
