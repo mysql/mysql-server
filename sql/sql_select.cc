@@ -5127,7 +5127,9 @@ greedy_search(JOIN      *join,
   /* number of tables that remain to be optimized */
   n_tables= size_remain= my_count_bits(remaining_tables &
                                        (join->emb_sjm_nest? 
-                                         join->emb_sjm_nest->sj_inner_tables :
+                                         (join->emb_sjm_nest->sj_inner_tables &
+                                          ~join->const_table_map)
+                                         :
                                          ~(table_map)0));
 
   do {
@@ -5387,7 +5389,7 @@ best_extension_by_limited_search(JOIN      *join,
 
   table_map allowed_tables= ~(table_map)0;
   if (join->emb_sjm_nest)
-    allowed_tables= join->emb_sjm_nest->sj_inner_tables;
+    allowed_tables= join->emb_sjm_nest->sj_inner_tables & ~join->const_table_map;
 
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {

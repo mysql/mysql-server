@@ -1,4 +1,4 @@
-drop table if exists t0, t1, t2, t10, t11, t12;
+drop table if exists t0, t1, t2, t3, t4, t10, t11, t12;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1(a int, b int);
@@ -871,3 +871,54 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DROP TABLE t1, t2, t3;
 DROP VIEW v2, v3;
 # End of Bug#49198
+#
+# BUG#43768: Prepared query with nested subqueries core dumps on second execution
+#
+create table t1 (
+id int(11) unsigned not null primary key auto_increment,
+partner_id varchar(35) not null,
+t1_status_id int(10) unsigned
+);
+insert into t1 values ("1", "partner1", "10"), ("2", "partner2", "10"),
+("3", "partner3", "10"), ("4", "partner4", "10");
+create table t2 (
+id int(11) unsigned not null default '0',
+t1_line_id int(11) unsigned not null default '0',
+article_id varchar(20),
+sequence int(11) not null default '0',
+primary key  (id,t1_line_id)
+);
+insert into t2 values ("1", "1", "sup", "0"), ("2", "1", "sup", "1"),
+("2", "2", "sup", "2"), ("2", "3", "sup", "3"),
+("2", "4", "imp", "4"), ("3", "1", "sup", "0"),
+("4", "1", "sup", "0");
+create table t3 (
+id int(11) not null default '0',
+preceeding_id int(11) not null default '0',
+primary key  (id,preceeding_id)
+);
+create table t4 (
+user_id varchar(50) not null,
+article_id varchar(20) not null,
+primary key  (user_id,article_id)
+);
+insert into t4 values("nicke", "imp");
+prepare stmt from
+'select t1.partner_id
+from t1
+where
+  t1.id in (
+    select pl_inner.id
+    from t2 as pl_inner
+    where  pl_inner.article_id in (
+      select t4.article_id from t4
+      where t4.user_id = \'nicke\'
+    )
+  )';
+execute stmt;
+partner_id
+partner2
+execute stmt;
+partner_id
+partner2
+drop table t1,t2,t3,t4;

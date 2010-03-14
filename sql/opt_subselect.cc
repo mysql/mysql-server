@@ -963,7 +963,6 @@ int pull_out_semijoin_tables(JOIN *join)
   {
     /* Action #1: Mark the constant tables to be pulled out */
     table_map pulled_tables= 0;
-     
     List_iterator<TABLE_LIST> child_li(sj_nest->nested_join->join_list);
     TABLE_LIST *tbl;
     while ((tbl= child_li++))
@@ -971,12 +970,34 @@ int pull_out_semijoin_tables(JOIN *join)
       if (tbl->table)
       {
         tbl->table->reginfo.join_tab->emb_sj_nest= sj_nest;
+#if 0 
+        /* 
+          Do not pull out tables because they are constant. This operation has
+          a problem:
+          - Some constant tables may become/cease to be constant across PS
+            re-executions
+          - Contrary to our initial assumption, it turned out that table pullout 
+            operation is not easily undoable.
+
+          The solution is to leave constant tables where they are. This will
+          affect only constant tables that are 1-row or empty, tables that are
+          constant because they are accessed via eq_ref(const) access will
+          still be pulled out as functionally-dependent.
+
+          This will cause us to miss the chance to flatten some of the 
+          subqueries, but since const tables do not generate many duplicates,
+          it really doesn't matter that much whether they were pulled out or
+          not.
+
+          All of this was done as fix for BUG#43768.
+        */
         if (tbl->table->map & join->const_table_map)
         {
           pulled_tables |= tbl->table->map;
           DBUG_PRINT("info", ("Table %s pulled out (reason: constant)",
                               tbl->table->alias));
         }
+#endif
       }
     }
     
@@ -1048,6 +1069,7 @@ int pull_out_semijoin_tables(JOIN *join)
               pointers.
             */
             child_li.remove();
+            sj_nest->nested_join->used_tables &= ~tbl->table->map;
             upper_join_list->push_back(tbl);
             tbl->join_list= upper_join_list;
             tbl->embedding= sj_nest->embedding;
@@ -1104,20 +1126,20 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
   DBUG_ENTER("optimize_semijoin_nests");
   List_iterator<TABLE_LIST> sj_list_it(join->select_lex->sj_nests);
   TABLE_LIST *sj_nest;
-  /*
-    The statement may have been executed with 'semijoin=on' earlier.
-    We need to verify that 'semijoin=on' still holds.
-   */
-  if (optimizer_flag(join->thd, OPTIMIZER_SWITCH_SEMIJOIN) &&
-      optimizer_flag(join->thd, OPTIMIZER_SWITCH_MATERIALIZATION))
+  while ((sj_nest= sj_list_it++))
   {
-    while ((sj_nest= sj_list_it++))
-    {
-      /* semi-join nests with only constant tables are not valid */
-      DBUG_ASSERT(sj_nest->sj_inner_tables & ~join->const_table_map);
+    /* semi-join nests with only constant tables are not valid */
+   /// DBUG_ASSERT(sj_nest->sj_inner_tables & ~join->const_table_map);
 
-      sj_nest->sj_mat_info= NULL;
-      if (sj_nest->sj_inner_tables && /* not everything was pulled out */
+    sj_nest->sj_mat_info= NULL;
+    /*
+      The statement may have been executed with 'semijoin=on' earlier.
+      We need to verify that 'semijoin=on' still holds.
+     */
+    if (optimizer_flag(join->thd, OPTIMIZER_SWITCH_SEMIJOIN) &&
+        optimizer_flag(join->thd, OPTIMIZER_SWITCH_MATERIALIZATION))
+    {
+      if ((sj_nest->sj_inner_tables  & ~join->const_table_map) && /* not everything was pulled out */
           !sj_nest->sj_subq_pred->is_correlated && 
            sj_nest->sj_subq_pred->types_allow_materialization)
       {
@@ -1128,7 +1150,7 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
           The best plan to run the subquery is now in join->best_positions,
           save it.
         */
-        uint n_tables= my_count_bits(sj_nest->sj_inner_tables);
+        uint n_tables= my_count_bits(sj_nest->sj_inner_tables & ~join->const_table_map);
         SJ_MATERIALIZATION_INFO* sjm;
         if (!(sjm= new SJ_MATERIALIZATION_INFO) ||
             !(sjm->positions= (POSITION*)join->thd->alloc(sizeof(POSITION)*
@@ -1443,7 +1465,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       new_join_tab->emb_sj_nest->nested_join->sj_corr_tables |
       new_join_tab->emb_sj_nest->nested_join->sj_depends_on;
     const table_map sj_inner_tables=
-      new_join_tab->emb_sj_nest->sj_inner_tables;
+      new_join_tab->emb_sj_nest->sj_inner_tables & ~join->const_table_map;
 
     /* 
       Enter condition:
