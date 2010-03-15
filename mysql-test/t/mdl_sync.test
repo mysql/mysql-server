@@ -2277,17 +2277,32 @@ let $wait_condition=
   select count(*) = 1 from information_schema.processlist
   where state = "Table lock" and info = "insert into t2 values (1)";
 --source include/wait_condition.inc
---echo # The below statement should not cause deadlock.
-alter table t1 drop column j;
-unlock tables;
+--echo # Sending 'alter table t1 drop column j'. It should not cause
+--echo # deadlock.
+send alter table t1 drop column j;
+--echo # Switching to connection 'handler_con2'.
+connection handler_con2;
+--echo # Wait until ALTER is blocked during upgrade.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 drop column j";
+--source include/wait_condition.inc
 --echo # 
 --echo # Switching to connection 'default'.
 connection default;
 --echo # Reap INSERT.
+--error ER_LOCK_ABORTED
 --reap
 handler t1 close;
-
 --echo #
+--echo # Switching to connection 'handler_con1'.
+connection handler_con1;
+--echo # Reaping 'alter table t1 drop column j'
+--reap
+unlock tables;
+--echo # Switching to connection 'default'.
+connection default;
+
 --echo # Then, check the scenario in which upgrade of SNRW lock to X
 --echo # lock is blocked by HANDLER which is open in connection currently
 --echo # waiting to get SW lock on the same table.
@@ -3220,6 +3235,8 @@ disconnect con2;
 --echo #           failed in open_ltable()
 --echo #
 
+--echo # Supress warnings written to the log file
+call mtr.add_suppression("Wait on a lock was aborted due to a pending exclusive lock");
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
@@ -3279,16 +3296,10 @@ let $wait_condition=
 # since the latter waits on a table-level lock while having a HANDLER
 # open. This will cause mysql_lock_tables() in con1 fail which before
 # triggered the assert.
---echo # Sending:
---send ALTER TABLE t1 ADD COLUMN j INT
+ALTER TABLE t1 ADD COLUMN j INT;
 
 --echo # connection: default
 connection default;
-let $wait_condition=
-  SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE state = "Waiting for table" 
-  AND info = "ALTER TABLE t1 ADD COLUMN j INT";
---source include/wait_condition.inc
 SET DEBUG_SYNC= 'now SIGNAL go';
 
 --echo # connection: con1
@@ -3300,11 +3311,6 @@ HANDLER t1 CLOSE;
 --echo # connection: con2
 connection con2;
 --echo # Reaping SELECT 1
---reap
-
---echo # connection: con3
-connection con3;
---echo # Reaping ALTER TABLE t1 ADD COLUMN j INT
 --reap
 
 --echo # connection: default
