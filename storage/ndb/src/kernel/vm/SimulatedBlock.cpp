@@ -434,6 +434,19 @@ getSection(SegmentedSectionPtr & ptr, Uint32 i){
   ptr.sz = p->m_sz;
 }
 
+Uint32 getSectionSz(Uint32 id)
+{
+  return g_sectionSegmentPool.getPtr(id)->m_sz;
+}
+
+Uint32* getLastWordPtr(Uint32 id)
+{
+  SectionSegment* first= g_sectionSegmentPool.getPtr(id);
+  SectionSegment* last= g_sectionSegmentPool.getPtr(first->m_lastSegment);
+  Uint32 offset= (first->m_sz -1) % SectionSegment::DataLength;
+  return &last->theData[offset];
+}
+
 #ifdef NDBD_MULTITHREADED
 #define SB_SP_ARG *m_sectionPoolCache,
 #define SB_SP_REL_ARG f_section_lock, *m_sectionPoolCache,

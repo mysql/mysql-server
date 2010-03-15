@@ -6,7 +6,7 @@ Next DBTUP 4032
 Next DBLQH 5055
 Next DBDICT 6025
 Next DBDIH 7221
-Next DBTC 8083
+Next DBTC 8087
 Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
@@ -370,6 +370,9 @@ DBTC LONG SIGNAL TESTING
 8075: Drop middle fragments of fragmented SCANTABREQ
 8076: Drop last fragment of fragmented SCANTABREQ
 8077: Drop all fragments of fragmented SCANTABREQ
+
+8085: Simulate execFIRE_TRIG_ORD DataBuffer exhaustion
+8086: Simulate execFIRE_TRIG_ORD segmented section exhaustion
 
 DBLQH LONG SIGNAL TESTING
 -------------------------

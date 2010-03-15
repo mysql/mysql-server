@@ -10,7 +10,7 @@ get_key_value()
 usage()
 {
 cat <<EOF 
-Usage: $0 [-h|-n] [configure-options]
+Usage: $0 [-h|-n] [configure-options] [ -- -extra-configure-options ]
   -h, --help              Show this help message.
   -n, --just-print        Don't actually run any commands; just print them.
   -c, --just-configure    Stop after running configure.
@@ -18,6 +18,7 @@ Usage: $0 [-h|-n] [configure-options]
   --warning-mode=[old|pedantic]
                           Influences the debug flags. Old is default.
   --prefix=path           Build with prefix 'path'.
+  --                      Options after this is passed through to configure
 
 Note: this script is intended for internal use by MySQL developers.
 EOF
@@ -41,6 +42,10 @@ parse_options()
     -h | --help)
       usage
       exit 0;;
+    --)
+      shift;
+      extra_configure=$*;
+      break;;
     *)
       echo "Unknown option '$1'"
       exit 1;;
@@ -62,6 +67,7 @@ just_print=
 just_configure=
 full_debug=
 warning_mode=
+extra_configure=
 
 parse_options "$@"
 
