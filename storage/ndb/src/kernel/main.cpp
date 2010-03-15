@@ -42,6 +42,7 @@ static int opt_daemon, opt_no_daemon, opt_foreground,
   opt_initial, opt_no_start, opt_initialstart, opt_verbose;
 static const char* opt_nowait_nodes = 0;
 static const char* opt_bind_address = 0;
+int opt_report_fd;
 
 extern NdbNodeBitmask g_nowait_nodes;
 
@@ -86,6 +87,10 @@ static struct my_option my_long_options[] =
     "Write more log messages",
     (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
     GET_BOOL, NO_ARG, 0, 0, 1, 0, 0, 0 },
+  { "report-fd", 256,
+    "INTERNAL: fd where to write extra shutdown status",
+    (uchar**) &opt_report_fd, (uchar**) &opt_report_fd, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, ~0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -145,6 +150,7 @@ int main(int argc, char** argv)
   DBUG_PRINT("info", ("daemon=%d", opt_daemon));
   DBUG_PRINT("info", ("foreground=%d", opt_foreground));
   DBUG_PRINT("info", ("connect_str=%s", opt_connect_str));
+  ndbout_c("opt_report_fd: %d", opt_report_fd);
 
   if (opt_nowait_nodes)
   {
@@ -194,7 +200,7 @@ int main(int argc, char** argv)
   g_eventLogger->info("Ndb started");
 #endif
 
-  int res = ndbd_run(opt_foreground);
+  int res = ndbd_run(opt_foreground, opt_report_fd);
   ndbd_exit(res);
   return res;
 }
