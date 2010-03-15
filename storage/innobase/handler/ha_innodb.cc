@@ -40,12 +40,6 @@ have disabled the InnoDB inlining in this file. */
 #include "ha_innodb.h"
 #include <mysql/plugin.h>
 
-#ifndef MYSQL_SERVER
-/* This is needed because of Bug #3596. Let us hope that pthread_mutex_t
-is defined the same in both builds: the MySQL server and the InnoDB plugin. */
-extern pthread_mutex_t LOCK_thread_count;
-#endif /* MYSQL_SERVER */
-
 /** to protect innobase_open_files */
 static pthread_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -2592,57 +2586,150 @@ normalize_table_name(
 }
 
 /************************************************************************
+Get the upper limit of the MySQL integral and floating-point type. */
+static
+ulonglong
+innobase_get_int_col_max_value(
+/*===========================*/
+				/* out: maximum allowed value for the field */
+	const Field*	field)	/* in: MySQL field */
+{
+	ulonglong	max_value = 0;
+
+	switch(field->key_type()) {
+	/* TINY */
+	case HA_KEYTYPE_BINARY:
+		max_value = 0xFFULL;
+		break;
+	case HA_KEYTYPE_INT8:
+		max_value = 0x7FULL;
+		break;
+	/* SHORT */
+	case HA_KEYTYPE_USHORT_INT:
+		max_value = 0xFFFFULL;
+		break;
+	case HA_KEYTYPE_SHORT_INT:
+		max_value = 0x7FFFULL;
+		break;
+	/* MEDIUM */
+	case HA_KEYTYPE_UINT24:
+		max_value = 0xFFFFFFULL;
+		break;
+	case HA_KEYTYPE_INT24:
+		max_value = 0x7FFFFFULL;
+		break;
+	/* LONG */
+	case HA_KEYTYPE_ULONG_INT:
+		max_value = 0xFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_LONG_INT:
+		max_value = 0x7FFFFFFFULL;
+		break;
+	/* BIG */
+	case HA_KEYTYPE_ULONGLONG:
+		max_value = 0xFFFFFFFFFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_LONGLONG:
+		max_value = 0x7FFFFFFFFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_FLOAT:
+		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
+		max_value = 0x1000000ULL;
+		break;
+	case HA_KEYTYPE_DOUBLE:
+		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
+		max_value = 0x20000000000000ULL;
+		break;
+	default:
+		ut_error;
+	}
+
+	return(max_value);
+}
+
+/************************************************************************
 Set the autoinc column max value. This should only be called once from
 ha_innobase::open(). Therefore there's no need for a covering lock. */
 
-ulong
+void
 ha_innobase::innobase_initialize_autoinc()
 /*======================================*/
 {
-	dict_index_t*	index;
 	ulonglong	auto_inc;
-	const char*	col_name;
-	ulint		error = DB_SUCCESS;
-	dict_table_t*	innodb_table = prebuilt->table;
+	const Field*	field = table->found_next_number_field;
 
-	col_name = table->found_next_number_field->field_name;
-	index = innobase_get_index(table->s->next_number_index);
-
-	/* Execute SELECT MAX(col_name) FROM TABLE; */
-	error = row_search_max_autoinc(index, col_name, &auto_inc);
-
-	if (error == DB_SUCCESS) {
-
-		/* At the this stage we dont' know the increment
-		or the offset, so use default inrement of 1. */
-		++auto_inc;
-
-		dict_table_autoinc_initialize(innodb_table, auto_inc);
-
-	} else if (error == DB_RECORD_NOT_FOUND) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
-			"dictionaries are out of sync.\n"
-			"InnoDB: Unable to find the AUTOINC column %s in the "
-			"InnoDB table %s.\n"
-			"InnoDB: We set the next AUTOINC column value to the "
-			"maximum possible value,\n"
-			"InnoDB: in effect disabling the AUTOINC next value "
-			"generation.\n"
-			"InnoDB: You can either set the next AUTOINC value "
-			"explicitly using ALTER TABLE\n"
-			"InnoDB: or fix the data dictionary by recreating "
-			"the table.\n",
-			col_name, index->table->name);
-
+	if (field != NULL) {
+		auto_inc = innobase_get_int_col_max_value(field);
+	} else {
+		/* We have no idea what's been passed in to us as the
+		autoinc column. We set it to the MAX_INT of our table
+		autoinc type. */
 		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
 
-		dict_table_autoinc_initialize(innodb_table, auto_inc);
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Unable to determine the AUTOINC "
+				"column name\n");
+	}
 
-		error = DB_SUCCESS;
-	} /* else other errors are still fatal */
+	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+		/* If the recovery level is set so high that writes
+		are disabled we force the AUTOINC counter to the MAX
+		value effectively disabling writes to the table.
+		Secondly, we avoid reading the table in case the read
+		results in failure due to a corrupted table/index.
 
-	return(ulong(error));
+		We will not return an error to the client, so that the
+		tables can be dumped with minimal hassle.  If an error
+		were returned in this case, the first attempt to read
+		the table would fail and subsequent SELECTs would succeed. */
+	} else if (field == NULL) {
+		my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+	} else {
+		dict_index_t*	index;
+		const char*	col_name;
+		ulonglong	read_auto_inc;
+		ulint		err;
+
+		update_thd(ha_thd());
+		col_name = field->field_name;
+		index = innobase_get_index(table->s->next_number_index);
+
+		/* Execute SELECT MAX(col_name) FROM TABLE; */
+		err = row_search_max_autoinc(index, col_name, &read_auto_inc);
+
+		switch (err) {
+		case DB_SUCCESS:
+			/* At the this stage we do not know the increment
+			or the offset, so use a default increment of 1. */
+			auto_inc = read_auto_inc + 1;
+			break;
+
+		case DB_RECORD_NOT_FOUND:
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
+				"dictionaries are out of sync.\n"
+				"InnoDB: Unable to find the AUTOINC column "
+				"%s in the InnoDB table %s.\n"
+				"InnoDB: We set the next AUTOINC column "
+				"value to the maximum possible value,\n"
+				"InnoDB: in effect disabling the AUTOINC "
+				"next value generation.\n"
+				"InnoDB: You can either set the next "
+				"AUTOINC value explicitly using ALTER TABLE\n"
+				"InnoDB: or fix the data dictionary by "
+				"recreating the table.\n",
+				col_name, index->table->name);
+
+			my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+			break;
+		default:
+			/* row_search_max_autoinc() should only return
+			one of DB_SUCCESS or DB_RECORD_NOT_FOUND. */
+			ut_error;
+		}
+	}
+
+	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
 }
 
 /*********************************************************************
@@ -2840,8 +2927,6 @@ retry:
 
 	/* Only if the table has an AUTOINC column. */
 	if (prebuilt->table != NULL && table->found_next_number_field != NULL) {
-		ulint	error;
-
 		dict_table_autoinc_lock(prebuilt->table);
 
 		/* Since a table can already be "open" in InnoDB's internal
@@ -2850,8 +2935,7 @@ retry:
 		autoinc value from a previous MySQL open. */
 		if (dict_table_autoinc_read(prebuilt->table) == 0) {
 
-			error = innobase_initialize_autoinc();
-			ut_a(error == DB_SUCCESS);
+			innobase_initialize_autoinc();
 		}
 
 		dict_table_autoinc_unlock(prebuilt->table);
@@ -3669,67 +3753,6 @@ skip_field:
 				clust_index);
 		}
 	}
-}
-
-/************************************************************************
-Get the upper limit of the MySQL integral and floating-point type. */
-
-ulonglong
-ha_innobase::innobase_get_int_col_max_value(
-/*========================================*/
-	const Field*	field)
-{
-	ulonglong	max_value = 0;
-
-	switch(field->key_type()) {
-	/* TINY */
-	case HA_KEYTYPE_BINARY:
-		max_value = 0xFFULL;
-		break;
-	case HA_KEYTYPE_INT8:
-		max_value = 0x7FULL;
-		break;
-	/* SHORT */
-	case HA_KEYTYPE_USHORT_INT:
-		max_value = 0xFFFFULL;
-		break;
-	case HA_KEYTYPE_SHORT_INT:
-		max_value = 0x7FFFULL;
-		break;
-	/* MEDIUM */
-	case HA_KEYTYPE_UINT24:
-		max_value = 0xFFFFFFULL;
-		break;
-	case HA_KEYTYPE_INT24:
-		max_value = 0x7FFFFFULL;
-		break;
-	/* LONG */
-	case HA_KEYTYPE_ULONG_INT:
-		max_value = 0xFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_LONG_INT:
-		max_value = 0x7FFFFFFFULL;
-		break;
-	/* BIG */
-	case HA_KEYTYPE_ULONGLONG:
-		max_value = 0xFFFFFFFFFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_LONGLONG:
-		max_value = 0x7FFFFFFFFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_FLOAT:
-		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
-		max_value = 0x1000000ULL;
-		break;
-	case HA_KEYTYPE_DOUBLE:
-		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
-		max_value = 0x20000000000000ULL;
-		break;
-	default:
-		ut_error;
-	}
-
-	return(max_value);
 }
 
 /************************************************************************
@@ -7421,8 +7444,8 @@ innodb_show_status(
 
 	mutex_enter_noninline(&srv_monitor_file_mutex);
 	rewind(srv_monitor_file);
-	srv_printf_innodb_monitor(srv_monitor_file,
-				&trx_list_start, &trx_list_end);
+	srv_printf_innodb_monitor(srv_monitor_file, FALSE,
+				  &trx_list_start, &trx_list_end);
 	flen = ftell(srv_monitor_file);
 	os_file_set_eof(srv_monitor_file);
 

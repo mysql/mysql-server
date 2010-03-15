@@ -19,14 +19,6 @@
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
-#ifdef DBUG_OFF
-#define plugin_ref_to_int(A) A
-#define plugin_int_to_ref(A) A
-#else
-#define plugin_ref_to_int(A) (A ? A[0] : NULL)
-#define plugin_int_to_ref(A) &(A)
-#endif
-
 extern struct st_mysql_plugin *mysqld_builtins[];
 
 /**
@@ -361,7 +353,7 @@ static inline void free_plugin_mem(struct st_plugin_dl *p)
     dlclose(p->handle);
 #endif
   my_free(p->dl.str, MYF(MY_ALLOW_ZERO_PTR));
-  if (p->version != MYSQL_PLUGIN_INTERFACE_VERSION)
+  if (p->allocated)
     my_free((uchar*)p->plugins, MYF(MY_ALLOW_ZERO_PTR));
 }
 
@@ -483,30 +475,34 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 #endif
     }
 
-    for (i= 0;
-         ((struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
-         i++)
-      /* no op */;
-
-    cur= (struct st_mysql_plugin*)
-          my_malloc(i*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
-    if (!cur)
+    if (sizeof_st_plugin != sizeof(st_mysql_plugin))
     {
-      free_plugin_mem(&plugin_dl);
-      report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
-      DBUG_RETURN(0);
-    }
-    /*
-      All st_plugin fields not initialized in the plugin explicitly, are
-      set to 0. It matches C standard behaviour for struct initializers that
-      have less values than the struct definition.
-    */
-    for (i=0;
-         (old=(struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
-         i++)
-      memcpy(cur+i, old, min(sizeof(cur[i]), sizeof_st_plugin));
+      for (i= 0;
+           ((struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
+           i++)
+        /* no op */;
 
-    sym= cur;
+      cur= (struct st_mysql_plugin*)
+            my_malloc((i+1)*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
+      if (!cur)
+      {
+        free_plugin_mem(&plugin_dl);
+        report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
+        DBUG_RETURN(0);
+      }
+      /*
+        All st_plugin fields not initialized in the plugin explicitly, are
+        set to 0. It matches C standard behaviour for struct initializers that
+        have less values than the struct definition.
+      */
+      for (i=0;
+           (old=(struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
+           i++)
+        memcpy(cur+i, old, min(sizeof(cur[i]), sizeof_st_plugin));
+
+      sym= cur;
+      plugin_dl.allocated= true;
+    }
   }
   plugin_dl.plugins= (struct st_mysql_plugin *)sym;
 
@@ -639,7 +635,10 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
   {
     plugin_ref plugin;
 #ifdef DBUG_OFF
-    /* built-in plugins don't need ref counting */
+    /*
+      In optimized builds we don't do reference counting for built-in
+      (plugin->plugin_dl == 0) plugins.
+    */
     if (!pi->plugin_dl)
       DBUG_RETURN(pi);
 
@@ -667,13 +666,33 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
 }
 
 
-plugin_ref plugin_lock(THD *thd, plugin_ref *ptr CALLER_INFO_PROTO)
+plugin_ref plugin_lock(THD *thd, plugin_ref ptr CALLER_INFO_PROTO)
 {
   LEX *lex= thd ? thd->lex : 0;
   plugin_ref rc;
   DBUG_ENTER("plugin_lock");
+
+#ifdef DBUG_OFF
+  /*
+    In optimized builds we don't do reference counting for built-in
+    (plugin->plugin_dl == 0) plugins.
+
+    Note that we access plugin->plugin_dl outside of LOCK_plugin, and for
+    dynamic plugins a 'plugin' could correspond to plugin that was unloaded
+    meanwhile!  But because st_plugin_int is always allocated on
+    plugin_mem_root, the pointer can never be invalid - the memory is never
+    freed.
+    Of course, the memory that 'plugin' points to can be overwritten by
+    another plugin being loaded, but plugin->plugin_dl can never change
+    from zero to non-zero or vice versa.
+    That is, it's always safe to check for plugin->plugin_dl==0 even
+    without a mutex.
+  */
+  if (! plugin_dlib(ptr))
+    DBUG_RETURN(ptr);
+#endif
   pthread_mutex_lock(&LOCK_plugin);
-  rc= my_intern_plugin_lock_ci(lex, *ptr);
+  rc= my_intern_plugin_lock_ci(lex, ptr);
   pthread_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(rc);
 }
@@ -2094,7 +2113,7 @@ static int check_func_set(THD *thd, struct st_mysql_sys_var *var,
                      &error, &error_len, &not_used);
     if (error_len)
     {
-      strmake(buff, error, min(sizeof(buff), error_len));
+      strmake(buff, error, min(sizeof(buff) - 1, error_len));
       strvalue= buff;
       goto err;
     }

@@ -1490,7 +1490,7 @@ int ha_archive::info(uint flag)
     stats.create_time= (ulong) file_stat.st_ctime;
     stats.update_time= (ulong) file_stat.st_mtime;
     stats.mean_rec_length= stats.records ?
-      stats.data_file_length / stats.records : table->s->reclength;
+      ulong(stats.data_file_length / stats.records) : table->s->reclength;
     stats.max_data_file_length= MAX_FILE_SIZE;
   }
   stats.delete_length= 0;

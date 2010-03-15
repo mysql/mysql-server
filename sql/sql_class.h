@@ -361,6 +361,7 @@ struct system_variables
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
+  my_bool binlog_direct_non_trans_update;
   /*
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
@@ -567,6 +568,8 @@ public:
   { return state == INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)PREPARED; }
+  inline bool is_stmt_prepare_or_first_stmt_execute() const
+  { return (int)state <= (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
   inline bool is_stmt_execute() const
   { return state == PREPARED || state == EXECUTED; }
@@ -2664,7 +2667,7 @@ public:
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
-  void binlog_show_create_table(TABLE **tables, uint count);
+  int binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();

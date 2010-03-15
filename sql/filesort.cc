@@ -142,6 +142,8 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   error= 1;
   bzero((char*) &param,sizeof(param));
   param.sort_length= sortlength(thd, sortorder, s_length, &multi_byte_charset);
+  /* filesort cannot handle zero-length records. */
+  DBUG_ASSERT(param.sort_length);
   param.ref_length= table->file->ref_length;
   param.addon_field= 0;
   param.addon_length= 0;

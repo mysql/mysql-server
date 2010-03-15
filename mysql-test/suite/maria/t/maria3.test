@@ -259,7 +259,7 @@ drop table t1;
 
 # Fix if we are using safemalloc
 --replace_result 8388572 8388600
-show variables like 'maria%';
+select lower(variable_name) as Variable_name, Variable_value as Value from information_schema.session_variables where variable_name like "maria%" and variable_name not like "maria_used_for_temp_tables" order by 1;
 --replace_column 2 #
 show status like 'maria%';
 

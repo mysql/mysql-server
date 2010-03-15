@@ -241,8 +241,14 @@ bool servers_reload(THD *thd)
 
   if (simple_open_n_lock_tables(thd, tables))
   {
-    sql_print_error("Can't open and lock privilege tables: %s",
-		    thd->main_da.message());
+    /*
+      Execution might have been interrupted; only print the error message
+      if an error condition has been raised.
+    */
+    if (thd->main_da.is_error())
+      sql_print_error("Can't open and lock privilege tables: %s",
+                      thd->main_da.message());
+    return_val= FALSE;
     goto end;
   }
 

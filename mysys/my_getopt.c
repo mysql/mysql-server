@@ -145,6 +145,10 @@ int handle_options(int *argc, char ***argv,
       {                                       /* --set-variable, or -O  */
 	if (*cur_arg == 'O')
 	{
+          my_getopt_error_reporter(WARNING_LEVEL, 
+                                   "%s: Option '-O' is deprecated. "
+                                   "Use --variable-name=value instead.",
+                                   my_progname);
 	  must_be_var= 1;
 
 	  if (!(*++cur_arg))	/* If not -Ovar=# */
@@ -164,6 +168,11 @@ int handle_options(int *argc, char ***argv,
 	}
 	else if (!getopt_compare_strings(cur_arg, "-set-variable", 13))
 	{
+          my_getopt_error_reporter(WARNING_LEVEL, 
+                                   "%s: Option '--set-variable' is deprecated. "
+                                   "Use --variable-name=value instead.",
+                                   my_progname);
+                                   
 	  must_be_var= 1;
 	  if (cur_arg[13] == '=')
 	  {

@@ -288,6 +288,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     charsets_dir = argument;
 #endif
     break;
+  case 'O':
+    WARN_DEPRECATED(VER_CELOSIA, "--set-variable", "--variable-name=value");
+    break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);

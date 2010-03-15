@@ -218,10 +218,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
   DBUG_ASSERT(db != NULL);
   DBUG_ASSERT(name != NULL);
 
-  if ((db->length == INFORMATION_SCHEMA_NAME.length) &&
-      (my_strcasecmp(system_charset_info,
-                    INFORMATION_SCHEMA_NAME.str,
-                    db->str) == 0))
+  if (is_schema_db(db->str, db->length))
   {
     return TABLE_CATEGORY_INFORMATION;
   }
@@ -907,7 +904,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           replacing it with a globally locked version of tmp_plugin
         */
         plugin_unlock(NULL, share->db_plugin);
-        share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
+        share->db_plugin= my_plugin_lock(NULL, tmp_plugin);
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                             str_db_type_length, next_chunk + 2,
                             ha_legacy_type(share->db_type())));
@@ -2256,8 +2253,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     {
       if (work_part_info_used)
         tmp= fix_partition_func(thd, outparam, is_create_table);
-      outparam->part_info->item_free_list= part_func_arena.free_list;
     }
+    outparam->part_info->item_free_list= part_func_arena.free_list;
 partititon_err:
     if (tmp)
     {
@@ -2481,6 +2478,8 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   uchar *pos,*buf;
   ulong ret_value=0;
   DBUG_ENTER("get_form_pos");
+
+  LINT_INIT(buf);
 
   names=uint2korr(head+8);
   a_length=(names+2)*sizeof(char *);		/* Room for two extra */

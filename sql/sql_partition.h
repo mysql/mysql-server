@@ -91,9 +91,6 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
 uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
                                            bool left_endpoint,
                                            bool include_endpoint);
-bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
-                          bool is_sub_part, bool is_field_to_be_setup);
-
 bool check_part_func_fields(Field **ptr, bool ok_with_charsets);
 bool field_is_partition_charset(Field *field);
 

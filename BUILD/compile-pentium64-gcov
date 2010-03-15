@@ -9,9 +9,9 @@ export CCACHE_DISABLE
 
 export LDFLAGS="$gcov_link_flags"
 
-extra_flags="$pentium64_cflags $debug_cflags $max_cflags $gcov_compile_flags"
+extra_flags="$pentium64_cflags $max_cflags $gcov_compile_flags"
 c_warnings="$c_warnings $debug_extra_warnings"
 cxx_warnings="$cxx_warnings $debug_extra_warnings"
-extra_configs="$pentium64_configs $debug_configs $gcov_configs $max_configs"
+extra_configs="$pentium_configs $debug_configs $gcov_configs $max_configs --with-zlib-dir=bundled"
 
 . "$path/FINISH.sh"

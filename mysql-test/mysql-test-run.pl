@@ -201,10 +201,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=     15; # 15 minutes
-my $opt_suite_timeout   =    360; # 6 hours
-my $opt_shutdown_timeout=     10; # 10 seconds
-my $opt_start_timeout   =    180; # 180 seconds
+my $opt_testcase_timeout= $ENV{MTR_TESTCASE_TIMEOUT} ||  15; # minutes
+my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 360; # minutes
+my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
+my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
@@ -4018,6 +4018,8 @@ sub extract_warning_lines ($) {
      qr/Error reading packet/,
      qr/Slave: Can't drop database.* database doesn't exist/,
      qr/Slave: Operation DROP USER failed for 'create_rout_db'/,
+     qr|Checking table:   '\./mtr/test_suppressions'|,
+     qr|mysqld: Table '\./mtr/test_suppressions' is marked as crashed and should be repaired|
     );
 
   my $matched_lines= [];
@@ -4100,7 +4102,7 @@ sub start_check_warnings ($$) {
      error         => $errfile,
      output        => $errfile,
      args          => \$args,
-     user_data     => $errfile,
+     user_data     => [$errfile, $mysqld],
      verbose       => $opt_verbose,
     );
   mtr_verbose("Started $proc");
@@ -4146,7 +4148,7 @@ sub check_warnings ($) {
     if ( delete $started{$proc->pid()} ) {
       # One check warning process returned
       my $res= $proc->exit_status();
-      my $err_file= $proc->user_data();
+      my ($err_file, $mysqld)= @{$proc->user_data()};
 
       if ( $res == 0 or $res == 62 ){
 
@@ -4182,7 +4184,8 @@ sub check_warnings ($) {
 	my $report= mtr_grab_file($err_file);
 	$tinfo->{comment}.=
 	  "Could not execute 'check-warnings' for ".
-	    "testcase '$tname' (res: $res):\n";
+	    "testcase '$tname' (res: $res) server: '".
+              $mysqld->name() .":\n";
 	$tinfo->{comment}.= $report;
 
 	$result= 2;

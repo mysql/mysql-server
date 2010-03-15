@@ -1783,7 +1783,7 @@ int ha_federatedx::open(const char *name, int mode, uint test_if_locked)
 
 int ha_federatedx::close(void)
 {
-  int retval, error;
+  int retval= 0, error;
   THD *thd= current_thd;
   DBUG_ENTER("ha_federatedx::close");
 

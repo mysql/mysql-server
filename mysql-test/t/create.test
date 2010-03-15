@@ -721,16 +721,15 @@ drop table t1;
 # Base vs temporary tables dillema (a.k.a. bug#24508 "Inconsistent
 # results of CREATE TABLE ... SELECT when temporary table exists").
 # In this situation we either have to create non-temporary table and
-# insert data in it or insert data in temporary table without creation
-# of permanent table. Since currently temporary tables always shadow
-# permanent tables we adopt second approach.
+# insert data in it or insert data in temporary table without creation of
+# permanent table. After patch for Bug#47418, we create the base table and
+# instert data into it, even though a temporary table exists with the same
+# name.
 create temporary table t1 (j int);
 create table if not exists t1 select 1;
 select * from t1;
 drop temporary table t1;
---error ER_NO_SUCH_TABLE
 select * from t1;
---error ER_BAD_TABLE_ERROR
 drop table t1;
 
 

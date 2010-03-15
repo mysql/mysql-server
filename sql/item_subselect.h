@@ -90,6 +90,7 @@ public:
   void cleanup();
   virtual void reset()
   {
+    eliminated= FALSE;
     null_value= 1;
   }
   virtual trans_res select_transformer(JOIN *join);
@@ -239,6 +240,7 @@ public:
   subs_type substype() { return EXISTS_SUBS; }
   void reset() 
   {
+    eliminated= FALSE;
     value= 0;
   }
 
@@ -310,6 +312,7 @@ public:
   subs_type substype() { return IN_SUBS; }
   void reset() 
   {
+    eliminated= FALSE;
     value= 0;
     null_value= 0;
     was_null= 0;

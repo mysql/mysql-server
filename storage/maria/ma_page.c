@@ -64,6 +64,15 @@ void _ma_page_setup(MARIA_PAGE *page, MARIA_HA *info,
                   share->base.key_reflength : 0);
 }
 
+#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
+void page_cleanup(MARIA_SHARE *share, MARIA_PAGE *page)
+{
+  uint length= page->size;
+  DBUG_ASSERT(length <= block_size - KEYPAGE_CHECKSUM_SIZE);
+  bzero(page->buff + length, share->block_size - length);
+}
+#endif
+
 
 /**
   Fetch a key-page in memory
@@ -102,8 +111,10 @@ my_bool _ma_fetch_keypage(MARIA_PAGE *page, MARIA_HA *info,
 
   if (lock != PAGECACHE_LOCK_LEFT_UNLOCKED)
   {
-    DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE);
-    page_link.unlock=  PAGECACHE_LOCK_WRITE_UNLOCK;
+    DBUG_ASSERT(lock == PAGECACHE_LOCK_WRITE || PAGECACHE_LOCK_READ);
+    page_link.unlock= (lock == PAGECACHE_LOCK_WRITE ?
+                       PAGECACHE_LOCK_WRITE_UNLOCK :
+                       PAGECACHE_LOCK_READ_UNLOCK);
     page_link.changed= 0;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
     page->link_offset= info->pinned_pages.elements-1;
@@ -209,14 +220,7 @@ my_bool _ma_write_keypage(MARIA_PAGE *page, enum pagecache_page_lock lock,
   }
 #endif
 
-#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
-  {
-    uint length= page->size;
-    DBUG_ASSERT(length <= block_size - KEYPAGE_CHECKSUM_SIZE);
-    bzero(buff + length, block_size - length);
-  }
-#endif
-
+  page_cleanup(share, page);
   res= pagecache_write(share->pagecache,
                        &share->kfile,
                        (pgcache_page_no_t) (page->pos / block_size),

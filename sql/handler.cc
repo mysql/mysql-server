@@ -82,7 +82,7 @@ static plugin_ref ha_default_plugin(THD *thd)
 {
   if (thd->variables.table_plugin)
     return thd->variables.table_plugin;
-  return my_plugin_lock(thd, &global_system_variables.table_plugin);
+  return my_plugin_lock(thd, global_system_variables.table_plugin);
 }
 
 
@@ -163,13 +163,8 @@ plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
 {
   if (hton)
   {
-    st_plugin_int **plugin= hton2plugin + hton->slot;
-    
-#ifdef DBUG_OFF
-    return my_plugin_lock(thd, plugin);
-#else
-    return my_plugin_lock(thd, &plugin);
-#endif
+    st_plugin_int *plugin= hton2plugin[hton->slot];
+    return my_plugin_lock(thd, plugin_int_to_ref(plugin));
   }
   return NULL;
 }
