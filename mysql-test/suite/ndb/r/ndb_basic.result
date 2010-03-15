@@ -18,6 +18,11 @@ Ndb_connect_count	#
 Ndb_execute_count	#
 Ndb_scan_count	#
 Ndb_pruned_scan_count	#
+Ndb_sorted_scan_count	#
+Ndb_pushed_queries_defined	#
+Ndb_pushed_queries_dropped	#
+Ndb_pushed_queries_executed	#
+Ndb_pushed_reads	#
 Ndb_cluster_connection_pool	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_old	#
