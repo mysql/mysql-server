@@ -187,10 +187,10 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
              does not call setup_subquery_materialization(). We could make 
              SELECT ... FROM DUAL call that function but that doesn't seem
              to be the case that is worth handling.
-        4. Subquery predicate is a top-level predicate
-           (this implies it is not negated)
-           TODO: this is a limitation that should be lifted once we
-           implement correct NULL semantics (WL#3830)
+        4. Either the subquery predicate is a top-level predicate, or at
+           least one partial match strategy is enabled. If no partial match
+           strategy is enabled, then materialization cannot be used for
+           non-top-level queries because it cannot handle NULLs correctly.
         5. Subquery is non-correlated
            TODO:
            This is an overly restrictive condition. It can be extended to:
@@ -204,8 +204,8 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         (*) The subquery must be part of a SELECT statement. The current
              condition also excludes multi-table update statements.
 
-        We have to determine whether we will perform subquery materialization
-        before calling the IN=>EXISTS transformation, so that we know whether to
+        Determine whether we will perform subquery materialization before
+        calling the IN=>EXISTS transformation, so that we know whether to
         perform the whole transformation or only that part of it which wraps
         Item_in_subselect in an Item_in_optimizer.
       */
@@ -215,12 +215,14 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
           select_lex->master_unit()->first_select()->leaf_tables &&     // 3
           thd->lex->sql_command == SQLCOM_SELECT &&                     // *
           select_lex->outer_select()->leaf_tables &&                    // 3A
-          subquery_types_allow_materialization(in_subs))
+          subquery_types_allow_materialization(in_subs) &&
+          // psergey-todo: duplicated_subselect_card_check: where it's done?
+          (in_subs->is_top_level_item() ||
+           optimizer_flag(thd, OPTIMIZER_SWITCH_PARTIAL_MATCH_ROWID_MERGE) ||
+           optimizer_flag(thd, OPTIMIZER_SWITCH_PARTIAL_MATCH_TABLE_SCAN)) &&//4
+          !in_subs->is_correlated &&                                  // 5
+          in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED) // 6
       {
-        // psergey-todo: duplicated_subselect_card_check: where it's done?
-        if (in_subs->is_top_level_item() &&                             // 4
-            !in_subs->is_correlated &&                                  // 5
-            in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED) // 6
           in_subs->exec_method= Item_in_subselect::MATERIALIZATION;
       }
 
