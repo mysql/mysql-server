@@ -3081,3 +3081,13 @@ client/dtoa.c
 libmysqld/sql_audit.cc
 configure.am
 run_collection*.cmake
+configure.am
+run_collection*.cmake
+cmake_install.cmake
+CMakeFiles.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+CTestTestfile.cmake
+make_dist.cmake
+_CPack_Packages
+merge_archives*.cmake
