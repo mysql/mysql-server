@@ -19,5 +19,6 @@
 int angel_run(const char* connect_str,
               const char* bind_address,
               bool initial,
+              bool no_start,
               bool daemon);
 #endif

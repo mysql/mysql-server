@@ -39,11 +39,12 @@
 extern EventLogger * g_eventLogger;
 
 static int opt_daemon, opt_no_daemon, opt_foreground,
-  opt_no_start, opt_initialstart, opt_verbose;
+  opt_initialstart, opt_verbose;
 static const char* opt_nowait_nodes = 0;
 static const char* opt_bind_address = 0;
 int opt_report_fd;
 int opt_initial;
+int opt_no_start;
 
 extern NdbNodeBitmask g_nowait_nodes;
 
@@ -191,6 +192,7 @@ int main(int argc, char** argv)
     if (angel_run(opt_connect_str,
                   opt_bind_address,
                   opt_initial,
+                  opt_no_start,
                   opt_daemon))
       return 1;
     // ndbd continues here
