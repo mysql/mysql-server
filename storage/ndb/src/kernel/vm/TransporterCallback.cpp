@@ -269,8 +269,7 @@ TransporterCallbackKernel::reportError(NodeId nodeId,
     reportDisconnect(nodeId, errorCode);
   }
   
-  SignalT<3> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<3> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
 
@@ -285,13 +284,14 @@ TransporterCallbackKernel::reportError(NodeId nodeId,
   signal.header.theLength = 3;  
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
-#ifndef NDBD_MULTITHREADED
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
-#else
-  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
   signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+#ifndef NDBD_MULTITHREADED
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
+#else
   sendprioa(receiverThreadId,
-            &signalT.header, signalT.theData, NULL);
+            &signal.header, signal.theData, NULL);
 #endif
 
   DBUG_VOID_RETURN;
@@ -306,17 +306,21 @@ TransporterCallbackKernelNonMT::reportSendLen(NodeId nodeId, Uint32 count,
                                               Uint64 bytes)
 {
 
-  SignalT<3> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<3> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
+  signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+
   signal.theData[0] = NDB_LE_SendBytesStatistic;
   signal.theData[1] = nodeId;
   signal.theData[2] = Uint32(bytes/count);
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 }
 #endif
 
@@ -328,23 +332,24 @@ TransporterCallbackKernel::reportReceiveLen(NodeId nodeId, Uint32 count,
                                             Uint64 bytes)
 {
 
-  SignalT<3> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<3> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;  
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
+  signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+
   signal.theData[0] = NDB_LE_ReceiveBytesStatistic;
   signal.theData[1] = nodeId;
   signal.theData[2] = Uint32(bytes/count);
 #ifndef NDBD_MULTITHREADED
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
-  signal.header.theReceiversBlockNumber = CMVMI;
   sendprioa(receiverThreadId,
-            &signalT.header, signalT.theData, NULL);
+            &signal.header, signal.theData, NULL);
 #endif
 }
 
@@ -356,22 +361,23 @@ void
 TransporterCallbackKernel::reportConnect(NodeId nodeId)
 {
 
-  SignalT<1> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<1> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 1; 
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
+  signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theVerId_signalNumber = GSN_CONNECT_REP;
+
   signal.theData[0] = nodeId;
   
 #ifndef NDBD_MULTITHREADED
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_CONNECT_REP);
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  signal.header.theVerId_signalNumber = GSN_CONNECT_REP;
-  signal.header.theReceiversBlockNumber = CMVMI;
   sendprioa(receiverThreadId,
-            &signalT.header, signalT.theData, NULL);
+            &signal.header, signal.theData, NULL);
 #endif
 }
 
@@ -384,26 +390,26 @@ TransporterCallbackKernel::reportDisconnect(NodeId nodeId, Uint32 errNo)
 
   DBUG_ENTER("reportDisconnect");
 
-  SignalT<sizeof(DisconnectRep)/4> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<sizeof(DisconnectRep)/4> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = DisconnectRep::SignalLength; 
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.header.theTrace = TestOrd::TraceDisconnect;
+  signal.header.theVerId_signalNumber = GSN_DISCONNECT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
 
   DisconnectRep * const  rep = (DisconnectRep *)&signal.theData[0];
   rep->nodeId = nodeId;
   rep->err = errNo;
 
 #ifndef NDBD_MULTITHREADED
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_DISCONNECT_REP);
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 #else
-  signal.header.theVerId_signalNumber = GSN_DISCONNECT_REP;
-  signal.header.theReceiversBlockNumber = CMVMI;
   sendprioa(receiverThreadId,
-            &signalT.header, signalT.theData, NULL);
+            &signal.header, signal.theData, NULL);
 #endif
 
   DBUG_VOID_RETURN;

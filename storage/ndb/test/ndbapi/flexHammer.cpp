@@ -350,7 +350,7 @@ flexHammerThread(void* pArg)
   int tThreadResult = 0;
   MyOpType tMyOpType = otLast;
   int pkValue = 0;
-  int readValue[MAXATTR][MAXATTRSIZE] = {0};
+  int readValue[MAXATTR][MAXATTRSIZE]; bzero(readValue, sizeof(readValue));
   int attrValue[MAXATTRSIZE];
   NdbRecAttr* tTmp = NULL;
   int tNoOfAttempts = 0;
