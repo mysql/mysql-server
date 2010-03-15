@@ -876,6 +876,8 @@ select (select a+1) from t1;
 4.5
 NULL
 drop table t1;
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 CREATE TABLE t1 (a int(11) NOT NULL default '0', PRIMARY KEY  (a));
 CREATE TABLE t2 (a int(11) default '0', INDEX (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4);
@@ -1771,6 +1773,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`a`.`id` AS `id`,`test`.`a`.`text` AS `text`,`test`.`b`.`id` AS `id`,`test`.`b`.`text` AS `text`,`test`.`c`.`id` AS `id`,`test`.`c`.`text` AS `text` from `test`.`t1` `a` left join `test`.`t2` `b` on(((`test`.`b`.`id` = `test`.`a`.`id`) or isnull(`test`.`b`.`id`))) join `test`.`t1` `c` where (if(isnull(`test`.`b`.`id`),1000,`test`.`b`.`id`) = `test`.`c`.`id`)
 drop table t1,t2;
+set @@optimizer_switch=@save_optimizer_switch;
 create table t1 (a int);
 insert into t1 values (1);
 explain select benchmark(1000, (select a from t1 where a=sha(rand())));
@@ -2750,6 +2753,8 @@ select * from (select max(fld) from t1) as foo;
 max(fld)
 1
 drop table t1;
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
 INSERT INTO t1 VALUES(1,2,'Y'),(2,3,'Y'),(3,4,'Y'),(5,6,'N'),(7,8,'N');
@@ -2834,6 +2839,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(select `test`.`t2`.`one` AS `one`,`test`.`t2`.`two` AS `two` from `test`.`t2` where (`test`.`t2`.`flag` = '0') group by `test`.`t2`.`one`,`test`.`t2`.`two` having (trigcond(((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`))) and trigcond(((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`))) and trigcond(<is_not_null_test>(`test`.`t2`.`one`)) and trigcond(<is_not_null_test>(`test`.`t2`.`two`))))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
+set @@optimizer_switch=@save_optimizer_switch;
 CREATE TABLE t1 (a char(5), b char(5));
 INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
 SELECT * FROM t1 WHERE (a,b) IN (('aaa','aaa'), ('aaa','bbb'));
@@ -3004,6 +3010,8 @@ field1	field2
 1	1
 1	3
 DROP TABLE t1, t2;
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
 CREATE TABLE t1(a int, INDEX (a));
 INSERT INTO t1 VALUES (1), (3), (5), (7);
 INSERT INTO t1 VALUES (NULL);
@@ -3019,6 +3027,7 @@ a	a IN (SELECT a FROM t1)
 2	NULL
 3	1
 DROP TABLE t1,t2;
+set @@optimizer_switch=@save_optimizer_switch;
 CREATE TABLE t1 (a DATETIME);
 INSERT INTO t1 VALUES ('1998-09-23'), ('2003-03-25');
 CREATE TABLE t2 AS SELECT 
