@@ -216,28 +216,6 @@ Configuration::fetch_configuration(const char* _connect_string,
   }
   NdbConfig_SetPath(datadir);
 
-  m_mgmds.clear();
-  for(ndb_mgm_first(&iter); ndb_mgm_valid(&iter); ndb_mgm_next(&iter))
-  {
-    Uint32 nodeType, port;
-    char const *hostname;
-
-    ndb_mgm_get_int_parameter(&iter,CFG_TYPE_OF_SECTION,&nodeType);
-
-    if (nodeType != NodeInfo::MGM)
-      continue;
-
-    if (ndb_mgm_get_string_parameter(&iter,CFG_NODE_HOST, &hostname) ||
-	ndb_mgm_get_int_parameter(&iter,CFG_MGM_PORT, &port) ||
-	hostname == 0 || hostname[0] == 0)
-    {
-      continue;
-    }
-    BaseString connectstring(hostname);
-    connectstring.appfmt(":%d", port);
-
-    m_mgmds.push_back(connectstring);
-  }
 }
 
 static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,

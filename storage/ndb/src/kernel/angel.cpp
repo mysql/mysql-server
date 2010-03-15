@@ -28,9 +28,6 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-#include "vm/SimBlockList.hpp"
-
-
 #define MAX_FAILED_STARTUPS 3
 // Flag set by child through SIGUSR1 to signal a failed startup
 static bool failed_startup_flag=false;
@@ -108,9 +105,18 @@ get_int_property(Properties &info,
   return true;
 }
 
-int reportShutdown(class Configuration *config, int error_exit, int restart, Uint32 sphase=256)
+#include "../mgmapi/mgmapi_configuration.hpp"
+
+static void
+reportShutdown(const ndb_mgm_configuration* config,
+               NodeId nodeid, int error_exit,
+               bool restart, bool nostart, bool initial)
 {
-  Uint32 error=0, signum=0;
+  // Only allow "initial" and "nostart" to be set if "restart" is set
+  assert(restart ||
+         (!restart && !initial && !nostart));
+
+  Uint32 error=0, signum=0, sphase=256;
 #ifndef NDB_WIN
   Properties info;
   readChildInfo(info);
@@ -122,11 +128,11 @@ int reportShutdown(class Configuration *config, int error_exit, int restart, Uin
   Uint32 length, theData[25];
   EventReport *rep=(EventReport *) theData;
 
-  rep->setNodeId(globalData.ownId);
+  rep->setNodeId(nodeid);
   if (restart)
     theData[1]=1 |
-          (globalData.theRestartFlag == initial_state ? 2 : 0) |
-    (config->getInitialStart() ? 4 : 0);
+      (nostart ? 2 : 0) |
+      (initial ? 4 : 0);
   else
     theData[1]=0;
 
@@ -145,51 +151,53 @@ int reportShutdown(class Configuration *config, int error_exit, int restart, Uin
     length=6;
   }
 
-  { // Log event
-    const EventReport * const eventReport=(EventReport *) & theData[0];
-    g_eventLogger->log(eventReport->getEventType(), theData, length,
-                       eventReport->getNodeId(), 0);
-  }
+  // Log event locally
+  g_eventLogger->log(rep->getEventType(), theData, length,
+                     rep->getNodeId(), 0);
 
-  for (unsigned n=0; n < config->m_mgmds.size(); n++)
+  // Log event to cluster log
+  ndb_mgm_configuration_iterator iter(*config, CFG_SECTION_NODE);
+  for (iter.first(); iter.valid(); iter.next())
   {
-    NdbMgmHandle h=ndb_mgm_create_handle();
-    if (h == 0 ||
-        ndb_mgm_set_connectstring(h, config->m_mgmds[n].c_str()) ||
-        ndb_mgm_connect(h,
-                        1, //no_retries
-                        0, //retry_delay_in_seconds
-                        0 //verbose
-                        ))
-      goto handle_error;
+    Uint32 type;
+    if (iter.get(CFG_TYPE_OF_SECTION, &type) ||
+       type != NODE_TYPE_MGM)
+      continue;
 
-    {
-      if (ndb_mgm_report_event(h, theData, length))
-        goto handle_error;
-    }
-    goto do_next;
+    Uint32 port;
+    if (iter.get(CFG_MGM_PORT, &port))
+      continue;
 
-handle_error:
-    if (h)
+    const char* hostname;
+    if (iter.get(CFG_NODE_HOST, &hostname))
+      continue;
+
+    BaseString connect_str;
+    connect_str.assfmt("%s:%d", hostname, port);
+
+
+    NdbMgmHandle h = ndb_mgm_create_handle();
+    if (h == 0)
     {
-      BaseString tmp(ndb_mgm_get_latest_error_msg(h));
-      tmp.append(" : ");
-      tmp.append(ndb_mgm_get_latest_error_desc(h));
-      g_eventLogger->warning("Unable to report shutdown reason to %s: %s",
-                             config->m_mgmds[n].c_str(), tmp.c_str());
-    } else
-    {
-      g_eventLogger->error("Unable to report shutdown reason to %s",
-                           config->m_mgmds[n].c_str());
+      g_eventLogger->warning("Unable to report shutdown reason "
+                             "to '%s'(failed to create mgm handle)",
+                             connect_str.c_str());
+      continue;
     }
-do_next:
-    if (h)
+
+    if (ndb_mgm_set_connectstring(h, connect_str.c_str()) ||
+        ndb_mgm_connect(h, 1, 0, 0) ||
+        ndb_mgm_report_event(h, theData, length))
     {
-      ndb_mgm_disconnect(h);
-      ndb_mgm_destroy_handle(&h);
+      g_eventLogger->warning("Unable to report shutdown reason "
+                             "to '%s'(error: %s - %s)",
+                             connect_str.c_str(),
+                             ndb_mgm_get_latest_error_msg(h),
+                             ndb_mgm_get_latest_error_desc(h));
     }
+
+    ndb_mgm_destroy_handle(&h);
   }
-  return 0;
 }
 
 
@@ -242,6 +250,8 @@ ignore_signals(void)
 
 void
 childReportSignal(int signum);
+
+#include "vm/SimBlockList.hpp"
 
 int
 angel_run(const char* connect_str,
@@ -320,7 +330,8 @@ angel_run(const char* connect_str,
       switch (WEXITSTATUS(status)) {
       case NRT_Default:
         g_eventLogger->info("Angel shutting down");
-        reportShutdown(theConfig, 0, 0);
+        reportShutdown(theConfig->getClusterConfig(),
+                       globalData.ownId, 0, 0, false, false);
         angel_exit(0);
         break;
       case NRT_NoStart_Restart:
@@ -342,7 +353,8 @@ angel_run(const char* connect_str,
           /**
            * Error shutdown && stopOnError()
            */
-          reportShutdown(theConfig, error_exit, 0);
+          reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
+                         error_exit, 0, false, false);
           angel_exit(0);
         }
         // Fall-through
@@ -368,7 +380,8 @@ angel_run(const char* connect_str,
         /**
          * Error shutdown && stopOnError()
          */
-        reportShutdown(theConfig, error_exit, 0);
+        reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
+                       error_exit, 0, false, false);
         angel_exit(0);
       }
     }
@@ -384,11 +397,15 @@ angel_run(const char* connect_str,
        */
       g_eventLogger->alert("Ndbd has failed %u consecutive startups. "
                            "Not restarting", failed_startups);
-      reportShutdown(theConfig, error_exit, 0);
+      reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
+                     error_exit, 0, false, false);
       angel_exit(0);
     }
     failed_startup_flag=false;
-    reportShutdown(theConfig, error_exit, 1);
+    reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
+                   error_exit, 1,
+                   (globalData.theRestartFlag == initial_state), /* nostart */
+                   theConfig->getInitialStart() /* initial */ );
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
     theConfig->fetch_configuration(connect_str, bind_address);
   }
