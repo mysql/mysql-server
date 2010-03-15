@@ -58,7 +58,7 @@ public:
   ~Configuration();
 
   bool init(int _no_start, int _initial,
-            int _initialstart, int _daemon);
+            int _initialstart);
 
   void fetch_configuration(const char* _connect_string,
                            const char* _bind_adress);
@@ -116,12 +116,8 @@ public:
   const char * fileSystemPath() const;
   const char * backupFilePath() const;
 
-  /**
-   * 
-   */
   bool getInitialStart() const;
   void setInitialStart(bool val);
-  bool getDaemonMode() const;
 
   const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
 
@@ -165,7 +161,6 @@ private:
   char * _fsPath;
   char * _backupPath;
   bool _initialStart;
-  bool _daemonMode; // if not, angel in foreground
 
   void calcSizeAlt(class ConfigValues * );
 };
@@ -186,12 +181,6 @@ inline
 bool
 Configuration::getInitialStart() const {
   return _initialStart;
-}
-
-inline
-bool
-Configuration::getDaemonMode() const {
-  return _daemonMode;
 }
 
 #endif
