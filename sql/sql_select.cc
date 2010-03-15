@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5814,22 +5814,31 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
       if (keyuse->null_rejecting) 
         j->ref.null_rejecting |= 1 << i;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
-      if (!keyuse->used_tables &&
-	  !(join->select_options & SELECT_DESCRIBE))
-      {					// Compare against constant
-	store_key_item tmp(thd, keyinfo->key_part[i].field,
+
+      if (keyuse->used_tables || thd->lex->describe)
+        /* 
+          Comparing against a non-constant or executing an EXPLAIN
+          query (which refers to this info when printing the 'ref'
+          column of the query plan)
+        */
+        *ref_key++= get_store_key(thd,
+                                  keyuse,join->const_table_map,
+                                  &keyinfo->key_part[i],
+                                  key_buff, maybe_null);
+      else
+      { // Compare against constant
+        store_key_item tmp(thd, keyinfo->key_part[i].field,
                            key_buff + maybe_null,
                            maybe_null ?  key_buff : 0,
                            keyinfo->key_part[i].length, keyuse->val);
-	if (thd->is_fatal_error)
-	  DBUG_RETURN(TRUE);
-	tmp.copy();
+        if (thd->is_fatal_error)
+          DBUG_RETURN(TRUE);
+        /* 
+          The constant is the value to look for with this key. Copy
+          the value to ref->key_buff
+        */
+        tmp.copy(); 
       }
-      else
-	*ref_key++= get_store_key(thd,
-				  keyuse,join->const_table_map,
-				  &keyinfo->key_part[i],
-				  key_buff, maybe_null);
       /*
 	Remember if we are going to use REF_OR_NULL
 	But only if field _really_ can be null i.e. we force JT_REF
