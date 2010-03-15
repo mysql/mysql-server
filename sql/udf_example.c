@@ -107,7 +107,7 @@
 ** option.
 **
 ** If you can't get AGGREGATES to work, check that you have the column
-** 'type' in the mysql.func table.  If not, run 'mysql_fix_privilege_tables'.
+** 'type' in the mysql.func table.  If not, run 'mysql_upgrade'.
 **
 */
 
