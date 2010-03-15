@@ -57,7 +57,7 @@ static int const az_magic[3] = {0xfe, 0x03, 0x01}; /* az magic header */
 int az_open(azio_stream *s, const char *path, int Flags, File  fd);
 int do_flush(azio_stream *file, int flush);
 int    get_byte(azio_stream *s);
-char* get_block(azio_stream *s, int blksz);
+unsigned char* get_block(azio_stream *s, int blksz);
 int   check_header(azio_stream *s);
 int write_header(azio_stream *s);
 int    destroy(azio_stream *s);
@@ -361,7 +361,7 @@ int get_byte(s)
  * *MUST* be < buffer size
  * *MUST* be aligned to IO size (i.e. not be only partially in buffer)
  */
-char* get_block(azio_stream *s,int blksz)
+unsigned char* get_block(azio_stream *s,int blksz)
 {
   char *r= s->stream.next_in;
   if (s->stream.avail_in == 0)
@@ -436,7 +436,7 @@ int check_header(azio_stream *s)
   else if (    s->stream.next_in[0] == az_magic[0]
             && s->stream.next_in[1] == az_magic[1])
   {
-    char *header_block;
+    unsigned char *header_block;
     if(s->stream.avail_in < AZHEADER_SIZE + AZMETA_BUFFER_SIZE)
     {
       s->z_err = Z_DATA_ERROR;
