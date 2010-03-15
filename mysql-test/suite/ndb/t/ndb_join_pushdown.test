@@ -1474,7 +1474,6 @@ select count(*) from T1 t1, T1 t2 where t2.a = t1.b;
 
 select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t2.a = t1.b; 
 
-drop table T1;
 
 # Get new counter values.
 create temporary table new_count 
@@ -1491,6 +1490,7 @@ select new_count.counter_name, new_count.val - old_count.val
 
 drop table old_count;
 drop table new_count;
+drop table T1;
 
 if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
 {
@@ -1498,5 +1498,73 @@ if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
   DROP DATABASE ndbinfo;
   --enable_query_log
 }
+
+# Test and server status variables (i.e. mysqld counters)
+
+create table T1(
+       a int not null,
+       b int not null,
+       c int not null,
+       primary key(a,b))
+engine = ndb partition by key (a);
+
+insert into T1 values (10, 10, 11);
+insert into T1 values (11, 11, 12);
+insert into T1 values (12, 12, 13);
+
+# First query against a new table causes an extra scan (of a dictionaty table??)
+# so adding an extra scan here to make results from the following part easier
+# to interpret.
+select * from T1 t1, T1 t2 
+      where t1.a = 10 and t1.b = 10 and 
+      	     t2.a = t1.c and t2.b = t1.c; 
+
+# Save old counter values.
+let $old_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_scan_count', Value, 1);
+let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $old_sorted_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_sorted_scan_count', Value, 1);
+let $old_pushed_queries_defined = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_defined', Value, 1);
+let $old_pushed_queries_dropped = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_dropped', Value, 1);
+let $old_pushed_queries_executed = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_executed', Value, 1);
+let $old_pushed_reads = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_reads', Value, 1);
+
+# Run some queries that should increment the counters.
+# This query should push a single read.
+select * from T1 t1, T1 t2 
+      where t1.a = 11 and t1.b = 11 and 
+      	     t2.a = t1.c and t2.b = t1.c; 
+
+# This query should push a sorted scan (and three reads).
+select * from T1 t1, T1 t2 
+       where t2.a = t1.c and t2.b = t1.c
+       order by t1.a; 
+
+# This query should push a pruned scan (but pruning must be fixed for 
+# pushed scans.)
+select count(*) from T1 t1, T1 t2 
+       where t1.a >= 11 and 
+       	     t2.a = t1.c and t2.b = t1.c; 
+
+# Get the new values;
+let $new_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_scan_count', Value, 1);
+let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+let $new_sorted_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_sorted_scan_count', Value, 1);
+let $new_pushed_queries_defined = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_defined', Value, 1);
+let $new_pushed_queries_dropped = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_dropped', Value, 1);
+let $new_pushed_queries_executed = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_queries_executed', Value, 1);
+let $new_pushed_reads = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_reads', Value, 1);
+
+# Calculate the change.
+--disable_query_log
+--eval SELECT $new_scan_count - $old_scan_count AS scan_count
+--eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+--eval SELECT $new_sorted_scan_count - $old_sorted_scan_count AS sorted_scan_count
+--eval SELECT $new_pushed_queries_defined - $old_pushed_queries_defined AS pushed_queries_defined
+--eval SELECT $new_pushed_queries_dropped - $old_pushed_queries_dropped AS pushed_queries_dropped
+--eval SELECT $new_pushed_queries_executed - $old_pushed_queries_executed AS pushed_queries_executed
+--eval SELECT $new_pushed_reads - $old_pushed_reads AS pushed_reads
+--enable_query_log
+
+drop table T1;
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;

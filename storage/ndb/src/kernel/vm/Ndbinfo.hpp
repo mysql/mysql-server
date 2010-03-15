@@ -177,7 +177,6 @@ public:
     TABLE_SCANS_COUNTER = 8,
     RANGE_SCANS_COUNTER = 9,
     OPERATIONS_COUNTER = 10,
-
     /* Counters fetched from the SPJ block.*/
     SPJ_READS_RECEIVED_COUNTER = 11,
     SPJ_LOCAL_READS_SENT_COUNTER = 12,

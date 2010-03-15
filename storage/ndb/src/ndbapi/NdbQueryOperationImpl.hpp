@@ -189,6 +189,17 @@ public:
     m_commitIndicator = true; 
   }
 
+  /**
+   * Check if this is a pruned range scan. A range scan is pruned if the ranges
+   * are such that only a subset of the fragments need to be scanned for 
+   * matching tuples.
+   *
+   * @param pruned This will be set to true if the operation is a pruned range 
+   * scan.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int isPrunable(bool& pruned);
+
 private:
   /** Possible return values from NdbQuery::fetchMoreResults. Integer values
    * matches those returned from PoolGuard::waitScan().
@@ -384,6 +395,22 @@ private:
 
   /** True if the transaction should be committed after executing this query.*/
   bool m_commitIndicator;
+
+  /** This field tells if the root operation is a prunable range scan. A range 
+   * scan is pruned if the ranges are such that only a subset of the fragments 
+   * need to be scanned for matching tuples. (Currently, pushed scans can only 
+   * be pruned if is there is a single range that maps to a single fragment.
+   */
+  enum {
+    /** Call NdbQueryOperationDef::checkPrunable() to determine prunability.*/
+    Prune_Unknown, 
+    Prune_Yes, // The root is a prunable range scan.
+    Prune_No   // The root is not a prunable range scan.
+  } m_prunability;
+
+  /** If m_prunability==Prune_Yes, this is the hash value of the single 
+   * fragment that should be scanned.*/
+  Uint32 m_pruneHashVal;
 
   // Only constructable from factory ::buildQuery();
   explicit NdbQueryImpl(

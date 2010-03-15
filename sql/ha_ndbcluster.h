@@ -360,7 +360,31 @@ class Thd_ndb
 
   uint m_scan_count;
   uint m_pruned_scan_count;
-  
+  /** This is the number of sorted scans (via ordered indexes).*/
+  uint m_sorted_scan_count;
+
+  /** This is the number of NdbQueryDef objects that the handler has created.*/
+  uint m_pushed_queries_defined;
+  /** 
+    This is the number of cases where the handler decided not to use an 
+    NdbQueryObject that it previously created for executing a particular 
+    instance of a query fragment. This may happen if for examle the optimizer
+    decides to use another type of access operation than originally assumed.
+  */
+  uint m_pushed_queries_dropped;
+  /**
+    This is the number of times that the handler instantiated an NdbQuery object
+    from a NdbQueryDef object and used the former for executing an instance
+    of a query fragment.
+   */
+  uint m_pushed_queries_executed;
+  /**
+    This is the number of lookup operations (via unique index or primary key)
+    that were eliminated by pushing linked operations (NdbQuery) to the data 
+    nodes.
+   */
+  uint m_pushed_reads;
+
   uint m_transaction_no_hint_count[MAX_NDB_NODES];
   uint m_transaction_hint_count[MAX_NDB_NODES];
 

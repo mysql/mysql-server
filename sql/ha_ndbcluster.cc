@@ -196,6 +196,11 @@ struct st_ndb_status {
   long execute_count;
   long scan_count;
   long pruned_scan_count;
+  long sorted_scan_count;
+  long pushed_queries_defined;
+  long pushed_queries_dropped;
+  long pushed_queries_executed;
+  long pushed_reads;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
 };
@@ -887,16 +892,16 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
   if (unlikely(!query_def))
     DBUG_RETURN(0);
 
+  m_thd_ndb->m_pushed_queries_defined++;
   /* 
    * Append query definition to transaction specific list, so that it can be
    * released when the transaction ends.  
    */
-  Thd_ndb* const thd_ndb = get_thd_ndb(current_thd);
   const ndb_query_def_list* const list_item = 
-    new ndb_query_def_list(query_def, thd_ndb->m_query_defs);
+    new ndb_query_def_list(query_def, m_thd_ndb->m_query_defs);
   if (unlikely(list_item == NULL))
     DBUG_RETURN(0);
-  thd_ndb->m_query_defs = list_item;
+  m_thd_ndb->m_query_defs = list_item;
   
   DBUG_PRINT("info", ("Created pushed join with %d child operations", push_cnt-1));
   m_pushed_join= new ndb_pushed_join(plan, pushed_joins, fld_refs, referred_fields, query_def);
@@ -942,6 +947,12 @@ ha_ndbcluster::exec_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs)
 
   DBUG_ASSERT(m_active_query==NULL);
   m_active_query= m_thd_ndb->trans->createQuery(&m_pushed_join->get_query_def(), paramValues);
+
+  if(m_active_query != NULL)
+  {
+    m_thd_ndb->m_pushed_queries_executed++;
+  }
+
   return m_active_query;
 
 } // ha_ndbcluster::exec_pushed_join
@@ -1027,6 +1038,11 @@ static int update_status_variables(Thd_ndb *thd_ndb,
     ns->execute_count= thd_ndb->m_execute_count;
     ns->scan_count= thd_ndb->m_scan_count;
     ns->pruned_scan_count= thd_ndb->m_pruned_scan_count;
+    ns->sorted_scan_count= thd_ndb->m_sorted_scan_count;
+    ns->pushed_queries_defined= thd_ndb->m_pushed_queries_defined;
+    ns->pushed_queries_dropped= thd_ndb->m_pushed_queries_dropped;
+    ns->pushed_queries_executed= thd_ndb->m_pushed_queries_executed;
+    ns->pushed_reads= thd_ndb->m_pushed_reads;
     for (int i= 0; i < MAX_NDB_NODES; i++)
     {
       ns->transaction_no_hint_count[i]= thd_ndb->m_transaction_no_hint_count[i];
@@ -1048,6 +1064,14 @@ SHOW_VAR ndb_status_variables_dynamic[]= {
   {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG},
   {"scan_count",         (char*) &g_ndb_status.scan_count,            SHOW_LONG},
   {"pruned_scan_count",  (char*) &g_ndb_status.pruned_scan_count,     SHOW_LONG},
+  {"sorted_scan_count",  (char*) &g_ndb_status.sorted_scan_count,     SHOW_LONG},
+  {"pushed_queries_defined", (char*) &g_ndb_status.pushed_queries_defined, 
+   SHOW_LONG},
+  {"pushed_queries_dropped", (char*) &g_ndb_status.pushed_queries_dropped,
+   SHOW_LONG},
+  {"pushed_queries_executed", (char*) &g_ndb_status.pushed_queries_executed,
+   SHOW_LONG},
+  {"pushed_reads",       (char*) &g_ndb_status.pushed_reads,          SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -1472,6 +1496,11 @@ Thd_ndb::Thd_ndb()
   m_execute_count= 0;
   m_scan_count= 0;
   m_pruned_scan_count= 0;
+  m_sorted_scan_count= 0;
+  m_pushed_queries_defined= 0;
+  m_pushed_queries_dropped= 0;
+  m_pushed_queries_executed= 0;
+  m_pushed_reads= 0;
   m_max_violation_count= 0;
   m_old_violation_count= 0;
   m_conflict_fn_usage_count= 0;
@@ -3247,6 +3276,11 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   }
   else
   {
+    if (m_pushed_join != NULL)
+    {
+      m_thd_ndb->m_pushed_queries_dropped++;
+    }
+
     const NdbOperation *op;
     if (!(op= pk_unique_index_read_key(table->s->primary_key, key, buf, lm,
                                        (m_user_defined_partitioning ?
@@ -3657,6 +3691,11 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
   }
   else
   {
+    if (m_pushed_join != NULL)
+    {
+      m_thd_ndb->m_pushed_queries_dropped++;
+    }
+
     const NdbOperation *op;
 
     if (!(op= pk_unique_index_read_key(active_index, key, buf, lm, NULL)))
@@ -3825,11 +3864,13 @@ ha_ndbcluster::index_read_pushed(uchar *buf, const uchar *key,
   {
     unpack_record(buf, m_next_row);
     table->status= 0;
+    m_thd_ndb->m_pushed_reads++;
   }
   else
   {
     table->status= STATUS_NOT_FOUND;
     DBUG_PRINT("info", ("No record found"));
+    m_thd_ndb->m_pushed_reads++;
   }
   DBUG_RETURN(0);
 }
@@ -4240,11 +4281,28 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     }
 
     m_thd_ndb->m_scan_count++;
-//  m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);  -- TODO SPJ
+    bool prunable = false;
+    if (likely(query->isPrunable(prunable) == 0))
+    {
+      if (prunable)
+      {
+        m_thd_ndb->m_pruned_scan_count++;
+      }
+    }
+    else
+    {
+      ERR_RETURN(query->getNdbError());
+    }
+
     DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
   }
-  else
+  else // if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan))
   {
+    if (m_pushed_join != NULL)
+    {
+      m_thd_ndb->m_pushed_queries_dropped++;
+    }
+
     NdbScanOperation::ScanOptions options;
     options.optionsPresent=NdbScanOperation::ScanOptions::SO_SCANFLAGS;
     options.scan_flags=0;
@@ -4290,6 +4348,11 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
       ERR_RETURN(op->getNdbError());
 
     m_active_cursor= op;
+  }
+
+  if (sorted)
+  {        
+    m_thd_ndb->m_sorted_scan_count++;
   }
 
   if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
@@ -4476,11 +4539,15 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     }
 
     m_thd_ndb->m_scan_count++;
-//  m_thd_ndb->m_pruned_scan_count += (op->getPruned()? 1 : 0);  -- TODO SPJ
     DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
   }
-  else
+  else // if (check_if_pushable(NdbQueryOperationDef::TableScan))
   {
+    if (m_pushed_join != NULL)
+    {
+      m_thd_ndb->m_pushed_queries_dropped++;
+    }
+
     NdbScanOperation *op;
     NdbInterpretedCode code(m_table);
 
@@ -4516,13 +4583,13 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     if (uses_blob_value(table->read_set) &&
         get_blob_values(op, NULL, table->read_set) != 0)
       ERR_RETURN(op->getNdbError());
-  }
+  } // if (check_if_pushable(NdbQueryOperationDef::TableScan))
   
   if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     DBUG_RETURN(ndb_err(trans));
   DBUG_PRINT("exit", ("Scan started successfully"));
   DBUG_RETURN(next_result(buf));
-}
+} // ha_ndbcluster::full_table_scan()
 
 int
 ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
@@ -12667,6 +12734,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
       else if (!m_multi_cursor)
       {
+        if (m_pushed_join != NULL)
+        {
+          m_thd_ndb->m_pushed_queries_dropped++;
+        }
         /* Do a multi-range index scan for ranges not done by primary/unique key. */
         NdbScanOperation::ScanOptions options;
         NdbInterpretedCode code(m_table);
@@ -12764,8 +12835,12 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       r->range_flag&= ~(uint)UNIQUE_RANGE;
       num_scan_ranges++;
     }
-    else
+    else // if ((m_pushed_join && m_pushed_join->get_query_def().isScanQuery()) ||...
     {
+      if (m_pushed_join != NULL)
+      {
+        m_thd_ndb->m_pushed_queries_dropped++;
+      }
       if (!trans)
       {
         DBUG_ASSERT(active_index != MAX_KEY);
@@ -12828,6 +12903,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         if (m_pushed_join)
         {
           DBUG_PRINT("info", ("Cannot push join due to incomplete implementation."));
+          m_thd_ndb->m_pushed_queries_dropped++;
         }
         const NdbOperation* op;
         if (!(op= pk_unique_index_read_key(active_index,
@@ -12850,7 +12926,24 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 //  DBUG_PRINT("info", ("Is MRR scan pruned to 1 partition? :%u",
 //                      m_active_query->getPruned()));
     m_thd_ndb->m_scan_count++;
-//  m_thd_ndb->m_pruned_scan_count += (m_active_query->getPruned()? 1 : 0);
+    if (sorted)
+    {        
+      m_thd_ndb->m_sorted_scan_count++;
+    }
+
+    bool prunable = false;
+    if (likely(m_active_query->isPrunable(prunable) == 0))
+    {
+      if (prunable)
+      {
+        m_thd_ndb->m_pruned_scan_count++;
+      }
+    }
+    else
+    {
+      ERR_RETURN(m_active_query->getNdbError());
+    }
+    DBUG_ASSERT(!m_multi_cursor);
   };
   if (m_multi_cursor)
   {
@@ -12858,6 +12951,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                         m_multi_cursor->getPruned()));
     m_thd_ndb->m_scan_count++;
     m_thd_ndb->m_pruned_scan_count += (m_multi_cursor->getPruned()? 1 : 0);
+    if (sorted)
+    {        
+      m_thd_ndb->m_sorted_scan_count++;
+    }
   };
 
   if (any_real_read)

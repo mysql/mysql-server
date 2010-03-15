@@ -2111,7 +2111,6 @@ count(*)
 select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t2.a = t1.b;
 count(*)
 1
-drop table T1;
 create temporary table new_count 
 select counter_name, sum(val) AS val 
 from ndbinfo.counters 
@@ -2130,4 +2129,50 @@ REMOTE_READS_SENT	1
 TABLE_SCANS_RECEIVED	2
 drop table old_count;
 drop table new_count;
+drop table T1;
+create table T1(
+a int not null,
+b int not null,
+c int not null,
+primary key(a,b))
+engine = ndb partition by key (a);
+insert into T1 values (10, 10, 11);
+insert into T1 values (11, 11, 12);
+insert into T1 values (12, 12, 13);
+select * from T1 t1, T1 t2 
+where t1.a = 10 and t1.b = 10 and 
+t2.a = t1.c and t2.b = t1.c;
+a	b	c	a	b	c
+10	10	11	11	11	12
+select * from T1 t1, T1 t2 
+where t1.a = 11 and t1.b = 11 and 
+t2.a = t1.c and t2.b = t1.c;
+a	b	c	a	b	c
+11	11	12	12	12	13
+select * from T1 t1, T1 t2 
+where t2.a = t1.c and t2.b = t1.c
+order by t1.a;
+a	b	c	a	b	c
+10	10	11	11	11	12
+11	11	12	12	12	13
+select count(*) from T1 t1, T1 t2 
+where t1.a >= 11 and 
+t2.a = t1.c and t2.b = t1.c;
+count(*)
+1
+scan_count
+2
+pruned_scan_count
+0
+sorted_scan_count
+1
+pushed_queries_defined
+3
+pushed_queries_dropped
+0
+pushed_queries_executed
+3
+pushed_reads
+6
+drop table T1;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
