@@ -23,7 +23,7 @@
 
 #include <util/BaseString.hpp>
 #include <mgmapi.h>
-#include <ndb_types.h>
+#include <kernel_types.h>
 #include <NdbMutex.h>
 #include <NdbThread.h>
 #include <Bitmask.hpp>
@@ -61,7 +61,8 @@ public:
             int _initialstart);
 
   void fetch_configuration(const char* _connect_string,
-                           const char* _bind_adress);
+                           const char* _bind_adress,
+                           NodeId allocated_nodeid);
   void setupConfiguration();
   void closeConfiguration(bool end_session= true);
   
