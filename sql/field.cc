@@ -6613,7 +6613,20 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
     local_char_length= my_charpos(field_charset, from, from+length,
                                   local_char_length);
   set_if_smaller(length, local_char_length);
-  length= field_charset->cset->lengthsp(field_charset, (const char*) from, length);
+ 
+  /*
+     TODO: change charset interface to add a new function that does 
+           the following or add a flag to lengthsp to do it itself 
+           (this is for not packing padding adding bytes in BINARY 
+           fields).
+  */
+  if (field_charset->mbmaxlen == 1)
+  {
+    while (length && from[length-1] == field_charset->pad_char)
+      length --;
+  }
+  else
+    length= field_charset->cset->lengthsp(field_charset, (const char*) from, length);
 
   // Length always stored little-endian
   *to++= (uchar) length;
