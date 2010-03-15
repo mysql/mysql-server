@@ -14,3 +14,5 @@ rpl.rpl_innodb_bug28430*  @solaris       # Bug#46029
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 rpl_ndb.rpl_ndb_2ndb   # rpl_ndb_2ndb fails sporadically
+
+binlog.binlog_unsafe @solaris            # Bug #47128 Test "binlog_unsafe" exceds default stack allocation
