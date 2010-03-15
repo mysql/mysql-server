@@ -202,13 +202,14 @@ int pipe(int pipefd[2]){
 #endif
 
 extern int opt_report_fd; // REMOVE later
+extern int opt_initial; // REMOVE later
 
 #include "vm/SimBlockList.hpp"
 
 int
 angel_run(const char* connect_str,
           const char* bind_address,
-          bool initialstart,
+          bool initial,
           bool daemon)
 {
 #ifdef NDB_WIN32
@@ -258,6 +259,7 @@ angel_run(const char* connect_str,
     // TODO will be passed as --arg to child
     opt_report_fd = fds[1];
 
+    opt_initial = initial; // TODO Remove in fork_and_exec
 
     if ((child=fork()) <= 0)
       break; // child or error
@@ -318,15 +320,15 @@ angel_run(const char* connect_str,
         angel_exit(0);
         break;
       case NRT_NoStart_Restart:
-        theConfig->setInitialStart(false);
+        initial = false;
         globalData.theRestartFlag=initial_state;
         break;
       case NRT_NoStart_InitialStart:
-        theConfig->setInitialStart(true);
+        initial = true;
         globalData.theRestartFlag=initial_state;
         break;
       case NRT_DoStart_InitialStart:
-        theConfig->setInitialStart(true);
+        initial = true;
         globalData.theRestartFlag=perform_start;
         break;
       default:
@@ -343,7 +345,7 @@ angel_run(const char* connect_str,
         }
         // Fall-through
       case NRT_DoStart_Restart:
-        theConfig->setInitialStart(false);
+        initial = false;
         globalData.theRestartFlag=perform_start;
         break;
       }
@@ -391,7 +393,7 @@ angel_run(const char* connect_str,
     reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
                    error_exit, 1,
                    (globalData.theRestartFlag == initial_state), /* nostart */
-                   theConfig->getInitialStart() /* initial */,
+                   initial,
                    child_error, child_signal, child_sphase);
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
     theConfig->fetch_configuration(connect_str, bind_address);

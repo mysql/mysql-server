@@ -869,11 +869,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 }
 
 void
-Configuration::setInitialStart(bool val){
-  _initialStart = val;
-}
-
-void
 Configuration::setAllRealtimeScheduler()
 {
   Uint32 i;
