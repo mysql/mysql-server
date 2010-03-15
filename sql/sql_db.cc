@@ -934,7 +934,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   }
   else
   {
-    Drop_table_error_handler err_handler(thd->get_internal_handler());
+    Drop_table_error_handler err_handler;
     thd->push_internal_handler(&err_handler);
 
     error= -1;

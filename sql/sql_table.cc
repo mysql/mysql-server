@@ -1811,7 +1811,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
                     my_bool drop_temporary)
 {
   bool error;
-  Drop_table_error_handler err_handler(thd->get_internal_handler());
+  Drop_table_error_handler err_handler;
 
   DBUG_ENTER("mysql_rm_table");
 
@@ -4426,7 +4426,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   MY_STAT stat_info;
   Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
   DBUG_ENTER("prepare_for_repair");
-  uint reopen_for_repair_flags= (MYSQL_LOCK_IGNORE_FLUSH |
+  uint reopen_for_repair_flags= (MYSQL_OPEN_IGNORE_FLUSH |
                                  MYSQL_OPEN_HAS_MDL_LOCK);
 
   if (!(check_opt->sql_flags & TT_USEFRM))
@@ -7155,7 +7155,7 @@ view_err:
       tbl.table_name= tbl.alias= tmp_name;
       /* Table is in thd->temporary_tables */
       (void) open_table(thd, &tbl, thd->mem_root, &ot_ctx_unused,
-                        MYSQL_LOCK_IGNORE_FLUSH);
+                        MYSQL_OPEN_IGNORE_FLUSH);
       new_table= tbl.table;
     }
     else
