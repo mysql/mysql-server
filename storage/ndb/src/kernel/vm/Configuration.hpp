@@ -135,7 +135,6 @@ public:
 private:
   friend class Cmvmi;
   friend class Qmgr;
-  friend int reportShutdown(class Configuration *config, int error, int restart, Uint32 sphase);
 
   Uint32 _stopOnError;
   Uint32 m_restartOnErrorInsert;
@@ -159,8 +158,6 @@ private:
   ndb_mgm_configuration_iterator * m_ownConfigIterator;
   
   ConfigRetriever *m_config_retriever;
-
-  Vector<BaseString> m_mgmds;
 
   /**
    * arguments to NDB process
