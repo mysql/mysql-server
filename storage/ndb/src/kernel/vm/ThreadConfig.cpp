@@ -308,9 +308,11 @@ ThreadConfig::doStart(NodeState::StartLevel startLevel){
   sh.theSignalId             = 0;
   sh.theLength               = StartOrd::SignalLength;
   
-  Uint32 theData[25];
-  StartOrd * const  startOrd = (StartOrd *)&theData[0];
-  startOrd->restartInfo = 0;
+  union {
+    Uint32 theData[25];
+    StartOrd startOrd;
+  };
+  startOrd.restartInfo = 0;
   
   Uint32 secPtrI[3];
   globalScheduler.execute(&sh, JBA, theData, secPtrI);

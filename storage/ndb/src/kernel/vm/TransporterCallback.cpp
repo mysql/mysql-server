@@ -442,8 +442,7 @@ reportError(void * callbackObj, NodeId nodeId,
     reportDisconnect(callbackObj, nodeId, errorCode);
   }
   
-  SignalT<3> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<3> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
 
@@ -458,7 +457,11 @@ reportError(void * callbackObj, NodeId nodeId,
   signal.header.theLength = 3;  
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+  signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 
   DBUG_VOID_RETURN;
 }
@@ -470,17 +473,21 @@ void
 reportSendLen(void * callbackObj, 
 	      NodeId nodeId, Uint32 count, Uint64 bytes){
 
-  SignalT<3> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<3> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
+  signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+
   signal.theData[0] = NDB_LE_SendBytesStatistic;
   signal.theData[1] = nodeId;
   signal.theData[2] = (bytes/count);
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 }
 
 /**
@@ -490,17 +497,21 @@ void
 reportReceiveLen(void * callbackObj, 
 		 NodeId nodeId, Uint32 count, Uint64 bytes){
 
-  SignalT<3> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<3> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 3;  
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
+  signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+
   signal.theData[0] = NDB_LE_ReceiveBytesStatistic;
   signal.theData[1] = nodeId;
   signal.theData[2] = (bytes/count);
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 }
 
 /**
@@ -510,16 +521,19 @@ reportReceiveLen(void * callbackObj,
 void
 reportConnect(void * callbackObj, NodeId nodeId){
 
-  SignalT<1> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<1> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = 1; 
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
+  signal.header.theReceiversBlockNumber = CMVMI;
+  signal.header.theVerId_signalNumber = GSN_CONNECT_REP;
+
   signal.theData[0] = nodeId;
   
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_CONNECT_REP);
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 }
 
 /**
@@ -530,20 +544,22 @@ reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 errNo){
 
   DBUG_ENTER("reportDisconnect");
 
-  SignalT<sizeof(DisconnectRep)/4> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<sizeof(DisconnectRep)/4> signal;
   memset(&signal.header, 0, sizeof(signal.header));
 
   signal.header.theLength = DisconnectRep::SignalLength; 
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.header.theTrace = TestOrd::TraceDisconnect;
+  signal.header.theVerId_signalNumber = GSN_DISCONNECT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
 
   DisconnectRep * const  rep = (DisconnectRep *)&signal.theData[0];
   rep->nodeId = nodeId;
   rep->err = errNo;
 
-  globalScheduler.execute(&signal, JBA, CMVMI, GSN_DISCONNECT_REP);
+  Uint32 secPtr[3];
+  globalScheduler.execute(&signal.header, JBA, signal.theData, secPtr);
 
   DBUG_VOID_RETURN;
 }
