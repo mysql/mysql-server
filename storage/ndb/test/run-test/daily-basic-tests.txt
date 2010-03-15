@@ -286,6 +286,10 @@ max-time: 600
 cmd: testIndex
 args: -n Bug50118 T1
 
+max-time: 300
+cmd: testIndex
+args: -n FireTrigOverload T1
+
 #
 # SCAN TESTS
 #
