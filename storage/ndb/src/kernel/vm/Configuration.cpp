@@ -111,7 +111,9 @@ Configuration::closeConfiguration(bool end_session){
 
 void
 Configuration::fetch_configuration(const char* _connect_string,
-                                   const char* _bind_address){
+                                   const char* _bind_address,
+                                   NodeId allocated_nodeid)
+{
   /**
    * Fetch configuration from management server
    */
@@ -142,22 +144,28 @@ Configuration::fetch_configuration(const char* _connect_string,
   }
 
   ConfigRetriever &cr= *m_config_retriever;
-  
-  /**
-   * if we have a nodeid set (e.g in a restart situation)
-   * reuse it
-   */
-  if (globalData.ownId)
-    cr.setNodeId(globalData.ownId);
 
-  globalData.ownId = cr.allocNodeId(globalData.ownId ? 10 : 2 /*retry*/,
-                                    3 /*delay*/);
-  
-  if(globalData.ownId == 0){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, 
-	      "Unable to alloc node id", m_config_retriever->getErrorString());
+  if (allocated_nodeid)
+  {
+    // The angel has already allocated the nodeid, no need to
+    // allocate it
+    globalData.ownId = allocated_nodeid;
   }
-  
+  else
+  {
+
+    const int alloc_retries = 2;
+    const int alloc_delay = 3;
+    globalData.ownId = cr.allocNodeId(alloc_retries, alloc_delay);
+    if(globalData.ownId == 0)
+    {
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+                "Unable to alloc node id",
+                m_config_retriever->getErrorString());
+    }
+  }
+  assert(globalData.ownId);
+
   ndb_mgm_configuration * p = cr.getConfig(globalData.ownId);
   if(p == 0){
     const char * s = cr.getErrorString();

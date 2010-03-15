@@ -23,18 +23,6 @@
 #include "ndbd.hpp"
 #include "angel.hpp"
 
-#include "Configuration.hpp"
-#include "vm/SimBlockList.hpp"
-#include "ThreadConfig.hpp"
-#include <SignalLoggerManager.hpp>
-#include <NdbOut.hpp>
-#include <NdbDaemon.h>
-#include <NdbSleep.h>
-#include <NdbConfig.h>
-#include <WatchDog.hpp>
-#include <NdbAutoPtr.hpp>
-#include <Properties.hpp>
-
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -45,6 +33,7 @@ static const char* opt_bind_address = 0;
 int opt_report_fd;
 int opt_initial;
 int opt_no_start;
+unsigned opt_allocated_nodeid;
 
 extern NdbNodeBitmask g_nowait_nodes;
 
@@ -171,21 +160,6 @@ int main(int argc, char** argv)
     }
   }
 
-  globalEmulatorData.create();
-
-  Configuration* theConfig = globalEmulatorData.theConfiguration;
-  if(!theConfig->init(opt_no_start, opt_initial,
-                      opt_initialstart)){
-    g_eventLogger->error("Failed to init Configuration");
-    exit(-1);
-  }
-
-  { // Do configuration
-    theConfig->fetch_configuration(opt_connect_str, opt_bind_address);
-  }
-
-  my_setwd(NdbConfig_get_path(0), MYF(0));
-
 #ifndef NDB_WIN32
   if (!opt_foreground)
   {
@@ -203,7 +177,10 @@ int main(int argc, char** argv)
   g_eventLogger->info("Ndb started");
 #endif
 
-  int res = ndbd_run(opt_foreground, opt_report_fd);
+  int res = ndbd_run(opt_foreground, opt_report_fd,
+                     opt_connect_str, opt_bind_address,
+                     opt_no_start, opt_initial, opt_initialstart,
+                     opt_allocated_nodeid);
   ndbd_exit(res);
   return res;
 }

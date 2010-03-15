@@ -495,7 +495,10 @@ ndbd_exit(int code)
 }
 
 int
-ndbd_run(bool foreground, int report_fd)
+ndbd_run(bool foreground, int report_fd,
+         const char* connect_str, const char* bind_address,
+         bool no_start, bool initial, bool initialstart,
+         unsigned allocated_nodeid)
 {
   if (report_fd)
   {
@@ -521,10 +524,23 @@ ndbd_run(bool foreground, int report_fd)
     }
   }
 
+  globalEmulatorData.create();
+
+  Configuration* theConfig = globalEmulatorData.theConfiguration;
+  if(!theConfig->init(no_start, initial, initialstart))
+  {
+    g_eventLogger->error("Failed to init Configuration");
+    return -1;
+  }
+
+  theConfig->fetch_configuration(connect_str, bind_address,
+                                 allocated_nodeid);
+
+  my_setwd(NdbConfig_get_path(0), MYF(0));
+
   if (get_multithreaded_config(globalEmulatorData))
     return -1;
 
-  Configuration* theConfig = globalEmulatorData.theConfiguration;
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel);
 

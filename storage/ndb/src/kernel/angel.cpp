@@ -204,8 +204,66 @@ int pipe(int pipefd[2]){
 extern int opt_report_fd; // REMOVE later
 extern int opt_initial; // REMOVE later
 extern int opt_no_start; // REMOVE later
+extern unsigned opt_allocated_nodeid; // REMOVE later
 
-#include "vm/SimBlockList.hpp"
+static Uint32 stop_on_error;
+
+
+static bool
+configure(const ndb_mgm_configuration* conf, NodeId nodeid)
+{
+  Uint32 generation = 0;
+  ndb_mgm_configuration_iterator sys_iter(*conf, CFG_SECTION_SYSTEM);
+  if (sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation))
+  {
+    g_eventLogger->warning("Configuration didn't contain generation "
+                           "(likely old ndb_mgmd");
+  }
+  g_eventLogger->info("Using configuration with generation %u", generation);
+
+  ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, nodeid))
+  {
+    g_eventLogger->error("Invalid configuration fetched, could not "
+                         "find own node id %d", nodeid);
+    return false;
+  }
+
+  // Extract the config parameters that concerns angel
+  if (iter.get(CFG_DB_STOP_ON_ERROR, &stop_on_error))
+  {
+    g_eventLogger->error("Invalid configuration fetched, could not "
+                         "find StopOnError");
+    return false;
+  }
+  g_eventLogger->debug("Using StopOnError: %u", stop_on_error);
+
+  const char * datadir;
+  if (iter.get(CFG_NODE_DATADIR, &datadir))
+  {
+    g_eventLogger->error("Invalid configuration fetched, could not "
+                         "find DataDir");
+    return false;
+  }
+  g_eventLogger->debug("Using DataDir: %s", datadir);
+
+  NdbConfig_SetPath(datadir);
+
+  my_setwd(NdbConfig_get_path(0), MYF(0));
+
+  return true;
+}
+
+
+// Temporary duplicate define
+enum NdbRestartType {
+  NRT_Default               = 0,
+  NRT_NoStart_Restart       = 1, // -n
+  NRT_DoStart_Restart       = 2, //
+  NRT_NoStart_InitialStart  = 3, // -n -i
+  NRT_DoStart_InitialStart  = 4  // -i
+};
+
 
 int
 angel_run(const char* connect_str,
@@ -217,11 +275,63 @@ angel_run(const char* connect_str,
 #ifdef NDB_WIN32
   return 1;
 #else
+  ConfigRetriever retriever(connect_str,
+                            NDB_VERSION,
+                            NDB_MGM_NODE_TYPE_NDB,
+                            bind_address);
+  if (retriever.hasError())
+  {
+    g_eventLogger->error("Could not initialize connection to management "
+                         "server, error: '%s'", retriever.getErrorString());
+    return 1;
+  }
+
+  const int connnect_retries = 12;
+  const int connect_delay = 5;
+  const int verbose = 1;
+  if (retriever.do_connect(connnect_retries, connect_delay, verbose) != 0)
+  {
+    g_eventLogger->error("Could not connect to management server, "
+                         "error: '%s'", retriever.getErrorString());
+    return 1;
+  }
+  g_eventLogger->info("Angel connected to '%s:%d'",
+                      retriever.get_mgmd_host(),
+                      retriever.get_mgmd_port());
+
+  const int alloc_retries = 2;
+  const int alloc_delay = 3;
+  Uint32 nodeid = retriever.allocNodeId(alloc_retries, alloc_delay);
+  if (nodeid == 0)
+  {
+    g_eventLogger->error("Failed to allocate nodeid, error: '%s'",
+                         retriever.getErrorString());
+    return 1;
+  }
+  opt_allocated_nodeid = nodeid;
+  g_eventLogger->info("Angel allocated nodeid: %u", nodeid);
+
+  ndb_mgm_configuration * config = retriever.getConfig(nodeid);
+  NdbAutoPtr<ndb_mgm_configuration> config_autoptr(config);
+  if (config == 0)
+  {
+    g_eventLogger->error("Could not fetch configuration/invalid "
+                         "configuration, error: '%s'",
+                         retriever.getErrorString());
+    return 1;
+  }
+
+  if (!configure(config, nodeid))
+  {
+    // Failed to configure, error already printed
+    return 1;
+  }
+
   if (daemon)
   {
     // Become a daemon
-    char *lockfile=NdbConfig_PidFileName(globalData.ownId);
-    char *logfile=NdbConfig_StdoutFileName(globalData.ownId);
+    char *lockfile = NdbConfig_PidFileName(nodeid);
+    char *logfile = NdbConfig_StdoutFileName(nodeid);
     NdbAutoPtr<char> tmp_aptr1(lockfile), tmp_aptr2(logfile);
 
 #ifndef NDB_WIN32
@@ -263,6 +373,7 @@ angel_run(const char* connect_str,
 
     opt_initial = initial; // TODO Remove in fork_and_exec
     opt_no_start = no_start; // TODO remove in fork_and_exec
+    opt_allocated_nodeid = nodeid; // TODO remove in fork_and_exec
 
     if ((child=fork()) <= 0)
       break; // child or error
@@ -273,16 +384,6 @@ angel_run(const char* connect_str,
     g_eventLogger->debug("Angel started child %d", child);
 
     ignore_signals();
-
-    /**
-     * We no longer need the mgm connection in this process
-     * (as we are the angel, not ndb)
-     *
-     * We don't want to purge any allocated resources (nodeid), so
-     * we set that option to false
-     */
-    Configuration* theConfig = globalEmulatorData.theConfiguration;
-    theConfig->closeConfiguration(false);
 
     int status=0, error_exit=0;
     while (waitpid(child, &status, 0) != child);
@@ -317,8 +418,7 @@ angel_run(const char* connect_str,
       switch (WEXITSTATUS(status)) {
       case NRT_Default:
         g_eventLogger->info("Angel shutting down");
-        reportShutdown(theConfig->getClusterConfig(),
-                       globalData.ownId, 0, 0, false, false,
+        reportShutdown(config, nodeid, 0, 0, false, false,
                        child_error, child_signal, child_sphase);
         angel_exit(0);
         break;
@@ -336,12 +436,12 @@ angel_run(const char* connect_str,
         break;
       default:
         error_exit=1;
-        if (theConfig->stopOnError())
+        if (stop_on_error)
         {
           /**
            * Error shutdown && stopOnError()
            */
-          reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
+          reportShutdown(config, nodeid,
                          error_exit, 0, false, false,
                          child_error, child_signal, child_sphase);
           angel_exit(0);
@@ -364,12 +464,12 @@ angel_run(const char* connect_str,
         child_signal = 127;
         g_eventLogger->info("Unknown exit reason. Stopped.");
       }
-      if (theConfig->stopOnError())
+      if (stop_on_error)
       {
         /**
          * Error shutdown && stopOnError()
          */
-        reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
+        reportShutdown(config, nodeid,
                        error_exit, 0, false, false,
                        child_error, child_signal, child_sphase);
         angel_exit(0);
@@ -380,26 +480,25 @@ angel_run(const char* connect_str,
     {
       // Reset the counter for consecutive failed startups
       failed_startups=0;
-    } else if (failed_startups >= MAX_FAILED_STARTUPS && !theConfig->stopOnError())
+    } else if (failed_startups >= MAX_FAILED_STARTUPS && !stop_on_error)
     {
       /**
-       * Error shutdown && stopOnError()
+       * Error shutdown && StopOnError
        */
       g_eventLogger->alert("Ndbd has failed %u consecutive startups. "
                            "Not restarting", failed_startups);
-      reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
+      reportShutdown(config, nodeid,
                      error_exit, 0, false, false,
                      child_error, child_signal, child_sphase);
       angel_exit(0);
     }
     failed_startup_flag=false;
-    reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
+    reportShutdown(config, nodeid,
                    error_exit, 1,
                    no_start,
                    initial,
                    child_error, child_signal, child_sphase);
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
-    theConfig->fetch_configuration(connect_str, bind_address);
   }
 
   if (child >= 0)
