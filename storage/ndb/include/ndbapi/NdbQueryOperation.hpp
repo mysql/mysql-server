@@ -148,6 +148,17 @@ public:
   NdbQueryImpl& getImpl() const
   { return m_impl; }
 
+  /**
+   * Check if this is a pruned range scan. A range scan is pruned if the ranges
+   * are such that only a subset of the fragments need to be scanned for 
+   * matching tuples.
+   *
+   * @param pruned This will be set to true if the operation is a pruned range 
+   * scan.
+   * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
+   */
+  int isPrunable(bool& pruned) const;
+
 private:
   /** Opaque implementation NdbQuery interface.*/
   NdbQueryImpl& m_impl;

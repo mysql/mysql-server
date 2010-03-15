@@ -48,7 +48,9 @@ STATIC_CONST(Err_SendFailed = 4002);
 STATIC_CONST(Err_UnknownColumn = 4004);
 STATIC_CONST(Err_ReceiveFromNdbFailed = 4008);
 STATIC_CONST(Err_NodeFailCausedAbort = 4028);
+STATIC_CONST(Err_WrongFieldLength = 4209);
 STATIC_CONST(Err_MixRecAttrAndRecord = 4284);
+STATIC_CONST(Err_InvalidRangeNo = 4286);
 STATIC_CONST(Err_DifferentTabForKeyRecAndAttrRec = 4287);
 STATIC_CONST(Err_KeyIsNULL = 4316);
 STATIC_CONST(Err_FinaliseNotCalled = 4519);
@@ -690,6 +692,11 @@ NdbQuery::getNdbError() const {
   return m_impl.getNdbError();
 };
 
+int NdbQuery::isPrunable(bool& prunable) const
+{
+  return m_impl.isPrunable(prunable);
+}
+
 NdbQueryOperation::NdbQueryOperation(NdbQueryOperationImpl& impl)
   :m_impl(impl)
 {}
@@ -914,7 +921,7 @@ int NdbQueryParamValue::getValue(const NdbParamOperandImpl& param,
                    column->getType() != NdbDictionary::Column::Longvarchar))
         return QRY_PARAMETER_HAS_WRONG_TYPE;
       addr = m_value.string;
-      len  = strlen(m_value.string);
+      len  = static_cast<Uint32>(strlen(m_value.string));
       if (unlikely(len > maxSize))
         return QRY_CHAR_PARAMETER_TRUNCATED;
       break;
@@ -1009,7 +1016,9 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_attrInfo(),
   m_keyInfo(),
   m_startIndicator(false),
-  m_commitIndicator(false)
+  m_commitIndicator(false),
+  m_prunability(Prune_No),
+  m_pruneHashVal(0)
 {
   // Allocate memory for all m_operations[] in a single chunk
   m_countOperations = queryDef.getNoOfOperations();
@@ -1144,7 +1153,7 @@ insert_bound(Uint32Buffer& keyInfo, const NdbRecord *key_record,
       len_ok= column->get_var_length(row, len);
     }
     if (!len_ok) {
-      return 4209;
+      return Err_WrongFieldLength;
     }
   }
 
@@ -1161,6 +1170,7 @@ int
 NdbQueryImpl::setBound(const NdbRecord *key_record,
                        const NdbIndexScanOperation::IndexBound *bound)
 {
+  m_prunability = Prune_Unknown;
   if (unlikely(bound==NULL))
     return QRY_REQ_ARG_IS_NULL;
 
@@ -1177,7 +1187,7 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
   if (unlikely(bound->range_no > NdbIndexScanOperation::MaxRangeNo))
   {
  // setErrorCodeAbort(4286);
-    return 4286;
+    return Err_InvalidRangeNo;
   }
   assert (bound->range_no == m_num_bounds);
   m_num_bounds++;
@@ -1924,9 +1934,8 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
     bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan);
     bool rangeScan = false;
 
-    bool   isPruned;
-    Uint32 hashValue;
-    const int error = rootDef.checkPrunable(m_keyInfo, isPruned, hashValue);
+    bool dummy;
+    const int error = isPrunable(dummy);
     if (unlikely(error != 0))
       return error;
 
@@ -1991,11 +2000,11 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
 //  m_keyInfo = (scan_flags & NdbScanOperation::SF_KeyInfo) ? 1 : 0;
 
     // If scan is pruned, use optional 'distributionKey' to hold hashvalue
-    if (isPruned)
+    if (m_prunability == Prune_Yes)
     {
 //    printf("Build pruned SCANREQ, w/ hashValue:%d\n", hashValue);
       ScanTabReq::setDistributionKeyFlag(reqInfo, 1);
-      scanTabReq->distributionKey= hashValue;
+      scanTabReq->distributionKey= m_pruneHashVal;
       tSignal.setLength(ScanTabReq::StaticLength + 1);
     } else {
       tSignal.setLength(ScanTabReq::StaticLength);
@@ -2366,6 +2375,26 @@ NdbQueryImpl::isBatchComplete() const {
 #endif
   return m_pendingFrags == 0;
 }
+
+
+int NdbQueryImpl::isPrunable(bool& prunable)
+{
+  if (m_prunability == Prune_Unknown)
+  {
+    const int error = getRoot().getQueryOperationDef()
+      .checkPrunable(m_keyInfo, prunable, m_pruneHashVal);
+    if (unlikely(error != 0))
+    {
+      prunable = false;
+      setErrorCodeAbort(error);
+      return -1;
+    }
+    m_prunability = prunable ? Prune_Yes : Prune_No;
+  }
+  prunable = m_prunability == Prune_Yes;
+  return 0;
+}
+
 
 /****************
  * NdbQueryImpl::FragStack methods.

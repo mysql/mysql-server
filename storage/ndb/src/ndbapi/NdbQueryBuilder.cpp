@@ -1092,7 +1092,7 @@ int NdbDoubleConstOperandImpl::convertDouble()
 int NdbCharConstOperandImpl::convertChar()
 {
   Uint32 len = m_column->getLength();
-  Uint32 srclen = (m_value) ? strlen(m_value) : 0;
+  Uint32 srclen = (m_value) ? static_cast<Uint32>(strlen(m_value)) : 0;
   if (unlikely(srclen > len)) {
     // TODO: Truncates: May silently remove trailing spaces:
     return QRY_CHAR_OPERAND_TRUNCATED;
@@ -1114,7 +1114,7 @@ int NdbCharConstOperandImpl::convertChar()
 int NdbCharConstOperandImpl::convertVChar()
 {
   Uint32 maxlen = m_column->getLength();
-  Uint32 len = (m_value) ? strlen(m_value) : 0;
+  Uint32 len = (m_value) ? static_cast<Uint32>(strlen(m_value)) : 0;
   if (unlikely(len > maxlen)) {
     // TODO: Truncates: May silently remove trailing spaces:
     return QRY_CHAR_OPERAND_TRUNCATED;
