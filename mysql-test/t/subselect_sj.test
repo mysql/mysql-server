@@ -943,5 +943,35 @@ execute stmt;
 execute stmt;
 drop table t1,t2,t3,t4;
 
+--echo # 
+--echo # Bug#48623 Multiple subqueries are optimized incorrectly
+--echo # 
 
+CREATE TABLE t1(val VARCHAR(10));
+CREATE TABLE t2(val VARCHAR(10));
+CREATE TABLE t3(val VARCHAR(10));
 
+INSERT INTO t1  VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO t2 VALUES('aaa'), ('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO t3 VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+
+EXPLAIN
+SELECT *
+FROM t1
+WHERE t1.val IN (SELECT t2.val FROM t2
+                 WHERE  t2.val LIKE 'a%' OR t2.val LIKE 'e%')
+  AND t1.val IN (SELECT t3.val FROM t3
+                 WHERE  t3.val LIKE 'a%' OR t3.val LIKE 'e%');
+
+SELECT *
+FROM t1
+WHERE t1.val IN (SELECT t2.val FROM t2
+                 WHERE  t2.val LIKE 'a%' OR t2.val LIKE 'e%')
+  AND t1.val IN (SELECT t3.val FROM t3
+                 WHERE  t3.val LIKE 'a%' OR t3.val LIKE 'e%');
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--echo # End of Bug#48623

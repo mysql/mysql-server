@@ -1079,3 +1079,36 @@ execute stmt;
 partner_id
 partner2
 drop table t1,t2,t3,t4;
+# 
+# Bug#48623 Multiple subqueries are optimized incorrectly
+# 
+CREATE TABLE t1(val VARCHAR(10));
+CREATE TABLE t2(val VARCHAR(10));
+CREATE TABLE t3(val VARCHAR(10));
+INSERT INTO t1  VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO t2 VALUES('aaa'), ('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO t3 VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+EXPLAIN
+SELECT *
+FROM t1
+WHERE t1.val IN (SELECT t2.val FROM t2
+WHERE  t2.val LIKE 'a%' OR t2.val LIKE 'e%')
+AND t1.val IN (SELECT t3.val FROM t3
+WHERE  t3.val LIKE 'a%' OR t3.val LIKE 'e%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	5	Using where; FirstMatch(t1)
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where; FirstMatch(t3)
+SELECT *
+FROM t1
+WHERE t1.val IN (SELECT t2.val FROM t2
+WHERE  t2.val LIKE 'a%' OR t2.val LIKE 'e%')
+AND t1.val IN (SELECT t3.val FROM t3
+WHERE  t3.val LIKE 'a%' OR t3.val LIKE 'e%');
+val
+aaa
+eee
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+# End of Bug#48623

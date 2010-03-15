@@ -3030,7 +3030,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
   THD *thd= join->thd;
   DBUG_ENTER("setup_semijoin_dups_elimination");
 
-  for (i= join->const_tables ; i < join->tables ; i++)
+  for (i= join->const_tables ; i < join->tables; )
   {
     JOIN_TAB *tab=join->join_tab + i;
     POSITION *pos= join->best_positions + i;
@@ -3039,7 +3039,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       case SJ_OPT_MATERIALIZE:
       case SJ_OPT_MATERIALIZE_SCAN:
         /* Do nothing */
-        i += pos->n_sj_tables;
+        i+= pos->n_sj_tables;
         break;
       case SJ_OPT_LOOSE_SCAN:
       {
@@ -3055,7 +3055,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         tab->loosescan_key_len= keylen;
         if (pos->n_sj_tables > 1) 
           tab[pos->n_sj_tables - 1].do_firstmatch= tab;
-        i += pos->n_sj_tables;
+        i+= pos->n_sj_tables;
         break;
       }
       case SJ_OPT_DUPS_WEEDOUT:
@@ -3152,7 +3152,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         join->join_tab[first_table].flush_weedout_table= sjtbl;
         join->join_tab[i + pos->n_sj_tables - 1].check_weed_out_table= sjtbl;
 
-        i += pos->n_sj_tables;
+        i+= pos->n_sj_tables;
         break;
       }
       case SJ_OPT_FIRST_MATCH:
@@ -3174,10 +3174,11 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           }
         }
         j[-1].do_firstmatch= jump_to;
-        i += pos->n_sj_tables;
+        i+= pos->n_sj_tables;
         break;
       }
       case SJ_OPT_NONE:
+        i++;
         break;
     }
   }
