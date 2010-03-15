@@ -14,7 +14,7 @@ if [ -z "$just_clean" ]
 then
 commands="$commands
 CC=\"$CC\" CFLAGS=\"$cflags\" CXX=\"$CXX\" CXXFLAGS=\"$cxxflags\" CXXLDFLAGS=\"$CXXLDFLAGS\" \
-$configure"
+$configure $extra_configure"
 fi
 
 if [ -z "$just_configure" -a -z "$just_clean" ]

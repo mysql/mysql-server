@@ -1282,7 +1282,7 @@ Lgman::get_log_buffer(Ptr<Logfile_group> ptr, Uint32 sz)
   {
 next:
     // fits this page wo/ problem
-    ndbrequire(total_free > sz);
+    ndbrequire(total_free >= sz);
     ptr.p->m_free_buffer_words = total_free - sz;
     ptr.p->m_pos[PRODUCER].m_current_pos.m_idx = pos + sz;
     return ((File_formats::Undofile::Undo_page*)page)->m_data + pos;
