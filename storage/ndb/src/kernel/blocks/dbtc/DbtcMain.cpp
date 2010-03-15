@@ -2328,6 +2328,7 @@ void Dbtc::initApiConnectRec(Signal* signal,
   regApiPtr->noIndexOp = 0;
   if(releaseIndexOperations)
     releaseAllSeizedIndexOperations(regApiPtr);
+  regApiPtr->immediateTriggerId = RNIL;
 
   c_counters.ctransCount++;
 
@@ -2754,7 +2755,12 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   {
     // Save the TcOperationPtr for fireing operation
     regTcPtr->triggeringOperation = TsenderData;
+    // Grab trigger Id from ApiConnectRecord
+    ndbrequire(regApiPtr->immediateTriggerId != RNIL);
+    regTcPtr->currentTriggerId= regApiPtr->immediateTriggerId;
   }
+  ndbassert(isExecutingTrigger || 
+            (regApiPtr->immediateTriggerId == RNIL));
 
   if (TexecFlag){
     Uint32 currSPId = regApiPtr->currSavePointId;
@@ -13207,20 +13213,44 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
 {
   jamEntry();
   FireTrigOrd * const fireOrd =  (FireTrigOrd *)signal->getDataPtr();
-  ApiConnectRecord *localApiConnectRecord = apiConnectRecord;
   ApiConnectRecordPtr transPtr;
-  TcConnectRecord *localTcConnectRecord = tcConnectRecord;
   TcConnectRecordPtr opPtr;
-  /**
-   * TODO
-   * Check transid,
-   * Fix overload i.e invalid word count
+  bool transIdOk = true;
+  /* Check the received transaction id
+   * Older nodes do not send transid info in FIRE_TRIG_ORD
    */
+  const Uint32 sourceNode = refToNode(signal->getSendersBlockRef());
+  const Uint32 sourceNodeVersion = getNodeInfo(sourceNode).m_version;
+  bool sigContainsTransId = ndb_fire_trig_ord_transid(sourceNodeVersion);
+  
+  /* Get triggering operation record */
+  opPtr.i = fireOrd->getConnectionPtr();
+  ptrCheckGuard(opPtr, ctcConnectFilesize, tcConnectRecord);
+  
+  /* Get transaction record */
+  transPtr.i = opPtr.p->apiConnect;
+  if (unlikely(transPtr.i == RNIL))
+  {
+    /* Looks like the connect record was released
+     * Treat as a bad transid
+     */
+    transIdOk = false;
+  }
+  else
+  {
+    ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord);
+    
+    /* Check if signal's trans id and operation's transid are aligned */
+    transIdOk = (! sigContainsTransId) |
+      (! ((fireOrd->m_transId1 ^ transPtr.p->transid[0]) |
+          (fireOrd->m_transId2 ^ transPtr.p->transid[1])));
+  } 
+
   TcFiredTriggerData key;
-  key.fireingOperation = fireOrd->getConnectionPtr();
+  key.fireingOperation = opPtr.i;
   key.nodeId = refToNode(signal->getSendersBlockRef());
   FiredTriggerPtr trigPtr;
-  if(c_firedTriggerHash.find(trigPtr, key))
+  if(likely(c_firedTriggerHash.find(trigPtr, key)))
   {
     jam();
     c_firedTriggerHash.remove(trigPtr);
@@ -13231,26 +13261,26 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
     if (unlikely(signal->getLength() < FireTrigOrd::SignalLength))
     {
       jam();
-      Uint32 version = getNodeInfo(key.nodeId).m_version;
-      ndbrequire(!ndb_fire_trig_ord_transid(version));
+      ndbrequire(! sigContainsTransId );
       Ptr<TcDefinedTriggerData> ptr;
       c_theDefinedTriggers.getPtr(ptr, trigPtr.p->triggerId);
       trigPtr.p->triggerType = ptr.p->triggerType;
       trigPtr.p->triggerEvent = ptr.p->triggerEvent;
     }
-
     trigPtr.p->fragId= fireOrd->fragId;
-    bool ok = trigPtr.p->keyValues.getSize() == fireOrd->m_noPrimKeyWords;
+    bool ok = transIdOk;
+    ok &= trigPtr.p->keyValues.getSize() == fireOrd->m_noPrimKeyWords;
     ok &= trigPtr.p->afterValues.getSize() == fireOrd->m_noAfterValueWords;
     ok &= trigPtr.p->beforeValues.getSize() == fireOrd->m_noBeforeValueWords;
-    if(ok)
+
+    if (ERROR_INSERTED(8085))
     {
-      jam();
-      opPtr.i = key.fireingOperation;
-      ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
-      transPtr.i = opPtr.p->apiConnect;
-      transPtr.p = &localApiConnectRecord[transPtr.i];
-      
+      ok = false;
+    }
+
+    if(likely( ok ))
+    {
+      jam();      
       opPtr.p->noReceivedTriggers++;
       opPtr.p->triggerExecutionCount++;
 
@@ -13261,14 +13291,40 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
       }
       return;
     }
+
+    /* Trigger entry found but either :
+     *   - Overload resulted in loss of Trig_Attrinfo
+     *     : Release resources + Abort transaction
+     *   - Bad transaction id due to concurrent abort?
+     *     : Release resources
+     */
     jam();
+    // Release trigger records
+    AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
+    LocalDataBuffer<11> tmp1(pool, trigPtr.p->keyValues);
+    tmp1.release();
+    LocalDataBuffer<11> tmp2(pool, trigPtr.p->beforeValues);
+    tmp2.release();
+    LocalDataBuffer<11> tmp3(pool, trigPtr.p->afterValues);
+    tmp3.release();
     c_theFiredTriggerPool.release(trigPtr);
   }
-  jam();
-  /**
-   * Failed to find record or invalid word counts
+
+  /* Either no trigger entry found, or overload, or
+   * bad transid
+   * If transid is ok, abort the transaction.
+   * else, return.
+   * (Note small risk of 'abort of innocent' in upgrade 
+   *  scenario with no transid in FIRE_TRIG_ORD)
    */
-  ndbrequire(false);
+  jam();
+  if (transIdOk)
+  {
+    jam();
+    abortTransFromTrigger(signal, transPtr, ZGET_DATAREC_ERROR);
+  }
+
+  return;
 }
 
 void Dbtc::execTRIG_ATTRINFO(Signal* signal)
@@ -13284,6 +13340,7 @@ void Dbtc::execTRIG_ATTRINFO(Signal* signal)
   key.nodeId = refToNode(signal->getSendersBlockRef());
   if(!c_firedTriggerHash.find(firedTrigPtr, key)){
     jam();
+    /* TODO : Node failure handling (use sig-train assembly) */
     if(!c_firedTriggerHash.seize(firedTrigPtr)){
       jam();
       /**
@@ -14813,6 +14870,94 @@ void Dbtc::releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers)
   triggers->release();
 }
 
+/**
+ * abortTransFromTrigger
+ *
+ * This method is called when there is a problem with trigger
+ * handling and the transaction should be aborted with the
+ * given error code
+ */
+void Dbtc::abortTransFromTrigger(Signal* signal,
+                                 const ApiConnectRecordPtr& transPtr,
+                                 Uint32 error)
+{
+  jam();
+  terrorCode = error;
+  
+  apiConnectptr = transPtr;
+  
+  abortErrorLab(signal);
+}
+
+/**
+ * appendAttrDataToSection
+ *
+ * Copy data in AttrInfo form from the given databuffer
+ * to the given section IVal (can be RNIL).
+ * If attribute headers are to be copied they will be
+ * renumbered consecutively, starting with the given
+ * attrId.
+ * hasNull is updated to indicate whether any Nulls 
+ * were encountered.
+ */
+bool Dbtc::appendAttrDataToSection(Uint32& sectionIVal, 
+                                   DataBuffer<11>& values,
+                                   bool withHeaders,
+                                   Uint32& attrId,
+                                   bool& hasNull)
+{
+  AttributeBuffer::DataBufferIterator iter;
+  bool moreData= values.first(iter);
+  hasNull= false;
+  const Uint32 segSize= values.getSegmentSize(); // 11
+
+  while (moreData)
+  {
+    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
+    Uint32 dataSize= attrHeader->getDataSize();
+    hasNull |= (dataSize == 0);
+    
+    if (withHeaders)
+    {
+      AttributeHeader ah(*iter.data);
+      ah.setAttributeId(attrId); // Renumber AttrIds
+      if (unlikely(!appendToSection(sectionIVal,
+                                    &ah.m_value,
+                                    1)))
+      {
+        releaseSection(sectionIVal);
+        sectionIVal= RNIL;
+        return false;
+      }
+    }
+
+    moreData= values.next(iter, 1);
+    
+    while (dataSize)
+    {
+      ndbrequire(moreData);
+      /* Copy as many contiguous words as possible */
+      Uint32 contigLeft= segSize - iter.ind;
+      ndbassert(contigLeft);
+      Uint32 contigValid= MIN(dataSize, contigLeft);
+      
+      if (unlikely(!appendToSection(sectionIVal,
+                                    iter.data,
+                                    contigValid)))
+      {
+        releaseSection(sectionIVal);
+        sectionIVal= RNIL;
+        return false;
+      }
+      moreData= values.next(iter, contigValid);
+      dataSize-= contigValid;
+    }
+    attrId++;
+  }
+
+  return true;
+} 
+
 void Dbtc::insertIntoIndexTable(Signal* signal, 
                                 TcFiredTriggerData* firedTriggerData, 
                                 ApiConnectRecordPtr* transPtr,
@@ -14824,14 +14969,10 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
   TcConnectRecord* opRecord = opPtr->p;
   TcKeyReq * const tcKeyReq =  (TcKeyReq *)signal->getDataPtrSend();
   Uint32 tcKeyRequestInfo = 0;
-  Uint32 tcKeyLength = TcKeyReq::StaticLength;
   TableRecordPtr indexTabPtr;
-  AttributeBuffer::DataBufferIterator iter;
-  Uint32 attrId = 0;
-  Uint32 keyLength = 0;
-  Uint32 totalPrimaryKeyLength = 1; // fragment length
-  Uint32 hops;
 
+  jam();
+  
   indexTabPtr.i = indexData->indexId;
   ptrCheckGuard(indexTabPtr, ctabrecFilesize, tableRecord);
   tcKeyReq->apiConnectPtr = transPtr->i;
@@ -14840,400 +14981,146 @@ void Dbtc::insertIntoIndexTable(Signal* signal,
     jam();
     opRecord->triggerExecutionCount++;
   }//if
+
+  /* Key for insert to unique index table is the afterValues from the
+   * base table operation (from update or insert on base).
+   * Data for insert to unique index table is the afterValues from the
+   * base table operation plus the fragment id and packed keyValues from 
+   * the base table operation
+   */
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   LocalDataBuffer<11> afterValues(pool, firedTriggerData->afterValues);
-  bool skipNull = false;
-  for(bool moreKeyAttrs = afterValues.first(iter); moreKeyAttrs; attrId++) {
-    jam();
-    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
+  LocalDataBuffer<11> keyValues(pool, firedTriggerData->keyValues);
 
-    // Filter out NULL valued attributes
-    if (attrHeader->isNULL()) {
-      skipNull = true;
+  Uint32 keyIVal= RNIL;
+  Uint32 attrIVal= RNIL;
+  bool appendOk= false;
+  do
+  {
+    Uint32 attrId= 0;
+    bool hasNull= false;
+
+    /* Build Insert KeyInfo section from aftervalues */
+    if (unlikely(! appendAttrDataToSection(keyIVal,
+                                           afterValues,
+                                           false, // No AttributeHeaders
+                                           attrId,
+                                           hasNull)))
+    {
+      jam();
       break;
     }
-    attrHeader->setAttributeId(attrId);      
-    keyLength += attrHeader->getDataSize();
-    hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
-    moreKeyAttrs = afterValues.next(iter, hops);
-  }
-  if (skipNull) {
-    jam();
-    opRecord->triggerExecutionCount--;
-    if (opRecord->triggerExecutionCount == 0) {
-      /*
-	We have completed current trigger execution
-	Continue triggering operation
-      */
-      jam();
-      continueTriggeringOp(signal, opRecord);	
-    }//if
-    return;
-  }//if
 
-  // Calculate total length of primary key to be stored in index table
-  LocalDataBuffer<11> keyValues(pool, firedTriggerData->keyValues);
-  for(bool moreAttrData = keyValues.first(iter); moreAttrData; ) {
-    jam();
-    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
+    if(ERROR_INSERTED(8086))
+    {
+      /* Simulate SS exhaustion */
+      break;
+    }
     
-    totalPrimaryKeyLength += attrHeader->getDataSize();
-    hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
-    moreAttrData = keyValues.next(iter, hops);
+    /* If there's Nulls in the values that become the index table's
+     * PK then we skip this insert
+     */
+    if (hasNull)
+    {
+      jam();
+      releaseSection(keyIVal);
+      opRecord->triggerExecutionCount--;
+      if (opRecord->triggerExecutionCount == 0) {
+        /*
+          We have completed current trigger execution
+          Continue triggering operation
+        */
+        jam();
+        continueTriggeringOp(signal, opRecord);	
+      }//if
+      return;
+    }
+    
+    /* Build Insert AttrInfo section from aftervalues, 
+     * fragment id + keyvalues
+     */
+    AttributeHeader ah(attrId, 0); // Length tbd.
+    attrId= 0;
+    if (unlikely((! appendAttrDataToSection(attrIVal,
+                                            afterValues,
+                                            true, // Include AttributeHeaders,
+                                            attrId,
+                                            hasNull)) ||
+                 (! appendToSection(attrIVal,
+                                    &ah.m_value,
+                                    1))))
+    {
+      jam();
+      break;
+    }
+    
+    AttributeHeader* pkHeader= (AttributeHeader*) getLastWordPtr(attrIVal);
+    Uint32 startSz= getSectionSz(attrIVal);
+    if (unlikely((! appendToSection(attrIVal,
+                                    &firedTriggerData->fragId,
+                                    1)) ||
+                 (! appendAttrDataToSection(attrIVal,
+                                            keyValues,
+                                            false, // No AttributeHeaders
+                                            attrId,
+                                            hasNull))))
+    {
+      jam();
+      break;
+    }
+
+    appendOk= true;
+
+    /* Now go back and set pk header length */
+    pkHeader->setDataSize(getSectionSz(attrIVal) - startSz);
+  } while(0);
+
+  if (unlikely(!appendOk))
+  {
+    /* Some failure building up KeyInfo and AttrInfo */
+    releaseSection(keyIVal);
+    releaseSection(attrIVal);
+    abortTransFromTrigger(signal, *transPtr, ZGET_DATAREC_ERROR);
+    return;
   }
-  AttributeHeader pkAttrHeader(attrId, totalPrimaryKeyLength << 2);
-  Uint32 attributesLength = afterValues.getSize() + 
-    pkAttrHeader.getHeaderSize() + pkAttrHeader.getDataSize();
   
-  TcKeyReq::setKeyLength(tcKeyRequestInfo, keyLength);
-  tcKeyReq->attrLen = attributesLength;
+  /* Now build TcKeyReq for insert */
+  TcKeyReq::setKeyLength(tcKeyRequestInfo, 0);
+  tcKeyReq->attrLen = 0;
+  TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
   tcKeyReq->tableId = indexData->indexId;
   TcKeyReq::setOperationType(tcKeyRequestInfo, ZINSERT);
   tcKeyReq->tableSchemaVersion = indexTabPtr.p->currentSchemaVersion;
   tcKeyReq->transId1 = regApiPtr->transid[0];
   tcKeyReq->transId2 = regApiPtr->transid[1];
-  Uint32 * dataPtr = &tcKeyReq->scanInfo;
-  // Write first part of key in TCKEYREQ
-  Uint32 keyBufSize = 8; // Maximum for key in TCKEYREQ
-  Uint32 attrBufSize = 5; // Maximum for key in TCKEYREQ
-  Uint32 dataPos = 0;
-  // Filter out AttributeHeader:s since this should no be in key
-  bool moreKeyData = afterValues.first(iter);
-  Uint32 headerSize = 0, keyAttrSize = 0, dataSize = 0, headAndData = 0;
-
-  while (moreKeyData && (dataPos < keyBufSize)) {
-    /*
-     * If we have not read complete key
-     * and it fits in the signal
-     */
-    jam();
-    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-    
-    headerSize = attrHeader->getHeaderSize();
-    keyAttrSize = attrHeader->getDataSize();
-    headAndData = headerSize + attrHeader->getDataSize();
-    // Skip header
-    if (headerSize == 1) {
-      jam();
-      moreKeyData = afterValues.next(iter);
-    } else {
-      jam();
-      moreKeyData = afterValues.next(iter, headerSize - 1);
-    }//if
-    while((keyAttrSize != 0) && (dataPos < keyBufSize)) {
-      // If we have not read complete key
-      jam();
-      *dataPtr++ = *iter.data;
-      dataPos++;
-      keyAttrSize--;
-      moreKeyData = afterValues.next(iter);
-    }
-    if (keyAttrSize != 0) {
-      jam();
-      break;
-    }//if
-  }
-
-  tcKeyLength += dataPos;
-  /*
-    Size of attrinfo is unique index attributes one by one, header for each
-    of them (all contained in the afterValues data structure), plus a header,
-    the primary key (compacted) and the fragment id before the primary key
-  */
-  if (attributesLength <= attrBufSize) {
-    jam();
-    // ATTRINFO fits in TCKEYREQ
-    // Pack ATTRINFO IN TCKEYREQ as one attribute
-    TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, attributesLength);
-    bool moreAttrData;
-    // Insert primary key attributes (insert after values of primary table)
-    for(moreAttrData = afterValues.first(iter);
-	moreAttrData;
-	moreAttrData = afterValues.next(iter)) {      
-      *dataPtr++ = *iter.data;
-    }
-    // Insert attribute values (insert key values of primary table)
-    // as one attribute
-    pkAttrHeader.insertHeader(dataPtr);
-    dataPtr += pkAttrHeader.getHeaderSize();
-    /*
-      Insert fragment id before primary key as part of reference to tuple
-    */
-    *dataPtr++ = firedTriggerData->fragId;
-    moreAttrData = keyValues.first(iter);
-    while(moreAttrData) {
-      jam();
-      AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-      
-      headerSize = attrHeader->getHeaderSize();
-      dataSize = attrHeader->getDataSize();
-      // Skip header
-      if (headerSize == 1) {
-        jam();
-        moreAttrData = keyValues.next(iter);
-      } else {
-        jam();
-        moreAttrData = keyValues.next(iter, headerSize - 1);
-      }//if
-      // Copy attribute data
-      while(dataSize-- != 0) {
-	*dataPtr++ = *iter.data;
-	moreAttrData = keyValues.next(iter);
-      }
-    }
-    tcKeyLength += attributesLength;
-  } else {
-    jam();
-    // No ATTRINFO in TCKEYREQ
-    TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
-  }
   tcKeyReq->requestInfo = tcKeyRequestInfo;
+  
+  /* Attach Key and AttrInfo sections to signal */
+  ndbrequire(signal->header.m_noOfSections == 0);
+  signal->m_sectionPtrI[ TcKeyReq::KeyInfoSectionNum ] = keyIVal;
+  signal->m_sectionPtrI[ TcKeyReq::AttrInfoSectionNum ] = attrIVal;
+  signal->header.m_noOfSections= 2;
 
-  /**
+  /*
    * Fix savepoint id -
    *   fix so that insert has same savepoint id as triggering operation
    */
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   regApiPtr->currSavePointId = opRecord->savePointId;
   regApiPtr->m_special_op_flags = TcConnectRecord::SOF_TRIGGER;
-  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, tcKeyLength);
+  /* Pass trigger Id via ApiConnectRecord (nasty) */
+  ndbrequire(regApiPtr->immediateTriggerId == RNIL);
+  regApiPtr->immediateTriggerId= firedTriggerData->triggerId;
+
+  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength);
   jamEntry();
 
-  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-  {
-    jam();
-    return;
-  }
-
+  /*
+   * Restore ApiConnectRecord state
+   */
   regApiPtr->currSavePointId = currSavePointId;
-  tcConnectptr.p->currentTriggerId = firedTriggerData->triggerId;
-
-  // *********** KEYINFO ***********
-  if (moreKeyData) {
-    jam();
-    // Send KEYINFO sequence
-    KeyInfo * const keyInfo =  (KeyInfo *)signal->getDataPtrSend();
-    
-    keyInfo->connectPtr = transPtr->i;
-    keyInfo->transId[0] = regApiPtr->transid[0];
-    keyInfo->transId[1] = regApiPtr->transid[1];
-    dataPtr = (Uint32 *) &keyInfo->keyData;
-    dataPos = 0;
-    // Pack any part of a key attribute that did no fit TCKEYREQ
-    while((keyAttrSize != 0) && (dataPos < KeyInfo::DataLength)) {
-      // If we have not read complete key
-      *dataPtr++ = *iter.data;
-      dataPos++;
-      keyAttrSize--;
-      if (dataPos == KeyInfo::DataLength) {
-        jam();
-	// Flush KEYINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-	sendSignal(reference(), GSN_KEYINFO, signal, 
-		   KeyInfo::HeaderLength + KeyInfo::DataLength, JBA);
-#else
-	EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
-		       KeyInfo::HeaderLength + KeyInfo::DataLength);
-        jamEntry();
-#endif
-	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-	{
-	  jam();
-	  return;
-	}
-	
-	dataPtr = (Uint32 *) &keyInfo->keyData;
-	dataPos = 0;
-      }
-      moreKeyData = afterValues.next(iter);
-    }
-    
-    while(moreKeyData) {
-      jam();
-      AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-      
-      headerSize = attrHeader->getHeaderSize();
-      keyAttrSize = attrHeader->getDataSize();
-      headAndData = headerSize + attrHeader->getDataSize();
-      // Skip header
-      if (headerSize == 1) {
-        jam();
-        moreKeyData = afterValues.next(iter);
-      } else {
-        jam();
-        moreKeyData = afterValues.next(iter, headerSize - 1);
-      }//if
-      while (keyAttrSize-- != 0) {
-        *dataPtr++ = *iter.data;
-        dataPos++;
-        if (dataPos == KeyInfo::DataLength) {
-          jam();
-          // Flush KEYINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-	  sendSignal(reference(), GSN_KEYINFO, signal, 
-		     KeyInfo::HeaderLength + KeyInfo::DataLength, JBA);
-#else
-          EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
-			 KeyInfo::HeaderLength + KeyInfo::DataLength);
-          jamEntry();
-#endif
-
-	  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-	  {
-	    jam();
-	    return;
-	  }
-
-	  dataPtr = (Uint32 *) &keyInfo->keyData;	  
-          dataPos = 0;
-        }       
-        moreKeyData = afterValues.next(iter);
-      }
-    }
-    if (dataPos != 0) {
-      jam();
-      // Flush last KEYINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-      sendSignal(reference(), GSN_KEYINFO, signal, 
-		 KeyInfo::HeaderLength + dataPos, JBA);
-#else
-      EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
-		     KeyInfo::HeaderLength + dataPos);
-      jamEntry();
-#endif
-      if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-      {
-	jam();
-	return;
-      }
-    }
-  }
-  
-  // *********** ATTRINFO ***********
-  if (attributesLength > attrBufSize) {
-    jam();
-    // No ATTRINFO in TcKeyReq
-    TcKeyReq::setAIInTcKeyReq(tcKeyReq->requestInfo, 0);
-    // Send ATTRINFO sequence
-    AttrInfo * const attrInfo =  (AttrInfo *)signal->getDataPtrSend();
-    Uint32 attrInfoPos = 0;
-    
-    attrInfo->connectPtr = transPtr->i;
-    attrInfo->transId[0] = regApiPtr->transid[0];
-    attrInfo->transId[1] = regApiPtr->transid[1];
-    dataPtr = (Uint32 *) &attrInfo->attrData;
-    
-    bool moreAttrData;
-    // Insert primary key attributes (insert after values of primary table)
-    for(moreAttrData = afterValues.first(iter);
-	moreAttrData;
-	moreAttrData = afterValues.next(iter)) {      
-      *dataPtr++ = *iter.data;
-      attrInfoPos++;
-      if (attrInfoPos == AttrInfo::DataLength) {
-        jam();
-	// Flush ATTRINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-	sendSignal(reference(), GSN_ATTRINFO, signal, 
-		   AttrInfo::HeaderLength + AttrInfo::DataLength, JBA);
-#else
-	EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal,
-		       AttrInfo::HeaderLength + AttrInfo::DataLength);
-        jamEntry();
-#endif
-	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-	{
-	  jam();
-	  return;
-	}
-
-	dataPtr = (Uint32 *) &attrInfo->attrData;
-	attrInfoPos = 0;
-      }
-    }
-    // Insert attribute values (insert key values of primary table)
-    // as one attribute
-    pkAttrHeader.insertHeader(dataPtr);
-    dataPtr += pkAttrHeader.getHeaderSize();
-    attrInfoPos += pkAttrHeader.getHeaderSize();
-    /*
-      Add fragment id before primary key
-      TODO: This code really needs to be made into a long signal
-      to remove this messy code.
-    */
-    if (attrInfoPos == AttrInfo::DataLength)
-    {
-      jam();
-      // Flush ATTRINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-      sendSignal(reference(), GSN_ATTRINFO, signal, 
-                 AttrInfo::HeaderLength + AttrInfo::DataLength, JBA);
-#else
-      EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal,
-                     AttrInfo::HeaderLength + AttrInfo::DataLength);
-      jamEntry();
-#endif
-      dataPtr = (Uint32 *) &attrInfo->attrData;	  
-      attrInfoPos = 0;
-    }
-    attrInfoPos++;
-    *dataPtr++ = firedTriggerData->fragId;
-
-    moreAttrData = keyValues.first(iter);
-    while(moreAttrData) {
-      jam();
-      AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-      
-      headerSize = attrHeader->getHeaderSize();
-      dataSize = attrHeader->getDataSize();
-      // Skip header
-      if (headerSize == 1) {
-        jam();
-        moreAttrData = keyValues.next(iter);
-      } else {
-        jam();
-        moreAttrData = keyValues.next(iter, headerSize - 1);
-      }//if
-      while(dataSize-- != 0) { // If we have not read complete key
-        if (attrInfoPos == AttrInfo::DataLength) {
-          jam();
-          // Flush ATTRINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-	  sendSignal(reference(), GSN_ATTRINFO, signal, 
-		     AttrInfo::HeaderLength + AttrInfo::DataLength, JBA);
-#else
-	  EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal,
-			 AttrInfo::HeaderLength + AttrInfo::DataLength);
-          jamEntry();
-#endif
-	  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-	  {
-	    jam();
-	    return;
-	  }
-	  
-	  dataPtr = (Uint32 *) &attrInfo->attrData;	  
-          attrInfoPos = 0;
-        }       
-        *dataPtr++ = *iter.data;
-        attrInfoPos++;
-        moreAttrData = keyValues.next(iter);
-      }
-    }
-    if (attrInfoPos != 0) {
-      jam();
-      // Flush last ATTRINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-      sendSignal(reference(), GSN_ATTRINFO, signal, 
-		 AttrInfo::HeaderLength + attrInfoPos, JBA);
-#else
-      EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal,
-		     AttrInfo::HeaderLength + attrInfoPos);
-      jamEntry();
-#endif
-    }
-  }
+  regApiPtr->immediateTriggerId = RNIL;
 }
 
 void Dbtc::deleteFromIndexTable(Signal* signal, 
@@ -15247,12 +15134,7 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   TcConnectRecord* opRecord = opPtr->p;
   TcKeyReq * const tcKeyReq =  (TcKeyReq *)signal->getDataPtrSend();
   Uint32 tcKeyRequestInfo = 0;
-  Uint32 tcKeyLength = 12; // Static length
   TableRecordPtr indexTabPtr;
-  AttributeBuffer::DataBufferIterator iter;
-  Uint32 attrId = 0;
-  Uint32 keyLength = 0;
-  Uint32 hops;
 
   indexTabPtr.i = indexData->indexId;
   ptrCheckGuard(indexTabPtr, ctabrecFilesize, tableRecord);
@@ -15265,90 +15147,58 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   // Calculate key length and renumber attribute id:s
   AttributeBuffer::DataBufferPool & pool = c_theAttributeBufferPool;
   LocalDataBuffer<11> beforeValues(pool, firedTriggerData->beforeValues);
-  bool skipNull = false;
-  for(bool moreKeyAttrs = beforeValues.first(iter);
-      (moreKeyAttrs);
-      attrId++) {
+  
+  Uint32 keyIVal= RNIL;
+  Uint32 attrId= 0;
+  bool hasNull= false;
+  
+  /* Build Delete KeyInfo section from beforevalues */
+  if (unlikely((! appendAttrDataToSection(keyIVal,
+                                          beforeValues,
+                                          false, // No AttributeHeaders
+                                          attrId,
+                                          hasNull)) ||
+               ERROR_INSERTED(8086)))
+  {
     jam();
-    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-    
-    // Filter out NULL valued attributes
-    if (attrHeader->isNULL()) {
-      skipNull = true;
-      break;
-    }
-    attrHeader->setAttributeId(attrId);      
-    keyLength += attrHeader->getDataSize();
-    hops = attrHeader->getHeaderSize() + attrHeader->getDataSize();
-    moreKeyAttrs = beforeValues.next(iter, hops);
+    releaseSection(keyIVal);
+    abortTransFromTrigger(signal, *transPtr, ZGET_DATAREC_ERROR);
+    return;
   }
-
-  if (skipNull) {
+  
+  /* If there's Nulls in the values that become the index table's
+   * PK then we skip this delete
+   */
+  if (hasNull)
+  {
     jam();
+    releaseSection(keyIVal);
     opRecord->triggerExecutionCount--;
     if (opRecord->triggerExecutionCount == 0) {
       /*
         We have completed current trigger execution
-	Continue triggering operation
+        Continue triggering operation
       */
       jam();
       continueTriggeringOp(signal, opRecord);	
     }//if
     return;
-  }//if
+  }
 
-  TcKeyReq::setKeyLength(tcKeyRequestInfo, keyLength);
+  TcKeyReq::setKeyLength(tcKeyRequestInfo, 0);
+  TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
   tcKeyReq->attrLen = 0;
   tcKeyReq->tableId = indexData->indexId;
   TcKeyReq::setOperationType(tcKeyRequestInfo, ZDELETE);
   tcKeyReq->tableSchemaVersion = indexTabPtr.p->currentSchemaVersion;
   tcKeyReq->transId1 = regApiPtr->transid[0];
   tcKeyReq->transId2 = regApiPtr->transid[1];
-  Uint32 * dataPtr = &tcKeyReq->scanInfo;
-  // Write first part of key in TCKEYREQ
-  Uint32 keyBufSize = 8; // Maximum for key in TCKEYREQ
-  Uint32 dataPos = 0;
-  // Filter out AttributeHeader:s since this should no be in key
-  bool moreKeyData = beforeValues.first(iter);
-  Uint32 headerSize = 0, keyAttrSize = 0, headAndData = 0;
-
-  while (moreKeyData && 
-         (dataPos < keyBufSize)) {
-    /*
-    If we have not read complete key
-    and it fits in the signal
-    */
-    jam();
-    AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-    
-    headerSize = attrHeader->getHeaderSize();
-    keyAttrSize = attrHeader->getDataSize();
-    headAndData = headerSize + attrHeader->getDataSize();
-    // Skip header
-    if (headerSize == 1) {
-      jam();
-      moreKeyData = beforeValues.next(iter);
-    } else {
-      jam();
-      moreKeyData = beforeValues.next(iter, headerSize - 1);
-    }//if
-    while((keyAttrSize != 0) && 
-          (dataPos < keyBufSize)) {
-      // If we have not read complete key
-      jam();
-      *dataPtr++ = *iter.data;
-      dataPos++;
-      keyAttrSize--;
-      moreKeyData = beforeValues.next(iter);
-    }
-    if (keyAttrSize != 0) {
-      jam();
-      break;
-    }//if
-  }
-
-  tcKeyLength += dataPos;
   tcKeyReq->requestInfo = tcKeyRequestInfo;
+
+  /* Attach KeyInfo section to signal */
+  ndbrequire(signal->header.m_noOfSections == 0);
+  signal->m_sectionPtrI[ TcKeyReq::KeyInfoSectionNum ] = keyIVal;
+  signal->header.m_noOfSections= 1;
 
   /**
    * Fix savepoint id -
@@ -15357,114 +15207,17 @@ void Dbtc::deleteFromIndexTable(Signal* signal,
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   regApiPtr->currSavePointId = opRecord->savePointId;
   regApiPtr->m_special_op_flags = TcConnectRecord::SOF_TRIGGER;
-  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, tcKeyLength);
+  /* Pass trigger Id via ApiConnectRecord (nasty) */
+  ndbrequire(regApiPtr->immediateTriggerId == RNIL);
+  regApiPtr->immediateTriggerId= firedTriggerData->triggerId;
+  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength);
   jamEntry();
 
-  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-  {
-    jam();
-    return;
-  }
-
+  /*
+   * Restore ApiConnectRecord state
+   */
   regApiPtr->currSavePointId = currSavePointId;
-  tcConnectptr.p->currentTriggerId = firedTriggerData->triggerId;
-
-  // *********** KEYINFO ***********
-  if (moreKeyData) {
-    jam();
-    // Send KEYINFO sequence
-    KeyInfo * const keyInfo =  (KeyInfo *)signal->getDataPtrSend();
-    
-    keyInfo->connectPtr = transPtr->i;
-    keyInfo->transId[0] = regApiPtr->transid[0];
-    keyInfo->transId[1] = regApiPtr->transid[1];
-    dataPtr = (Uint32 *) &keyInfo->keyData;
-    dataPos = 0;
-    // Pack any part of a key attribute that did no fit TCKEYREQ
-    while((keyAttrSize != 0) &&
-	  (dataPos < KeyInfo::DataLength)) {
-      // If we have not read complete key
-      *dataPtr++ = *iter.data;
-      dataPos++;
-      keyAttrSize--;
-      if (dataPos == KeyInfo::DataLength) {
-        jam();
-	// Flush KEYINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-	sendSignal(reference(), GSN_KEYINFO, signal, 
-		   KeyInfo::HeaderLength + KeyInfo::DataLength, JBA);
-#else
-	EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
-		       KeyInfo::HeaderLength + KeyInfo::DataLength);
-        jamEntry();
-#endif
-	if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-	{
-	  jam();
-	  return;
-	}
-
-	dataPtr = (Uint32 *) &keyInfo->keyData;
-	dataPos = 0;
-      }
-      moreKeyData = beforeValues.next(iter);
-    }
-    
-    while(moreKeyData) {
-      jam();
-      AttributeHeader* attrHeader = (AttributeHeader *) iter.data;
-      
-      headerSize = attrHeader->getHeaderSize();
-      keyAttrSize = attrHeader->getDataSize();
-      headAndData = headerSize + attrHeader->getDataSize();
-      // Skip header
-      if (headerSize == 1) {
-        jam();
-        moreKeyData = beforeValues.next(iter);
-      } else {
-        jam();
-        moreKeyData = beforeValues.next(iter, 
-							  headerSize - 1);
-      }//if
-      while (keyAttrSize-- != 0) {
-        *dataPtr++ = *iter.data;
-        dataPos++;
-        if (dataPos == KeyInfo::DataLength) {
-          jam();
-          // Flush KEYINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-	  sendSignal(reference(), GSN_KEYINFO, signal, 
-		     KeyInfo::HeaderLength + KeyInfo::DataLength, JBA);
-#else
-          EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
-			 KeyInfo::HeaderLength + KeyInfo::DataLength);
-          jamEntry();
-#endif
-	  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-	  {
-	    jam();
-	    return;
-	  }
-
-	  dataPtr = (Uint32 *) &keyInfo->keyData;	  
-          dataPos = 0;
-        }       
-        moreKeyData = beforeValues.next(iter);
-      }
-    }
-    if (dataPos != 0) {
-      jam();
-      // Flush last KEYINFO
-#if INTERNAL_TRIGGER_TCKEYREQ_JBA
-      sendSignal(reference(), GSN_KEYINFO, signal, 
-		 KeyInfo::HeaderLength + dataPos, JBA);
-#else
-      EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
-		     KeyInfo::HeaderLength + dataPos);
-      jamEntry();
-#endif
-    }
-  }
+  regApiPtr->immediateTriggerId = RNIL;
 }
 
 Uint32 
@@ -15478,87 +15231,6 @@ Dbtc::TableRecord::getErrorCode(Uint32 schemaVersion) const {
   ErrorReporter::handleAssert("Dbtc::TableRecord::getErrorCode",
 			      __FILE__, __LINE__);
   return 0;
-}
-
-static
-Uint32
-count_data(LocalDataBuffer<11> & buffer)
-{
-  Uint32 sz;
-  Uint32 sum = 0;
-  LocalDataBuffer<11>::Iterator iter;
-  buffer.first(iter);
-  do {
-    AttributeHeader* head = (AttributeHeader*)iter.data;
-    sz = head->getDataSize();
-    if (sz == 0)
-    {
-      return 0;
-    }
-    sum += sz;
-  } while(buffer.next(iter, 1 + sz));
-
-  return sum;
-}
-
-/**
- * Copy *data* (i.e not headers) from
- *   DataBuffer to *dst* max *max* words
- */
-static
-Uint32
-copy_data(Uint32*& arg_dst,
-          LocalDataBuffer<11>& src, LocalDataBuffer<11>::Iterator & iter,
-          Uint32& arg_pos, Uint32 max)
-{
-  Uint32 i;
-  Uint32 * dst = arg_dst;
-  Uint32 pos = arg_pos;
-  for (i = 0; i<max && !iter.isNull(); )
-  {
-    if (pos == 0)
-    {
-      {
-        AttributeHeader* head = (AttributeHeader*)iter.data;
-        pos = head->getDataSize();
-      }
-      src.next(iter);
-    }
-
-    /**
-     * Copy *data*
-     */
-    while (pos && i<max && !iter.isNull())
-    {
-      * dst ++ = * iter.data;
-      i++;
-      pos--;
-      src.next(iter);
-    }
-  }
-
-  arg_dst = dst;
-  arg_pos = pos;
-
-  return i;
-}
-
-static
-Uint32
-copy(Uint32*& arg_dst,
-     LocalDataBuffer<11>& src, LocalDataBuffer<11>::Iterator & iter, Uint32 max)
-{
-  Uint32 i;
-  Uint32 * dst = arg_dst;
-
-  for (i = 0; i<max && !iter.isNull(); i++, src.next(iter))
-  {
-    * dst++ = * iter.data;
-  }
-
-  arg_dst = dst;
-
-  return i;
 }
 
 void Dbtc::executeReorgTrigger(Signal* signal,
@@ -15579,18 +15251,12 @@ void Dbtc::executeReorgTrigger(Signal* signal,
   LocalDataBuffer<11> keyValues(pool, firedTriggerData->keyValues);
   LocalDataBuffer<11> attrValues(pool, firedTriggerData->afterValues);
 
-  Uint32 keyLen = count_data(keyValues);
-  Uint32 attrLen = attrValues.getSize();
-
-  LocalDataBuffer<11>::Iterator attrIter[2];
-  keyValues.first(attrIter[0]);
-  attrValues.first(attrIter[1]);
-
   Uint32 optype;
+  bool sendAttrInfo= true;
+
   switch (firedTriggerData->triggerEvent) {
   case TriggerEvent::TE_INSERT:
     optype = ZINSERT;
-    attrLen += keyValues.getSize();
     break;
   case TriggerEvent::TE_UPDATE:
     /**
@@ -15599,18 +15265,14 @@ void Dbtc::executeReorgTrigger(Signal* signal,
      *   trigger event for COPY
      */
     optype = ZWRITE;
-    attrLen += keyValues.getSize();
     break;
   case TriggerEvent::TE_DELETE:
     optype = ZDELETE;
-    attrIter[0].setNull();
-    attrIter[1].setNull();
+    sendAttrInfo= false;
     break;
   default:
     ndbrequire(false);
   }
-
-  Uint32 aiInThis = attrLen > TcKeyReq::MaxAttrInfo ? 0 : attrLen;
 
   Ptr<TableRecord> tablePtr;
   tablePtr.i = definedTriggerData->tableId;
@@ -15618,33 +15280,77 @@ void Dbtc::executeReorgTrigger(Signal* signal,
   Uint32 tableVersion = tablePtr.p->currentSchemaVersion;
 
   Uint32 tcKeyRequestInfo = 0;
-  TcKeyReq::setKeyLength(tcKeyRequestInfo, keyLen);
+  TcKeyReq::setKeyLength(tcKeyRequestInfo, 0);
   TcKeyReq::setOperationType(tcKeyRequestInfo, optype);
-  TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, aiInThis);
-  tcKeyReq->attrLen = attrLen;
+  TcKeyReq::setAIInTcKeyReq(tcKeyRequestInfo, 0);
+  tcKeyReq->attrLen = 0;
   tcKeyReq->tableId = tablePtr.i;
   tcKeyReq->requestInfo = tcKeyRequestInfo;
   tcKeyReq->tableSchemaVersion = tableVersion;
   tcKeyReq->transId1 = regApiPtr->transid[0];
   tcKeyReq->transId2 = regApiPtr->transid[1];
 
-  Uint32 * dataPtr = &tcKeyReq->scanInfo;
-  Uint32 * const start = dataPtr; // Start of extra data
-
-  LocalDataBuffer<11>::Iterator keyIter;
-  keyValues.first(keyIter);
-  Uint32 keyLeft = 0;
-  copy_data(dataPtr, keyValues, keyIter, keyLeft,
-            TcKeyReq::MaxKeyInfo);
-
-  if (aiInThis)
+  Uint32 keyIVal= RNIL;
+  Uint32 attrIVal= RNIL;
+  Uint32 attrId= 0;
+  bool hasNull= false;
+  
+  /* Prepare KeyInfo section */
+  if (unlikely(!appendAttrDataToSection(keyIVal,
+                                        keyValues,
+                                        false, // No AttributeHeaders
+                                        attrId,
+                                        hasNull)))
   {
-    jam();
-    copy(dataPtr, keyValues, attrIter[0], aiInThis);
-    copy(dataPtr, attrValues, attrIter[1], aiInThis);
+    releaseSection(keyIVal);
+    abortTransFromTrigger(signal, *transPtr, ZGET_DATAREC_ERROR);
+    return;
+  }
+  
+  ndbrequire(!hasNull);
+  
+  if (sendAttrInfo)
+  {
+    /* Prepare AttrInfo section from Key values and
+     * After values
+     */
+    LocalDataBuffer<11>::Iterator attrIter;
+    LocalDataBuffer<11>* buffers[2];
+    buffers[0]= &keyValues;
+    buffers[1]= &attrValues;
+    const Uint32 segSize= keyValues.getSegmentSize(); // 11
+    for (int buf=0; buf < 2; buf++)
+    {
+      Uint32 dataSize= buffers[buf]->getSize();
+      bool moreData= buffers[buf]->first(attrIter);
+
+      while(dataSize)
+      {
+        ndbrequire(moreData);
+        Uint32 contigLeft= segSize - attrIter.ind;
+        Uint32 contigValid= MIN(dataSize, contigLeft);
+        
+        if (unlikely(!appendToSection(attrIVal,
+                                      attrIter.data,
+                                      contigValid)))
+        {
+          releaseSection(keyIVal);
+          releaseSection(attrIVal);
+          abortTransFromTrigger(signal, *transPtr, ZGET_DATAREC_ERROR);
+          return;
+        }
+        moreData= buffers[buf]->next(attrIter, contigValid);
+        dataSize-= contigValid;
+      }
+      ndbassert(!moreData);
+    }
   }
 
-  Uint32 len = Uint32(dataPtr - start);
+  /* Attach Key and optional AttrInfo sections to signal */
+  ndbrequire(signal->header.m_noOfSections == 0);
+  signal->m_sectionPtrI[ TcKeyReq::KeyInfoSectionNum ] = keyIVal;
+  signal->m_sectionPtrI[ TcKeyReq::AttrInfoSectionNum ] = attrIVal;
+  signal->header.m_noOfSections= sendAttrInfo? 2 : 1;
 
   /**
    * Fix savepoint id -
@@ -15653,83 +15359,19 @@ void Dbtc::executeReorgTrigger(Signal* signal,
   const Uint32 currSavePointId = regApiPtr->currSavePointId;
   regApiPtr->currSavePointId = opRecord->savePointId;
   regApiPtr->m_special_op_flags = TcConnectRecord::SOF_REORG_TRIGGER;
-  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength + len);
+  /* Pass trigger Id via ApiConnectRecord (nasty) */
+  ndbrequire(regApiPtr->immediateTriggerId == RNIL);
+
+  regApiPtr->immediateTriggerId= firedTriggerData->triggerId;
+  EXECUTE_DIRECT(DBTC, GSN_TCKEYREQ, signal, TcKeyReq::StaticLength);
   jamEntry();
 
-  if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-  {
-    jam();
-    return;
-  }
-
+  /*
+   * Restore ApiConnectRecord state
+   */
   regApiPtr->currSavePointId = currSavePointId;
-  tcConnectptr.p->currentTriggerId = firedTriggerData->triggerId;
-
-  while (!keyIter.isNull())
-  {
-    jam();
-    KeyInfo * keyInfo =  (KeyInfo *)signal->getDataPtrSend();
-    keyInfo->connectPtr = transPtr->i;
-    keyInfo->transId[0] = regApiPtr->transid[0];
-    keyInfo->transId[1] = regApiPtr->transid[1];
-    Uint32 * dst = keyInfo->keyData;
-    Uint32 len = copy_data(dst,
-                           keyValues, keyIter, keyLeft,  KeyInfo::DataLength);
-
-    EXECUTE_DIRECT(DBTC, GSN_KEYINFO, signal,
-                   KeyInfo::HeaderLength + len);
-    jamEntry();
-
-    if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-    {
-      jam();
-      return;
-    }
-  }
-
-  while (!attrIter[0].isNull())
-  {
-    jam();
-    AttrInfo * attrInfo =  (AttrInfo *)signal->getDataPtrSend();
-    attrInfo->connectPtr = transPtr->i;
-    attrInfo->transId[0] = regApiPtr->transid[0];
-    attrInfo->transId[1] = regApiPtr->transid[1];
-    Uint32 * dst = attrInfo->attrData;
-    Uint32 len = copy(dst, keyValues, attrIter[0], AttrInfo::DataLength);
-
-    EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal,
-                   AttrInfo::HeaderLength + len);
-    jamEntry();
-
-    if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-    {
-      jam();
-      return;
-    }
-  }
-
-  while (!attrIter[1].isNull())
-  {
-    jam();
-    AttrInfo * attrInfo =  (AttrInfo *)signal->getDataPtrSend();
-    attrInfo->connectPtr = transPtr->i;
-    attrInfo->transId[0] = regApiPtr->transid[0];
-    attrInfo->transId[1] = regApiPtr->transid[1];
-    Uint32 * dst = attrInfo->attrData;
-    Uint32 len = copy(dst, attrValues, attrIter[1], AttrInfo::DataLength);
-
-    EXECUTE_DIRECT(DBTC, GSN_ATTRINFO, signal,
-                   AttrInfo::HeaderLength + len);
-    jamEntry();
-
-    if (unlikely(regApiPtr->apiConnectstate == CS_ABORTING))
-    {
-      jam();
-      return;
-    }
-  }
+  regApiPtr->immediateTriggerId = RNIL;
 }
-
 
 void
 Dbtc::execROUTE_ORD(Signal* signal)

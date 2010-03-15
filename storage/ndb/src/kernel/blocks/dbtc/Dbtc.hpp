@@ -766,6 +766,7 @@ public:
     UintR clientData;
     Uint32 errorData;
     UintR attrInfoLen;
+    Uint32 immediateTriggerId;  // Id of trigger op being fired NOW
     
     UintR accumulatingIndexOp;
     UintR executingIndexOp;
@@ -1554,6 +1555,11 @@ private:
                            TcFiredTriggerData* firedTriggerData,
                            ApiConnectRecordPtr* transPtr,
                            TcConnectRecordPtr* opPtr);
+  bool appendAttrDataToSection(Uint32& sectionIVal,
+                               DataBuffer<11>& values,
+                               bool withHeaders,
+                               Uint32& attrId,
+                               bool& hasNull);
   void insertIntoIndexTable(Signal* signal, 
                             TcFiredTriggerData* firedTriggerData, 
                             ApiConnectRecordPtr* transPtr,
@@ -1574,6 +1580,8 @@ private:
                            TcConnectRecordPtr* opPtr);
 
   void releaseFiredTriggerData(DLFifoList<TcFiredTriggerData>* triggers);
+  void abortTransFromTrigger(Signal* signal, const ApiConnectRecordPtr& transPtr, 
+                             Uint32 error);
   // Generated statement blocks
   void warningHandlerLab(Signal* signal, int line);
   void systemErrorLab(Signal* signal, int line);
