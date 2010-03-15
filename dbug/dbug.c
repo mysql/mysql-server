@@ -1365,7 +1365,7 @@ static void DbugVfprintf(FILE *stream, const char* format, va_list args)
 {
   char cvtbuf[1024];
   size_t len;
-  // Do not use my_vsnprintf, it does not support "%g".
+  /* Do not use my_vsnprintf, it does not support "%g". */
   len = vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
   (void) fprintf(stream, "%s\n", cvtbuf);
 }
