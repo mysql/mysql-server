@@ -23,8 +23,6 @@
 #include <ErrorReporter.hpp>
 #include <NodeState.hpp>
 
-class IPCConfig;
-
 class ThreadConfig
 {
 public:
