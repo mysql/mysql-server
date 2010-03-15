@@ -561,6 +561,14 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 
+# Get the plugin files from the debug build
+mkdir $RBR/tmp-debug-plugin $MBD/plugin/debug
+( cd $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/plugin
+  make install DESTDIR=$RBR/tmp-debug-plugin
+  mv $RBR/tmp-debug-plugin/usr/local/mysql/lib/mysql/plugin/* $MBD/plugin/debug/
+  # From here, the install hook in "plugin/Makefile.am" will do the rest.
+)
+rmdir -p $RBR/tmp-debug-plugin/usr/local/mysql/lib/mysql/plugin
 
 # Install all binaries
 (cd $MBD && make install DESTDIR=$RBR testroot=%{_datadir})
@@ -841,7 +849,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
-%attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
@@ -859,10 +866,6 @@ fi
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 
-%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
-
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
 %endif
@@ -873,6 +876,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -1007,6 +1013,12 @@ fi
 %{_libdir}/mysql/plugin/semisync_master.la
 %{_libdir}/mysql/plugin/semisync_slave.a
 %{_libdir}/mysql/plugin/semisync_slave.la
+%{_libdir}/mysql/plugin/debug/ha_example.a
+%{_libdir}/mysql/plugin/debug/ha_example.la
+%{_libdir}/mysql/plugin/debug/semisync_master.a
+%{_libdir}/mysql/plugin/debug/semisync_master.la
+%{_libdir}/mysql/plugin/debug/semisync_slave.a
+%{_libdir}/mysql/plugin/debug/semisync_slave.la
 
 %files shared
 %defattr(-, root, root, 0755)
@@ -1042,6 +1054,12 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Mar 10 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Take the result of the debug plugin build and put it into the optimized tree,
+  so that it becomes part of the final installation;
+  include the files in the packlist. Part of the fixes for bug#49022.
+
 * Mon Mar 01 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Set "Oracle and/or its affiliates" as the vendor and copyright owner,
@@ -1085,6 +1103,10 @@ fi
 
 - Fix some problems with the directives around "tcmalloc" (experimental),
   remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+
+* Fri Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
+
+- Removed mysql_fix_privilege_tables
 
 * Fri Oct 02 2009 Alexander Nozdrin <alexander.nozdrin@sun.com>
 
