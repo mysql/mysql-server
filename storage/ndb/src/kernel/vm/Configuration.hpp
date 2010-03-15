@@ -116,8 +116,7 @@ public:
   const char * fileSystemPath() const;
   const char * backupFilePath() const;
 
-  bool getInitialStart() const;
-  void setInitialStart(bool val);
+  bool getInitialStart() const { return _initialStart; }
 
   const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
 
@@ -175,12 +174,6 @@ inline
 const char *
 Configuration::backupFilePath() const {
   return _backupPath;
-}
-
-inline
-bool
-Configuration::getInitialStart() const {
-  return _initialStart;
 }
 
 #endif
