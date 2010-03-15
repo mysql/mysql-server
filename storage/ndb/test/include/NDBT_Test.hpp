@@ -199,6 +199,9 @@ public:
 		const char* comment);
   virtual ~NDBT_TestCase() {}
 
+  static const char* getStepThreadStackSizePropName()
+    { return "StepThreadStackSize"; };
+
   // This is the default executor of a test case
   // When a test case is executed it will need to be suplied with a number of 
   // different parameters and settings, these are passed to the test in the 

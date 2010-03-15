@@ -70,6 +70,8 @@ extern class SectionSegmentPool g_sectionSegmentPool;
 /* Defined in SimulatedBlock.cpp */
 void getSection(SegmentedSectionPtr & ptr, Uint32 id);
 void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
+Uint32 getSectionSz(Uint32 id);
+Uint32* getLastWordPtr(Uint32 id);
 
 /* Internal verification */
 bool verifySection(Uint32 firstIVal, 
