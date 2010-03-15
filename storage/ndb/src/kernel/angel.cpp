@@ -57,12 +57,6 @@ angel_exit(int code)
 #endif
 }
 
-
-// These are used already before fork if fetch_configuration() fails
-// (e.g. Unable to alloc node id).  Set them to something reasonable.
-FILE *child_info_file_r=stdin;
-FILE *child_info_file_w=stdout;
-
 #include "../mgmapi/mgmapi_configuration.hpp"
 
 static void
@@ -198,6 +192,17 @@ ignore_signals(void)
 #endif
 }
 
+#ifdef _WIN32
+static inline
+int pipe(int pipefd[2]){
+  const unsigned int buffer_size = 4096;
+  const int flags = 0;
+  return _pipe(pipefd, buffer_size, flags);
+}
+#endif
+
+extern int opt_report_fd; // REMOVE later
+
 #include "vm/SimBlockList.hpp"
 
 int
@@ -230,26 +235,29 @@ angel_run(const char* connect_str,
   pid_t child= -1;
   while (true)
   {
-    // setup reporting between child and parent
-    int filedes[2];
-    if (pipe(filedes))
+
+    // Create pipe where ndbd process will report extra shutdown status
+    int fds[2];
+    if (pipe(fds))
     {
-      g_eventLogger->error("pipe() failed with errno=%d (%s)",
+      g_eventLogger->error("Failed to create pipe, errno: %d (%s)",
                            errno, strerror(errno));
-      return 1;
-    } else
-    {
-      if (!(child_info_file_w=fdopen(filedes[1], "w")))
-      {
-        g_eventLogger->error("fdopen() failed with errno=%d (%s)",
-                             errno, strerror(errno));
-      }
-      if (!(child_info_file_r=fdopen(filedes[0], "r")))
-      {
-        g_eventLogger->error("fdopen() failed with errno=%d (%s)",
-                             errno, strerror(errno));
-      }
+      angel_exit(1);
     }
+
+    FILE *child_info_r;
+    if (!(child_info_r = fdopen(fds[0], "r")))
+    {
+      g_eventLogger->error("Failed to open stream for pipe, errno: %d (%s)",
+                           errno, strerror(errno));
+      angel_exit(1);
+    }
+
+    // Pass fd number of the pipe which ndbd should use
+    // for sending extra status to angel
+    // TODO will be passed as --arg to child
+    opt_report_fd = fds[1];
+
 
     if ((child=fork()) <= 0)
       break; // child or error
@@ -258,9 +266,6 @@ angel_run(const char* connect_str,
      * Parent
      */
     g_eventLogger->debug("Angel started child %d", child);
-
-    // Close write end in parent
-    fclose(child_info_file_w);
 
     ignore_signals();
 
@@ -279,10 +284,13 @@ angel_run(const char* connect_str,
 
     g_eventLogger->debug("Angel got child %d", child);
 
+    // Close the write end of pipe
+    close(fds[1]);
+
     // Read info from the child's pipe
     char buf[128];
     Uint32 child_error = 0, child_signal = 0, child_sphase = 0;
-    while (fgets(buf, sizeof (buf), child_info_file_r))
+    while (fgets(buf, sizeof (buf), child_info_r))
     {
       int value;
       if (sscanf(buf, "error=%d\n", &value) == 1)
@@ -297,7 +305,7 @@ angel_run(const char* connect_str,
     g_eventLogger->debug("error: %u, signal: %u, sphase: %u",
                          child_error, child_signal, child_sphase);
     // Close read end of pipe in parent
-    fclose(child_info_file_r);
+    fclose(child_info_r);
 
     if (WIFEXITED(status))
     {

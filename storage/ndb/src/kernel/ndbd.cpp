@@ -331,14 +331,13 @@ get_multithreaded_config(EmulatorData& ed)
 }
 
 
-extern FILE *child_info_file_r;
-extern FILE *child_info_file_w;
+static FILE *angel_info_w = NULL;
 
 static void
 writeChildInfo(const char *token, int val)
 {
-  fprintf(child_info_file_w, "%s=%d\n", token, val);
-  fflush(child_info_file_w);
+  fprintf(angel_info_w, "%s=%d\n", token, val);
+  fflush(angel_info_w);
 }
 
 static void
@@ -357,9 +356,8 @@ void
 childExit(int code, Uint32 currentStartPhase)
 {
   writeChildInfo("sphase", currentStartPhase);
-  fprintf(child_info_file_w, "\n");
-  fclose(child_info_file_r);
-  fclose(child_info_file_w);
+  fprintf(angel_info_w, "\n");
+  fclose(angel_info_w);
   ndbd_exit(code);
 }
 
@@ -368,9 +366,8 @@ childAbort(int code, Uint32 currentStartPhase)
 {
 #ifndef NDB_WIN
   writeChildInfo("sphase", currentStartPhase);
-  fprintf(child_info_file_w, "\n");
-  fclose(child_info_file_r);
-  fclose(child_info_file_w);
+  fprintf(angel_info_w, "\n");
+  fclose(angel_info_w);
 #ifndef NDB_WIN32
   signal(SIGABRT, SIG_DFL);
 #endif
@@ -498,8 +495,31 @@ ndbd_exit(int code)
 }
 
 int
-ndbd_run(bool foreground)
+ndbd_run(bool foreground, int report_fd)
 {
+  if (report_fd)
+  {
+    g_eventLogger->debug("Opening report stream on fd: %d", report_fd);
+    // Open a stream for sending extra status to angel
+    if (!(angel_info_w = fdopen(report_fd, "w")))
+    {
+      g_eventLogger->error("Failed to open stream for reporting "
+                           "to angel, error: %d (%s)", errno, strerror(errno));
+      return -1;
+    }
+  }
+  else
+  {
+    // No reporting requested, open /dev/null
+    const char* dev_null = IF_WIN("nul", "/dev/null");
+    if (!(angel_info_w = fopen(dev_null, "w")))
+    {
+      g_eventLogger->error("Failed to open stream for reporting to "
+                           "'%s', error: %d (%s)", dev_null, errno,
+                           strerror(errno));
+      return -1;
+    }
+  }
 
   if (get_multithreaded_config(globalEmulatorData))
     return -1;
