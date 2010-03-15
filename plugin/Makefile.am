@@ -27,7 +27,7 @@ DIST_SUBDIRS =	@mysql_pg_distdirs@
 # As of 5.5.3-m3, we want to include the plugin files of a debug build in the package
 install-exec-hook:
 	$(mkinstalldirs) $(DESTDIR)$(pkglibdir) $(DESTDIR)$(pkglibdir)/plugin
-	test ! -d debug || $(TAR) cf - debug | ( cd $(DESTDIR)$(pkglibdir) && $(TAR) xvf - )
+	test ! -d debug || $(TAR) cf - debug | ( cd $(DESTDIR)$(pkglibdir)/plugin && $(TAR) xvf - )
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

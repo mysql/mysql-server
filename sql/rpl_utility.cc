@@ -340,7 +340,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
 
 /**
  */
-void show_sql_type(enum_field_types type, uint16 metadata, String *str)
+void show_sql_type(enum_field_types type, uint16 metadata, String *str, CHARSET_INFO *field_cs)
 {
   DBUG_ENTER("show_sql_type");
   DBUG_PRINT("enter", ("type: %d, metadata: 0x%x", type, metadata));
@@ -489,7 +489,7 @@ void show_sql_type(enum_field_types type, uint16 metadata, String *str)
       uint bytes= (((metadata >> 4) & 0x300) ^ 0x300) + (metadata & 0x00ff);
       uint32 length=
         cs->cset->snprintf(cs, (char*) str->ptr(), str->alloced_length(),
-                           "char(%d)", bytes / cs->mbmaxlen);
+                           "char(%d)", bytes / field_cs->mbmaxlen);
       str->length(length);
     }
     break;
@@ -579,7 +579,7 @@ can_convert_field_to(Field *field,
   DBUG_ENTER("can_convert_field_to");
 #ifndef DBUG_OFF
   char field_type_buf[MAX_FIELD_WIDTH];
-  String field_type(field_type_buf, sizeof(field_type_buf), field->charset());
+  String field_type(field_type_buf, sizeof(field_type_buf), &my_charset_latin1);
   field->sql_type(field_type);
   DBUG_PRINT("enter", ("field_type: %s, target_type: %d, source_type: %d, source_metadata: 0x%x",
                        field_type.c_ptr_safe(), field->real_type(), source_type, metadata));
@@ -822,9 +822,9 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       const char *tbl_name= table->s->table_name.str;
       char source_buf[MAX_FIELD_WIDTH];
       char target_buf[MAX_FIELD_WIDTH];
-      String source_type(source_buf, sizeof(source_buf), field->charset());
-      String target_type(target_buf, sizeof(target_buf), field->charset());
-      show_sql_type(type(col), field_metadata(col), &source_type);
+      String source_type(source_buf, sizeof(source_buf), &my_charset_latin1);
+      String target_type(target_buf, sizeof(target_buf), &my_charset_latin1);
+      show_sql_type(type(col), field_metadata(col), &source_type, field->charset());
       field->sql_type(target_type);
       rli->report(ERROR_LEVEL, ER_SLAVE_CONVERSION_FAILED,
                   ER(ER_SLAVE_CONVERSION_FAILED),
@@ -842,8 +842,8 @@ table_def::compatible_with(THD *thd, Relay_log_info *rli,
       {
         char source_buf[MAX_FIELD_WIDTH];
         char target_buf[MAX_FIELD_WIDTH];
-        String source_type(source_buf, sizeof(source_buf), table->field[col]->charset());
-        String target_type(target_buf, sizeof(target_buf), table->field[col]->charset());
+        String source_type(source_buf, sizeof(source_buf), &my_charset_latin1);
+        String target_type(target_buf, sizeof(target_buf), &my_charset_latin1);
         tmp_table->field[col]->sql_type(source_type);
         table->field[col]->sql_type(target_type);
         DBUG_PRINT("debug", ("Field %s - conversion required."
