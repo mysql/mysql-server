@@ -1771,9 +1771,7 @@ SimulatedBlock::progError(int line, int err_code, const char* extra) const {
   // so that we can print them in error.log
   int magicStatus = 
     (m_ctx.m_config.stopOnError()<<1) + 
-    (m_ctx.m_config.getInitialStart()<<2) + 
-    (m_ctx.m_config.getDaemonMode()<<3);
-  
+    (m_ctx.m_config.getInitialStart()<<2);
 
   /* Add line number to block name */
   char buf[100];

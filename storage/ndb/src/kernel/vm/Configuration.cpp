@@ -42,7 +42,7 @@ extern Uint32 g_start_type;
 
 bool
 Configuration::init(int _no_start, int _initial,
-                    int _initialstart, int _daemon)
+                    int _initialstart)
 {
   // Check the start flag
   if (_no_start)
@@ -53,10 +53,6 @@ Configuration::init(int _no_start, int _initial,
   // Check the initial flag
   if (_initial)
     _initialStart = true;
-
-  // Check daemon flag
-  if (_daemon)
-    _daemonMode = true;
 
   globalData.ownId= 0;
 
@@ -81,7 +77,6 @@ Configuration::Configuration()
   _fsPath = 0;
   _backupPath = 0;
   _initialStart = false;
-  _daemonMode = false;
   m_config_retriever= 0;
   m_clusterConfig= 0;
   m_clusterConfigIter= 0;

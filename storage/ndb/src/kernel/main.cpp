@@ -167,7 +167,7 @@ int main(int argc, char** argv)
 
   Configuration* theConfig = globalEmulatorData.theConfiguration;
   if(!theConfig->init(opt_no_start, opt_initial,
-                      opt_initialstart, opt_daemon)){
+                      opt_initialstart)){
     g_eventLogger->error("Failed to init Configuration");
     exit(-1);
   }
