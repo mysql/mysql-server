@@ -63,68 +63,18 @@ angel_exit(int code)
 FILE *child_info_file_r=stdin;
 FILE *child_info_file_w=stdout;
 
-#include <Properties.hpp>
-
-static int
-insert(const char * pair, Properties & p)
-{
-  BaseString tmp(pair);
-
-  tmp.trim(" \t\n\r");
-  Vector<BaseString> split;
-  tmp.split(split, ":=", 2);
-  if (split.size() != 2)
-    return -1;
-  p.put(split[0].trim().c_str(), split[1].trim().c_str());
-  return 0;
-}
-
-static int
-readChildInfo(Properties &info)
-{
-  fclose(child_info_file_w);
-  char buf[128];
-  while (fgets(buf, sizeof (buf), child_info_file_r))
-    insert(buf, info);
-  fclose(child_info_file_r);
-  return 0;
-}
-
-static bool
-get_int_property(Properties &info,
-                 const char *token, Uint32 *int_val)
-{
-  const char *str_val=0;
-  if (!info.get(token, &str_val))
-    return false;
-  char *endptr;
-  long int tmp=strtol(str_val, &endptr, 10);
-  if (str_val == endptr)
-    return false;
-  *int_val=tmp;
-  return true;
-}
-
 #include "../mgmapi/mgmapi_configuration.hpp"
 
 static void
 reportShutdown(const ndb_mgm_configuration* config,
                NodeId nodeid, int error_exit,
-               bool restart, bool nostart, bool initial)
+               bool restart, bool nostart, bool initial,
+               Uint32 error, Uint32 signum, Uint32 sphase)
 {
   // Only allow "initial" and "nostart" to be set if "restart" is set
   assert(restart ||
          (!restart && !initial && !nostart));
 
-  Uint32 error=0, signum=0, sphase=256;
-#ifndef NDB_WIN
-  Properties info;
-  readChildInfo(info);
-
-  get_int_property(info, "signal", &signum);
-  get_int_property(info, "error", &error);
-  get_int_property(info, "sphase", &sphase);
-#endif
   Uint32 length, theData[25];
   EventReport *rep=(EventReport *) theData;
 
@@ -248,9 +198,6 @@ ignore_signals(void)
 #endif
 }
 
-void
-childReportSignal(int signum);
-
 #include "vm/SimBlockList.hpp"
 
 int
@@ -310,6 +257,10 @@ angel_run(const char* connect_str,
     /**
      * Parent
      */
+    g_eventLogger->debug("Angel started child %d", child);
+
+    // Close write end in parent
+    fclose(child_info_file_w);
 
     ignore_signals();
 
@@ -323,15 +274,39 @@ angel_run(const char* connect_str,
     Configuration* theConfig = globalEmulatorData.theConfiguration;
     theConfig->closeConfiguration(false);
 
-    int status=0, error_exit=0, signum=0;
+    int status=0, error_exit=0;
     while (waitpid(child, &status, 0) != child);
+
+    g_eventLogger->debug("Angel got child %d", child);
+
+    // Read info from the child's pipe
+    char buf[128];
+    Uint32 child_error = 0, child_signal = 0, child_sphase = 0;
+    while (fgets(buf, sizeof (buf), child_info_file_r))
+    {
+      int value;
+      if (sscanf(buf, "error=%d\n", &value) == 1)
+        child_error = value;
+      else if (sscanf(buf, "signal=%d\n", &value) == 1)
+        child_signal = value;
+      else if (sscanf(buf, "sphase=%d\n", &value) == 1)
+        child_sphase = value;
+      else if (strcmp(buf, "\n") != 0)
+        fprintf(stderr, "unknown info from child: '%s'\n", buf);
+    }
+    g_eventLogger->debug("error: %u, signal: %u, sphase: %u",
+                         child_error, child_signal, child_sphase);
+    // Close read end of pipe in parent
+    fclose(child_info_file_r);
+
     if (WIFEXITED(status))
     {
       switch (WEXITSTATUS(status)) {
       case NRT_Default:
         g_eventLogger->info("Angel shutting down");
         reportShutdown(theConfig->getClusterConfig(),
-                       globalData.ownId, 0, 0, false, false);
+                       globalData.ownId, 0, 0, false, false,
+                       child_error, child_signal, child_sphase);
         angel_exit(0);
         break;
       case NRT_NoStart_Restart:
@@ -354,7 +329,8 @@ angel_run(const char* connect_str,
            * Error shutdown && stopOnError()
            */
           reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
-                         error_exit, 0, false, false);
+                         error_exit, 0, false, false,
+                         child_error, child_signal, child_sphase);
           angel_exit(0);
         }
         // Fall-through
@@ -368,11 +344,11 @@ angel_run(const char* connect_str,
       error_exit=1;
       if (WIFSIGNALED(status))
       {
-        signum=WTERMSIG(status);
-        childReportSignal(signum);
-      } else
+        child_signal = WTERMSIG(status);
+      }
+      else
       {
-        signum=127;
+        child_signal = 127;
         g_eventLogger->info("Unknown exit reason. Stopped.");
       }
       if (theConfig->stopOnError())
@@ -381,7 +357,8 @@ angel_run(const char* connect_str,
          * Error shutdown && stopOnError()
          */
         reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
-                       error_exit, 0, false, false);
+                       error_exit, 0, false, false,
+                       child_error, child_signal, child_sphase);
         angel_exit(0);
       }
     }
@@ -398,14 +375,16 @@ angel_run(const char* connect_str,
       g_eventLogger->alert("Ndbd has failed %u consecutive startups. "
                            "Not restarting", failed_startups);
       reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
-                     error_exit, 0, false, false);
+                     error_exit, 0, false, false,
+                     child_error, child_signal, child_sphase);
       angel_exit(0);
     }
     failed_startup_flag=false;
     reportShutdown(theConfig->getClusterConfig(), globalData.ownId,
                    error_exit, 1,
                    (globalData.theRestartFlag == initial_state), /* nostart */
-                   theConfig->getInitialStart() /* initial */ );
+                   theConfig->getInitialStart() /* initial */,
+                   child_error, child_signal, child_sphase);
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
     theConfig->fetch_configuration(connect_str, bind_address);
   }

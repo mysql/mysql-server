@@ -341,7 +341,7 @@ writeChildInfo(const char *token, int val)
   fflush(child_info_file_w);
 }
 
-void
+static void
 childReportSignal(int signum)
 {
   writeChildInfo("signal", signum);
@@ -357,7 +357,6 @@ void
 childExit(int code, Uint32 currentStartPhase)
 {
   writeChildInfo("sphase", currentStartPhase);
-  writeChildInfo("exit", code);
   fprintf(child_info_file_w, "\n");
   fclose(child_info_file_r);
   fclose(child_info_file_w);
@@ -369,7 +368,6 @@ childAbort(int code, Uint32 currentStartPhase)
 {
 #ifndef NDB_WIN
   writeChildInfo("sphase", currentStartPhase);
-  writeChildInfo("exit", code);
   fprintf(child_info_file_w, "\n");
   fclose(child_info_file_r);
   fclose(child_info_file_w);
