@@ -244,8 +244,12 @@ NdbInterpretedCode::load_const_u32(Uint32 RegDest, Uint32 Constant)
 int
 NdbInterpretedCode::load_const_u64(Uint32 RegDest, Uint64 Constant)
 {
-  const Uint32* p= (const Uint32 *)(&Constant);
-  return add3(Interpreter::LoadConst64(RegDest % MaxReg), p[0], p[1]);
+  union {
+    Uint64 val64;
+    Uint32 val32[2];
+  };
+  val64 = Constant;
+  return add3(Interpreter::LoadConst64(RegDest % MaxReg), val32[0], val32[1]);
 }
 
 int

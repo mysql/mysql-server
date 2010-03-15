@@ -522,18 +522,20 @@ FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
  */
 void 
 FastScheduler::reportDoJobStatistics(Uint32 tMeanLoopCount) {
-  SignalT<2> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<2> signal;
 
   memset(&signal.header, 0, sizeof(signal.header));
   signal.header.theLength = 2;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, 0);  
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
 
   signal.theData[0] = NDB_LE_JobStatistic;
   signal.theData[1] = tMeanLoopCount;
-  
-  execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+
+  Uint32 secPtr[3];  
+  execute(&signal.header, JBA, signal.theData, secPtr);
 }
 
 void 
@@ -544,13 +546,14 @@ FastScheduler::reportThreadConfigLoop(Uint32 expired_time,
                                       Uint32 *no_extra_loops,
                                       Uint32 *tot_extra_time)
 {
-  SignalT<6> signalT;
-  Signal &signal= *(Signal*)&signalT;
+  SignalT<6> signal;
 
   memset(&signal.header, 0, sizeof(signal.header));
   signal.header.theLength = 6;
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, 0);  
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
 
   signal.theData[0] = NDB_LE_ThreadConfigLoop;
   signal.theData[1] = expired_time;
@@ -567,7 +570,8 @@ FastScheduler::reportThreadConfigLoop(Uint32 expired_time,
   *no_extra_loops = 0;
   *tot_extra_time = 0;
 
-  execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+  Uint32 secPtr[3];  
+  execute(&signal.header, JBA, signal.theData, secPtr);
 }
 
 static NdbMutex g_mm_mutex;
