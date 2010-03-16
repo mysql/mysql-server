@@ -5256,7 +5256,9 @@ NdbDictInterface::unpackListTables(NdbDictionary::Dictionary::List& list,
   while (count < m_noOfTables)
   {
     NdbDictionary::Dictionary::List::Element& element = list.elements[count];
-    ListTablesData* ltd = (ListTablesData *) tableData;
+    ListTablesData _ltd;
+    ListTablesData * ltd = &_ltd;
+    memcpy(ltd, tableData, 4 * listTablesDataSizeInWords);
     tableData += listTablesDataSizeInWords;
     element.id = ltd->getTableId();
     element.type = (NdbDictionary::Object::Type)
