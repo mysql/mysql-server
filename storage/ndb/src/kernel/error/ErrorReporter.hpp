@@ -28,7 +28,6 @@
 class ErrorReporter
 {
 public:
-  static void setErrorHandlerShutdownType(NdbShutdownType nst = NST_ErrorHandler);
   static void handleAssert(const char* message, 
 			   const char* file, 
 			   int line, int ec = NDBD_EXIT_PRGERR)  __attribute__((__noreturn__));

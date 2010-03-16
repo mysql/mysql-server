@@ -183,9 +183,6 @@ NdbShutdown(NdbShutdownType type,
     case NST_ErrorHandlerSignal:
       g_eventLogger->info("Error handler signal %s system", shutting);
       break;
-    case NST_ErrorHandlerStartup:
-      g_eventLogger->info("Error handler startup %s system", shutting);
-      break;
     case NST_Restart:
       g_eventLogger->info("Restarting system");
       break;
@@ -280,11 +277,6 @@ NdbShutdown(NdbShutdownType type,
     
     if(type != NST_Normal && type != NST_Restart)
     {
-      // Signal parent that error occured during startup
-#ifndef NDB_WIN
-      if (type == NST_ErrorHandlerStartup)
-	kill(getppid(), SIGUSR1);
-#endif
       g_eventLogger->info("Error handler shutdown completed - %s", exitAbort);
 #ifndef NDB_WIN
       if (opt_core)
