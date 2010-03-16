@@ -60,11 +60,12 @@ use My::Platform;
 
 my %running;
 my $_verbose= 0;
+my $start_exit= 0;
 
 END {
   # Kill any children still running
   for my $proc (values %running){
-    if ( $proc->is_child($$) ){
+    if ( $proc->is_child($$) and ! $start_exit){
       #print "Killing: $proc\n";
       if ($proc->wait_one(0)){
 	$proc->kill();
@@ -161,6 +162,11 @@ sub new {
 
   push(@safe_args, "--");
   push(@safe_args, $path); # The program safe_process should execute
+
+  if ($start_exit) {	 # Bypass safe_process instead, start program directly
+    @safe_args= ();
+    $safe_path= $path;
+  }
   push(@safe_args, @$$args);
 
   print "### safe_path: ", $safe_path, " ", join(" ", @safe_args), "\n"
@@ -540,6 +546,13 @@ sub wait_all {
   }
 }
 
+#
+# Set global flag to tell all safe_process to exit after starting child
+#
+
+sub start_exit {
+  $start_exit= 1;
+}
 
 #
 # Check if any process has exited, but don't wait.
