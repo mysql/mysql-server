@@ -197,14 +197,23 @@ typedef DWORD pid_t;
 static inline
 pid_t waitpid(pid_t pid, int *stat_loc, int options)
 {
-  HANDLE handle = OpenProcess(SYNCHRONIZE, FALSE, pid);
+  HANDLE handle = OpenProcess(PROCESS_ALL_ACCESS, FALSE, pid);
   if (handle == NULL)
   {
     g_eventLogger->error("waitpid: Could not open handle for pid %d, "
                          "error: %d", pid, GetLastError());
     return -1;
   }
-  return _cwait(stat_loc, (intptr_t)handle, 0);
+ intptr_t ret_handle = _cwait(stat_loc, (intptr_t)handle, 0);
+ if (ret_handle == -1)
+ {
+    CloseHandle(handle);
+    g_eventLogger->error("waitpid: Failed to wait for pid %d, "
+                         "errno: %d", pid, errno);
+    return -1;
+ }
+ CloseHandle(handle);
+ return pid;
 }
 
 static inline
@@ -261,8 +270,10 @@ spawn_process(const char* progname, const BaseString& args)
   {
     g_eventLogger->error("spawn_process: Failed to convert handle %d "
                          "to pid, error: %d", spawn_handle, GetLastError());
+    CloseHandle((HANDLE)spawn_handle);
     return -1;
   }
+  CloseHandle((HANDLE)spawn_handle);
   return pid;
 #else
   pid_t pid = fork();
@@ -479,7 +490,14 @@ angel_run(const BaseString& original_args,
     ignore_signals();
 
     int status=0, error_exit=0;
-    while (waitpid(child, &status, 0) != child);
+    while(true)
+    {
+      pid_t ret_pid = waitpid(child, &status, 0);
+      if (ret_pid == child)
+        break;
+      g_eventLogger->warning("Angel got unexpected pid %d when waiting for %d",
+                             ret_pid, child);
+    }
 
     g_eventLogger->debug("Angel got child %d", child);
 
