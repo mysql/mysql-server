@@ -16,10 +16,10 @@
 #ifndef NDBD_HPP
 #define NDBD_HPP
 
-int ndbd_run(bool foreground, int report_fd,
-             const char* connect_str, const char* bind_address,
-             bool no_start, bool initial, bool initialstart,
-             unsigned allocated_nodeid);
-void ndbd_exit(int code);
+void
+ndbd_run(bool foreground, int report_fd,
+         const char* connect_str, const char* bind_address,
+         bool no_start, bool initial, bool initialstart,
+         unsigned allocated_nodeid);
 
 #endif
