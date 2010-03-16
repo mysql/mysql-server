@@ -46,8 +46,10 @@
 #define NODE_ARRAY_SIZE(N, B) (((N)*(B)+31) >> 5)
 
 typedef Bitmask<(unsigned int)_NODE_BITMASK_SIZE> NodeBitmask;
+typedef BitmaskPOD<(unsigned int)_NODE_BITMASK_SIZE> NodeBitmaskPOD;
 
 typedef Bitmask<(unsigned int)_NDB_NODE_BITMASK_SIZE> NdbNodeBitmask;
+typedef BitmaskPOD<(unsigned int)_NDB_NODE_BITMASK_SIZE> NdbNodeBitmaskPOD;
 
 #define __NBM_SZ  ((MAX_NODES >> 5) + ((MAX_NODES & 31) != 0))
 #define __NNBM_SZ ((MAX_NDB_NODES >> 5) + ((MAX_NDB_NODES & 31) != 0))
