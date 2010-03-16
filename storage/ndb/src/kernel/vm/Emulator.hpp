@@ -80,34 +80,6 @@ struct EmulatorData {
 
 extern struct EmulatorData globalEmulatorData;
 
-enum NdbShutdownType {
-  NST_Normal,
-  NST_Watchdog,
-  NST_ErrorHandler,
-  NST_ErrorHandlerSignal,
-  NST_Restart,
-  NST_ErrorInsert,
-  NST_ErrorHandlerStartup
-};
-
-enum NdbRestartType {
-  NRT_Default               = 0,
-  NRT_NoStart_Restart       = 1, // -n
-  NRT_DoStart_Restart       = 2, //
-  NRT_NoStart_InitialStart  = 3, // -n -i
-  NRT_DoStart_InitialStart  = 4  // -i
-};
-
-/**
- * Shutdown/restart Ndb
- *
- * @param type        - Type of shutdown/restart
- * @param restartType - Type of restart (only valid if type == NST_Restart)
- */
-void 
-NdbShutdown(NdbShutdownType type, 
-	    NdbRestartType restartType = NRT_Default);
-
 /**
  * Compute no of pages to be used as job-buffer
  */

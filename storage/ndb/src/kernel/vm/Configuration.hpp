@@ -23,7 +23,7 @@
 
 #include <util/BaseString.hpp>
 #include <mgmapi.h>
-#include <ndb_types.h>
+#include <kernel_types.h>
 #include <NdbMutex.h>
 #include <NdbThread.h>
 #include <Bitmask.hpp>
@@ -58,10 +58,11 @@ public:
   ~Configuration();
 
   bool init(int _no_start, int _initial,
-            int _initialstart, int _daemon);
+            int _initialstart);
 
   void fetch_configuration(const char* _connect_string,
-                           const char* _bind_adress);
+                           const char* _bind_adress,
+                           NodeId allocated_nodeid);
   void setupConfiguration();
   void closeConfiguration(bool end_session= true);
   
@@ -116,12 +117,7 @@ public:
   const char * fileSystemPath() const;
   const char * backupFilePath() const;
 
-  /**
-   * 
-   */
-  bool getInitialStart() const;
-  void setInitialStart(bool val);
-  bool getDaemonMode() const;
+  bool getInitialStart() const { return _initialStart; }
 
   const ndb_mgm_configuration_iterator * getOwnConfigIterator() const;
 
@@ -135,7 +131,6 @@ public:
 private:
   friend class Cmvmi;
   friend class Qmgr;
-  friend int reportShutdown(class Configuration *config, int error, int restart, Uint32 sphase);
 
   Uint32 _stopOnError;
   Uint32 m_restartOnErrorInsert;
@@ -160,15 +155,12 @@ private:
   
   ConfigRetriever *m_config_retriever;
 
-  Vector<BaseString> m_mgmds;
-
   /**
    * arguments to NDB process
    */
   char * _fsPath;
   char * _backupPath;
   bool _initialStart;
-  bool _daemonMode; // if not, angel in foreground
 
   void calcSizeAlt(class ConfigValues * );
 };
@@ -183,18 +175,6 @@ inline
 const char *
 Configuration::backupFilePath() const {
   return _backupPath;
-}
-
-inline
-bool
-Configuration::getInitialStart() const {
-  return _initialStart;
-}
-
-inline
-bool
-Configuration::getDaemonMode() const {
-  return _daemonMode;
 }
 
 #endif

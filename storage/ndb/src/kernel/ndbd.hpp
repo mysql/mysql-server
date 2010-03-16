@@ -16,7 +16,43 @@
 #ifndef NDBD_HPP
 #define NDBD_HPP
 
-int ndbd_run(bool foreground);
-void ndbd_exit(int code);
+void
+ndbd_run(bool foreground, int report_fd,
+         const char* connect_str, const char* bind_address,
+         bool no_start, bool initial, bool initialstart,
+         unsigned allocated_nodeid);
+
+enum NdbShutdownType {
+  NST_Normal,
+  NST_Watchdog,
+  NST_ErrorHandler,
+  NST_ErrorHandlerSignal,
+  NST_Restart,
+  NST_ErrorInsert
+};
+
+enum NdbRestartType {
+  NRT_Default               = 0,
+  NRT_NoStart_Restart       = 1, // -n
+  NRT_DoStart_Restart       = 2, //
+  NRT_NoStart_InitialStart  = 3, // -n -i
+  NRT_DoStart_InitialStart  = 4  // -i
+};
+
+/**
+ * Shutdown/restart Ndb
+ *
+ * @param error_code  - The error causing shutdown/restart
+ * @param type        - Type of shutdown/restart
+ * @param restartType - Type of restart (only valid if type == NST_Restart)
+ *
+ * NOTE! never returns
+ */
+void
+NdbShutdown(int error_code,
+            NdbShutdownType type,
+	    NdbRestartType restartType = NRT_Default);
+
+
 
 #endif
