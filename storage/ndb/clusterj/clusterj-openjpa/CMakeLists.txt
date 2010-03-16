@@ -33,5 +33,5 @@ CREATE_MANIFEST(clusterjpa_manifest.mf ${CLUSTERJPA_EXPORTS} clusterjpa)
 CREATE_JAR_FROM_CLASSES(clusterjpa ${JAVA_CLASS_DIRS}
   ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes com/mysql/clusterj
   MANIFEST clusterjpa_manifest.mf
-  DEPENDENCIES clusterj-api.jar ndbjtie.jar jtie.jar)
+  DEPENDENCIES clusterj-tie.jar)
 

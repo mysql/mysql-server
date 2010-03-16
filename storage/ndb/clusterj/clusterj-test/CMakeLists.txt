@@ -24,7 +24,6 @@ SET ( CLASSPATH
   target/classes
   ${WITH_CLASSPATH}
   ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-api/target/classes
-  ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-test/target/classes
   ${CMAKE_SOURCE_DIR}/storage/ndb/clusterj/clusterj-core/target/classes)
 
 SET(CLUSTERJ_TEST_EXPORTS testsuite.clusterj,testsuite.clusterj.model,testsuite.clusterjdomaintypehandler)
@@ -33,6 +32,6 @@ CREATE_MANIFEST(manifest.mf ${CLUSTERJ_TEST_EXPORTS} clusterj-test)
 CREATE_JAR(clusterj-test ${JAVA_SOURCE_DIRS} 
   CLASSPATH ${CLASSPATH}
   MANIFEST manifest.mf
-  DEPENDENCIES clusterj-api.jar)
+  DEPENDENCIES clusterj-tie.jar)
 
 
