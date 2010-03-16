@@ -361,7 +361,7 @@ int get_byte(s)
  */
 unsigned char* get_block(azio_stream *s,int blksz)
 {
-  char *r= s->stream.next_in;
+  unsigned char *r= s->stream.next_in;
   if (s->stream.avail_in == 0)
     if(read_buffer(s))
       return NULL;

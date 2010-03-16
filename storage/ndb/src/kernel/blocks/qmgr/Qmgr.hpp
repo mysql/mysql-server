@@ -365,8 +365,8 @@ private:
   void stateArbitRun(Signal* signal);
   void stateArbitChoose(Signal* signal);
   void stateArbitCrash(Signal* signal);
-  void computeArbitNdbMask(NodeBitmask& aMask);
-  void computeArbitNdbMask(NdbNodeBitmask& aMask);
+  void computeArbitNdbMask(NodeBitmaskPOD& aMask);
+  void computeArbitNdbMask(NdbNodeBitmaskPOD& aMask);
   void reportArbitEvent(Signal* signal, Ndb_logevent_type type);
 
   // Initialisation
