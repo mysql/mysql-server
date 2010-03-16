@@ -26,7 +26,6 @@ SET ( CLASSPATH
   ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes)
 
 SET ( JAR_DEPENDENCIES
-  clusterj-api.jar
   clusterj-core.jar
   ndbjtie.jar)
 
