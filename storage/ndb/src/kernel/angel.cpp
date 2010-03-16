@@ -382,7 +382,7 @@ enum NdbRestartType {
 };
 
 
-int
+void
 angel_run(const BaseString& original_args,
           const char* connect_str,
           const char* bind_address,
@@ -398,7 +398,7 @@ angel_run(const BaseString& original_args,
   {
     g_eventLogger->error("Could not initialize connection to management "
                          "server, error: '%s'", retriever.getErrorString());
-    return 1;
+    angel_exit(1);
   }
 
   const int connnect_retries = 12;
@@ -408,7 +408,7 @@ angel_run(const BaseString& original_args,
   {
     g_eventLogger->error("Could not connect to management server, "
                          "error: '%s'", retriever.getErrorString());
-    return 1;
+    angel_exit(1);
   }
   g_eventLogger->info("Angel connected to '%s:%d'",
                       retriever.get_mgmd_host(),
@@ -421,7 +421,7 @@ angel_run(const BaseString& original_args,
   {
     g_eventLogger->error("Failed to allocate nodeid, error: '%s'",
                          retriever.getErrorString());
-    return 1;
+    angel_exit(1);
   }
   g_eventLogger->info("Angel allocated nodeid: %u", nodeid);
 
@@ -432,13 +432,13 @@ angel_run(const BaseString& original_args,
     g_eventLogger->error("Could not fetch configuration/invalid "
                          "configuration, error: '%s'",
                          retriever.getErrorString());
-    return 1;
+    angel_exit(1);
   }
 
   if (!configure(config, nodeid))
   {
     // Failed to configure, error already printed
-    return 1;
+    angel_exit(1);
   }
 
   if (daemon)
@@ -452,7 +452,7 @@ angel_run(const BaseString& original_args,
     if (NdbDaemon_Make(lockfile, logfile, 0) == -1)
     {
       ndbout << "Cannot become daemon: " << NdbDaemon_ErrorText << endl;
-      return 1;
+      angel_exit(1);
     }
 #endif
   }
@@ -622,5 +622,5 @@ angel_run(const BaseString& original_args,
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
   }
 
-  return 0;
+  abort(); // Never reached
 }
