@@ -188,6 +188,7 @@ int main(int argc, char** argv)
             opt_initial,
             opt_no_start,
             opt_daemon);
-  ndbd_exit(1); // TODO angel_run should be void
+
+  return 1; // Never reached
 }
 

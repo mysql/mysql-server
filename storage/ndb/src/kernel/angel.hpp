@@ -18,10 +18,11 @@
 
 #include <util/BaseString.hpp>
 
-int angel_run(const BaseString& original_args,
-              const char* connect_str,
-              const char* bind_address,
-              bool initial,
-              bool no_start,
-              bool daemon);
+void
+angel_run(const BaseString& original_args,
+          const char* connect_str,
+          const char* bind_address,
+          bool initial,
+          bool no_start,
+          bool daemon);
 #endif
