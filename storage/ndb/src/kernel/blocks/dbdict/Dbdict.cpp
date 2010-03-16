@@ -1872,7 +1872,11 @@ bool
 Dbdict::convertSchemaFileTo_5_0_6(XSchemaFile * xsf)
 {
   const Uint32 pageSize_old = 32 * 1024;
-  Uint32 page_old[pageSize_old >> 2];
+  union {
+    Uint32 page_old[pageSize_old >> 2];
+    SchemaFile _SchemaFile;
+  };
+  (void)_SchemaFile;
   SchemaFile * sf_old = (SchemaFile *)page_old;
 
   if (xsf->noOfPages * NDB_SF_PAGE_SIZE != pageSize_old)

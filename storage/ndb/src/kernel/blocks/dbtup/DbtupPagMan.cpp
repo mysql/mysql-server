@@ -132,11 +132,21 @@ void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
   m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &allocPageRef, 
 			 &noOfPagesToAllocate, 1);
   noOfPagesAllocated = noOfPagesToAllocate;
+
+  // Count number of allocated pages
+  m_pages_allocated += noOfPagesAllocated;
+  if (m_pages_allocated > m_pages_allocated_max)
+    m_pages_allocated_max = m_pages_allocated;
+
   return;
 }//allocConsPages()
 
 void Dbtup::returnCommonArea(Uint32 retPageRef, Uint32 retNo) 
 {
   m_ctx.m_mm.release_pages(RT_DBTUP_PAGE, retPageRef, retNo);
+
+  // Count number of allocated pages
+  m_pages_allocated -= retNo;
+
 }//Dbtup::returnCommonArea()
 

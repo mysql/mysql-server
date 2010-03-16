@@ -68,7 +68,9 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
     c_storedProcPool(),
     c_buildIndexList(c_buildIndexPool),
     c_undo_buffer(&ctx.m_mm),
-    f_undo_done(true)
+    f_undo_done(true),
+    m_pages_allocated(0),
+    m_pages_allocated_max(0)
 {
   BLOCK_CONSTRUCTOR(Dbtup);
 
@@ -133,8 +135,7 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
   hostBuffer = 0;
   tablerec = 0;
   tableDescriptor = 0;
-  totNoOfPagesAllocated = 0;
-  
+
   initData();
   CLEAR_ERROR_INSERT_VALUE;
 

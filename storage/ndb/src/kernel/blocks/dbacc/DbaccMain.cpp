@@ -8241,8 +8241,8 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
       { "Index memory",
         cnoOfAllocatedPages,
         cpageCount,
-        sizeof(page8),
-        cnoOfAllocatedPagesMax = 0,
+        sizeof(Page8),
+        cnoOfAllocatedPagesMax,
         { CFG_DB_INDEX_MEM,0,0,0 }},
       { NULL, 0,0,0,0,{ 0,0,0,0 }}
     };

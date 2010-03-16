@@ -37,14 +37,11 @@
 #include <NdbSleep.h>
 
 #include <EventLogger.hpp>
+extern EventLogger * g_eventLogger;
 
 void childExit(int code, Uint32 currentStartPhase);
 void childAbort(int code, Uint32 currentStartPhase);
 
-extern "C" {
-  extern void (* ndb_new_handler)();
-}
-extern EventLogger * g_eventLogger;
 #ifndef NDB_WIN
 extern my_bool opt_core;
 #endif
@@ -89,11 +86,6 @@ EmulatorData::EmulatorData(){
 }
 
 void
-ndb_new_handler_impl(){
-  ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, "New handler", "");
-}
-
-void
 EmulatorData::create(){
   /*
     Global jam() buffer, for non-multithreaded operation.
@@ -110,9 +102,22 @@ EmulatorData::create(){
   m_socket_server  = new SocketServer();
   m_mem_manager    = new Ndbd_mem_manager();
 
-  theShutdownMutex = NdbMutex_Create();
+  if (theConfiguration == NULL ||
+      theWatchDog == NULL ||
+      theThreadConfig == NULL ||
+      theSimBlockList == NULL ||
+      m_socket_server == NULL ||
+      m_mem_manager == NULL )
+  {
+    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
+              "Failed to create EmulatorData", "");
+  }
 
-  ndb_new_handler = ndb_new_handler_impl;
+  if (!(theShutdownMutex = NdbMutex_Create()))
+  {
+    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
+              "Failed to create shutdown mutex", "");
+  }
 }
 
 void

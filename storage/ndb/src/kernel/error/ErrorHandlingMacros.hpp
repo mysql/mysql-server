@@ -22,16 +22,6 @@
 #include <ndbd_exit_codes.h>
 #include "ErrorReporter.hpp"
 
-extern const char programName[];
-
-enum NotUsed
-{
-   warning,
-   ecError,
-   fatal,
-   assert
-};
-
 #define ERROR_SET_SIGNAL(not_used, messageID, problemData, objectRef) \
         ErrorReporter::handleError(messageID, problemData, objectRef, NST_ErrorHandlerSignal)
 #define ERROR_SET(not_used, messageID, problemData, objectRef) \

@@ -1459,7 +1459,7 @@ Ndb_mgmd_event_service::update_log_level(const LogLevel &tmp)
 {
   m_logLevel = tmp;
   EventSubscribeReq req;
-  req = tmp;
+  req.assign(tmp);
   // send update to all nodes
   req.blockRef = 0;
   m_mgmsrv->m_log_level_requests.push_back(req);
