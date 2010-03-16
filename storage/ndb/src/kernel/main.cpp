@@ -30,10 +30,10 @@ static int opt_daemon, opt_no_daemon, opt_foreground,
   opt_initialstart, opt_verbose;
 static const char* opt_nowait_nodes = 0;
 static const char* opt_bind_address = 0;
-int opt_report_fd;
-int opt_initial;
-int opt_no_start;
-unsigned opt_allocated_nodeid;
+static int opt_report_fd;
+static int opt_initial;
+static int opt_no_start;
+static unsigned opt_allocated_nodeid;
 
 extern NdbNodeBitmask g_nowait_nodes;
 
@@ -82,6 +82,10 @@ static struct my_option my_long_options[] =
     "INTERNAL: fd where to write extra shutdown status",
     (uchar**) &opt_report_fd, (uchar**) &opt_report_fd, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, ~0, 0, 0, 0 },
+  { "allocated-nodeid", 256,
+    "INTERNAL: nodeid allocated by angel process",
+    (uchar**) &opt_allocated_nodeid, (uchar**) &opt_allocated_nodeid, 0,
+    GET_UINT, REQUIRED_ARG, 0, 0, ~0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -122,6 +126,12 @@ int main(int argc, char** argv)
   opt_debug= "d:t:O,/tmp/ndbd.trace";
 #endif
 
+  // Save the original arguments for angel
+  BaseString original_args;
+  for (int i = 0; i < argc; i++)
+    original_args.appfmt("%s ", argv[i]);
+  ndbout_c("original_args: %s ", original_args.c_str());
+
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
                                ndb_std_get_one_option)))
@@ -142,6 +152,7 @@ int main(int argc, char** argv)
   DBUG_PRINT("info", ("foreground=%d", opt_foreground));
   DBUG_PRINT("info", ("connect_str=%s", opt_connect_str));
   ndbout_c("opt_report_fd: %d", opt_report_fd);
+  ndbout_c("opt_allocated_nodeid: %d", opt_allocated_nodeid);
 
   if (opt_nowait_nodes)
   {
@@ -160,28 +171,23 @@ int main(int argc, char** argv)
     }
   }
 
-#ifndef NDB_WIN32
-  if (!opt_foreground)
+  if (opt_foreground ||
+      opt_allocated_nodeid ||
+      opt_report_fd)
   {
-    if (angel_run(opt_connect_str,
-                  opt_bind_address,
-                  opt_initial,
-                  opt_no_start,
-                  opt_daemon))
-      return 1;
-    // ndbd continues here
+    int res = ndbd_run(opt_foreground, opt_report_fd,
+                       opt_connect_str, opt_bind_address,
+                       opt_no_start, opt_initial, opt_initialstart,
+                       opt_allocated_nodeid);
+     ndbd_exit(res);
   }
-  else
-    g_eventLogger->info("Ndb started in foreground");
-#else
-  g_eventLogger->info("Ndb started");
-#endif
 
-  int res = ndbd_run(opt_foreground, opt_report_fd,
-                     opt_connect_str, opt_bind_address,
-                     opt_no_start, opt_initial, opt_initialstart,
-                     opt_allocated_nodeid);
-  ndbd_exit(res);
-  return res;
+  angel_run(original_args,
+            opt_connect_str,
+            opt_bind_address,
+            opt_initial,
+            opt_no_start,
+            opt_daemon);
+  ndbd_exit(1); // TODO angel_run should be void
 }
 

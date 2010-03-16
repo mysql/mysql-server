@@ -16,6 +16,7 @@
 
 #include <ndb_global.h>
 #include <ndb_version.h>
+#include <signal.h>
 
 #include "angel.hpp"
 
@@ -148,12 +149,13 @@ reportShutdown(const ndb_mgm_configuration* config,
 static void
 ignore_signals(void)
 {
-#ifndef NDB_WIN32
   static const int ignore_list[] = {
 #ifdef SIGBREAK
     SIGBREAK,
 #endif
+#ifdef SIGHUP
     SIGHUP,
+#endif
     SIGINT,
 #if defined SIGPWR
     SIGPWR,
@@ -165,10 +167,16 @@ ignore_signals(void)
 #ifdef SIGTSTP
     SIGTSTP,
 #endif
+#ifdef SIGTTIN
     SIGTTIN,
+#endif
+#ifdef SIGTTOU
     SIGTTOU,
+#endif
     SIGABRT,
+#ifdef SIGALRM
     SIGALRM,
+#endif
 #ifdef SIGBUS
     SIGBUS,
 #endif
@@ -189,7 +197,6 @@ ignore_signals(void)
 
   for(size_t i = 0; i < sizeof(ignore_list)/sizeof(ignore_list[0]); i++)
     signal(ignore_list[i], SIG_IGN);
-#endif
 }
 
 #ifdef _WIN32
@@ -199,15 +206,126 @@ int pipe(int pipefd[2]){
   const int flags = 0;
   return _pipe(pipefd, buffer_size, flags);
 }
+
+#undef getpid
+#include <process.h>
+
+typedef DWORD pid_t;
+
+static inline
+pid_t waitpid(pid_t pid, int *stat_loc, int options)
+{
+  HANDLE handle = OpenProcess(SYNCHRONIZE, FALSE, pid);
+  if (handle == NULL)
+  {
+    g_eventLogger->error("waitpid: Could not open handle for pid %d, "
+                         "error: %d", pid, GetLastError());
+    return -1;
+  }
+  return _cwait(stat_loc, (intptr_t)handle, 0);
+}
+
+static inline
+bool WIFEXITED(int status)
+{
+  return true;
+}
+
+static inline
+int WEXITSTATUS(int status)
+{
+  return status;
+}
+
+static inline
+bool WIFSIGNALED(int status)
+{
+  return false;
+}
+
+static inline
+int WTERMSIG(int status)
+{
+  return 0;
+}
 #endif
 
-extern int opt_report_fd; // REMOVE later
-extern int opt_initial; // REMOVE later
-extern int opt_no_start; // REMOVE later
-extern unsigned opt_allocated_nodeid; // REMOVE later
+extern int main(int, char**);
+
+static pid_t
+spawn_process(const char* progname, const BaseString& args)
+{
+  char** argv = BaseString::argify(progname, args.c_str());
+  if (!argv)
+  {
+    g_eventLogger->error("spawn_process: Failed to create argv, errno: %d",
+                         errno);
+    return -1;
+  }
+
+#ifdef _WIN32
+
+  intptr_t spawn_handle = _spawnv(P_NOWAIT, progname, argv);
+  if (spawn_handle == -1)
+  {
+    g_eventLogger->error("spawn_process: Failed to spawn process, errno: %d",
+                         errno);
+    return -1;
+  }
+
+  // Convert the handle returned from spawnv_ to a pid
+  DWORD pid = GetProcessId((HANDLE)spawn_handle);
+  if (pid == 0)
+  {
+    g_eventLogger->error("spawn_process: Failed to convert handle %d "
+                         "to pid, error: %d", spawn_handle, GetLastError());
+    return -1;
+  }
+  return pid;
+#else
+  pid_t pid = fork();
+  if (pid == -1)
+  {
+    g_eventLogger->error("Failed to fork, errno: %d", errno);
+    return -1;
+  }
+
+  if (pid)
+  {
+    // Parent
+    return pid;
+  }
+
+  // Conunt number of arguments
+  int argc = 0;
+  while(argv[argc])
+    argc++;
+
+#ifdef VM_TRACE
+#define NDB_USE_FORK_AND_EXEC
+#endif
+#ifdef NDB_USE_FORK_AND_EXEC
+  // Start program from beginning using execv which is
+  // as close as possible to the Windows implementation
+  if (execv(argv[0], argv) == -1)
+    g_eventLogger->error("Failed to execv, errno: %d", errno);
+#else
+  // Calling 'main' to start program from beginning
+  // without loading (possibly new version) from disk
+  (void)main(argc, argv);
+  assert(false); // main should never return
+#endif
+  exit(1);
+  return -1; // Never reached
+#endif
+}
 
 static Uint32 stop_on_error;
 
+
+/*
+  Extract the config parameters that concerns angel
+*/
 
 static bool
 configure(const ndb_mgm_configuration* conf, NodeId nodeid)
@@ -229,7 +347,6 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
     return false;
   }
 
-  // Extract the config parameters that concerns angel
   if (iter.get(CFG_DB_STOP_ON_ERROR, &stop_on_error))
   {
     g_eventLogger->error("Invalid configuration fetched, could not "
@@ -266,15 +383,13 @@ enum NdbRestartType {
 
 
 int
-angel_run(const char* connect_str,
+angel_run(const BaseString& original_args,
+          const char* connect_str,
           const char* bind_address,
           bool initial,
           bool no_start,
           bool daemon)
 {
-#ifdef NDB_WIN32
-  return 1;
-#else
   ConfigRetriever retriever(connect_str,
                             NDB_VERSION,
                             NDB_MGM_NODE_TYPE_NDB,
@@ -308,7 +423,6 @@ angel_run(const char* connect_str,
                          retriever.getErrorString());
     return 1;
   }
-  opt_allocated_nodeid = nodeid;
   g_eventLogger->info("Angel allocated nodeid: %u", nodeid);
 
   ndb_mgm_configuration * config = retriever.getConfig(nodeid);
@@ -345,7 +459,6 @@ angel_run(const char* connect_str,
 
   signal(SIGUSR1, handler_sigusr1);
 
-  pid_t child= -1;
   while (true)
   {
 
@@ -366,22 +479,30 @@ angel_run(const char* connect_str,
       angel_exit(1);
     }
 
+    // Build the args used to start ndbd by appending
+    // the arguments that may have changed at the end
+    // of original argument list
+    BaseString args(original_args);
+
     // Pass fd number of the pipe which ndbd should use
     // for sending extra status to angel
-    // TODO will be passed as --arg to child
-    opt_report_fd = fds[1];
+    args.appfmt(" --report-fd=%d", fds[1]);
 
-    opt_initial = initial; // TODO Remove in fork_and_exec
-    opt_no_start = no_start; // TODO remove in fork_and_exec
-    opt_allocated_nodeid = nodeid; // TODO remove in fork_and_exec
+    // The nodeid which has been allocated by angel
+    args.appfmt(" --allocated-nodeid=%d", nodeid);
 
-    if ((child=fork()) <= 0)
-      break; // child or error
+    args.appfmt(" --initial=%d", initial);
+    args.appfmt(" --nostart=%d", no_start);
+
+    pid_t child = spawn_process(my_progname, args);
+    if (child == -1)
+      angel_exit(1);
 
     /**
      * Parent
      */
-    g_eventLogger->debug("Angel started child %d", child);
+    g_eventLogger->info("Angel pid: %d started child: %d",
+                        getpid(), child);
 
     ignore_signals();
 
@@ -501,11 +622,5 @@ angel_run(const char* connect_str,
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
   }
 
-  if (child >= 0)
-    g_eventLogger->info("Angel pid: %d ndb pid: %d", getppid(), getpid());
-  else if (child > 0)
-    g_eventLogger->info("Ndb pid: %d", getpid());
-
   return 0;
-#endif
 }

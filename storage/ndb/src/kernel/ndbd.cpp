@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <signal.h>
 
 #include <NdbEnv.h>
 #include <NdbConfig.h>
@@ -423,13 +424,13 @@ handler_error(int signum){
 
 static void
 catchsigs(bool foreground){
-#if !defined NDB_WIN32
-
   static const int signals_shutdown[] = {
 #ifdef SIGBREAK
     SIGBREAK,
 #endif
+#ifdef SIGHUP
     SIGHUP,
+#endif
     SIGINT,
 #if defined SIGPWR
     SIGPWR,
@@ -441,17 +442,25 @@ catchsigs(bool foreground){
 #ifdef SIGTSTP
     SIGTSTP,
 #endif
+#ifdef SIGTTIN
     SIGTTIN,
+#endif
+#ifdef SIGTTOU
     SIGTTOU
+#endif
   };
 
   static const int signals_error[] = {
     SIGABRT,
+#ifdef SIGALRM
     SIGALRM,
+#endif
 #ifdef SIGBUS
     SIGBUS,
 #endif
+#ifdef SIGCHLD
     SIGCHLD,
+#endif
     SIGFPE,
     SIGILL,
 #ifdef SIGIO
@@ -480,7 +489,6 @@ catchsigs(bool foreground){
     signal(SIGTRAP, handler_error);
 #endif
 
-#endif
 }
 
 void
@@ -500,6 +508,9 @@ ndbd_run(bool foreground, int report_fd,
          bool no_start, bool initial, bool initialstart,
          unsigned allocated_nodeid)
 {
+  if (foreground)
+    g_eventLogger->info("Ndb started in foreground");
+
   if (report_fd)
   {
     g_eventLogger->debug("Opening report stream on fd: %d", report_fd);
