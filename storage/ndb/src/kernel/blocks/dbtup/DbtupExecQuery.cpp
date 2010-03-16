@@ -3895,7 +3895,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
       return -1;
     }
 
-    PagePtr disk_page = *(PagePtr*)&m_pgman_ptr;
+    PagePtr disk_page = { (Tup_page*)m_pgman_ptr.p, m_pgman_ptr.i };
     disk_page_set_dirty(disk_page);
 
     CallbackPtr cptr;
@@ -3990,7 +3990,7 @@ Dbtup::nr_delete_log_buffer_callback(Signal* signal,
 
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, op.m_page_id);
-  PagePtr pagePtr= *(PagePtr*)&gpage;
+  PagePtr pagePtr = { (Tup_page*)gpage.p, gpage.i };
 
   /**
    * reset page no

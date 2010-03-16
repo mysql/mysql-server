@@ -56,6 +56,7 @@
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateHashMap.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
+#include <signaldata/ArbitSignalData.hpp>
 
 /**
  * A NdbApiSignal : public SignalHeader
@@ -142,6 +143,7 @@ private:
     SchemaTransBeginReq _SchemaTransBeginReq;
     SchemaTransEndReq _SchemaTransEndReq;
     ApiRegReq _ApiRegReq;
+    ArbitSignalData _ArbitSignalData;
   };
   NdbApiSignal *theNextSignal;
   Uint32 *theRealData;
