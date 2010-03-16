@@ -765,11 +765,6 @@ NdbShutdown(int error_code,
       fclose(outputStream);
 #endif
 
-#ifndef NDB_WIN32
-#define UNLOAD (type == NST_ErrorInsert && opt_core)
-#else
-#define UNLOAD (0)
-#endif
     /**
      * Don't touch transporter here (yet)
      *   cause with ndbmtd, there are locks and nasty stuff
@@ -796,8 +791,9 @@ NdbShutdown(int error_code,
     globalTransporterRegistry.removeAll();
 #endif
 
-    if(UNLOAD)
+    if(type == NST_ErrorInsert && opt_core)
     {
+      // Unload some structures to reduce size of core
       globalEmulatorData.theSimBlockList->unload();
       NdbMutex_Unlock(theShutdownMutex);
       globalEmulatorData.destroy();
