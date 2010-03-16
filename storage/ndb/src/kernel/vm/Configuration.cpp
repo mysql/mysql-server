@@ -42,7 +42,7 @@ extern Uint32 g_start_type;
 
 bool
 Configuration::init(int _no_start, int _initial,
-                    int _initialstart, int _daemon)
+                    int _initialstart)
 {
   // Check the start flag
   if (_no_start)
@@ -53,10 +53,6 @@ Configuration::init(int _no_start, int _initial,
   // Check the initial flag
   if (_initial)
     _initialStart = true;
-
-  // Check daemon flag
-  if (_daemon)
-    _daemonMode = true;
 
   globalData.ownId= 0;
 
@@ -81,7 +77,6 @@ Configuration::Configuration()
   _fsPath = 0;
   _backupPath = 0;
   _initialStart = false;
-  _daemonMode = false;
   m_config_retriever= 0;
   m_clusterConfig= 0;
   m_clusterConfigIter= 0;
@@ -116,7 +111,9 @@ Configuration::closeConfiguration(bool end_session){
 
 void
 Configuration::fetch_configuration(const char* _connect_string,
-                                   const char* _bind_address){
+                                   const char* _bind_address,
+                                   NodeId allocated_nodeid)
+{
   /**
    * Fetch configuration from management server
    */
@@ -152,22 +149,28 @@ Configuration::fetch_configuration(const char* _connect_string,
   }
 
   ConfigRetriever &cr= *m_config_retriever;
-  
-  /**
-   * if we have a nodeid set (e.g in a restart situation)
-   * reuse it
-   */
-  if (globalData.ownId)
-    cr.setNodeId(globalData.ownId);
 
-  globalData.ownId = cr.allocNodeId(globalData.ownId ? 10 : 2 /*retry*/,
-                                    3 /*delay*/);
-  
-  if(globalData.ownId == 0){
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, 
-	      "Unable to alloc node id", m_config_retriever->getErrorString());
+  if (allocated_nodeid)
+  {
+    // The angel has already allocated the nodeid, no need to
+    // allocate it
+    globalData.ownId = allocated_nodeid;
   }
-  
+  else
+  {
+
+    const int alloc_retries = 2;
+    const int alloc_delay = 3;
+    globalData.ownId = cr.allocNodeId(alloc_retries, alloc_delay);
+    if(globalData.ownId == 0)
+    {
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+                "Unable to alloc node id",
+                m_config_retriever->getErrorString());
+    }
+  }
+  assert(globalData.ownId);
+
   ndb_mgm_configuration * p = cr.getConfig(globalData.ownId);
   if(p == 0){
     const char * s = cr.getErrorString();
@@ -221,28 +224,6 @@ Configuration::fetch_configuration(const char* _connect_string,
   }
   NdbConfig_SetPath(datadir);
 
-  m_mgmds.clear();
-  for(ndb_mgm_first(&iter); ndb_mgm_valid(&iter); ndb_mgm_next(&iter))
-  {
-    Uint32 nodeType, port;
-    char const *hostname;
-
-    ndb_mgm_get_int_parameter(&iter,CFG_TYPE_OF_SECTION,&nodeType);
-
-    if (nodeType != NodeInfo::MGM)
-      continue;
-
-    if (ndb_mgm_get_string_parameter(&iter,CFG_NODE_HOST, &hostname) ||
-	ndb_mgm_get_int_parameter(&iter,CFG_MGM_PORT, &port) ||
-	hostname == 0 || hostname[0] == 0)
-    {
-      continue;
-    }
-    BaseString connectstring(hostname);
-    connectstring.appfmt(":%d", port);
-
-    m_mgmds.push_back(connectstring);
-  }
 }
 
 static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,
@@ -902,11 +883,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   m_ownConfig = (ndb_mgm_configuration*)cfg.getConfigValues();
   m_ownConfigIterator = ndb_mgm_create_configuration_iterator
     (m_ownConfig, 0);
-}
-
-void
-Configuration::setInitialStart(bool val){
-  _initialStart = val;
 }
 
 void

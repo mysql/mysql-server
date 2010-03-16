@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <ndb_global.h>
+#include <signal.h>
 
 #include <NdbEnv.h>
 #include <NdbConfig.h>
@@ -331,125 +332,58 @@ get_multithreaded_config(EmulatorData& ed)
 }
 
 
-extern FILE *child_info_file_r;
-extern FILE *child_info_file_w;
+static void
+ndbd_exit(int code)
+{
+// gcov will not produce results when using _exit
+#ifdef HAVE_gcov
+  exit(code);
+#else
+  _exit(code);
+#endif
+}
+
+
+static FILE *angel_info_w = NULL;
 
 static void
 writeChildInfo(const char *token, int val)
 {
-  fprintf(child_info_file_w, "%s=%d\n", token, val);
-  fflush(child_info_file_w);
+  fprintf(angel_info_w, "%s=%d\n", token, val);
+  fflush(angel_info_w);
 }
 
-void
+static void
 childReportSignal(int signum)
 {
   writeChildInfo("signal", signum);
 }
 
-void
-childReportError(int error)
+static void
+childExit(int error_code, int exit_code, Uint32 currentStartPhase)
 {
-  writeChildInfo("error", error);
+  writeChildInfo("error", error_code);
+  writeChildInfo("sphase", currentStartPhase);
+  fprintf(angel_info_w, "\n");
+  fclose(angel_info_w);
+  ndbd_exit(exit_code);
 }
 
-void
-childExit(int code, Uint32 currentStartPhase)
+static void
+childAbort(int error_code, int exit_code, Uint32 currentStartPhase)
 {
-#ifndef NDB_WIN
+  writeChildInfo("error", error_code);
   writeChildInfo("sphase", currentStartPhase);
-  writeChildInfo("exit", code);
-  fprintf(child_info_file_w, "\n");
-  fclose(child_info_file_r);
-  fclose(child_info_file_w);
-  ndbd_exit(code);
+  fprintf(angel_info_w, "\n");
+  fclose(angel_info_w);
+
+#ifdef _WIN32
+  // Don't use 'abort' on Windows since it returns
+  // exit code 3 which conflict with NRT_NoStart_InitialStart
+  ndbd_exit(exit_code);
 #else
-  {
-    Configuration* theConfig=globalEmulatorData.theConfiguration;
-    theConfig->closeConfiguration(true);
-    switch (code) {
-    case NRT_Default:
-      g_eventLogger->info("Angel shutting down");
-      reportShutdown(theConfig, 0, 0, currentStartPhase);
-      ndbd_exit(0);
-      break;
-    case NRT_NoStart_Restart:
-      theConfig->setInitialStart(false);
-      globalData.theRestartFlag=initial_state;
-      break;
-    case NRT_NoStart_InitialStart:
-      theConfig->setInitialStart(true);
-      globalData.theRestartFlag=initial_state;
-      break;
-    case NRT_DoStart_InitialStart:
-      theConfig->setInitialStart(true);
-      globalData.theRestartFlag=perform_start;
-      break;
-    default:
-      if (theConfig->stopOnError())
-      {
-        /**
-         * Error shutdown && stopOnError()
-         */
-        reportShutdown(theConfig, 1, 0, currentStartPhase);
-        ndbd_exit(0);
-      }
-      // Fall-through
-    case NRT_DoStart_Restart:
-      theConfig->setInitialStart(false);
-      globalData.theRestartFlag=perform_start;
-      break;
-    }
-    char buf[80];
-    BaseString::snprintf(buf, sizeof (buf), "WIN_NDBD_CFG=%d %d %d",
-                         theConfig->getInitialStart(),
-                         globalData.theRestartFlag, globalData.ownId);
-    _putenv(buf);
-
-    char exe[MAX_PATH];
-    GetModuleFileName(0, exe, sizeof (exe));
-
-    STARTUPINFO sinfo;
-    ZeroMemory(&sinfo, sizeof (sinfo));
-    sinfo.cb=sizeof (STARTUPINFO);
-    sinfo.dwFlags=STARTF_USESHOWWINDOW;
-    sinfo.wShowWindow=SW_HIDE;
-
-    PROCESS_INFORMATION pinfo;
-    if (reportShutdown(theConfig, 0, 1, currentStartPhase))
-    {
-      g_eventLogger->error("unable to shutdown");
-      ndbd_exit(1);
-    }
-    g_eventLogger->info("Ndb has terminated.  code=%d", code);
-    if (code == NRT_NoStart_Restart)
-      globalTransporterRegistry.disconnectAll();
-    g_eventLogger->info("Ndb has terminated.  Restarting");
-    if (CreateProcess(exe, GetCommandLine(), NULL, NULL, TRUE, 0, NULL, NULL,
-                      &sinfo, &pinfo) == 0)
-    {
-      g_eventLogger->error("Angel was unable to create child ndbd process"
-                           " error: %d", GetLastError());
-    }
-  }
-#endif
-}
-
-void
-childAbort(int code, Uint32 currentStartPhase)
-{
-#ifndef NDB_WIN
-  writeChildInfo("sphase", currentStartPhase);
-  writeChildInfo("exit", code);
-  fprintf(child_info_file_w, "\n");
-  fclose(child_info_file_r);
-  fclose(child_info_file_w);
-#ifndef NDB_WIN32
   signal(SIGABRT, SIG_DFL);
-#endif
   abort();
-#else
-  childExit(code, currentStartPhase);
 #endif
 }
 
@@ -457,7 +391,6 @@ extern "C"
 void
 handler_shutdown(int signum){
   g_eventLogger->info("Received signal %d. Performing stop.", signum);
-  childReportError(0);
   childReportSignal(signum);
   globalData.theRestartFlag = perform_stop;
 }
@@ -499,13 +432,13 @@ handler_error(int signum){
 
 static void
 catchsigs(bool foreground){
-#if !defined NDB_WIN32
-
   static const int signals_shutdown[] = {
 #ifdef SIGBREAK
     SIGBREAK,
 #endif
+#ifdef SIGHUP
     SIGHUP,
+#endif
     SIGINT,
 #if defined SIGPWR
     SIGPWR,
@@ -517,17 +450,25 @@ catchsigs(bool foreground){
 #ifdef SIGTSTP
     SIGTSTP,
 #endif
+#ifdef SIGTTIN
     SIGTTIN,
+#endif
+#ifdef SIGTTOU
     SIGTTOU
+#endif
   };
 
   static const int signals_error[] = {
     SIGABRT,
+#ifdef SIGALRM
     SIGALRM,
+#endif
 #ifdef SIGBUS
     SIGBUS,
 #endif
+#ifdef SIGCHLD
     SIGCHLD,
+#endif
     SIGFPE,
     SIGILL,
 #ifdef SIGIO
@@ -556,28 +497,59 @@ catchsigs(bool foreground){
     signal(SIGTRAP, handler_error);
 #endif
 
-#endif
 }
+
 
 void
-ndbd_exit(int code)
+ndbd_run(bool foreground, int report_fd,
+         const char* connect_str, const char* bind_address,
+         bool no_start, bool initial, bool initialstart,
+         unsigned allocated_nodeid)
 {
-// gcov will not produce results when using _exit
-#ifdef HAVE_gcov
-  exit(code);
-#else
-  _exit(code);
-#endif
-}
+  if (foreground)
+    g_eventLogger->info("Ndb started in foreground");
 
-int
-ndbd_run(bool foreground)
-{
+  if (report_fd)
+  {
+    g_eventLogger->debug("Opening report stream on fd: %d", report_fd);
+    // Open a stream for sending extra status to angel
+    if (!(angel_info_w = fdopen(report_fd, "w")))
+    {
+      g_eventLogger->error("Failed to open stream for reporting "
+                           "to angel, error: %d (%s)", errno, strerror(errno));
+      ndbd_exit(-1);
+    }
+  }
+  else
+  {
+    // No reporting requested, open /dev/null
+    const char* dev_null = IF_WIN("nul", "/dev/null");
+    if (!(angel_info_w = fopen(dev_null, "w")))
+    {
+      g_eventLogger->error("Failed to open stream for reporting to "
+                           "'%s', error: %d (%s)", dev_null, errno,
+                           strerror(errno));
+      ndbd_exit(-1);
+    }
+  }
 
-  if (get_multithreaded_config(globalEmulatorData))
-    return -1;
+  globalEmulatorData.create();
 
   Configuration* theConfig = globalEmulatorData.theConfiguration;
+  if(!theConfig->init(no_start, initial, initialstart))
+  {
+    g_eventLogger->error("Failed to init Configuration");
+    ndbd_exit(-1);
+  }
+
+  theConfig->fetch_configuration(connect_str, bind_address,
+                                 allocated_nodeid);
+
+  my_setwd(NdbConfig_get_path(0), MYF(0));
+
+  if (get_multithreaded_config(globalEmulatorData))
+    ndbd_exit(-1);
+
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel);
 
@@ -593,11 +565,11 @@ ndbd_run(bool foreground)
     watchCounter = 9;           //  Means "doing allocation"
     globalEmulatorData.theWatchDog->registerWatchedThread(&watchCounter, 0);
     if (init_global_memory_manager(globalEmulatorData, &watchCounter))
-      return 1;
+      ndbd_exit(1);
     globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
   }
 
-  globalEmulatorData.theThreadConfig->init(&globalEmulatorData);
+  globalEmulatorData.theThreadConfig->init();
 
 #ifdef VM_TRACE
   // Create a signal logger before block constructors
@@ -635,9 +607,6 @@ ndbd_run(bool foreground)
   /**
    * Do startup
    */
-
-  ErrorReporter::setErrorHandlerShutdownType(NST_ErrorHandlerStartup);
-
   switch(globalData.theRestartFlag){
   case initial_state:
     globalEmulatorData.theThreadConfig->doStart(NodeState::SL_CMVMI);
@@ -685,7 +654,193 @@ ndbd_run(bool foreground)
     globalEmulatorData.theThreadConfig->ipControlLoop(pThis, inx);
     globalEmulatorData.theConfiguration->removeThreadId(inx);
   }
-  NdbShutdown(NST_Normal);
+  NdbShutdown(0, NST_Normal);
 
-  return NRT_Default;
+  ndbd_exit(0);
+}
+
+
+extern "C" my_bool opt_core;
+
+// instantiated and updated in NdbcntrMain.cpp
+extern Uint32 g_currentStartPhase;
+
+int simulate_error_during_shutdown= 0;
+
+void
+NdbShutdown(int error_code,
+            NdbShutdownType type,
+	    NdbRestartType restartType)
+{
+  if(type == NST_ErrorInsert)
+  {
+    type = NST_Restart;
+    restartType = (NdbRestartType)
+      globalEmulatorData.theConfiguration->getRestartOnErrorInsert();
+    if(restartType == NRT_Default)
+    {
+      type = NST_ErrorHandler;
+      globalEmulatorData.theConfiguration->stopOnError(true);
+    }
+  }
+
+  if((type == NST_ErrorHandlerSignal) || // Signal handler has already locked mutex
+     (NdbMutex_Trylock(theShutdownMutex) == 0)){
+    globalData.theRestartFlag = perform_stop;
+
+    bool restart = false;
+
+    if((type != NST_Normal &&
+	globalEmulatorData.theConfiguration->stopOnError() == false) ||
+       type == NST_Restart)
+    {
+      restart  = true;
+    }
+
+    const char * shutting = "shutting down";
+    if(restart)
+    {
+      shutting = "restarting";
+    }
+
+    switch(type){
+    case NST_Normal:
+      g_eventLogger->info("Shutdown initiated");
+      break;
+    case NST_Watchdog:
+      g_eventLogger->info("Watchdog %s system", shutting);
+      break;
+    case NST_ErrorHandler:
+      g_eventLogger->info("Error handler %s system", shutting);
+      break;
+    case NST_ErrorHandlerSignal:
+      g_eventLogger->info("Error handler signal %s system", shutting);
+      break;
+    case NST_Restart:
+      g_eventLogger->info("Restarting system");
+      break;
+    default:
+      g_eventLogger->info("Error handler %s system (unknown type: %u)",
+                          shutting, (unsigned)type);
+      type = NST_ErrorHandler;
+      break;
+    }
+
+    const char * exitAbort = 0;
+    if (opt_core)
+      exitAbort = "aborting";
+    else
+      exitAbort = "exiting";
+
+    if(type == NST_Watchdog)
+    {
+      /**
+       * Very serious, don't attempt to free, just die!!
+       */
+      g_eventLogger->info("Watchdog shutdown completed - %s", exitAbort);
+      if (opt_core)
+      {
+	childAbort(error_code, -1,g_currentStartPhase);
+      }
+      else
+      {
+	childExit(error_code, -1,g_currentStartPhase);
+      }
+    }
+
+#ifndef NDB_WIN32
+    if (simulate_error_during_shutdown)
+    {
+      kill(getpid(), simulate_error_during_shutdown);
+      while(true)
+	NdbSleep_MilliSleep(10);
+    }
+#endif
+
+    globalEmulatorData.theWatchDog->doStop();
+
+#ifdef VM_TRACE
+    FILE * outputStream = globalSignalLoggers.setOutputStream(0);
+    if(outputStream != 0)
+      fclose(outputStream);
+#endif
+
+    /**
+     * Don't touch transporter here (yet)
+     *   cause with ndbmtd, there are locks and nasty stuff
+     *   and we don't know which we are holding...
+     */
+#if NOT_YET
+
+    /**
+     * Stop all transporter connection attempts and accepts
+     */
+    globalEmulatorData.m_socket_server->stopServer();
+    globalEmulatorData.m_socket_server->stopSessions();
+    globalTransporterRegistry.stop_clients();
+
+    /**
+     * Stop transporter communication with other nodes
+     */
+    globalTransporterRegistry.stopSending();
+    globalTransporterRegistry.stopReceiving();
+
+    /**
+     * Remove all transporters
+     */
+    globalTransporterRegistry.removeAll();
+#endif
+
+    if(type == NST_ErrorInsert && opt_core)
+    {
+      // Unload some structures to reduce size of core
+      globalEmulatorData.theSimBlockList->unload();
+      NdbMutex_Unlock(theShutdownMutex);
+      globalEmulatorData.destroy();
+    }
+
+    if(type != NST_Normal && type != NST_Restart)
+    {
+      g_eventLogger->info("Error handler shutdown completed - %s", exitAbort);
+      if (opt_core)
+      {
+	childAbort(error_code, -1,g_currentStartPhase);
+      }
+      else
+      {
+	childExit(error_code, -1,g_currentStartPhase);
+      }
+    }
+
+    /**
+     * This is a normal restart, depend on angel
+     */
+    if(type == NST_Restart){
+      childExit(error_code, restartType,g_currentStartPhase);
+    }
+
+    g_eventLogger->info("Shutdown completed - exiting");
+  }
+  else
+  {
+    /**
+     * Shutdown is already in progress
+     */
+
+    /**
+     * If this is the watchdog, kill system the hard way
+     */
+    if (type== NST_Watchdog)
+    {
+      g_eventLogger->info("Watchdog is killing system the hard way");
+#if defined VM_TRACE
+      childAbort(error_code, -1,g_currentStartPhase);
+#else
+      childExit(error_code, -1, g_currentStartPhase);
+#endif
+    }
+
+    while(true)
+      NdbSleep_MilliSleep(10);
+  }
 }
