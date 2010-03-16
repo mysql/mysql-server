@@ -141,7 +141,7 @@ MgmtSrvr::logLevelThreadRun()
         for(int i = m_event_listner.m_clients.size() - 1; i >= 0; i--)
           tmp.set_max(m_event_listner[i].m_logLevel);
         m_event_listner.unlock();
-        req = tmp;
+        req.assign(tmp);
       }
       req.blockRef = _ownReference;
       while (m_started_nodes.size() > 0)
@@ -157,7 +157,7 @@ MgmtSrvr::logLevelThreadRun()
         else
         {
           SetLogLevelOrd ord;
-          ord = m_nodeLogLevel[node];
+          ord.assign(m_nodeLogLevel[node]);
           setNodeLogLevelImpl(node, ord);
         }
         m_started_nodes.lock();
@@ -183,7 +183,7 @@ MgmtSrvr::logLevelThreadRun()
       else 
       {
         SetLogLevelOrd ord;
-        ord = req;
+        ord.assign(req);
         if (setNodeLogLevelImpl(req.blockRef, ord))
         {
           failed_log_level_requests.push_back(req);
