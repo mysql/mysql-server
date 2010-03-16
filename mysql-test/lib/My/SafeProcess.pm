@@ -185,63 +185,6 @@ sub run {
 }
 
 #
-# Start a process that returns after "duration" seconds
-# or when it's parent process does not exist anymore
-#
-sub timer {
-  my $class= shift;
-  my $duration= shift or croak "duration required";
-  my $parent_pid= $$;
-
-  my $pid= My::SafeProcess::Base::_safe_fork();
-  if ($pid){
-    # Parent
-    my $proc= bless
-      ({
-	SAFE_PID  => $pid,
-	SAFE_NAME => "timer",
-	PARENT => $$,
-       }, $class);
-
-    # Put the new process in list of running
-    $running{$pid}= $proc;
-    return $proc;
-  }
-
-  # Child, install signal handlers and sleep for "duration"
-  $SIG{INT}= 'IGNORE';
-
-  $SIG{TERM}= sub {
-    #print STDERR "timer $$: woken up, exiting!\n";
-    exit(0);
-  };
-
-  $0= "safe_timer($duration)";
-
-  if (IS_WIN32PERL){
-    # Just a thread in same process
-    sleep($duration);
-    print STDERR "timer $$: expired after $duration seconds\n";
-    exit(0);
-  }
-
-  my $count_down= $duration;
-  while($count_down--){
-
-    # Check that parent is still alive
-    if (kill(0, $parent_pid) == 0){
-      #print STDERR "timer $$: parent gone, exiting!\n";
-      exit(0);
-    }
-
-    sleep(1);
-  }
-  print STDERR "timer $$: expired after $duration seconds\n";
-  exit(0);
-}
-
-
-#
 # Shutdown process nicely, and wait for shutdown_timeout seconds
 # If processes hasn't shutdown, kill them hard and wait for return
 #
@@ -545,6 +488,40 @@ sub wait_any {
     return undef;
   }
   $proc->_collect;
+  return $proc;
+}
+
+
+#
+# Wait for any process to exit, or a timeout
+#
+# Returns a reference to the SafeProcess that
+# exited or a pseudo-process with $proc->{timeout} == 1
+#
+
+sub wait_any_timeout {
+  my $class= shift;
+  my $timeout= shift;
+  my $proc;
+  my $millis=10;
+
+  do {
+    ::mtr_milli_sleep($millis);
+    # Slowly increse interval up to max. 1 second
+    $millis++ if $millis < 1000;
+    # Return a "fake" process for timeout
+    if (::has_expired($timeout)) {
+      $proc= bless
+	({
+	  SAFE_PID  => 0,
+	  SAFE_NAME => "timer",
+	  timeout => 1,
+	 }, $class);
+    } else {
+      $proc= check_any();
+    }
+  } while (! $proc);
+
   return $proc;
 }
 
