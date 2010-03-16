@@ -702,15 +702,29 @@ insert into t7 values (10),(30),(50);
 
 # leftmost intervals
 explain partitions select * from t7 where a < 5;
+explain partitions select * from t7 where a < 9;
+explain partitions select * from t7 where a <= 9;
+explain partitions select * from t7 where a = 9;
+explain partitions select * from t7 where a >= 9;
+explain partitions select * from t7 where a > 9;
 explain partitions select * from t7 where a < 10;
 explain partitions select * from t7 where a <= 10;
 explain partitions select * from t7 where a = 10;
+explain partitions select * from t7 where a >= 10;
+explain partitions select * from t7 where a > 10;
 
 #rightmost intervals
+explain partitions select * from t7 where a < 89;
+explain partitions select * from t7 where a <= 89;
+explain partitions select * from t7 where a = 89;
+explain partitions select * from t7 where a > 89;
+explain partitions select * from t7 where a >= 89;
 explain partitions select * from t7 where a < 90;
+explain partitions select * from t7 where a <= 90;
 explain partitions select * from t7 where a = 90;
 explain partitions select * from t7 where a > 90;
 explain partitions select * from t7 where a >= 90;
+explain partitions select * from t7 where a > 91;
 
 # misc intervals
 explain partitions select * from t7 where a > 11 and a < 29;
@@ -728,15 +742,29 @@ insert into t7 values (10),(30),(50);
 
 # leftmost intervals
 explain partitions select * from t7 where a < 5;
+explain partitions select * from t7 where a < 9;
+explain partitions select * from t7 where a <= 9;
+explain partitions select * from t7 where a = 9;
+explain partitions select * from t7 where a >= 9;
+explain partitions select * from t7 where a > 9;
 explain partitions select * from t7 where a < 10;
 explain partitions select * from t7 where a <= 10;
 explain partitions select * from t7 where a = 10;
+explain partitions select * from t7 where a >= 10;
+explain partitions select * from t7 where a > 10;
 
 #rightmost intervals
+explain partitions select * from t7 where a < 89;
+explain partitions select * from t7 where a <= 89;
+explain partitions select * from t7 where a = 89;
+explain partitions select * from t7 where a > 89;
+explain partitions select * from t7 where a >= 89;
 explain partitions select * from t7 where a < 90;
+explain partitions select * from t7 where a <= 90;
 explain partitions select * from t7 where a = 90;
 explain partitions select * from t7 where a > 90;
 explain partitions select * from t7 where a >= 90;
+explain partitions select * from t7 where a > 91;
 
 # misc intervals
 explain partitions select * from t7 where a > 11 and a < 29;

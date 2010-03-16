@@ -2320,6 +2320,11 @@ public:
     if (ref && result_type() == ROW_RESULT)
       (*ref)->bring_value();
   }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(fixed);
+    return (*ref)->get_time(ltime);
+  }
 
 };
 
