@@ -57,6 +57,8 @@ enum SIMBLOCKLIST_DUMMY { A_VALUE = 0 };
 
 void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
   char * tmp = (char *)malloc(sz);
+  if (!tmp)
+    abort();
 
 #ifndef NDB_PURIFY
 #ifdef VM_TRACE
@@ -81,10 +83,15 @@ void * operator new (size_t sz, SIMBLOCKLIST_DUMMY dummy){
 #define NEW_BLOCK(B) new(A_VALUE) B
 #endif
 
-void 
+void
 SimBlockList::load(EmulatorData& data){
   noOfBlocks = NO_OF_BLOCKS;
   theList = new SimulatedBlock * [noOfBlocks];
+  if (!theList)
+  {
+    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
+              "Failed to create the block list", "");
+  }
 
   Block_context ctx(*data.theConfiguration, *data.m_mem_manager);
   
@@ -151,6 +158,16 @@ SimBlockList::load(EmulatorData& data){
       Uint32 i;
       for (i = 0; i < NO_OF_BLOCKS; i++)
         theList[i]->loadWorkers();
+    }
+  }
+
+  // Check that all blocks could be created
+  for (int i = 0; i < NO_OF_BLOCKS; i++)
+  {
+    if (!theList[i])
+    {
+      ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
+                "Failed to create block", "");
     }
   }
 }
