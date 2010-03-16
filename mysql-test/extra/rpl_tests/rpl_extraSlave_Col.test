@@ -419,11 +419,7 @@ sync_slave_with_master;
   RESET SLAVE;
   eval CREATE TABLE t9 (a INT PRIMARY KEY, b BLOB, c CHAR(5),
                         d TIMESTAMP,
-                        e INT NOT NULL,
-                        f text not null,
-                        g text,
-                        h blob not null,
-                        i blob) ENGINE=$engine_type;
+                        e INT NOT NULL) ENGINE=$engine_type;
 
   --echo *** Create t9 on Master ***
   connection master;
