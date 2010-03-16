@@ -1161,9 +1161,7 @@ public:
 class Drop_table_error_handler : public Internal_error_handler
 {
 public:
-  Drop_table_error_handler(Internal_error_handler *err_handler)
-    :m_err_handler(err_handler)
-  { }
+  Drop_table_error_handler() {}
 
 public:
   bool handle_condition(THD *thd,
@@ -1174,7 +1172,6 @@ public:
                         MYSQL_ERROR ** cond_hdl);
 
 private:
-  Internal_error_handler *m_err_handler;
 };
 
 
