@@ -360,24 +360,20 @@ childReportSignal(int signum)
 }
 
 void
-childReportError(int error)
+childExit(int error_code, int exit_code, Uint32 currentStartPhase)
 {
-  writeChildInfo("error", error);
-}
-
-void
-childExit(int code, Uint32 currentStartPhase)
-{
+  writeChildInfo("error", error_code);
   writeChildInfo("sphase", currentStartPhase);
   fprintf(angel_info_w, "\n");
   fclose(angel_info_w);
-  ndbd_exit(code);
+  ndbd_exit(exit_code);
 }
 
 void
-childAbort(int code, Uint32 currentStartPhase)
+childAbort(int error_code, int exit_code, Uint32 currentStartPhase)
 {
 #ifndef NDB_WIN
+  writeChildInfo("error", error_code);
   writeChildInfo("sphase", currentStartPhase);
   fprintf(angel_info_w, "\n");
   fclose(angel_info_w);
@@ -386,7 +382,7 @@ childAbort(int code, Uint32 currentStartPhase)
 #endif
   abort();
 #else
-  childExit(code, currentStartPhase);
+  childExit(error_code, exit_code, currentStartPhase);
 #endif
 }
 
@@ -394,7 +390,6 @@ extern "C"
 void
 handler_shutdown(int signum){
   g_eventLogger->info("Received signal %d. Performing stop.", signum);
-  childReportError(0);
   childReportSignal(signum);
   globalData.theRestartFlag = perform_stop;
 }
@@ -658,7 +653,7 @@ ndbd_run(bool foreground, int report_fd,
     globalEmulatorData.theThreadConfig->ipControlLoop(pThis, inx);
     globalEmulatorData.theConfiguration->removeThreadId(inx);
   }
-  NdbShutdown(NST_Normal);
+  NdbShutdown(0, NST_Normal);
 
   ndbd_exit(0);
 }

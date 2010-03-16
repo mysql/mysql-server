@@ -39,8 +39,8 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-void childExit(int code, Uint32 currentStartPhase);
-void childAbort(int code, Uint32 currentStartPhase);
+void childExit(int error_code, int exit_code, Uint32 currentStartPhase);
+void childAbort(int error_code, int exit_code, Uint32 currentStartPhase);
 
 extern "C" {
   extern void (* ndb_new_handler)();
@@ -135,7 +135,8 @@ EmulatorData::destroy(){
 }
 
 void
-NdbShutdown(NdbShutdownType type,
+NdbShutdown(int error_code,
+            NdbShutdownType type,
 	    NdbRestartType restartType)
 {
   if(type == NST_ErrorInsert)
@@ -210,12 +211,12 @@ NdbShutdown(NdbShutdownType type,
 #ifndef NDB_WIN
       if (opt_core)
       {
-	childAbort(-1,g_currentStartPhase);
+	childAbort(error_code, -1,g_currentStartPhase);
       }
       else
 #endif
       {
-	childExit(-1,g_currentStartPhase);
+	childExit(error_code, -1,g_currentStartPhase);
       }
     }
     
@@ -229,13 +230,12 @@ NdbShutdown(NdbShutdownType type,
 #endif
 
     globalEmulatorData.theWatchDog->doStop();
-    
+
 #ifdef VM_TRACE
     FILE * outputStream = globalSignalLoggers.setOutputStream(0);
     if(outputStream != 0)
       fclose(outputStream);
 #endif
-    
 
 #ifndef NDB_WIN32
 #define UNLOAD (type == NST_ErrorInsert && opt_core)
@@ -281,12 +281,12 @@ NdbShutdown(NdbShutdownType type,
 #ifndef NDB_WIN
       if (opt_core)
       {
-	childAbort(-1,g_currentStartPhase);
+	childAbort(error_code, -1,g_currentStartPhase);
       }
       else
 #endif
       {
-	childExit(-1,g_currentStartPhase);
+	childExit(error_code, -1,g_currentStartPhase);
       }
     }
     
@@ -294,7 +294,7 @@ NdbShutdown(NdbShutdownType type,
      * This is a normal restart, depend on angel
      */
     if(type == NST_Restart){
-      childExit(restartType,g_currentStartPhase);
+      childExit(error_code, restartType,g_currentStartPhase);
     }
     
     g_eventLogger->info("Shutdown completed - exiting");
@@ -312,9 +312,9 @@ NdbShutdown(NdbShutdownType type,
     {
       g_eventLogger->info("Watchdog is killing system the hard way");
 #if defined VM_TRACE
-      childAbort(-1,g_currentStartPhase);
+      childAbort(error_code, -1,g_currentStartPhase);
 #else
-      childExit(-1,g_currentStartPhase);
+      childExit(error_code, -1, g_currentStartPhase);
 #endif
     }
     

@@ -563,11 +563,6 @@ void childAbort(int code, Uint32 currentStartPhase)
   abort();
 }
 
-void childReportError(int error)
-{
-  abort();
-}
-
 void
 UpgradeStartup::sendCmAppChg(Ndbcntr& cntr, Signal* signal, Uint32 startLevel){
 }
