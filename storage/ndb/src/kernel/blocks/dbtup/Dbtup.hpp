@@ -2935,6 +2935,8 @@ private:
 
   Uint32 nextHigherTwoLog(Uint32 input);
 
+  Uint32 m_pages_allocated;
+  Uint32 m_pages_allocated_max;
 
 //------------------------------------------------------------------------------------------------------
 // Page Mapper, convert logical page id's to physical page id's
@@ -3092,7 +3094,6 @@ private:
   Uint32 cinBuffer[ZATTR_BUFFER_SIZE + 16];
   Uint32 ctemp_page[ZWORDS_ON_PAGE];
   Uint32 ctemp_var_record[ZWORDS_ON_PAGE];
-  Uint32 totNoOfPagesAllocated;
 
   // Trigger variables
   Uint32 c_maxTriggersPerTable;
