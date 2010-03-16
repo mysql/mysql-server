@@ -30,7 +30,7 @@ class ThreadConfig
 public:
   ThreadConfig();
   ~ThreadConfig();
-  void init(EmulatorData *emulatorData);
+  void init(void);
 
   void ipControlLoop(NdbThread*, Uint32 thread_index);
 

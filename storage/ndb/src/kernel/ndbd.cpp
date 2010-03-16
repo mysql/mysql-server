@@ -573,7 +573,7 @@ ndbd_run(bool foreground, int report_fd,
     globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
   }
 
-  globalEmulatorData.theThreadConfig->init(&globalEmulatorData);
+  globalEmulatorData.theThreadConfig->init();
 
 #ifdef VM_TRACE
   // Create a signal logger before block constructors
