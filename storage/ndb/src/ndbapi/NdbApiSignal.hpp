@@ -53,6 +53,7 @@
 #include <signaldata/DropFilegroup.hpp>
 #include <signaldata/CreateFilegroup.hpp>
 #include <signaldata/WaitGCP.hpp>
+#include <signaldata/ApiRegSignalData.hpp>
 
 /**
  * A NdbApiSignal : public SignalHeader
@@ -138,6 +139,7 @@ private:
     CreateEvntReq _CreateEvntReq;
     DropEvntReq _DropEvntReq;
     SubGcpCompleteAck _SubGcpCompleteAck;
+    ApiRegReq _ApiRegReq;
   };
   NdbApiSignal *theNextSignal;
   Uint32 *theRealData;
