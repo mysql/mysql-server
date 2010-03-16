@@ -23,6 +23,18 @@
 #include "TransporterFacade.hpp"
 #include <Vector.hpp>
 
+#include <signaldata/TestOrd.hpp>
+#include <signaldata/TamperOrd.hpp>
+#include <signaldata/StartOrd.hpp>
+#include <signaldata/ApiVersion.hpp>
+#include <signaldata/ResumeReq.hpp>
+#include <signaldata/SetLogLevelOrd.hpp>
+#include <signaldata/EventSubscribeReq.hpp>
+#include <signaldata/EventReport.hpp>
+#include <signaldata/DumpStateOrd.hpp>
+#include <signaldata/BackupSignalData.hpp>
+#include <signaldata/AllocNodeId.hpp>
+
 struct SimpleSignal {
 public:
   SimpleSignal(bool dealloc = false);
@@ -32,7 +44,21 @@ public:
 	   Uint8  trace, Uint16 recBlock, Uint16 gsn, Uint32 len);
   
   struct SignalHeader header;
-  Uint32 theData[25];
+  union {
+    Uint32 theData[25];
+    ResumeReq _ResumeReq;
+    TestOrd _TestOrd;
+    DumpStateOrd _DumpStateOrd;
+    StartOrd _StartOrd;
+    ApiVersionReq _ApiVersionReq;
+    StopReq _StopReq;
+    EventSubscribeReq _EventSubscribeReq;
+    SetLogLevelOrd _SetLogLevelOrd;
+    TamperOrd _TamperOrd;
+    AllocNodeIdReq _AllocNodeIdReq;
+    BackupReq _BackupReq;
+    AbortBackupOrd _AbortBackupOrd;
+  };
   LinearSectionPtr ptr[3];
 
   int readSignalNumber() const {return header.theVerId_signalNumber; }
