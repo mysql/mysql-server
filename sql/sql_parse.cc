@@ -5040,6 +5040,7 @@ create_sp_error:
     break;
   }
   thd_proc_info(thd, "query end");
+  thd->update_stats();
 
   /*
     Binlog-related cleanup:
