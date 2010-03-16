@@ -29,25 +29,6 @@
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-#define MAX_FAILED_STARTUPS 3
-// Flag set by child through SIGUSR1 to signal a failed startup
-static bool failed_startup_flag=false;
-// Counter for consecutive failed startups
-static Uint32 failed_startups=0;
-
-// child signalling failed restart
-extern "C"
-void
-handler_sigusr1(int signum)
-{
-  if (!failed_startup_flag)
-  {
-    failed_startups++;
-    failed_startup_flag=true;
-  }
-  g_eventLogger->info("Angel received ndbd startup failure count %u.", failed_startups);
-}
-
 static void
 angel_exit(int code)
 {
@@ -457,8 +438,8 @@ angel_run(const BaseString& original_args,
 #endif
   }
 
-  signal(SIGUSR1, handler_sigusr1);
-
+  // Counter for consecutive failed startups
+  Uint32 failed_startups_counter = 0;
   while (true)
   {
 
@@ -597,23 +578,29 @@ angel_run(const BaseString& original_args,
       }
     }
 
-    if (!failed_startup_flag)
+    // Check startup failure
+    const Uint32 STARTUP_FAILURE_SPHASE = 6;
+    const Uint32 MAX_FAILED_STARTUPS = 3;
+    if (child_sphase <= STARTUP_FAILURE_SPHASE)
+    {
+      if (++failed_startups_counter >= MAX_FAILED_STARTUPS)
+      {
+        g_eventLogger->alert("Angel detected too many startup failures(%d), "
+                             "not restarting again", failed_startups_counter);
+        reportShutdown(config, nodeid,
+                       error_exit, 0, false, false,
+                       child_error, child_signal, child_sphase);
+        angel_exit(0);
+      }
+      g_eventLogger->info("Angel detected startup failure, count: %u",
+                          failed_startups_counter);
+    }
+    else
     {
       // Reset the counter for consecutive failed startups
-      failed_startups=0;
-    } else if (failed_startups >= MAX_FAILED_STARTUPS && !stop_on_error)
-    {
-      /**
-       * Error shutdown && StopOnError
-       */
-      g_eventLogger->alert("Ndbd has failed %u consecutive startups. "
-                           "Not restarting", failed_startups);
-      reportShutdown(config, nodeid,
-                     error_exit, 0, false, false,
-                     child_error, child_signal, child_sphase);
-      angel_exit(0);
+      failed_startups_counter = 0;
     }
-    failed_startup_flag=false;
+
     reportShutdown(config, nodeid,
                    error_exit, 1,
                    no_start,

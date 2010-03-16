@@ -86,8 +86,7 @@ enum NdbShutdownType {
   NST_ErrorHandler,
   NST_ErrorHandlerSignal,
   NST_Restart,
-  NST_ErrorInsert,
-  NST_ErrorHandlerStartup
+  NST_ErrorInsert
 };
 
 enum NdbRestartType {

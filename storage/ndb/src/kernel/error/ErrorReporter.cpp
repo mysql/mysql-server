@@ -189,12 +189,6 @@ ErrorReporter::formatMessage(int thr_no,
 
 NdbShutdownType ErrorReporter::s_errorHandlerShutdownType = NST_ErrorHandler;
 
-void
-ErrorReporter::setErrorHandlerShutdownType(NdbShutdownType nst)
-{
-  s_errorHandlerShutdownType = nst;
-}
-
 void childReportError(int error);
 
 void

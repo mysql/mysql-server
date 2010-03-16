@@ -611,9 +611,6 @@ ndbd_run(bool foreground, int report_fd,
   /**
    * Do startup
    */
-
-  ErrorReporter::setErrorHandlerShutdownType(NST_ErrorHandlerStartup);
-
   switch(globalData.theRestartFlag){
   case initial_state:
     globalEmulatorData.theThreadConfig->doStart(NodeState::SL_CMVMI);
