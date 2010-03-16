@@ -19,6 +19,7 @@
 #include <signal.h>
 
 #include "angel.hpp"
+#include "ndbd.hpp"
 
 #include <NdbConfig.h>
 #include <NdbAutoPtr.hpp>
@@ -351,16 +352,6 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
 
   return true;
 }
-
-
-// Temporary duplicate define
-enum NdbRestartType {
-  NRT_Default               = 0,
-  NRT_NoStart_Restart       = 1, // -n
-  NRT_DoStart_Restart       = 2, //
-  NRT_NoStart_InitialStart  = 3, // -n -i
-  NRT_DoStart_InitialStart  = 4  // -i
-};
 
 
 void

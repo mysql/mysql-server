@@ -28,6 +28,9 @@
 #include <NdbConfig.h>
 #include <Configuration.hpp>
 #include "EventLogger.hpp"
+extern EventLogger * g_eventLogger;
+
+#include "TimeModule.hpp"
 
 #include <NdbAutoPtr.hpp>
 
@@ -43,7 +46,7 @@ static void dumpJam(FILE* jamStream,
 		    const Uint32 thrdTheEmulatedJam[],
                     Uint32 aBlockNumber);
 
-extern EventLogger * g_eventLogger;
+
 const char*
 ErrorReporter::formatTimeStampString(){
   TimeModule DateTime;          /* To create "theDateTimeString" */

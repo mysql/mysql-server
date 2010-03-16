@@ -22,8 +22,7 @@
 #include <ndb_global.h>
 #include <ndbd_exit_codes.h>
 
-#include "TimeModule.hpp"
-#include <Emulator.hpp>
+#include "../ndbd.hpp"
 
 class ErrorReporter
 {
