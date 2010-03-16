@@ -20,8 +20,8 @@
 #define ThreadConfig_H
 
 #include <kernel_types.h>
-#include <ErrorReporter.hpp>
 #include <NodeState.hpp>
+#include <portlib/NdbThread.h>
 
 class IPCConfig;
 

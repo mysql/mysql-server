@@ -34,22 +34,13 @@
 
 #include <NdbMem.h>
 #include <NdbMutex.h>
-#include <NdbSleep.h>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
-void childExit(int error_code, int exit_code, Uint32 currentStartPhase);
-void childAbort(int error_code, int exit_code, Uint32 currentStartPhase);
-
 extern "C" {
   extern void (* ndb_new_handler)();
 }
-#ifndef NDB_WIN
-extern my_bool opt_core;
-#endif
-// instantiated and updated in NdbcntrMain.cpp
-extern Uint32 g_currentStartPhase;
 
 /**
  * Declare the global variables 
@@ -76,7 +67,6 @@ EmulatedJamBuffer theEmulatedJamBuffer;
 
 EmulatorData globalEmulatorData;
 NdbMutex * theShutdownMutex = 0;
-int simulate_error_during_shutdown= 0;
 
 EmulatorData::EmulatorData(){
   theConfiguration = 0;
@@ -133,193 +123,3 @@ EmulatorData::destroy(){
   
   NdbMem_Destroy();
 }
-
-void
-NdbShutdown(int error_code,
-            NdbShutdownType type,
-	    NdbRestartType restartType)
-{
-  if(type == NST_ErrorInsert)
-  {
-    type = NST_Restart;
-    restartType = (NdbRestartType)
-      globalEmulatorData.theConfiguration->getRestartOnErrorInsert();
-    if(restartType == NRT_Default)
-    {
-      type = NST_ErrorHandler;
-      globalEmulatorData.theConfiguration->stopOnError(true);
-    }
-  }
-  
-  if((type == NST_ErrorHandlerSignal) || // Signal handler has already locked mutex
-     (NdbMutex_Trylock(theShutdownMutex) == 0)){
-    globalData.theRestartFlag = perform_stop;
-
-    bool restart = false;
-
-    if((type != NST_Normal && 
-	globalEmulatorData.theConfiguration->stopOnError() == false) ||
-       type == NST_Restart) 
-    {
-      restart  = true;
-    }
-
-
-    const char * shutting = "shutting down";
-    if(restart)
-    {
-      shutting = "restarting";
-    }
-    
-    switch(type){
-    case NST_Normal:
-      g_eventLogger->info("Shutdown initiated");
-      break;
-    case NST_Watchdog:
-      g_eventLogger->info("Watchdog %s system", shutting);
-      break;
-    case NST_ErrorHandler:
-      g_eventLogger->info("Error handler %s system", shutting);
-      break;
-    case NST_ErrorHandlerSignal:
-      g_eventLogger->info("Error handler signal %s system", shutting);
-      break;
-    case NST_Restart:
-      g_eventLogger->info("Restarting system");
-      break;
-    default:
-      g_eventLogger->info("Error handler %s system (unknown type: %u)",
-                          shutting, (unsigned)type);
-      type = NST_ErrorHandler;
-      break;
-    }
-    
-    const char * exitAbort = 0;
-#ifndef NDB_WIN
-    if (opt_core)
-      exitAbort = "aborting";
-    else
-#endif
-      exitAbort = "exiting";
-    
-    if(type == NST_Watchdog)
-    {
-      /**
-       * Very serious, don't attempt to free, just die!!
-       */
-      g_eventLogger->info("Watchdog shutdown completed - %s", exitAbort);
-#ifndef NDB_WIN
-      if (opt_core)
-      {
-	childAbort(error_code, -1,g_currentStartPhase);
-      }
-      else
-#endif
-      {
-	childExit(error_code, -1,g_currentStartPhase);
-      }
-    }
-    
-#ifndef NDB_WIN32
-    if (simulate_error_during_shutdown) 
-    {
-      kill(getpid(), simulate_error_during_shutdown);
-      while(true)
-	NdbSleep_MilliSleep(10);
-    }
-#endif
-
-    globalEmulatorData.theWatchDog->doStop();
-
-#ifdef VM_TRACE
-    FILE * outputStream = globalSignalLoggers.setOutputStream(0);
-    if(outputStream != 0)
-      fclose(outputStream);
-#endif
-
-#ifndef NDB_WIN32
-#define UNLOAD (type == NST_ErrorInsert && opt_core)
-#else
-#define UNLOAD (0)
-#endif
-    /**
-     * Don't touch transporter here (yet)
-     *   cause with ndbmtd, there are locks and nasty stuff
-     *   and we don't know which we are holding...
-     */
-#if NOT_YET
-    
-    /**
-     * Stop all transporter connection attempts and accepts
-     */
-    globalEmulatorData.m_socket_server->stopServer();
-    globalEmulatorData.m_socket_server->stopSessions();
-    globalTransporterRegistry.stop_clients();
-
-    /**
-     * Stop transporter communication with other nodes
-     */
-    globalTransporterRegistry.stopSending();
-    globalTransporterRegistry.stopReceiving();
-    
-    /**
-     * Remove all transporters
-     */
-    globalTransporterRegistry.removeAll();
-#endif
-    
-    if(UNLOAD)
-    {
-      globalEmulatorData.theSimBlockList->unload();    
-      NdbMutex_Unlock(theShutdownMutex);
-      globalEmulatorData.destroy();
-    }
-    
-    if(type != NST_Normal && type != NST_Restart)
-    {
-      g_eventLogger->info("Error handler shutdown completed - %s", exitAbort);
-#ifndef NDB_WIN
-      if (opt_core)
-      {
-	childAbort(error_code, -1,g_currentStartPhase);
-      }
-      else
-#endif
-      {
-	childExit(error_code, -1,g_currentStartPhase);
-      }
-    }
-    
-    /**
-     * This is a normal restart, depend on angel
-     */
-    if(type == NST_Restart){
-      childExit(error_code, restartType,g_currentStartPhase);
-    }
-    
-    g_eventLogger->info("Shutdown completed - exiting");
-  } 
-  else 
-  {
-    /**
-     * Shutdown is already in progress
-     */
-    
-    /** 
-     * If this is the watchdog, kill system the hard way
-     */
-    if (type== NST_Watchdog)
-    {
-      g_eventLogger->info("Watchdog is killing system the hard way");
-#if defined VM_TRACE
-      childAbort(error_code, -1,g_currentStartPhase);
-#else
-      childExit(error_code, -1, g_currentStartPhase);
-#endif
-    }
-    
-    while(true)
-      NdbSleep_MilliSleep(10);
-  }
-}
-
