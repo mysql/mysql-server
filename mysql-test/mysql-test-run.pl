@@ -236,6 +236,7 @@ sub check_timeout { return $opt_testcase_timeout * 6; };
 
 my $opt_start;
 my $opt_start_dirty;
+my $opt_start_exit;
 my $start_only;
 my $opt_wait_all;
 my $opt_repeat= 1;
@@ -363,6 +364,12 @@ sub main {
     mtr_report("Using parallel: $opt_parallel");
   }
 
+  if ($opt_parallel > 1 && $opt_start_exit) {
+    mtr_warning("Parallel and --start-and-exit cannot be combined\n" .
+               "Setting parallel to 1");
+    $opt_parallel= 1;
+  }
+
   # Create server socket on any free port
   my $server = new IO::Socket::INET
     (
@@ -401,6 +408,8 @@ sub main {
   mtr_print_header();
 
   my $completed= run_test_server($server, $tests, $opt_parallel);
+
+  exit(0) if $opt_start_exit;
 
   # Send Ctrl-C to any children still running
   kill("INT", keys(%children));
@@ -928,6 +937,7 @@ sub command_line_setup {
              'verbose-restart'          => \&report_option,
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
+             'start-and-exit'           => \$opt_start_exit,
              'start'                    => \$opt_start,
              'wait-all'                 => \$opt_wait_all,
 	     'print-testcases'          => \&collect_option,
@@ -1345,7 +1355,7 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Modified behavior with --start options
   # --------------------------------------------------------------------------
-  if ($opt_start or $opt_start_dirty) {
+  if ($opt_start or $opt_start_dirty or $opt_start_exit) {
     collect_option ('quick-collect', 1);
     $start_only= 1;
   }
@@ -3487,6 +3497,18 @@ sub run_testcase ($) {
       mtr_print ($mysqld->name() . "  " . $mysqld->value('port') .
 	      "  " . $mysqld->value('socket'));
     }
+    if ( $opt_start_exit )
+    {
+      mtr_print("Server(s) started, not waiting for them to finish");
+      if (IS_WINDOWS)
+      {
+	POSIX::_exit(0);	# exit hangs here in ActiveState Perl
+      }
+      else
+      {
+	exit(0);
+      }
+    }
     mtr_print("Waiting for server(s) to exit...");
     if ( $opt_wait_all ) {
       My::SafeProcess->wait_all();
@@ -4735,6 +4757,12 @@ sub stop_servers($$) {
 #
 sub start_servers($) {
   my ($tinfo)= @_;
+
+  # Make sure the safe_process also exits from now on
+  # Could not be done before, as we don't want this for the bootstrap
+  if ($opt_start_exit) {
+    My::SafeProcess->start_exit();
+  }
 
   # Start clusters
   foreach my $cluster ( clusters() )
