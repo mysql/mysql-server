@@ -470,8 +470,10 @@ Uint32
 getKey(Uint32 aBase, Uint32 aThreadBase) {
   Uint32 Tfound = aBase;
   Uint32 hash;
-  Uint64 Tkey64;
-  Uint32* tKey32 = (Uint32*)&Tkey64;
+  union {
+    Uint64 Tkey64;
+    Uint32 tKey32[2];
+  };
   tKey32[0] = aThreadBase;
   for (Uint32 i = aBase; i < (aBase + MAX_SEEK); i++) {
     tKey32[1] = i;

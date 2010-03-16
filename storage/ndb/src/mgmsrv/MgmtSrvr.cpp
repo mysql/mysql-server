@@ -2060,8 +2060,11 @@ void
 MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
 {
   DBUG_ENTER("MgmtSrvr::handleStatus");
-  Uint32 theData[25];
-  EventReport *rep = (EventReport *)theData;
+  union {
+    Uint32 theData[25];
+    EventReport repData;
+  };
+  EventReport * rep = &repData;
 
   theData[1] = nodeId;
   if (alive) {
