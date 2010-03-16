@@ -604,8 +604,10 @@ executeThread(ThreadNdb* pThread,
           tBase2 = getKey(threadBase, tBase2);
         }//if
         if (startTransGuess == true) {
-          Uint64 Tkey64;
-          Uint32* Tkey32 = (Uint32*)&Tkey64;
+	  union {
+            Uint64 Tkey64;
+            Uint32 Tkey32[2];
+	  };
           Tkey32[0] = threadBase;
           Tkey32[1] = tBase2;
           tConArray[j] = aNdbObject->startTransaction((Uint32)0, //Priority
@@ -655,8 +657,10 @@ static
 Uint32
 getKey(Uint32 aBase, Uint32 anIndex) {
   Uint32 Tfound = anIndex;
-  Uint64 Tkey64;
-  Uint32* Tkey32 = (Uint32*)&Tkey64;
+  union {
+    Uint64 Tkey64;
+    Uint32 Tkey32[2];
+  };
   Tkey32[0] = aBase;
   Uint32 hash;
   for (Uint32 i = anIndex; i < (anIndex + MAX_SEEK); i++) {

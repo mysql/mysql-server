@@ -331,7 +331,7 @@ Dbtup::commit_operation(Signal* signal,
     memcpy(&key, copy->get_disk_ref_ptr(regTabPtr), sizeof(Local_key));
     Uint32 logfile_group_id= regFragPtr->m_logfile_group_id;
 
-    PagePtr diskPagePtr = *(PagePtr*)&m_pgman_ptr;
+    PagePtr diskPagePtr = { (Tup_page*)m_pgman_ptr.p, m_pgman_ptr.i };
     ndbassert(diskPagePtr.p->m_page_no == key.m_page_no);
     ndbassert(diskPagePtr.p->m_file_no == key.m_file_no);
     Uint32 sz, *dst;

@@ -340,6 +340,7 @@ static union {
   BackupFormat::CtlFile::TableList TableList;
   BackupFormat::CtlFile::GCPEntry GcpEntry;
   BackupFormat::CtlFile::TableDescription TableDescription;
+  BackupFormat::LogFile::LogEntry LogEntry;
 } theData;
 
 Int32

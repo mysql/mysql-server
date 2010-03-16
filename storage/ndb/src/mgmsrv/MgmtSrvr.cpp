@@ -2513,8 +2513,11 @@ MgmtSrvr::handleStatus(NodeId nodeId, bool alive, bool nfComplete)
   DBUG_PRINT("enter",("nodeid: %d, alive: %d, nfComplete: %d",
                       nodeId, alive, nfComplete));
 
-  Uint32 theData[25];
-  EventReport *rep = (EventReport *)theData;
+  union {
+    Uint32 theData[25];
+    EventReport repData;
+  };
+  EventReport * rep = &repData;
 
   theData[1] = nodeId;
   if (alive) {
