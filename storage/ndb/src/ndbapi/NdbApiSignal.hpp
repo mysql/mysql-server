@@ -55,6 +55,7 @@
 #include <signaldata/WaitGCP.hpp>
 #include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateHashMap.hpp>
+#include <signaldata/ApiRegSignalData.hpp>
 
 /**
  * A NdbApiSignal : public SignalHeader
@@ -140,6 +141,7 @@ private:
     CreateHashMapReq _CreateHashMapReq;
     SchemaTransBeginReq _SchemaTransBeginReq;
     SchemaTransEndReq _SchemaTransEndReq;
+    ApiRegReq _ApiRegReq;
   };
   NdbApiSignal *theNextSignal;
   Uint32 *theRealData;
