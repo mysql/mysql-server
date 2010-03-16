@@ -18,6 +18,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
+--source include/not_var_link.inc
 
 #
 # Bug#45496 Performance schema: assertion fails in
