@@ -100,11 +100,13 @@ enum NdbRestartType {
 /**
  * Shutdown/restart Ndb
  *
+ * @param error_code  - The error causing shutdown/restart
  * @param type        - Type of shutdown/restart
  * @param restartType - Type of restart (only valid if type == NST_Restart)
  */
 void 
-NdbShutdown(NdbShutdownType type, 
+NdbShutdown(int error_code,
+            NdbShutdownType type,
 	    NdbRestartType restartType = NRT_Default);
 
 /**

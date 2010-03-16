@@ -189,8 +189,6 @@ ErrorReporter::formatMessage(int thr_no,
 
 NdbShutdownType ErrorReporter::s_errorHandlerShutdownType = NST_ErrorHandler;
 
-void childReportError(int error);
-
 void
 ErrorReporter::handleAssert(const char* message, const char* file, int line, int ec)
 {
@@ -215,9 +213,7 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line, int
   NdbShutdownType nst = s_errorHandlerShutdownType;
   WriteMessage(ec, message, refMessage, nst);
 
-  childReportError(ec);
-
-  NdbShutdown(nst);
+  NdbShutdown(ec, nst);
   exit(1);                                      // Deadcode
 }
 
@@ -242,9 +238,7 @@ ErrorReporter::handleError(int messageID,
   g_eventLogger->info(problemData);
   g_eventLogger->info(objRef);
 
-  childReportError(messageID);
-
-  NdbShutdown(nst);
+  NdbShutdown(messageID, nst);
 }
 
 int 
