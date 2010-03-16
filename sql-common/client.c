@@ -2350,8 +2350,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (unix_socket || mysql_unix_port) &&
       (!host || !strcmp(host,LOCAL_HOST)))
   {
-    DBUG_PRINT("info", ("Using socket"));
     my_socket sock= socket(AF_UNIX, SOCK_STREAM, 0);
+    DBUG_PRINT("info", ("Using socket"));
     if (sock == SOCKET_ERROR)
     {
       set_mysql_extended_error(mysql, CR_SOCKET_CREATE_ERROR,
