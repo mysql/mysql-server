@@ -128,11 +128,16 @@ Configuration::fetch_configuration(const char* _connect_string,
                                           NDB_VERSION,
                                           NDB_MGM_NODE_TYPE_NDB,
 					  _bind_address);
+  if (!m_config_retriever)
+  {
+    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
+              "Failed to create ConfigRetriever", "");
+  }
 
   if (m_config_retriever->hasError())
   {
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-	      "Could not connect initialize handle to management server",
+	      "Could not initialize handle to management server",
 	      m_config_retriever->getErrorString());
   }
 
@@ -580,6 +585,10 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
   unsigned int noOfLocalScanRecords = 0;
   unsigned int noBatchSize = 0;
   m_logLevel = new LogLevel();
+  if (!m_logLevel)
+  {
+    ERROR_SET(fatal, NDBD_EXIT_MEMALLOC, "Failed to create LogLevel", "");
+  }
   
   struct AttribStorage { int paramId; Uint32 * storage; bool computable; };
   AttribStorage tmp[] = {
