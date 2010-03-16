@@ -1,4 +1,4 @@
--- Copyright (C) 2008-2009 Sun Microsystems, Inc
+-- Copyright (C) 2008, 2010 Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -100,18 +100,92 @@ CREATE TABLE IF NOT EXISTS event ( db char(64) CHARACTER SET utf8 COLLATE utf8_b
 
 CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, File VARCHAR(255) NOT NULL, epoch BIGINT UNSIGNED NOT NULL, inserts BIGINT UNSIGNED NOT NULL, updates BIGINT UNSIGNED NOT NULL, deletes BIGINT UNSIGNED NOT NULL, schemaops BIGINT UNSIGNED NOT NULL, PRIMARY KEY(epoch)) ENGINE=MYISAM;
 
+--
+-- PERFORMANCE SCHEMA INSTALLATION
+-- Note that this script is also reused by mysql_upgrade,
+-- so we have to be very careful here to not destroy any
+-- existing database named 'performance_schema' if it
+-- can contain user data.
+-- In case of downgrade, it's ok to drop unknown tables
+-- from a future version, as long as they belong to the
+-- performance schema engine.
+--
+
+set @have_old_pfs= (select count(*) from information_schema.schemata where schema_name='performance_schema');
+
+SET @l1="SET @broken_tables = (select count(*) from information_schema.tables";
+SET @l2=" where engine != \'PERFORMANCE_SCHEMA\' and table_schema=\'performance_schema\')";
+SET @cmd=concat(@l1,@l2);
+
+-- Work around for bug#49542
+SET @str = IF(@have_old_pfs = 1, @cmd, 'SET @broken_tables = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @l1="SET @broken_views = (select count(*) from information_schema.views";
+SET @l2=" where table_schema='performance_schema')";
+SET @cmd=concat(@l1,@l2);
+
+-- Work around for bug#49542
+SET @str = IF(@have_old_pfs = 1, @cmd, 'SET @broken_views = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @broken_routines = (select count(*) from mysql.proc where db='performance_schema');
+
+SET @broken_events = (select count(*) from mysql.event where db='performance_schema');
+
+SET @broken_pfs= (select @broken_tables + @broken_views + @broken_routines + @broken_events);
 
 --
 -- The performance schema database.
--- This database is always created, even in --without-perfschema builds,
+-- Only drop and create the database if this is safe (no broken_pfs).
+-- This database is created, even in --without-perfschema builds,
 -- so that the database name is always reserved by the MySQL implementation.
 --
 
+SET @cmd= "DROP DATABASE IF EXISTS performance_schema";
+
+SET @str = IF(@broken_pfs = 0, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+SET @cmd= "CREATE DATABASE performance_schema character set utf8";
+
+SET @str = IF(@broken_pfs = 0, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- Unlike 'performance_schema', the 'mysql' database is reserved already,
+-- so no user procedure is supposed to be there
+--
+drop procedure if exists mysql.die;
+create procedure mysql.die() signal sqlstate 'HY000' set message_text='Unexpected content found in the performance_schema database.';
+
+--
+-- For broken upgrades, SIGNAL the error
+--
+
+SET @cmd="call mysql.die()";
+
+SET @str = IF(@broken_pfs > 0, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+drop procedure mysql.die;
+
+--
+-- From this point, only create the performance schema tables
+-- if the server is build with performance schema
+--
+
 set @have_pfs= (select count(engine) from information_schema.engines where engine='PERFORMANCE_SCHEMA' and support != 'NO');
-
-DROP DATABASE IF EXISTS performance_schema;
-
-CREATE DATABASE performance_schema character set utf8;
 
 --
 -- TABLE COND_INSTANCES
