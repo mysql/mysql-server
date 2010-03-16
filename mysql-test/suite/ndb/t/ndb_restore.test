@@ -543,3 +543,8 @@ select * from ndb_show_tables_results
 where type like '%Index%'
 order by 1,2,3,4,5,6,7;
 drop table ndb_show_tables_results;
+
+#
+# Bug#51432
+#
+--exec $NDB_RESTORE --no-defaults --core=0 -e -b 1 -n 2 -m $MYSQL_TEST_DIR/std_data/ndb_backup_hashmap >> $NDB_TOOLS_OUTPUT

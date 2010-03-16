@@ -429,6 +429,23 @@ RestoreMetaData::readMetaTableDesc() {
       delete dst;
     obj.m_objPtr = dst;
 
+    if (!m_hostByteOrder)
+    {
+      /**
+       * Bloddy byte-array, need to twiddle
+       */
+      Vector<Uint32> values;
+      Uint32 len = dst->getMapLen();
+      Uint32 zero = 0;
+      values.fill(len - 1, zero);
+      dst->getMapValues(values.getBase(), values.size());
+      for (Uint32 i = 0; i<len; i++)
+      {
+        values[i] = Twiddle16(values[i]);
+      }
+      dst->setMap(values.getBase(), values.size());
+    }
+
     m_objects.push(obj, 0); // Put first
     return true;
     break;

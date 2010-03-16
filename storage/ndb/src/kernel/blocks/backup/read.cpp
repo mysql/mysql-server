@@ -334,7 +334,13 @@ readFragFooter(azio_stream* f, BackupFormat::DataFile::FragmentFooter * dst){
   return true;
 }
 
-static Uint32 buf[8192];
+
+static union {
+  Uint32 buf[8192];
+  BackupFormat::CtlFile::TableList TableList;
+  BackupFormat::CtlFile::GCPEntry GcpEntry;
+  BackupFormat::CtlFile::TableDescription TableDescription;
+} theData;
 
 Int32
 readRecord(azio_stream* f, Uint32 **dst){
@@ -344,7 +350,7 @@ readRecord(azio_stream* f, Uint32 **dst){
 
   len = ntohl(len);
   
-  if(aread(buf, 4, len, f) != len)
+  if(aread(theData.buf, 4, len, f) != len)
   {
     return -1;
   }
@@ -354,7 +360,7 @@ readRecord(azio_stream* f, Uint32 **dst){
   else
     ndbout_c("Found %d records", recNo);
   
-  * dst = &buf[0];
+  * dst = &theData.buf[0];
 
   
   return len;
@@ -368,15 +374,15 @@ readLogEntry(azio_stream* f, Uint32 **dst){
   
   len = ntohl(len);
   
-  if(aread(&buf[1], 4, len, f) != len)
+  if(aread(&theData.buf[1], 4, len, f) != len)
     return -1;
   
-  buf[0] = len;
+  theData.buf[0] = len;
   
   if(len > 0)
     logEntryNo++;
   
-  * dst = &buf[0];
+  * dst = &theData.buf[0];
   
   return len;
 }
@@ -430,8 +436,7 @@ NdbOut & operator<<(NdbOut& ndbout,
 
 bool 
 readTableList(azio_stream* f, BackupFormat::CtlFile::TableList **ret){
-  BackupFormat::CtlFile::TableList * dst = 
-    (BackupFormat::CtlFile::TableList *)&buf[0];
+  BackupFormat::CtlFile::TableList * dst = &theData.TableList;
   
   if(aread(dst, 4, 2, f) != 2)
     RETURN_FALSE();
@@ -457,8 +462,7 @@ readTableList(azio_stream* f, BackupFormat::CtlFile::TableList **ret){
 
 bool 
 readTableDesc(azio_stream* f, BackupFormat::CtlFile::TableDescription **ret){
-  BackupFormat::CtlFile::TableDescription * dst = 
-    (BackupFormat::CtlFile::TableDescription *)&buf[0];
+  BackupFormat::CtlFile::TableDescription * dst = &theData.TableDescription;
   
   if(aread(dst, 4, 3, f) != 3)
     RETURN_FALSE();
@@ -481,8 +485,7 @@ readTableDesc(azio_stream* f, BackupFormat::CtlFile::TableDescription **ret){
 
 bool 
 readGCPEntry(azio_stream* f, BackupFormat::CtlFile::GCPEntry **ret){
-  BackupFormat::CtlFile::GCPEntry * dst = 
-    (BackupFormat::CtlFile::GCPEntry *)&buf[0];
+  BackupFormat::CtlFile::GCPEntry * dst = &theData.GcpEntry;
   
   if(aread(dst, 4, 4, f) != 4)
     RETURN_FALSE();
