@@ -175,11 +175,10 @@ int main(int argc, char** argv)
       opt_allocated_nodeid ||
       opt_report_fd)
   {
-    int res = ndbd_run(opt_foreground, opt_report_fd,
-                       opt_connect_str, opt_bind_address,
-                       opt_no_start, opt_initial, opt_initialstart,
-                       opt_allocated_nodeid);
-     ndbd_exit(res);
+    ndbd_run(opt_foreground, opt_report_fd,
+             opt_connect_str, opt_bind_address,
+             opt_no_start, opt_initial, opt_initialstart,
+             opt_allocated_nodeid);
   }
 
   angel_run(original_args,

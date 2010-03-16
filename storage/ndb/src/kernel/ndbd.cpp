@@ -332,6 +332,18 @@ get_multithreaded_config(EmulatorData& ed)
 }
 
 
+static void
+ndbd_exit(int code)
+{
+// gcov will not produce results when using _exit
+#ifdef HAVE_gcov
+  exit(code);
+#else
+  _exit(code);
+#endif
+}
+
+
 static FILE *angel_info_w = NULL;
 
 static void
@@ -491,18 +503,8 @@ catchsigs(bool foreground){
 
 }
 
-void
-ndbd_exit(int code)
-{
-// gcov will not produce results when using _exit
-#ifdef HAVE_gcov
-  exit(code);
-#else
-  _exit(code);
-#endif
-}
 
-int
+void
 ndbd_run(bool foreground, int report_fd,
          const char* connect_str, const char* bind_address,
          bool no_start, bool initial, bool initialstart,
@@ -519,7 +521,7 @@ ndbd_run(bool foreground, int report_fd,
     {
       g_eventLogger->error("Failed to open stream for reporting "
                            "to angel, error: %d (%s)", errno, strerror(errno));
-      return -1;
+      ndbd_exit(-1);
     }
   }
   else
@@ -531,7 +533,7 @@ ndbd_run(bool foreground, int report_fd,
       g_eventLogger->error("Failed to open stream for reporting to "
                            "'%s', error: %d (%s)", dev_null, errno,
                            strerror(errno));
-      return -1;
+      ndbd_exit(-1);
     }
   }
 
@@ -541,7 +543,7 @@ ndbd_run(bool foreground, int report_fd,
   if(!theConfig->init(no_start, initial, initialstart))
   {
     g_eventLogger->error("Failed to init Configuration");
-    return -1;
+    ndbd_exit(-1);
   }
 
   theConfig->fetch_configuration(connect_str, bind_address,
@@ -550,7 +552,7 @@ ndbd_run(bool foreground, int report_fd,
   my_setwd(NdbConfig_get_path(0), MYF(0));
 
   if (get_multithreaded_config(globalEmulatorData))
-    return -1;
+    ndbd_exit(-1);
 
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel);
@@ -567,7 +569,7 @@ ndbd_run(bool foreground, int report_fd,
     watchCounter = 9;           //  Means "doing allocation"
     globalEmulatorData.theWatchDog->registerWatchedThread(&watchCounter, 0);
     if (init_global_memory_manager(globalEmulatorData, &watchCounter))
-      return 1;
+      ndbd_exit(1);
     globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
   }
 
@@ -661,5 +663,5 @@ ndbd_run(bool foreground, int report_fd,
   }
   NdbShutdown(NST_Normal);
 
-  return NRT_Default;
+  ndbd_exit(0);
 }
