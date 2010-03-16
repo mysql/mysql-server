@@ -372,17 +372,18 @@ childExit(int error_code, int exit_code, Uint32 currentStartPhase)
 static void
 childAbort(int error_code, int exit_code, Uint32 currentStartPhase)
 {
-#ifndef NDB_WIN
   writeChildInfo("error", error_code);
   writeChildInfo("sphase", currentStartPhase);
   fprintf(angel_info_w, "\n");
   fclose(angel_info_w);
-#ifndef NDB_WIN32
-  signal(SIGABRT, SIG_DFL);
-#endif
-  abort();
+
+#ifdef _WIN32
+  // Don't use 'abort' on Windows since it returns
+  // exit code 3 which conflict with NRT_NoStart_InitialStart
+  ndbd_exit(exit_code);
 #else
-  childExit(error_code, exit_code, currentStartPhase);
+  signal(SIGABRT, SIG_DFL);
+  abort();
 #endif
 }
 
@@ -726,11 +727,9 @@ NdbShutdown(int error_code,
     }
 
     const char * exitAbort = 0;
-#ifndef NDB_WIN
     if (opt_core)
       exitAbort = "aborting";
     else
-#endif
       exitAbort = "exiting";
 
     if(type == NST_Watchdog)
@@ -739,13 +738,11 @@ NdbShutdown(int error_code,
        * Very serious, don't attempt to free, just die!!
        */
       g_eventLogger->info("Watchdog shutdown completed - %s", exitAbort);
-#ifndef NDB_WIN
       if (opt_core)
       {
 	childAbort(error_code, -1,g_currentStartPhase);
       }
       else
-#endif
       {
 	childExit(error_code, -1,g_currentStartPhase);
       }
@@ -809,13 +806,11 @@ NdbShutdown(int error_code,
     if(type != NST_Normal && type != NST_Restart)
     {
       g_eventLogger->info("Error handler shutdown completed - %s", exitAbort);
-#ifndef NDB_WIN
       if (opt_core)
       {
 	childAbort(error_code, -1,g_currentStartPhase);
       }
       else
-#endif
       {
 	childExit(error_code, -1,g_currentStartPhase);
       }
