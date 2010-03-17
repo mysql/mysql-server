@@ -119,6 +119,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			item.cc item_sum.cc item_buff.cc item_func.cc \
 			item_cmpfunc.cc item_strfunc.cc item_timefunc.cc \
+			sql_alloc_error_handler.cc \
 			thr_malloc.cc item_create.cc item_subselect.cc \
 			item_row.cc item_geofunc.cc item_xmlfunc.cc \
 			field.cc strfunc.cc key.cc sql_class.cc sql_list.cc \
@@ -194,6 +195,29 @@ CLEANFILES =        	lex_hash.h sql_yacc.output link_sources
 DISTCLEANFILES =        $(EXTRA_PROGRAMS)
 MAINTAINERCLEANFILES =  $(BUILT_MAINT_SRC)
 AM_YFLAGS =		-d --verbose
+
+# Experimental: Unit test with google gtest (installed in /usr/local/...)
+XXXFLAGS=$(CXXFLAGS:-fno-implicit-templates=)
+UNIT_TEST_FLAGS=$(DEFS) $(AM_CPPFLAGS) $(CPPFLAGS) $(XXXFLAGS) @NOINST_LDFLAGS@
+UNIT_TEST_LIBS= /usr/local/lib/libgtest.a \
+		$(top_srcdir)/mysys/.libs/libmysys.a \
+		$(top_srcdir)/dbug/.libs/libdbug.a \
+		$(top_srcdir)/strings/.libs/libmystrings.a 
+UNIT_TEST_OBJS= sql_state.o \
+		sql_string.o \
+		thr_malloc.o
+
+# TODO(didrik): Include this target in 'make all'
+# and use a test runner (ala ../unittest/unit.pl) to run all tests.
+test-gunit: sql_list_test
+
+# The convention is to have tests for foo.cc in foo_test.cc
+sql_list_test: sql_list_test.cc sql_list.o $(UNIT_TEST_LIBS) $(UNIT_TEST_OBJS)
+	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
+	sql_list.o $(UNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
+
+# Experimental END
+
 
 # These are listed in 'nodist_mysqld_SOURCES'
 link_sources:
