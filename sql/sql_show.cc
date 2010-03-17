@@ -30,6 +30,7 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
+#include "debug_sync.h"
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -3447,6 +3448,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
             lex->sql_command= SQLCOM_SHOW_FIELDS;
             show_table_list->i_s_requested_object=
               schema_table->i_s_requested_object;
+            DEBUG_SYNC(thd, "before_open_in_get_all_tables");
             res= open_normal_and_derived_tables(thd, show_table_list,
                                                 MYSQL_LOCK_IGNORE_FLUSH);
             lex->sql_command= save_sql_command;
