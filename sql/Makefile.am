@@ -207,6 +207,7 @@ UNIT_TEST_OBJS= sql_state.o \
 		sql_string.o \
 		tap_event_listener.o \
 		thr_malloc.o
+GUNIT_TEST_OBJS= gunit_test_main.o $(UNIT_TEST_OBJS)
 
 # TODO(didrik): Include this target in 'make all'
 # and use a test runner (ala ../unittest/unit.pl) to run all tests.
@@ -217,22 +218,22 @@ test-gunit: \
 	thread_test
 
 # The convention is to have tests for foo.cc in foo_test.cc
-mdl_test: mdl_test.cc mdl.o thread.o $(UNIT_TEST_LIBS) $(UNIT_TEST_OBJS)
+mdl_test: mdl_test.cc mdl.o thread.o $(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
 	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
-	mdl.o thread.o $(UNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
+	mdl.o thread.o $(GUNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
 
 mdl-t: mdl-t.cc mdl.o thread.o $(UNIT_TEST_LIBS) $(UNIT_TEST_OBJS)
 	$(CXX) -o $@ $(UNIT_TEST_FLAGS) -I$(top_srcdir)/unittest/mytap $< \
 	$(top_srcdir)/unittest/mytap/tap.o \
 	mdl.o thread.o $(UNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
 
-sql_list_test: sql_list_test.cc sql_list.o $(UNIT_TEST_LIBS) $(UNIT_TEST_OBJS)
+sql_list_test: sql_list_test.cc sql_list.o $(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
 	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
-	sql_list.o $(UNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
+	sql_list.o $(GUNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
 
-thread_test: thread_test.cc thread.o $(UNIT_TEST_LIBS) $(UNIT_TEST_OBJS)
+thread_test: thread_test.cc thread.o $(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
 	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
-	thread.o $(UNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
+	thread.o $(GUNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
 
 # Experimental END
 

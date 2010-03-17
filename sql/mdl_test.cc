@@ -656,9 +656,3 @@ TEST_F(MDL_test, concurrent_upgrade)
 }
 
 }  // namespace
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  MY_INIT(argv[0]);
-  return RUN_ALL_TESTS();
-}

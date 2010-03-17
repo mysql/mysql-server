@@ -111,12 +111,4 @@ TEST(Notification_thread, start_and_wait)
   EXPECT_EQ(counter_start_value + 1, counter);
 }
 
-
 }  // namespace
-
-
-int main(int argc, char **argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  MY_INIT(argv[0]);
-  return RUN_ALL_TESTS();
-}
