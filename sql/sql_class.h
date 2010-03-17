@@ -75,6 +75,7 @@ typedef struct st_user_var_events
   ulong length;
   Item_result type;
   uint charset_number;
+  bool unsigned_flag;
 } BINLOG_USER_VAR_EVENT;
 
 #define RP_LOCK_LOG_IS_ALREADY_LOCKED 1

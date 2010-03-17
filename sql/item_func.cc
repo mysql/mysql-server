@@ -4766,6 +4766,7 @@ int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   user_var_event->user_var_event= var_entry;
   user_var_event->type= var_entry->type;
   user_var_event->charset_number= var_entry->collation.collation->number;
+  user_var_event->unsigned_flag= var_entry->unsigned_flag;
   if (!var_entry->value)
   {
     /* NULL value*/
