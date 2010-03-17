@@ -1283,10 +1283,15 @@ static int ndbcluster_find_all_databases(THD *thd)
       if (db_len > 0 && name_len == 0)
       {
         /* database found */
+        db[db_len]= 0;
+
+	/* find query */
         Uint64 query_length= 0;
         if (query_blob_handle->getLength(query_length))
+        {
+          sql_print_information("NDB: Unable to find query for db: '%s'", db);
           abort();
-        db[db_len]= 0;
+        }
         query[query_length]= 0;
         build_table_filename(name, sizeof(name), db, "", "", 0);
         int database_exists= !my_access(name, F_OK);

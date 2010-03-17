@@ -3707,11 +3707,21 @@ done:
 void
 Dbdih::nr_run_redo(Signal* signal, TakeOverRecordPtr takeOverPtr)
 {
+  /**
+   * sendSTART_RECREQ uses m_sr_nodes
+   *   and for TO during SR, we don't want to modify it
+   *   so save/restore it
+   */
+  NdbNodeBitmask save = m_sr_nodes;
+  m_sr_nodes.clear();
   m_sr_nodes.set(takeOverPtr.p->toStartingNode);
+
   takeOverPtr.p->toCurrentTabref = 0;
   takeOverPtr.p->toCurrentFragid = 0;
   takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_RUN_REDO;
   sendSTART_RECREQ(signal, takeOverPtr.p->toStartingNode, takeOverPtr.i);
+
+  m_sr_nodes = save; // restore
 }
 
 void
@@ -11543,6 +11553,16 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
     nodePtr.i = i;
     ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
     nodePtr.p->copyCompleted = 0;
+  }
+
+  if (m_to_nodes.get(getOwnNodeId()))
+  {
+    /**
+     * We (master) needs take-over
+     *   run this directly to avoid strange confusion
+     */
+    jam();
+    c_sr_wait_to = true;
   }
 
   if (!m_to_nodes.isclear() && c_sr_wait_to)
