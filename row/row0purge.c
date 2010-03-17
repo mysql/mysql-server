@@ -297,7 +297,6 @@ row_purge_remove_sec_if_poss_tree(
 		break;
 	case ROW_BUFFERED:
 	case ROW_NOT_DELETED_REF:
-	case ROW_NOT_DELETED:
 		/* These are invalid outcomes, because the mode passed
 		to row_search_index_entry() did not include any of the
 		flags BTR_INSERT, BTR_DELETE, or BTR_DELETE_MARK. */
@@ -366,24 +365,40 @@ row_purge_remove_sec_if_poss_leaf(
 	search_result = row_search_index_entry(
 		index, entry, BTR_MODIFY_LEAF | BTR_DELETE, &pcur, &mtr);
 
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
-
 	switch (search_result) {
-	case ROW_NOT_DELETED:
-		/* The index entry could not be deleted. */
-		return(FALSE);
+		ibool	success;
+	case ROW_FOUND:
+		/* Before attempting to purge a record, check
+		if it is safe to do so. */
+		if (row_purge_poss_sec(node, index, entry)) {
+			btr_cur_t* btr_cur = btr_pcur_get_btr_cur(&pcur);
 
+			/* Only delete-marked records should be purged. */
+			ut_ad(REC_INFO_DELETED_FLAG
+			      & rec_get_info_bits(
+				      btr_cur_get_rec(btr_cur),
+				      dict_table_is_comp(index->table)));
+
+			if (!btr_cur_optimistic_delete(btr_cur, &mtr)) {
+
+				/* The index entry could not be deleted. */
+				success = FALSE;
+				goto func_exit;
+			}
+		}
+		/* fall through (the index entry is still needed,
+		or the deletion succeeded) */
 	case ROW_NOT_DELETED_REF:
 		/* The index entry is still needed. */
-	case ROW_NOT_FOUND:
-		/* The index entry does not exist, nothing to do. */
-	case ROW_FOUND:
-		/* The index entry existed in the buffer pool
-		and was deleted because of the BTR_DELETE. */
 	case ROW_BUFFERED:
 		/* The deletion was buffered. */
-		return(TRUE);
+	case ROW_NOT_FOUND:
+		/* The index entry does not exist, nothing to do. */
+		success = TRUE;
+	func_exit:
+		btr_pcur_close(&pcur);
+		mtr_commit(&mtr);
+		return(success);
 	}
 
 	ut_error;

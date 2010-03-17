@@ -755,10 +755,6 @@ row_search_index_entry(
 		ut_a(mode & BTR_DELETE);
 		return(ROW_NOT_DELETED_REF);
 
-	case BTR_CUR_DELETE_FAILED:
-		ut_a(mode & BTR_DELETE);
-		return(ROW_NOT_DELETED);
-
 	case BTR_CUR_DEL_MARK_IBUF:
 	case BTR_CUR_DELETE_IBUF:
 	case BTR_CUR_INSERT_TO_IBUF:

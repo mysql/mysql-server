@@ -71,7 +71,8 @@ enum btr_latch_mode {
 /* BTR_INSERT, BTR_DELETE and BTR_DELETE_MARK are mutually exclusive. */
 
 /** If this is ORed to btr_latch_mode, it means that the search tuple
-will be inserted to the index, at the searched position */
+will be inserted to the index, at the searched position.
+When the record is not in the buffer pool, try to use the insert buffer. */
 #define BTR_INSERT		512
 
 /** This flag ORed to btr_latch_mode says that we do the search in query
@@ -84,11 +85,11 @@ the insert buffer to speed up inserts */
 #define BTR_IGNORE_SEC_UNIQUE	2048
 
 /** Try to delete mark the record at the searched position using the
-insert/delete buffer. */
+insert/delete buffer when the record is not in the buffer pool. */
 #define BTR_DELETE_MARK		4096
 
-/** Try to delete the record at the searched position using the insert/delete
-buffer. */
+/** Try to purge the record at the searched position using the insert/delete
+buffer when the record is not in the buffer pool. */
 #define BTR_DELETE		8192
 
 /**************************************************************//**
