@@ -17,7 +17,7 @@
 #include <stdarg.h>
 #include <string>
 
-using testing::EventListeners;
+using testing::TestEventListeners;
 using testing::TestCase;
 using testing::TestEventListener;
 using testing::TestInfo;
@@ -274,7 +274,7 @@ void TapEventListener::OnTestIterationEnd(const UnitTest& unit_test,
  */
 void install_tap_listener()
 {
-  EventListeners& listeners = UnitTest::GetInstance()->listeners();
+  TestEventListeners& listeners = UnitTest::GetInstance()->listeners();
   delete listeners.Release(listeners.default_result_printer());
   listeners.Append(new TapEventListener);
 }
