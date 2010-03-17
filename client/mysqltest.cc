@@ -4920,7 +4920,7 @@ int connect_n_handle_errors(struct st_command *command,
   ds= &ds_res;
 
   /* Only log if an error is expected */
-  if (!command->abort_on_error &&
+  if (command->expected_errors.count > 0 &&
       !disable_query_log)
   {
     /*

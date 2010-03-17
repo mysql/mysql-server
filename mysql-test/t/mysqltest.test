@@ -1441,7 +1441,6 @@ EOF
 remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 # connect when "disable_abort_on_error" caused "connection not found"
---replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --disable_abort_on_error
 connect (con1,localhost,root,,);
 connection default;
