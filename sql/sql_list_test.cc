@@ -204,8 +204,14 @@ TEST(Sql_ilist_test, iterate)
 
 }  // namespace
 
+
+// TODO(didrik): Consider adding command line option to disable TAP output.
+extern void install_tap_listener();
+
+// TODO(didrik): Extract main() function into separate file.
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
+  install_tap_listener();
   MY_INIT(argv[0]);
   return RUN_ALL_TESTS();
 }

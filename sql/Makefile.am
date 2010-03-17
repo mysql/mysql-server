@@ -205,6 +205,7 @@ UNIT_TEST_LIBS= /usr/local/lib/libgtest.a \
 		$(top_srcdir)/strings/.libs/libmystrings.a 
 UNIT_TEST_OBJS= sql_state.o \
 		sql_string.o \
+		tap_event_listener.o \
 		thr_malloc.o
 
 # TODO(didrik): Include this target in 'make all'
