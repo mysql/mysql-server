@@ -3298,16 +3298,14 @@ public:
   /* Special constants representing sets of flags */
   enum 
   {
-    TM_NO_FLAGS = 0U
+    TM_NO_FLAGS = 0U,
+    TM_BIT_LEN_EXACT_F = (1U << 0)
   };
 
-  void set_flags(flag_set flag) { m_flags |= flag; }
-  void clear_flags(flag_set flag) { m_flags &= ~flag; }
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifndef MYSQL_CLIENT
-  Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, 
-		      bool is_transactional, uint16 flags);
+  Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Table_map_log_event(const char *buf, uint event_len, 
@@ -3320,7 +3318,7 @@ public:
   table_def *create_table_def()
   {
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
-                         m_field_metadata_size, m_null_bits);
+                         m_field_metadata_size, m_null_bits, m_flags);
   }
   ulong get_table_id() const        { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }

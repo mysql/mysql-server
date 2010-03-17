@@ -7896,7 +7896,7 @@ int Table_map_log_event::save_field_metadata()
  */
 #if !defined(MYSQL_CLIENT)
 Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
-                                         bool is_transactional, uint16 flags)
+                                         bool is_transactional)
   : Log_event(thd, 0, true),
     m_table(tbl),
     m_dbnam(tbl->s->db.str),
@@ -7906,7 +7906,7 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
     m_colcnt(tbl->s->fields),
     m_memory(NULL),
     m_table_id(tid),
-    m_flags(flags),
+    m_flags(TM_BIT_LEN_EXACT_F),
     m_data_size(0),
     m_field_metadata(0),
     m_field_metadata_size(0),
@@ -8164,8 +8164,10 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
       inside Relay_log_info::clear_tables_to_lock() by calling the
       table_def destructor explicitly.
     */
-    new (&table_list->m_tabledef) table_def(m_coltype, m_colcnt, 
-         m_field_metadata, m_field_metadata_size, m_null_bits);
+    new (&table_list->m_tabledef)
+      table_def(m_coltype, m_colcnt,
+                m_field_metadata, m_field_metadata_size,
+                m_null_bits, m_flags);
     table_list->m_tabledef_valid= TRUE;
 
     /*
