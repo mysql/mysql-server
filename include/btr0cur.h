@@ -138,7 +138,8 @@ btr_cur_search_to_nth_level(
 				should always be made using PAGE_CUR_LE to
 				search the position! */
 	ulint		latch_mode, /*!< in: BTR_SEARCH_LEAF, ..., ORed with
-				BTR_INSERT and BTR_ESTIMATE;
+				at most one of BTR_INSERT, BTR_DELETE_MARK,
+				BTR_DELETE, or BTR_ESTIMATE;
 				cursor->left_block is used to store a pointer
 				to the left neighbor page, in the cases
 				BTR_SEARCH_PREV and BTR_MODIFY_PREV;
@@ -634,9 +635,7 @@ enum btr_cur_method {
 				mark in the insert/delete buffer */
 	BTR_CUR_DELETE_IBUF,	/*!< performed the intended delete in
 				the insert/delete buffer */
-	BTR_CUR_DELETE_REF,	/*!< row_purge_poss_sec() failed */
-	BTR_CUR_DELETE_FAILED	/*!< an optimistic delete could not be
-				performed */
+	BTR_CUR_DELETE_REF	/*!< row_purge_poss_sec() failed */
 };
 
 /** The tree cursor: the definition appears here only for the compiler

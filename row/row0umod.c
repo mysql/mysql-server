@@ -350,7 +350,6 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	case ROW_FOUND:
 		break;
 	case ROW_BUFFERED:
-	case ROW_NOT_DELETED:
 	case ROW_NOT_DELETED_REF:
 		/* These are invalid outcomes, because the mode passed
 		to row_search_index_entry() did not include any of the
@@ -487,7 +486,6 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 	switch (search_result) {
 	case ROW_BUFFERED:
-	case ROW_NOT_DELETED:
 	case ROW_NOT_DELETED_REF:
 		/* These are invalid outcomes, because the mode passed
 		to row_search_index_entry() did not include any of the
