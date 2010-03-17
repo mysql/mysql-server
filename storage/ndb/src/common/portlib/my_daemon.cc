@@ -14,15 +14,13 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef _WIN32
-#include <process.h>
-#endif
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
 #include <my_daemon.h>
 
 #include <BaseString.hpp>
+#include <portlib/NdbHost.h>
 
 static FILE *dlog_file;
 
@@ -312,7 +310,8 @@ do_files(const char *pidfile_name, int pidfd, int logfd)
                 pidfile_name, errno);
 
   char buf[32];
-  int length = my_snprintf(buf, sizeof(buf), "%ld", (long)getpid());
+  int length = my_snprintf(buf, sizeof(buf), "%ld",
+                           (long)NdbHost_GetProcessId());
   if (write(pidfd, buf, length) != length)
     return ERR1("Failed to write pid to pidfile '%s', errno: %d",
                 pidfile_name, errno);
