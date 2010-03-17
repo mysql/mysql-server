@@ -2205,7 +2205,7 @@ t1	CREATE TABLE `t1` (
 insert into t1 values (1196440219,default);
 select * from t1;
 a	b
-1196440219	2007-11-30 19:30:19
+1196440219	2007-11-30 08:30:19
 drop table t1;
 set sql_warnings = 0;
 # GET_FORMAT()

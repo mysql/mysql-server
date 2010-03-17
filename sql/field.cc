@@ -9598,13 +9598,13 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   interval_list.empty();
 
   comment= *fld_comment;
+  vcol_info= fld_vcol_info;
   stored_in_db= TRUE;
 
   /* Initialize data for a computed field */
   if ((uchar)fld_type == (uchar)MYSQL_TYPE_VIRTUAL)
   {
     DBUG_ASSERT(vcol_info && vcol_info->expr_item);
-    vcol_info= fld_vcol_info;
     stored_in_db= vcol_info->is_stored();
     /*
       Walk through the Item tree checking if all items are valid
@@ -9624,8 +9624,6 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     */
     sql_type= fld_type= vcol_info->get_real_type();
   }
-  else
-    vcol_info= NULL;
 
   /*
     Set NO_DEFAULT_VALUE_FLAG if this field doesn't have a default value and
