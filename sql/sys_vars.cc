@@ -2803,7 +2803,7 @@ static Sys_var_charptr Sys_slave_load_tmpdir(
 static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
   mysql_mutex_lock(&LOCK_active_mi);
-  DBUG_PRINT("info", ("slave_net_timeout=%lu mi->heartbeat_period=%.3f",
+  DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
                      slave_net_timeout,
                      (active_mi? active_mi->heartbeat_period : 0.0)));
   if (active_mi && slave_net_timeout < active_mi->heartbeat_period)
