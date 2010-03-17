@@ -209,16 +209,21 @@ UNIT_TEST_OBJS= sql_state.o \
 		thr_malloc.o
 GUNIT_TEST_OBJS= gunit_test_main.o $(UNIT_TEST_OBJS)
 
-# TODO(didrik): Include this target in 'make all'
-# and use a test runner (ala ../unittest/unit.pl) to run all tests.
-test-gunit: \
-	mdl_test \
-	mdl-t \
-	sql_list_test \
-	thread_test
+if HAVE_GTEST
+noinst_PROGRAMS = \
+	mdl_test-t$(EXEEXT) \
+	mdl-t$(EXEEXT) \
+	sql_list_test-t$(EXEEXT) \
+	thread_test-t$(EXEEXT)
+endif
 
 # The convention is to have tests for foo.cc in foo_test.cc
-mdl_test: mdl_test.cc mdl.o thread.o $(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
+# Add '-t' suffix to executable name, so unittest/unit.pl will pick them up.
+# In order to remove the no-implicit-templates, we have to build these
+# executables explicitly, rather than defining foo_test_SOURCES,
+# foo_test_CXXFLAGS et.al.
+mdl_test-t$(EXEEXT): mdl_test.cc mdl.o thread.o \
+		$(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
 	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
 	mdl.o thread.o $(GUNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
 
@@ -227,11 +232,13 @@ mdl-t: mdl-t.cc mdl.o thread.o $(UNIT_TEST_LIBS) $(UNIT_TEST_OBJS)
 	$(top_srcdir)/unittest/mytap/tap.o \
 	mdl.o thread.o $(UNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
 
-sql_list_test: sql_list_test.cc sql_list.o $(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
+sql_list_test-t$(EXEEXT): sql_list_test.cc sql_list.o \
+		$(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
 	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
 	sql_list.o $(GUNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
 
-thread_test: thread_test.cc thread.o $(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
+thread_test-t$(EXEEXT): thread_test.cc thread.o \
+		$(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
 	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
 	thread.o $(GUNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
 

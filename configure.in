@@ -85,6 +85,7 @@ sinclude(config/ac-macros/character_sets.m4)
 sinclude(config/ac-macros/compiler_flag.m4)
 sinclude(config/ac-macros/plugins.m4)
 sinclude(config/ac-macros/dtrace.m4)
+sinclude(config/ac-macros/gtest.m4)
 sinclude(config/ac-macros/ha_ndbcluster.m4)
 sinclude(config/ac-macros/large_file.m4)
 sinclude(config/ac-macros/misc.m4)
@@ -2697,6 +2698,8 @@ MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_MAX_INDEXES
 MYSQL_CHECK_VIO
 MYSQL_CHECK_SSL
+MYSQL_LOOK_FOR_GTEST
+
 
 #--------------------------------------------------------------------
 # Declare our plugin modules
