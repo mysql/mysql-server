@@ -4671,7 +4671,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
 
             /* setting flags for user var log event */
             uchar flags= User_var_log_event::UNDEF_F;
-            if (user_var_event->user_var_event->unsigned_flag)
+            if (user_var_event->unsigned_flag)
               flags|= User_var_log_event::UNSIGNED_F;
 
             User_var_log_event e(thd, user_var_event->user_var_event->name.str,
