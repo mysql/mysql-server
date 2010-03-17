@@ -1373,12 +1373,14 @@ bool Field::send_binary(Protocol *protocol)
    to the size of this field (the slave or destination). 
 
    @param   field_metadata   Encoded size in field metadata
+   @param   mflags           Flags from the table map event for the table.
 
    @retval 0 if this field's size is < the source field's size
    @retval 1 if this field's size is >= the source field's size
 */
 int Field::compatible_field_size(uint field_metadata,
-                                 const Relay_log_info *rli_arg __attribute__((unused)))
+                                 const Relay_log_info *rli_arg __attribute__((unused)),
+                                 uint16 mflags __attribute__((unused)))
 {
   uint const source_size= pack_length_from_metadata(field_metadata);
   uint const destination_size= row_pack_length();
@@ -2836,7 +2838,8 @@ uint Field_new_decimal::pack_length_from_metadata(uint field_metadata)
    @retval 1 if this field's size is >= the source field's size
 */
 int Field_new_decimal::compatible_field_size(uint field_metadata,
-                                             const Relay_log_info * __attribute__((unused)))
+                                             const Relay_log_info * __attribute__((unused)),
+                                             uint16 mflags __attribute__((unused)))
 {
   int compatible= 0;
   uint const source_precision= (field_metadata >> 8U) & 0x00ff;
@@ -6612,7 +6615,8 @@ check_field_for_37426(const void *param_arg)
 #endif
 
 int Field_string::compatible_field_size(uint field_metadata,
-                                        const Relay_log_info *rli_arg)
+                                        const Relay_log_info *rli_arg,
+                                        uint16 mflags __attribute__((unused)))
 {
 #ifdef HAVE_REPLICATION
   const Check_field_param check_param = { this };
@@ -6620,7 +6624,7 @@ int Field_string::compatible_field_size(uint field_metadata,
                          check_field_for_37426, &check_param))
     return FALSE;                        // Not compatible field sizes
 #endif
-  return Field::compatible_field_size(field_metadata, rli_arg);
+  return Field::compatible_field_size(field_metadata, rli_arg, mflags);
 }
 
 
@@ -9172,8 +9176,13 @@ uint Field_bit::get_key_image(uchar *buff, uint length, imagetype type_arg)
 */
 int Field_bit::do_save_field_metadata(uchar *metadata_ptr)
 {
-  *metadata_ptr= bit_len;
-  *(metadata_ptr + 1)= bytes_in_rec;
+  /*
+    Since this class and Field_bit_as_char have different ideas of
+    what should be stored here, we compute the values of the metadata
+    explicitly using the field_length.
+   */
+  metadata_ptr[0]= field_length % 8;
+  metadata_ptr[1]= field_length / 8;
   return 2;
 }
 
@@ -9213,20 +9222,26 @@ uint Field_bit::pack_length_from_metadata(uint field_metadata)
    @retval 1 if this field's size is >= the source field's size
 */
 int Field_bit::compatible_field_size(uint field_metadata,
-                                     const Relay_log_info * __attribute__((unused)))
+                                     const Relay_log_info * __attribute__((unused)),
+                                     uint16 mflags)
 {
-  int compatible= 0;
-  uint const source_size= pack_length_from_metadata(field_metadata);
-  uint const destination_size= row_pack_length();
-  uint const from_bit_len= field_metadata & 0x00ff;
-  uint const from_len= (field_metadata >> 8U) & 0x00ff;
-  if ((bit_len == 0) || (from_bit_len == 0))
-    compatible= (source_size <= destination_size);
-  else if (from_bit_len > bit_len)
-    compatible= (from_len < bytes_in_rec);
-  else
-    compatible= ((from_bit_len <= bit_len) && (from_len <= bytes_in_rec));
-  return (compatible);
+  uint from_bit_len= 8 * (field_metadata >> 8) + (field_metadata & 0xff);
+  uint to_bit_len= max_display_length();
+
+  /*
+    If the bit length exact flag is clear, we are dealing with an old
+    master, so we allow some less strict behaviour if replicating by
+    moving both bit lengths to an even multiple of 8.
+
+    We do this by computing the number of bytes to store the field
+    instead, and then compare the result.
+   */
+  if (!(mflags & Table_map_log_event::TM_BIT_LEN_EXACT_F)) {
+    from_bit_len= (from_bit_len + 7) / 8;
+    to_bit_len= (to_bit_len + 7) / 8;
+  }
+
+  return from_bit_len <= to_bit_len;
 }
 
 
