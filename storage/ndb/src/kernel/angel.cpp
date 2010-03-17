@@ -207,12 +207,10 @@ pid_t waitpid(pid_t pid, int *stat_loc, int options)
  intptr_t ret_handle = _cwait(stat_loc, (intptr_t)handle, 0);
  if (ret_handle == -1)
  {
-    CloseHandle(handle);
     g_eventLogger->error("waitpid: Failed to wait for pid %d, "
                          "errno: %d", pid, errno);
     return -1;
  }
- CloseHandle(handle);
  return pid;
 }
 
