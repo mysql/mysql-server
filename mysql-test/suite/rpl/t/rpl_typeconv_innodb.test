@@ -1,0 +1,22 @@
+--source include/have_binlog_format_row.inc
+--source include/have_innodb.inc
+--source include/master-slave.inc
+
+#
+# BUG#49618: Field length stored incorrectly in binary log for InnoDB
+#
+
+source include/reset_master_and_slave.inc;
+
+connection master;
+CREATE TABLE t1(b1 BIT(1), b2 BIT(2), b3 BIT(3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (b'0', b'01', b'101');
+sync_slave_with_master;
+
+let $diff_table_1=master:test.t1;
+let $diff_table_2=slave:test.t1;
+source include/diff_tables.inc;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
