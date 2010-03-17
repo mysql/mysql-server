@@ -269,8 +269,6 @@ enum row_search_result {
 				enqueued in the insert/delete buffer */
 	ROW_NOT_DELETED_REF,	/*!< BTR_DELETE was specified, and
 				row_purge_poss_sec() failed */
-	ROW_NOT_DELETED,	/*!< BTR_DELETE was specified, and the
-				optimistic delete failed */
 };
 
 /***************************************************************//**

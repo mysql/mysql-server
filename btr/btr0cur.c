@@ -338,7 +338,8 @@ btr_cur_search_to_nth_level(
 				Inserts should always be made using
 				PAGE_CUR_LE to search the position! */
 	ulint		latch_mode, /*!< in: BTR_SEARCH_LEAF, ..., ORed with
-				BTR_INSERT and BTR_ESTIMATE;
+				at most one of BTR_INSERT, BTR_DELETE_MARK,
+				BTR_DELETE, or BTR_ESTIMATE;
 				cursor->left_block is used to store a pointer
 				to the left neighbor page, in the cases
 				BTR_SEARCH_PREV and BTR_MODIFY_PREV;
@@ -773,35 +774,6 @@ retry_page_get:
 		      || mode != PAGE_CUR_LE);
 		ut_ad(cursor->low_match != ULINT_UNDEFINED
 		      || mode != PAGE_CUR_LE);
-
-		/* If this was a delete operation, the leaf page was
-		in the buffer pool, and a matching record was found in
-		the leaf page, attempt to delete it.  If the deletion
-		fails, set the cursor flag accordingly. */
-		if (UNIV_UNLIKELY(btr_op == BTR_DELETE_OP)
-		    && low_match == dtuple_get_n_fields(tuple)
-		    && !page_cur_is_before_first(page_cursor)) {
-
-			/* Before attempting to purge a record, check
-			if it is safe to do so. */
-			if (!row_purge_poss_sec(cursor->purge_node,
-						index, tuple)) {
-
-				cursor->flag = BTR_CUR_DELETE_REF;
-			} else {
-				/* Only delete-marked records should
-				be purged. */
-				ut_ad(REC_INFO_DELETED_FLAG
-				      & rec_get_info_bits(
-					      btr_cur_get_rec(cursor),
-					      page_is_comp(page)));
-
-				if (!btr_cur_optimistic_delete(cursor, mtr)) {
-
-					cursor->flag = BTR_CUR_DELETE_FAILED;
-				}
-			}
-		}
 	}
 
 func_exit:
