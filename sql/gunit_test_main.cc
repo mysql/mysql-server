@@ -70,6 +70,7 @@ extern void install_tap_listener();
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
+  MY_INIT(argv[0]);
 
   if (handle_unittest_options(&argc, &argv))
     return EXIT_FAILURE;
@@ -78,6 +79,5 @@ int main(int argc, char **argv) {
   if (opt_help)
     print_usage();
 
-  MY_INIT(argv[0]);
   return RUN_ALL_TESTS();
 }
