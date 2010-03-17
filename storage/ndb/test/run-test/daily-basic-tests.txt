@@ -1511,7 +1511,7 @@ max-time: 300
 cmd: testIndex
 args: -n ConstraintDetails
 
-max-time: 500
+max-time: 900
 cmd: testNdbinfo
 args:
 
