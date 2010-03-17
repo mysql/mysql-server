@@ -4062,11 +4062,8 @@ int THD::binlog_write_table_map(TABLE *table, bool is_trans)
   DBUG_ASSERT(current_stmt_binlog_row_based && mysql_bin_log.is_open());
   DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
 
-  Table_map_log_event::flag_set const
-    flags= Table_map_log_event::TM_NO_FLAGS;
-
   Table_map_log_event
-    the_event(this, table, table->s->table_map_id, is_trans, flags);
+    the_event(this, table, table->s->table_map_id, is_trans);
 
   if (is_trans && binlog_table_maps == 0)
     binlog_start_trans_and_stmt();
