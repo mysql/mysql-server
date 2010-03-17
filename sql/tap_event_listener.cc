@@ -223,9 +223,9 @@ void TapEventListener::OnTestPartResult(const TestPartResult& test_part_result)
 void TapEventListener::OnTestEnd(const TestInfo& test_info)
 {
   if (test_info.result()->Passed()) {
-    printf("%d ok\n", m_test_number);
+    printf("ok %d\n", m_test_number);
   } else {
-    printf("%d not ok\n", m_test_number);
+    printf("not ok %d\n", m_test_number);
   }
   fflush(stdout);
 }
