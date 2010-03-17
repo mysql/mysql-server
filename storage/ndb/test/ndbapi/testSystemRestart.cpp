@@ -1860,7 +1860,8 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
       CHECK(res.waitNodesNoStart(&node, 1) == 0);
       for (Uint32 j = 0; j<25; j++)
       {
-        CHECK(hugoTrans.scanUpdateRecords(pNdb, 0) == 0);
+        if (! (hugoTrans.scanUpdateRecords(pNdb, 0) == 0))
+          break;
       }
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointCompleted);
@@ -1872,13 +1873,23 @@ runTO(NDBT_Context* ctx, NDBT_Step* step)
     Uint32 LCP = event.LocalCheckpointCompleted.lci;
     ndbout_c("LCP: %u", LCP);
     
-    do {
+    do 
+    {
+      bzero(&event, sizeof(event));
       while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
             event.type != NDB_LE_LocalCheckpointCompleted)
+        bzero(&event, sizeof(event));
+      
+      if (event.type == NDB_LE_LocalCheckpointCompleted &&
+          event.LocalCheckpointCompleted.lci < LCP + 3)
       {
-        CHECK(hugoTrans.scanUpdateRecords(pNdb, 0) == 0);
+        hugoTrans.scanUpdateRecords(pNdb, 0);
       }
-    } while (event.LocalCheckpointCompleted.lci < LCP + 3);
+      else
+      {
+        break;
+      }
+    } while (true);
     
     ndbout_c("LCP: %u", event.LocalCheckpointCompleted.lci);
     
