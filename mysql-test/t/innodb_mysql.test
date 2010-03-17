@@ -500,11 +500,7 @@ INSERT INTO t2 VALUES (),();
 CREATE OR REPLACE VIEW v1 AS SELECT 1 FROM t2 
   WHERE b =(SELECT a FROM t1 LIMIT 1);
 
---disable_query_log
---disable_result_log
 CONNECT (con1, localhost, root,,);
---enable_query_log
---enable_result_log
 CONNECTION default;
 
 DELIMITER |;
