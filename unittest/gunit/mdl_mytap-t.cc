@@ -239,9 +239,9 @@ public:
   : m_table_name(table_name),
     m_mdl_type(mdl_type),
     m_lock_grabbed(lock_grabbed),
-    m_release_locks(release_locks),
-    m_thd(reinterpret_cast<THD*>(this))    // See notify_thread below.
+    m_release_locks(release_locks)    // See notify_thread below.
   {
+    m_thd= reinterpret_cast<THD*>(this);
     m_mdl_context.init(m_thd);
   }
 

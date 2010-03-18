@@ -85,10 +85,8 @@ Notification::Notification() : m_notified(FALSE)
 
 Notification::~Notification()
 {
-  const int failed1= pthread_mutex_destroy(&m_mutex);
-  DBUG_ASSERT(!failed1);
-  const int failed2= pthread_cond_destroy(&m_cond);
-  DBUG_ASSERT(!failed2);
+  pthread_mutex_destroy(&m_mutex);
+  pthread_cond_destroy(&m_cond);
 }
 
 bool Notification::has_been_notified()

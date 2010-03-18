@@ -93,8 +93,8 @@ protected:
 
   static void TearDownTestCase()
   {
-    ASSERT_EQ(0, pthread_key_delete(THR_THD));
-    ASSERT_EQ(0, pthread_key_delete(THR_MALLOC));
+    pthread_key_delete(THR_THD);
+    pthread_key_delete(THR_MALLOC);
   }
 
   MEM_ROOT m_mem_root;
