@@ -155,17 +155,19 @@ private:
 
 
 /*
-  Will grab a lock on table_name1 of given type in the run() function.
+  Will grab a lock on table_name of given type in the run() function.
   The two notifications are for synchronizing with the main thread.
   Does *not* take ownership of the notifications.
 */
 class MDL_thread : public Thread
 {
 public:
-  MDL_thread(enum_mdl_type mdl_type,
-             Notification* lock_grabbed,
-             Notification* release_locks)
-  : m_mdl_type(mdl_type),
+  MDL_thread(const char   *table_name,
+             enum_mdl_type mdl_type,
+             Notification *lock_grabbed,
+             Notification *release_locks)
+  : m_table_name(table_name),
+    m_mdl_type(mdl_type),
     m_lock_grabbed(lock_grabbed),
     m_release_locks(release_locks),
     m_thd(reinterpret_cast<THD*>(this))    // See notify_thread below.
@@ -187,6 +189,7 @@ public:
   }
 
 private:
+  const char    *m_table_name;
   enum_mdl_type  m_mdl_type;
   Notification  *m_lock_grabbed;
   Notification  *m_release_locks;
@@ -206,14 +209,15 @@ bool notify_thread(THD *thd)
 void MDL_thread::run()
 {
   MDL_request request;
-  request.init(MDL_key::TABLE, db_name, table_name1, m_mdl_type);
+  request.init(MDL_key::TABLE, db_name, m_table_name, m_mdl_type);
 
   if (m_mdl_type == MDL_EXCLUSIVE)
     EXPECT_FALSE(m_mdl_context.acquire_exclusive_lock(&request));
   else
     EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&request));
 
-  EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name1));
+  EXPECT_TRUE(m_mdl_context.
+              is_lock_owner(MDL_key::TABLE, db_name, m_table_name));
 
   // Tell the main thread that we have grabbed our locks.
   m_lock_grabbed->notify();
@@ -294,6 +298,7 @@ void MDL_test::test_one_simple_shared_lock(enum_mdl_type lock_type)
   m_mdl_context.release_all_locks();
   EXPECT_FALSE(m_mdl_context.has_locks());
 }
+
 
 /*
   Acquires one lock of type MDL_SHARED.
@@ -535,7 +540,7 @@ TEST_F(MDL_test, concurrent_shared)
 {
   Notification lock_grabbed;
   Notification release_locks;
-  MDL_thread mdl_thread(MDL_SHARED, &lock_grabbed, &release_locks);
+  MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks);
   mdl_thread.start(Thread::Options());
   lock_grabbed.wait_for_notification();
 
@@ -560,7 +565,7 @@ TEST_F(MDL_test, concurrent_shared_exclusive)
 {
   Notification lock_grabbed;
   Notification release_locks;
-  MDL_thread mdl_thread(MDL_SHARED, &lock_grabbed, &release_locks);
+  MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks);
   mdl_thread.start(Thread::Options());
   lock_grabbed.wait_for_notification();
 
@@ -590,7 +595,8 @@ TEST_F(MDL_test, concurrent_exclusive_shared)
 {
   Notification lock_grabbed;
   Notification release_locks;
-  MDL_thread mdl_thread(MDL_EXCLUSIVE, &lock_grabbed, &release_locks);
+  MDL_thread mdl_thread(table_name1, MDL_EXCLUSIVE,
+                        &lock_grabbed, &release_locks);
   mdl_thread.start(Thread::Options());
   lock_grabbed.wait_for_notification();
 
@@ -632,7 +638,7 @@ TEST_F(MDL_test, concurrent_upgrade)
 
   Notification lock_grabbed;
   Notification release_locks;
-  MDL_thread mdl_thread(MDL_SHARED, &lock_grabbed, &release_locks);
+  MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks);
   mdl_thread.start(Thread::Options());
   lock_grabbed.wait_for_notification();
 
