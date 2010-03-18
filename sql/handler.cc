@@ -4053,6 +4053,38 @@ double handler::index_only_read_time(uint keynr, double records)
 }
 
 
+
+
+/**
+  Check if key has partially-covered columns
+
+  We can't use DS-MRR to perform range scans when the ranges are over
+  partially-covered keys, because we'll not have full key part values
+  (we'll have their prefixes from the index) and will not be able to check
+  if we've reached the end the range.
+
+  @param keyno  Key to check
+
+  @todo
+    Allow use of DS-MRR in cases where the index has partially-covered
+    components but they are not used for scanning.
+
+  @retval TRUE   Yes
+  @retval FALSE  No
+*/
+
+bool key_uses_partial_cols(TABLE *table, uint keyno)
+{
+  KEY_PART_INFO *kp= table->key_info[keyno].key_part;
+  KEY_PART_INFO *kp_end= kp + table->key_info[keyno].key_parts;
+  for (; kp != kp_end; kp++)
+  {
+    if (!kp->field->part_of_key.is_set(keyno))
+      return TRUE;
+  }
+  return FALSE;
+}
+
 /**
   Read the first row of a multi-range set.
 

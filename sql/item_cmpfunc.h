@@ -1619,6 +1619,8 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
+  friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
+                           Item_equal *item_equal);
 }; 
 
 class COND_EQUAL: public Sql_alloc

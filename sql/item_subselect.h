@@ -302,6 +302,18 @@ public:
     See also THD::emb_on_expr_nest.
   */
   TABLE_LIST *emb_on_expr_nest;
+  /*
+    Types of left_expr and subquery's select list allow to perform subquery
+    materialization. Currently, we set this to FALSE when it as well could
+    be TRUE. This is to be properly addressed with fix for BUG#36752.
+  */
+  bool types_allow_materialization;
+
+  /* 
+    Same as above, but they also allow to scan the materialized table. 
+  */
+  bool sjm_scan_allowed;
+
   /* The method chosen to execute the IN predicate.  */
   enum enum_exec_method {
     NOT_TRANSFORMED, /* No execution method was chosen for this IN. */

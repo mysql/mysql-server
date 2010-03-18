@@ -99,7 +99,7 @@ oref	a
 1	1
 show status like '%Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	11
+Handler_read_rnd_next	24
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 flush status;
@@ -337,8 +337,8 @@ dd	NULL	0
 bb	NULL	NULL
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 oref	a
-aa	1
 ff	2
+aa	1
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 oref	a
 bb	2
@@ -421,8 +421,8 @@ dd	NULL	0
 bb	NULL	NULL
 select oref, a from t2 where a in (select ie from t1 where oref=t2.oref);
 oref	a
-aa	1
 ff	2
+aa	1
 select oref, a from t2 where a not in (select ie from t1 where oref=t2.oref);
 oref	a
 bb	2
@@ -515,8 +515,8 @@ aa	1	1	1
 dd	1	NULL	0
 select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
-aa	1	1
 ff	2	2
+aa	1	1
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
 bb	2	1
@@ -560,8 +560,8 @@ aa	1	1	1
 dd	1	NULL	0
 select oref, a, b from t2 where (a,b) in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
-aa	1	1
 ff	2	2
+aa	1	1
 select oref, a, b from t2 where (a,b) not in (select ie1,ie2 from t1 where oref=t2.oref);
 oref	a	b
 bb	2	1
