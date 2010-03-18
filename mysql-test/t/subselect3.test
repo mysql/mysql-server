@@ -908,3 +908,186 @@ select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) a
 set @@optimizer_switch='';
 
 drop table t1;
+
+#
+# Test confluent duplicate weedout
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 as select * from t0;
+insert into t1 select a+10 from t0;
+set @@optimizer_switch='no_firstmatch,no_materialization';
+insert into t0 values(2);
+explain select * from t1 where 2 in (select a from t0);
+select * from t1 where 2 in (select a from t0);
+set @@optimizer_switch='no_materialization';
+explain select * from t1 where 2 in (select a from t0);
+select * from t1 where 2 in (select a from t0);
+set @@optimizer_switch='';
+
+
+# 
+# FirstMatch referring to a derived table
+#
+explain select * from (select a from t0) X where a in (select a from t1);
+drop table t0, t1;
+
+#
+# LooseScan: Check if we can pick it together with range access
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1 (kp1 int, kp2 int, c int, filler char(100), key(kp1, kp2));
+insert into t1 select A.a+10*(B.a+10*C.a), 0, 0, 'filler' from t0 A, t0 B, t0 C;
+insert into t1 select * from t1 where kp1 < 20;
+
+create table t3 (a int);
+insert into t3 select A.a + 10*B.a from t0 A, t0 B;
+
+explain select * from t3 where a in (select kp1 from t1 where kp1<20);
+
+create table t4 (pk int primary key);
+insert into t4 select a from t3;
+
+explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
+and t4.pk=t1.c);
+
+drop table t1, t3, t4;
+
+#
+# Test if we handle duplicate elimination temptable overflowing to disk
+#
+create table t1 (a int) as select * from t0 where a < 5;
+
+set @save_max_heap_table_size=@@max_heap_table_size;
+set @@optimizer_switch='no_firstmatch,no_materialization';
+set @@max_heap_table_size= 16384;
+
+explain select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
+flush status;
+select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
+show status like 'Created_tmp_disk_tables';
+set @save_max_heap_table_size=@@max_heap_table_size;
+set @@optimizer_switch=default;
+drop table t0, t1;
+
+#
+# Materialize + Scan + ref access to the subsequent table based on scanned
+# value
+# 
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2(a int);
+insert into t2 values (1),(2);
+create table t3 ( a int , filler char(100), key(a)); 
+insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
+explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10); 
+select * from t3 where a in (select a from t2); 
+
+drop table t0, t2, t3;
+
+#
+# DATETIME type checks
+#
+set @@optimizer_switch='no_firstmatch,no_materialization';
+create table t1 (a date);
+insert into t1 values ('2008-01-01'),('2008-01-01'),('2008-02-01'),('2008-02-01');
+create table t2 (a int);
+insert into t2 values (1),(2);
+create table t3 (a char(10));
+insert into t3 select * from t1;
+insert into t3 values (1),(2);
+explain select * from t2 where a in (select a from t1);
+explain select * from t2 where a in (select a from t2);
+explain select * from t2 where a in (select a from t3);
+explain select * from t1 where a in (select a from t3);
+drop table t1, t2, t3;
+create table t1 (a decimal);
+insert into t1 values (1),(2);
+explain select * from t1 where a in (select a from t1);
+drop table t1;
+set @@optimizer_switch=default;
+
+#
+# SJ-Materialization-scan for non-first table
+#
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 as select * from t1;
+create table t3 (a int, b int, filler char(100), key(a));
+insert into t3 select A.a + 10*B.a, A.a + 10*B.a, 'filler' from t1 A, t1 B, t1 C;
+explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30) and t1.a =3;
+
+#
+# Verify that straight_join modifier in parent or child prevents flattening
+#
+explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
+explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
+explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
+explain select straight_join * from t2 X, t2 Y 
+where X.a in (select straight_join A.a from t1 A, t1 B);
+
+#
+# SJ-Materialization scan + first table being system const table
+#
+create table t0 (a int, b int);
+insert into t0 values(1,1);
+explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or t3.a >30);
+create table t4 as select a as x, a as y from t1;
+explain select * from t0, t3 where (t3.a, t3.b) in (select x,y from t4) and (t3.a < 10 or t3.a >30);
+drop table t0,t1,t2,t3,t4;
+
+#
+# LooseScan with ref access
+#
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, filler char(100), key(a,b));
+insert into t1 select A.a, B.a, 'filler' from t0 A, t0 B;
+create table t2 as select * from t1;
+
+explain select * from t2 where a in (select b from t1 where a=3);
+explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
+
+drop table t1,t2;
+
+#
+# Multi-column sj-materialization with lookups
+#
+create table t1 (a int, b int);
+insert into t1 select a,a from t0;
+create table t2 (a int, b int); 
+insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
+
+set @@optimizer_switch='no_firstmatch';
+explain select * from t1 where (a,b) in (select a,b from t2);
+
+# A smallish test if find_best() still works for semi-join optimization:
+set @save_optimizer_search_depth=@@optimizer_search_depth;
+set @@optimizer_search_depth=63;
+explain select * from t1 where (a,b) in (select a,b from t2);
+set @@optimizer_search_depth=@save_optimizer_search_depth;
+set @@optimizer_switch='';
+
+drop table t0, t1, t2;
+
+
+#
+# Primitive SJ-Materialization tests for DECIMAL and DATE
+#
+create table t0 (a decimal(4,2));
+insert into t0 values (10.24), (22.11);
+create table t1 as select * from t0;
+insert into t1 select * from t0;
+explain select * from t0 where a in (select a from t1);
+select * from t0 where a in (select a from t1);
+drop table t0, t1;
+
+create table t0(a date);
+insert into t0 values ('2008-01-01'),('2008-02-02');
+create table t1 as select * from t0;
+insert into t1 select * from t0;
+explain select * from t0 where a in (select a from t1);
+select * from t0 where a in (select a from t1);
+drop table t0, t1;

@@ -3209,7 +3209,7 @@ int subselect_hash_sj_engine::exec()
     SELECT_LEX *save_select= thd->lex->current_select;
     thd->lex->current_select= materialize_engine->select_lex;
     if ((res= materialize_join->optimize()))
-      goto err;
+      goto err; /* purecov: inspected */
     materialize_join->exec();
     if ((res= test(materialize_join->error || thd->is_fatal_error)))
       goto err;

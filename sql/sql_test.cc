@@ -262,6 +262,7 @@ void print_keyuse(KEYUSE *keyuse)
 }
 
 
+/* purecov: begin inspected */
 void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array)
 {
   DBUG_LOCK_FILE;
@@ -373,7 +374,6 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 }
 
 
-#ifndef DBUG_OFF
 void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
 {
   DBUG_LOCK_FILE;
@@ -392,8 +392,7 @@ void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
   fprintf(DBUG_FILE, "}\n");
   DBUG_UNLOCK_FILE;
 }
-#endif 
-
+/* purecov: end */
 #endif
 
 typedef struct st_debug_lock

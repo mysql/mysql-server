@@ -3177,7 +3177,7 @@ public:
   /* Cost to make one lookup in the temptable */
   COST_VECT lookup_cost;
   
-  /* Cost fo scanning the materialization table */
+  /* Cost of scanning the materialized table */
   COST_VECT scan_cost;
 
   /* --- Execution structures ---------- */
