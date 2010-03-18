@@ -166,7 +166,7 @@ static int tokudb_init_func(void *p) {
 
     VOID(pthread_mutex_init(&tokudb_mutex, MY_MUTEX_INIT_FAST));
     VOID(pthread_mutex_init(&tokudb_meta_mutex, MY_MUTEX_INIT_FAST));
-    (void) my_hash_init(&tokudb_open_tables, system_charset_info, 32, 0, 0, (my_hash_get_key) tokudb_get_key, 0, 0);
+    (void) my_hash_init(&tokudb_open_tables, table_alias_charset, 32, 0, 0, (my_hash_get_key) tokudb_get_key, 0, 0);
 
     tokudb_hton->state = SHOW_OPTION_YES;
     // tokudb_hton->flags= HTON_CAN_RECREATE;  // QQQ this came from skeleton
