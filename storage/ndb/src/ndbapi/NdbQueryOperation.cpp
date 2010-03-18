@@ -1528,15 +1528,6 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
         }
       } // if (m_fullFrags.top()==NULL)
 
-      /* FIXME: Uncomment the assert below. See 
-         https://intranet.mysql.com/secure/mailarchive
-         /mail.php?folder=113&mail=18566 
-         for and example of a query that causes it to fail.
-      */
-      // Assert: No spurious wakeups w/ neither resultdata, nor EOF:
-      //assert (m_fullFrags.top()!=NULL || isBatchComplete() || m_error.code);
-      /* Move full fragments from receiver thread's container to application 
-       *  thread's container.*/
       while (m_fullFrags.top()!=NULL) {
         m_applFrags.add(*m_fullFrags.top());
         m_fullFrags.pop();
@@ -1546,13 +1537,11 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
         return FetchResult_ok;
       }
 
-      /* FIXME: Uncomment the assert below. See 
-         https://intranet.mysql.com/secure/mailarchive
-         /mail.php?folder=113&mail=18566 
-         for and example of a query that causes it to fail.
-      */
-      // Only expect to end up here if another ::sendFetchMore() is required
-      // assert (isBatchComplete() || m_error.code);
+      /* Getting here is not an error. PollGuard::wait_scan() will return
+       * when a complete batch (for a fragment) is available for *any* active 
+       * scan in this transaction. So we must wait again for the next arriving 
+       * batch.
+       */
     } // while(likely(m_error.code==0))
 
     // 'while' terminated by m_error.code
@@ -1581,7 +1570,7 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
              .getReceiver().hasResults());
       return FetchResult_ok;
     }
-  }
+  } // if(m_queryDef.isScanQuery())
 } //NdbQueryImpl::fetchMoreResults
 
 void 

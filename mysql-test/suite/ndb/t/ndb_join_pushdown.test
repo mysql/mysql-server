@@ -1463,16 +1463,19 @@ create table T1 (a int NOT NULL,
 		 primary key(a)) 
 		 engine = ndb;
 
-insert into T1 values (10, 11, 11);
-insert into T1 values (11, 12, 12);
-insert into T1 values (12, 13, 13);
+# We use key values that have the same representation in little and big endian.
+# Otherwise, the numbers for local and remote reads may depend on endian-ness,
+# since hashing is endian dependent.
+insert into T1 values (0x01010101, 0x02020202, 0x02020202);
+insert into T1 values (0x02020202, 0x03030303, 0x03030303);
+insert into T1 values (0x03030303, 0x04040404, 0x04040404);
 
 # Run some queries that should increment the counters.
-select * from T1 t1, T1 t2 where t1.a = 11 and t2.a = t1.b; 
+select * from T1 t1, T1 t2 where t1.a = 0x02020202 and t2.a = t1.b; 
 
 select count(*) from T1 t1, T1 t2 where t2.a = t1.b; 
 
-select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t2.a = t1.b; 
+select count(*) from T1 t1, T1 t2 where t1.a >= 0x02020202 and t2.a = t1.b; 
 
 
 # Get new counter values.
