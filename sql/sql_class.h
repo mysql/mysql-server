@@ -3149,6 +3149,46 @@ public:
   bool send_data(List<Item> &items);
 };
 
+struct st_table_ref;
+
+/*
+  Materialized semi-join info
+*/
+class SJ_MATERIALIZE_INFO : public Sql_alloc
+{
+public:
+  /* optimal join sub-order */
+  struct st_position *positions;
+
+  uint n_tables; /* Number of tables in the sj-nest */
+
+  /* Expected #rows in the materialized table */
+  double rows;
+
+  /* Cost to materialize - run the sub-join and write rows into temp.table */
+  COST_VECT materialization_cost;
+
+  /* Cost to make one lookup in the temptable */
+  COST_VECT lookup_cost;
+  
+  COST_VECT scan_cost;
+  /* Execution structures */
+  TMP_TABLE_PARAM sjm_table_param;
+  List<Item> sjm_table_cols;
+  TABLE *table;
+
+  /* The thing to do index lookups */
+  struct st_table_ref *tab_ref;
+  bool materialized;
+  Item *in_equality;
+
+  bool is_used;
+  bool is_sj_scan;
+  Item *join_cond;
+  Copy_field *copy_field;
+};
+
+
 /* Structs used when sorting */
 
 typedef struct st_sort_field {

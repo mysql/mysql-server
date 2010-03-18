@@ -1099,6 +1099,69 @@ typedef struct st_handler_buffer
 
 typedef struct system_status_var SSV;
 
+class COST_VECT
+{ 
+public:
+  double io_count;     /* number of I/O                 */
+  double avg_io_cost;  /* cost of an average I/O oper.  */
+  double cpu_cost;     /* cost of operations in CPU     */
+  double mem_cost;     /* cost of used memory           */ 
+  double import_cost;  /* cost of remote operations     */
+  
+  enum { IO_COEFF=1 };
+  enum { CPU_COEFF=1 };
+  enum { MEM_COEFF=1 };
+  enum { IMPORT_COEFF=1 };
+
+  COST_VECT() {}                              // keep gcc happy
+
+  double total_cost() 
+  {
+    return IO_COEFF*io_count*avg_io_cost + CPU_COEFF * cpu_cost +
+           MEM_COEFF*mem_cost + IMPORT_COEFF*import_cost;
+  }
+
+  void zero()
+  {
+    avg_io_cost= 1.0;
+    io_count= cpu_cost= mem_cost= import_cost= 0.0;
+  }
+
+  void multiply(double m)
+  {
+    io_count *= m;
+    cpu_cost *= m;
+    import_cost *= m;
+    /* Don't multiply mem_cost */
+  }
+
+  void add(const COST_VECT* cost)
+  {
+    double io_count_sum= io_count + cost->io_count;
+    add_io(cost->io_count, cost->avg_io_cost);
+    io_count= io_count_sum;
+    cpu_cost += cost->cpu_cost;
+  }
+  void add_io(double add_io_cnt, double add_avg_cost)
+  {
+    double io_count_sum= io_count + add_io_cnt;
+    avg_io_cost= (io_count * avg_io_cost + 
+                  add_io_cnt * add_avg_cost) / io_count_sum;
+    io_count= io_count_sum;
+  }
+
+  /*
+    To be used when we go from old single value-based cost calculations to
+    the new COST_VECT-based.
+  */
+  void set_double(double cost)
+  {
+    zero();
+    avg_io_cost= 1.0;
+    io_count= cost;
+  }
+};
+
 class ha_statistics
 {
 public:
@@ -2089,6 +2152,8 @@ private:
   { return HA_ERR_WRONG_COMMAND; }
 };
 
+
+bool key_uses_partial_cols(TABLE *table, uint keyno);
 
 	/* Some extern variables used with handlers */
 
