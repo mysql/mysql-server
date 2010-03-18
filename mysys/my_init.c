@@ -93,10 +93,6 @@ my_bool my_basic_init(void)
     my_umask_dir= (int) (atoi_octal(str) | 0700);
 #endif
 
-  /* $HOME is needed early to parse configuration files located in ~/ */
-  if ((home_dir= getenv("HOME")) != 0)
-    home_dir= intern_filename(home_dir_buff, home_dir);
-
   init_glob_errs();
 
   instrumented_stdin.m_file= stdin;
@@ -121,6 +117,10 @@ my_bool my_basic_init(void)
   if (my_thread_basic_global_init())
     return 1;
 #endif
+
+  /* $HOME is needed early to parse configuration files located in ~/ */
+  if ((home_dir= getenv("HOME")) != 0)
+    home_dir= intern_filename(home_dir_buff, home_dir);
 
   return 0;
 }
