@@ -284,11 +284,6 @@ int main(int argc, char** argv){
                   "information_schema.engines WHERE engine='NDBINFO' "
                   "AND support IN ('YES', 'DEFAULT');\n\n");
 
-  printf("# Only create objects if version >= 7.1\n");
-  sql.assfmt("SELECT @have_ndbinfo:="
-             " (@@ndbinfo_version >= (7 << 16) | (1 << 8)) || @ndbinfo_skip_version_check");
-  print_conditional_sql(sql);
-
   printf("# Only create objects if ndbinfo namespace is free\n");
   sql.assfmt("SET @@ndbinfo_show_hidden=TRUE");
   print_conditional_sql(sql);

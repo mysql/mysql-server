@@ -13,7 +13,6 @@ CREATE TEMPORARY TABLE `t1` (
 ) ENGINE=NDBINFO;
 ERROR HY000: Table storage engine 'ndbinfo' does not support the create option 'TEMPORARY'
 
-
 USE ndbinfo;
 
 SHOW CREATE TABLE ndb$tables;
