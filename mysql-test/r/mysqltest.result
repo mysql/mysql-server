@@ -447,7 +447,6 @@ OK
 mysqltest: The test didn't produce any output
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 3: connection 'test_con1' not found in connection pool
 mysqltest: In included file "MYSQLTEST_VARDIR/tmp/mysqltest.sql": At line 2: Connection test_con1 already exists
-connect(localhost,root,,test,MASTER_PORT,MASTER_SOCKET);
 show tables;
 ERROR 3D000: No database selected
 Output from mysqltest-x.inc
