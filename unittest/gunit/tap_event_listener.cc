@@ -84,12 +84,8 @@ static std::string format_string(const char* fmt, ...)
   va_end(args);
 
   if (size < 0 || size >= buffer_size)
-  {
     return std::string("<formatting error or buffer exceeded>");
-  } else {
-    return std::string(buffer, size);
-  }
-
+  return std::string(buffer, size);
 }
 
 
@@ -133,7 +129,8 @@ static std::string format_testcase_count(int test_case_count)
 */
 static std::string test_part_result_type_tostring(TestPartResult::Type type)
 {
-  switch (type) {
+  switch (type)
+  {
   case TestPartResult::kSuccess:
     return "Success";
 
@@ -194,7 +191,8 @@ void TapEventListener::OnEnvironmentsSetUpStart(const UnitTest& unit_test)
 }
 
 
-void TapEventListener::OnTestCaseStart(const TestCase& test_case) {
+void TapEventListener::OnTestCaseStart(const TestCase& test_case)
+{
   m_test_case_name = test_case.name();
 }
 
@@ -214,7 +212,8 @@ void TapEventListener::OnTestPartResult(const TestPartResult& test_part_result)
     return;
   std::string error_message= test_part_result_tostring(test_part_result);
   size_t pos = 0;
-  while((pos = error_message.find("\n", pos)) != std::string::npos) {
+  while((pos = error_message.find("\n", pos)) != std::string::npos)
+  {
     error_message.replace(pos, 1, "\n# ");
     pos += 1;
   }
@@ -224,11 +223,10 @@ void TapEventListener::OnTestPartResult(const TestPartResult& test_part_result)
 
 void TapEventListener::OnTestEnd(const TestInfo& test_info)
 {
-  if (test_info.result()->Passed()) {
+  if (test_info.result()->Passed())
     printf("ok %d\n", m_test_number);
-  } else {
+  else
     printf("not ok %d\n", m_test_number);
-  }
   fflush(stdout);
 }
 
@@ -254,14 +252,16 @@ void TapEventListener::OnTestIterationEnd(const UnitTest& unit_test,
     format_test_count(unit_test.successful_test_count());
   tap_diagnostic_printf("Passed: %s.\n", num_successful_tests.c_str());
 
-  if (!unit_test.Passed()) {
+  if (!unit_test.Passed())
+  {
     const int num_failures = unit_test.failed_test_count();
     tap_diagnostic_printf("Failed: %s.\n",
                           format_test_count(num_failures).c_str());
   }
   
   const int num_disabled = unit_test.disabled_test_count();
-  if (num_disabled && !testing::GTEST_FLAG(also_run_disabled_tests)) {
+  if (num_disabled && !testing::GTEST_FLAG(also_run_disabled_tests))
+  {
     tap_diagnostic_printf("YOU HAVE %d disabled %s\n",
                           num_disabled,
                           num_disabled == 1 ? "TEST" : "TESTS");
