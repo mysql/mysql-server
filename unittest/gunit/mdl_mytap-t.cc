@@ -636,7 +636,7 @@ TEST_F(MDL_test, concurrent_shared)
   Notification lock_grabbed;
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks);
-  mdl_thread.start(Thread::Options());
+  mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
   MDL_request request;
@@ -661,7 +661,7 @@ TEST_F(MDL_test, concurrent_shared_exclusive)
   Notification lock_grabbed;
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks);
-  mdl_thread.start(Thread::Options());
+  mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
   MDL_request request;
@@ -692,7 +692,7 @@ TEST_F(MDL_test, concurrent_exclusive_shared)
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_EXCLUSIVE,
                         &lock_grabbed, &release_locks);
-  mdl_thread.start(Thread::Options());
+  mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
   MDL_request request;
@@ -734,7 +734,7 @@ TEST_F(MDL_test, concurrent_upgrade)
   Notification lock_grabbed;
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks);
-  mdl_thread.start(Thread::Options());
+  mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
   EXPECT_FALSE(request.ticket->upgrade_shared_lock_to_exclusive());

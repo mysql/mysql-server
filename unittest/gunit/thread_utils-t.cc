@@ -95,7 +95,7 @@ TEST(Notification_thread, start_and_wait)
   int counter= counter_start_value;
   Notification_thread
     notification_thread(&start_notification, &end_notfication, &counter);
-  notification_thread.start(Thread::Options());
+  notification_thread.start();
 
   // Wait for the other thread to increment counter, and notify us.
   start_notification.wait_for_notification();

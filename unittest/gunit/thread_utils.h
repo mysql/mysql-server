@@ -31,23 +31,11 @@ public:
   Thread() : m_thread_id(0) {}
   virtual ~Thread();
 
-  // Options for starting the thread.
-  struct Options
-  {
-    Options() : m_detached(false) {}
-
-    void set_datched(bool val) { m_detached= val; }
-    bool detached() const { return m_detached; }
-
-  private:
-    bool   m_detached;
-  };
-
   /*
     Will create a new pthread, and invoke run();
     Returns the value from pthread_create().
   */
-  int start(const Options &options);
+  int start();
 
   /*
     You may invoke this to wait for the thread to finish.
@@ -75,7 +63,6 @@ protected:
 
 private:
   pthread_t m_thread_id;
-  Options   m_options;
 
   Thread(const Thread&);                        /* Not copyable. */
   void operator=(const Thread&);                /* Not assignable. */

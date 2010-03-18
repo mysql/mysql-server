@@ -31,23 +31,14 @@ Thread::~Thread()
 }
 
 
-int Thread::start(const Options &options)
+int Thread::start()
 {
-  m_options = options;
-  pthread_attr_t attr;
-  pthread_attr_init(&attr);
-  if (options.detached())
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-  const int error=
-    pthread_create(&m_thread_id, &attr, thread_start_routine, this);
-  pthread_attr_destroy(&attr);
-  return error;                            
+  return pthread_create(&m_thread_id, NULL, thread_start_routine, this);
 }
 
 
 void Thread::join()
 {
-  DBUG_ASSERT(!m_options.detached());
   int failed= pthread_join(m_thread_id, NULL);
   DBUG_ASSERT(!failed);
 }
