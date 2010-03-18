@@ -16,6 +16,7 @@
 #include <gtest/gtest.h>
 #include <stdarg.h>
 #include <string>
+#include <sstream>
 
 using testing::TestEventListeners;
 using testing::TestCase;
@@ -58,55 +59,59 @@ private:
 
 
 /**
-   Prints arguments to stdout using vprintf, but prefixes with "# ".
-*/
-static void tap_diagnostic_printf(const char* fmt, ...)
-{
-  va_list args;
-  va_start(args, fmt);
-  printf("# ");
-  vprintf(fmt, args);
-  va_end(args);
-}
-
-
-/**
-   Formats a list of arguments to a string, using the same format
-   spec as for printf.
+   Prints argument to stdout, prefixing all lines with "# ".
  */
-static std::string format_string(const char* fmt, ...)
+static void tap_diagnostic_printf(const std::stringstream &str_stream)
 {
-  va_list args;
-  va_start(args, fmt);
-  char buffer[4096];
-  const int buffer_size = sizeof(buffer)/sizeof(buffer[0]);
-  const int size = vsnprintf(buffer, buffer_size, fmt, args);
-  va_end(args);
+  std::string message= str_stream.str();
+  size_t pos = 0;
+  while((pos = message.find("\n", pos)) != std::string::npos)
+  {
+    message.replace(pos, 1, "\n# ");
+    pos += 1;
+  }
+  printf("# %s\n", message.c_str());
+  fflush(stdout);
+}
 
-  if (size < 0 || size >= buffer_size)
-    return std::string("<formatting error or buffer exceeded>");
-  return std::string(buffer, size);
+// Convenience wrapper function.
+static void tap_diagnostic_printf(const std::string &txt)
+{
+  tap_diagnostic_printf(std::stringstream(txt));
+}
+
+// Convenience wrapper function.
+static void tap_diagnostic_printf(const char *txt)
+{
+  tap_diagnostic_printf(std::stringstream(txt));
 }
 
 
-/**
-   Formats the count of tests.
- */
-static std::string format_test_count(int test_count)
+namespace {
+// Helper struct to simplify output of "1 test" or "n tests".
+struct num_tests
 {
-  return format_string("%d %s", test_count, test_count == 1 ? "test" : "tests");
+  num_tests(int num) : m_num(num) {}
+  int m_num;
+};
+
+std::ostream &operator<< (std::ostream &s, const num_tests &num)
+{
+  return s << num.m_num << (num.m_num == 1 ? " test" : " tests");
 }
 
-
-/**
-   Formats the count of test cases.
-*/
-static std::string format_testcase_count(int test_case_count)
+// Helper struct to simplify output of "1 test case" or "n test cases".
+struct num_test_cases
 {
-  return
-    format_string("%d %s", test_case_count,
-                  test_case_count == 1 ? "test case" : "test cases");
+  num_test_cases(int num) : m_num(num) {}
+  int m_num;
+};
+
+std::ostream &operator<< (std::ostream &s, const num_test_cases &num)
+{
+  return s << num.m_num << (num.m_num == 1 ? " test case" : " test cases");
 }
+} // namespace
 
 
 /**
@@ -124,6 +129,7 @@ static std::string test_part_result_type_tostring(TestPartResult::Type type)
   case TestPartResult::kFatalFailure:
     return "Failure";
   }
+  return "";
 }
 
 
@@ -136,9 +142,11 @@ static std::string format_file_location(const TestPartResult &test_part_result)
   const char* const file= test_part_result.file_name();
   const char* const file_name = file == NULL ? "unknown file" : file;
   const int line= test_part_result.line_number();
-  if (line < 0)
-    return format_string("%s:", file_name);
-  return format_string("%s:%d:", file_name, line);
+  std::stringstream str_stream;
+  str_stream << file_name << ":";
+  if (line >= 0)
+    str_stream << line << ":";
+  return str_stream.str();
 }
 
 
@@ -158,13 +166,10 @@ static std::string test_part_result_tostring(const TestPartResult
 void TapEventListener::OnTestIterationStart(const UnitTest& unit_test,
                                             int iteration)
 {
-  const std::string num_tests=
-    format_test_count(unit_test.test_to_run_count());
-  const std::string num_test_cases=
-    format_testcase_count(unit_test.test_case_to_run_count());
-  tap_diagnostic_printf("Running %s from %s.\n",
-                        num_tests.c_str(),
-                        num_test_cases.c_str());
+  std::stringstream str_stream;
+  str_stream << "Running " << num_tests(unit_test.test_to_run_count())
+             << " from " << num_test_cases(unit_test.test_case_to_run_count());
+  tap_diagnostic_printf(str_stream);
   printf("%d..%d\n", 1, unit_test.test_to_run_count());
   fflush(stdout);
 }
@@ -172,8 +177,7 @@ void TapEventListener::OnTestIterationStart(const UnitTest& unit_test,
 
 void TapEventListener::OnEnvironmentsSetUpStart(const UnitTest& unit_test)
 {
-  tap_diagnostic_printf("Global test environment set-up.\n");
-  fflush(stdout);
+  tap_diagnostic_printf("Global test environment set-up");
 }
 
 
@@ -186,9 +190,10 @@ void TapEventListener::OnTestCaseStart(const TestCase& test_case)
 void TapEventListener::OnTestStart(const TestInfo& test_info)
 {
   ++m_test_number;
-  tap_diagnostic_printf("Run %d %s.%s\n", m_test_number, 
-                        m_test_case_name.c_str(), test_info.name());
-  fflush(stdout);
+  std::stringstream str_stream;
+  str_stream << "Run " << m_test_number << " "
+             << m_test_case_name << "." << test_info.name();
+  tap_diagnostic_printf(str_stream);
 }
 
 
@@ -196,14 +201,7 @@ void TapEventListener::OnTestPartResult(const TestPartResult& test_part_result)
 {
   if (test_part_result.passed())
     return;
-  std::string error_message= test_part_result_tostring(test_part_result);
-  size_t pos = 0;
-  while((pos = error_message.find("\n", pos)) != std::string::npos)
-  {
-    error_message.replace(pos, 1, "\n# ");
-    pos += 1;
-  }
-  tap_diagnostic_printf("%s\n", error_message.c_str());
+  tap_diagnostic_printf(test_part_result_tostring(test_part_result));
 }
 
 
@@ -219,40 +217,30 @@ void TapEventListener::OnTestEnd(const TestInfo& test_info)
 
 void TapEventListener::OnEnvironmentsTearDownStart(const UnitTest& unit_test)
 {
-  tap_diagnostic_printf("Global test environment tear-down\n");
-  fflush(stdout);
+  tap_diagnostic_printf("Global test environment tear-down");
 }
 
 
 void TapEventListener::OnTestIterationEnd(const UnitTest& unit_test,
                                           int iteration)
 {
-  const std::string num_tests=
-    format_test_count(unit_test.test_to_run_count());
-  const std::string num_test_cases=
-    format_testcase_count(unit_test.test_case_to_run_count());
-  tap_diagnostic_printf("Ran %s from %s.\n",
-                        num_tests.c_str(),
-                        num_test_cases.c_str());
-  const std::string num_successful_tests=
-    format_test_count(unit_test.successful_test_count());
-  tap_diagnostic_printf("Passed: %s.\n", num_successful_tests.c_str());
+  std::stringstream str_stream;
+  str_stream << "Ran " << num_tests(unit_test.test_to_run_count())
+             << " from " << num_test_cases(unit_test.test_case_to_run_count())
+             << "\n"
+             << "Passed " << num_tests(unit_test.successful_test_count());
 
   if (!unit_test.Passed())
-  {
-    const std::string num_failures=
-      format_test_count(unit_test.failed_test_count());
-    tap_diagnostic_printf("Failed: %s.\n", num_failures.c_str());
-  }
-  
+    str_stream << "\n"
+               << "Failed " << num_tests(unit_test.failed_test_count());
+
   const int num_disabled = unit_test.disabled_test_count();
   if (num_disabled && !testing::GTEST_FLAG(also_run_disabled_tests))
-  {
-    tap_diagnostic_printf("YOU HAVE %d disabled %s\n",
-                          num_disabled,
-                          num_disabled == 1 ? "TEST" : "TESTS");
-  }
-  fflush(stdout);
+    str_stream << "\n"
+               << "YOU HAVE " << num_disabled << " DISABLED "
+               << (num_disabled == 1 ? "TEST" : "TESTS");
+
+  tap_diagnostic_printf(str_stream);
 }
 
 
