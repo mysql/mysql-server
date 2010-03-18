@@ -28,7 +28,7 @@
 #include "mdl.h"
 
 #include "thr_malloc.h"
-#include "thread.h"
+#include "thread_utils.h"
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
@@ -232,7 +232,7 @@ TEST_F(MDL_DeathTest, die_when_m_tickets_nonempty)
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   MDL_request *request= create_request(table_name1);
   EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request));
-#if !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
   EXPECT_DEATH(m_mdl_context.destroy(), ".*Assertion .*m_tickets.is_empty.*");
 #endif
   m_mdl_context.release_all_locks();
@@ -247,7 +247,7 @@ TEST_F(MDL_DeathTest, die_when_holding_global_shared_lock)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_FALSE(m_mdl_context.acquire_global_shared_lock());
-#if !defined(DBUG_OFF)
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
   EXPECT_DEATH(m_mdl_context.destroy(),
                ".*Assertion .*has_global_shared_lock.*");
 #endif
@@ -445,15 +445,9 @@ TEST_F(MDL_test, upgrade_exclusive)
 
 
 /*
-  Disable this test, since assert-fails in mdl_destroy().
-  (gdb) p global_lock
-  $1 = {waiting_shared = 0,
-        active_shared = 0,
-        active_intention_exclusive = 4294967295}
-  The upgrade from SHARED to EXCLUSIVE should fail, but it does not,
-  and something is wrong with the maintenance of active_intention_exclusive.
+  Verifies that only UPGRADABLE locks can be upgraded to exclusive.
  */
-TEST_F(MDL_test, DISABLED_upgrade_shared)
+TEST_F(MDL_DeathTest, die_upgrade_shared)
 {
   MDL_request *request1= create_request(table_name1);
   MDL_request *request2= create_request(table_name2);
@@ -462,7 +456,11 @@ TEST_F(MDL_test, DISABLED_upgrade_shared)
   EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request1));
   EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request2));
 
-  EXPECT_FALSE(request1->ticket->upgrade_shared_lock_to_exclusive());
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  EXPECT_DEATH_IF_SUPPORTED(request1->ticket->upgrade_shared_lock_to_exclusive(),
+                            ".*MDL_SHARED_UPGRADABLE.*");
+#endif
   EXPECT_FALSE(request2->ticket->upgrade_shared_lock_to_exclusive());
   m_mdl_context.release_lock(request1->ticket);
   m_mdl_context.release_lock(request2->ticket);

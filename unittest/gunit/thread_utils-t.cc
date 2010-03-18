@@ -16,7 +16,7 @@
 // Must include gtest first, since MySQL source has macros for min() etc ....
 #include <gtest/gtest.h>
 
-#include "thread.h"
+#include "thread_utils.h"
 
 #include "mdl.h"
 
