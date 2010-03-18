@@ -150,8 +150,15 @@ TARGET_LINK_LIBRARIES(gunit mysys mytap dbug strings ${GTEST_LIBRARIES})
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER) 
 
+# Remove -fno-implicit-templates, gunit sources cannot be compiled with it.
+IF(CMAKE_CXX_FLAGS)
+  STRING(REPLACE "-fno-implicit-templates" ""
+    CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+ENDIF()
+
 # Add tests (link them with sql library) 
 # SET(TESTS sql_list-t mdl-t mdl_mytap-t thread_utils-t)
+SET(TESTS sql_list-t thread_utils-t)
 FOREACH(test ${TESTS})
   SET(src ${test}.cc)
   ADD_EXECUTABLE(${test} ${src})
