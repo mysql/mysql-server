@@ -1,5 +1,12 @@
 2010-03-18	The InnoDB Team
 
+	* CMakeLists.txt:
+	Fix Bug #52102 InnoDB Plugin shows performance drop comparing to
+	builtin InnoDB (Windows only).
+	Disable Windows atomics by default.
+
+2010-03-18	The InnoDB Team
+
 	* buf0buf.ic:
 	When comparing the time of the first access to a block against
 	innodb_old_blocks_time, use 32-bit arithmetics.  The comparison
