@@ -4226,8 +4226,8 @@ CREATE INDEX I1 ON t1 (a);
 CREATE INDEX I2 ON t1 (b);
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	I1	I1	2	NULL	2	Using index; Materialize; Scan
-1	PRIMARY	t1	ALL	I2	NULL	NULL	NULL	2	Using where; Using join buffer
+1	PRIMARY	t1	index	I1	I1	2	NULL	2	Using index; LooseScan
+1	PRIMARY	t1	ref	I2	I2	13	test.t1.a	2	Using index condition
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 a	b
 CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10));
@@ -4236,15 +4236,15 @@ CREATE INDEX I1 ON t2 (a);
 CREATE INDEX I2 ON t2 (b);
 EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	index	I1	I1	4	NULL	2	Using index; Materialize; Scan
-1	PRIMARY	t2	ALL	I2	NULL	NULL	NULL	2	Using where; Using join buffer
+1	PRIMARY	t2	index	I1	I1	4	NULL	2	Using index; LooseScan
+1	PRIMARY	t2	ref	I2	I2	13	test.t2.a	2	Using index condition
 SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 a	b
 EXPLAIN
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	I1	I1	2	NULL	2	Using where; Using index; Materialize; Scan
-1	PRIMARY	t1	ALL	I2	NULL	NULL	NULL	2	Using where; Using join buffer
+1	PRIMARY	t1	index	I1	I1	2	NULL	2	Using where; Using index; LooseScan
+1	PRIMARY	t1	ref	I2	I2	13	test.t1.a	2	Using index condition
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 a	b
 DROP TABLE t1,t2;

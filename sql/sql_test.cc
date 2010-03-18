@@ -374,16 +374,16 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 
 
 #ifndef DBUG_OFF
-void print_sjm(SJ_MATERIALIZE_INFO *sjm)
+void print_sjm(SJ_MATERIALIZATION_INFO *sjm)
 {
   DBUG_LOCK_FILE;
   fprintf(DBUG_FILE, "\nsemi-join nest{\n");
   fprintf(DBUG_FILE, "  tables { \n");
-  for (uint i= 0;i < sjm->n_tables; i++)
+  for (uint i= 0;i < sjm->tables; i++)
   {
     fprintf(DBUG_FILE, "    %s%s\n", 
             sjm->positions[i].table->table->alias,
-            (i == sjm->n_tables -1)? "": ",");
+            (i == sjm->tables -1)? "": ",");
   }
   fprintf(DBUG_FILE, "  }\n");
   fprintf(DBUG_FILE, "  materialize_cost= %g\n",

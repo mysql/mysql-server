@@ -1009,6 +1009,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     Check that the right part of the subselect contains no more than one
     column. E.g. in SELECT 1 IN (SELECT * ..) the right part is (SELECT * ...)
   */
+  // psergey: duplicated_subselect_card_check
   if (select_lex->item_list.elements > 1)
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
@@ -1370,6 +1371,7 @@ Item_in_subselect::row_value_transformer(JOIN *join)
 
   DBUG_ENTER("Item_in_subselect::row_value_transformer");
 
+  // psergey: duplicated_subselect_card_check
   if (select_lex->item_list.elements != left_expr->cols())
   {
     my_error(ER_OPERAND_COLUMNS, MYF(0), left_expr->cols());
@@ -1704,6 +1706,8 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     In some optimisation cases we will not need this Item_in_optimizer
     object, but we can't know it here, but here we need address correct
     reference on left expresion.
+
+    //psergey: he means confluent cases like "... IN (SELECT 1)"
   */
   if (!optimizer)
   {
@@ -2228,11 +2232,6 @@ int subselect_single_select_engine::exec()
     SELECT_LEX_UNIT *unit= select_lex->master_unit();
 
     unit->set_limit(unit->global_parameters);
-    if (join->flatten_subqueries())
-    {
-      thd->is_fatal_error= TRUE;
-      DBUG_RETURN(1);
-    }
     if (join->optimize())
     {
       thd->where= save_where;
@@ -3209,8 +3208,7 @@ int subselect_hash_sj_engine::exec()
     int res= 0;
     SELECT_LEX *save_select= thd->lex->current_select;
     thd->lex->current_select= materialize_engine->select_lex;
-    if ((res= materialize_join->flatten_subqueries()) || 
-        (res= materialize_join->optimize()))
+    if ((res= materialize_join->optimize()))
       goto err;
     materialize_join->exec();
     if ((res= test(materialize_join->error || thd->is_fatal_error)))

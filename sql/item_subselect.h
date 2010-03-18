@@ -39,10 +39,21 @@ class Item_subselect :public Item_result_field
 public:
   /* thread handler, will be assigned in fix_fields only */
   THD *thd;
-  /* substitution instead of subselect in case of optimization */
+  /* 
+    Used inside Item_subselect::fix_fields() according to this scenario:
+      > Item_subselect::fix_fields
+        > engine->prepare
+          > child_join->prepare
+            (Here we realize we need to do the rewrite and set
+             substitution= some new Item, eg. Item_in_optimizer )
+          < child_join->prepare
+        < engine->prepare
+        *ref= substitution;
+      < Item_subselect::fix_fields
+  */
   Item *substitution;
-  /* unit of subquery */
 public:
+  /* unit of subquery */
   st_select_lex_unit *unit;
 protected:
   /* engine that perform execution of subselect (single select or union) */
