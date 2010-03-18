@@ -119,7 +119,6 @@ protected:
   void SetUp()
   {
     mdl_init();
-    init_sql_alloc(&m_mem_root, 1024, 0);
     m_mdl_context.init(m_thd);
     EXPECT_FALSE(m_mdl_context.has_locks());
   }
@@ -128,27 +127,16 @@ protected:
   {
     m_mdl_context.destroy();
     mdl_destroy();
-    free_root(&m_mem_root, MYF(0));
   }
 
   // A utility member for testing single lock requests.
   void test_one_simple_shared_lock(enum_mdl_type lock_type);
 
-  /*
-    Returns a MEM_ROOT-allocated request object
-    (which cannot be destroyed in the normal C++ fashion).
-  */
-  MDL_request *create_request(const char *table_name)
-  {
-    return MDL_request::create(MDL_key::TABLE,
-                               db_name, table_name, MDL_SHARED, &m_mem_root);
-  }
-
   THD               *m_thd;
   const MDL_ticket  *m_null_ticket;
   const MDL_request *m_null_request;
-  MEM_ROOT           m_mem_root;
   MDL_context        m_mdl_context;
+  MDL_request        m_request;
 private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MDL_test);
 };
@@ -245,8 +233,9 @@ static bool is_lock_owner(MDL_context *context, MDL_request *request)
 TEST_F(MDL_DeathTest, die_when_m_tickets_nonempty)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  MDL_request *request= create_request(table_name1);
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request));
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED);
+
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&m_request));
   EXPECT_DEATH(m_mdl_context.destroy(), ".*Assertion .*m_tickets.is_empty.*");
   m_mdl_context.release_all_locks();
 }
@@ -277,19 +266,35 @@ TEST_F(MDL_test, construct_and_destruct)
 }
 
 
-void MDL_test::test_one_simple_shared_lock(enum_mdl_type lock_type)
+/*
+  Verifies that we can create requests with the factory function
+  MDL_request::create().
+ */
+TEST_F(MDL_test, factory_function)
 {
-  MDL_request *request= create_request(table_name1);
+  MEM_ROOT mem_root;
+  init_sql_alloc(&mem_root, 1024, 0);
+  // This request should not be destroyed in the normal C++ fashion.
+  MDL_request *request=
+    MDL_request::create(MDL_key::TABLE,
+                        db_name, table_name1, MDL_SHARED, &mem_root);
   ASSERT_NE(m_null_request, request);
-  // Verifies that shared is the default.
-  if (MDL_SHARED != lock_type)
-    request->set_type(lock_type);
-  EXPECT_EQ(lock_type, request->type);
   EXPECT_TRUE(request->is_shared());
   EXPECT_EQ(m_null_ticket, request->ticket);
+  free_root(&mem_root, MYF(0));
+}
 
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request));
-  EXPECT_NE(m_null_ticket, request->ticket);
+
+void MDL_test::test_one_simple_shared_lock(enum_mdl_type lock_type)
+{
+  m_request.init(MDL_key::TABLE, db_name, table_name1, lock_type);
+
+  EXPECT_EQ(lock_type, m_request.type);
+  EXPECT_TRUE(m_request.is_shared());
+  EXPECT_EQ(m_null_ticket, m_request.ticket);
+
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&m_request));
+  EXPECT_NE(m_null_ticket, m_request.ticket);
   EXPECT_TRUE(m_mdl_context.has_locks());
   EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name1));
   EXPECT_FALSE(m_mdl_context.is_exclusive_lock_owner(MDL_key::TABLE,
@@ -332,14 +337,12 @@ TEST_F(MDL_test, one_shared_upgradable)
  */
 TEST_F(MDL_test, one_exclusive)
 {
-  MDL_request *request= create_request(table_name1);
-  ASSERT_NE(m_null_request, request);
-  request->set_type(MDL_EXCLUSIVE);
-  EXPECT_FALSE(request->is_shared());
-  EXPECT_EQ(m_null_ticket, request->ticket);
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE);
+  EXPECT_FALSE(m_request.is_shared());
+  EXPECT_EQ(m_null_ticket, m_request.ticket);
 
-  EXPECT_FALSE(m_mdl_context.acquire_exclusive_lock(request));
-  EXPECT_NE(m_null_ticket, request->ticket);
+  EXPECT_FALSE(m_mdl_context.acquire_exclusive_lock(&m_request));
+  EXPECT_NE(m_null_ticket, m_request.ticket);
   EXPECT_TRUE(m_mdl_context.has_locks());
   EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name1));
   EXPECT_TRUE(m_mdl_context.is_exclusive_lock_owner(MDL_key::TABLE,
@@ -356,16 +359,17 @@ TEST_F(MDL_test, one_exclusive)
  */
 TEST_F(MDL_test, two_shared)
 {
-  MDL_request *request1= create_request(table_name1);
-  MDL_request *request2= create_request(table_name2);
+  MDL_request request_2;
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED);
+  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED);
 
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request1));
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request2));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&m_request));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&request_2));
   EXPECT_TRUE(m_mdl_context.has_locks());
-  ASSERT_NE(m_null_ticket, request1->ticket);
-  ASSERT_NE(m_null_ticket, request2->ticket);
-  EXPECT_TRUE(request1->ticket->is_shared());
-  EXPECT_TRUE(request2->ticket->is_shared());
+  ASSERT_NE(m_null_ticket, m_request.ticket);
+  ASSERT_NE(m_null_ticket, request_2.ticket);
+  EXPECT_TRUE(m_request.ticket->is_shared());
+  EXPECT_TRUE(request_2.ticket->is_shared());
 
   EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name1));
   EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name2));
@@ -374,12 +378,12 @@ TEST_F(MDL_test, two_shared)
   EXPECT_FALSE(m_mdl_context.is_exclusive_lock_owner(MDL_key::TABLE,
                                                      db_name, table_name1));
 
-  m_mdl_context.release_lock(request1->ticket);
+  m_mdl_context.release_lock(m_request.ticket);
   EXPECT_FALSE(m_mdl_context.is_lock_owner(MDL_key::TABLE,
                                            db_name, table_name1));
   EXPECT_TRUE(m_mdl_context.has_locks());
 
-  m_mdl_context.release_lock(request2->ticket);
+  m_mdl_context.release_lock(request_2.ticket);
   EXPECT_FALSE(m_mdl_context.is_lock_owner(MDL_key::TABLE,
                                            db_name, table_name2));
   EXPECT_FALSE(m_mdl_context.has_locks());
@@ -395,11 +399,12 @@ TEST_F(MDL_test, shared_locks_between_contexts)
   THD         *thd2= (THD*) this;
   MDL_context  mdl_context2;
   mdl_context2.init(thd2);
-  MDL_request *request1= create_request(table_name1);
-  MDL_request *request2= create_request(table_name1);
+  MDL_request request_2;
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED);
+  request_2.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED);
   
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request1));
-  EXPECT_FALSE(mdl_context2.try_acquire_shared_lock(request2));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&m_request));
+  EXPECT_FALSE(mdl_context2.try_acquire_shared_lock(&request_2));
 
   EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name1));
   EXPECT_TRUE(mdl_context2.is_lock_owner(MDL_key::TABLE, db_name, table_name1));
@@ -414,11 +419,10 @@ TEST_F(MDL_test, shared_locks_between_contexts)
  */
 TEST_F(MDL_test, upgrade_shared_upgradable)
 {
-  MDL_request *request= create_request(table_name1);
-  request->set_type(MDL_SHARED_UPGRADABLE);
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request));
-  EXPECT_FALSE(request->ticket->upgrade_shared_lock_to_exclusive());
-  m_mdl_context.release_lock(request->ticket);
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED_UPGRADABLE);
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&m_request));
+  EXPECT_FALSE(m_request.ticket->upgrade_shared_lock_to_exclusive());
+  m_mdl_context.release_lock(m_request.ticket);
 }
 
 
@@ -428,14 +432,13 @@ TEST_F(MDL_test, upgrade_shared_upgradable)
  */
 TEST_F(MDL_test, upgrade_exclusive)
 {
-  MDL_request *request= create_request(table_name1);
-  request->set_type(MDL_EXCLUSIVE);
-  EXPECT_FALSE(m_mdl_context.try_acquire_exclusive_lock(request));
-  EXPECT_NE(m_null_ticket, request->ticket);
-  EXPECT_FALSE(request->ticket->is_shared());
-  EXPECT_FALSE(request->ticket->upgrade_shared_lock_to_exclusive());
-  EXPECT_FALSE(request->ticket->is_shared());
-  m_mdl_context.release_lock(request->ticket);
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE);
+  EXPECT_FALSE(m_mdl_context.try_acquire_exclusive_lock(&m_request));
+  EXPECT_NE(m_null_ticket, m_request.ticket);
+  EXPECT_FALSE(m_request.ticket->is_shared());
+  EXPECT_FALSE(m_request.ticket->upgrade_shared_lock_to_exclusive());
+  EXPECT_FALSE(m_request.ticket->is_shared());
+  m_mdl_context.release_lock(m_request.ticket);
 }
 
 
@@ -444,21 +447,21 @@ TEST_F(MDL_test, upgrade_exclusive)
  */
 TEST_F(MDL_DeathTest, die_upgrade_shared)
 {
-  MDL_request *request1= create_request(table_name1);
-  MDL_request *request2= create_request(table_name2);
-  request1->set_type(MDL_SHARED);
-  request2->set_type(MDL_SHARED_UPGRADABLE);
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request1));
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request2));
+  MDL_request request_2;
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED);
+  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED_UPGRADABLE);
+
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&m_request));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&request_2));
 
 #if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(request1->ticket->upgrade_shared_lock_to_exclusive(),
+  EXPECT_DEATH_IF_SUPPORTED(m_request.ticket->upgrade_shared_lock_to_exclusive(),
                             ".*MDL_SHARED_UPGRADABLE.*");
 #endif
-  EXPECT_FALSE(request2->ticket->upgrade_shared_lock_to_exclusive());
-  m_mdl_context.release_lock(request1->ticket);
-  m_mdl_context.release_lock(request2->ticket);
+  EXPECT_FALSE(request_2.ticket->upgrade_shared_lock_to_exclusive());
+  m_mdl_context.release_lock(m_request.ticket);
+  m_mdl_context.release_lock(request_2.ticket);
 }
 
 
@@ -468,33 +471,36 @@ TEST_F(MDL_DeathTest, die_upgrade_shared)
  */
 TEST_F(MDL_test, merge)
 {
-  MDL_request *request1= create_request(table_name1);
-  MDL_request *request2= create_request(table_name2);
-  MDL_request *request3= create_request(table_name3);
-  MDL_request *request4= create_request(table_name4);
+  MDL_request request_2;
+  MDL_request request_3;
+  MDL_request request_4;
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED);
+  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED);
+  request_3.init(MDL_key::TABLE, db_name, table_name3, MDL_SHARED);
+  request_4.init(MDL_key::TABLE, db_name, table_name4, MDL_SHARED);
 
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request1));
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request2));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&m_request));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&request_2));
   MDL_context  mdl_context2;
   mdl_context2.init(m_thd);
-  EXPECT_FALSE(mdl_context2.try_acquire_shared_lock(request3));
-  EXPECT_FALSE(mdl_context2.try_acquire_shared_lock(request4));
+  EXPECT_FALSE(mdl_context2.try_acquire_shared_lock(&request_3));
+  EXPECT_FALSE(mdl_context2.try_acquire_shared_lock(&request_4));
   EXPECT_TRUE(mdl_context2.has_locks());
 
-  EXPECT_TRUE(is_lock_owner(&m_mdl_context, request1));
-  EXPECT_TRUE(is_lock_owner(&m_mdl_context, request2));
-  EXPECT_TRUE(is_lock_owner(&mdl_context2, request3));
-  EXPECT_TRUE(is_lock_owner(&mdl_context2, request4));
+  EXPECT_TRUE(is_lock_owner(&m_mdl_context, &m_request));
+  EXPECT_TRUE(is_lock_owner(&m_mdl_context, &request_2));
+  EXPECT_TRUE(is_lock_owner(&mdl_context2, &request_3));
+  EXPECT_TRUE(is_lock_owner(&mdl_context2, &request_4));
 
   m_mdl_context.merge(&mdl_context2);
   EXPECT_FALSE(mdl_context2.has_locks());
-  EXPECT_FALSE(is_lock_owner(&mdl_context2, request3));
-  EXPECT_FALSE(is_lock_owner(&mdl_context2, request4));
+  EXPECT_FALSE(is_lock_owner(&mdl_context2, &request_3));
+  EXPECT_FALSE(is_lock_owner(&mdl_context2, &request_4));
 
-  EXPECT_TRUE(is_lock_owner(&m_mdl_context, request1));
-  EXPECT_TRUE(is_lock_owner(&m_mdl_context, request2));
-  EXPECT_TRUE(is_lock_owner(&m_mdl_context, request3));
-  EXPECT_TRUE(is_lock_owner(&m_mdl_context, request4));
+  EXPECT_TRUE(is_lock_owner(&m_mdl_context, &m_request));
+  EXPECT_TRUE(is_lock_owner(&m_mdl_context, &request_2));
+  EXPECT_TRUE(is_lock_owner(&m_mdl_context, &request_3));
+  EXPECT_TRUE(is_lock_owner(&m_mdl_context, &request_4));
 
   m_mdl_context.release_all_locks();
 }
@@ -505,16 +511,19 @@ TEST_F(MDL_test, merge)
  */
 TEST_F(MDL_test, savepoint)
 {
-  MDL_request *request1= create_request(table_name1);
-  MDL_request *request2= create_request(table_name2);
-  MDL_request *request3= create_request(table_name3);
-  MDL_request *request4= create_request(table_name4);
+  MDL_request request_2;
+  MDL_request request_3;
+  MDL_request request_4;
+  m_request.init(MDL_key::TABLE, db_name, table_name1, MDL_SHARED);
+  request_2.init(MDL_key::TABLE, db_name, table_name2, MDL_SHARED);
+  request_3.init(MDL_key::TABLE, db_name, table_name3, MDL_SHARED);
+  request_4.init(MDL_key::TABLE, db_name, table_name4, MDL_SHARED);
 
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request1));
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request2));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&m_request));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&request_2));
   MDL_ticket *savepoint= m_mdl_context.mdl_savepoint();
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request3));
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request4));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&request_3));
+  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&request_4));
 
   EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name1));
   EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name2));

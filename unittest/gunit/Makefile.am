@@ -20,6 +20,11 @@ AM_LDFLAGS  = -static
 DEFS        = -DMYSQL_SERVER @DEFS@
 
 # We need to allow implicit templates when compiling gtest.h
+# Setting foo_CXXFLAGS=-fimplicit-templates will not help,
+# since foo.o will be compiled with
+#   $(foo_CXXFLAGS) $(CXXFLAGSS)
+# which would expand to -fimplicit-templates .... -fno-implicit-templates
+# 
 # TODO(didrik): substitute this from configure.
 MYSQL_EXTRA_CXXFLAGS = -fimplicit-templates
 
