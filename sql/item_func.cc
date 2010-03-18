@@ -65,6 +65,14 @@ eval_const_cond(COND *cond)
 }
 
 
+/**
+   Test if the sum of arguments overflows the ulonglong range.
+*/
+static inline bool test_if_sum_overflows_ull(ulonglong arg1, ulonglong arg2)
+{
+  return ULONGLONG_MAX - arg1 < arg2;
+}
+
 void Item_func::set_arguments(List<Item> &list)
 {
   allowed_arg_cols= 1;
@@ -1091,16 +1099,68 @@ double Item_func_plus::real_op()
   double value= args[0]->val_real() + args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  return fix_result(value);
+  return check_float_overflow(value);
 }
 
 
 longlong Item_func_plus::int_op()
 {
-  longlong value=args[0]->val_int()+args[1]->val_int();
-  if ((null_value=args[0]->null_value || args[1]->null_value))
+  longlong val0= args[0]->val_int();
+  longlong val1= args[1]->val_int();
+  longlong res= val0 + val1;
+  bool     res_unsigned= FALSE;
+
+  if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0;
-  return value;
+
+  /*
+    First check whether the result can be represented as a
+    (bool unsigned_flag, longlong value) pair, then check if it is compatible
+    with this Item's unsigned_flag by calling check_integer_overflow().
+  */
+  if (args[0]->unsigned_flag)
+  {
+    if (args[1]->unsigned_flag || val1 >= 0)
+    {
+      if (test_if_sum_overflows_ull((ulonglong) val0, (ulonglong) val1))
+        goto err;
+      res_unsigned= TRUE;
+    }
+    else
+    {
+      /* val1 is negative */
+      if ((ulonglong) val0 > (ulonglong) LONGLONG_MAX)
+        res_unsigned= TRUE;
+    }
+  }
+  else
+  {
+    if (args[1]->unsigned_flag)
+    {
+      if (val0 >= 0)
+      {
+        if (test_if_sum_overflows_ull((ulonglong) val0, (ulonglong) val1))
+          goto err;
+        res_unsigned= TRUE;
+      }
+      else
+      {
+        if ((ulonglong) val1 > (ulonglong) LONGLONG_MAX)
+          res_unsigned= TRUE;
+      }
+    }
+    else
+    {
+      if (val0 >=0 && val1 >= 0)
+        res_unsigned= TRUE;
+      else if (val0 < 0 && val1 < 0 && res >= 0)
+        goto err;
+    }
+  }
+  return check_integer_overflow(res, res_unsigned);
+
+err:
+  return raise_integer_overflow();
 }
 
 
@@ -1124,8 +1184,10 @@ my_decimal *Item_func_plus::decimal_op(my_decimal *decimal_value)
     return 0;
   val2= args[1]->val_decimal(&value2);
   if (!(null_value= (args[1]->null_value ||
-                     (my_decimal_add(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                     val2) > 3))))
+                     check_decimal_overflow(my_decimal_add(E_DEC_FATAL_ERROR &
+                                                           ~E_DEC_OVERFLOW,
+                                                           decimal_value,
+                                                           val1, val2)) > 3)))
     return decimal_value;
   return 0;
 }
@@ -1169,16 +1231,71 @@ double Item_func_minus::real_op()
   double value= args[0]->val_real() - args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  return fix_result(value);
+  return check_float_overflow(value);
 }
 
 
 longlong Item_func_minus::int_op()
 {
-  longlong value=args[0]->val_int() - args[1]->val_int();
-  if ((null_value=args[0]->null_value || args[1]->null_value))
+  longlong val0= args[0]->val_int();
+  longlong val1= args[1]->val_int();
+  longlong res= val0 - val1;
+  bool     res_unsigned= FALSE;
+
+  if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0;
-  return value;
+
+  /*
+    First check whether the result can be represented as a
+    (bool unsigned_flag, longlong value) pair, then check if it is compatible
+    with this Item's unsigned_flag by calling check_integer_overflow().
+  */
+  if (args[0]->unsigned_flag)
+  {
+    if (args[1]->unsigned_flag)
+    {
+      if ((ulonglong) val0 < (ulonglong) val1)
+      {
+        if (res >= 0)
+          goto err;
+      }
+      else
+        res_unsigned= TRUE;
+    }
+    else
+    {
+      if (val1 >= 0)
+      {
+        if ((ulonglong) val0 > (ulonglong) val1)
+          res_unsigned= TRUE;
+      }
+      else
+      {
+        if (test_if_sum_overflows_ull((ulonglong) val0, (ulonglong) -val1))
+          goto err;
+        res_unsigned= TRUE;
+      }
+    }
+  }
+  else
+  {
+    if (args[1]->unsigned_flag)
+    {
+      if ((ulonglong) (val0 - LONGLONG_MIN) < (ulonglong) val1)
+        goto err;
+    }
+    else
+    {
+      if (val0 > 0 && val1 < 0)
+        res_unsigned= TRUE;
+      else if (val0 < 0 && val1 > 0 && res >= 0)
+        goto err;
+    }
+  }
+  return check_integer_overflow(res, res_unsigned);
+
+err:
+  return raise_integer_overflow();
 }
 
 
@@ -1196,8 +1313,10 @@ my_decimal *Item_func_minus::decimal_op(my_decimal *decimal_value)
     return 0;
   val2= args[1]->val_decimal(&value2);
   if (!(null_value= (args[1]->null_value ||
-                     (my_decimal_sub(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                     val2) > 3))))
+                     (check_decimal_overflow(my_decimal_sub(E_DEC_FATAL_ERROR &
+                                                            ~E_DEC_OVERFLOW,
+                                                            decimal_value, val1,
+                                                            val2)) > 3))))
     return decimal_value;
   return 0;
 }
@@ -1209,17 +1328,86 @@ double Item_func_mul::real_op()
   double value= args[0]->val_real() * args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  return fix_result(value);
+  return check_float_overflow(value);
 }
 
 
 longlong Item_func_mul::int_op()
 {
   DBUG_ASSERT(fixed == 1);
-  longlong value=args[0]->val_int()*args[1]->val_int();
-  if ((null_value=args[0]->null_value || args[1]->null_value))
+  longlong a= args[0]->val_int();
+  longlong b= args[1]->val_int();
+  longlong res;
+  ulonglong res0, res1;
+  ulong a0, a1, b0, b1;
+  bool     res_unsigned= FALSE;
+  bool     a_negative= FALSE, b_negative= FALSE;
+
+  if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0;
-  return value;
+
+  /*
+    First check whether the result can be represented as a
+    (bool unsigned_flag, longlong value) pair, then check if it is compatible
+    with this Item's unsigned_flag by calling check_integer_overflow().
+
+    Let a = a1 * 2^32 + a0 and b = b1 * 2^32 + b0. Then
+    a * b = (a1 * 2^32 + a0) * (b1 * 2^32 + b0) = a1 * b1 * 2^64 +
+            + (a1 * b0 + a0 * b1) * 2^32 + a0 * b0;
+    We can determine if the above sum overflows the ulonglong range by
+    sequentially checking the following conditions:
+    1. If both a1 and b1 are non-zero.
+    2. Otherwise, if (a1 * b0 + a0 * b1) is greater than ULONG_MAX.
+    3. Otherwise, if (a1 * b0 + a0 * b1) * 2^32 + a0 * b0 is greater than
+    ULONGLONG_MAX.
+
+    Since we also have to take the unsigned_flag for a and b into account,
+    it is easier to first work with absolute values and set the
+    correct sign later.
+  */
+  if (!args[0]->unsigned_flag && a < 0)
+  {
+    a_negative= TRUE;
+    a= -a;
+  }
+  if (!args[1]->unsigned_flag && b < 0)
+  {
+    b_negative= TRUE;
+    b= -b;
+  }
+
+  a0= 0xFFFFFFFFUL & a;
+  a1= ((ulonglong) a) >> 32;
+  b0= 0xFFFFFFFFUL & b;
+  b1= ((ulonglong) b) >> 32;
+
+  if (a1 && b1)
+    goto err;
+
+  res1= (ulonglong) a1 * b0 + (ulonglong) a0 * b1;
+  if (res1 > 0xFFFFFFFFUL)
+    goto err;
+
+  res1= res1 << 32;
+  res0= (ulonglong) a0 * b0;
+
+  if (test_if_sum_overflows_ull(res1, res0))
+    goto err;
+  res= res1 + res0;
+
+  if (a_negative != b_negative)
+  {
+    if ((ulonglong) res > (ulonglong) LONGLONG_MIN + 1)
+      goto err;
+    res= -res;
+  }
+  else
+    res_unsigned= TRUE;
+
+  return check_integer_overflow(res, res_unsigned);
+
+err:
+  return raise_integer_overflow();
 }
 
 
@@ -1234,8 +1422,10 @@ my_decimal *Item_func_mul::decimal_op(my_decimal *decimal_value)
     return 0;
   val2= args[1]->val_decimal(&value2);
   if (!(null_value= (args[1]->null_value ||
-                     (my_decimal_mul(E_DEC_FATAL_ERROR, decimal_value, val1,
-                                    val2) > 3))))
+                     (check_decimal_overflow(my_decimal_mul(E_DEC_FATAL_ERROR &
+                                                            ~E_DEC_OVERFLOW,
+                                                            decimal_value, val1,
+                                                            val2)) > 3))))
     return decimal_value;
   return 0;
 }
@@ -1268,7 +1458,7 @@ double Item_func_div::real_op()
     signal_divide_by_null();
     return 0.0;
   }
-  return fix_result(value/val2);
+  return check_float_overflow(value/val2);
 }
 
 
@@ -1284,8 +1474,12 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value)
   val2= args[1]->val_decimal(&value2);
   if ((null_value= args[1]->null_value))
     return 0;
-  if ((err= my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_DIV_ZERO, decimal_value,
-                           val1, val2, prec_increment)) > 3)
+  if ((err= check_decimal_overflow(my_decimal_div(E_DEC_FATAL_ERROR &
+                                                  ~E_DEC_OVERFLOW &
+                                                  ~E_DEC_DIV_ZERO,
+                                                  decimal_value,
+                                                  val1, val2,
+                                                  prec_increment))) > 3)
   {
     if (err == E_DEC_DIV_ZERO)
       signal_divide_by_null();
@@ -1376,22 +1570,35 @@ longlong Item_func_int_div::val_int()
 
     if (my_decimal2int(E_DEC_FATAL_ERROR, &tmp, unsigned_flag, &res) &
         E_DEC_OVERFLOW)
-      my_error(ER_WARN_DATA_OUT_OF_RANGE, MYF(0), name, 1);
+      raise_integer_overflow();
     return res;
   }
   
-  longlong value=args[0]->val_int();
-  longlong val2=args[1]->val_int();
+  longlong val0=args[0]->val_int();
+  longlong val1=args[1]->val_int();
+  bool val0_negative, val1_negative, res_negative;
+  ulonglong uval0, uval1, res;
   if ((null_value= (args[0]->null_value || args[1]->null_value)))
     return 0;
-  if (val2 == 0)
+  if (val1 == 0)
   {
     signal_divide_by_null();
     return 0;
   }
-  return (unsigned_flag ?
-	  (ulonglong) value / (ulonglong) val2 :
-	  value / val2);
+
+  val0_negative= !args[0]->unsigned_flag && val0 < 0;
+  val1_negative= !args[1]->unsigned_flag && val1 < 0;
+  res_negative= val0_negative != val1_negative;
+  uval0= (ulonglong) (val0_negative ? -val0 : val0);
+  uval1= (ulonglong) (val1_negative ? -val1 : val1);
+  res= uval0 / uval1;
+  if (res_negative)
+  {
+    if (res > (ulonglong) LONGLONG_MAX)
+      return raise_integer_overflow();
+    res= (ulonglong) (-(longlong) res);
+  }
+  return check_integer_overflow(res, !res_negative);
 }
 
 
@@ -1410,26 +1617,32 @@ void Item_func_int_div::fix_length_and_dec()
 longlong Item_func_mod::int_op()
 {
   DBUG_ASSERT(fixed == 1);
-  longlong value=  args[0]->val_int();
-  longlong val2= args[1]->val_int();
-  longlong result;
+  longlong val0= args[0]->val_int();
+  longlong val1= args[1]->val_int();
+  bool val0_negative, val1_negative;
+  ulonglong uval0, uval1;
+  ulonglong res;
 
   if ((null_value= args[0]->null_value || args[1]->null_value))
     return 0; /* purecov: inspected */
-  if (val2 == 0)
+  if (val1 == 0)
   {
     signal_divide_by_null();
     return 0;
   }
 
-  if (args[0]->unsigned_flag)
-    result= args[1]->unsigned_flag ? 
-      ((ulonglong) value) % ((ulonglong) val2) : ((ulonglong) value) % val2;
-  else
-    result= args[1]->unsigned_flag ?
-      value % ((ulonglong) val2) : value % val2;
-
-  return result;
+  /*
+    '%' is calculated by integer division internally. Since dividing
+    LONGLONG_MIN by -1 generates SIGFPE, we calculate using unsigned values and
+    then adjust the sign appropriately.
+  */
+  val0_negative= !args[0]->unsigned_flag && val0 < 0;
+  val1_negative= !args[1]->unsigned_flag && val1 < 0;
+  uval0= (ulonglong) (val0_negative ? -val0 : val0);
+  uval1= (ulonglong) (val1_negative ? -val1 : val1);
+  res= uval0 % uval1;
+  return check_integer_overflow(val0_negative ? -(longlong) res : res,
+                                !val0_negative);
 }
 
 double Item_func_mod::real_op()
@@ -1499,8 +1712,12 @@ double Item_func_neg::real_op()
 longlong Item_func_neg::int_op()
 {
   longlong value= args[0]->val_int();
-  null_value= args[0]->null_value;
-  return -value;
+  if ((null_value= args[0]->null_value))
+    return 0;
+  if (args[0]->unsigned_flag &&
+      (ulonglong) value > (ulonglong) LONGLONG_MAX + 1)
+    return raise_integer_overflow();
+  return check_integer_overflow(-value, !args[0]->unsigned_flag && value < 0);
 }
 
 
@@ -1569,7 +1786,12 @@ longlong Item_func_abs::int_op()
   longlong value= args[0]->val_int();
   if ((null_value= args[0]->null_value))
     return 0;
-  return (value >= 0) || unsigned_flag ? value : -value;
+  if (unsigned_flag)
+    return value;
+  /* -LONGLONG_MIN = LONGLONG_MAX + 1 => outside of signed longlong range */
+  if (value == LONGLONG_MIN)
+    return raise_integer_overflow();
+  return (value >= 0) ? value : -value;
 }
 
 
@@ -1676,7 +1898,7 @@ double Item_func_exp::val_real()
   double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0; /* purecov: inspected */
-  return fix_result(exp(value));
+  return check_float_overflow(exp(value));
 }
 
 double Item_func_sqrt::val_real()
@@ -1695,7 +1917,7 @@ double Item_func_pow::val_real()
   double val2= args[1]->val_real();
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0.0; /* purecov: inspected */
-  return fix_result(pow(value,val2));
+  return check_float_overflow(pow(value,val2));
 }
 
 // Trigonometric functions
@@ -1731,7 +1953,7 @@ double Item_func_atan::val_real()
     double val2= args[1]->val_real();
     if ((null_value=args[1]->null_value))
       return 0.0;
-    return fix_result(atan2(value,val2));
+    return check_float_overflow(atan2(value,val2));
   }
   return atan(value);
 }
@@ -1760,7 +1982,17 @@ double Item_func_tan::val_real()
   double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0;
-  return fix_result(tan(value));
+  return check_float_overflow(tan(value));
+}
+
+
+double Item_func_cot::val_real()
+{
+  DBUG_ASSERT(fixed == 1);
+  double value= args[0]->val_real();
+  if ((null_value=args[0]->null_value))
+    return 0.0;
+  return check_float_overflow(1.0 / tan(value));
 }
 
 
@@ -2235,7 +2467,7 @@ double Item_func_units::val_real()
   double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0;
-  return value*mul+add;
+  return check_float_overflow(value * mul + add);
 }
 
 
