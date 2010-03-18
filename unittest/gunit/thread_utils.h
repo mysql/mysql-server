@@ -34,16 +34,13 @@ public:
   // Options for starting the thread.
   struct Options
   {
-    Options() : m_detached(false), m_stack_size(PTHREAD_STACK_MIN) {}
+    Options() : m_detached(false) {}
 
     void set_datched(bool val) { m_detached= val; }
     bool detached() const { return m_detached; }
 
-    void   set_stack_size(size_t val) { m_stack_size= val; }
-    size_t stack_size() const { return m_stack_size; }
   private:
     bool   m_detached;
-    size_t m_stack_size;
   };
 
   /*

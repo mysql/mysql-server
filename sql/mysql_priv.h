@@ -153,6 +153,7 @@ extern MYSQL_PLUGIN_IMPORT const char *primary_key_name;
 #include "mysql_com.h"
 #include <violite.h>
 #include "unireg.h"
+#include "thr_malloc.h"
 
 void init_sql_alloc(MEM_ROOT *root, uint block_size, uint pre_alloc_size);
 void *sql_alloc(size_t);

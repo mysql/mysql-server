@@ -15,34 +15,32 @@
 
 #include "mysql_priv.h"
 
-extern "C" {
-  void sql_alloc_error_handler(void)
-  {
-    sql_print_error("%s", ER(ER_OUT_OF_RESOURCES));
+extern "C" void sql_alloc_error_handler(void)
+{
+  sql_print_error("%s", ER(ER_OUT_OF_RESOURCES));
 
-    THD *thd= current_thd;
-    if (thd && !thd->is_error())
-    {
-      /*
-        This thread is Out Of Memory.
-        An OOM condition is a fatal error.
-        It should not be caught by error handlers in stored procedures.
-        Also, recording that SQL condition in the condition area could
-        cause more memory allocations, which in turn could raise more
-        OOM conditions, causing recursion in the error handling code itself.
-        As a result, my_error() should not be invoked, and the
-        thread diagnostics area is set to an error status directly.
-        Note that Diagnostics_area::set_error_status() is safe,
-        since it does not call any memory allocation routines.
-        The visible result for a client application will be:
-        - a query fails with an ER_OUT_OF_RESOURCES error,
-        returned in the error packet.
-        - SHOW ERROR/SHOW WARNINGS may be empty.
-      */
-      thd->stmt_da->set_error_status(thd,
-                                     ER_OUT_OF_RESOURCES,
-                                     ER(ER_OUT_OF_RESOURCES),
-                                     NULL);
-    }
+  THD *thd= current_thd;
+  if (thd && !thd->is_error())
+  {
+    /*
+      This thread is Out Of Memory.
+      An OOM condition is a fatal error.
+      It should not be caught by error handlers in stored procedures.
+      Also, recording that SQL condition in the condition area could
+      cause more memory allocations, which in turn could raise more
+      OOM conditions, causing recursion in the error handling code itself.
+      As a result, my_error() should not be invoked, and the
+      thread diagnostics area is set to an error status directly.
+      Note that Diagnostics_area::set_error_status() is safe,
+      since it does not call any memory allocation routines.
+      The visible result for a client application will be:
+      - a query fails with an ER_OUT_OF_RESOURCES error,
+      returned in the error packet.
+      - SHOW ERROR/SHOW WARNINGS may be empty.
+    */
+    thd->stmt_da->set_error_status(thd,
+                                   ER_OUT_OF_RESOURCES,
+                                   ER(ER_OUT_OF_RESOURCES),
+                                   NULL);
   }
 }

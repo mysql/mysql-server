@@ -83,7 +83,8 @@ static std::string format_string(const char* fmt, ...)
   const int size = vsnprintf(buffer, buffer_size, fmt, args);
   va_end(args);
 
-  if (size < 0 || size >= buffer_size) {
+  if (size < 0 || size >= buffer_size)
+  {
     return std::string("<formatting error or buffer exceeded>");
   } else {
     return std::string(buffer, size);
@@ -101,7 +102,8 @@ static std::string format_string(const char* fmt, ...)
  */
 static std::string format_countable_noun(int count,
                                          const char *singular_form,
-                                         const char *plural_form) {
+                                         const char *plural_form)
+{
   return
     format_string("%d %s", count, count == 1 ? singular_form : plural_form);
 }

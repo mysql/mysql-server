@@ -43,24 +43,9 @@ struct my_option unittest_options[] =
 };
 
 
-void print_usage()
+extern "C" my_bool get_one_option(int, const struct my_option *, char *)
 {
-  printf("\n\nTest options: [--[disable-]tap-output]\n");
-}
-
-my_bool
-get_one_option(int optid,
-               const struct my_option *opt,
-               char *argument)
-{
-  return false;
-}
-
-
-int handle_unittest_options(int *argc, char ***argv)
-{
-  int error= handle_options(argc, argv, unittest_options, get_one_option);
-  return error;
+  return FALSE;
 }
 
 }  // namespace
@@ -68,16 +53,17 @@ int handle_unittest_options(int *argc, char ***argv)
 
 extern void install_tap_listener();
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   ::testing::InitGoogleTest(&argc, argv);
   MY_INIT(argv[0]);
 
-  if (handle_unittest_options(&argc, &argv))
+  if (handle_options(&argc, &argv, unittest_options, get_one_option))
     return EXIT_FAILURE;
   if (opt_use_tap)
     install_tap_listener();
   if (opt_help)
-    print_usage();
+    printf("\n\nTest options: [--[disable-]tap-output]\n");
 
   return RUN_ALL_TESTS();
 }
