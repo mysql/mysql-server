@@ -2099,16 +2099,16 @@ b int NOT NULL,
 c int NOT NULL,
 primary key(a)) 
 engine = ndb;
-insert into T1 values (10, 11, 11);
-insert into T1 values (11, 12, 12);
-insert into T1 values (12, 13, 13);
-select * from T1 t1, T1 t2 where t1.a = 11 and t2.a = t1.b;
+insert into T1 values (0x01010101, 0x02020202, 0x02020202);
+insert into T1 values (0x02020202, 0x03030303, 0x03030303);
+insert into T1 values (0x03030303, 0x04040404, 0x04040404);
+select * from T1 t1, T1 t2 where t1.a = 0x02020202 and t2.a = t1.b;
 a	b	c	a	b	c
-11	12	12	12	13	13
+33686018	50529027	50529027	50529027	67372036	67372036
 select count(*) from T1 t1, T1 t2 where t2.a = t1.b;
 count(*)
 2
-select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t2.a = t1.b;
+select count(*) from T1 t1, T1 t2 where t1.a >= 0x02020202 and t2.a = t1.b;
 count(*)
 1
 create temporary table new_count 
@@ -2121,11 +2121,11 @@ from new_count, old_count
 where new_count.counter_name = old_count.counter_name;
 counter_name	new_count.val - old_count.val
 LOCAL_RANGE_SCANS_SENT	2
-LOCAL_READS_SENT	6
+LOCAL_READS_SENT	4
 LOCAL_TABLE_SCANS_SENT	2
 RANGE_SCANS_RECEIVED	2
 READS_RECEIVED	1
-REMOTE_READS_SENT	1
+REMOTE_READS_SENT	3
 TABLE_SCANS_RECEIVED	2
 drop table old_count;
 drop table new_count;
