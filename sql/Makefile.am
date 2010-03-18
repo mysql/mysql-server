@@ -196,55 +196,6 @@ DISTCLEANFILES =        $(EXTRA_PROGRAMS)
 MAINTAINERCLEANFILES =  $(BUILT_MAINT_SRC)
 AM_YFLAGS =		-d --verbose
 
-# Experimental: Unit test with google gtest (installed in /usr/local/...)
-XXXFLAGS=$(CXXFLAGS:-fno-implicit-templates=)
-UNIT_TEST_FLAGS=$(DEFS) $(AM_CPPFLAGS) $(CPPFLAGS) $(XXXFLAGS) @NOINST_LDFLAGS@
-UNIT_TEST_LIBS= /usr/local/lib/libgtest.a \
-		$(top_srcdir)/mysys/.libs/libmysys.a \
-		$(top_srcdir)/dbug/.libs/libdbug.a \
-		$(top_srcdir)/strings/.libs/libmystrings.a 
-UNIT_TEST_OBJS= sql_state.o \
-		sql_string.o \
-		tap_event_listener.o \
-		thr_malloc.o
-GUNIT_TEST_OBJS= gunit_test_main.o $(UNIT_TEST_OBJS)
-
-if HAVE_GTEST
-noinst_PROGRAMS = \
-	mdl_test-t$(EXEEXT) \
-	mdl-t$(EXEEXT) \
-	sql_list_test-t$(EXEEXT) \
-	thread_test-t$(EXEEXT)
-endif
-
-# The convention is to have tests for foo.cc in foo_test.cc
-# Add '-t' suffix to executable name, so unittest/unit.pl will pick them up.
-# In order to remove the no-implicit-templates, we have to build these
-# executables explicitly, rather than defining foo_test_SOURCES,
-# foo_test_CXXFLAGS et.al.
-mdl_test-t$(EXEEXT): mdl_test.cc mdl.o thread.o \
-		$(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
-	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
-	mdl.o thread.o $(GUNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
-
-mdl-t: mdl-t.cc mdl.o thread.o $(UNIT_TEST_LIBS) $(UNIT_TEST_OBJS)
-	$(CXX) -o $@ $(UNIT_TEST_FLAGS) -I$(top_srcdir)/unittest/mytap $< \
-	$(top_srcdir)/unittest/mytap/tap.o \
-	mdl.o thread.o $(UNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
-
-sql_list_test-t$(EXEEXT): sql_list_test.cc sql_list.o \
-		$(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
-	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
-	sql_list.o $(GUNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
-
-thread_test-t$(EXEEXT): thread_test.cc thread.o \
-		$(UNIT_TEST_LIBS) $(GUNIT_TEST_OBJS)
-	$(CXX) -o $@ $(UNIT_TEST_FLAGS) $< \
-	thread.o $(GUNIT_TEST_OBJS) $(UNIT_TEST_LIBS) $(LIBS)
-
-# Experimental END
-
-
 # These are listed in 'nodist_mysqld_SOURCES'
 link_sources:
 	rm -f mini_client_errors.c

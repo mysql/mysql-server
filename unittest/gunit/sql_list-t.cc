@@ -30,7 +30,7 @@
 #include "sql_error.h"
 #include <my_pthread.h>
 
-pthread_key(MEM_ROOT**,THR_MALLOC);
+pthread_key(MEM_ROOT**, THR_MALLOC);
 pthread_key(THD*, THR_THD);
 
 extern "C" void sql_alloc_error_handler(void)
@@ -61,23 +61,23 @@ void insert_values(T (&array)[size], List<T> *list)
   The fixture for testing the MySQL List and List_iterator classes.
   A fresh instance of this class will be created for each of the
   TEST_F functions below.
-  The functions SetUp(), TearDown() and SetUpTestCase() are inherited
-  from ::testing::Test (google naming style differs from MySQL).
+  The functions SetUp(), TearDown(), SetUpTestCase(), TearDownTestCase() are
+  inherited from ::testing::Test (google naming style differs from MySQL).
 */
 class Sql_list_test : public ::testing::Test
 {
 protected:
-  Sql_list_test() : m_int_list(), m_int_list_iter(m_int_list)
+  Sql_list_test()
+    : m_mem_root_p(&m_mem_root), m_int_list(), m_int_list_iter(m_int_list)
   {
   }
 
   virtual void SetUp()
   {
-    init_sql_alloc(&m_mem_root, 1 << 10, 0);
-    MEM_ROOT *pm= &m_mem_root;
-    ASSERT_EQ(0, my_pthread_setspecific_ptr(THR_MALLOC, &pm));
+    init_sql_alloc(&m_mem_root, 1024, 0);
+    ASSERT_EQ(0, my_pthread_setspecific_ptr(THR_MALLOC, &m_mem_root_p));
     MEM_ROOT *root= *my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
-    ASSERT_EQ(root, pm);
+    ASSERT_EQ(root, m_mem_root_p);
   }
 
   virtual void TearDown()
@@ -87,13 +87,24 @@ protected:
 
   static void SetUpTestCase()
   {
-    pthread_key_create(&THR_THD, NULL);
-    pthread_key_create(&THR_MALLOC, NULL);
+    ASSERT_EQ(0, pthread_key_create(&THR_THD, NULL));
+    ASSERT_EQ(0, pthread_key_create(&THR_MALLOC, NULL));
+  }
+
+  static void TearDownTestCase()
+  {
+    ASSERT_EQ(0, pthread_key_delete(THR_THD));
+    ASSERT_EQ(0, pthread_key_delete(THR_MALLOC));
   }
 
   MEM_ROOT m_mem_root;
+  MEM_ROOT *m_mem_root_p;
   List<int> m_int_list;
   List_iterator<int> m_int_list_iter;
+
+private:
+  // Declares (but does not define) copy constructor and assignment operator.
+  GTEST_DISALLOW_COPY_AND_ASSIGN_(Sql_list_test);
 };
 
 

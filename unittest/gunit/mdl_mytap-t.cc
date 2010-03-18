@@ -15,7 +15,7 @@
 
 /**
    This is a port of the corresponding mdl_test.cc (written for googletest)
-   to mytap. Do a 'tkdiff mdl_test.cc mdl-t.cc' to see the differences.
+   to mytap. Do a 'tkdiff mdl-t.cc mdl_mytap-t.cc' to see the differences.
    In order to illustrate (some of) the features of googletest, I have
    added some extensions below, notably support for reporting of line
    numbers in case of failures.
@@ -28,7 +28,7 @@
 #include "mdl.h"
 
 #include "thr_malloc.h"
-#include "thread.h"
+#include "thread_utils.h"
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
@@ -209,7 +209,7 @@ protected:
   void shared_locks_between_contexts();
   void upgrade_shared_upgradable();
   void upgrade_exclusive();
-  void DISABLED_upgrade_shared();
+  void die_upgrade_shared();
   void merge();
   void savepoint();
   void concurrent_shared();
@@ -518,15 +518,9 @@ TEST_F(MDL_test, upgrade_exclusive)
 
 
 /*
-  Disable this test, since assert-fails in mdl_destroy().
-  (gdb) p global_lock
-  $1 = {waiting_shared = 0,
-        active_shared = 0,
-        active_intention_exclusive = 4294967295}
-  The upgrade from SHARED to EXCLUSIVE should fail, but it does not,
-  and something is wrong with the maintenance of active_intention_exclusive.
+  Verifies that only UPGRADABLE locks can be upgraded to exclusive.
  */
-TEST_F(MDL_test, DISABLED_upgrade_shared)
+TEST_F(MDL_DeathTest, die_upgrade_shared)
 {
   MDL_request *request1= create_request(table_name1);
   MDL_request *request2= create_request(table_name2);
@@ -535,7 +529,10 @@ TEST_F(MDL_test, DISABLED_upgrade_shared)
   EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request1));
   EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request2));
 
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+  // No support for death tests in mytap.
   EXPECT_FALSE(request1->ticket->upgrade_shared_lock_to_exclusive());
+#endif
   EXPECT_FALSE(request2->ticket->upgrade_shared_lock_to_exclusive());
   m_mdl_context.release_lock(request1->ticket);
   m_mdl_context.release_lock(request2->ticket);
@@ -756,8 +753,7 @@ int MDL_test::RUN_ALL_TESTS()
   run_one_test(&MDL_test::shared_locks_between_contexts);
   run_one_test(&MDL_test::upgrade_shared_upgradable);
   run_one_test(&MDL_test::upgrade_exclusive);
-  // googletest will not run tests with names starting with 'DISABLED_'
-  // run_one_test(&MDL_test::DISABLED_upgrade_shared);
+  run_one_test(&MDL_test::die_upgrade_shared);
   run_one_test(&MDL_test::merge);
   run_one_test(&MDL_test::savepoint);
   run_one_test(&MDL_test::concurrent_shared);

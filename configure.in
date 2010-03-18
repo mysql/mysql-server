@@ -3136,6 +3136,7 @@ if test -d "$srcdir/cmd-line-utils/readline" ; then
 fi
 
 AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
+ unittest/gunit/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl
