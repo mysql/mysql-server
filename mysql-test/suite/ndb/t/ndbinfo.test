@@ -1,5 +1,6 @@
 --result_format 2
 --source include/have_ndb.inc
+--source have_ndbinfo.inc
 
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,
        PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,PLUGIN_AUTHOR,PLUGIN_DESCRIPTION
@@ -10,6 +11,19 @@ FROM information_schema.plugins WHERE PLUGIN_NAME = 'ndbinfo';
 CREATE TEMPORARY TABLE `t1` (
   `dummy` INT UNSIGNED
 ) ENGINE=NDBINFO;
+
+if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
+{
+  # Run the ndbinfo.sql script that creates ndbinfo database, tables and views
+  --disable_warnings
+  --disable_query_log
+  --disable_result_log
+  set @ndbinfo_skip_version_check=1;
+  source $NDBINFO_SQL;
+  --enable_result_log
+  --enable_query_log
+  --enable_warnings
+}
 
 USE ndbinfo;
 
@@ -137,3 +151,9 @@ CREATE TABLE ndb$test (node_id int, block_number blob) ENGINE = ndbinfo;
 --error ER_TABLE_CANT_HANDLE_AUTO_INCREMENT
 CREATE TABLE ndb$test (node_id int AUTO_INCREMENT) ENGINE = ndbinfo;
 
+if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
+{
+  --disable_query_log
+  DROP DATABASE ndbinfo;
+  --enable_query_log
+}

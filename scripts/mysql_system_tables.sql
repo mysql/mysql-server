@@ -93,6 +93,12 @@ CREATE TABLE IF NOT EXISTS ndb_binlog_index (Position BIGINT UNSIGNED NOT NULL, 
 # Only create objects if NDBINFO is supported
 SELECT @have_ndbinfo:= COUNT(*) FROM information_schema.engines WHERE engine='NDBINFO' AND support IN ('YES', 'DEFAULT');
 
+# Only create objects if version >= 7.1
+SET @str=IF(@have_ndbinfo,'SELECT @have_ndbinfo:= (@@ndbinfo_version >= (7 << 16) | (1 << 8)) || @ndbinfo_skip_version_check','SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 # Only create objects if ndbinfo namespace is free
 SET @str=IF(@have_ndbinfo,'SET @@ndbinfo_show_hidden=TRUE','SET @dummy = 0');
 PREPARE stmt FROM @str;
