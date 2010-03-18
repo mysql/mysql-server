@@ -1,0 +1,164 @@
+/*****************************************************************************
+
+Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/trx0trx.ic
+The transaction
+
+Created 3/26/1996 Heikki Tuuri
+*******************************************************/
+
+/*************************************************************//**
+Starts the transaction if it is not yet started. */
+UNIV_INLINE
+void
+trx_start_if_not_started(
+/*=====================*/
+	trx_t*	trx)	/*!< in: transaction */
+{
+	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
+
+	if (trx->conc_state == TRX_NOT_STARTED) {
+
+		trx_start(trx, ULINT_UNDEFINED);
+	}
+}
+
+/*************************************************************//**
+Starts the transaction if it is not yet started. Assumes we have reserved
+the kernel mutex! */
+UNIV_INLINE
+void
+trx_start_if_not_started_low(
+/*=========================*/
+	trx_t*	trx)	/*!< in: transaction */
+{
+	ut_ad(trx->conc_state != TRX_COMMITTED_IN_MEMORY);
+
+	if (trx->conc_state == TRX_NOT_STARTED) {
+
+		trx_start_low(trx, ULINT_UNDEFINED);
+	}
+}
+
+/****************************************************************//**
+Retrieves the error_info field from a trx.
+@return	the error info */
+UNIV_INLINE
+const dict_index_t*
+trx_get_error_info(
+/*===============*/
+	const trx_t*	trx)	/*!< in: trx object */
+{
+	return(trx->error_info);
+}
+
+/*******************************************************************//**
+Retrieves transacion's id, represented as unsigned long long.
+@return	transaction's id */
+UNIV_INLINE
+ullint
+trx_get_id(
+/*=======*/
+	const trx_t*	trx)	/*!< in: transaction */
+{
+	return((ullint)ut_conv_dulint_to_longlong(trx->id));
+}
+
+/*******************************************************************//**
+Retrieves transaction's que state in a human readable string. The string
+should not be free()'d or modified.
+@return	string in the data segment */
+UNIV_INLINE
+const char*
+trx_get_que_state_str(
+/*==================*/
+	const trx_t*	trx)	/*!< in: transaction */
+{
+	/* be sure to adjust TRX_QUE_STATE_STR_MAX_LEN if you change this */
+	switch (trx->que_state) {
+	case TRX_QUE_RUNNING:
+		return("RUNNING");
+	case TRX_QUE_LOCK_WAIT:
+		return("LOCK WAIT");
+	case TRX_QUE_ROLLING_BACK:
+		return("ROLLING BACK");
+	case TRX_QUE_COMMITTING:
+		return("COMMITTING");
+	default:
+		return("UNKNOWN");
+	}
+}
+
+/**********************************************************************//**
+Determine if a transaction is a dictionary operation.
+@return	dictionary operation mode */
+UNIV_INLINE
+enum trx_dict_op
+trx_get_dict_operation(
+/*===================*/
+	const trx_t*	trx)	/*!< in: transaction */
+{
+	enum trx_dict_op op = (enum trx_dict_op) trx->dict_operation;
+
+#ifdef UNIV_DEBUG
+	switch (op) {
+	case TRX_DICT_OP_NONE:
+	case TRX_DICT_OP_TABLE:
+	case TRX_DICT_OP_INDEX:
+		return(op);
+	}
+	ut_error;
+#endif /* UNIV_DEBUG */
+	return((enum trx_dict_op) UNIV_EXPECT(op, TRX_DICT_OP_NONE));
+}
+/**********************************************************************//**
+Flag a transaction a dictionary operation. */
+UNIV_INLINE
+void
+trx_set_dict_operation(
+/*===================*/
+	trx_t*			trx,	/*!< in/out: transaction */
+	enum trx_dict_op	op)	/*!< in: operation, not
+					TRX_DICT_OP_NONE */
+{
+#ifdef UNIV_DEBUG
+	enum trx_dict_op	old_op = trx_get_dict_operation(trx);
+
+	switch (op) {
+	case TRX_DICT_OP_NONE:
+		ut_error;
+		break;
+	case TRX_DICT_OP_TABLE:
+		switch (old_op) {
+		case TRX_DICT_OP_NONE:
+		case TRX_DICT_OP_INDEX:
+		case TRX_DICT_OP_TABLE:
+			goto ok;
+		}
+		ut_error;
+		break;
+	case TRX_DICT_OP_INDEX:
+		ut_ad(old_op == TRX_DICT_OP_NONE);
+		break;
+	}
+ok:
+#endif /* UNIV_DEBUG */
+
+	trx->dict_operation = op;
+}

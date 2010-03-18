@@ -1,0 +1,59 @@
+The partition_innodb test only fails if run immediately after innodb_trx_weight.
+The reason for this failure is that innodb_trx_weight creates deadlocks and
+leaves something like this in the SHOW ENGINE INNODB STATUS output:
+
+  ------------------------
+  LATEST DETECTED DEADLOCK
+  ------------------------
+  090213 10:26:25
+  *** (1) TRANSACTION:
+  TRANSACTION 313, ACTIVE 0 sec, OS thread id 13644672 inserting
+  mysql tables in use 1, locked 1
+  LOCK WAIT 4 lock struct(s), heap size 488, 3 row lock(s)
+  MySQL thread id 3, query id 36 localhost root update
+
+The regular expressions that partition_innodb is using are intended to extract
+the lock structs and row locks numbers from another part of the output:
+
+  ------------
+  TRANSACTIONS
+  ------------
+  Trx id counter 31D
+  Purge done for trx's n:o < 0 undo n:o < 0
+  History list length 4
+  LIST OF TRANSACTIONS FOR EACH SESSION:
+  ---TRANSACTION 0, not started, OS thread id 13645056
+  0 lock struct(s), heap size 488, 0 row lock(s)
+  MySQL thread id 8, query id 81 localhost root
+
+In the InnoDB Plugin a transaction id is not printed as 2 consecutive
+decimal integers (as it is in InnoDB 5.1) but rather as a single
+hexadecimal integer. Thus the regular expressions somehow pick the wrong
+part of the SHOW ENGINE INNODB STATUS output.
+
+So after the regular expressions are adjusted to the InnoDB Plugin's variant
+of trx_id prinout, then they pick the expected part of the output.
+
+This patch cannot be proposed to MySQL because the failures occur only
+in this tree and do not occur in the standard InnoDB 5.1.
+
+--- mysql-test/t/partition_innodb.test	2008-11-14 22:51:17 +0000
++++ mysql-test/t/partition_innodb.test	2009-02-13 07:36:07 +0000
+@@ -27,14 +27,14 @@
+ 
+ # grouping/referencing in replace_regex is very slow on long strings,
+ # removing all before/after the interesting row before grouping/referencing
+---replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
++--replace_regex /.*---TRANSACTION [0-9A-F]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
+ SHOW ENGINE InnoDB STATUS;
+ 
+ UPDATE t1 SET data = data*2 WHERE data = 2;
+ 
+ # grouping/referencing in replace_regex is very slow on long strings,
+ # removing all before/after the interesting row before grouping/referencing
+---replace_regex /.*---TRANSACTION [0-9]+ [0-9]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
++--replace_regex /.*---TRANSACTION [0-9A-F]+, .*, OS thread id [0-9]+// /MySQL thread id [0-9]+, query id [0-9]+ .*// /.*([0-9]+ lock struct\(s\)), heap size [0-9]+, ([0-9]+ row lock\(s\)).*/\1 \2/
+ SHOW ENGINE InnoDB STATUS;
+ 
+ SET @@session.tx_isolation = @old_tx_isolation;
+
