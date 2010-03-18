@@ -6323,3 +6323,6 @@ ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
 
 ER_TOO_LONG_INDEX_COMMENT
   eng "Comment for index '%-.64s' is too long (max = %lu)"
+
+ER_DATA_OUT_OF_RANGE 22003 
+  eng "%s value is out of range in '%s'"
