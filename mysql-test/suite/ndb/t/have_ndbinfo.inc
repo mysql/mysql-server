@@ -30,7 +30,7 @@ if ($sql_file) {
 }
 else
 {
-  print $F "skip Could not find ndbinfo.sq;\n";
+  print $F "skip Could not find ndbinfo.sql;\n";
 }
 $F->close();
 
