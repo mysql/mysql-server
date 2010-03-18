@@ -825,18 +825,33 @@ insert into t1 values (5);
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 # Query with group by, executed via IN=>EXISTS
-set @@optimizer_switch='no_materialization';
+set @@optimizer_switch='materialization=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 
 # Executed with materialization
-set @@optimizer_switch='no_semijoin';
+set @@optimizer_switch='default,semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 select min(a1) from t1 where 7 in (select b1 from t2);
 # Executed with semi-join. Notice, this time we get a different result (NULL).
 # This is the only correct result of all four queries. This difference is
 # filed as BUG#40037.
-set @@optimizer_switch='no_materialization';
+set @@optimizer_switch='default,materialization=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 select min(a1) from t1 where 7 in (select b1 from t2);
+drop table t1,t2;
 
+#
+# BUG#36752 "subquery materialization produces wrong results when comparing different types"
+#
+create table t1 (a char(2), b varchar(10));
+insert into t1 values ('a',  'aaa');
+insert into t1 values ('aa', 'aaaa');
+
+set @@optimizer_switch='default, semijoin=off';
+explain select a,b from t1 where b in (select a from t1);
+select a,b from t1 where b in (select a from t1);
+prepare st1 from "select a,b from t1 where b in (select a from t1)";
+execute st1;
+execute st1;
+drop table t1;
