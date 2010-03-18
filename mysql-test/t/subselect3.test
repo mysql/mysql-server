@@ -1091,3 +1091,17 @@ insert into t1 select * from t0;
 explain select * from t0 where a in (select a from t1);
 select * from t0 where a in (select a from t1);
 drop table t0, t1;
+
+#
+# Fix a trivial crash with SJ-Materialization lookup, multiple tables in the
+# subquery, and a condition on some of inner tables but not others
+#
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 as select a as a, a as b, a as c from t0 where a < 3;
+create table t2 as select a as a, a as b from t0 where a < 3;
+insert into t2 select * from t2;
+
+explain select * from t1 where (a,b,c) in (select X.a, Y.a, Z.a from t2 X, t2 Y, t2 Z where X.b=33);
+
+drop table t0,t1,t2;
