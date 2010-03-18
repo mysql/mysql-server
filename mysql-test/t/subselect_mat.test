@@ -814,3 +814,29 @@ select 1 from t2 where
     t2.a = 3 and not t2.a not in (select t2.b from t2);
 drop table t2;
 
+#
+# BUG#37896 Assertion on entry of Item_in_subselect::exec on subquery with AND NOT
+#
+create table t1 (a1 int key);
+create table t2 (b1 int);
+insert into t1 values (5);
+
+# Query with group by, executed via materialization
+explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
+select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
+# Query with group by, executed via IN=>EXISTS
+set @@optimizer_switch='no_materialization';
+explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
+select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
+
+# Executed with materialization
+set @@optimizer_switch='no_semijoin';
+explain select min(a1) from t1 where 7 in (select b1 from t2);
+select min(a1) from t1 where 7 in (select b1 from t2);
+# Executed with semi-join. Notice, this time we get a different result (NULL).
+# This is the only correct result of all four queries. This difference is
+# filed as BUG#40037.
+set @@optimizer_switch='no_materialization';
+explain select min(a1) from t1 where 7 in (select b1 from t2);
+select min(a1) from t1 where 7 in (select b1 from t2);
+

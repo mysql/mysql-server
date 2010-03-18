@@ -1613,6 +1613,9 @@ JOIN::optimize()
                                  QT_ORDINARY););
         conds= table_independent_conds;
       }
+      /* Create all structures needed for materialized subquery execution. */
+      if (setup_subquery_materialization())
+        DBUG_RETURN(1);
     }
   }
   if (!tables_list)

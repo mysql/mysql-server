@@ -1909,7 +1909,11 @@ bool Item_in_subselect::init_left_expr_cache()
   bool use_result_field= FALSE;
 
   outer_join= unit->outer_select()->join;
-  if (!outer_join || !outer_join->tables)
+  /*
+    An IN predicate might be evaluated in a query for which all tables have
+    been optimzied away.
+  */ 
+  if (!outer_join || !outer_join->tables || !outer_join->tables_list)
     return TRUE;
   /*
     If we use end_[send | write]_group to handle complete rows of the outer
