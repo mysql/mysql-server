@@ -9535,7 +9535,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     for (i= 0; i < sjm->tables; i++)
     {
       remove_sj_conds(&tab[i].select_cond);
-      if (tab->select)
+      if (tab[i].select)
         remove_sj_conds(&tab[i].select->cond);
     }
     if (!(sjm->in_equality= create_subq_in_equalities(thd, sjm,

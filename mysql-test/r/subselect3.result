@@ -1326,3 +1326,15 @@ a
 2008-01-01
 2008-02-02
 drop table t0, t1;
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 as select a as a, a as b, a as c from t0 where a < 3;
+create table t2 as select a as a, a as b from t0 where a < 3;
+insert into t2 select * from t2;
+explain select * from t1 where (a,b,c) in (select X.a, Y.a, Z.a from t2 X, t2 Y, t2 Z where X.b=33);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	6	Using where; Start materialize
+1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	6	Using join buffer
+1	PRIMARY	Z	ALL	NULL	NULL	NULL	NULL	6	End materialize; Using join buffer
+drop table t0,t1,t2;
