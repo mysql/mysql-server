@@ -90,27 +90,11 @@ static std::string format_string(const char* fmt, ...)
 
 
 /**
-   Formats a countable noun.  Depending on its quantity, either the
-   singular form or the plural form is used. e.g.
-
-   FormatCountableNoun(1, "formula", "formuli") returns "1 formula".
-   FormatCountableNoun(5, "book", "books") returns "5 books".   
- */
-static std::string format_countable_noun(int count,
-                                         const char *singular_form,
-                                         const char *plural_form)
-{
-  return
-    format_string("%d %s", count, count == 1 ? singular_form : plural_form);
-}
-
-
-/**
    Formats the count of tests.
  */
 static std::string format_test_count(int test_count)
 {
-  return format_countable_noun(test_count, "test", "tests");
+  return format_string("%d %s", test_count, test_count == 1 ? "test" : "tests");
 }
 
 
@@ -119,7 +103,9 @@ static std::string format_test_count(int test_count)
 */
 static std::string format_testcase_count(int test_case_count)
 {
-  return format_countable_noun(test_case_count, "test case", "test cases");
+  return
+    format_string("%d %s", test_case_count,
+                  test_case_count == 1 ? "test case" : "test cases");
 }
 
 
@@ -173,9 +159,9 @@ void TapEventListener::OnTestIterationStart(const UnitTest& unit_test,
                                             int iteration)
 {
   const std::string num_tests=
-    format_test_count(unit_test.test_to_run_count()).c_str();
+    format_test_count(unit_test.test_to_run_count());
   const std::string num_test_cases=
-    format_testcase_count(unit_test.test_case_to_run_count()).c_str();
+    format_testcase_count(unit_test.test_case_to_run_count());
   tap_diagnostic_printf("Running %s from %s.\n",
                         num_tests.c_str(),
                         num_test_cases.c_str());
@@ -254,9 +240,9 @@ void TapEventListener::OnTestIterationEnd(const UnitTest& unit_test,
 
   if (!unit_test.Passed())
   {
-    const int num_failures = unit_test.failed_test_count();
-    tap_diagnostic_printf("Failed: %s.\n",
-                          format_test_count(num_failures).c_str());
+    const std::string num_failures=
+      format_test_count(unit_test.failed_test_count());
+    tap_diagnostic_printf("Failed: %s.\n", num_failures.c_str());
   }
   
   const int num_disabled = unit_test.disabled_test_count();
