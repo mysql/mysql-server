@@ -64,7 +64,6 @@ struct READ_RECORD
   struct st_io_cache *io_cache;
   bool print_error, ignore_not_found_rows;
 
-
   /* 
     SJ-Materialization runtime may need to read fields from the materialized
     table and unpack them into original table fields:

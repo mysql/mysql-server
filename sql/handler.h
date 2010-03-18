@@ -1154,7 +1154,7 @@ public:
     To be used when we go from old single value-based cost calculations to
     the new COST_VECT-based.
   */
-  void set_double(double cost)
+  void convert_from_cost(double cost)
   {
     zero();
     avg_io_cost= 1.0;

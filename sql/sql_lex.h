@@ -864,7 +864,7 @@ public:
   }
 
   void clear_index_hints(void) { index_hints= NULL; }
-
+  bool is_part_of_union() { return master_unit()->is_union(); }
 private:  
   /* current index hint kind. used in filling up index_hints */
   enum index_hint_type current_index_hint_type;

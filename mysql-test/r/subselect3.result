@@ -1,4 +1,4 @@
-drop table if exists t0, t1, t2, t3, t4, t5;
+drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 create table t1 (oref int, grp int, ie int) ;
 insert into t1 (oref, grp, ie) values
 (1, 1, 1),
@@ -99,7 +99,7 @@ oref	a
 1	1
 show status like '%Handler_read_rnd_next';
 Variable_name	Value
-Handler_read_rnd_next	24
+Handler_read_rnd_next	5
 delete from t2;
 insert into t2 values (NULL, 0),(NULL, 0), (NULL, 0), (NULL, 0);
 flush status;
@@ -1020,4 +1020,59 @@ End of 5.6 tests
 create table t1 (a int);
 select 1 as res from dual where (1) in (select * from t1);
 res
+drop table t1;
+CREATE TABLE t1 (
+a int(11) NOT NULL,
+b int(11) NOT NULL,
+c datetime default NULL,
+PRIMARY KEY  (a),
+KEY idx_bc (b,c)
+);
+INSERT INTO t1 VALUES 
+(406989,67,'2006-02-23 17:08:46'), (150078,67,'2005-10-26 11:17:45'),
+(406993,67,'2006-02-27 11:20:57'), (245655,67,'2005-12-08 15:59:08'),
+(406994,67,'2006-02-27 11:26:46'), (256,67,NULL),
+(398341,67,'2006-02-20 04:48:44'), (254,67,NULL),(1120,67,NULL),
+(406988,67,'2006-02-23 17:07:22'), (255,67,NULL),
+(398340,67,'2006-02-20 04:38:53'),(406631,67,'2006-02-23 10:49:42'),
+(245653,67,'2005-12-08 15:59:07'),(406992,67,'2006-02-24 16:47:18'),
+(245654,67,'2005-12-08 15:59:08'),(406995,67,'2006-02-28 11:55:00'),
+(127261,67,'2005-10-13 12:17:58'),(406991,67,'2006-02-24 16:42:32'),
+(245652,67,'2005-12-08 15:58:27'),(398545,67,'2006-02-20 04:53:13'),
+(154504,67,'2005-10-28 11:53:01'),(9199,67,NULL),(1,67,'2006-02-23 15:01:35'),
+(223456,67,NULL),(4101,67,NULL),(1133,67,NULL),
+(406990,67,'2006-02-23 18:01:45'),(148815,67,'2005-10-25 15:34:17'),
+(148812,67,'2005-10-25 15:30:01'),(245651,67,'2005-12-08 15:58:27'),
+(154503,67,'2005-10-28 11:52:38');
+create table t11 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 asc;
+create table t12 select * from t1 where b = 67 AND (c IS NULL OR c > NOW()) order by 3 desc;
+create table t21 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 asc;
+create table t22 select * from t1 where b = 67 AND (c IS NULL OR c > '2005-12-08') order by 3 desc;
+update t22 set c = '2005-12-08 15:58:27' where a = 255;
+explain select t21.* from t21,t22 where t21.a = t22.a and 
+t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	8	Using where; Using temporary; Using filesort; Start materialize; Scan
+1	PRIMARY	t12	ALL	NULL	NULL	NULL	NULL	8	Using where; End materialize; Using join buffer
+1	PRIMARY	t21	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer
+1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	32	Using where; Using join buffer
+select t21.* from t21,t22 where t21.a = t22.a and 
+t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
+a	b	c
+256	67	NULL
+drop table t1, t11, t12, t21, t22;
+create table t1(a int);
+insert into t1 values (0),(1);
+set @@optimizer_switch='no_firstmatch';
+explain 
+select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	2	
+2	DEPENDENT SUBQUERY	Y	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	Z	ALL	NULL	NULL	NULL	NULL	2	Materialize
+select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
+subq
+NULL
+0
+set @@optimizer_switch='';
 drop table t1;

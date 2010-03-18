@@ -453,8 +453,7 @@ protected:
 
 #define BLOCKS_IN_AVG_SEEK  128
 
-#define DISK_SEEK_PROP_COST ((double)0.5/BLOCKS_IN_AVG_SEEK)
-
+#define DISK_SEEK_PROP_COST ((double)0.1/BLOCKS_IN_AVG_SEEK)
 
 /**
   Number of rows in a reference table when refereed through a not unique key.
@@ -462,6 +461,12 @@ protected:
   distribution.
 */
 #define MATCHING_ROWS_IN_OTHER_TABLE 10
+
+/*
+  Subquery materialization-related constants
+*/
+#define HEAP_TEMPTABLE_LOOKUP_COST 0.05
+#define DISK_TEMPTABLE_LOOKUP_COST 1.0
 
 /** Don't pack string keys shorter than this (if PACK_KEYS=1 isn't used). */
 #define KEY_DEFAULT_PACK_LENGTH 8
@@ -631,7 +636,8 @@ protected:
 #define OPTIMIZER_SWITCH_MATERIALIZATION           (1ULL << 5)
 #define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 6)
 #define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 7)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 8)
+#define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 8)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 9)
 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
@@ -641,7 +647,8 @@ protected:
                                   OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
                                   OPTIMIZER_SWITCH_MATERIALIZATION | \
                                   OPTIMIZER_SWITCH_SEMIJOIN | \
-                                  OPTIMIZER_SWITCH_LOOSE_SCAN)
+                                  OPTIMIZER_SWITCH_LOOSE_SCAN | \
+                                  OPTIMIZER_SWITCH_FIRSTMATCH)
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
@@ -1839,7 +1846,7 @@ void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
 void print_plan(JOIN* join,uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);
 void print_keyuse_array(DYNAMIC_ARRAY *keyuse_array);
-void print_sjm(SJ_MATERIALIZE_INFO *sjm);
+void print_sjm(SJ_MATERIALIZATION_INFO *sjm);
 #define EXTRA_DEBUG_DUMP_TABLE_LISTS
 #ifdef EXTRA_DEBUG_DUMP_TABLE_LISTS
 void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST* tl);
