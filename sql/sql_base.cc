@@ -1244,7 +1244,12 @@ void close_thread_tables(THD *thd)
                           table->s->table_name.str, (long) table));
 #endif
 
-  DEBUG_SYNC(thd, "before_close_thread_tables");
+#if defined(ENABLED_DEBUG_SYNC)
+  /* debug_sync may not be initialized for some slave threads */
+  if (thd->debug_sync_control)
+    DEBUG_SYNC(thd, "before_close_thread_tables");
+#endif
+
   /*
     We are assuming here that thd->derived_tables contains ONLY derived
     tables for this substatement. i.e. instead of approach which uses
