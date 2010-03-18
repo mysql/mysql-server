@@ -34,13 +34,10 @@ Thread::~Thread()
 int Thread::start(const Options &options)
 {
   m_options = options;
-  DBUG_ASSERT(m_options.stack_size() >= PTHREAD_STACK_MIN);
   pthread_attr_t attr;
   pthread_attr_init(&attr);
   if (options.detached())
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-  pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
-  pthread_attr_setstacksize(&attr, m_options.stack_size());
   const int error=
     pthread_create(&m_thread_id, &attr, thread_start_routine, this);
   pthread_attr_destroy(&attr);
@@ -78,7 +75,7 @@ Mutex_lock::~Mutex_lock()
 }
 
 
-Notification::Notification() : m_notified(false)
+Notification::Notification() : m_notified(FALSE)
 {
   const int failed1= pthread_cond_init(&m_cond, NULL);
   DBUG_ASSERT(!failed1);
@@ -103,7 +100,8 @@ bool Notification::has_been_notified()
 void Notification::wait_for_notification()
 {
   Mutex_lock lock(&m_mutex);
-  while (!m_notified) {
+  while (!m_notified)
+  {
     const int failed= pthread_cond_wait(&m_cond, &m_mutex);
     DBUG_ASSERT(!failed);
   }
@@ -112,7 +110,7 @@ void Notification::wait_for_notification()
 void Notification::notify()
 {
   Mutex_lock lock(&m_mutex);
-  m_notified= true;
+  m_notified= TRUE;
   const int failed= pthread_cond_broadcast(&m_cond);
   DBUG_ASSERT(!failed);
 }

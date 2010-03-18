@@ -1,3 +1,18 @@
+# Copyright (C) 2009 Sun Microsystems, Inc.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
 # Experimental: Unit tests with google gtest (installed in /usr/local/...)
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/sql
@@ -22,7 +37,11 @@ if HAVE_GTEST
 # TODO(didrik): substitute libgtest.la from configure.
 LDADD += libgunit.la /usr/local/lib/libgtest.la $(UNIT_TEST_LIBS)
 
+noinst_HEADERS      = \
+	thread_utils.h
+
 noinst_LTLIBRARIES  = libgunit.la
+
 libgunit_la_SOURCES = \
 	gunit_test_main.cc \
 	tap_event_listener.cc \

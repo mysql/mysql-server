@@ -50,19 +50,19 @@ bool notify_thread(THD*);
   (The @note for the real version of this function indicates that the
   coupling between THD and MDL is too tight.)
 */
-extern bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use)
+bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use)
 {
   if (in_use != NULL)
     return notify_thread(in_use);
-  return false;
+  return FALSE;
 }
 
 /*
   Mock away this function as well, with an empty function.
-  TODO(didrik): Consider verifying that the MDL module actually calls
+  @todo didrik: Consider verifying that the MDL module actually calls
   this with correct arguments.
 */
-extern void mysql_ha_flush(THD *)
+void mysql_ha_flush(THD *)
 {
   DBUG_PRINT("mysql_ha_flush", ("mock version"));
 }
@@ -91,18 +91,20 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len)
   FAIL() << "Not yet implemented.";
 }
 
-// Putting everything in an unnamed namespace prevents any (unintentional)
-// name clashes with the code under test.
+/*
+  Putting everything in an unnamed namespace prevents any (unintentional)
+  name clashes with the code under test.
+*/
 namespace {
 
 using thread::Notification;
 using thread::Thread;
 
-const char db_name[] = "some_database";
-const char table_name1[] =  "some_table1";
-const char table_name2[] =  "some_table2";
-const char table_name3[] =  "some_table3";
-const char table_name4[] =  "some_table4";
+const char db_name[]= "some_database";
+const char table_name1[]= "some_table1";
+const char table_name2[]= "some_table2";
+const char table_name3[]= "some_table3";
+const char table_name4[]= "some_table4";
 
 class MDL_test : public ::testing::Test
 {
@@ -126,10 +128,16 @@ protected:
   {
     m_mdl_context.destroy();
     mdl_destroy();
+    free_root(&m_mem_root, MYF(0));
   }
 
-  // Returns a MEM_ROOT-allocated request object
-  // (which cannot be destroyed in the normal C++ fashion).
+  // A utility member for testing single lock requests.
+  void test_one_simple_shared_lock(enum_mdl_type lock_type);
+
+  /*
+    Returns a MEM_ROOT-allocated request object
+    (which cannot be destroyed in the normal C++ fashion).
+  */
   MDL_request *create_request(const char *table_name)
   {
     return MDL_request::create(MDL_key::TABLE,
@@ -146,9 +154,11 @@ private:
 };
 
 
-// Will grab a lock on table_name1 of given type in the run() function.
-// The two notifications are for synchronizing with the main thread.
-// Does *not* take ownership of the notifications.
+/*
+  Will grab a lock on table_name1 of given type in the run() function.
+  The two notifications are for synchronizing with the main thread.
+  Does *not* take ownership of the notifications.
+*/
 class MDL_thread : public Thread
 {
 public:
@@ -216,7 +226,7 @@ void MDL_thread::run()
 // googletest recommends DeathTest suffix for classes use in death tests.
 typedef MDL_test MDL_DeathTest;
 
-bool is_lock_owner(MDL_context *context, MDL_request *request)
+static bool is_lock_owner(MDL_context *context, MDL_request *request)
 {
   return
     context->is_lock_owner(MDL_key::TABLE,
@@ -227,32 +237,32 @@ bool is_lock_owner(MDL_context *context, MDL_request *request)
 /*
   Verifies that we die with a DBUG_ASSERT if we destry a non-empty MDL_context.
  */
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 TEST_F(MDL_DeathTest, die_when_m_tickets_nonempty)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   MDL_request *request= create_request(table_name1);
   EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request));
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
   EXPECT_DEATH(m_mdl_context.destroy(), ".*Assertion .*m_tickets.is_empty.*");
-#endif
   m_mdl_context.release_all_locks();
 }
+#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 
 
 /*
   Verifies that we die with a DBUG_ASSERT if we destry a MDL_context
   while holding the global shared lock.
  */
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 TEST_F(MDL_DeathTest, die_when_holding_global_shared_lock)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   EXPECT_FALSE(m_mdl_context.acquire_global_shared_lock());
-#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
   EXPECT_DEATH(m_mdl_context.destroy(),
                ".*Assertion .*has_global_shared_lock.*");
-#endif
   m_mdl_context.release_global_shared_lock();
 }
+#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
 
 
 /*
@@ -263,14 +273,14 @@ TEST_F(MDL_test, construct_and_destruct)
 }
 
 
-/*
-  Acquires one lock of type MDL_SHARED.
- */
-TEST_F(MDL_test, one_shared)
+void MDL_test::test_one_simple_shared_lock(enum_mdl_type lock_type)
 {
   MDL_request *request= create_request(table_name1);
   ASSERT_NE(m_null_request, request);
-  EXPECT_EQ(MDL_SHARED, request->type);
+  // Verifies that shared is the default.
+  if (MDL_SHARED != lock_type)
+    request->set_type(lock_type);
+  EXPECT_EQ(lock_type, request->type);
   EXPECT_TRUE(request->is_shared());
   EXPECT_EQ(m_null_ticket, request->ticket);
 
@@ -283,6 +293,14 @@ TEST_F(MDL_test, one_shared)
 
   m_mdl_context.release_all_locks();
   EXPECT_FALSE(m_mdl_context.has_locks());
+}
+
+/*
+  Acquires one lock of type MDL_SHARED.
+ */
+TEST_F(MDL_test, one_shared)
+{
+  test_one_simple_shared_lock(MDL_SHARED);
 }
 
 
@@ -291,21 +309,7 @@ TEST_F(MDL_test, one_shared)
  */
 TEST_F(MDL_test, one_shared_high_prio)
 {
-  MDL_request *request= create_request(table_name1);
-  ASSERT_NE(m_null_request, request);
-  request->set_type(MDL_SHARED_HIGH_PRIO);
-  EXPECT_TRUE(request->is_shared());
-  EXPECT_EQ(m_null_ticket, request->ticket);
-
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request));
-  EXPECT_NE(m_null_ticket, request->ticket);
-  EXPECT_TRUE(m_mdl_context.has_locks());
-  EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name1));
-  EXPECT_FALSE(m_mdl_context.is_exclusive_lock_owner(MDL_key::TABLE,
-                                                     db_name, table_name1));
-
-  m_mdl_context.release_all_locks();
-  EXPECT_FALSE(m_mdl_context.has_locks());
+  test_one_simple_shared_lock(MDL_SHARED_HIGH_PRIO);
 }
 
 
@@ -314,21 +318,7 @@ TEST_F(MDL_test, one_shared_high_prio)
  */
 TEST_F(MDL_test, one_shared_upgradable)
 {
-  MDL_request *request= create_request(table_name1);
-  ASSERT_NE(m_null_request, request);
-  request->set_type(MDL_SHARED_UPGRADABLE);
-  EXPECT_TRUE(request->is_shared());
-  EXPECT_EQ(m_null_ticket, request->ticket);
-
-  EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(request));
-  EXPECT_NE(m_null_ticket, request->ticket);
-  EXPECT_TRUE(m_mdl_context.has_locks());
-  EXPECT_TRUE(m_mdl_context.is_lock_owner(MDL_key::TABLE, db_name, table_name1));
-  EXPECT_FALSE(m_mdl_context.is_exclusive_lock_owner(MDL_key::TABLE,
-                                                     db_name, table_name1));
-
-  m_mdl_context.release_all_locks();
-  EXPECT_FALSE(m_mdl_context.has_locks());
+  test_one_simple_shared_lock(MDL_SHARED_UPGRADABLE);
 }
 
 
@@ -356,7 +346,7 @@ TEST_F(MDL_test, one_exclusive)
 
 
 /*
-  Acquires wo locks of type MDL_SHARED.
+  Acquires two locks, on different tables, of type MDL_SHARED.
   Verifies that they are independent.
  */
 TEST_F(MDL_test, two_shared)
@@ -397,7 +387,7 @@ TEST_F(MDL_test, two_shared)
  */
 TEST_F(MDL_test, shared_locks_between_contexts)
 {
-  THD         *thd2= (THD*) 0x1;
+  THD         *thd2= (THD*) this;
   MDL_context  mdl_context2;
   mdl_context2.init(thd2);
   MDL_request *request1= create_request(table_name1);
