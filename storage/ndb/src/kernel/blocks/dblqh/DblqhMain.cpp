@@ -12757,6 +12757,22 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
 
     lcpPtr.p->firstFragmentFlag= true;
     
+#ifdef ERROR_INSERT
+    /**
+     * Only (so-far) in error insert
+     *   check that keepGci (tail of REDO) is smaller than of head of REDO
+     *
+     */
+    if (! ((cnewestCompletedGci >= lcpFragOrd->keepGci) &&
+           (cnewestGci >= lcpFragOrd->keepGci)))
+    {
+      ndbout_c("lcpFragOrd->keepGci: %u cnewestCompletedGci: %u cnewestGci: %u",
+               lcpFragOrd->keepGci, cnewestCompletedGci, cnewestGci);
+    }
+    ndbrequire(cnewestCompletedGci >= lcpFragOrd->keepGci);
+    ndbrequire(cnewestGci >= lcpFragOrd->keepGci);
+#endif
+
     c_lcpId = lcpFragOrd->lcpId;
     ndbrequire(lcpPtr.p->lcpState == LcpRecord::LCP_IDLE);
     setLogTail(signal, lcpFragOrd->keepGci);
@@ -15885,7 +15901,14 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   Uint32 noOfLogNodes = startFragReq->noOfLogNodes;
   Uint32 lcpId = startFragReq->lcpId;
 
-  if (noOfLogNodes > 1)
+  bool doprint = false;
+#ifdef ERROR_INSERT
+  /**
+   * Always printSTART_FRAG_REQ (for debugging) if ERROR_INSERT is set
+   */
+  doprint = true;
+#endif
+  if (doprint || noOfLogNodes > 1)
   {
     printSTART_FRAG_REQ(stdout, signal->getDataPtr(), signal->getLength(),
                         number());
@@ -16088,6 +16111,14 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   cnewestGci = req->newestGci;
   cstartRecReqData = req->senderData;
 
+#if 0
+  /**
+   * This require fails...
+   *   investigate what is reasonable to do!!
+   *   and what it means
+   */
+  ndbrequire(crestartOldestGci <= crestartNewestGci);
+#endif
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
@@ -17398,6 +17429,14 @@ crash:
 		       crash_msg ? crash_msg : "",
 		       logPartPtr.p->logLastGci);
   
+  ndbout_c("%s", buf);
+  ndbout_c("logPartPtr.p->logExecState: %u", logPartPtr.p->logExecState);
+  ndbout_c("crestartOldestGci: %u", crestartOldestGci);
+  ndbout_c("crestartNewestGci: %u", crestartNewestGci);
+  ndbout_c("csrPhasesCompleted: %u", csrPhasesCompleted);
+  ndbout_c("logPartPtr.p->logStartGci: %u", logPartPtr.p->logStartGci);
+  ndbout_c("logPartPtr.p->logLastGci: %u", logPartPtr.p->logLastGci);
+  
   progError(__LINE__, NDBD_EXIT_SR_REDOLOG, buf);  
 }//Dblqh::execSr()
 
@@ -18130,8 +18169,18 @@ void Dblqh::readSrFourthPhaseLab(Signal* signal)
    *  INITIALISE LOG LAP TO BE THE LOG LAP AS FOUND IN THE HEAD PAGE.
    *  WE HAVE TO CALCULATE THE NUMBER OF REMAINING WORDS IN THIS MBYTE.
    * ----------------------------------------------------------------------- */
-  cnewestGci = crestartNewestGci;
-  cnewestCompletedGci = crestartNewestGci;
+  Uint32 gci = crestartNewestGci;
+  if (crestartOldestGci > gci)
+  {
+    jam();
+    /**
+     * If "keepGci" is bigger than latest-completed-gci
+     *   move cnewest/cnewestCompletedGci forward
+     */
+    gci = crestartOldestGci;
+  }
+  cnewestGci = gci;
+  cnewestCompletedGci = gci;
   logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
   logPartPtr.p->currentLogfile = logFilePtr.i;
   logFilePtr.p->filePosition = logPartPtr.p->headPageNo;

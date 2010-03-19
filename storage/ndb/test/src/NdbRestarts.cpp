@@ -23,24 +23,25 @@
 #include <kernel/ndb_limits.h>
 #include <signaldata/DumpStateOrd.hpp>
 #include <NdbEnv.h>
+#include <NDBT_Test.hpp>
 
+#define F_ARGS NDBT_Context* ctx, NdbRestarter& _restarter, const NdbRestarts::NdbRestart* _restart
 
-int restartRandomNodeGraceful(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int restartRandomNodeAbort(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int restartRandomNodeError(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int restartRandomNodeInitial(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int restartNFDuringNR(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int restartMasterNodeError(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int twoNodeFailure(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int fiftyPercentFail(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int twoMasterNodeFailure(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int restartAllNodesGracfeul(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int restartAllNodesAbort(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int restartAllNodesError9999(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int fiftyPercentStopAndWait(NdbRestarter&, const NdbRestarts::NdbRestart*);
-int restartNodeDuringLCP(NdbRestarter& _restarter,
-			 const NdbRestarts::NdbRestart* _restart);
-int stopOnError(NdbRestarter&, const NdbRestarts::NdbRestart*);
+int restartRandomNodeGraceful(F_ARGS);
+int restartRandomNodeAbort(F_ARGS);
+int restartRandomNodeError(F_ARGS);
+int restartRandomNodeInitial(F_ARGS);
+int restartNFDuringNR(F_ARGS);
+int restartMasterNodeError(F_ARGS);
+int twoNodeFailure(F_ARGS);
+int fiftyPercentFail(F_ARGS);
+int twoMasterNodeFailure(F_ARGS);
+int restartAllNodesGracfeul(F_ARGS);
+int restartAllNodesAbort(F_ARGS);
+int restartAllNodesError9999(F_ARGS);
+int fiftyPercentStopAndWait(F_ARGS);
+int restartNodeDuringLCP(F_ARGS);
+int stopOnError(F_ARGS);
 int getRandomNodeId(NdbRestarter& _restarter);
 
 /**
@@ -240,7 +241,8 @@ const NdbRestarts::NdbRestart* NdbRestarts::getRestart(const char* _name){
 }
 
 
-int NdbRestarts::executeRestart(const NdbRestarts::NdbRestart* _restart, 
+int NdbRestarts::executeRestart(NDBT_Context* ctx,
+                                const NdbRestarts::NdbRestart* _restart,
 				unsigned int _timeout){
   // Check that there are enough nodes in the cluster
   // for this test
@@ -257,7 +259,7 @@ int NdbRestarts::executeRestart(const NdbRestarts::NdbRestart* _restart,
     return NDBT_FAILED;
   }
   
-  int res = _restart->m_restartFunc(restarter, _restart);
+  int res = _restart->m_restartFunc(ctx, restarter, _restart);
 
   // Sleep a little waiting for nodes to react to command
   NdbSleep_SecSleep(2);
@@ -277,23 +279,25 @@ int NdbRestarts::executeRestart(const NdbRestarts::NdbRestart* _restart,
   return res;
 } 
 
-int NdbRestarts::executeRestart(int _num,
+int NdbRestarts::executeRestart(NDBT_Context* ctx,
+                                int _num,
 				unsigned int _timeout){
   const NdbRestarts::NdbRestart* r = getRestart(_num);
   if (r == NULL)
     return NDBT_FAILED;
 
-  int res = executeRestart(r, _timeout);
+  int res = executeRestart(ctx, r, _timeout);
   return res;
 }
 
-int NdbRestarts::executeRestart(const char* _name,
+int NdbRestarts::executeRestart(NDBT_Context* ctx,
+                                const char* _name,
 				unsigned int _timeout){
   const NdbRestarts::NdbRestart* r = getRestart(_name);
   if (r == NULL)
     return NDBT_FAILED;
 
-  int res = executeRestart(r, _timeout);
+  int res = executeRestart(ctx, r, _timeout);
   return res;
 }
 
@@ -356,8 +360,7 @@ const NdbRestarts::NdbErrorInsert* NdbRestarts::getRandomError(){
 
 
 
-int restartRandomNodeGraceful(NdbRestarter& _restarter, 
-			      const NdbRestarts::NdbRestart* _restart){
+int restartRandomNodeGraceful(F_ARGS){
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
@@ -371,8 +374,7 @@ int restartRandomNodeGraceful(NdbRestarter& _restarter,
   return NDBT_OK;
 }
 
-int restartRandomNodeAbort(NdbRestarter& _restarter, 
-			      const NdbRestarts::NdbRestart* _restart){
+int restartRandomNodeAbort(F_ARGS){
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
@@ -386,8 +388,7 @@ int restartRandomNodeAbort(NdbRestarter& _restarter,
   return NDBT_OK;
 }
 
-int restartRandomNodeError(NdbRestarter& _restarter, 
-			   const NdbRestarts::NdbRestart* _restart){
+int restartRandomNodeError(F_ARGS){
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
@@ -401,8 +402,7 @@ int restartRandomNodeError(NdbRestarter& _restarter,
   return NDBT_OK;
 }
 
-int restartMasterNodeError(NdbRestarter& _restarter, 
-			   const NdbRestarts::NdbRestart* _restart){
+int restartMasterNodeError(F_ARGS){
 
   int nodeId = _restarter.getDbNodeId(0);
   
@@ -414,8 +414,7 @@ int restartMasterNodeError(NdbRestarter& _restarter,
   return NDBT_OK;
 }
 
-int restartRandomNodeInitial(NdbRestarter& _restarter, 
-			     const NdbRestarts::NdbRestart* _restart){
+int restartRandomNodeInitial(F_ARGS){
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
@@ -429,8 +428,7 @@ int restartRandomNodeInitial(NdbRestarter& _restarter,
   return NDBT_OK;
 }
 
-int twoNodeFailure(NdbRestarter& _restarter, 
-		   const NdbRestarts::NdbRestart* _restart){
+int twoNodeFailure(F_ARGS){
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
   int randomId = myRandom48(_restarter.getNumDbNodes());
@@ -467,8 +465,7 @@ int twoNodeFailure(NdbRestarter& _restarter,
   return NDBT_OK;
 }
 
-int twoMasterNodeFailure(NdbRestarter& _restarter, 
-			 const NdbRestarts::NdbRestart* _restart){
+int twoMasterNodeFailure(F_ARGS){
 
   int n[2];
   n[0] = _restarter.getMasterNodeId();  
@@ -526,8 +523,7 @@ int get50PercentOfNodes(NdbRestarter& restarter,
   return num50Percent;
 }
 
-int fiftyPercentFail(NdbRestarter& _restarter, 
-			    const NdbRestarts::NdbRestart* _restart){
+int fiftyPercentFail(F_ARGS){
 
 
   int nodes[MAX_NDB_NODES];
@@ -553,8 +549,7 @@ int fiftyPercentFail(NdbRestarter& _restarter,
 }
 
 
-int restartAllNodesGracfeul(NdbRestarter& _restarter, 
-			    const NdbRestarts::NdbRestart* _restart){
+int restartAllNodesGracfeul(F_ARGS){
 
   g_info << _restart->m_name  << endl;
 
@@ -566,8 +561,7 @@ int restartAllNodesGracfeul(NdbRestarter& _restarter,
 
 }
 
-int restartAllNodesAbort(NdbRestarter& _restarter, 
-			 const NdbRestarts::NdbRestart* _restart){
+int restartAllNodesAbort(F_ARGS){
   
   g_info << _restart->m_name  << endl;
 
@@ -578,8 +572,7 @@ int restartAllNodesAbort(NdbRestarter& _restarter,
   return NDBT_OK;
 }
 
-int restartAllNodesError9999(NdbRestarter& _restarter, 
-			     const NdbRestarts::NdbRestart* _restart){
+int restartAllNodesError9999(F_ARGS){
   
   g_info << _restart->m_name <<  endl;
 
@@ -602,8 +595,7 @@ int restartAllNodesError9999(NdbRestarter& _restarter,
   return NDBT_OK;
 }
 
-int fiftyPercentStopAndWait(NdbRestarter& _restarter, 
-			    const NdbRestarts::NdbRestart* _restart){
+int fiftyPercentStopAndWait(F_ARGS){
 
   int nodes[MAX_NDB_NODES];
   int numNodes = get50PercentOfNodes(_restarter, nodes);
@@ -667,8 +659,7 @@ NFDuringNR_codes[] = {
   5002
 };
 
-int restartNFDuringNR(NdbRestarter& _restarter, 
-			   const NdbRestarts::NdbRestart* _restart){
+int restartNFDuringNR(F_ARGS){
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
   int i;
@@ -718,7 +709,7 @@ int restartNFDuringNR(NdbRestarter& _restarter,
   if(NdbEnv_GetEnv("USER", buf, 256) == 0 || strcmp(buf, "ejonore") != 0)
     return NDBT_OK;
   
-  for(i = 0; i<sz; i++){
+  for(i = 0; i<sz && !ctx->isTestStopped(); i++){
     const int randomId = myRandom48(_restarter.getNumDbNodes());
     int nodeId = _restarter.getDbNodeId(randomId);
     const int error = NFDuringNR_codes[i];
@@ -796,8 +787,7 @@ NRDuringLCP_NonMaster_codes[] = {
   7018  // Crash in !master when changing state to LCP_TAB_SAVED
 };
 
-int restartNodeDuringLCP(NdbRestarter& _restarter, 
-			 const NdbRestarts::NdbRestart* _restart) {
+int restartNodeDuringLCP(F_ARGS) {
   int i;
   // Master
   int val = DumpStateOrd::DihMinTimeBetweenLCP;
@@ -883,8 +873,7 @@ int restartNodeDuringLCP(NdbRestarter& _restarter,
   return NDBT_OK;
 }
 
-int stopOnError(NdbRestarter& _restarter, 
-		const NdbRestarts::NdbRestart* _restart){
+int stopOnError(F_ARGS){
 
   myRandom48Init((long)NdbTick_CurrentMillisecond());
 
