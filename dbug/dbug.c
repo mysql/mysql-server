@@ -384,7 +384,7 @@ static CODE_STATE *code_state(void)
   if (!init_done)
   {
     init_done=TRUE;
-    pthread_mutex_init(&THR_LOCK_dbug,MY_MUTEX_INIT_FAST);
+    pthread_mutex_init(&THR_LOCK_dbug, NULL);
     bzero(&init_settings, sizeof(init_settings));
     init_settings.out_file=stderr;
     init_settings.flags=OPEN_APPEND;
