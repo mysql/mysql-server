@@ -58,7 +58,6 @@ GRANT CREATE ROUTINE ON db_storedproc.* TO 'user_1'@'localhost';
 GRANT SELECT         ON db_storedproc.* TO 'user_2'@'localhost';
 FLUSH PRIVILEGES;
 
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user2_1, localhost, user_1, , db_storedproc);
 --source suite/funcs_1/include/show_connection.inc
 
@@ -80,7 +79,6 @@ delimiter ;//
 
 disconnect user2_1;
 
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user2_2, localhost, user_2, , db_storedproc);
 --source suite/funcs_1/include/show_connection.inc
 
@@ -102,7 +100,6 @@ FLUSH PRIVILEGES;
 disconnect user2_2;
 
 # new connection
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user2_3, localhost, user_2, , db_storedproc);
 --source suite/funcs_1/include/show_connection.inc
 CALL sp31102();
@@ -121,7 +118,6 @@ FLUSH PRIVILEGES;
 CALL sp31102();
 SELECT fn31105( 9 );
 
---replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (user2_4, localhost, user_2, , db_storedproc);
 --source suite/funcs_1/include/show_connection.inc
 CALL sp31102();
