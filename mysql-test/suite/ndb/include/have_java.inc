@@ -1,8 +1,13 @@
 --perl
 use strict;
+use File::Basename;
 use IO::File;
 use lib "lib/";
 use My::Platform;
+use My::Find;
+
+require "lib/mtr_misc.pl";
+
 
 #
 # Looks for java executable (/bin/java) in several locations:
@@ -14,30 +19,97 @@ use My::Platform;
 # If java executable is found, MTR_JAVA will be set to reflect this location
 #
 my $java_args = "";
-my $arch_paths = ['/usr/local/jdk', '/usr/local/java', '/usr/local/java/jdk'];
+my @arch_paths = ();
+
+sub getRegValue
+{
+  my ($key, $valuename) = @_;
+  my $cmd = "reg query \"$key\" /v $valuename";
+
+  my $res = "";
+
+  my @ares = `$cmd`;
+  if($? == 0)
+  {
+    foreach my $row (@ares)
+    {
+      if($row =~ m/.*$valuename\s*REG_SZ\s*(.*)/)
+      {
+        $row = $1;
+        $row =~ s/^\s*//;
+        $row =~ s/\s*$//;
+        $res = $row;
+        last;
+      }
+    }
+  }
+  return $res;
+}
+
+sub getJavaPath
+{
+  my $key = "HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit";
+  my $version = getRegValue($key, "CurrentVersion");
+
+  if(length($version) < 1)
+  {
+    return "";
+  }
+
+  $key = "HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit\\$version";
+  my $path = getRegValue($key, "JavaHome");
+
+  return $path;
+}
+
+my $pathsep = "/";
 
 if(!IS_WINDOWS)
 {
+  push(@arch_paths, ('/usr/local/jdk', '/usr/local/java', '/usr/local/java/jdk'));
+  push(@arch_paths, ('/usr/lib/jvm/java', '/usr/lib64/jvm/java'));
+
   $java_args = "-d32";
 
   # Architecture dependent paths, will be expanded with -64 if we are running on 64 bit build
   my $bits = $ENV{MYSQL_SYSTEM_ARCHITECTURE};
   if ($bits == 64) {
-    $arch_paths = [map { $_ . "-64" } @$arch_paths];
+    map { $_ . "-64" } @arch_paths;
     $java_args = "-d64";
   }
 }
+else
+{ 
+  my $win_path = getJavaPath();
+  if(length($win_path) > 0) 
+  {
+    push(@arch_paths, $win_path);
+  }
+  $pathsep = "\\";
+}
 
-my $java_paths = [$ENV{MTR_JAVA}, $ENV{JAVA_HOME}, $ENV{JDK_HOME}, '/usr/lib/jvm/java',
-                  '/usr/lib64/jvm/java', @$arch_paths,
-                  '/System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK'];
+
+my @java_paths = ($ENV{MTR_JAVA}, $ENV{JAVA_HOME}, $ENV{JDK_HOME});
+
+push(@java_paths, @arch_paths);
+push(@java_paths, ""); # empty path for "java on PATH variable"
+
 my $java_loc = "";
 
 sub java_exists {
-   my $path = shift;
+   my ($path, $exe) = @_;
 
-   system($path . " -version > /dev/null");
-   my $exists = ($? == 0); 
+   $exe .= ".exe" if IS_WINDOWS;
+   $path .= $pathsep if length($path) > 0;
+   my $exists = $path . $exe;
+   my $devnull = "/dev/null";
+   $devnull = "NUL" if IS_WINDOWS;
+
+   if( -e $exists)
+   {
+     system($exists . " -version > " . $devnull);
+     $exists = "" if ($? != 0); 
+   }
 
    # Debug:
    # print STDERR "Check if java exists: path: '$path', exists: '$exists'\n";
@@ -45,20 +117,17 @@ sub java_exists {
    return $exists;
 }
 
-foreach my $path (@$java_paths) {
-  if (defined $path && $path ne '') {
-     if (java_exists($path . "/bin/java")) {
-        $java_loc = $path . "/bin/java";
-        last;
-     }
+foreach my $path (@java_paths) 
+{
+  if (defined $path && $path ne '') 
+  {
+    $path .= $pathsep . "bin";
   }
-}
-
-# If everything else fails, check if there exists a java in out PATH
-if ($java_loc eq '') {
-   if (java_exists('java')) {
-      $java_loc = 'java';
-   }
+  if (my $tmp = java_exists($path, "java")) 
+  {
+     $java_loc = $tmp;
+     last;
+  }
 }
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
