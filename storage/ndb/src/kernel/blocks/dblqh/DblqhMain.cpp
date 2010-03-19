@@ -15202,6 +15202,14 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   cnewestGci = req->newestGci;
   cstartRecReqData = req->senderData;
 
+#if 0
+  /**
+   * This require fails...
+   *   investigate what is reasonable to do!!
+   *   and what it means
+   */
+  ndbrequire(crestartOldestGci <= crestartNewestGci);
+#endif
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
@@ -16441,6 +16449,14 @@ crash:
 		       signal->theData[7],
 		       crash_msg ? crash_msg : "",
 		       logPartPtr.p->logLastGci);
+  
+  ndbout_c("%s", buf);
+  ndbout_c("logPartPtr.p->logExecState: %u", logPartPtr.p->logExecState);
+  ndbout_c("crestartOldestGci: %u", crestartOldestGci);
+  ndbout_c("crestartNewestGci: %u", crestartNewestGci);
+  ndbout_c("csrPhasesCompleted: %u", csrPhasesCompleted);
+  ndbout_c("logPartPtr.p->logStartGci: %u", logPartPtr.p->logStartGci);
+  ndbout_c("logPartPtr.p->logLastGci: %u", logPartPtr.p->logLastGci);
   
   progError(__LINE__, NDBD_EXIT_SR_REDOLOG, buf);  
 }//Dblqh::execSr()
