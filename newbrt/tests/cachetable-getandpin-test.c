@@ -3,6 +3,7 @@
 
 static void
 flush (CACHEFILE cf     __attribute__((__unused__)),
+       int UU(fd),
        CACHEKEY key     __attribute__((__unused__)),
        void *v          __attribute__((__unused__)),
        void *extraargs  __attribute__((__unused__)),
@@ -16,7 +17,7 @@ flush (CACHEFILE cf     __attribute__((__unused__)),
 }
 
 static int
-fetch (CACHEFILE cf, CACHEKEY key, u_int32_t hash, void **vptr, long *sizep, void *extra) {
+fetch (CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t hash, void **vptr, long *sizep, void *extra) {
     cf = cf; hash = hash; extra = extra;
     *sizep = (long) key.b;
     *vptr = toku_malloc(*sizep);
@@ -25,6 +26,7 @@ fetch (CACHEFILE cf, CACHEKEY key, u_int32_t hash, void **vptr, long *sizep, voi
 
 static int
 fetch_error (CACHEFILE cf       __attribute__((__unused__)),
+             int UU(fd),
 	     CACHEKEY key       __attribute__((__unused__)),
 	     u_int32_t fullhash __attribute__((__unused__)),
 	     void **value       __attribute__((__unused__)),

@@ -10,7 +10,7 @@ static const int item_size = 1;
 
 static int n_flush, n_write_me, n_keep_me, n_fetch;
 
-static void flush(CACHEFILE cf, CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint)) {
+static void flush(CACHEFILE cf, int UU(fd), CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint)) {
     cf = cf; key = key; value = value; extraargs = extraargs; 
     // assert(key == make_blocknum((long)value));
     assert(size == item_size);
@@ -19,7 +19,7 @@ static void flush(CACHEFILE cf, CACHEKEY key, void *value, void *extraargs, long
     if (keep_me) n_keep_me++;
 }
 
-static int fetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs) {
+static int fetch(CACHEFILE cf, int UU(fd), CACHEKEY key, u_int32_t fullhash, void **value, long *sizep, void *extraargs) {
     cf = cf; key = key; fullhash = fullhash; value = value; sizep = sizep; extraargs = extraargs;
     assert(0); // should not be called
     n_fetch++;

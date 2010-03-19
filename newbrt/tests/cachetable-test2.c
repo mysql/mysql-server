@@ -95,6 +95,7 @@ static void file_is_not_present(CACHEFILE cf) {
 
 
 static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
+                            int UU(fd),
 			    CACHEKEY  key,
 			    void     *value,
 			    void     *extra        __attribute__((__unused__)),
@@ -111,7 +112,7 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
     //print_ints();
 }
 
-static int fetch_forchain (CACHEFILE f, CACHEKEY key, u_int32_t fullhash, void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
+static int fetch_forchain (CACHEFILE f, int UU(fd), CACHEKEY key, u_int32_t fullhash, void**value, long *sizep __attribute__((__unused__)), void*extraargs) {
     assert(toku_cachetable_hash(f, key)==fullhash);
     assert((long)extraargs==(long)key.b);
     *value = (void*)(long)key.b;

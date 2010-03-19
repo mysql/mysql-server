@@ -198,7 +198,7 @@ int toku_pwrite_lock_destroy(void);
 int toku_brt_serialize_init(void);
 int toku_brt_serialize_destroy(void);
 
-void toku_maybe_truncate_cachefile (CACHEFILE cf, u_int64_t size_used);
+void toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used);
 // Effect: truncate file if overallocated by at least 32MiB
 
 int maybe_preallocate_in_file (int fd, u_int64_t size);

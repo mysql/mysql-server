@@ -24,11 +24,11 @@ void toku_brtheader_lock(struct brt_header *h);
 void toku_brtheader_unlock(struct brt_header *h);
 
 void toku_block_translation_note_start_checkpoint_unlocked(BLOCK_TABLE bt);
-void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt, struct brt_header *h);
+void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt, int fd, struct brt_header *h);
 void toku_block_translation_note_failed_checkpoint(BLOCK_TABLE bt);
 void toku_block_translation_note_skipped_checkpoint(BLOCK_TABLE bt);
-void toku_block_translation_truncate_unlocked(BLOCK_TABLE bt, struct brt_header *h);
-void toku_maybe_truncate_cachefile_on_open(BLOCK_TABLE bt, struct brt_header *h);
+void toku_block_translation_truncate_unlocked(BLOCK_TABLE bt, int fd, struct brt_header *h);
+void toku_maybe_truncate_cachefile_on_open(BLOCK_TABLE bt, int fd, struct brt_header *h);
 
 //Blocknums
 void toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, struct brt_header * h);

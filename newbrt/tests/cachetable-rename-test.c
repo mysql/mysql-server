@@ -38,6 +38,7 @@ static void*     vals[KEYLIMIT];
 static int       n_keys=0;
 
 static void r_flush (CACHEFILE f      __attribute__((__unused__)),
+                     int UU(fd),
 		     CACHEKEY k,
 		     void *value,
 		     void *extra      __attribute__((__unused__)),
@@ -69,6 +70,7 @@ static void r_flush (CACHEFILE f      __attribute__((__unused__)),
 }
 
 static int r_fetch (CACHEFILE f        __attribute__((__unused__)),
+                    int UU(fd),
 		    CACHEKEY key       __attribute__((__unused__)),
 		    u_int32_t fullhash __attribute__((__unused__)),
 		    void**value        __attribute__((__unused__)),

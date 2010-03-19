@@ -9,6 +9,7 @@
 enum { KEYLIMIT = 4, BLOCKSIZE=1<<20, N=2048};
 
 static void f_flush (CACHEFILE f,
+                     int UU(fd),
 		     CACHEKEY key,
 		     void *value,
 		     void *extra       __attribute__((__unused__)),
@@ -18,7 +19,8 @@ static void f_flush (CACHEFILE f,
 		     BOOL for_checkpoint     __attribute__((__unused__))) {
     assert(size==BLOCKSIZE);
     if (write_me) {
-	toku_os_full_pwrite(toku_cachefile_fd(f), value, BLOCKSIZE, key.b);
+	toku_os_full_pwrite(toku_cachefile_get_and_pin_fd(f), value, BLOCKSIZE, key.b);
+        toku_cachefile_unpin_fd(f);
     }
     if (!keep_me) {
 	toku_free(value);
@@ -26,13 +28,15 @@ static void f_flush (CACHEFILE f,
 }
 
 static int f_fetch (CACHEFILE f,
+                    int UU(fd),
 		    CACHEKEY key,
 		    u_int32_t fullhash __attribute__((__unused__)),
 		    void**value,
 		    long *sizep,
 		    void*extraargs     __attribute__((__unused__))) {
     void *buf = toku_malloc(BLOCKSIZE);
-    int r = pread(toku_cachefile_fd(f), buf, BLOCKSIZE, key.b);
+    int r = pread(toku_cachefile_get_and_pin_fd(f), buf, BLOCKSIZE, key.b);
+    toku_cachefile_unpin_fd(f);
     assert(r==BLOCKSIZE);
     *value = buf;
     *sizep = BLOCKSIZE;

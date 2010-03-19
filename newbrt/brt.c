@@ -433,7 +433,8 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node) {
     return toku_cachetable_unpin(brt->cf, node->thisnodename, node->fullhash, (enum cachetable_dirty) node->dirty, brtnode_memory_size(node));
 }
 
-void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute__((unused)), BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
+//fd is protected (must be holding fdlock)
+void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size __attribute__((unused)), BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
     struct brt_header *h = extraargs;
     BRTNODE brtnode = brtnode_v;
 //    if ((write_me || keep_me) && (brtnode->height==0)) {
@@ -451,7 +452,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *
 	if (!h->panic) { // if the brt panicked, stop writing, otherwise try to write it.
 	    int n_workitems, n_threads; 
 	    toku_cachefile_get_workqueue_load(cachefile, &n_workitems, &n_threads);
-	    int r = toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode, h, n_workitems, n_threads, for_checkpoint);
+	    int r = toku_serialize_brtnode_to(fd, brtnode->thisnodename, brtnode, h, n_workitems, n_threads, for_checkpoint);
 	    if (r) {
 		if (h->panic==0) {
 		    char *e = strerror(r);
@@ -471,11 +472,12 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
 }
 
-int toku_brtnode_fetch_callback (CACHEFILE cachefile, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs) {
+//fd is protected (must be holding fdlock)
+int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, void*extraargs) {
     assert(extraargs);
     struct brt_header *h = extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, fullhash, result, h);
+    int r = toku_deserialize_brtnode_from(fd, nodename, fullhash, result, h);
     if (r == 0)
         *sizep = brtnode_memory_size(*result);
     //(*result)->parent_brtnode = 0; /* Don't know it right now. */
@@ -3028,7 +3030,12 @@ int toku_read_brt_header_and_store_in_cachefile (CACHEFILE cf, struct brt_header
     }
     *was_open = FALSE;
     struct brt_header *h;
-    int r = toku_deserialize_brtheader_from(toku_cachefile_fd(cf), &h);
+    int r;
+    {
+        int fd = toku_cachefile_get_and_pin_fd (cf);
+        r = toku_deserialize_brtheader_from(fd, &h);
+        toku_cachefile_unpin_fd(cf);
+    }
     if (r!=0) return r;
     h->cf = cf;
     h->root_put_counter = global_root_put_counter++;
@@ -3230,7 +3237,11 @@ brt_open(BRT t, const char *fname_in_env, const char *fname_in_cwd, int is_creat
             DISKOFF offset;
             //4 for checksum
             toku_realloc_descriptor_on_disk(t->h->blocktable, toku_serialize_descriptor_size(&t->temp_descriptor)+4, &offset, t->h);
-            r = toku_serialize_descriptor_contents_to_fd(toku_cachefile_fd(t->cf), &t->temp_descriptor, offset);
+            {
+                int fd = toku_cachefile_get_and_pin_fd (t->cf);
+                r = toku_serialize_descriptor_contents_to_fd(fd, &t->temp_descriptor, offset);
+                toku_cachefile_unpin_fd(t->cf);
+            }
             if (r!=0) goto died_after_read_and_pin;
             if (t->h->descriptor.dbt.data) toku_free(t->h->descriptor.dbt.data);
             t->h->descriptor = t->temp_descriptor;
@@ -3256,7 +3267,11 @@ brt_open(BRT t, const char *fname_in_env, const char *fname_in_cwd, int is_creat
     }
 
     //Opening a brt may restore to previous checkpoint.  Truncate if necessary.
-    toku_maybe_truncate_cachefile_on_open(t->h->blocktable, t->h);
+    {
+        int fd = toku_cachefile_get_and_pin_fd (t->h->cf);
+        toku_maybe_truncate_cachefile_on_open(t->h->blocktable, fd, t->h);
+        toku_cachefile_unpin_fd(t->h->cf);
+    }
     WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE -> %p\n", t));
     return 0;
 }
@@ -3618,8 +3633,9 @@ int toku_brt_create_cachetable(CACHETABLE *ct, long cachesize, LSN initial_lsn, 
 }
 
 // Create checkpoint-in-progress versions of header and translation (btt) (and fifo for now...).
+//Has access to fd (it is protected).
 int
-toku_brtheader_begin_checkpoint (CACHEFILE UU(cachefile), LSN checkpoint_lsn, void *header_v) {
+toku_brtheader_begin_checkpoint (CACHEFILE UU(cachefile), int UU(fd), LSN checkpoint_lsn, void *header_v) {
     struct brt_header *h = header_v;
     int r = h->panic;
     if (r==0) {
@@ -3718,8 +3734,9 @@ brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
 }
 
 // Write checkpoint-in-progress versions of header and translation to disk (really to OS internal buffer).
+// Must have access to fd (protected)
 int
-toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v)
+toku_brtheader_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v)
 {
     struct brt_header *h = header_v;
     struct brt_header *ch = h->checkpoint_header;
@@ -3734,7 +3751,7 @@ toku_brtheader_checkpoint (CACHEFILE cachefile, void *header_v)
 	{
 	    ch->checkpoint_count++;
 	    // write translation and header to disk (or at least to OS internal buffer)
-	    r = toku_serialize_brt_header_to(toku_cachefile_fd(cachefile), ch);
+	    r = toku_serialize_brt_header_to(fd, ch);
 	    if (r!=0) goto handle_error;
 	}
 	ch->dirty = 0;		// this is only place this bit is cleared (in checkpoint_header)
@@ -3757,8 +3774,9 @@ handle_error:
 
 // Really write everything to disk (fsync dictionary), then free unused disk space 
 // (i.e. tell BlockAllocator to liberate blocks used by previous checkpoint).
+// Must have access to fd (protected)
 int
-toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
+toku_brtheader_end_checkpoint (CACHEFILE cachefile, int fd, void *header_v) {
     struct brt_header *h = header_v;
     int r = h->panic;
     if (r==0) {
@@ -3774,7 +3792,7 @@ toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
                 h->checkpoint_lsn = ch->checkpoint_lsn;  //Header updated.
             }
 	}
-        toku_block_translation_note_end_checkpoint(h->blocktable, h);
+        toku_block_translation_note_end_checkpoint(h->blocktable, fd, h);
     }
     if (h->checkpoint_header) {  // could be NULL only if panic was true at begin_checkpoint
         brtheader_free(h->checkpoint_header);
@@ -3783,8 +3801,9 @@ toku_brtheader_end_checkpoint (CACHEFILE cachefile, void *header_v) {
     return r;
 }
 
+//Has access to fd (it is protected).
 int
-toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error_string, BOOL oplsn_valid, LSN oplsn) {
+toku_brtheader_close (CACHEFILE cachefile, int fd, void *header_v, char **malloced_error_string, BOOL oplsn_valid, LSN oplsn) {
     struct brt_header *h = header_v;
     assert(h->type == BRTHEADER_CURRENT);
     toku_brtheader_lock(h);
@@ -3820,11 +3839,11 @@ toku_brtheader_close (CACHEFILE cachefile, void *header_v, char **malloced_error
         if (h->dirty) {	// this is the only place this bit is tested (in currentheader)
             int r2;
             //assert(lsn.lsn!=0);
-            r2 = toku_brtheader_begin_checkpoint(cachefile, lsn, header_v);
+            r2 = toku_brtheader_begin_checkpoint(cachefile, fd, lsn, header_v);
             if (r==0) r = r2;
-            r2 = toku_brtheader_checkpoint(cachefile, h);
+            r2 = toku_brtheader_checkpoint(cachefile, fd, h);
             if (r==0) r = r2;
-            r2 = toku_brtheader_end_checkpoint(cachefile, header_v);
+            r2 = toku_brtheader_end_checkpoint(cachefile, fd, header_v);
             if (r==0) r = r2;
             if (!h->panic) assert(!h->dirty);	// dirty bit should be cleared by begin_checkpoint and never set again (because we're closing the dictionary)
         }
@@ -5302,7 +5321,9 @@ int toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less,  u_int64_t *equal,  u
 int toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     {
 	int64_t file_size;
-	int r = toku_os_get_file_size(toku_cachefile_fd(brt->cf), &file_size);
+        int fd = toku_cachefile_get_and_pin_fd(brt->cf);
+	int r = toku_os_get_file_size(fd, &file_size);
+        toku_cachefile_unpin_fd(brt->cf);
 	assert(r==0);
 	s->fsize = file_size + toku_cachefile_size_in_memory(brt->cf);
     }
@@ -5439,10 +5460,11 @@ int toku_brt_truncate (BRT brt) {
 
     // TODO log the truncate?
 
+    int fd = toku_cachefile_get_and_pin_fd(brt->cf);
     toku_brtheader_lock(brt->h);
     if (r==0) {
         //Free all data blocknums and associated disk space (if not held on to by checkpoint)
-        toku_block_translation_truncate_unlocked(brt->h->blocktable, brt->h);
+        toku_block_translation_truncate_unlocked(brt->h->blocktable, fd, brt->h);
         //Assign blocknum for root block, also dirty the header
         toku_allocate_blocknum_unlocked(brt->h->blocktable, &brt->h->root, brt->h);
         // reinit the header
@@ -5450,6 +5472,7 @@ int toku_brt_truncate (BRT brt) {
     }
 
     toku_brtheader_unlock(brt->h);
+    toku_cachefile_unpin_fd(brt->cf);
 
     return r;
 }
@@ -5650,17 +5673,20 @@ int
 toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) {
     int r;
 
+    int fd = toku_cachefile_get_and_pin_fd(brt->cf);
     toku_brtheader_lock(brt->h);
 
     int64_t file_size;
-    if (toku_cachefile_is_dev_null(brt->cf))
+    if (toku_cachefile_is_dev_null_unlocked(brt->cf))
         r = EINVAL;
     else
-        r = toku_os_get_file_size(toku_cachefile_fd(brt->cf), &file_size);
+        r = toku_os_get_file_size(fd, &file_size);
     if (r==0) {
         report->file_size_bytes = file_size;
         toku_block_table_get_fragmentation_unlocked(brt->h->blocktable, report);
     }
     toku_brtheader_unlock(brt->h);
+    toku_cachefile_unpin_fd(brt->cf);
     return r;
 }
+

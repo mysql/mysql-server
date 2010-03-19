@@ -20,20 +20,23 @@ cachetable_reserve_filenum_test (void) {
     CACHEFILE cf;
     r = toku_cachetable_openf(&cf, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
-    int fd1 = toku_cachefile_fd(cf); assert(fd1 >= 0);
+    int fd1 = toku_cachefile_get_and_pin_fd(cf); assert(fd1 >= 0);
+    toku_cachefile_unpin_fd(cf);
 
     // test set to good fd succeeds
     char fname2[] = __FILE__ "test2.data";
     unlink(fname2);
     int fd2 = open(fname2, O_RDWR | O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd2 >= 0 && fd1 != fd2);
     r = toku_cachefile_set_fd(cf, fd2, fname2); assert(r == 0);
-    assert(toku_cachefile_fd(cf) == fd2);
+    assert(toku_cachefile_get_and_pin_fd(cf) == fd2);
+    toku_cachefile_unpin_fd(cf);
 
     // test set to bogus fd fails
     int fd3 = open(DEV_NULL_FILE, O_RDWR); assert(fd3 >= 0);
     r = close(fd3); assert(r == 0);
     r = toku_cachefile_set_fd(cf, fd3, DEV_NULL_FILE); assert(r != 0);
-    assert(toku_cachefile_fd(cf) == fd2);
+    assert(toku_cachefile_get_and_pin_fd(cf) == fd2);
+    toku_cachefile_unpin_fd(cf);
 
     // test the filenum functions
     FILENUM fn = toku_cachefile_filenum(cf);
