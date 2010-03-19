@@ -18,7 +18,10 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/META-INF
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/schema.sql
+)
 
 SET ( CLASSPATH 
   target/classes
