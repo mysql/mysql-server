@@ -152,7 +152,7 @@ int runRestartCluster(NDBT_Context* ctx, NDBT_Step* step){
 
     ndbout << "Loop " << i << "/"<< loops <<" started" << endl;
 
-    if(restarts.executeRestart("RestartAllNodesAbort", timeout) != 0){
+    if(restarts.executeRestart(ctx, "RestartAllNodesAbort", timeout) != 0){
       g_err << "Failed to restart all nodes with abort" << endl;
       result = NDBT_FAILED;
       break;

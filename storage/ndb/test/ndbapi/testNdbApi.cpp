@@ -526,7 +526,7 @@ int runTestDeleteNdb(NDBT_Context* ctx, NDBT_Step* step){
     if ((l % 2) == 0){
       // Restart random node 
       ndbout << "Restart random node " << endl;
-      if(restarts.executeRestart("RestartRandomNodeAbort", 120) != 0){
+      if(restarts.executeRestart(ctx, "RestartRandomNodeAbort", 120) != 0){
 	g_err << "Failed to executeRestart(RestartRandomNode)"<<endl;
 	result = NDBT_FAILED;
 	goto end_test;
@@ -534,7 +534,7 @@ int runTestDeleteNdb(NDBT_Context* ctx, NDBT_Step* step){
     } else {
       // Restart all nodes
       ndbout << "Restart all nodes " << endl;
-      if(restarts.executeRestart("RestartAllNodesAbort", 120) != 0){
+      if(restarts.executeRestart(ctx, "RestartAllNodesAbort", 120) != 0){
 	g_err << "Failed to executeRestart(RestartAllNodes)"<<endl;
 	result = NDBT_FAILED;
 	goto end_test;
