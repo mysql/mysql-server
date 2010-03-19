@@ -1834,7 +1834,6 @@ CREATE PROCEDURE sp11() insert into mysql.t1 values('a');
 SELECT security_type from mysql.proc where specific_name='sp11';
 security_type
 DEFINER
-connect(localhost,user_1,,db_storedproc,MYSQL_PORT,MYSQL_SOCK);
 	
 user_1@localhost	db_storedproc
 CALL sp11();
