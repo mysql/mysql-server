@@ -3289,6 +3289,13 @@ void Dbdih::execEND_TOREQ(Signal* signal)
       nodePtr.p->copyCompleted = 2;
       takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_WAIT_LCP;
 
+      /**
+       * Make sure that node also participatened in 1 GCP
+       *   before running it's first LCP, so that GCI variables
+       *   in LQH are set properly
+       */
+      c_lcpState.lcpStopGcp = c_newest_restorable_gci;
+
       check_force_lcp(takeOverPtr);
       return;
     }
