@@ -391,7 +391,7 @@ int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
     
-    if(restarts.executeRestart(pCase->getName(), timeout) != 0){
+    if(restarts.executeRestart(ctx, pCase->getName(), timeout) != 0){
       g_err << "Failed to executeRestart(" <<pCase->getName() <<")" << endl;
       result = NDBT_FAILED;
       break;

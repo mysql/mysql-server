@@ -1659,7 +1659,7 @@ static int runMulti_NR(NDBT_Context* ctx, NDBT_Step* step)
     {
       // restart a node
       int timeout = 240;
-      if (restarts.executeRestart("RestartRandomNodeAbort", timeout))
+      if (restarts.executeRestart(ctx, "RestartRandomNodeAbort", timeout))
       {
 	DBUG_RETURN(NDBT_FAILED);
       }

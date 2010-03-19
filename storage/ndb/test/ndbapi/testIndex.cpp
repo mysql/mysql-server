@@ -605,7 +605,7 @@ int runRestarts(NDBT_Context* ctx, NDBT_Step* step){
   int sync_threads = ctx->getProperty("Threads", (unsigned)0);
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped()){
-    if(restarts.executeRestart("RestartRandomNodeAbort", timeout) != 0){
+    if(restarts.executeRestart(ctx, "RestartRandomNodeAbort", timeout) != 0){
       g_err << "Failed to executeRestart(" <<pCase->getName() <<")" << endl;
       result = NDBT_FAILED;
       break;
