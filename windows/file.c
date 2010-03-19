@@ -76,8 +76,38 @@ fsync(int fd) {
 }
 
 int 
-ftruncate(int fd, int64_t offset) {
+ftruncate(int fd, toku_off_t offset) {
     int r = _chsize_s(fd, offset);
+    if (r!=0) {
+        r = -1;
+        assert(errno!=0);
+    }
+    return r;
+}
+
+int
+truncate(const char *path, toku_off_t length) {
+    int r;
+    int saved_errno;
+    int fd = open(path, _O_BINARY|_O_RDWR, _S_IREAD|_S_IWRITE);
+    if (fd<0) {
+        r = -1;
+        goto done;
+    }
+    r = ftruncate(fd, length);
+    saved_errno = errno;
+    if (r!=0) {
+        r = -1;
+        assert(errno!=0);
+    }
+    int r2 = close(fd);
+    if (r==0) {
+        r = r2;
+    }
+    else {
+        errno = saved_errno;
+    }
+done:
     return r;
 }
 
@@ -325,5 +355,11 @@ cleanup:
     r_mutex = toku_pthread_mutex_unlock(&mkstemp_lock);
     assert(r_mutex == 0);
     return fd;
+}
+
+toku_off_t
+ftello(FILE *stream) {
+    toku_off_t offset = _ftelli64(stream);
+    return offset;
 }
 

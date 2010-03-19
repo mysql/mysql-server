@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <dirent.h>
 
 static int toku_assert_on_write_enospc = 0;
 static const int toku_write_enospc_sleep = 1;
@@ -189,6 +190,19 @@ toku_file_fsync_without_accounting (int fd) {
 	    if (rr!=EINTR) printf("rr=%d (%s)\n", rr, strerror(rr));
 	    assert(rr==EINTR);
 	}
+    }
+    return r;
+}
+
+int
+toku_fsync_dirfd_without_accounting(DIR *dirp) {
+    int r;
+    int fd = dirfd(dirp);
+    if (fd<0) {
+        r = -1;
+    }
+    else {
+        r = toku_file_fsync_without_accounting(fd);
     }
     return r;
 }

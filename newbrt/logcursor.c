@@ -460,7 +460,7 @@ static int lc_fix_bad_logfile(TOKULOGCURSOR lc) {
     r = fseek(lc->cur_fp, 0, SEEK_SET);                if ( r!=0 ) return r;
     r = toku_read_logmagic(lc->cur_fp, &version);      if ( r!=0 ) return r;
     
-    off_t last_good_pos;
+    toku_off_t last_good_pos;
     last_good_pos = ftello(lc->cur_fp);
     while (1) {
         // initialize le 

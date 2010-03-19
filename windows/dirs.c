@@ -138,3 +138,10 @@ toku_fstat(int fd, toku_struct_stat *statbuf) {
     return r;
 }
 
+int
+toku_fsync_dirfd_without_accounting(DIR *dirp) {
+    //Not supported in windows.
+    //Possibly not needed
+    return 0;
+}
+
