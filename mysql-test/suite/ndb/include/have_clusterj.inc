@@ -22,17 +22,22 @@ my $basedir = dirname($mysql_test_dir);
 #
 
 my $clusterj_jar = my_find_file($basedir,
-                                ["storage/ndb/clusterj", "share/mysql/java"],
+                                ["storage/ndb/clusterj", 
+                                 "share/mysql/java",             # install unix
+                                 "lib/java"],                    # install windows
                                 "clusterj-*.jar", NOT_REQUIRED);
 
 my $clusterj_test_jar = my_find_file($basedir,
-                                    ["storage/ndb/clusterj/clusterj-test", "share/mysql/java"],
+                                    ["storage/ndb/clusterj/clusterj-test",
+                                     "share/mysql/java",             # install unix
+                                     "lib/java"],                    # install windows
                                     "clusterj-test-*.jar", NOT_REQUIRED);
 
 my $ndbclient_lib = my_find_file($basedir,
                                 ["storage/ndb/src/.libs", 
                                  "storage/ndb/src", 
-                                 "lib/mysql"],
+                                 "lib/mysql",
+                                 "lib"],
                                 ["ndbclient.dll", "libndbclient.so", "libndbclient.dylib"],
                                 NOT_REQUIRED);
 
