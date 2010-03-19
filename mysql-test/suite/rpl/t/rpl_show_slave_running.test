@@ -5,14 +5,14 @@
 #
 source include/master-slave.inc;
 source include/have_debug.inc;
+source include/have_debug_sync.inc;
 
 connection slave;
-
+SET DEBUG_SYNC= 'RESET';
 source include/stop_slave.inc;
 let $debug_saved= `select @@global.debug`;
-let $debug_lock= "debug_lock.before_get_running_status_yes";
-eval SELECT GET_LOCK($debug_lock, 1000);
-set global debug= 'd,debug_lock.before_get_running_status_yes';
+set global debug= 'd,dbug.before_get_running_status_yes'; # to block due-started IO
+
 
 # Test 1. Slave is stopped
 
@@ -40,7 +40,7 @@ echo Slave_SQL_Running= $status;
 # Test 3. The slave IO thread is started and got connected to master
 #         and SQL thread is still not started
 
-eval SELECT RELEASE_LOCK($debug_lock);
+SET DEBUG_SYNC='now SIGNAL signal.io_thread_let_running'; # unblock IO thread now
 let $slave_param= Slave_IO_Running;
 let $slave_param_value= YES;
 source include/wait_for_slave_param.inc;
@@ -72,5 +72,5 @@ echo Slave_SQL_Running= $status;
 connection slave;
 
 eval set global debug= '$debug_saved';
-
+SET DEBUG_SYNC= 'RESET';
 --echo End of tests

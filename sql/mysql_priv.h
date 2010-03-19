@@ -580,20 +580,6 @@ protected:
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
-#ifdef EXTRA_DEBUG
-/**
-  Sync points allow us to force the server to reach a certain line of code
-  and block there until the client tells the server it is ok to go on.
-  The client tells the server to block with SELECT GET_LOCK()
-  and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
-  concurrency problems
-*/
-#define DBUG_SYNC_POINT(lock_name,lock_timeout) \
- debug_sync_point(lock_name,lock_timeout)
-void debug_sync_point(const char* lock_name, uint lock_timeout);
-#else
-#define DBUG_SYNC_POINT(lock_name,lock_timeout)
-#endif /* EXTRA_DEBUG */
 
 /* BINLOG_DUMP options */
 
