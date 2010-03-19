@@ -77,13 +77,15 @@ static void tap_diagnostic_printf(const std::stringstream &str_stream)
 // Convenience wrapper function.
 static void tap_diagnostic_printf(const std::string &txt)
 {
-  tap_diagnostic_printf(std::stringstream(txt));
+  std::stringstream str_str;
+  str_str << txt;
+  tap_diagnostic_printf(str_str);
 }
 
 // Convenience wrapper function.
 static void tap_diagnostic_printf(const char *txt)
 {
-  tap_diagnostic_printf(std::stringstream(txt));
+  tap_diagnostic_printf(std::string(txt));
 }
 
 
