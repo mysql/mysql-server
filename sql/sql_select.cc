@@ -2943,7 +2943,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      if (records == 0 && s->table->reginfo.impossible_range)
+      if (records == 0 && s->table->reginfo.impossible_range &&
+          (s->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
       {
 	/*
 	  Impossible WHERE or ON expression
