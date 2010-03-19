@@ -4,9 +4,6 @@ dnl Process this file with autoconf to produce a configure script.
 # Minimum Autoconf version required.
 AC_PREREQ(2.59)
 
-# Minimum Autoconf version required.
-AC_PREREQ(2.59)
-
 # Remember to also update version.c in ndb.
 # When changing major version number please also check switch statement
 # in client/mysqlbinlog.cc / check_master_version().
@@ -15,7 +12,7 @@ AC_PREREQ(2.59)
 # MySQL version number.
 #
 # Note: the following line must be parseable by win/configure.js:GetVersion()
-AC_INIT([MariaDB Server], [5.2.0-MariaDB], [], [mysql])
+AC_INIT([MariaDB Server], [5.2.0-MariaDB-alpha], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 # USTAR format gives us the possibility to store longer path names in
