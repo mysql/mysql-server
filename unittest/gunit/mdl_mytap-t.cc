@@ -789,5 +789,6 @@ int MDL_test::RUN_ALL_TESTS()
 int main(int argc, char **argv) {
   // ::testing::InitGoogleTest(&argc, argv);
   MY_INIT(argv[0]);
+  plan(NO_PLAN);
   return MDL_test::RUN_ALL_TESTS();
 }
