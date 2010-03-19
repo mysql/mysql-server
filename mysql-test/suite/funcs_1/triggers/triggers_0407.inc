@@ -22,9 +22,7 @@ let $message= Testcase: 3.5:;
 	create User test_super@localhost;
 	set password for test_super@localhost = password('PWD');
 	grant ALL on *.* to test_super@localhost with grant OPTION;
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (con1_general,localhost,test_general,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (con1_super,localhost,test_super,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connection default;
 
