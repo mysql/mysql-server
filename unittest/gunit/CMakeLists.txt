@@ -16,8 +16,7 @@
 
 # Builtin GTest support is only available with CMake 2.8. For 2.6, we use 
 # own copy of the FindGTest.cmake module, located in current source directory.
-IF("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION}" 
-   VERSION_LESS "2.8.0")
+IF("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" LESS "2.8")
   SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")  
 ELSE()
   SET(HAVE_CMAKE_2_8 1)
