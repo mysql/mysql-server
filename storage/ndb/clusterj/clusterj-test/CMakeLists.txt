@@ -18,10 +18,7 @@ INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapi.cmake)
 SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/*.java
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/domaintypehandler/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/META-INF
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/schema.sql
-)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/testsuite/clusterj/model/*.java)
 
 SET ( CLASSPATH 
   target/classes
@@ -35,6 +32,8 @@ CREATE_MANIFEST(manifest.mf ${CLUSTERJ_TEST_EXPORTS} clusterj-test)
 CREATE_JAR(clusterj-test ${JAVA_SOURCE_DIRS} 
   CLASSPATH ${CLASSPATH}
   MANIFEST manifest.mf
-  DEPENDENCIES clusterj-tie.jar)
+  DEPENDENCIES clusterj-tie.jar
+  EXTRA_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources META-INF
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources schema.sql)
 
 
