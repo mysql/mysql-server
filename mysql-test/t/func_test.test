@@ -24,7 +24,7 @@ select 1 XOR 1, 1 XOR 0, 0 XOR 1, 0 XOR 0, NULL XOR 1, 1 XOR NULL, 0 XOR NULL;
 select 1 like 2 xor 2 like 1;
 select 10 % 7, 10 mod 7, 10 div 3;
 explain extended select 10 % 7, 10 mod 7, 10 div 3;
-select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
+select 18446744073709551615, 18446744073709551615 DIV 1, 18446744073709551615 DIV 2;
 explain extended select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
 
 create table t1 (a int);
