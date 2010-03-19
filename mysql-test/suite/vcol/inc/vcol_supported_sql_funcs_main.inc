@@ -912,6 +912,7 @@ let $rows = 1;
 let $cols = a long, b datetime as (from_unixtime(a));
 let $values1 = 1196440219,default;
 let $rows = 1;
+set time_zone='UTC';
 --source suite/vcol/inc/vcol_supported_sql_funcs.inc
 
 --echo # GET_FORMAT()
