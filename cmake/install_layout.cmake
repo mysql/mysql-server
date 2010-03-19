@@ -56,6 +56,7 @@ IF(NOT INSTALL_LAYOUT MATCHES "STANDALONE")
     # XXX not keen on this, how many more will we need? prefer to just bail...
     IF(NOT INSTALL_LAYOUT MATCHES "SVR4")
       SET(INSTALL_LAYOUT "${DEFAULT_INSTALL_LAYOUT}")
+    ENDIF()
   ENDIF()
 ENDIF()
 
