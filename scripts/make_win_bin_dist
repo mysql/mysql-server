@@ -431,11 +431,11 @@ cp storage/ndb/src/ndbapi/$TARGET/ndbapi.lib $DESTDIR/lib
 cp storage/ndb/src/$TARGET/ndbclient.dll $DESTDIR/lib
 
 mkdir -p $DESTDIR/lib/java
-cp storage/ndb/clusterj/clusterj-*.beta.jar $DESTDIR/lib/java
-cp storage/ndb/clusterj/clusterj-api/clusterj-api-*.beta.jar $DESTDIR/lib/java
-cp storage/ndb/clusterj/clusterj-jpatest/clusterj-jpatest-*.beta.jar $DESTDIR/lib/java
-cp storage/ndb/clusterj/clusterj-test/clusterj-test-*.beta.jar $DESTDIR/lib/java
-cp storage/ndb/clusterj/clusterj-openjpa/clusterjpa-*.beta.jar $DESTDIR/lib/java
+cp storage/ndb/clusterj/clusterj-*.jar $DESTDIR/lib/java
+cp storage/ndb/clusterj/clusterj-api/clusterj-api-*.jar $DESTDIR/lib/java
+cp storage/ndb/clusterj/clusterj-jpatest/clusterj-jpatest-*.jar $DESTDIR/lib/java
+cp storage/ndb/clusterj/clusterj-test/clusterj-test-*.jar $DESTDIR/lib/java
+cp storage/ndb/clusterj/clusterj-openjpa/clusterjpa-*.jar $DESTDIR/lib/java
 
 fi # ndb
 
