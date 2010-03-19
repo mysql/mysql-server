@@ -30,15 +30,15 @@ AC_DEFUN([MY_SET_GTEST_COMMAND],
 ])
 
 
-dnl MYSQL_COMPILE_GTEST(gtest-config-command,
-dnl                     [action-if-found],[action-if-not-found])
+dnl MYSQL_LINK_GTEST(gtest-config-command,
+dnl                  [action-if-found],[action-if-not-found])
 dnl
 dnl Given a command to execute gtest-config, try to compile a gtest program.
 dnl Export variables which contain the compilation flags required by gtest.
 dnl The exported variables are: 
 dnl   GTEST_CPPFLAGS, GTEST_CXXFLAGS, GTEST_LDFLAGS, GTEST_LIBS.
 dnl
-AC_DEFUN([MYSQL_COMPILE_GTEST], [
+AC_DEFUN([MYSQL_LINK_GTEST], [
   dnl Retrieve compilation flags
   GTEST_CPPFLAGS=`$1 --cppflags`
   GTEST_CXXFLAGS=`$1  --cxxflags`
@@ -58,9 +58,12 @@ AC_DEFUN([MYSQL_COMPILE_GTEST], [
   AC_LANG_PUSH([C++])
   AC_MSG_CHECKING([for ::testing::InitGoogleTest])
 
-dnl We would like to use AC_LINK_IFELSE here but 'gtest-config --libs'
-dnl returns name of libtools library rather than the real library.
-  AC_COMPILE_IFELSE([
+dnl Note that we depend on an installed version of gtest for this to work,
+dnl see comments in the gtest-config script which comes with gtest.
+dnl 'gtest-config --libs' will return the name of the libtool file if we
+dnl are using a non-installed version. For that to work, we would have
+dnl to do this linkage test with libtools.
+  AC_LINK_IFELSE([
     AC_LANG_PROGRAM([[
       #include <gtest/gtest.h>
       TEST(foo, bar) {}
@@ -89,7 +92,7 @@ dnl returns name of libtools library rather than the real library.
 dnl MYSQL_CHECK_GTEST_CONFIG([minimum version])
 dnl
 dnl Look for gtest-config and verify the minimum required version.
-dnl
+dnl If we find it, then try to compile/link a simple unit test application.
 AC_DEFUN([MYSQL_CHECK_GTEST_CONFIG], [
   AC_ARG_WITH([gtest],
     [AS_HELP_STRING([--with-gtest[[=/path/to/gtest]]],
@@ -105,7 +108,7 @@ AC_DEFUN([MYSQL_CHECK_GTEST_CONFIG], [
   else
     dnl If a path is supplied, it must exist.
     if test "x$with_gtest" != xcheck; then
-      GTEST_CONFIG_PATH="${with_gtest}/bin/:${with_gtest}/scripts"
+      GTEST_CONFIG_PATH="${with_gtest}/bin/"
     else
       GTEST_CONFIG_PATH=$PATH
     fi
@@ -128,7 +131,7 @@ AC_DEFUN([MYSQL_CHECK_GTEST_CONFIG], [
       if $GTEST_CONFIG_CMD --min-version=$1 >/dev/null 2>&1
       then
         AC_MSG_RESULT([yes])
-        MYSQL_COMPILE_GTEST($GTEST_CONFIG_CMD, [have_gtest=yes], [have_gtest=no])
+        MYSQL_LINK_GTEST($GTEST_CONFIG_CMD, [have_gtest=yes], [have_gtest=no])
       else
         AC_MSG_RESULT([no])
         AC_MSG_ERROR(
