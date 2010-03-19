@@ -23,8 +23,7 @@ int ydb_load_inames(DB_ENV * env,
 		    DB_TXN * txn,
 		    int N,
 		    DB * dbs[/*N*/],
-		    /*out*/ char * new_inames_in_env[N],
-		    /*out*/ char * new_inames_in_cwd[N]);
+		    /*out*/ char * new_inames_in_env[N]);
 
 
 #endif

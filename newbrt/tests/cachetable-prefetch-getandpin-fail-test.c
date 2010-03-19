@@ -50,7 +50,7 @@ static void cachetable_prefetch_maybegetandpin_test (void) {
     char fname1[] = __FILE__ "test1.dat";
     unlink(fname1);
     CACHEFILE f1;
-    r = toku_cachetable_openf(&f1, ct, fname1, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
+    r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
 
     struct timeval tstart;
     gettimeofday(&tstart, NULL);

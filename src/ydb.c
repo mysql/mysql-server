@@ -11,7 +11,6 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -319,14 +318,11 @@ static int toku_c_del(DBC *c, u_int32_t flags);
 static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags);
 static int toku_c_close(DBC * c);
 
-/* misc */
-static char *construct_full_name(int count, ...);
-
 static int delete_rolltmp_files(DB_ENV *env) {
     const char *datadir=env->i->dir;
     char *logdir;
     if (env->i->lg_dir) {
-	logdir = construct_full_name(2, env->i->dir, env->i->lg_dir);
+	logdir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
@@ -340,7 +336,7 @@ ydb_do_recovery (DB_ENV *env) {
     const char *envdir=env->i->dir;
     char *logdir;
     if (env->i->lg_dir) {
-	logdir = construct_full_name(2, env->i->dir, env->i->lg_dir);
+	logdir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
@@ -356,7 +352,7 @@ ydb_do_recovery (DB_ENV *env) {
 static int needs_recovery (DB_ENV *env) {
     char *logdir;
     if (env->i->lg_dir) {
-	logdir = construct_full_name(2, env->i->dir, env->i->lg_dir);
+	logdir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
@@ -448,7 +444,7 @@ static int
 ydb_recover_log_exists(DB_ENV *env) {
     char *logdir;
     if (env->i->lg_dir) {
-	logdir = construct_full_name(2, env->i->dir, env->i->lg_dir);
+	logdir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
     } else {
 	logdir = toku_strdup(env->i->dir);
     }
@@ -471,7 +467,7 @@ validate_env(DB_ENV * env, BOOL * valid_newenv) {
     char* path = NULL;
 
     // Test for persistent environment
-    path = construct_full_name(2, env->i->dir, environmentdictionary);
+    path = toku_construct_full_name(2, env->i->dir, environmentdictionary);
     assert(path);
     r = toku_stat(path, &buf);
     toku_free(path);
@@ -489,7 +485,7 @@ validate_env(DB_ENV * env, BOOL * valid_newenv) {
 
     // Test for fileops directory
     if (r == 0) {
-	path = construct_full_name(2, env->i->dir, fileopsdirectory);
+	path = toku_construct_full_name(2, env->i->dir, fileopsdirectory);
 	assert(path);
 	r = toku_stat(path, &buf);
 	toku_free(path);
@@ -629,7 +625,7 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         char* full_dir = NULL;
         if (env->i->lg_dir) {
-            full_dir = construct_full_name(2, env->i->dir, env->i->lg_dir);
+            full_dir = toku_construct_full_name(2, env->i->dir, env->i->lg_dir);
             assert(full_dir);
         }
 	assert(env->i->logger);
@@ -664,6 +660,8 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
 
     r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
     if (r!=0) goto died2;
+
+    toku_cachetable_set_env_dir(env->i->cachetable, env->i->dir);
 
     int using_txns = env->i->open_flags & DB_INIT_TXN;
     if (env->i->logger) {
@@ -3888,30 +3886,6 @@ static int toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr
 }
 #endif
 
-static char *construct_full_name(int count, ...) {
-    va_list ap;
-    char *name = NULL;
-    size_t n = 0;
-    int i;
-    va_start(ap, count);
-    for (i=0; i<count; i++) {
-        char *arg = va_arg(ap, char *);
-        if (arg) {
-            n += 1 + strlen(arg) + 1;
-            char *newname = toku_xmalloc(n);
-            if (name && !toku_os_is_absolute_name(arg))
-                snprintf(newname, n, "%s/%s", name, arg);
-            else
-                snprintf(newname, n, "%s", arg);
-            toku_free(name);
-            name = newname;
-        }
-    }
-    va_end(ap);
-
-    return name;
-}
-
 static int toku_db_lt_panic(DB* db, int r) {
     assert(r!=0);
     assert(db && db->i && db->dbenv && db->dbenv->i);
@@ -4019,9 +3993,9 @@ create_iname(DB_ENV *env, u_int64_t id, char *hint, int n) {
     assert(bytes<=(int)sizeof(inamebase)-1);
     char *rval;
     if (env->i->data_dir)
-        rval = construct_full_name(2, env->i->data_dir, inamebase);
+        rval = toku_construct_full_name(2, env->i->data_dir, inamebase);
     else
-        rval = construct_full_name(1, inamebase);
+        rval = toku_construct_full_name(1, inamebase);
     assert(rval);
     return rval;
 }
@@ -4178,14 +4152,11 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    char *iname_in_cwd = construct_full_name(2, db->dbenv->i->dir, iname_in_env); // allocates memory for iname_in_cwd
-    assert(iname_in_cwd);
-    r = toku_brt_open(db->i->brt, iname_in_env, iname_in_cwd, 
+    r = toku_brt_open(db->i->brt, iname_in_env,
 		      is_db_create, is_db_excl,
 		      db->dbenv->i->cachetable,
 		      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN,
 		      db);
-    toku_free(iname_in_cwd);
     if (r != 0)
         goto error_cleanup;
 
@@ -4469,13 +4440,8 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
 	// remove (dname,iname) from directory
 	r = toku_db_del(env->i->directory, child, &dname_dbt, DB_DELETE_ANY);
 	if (r == 0) {
-	    char *iname_within_cwd = construct_full_name(2, env->i->dir, iname_dbt.data);  
-	    assert(iname_within_cwd);
-	    DBT iname_within_cwd_dbt;
-	    toku_fill_dbt(&iname_within_cwd_dbt, iname_within_cwd, strlen(iname_within_cwd)+1);
             if (using_txns) {
-                r = toku_brt_remove_on_commit(db_txn_struct_i(child)->tokutxn,
-                                              &iname_dbt, &iname_within_cwd_dbt);
+                r = toku_brt_remove_on_commit(db_txn_struct_i(child)->tokutxn, &iname_dbt);
 		assert(r==0);
                 //Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
                 if (r==0 && env_is_db_with_dname_open(env, dname))
@@ -4489,10 +4455,9 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
                 }
             }
             else {
-                r = toku_brt_remove_now(env->i->cachetable, &iname_dbt, &iname_within_cwd_dbt);
+                r = toku_brt_remove_now(env->i->cachetable, &iname_dbt);
 		assert(r==0);
             }
-	    toku_free(iname_within_cwd);
 	}
     }
 
@@ -5322,7 +5287,7 @@ env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
 // It is the caller's responsibility to free them.
 // Return 0 on success (could fail if write lock not available).
 int
-ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N], char * new_inames_in_cwd[N]) {
+ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_inames_in_env[N]) {
     int rval;
     int i;
     
@@ -5334,7 +5299,6 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
     
     for (i=0; i<N; i++) {
 	new_inames_in_env[i] = NULL;
-	new_inames_in_cwd[i] = NULL;
     }
 
     // begin child (unless transactionless)
@@ -5354,7 +5318,19 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
         rval = toku_db_put(env->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE necessary
 	if (rval) break;
 	new_inames_in_env[i] = new_iname;
-	new_inames_in_cwd[i] = construct_full_name(2, env->i->dir, new_iname); // allocates memory for iname_in_cwd
+    }
+
+    // Generate load log entries.
+    if (!rval && using_txns) {
+        TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
+        int do_fsync = 0;
+        for (i = 0; i < N; i++) {
+            BRT brt  = dbs[i]->i->brt;
+            //Fsync is necessary for the last one only.
+            if (i==N-1) do_fsync = 1; //We only need a single fsync of logs.
+            rval = toku_brt_load(brt, ttxn, new_inames_in_env[i], do_fsync);
+            if (rval) break;
+        }
     }
 	
     if (using_txns) {
@@ -5370,10 +5346,6 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 		if (new_inames_in_env[i]) {
 		    toku_free(new_inames_in_env[i]);
 		    new_inames_in_env[i] = NULL;
-		}
-		if (new_inames_in_cwd[i]) {
-		    toku_free(new_inames_in_cwd[i]);
-		    new_inames_in_cwd[i] = NULL;
 		}
 	    }
 	}
@@ -5391,7 +5363,6 @@ test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtxn) {
     DBT dname_dbt;
     DBT iname_dbt;
     char * new_iname_in_env;
-    char * new_iname_in_cwd;
 
     BRT brt = db->i->brt;
     TOKUTXN tokutxn = db_txn_struct_i(dbtxn)->tokutxn;
@@ -5401,12 +5372,9 @@ test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtxn) {
     r = toku_db_get(db->dbenv->i->directory, dbtxn, &dname_dbt, &iname_dbt, 0);  // allocates memory for iname
     assert(r==0);
     new_iname_in_env = iname_dbt.data;
-    new_iname_in_cwd = construct_full_name(2, db->dbenv->i->dir, new_iname_in_env); // allocates memory for new_iname_in_cwd
-    assert(new_iname_in_cwd);
 
-    r = toku_dictionary_redirect(new_iname_in_env, new_iname_in_cwd, brt, tokutxn);
+    r = toku_dictionary_redirect(new_iname_in_env, brt, tokutxn);
 
     toku_free(new_iname_in_env);
-    toku_free(new_iname_in_cwd);
     return r;
 }

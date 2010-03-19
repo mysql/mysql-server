@@ -20,8 +20,6 @@ toku_commit_fdelete (u_int8_t   file_was_open,
                      LSN        UU(oplsn)) //oplsn is the lsn of the commit
 {
     //TODO: #2037 verify the file is (user) closed
-    char *fname = fixup_fname(&bs_fname);
-
     //Remove reference to the fd in the cachetable
     CACHEFILE cf;
     int r;
@@ -39,9 +37,13 @@ toku_commit_fdelete (u_int8_t   file_was_open,
 	r = toku_cachefile_redirect_nullfd(cf);
 	assert(r==0);
     }
-    r = unlink(fname);  // pathname relative to cwd
-    assert(r==0);
-    toku_free(fname);
+    char *fname_in_env = fixup_fname(&bs_fname);
+    char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
+
+    r = unlink(fname_in_cwd);
+    assert(r==0 || errno==ENOENT);
+    toku_free(fname_in_env);
+    toku_free(fname_in_cwd);
     return 0;
 }
 
@@ -78,7 +80,6 @@ toku_rollback_fcreate (FILENUM    filenum,
                        LSN        UU(oplsn))
 {
     //TODO: #2037 verify the file is (user) closed
-    char *fname = fixup_fname(&bs_fname);
 
     //Remove reference to the fd in the cachetable
     CACHEFILE cf = NULL;
@@ -94,9 +95,14 @@ toku_rollback_fcreate (FILENUM    filenum,
     }
     r = toku_cachefile_redirect_nullfd(cf);
     assert(r==0);
-    r = unlink(fname);  // fname is relative to cwd
-    assert(r==0);
-    toku_free(fname);
+
+    char *fname_in_env = fixup_fname(&bs_fname);
+    char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
+
+    r = unlink(fname_in_cwd);
+    assert(r==0 || errno==ENOENT);
+    toku_free(fname_in_env);
+    toku_free(fname_in_cwd);
     return 0;
 }
 
@@ -316,15 +322,18 @@ toku_commit_rollinclude (BYTESTRING bs,
 			 void *     yieldv,
                          LSN        oplsn) {
     int r;
-    char *fname = fixup_fname(&bs);
-    int fd = open(fname, O_RDONLY+O_BINARY);
+    char *fname_in_logger = fixup_fname(&bs);
+    char *fname_in_cwd = toku_construct_full_name(2, txn->logger->directory, fname_in_logger);
+    int fd = open(fname_in_cwd, O_RDONLY+O_BINARY);
     assert(fd>=0);
     r = toku_commit_fileentries(fd, txn, yield, yieldv, oplsn);
     assert(r==0);
     r = close(fd);
     assert(r==0);
-    unlink(fname);
-    toku_free(fname);
+    r = unlink(fname_in_cwd);
+    assert(r==0);
+    toku_free(fname_in_logger);
+    toku_free(fname_in_cwd);
     return 0;
 }
 
@@ -336,15 +345,18 @@ toku_rollback_rollinclude (BYTESTRING bs,
                            LSN        oplsn)
 {
     int r;
-    char *fname = fixup_fname(&bs);
-    int fd = open(fname, O_RDONLY+O_BINARY);
+    char *fname_in_logger = fixup_fname(&bs);
+    char *fname_in_cwd = toku_construct_full_name(2, txn->logger->directory, fname_in_logger);
+    int fd = open(fname_in_cwd, O_RDONLY+O_BINARY);
     assert(fd>=0);
     r = toku_rollback_fileentries(fd, txn, yield, yieldv, oplsn);
     assert(r==0);
     r = close(fd);
     assert(r==0);
-    unlink(fname);
-    toku_free(fname);
+    r = unlink(fname_in_cwd);
+    assert(r==0);
+    toku_free(fname_in_logger);
+    toku_free(fname_in_cwd);
     return 0;
 }
 
@@ -387,28 +399,56 @@ toku_commit_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(yi
 }
 
 int
-toku_commit_load (BYTESTRING UU(old_iname),
+toku_commit_load (BYTESTRING old_iname,
                   BYTESTRING UU(new_iname),
-                  TOKUTXN    UU(txn),
+                  TOKUTXN    txn,
                   YIELDF     UU(yield),
                   void      *UU(yield_v),
                   LSN        UU(oplsn))
 {
-    // TODO 2216: need to implement
-    assert(1);
+    CACHEFILE cf;
+    int r;
+    char *fname_in_env = fixup_fname(&old_iname); //Delete old file
+    r = toku_cachefile_of_iname_in_env(txn->logger->ct, fname_in_env, &cf);
+    if (r==0) {
+	r = toku_cachefile_redirect_nullfd(cf);
+        assert(r==0);
+    }
+    else {
+        assert(r==ENOENT);
+    }
+    char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
+    r = unlink(fname_in_cwd);
+    assert(r==0 || errno==ENOENT);
+    toku_free(fname_in_env);
+    toku_free(fname_in_cwd);
     return 0;
 }
 
 int
 toku_rollback_load (BYTESTRING UU(old_iname),
-                    BYTESTRING UU(new_iname),
-                    TOKUTXN    UU(txn),
+                    BYTESTRING new_iname,
+                    TOKUTXN    txn,
                     YIELDF     UU(yield),
                     void      *UU(yield_v),
                     LSN        UU(oplsn)) 
 {
-    // TODO 2216: need to implement
-    assert(1);
+    CACHEFILE cf;
+    int r;
+    char *fname_in_env = fixup_fname(&new_iname); //Delete new file
+    r = toku_cachefile_of_iname_in_env(txn->logger->ct, fname_in_env, &cf);
+    if (r==0) {
+	r = toku_cachefile_redirect_nullfd(cf);
+        assert(r==0);
+    }
+    else {
+        assert(r==ENOENT);
+    }
+    char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
+    r = unlink(fname_in_cwd);
+    assert(r==0 || errno==ENOENT);
+    toku_free(fname_in_env);
+    toku_free(fname_in_cwd);
     return 0;
 }
 

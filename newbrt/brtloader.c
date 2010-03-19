@@ -32,12 +32,12 @@ int brtloader_open_temp_file (BRTLOADER bl, FILE **filep, char **fnamep)
 }
 
 int toku_brt_loader_open (/* out */ BRTLOADER *blp,
+                          CACHETABLE cachetable,
 			  generate_row_for_put_func g,
 			  DB *src_db,
 			  int N, DB*dbs[/*N*/],
 			  const struct descriptor *descriptors[/*N*/],
 			  const char *new_fnames_in_env[/*N*/],
-			  const char *new_fnames_in_cwd[/*N*/],
 			  brt_compare_func bt_compare_functions[/*N*/],
 			  const char *temp_file_template)
 /* Effect: called by DB_ENV->create_loader to create a brt loader.
@@ -57,6 +57,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     bl->panic_errno = 0;
 
     bl->generate_row_for_put = g;
+    bl->cachetable = cachetable;
 
     bl->src_db = src_db;
     bl->N = N;
@@ -66,8 +67,6 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     for (int i=0; i<N; i++) bl->descriptors[i]=descriptors[i];
     MALLOC_N(N, bl->new_fnames_in_env);
     for (int i=0; i<N; i++) bl->new_fnames_in_env[i] = toku_strdup(new_fnames_in_env[i]);
-    MALLOC_N(N, bl->new_fnames_in_cwd);
-    for (int i=0; i<N; i++) bl->new_fnames_in_cwd[i] = toku_strdup(new_fnames_in_cwd[i]);
     MALLOC_N(N, bl->bt_compare_funs);
     for (int i=0; i<N; i++) bl->bt_compare_funs[i] = bt_compare_functions[i];
 
@@ -595,17 +594,17 @@ int toku_brt_loader_close (BRTLOADER bl)
  * Return all the file descriptors in the array fds. */
 {
     for (int i=0; i<bl->N; i++) {
-	int r = loader_do_i(bl, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], bl->new_fnames_in_cwd[i]);
+        char * fname_in_cwd = toku_cachetable_get_fname_in_cwd(bl->cachetable, bl->new_fnames_in_env[i]);
+
+	int r = loader_do_i(bl, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd);
+        toku_free(fname_in_cwd);
 	if (r!=0) return r;
         toku_free((void*)bl->new_fnames_in_env[i]);
-        toku_free((void*)bl->new_fnames_in_cwd[i]);
 	bl->new_fnames_in_env[i] = NULL;
-	bl->new_fnames_in_cwd[i] = NULL;
     }
     toku_free(bl->dbs);
     toku_free(bl->descriptors);
     toku_free(bl->new_fnames_in_env);
-    toku_free(bl->new_fnames_in_cwd);
     toku_free(bl->bt_compare_funs);
     toku_free((void*)bl->temp_file_template);
     { int r = fclose(bl->fprimary_rows); assert (r==0); }

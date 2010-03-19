@@ -261,7 +261,7 @@ static int internal_toku_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_c
         r = toku_brt_set_descriptor(brt, descriptor_version, &descriptor_dbt, abort_on_upgrade);
         if (r!=0) goto close_brt;
     }
-    r = toku_brt_open_recovery(brt, iname, iname, must_create, must_create, renv->ct, txn, fake_db, recovery_force_fcreate, filenum);
+    r = toku_brt_open_recovery(brt, iname, must_create, must_create, renv->ct, txn, fake_db, recovery_force_fcreate, filenum);
     if (r != 0) {
     close_brt:
         ;
@@ -413,7 +413,7 @@ static int toku_recover_fdelete (struct logtype_fdelete *l, RECOVER_ENV renv) {
     // txn exists and file exists, so create fdelete rollback entry
     DBT iname_dbt;
     toku_fill_dbt(&iname_dbt, fixediname, strlen(fixediname)+1);
-    r = toku_brt_remove_on_commit(txn, &iname_dbt, &iname_dbt);
+    r = toku_brt_remove_on_commit(txn, &iname_dbt);
     assert(r==0);
 cleanup:
     toku_free(fixediname);
@@ -987,8 +987,23 @@ static int toku_recover_backward_comment (struct logtype_comment *UU(l), RECOVER
 }
 
 static int toku_recover_load(struct logtype_load *UU(l), RECOVER_ENV UU(renv)) {
-    // need to implement
-    assert(1);
+    int r;
+    TOKUTXN txn = NULL;
+    r = toku_txnid2txn(renv->logger, l->xid, &txn);
+    assert(r == 0);
+    if (txn == NULL) {
+        //This is a straddle txn.
+        assert(renv->ss.ss == FORWARD_OLDER_CHECKPOINT_BEGIN); //cannot happen after checkpoint begin
+        return 0;
+    }
+    char *old_iname = fixup_fname(&l->old_iname);
+    char *new_iname = fixup_fname(&l->new_iname);
+
+    r = toku_brt_load_recovery(txn, old_iname, new_iname, 0, 0);
+    assert(r==0);
+
+    toku_free(old_iname);
+    toku_free(new_iname);
     return 0;
 }
 

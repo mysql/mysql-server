@@ -51,7 +51,7 @@ CACHEFILE f;
 static void open_file (void ) {
     int r;
     r = toku_create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    r = toku_cachetable_openf(&f, t, fname, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
+    r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
 }
 
 static void writeit (void) {

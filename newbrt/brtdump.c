@@ -306,7 +306,7 @@ main (int argc, const char *const argv[]) {
     assert(r == 0);
     CACHEFILE cf;
     FILENUM fn={0};
-    r = toku_cachetable_openfd_with_filenum (&cf, ct, f, n, n, FALSE, fn, FALSE);
+    r = toku_cachetable_openfd_with_filenum (&cf, ct, f, n, FALSE, fn, FALSE);
     assert(r==0);
     dump_header(f, &h, cf);
     if (interactive) {
