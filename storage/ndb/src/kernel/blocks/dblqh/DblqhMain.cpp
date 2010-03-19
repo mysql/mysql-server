@@ -7415,15 +7415,7 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
     return;
   case TcConnectionrec::WAIT_ACC:
     jam();
-/* ------------------------------------------------------------------------- */
-// We start the abort immediately since the operation is still in the active
-// list and the fragment cannot have been frozen yet. By sending LCP_HOLDOPCONF
-// as direct signals we avoid the problem that we might find the operation
-// in an unexpected list in ACC.
-// We cannot accept being blocked before aborting ACC here since that would
-// lead to seriously complex issues.
-/* ------------------------------------------------------------------------- */
-    abortContinueAfterBlockedLab(signal, false);
+    abortContinueAfterBlockedLab(signal);
     return;
     break;
   case TcConnectionrec::LOG_QUEUED:
@@ -7578,7 +7570,7 @@ void Dblqh::abortCommonLab(Signal* signal)
     case Fragrecord::CRASH_RECOVERING:
     case Fragrecord::ACTIVE_CREATION:
       jam();
-      abortContinueAfterBlockedLab(signal, true);
+      abortContinueAfterBlockedLab(signal);
       return;
       break;
     case Fragrecord::BLOCKED:
@@ -7603,7 +7595,7 @@ void Dblqh::abortCommonLab(Signal* signal)
   }//if
 }//Dblqh::abortCommonLab()
 
-void Dblqh::abortContinueAfterBlockedLab(Signal* signal, bool canBlock) 
+void Dblqh::abortContinueAfterBlockedLab(Signal* signal) 
 {
   /* ------------------------------------------------------------------------
    *       INPUT:          TC_CONNECTPTR           ACTIVE OPERATION RECORD
@@ -7618,10 +7610,23 @@ void Dblqh::abortContinueAfterBlockedLab(Signal* signal, bool canBlock)
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   
   TRACE_OP(regTcPtr, "ACC ABORT");
-  
+  Uint32 canBlock = 2; // 2, block if needed
+  switch(regTcPtr->transactionState){
+  case TcConnectionrec::WAIT_TUP:
+    /**
+     * This is when getting from execTUPKEYREF
+     *   in which case we *do* have ACC lock
+     *   and should not (need to) block
+     */
+    canBlock = 0;
+    break;
+  default:
+    break;
+  }
+
   regTcPtr->transactionState = TcConnectionrec::WAIT_ACC_ABORT;
   signal->theData[0] = regTcPtr->accConnectrec;
-  signal->theData[1] = 2; // JOB BUFFER IF NEEDED
+  signal->theData[1] = canBlock;
   EXECUTE_DIRECT(DBACC, GSN_ACC_ABORTREQ, signal, 2);
 
   if (signal->theData[1] == RNIL)
