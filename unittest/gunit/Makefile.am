@@ -18,6 +18,7 @@ AM_CXXFLAGS = $(GTEST_CXXFLAGS)
 AM_LDFLAGS  = $(GTEST_LDFLAGS)
 AM_LIBS     = $(GTEST_LIBS)
 DEFS        = -DMYSQL_SERVER @DEFS@
+EXTRA_DIST  = CMakeLists.txt FindGTest.cmake
 
 # Allow implicit templates when compiling gtest.h
 override CXXFLAGS += @CXXFLAGS_OVERRIDE@
