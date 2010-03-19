@@ -25,7 +25,6 @@ show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
 GRANT USAGE ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT, INSERT ON `priv_db`.* TO 'test_noprivs'@'localhost'
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 
 no trigger privilege on db level for create:
 --------------------------------------------
@@ -33,7 +32,6 @@ use priv_db;
 create trigger trg1_1 before INSERT on t1 for each row
 set new.f1 = 'trig 1_1-no';
 ERROR 42000: TRIGGER command denied to user 'test_yesprivs'@'localhost' for table 't1'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 use priv_db;
 insert into t1 (f1) values ('insert-yes');
 select f1 from t1 order by f1;
@@ -254,8 +252,6 @@ revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 create User test_noprivs@localhost;
 set password for test_noprivs@localhost = password('PWD');
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 
 no trigger privilege on table level for create:
 -----------------------------------------------
@@ -514,8 +510,6 @@ grant SELECT,INSERT  on *.* to test_noprivs@localhost;
 show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
 GRANT SELECT, INSERT ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
 current_user
 test_yesprivs@localhost
@@ -564,7 +558,6 @@ revoke TRIGGER on *.* from test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
 current_user
 test_yesprivs@localhost
@@ -699,7 +692,6 @@ select f1 from t1 order by f1;
 f1
 insert-yes
 insert-yes
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
 current_user
 test_yesprivs@localhost
@@ -768,9 +760,7 @@ Grants for test_noprivs@localhost
 GRANT USAGE ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT, INSERT, UPDATE ON `priv1_db`.* TO 'test_noprivs'@'localhost'
 GRANT SELECT, INSERT ON `priv2_db`.* TO 'test_noprivs'@'localhost'
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 use priv1_db;
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 use priv1_db;
 
 trigger privilege on one db1 db level, not on db2
@@ -983,7 +973,6 @@ create User test_useprivs@localhost;
 set password for test_useprivs@localhost = password('PWD');
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_useprivs@localhost;
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
 current_user
 root@localhost
@@ -1011,7 +1000,6 @@ select f1 from t1 order by f1;
 f1
 trig 1_1-yes
 prepare ins1 from 'insert into t1 (f1) values (''insert2-no'')';
-connect(localhost,test_useprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
 current_user
 test_useprivs@localhost
@@ -1207,7 +1195,6 @@ create table t1 (f1 char(20)) engine= memory;
 create User test_yesprivs@localhost;
 set password for test_yesprivs@localhost = password('PWD');
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
 current_user
 root@localhost
@@ -1319,8 +1306,6 @@ show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
 GRANT USAGE ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT, UPDATE ON `priv_db`.* TO 'test_noprivs'@'localhost'
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 
 update only on column:
 ----------------------
