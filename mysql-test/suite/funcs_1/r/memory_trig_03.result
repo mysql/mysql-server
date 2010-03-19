@@ -86,8 +86,6 @@ show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 
 Testcase 3.5.3.2:
 -----------------
@@ -162,8 +160,6 @@ grant TRIGGER, UPDATE on *.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
 GRANT UPDATE, TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
 current_user
 test_noprivs@localhost
@@ -223,8 +219,6 @@ show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT UPDATE ON `priv_db`.* TO 'test_yesprivs'@'localhost'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
 GRANT USAGE ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
@@ -297,8 +291,6 @@ show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
@@ -352,8 +344,6 @@ grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_noprivs;
 Grants for test_noprivs@%
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'%'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
@@ -408,8 +398,6 @@ grant TRIGGER, SELECT on *.* to test_yesprivs@localhost;
 show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
 GRANT SELECT, TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
 current_user
 test_noprivs@localhost
@@ -465,8 +453,6 @@ show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.* TO 'test_yesprivs'@'localhost'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
@@ -520,8 +506,6 @@ show grants for test_yesprivs@localhost;
 Grants for test_yesprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
@@ -566,8 +550,6 @@ show grants for test_noprivs@localhost;
 Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
-connect(localhost,test_noprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 show grants;
 Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
@@ -612,7 +594,6 @@ Grants for test_yesprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_yesprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT ON `priv_db`.`t2` TO 'test_yesprivs'@'localhost'
 GRANT SELECT, UPDATE ON `priv_db`.`t1` TO 'test_yesprivs'@'localhost'
-connect(localhost,test_yesprivs,PWD,test,MASTER_MYPORT,MASTER_MYSOCK);
 select current_user;
 current_user
 test_yesprivs@localhost

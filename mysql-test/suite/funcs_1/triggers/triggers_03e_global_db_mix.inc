@@ -38,10 +38,8 @@ let $message= #### Testcase for mix of user(global) and db level: ####;
         grant SELECT,INSERT  on *.* to test_noprivs@localhost;
         show grants for test_noprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 
 	connection yes_privs;
@@ -83,7 +81,6 @@ let $message= trigger privilege on user level for create:;
 	--disable_warnings
         disconnect yes_privs;
 	--enable_warnings
-        --replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
         connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	select current_user;
         use priv_db;
@@ -184,7 +181,6 @@ let $message= trigger privilege on db level for create:;
 	--disable_warnings
         disconnect yes_privs;
 	--enable_warnings
-        --replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
         connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
         select current_user;
 	use no_priv_db;

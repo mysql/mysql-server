@@ -62,9 +62,7 @@ let $message= Testcase 3.5.3.2/6:;
 	grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connection default;
 
@@ -155,9 +153,7 @@ let $message=Testcase 3.5.3.7a:;
 	grant TRIGGER, UPDATE on *.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs_424a,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs_424a,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 
 	connection no_privs_424a;
@@ -209,9 +205,7 @@ let $message= Testcase 3.5.3.7b:;
 	grant UPDATE on priv_db.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs_424b,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs_424b,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connection default;
 
@@ -263,9 +257,7 @@ let $message= Testcase 3.5.3.7c;
 	grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs_424c,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs_424c,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connection default;
 
@@ -316,9 +308,7 @@ let $message= Testcase 3.5.3.7d:;
 	grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_noprivs;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs_424d,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs_424d,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connection default;
 
@@ -369,9 +359,7 @@ let $message= Testcase 3.5.3.8a:;
 	grant TRIGGER, SELECT on *.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs_425a,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs_425a,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connection default;
 
@@ -426,9 +414,7 @@ let $message= Testcase: 3.5.3.8b;
 	grant SELECT on priv_db.* to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs_425b,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs_425b,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connection default;
 
@@ -482,9 +468,7 @@ let $message= Testcase 3.5.3.8c:;
 	grant SELECT on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs_425c,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs_425c,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connection default;
 
@@ -534,9 +518,7 @@ let $message=Testcase: 3.5.3.8d:;
 	grant SELECT (f1) on priv_db.t1 to test_yesprivs@localhost;
 	show grants for test_noprivs@localhost;
 
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (no_privs_425d,localhost,test_noprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
-	--replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
 	connect (yes_privs_425d,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 	connection default;
 
@@ -592,7 +574,6 @@ let $message=Testcase: 3.5.3.x:;
 	grant SELECT on priv_db.t2 to test_yesprivs@localhost;
 	show grants for test_yesprivs@localhost;
 
-       --replace_result $MASTER_MYPORT MASTER_MYPORT $MASTER_MYSOCK MASTER_MYSOCK
        connect (yes_353x,localhost,test_yesprivs,PWD,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 
 	connection yes_353x;
