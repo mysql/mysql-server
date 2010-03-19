@@ -1,5 +1,5 @@
---- mysql-test\suite\sys_vars\t\innodb_change_buffering_basic.test.orig	Mon Mar 15 16:15:22 2010
-+++ mysql-test\suite\sys_vars\t\innodb_change_buffering_basic.test	Fri Mar 19 01:19:09 2010
+--- mysql-test/suite/sys_vars/t/innodb_change_buffering_basic.test.orig	Mon Mar 15 16:15:22 2010
++++ mysql-test/suite/sys_vars/t/innodb_change_buffering_basic.test	Fri Mar 19 01:19:09 2010
 @@ -11,8 +11,8 @@
  #
  # exists as global only
@@ -12,8 +12,8 @@
  --error ER_INCORRECT_GLOBAL_LOCAL_VAR
  select @@session.innodb_change_buffering;
 
---- mysql-test\suite\sys_vars\r\innodb_change_buffering_basic.result.orig	Mon Mar 15 16:15:22 2010
-+++ mysql-test\suite\sys_vars\r\innodb_change_buffering_basic.result	Fri Mar 19 01:23:58 2010
+--- mysql-test/suite/sys_vars/r/innodb_change_buffering_basic.result.orig	Mon Mar 15 16:15:22 2010
++++ mysql-test/suite/sys_vars/r/innodb_change_buffering_basic.result	Fri Mar 19 01:23:58 2010
 @@ -1,28 +1,28 @@
  SET @start_global_value = @@global.innodb_change_buffering;
  SELECT @start_global_value;
