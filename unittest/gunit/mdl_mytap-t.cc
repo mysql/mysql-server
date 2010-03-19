@@ -239,9 +239,9 @@ public:
   : m_table_name(table_name),
     m_mdl_type(mdl_type),
     m_lock_grabbed(lock_grabbed),
-    m_release_locks(release_locks)    // See notify_thread below.
+    m_release_locks(release_locks)
   {
-    m_thd= reinterpret_cast<THD*>(this);
+    m_thd= reinterpret_cast<THD*>(this);    // See notify_thread below.
     m_mdl_context.init(m_thd);
   }
 
@@ -711,6 +711,7 @@ TEST_F(MDL_test, concurrent_exclusive_shared)
   EXPECT_FALSE(m_mdl_context.try_acquire_shared_lock(&request));
   EXPECT_NE(m_null_ticket, request.ticket);
 
+  mdl_thread.join();
   m_mdl_context.release_all_locks();
 }
 
@@ -741,6 +742,7 @@ TEST_F(MDL_test, concurrent_upgrade)
   EXPECT_TRUE(m_mdl_context.is_exclusive_lock_owner(MDL_key::TABLE,
                                                     db_name, table_name1));
 
+  mdl_thread.join();
   m_mdl_context.release_all_locks();
 }
 

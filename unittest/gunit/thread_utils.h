@@ -39,7 +39,7 @@ public:
 
   /*
     You may invoke this to wait for the thread to finish.
-    You cannot join() a thread which runs in detached mode.
+    You should probalbly join() a thread before deleting it.
   */
   void join();
 
