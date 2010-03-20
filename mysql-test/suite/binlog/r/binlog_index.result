@@ -12,6 +12,7 @@ master-bin.000001	#
 master-bin.000002	#
 master-bin.000003	#
 master-bin.000004	#
+flush tables;
 purge binary logs TO 'master-bin.000004';
 Warnings:
 Warning	1612	Being purged log master-bin.000001 was not found

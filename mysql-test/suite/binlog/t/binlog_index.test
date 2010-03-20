@@ -26,6 +26,7 @@ flush logs;
 
 source include/show_binary_logs.inc;
 remove_file $MYSQLD_DATADIR/master-bin.000001;
+flush tables;
 
 # there must be a warning with file names
 replace_regex /\.[\\\/]master/master/;
