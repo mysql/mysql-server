@@ -96,6 +96,9 @@ struct tokulogger {
     u_int32_t write_block_size;       // How big should the blocks be written to various logs?
     TXNID oldest_living_xid;
 
+    u_int64_t input_lock_ctr;             // how many times has input_lock been taken and released
+    u_int64_t output_condition_lock_ctr;  // how many times has output_condition_lock been taken and released
+    u_int64_t swap_ctr;                   // how many times have input/output log buffers been swapped
     void (*remove_finalize_callback) (DICTIONARY_ID, void*);  // ydb-level callback to be called when a transaction that ...
     void * remove_finalize_callback_extra;                    // ... deletes a file is committed or when one that creates a file is aborted.
 };

@@ -143,5 +143,15 @@ toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync);
 //        fsync
 //        release the outlock
 
+
+typedef struct logger_status {
+    u_int64_t ilock_ctr;
+    u_int64_t olock_ctr;
+    u_int64_t swap_ctr;
+} LOGGER_STATUS_S, *LOGGER_STATUS;
+
+void toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s);
+
+
 #endif
 

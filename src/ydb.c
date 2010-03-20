@@ -1388,6 +1388,15 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->fsync_count = fsync_count;
 	    engstat->fsync_time  = fsync_time;
 	}
+	{
+	    LOGGER_STATUS_S log_stat;
+	    TOKULOGGER logger = env->i->logger;
+	    toku_logger_get_status(logger, &log_stat);
+	    engstat->logger_ilock_ctr = log_stat.ilock_ctr;
+	    engstat->logger_olock_ctr = log_stat.olock_ctr;
+	    engstat->logger_swap_ctr  = log_stat.swap_ctr;
+	}
+
     }
     return r;
 }

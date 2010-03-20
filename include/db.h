@@ -104,6 +104,9 @@ typedef struct __toku_engine_status {
   u_int64_t        sequential_queries;      /* ydb sequential queries               */ 
   u_int64_t        fsync_count;             /* number of times fsync performed      */ 
   u_int64_t        fsync_time;              /* total time required to fsync         */ 
+  u_int64_t        logger_ilock_ctr;        /* how many times has logger input lock been taken or released  */ 
+  u_int64_t        logger_olock_ctr;        /* how many times has logger output condition lock been taken or released  */ 
+  u_int64_t        logger_swap_ctr;         /* how many times have logger buffers been swapped  */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,
