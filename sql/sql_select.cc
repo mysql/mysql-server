@@ -18319,6 +18319,26 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
        unit;
        unit= unit->next_unit())
   {
+    /*
+      This fix_fields() call is to handle an edge case like this:
+       
+        SELECT ... UNION SELECT ... ORDER BY (SELECT ...)
+      
+      for such queries, we'll get here before having called
+      subquery_expr->fix_fields(), which will cause failure to
+    */
+    if (unit->item && !unit->item->fixed)
+    {
+      Item *ref= unit->item;
+      if (unit->item->fix_fields(thd, &ref))
+        DBUG_VOID_RETURN;
+      DBUG_ASSERT(ref == unit->item);
+    }
+
+    /* 
+      Display subqueries only if they are not parts of eliminated WHERE/ON
+      clauses.
+    */
     if (!(unit->item && unit->item->eliminated))
     {
       if (mysql_explain_union(thd, unit, result))
