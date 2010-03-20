@@ -477,6 +477,9 @@ drop table t1;
 # Null with keys
 #
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+
 CREATE TABLE t1 (a int(11) NOT NULL default '0', PRIMARY KEY  (a));
 CREATE TABLE t2 (a int(11) default '0', INDEX (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4);
@@ -1120,6 +1123,8 @@ insert into t2 (id, text) values (1, 'text1'), (2, 'text2'), (3, 'text3'), (4, '
 select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 explain extended select * from t1 a left join t2 b on (a.id=b.id or b.id is null) join t1 c on (if(isnull(b.id), 1000, b.id)=c.id);
 drop table t1,t2;
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 #
 # Static tables & rund() in subqueries
@@ -1784,6 +1789,9 @@ drop table t1;
 # Bug #11867: queries with ROW(,elems>) IN (SELECT DISTINCT <cols> FROM ...)
 #
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
 INSERT INTO t1 VALUES(1,2,'Y'),(2,3,'Y'),(3,4,'Y'),(5,6,'N'),(7,8,'N');
@@ -1810,6 +1818,9 @@ explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE fl
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 DROP TABLE t1,t2;
+
+set @@optimizer_switch=@save_optimizer_switch;
+
 
 #
 # Bug #12392: where cond with IN predicate for rows and NULL values in table 
@@ -1972,6 +1983,9 @@ DROP TABLE t1, t2;
 #             with possible NULL values by index access from the outer query
 #
 
+set @save_optimizer_switch=@@optimizer_switch;
+set @@optimizer_switch="partial_match_rowid_merge=off,partial_match_table_scan=off";
+
 CREATE TABLE t1(a int, INDEX (a));
 INSERT INTO t1 VALUES (1), (3), (5), (7);
 INSERT INTO t1 VALUES (NULL);
@@ -1983,6 +1997,8 @@ EXPLAIN SELECT a, a IN (SELECT a FROM t1) FROM t2;
 SELECT a, a IN (SELECT a FROM t1) FROM t2;
 
 DROP TABLE t1,t2;
+
+set @@optimizer_switch=@save_optimizer_switch;
 
 #
 # Bug #11302: getObject() returns a String for a sub-query of type datetime
@@ -3095,6 +3111,7 @@ SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 
 DROP TABLE t1,t2;
+
 
 #
 # Bug #32400: Complex SELECT query returns correct result only on some
