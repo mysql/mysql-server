@@ -83,8 +83,11 @@ get_fsync_count (void) {
 
 static int
 do_fsync (int fd) {
+    //fprintf(stderr, "%8.6fs Thread %ld start fsyncing\n", get_tdiff(), pthread_self());
     inc_fsync_count();
-    return fsync(fd);
+    int r = fsync(fd);
+    //fprintf(stderr, "%8.6fs Thread %ld done  fsyncing\n", get_tdiff(), pthread_self());
+    return r;
 }
 
 static const char *progname;

@@ -213,6 +213,8 @@ int toku_brt_zombie_needed (BRT brt);
 
 int toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report);
 
+double get_tdiff(void) __attribute__((__visibility__("default")));
+
 //TODO: #1485 once we have multiple main threads, restore this code, analyze performance.
 #ifndef TOKU_MULTIPLE_MAIN_THREADS
 #define TOKU_MULTIPLE_MAIN_THREADS 0

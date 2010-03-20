@@ -65,6 +65,9 @@
    toku_set_assert_on_write_enospc;
 
    test_db_redirect_dictionary;
+
+   get_tdiff;
+
  local: *;
 };
 
