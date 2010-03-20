@@ -1,0 +1,511 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 TINYINT NOT NULL);
+SELECT MAX(c1) AS value FROM t1;
+value
+NULL
+SELECT MAX(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MAX(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MAX(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MAX(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 SMALLINT NOT NULL);
+SELECT MAX(c1) AS value FROM t1;
+value
+NULL
+SELECT MAX(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MAX(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MAX(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MAX(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 MEDIUMINT NOT NULL);
+SELECT MAX(c1) AS value FROM t1;
+value
+NULL
+SELECT MAX(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MAX(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MAX(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MAX(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT NOT NULL);
+SELECT MAX(c1) AS value FROM t1;
+value
+NULL
+SELECT MAX(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MAX(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MAX(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MAX(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 INTEGER NOT NULL);
+SELECT MAX(c1) AS value FROM t1;
+value
+NULL
+SELECT MAX(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MAX(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MAX(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MAX(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 BIGINT NOT NULL);
+SELECT MAX(c1) AS value FROM t1;
+value
+NULL
+SELECT MAX(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MAX(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MAX(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MAX(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 TINYINT NOT NULL);
+SELECT MIN(c1) AS value FROM t1;
+value
+NULL
+SELECT MIN(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MIN(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MIN(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MIN(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 SMALLINT NOT NULL);
+SELECT MIN(c1) AS value FROM t1;
+value
+NULL
+SELECT MIN(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MIN(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MIN(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MIN(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 MEDIUMINT NOT NULL);
+SELECT MIN(c1) AS value FROM t1;
+value
+NULL
+SELECT MIN(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MIN(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MIN(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MIN(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT NOT NULL);
+SELECT MIN(c1) AS value FROM t1;
+value
+NULL
+SELECT MIN(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MIN(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MIN(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MIN(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 INTEGER NOT NULL);
+SELECT MIN(c1) AS value FROM t1;
+value
+NULL
+SELECT MIN(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MIN(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MIN(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MIN(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 BIGINT NOT NULL);
+SELECT MIN(c1) AS value FROM t1;
+value
+NULL
+SELECT MIN(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT MIN(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT MIN(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT MIN(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 TINYINT NOT NULL);
+SELECT AVG(c1) AS value FROM t1;
+value
+NULL
+SELECT AVG(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT AVG(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT AVG(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT AVG(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 SMALLINT NOT NULL);
+SELECT AVG(c1) AS value FROM t1;
+value
+NULL
+SELECT AVG(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT AVG(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT AVG(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT AVG(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 MEDIUMINT NOT NULL);
+SELECT AVG(c1) AS value FROM t1;
+value
+NULL
+SELECT AVG(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT AVG(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT AVG(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT AVG(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT NOT NULL);
+SELECT AVG(c1) AS value FROM t1;
+value
+NULL
+SELECT AVG(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT AVG(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT AVG(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT AVG(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 INTEGER NOT NULL);
+SELECT AVG(c1) AS value FROM t1;
+value
+NULL
+SELECT AVG(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT AVG(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT AVG(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT AVG(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 BIGINT NOT NULL);
+SELECT AVG(c1) AS value FROM t1;
+value
+NULL
+SELECT AVG(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT AVG(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT AVG(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT AVG(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 TINYINT NOT NULL);
+SELECT SUM(c1) AS value FROM t1;
+value
+NULL
+SELECT SUM(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT SUM(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT SUM(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT SUM(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 SMALLINT NOT NULL);
+SELECT SUM(c1) AS value FROM t1;
+value
+NULL
+SELECT SUM(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT SUM(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT SUM(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT SUM(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 MEDIUMINT NOT NULL);
+SELECT SUM(c1) AS value FROM t1;
+value
+NULL
+SELECT SUM(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT SUM(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT SUM(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT SUM(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT NOT NULL);
+SELECT SUM(c1) AS value FROM t1;
+value
+NULL
+SELECT SUM(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT SUM(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT SUM(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT SUM(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 INTEGER NOT NULL);
+SELECT SUM(c1) AS value FROM t1;
+value
+NULL
+SELECT SUM(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT SUM(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT SUM(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT SUM(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 BIGINT NOT NULL);
+SELECT SUM(c1) AS value FROM t1;
+value
+NULL
+SELECT SUM(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+NULL
+SELECT SUM(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+NULL
+SELECT SUM(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+NULL
+SELECT SUM(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 TINYINT NOT NULL);
+SELECT COUNT(c1) AS value FROM t1;
+value
+0
+SELECT COUNT(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+0
+SELECT COUNT(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+0
+SELECT COUNT(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+0
+SELECT COUNT(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+0
+DROP TABLE t1;
+CREATE TABLE t1(c1 SMALLINT NOT NULL);
+SELECT COUNT(c1) AS value FROM t1;
+value
+0
+SELECT COUNT(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+0
+SELECT COUNT(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+0
+SELECT COUNT(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+0
+SELECT COUNT(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+0
+DROP TABLE t1;
+CREATE TABLE t1(c1 MEDIUMINT NOT NULL);
+SELECT COUNT(c1) AS value FROM t1;
+value
+0
+SELECT COUNT(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+0
+SELECT COUNT(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+0
+SELECT COUNT(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+0
+SELECT COUNT(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+0
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT NOT NULL);
+SELECT COUNT(c1) AS value FROM t1;
+value
+0
+SELECT COUNT(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+0
+SELECT COUNT(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+0
+SELECT COUNT(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+0
+SELECT COUNT(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+0
+DROP TABLE t1;
+CREATE TABLE t1(c1 INTEGER NOT NULL);
+SELECT COUNT(c1) AS value FROM t1;
+value
+0
+SELECT COUNT(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+0
+SELECT COUNT(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+0
+SELECT COUNT(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+0
+SELECT COUNT(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+0
+DROP TABLE t1;
+CREATE TABLE t1(c1 BIGINT NOT NULL);
+SELECT COUNT(c1) AS value FROM t1;
+value
+0
+SELECT COUNT(c1) AS postive_value FROM t1 WHERE c1 > 0;
+postive_value
+0
+SELECT COUNT(c1) AS negative_value FROM t1 WHERE c1 < 0;
+negative_value
+0
+SELECT COUNT(c1) AS zero_value FROM t1 WHERE c1 = 0;
+zero_value
+0
+SELECT COUNT(c1) AS no_results FROM t1 WHERE c1 = 2;
+no_results
+0
+DROP TABLE t1;

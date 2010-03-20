@@ -5624,6 +5624,45 @@ err:
   DBUG_RETURN(-1);
 }
 
+/**
+  @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
+ 
+  @details Checks if any index is being modified (present as both DROP INDEX 
+    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling 
+    online ALTER TABLE.
+  
+  @param table       The table being altered
+  @param alter_info  The ALTER TABLE structure
+  @return presence of index being altered  
+  @retval FALSE  No such index
+  @retval TRUE   Have at least 1 index modified
+*/
+
+static bool
+is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
+{
+  List_iterator<Key> key_it(alter_info->key_list);
+  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
+  Key *key;
+
+  while ((key= key_it++))
+  {
+    if (key->name.str)
+    {
+      Alter_drop *drop;
+
+      drop_it.rewind();
+      while ((drop= drop_it++))
+      {
+        if (drop->type == Alter_drop::KEY &&
+            !my_strcasecmp(system_charset_info, key->name.str, drop->name))
+          return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
 
 /*
   SYNOPSIS
@@ -5712,6 +5751,7 @@ compare_tables(TABLE *table,
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
+
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd, create_info,
                                  &tmp_alter_info,
@@ -6910,10 +6950,14 @@ view_err:
   */
   new_db_type= create_info->db_type;
 
+  if (is_index_maintenance_unique (table, alter_info))
+    need_copy_table= ALTER_TABLE_DATA_CHANGED;
+
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
   
-  need_copy_table= alter_info->change_level;
+  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+    need_copy_table= alter_info->change_level;
 
   set_table_default_charset(thd, create_info, db);
 
