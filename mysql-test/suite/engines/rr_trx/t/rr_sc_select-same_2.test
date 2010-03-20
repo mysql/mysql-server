@@ -1,0 +1,45 @@
+################################################################################
+#
+# This test contains a single transaction performing queries against the test
+# data. The main purpose is to test REPEATABLE READ results, that is to verify
+# that reads (SELECTs) are indeed repeatable during a REPEATABLE READ 
+# transaction. 
+#
+# Generally, queries which should yield the same results at one moment in time 
+# should also yield the same results later in the same transaction. In some 
+# configurations, however, phantom reads are allowed (may e.g. depend on 
+# settings such as falcon_consistent_read).
+#
+# To detect missing rows, modified rows and possibly invalid (uncommitted) 
+# extra (phantom) rows, we store query results in temporary tables and compare 
+# using special queries. Using includes for this to avoid unnecessary "clutter"
+# in each select-only test.
+#
+# This and similar tests (transactions) should contain some random "filler"
+# between the SELECTs so that they may run in different conditions, such as:
+#   * some other transactions may have commited in the meantime
+#   * a scavenge run may have happened (falcon)
+#   * etc
+#
+# Such a "random filler" can be:
+#   * SLEEP()
+#   * Bogus updates on some unrelated temporary table that was created for the purpose
+#   * savepoint + bogus updates on the main tables + rollback to savepoint
+#   * Inserts on new records (which will show up as "phantom" records in subsequent SELECTs) 
+#
+################################################################################
+
+SET autocommit = 0;
+START TRANSACTION;
+
+# We do a full table scan in this test.
+# Note: May cause deadlocks! (handled in sourced scripts).
+
+let $query= SELECT * from t1;
+--source suite/engines/rr_trx/include/record_query_all_columns.inc
+SELECT SLEEP(1);
+let $query= SELECT * from t1;
+--source suite/engines/rr_trx/include/record_query_all_columns.inc
+--source suite/engines/rr_trx/include/check_repeatable_read_all_columns.inc
+
+COMMIT;

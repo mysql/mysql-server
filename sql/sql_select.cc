@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1116,6 +1116,31 @@ JOIN::optimize()
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
+
+  /*
+    It's necessary to check const part of HAVING cond as
+    there is a chance that some cond parts may become
+    const items after make_join_statisctics(for example
+    when Item is a reference to cost table field from
+    outer join).
+    This check is performed only for those conditions
+    which do not use aggregate functions. In such case
+    temporary table may not be used and const condition
+    elements may be lost during further having
+    condition transformation in JOIN::exec.
+  */
+  if (having && !having->with_sum_func)
+  {
+    COND *const_cond= make_cond_for_table(having, const_table_map, 0);
+    DBUG_EXECUTE("where", print_where(const_cond, "const_having_cond",
+                                      QT_ORDINARY););
+    if (const_cond && !const_cond->val_int())
+    {
+      zero_result_cause= "Impossible HAVING noticed after reading const tables";
+      DBUG_RETURN(0);
+    }
+  }
+
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -2970,7 +2995,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      if (records == 0 && s->table->reginfo.impossible_range)
+      if (records == 0 && s->table->reginfo.impossible_range &&
+          (s->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
       {
 	/*
 	  Impossible WHERE or ON expression
@@ -5953,7 +5979,7 @@ store_val_in_field(Field *field, Item *item, enum_check_fields check_flag)
   @retval TRUE        error occurred
 */
 bool
-JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
+JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
 {
   DBUG_ENTER("JOIN::make_simple_join");
 
@@ -5966,7 +5992,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
     DBUG_RETURN(TRUE);                        /* purecov: inspected */
 
   join_tab= parent->join_tab_reexec;
-  parent->table_reexec[0]= tmp_table;
+  parent->table_reexec[0]= temp_table;
   tables= 1;
   const_tables= 0;
   const_table_map= 0;
@@ -5986,7 +6012,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   do_send_rows= row_limit ? 1 : 0;
 
   join_tab->cache.buff=0;			/* No caching */
-  join_tab->table=tmp_table;
+  join_tab->table=temp_table;
   join_tab->select=0;
   join_tab->select_cond=0;
   join_tab->quick=0;
@@ -6003,8 +6029,8 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   join_tab->join= this;
   join_tab->ref.key_parts= 0;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
-  tmp_table->status=0;
-  tmp_table->null_row=0;
+  temp_table->status=0;
+  temp_table->null_row=0;
   DBUG_RETURN(FALSE);
 }
 
