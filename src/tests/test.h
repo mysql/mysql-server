@@ -210,6 +210,20 @@ random64(void) {
     return ret;
 }
 
+static __attribute__((__unused__))
+double get_tdiff(void) {
+    static struct timeval prev={0,0};
+    if (prev.tv_sec==0) {
+	gettimeofday(&prev, 0);
+	return 0.0;
+    } else {
+	struct timeval now;
+	gettimeofday(&now, 0);
+	double diff = now.tv_sec - prev.tv_sec + 1e-6*(now.tv_usec - prev.tv_usec);
+	prev = now;
+	return diff;
+    }
+}
 
 //Simulate as hard a crash as possible.
 //Choices:

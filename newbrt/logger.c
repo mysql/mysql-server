@@ -582,20 +582,6 @@ void toku_logger_trim_log_files (TOKULOGGER logger, BOOL trim_log_files)
     logger->trim_log_files = trim_log_files;
 }
 
-double get_tdiff(void) {
-    static struct timeval prev={0,0};
-    if (prev.tv_sec==0) {
-	gettimeofday(&prev, 0);
-	return 0.0;
-    } else {
-	struct timeval now;
-	gettimeofday(&now, 0);
-	double diff = now.tv_sec - prev.tv_sec + 1e-6*(now.tv_usec - prev.tv_usec);
-	prev = now;
-	return diff;
-    }
-}
-
 int toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync)
 // Effect: If fsync is nonzero, then make sure that the log is flushed and synced at least up to lsn.
 // Entry: Holds input lock.  The log entry has already been written to the input buffer.
