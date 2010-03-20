@@ -1215,7 +1215,8 @@ static int do_recovery(RECOVER_ENV renv, const char *env_dir, const char *log_di
         if (r != 0) {
             if (tokudb_recovery_trace) 
                 fprintf(stderr, "DB_RUNRECOVERY: %s:%d r=%d\n", __FUNCTION__, __LINE__, r);
-            rr = DB_RUNRECOVERY; goto errorexit;
+            rr = DB_RUNRECOVERY; 
+            goto errorexit;
         }
         if (renv->goforward)
             break;
