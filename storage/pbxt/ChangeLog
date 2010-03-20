@@ -1,6 +1,62 @@
 PBXT Release Notes
 ==================
 
+------- 1.0.09g RC3 - 2009-12-16
+
+RN292: Fixed a bug that resulted in 2-phase commit not being used between PBXT and the binlog. This bug was a result of a hack which as added to solve a problem in an pre-release version of MySQL 5.1. The hack was removed. 
+
+------- 1.0.09f RC3 - 2009-11-30
+
+RN291: Fixed bug #489088: On shutdown MySQL reports: [Warning] Plugin 'PBXT' will be forced to shutdown.
+
+RN290: Fixed bug #345524: pbxt does not compile on 64 bit windows. Currently atomic operations are not supported on this platform.
+
+RN286: Fixed a bug introduced in RN281, which could cause an index scan to hang. The original change was to prevent a warning in Valgrind.
+
+RN285: Merged changes required to compile with Drizzle.
+
+RN284: Fixed bug that cause the error "[ERROR] Invalid (old?) table or database name 'mysqld.1'", when running temp_table.test under MariaDB (thanks to Monty for his initial bug fix). Added a fix for partition table names as well.
+
+RN283: Added win_inttypes.h to the distribution. This file is only required for the Windows build.
+
+RN282: Fixed bug #451101: jump or move depends on uninitialised value in myxt_get_key_length
+
+RN281: Fixed bug #451080: Uninitialised memory write in XTDatabaseLog::xlog_append
+
+RN280: Fixed bug #451085: jump or move depends on uninitialised value in my_type_to_string
+
+RN279: Fixed bug #441000: xtstat crashes with segmentation fault on startup if max_pbxt_threads exceeded.
+
+------- 1.0.09e RC3 - 2009-11-20
+
+RN278: Fixed compile error with MySQL 5.1.41.
+
+------- 1.0.09d RC3 - 2009-09-30
+
+RN277: Added r/o flag to pbxt_max_threads server variable (this fix is related to bug #430637)
+
+RN276: Added test case for replication on tables w/o PKs (see bug #430716)
+
+RN275: Fixed bug #430600: 'Failed to read auto-increment value from storage engine' error.
+
+RN274: Fixed bug #431240: This report is public edit xtstat fails if no PBXT table has been created. xtstat now accepts --database=information_schema or --database=pbxt. Depending on this setting PBXT will either use the information_schema.pbxt_statistics or the pbxt.statistics table. If information_schema is used, then the statistics are displayed even when no PBXT table exists. Recovery activity is also displayed, unless pbxt_support_xa=1, in which case MySQL will wait for PBXT recovery to complete before allowing connections. 
+
+RN273: Fixed bug #430633: XA_RBDEADLOCK is not returned on XA END after the transacting ended with a deadlock.
+
+RN272: Fixed bug #430596: Backup/restore does not work well even on a basic PBXT table with auto-increment.
+
+------- 1.0.09c RC3 - 2009-09-16
+
+RN271: Windows build update: now you can simply put the pbxt directory under <mysql-root>/storage and build the PBXT engine as a part of the source tree. The engine will be linked statically. Be sure to specify the WITH_PBXT_STORAGE_ENGINE option when running win\configure.js
+
+RN270: Correctly disabled PBMS so that this version now compiles under Windows. If PBMS_ENABLED is defined, PBXT will not compile under Windows becaause of a getpid() call in pbms.h.
+
+------- 1.0.09 RC3 - 2009-09-09
+
+RN269: Implemented online backup. A native online backup driver now performs BACKUP and RESTORE DATABASE operations for PBXT. NOTE: This feature is only supported by MySQL 6.0.9 or later.
+
+RN268: Implemented XA support. PBXT now supports all XA related MySQL statements. The variable pbxt_support_xa determines if XA support is enabled. Note: due to MySQL bug #47134, enabling XA support could lead to a crash. 
+
 ------- 1.0.08d RC2 - 2009-09-02
 
 RN267: Fixed a bug that caused MySQL to crash on shutdown, after an incorrect command line parameter was given. The crash occurred because the background recovery task was not cleaned up before the PBXT engine was de-initialized.

@@ -145,6 +145,10 @@ int handle_options(int *argc, char ***argv,
       {                                       /* --set-variable, or -O  */
 	if (*cur_arg == 'O')
 	{
+          my_getopt_error_reporter(WARNING_LEVEL, 
+                                   "%s: Option '-O' is deprecated. "
+                                   "Use --variable-name=value instead.",
+                                   my_progname);
 	  must_be_var= 1;
 
 	  if (!(*++cur_arg))	/* If not -Ovar=# */
@@ -164,6 +168,11 @@ int handle_options(int *argc, char ***argv,
 	}
 	else if (!getopt_compare_strings(cur_arg, "-set-variable", 13))
 	{
+          my_getopt_error_reporter(WARNING_LEVEL, 
+                                   "%s: Option '--set-variable' is deprecated. "
+                                   "Use --variable-name=value instead.",
+                                   my_progname);
+                                   
 	  must_be_var= 1;
 	  if (cur_arg[13] == '=')
 	  {
@@ -414,17 +423,11 @@ invalid value '%s'",
                    (optp->var_type & GET_TYPE_MASK) == GET_ENUM))
 	{
 	  if (optend == disabled_my_option)
-            if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL)
-              *((my_bool*) value)= (my_bool) 0;
-            else
-              *((ulong*) value)= (ulong) 0;
+            init_one_value(optp, value, 0);
 	  else
 	  {
 	    if (!optend) /* No argument -> enable option */
-              if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL)
-                *((my_bool*) value)= (my_bool) 1;
-              else
-                *((ulong*) value)= (ulong) 1;
+                init_one_value(optp, value, 1);
             else
               argument= optend;
 	  }
@@ -1017,9 +1020,11 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
   case GET_LL:
     *((longlong*) variable)= (longlong) getopt_ll_limit_value((longlong) value, option, NULL);
     break;
-  case GET_ULL: /* Fall through */
-  case GET_SET:
+  case GET_ULL:
     *((ulonglong*) variable)= (ulonglong) getopt_ull_limit_value((ulonglong) value, option, NULL);
+    break;
+  case GET_SET:
+    *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
     *((double*) variable)=  (double) value;

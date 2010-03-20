@@ -1,0 +1,300 @@
+################################################################################
+# Let 
+#   - B be begin, C commit and R rollback.
+#   - T a statement that accesses and changes only transactional tables, i.e.
+#   T-tables
+#   - N a statement that accesses and changes only non-transactional tables,
+#   i.e, N-tables.
+#   - M be a mixed statement, i.e. a statement that updates both T- and 
+#   N-tables.
+#   - M* be a mixed statement that fails while updating either a T
+#   or N-table.
+#   - N* be a statement that fails while updating a N-table.
+#
+# In this test case, when changes are logged as rows either in the RBR or MIXED
+# modes, we check if a M* statement that happens early in a transaction is
+# written to the binary log outside the boundaries of the transaction and
+# wrapped up in a BEGIN/ROLLBACK. This is done to keep the slave consistent with
+# the master as the rollback will keep the changes on N-tables and undo them on
+# T-tables. In particular, we expect the following behavior:
+#
+#  1. B M* T C would generate in the binlog B M* R B T C.
+#  2. B M M* C would generate in the binlog B M M* C.
+#  3. B M* M* T C would generate in the binlog B M* R B M* R B T C.
+#
+# SBR is not considered in this test because a failing statement is written to
+# the binary along with the error code such that a slave executes and rolls it
+# back, thus undoing the effects on T-tables.
+#
+# Note that, in the first case, we are not preserving history from the master as
+# we are introducing a rollback that never happened. However, this seems to be
+# more acceptable than making the slave diverge. In the second case, the slave
+# will diverge as the changes on T-tables that originated from the M statement
+# are rolled back on the master but not on the slave. Unfortunately, we cannot 
+# simply roll the transaction back as this would undo any uncommitted changes
+# on T-tables.
+#
+# We check two more cases. First, INSERT...SELECT* which produces the following
+# results:
+#
+# 1. B T INSERT M...SELECT* C" with an error in INSERT M...SELECT* generates in
+# the binlog the following entries: "Nothing".
+# 2. B INSERT M...SELECT* C" with an error in INSERT M...SELECT* generates in
+# the binlog the following entries: B INSERT M...SELECT* R.
+#
+# Finally, we also check if any N statement that happens early in a transaction
+# (i.e. before any T or M statement) is written to the binary log outside the
+# boundaries of the transaction. In particular, we expect the following
+# behavior:
+#
+# 1. B N N T C would generate in the binlog B N C B N C B T C.
+# 2. B N N T R would generate in the binlog B N C B N C B T R.
+# 3. B N* N* T C would generate in the binlog B N R B N R B T C.
+# 4. B N* N* T R would generate in the binlog B N R B N R B T R.
+# 5. B N N T N T C would generate in the binlog B N C B N C B T N T C.
+# 6. B N N T N T R would generate in the binlog the B N C B N C B T N T R.
+# 
+# Such issues do not happen in SBR. In RBR and MBR, a full-fledged fix will be
+# pushed after the WL#2687.
+#
+# Please, remove this test case after pushing WL#2687.
+################################################################################
+
+
+--echo ###################################################################################
+--echo #                                   CONFIGURATION
+--echo ###################################################################################
+CREATE TABLE nt_1 (a text, b int PRIMARY KEY) ENGINE = MyISAM;
+CREATE TABLE nt_2 (a text, b int PRIMARY KEY) ENGINE = MyISAM;
+CREATE TABLE tt_1 (a text, b int PRIMARY KEY) ENGINE = Innodb;
+CREATE TABLE tt_2 (a text, b int PRIMARY KEY) ENGINE = Innodb;
+
+DELIMITER |;
+
+CREATE TRIGGER tr_i_tt_1_to_nt_1 BEFORE INSERT ON tt_1 FOR EACH ROW
+BEGIN
+  INSERT INTO nt_1 VALUES (NEW.a, NEW.b);
+END|
+
+CREATE TRIGGER tr_i_nt_2_to_tt_2 BEFORE INSERT ON nt_2 FOR EACH ROW
+BEGIN
+  INSERT INTO tt_2 VALUES (NEW.a, NEW.b);
+END|
+
+DELIMITER ;|
+
+--echo ###################################################################################
+--echo #                             CHECK HISTORY IN BINLOG
+--echo ###################################################################################
+--echo
+--echo
+--echo
+--echo *** "B M* T C" with error in M* generates in the binlog the "B M* R B T C" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+INSERT INTO nt_1 VALUES ("new text 1", 1);
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES (USER(), 2), (USER(), 1);
+INSERT INTO tt_2 VALUES ("new text 3", 3);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+INSERT INTO tt_2 VALUES ("new text 4", 4);
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO nt_2 VALUES (USER(), 5), (USER(), 4);
+INSERT INTO tt_2 VALUES ("new text 6", 6);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B M M* T C" with error in M* generates in the binlog the "B M M* T C" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+INSERT INTO nt_1 VALUES ("new text 10", 10);
+BEGIN;
+INSERT INTO tt_1 VALUES ("new text 7", 7), ("new text 8", 8);
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES (USER(), 9), (USER(), 10);
+INSERT INTO tt_2 VALUES ("new text 11", 11);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+INSERT INTO tt_2 VALUES ("new text 15", 15);
+BEGIN;
+INSERT INTO nt_2 VALUES ("new text 12", 12), ("new text 13", 13);
+--error ER_DUP_ENTRY
+INSERT INTO nt_2 VALUES (USER(), 14), (USER(), 15);
+INSERT INTO tt_2 VALUES ("new text 16", 16);
+COMMIT;
+--source include/show_binlog_events.inc
+
+
+--echo
+--echo
+--echo
+--echo *** "B M* M* T C" with error in M* generates in the binlog the "B M* R B M* R B T C" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+INSERT INTO nt_1 VALUES ("new text 18", 18);
+INSERT INTO nt_1 VALUES ("new text 20", 20);
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES (USER(), 17), (USER(), 18);
+--error ER_DUP_ENTRY
+INSERT INTO tt_1 VALUES (USER(), 19), (USER(), 20);
+INSERT INTO tt_2 VALUES ("new text 21", 21);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+INSERT INTO tt_2 VALUES ("new text 23", 23);
+INSERT INTO tt_2 VALUES ("new text 25", 25);
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO nt_2 VALUES (USER(), 22), (USER(), 23);
+--error ER_DUP_ENTRY
+INSERT INTO nt_2 VALUES (USER(), 24), (USER(), 25);
+INSERT INTO tt_2 VALUES ("new text 26", 26);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B T INSERT M...SELECT* C" with an error in INSERT M...SELECT* generates
+--echo *** in the binlog the following entries: "Nothing".
+--echo *** There is a bug in that will be fixed after WL#2687. Please, check BUG#47175 for further details.
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+TRUNCATE TABLE nt_2;
+TRUNCATE TABLE tt_2;
+INSERT INTO tt_2 VALUES ("new text 7", 7);
+BEGIN;
+INSERT INTO tt_2 VALUES ("new text 27", 27);
+--error ER_DUP_ENTRY
+INSERT INTO nt_2(a, b) SELECT USER(), b FROM nt_1;
+INSERT INTO tt_2 VALUES ("new text 28", 28);
+ROLLBACK;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B INSERT M..SELECT* C" with an error in INSERT M...SELECT* generates
+--echo *** in the binlog the following entries: "B INSERT M..SELECT* R".
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+TRUNCATE TABLE nt_2;
+TRUNCATE TABLE tt_2;
+INSERT INTO tt_2 VALUES ("new text 7", 7);
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO nt_2(a, b) SELECT USER(), b FROM nt_1;
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N N T C" generates in the binlog the "B N C B N C B T C" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+TRUNCATE TABLE nt_1;
+TRUNCATE TABLE tt_2;
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 1);
+INSERT INTO nt_1 VALUES (USER(), 2);
+INSERT INTO tt_2 VALUES (USER(), 3);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N N T R" generates in the binlog the "B N C B N C B T R" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 4);
+INSERT INTO nt_1 VALUES (USER(), 5);
+INSERT INTO tt_2 VALUES (USER(), 6);
+ROLLBACK;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N* N* T C" with error in N* generates in the binlog the "B N R B N R B T C" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES (USER(), 7), (USER(), 1);
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES (USER(), 8), (USER(), 1);
+INSERT INTO tt_2 VALUES (USER(), 9);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N* N* T R" with error in N* generates in the binlog the "B N R B N R B T R" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES (USER(), 10), (USER(), 1);
+--error ER_DUP_ENTRY
+INSERT INTO nt_1 VALUES (USER(), 11), (USER(), 1);
+INSERT INTO tt_2 VALUES (USER(), 12);
+ROLLBACK;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N N T N T C" generates in the binlog the "B N C B N C B T N T C" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 13);
+INSERT INTO nt_1 VALUES (USER(), 14);
+INSERT INTO tt_2 VALUES (USER(), 15);
+INSERT INTO nt_1 VALUES (USER(), 16);
+INSERT INTO tt_2 VALUES (USER(), 17);
+COMMIT;
+--source include/show_binlog_events.inc
+
+--echo
+--echo
+--echo
+--echo *** "B N N T N T R" generates in the binlog the "B N C B N C B T N T R" entries
+--echo
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 18);
+INSERT INTO nt_1 VALUES (USER(), 19);
+INSERT INTO tt_2 VALUES (USER(), 20);
+INSERT INTO nt_1 VALUES (USER(), 21);
+INSERT INTO tt_2 VALUES (USER(), 22);
+ROLLBACK;
+--source include/show_binlog_events.inc
+
+--echo ###################################################################################
+--echo #                                        CLEAN
+--echo ###################################################################################
+
+DROP TABLE tt_1;
+DROP TABLE tt_2;
+DROP TABLE nt_1;
+DROP TABLE nt_2;

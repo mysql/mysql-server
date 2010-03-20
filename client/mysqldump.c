@@ -179,7 +179,7 @@ HASH ignore_table;
 
 static struct my_option my_long_options[] =
 {
-  {"all", 'a', "Deprecated. Use --create-options instead.",
+  {"all", OPT_ALL, "Deprecated. Use --create-options instead.",
    (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"all-databases", 'A',
@@ -230,7 +230,7 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"create-options", OPT_CREATE_OPTIONS,
+  {"create-options", 'a',
    "Include all MySQL specific create options.",
    (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
@@ -268,7 +268,7 @@ static struct my_option my_long_options[] =
      (uchar**) &opt_events, (uchar**) &opt_events, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
   {"extended-insert", 'e',
-   "Allows utilization of the new, much faster INSERT syntax.",
+   "Use multiple-row INSERT syntax that include several VALUES lists.",
    (uchar**) &extended_insert, (uchar**) &extended_insert, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
@@ -282,7 +282,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
   {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
    (uchar**) &escaped, (uchar**) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"first-slave", 'x', "Deprecated, renamed to --lock-all-tables.",
+  {"first-slave", OPT_FIRST_SLAVE, "Deprecated, renamed to --lock-all-tables.",
    (uchar**) &opt_lock_all_tables, (uchar**) &opt_lock_all_tables, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"flush-logs", 'F', "Flush logs file in server before starting dump. "
@@ -366,8 +366,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-data", 'd', "No row information.", (uchar**) &opt_no_data,
    (uchar**) &opt_no_data, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-set-names", 'N',
-   "Deprecated. Use --skip-set-charset instead.",
+  {"no-set-names", 'N',"Suppress the SET NAMES statement",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"opt", OPT_OPTIMIZE,
    "Same as --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys. Enabled by default, disable with --skip-opt.",
@@ -760,6 +759,15 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
+  case 'O':
+    WARN_DEPRECATED(VER_CELOSIA, "--set-variable", "--variable-name=value");
+    break;
+  case (int) OPT_ALL:
+    WARN_DEPRECATED(VER_CELOSIA, "--all", "--create-options");
+    break;
+  case (int) OPT_FIRST_SLAVE:
+    WARN_DEPRECATED(VER_CELOSIA, "--first-slave", "--lock-all-tables");
+    break;
   case (int) OPT_MASTER_DATA:
     if (!argument) /* work like in old versions */
       opt_master_data= MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL;
@@ -808,7 +816,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                                     &err_ptr, &err_len);
       if (err_len)
       {
-        strmake(buff, err_ptr, min(sizeof(buff), err_len));
+        strmake(buff, err_ptr, min(sizeof(buff) - 1, err_len));
         fprintf(stderr, "Invalid mode to --compatible: %s\n", buff);
         exit(1);
       }
@@ -4486,7 +4494,7 @@ static ulong find_set(TYPELIB *lib, const char *x, uint length,
 
       for (; pos != end && *pos != ','; pos++) ;
       var_len= (uint) (pos - start);
-      strmake(buff, start, min(sizeof(buff), var_len));
+      strmake(buff, start, min(sizeof(buff) - 1, var_len));
       find= find_type(buff, lib, var_len);
       if (!find)
       {

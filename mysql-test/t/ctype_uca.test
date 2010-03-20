@@ -186,6 +186,7 @@ insert into t1 values (_ucs2 0x01fc),(_ucs2 0x01fd),(_ucs2 0x01fe),(_ucs2 0x01ff
 insert into t1 values ('AA'),('Aa'),('aa'),('aA');
 insert into t1 values ('CH'),('Ch'),('ch'),('cH');
 insert into t1 values ('DZ'),('Dz'),('dz'),('dZ');
+insert into t1 values ('DŽ'),('Dž'),('dž'),('dŽ');
 insert into t1 values ('IJ'),('Ij'),('ij'),('iJ');
 insert into t1 values ('LJ'),('Lj'),('lj'),('lJ');
 insert into t1 values ('LL'),('Ll'),('ll'),('lL');
@@ -213,6 +214,7 @@ select group_concat(c1 order by c1) from t1 group by c1 collate utf8_spanish2_ci
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_roman_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_esperanto_ci;
 select group_concat(c1 order by c1) from t1 group by c1 collate utf8_hungarian_ci;
+select group_concat(c1 order by c1) from t1 group by c1 collate utf8_croatian_ci;
 
 drop table t1;
 

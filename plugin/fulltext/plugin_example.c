@@ -145,7 +145,7 @@ static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param
     the list of search terms when parsing a search string.
 */
 
-static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
+static void add_word(MYSQL_FTPARSER_PARAM *param, const unsigned char *word, size_t len)
 {
   MYSQL_FTPARSER_BOOLEAN_INFO bool_info=
     { FT_TOKEN_WORD, 0, 0, 0, 0, ' ', 0 };
@@ -169,7 +169,7 @@ static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
 
 static int simple_parser_parse(MYSQL_FTPARSER_PARAM *param)
 {
-  char *end, *start, *docend= param->doc + param->length;
+  const unsigned char *end, *start, *docend= param->doc + param->length;
 
   number_of_calls++;
 

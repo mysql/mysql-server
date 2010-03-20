@@ -116,6 +116,26 @@ select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
 SET CHARACTER SET koi8r;
+create table t1 (a varchar(2) character set ucs2 collate ucs2_bin, key(a));
+insert into t1 values ('A'),('A'),('B'),('C'),('D'),('A\t');
+insert into t1 values ('A\0'),('A\0'),('A\0'),('A\0'),('AZ');
+select hex(a) from t1 where a like 'A_' order by a;
+hex(a)
+00410000
+00410000
+00410000
+00410000
+00410009
+0041005A
+select hex(a) from t1 ignore key(a) where a like 'A_' order by a;
+hex(a)
+00410000
+00410000
+00410000
+00410000
+00410009
+0041005A
+drop table t1;
 CREATE TABLE t1 (word VARCHAR(64) CHARACTER SET ucs2, word2 CHAR(64) CHARACTER SET ucs2);
 INSERT INTO t1 VALUES (_koi8r'ò',_koi8r'ò'), (X'2004',X'2004');
 SELECT hex(word) FROM t1 ORDER BY word;
@@ -1211,3 +1231,47 @@ HEX(DAYNAME(19700101))
 0427043504420432043504400433
 SET character_set_connection=latin1;
 End of 5.0 tests
+Start of 5.1 tests
+SET NAMES utf8;
+CREATE TABLE t1 (
+a varchar(10) CHARACTER SET ucs2 COLLATE ucs2_czech_ci,
+key(a)
+);
+INSERT INTO t1 VALUES
+('aa'),('bb'),('cc'),('dd'),('ee'),('ff'),('gg'),('hh'),('ii'),
+('jj'),('kk'),('ll'),('mm'),('nn'),('oo'),('pp'),('rr'),('ss'),
+('tt'),('uu'),('vv'),('ww'),('xx'),('yy'),('zz');
+INSERT INTO t1 VALUES ('ca'),('cz'),('ch');
+INSERT INTO t1 VALUES ('da'),('dz'), (X'0064017E');
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'b%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'c%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	30	Using where; Using index
+SELECT * FROM t1 WHERE a LIKE 'c%';
+a
+ca
+cc
+cz
+ch
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'ch%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+SELECT * FROM t1 WHERE a LIKE 'ch%';
+a
+ch
+ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET ucs2 COLLATE ucs2_croatian_ci;
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'd%';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+SELECT hex(concat('d',_ucs2 0x017E,'%'));
+hex(concat('d',_ucs2 0x017E,'%'))
+0064017E0025
+EXPLAIN SELECT * FROM t1 WHERE a LIKE concat('d',_ucs2 0x017E,'%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	23	NULL	1	Using where; Using index
+SELECT hex(a) FROM t1 WHERE a LIKE concat('D',_ucs2 0x017E,'%');
+hex(a)
+0064017E
+DROP TABLE t1;

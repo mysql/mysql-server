@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file thr/thr0loc.c
 The thread local storage
 
 Created 10/5/1995 Heikki Tuuri
@@ -43,39 +44,42 @@ is protected by a mutex. If you need modify the program and put new data to
 the thread local storage, just add it to struct thr_local_struct in the
 header file. */
 
-/* Mutex protecting the local storage hash table */
+/** Mutex protecting thr_local_hash */
 static mutex_t		thr_local_mutex;
 
-/* The hash table. The module is not yet initialized when it is NULL. */
+/** The hash table. The module is not yet initialized when it is NULL. */
 static hash_table_t*	thr_local_hash	= NULL;
 ulint		thr_local_hash_n_nodes = 0;
 
-/* The private data for each thread should be put to
-the structure below and the accessor functions written
-for the field. */
+/** Thread local data */
 typedef struct thr_local_struct thr_local_t;
 
+/** @brief Thread local data.
+The private data for each thread should be put to
+the structure below and the accessor functions written
+for the field. */
 struct thr_local_struct{
-	os_thread_id_t	id;	/* id of the thread which owns this struct */
-	os_thread_t	handle;	/* operating system handle to the thread */
-	ulint		slot_no;/* the index of the slot in the thread table
+	os_thread_id_t	id;	/*!< id of the thread which owns this struct */
+	os_thread_t	handle;	/*!< operating system handle to the thread */
+	ulint		slot_no;/*!< the index of the slot in the thread table
 				for this thread */
-	ibool		in_ibuf;/* TRUE if the the thread is doing an ibuf
+	ibool		in_ibuf;/*!< TRUE if the thread is doing an ibuf
 				operation */
-	hash_node_t	hash;	/* hash chain node */
-	ulint		magic_n;
+	hash_node_t	hash;	/*!< hash chain node */
+	ulint		magic_n;/*!< magic number (THR_LOCAL_MAGIC_N) */
 };
 
+/** The value of thr_local_struct::magic_n */
 #define THR_LOCAL_MAGIC_N	1231234
 
-/***********************************************************************
-Returns the local storage struct for a thread. */
+/*******************************************************************//**
+Returns the local storage struct for a thread.
+@return	local storage */
 static
 thr_local_t*
 thr_local_get(
 /*==========*/
-				/* out: local storage */
-	os_thread_id_t	id)	/* in: thread id of the thread */
+	os_thread_id_t	id)	/*!< in: thread id of the thread */
 {
 	thr_local_t*	local;
 
@@ -104,14 +108,14 @@ try_again:
 	return(local);
 }
 
-/***********************************************************************
-Gets the slot number in the thread table of a thread. */
+/*******************************************************************//**
+Gets the slot number in the thread table of a thread.
+@return	slot number */
 UNIV_INTERN
 ulint
 thr_local_get_slot_no(
 /*==================*/
-				/* out: slot number */
-	os_thread_id_t	id)	/* in: thread id of the thread */
+	os_thread_id_t	id)	/*!< in: thread id of the thread */
 {
 	ulint		slot_no;
 	thr_local_t*	local;
@@ -127,14 +131,14 @@ thr_local_get_slot_no(
 	return(slot_no);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Sets the slot number in the thread table of a thread. */
 UNIV_INTERN
 void
 thr_local_set_slot_no(
 /*==================*/
-	os_thread_id_t	id,	/* in: thread id of the thread */
-	ulint		slot_no)/* in: slot number */
+	os_thread_id_t	id,	/*!< in: thread id of the thread */
+	ulint		slot_no)/*!< in: slot number */
 {
 	thr_local_t*	local;
 
@@ -147,14 +151,14 @@ thr_local_set_slot_no(
 	mutex_exit(&thr_local_mutex);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Returns pointer to the 'in_ibuf' field within the current thread local
-storage. */
+storage.
+@return	pointer to the in_ibuf field */
 UNIV_INTERN
 ibool*
 thr_local_get_in_ibuf_field(void)
 /*=============================*/
-			/* out: pointer to the in_ibuf field */
 {
 	thr_local_t*	local;
 
@@ -167,7 +171,7 @@ thr_local_get_in_ibuf_field(void)
 	return(&(local->in_ibuf));
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Creates a local storage struct for the calling new thread. */
 UNIV_INTERN
 void
@@ -198,13 +202,13 @@ thr_local_create(void)
 	mutex_exit(&thr_local_mutex);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Frees the local storage struct for the specified thread. */
 UNIV_INTERN
 void
 thr_local_free(
 /*===========*/
-	os_thread_id_t	id)	/* in: thread id */
+	os_thread_id_t	id)	/*!< in: thread id */
 {
 	thr_local_t*	local;
 
@@ -231,7 +235,7 @@ thr_local_free(
 	mem_free(local);
 }
 
-/********************************************************************
+/****************************************************************//**
 Initializes the thread local storage module. */
 UNIV_INTERN
 void
@@ -244,6 +248,37 @@ thr_local_init(void)
 	thr_local_hash = hash_create(OS_THREAD_MAX_N + 100);
 
 	mutex_create(&thr_local_mutex, SYNC_THR_LOCAL);
+}
+
+/********************************************************************
+Close the thread local storage module. */
+UNIV_INTERN
+void
+thr_local_close(void)
+/*=================*/
+{
+	ulint		i;
+
+	ut_a(thr_local_hash != NULL);
+
+	/* Free the hash elements. We don't remove them from the table
+	because we are going to destroy the table anyway. */
+	for (i = 0; i < hash_get_n_cells(thr_local_hash); i++) {
+		thr_local_t*	local;
+
+		local = HASH_GET_FIRST(thr_local_hash, i);
+
+		while (local) {
+			thr_local_t*	prev_local = local;
+
+			local = HASH_GET_NEXT(hash, prev_local);
+			ut_a(prev_local->magic_n == THR_LOCAL_MAGIC_N);
+			mem_free(prev_local);
+		}
+	}
+
+	hash_table_free(thr_local_hash);
+	thr_local_hash = NULL;
 }
 
 /*************************************************************************

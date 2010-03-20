@@ -83,10 +83,13 @@ static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 			  String &enclosed, ulong skip_lines,
 			  bool ignore_check_option_errors);
 #ifndef EMBEDDED_LIBRARY
-static bool write_execute_load_query_log_event(THD *thd,
-					       bool duplicates, bool ignore,
-					       bool transactional_table,
-                                               int errcode);
+static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
+                                               const char* db_arg, /* table's database */
+                                               const char* table_name_arg,
+                                               enum enum_duplicates duplicates,
+                                               bool ignore,
+                                               bool transactional_table,
+                                               int errocode);
 #endif /* EMBEDDED_LIBRARY */
 
 /*
@@ -119,7 +122,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char name[FN_REFLEN];
   File file;
   TABLE *table= NULL;
-  int error;
+  int error= 0;
   String *field_term=ex->field_term,*escaped=ex->escaped;
   String *enclosed=ex->enclosed;
   bool is_fifo=0;
@@ -301,7 +304,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     else
     {
       (void) fn_format(name, ex->file_name, mysql_real_data_home, "",
-		       MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
+                       MY_RELATIVE_PATH | MY_UNPACK_FILENAME |
+                       MY_RETURN_REAL_PATH);
 #if !defined(__WIN__) && ! defined(__NETWARE__)
       MY_STAT stat_info;
       if (!my_stat(name,&stat_info,MYF(MY_WME)))
@@ -344,12 +348,16 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         DBUG_ASSERT(FALSE); 
 #endif
       }
-      else if (opt_secure_file_priv &&
-               strncmp(opt_secure_file_priv, name, strlen(opt_secure_file_priv)))
+      else if (opt_secure_file_priv)
       {
-        /* Read only allowed from within dir specified by secure_file_priv */
-        my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
-        DBUG_RETURN(TRUE);
+        char secure_file_real_path[FN_REFLEN];
+        (void) my_realpath(secure_file_real_path, opt_secure_file_priv, 0);
+        if (strncmp(secure_file_real_path, name, strlen(secure_file_real_path)))
+        {
+          /* Read only allowed from within dir specified by secure_file_priv */
+          my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
+          DBUG_RETURN(TRUE);
+        }
       }
 
     }
@@ -496,15 +504,20 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	{
           int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
           
+          /* since there is already an error, the possible error of
+             writing binary log will be ignored */
 	  if (thd->transaction.stmt.modified_non_trans_table)
-	    write_execute_load_query_log_event(thd, handle_duplicates,
-					       ignore, transactional_table,
-                                               errcode);
+            (void) write_execute_load_query_log_event(thd, ex,
+                                                      table_list->db, 
+                                                      table_list->table_name,
+                                                      handle_duplicates, ignore,
+                                                      transactional_table,
+                                                      errcode);
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
             d.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
-	    mysql_bin_log.write(&d);
+	    (void) mysql_bin_log.write(&d);
 	  }
 	}
       }
@@ -530,7 +543,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       after this point.
      */
     if (thd->current_stmt_binlog_row_based)
-      thd->binlog_flush_pending_rows_event(true);
+      error= thd->binlog_flush_pending_rows_event(true);
     else
     {
       /*
@@ -542,10 +555,15 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       if (lf_info.wrote_create_file)
       {
         int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-        write_execute_load_query_log_event(thd, handle_duplicates, ignore,
-                                           transactional_table, errcode);
+        error= write_execute_load_query_log_event(thd, ex,
+                                                  table_list->db, table_list->table_name,
+                                                  handle_duplicates, ignore,
+                                                  transactional_table,
+                                                  errcode);
       }
     }
+    if (error)
+      goto err;
   }
 #endif /*!EMBEDDED_LIBRARY*/
 
@@ -564,15 +582,119 @@ err:
 #ifndef EMBEDDED_LIBRARY
 
 /* Not a very useful function; just to avoid duplication of code */
-static bool write_execute_load_query_log_event(THD *thd,
-					       bool duplicates, bool ignore,
-					       bool transactional_table,
+static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
+                                               const char* db_arg,  /* table's database */
+                                               const char* table_name_arg,
+                                               enum enum_duplicates duplicates,
+                                               bool ignore,
+                                               bool transactional_table,
                                                int errcode)
 {
+  char                *load_data_query,
+                      *end,
+                      *fname_start,
+                      *fname_end,
+                      *p= NULL;
+  size_t               pl= 0;
+  List<Item>           fv;
+  Item                *item, *val;
+  String               pfield, pfields;
+  int                  n;
+  const char          *tbl= table_name_arg;
+  const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
+  String              string_buf;
+
+  if (!thd->db || strcmp(db_arg, thd->db)) 
+  {
+    /*
+      If used database differs from table's database, 
+      prefix table name with database name so that it 
+      becomes a FQ name.
+     */
+    string_buf.set_charset(system_charset_info);
+    string_buf.append(db_arg);
+    string_buf.append("`");
+    string_buf.append(".");
+    string_buf.append("`");
+    string_buf.append(table_name_arg);
+    tbl= string_buf.c_ptr_safe();
+  }
+
+  Load_log_event       lle(thd, ex, tdb, tbl, fv, duplicates,
+                           ignore, transactional_table);
+
+  /*
+    force in a LOCAL if there was one in the original.
+  */
+  if (thd->lex->local_file)
+    lle.set_fname_outside_temp_buf(ex->file_name, strlen(ex->file_name));
+
+  /*
+    prepare fields-list and SET if needed; print_query won't do that for us.
+  */
+  if (!thd->lex->field_list.is_empty())
+  {
+    List_iterator<Item>  li(thd->lex->field_list);
+
+    pfields.append(" (");
+    n= 0;
+
+    while ((item= li++))
+    {
+      if (n++)
+        pfields.append(", ");
+      if (item->name)
+      {
+        pfields.append("`");
+        pfields.append(item->name);
+        pfields.append("`");
+      }
+      else
+        item->print(&pfields, QT_ORDINARY);
+    }
+    pfields.append(")");
+  }
+
+  if (!thd->lex->update_list.is_empty())
+  {
+    List_iterator<Item> lu(thd->lex->update_list);
+    List_iterator<Item> lv(thd->lex->value_list);
+
+    pfields.append(" SET ");
+    n= 0;
+
+    while ((item= lu++))
+    {
+      val= lv++;
+      if (n++)
+        pfields.append(", ");
+      pfields.append("`");
+      pfields.append(item->name);
+      pfields.append("`");
+      pfields.append("=");
+      val->print(&pfields, QT_ORDINARY);
+    }
+  }
+
+  p= pfields.c_ptr_safe();
+  pl= strlen(p);
+
+  if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
+    return TRUE;
+
+  lle.print_query(FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
+                  load_data_query, &end,
+                  (char **)&fname_start, (char **)&fname_end);
+
+  strcpy(end, p);
+  end += pl;
+
+  thd->set_query_inner(load_data_query, end - load_data_query);
+
   Execute_load_query_log_event
-    e(thd, thd->query, thd->query_length,
-      (uint) ((char*)thd->lex->fname_start - (char*)thd->query),
-      (uint) ((char*)thd->lex->fname_end - (char*)thd->query),
+    e(thd, thd->query(), thd->query_length(),
+      (uint) ((char*) fname_start - (char*) thd->query() - 1),
+      (uint) ((char*) fname_end - (char*) thd->query()),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, errcode);

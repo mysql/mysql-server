@@ -42,3 +42,4 @@ ERROR HY000: Incorrect arguments to SET
 select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda
+set global innodb_file_format_check=antelope;

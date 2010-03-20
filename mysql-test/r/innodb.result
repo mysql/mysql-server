@@ -1738,7 +1738,7 @@ count(*)
 drop table t1;
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
-511
+8191
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 16384
@@ -1766,9 +1766,10 @@ variable_value - @innodb_row_lock_time_max_orig
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 variable_value - @innodb_row_lock_time_avg_orig
 0
+SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
-innodb_sync_spin_loops	20
+innodb_sync_spin_loops	30
 set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
@@ -1781,6 +1782,7 @@ set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
 Variable_name	Value
 innodb_sync_spin_loops	20
+set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
 SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
@@ -3088,7 +3090,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 drop table t1, t2, t3, t5, t6, t8, t9;
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
-ERROR HY000: Can't create table 'test.t1' (errno: -1)
+ERROR 42000: Incorrect column name 'DB_ROW_ID'
 CREATE TABLE t1 (
 a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)
@@ -3158,15 +3160,6 @@ ALTER TABLE t2 MODIFY a INT NOT NULL;
 ERROR HY000: Error on rename of '#sql-temporary' to './test/t2' (errno: 150)
 DELETE FROM t1;
 DROP TABLE t2,t1;
-CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
-ENGINE=InnoDB;
-INSERT INTO t1 VALUES (0xEFBCA4EFBCA4EFBCA4);
-DELETE FROM t1;
-INSERT INTO t1 VALUES ('DDD');
-SELECT * FROM t1;
-a
-DDD
-DROP TABLE t1;
 CREATE TABLE t1 (id int PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB
 AUTO_INCREMENT=42;
 INSERT INTO t1 VALUES (0),(347),(0);

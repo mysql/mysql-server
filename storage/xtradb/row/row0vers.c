@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file row/row0vers.c
 Row versions
 
 Created 2/6/1997 Heikki Tuuri
@@ -45,26 +46,24 @@ Created 2/6/1997 Heikki Tuuri
 #include "read0read.h"
 #include "lock0lock.h"
 
-/*********************************************************************
+/*****************************************************************//**
 Finds out if an active transaction has inserted or modified a secondary
 index record. NOTE: the kernel mutex is temporarily released in this
-function! */
+function!
+@return NULL if committed, else the active transaction */
 UNIV_INTERN
 trx_t*
 row_vers_impl_x_locked_off_kernel(
 /*==============================*/
-				/* out: NULL if committed, else the active
-				transaction; NOTE that the kernel mutex is
-				temporarily released! */
-	const rec_t*	rec,	/* in: record in a secondary index */
-	dict_index_t*	index,	/* in: the secondary index */
-	const ulint*	offsets)/* in: rec_get_offsets(rec, index) */
+	const rec_t*	rec,	/*!< in: record in a secondary index */
+	dict_index_t*	index,	/*!< in: the secondary index */
+	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
 	dict_index_t*	clust_index;
 	rec_t*		clust_rec;
 	ulint*		clust_offsets;
 	rec_t*		version;
-	dulint		trx_id;
+	trx_id_t	trx_id;
 	mem_heap_t*	heap;
 	mem_heap_t*	heap2;
 	dtuple_t*	row;
@@ -157,7 +156,7 @@ row_vers_impl_x_locked_off_kernel(
 		rec_t*		prev_version;
 		ulint		vers_del;
 		row_ext_t*	ext;
-		dulint		prev_trx_id;
+		trx_id_t	prev_trx_id;
 
 		mutex_exit(&kernel_mutex);
 
@@ -298,17 +297,18 @@ exit_func:
 	return(trx);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Finds out if we must preserve a delete marked earlier version of a clustered
-index record, because it is >= the purge view. */
+index record, because it is >= the purge view.
+@return	TRUE if earlier version should be preserved */
 UNIV_INTERN
 ibool
 row_vers_must_preserve_del_marked(
 /*==============================*/
-			/* out: TRUE if earlier version should be preserved */
-	dulint	trx_id,	/* in: transaction id in the version */
-	mtr_t*	mtr)	/* in: mtr holding the latch on the clustered index
-			record; it will also hold the latch on purge_view */
+	trx_id_t	trx_id,	/*!< in: transaction id in the version */
+	mtr_t*		mtr)	/*!< in: mtr holding the latch on the
+				clustered index record; it will also
+				hold the latch on purge_view */
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&(purge_sys->latch), RW_LOCK_SHARED));
@@ -327,26 +327,26 @@ row_vers_must_preserve_del_marked(
 	return(FALSE);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Finds out if a version of the record, where the version >= the current
 purge view, should have ientry as its secondary index entry. We check
 if there is any not delete marked version of the record where the trx
 id >= purge view, and the secondary index entry and ientry are identified in
-the alphabetical ordering; exactly in this case we return TRUE. */
+the alphabetical ordering; exactly in this case we return TRUE.
+@return	TRUE if earlier version should have */
 UNIV_INTERN
 ibool
 row_vers_old_has_index_entry(
 /*=========================*/
-				/* out: TRUE if earlier version should have */
-	ibool		also_curr,/* in: TRUE if also rec is included in the
+	ibool		also_curr,/*!< in: TRUE if also rec is included in the
 				versions to search; otherwise only versions
 				prior to it are searched */
-	const rec_t*	rec,	/* in: record in the clustered index; the
+	const rec_t*	rec,	/*!< in: record in the clustered index; the
 				caller must have a latch on the page */
-	mtr_t*		mtr,	/* in: mtr holding the latch on rec; it will
+	mtr_t*		mtr,	/*!< in: mtr holding the latch on rec; it will
 				also hold the latch on purge_view */
-	dict_index_t*	index,	/* in: the secondary index */
-	const dtuple_t*	ientry)	/* in: the secondary index entry */
+	dict_index_t*	index,	/*!< in: the secondary index */
+	const dtuple_t*	ientry)	/*!< in: the secondary index entry */
 {
 	const rec_t*	version;
 	rec_t*		prev_version;
@@ -469,37 +469,37 @@ row_vers_old_has_index_entry(
 	}
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Constructs the version of a clustered index record which a consistent
 read should see. We assume that the trx id stored in rec is such that
-the consistent read should not see rec in its present version. */
+the consistent read should not see rec in its present version.
+@return	DB_SUCCESS or DB_MISSING_HISTORY */
 UNIV_INTERN
 ulint
 row_vers_build_for_consistent_read(
 /*===============================*/
-				/* out: DB_SUCCESS or DB_MISSING_HISTORY */
-	const rec_t*	rec,	/* in: record in a clustered index; the
+	const rec_t*	rec,	/*!< in: record in a clustered index; the
 				caller must have a latch on the page; this
 				latch locks the top of the stack of versions
 				of this records */
-	mtr_t*		mtr,	/* in: mtr holding the latch on rec */
-	dict_index_t*	index,	/* in: the clustered index */
-	ulint**		offsets,/* in/out: offsets returned by
+	mtr_t*		mtr,	/*!< in: mtr holding the latch on rec */
+	dict_index_t*	index,	/*!< in: the clustered index */
+	ulint**		offsets,/*!< in/out: offsets returned by
 				rec_get_offsets(rec, index) */
-	read_view_t*	view,	/* in: the consistent read view */
-	mem_heap_t**	offset_heap,/* in/out: memory heap from which
+	read_view_t*	view,	/*!< in: the consistent read view */
+	mem_heap_t**	offset_heap,/*!< in/out: memory heap from which
 				the offsets are allocated */
-	mem_heap_t*	in_heap,/* in: memory heap from which the memory for
+	mem_heap_t*	in_heap,/*!< in: memory heap from which the memory for
 				*old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
 				locally within the function */
-	rec_t**		old_vers)/* out, own: old version, or NULL if the
+	rec_t**		old_vers)/*!< out, own: old version, or NULL if the
 				record does not exist in the view, that is,
 				it was freshly inserted afterwards */
 {
 	const rec_t*	version;
 	rec_t*		prev_version;
-	dulint		trx_id;
+	trx_id_t	trx_id;
 	mem_heap_t*	heap		= NULL;
 	byte*		buf;
 	ulint		err;
@@ -523,8 +523,8 @@ row_vers_build_for_consistent_read(
 	for (;;) {
 		mem_heap_t*	heap2	= heap;
 		trx_undo_rec_t* undo_rec;
-		dulint		roll_ptr;
-		dulint		undo_no;
+		roll_ptr_t	roll_ptr;
+		undo_no_t	undo_no;
 		heap = mem_heap_create(1024);
 
 		/* If we have high-granularity consistent read view and
@@ -602,29 +602,29 @@ row_vers_build_for_consistent_read(
 	return(err);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Constructs the last committed version of a clustered index record,
-which should be seen by a semi-consistent read. */
+which should be seen by a semi-consistent read.
+@return	DB_SUCCESS or DB_MISSING_HISTORY */
 UNIV_INTERN
 ulint
 row_vers_build_for_semi_consistent_read(
 /*====================================*/
-				/* out: DB_SUCCESS or DB_MISSING_HISTORY */
-	const rec_t*	rec,	/* in: record in a clustered index; the
+	const rec_t*	rec,	/*!< in: record in a clustered index; the
 				caller must have a latch on the page; this
 				latch locks the top of the stack of versions
 				of this records */
-	mtr_t*		mtr,	/* in: mtr holding the latch on rec */
-	dict_index_t*	index,	/* in: the clustered index */
-	ulint**		offsets,/* in/out: offsets returned by
+	mtr_t*		mtr,	/*!< in: mtr holding the latch on rec */
+	dict_index_t*	index,	/*!< in: the clustered index */
+	ulint**		offsets,/*!< in/out: offsets returned by
 				rec_get_offsets(rec, index) */
-	mem_heap_t**	offset_heap,/* in/out: memory heap from which
+	mem_heap_t**	offset_heap,/*!< in/out: memory heap from which
 				the offsets are allocated */
-	mem_heap_t*	in_heap,/* in: memory heap from which the memory for
+	mem_heap_t*	in_heap,/*!< in: memory heap from which the memory for
 				*old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
 				locally within the function */
-	const rec_t**	old_vers)/* out: rec, old version, or NULL if the
+	const rec_t**	old_vers)/*!< out: rec, old version, or NULL if the
 				record does not exist in the view, that is,
 				it was freshly inserted afterwards */
 {
@@ -632,7 +632,7 @@ row_vers_build_for_semi_consistent_read(
 	mem_heap_t*	heap		= NULL;
 	byte*		buf;
 	ulint		err;
-	dulint		rec_trx_id	= ut_dulint_zero;
+	trx_id_t	rec_trx_id	= ut_dulint_zero;
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
@@ -655,7 +655,7 @@ row_vers_build_for_semi_consistent_read(
 		trx_t*		version_trx;
 		mem_heap_t*	heap2;
 		rec_t*		prev_version;
-		dulint		version_trx_id;
+		trx_id_t	version_trx_id;
 
 		version_trx_id = row_get_rec_trx_id(version, index, *offsets);
 		if (rec == version) {

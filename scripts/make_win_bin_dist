@@ -350,8 +350,9 @@ fi
 
 mkdir $DESTDIR/mysql-test
 cp mysql-test/mysql-test-run.pl $DESTDIR/mysql-test/
+cp mysql-test/mysql-stress-test.pl $DESTDIR/mysql-test/
 cp mysql-test/README $DESTDIR/mysql-test/
-cp -R mysql-test/{t,r,include,suite,std_data,lib} $DESTDIR/mysql-test/
+cp -R mysql-test/{t,r,include,suite,std_data,lib,collections} $DESTDIR/mysql-test/
 
 rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_kill.{dir,vcproj}
 rm -rf $DESTDIR/mysql-test/lib/My/SafeProcess/my_safe_process.{dir,vcproj}

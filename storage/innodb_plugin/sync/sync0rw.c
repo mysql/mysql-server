@@ -38,6 +38,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "os0thread.h"
 #include "mem0mem.h"
 #include "srv0srv.h"
+#include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
 
 /*
 	IMPLEMENTATION OF THE RW_LOCK

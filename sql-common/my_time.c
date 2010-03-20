@@ -165,7 +165,7 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   uint add_hours= 0, start_loop;
   ulong not_zero_date, allow_space;
   my_bool is_internal_format;
-  const char *pos, *last_field_pos;
+  const char *pos, *UNINIT_VAR(last_field_pos);
   const char *end=str+length;
   const uchar *format_position;
   my_bool found_delimitier= 0, found_space= 0;
@@ -174,7 +174,6 @@ str_to_datetime(const char *str, uint length, MYSQL_TIME *l_time,
   DBUG_PRINT("ENTER",("str: %.*s",length,str));
 
   LINT_INIT(field_length);
-  LINT_INIT(last_field_pos);
 
   *was_cut= 0;
 

@@ -102,7 +102,7 @@ xtBool			xt_fs_rename(struct XTThread *self, char *from_path, char *to_path);
 #define FILE_MAP_UNLOCK(i, o)			xt_xsmutex_unlock(i, o)
 #elif defined(FILE_MAP_USE_PTHREAD_RW)
 #define FILE_MAP_LOCK_TYPE				xt_rwlock_type
-#define FILE_MAP_INIT_LOCK(s, i)		xt_init_rwlock(s, i)
+#define FILE_MAP_INIT_LOCK(s, i)		xt_init_rwlock_with_autoname(s, i)
 #define FILE_MAP_FREE_LOCK(s, i)		xt_free_rwlock(i)	
 #define FILE_MAP_READ_LOCK(i, o)		xt_slock_rwlock_ns(i)
 #define FILE_MAP_WRITE_LOCK(i, o)		xt_xlock_rwlock_ns(i)

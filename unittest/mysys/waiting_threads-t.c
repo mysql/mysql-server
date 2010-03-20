@@ -258,7 +258,7 @@ void do_tests()
 #define test_kill_strategy(X)                   \
   diag("kill strategy: " #X);                   \
   DBUG_EXECUTE("reset_file",                    \
-               { rewind(DBUG_FILE); ftruncate(fileno(DBUG_FILE), 0); }); \
+               { rewind(DBUG_FILE); (void) ftruncate(fileno(DBUG_FILE), 0); }); \
   DBUG_PRINT("info", ("kill strategy: " #X));   \
   kill_strategy=X;                              \
   do_one_test();

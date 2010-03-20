@@ -360,6 +360,12 @@ ARCHIVE_SHARE *ha_archive::get_share(const char *table_name, int *rc)
     stats.auto_increment_value= archive_tmp.auto_increment + 1;
     share->rows_recorded= (ha_rows)archive_tmp.rows;
     share->crashed= archive_tmp.dirty;
+    /*
+      If archive version is less than 3, It should be upgraded before
+      use.
+    */
+    if (archive_tmp.version < ARCHIVE_VERSION)
+      *rc= HA_ERR_TABLE_NEEDS_UPGRADE;
     azclose(&archive_tmp);
 
     VOID(my_hash_insert(&archive_open_tables, (uchar*) share));
@@ -491,7 +497,15 @@ int ha_archive::open(const char *name, int mode, uint open_options)
                       (open_options & HA_OPEN_FOR_REPAIR) ? "yes" : "no"));
   share= get_share(name, &rc);
 
-  if (rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
+ /*
+    Allow open on crashed table in repair mode only.
+    Block open on 5.0 ARCHIVE table. Though we have almost all
+    routines to access these tables, they were not well tested.
+    For now we have to refuse to open such table to avoid
+    potential data loss.
+  */
+  if ((rc == HA_ERR_CRASHED_ON_USAGE && !(open_options & HA_OPEN_FOR_REPAIR))
+      ||  rc == HA_ERR_TABLE_NEEDS_UPGRADE)
   {
     /* purecov: begin inspected */
     free_share();
@@ -522,8 +536,8 @@ int ha_archive::open(const char *name, int mode, uint open_options)
   {
     DBUG_RETURN(0);
   }
-  else
-    DBUG_RETURN(rc);
+
+  DBUG_RETURN(rc);
 }
 
 
@@ -993,6 +1007,7 @@ int ha_archive::rnd_init(bool scan)
   /* We rewind the file so that we can read from the beginning if scan */
   if (scan)
   {
+    scan_rows= stats.records;
     DBUG_PRINT("info", ("archive will retrieve %llu rows", 
                         (unsigned long long) scan_rows));
 
@@ -1461,7 +1476,6 @@ int ha_archive::info(uint flag)
   stats.records= share->rows_recorded;
   pthread_mutex_unlock(&share->mutex);
 
-  scan_rows= stats.records;
   stats.deleted= 0;
 
   DBUG_PRINT("ha_archive", ("Stats rows is %d\n", (int)stats.records));
@@ -1472,11 +1486,12 @@ int ha_archive::info(uint flag)
 
     VOID(my_stat(share->data_file_name, &file_stat, MYF(MY_WME)));
 
-    stats.mean_rec_length= table->s->reclength + buffer.alloced_length();
     stats.data_file_length= file_stat.st_size;
     stats.create_time= (ulong) file_stat.st_ctime;
     stats.update_time= (ulong) file_stat.st_mtime;
-    stats.max_data_file_length= share->rows_recorded * stats.mean_rec_length;
+    stats.mean_rec_length= stats.records ?
+      ulong(stats.data_file_length / stats.records) : table->s->reclength;
+    stats.max_data_file_length= MAX_FILE_SIZE;
   }
   stats.delete_length= 0;
   stats.index_file_length=0;
@@ -1574,10 +1589,8 @@ int ha_archive::check(THD* thd, HA_CHECK_OPT* check_opt)
     share->crashed= FALSE;
     DBUG_RETURN(HA_ADMIN_CORRUPT);
   }
-  else
-  {
-    DBUG_RETURN(HA_ADMIN_OK);
-  }
+
+  DBUG_RETURN(HA_ADMIN_OK);
 }
 
 /*

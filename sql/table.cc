@@ -218,10 +218,7 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
   DBUG_ASSERT(db != NULL);
   DBUG_ASSERT(name != NULL);
 
-  if ((db->length == INFORMATION_SCHEMA_NAME.length) &&
-      (my_strcasecmp(system_charset_info,
-                    INFORMATION_SCHEMA_NAME.str,
-                    db->str) == 0))
+  if (is_schema_db(db->str, db->length))
   {
     return TABLE_CATEGORY_INFORMATION;
   }
@@ -907,7 +904,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           replacing it with a globally locked version of tmp_plugin
         */
         plugin_unlock(NULL, share->db_plugin);
-        share->db_plugin= my_plugin_lock(NULL, &tmp_plugin);
+        share->db_plugin= my_plugin_lock(NULL, tmp_plugin);
         DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
                             str_db_type_length, next_chunk + 2,
                             ha_legacy_type(share->db_type())));
@@ -1378,8 +1375,19 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       share->timestamp_field_offset= i;
 
     if (use_hash)
-      (void) my_hash_insert(&share->name_hash,
-                            (uchar*) field_ptr); // never fail
+    {
+      if (my_hash_insert(&share->name_hash,
+                         (uchar*) field_ptr))
+      {
+        /*
+          Set return code 8 here to indicate that an error has
+          occurred but that the error message already has been
+          sent (OOM).
+        */
+        error= 8; 
+        goto err;
+      }
+    }
     if (!reg_field->stored_in_db)
     {
       share->stored_fields--;
@@ -2235,8 +2243,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     {
       if (work_part_info_used)
         tmp= fix_partition_func(thd, outparam, is_create_table);
-      outparam->part_info->item_free_list= part_func_arena.free_list;
     }
+    outparam->part_info->item_free_list= part_func_arena.free_list;
 partititon_err:
     if (tmp)
     {
@@ -2378,7 +2386,11 @@ int closefrm(register TABLE *table, bool free_share)
   DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
+  {
+    if (table->s->deleting)
+      table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
     error=table->file->close();
+  }
   my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
   table->alias= 0;
   if (table->field)
@@ -2457,6 +2469,8 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   ulong ret_value=0;
   DBUG_ENTER("get_form_pos");
 
+  LINT_INIT(buf);
+
   names=uint2korr(head+8);
   a_length=(names+2)*sizeof(char *);		/* Room for two extra */
 
@@ -2490,8 +2504,9 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names)
   else
   {
     char *str;
+    const char **tmp = (const char**) buf;
     str=(char *) (buf+a_length);
-    fix_type_pointers((const char ***) &buf,save_names,1,&str);
+    fix_type_pointers(&tmp, save_names, 1, &str);
   }
   DBUG_RETURN(ret_value);
 }
@@ -3216,34 +3231,38 @@ bool check_column_name(const char *name)
                   and such errors never reach the user.
 */
 
-my_bool
-table_check_intact(TABLE *table, const uint table_f_count,
-                   const TABLE_FIELD_W_TYPE *table_def)
+bool
+Table_check_intact::check(TABLE *table, const TABLE_FIELD_DEF *table_def)
 {
   uint i;
   my_bool error= FALSE;
-  my_bool fields_diff_count;
+  const TABLE_FIELD_TYPE *field_def= table_def->field;
   DBUG_ENTER("table_check_intact");
   DBUG_PRINT("info",("table: %s  expected_count: %d",
-                     table->alias, table_f_count));
+                     table->alias, table_def->count));
 
-  fields_diff_count= (table->s->fields != table_f_count);
-  if (fields_diff_count)
+  /* Whether the table definition has already been validated. */
+  if (table->s->table_field_def_cache == table_def)
+    DBUG_RETURN(FALSE);
+
+  if (table->s->fields != table_def->count)
   {
     DBUG_PRINT("info", ("Column count has changed, checking the definition"));
 
     /* previous MySQL version */
     if (MYSQL_VERSION_ID > table->s->mysql_version)
     {
-      sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
-                      table->alias, table_f_count, table->s->fields,
-                      table->s->mysql_version, MYSQL_VERSION_ID);
+      report_error(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE),
+                   table->alias, table_def->count, table->s->fields,
+                   table->s->mysql_version, MYSQL_VERSION_ID);
       DBUG_RETURN(TRUE);
     }
     else if (MYSQL_VERSION_ID == table->s->mysql_version)
     {
-      sql_print_error(ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
-                      table_f_count, table->s->fields);
+      report_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED,
+                   ER(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED), table->alias,
+                   table_def->count, table->s->fields);
       DBUG_RETURN(TRUE);
     }
     /*
@@ -3255,7 +3274,7 @@ table_check_intact(TABLE *table, const uint table_f_count,
     */
   }
   char buffer[STRING_BUFFER_USUAL_SIZE];
-  for (i=0 ; i < table_f_count; i++, table_def++)
+  for (i=0 ; i < table_def->count; i++, field_def++)
   {
     String sql_type(buffer, sizeof(buffer), system_charset_info);
     sql_type.length(0);
@@ -3263,18 +3282,18 @@ table_check_intact(TABLE *table, const uint table_f_count,
     {
       Field *field= table->field[i];
 
-      if (strncmp(field->field_name, table_def->name.str,
-                  table_def->name.length))
+      if (strncmp(field->field_name, field_def->name.str,
+                  field_def->name.length))
       {
         /*
           Name changes are not fatal, we use ordinal numbers to access columns.
           Still this can be a sign of a tampered table, output an error
           to the error log.
         */
-        sql_print_error("Incorrect definition of table %s.%s: "
-                        "expected column '%s' at position %d, found '%s'.",
-                        table->s->db.str, table->alias, table_def->name.str, i,
-                        field->field_name);
+        report_error(0, "Incorrect definition of table %s.%s: "
+                     "expected column '%s' at position %d, found '%s'.",
+                     table->s->db.str, table->alias, field_def->name.str, i,
+                     field->field_name);
       }
       field->sql_type(sql_type);
       /*
@@ -3294,47 +3313,51 @@ table_check_intact(TABLE *table, const uint table_f_count,
         the new table definition is backward compatible with the
         original one.
        */
-      if (strncmp(sql_type.c_ptr_safe(), table_def->type.str,
-                  table_def->type.length - 1))
+      if (strncmp(sql_type.c_ptr_safe(), field_def->type.str,
+                  field_def->type.length - 1))
       {
-        sql_print_error("Incorrect definition of table %s.%s: "
-                        "expected column '%s' at position %d to have type "
-                        "%s, found type %s.", table->s->db.str, table->alias,
-                        table_def->name.str, i, table_def->type.str,
-                        sql_type.c_ptr_safe());
+        report_error(0, "Incorrect definition of table %s.%s: "
+                     "expected column '%s' at position %d to have type "
+                     "%s, found type %s.", table->s->db.str, table->alias,
+                     field_def->name.str, i, field_def->type.str,
+                     sql_type.c_ptr_safe());
         error= TRUE;
       }
-      else if (table_def->cset.str && !field->has_charset())
+      else if (field_def->cset.str && !field->has_charset())
       {
-        sql_print_error("Incorrect definition of table %s.%s: "
-                        "expected the type of column '%s' at position %d "
-                        "to have character set '%s' but the type has no "
-                        "character set.", table->s->db.str, table->alias,
-                        table_def->name.str, i, table_def->cset.str);
+        report_error(0, "Incorrect definition of table %s.%s: "
+                     "expected the type of column '%s' at position %d "
+                     "to have character set '%s' but the type has no "
+                     "character set.", table->s->db.str, table->alias,
+                     field_def->name.str, i, field_def->cset.str);
         error= TRUE;
       }
-      else if (table_def->cset.str &&
-               strcmp(field->charset()->csname, table_def->cset.str))
+      else if (field_def->cset.str &&
+               strcmp(field->charset()->csname, field_def->cset.str))
       {
-        sql_print_error("Incorrect definition of table %s.%s: "
-                        "expected the type of column '%s' at position %d "
-                        "to have character set '%s' but found "
-                        "character set '%s'.", table->s->db.str, table->alias,
-                        table_def->name.str, i, table_def->cset.str,
-                        field->charset()->csname);
+        report_error(0, "Incorrect definition of table %s.%s: "
+                     "expected the type of column '%s' at position %d "
+                     "to have character set '%s' but found "
+                     "character set '%s'.", table->s->db.str, table->alias,
+                     field_def->name.str, i, field_def->cset.str,
+                     field->charset()->csname);
         error= TRUE;
       }
     }
     else
     {
-      sql_print_error("Incorrect definition of table %s.%s: "
-                      "expected column '%s' at position %d to have type %s "
-                      " but the column is not found.",
-                      table->s->db.str, table->alias,
-                      table_def->name.str, i, table_def->type.str);
+      report_error(0, "Incorrect definition of table %s.%s: "
+                   "expected column '%s' at position %d to have type %s "
+                   " but the column is not found.",
+                   table->s->db.str, table->alias,
+                   field_def->name.str, i, field_def->type.str);
       error= TRUE;
     }
   }
+
+  if (! error)
+    table->s->table_field_def_cache= table_def;
+
   DBUG_RETURN(error);
 }
 
@@ -3751,7 +3774,12 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 
 /**
-  Hide errors which show view underlying table information
+  Hide errors which show view underlying table information. 
+  There are currently two mechanisms at work that handle errors for views,
+  this one and a more general mechanism based on an Internal_error_handler,
+  see Show_create_error_handler. The latter handles errors encountered during
+  execution of SHOW CREATE VIEW, while the machanism using this method is
+  handles SELECT from views. The two methods should not clash.
 
   @param[in,out]  thd     thread handler
 
@@ -3760,6 +3788,8 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
 void TABLE_LIST::hide_view_error(THD *thd)
 {
+  if (thd->get_internal_handler())
+    return;
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
@@ -5144,7 +5174,8 @@ Item_subselect *TABLE_LIST::containing_subselect()
     (TABLE_LIST::index_hints). Using the information in this tagged list
     this function sets the members st_table::keys_in_use_for_query, 
     st_table::keys_in_use_for_group_by, st_table::keys_in_use_for_order_by,
-    st_table::force_index and st_table::covering_keys.
+    st_table::force_index, st_table::force_index_order, 
+    st_table::force_index_group and st_table::covering_keys.
 
     Current implementation of the runtime does not allow mixing FORCE INDEX
     and USE INDEX, so this is checked here. Then the FORCE INDEX list 
@@ -5272,14 +5303,28 @@ bool TABLE_LIST::process_index_hints(TABLE *tbl)
     }
 
     /* process FORCE INDEX as USE INDEX with a flag */
+    if (!index_order[INDEX_HINT_FORCE].is_clear_all())
+    {
+      tbl->force_index_order= TRUE;
+      index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
+    }
+
+    if (!index_group[INDEX_HINT_FORCE].is_clear_all())
+    {
+      tbl->force_index_group= TRUE;
+      index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
+    }
+
+    /*
+      TODO: get rid of tbl->force_index (on if any FORCE INDEX is specified) and
+      create tbl->force_index_join instead.
+      Then use the correct force_index_XX instead of the global one.
+    */
     if (!index_join[INDEX_HINT_FORCE].is_clear_all() ||
-        !index_order[INDEX_HINT_FORCE].is_clear_all() ||
-        !index_group[INDEX_HINT_FORCE].is_clear_all())
+        tbl->force_index_group || tbl->force_index_order)
     {
       tbl->force_index= TRUE;
       index_join[INDEX_HINT_USE].merge(index_join[INDEX_HINT_FORCE]);
-      index_order[INDEX_HINT_USE].merge(index_order[INDEX_HINT_FORCE]);
-      index_group[INDEX_HINT_USE].merge(index_group[INDEX_HINT_FORCE]);
     }
 
     /* apply USE INDEX */

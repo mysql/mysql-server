@@ -87,6 +87,7 @@ struct XTOpenTable;
 #define XT_XN_XAC_CLEANED		8					/* The transaction has been cleaned. */
 #define XT_XN_XAC_RECOVERED		16					/* This transaction was detected on recovery. */
 #define XT_XN_XAC_SWEEP			32					/* End ID has been set, OK to sweep. */
+#define XT_XN_XAC_PREPARED		64					/* The transaction was prepared (used only by recovery). */
 
 #define XT_XN_VISIBLE			0					/* The transaction is committed, and the record is visible. */
 #define XT_XN_NOT_VISIBLE		1					/* The transaction is committed, but not visible. */
@@ -94,6 +95,24 @@ struct XTOpenTable;
 #define XT_XN_MY_UPDATE			3					/* The record was update by me. */
 #define XT_XN_OTHER_UPDATE		4					/* The record was updated by someone else. */
 #define XT_XN_REREAD			5					/* The transaction is not longer in RAM, status is unkown, retry. */
+
+typedef struct XTXactPrepare {
+	xtXactID					xp_xact_id;
+	xtWord4						xp_hash;
+	struct XTXactPrepare		*xp_next;			/* Next item in hash table. */
+	int							xp_data_len;
+	xtWord1						xp_xa_data[XT_MAX_XA_DATA_SIZE];
+} XTXactPrepareRec, *XTXactPreparePtr;
+
+typedef struct XTXactXA {
+	xtXactID					xx_xact_id;
+	XTXactPreparePtr			xx_xa_ptr;
+} XTXactXARec, *XTXactXAPtr;
+
+typedef struct XTXactEnumXA {
+	u_int						exa_index;
+	xtBool						exa_locked;
+} XTXactEnumXARec, *XTXactEnumXAPtr;
 
 typedef struct XTXactData {
 	xtXactID					xd_start_xn_id;			/* Note: may be zero!. */
@@ -105,6 +124,7 @@ typedef struct XTXactData {
 	int							xd_flags;
 	xtWord4						xd_end_time;
 	xtThreadID					xd_thread_id;
+	xtWord4						xd_xa_hash;				/* 0 if no XA transaction. */
 
 	/* A transaction may be indexed twice in the hash table.
 	 * Once on the start sequence number, and once on the
@@ -123,7 +143,7 @@ typedef struct XTXactData {
 
 #if defined(XT_XACT_USE_PTHREAD_RW)
 #define XT_XACT_LOCK_TYPE				xt_rwlock_type
-#define XT_XACT_INIT_LOCK(s, i)			xt_init_rwlock(s, i)
+#define XT_XACT_INIT_LOCK(s, i)			xt_init_rwlock_with_autoname(s, i)
 #define XT_XACT_FREE_LOCK(s, i)			xt_free_rwlock(i)	
 #define XT_XACT_READ_LOCK(i, s)			xt_slock_rwlock_ns(i)
 #define XT_XACT_WRITE_LOCK(i, s)		xt_xlock_rwlock_ns(i)
@@ -182,6 +202,14 @@ void			xt_xn_wakeup_thread_list(struct XTThread *thread);
 void			xt_xn_wakeup_thread(xtThreadID thd_id);
 xtXactID		xt_xn_get_curr_id(struct XTDatabase *db);
 xtWord8			xt_xn_bytes_to_sweep(struct XTDatabase *db, struct XTThread *thread);
+
+int				xt_xn_xa_compare(struct XTThread *self, register const void *thunk, register const void *a, register const void *b);
+xtBool			xt_xn_prepare(int len, xtWord1 *xa_data, struct XTThread *thread);
+xtBool			xt_xn_store_xa_data(struct XTDatabase *db, xtXactID xn_id, int len, xtWord1 *xa_data, struct XTThread *thread);
+void			xt_xn_delete_xa_data_by_xact(struct XTDatabase *db, xtXactID xact_id, struct XTThread *thread);
+void			xt_xn_delete_xa_data(struct XTDatabase *db, XTXactPreparePtr xap, xtBool unlock, struct XTThread *thread);
+XTXactPreparePtr	xt_xn_find_xa_data(struct XTDatabase *db, int len, xtWord1 *xa_data, xtBool lock, struct XTThread *thread);
+XTXactPreparePtr	xt_xn_enum_xa_data(struct XTDatabase *db, XTXactEnumXAPtr exa);
 
 XTXactDataPtr	xt_xn_add_old_xact(struct XTDatabase *db, xtXactID xn_id, struct XTThread *thread);
 XTXactDataPtr	xt_xn_get_xact(struct XTDatabase *db, xtXactID xn_id, struct XTThread *thread);

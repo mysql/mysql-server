@@ -89,19 +89,13 @@ extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
 #endif
 
 /* Declared in int2str() */
-extern char NEAR _dig_vec_upper[];
-extern char NEAR _dig_vec_lower[];
+extern const char NEAR _dig_vec_upper[];
+extern const char NEAR _dig_vec_lower[];
 
 /* Defined in strtod.c */
 extern const double log_10[309];
 
-#ifdef BAD_STRING_COMPILER
-#define strmov(A,B)  (memccpy(A,B,0,INT_MAX)-1)
-#else
 extern char *strmov_overlapp(char *dest, const char *src);
-/* Warning: the following is likely not to work: */
-#define strmake_overlapp(A,B,C) strmake(A,B,C)
-#endif
 
 #ifdef BAD_MEMCPY			/* Problem with gcc on Alpha */
 #define memcpy_fixed(A,B,C) bmove((A),(B),(C))
@@ -162,9 +156,6 @@ extern	size_t strinstr(const char *str,const char *search);
 extern  size_t r_strinstr(const char *str, size_t from, const char *search);
 extern	char *strkey(char *dst,char *head,char *tail,char *flags);
 extern	char *strmake(char *dst,const char *src,size_t length);
-#ifndef strmake_overlapp
-extern	char *strmake_overlapp(char *dst,const char *src, size_t length);
-#endif
 
 #ifndef strmov
 extern	char *strmov(char *dst,const char *src);
@@ -257,16 +248,10 @@ extern size_t my_snprintf(char *to, size_t n, const char *fmt, ...)
 
 /*
   LEX_STRING -- a pair of a C-string and its length.
+  (it's part of the plugin API as a MYSQL_LEX_STRING)
 */
 
-#ifndef _my_plugin_h
-/* This definition must match the one given in mysql/plugin.h */
-struct st_mysql_lex_string
-{
-  char *str;
-  size_t length;
-};
-#endif
+#include <mysql/plugin.h>
 typedef struct st_mysql_lex_string LEX_STRING;
 
 #define STRING_WITH_LEN(X) (X), ((size_t) (sizeof(X) - 1))

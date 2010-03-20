@@ -28,6 +28,16 @@
 
 #ifndef MYSQL_CLIENT
 
+/*
+  the following #define adds server-only members to enum_mysql_show_type,
+  that is defined in mysql/plugin.h
+  it has to be before mysql/plugin.h is included.
+*/
+#define SHOW_always_last SHOW_KEY_CACHE_LONG, \
+            SHOW_KEY_CACHE_LONGLONG, SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, \
+            SHOW_HAVE, SHOW_MY_BOOL, SHOW_HA_ROWS, SHOW_SYS, \
+            SHOW_LONG_NOFLUSH, SHOW_LONGLONG_STATUS
+
 #include <my_global.h>
 #include <mysql_version.h>
 #include <mysql_embed.h>
@@ -116,6 +126,10 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
 #define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 #define all_bits_set(A,B) ((A) & (B) != (B))
 
+/* Version numbers for deprecation messages */
+#define VER_BETONY  "5.5"
+#define VER_CELOSIA "5.6"
+
 #define WARN_DEPRECATED(Thd,Ver,Old,New)                                             \
   do {                                                                               \
     DBUG_ASSERT(strncmp(Ver, MYSQL_SERVER_VERSION, sizeof(Ver)-1) > 0);              \
@@ -125,7 +139,7 @@ char* query_table_status(THD *thd,const char *db,const char *table_name);
                         (Old), (Ver), (New));                                        \
     else                                                                             \
       sql_print_warning("The syntax '%s' is deprecated and will be removed "         \
-                        "in MySQL %s. Please use %s instead.", (Old), (Ver), (New)); \
+                        "in a future release. Please use %s instead.", (Old), (New)); \
   } while(0)
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
@@ -1077,8 +1091,8 @@ check_and_unset_inject_value(int value)
 
 #endif
 
-void write_bin_log(THD *thd, bool clear_error,
-                   char const *query, ulong query_length);
+int write_bin_log(THD *thd, bool clear_error,
+                  char const *query, ulong query_length);
 
 /* sql_connect.cc */
 int check_user(THD *thd, enum enum_server_command command, 
@@ -1476,8 +1490,18 @@ bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place);
 enum enum_schema_tables get_schema_table_idx(ST_SCHEMA_TABLE *schema_table);
 
-#define is_schema_db(X) \
-  !my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str, (X))
+inline bool is_schema_db(const char *name, size_t len)
+{
+  return (INFORMATION_SCHEMA_NAME.length == len &&
+          !my_strcasecmp(system_charset_info,
+                         INFORMATION_SCHEMA_NAME.str, name));  
+}
+
+inline bool is_schema_db(const char *name)
+{
+  return !my_strcasecmp(system_charset_info,
+                        INFORMATION_SCHEMA_NAME.str, name);
+}
 
 /* sql_prepare.cc */
 
@@ -1680,7 +1704,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 #define RTFC_WAIT_OTHER_THREAD_FLAG 0x0002
 #define RTFC_CHECK_KILLED_FLAG      0x0004
 bool remove_table_from_cache(THD *thd, const char *db, const char *table,
-                             uint flags);
+                             uint flags, my_bool deleting);
 
 #define NORMAL_PART_NAME 0
 #define TEMP_PART_NAME 1
@@ -2361,10 +2385,9 @@ enum enum_explain_filename_mode
 {
   EXPLAIN_ALL_VERBOSE= 0,
   EXPLAIN_PARTITIONS_VERBOSE,
-  EXPLAIN_PARTITIONS_AS_COMMENT,
-  EXPLAIN_PARTITIONS_AS_COMMENT_NO_QUOTING
+  EXPLAIN_PARTITIONS_AS_COMMENT
 };
-uint explain_filename(const char *from, char *to, uint to_length,
+uint explain_filename(THD* thd, const char *from, char *to, uint to_length,
                       enum_explain_filename_mode explain_mode);
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
@@ -2518,6 +2541,7 @@ inline void setup_table_map(TABLE *table, TABLE_LIST *table_list, uint tablenr)
   table->tablenr= tablenr;
   table->map= (table_map) 1 << tablenr;
   table->force_index= table_list->force_index;
+  table->force_index_order= table->force_index_group= 0;
   table->covering_keys= table->s->keys_for_keyread;
   table->merge_keys.clear_all();
 }

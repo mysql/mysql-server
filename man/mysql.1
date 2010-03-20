@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -334,8 +334,18 @@ to display result set metadata\&.
 .sp
 Use
 \fIcharset_name\fR
-as the default character set\&. See
-Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+as the default character set for the client and connection\&.
+.sp
+A common issue that can occur when the operating system uses
+utf8
+or another multi\-byte character set is that output from the
+\fBmysql\fR
+client is formatted incorrectly, due to the fact that the MySQL client uses the
+latin1
+character set by default\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
+.sp
+See
+Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -648,7 +658,7 @@ PAGER
 environment variable\&. Valid pagers are
 \fBless\fR,
 \fBmore\fR,
-\fBcat [> filename]\fR, and so forth\&. This option works only on Unix\&. It does not work in batch mode\&. To disable paging, use
+\fBcat [> filename]\fR, and so forth\&. This option works only on Unix and only in interactive mode\&. To disable paging, use
 \fB\-\-skip\-pager\fR\&.
 the section called \(lqMYSQL COMMANDS\(rq, discusses output paging further\&.
 .RE
@@ -1026,7 +1036,7 @@ Display output in table format\&. This is the default for interactive use, but c
 .\" tee option: mysql
 \fB\-\-tee=\fR\fB\fIfile_name\fR\fR
 .sp
-Append a copy of output to the given file\&. This option does not work in batch mode\&.
+Append a copy of output to the given file\&. This option works only in interactive mode\&.
 the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
 .RE
 .sp
@@ -1523,7 +1533,7 @@ is set to something other than the default of
 \(lq;\(rq, instances of that character are sent to the server without interpretation\&. However, the server itself still interprets
 \(lq;\(rq
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
-Section\ \&21.10.12, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
+Section\ \&21.9.12, \(lqC API Support for Multiple Statement Execution\(rq), and for parsing the body of stored procedures and functions, triggers, and events (see
 Section\ \&19.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
@@ -1680,7 +1690,7 @@ option when you invoke
 \fBmysql\fR
 checks the value of the
 PAGER
-environment variable and sets the pager to that\&.
+environment variable and sets the pager to that\&. Pager functionality works only in interactive mode\&.
 .sp
 Output paging can be enabled interactively with the
 \fBpager\fR
@@ -1853,7 +1863,7 @@ By using the
 option when you invoke
 \fBmysql\fR, you can log statements and their output\&. All the data displayed on the screen is appended into a given file\&. This can be very useful for debugging purposes also\&.
 \fBmysql\fR
-flushes results to the file after each statement, just before it prints its next prompt\&.
+flushes results to the file after each statement, just before it prints its next prompt\&. Tee functionality works only in interactive mode\&.
 .sp
 You can enable this feature interactively with the
 \fBtee\fR
@@ -2334,7 +2344,7 @@ prompt=(\e\eu@\e\eh) [\e\ed]>\e\e_
 .sp
 In this example, note that the backslashes are doubled\&. If you set the prompt using the
 prompt
-option in an option file, it is advisable to double the backslashes when using the special prompt options\&. There is some overlap in the set of allowable prompt options and the set of special escape sequences that are recognized in option files\&. (These sequences are listed in
+option in an option file, it is advisable to double the backslashes when using the special prompt options\&. There is some overlap in the set of allowable prompt options and the set of special escape sequences that are recognized in option files\&. (The rules for escape sequences in option files are listed in
 Section\ \&4.2.3.3, \(lqUsing Option Files\(rq\&.) The overlap may cause you problems if you use single backslashes\&. For example,
 \es
 is interpreted as a space rather than as the current seconds value\&. The following example shows how to define a prompt within an option file to include the current time in
@@ -2586,6 +2596,12 @@ SELECT \'<info_to_display>\' AS \' \';
 The statement shown outputs
 <info_to_display>\&.
 .PP
+You can also invoke
+\fBmysql\fR
+with the
+\fB\-\-verbose\fR
+option, which causes each statement to be displayed before the result that it produces\&.
+.PP
 As of MySQL 5\&.1\&.23,
 \fBmysql\fR
 ignores Unicode byte order mark (BOM) characters at the beginning of input files\&. Previously, it read them and sent them to the server, resulting in a syntax error\&. Presence of a BOM does not cause
@@ -2785,7 +2801,7 @@ client with the
 option\&.
 .PP
 For more information about auto\-reconnect and its effect on state information when a reconnection occurs, see
-Section\ \&21.10.11, \(lqControlling Automatic Reconnection Behavior\(rq\&.
+Section\ \&21.9.11, \(lqControlling Automatic Reconnection Behavior\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP

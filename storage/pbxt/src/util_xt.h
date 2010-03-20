@@ -39,6 +39,7 @@ xtWord4	xt_file_name_to_id(char *file_name);
 xtBool	xt_time_difference(register xtWord4 now, register xtWord4 then);
 xtWord2	xt_get_checksum(xtWord1 *data, size_t len, u_int interval);
 xtWord1 xt_get_checksum1(xtWord1 *data, size_t len);
+xtWord4 xt_get_checksum4(xtWord1 *data, size_t len);
 
 typedef struct XTDataBuffer {
 	size_t			db_size;

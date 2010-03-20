@@ -4,6 +4,7 @@
 #
 
 integer.cpp: .*control reaches end of non-void function.*: 1288-1427
+integer.cpp: .*no return statement in function returning non-void.*: 1288-1427
 DictTabInfo.cpp : .*invalid access to non-static.*
 DictTabInfo.cpp : .*macro was used incorrectly.*
 DbdihMain.cpp : .*unused variable.* : 6666-7013
@@ -27,7 +28,17 @@ _flex_tmp.c: .*not enough actual parameters for macro 'yywrap'.*
 pars0lex.l: .*conversion from 'ulint' to 'int', possible loss of data.*
 btr/btr0cur\.c: .*value computed is not used.*: 3175-3375
 include/buf0buf\.ic: unused parameter ‘mtr’
+fil/fil0fil\.c: pointer targets in passing argument.*differ in signedness
 fil/fil0fil\.c: comparison between signed and unsigned : 3100-3199
+fil/fil0fil\.c: unused parameter
+log/log0recv\.c: unused variable
+os/os0file\.c: unused parameter
+os/os0file\.c: pointer targets in assignment differ in signedness
+handler/i_s\.cc: unused variable
+sync/sync0rw\.c: unused parameter
+sync/sync0sync\.c: unused parameter
+sync/sync0sync\.c: unused variable
+ut/ut0ut\.c: ignoring return value of
 
 #
 # bdb is not critical to keep up to date
@@ -48,6 +59,11 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 #
 .*/extra/libevent/.* : .*unused parameter.*
 .*/extra/libevent/select\.c : .*comparison between signed and unsigned.* : 270-280
+
+#
+# Ignore warnings from system libraries
+#
+/usr/share/aclocal/audiofile.m4 : .*
 
 #
 # Ignore all conversion warnings on windows 64
@@ -87,7 +103,15 @@ storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 # I think these are due to mix of C and C++.
 #
 storage/pbxt/ : typedef.*was ignored in this declaration
+ha_pbxt\.cc : variable.*might be clobbered by.*longjmp
 
+#
+# Yassl
+include/runtime.hpp: .*pure_error.*
+.*/extra/yassl/.*taocrypt/.*: comparison with string literal
+.*/extra/yassl/taocrypt/src/blowfish\.cpp: array subscript is above array bounds
+.*/extra/yassl/taocrypt/src/file\.cpp: ignoring return value
+.*/extra/yassl/taocrypt/src/integer\.cpp: control reaches end of non-void function
 
 #
 # Groff warnings on OpenSUSE.
@@ -99,6 +123,8 @@ storage/pbxt/ : typedef.*was ignored in this declaration
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
 net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
+set_var.cc:  right-hand operand of comma has no effect : 1000-1400
+
 
 # allow a little moving space for the warning below
 mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600

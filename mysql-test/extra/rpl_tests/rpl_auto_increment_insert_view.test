@@ -1,0 +1,44 @@
+#
+# This test verifies if inserting data into view that invokes a 
+# trigger will make the autoinc values become inconsistent on 
+# master and slave.
+#
+connection master; 
+CREATE TABLE t1(i1 int not null auto_increment, c1 INT, primary key(i1)) engine=innodb;
+CREATE TABLE t2(i1 int not null auto_increment, c2 INT, primary key(i1)) engine=innodb;
+CREATE TABLE t3(i1 int not null auto_increment, a int, primary key(i1)) engine=innodb;
+eval create trigger tr16 $insert_action on t1 for each row insert into t3(a) values(new.c1);
+eval create trigger tr17 $insert_action on t2 for each row insert into t3(a) values(new.c2);
+begin;
+INSERT INTO t1(c1) VALUES (11), (12);
+INSERT INTO t2(c2) VALUES (13), (14);
+
+CREATE VIEW v16 AS SELECT c1, c2 FROM t1, t2;
+
+INSERT INTO v16(c1) VALUES (15),(16);
+INSERT INTO v16(c2) VALUES (17),(18);
+
+connection master1;
+INSERT INTO v16(c1) VALUES (19),(20);
+INSERT INTO v16(c2) VALUES (21),(22);
+
+connection master;
+INSERT INTO v16(c1) VALUES (23), (24);
+INSERT INTO v16(c1) VALUES (25), (26);
+commit;
+sync_slave_with_master;
+--echo #Test if the results are consistent on master and slave
+--echo #for 'INSERT DATA INTO VIEW WHICH INVOKES TRIGGERS'
+let $diff_table_1=master:test.t3;
+let $diff_table_2=slave:test.t3;
+source include/diff_tables.inc;
+
+connection master;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP VIEW  v16;
+sync_slave_with_master;
+
+
+

@@ -390,6 +390,7 @@ typedef struct st_maria_share
   my_bool now_transactional;
   my_bool have_versioning;
   my_bool key_del_used;                         /* != 0 if key_del is locked */
+  my_bool deleting;                     /* we are going to delete this table */
 #ifdef THREAD
   THR_LOCK lock;
   void (*lock_restore_status)(void *);
@@ -982,6 +983,11 @@ extern ulonglong transid_get_packed(MARIA_SHARE *share, const uchar *from);
 #define page_store_info(share, page)                           \
   _ma_store_keypage_flag((share), (page)->buff, (page)->flag); \
   _ma_store_page_used((share), (page)->buff, (page)->size);
+#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
+void page_cleanup(MARIA_SHARE *share, MARIA_PAGE *page)
+#else
+#define page_cleanup(A,B) while (0)
+#endif
 
 extern MARIA_KEY *_ma_make_key(MARIA_HA *info, MARIA_KEY *int_key, uint keynr,
                                uchar *key, const uchar *record,
@@ -1164,7 +1170,7 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   Functions needed by _ma_check (are overridden in MySQL/ha_maria.cc).
   See ma_check_standalone.h .
 */
-volatile int *_ma_killed_ptr(HA_CHECK *param);
+int _ma_killed_ptr(HA_CHECK *param);
 void _ma_check_print_error _VARARGS((HA_CHECK *param, const char *fmt, ...))
   ATTRIBUTE_FORMAT(printf, 2, 3);
 void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...))
@@ -1200,7 +1206,7 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
                                        my_bool log_incomplete);
 my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages);
 my_bool write_log_record_for_bulk_insert(MARIA_HA *info);
-
+void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
 
 #define MARIA_NO_CRC_NORMAL_PAGE 0xffffffff
 #define MARIA_NO_CRC_BITMAP_PAGE 0xfffffffe

@@ -15,6 +15,16 @@ SET character_set_connection=ucs2;
 SET CHARACTER SET koi8r;
 
 #
+# BUG#49028, error in LIKE with ucs2
+#
+create table t1 (a varchar(2) character set ucs2 collate ucs2_bin, key(a));
+insert into t1 values ('A'),('A'),('B'),('C'),('D'),('A\t');
+insert into t1 values ('A\0'),('A\0'),('A\0'),('A\0'),('AZ');
+select hex(a) from t1 where a like 'A_' order by a;
+select hex(a) from t1 ignore key(a) where a like 'A_' order by a;
+drop table t1;
+
+#
 # Check that 0x20 is only trimmed when it is 
 # a part of real SPACE character, not just a part
 # of a multibyte sequence.
@@ -723,3 +733,34 @@ SELECT HEX(DAYNAME(19700101));
 SET character_set_connection=latin1;
 
 --echo End of 5.0 tests
+
+
+--echo Start of 5.1 tests
+#
+# Checking my_like_range_ucs2
+#
+SET NAMES utf8;
+CREATE TABLE t1 (
+  a varchar(10) CHARACTER SET ucs2 COLLATE ucs2_czech_ci,
+  key(a)
+);
+INSERT INTO t1 VALUES
+('aa'),('bb'),('cc'),('dd'),('ee'),('ff'),('gg'),('hh'),('ii'),
+('jj'),('kk'),('ll'),('mm'),('nn'),('oo'),('pp'),('rr'),('ss'),
+('tt'),('uu'),('vv'),('ww'),('xx'),('yy'),('zz');
+INSERT INTO t1 VALUES ('ca'),('cz'),('ch');
+INSERT INTO t1 VALUES ('da'),('dz'), (X'0064017E');
+# This one should scan only one row
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'b%';
+# This one should scan many rows: 'c' is a contraction head
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'c%';
+SELECT * FROM t1 WHERE a LIKE 'c%';
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'ch%';
+SELECT * FROM t1 WHERE a LIKE 'ch%';
+ALTER TABLE t1 MODIFY a VARCHAR(10) CHARACTER SET ucs2 COLLATE ucs2_croatian_ci;
+EXPLAIN SELECT * FROM t1 WHERE a LIKE 'd%';
+SELECT hex(concat('d',_ucs2 0x017E,'%'));
+EXPLAIN SELECT * FROM t1 WHERE a LIKE concat('d',_ucs2 0x017E,'%');
+SELECT hex(a) FROM t1 WHERE a LIKE concat('D',_ucs2 0x017E,'%');
+
+DROP TABLE t1;

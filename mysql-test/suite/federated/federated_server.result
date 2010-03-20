@@ -175,6 +175,8 @@ CREATE TABLE db_bogus.t1 (
     )
 ;
 INSERT INTO db_bogus.t1 VALUES ('2','this is bogus');
+create user test_fed@localhost identified by 'foo';
+grant all on db_legitimate.* to test_fed@localhost;
 create server 's1' foreign data wrapper 'mysql' options
 (HOST '127.0.0.1',
 DATABASE 'db_legitimate',
@@ -211,15 +213,14 @@ id	name
 alter server s1 options (database 'db_bogus');
 flush tables;
 select * from federated.t1;
-id	name
-2	this is bogus
+ERROR HY000: There was a problem processing the query on the foreign data source. Data source error: : 1044 : Access denied for user 'test_fed'@'localhost' to databa
 drop server if exists 's1';
 ERROR 42000: Access denied; you need the SUPER privilege for this operation
 create server 's1' foreign data wrapper 'mysql' options
 (HOST '127.0.0.1',
 DATABASE 'db_legitimate',
-USER 'root',
-PASSWORD '',
+USER 'test_fed',
+PASSWORD 'foo',
 PORT SLAVE_PORT,
 SOCKET '',
 OWNER 'root');
@@ -228,8 +229,8 @@ drop server 's1';
 create server 's1' foreign data wrapper 'mysql' options
 (HOST '127.0.0.1',
 DATABASE 'db_legitimate',
-USER 'root',
-PASSWORD '',
+USER 'test_fed',
+PASSWORD 'foo',
 PORT SLAVE_PORT,
 SOCKET '',
 OWNER 'root');
@@ -237,6 +238,7 @@ flush tables;
 select * from federated.t1;
 id	name
 1	this is legitimate
+drop user test_fed@localhost;
 drop database db_legitimate;
 drop database db_bogus;
 drop user guest_super@localhost;
@@ -275,6 +277,6 @@ call p1();
 drop procedure p1;
 drop server if exists s;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;
 DROP TABLE IF EXISTS federated.t1;
-DROP DATABASE federated;
+DROP DATABASE IF EXISTS federated;

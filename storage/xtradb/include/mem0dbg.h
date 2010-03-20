@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/mem0dbg.h
 The memory management: the debug code. This is not a compilation module,
 but is included in mem0mem.* !
 
@@ -47,7 +48,7 @@ check fields at the both ends of the field. */
 #endif
 
 #if defined UNIV_MEM_DEBUG || defined UNIV_DEBUG
-/*******************************************************************
+/***************************************************************//**
 Checks a memory heap for consistency and prints the contents if requested.
 Outputs the sum of sizes of buffers given to the user (only in
 the debug version), the physical size of the heap and the number of
@@ -57,83 +58,83 @@ UNIV_INTERN
 void
 mem_heap_validate_or_print(
 /*=======================*/
-	mem_heap_t*	heap,	/* in: memory heap */
-	byte*		top,	/* in: calculate and validate only until
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	byte*		top,	/*!< in: calculate and validate only until
 				this top pointer in the heap is reached,
 				if this pointer is NULL, ignored */
-	ibool		 print,	 /* in: if TRUE, prints the contents
+	ibool		 print,	 /*!< in: if TRUE, prints the contents
 				of the heap; works only in
 				the debug version */
-	ibool*		 error,	 /* out: TRUE if error */
-	ulint*		us_size,/* out: allocated memory
+	ibool*		 error,	 /*!< out: TRUE if error */
+	ulint*		us_size,/*!< out: allocated memory
 				(for the user) in the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored; in the
 				non-debug version this is always -1 */
-	ulint*		ph_size,/* out: physical size of the heap,
+	ulint*		ph_size,/*!< out: physical size of the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored */
-	ulint*		n_blocks); /* out: number of blocks in the heap,
+	ulint*		n_blocks); /*!< out: number of blocks in the heap,
 				if a NULL pointer is passed as this
 				argument, it is ignored */
-/******************************************************************
-Validates the contents of a memory heap. */
+/**************************************************************//**
+Validates the contents of a memory heap.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 mem_heap_validate(
 /*==============*/
-				/* out: TRUE if ok */
-	mem_heap_t*   heap);	/* in: memory heap */
+	mem_heap_t*   heap);	/*!< in: memory heap */
 #endif /* UNIV_MEM_DEBUG || UNIV_DEBUG */
 #ifdef UNIV_DEBUG
-/******************************************************************
-Checks that an object is a memory heap (or a block of it) */
+/**************************************************************//**
+Checks that an object is a memory heap (or a block of it)
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 mem_heap_check(
 /*===========*/
-				/* out: TRUE if ok */
-	mem_heap_t*   heap);	/* in: memory heap */
+	mem_heap_t*   heap);	/*!< in: memory heap */
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_MEM_DEBUG
-/*********************************************************************
-TRUE if no memory is currently allocated. */
+/*****************************************************************//**
+TRUE if no memory is currently allocated.
+@return	TRUE if no heaps exist */
 UNIV_INTERN
 ibool
 mem_all_freed(void);
 /*===============*/
-			/* out: TRUE if no heaps exist */
-/*********************************************************************
-Validates the dynamic memory */
+/*****************************************************************//**
+Validates the dynamic memory
+@return	TRUE if error */
 UNIV_INTERN
 ibool
 mem_validate_no_assert(void);
 /*=========================*/
-			/* out: TRUE if error */
-/****************************************************************
-Validates the dynamic memory */
+/************************************************************//**
+Validates the dynamic memory
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 mem_validate(void);
 /*===============*/
-			/* out: TRUE if ok */
 #endif /* UNIV_MEM_DEBUG */
-/****************************************************************
+/************************************************************//**
 Tries to find neigboring memory allocation blocks and dumps to stderr
 the neighborhood of a given pointer. */
 UNIV_INTERN
 void
 mem_analyze_corruption(
 /*===================*/
-	void*	ptr);	/* in: pointer to place of possible corruption */
-/*********************************************************************
+	void*	ptr);	/*!< in: pointer to place of possible corruption */
+/*****************************************************************//**
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers. Can only be used in the debug version. */
 UNIV_INTERN
 void
 mem_print_info(void);
 /*================*/
-/*********************************************************************
+/*****************************************************************//**
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers since the last ..._print_info or..._print_new_info. */
 UNIV_INTERN

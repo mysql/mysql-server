@@ -62,7 +62,7 @@ struct XTIdxReadBuffer;
 #define XT_IPAGE_UNLOCK(i, x)			xt_atomicrwlock_unlock(i, x)
 #elif defined(XT_IPAGE_USE_PTHREAD_RW)
 #define XT_IPAGE_LOCK_TYPE				xt_rwlock_type
-#define XT_IPAGE_INIT_LOCK(s, i)		xt_init_rwlock(s, i)
+#define XT_IPAGE_INIT_LOCK(s, i)		xt_init_rwlock_with_autoname(s, i)
 #define XT_IPAGE_FREE_LOCK(s, i)		xt_free_rwlock(i)	
 #define XT_IPAGE_READ_LOCK(i)			xt_slock_rwlock_ns(i)
 #define XT_IPAGE_WRITE_LOCK(i, s)		xt_xlock_rwlock_ns(i)

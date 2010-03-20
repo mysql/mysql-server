@@ -257,6 +257,13 @@ os_file_get_last_error(
 				" software or another instance\n"
 				"InnoDB: of MySQL."
 				" Please close it to get rid of this error.\n");
+		} else if (err == ERROR_OPERATION_ABORTED) {
+			fprintf(stderr,
+				"InnoDB: The error means that the I/O"
+				" operation has been aborted\n"
+				"InnoDB: because of either a thread exit"
+				" or an application request.\n"
+				"InnoDB: Retry attempt is made.\n");
 		} else {
 			fprintf(stderr,
 				"InnoDB: Some operating system error numbers"
@@ -278,6 +285,8 @@ os_file_get_last_error(
 	} else if (err == ERROR_SHARING_VIOLATION
 		   || err == ERROR_LOCK_VIOLATION) {
 		return(OS_FILE_SHARING_VIOLATION);
+	} else if (err == ERROR_OPERATION_ABORTED) {
+		return(OS_FILE_OPERATION_ABORTED);
 	} else {
 		return(100 + err);
 	}
@@ -401,6 +410,10 @@ os_file_handle_error_cond_exit(
 	} else if (err == OS_FILE_SHARING_VIOLATION) {
 
 		os_thread_sleep(10000000);  /* 10 sec */
+		return(TRUE);
+	} else if (err == OS_FILE_OPERATION_ABORTED) {
+
+		os_thread_sleep(100000);	/* 100 ms */
 		return(TRUE);
 	} else {
 		if (name) {
@@ -3692,6 +3705,7 @@ os_aio_windows_handle(
 	ibool		ret_val;
 	BOOL		ret;
 	DWORD		len;
+	BOOL		retry		= FALSE;
 
 	if (segment == ULINT_UNDEFINED) {
 		array = os_aio_sync_array;
@@ -3745,13 +3759,51 @@ os_aio_windows_handle(
 			ut_a(TRUE == os_file_flush(slot->file));
 		}
 # endif /* UNIV_DO_FLUSH */
+	} else if (os_file_handle_error(slot->name, "Windows aio")) {
+
+		retry = TRUE;
 	} else {
-		os_file_handle_error(slot->name, "Windows aio");
 
 		ret_val = FALSE;
 	}
 
 	os_mutex_exit(array->mutex);
+
+	if (retry) {
+		/* retry failed read/write operation synchronously.
+		No need to hold array->mutex. */
+
+		switch (slot->type) {
+		case OS_FILE_WRITE:
+			ret = WriteFile(slot->file, slot->buf,
+					slot->len, &len,
+					&(slot->control));
+
+			break;
+		case OS_FILE_READ:
+			ret = ReadFile(slot->file, slot->buf,
+				       slot->len, &len,
+				       &(slot->control));
+
+			break;
+		default:
+			ut_error;
+		}
+
+		if (!ret && GetLastError() == ERROR_IO_PENDING) {
+			/* aio was queued successfully!
+			We want a synchronous i/o operation on a
+			file where we also use async i/o: in Windows
+			we must use the same wait mechanism as for
+			async i/o */
+
+			ret = GetOverlappedResult(slot->file,
+						  &(slot->control),
+						  &len, TRUE);
+		}
+
+		ret_val = ret && len == slot->len;
+	}
 
 	os_aio_array_free_slot(array, slot);
 

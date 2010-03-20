@@ -75,6 +75,13 @@ static xt_mutex_type	thr_array_lock;
 /* Global accumulated statistics: */
 static XTStatisticsRec	thr_statistics;
 
+#ifdef DEBUG
+static void break_in_assertion(c_char *expr, c_char *func, c_char *file, u_int line)
+{
+	printf("%s(%s:%d) %s\n", func, file, (int) line, expr);
+}
+#endif
+
 /*
  * -----------------------------------------------------------------------
  * Error logging
@@ -89,7 +96,7 @@ xtPublic xtBool xt_init_logging(void)
 {
 	int err;
 
-	log_file = stdout;
+	log_file = stderr;
 	log_level = XT_LOG_TRACE;
 	err = xt_p_mutex_init_with_autoname(&log_mutex, NULL);
 	if (err) {
@@ -658,6 +665,9 @@ static c_char *thr_get_err_string(int xt_err)
 		case XT_ERR_FK_REF_TEMP_TABLE:		str = "Foreign key may not reference temporary table"; break;
 		case XT_ERR_MYSQL_SHUTDOWN:			str = "Cannot open table, MySQL has shutdown"; break;
 		case XT_ERR_MYSQL_NO_THREAD:		str = "Cannot create thread, MySQL has shutdown"; break;
+		case XT_ERR_BUFFER_TOO_SMALL:		str = "System backup buffer too small"; break;
+		case XT_ERR_BAD_BACKUP_FORMAT:		str = "Unknown or corrupt backup format, restore aborted"; break;
+		case XT_ERR_PBXT_NOT_INSTALLED:		str = "PBXT plugin is not installed"; break;
 		default:							str = "Unknown XT error"; break;
 	}
 	return str;
@@ -862,6 +872,11 @@ xtPublic xtBool xt_exception_errno(XTExceptionPtr e, XTThreadPtr self, c_char *f
 	return FAILED;
 }
 
+xtPublic void xt_exception_xterr(XTExceptionPtr e, XTThreadPtr self, c_char *func, c_char *file, u_int line, int xt_err)
+{
+	xt_exception_error(e, self, func, file, line, xt_err, 0, thr_get_err_string(xt_err));
+}
+
 /*
  * -----------------------------------------------------------------------
  * LOG ERRORS
@@ -887,7 +902,7 @@ xtPublic xtBool xt_assert(XTThreadPtr self, c_char *expr, c_char *func, c_char *
 #ifdef DEBUG
 	//xt_set_fflush(TRUE);
 	//xt_dump_trace();
-	printf("%s(%s:%d) %s\n", func, file, (int) line, expr);
+	break_in_assertion(expr, func, file, line);
 #ifdef CRASH_ON_ASSERT
 	abort();
 #endif
@@ -998,7 +1013,7 @@ static xtBool thr_setup_signals(void)
 
 typedef void *(*ThreadMainFunc)(XTThreadPtr self);
 
-extern "C" void *thr_main(void *data)
+extern "C" void *thr_main_pbxt(void *data)
 {
 	ThreadDataPtr	td = (ThreadDataPtr) data;
 	XTThreadPtr		self = td->td_thr;
@@ -1488,10 +1503,10 @@ xtPublic pthread_t xt_run_thread(XTThreadPtr self, XTThreadPtr child, void *(*st
 		pthread_attr_t	attr = { 0, 0, 0 };
 
 		attr.priority = THREAD_PRIORITY_NORMAL;
-		err = pthread_create(&child_thread, &attr, thr_main, &data);
+		err = pthread_create(&child_thread, &attr, thr_main_pbxt, &data);
 	}
 #else
-	err = pthread_create(&child_thread, NULL, thr_main, &data);
+	err = pthread_create(&child_thread, NULL, thr_main_pbxt, &data);
 #endif
 	if (err) {
 		xt_free_thread(child);

@@ -1,0 +1,43 @@
+#
+# Bug#46760: Fast ALTER TABLE no longer works for InnoDB
+#
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+# By using --enable_info and verifying that number of affected
+# rows is 0 we check that this ALTER TABLE is really carried
+# out as "fast/online" operation, i.e. without full-blown data
+# copying.
+#
+# I.e. info for the below statement should normally look like:
+#
+# affected rows: 0
+# info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT 10;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT '10'
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+DROP TABLE t1;
+#
+# MySQL Bug#39200: optimize table does not recognize 
+# ROW_FORMAT=COMPRESSED
+#
+CREATE TABLE t1 (a INT) ROW_FORMAT=compressed;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+OPTIMIZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	Table is already up to date
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+DROP TABLE t1;
+End of 5.1 tests

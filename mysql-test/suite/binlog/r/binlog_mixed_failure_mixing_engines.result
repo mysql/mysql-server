@@ -1,0 +1,406 @@
+###################################################################################
+#                                   CONFIGURATION
+###################################################################################
+CREATE TABLE nt_1 (a text, b int PRIMARY KEY) ENGINE = MyISAM;
+CREATE TABLE nt_2 (a text, b int PRIMARY KEY) ENGINE = MyISAM;
+CREATE TABLE tt_1 (a text, b int PRIMARY KEY) ENGINE = Innodb;
+CREATE TABLE tt_2 (a text, b int PRIMARY KEY) ENGINE = Innodb;
+CREATE TRIGGER tr_i_tt_1_to_nt_1 BEFORE INSERT ON tt_1 FOR EACH ROW
+BEGIN
+INSERT INTO nt_1 VALUES (NEW.a, NEW.b);
+END|
+CREATE TRIGGER tr_i_nt_2_to_tt_2 BEFORE INSERT ON nt_2 FOR EACH ROW
+BEGIN
+INSERT INTO tt_2 VALUES (NEW.a, NEW.b);
+END|
+###################################################################################
+#                             CHECK HISTORY IN BINLOG
+###################################################################################
+
+
+
+*** "B M* T C" with error in M* generates in the binlog the "B M* R B T C" entries
+
+INSERT INTO nt_1 VALUES ("new text 1", 1);
+BEGIN;
+INSERT INTO tt_1 VALUES (USER(), 2), (USER(), 1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+INSERT INTO tt_2 VALUES ("new text 3", 3);
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1 VALUES ("new text 1", 1)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 3", 3)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+INSERT INTO tt_2 VALUES ("new text 4", 4);
+BEGIN;
+INSERT INTO nt_2 VALUES (USER(), 5), (USER(), 4);
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+INSERT INTO tt_2 VALUES ("new text 6", 6);
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 4", 4)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 6", 6)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+
+
+*** "B M M* T C" with error in M* generates in the binlog the "B M M* T C" entries
+
+INSERT INTO nt_1 VALUES ("new text 10", 10);
+BEGIN;
+INSERT INTO tt_1 VALUES ("new text 7", 7), ("new text 8", 8);
+INSERT INTO tt_1 VALUES (USER(), 9), (USER(), 10);
+ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
+INSERT INTO tt_2 VALUES ("new text 11", 11);
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1 VALUES ("new text 10", 10)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1 VALUES ("new text 7", 7), ("new text 8", 8)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 11", 11)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+INSERT INTO tt_2 VALUES ("new text 15", 15);
+BEGIN;
+INSERT INTO nt_2 VALUES ("new text 12", 12), ("new text 13", 13);
+INSERT INTO nt_2 VALUES (USER(), 14), (USER(), 15);
+ERROR 23000: Duplicate entry '15' for key 'PRIMARY'
+INSERT INTO tt_2 VALUES ("new text 16", 16);
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 15", 15)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_2 VALUES ("new text 12", 12), ("new text 13", 13)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 16", 16)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+
+
+*** "B M* M* T C" with error in M* generates in the binlog the "B M* R B M* R B T C" entries
+
+INSERT INTO nt_1 VALUES ("new text 18", 18);
+INSERT INTO nt_1 VALUES ("new text 20", 20);
+BEGIN;
+INSERT INTO tt_1 VALUES (USER(), 17), (USER(), 18);
+ERROR 23000: Duplicate entry '18' for key 'PRIMARY'
+INSERT INTO tt_1 VALUES (USER(), 19), (USER(), 20);
+ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
+INSERT INTO tt_2 VALUES ("new text 21", 21);
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1 VALUES ("new text 18", 18)
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1 VALUES ("new text 20", 20)
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 21", 21)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+INSERT INTO tt_2 VALUES ("new text 23", 23);
+INSERT INTO tt_2 VALUES ("new text 25", 25);
+BEGIN;
+INSERT INTO nt_2 VALUES (USER(), 22), (USER(), 23);
+ERROR 23000: Duplicate entry '23' for key 'PRIMARY'
+INSERT INTO nt_2 VALUES (USER(), 24), (USER(), 25);
+ERROR 23000: Duplicate entry '25' for key 'PRIMARY'
+INSERT INTO tt_2 VALUES ("new text 26", 26);
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 23", 23)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 25", 25)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 26", 26)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+
+
+*** "B T INSERT M...SELECT* C" with an error in INSERT M...SELECT* generates
+*** in the binlog the following entries: "Nothing".
+*** There is a bug in that will be fixed after WL#2687. Please, check BUG#47175 for further details.
+
+TRUNCATE TABLE nt_2;
+TRUNCATE TABLE tt_2;
+INSERT INTO tt_2 VALUES ("new text 7", 7);
+BEGIN;
+INSERT INTO tt_2 VALUES ("new text 27", 27);
+INSERT INTO nt_2(a, b) SELECT USER(), b FROM nt_1;
+ERROR 23000: Duplicate entry '7' for key 'PRIMARY'
+INSERT INTO tt_2 VALUES ("new text 28", 28);
+ROLLBACK;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_2
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_2
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 7", 7)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+
+
+*** "B INSERT M..SELECT* C" with an error in INSERT M...SELECT* generates
+*** in the binlog the following entries: "B INSERT M..SELECT* R".
+
+TRUNCATE TABLE nt_2;
+TRUNCATE TABLE tt_2;
+INSERT INTO tt_2 VALUES ("new text 7", 7);
+BEGIN;
+INSERT INTO nt_2(a, b) SELECT USER(), b FROM nt_1;
+ERROR 23000: Duplicate entry '7' for key 'PRIMARY'
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_2
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_2
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_2 VALUES ("new text 7", 7)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+
+
+
+*** "B N N T C" generates in the binlog the "B N C B N C B T C" entries
+
+TRUNCATE TABLE nt_1;
+TRUNCATE TABLE tt_2;
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 1);
+INSERT INTO nt_1 VALUES (USER(), 2);
+INSERT INTO tt_2 VALUES (USER(), 3);
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_1
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_2
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+
+
+*** "B N N T R" generates in the binlog the "B N C B N C B T R" entries
+
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 4);
+INSERT INTO nt_1 VALUES (USER(), 5);
+INSERT INTO tt_2 VALUES (USER(), 6);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+
+
+
+*** "B N* N* T C" with error in N* generates in the binlog the "B N R B N R B T C" entries
+
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 7), (USER(), 1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+INSERT INTO nt_1 VALUES (USER(), 8), (USER(), 1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+INSERT INTO tt_2 VALUES (USER(), 9);
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+
+
+*** "B N* N* T R" with error in N* generates in the binlog the "B N R B N R B T R" entries
+
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 10), (USER(), 1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+INSERT INTO nt_1 VALUES (USER(), 11), (USER(), 1);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+INSERT INTO tt_2 VALUES (USER(), 12);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+
+
+
+*** "B N N T N T C" generates in the binlog the "B N C B N C B T N T C" entries
+
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 13);
+INSERT INTO nt_1 VALUES (USER(), 14);
+INSERT INTO tt_2 VALUES (USER(), 15);
+INSERT INTO nt_1 VALUES (USER(), 16);
+INSERT INTO tt_2 VALUES (USER(), 17);
+COMMIT;
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+
+
+
+*** "B N N T N T R" generates in the binlog the "B N C B N C B T N T R" entries
+
+BEGIN;
+INSERT INTO nt_1 VALUES (USER(), 18);
+INSERT INTO nt_1 VALUES (USER(), 19);
+INSERT INTO tt_2 VALUES (USER(), 20);
+INSERT INTO nt_1 VALUES (USER(), 21);
+INSERT INTO tt_2 VALUES (USER(), 22);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_2)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	ROLLBACK
+###################################################################################
+#                                        CLEAN
+###################################################################################
+DROP TABLE tt_1;
+DROP TABLE tt_2;
+DROP TABLE nt_1;
+DROP TABLE nt_2;

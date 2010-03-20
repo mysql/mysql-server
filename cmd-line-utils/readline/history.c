@@ -211,14 +211,14 @@ history_get (offset)
 
 HIST_ENTRY *
 alloc_history_entry (string, ts)
-     char *string;
+     const char *string;
      char *ts;
 {
   HIST_ENTRY *temp;
 
   temp = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
 
-  temp->line = string ? savestring (string) : string;
+  temp->line = string ? savestring ((char*) string) : (char*) string;
   temp->data = (char *)NULL;
   temp->timestamp = ts;
 

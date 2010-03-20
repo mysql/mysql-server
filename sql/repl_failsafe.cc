@@ -559,7 +559,12 @@ HOSTS";
 	goto err;
       }
       si->server_id = log_server_id;
-      my_hash_insert(&slave_list, (uchar*)si);
+      if (my_hash_insert(&slave_list, (uchar*)si))
+      {
+        error= "the slave is out of memory";
+        pthread_mutex_unlock(&LOCK_slave_list);
+        goto err;
+      }
     }
     strmake(si->host, row[1], sizeof(si->host)-1);
     si->port = atoi(row[port_ind]);
@@ -638,9 +643,11 @@ err:
   if (recovery_captain)
     mysql_close(recovery_captain);
   delete thd;
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);
+  return 0;                                     // Avoid compiler warnings
 }
 #endif
 

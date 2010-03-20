@@ -466,8 +466,12 @@ ok:
       Detach from the share if the writer is involved. Avoid others to
       be blocked. This includes a flush of the write buffer. This will
       also indicate EOF to the readers.
+      That means that a writer always gets here first and readers -
+      only when they see EOF. But if a reader finishes prematurely
+      because of an error it may reach this earlier - don't allow it
+      to detach the writer thread.
     */
-    if (sort_param->sort_info->info->rec_cache.share)
+    if (sort_param->master && sort_param->sort_info->info->rec_cache.share)
       remove_io_thread(&sort_param->sort_info->info->rec_cache);
 
     /* Readers detach from the share if any. Avoid others to be blocked. */
@@ -788,7 +792,12 @@ static int NEAR_F merge_many_buff(MI_SORT_PARAM *info, uint keys,
 cleanup:
   close_cached_file(to_file);                   /* This holds old result */
   if (to_file == t_file)
+  {
+    DBUG_ASSERT(t_file2.type == WRITE_CACHE);
     *t_file=t_file2;                            /* Copy result file */
+    t_file->current_pos= &t_file->write_pos;
+    t_file->current_end= &t_file->write_end;
+  }
 
   DBUG_RETURN(*maxbuffer >= MERGEBUFF2);        /* Return 1 if interrupted */
 } /* merge_many_buff */
@@ -900,7 +909,6 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
-  volatile int *killed= killed_ptr(info->sort_info->param);
   DBUG_ENTER("merge_buffers");
 
   count=error=0;
@@ -933,10 +941,6 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   {
     for (;;)
     {
-      if (*killed)
-      {
-        error=1; goto err;
-      }
       buffpek=(BUFFPEK*) queue_top(&queue);
       if (to_file)
       {
@@ -956,6 +960,12 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
       buffpek->key+=sort_length;
       if (! --buffpek->mem_count)
       {
+        /* It's enough to check for killedptr before a slow operation */
+        if (killed_ptr(info->sort_info->param))
+        {
+          error=1;
+          goto err;
+        }
         if (!(error=(int) info->read_to_buffer(from_file,buffpek,sort_length)))
         {
           uchar *base= buffpek->base;

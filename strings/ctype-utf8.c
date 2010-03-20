@@ -1486,7 +1486,7 @@ static MY_UNICASE_INFO planeFF[]={
   {0xFFFE,0xFFFE,0xFFFE},  {0xFFFF,0xFFFF,0xFFFF}
 };
 
-MY_UNICASE_INFO *my_unicase_default[256]={
+MY_UNICASE_INFO *const my_unicase_default[256]={
  plane00, plane01, plane02, plane03, plane04, plane05,    NULL,    NULL,
     NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
     NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
@@ -1665,7 +1665,7 @@ static MY_UNICASE_INFO turk00[]=
 
 
 
-MY_UNICASE_INFO *my_unicase_turkish[256]=
+MY_UNICASE_INFO *const my_unicase_turkish[256]=
 {
   turk00, plane01, plane02, plane03, plane04, plane05,    NULL,    NULL,
     NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,    NULL,
@@ -1716,14 +1716,12 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
 		       const char *str,const char *str_end,
 		       const char *wildstr,const char *wildend,
 		       int escape, int w_one, int w_many,
-		       MY_UNICASE_INFO **weights)
+		       MY_UNICASE_INFO *const *weights)
 {
   int result= -1;			/* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
   int scan, plane;
-  int (*mb_wc)(struct charset_info_st *, my_wc_t *,
-               const uchar *, const uchar *);
-  mb_wc= cs->cset->mb_wc;
+  my_charset_conv_mb_wc mb_wc= cs->cset->mb_wc;
   
   while (wildstr != wildend)
   {
@@ -1873,7 +1871,7 @@ int my_wildcmp_unicode(CHARSET_INFO *cs,
   expressions. Note, there is no need to mark byte 255  as a
   letter, it is illegal byte in UTF8.
 */
-static uchar ctype_utf8[] = {
+static const uchar ctype_utf8[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
@@ -1895,7 +1893,7 @@ static uchar ctype_utf8[] = {
 
 /* The below are taken from usa7 implementation */
 
-static uchar to_lower_utf8[] = {
+static const uchar to_lower_utf8[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -1914,7 +1912,7 @@ static uchar to_lower_utf8[] = {
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
 };
 
-static uchar to_upper_utf8[] = {
+static const uchar to_upper_utf8[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -2174,7 +2172,7 @@ static size_t my_caseup_utf8(CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int srcres, dstres;
   char *srcend= src + srclen, *dstend= dst + dstlen, *dst0= dst;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
 
   while ((src < srcend) &&
@@ -2197,7 +2195,7 @@ static void my_hash_sort_utf8(CHARSET_INFO *cs, const uchar *s, size_t slen,
   my_wc_t wc;
   int res;
   const uchar *e=s+slen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   /*
     Remove end space. We have to do this to be able to compare
@@ -2224,7 +2222,7 @@ static size_t my_caseup_str_utf8(CHARSET_INFO *cs, char *src)
   my_wc_t wc;
   int srcres, dstres;
   char *dst= src, *dst0= src;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   DBUG_ASSERT(cs->caseup_multiply == 1);
 
   while (*src &&
@@ -2248,7 +2246,7 @@ static size_t my_casedn_utf8(CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int srcres, dstres;
   char *srcend= src + srclen, *dstend= dst + dstlen, *dst0= dst;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
 
   while ((src < srcend) &&
@@ -2270,7 +2268,7 @@ static size_t my_casedn_str_utf8(CHARSET_INFO *cs, char *src)
   my_wc_t wc;
   int srcres, dstres;
   char *dst= src, *dst0= src;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   DBUG_ASSERT(cs->casedn_multiply == 1);
 
   while (*src &&
@@ -2313,7 +2311,7 @@ static int my_strnncoll_utf8(CHARSET_INFO *cs,
   my_wc_t UNINIT_VAR(s_wc), t_wc;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -2382,7 +2380,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
   int s_res, t_res, res;
   my_wc_t UNINIT_VAR(s_wc),t_wc;
   const uchar *se= s+slen, *te= t+tlen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
   diff_if_only_endspace_difference= 0;
@@ -2470,7 +2468,7 @@ static int my_strnncollsp_utf8(CHARSET_INFO *cs,
 static
 int my_strcasecmp_utf8(CHARSET_INFO *cs, const char *s, const char *t)
 {
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   while (s[0] && t[0])
   {
     my_wc_t s_wc,t_wc;
@@ -2555,7 +2553,7 @@ int my_wildcmp_utf8(CHARSET_INFO *cs,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
 {
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   return my_wildcmp_unicode(cs,str,str_end,wildstr,wildend,
                             escape,w_one,w_many,uni_plane); 
 }
@@ -2579,7 +2577,7 @@ static size_t my_strnxfrm_utf8(CHARSET_INFO *cs,
   uchar *de= dst + dstlen;
   uchar *de_beg= de - 1;
   const uchar *se = src + srclen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while (dst < de_beg)
   {
@@ -2685,7 +2683,7 @@ MY_CHARSET_HANDLER my_charset_utf8_handler=
 
 
 
-CHARSET_INFO my_charset_utf8_general_ci=
+struct charset_info_st my_charset_utf8_general_ci=
 {
     33,0,0,             /* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE,  /* state  */
@@ -2718,7 +2716,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
 };
 
 
-CHARSET_INFO my_charset_utf8_bin=
+struct charset_info_st my_charset_utf8_bin=
 {
     83,0,0,             /* number       */
     MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE, /* state  */
@@ -2770,7 +2768,7 @@ static int my_strnncoll_utf8_cs(CHARSET_INFO *cs,
   const uchar *te=t+tlen;
   int save_diff = 0;
   int diff;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -2815,7 +2813,7 @@ static int my_strnncollsp_utf8_cs(CHARSET_INFO *cs,
   const uchar *se= s + slen;
   const uchar *te= t + tlen;
   int save_diff= 0;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
 #ifndef VARCHAR_WITH_DIFF_ENDSPACE_ARE_DIFFERENT_FOR_UNIQUE
   diff_if_only_endspace_difference= 0;
@@ -2901,7 +2899,7 @@ static MY_COLLATION_HANDLER my_collation_cs_handler =
     my_propagate_simple
 };
 
-CHARSET_INFO my_charset_utf8_general_cs=
+struct charset_info_st my_charset_utf8_general_cs=
 {
     254,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_UNICODE,	/* state  */
@@ -2959,7 +2957,7 @@ All other characters are encoded using five bytes:
 */
 
 
-static uint16 touni[5994]=
+static const uint16 touni[5994]=
 {
   0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
   0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,
@@ -3715,7 +3713,7 @@ static uint16 touni[5994]=
 
 
 /* 00C0-05FF */
-static uint16 uni_0C00_05FF[1344]=
+static const uint16 uni_0C00_05FF[1344]=
 {
   0x0017,0x0018,0x0019,0x001A,0x001B,0x001C,0x001D,0x001E,
   0x001F,0x0020,0x0021,0x0022,0x0023,0x0024,0x0025,0x0026,
@@ -3959,7 +3957,7 @@ static uint16 uni_1E00_1FFF[512]=
 
 
 /* 2160-217F */
-static uint16 uni_2160_217F[32]=
+static const uint16 uni_2160_217F[32]=
 {
   0x0739,0x0789,0x07D9,0x0829,0x0879,0x08C9,0x0919,0x0969,
   0x09B9,0x0A09,0x0A59,0x0AA9,0x0AF9,0x0B49,0x0B99,0x0BE9,
@@ -3969,7 +3967,7 @@ static uint16 uni_2160_217F[32]=
 
 
 /* 24B0-24EF */
-static uint16 uni_24B0_24EF[64]=
+static const uint16 uni_24B0_24EF[64]=
 {
   0x0000,0x0000,0x0000,0x0000,0x0000,0x0000,0x0511,0x0512,
   0x0513,0x0514,0x0515,0x0516,0x0517,0x0518,0x0519,0x051A,
@@ -3983,7 +3981,7 @@ static uint16 uni_24B0_24EF[64]=
 
 
 /* FF20-FF5F */
-static uint16 uni_FF20_FF5F[64]=
+static const uint16 uni_FF20_FF5F[64]=
 {
   0x0000,0x0560,0x05B0,0x0600,0x0650,0x06A0,0x06F0,0x0740,
   0x0790,0x07E0,0x0830,0x0880,0x08D0,0x0920,0x0970,0x09C0,
@@ -4007,7 +4005,7 @@ static uint16 uni_FF20_FF5F[64]=
 
 static int hexlo(int x)
 {
-  static char hex_lo_digit[256]=
+  static const char hex_lo_digit[256]=
   {
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, /* ................ */
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, /* ................ */
@@ -4038,7 +4036,7 @@ static int hexlo(int x)
    0..9  digits
    _     underscore
 */
-static char filename_safe_char[128]=
+static const char filename_safe_char[128]=
 {
   1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
   0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, /* ................ */
@@ -4197,7 +4195,7 @@ static MY_CHARSET_HANDLER my_charset_filename_handler=
 
 
 
-CHARSET_INFO my_charset_filename=
+struct charset_info_st my_charset_filename=
 {
     17,0,0,             /* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_HIDDEN|MY_CS_NONASCII,

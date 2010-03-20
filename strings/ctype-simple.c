@@ -75,7 +75,7 @@ size_t my_strnxfrm_simple(CHARSET_INFO * cs,
                           uchar *dest, size_t len,
                           const uchar *src, size_t srclen)
 {
-  uchar *map= cs->sort_order;
+  const uchar *map= cs->sort_order;
   size_t dstlen= len;
   set_if_smaller(len, srclen);
   if (dest != src)
@@ -101,7 +101,7 @@ int my_strnncoll_simple(CHARSET_INFO * cs, const uchar *s, size_t slen,
                         my_bool t_is_prefix)
 {
   size_t len = ( slen > tlen ) ? tlen : slen;
-  uchar *map= cs->sort_order;
+  const uchar *map= cs->sort_order;
   if (t_is_prefix && slen > tlen)
     slen=tlen;
   while (len--)
@@ -185,8 +185,8 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, size_t a_length,
     }
     for (end= a + a_length-length; a < end ; a++)
     {
-      if (map[*a] != ' ')
-	return (map[*a] < ' ') ? -swap : swap;
+      if (map[*a] != map[' '])
+	return (map[*a] < map[' ']) ? -swap : swap;
     }
   }
   return res;
@@ -195,7 +195,7 @@ int my_strnncollsp_simple(CHARSET_INFO * cs, const uchar *a, size_t a_length,
 
 size_t my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
 {
-  register uchar *map= cs->to_upper;
+  register const uchar *map= cs->to_upper;
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
@@ -205,7 +205,7 @@ size_t my_caseup_str_8bit(CHARSET_INFO * cs,char *str)
 
 size_t my_casedn_str_8bit(CHARSET_INFO * cs,char *str)
 {
-  register uchar *map= cs->to_lower;
+  register const uchar *map= cs->to_lower;
   char *str_orig= str;
   while ((*str= (char) map[(uchar) *str]) != 0)
     str++;
@@ -218,7 +218,7 @@ size_t my_caseup_8bit(CHARSET_INFO * cs, char *src, size_t srclen,
                       size_t dstlen __attribute__((unused)))
 {
   char *end= src + srclen;
-  register uchar *map= cs->to_upper;
+  register const uchar *map= cs->to_upper;
   DBUG_ASSERT(src == dst && srclen == dstlen);
   for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
@@ -231,7 +231,7 @@ size_t my_casedn_8bit(CHARSET_INFO * cs, char *src, size_t srclen,
                       size_t dstlen __attribute__((unused)))
 {
   char *end= src + srclen;
-  register uchar *map=cs->to_lower;
+  register const uchar *map=cs->to_lower;
   DBUG_ASSERT(src == dst && srclen == dstlen);
   for ( ; src != end ; src++)
     *src= (char) map[(uchar) *src];
@@ -240,7 +240,7 @@ size_t my_casedn_8bit(CHARSET_INFO * cs, char *src, size_t srclen,
 
 int my_strcasecmp_8bit(CHARSET_INFO * cs,const char *s, const char *t)
 {
-  register uchar *map=cs->to_upper;
+  register const uchar *map=cs->to_upper;
   while (map[(uchar) *s] == map[(uchar) *t++])
     if (!*s++) return 0;
   return ((int) map[(uchar) s[0]] - (int) map[(uchar) t[-1]]);
@@ -303,7 +303,7 @@ void my_hash_sort_simple(CHARSET_INFO *cs,
 			 const uchar *key, size_t len,
 			 ulong *nr1, ulong *nr2)
 {
-  register uchar *sort_order=cs->sort_order;
+  register const uchar *sort_order=cs->sort_order;
   const uchar *end= key + len;
   
   /*
@@ -1235,7 +1235,7 @@ skip:
 typedef struct
 {
   int		nchars;
-  MY_UNI_IDX	uidx;
+  struct my_uni_idx_st uidx;
 } uni_idx;
 
 #define PLANE_SIZE	0x100
@@ -1253,10 +1253,12 @@ static int pcmp(const void * f, const void * s)
   return res;
 }
 
-static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(size_t))
+static my_bool create_fromuni(struct charset_info_st *cs,
+                              void *(*alloc)(size_t))
 {
   uni_idx	idx[PLANE_NUM];
   int		i,n;
+  struct my_uni_idx_st *tab_from_uni;
   
   /*
     Check that Unicode map is loaded.
@@ -1297,16 +1299,18 @@ static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(size_t))
   for (i=0; i < PLANE_NUM; i++)
   {
     int ch,numchars;
+    uchar *tab;
     
     /* Skip empty plane */
     if (!idx[i].nchars)
       break;
     
     numchars=idx[i].uidx.to-idx[i].uidx.from+1;
-    if (!(idx[i].uidx.tab=(uchar*) alloc(numchars * sizeof(*idx[i].uidx.tab))))
+    if (!(idx[i].uidx.tab= tab= (uchar*)
+          alloc(numchars * sizeof(*idx[i].uidx.tab))))
       return TRUE;
     
-    bzero(idx[i].uidx.tab,numchars*sizeof(*idx[i].uidx.tab));
+    bzero(tab,numchars*sizeof(*tab));
     
     for (ch=1; ch < PLANE_SIZE; ch++)
     {
@@ -1314,25 +1318,27 @@ static my_bool create_fromuni(CHARSET_INFO *cs, void *(*alloc)(size_t))
       if (wc >= idx[i].uidx.from && wc <= idx[i].uidx.to && wc)
       {
         int ofs= wc - idx[i].uidx.from;
-        idx[i].uidx.tab[ofs]= ch;
+        tab[ofs]= ch;
       }
     }
   }
   
   /* Allocate and fill reverse table for each plane */
   n=i;
-  if (!(cs->tab_from_uni= (MY_UNI_IDX*) alloc(sizeof(MY_UNI_IDX)*(n+1))))
+  if (!(cs->tab_from_uni= tab_from_uni= (struct my_uni_idx_st*)
+        alloc(sizeof(MY_UNI_IDX)*(n+1))))
     return TRUE;
 
   for (i=0; i< n; i++)
-    cs->tab_from_uni[i]= idx[i].uidx;
+    tab_from_uni[i]= idx[i].uidx;
   
   /* Set end-of-list marker */
-  bzero(&cs->tab_from_uni[i],sizeof(MY_UNI_IDX));
+  bzero(&tab_from_uni[i],sizeof(MY_UNI_IDX));
   return FALSE;
 }
 
-static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(size_t))
+static my_bool my_cset_init_8bit(struct charset_info_st *cs,
+                                 void *(*alloc)(size_t))
 {
   cs->caseup_multiply= 1;
   cs->casedn_multiply= 1;
@@ -1340,7 +1346,7 @@ static my_bool my_cset_init_8bit(CHARSET_INFO *cs, void *(*alloc)(size_t))
   return create_fromuni(cs, alloc);
 }
 
-static void set_max_sort_char(CHARSET_INFO *cs)
+static void set_max_sort_char(struct charset_info_st *cs)
 {
   uchar max_char;
   uint  i;
@@ -1359,7 +1365,7 @@ static void set_max_sort_char(CHARSET_INFO *cs)
   }
 }
 
-static my_bool my_coll_init_simple(CHARSET_INFO *cs,
+static my_bool my_coll_init_simple(struct charset_info_st *cs,
                                    void *(*alloc)(size_t) __attribute__((unused)))
 {
   set_max_sort_char(cs);

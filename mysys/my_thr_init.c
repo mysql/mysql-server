@@ -30,7 +30,9 @@ pthread_key(struct st_my_thread_var, THR_KEY_mysys);
 #endif /* USE_TLS */
 pthread_mutex_t THR_LOCK_malloc,THR_LOCK_open,
 	        THR_LOCK_lock,THR_LOCK_isam,THR_LOCK_myisam,THR_LOCK_heap,
-                THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads, THR_LOCK_time;
+                THR_LOCK_net, THR_LOCK_charset, THR_LOCK_threads, THR_LOCK_time,
+                THR_LOCK_myisam_mmap;
+
 pthread_cond_t  THR_COND_threads;
 uint            THR_thread_count= 0;
 uint 		my_thread_end_wait_time= 5;
@@ -134,10 +136,11 @@ my_bool my_thread_global_init(void)
     pthread_attr_t  dummy_thread_attr;
 
     pthread_attr_init(&dummy_thread_attr);
-    pthread_attr_setdetachstate(&dummy_thread_attr, PTHREAD_CREATE_DETACHED);
+    pthread_attr_setdetachstate(&dummy_thread_attr, PTHREAD_CREATE_JOINABLE);
 
-    pthread_create(&dummy_thread,&dummy_thread_attr,
-                   nptl_pthread_exit_hack_handler, NULL);
+    if (pthread_create(&dummy_thread,&dummy_thread_attr,
+                       nptl_pthread_exit_hack_handler, NULL) == 0)
+      (void)pthread_join(dummy_thread, NULL);
   }
 #endif /* TARGET_OS_LINUX */
 
@@ -155,6 +158,7 @@ my_bool my_thread_global_init(void)
   pthread_mutex_init(&THR_LOCK_lock,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_isam,MY_MUTEX_INIT_SLOW);
   pthread_mutex_init(&THR_LOCK_myisam,MY_MUTEX_INIT_SLOW);
+  pthread_mutex_init(&THR_LOCK_myisam_mmap,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_heap,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_net,MY_MUTEX_INIT_FAST);
   pthread_mutex_init(&THR_LOCK_charset,MY_MUTEX_INIT_FAST);
@@ -252,6 +256,7 @@ void my_thread_destroy_mutex(void)
   pthread_mutex_destroy(&THR_LOCK_lock);
   pthread_mutex_destroy(&THR_LOCK_isam);
   pthread_mutex_destroy(&THR_LOCK_myisam);
+  pthread_mutex_destroy(&THR_LOCK_myisam_mmap);
   pthread_mutex_destroy(&THR_LOCK_heap);
   pthread_mutex_destroy(&THR_LOCK_net);
   pthread_mutex_destroy(&THR_LOCK_time);
@@ -316,7 +321,7 @@ my_bool my_thread_init(void)
   /*
     Skip initialization if the thread specific variable is already initialized
   */
-  if (THR_KEY_mysys.id)
+  if (THR_KEY_mysys.init)
     goto end;
   tmp= &THR_KEY_mysys;
 #endif

@@ -45,7 +45,7 @@ Created 2/2/1994 Heikki Tuuri
 			==============
 
 The index page consists of a page header which contains the page's
-id and other information. On top of it are the the index records
+id and other information. On top of it are the index records
 in a heap linked into a one way linear list according to alphabetic order.
 
 Just below page end is an array of pointers which we call page directory,
@@ -679,7 +679,7 @@ page_copy_rec_list_end(
 
 				if (UNIV_UNLIKELY
 				    (!page_zip_decompress(new_page_zip,
-							  new_page))) {
+							  new_page, FALSE))) {
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
@@ -792,7 +792,7 @@ page_copy_rec_list_start(
 
 				if (UNIV_UNLIKELY
 				    (!page_zip_decompress(new_page_zip,
-							  new_page))) {
+							  new_page, FALSE))) {
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));

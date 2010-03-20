@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file handler/handler0alter.cc
 Smart ALTER TABLE
 *******************************************************/
 
@@ -34,19 +35,18 @@ extern "C" {
 }
 
 #include "ha_innodb.h"
-#include "handler0vars.h"
 
-/*****************************************************************
+/*************************************************************//**
 Copies an InnoDB column to a MySQL field.  This function is
 adapted from row_sel_field_store_in_mysql_format(). */
 static
 void
 innobase_col_to_mysql(
 /*==================*/
-	const dict_col_t*	col,	/* in: InnoDB column */
-	const uchar*		data,	/* in: InnoDB column data */
-	ulint			len,	/* in: length of data, in bytes */
-	Field*			field)	/* in/out: MySQL field */
+	const dict_col_t*	col,	/*!< in: InnoDB column */
+	const uchar*		data,	/*!< in: InnoDB column data */
+	ulint			len,	/*!< in: length of data, in bytes */
+	Field*			field)	/*!< in/out: MySQL field */
 {
 	uchar*	ptr;
 	uchar*	dest	= field->ptr;
@@ -122,16 +122,16 @@ innobase_col_to_mysql(
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Copies an InnoDB record to table->record[0]. */
 extern "C" UNIV_INTERN
 void
 innobase_rec_to_mysql(
 /*==================*/
-	TABLE*			table,		/* in/out: MySQL table */
-	const rec_t*		rec,		/* in: record */
-	const dict_index_t*	index,		/* in: index */
-	const ulint*		offsets)	/* in: rec_get_offsets(
+	TABLE*			table,		/*!< in/out: MySQL table */
+	const rec_t*		rec,		/*!< in: record */
+	const dict_index_t*	index,		/*!< in: index */
+	const ulint*		offsets)	/*!< in: rec_get_offsets(
 						rec, index, ...) */
 {
 	uint	n_fields	= table->s->fields;
@@ -172,13 +172,13 @@ null_field:
 	}
 }
 
-/*****************************************************************
+/*************************************************************//**
 Resets table->record[0]. */
 extern "C" UNIV_INTERN
 void
 innobase_rec_reset(
 /*===============*/
-	TABLE*			table)		/* in/out: MySQL table */
+	TABLE*			table)		/*!< in/out: MySQL table */
 {
 	uint	n_fields	= table->s->fields;
 	uint	i;
@@ -188,13 +188,13 @@ innobase_rec_reset(
 	}
 }
 
-/**********************************************************************
+/******************************************************************//**
 Removes the filename encoding of a database and table name. */
 static
 void
 innobase_convert_tablename(
 /*=======================*/
-	char*	s)	/* in: identifier; out: decoded identifier */
+	char*	s)	/*!< in: identifier; out: decoded identifier */
 {
 	uint	errors;
 
@@ -222,15 +222,15 @@ innobase_convert_tablename(
 	}
 }
 
-/***********************************************************************
-This function checks that index keys are sensible. */
+/*******************************************************************//**
+This function checks that index keys are sensible.
+@return	0 or error number */
 static
 int
 innobase_check_index_keys(
 /*======================*/
-					/* out: 0 or error number */
-	const KEY*	key_info,	/* in: Indexes to be created */
-	ulint		num_of_keys)	/* in: Number of indexes to
+	const KEY*	key_info,	/*!< in: Indexes to be created */
+	ulint		num_of_keys)	/*!< in: Number of indexes to
 					be created */
 {
 	ulint		key_num;
@@ -322,15 +322,15 @@ innobase_check_index_keys(
 	return(0);
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Create index field definition for key part */
 static
 void
 innobase_create_index_field_def(
 /*============================*/
-	KEY_PART_INFO*		key_part,	/* in: MySQL key definition */
-	mem_heap_t*		heap,		/* in: memory heap */
-	merge_index_field_t*	index_field)	/* out: index field
+	KEY_PART_INFO*		key_part,	/*!< in: MySQL key definition */
+	mem_heap_t*		heap,		/*!< in: memory heap */
+	merge_index_field_t*	index_field)	/*!< out: index field
 						definition for key_part */
 {
 	Field*		field;
@@ -364,20 +364,20 @@ innobase_create_index_field_def(
 	DBUG_VOID_RETURN;
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Create index definition for key */
 static
 void
 innobase_create_index_def(
 /*======================*/
-	KEY*			key,		/* in: key definition */
-	bool			new_primary,	/* in: TRUE=generating
+	KEY*			key,		/*!< in: key definition */
+	bool			new_primary,	/*!< in: TRUE=generating
 						a new primary key
 						on the table */
-	bool			key_primary,	/* in: TRUE if this key
+	bool			key_primary,	/*!< in: TRUE if this key
 						is a primary key */
-	merge_index_def_t*	index,		/* out: index definition */
-	mem_heap_t*		heap)		/* in: heap where memory
+	merge_index_def_t*	index,		/*!< out: index definition */
+	mem_heap_t*		heap)		/*!< in: heap where memory
 						is allocated */
 {
 	ulint	i;
@@ -418,14 +418,14 @@ innobase_create_index_def(
 	DBUG_VOID_RETURN;
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Copy index field definition */
 static
 void
 innobase_copy_index_field_def(
 /*==========================*/
-	const dict_field_t*	field,		/* in: definition to copy */
-	merge_index_field_t*	index_field)	/* out: copied definition */
+	const dict_field_t*	field,		/*!< in: definition to copy */
+	merge_index_field_t*	index_field)	/*!< out: copied definition */
 {
 	DBUG_ENTER("innobase_copy_index_field_def");
 	DBUG_ASSERT(field != NULL);
@@ -437,15 +437,15 @@ innobase_copy_index_field_def(
 	DBUG_VOID_RETURN;
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Copy index definition for the index */
 static
 void
 innobase_copy_index_def(
 /*====================*/
-	const dict_index_t*	index,	/* in: index definition to copy */
-	merge_index_def_t*	new_index,/* out: Index definition */
-	mem_heap_t*		heap)	/* in: heap where allocated */
+	const dict_index_t*	index,	/*!< in: index definition to copy */
+	merge_index_def_t*	new_index,/*!< out: Index definition */
+	mem_heap_t*		heap)	/*!< in: heap where allocated */
 {
 	ulint	n_fields;
 	ulint	i;
@@ -475,7 +475,7 @@ innobase_copy_index_def(
 	DBUG_VOID_RETURN;
 }
 
-/***********************************************************************
+/*******************************************************************//**
 Create an index table where indexes are ordered as follows:
 
 IF a new primary key is defined for the table THEN
@@ -490,18 +490,18 @@ ELSE
 
 ENDIF
 
-*/
+
+@return	key definitions or NULL */
 static
 merge_index_def_t*
 innobase_create_key_def(
 /*====================*/
-					/* out: key definitions or NULL */
-	trx_t*		trx,		/* in: trx */
-	const dict_table_t*table,		/* in: table definition */
-	mem_heap_t*	heap,		/* in: heap where space for key
+	trx_t*		trx,		/*!< in: trx */
+	const dict_table_t*table,		/*!< in: table definition */
+	mem_heap_t*	heap,		/*!< in: heap where space for key
 					definitions are allocated */
-	KEY*		key_info,	/* in: Indexes to be created */
-	ulint&		n_keys)		/* in/out: Number of indexes to
+	KEY*		key_info,	/*!< in: Indexes to be created */
+	ulint&		n_keys)		/*!< in/out: Number of indexes to
 					be created */
 {
 	ulint			i = 0;
@@ -582,16 +582,16 @@ innobase_create_key_def(
 	DBUG_RETURN(indexdefs);
 }
 
-/***********************************************************************
-Create a temporary tablename using query id, thread id, and id */
+/*******************************************************************//**
+Create a temporary tablename using query id, thread id, and id
+@return	temporary tablename */
 static
 char*
 innobase_create_temporary_tablename(
 /*================================*/
-					/* out: temporary tablename */
-	mem_heap_t*	heap,		/* in: memory heap */
-	char		id,		/* in: identifier [0-9a-zA-Z] */
-	const char*     table_name)	/* in: table name */
+	mem_heap_t*	heap,		/*!< in: memory heap */
+	char		id,		/*!< in: identifier [0-9a-zA-Z] */
+	const char*     table_name)	/*!< in: table name */
 {
 	char*			name;
 	ulint			len;
@@ -607,28 +607,28 @@ innobase_create_temporary_tablename(
 	return(name);
 }
 
-/***********************************************************************
-Create indexes. */
+/*******************************************************************//**
+Create indexes.
+@return	0 or error number */
 UNIV_INTERN
 int
 ha_innobase::add_index(
 /*===================*/
-				/* out: 0 or error number */
-	TABLE*	table,		/* in: Table where indexes are created */
-	KEY*	key_info,	/* in: Indexes to be created */
-	uint	num_of_keys)	/* in: Number of indexes to be created */
+	TABLE*	table,		/*!< in: Table where indexes are created */
+	KEY*	key_info,	/*!< in: Indexes to be created */
+	uint	num_of_keys)	/*!< in: Number of indexes to be created */
 {
-	dict_index_t**	index;		/* Index to be created */
-	dict_table_t*	innodb_table;	/* InnoDB table in dictionary */
-	dict_table_t*	indexed_table;	/* Table where indexes are created */
-	merge_index_def_t* index_defs;	/* Index definitions */
-	mem_heap_t*     heap;		/* Heap for index definitions */
-	trx_t*		trx;		/* Transaction */
+	dict_index_t**	index;		/*!< Index to be created */
+	dict_table_t*	innodb_table;	/*!< InnoDB table in dictionary */
+	dict_table_t*	indexed_table;	/*!< Table where indexes are created */
+	merge_index_def_t* index_defs;	/*!< Index definitions */
+	mem_heap_t*     heap;		/*!< Heap for index definitions */
+	trx_t*		trx;		/*!< Transaction */
 	ulint		num_of_idx;
 	ulint		num_created	= 0;
 	ibool		dict_locked	= FALSE;
 	ulint		new_primary;
-	ulint		error;
+	int		error;
 
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table);
@@ -646,6 +646,7 @@ ha_innobase::add_index(
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
 	trx_search_latch_release_if_reserved(prebuilt->trx);
+	trx_start_if_not_started(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
@@ -655,14 +656,18 @@ ha_innobase::add_index(
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
 
-	/* Check that index keys are sensible */
-
-	error = innobase_check_index_keys(key_info, num_of_keys);
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
+                error = ER_WRONG_NAME_FOR_INDEX;
+	} else {
+		/* Check that index keys are sensible */
+		error = innobase_check_index_keys(key_info, num_of_keys);
+	}
 
 	if (UNIV_UNLIKELY(error)) {
 err_exit:
 		mem_heap_free(heap);
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		trx_free_for_mysql(trx);
 		trx_commit_for_mysql(prebuilt->trx);
 		DBUG_RETURN(error);
@@ -760,10 +765,11 @@ err_exit:
 	ut_ad(error == DB_SUCCESS);
 
 	/* Commit the data dictionary transaction in order to release
-	the table locks on the system tables.  Unfortunately, this
-	means that if MySQL crashes while creating a new primary key
-	inside row_merge_build_indexes(), indexed_table will not be
-	dropped on crash recovery.  Thus, it will become orphaned. */
+	the table locks on the system tables.  This means that if
+	MySQL crashes while creating a new primary key inside
+	row_merge_build_indexes(), indexed_table will not be dropped
+	by trx_rollback_active().  It will have to be recovered or
+	dropped by the database administrator. */
 	trx_commit_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -800,7 +806,7 @@ error_handling:
 	alter table t drop index b, add index (b);
 
 	The fix will have to parse the SQL and note that the index
-	being added has the same name as the the one being dropped and
+	being added has the same name as the one being dropped and
 	ignore that in the dup index check.*/
 	//dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
@@ -862,6 +868,7 @@ error_handling:
 		indexed_table->n_mysql_handles_opened++;
 
 		error = row_merge_drop_table(trx, innodb_table);
+		innodb_table = indexed_table;
 		goto convert_error;
 
 	case DB_TOO_BIG_RECORD:
@@ -876,7 +883,9 @@ error:
 		/* fall through */
 	default:
 		if (new_primary) {
-			row_merge_drop_table(trx, indexed_table);
+			if (indexed_table != innodb_table) {
+				row_merge_drop_table(trx, indexed_table);
+			}
 		} else {
 			if (!dict_locked) {
 				row_mysql_lock_data_dictionary(trx);
@@ -911,16 +920,16 @@ convert_error:
 	DBUG_RETURN(error);
 }
 
-/***********************************************************************
-Prepare to drop some indexes of a table. */
+/*******************************************************************//**
+Prepare to drop some indexes of a table.
+@return	0 or error number */
 UNIV_INTERN
 int
 ha_innobase::prepare_drop_index(
 /*============================*/
-				/* out: 0 or error number */
-	TABLE*	table,		/* in: Table where indexes are dropped */
-	uint*	key_num,	/* in: Key nums to be dropped */
-	uint	num_of_keys)	/* in: Number of keys to be dropped */
+	TABLE*	table,		/*!< in: Table where indexes are dropped */
+	uint*	key_num,	/*!< in: Key nums to be dropped */
+	uint	num_of_keys)	/*!< in: Number of keys to be dropped */
 {
 	trx_t*		trx;
 	int		err = 0;
@@ -1112,17 +1121,17 @@ func_exit:
 	DBUG_RETURN(err);
 }
 
-/***********************************************************************
-Drop the indexes that were passed to a successful prepare_drop_index(). */
+/*******************************************************************//**
+Drop the indexes that were passed to a successful prepare_drop_index().
+@return	0 or error number */
 UNIV_INTERN
 int
 ha_innobase::final_drop_index(
 /*==========================*/
-				/* out: 0 or error number */
-	TABLE*	table)		/* in: Table where indexes are dropped */
+	TABLE*	table)		/*!< in: Table where indexes are dropped */
 {
-	dict_index_t*	index;		/* Index to be dropped */
-	trx_t*		trx;		/* Transaction */
+	dict_index_t*	index;		/*!< Index to be dropped */
+	trx_t*		trx;		/*!< Transaction */
 	int		err;
 
 	DBUG_ENTER("ha_innobase::final_drop_index");
@@ -1135,6 +1144,7 @@ ha_innobase::final_drop_index(
 	update_thd();
 
 	trx_search_latch_release_if_reserved(prebuilt->trx);
+	trx_start_if_not_started(prebuilt->trx);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */

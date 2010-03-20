@@ -1,0 +1,277 @@
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE IF EXISTS t1;
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: ''
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6 EXECUTE 2 HIT_LIMIT 3';
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6 EXECUTE 2';
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6           HIT_LIMIT 3';
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6';
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2           EXECUTE 2 HIT_LIMIT 3';
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2           EXECUTE 2';
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2                     HIT_LIMIT 3';
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2';
+SET DEBUG_SYNC='p0 SIGNAL s1                       EXECUTE 2 HIT_LIMIT 3';
+SET DEBUG_SYNC='p0 SIGNAL s1                       EXECUTE 2';
+SET DEBUG_SYNC='p0 SIGNAL s1                                 HIT_LIMIT 3';
+SET DEBUG_SYNC='p0 SIGNAL s1';
+SET DEBUG_SYNC='p0           WAIT_FOR s2 TIMEOUT 6 EXECUTE 2 HIT_LIMIT 3';
+SET DEBUG_SYNC='p0           WAIT_FOR s2 TIMEOUT 6 EXECUTE 2';
+SET DEBUG_SYNC='p0           WAIT_FOR s2 TIMEOUT 6           HIT_LIMIT 3';
+SET DEBUG_SYNC='p0           WAIT_FOR s2 TIMEOUT 6';
+SET DEBUG_SYNC='p0           WAIT_FOR s2           EXECUTE 2 HIT_LIMIT 3';
+SET DEBUG_SYNC='p0           WAIT_FOR s2           EXECUTE 2';
+SET DEBUG_SYNC='p0           WAIT_FOR s2                     HIT_LIMIT 3';
+SET DEBUG_SYNC='p0           WAIT_FOR s2';
+SET DEBUG_SYNC='p0                                           HIT_LIMIT 3';
+SET DEBUG_SYNC='p0 CLEAR';
+SET DEBUG_SYNC='p0 TEST';
+SET DEBUG_SYNC='RESET';
+set debug_sync='p0 signal s1 wait_for s2 timeout 6 execute 2 hit_limit 3';
+set debug_sync='p0 signal s1 wait_for s2 timeout 6 execute 2';
+set debug_sync='p0 signal s1 wait_for s2 timeout 6           hit_limit 3';
+set debug_sync='p0 signal s1 wait_for s2 timeout 6';
+set debug_sync='p0 signal s1 wait_for s2           execute 2 hit_limit 3';
+set debug_sync='p0 signal s1 wait_for s2           execute 2';
+set debug_sync='p0 signal s1 wait_for s2                     hit_limit 3';
+set debug_sync='p0 signal s1 wait_for s2';
+set debug_sync='p0 signal s1                       execute 2 hit_limit 3';
+set debug_sync='p0 signal s1                       execute 2';
+set debug_sync='p0 signal s1                                 hit_limit 3';
+set debug_sync='p0 signal s1';
+set debug_sync='p0           wait_for s2 timeout 6 execute 2 hit_limit 3';
+set debug_sync='p0           wait_for s2 timeout 6 execute 2';
+set debug_sync='p0           wait_for s2 timeout 6           hit_limit 3';
+set debug_sync='p0           wait_for s2 timeout 6';
+set debug_sync='p0           wait_for s2           execute 2 hit_limit 3';
+set debug_sync='p0           wait_for s2           execute 2';
+set debug_sync='p0           wait_for s2                     hit_limit 3';
+set debug_sync='p0           wait_for s2';
+set debug_sync='p0                                           hit_limit 3';
+set debug_sync='p0 clear';
+set debug_sync='p0 test';
+set debug_sync='reset';
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6
+                EXECUTE 2 HIT_LIMIT 3';
+SET DEBUG_SYNC='   p0 SIGNAL s1 WAIT_FOR s2';
+SET DEBUG_SYNC='p0    SIGNAL    s1    WAIT_FOR    s2';
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2   ';
+SET DEBUG_SYNC='   p0 SIGNAL s1 WAIT_FOR s2   ';
+SET DEBUG_SYNC='   p0    SIGNAL    s1    WAIT_FOR    s2   ';
+SET DEBUG_SYNC='';
+ERROR 42000: Missing synchronization point name
+SET DEBUG_SYNC=' ';
+ERROR 42000: Missing synchronization point name
+SET DEBUG_SYNC='p0';
+ERROR 42000: Missing action after synchronization point name 'p0'
+SET DEBUG_SYNC='p0                                          EXECUTE 2';
+ERROR 42000: Missing action before EXECUTE
+SET DEBUG_SYNC='p0                                TIMEOUT 6 EXECUTE 2';
+ERROR 42000: Illegal or out of order stuff: 'TIMEOUT'
+SET DEBUG_SYNC='p0                                TIMEOUT 6';
+ERROR 42000: Illegal or out of order stuff: 'TIMEOUT'
+SET DEBUG_SYNC='p0 WAIT_FOR s2 SIGNAL s1';
+ERROR 42000: Illegal or out of order stuff: 'SIGNAL'
+SET DEBUG_SYNC='p0 WAIT_FOR s2 SIGNAL s1           EXECUTE 2';
+ERROR 42000: Illegal or out of order stuff: 'SIGNAL'
+SET DEBUG_SYNC='p0 WAIT_FOR s2 SIGNAL s1 TIMEOUT 6 EXECUTE 2';
+ERROR 42000: Illegal or out of order stuff: 'SIGNAL'
+SET DEBUG_SYNC='p0 WAIT_FOR s2 SIGNAL s1 TIMEOUT 6';
+ERROR 42000: Illegal or out of order stuff: 'SIGNAL'
+SET DEBUG_SYNC='p0 WAIT_FOR s2 TIMEOUT 6 SIGNAL s1 EXECUTE 2';
+ERROR 42000: Illegal or out of order stuff: 'SIGNAL'
+SET DEBUG_SYNC='p0 WAIT_FOR s2 TIMEOUT 6 SIGNAL s1';
+ERROR 42000: Illegal or out of order stuff: 'SIGNAL'
+SET DEBUG_SYNC='p0 TIMEOUT 6 WAIT_FOR s2 EXECUTE 2';
+ERROR 42000: Illegal or out of order stuff: 'TIMEOUT'
+SET DEBUG_SYNC='p0 TIMEOUT 6 WAIT_FOR s2';
+ERROR 42000: Illegal or out of order stuff: 'TIMEOUT'
+SET DEBUG_SYNC='p0                  SIGNAL s1 TIMEOUT 6 EXECUTE 2';
+ERROR 42000: Illegal or out of order stuff: 'TIMEOUT'
+SET DEBUG_SYNC='p0                  SIGNAL s1 TIMEOUT 6';
+ERROR 42000: Illegal or out of order stuff: 'TIMEOUT'
+SET DEBUG_SYNC='p0 EXECUTE 2 SIGNAL s1 TIMEOUT 6';
+ERROR 42000: Missing action before EXECUTE
+SET DEBUG_SYNC='p0 TIMEOUT 6 SIGNAL s1';
+ERROR 42000: Illegal or out of order stuff: 'TIMEOUT'
+SET DEBUG_SYNC='p0 EXECUTE 2 TIMEOUT 6 SIGNAL s1';
+ERROR 42000: Missing action before EXECUTE
+SET DEBUG_SYNC='p0 CLEAR HIT_LIMIT 3';
+ERROR 42000: Nothing must follow action CLEAR
+SET DEBUG_SYNC='CLEAR';
+ERROR 42000: Missing action after synchronization point name 'CLEAR'
+SET DEBUG_SYNC='p0 CLEAR p0';
+ERROR 42000: Nothing must follow action CLEAR
+SET DEBUG_SYNC='TEST';
+ERROR 42000: Missing action after synchronization point name 'TEST'
+SET DEBUG_SYNC='p0 TEST p0';
+ERROR 42000: Nothing must follow action TEST
+SET DEBUG_SYNC='p0 RESET';
+ERROR 42000: Illegal or out of order stuff: 'RESET'
+SET DEBUG_SYNC='RESET p0';
+ERROR 42000: Illegal or out of order stuff: 'p0'
+SET DEBUG_SYNC='p0 RESET p0';
+ERROR 42000: Illegal or out of order stuff: 'RESET'
+SET DEBUG_SYNC='p0 SIGNAL ';
+ERROR 42000: Missing signal name after action SIGNAL
+SET DEBUG_SYNC='p0 WAIT_FOR ';
+ERROR 42000: Missing signal name after action WAIT_FOR
+SET DEBUG_SYNC='p0 SIGNAL s1 EXECUTE ';
+ERROR 42000: Missing valid number after EXECUTE
+SET DEBUG_SYNCx='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6 EXECUTE 2 HIT_LIMIT 3';
+ERROR HY000: Unknown system variable 'DEBUG_SYNCx'
+SET DEBUG_SYNC='p0 SIGNAx s1 WAIT_FOR s2 TIMEOUT 6 EXECUTE 2 HIT_LIMIT 3';
+ERROR 42000: Illegal or out of order stuff: 'SIGNAx'
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOx s2 TIMEOUT 6 EXECUTE 2 HIT_LIMIT 3';
+ERROR 42000: Illegal or out of order stuff: 'WAIT_FOx'
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUx 0 EXECUTE 2 HIT_LIMIT 3';
+ERROR 42000: Illegal or out of order stuff: 'TIMEOUx'
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6 EXECUTx 2 HIT_LIMIT 3';
+ERROR 42000: Illegal or out of order stuff: 'EXECUTx'
+SET DEBUG_SYNC='p0 SIGNAL s1 WAIT_FOR s2 TIMEOUT 6 EXECUTE 2 HIT_LIMIx 3';
+ERROR 42000: Illegal or out of order stuff: 'HIT_LIMIx'
+SET DEBUG_SYNC='p0 CLEARx';
+ERROR 42000: Illegal or out of order stuff: 'CLEARx'
+SET DEBUG_SYNC='p0 TESTx';
+ERROR 42000: Illegal or out of order stuff: 'TESTx'
+SET DEBUG_SYNC='RESETx';
+ERROR 42000: Missing action after synchronization point name 'RESETx'
+SET DEBUG_SYNC='p0 WAIT_FOR s2 TIMEOUT 0x6 EXECUTE 2 HIT_LIMIT 3';
+ERROR 42000: Missing valid number after TIMEOUT
+SET DEBUG_SYNC='p0 WAIT_FOR s2 TIMEOUT 6 EXECUTE 0x2 HIT_LIMIT 3';
+ERROR 42000: Missing valid number after EXECUTE
+SET DEBUG_SYNC='p0 WAIT_FOR s2 TIMEOUT 7 EXECUTE 2 HIT_LIMIT 0x3';
+ERROR 42000: Missing valid number after HIT_LIMIT
+SET DEBUG_SYNC= 7;
+ERROR 42000: Incorrect argument type to variable 'debug_sync'
+SET GLOBAL DEBUG_SYNC= 'p0 CLEAR';
+ERROR HY000: Variable 'debug_sync' is a SESSION variable and can't be used with SET GLOBAL
+SET @myvar= 'now SIGNAL from_myvar';
+SET DEBUG_SYNC= @myvar;
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 'from_myvar'
+SET DEBUG_SYNC= LEFT('now SIGNAL from_function_cut_here', 24);
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 'from_function'
+SET DEBUG_SYNC= 'now SIGNAL something';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 'something'
+SET DEBUG_SYNC= 'now WAIT_FOR nothing TIMEOUT 0';
+Warnings:
+Warning	####	debug sync point wait timed out
+SET DEBUG_SYNC= 'now SIGNAL nothing';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 'nothing'
+SET DEBUG_SYNC= 'now WAIT_FOR nothing TIMEOUT 0';
+SET DEBUG_SYNC= 'now SIGNAL something EXECUTE 0';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 'nothing'
+SET DEBUG_SYNC= 'now WAIT_FOR anotherthing TIMEOUT 0 EXECUTE 0';
+SET DEBUG_SYNC= 'now HIT_LIMIT 1';
+ERROR HY000: debug sync point hit limit reached
+SET DEBUG_SYNC= 'RESET';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: ''
+SET DEBUG_SYNC= 'p1abcd   SIGNAL s1 EXECUTE 2';
+SET DEBUG_SYNC= 'p2abc    SIGNAL s2 EXECUTE 2';
+SET DEBUG_SYNC= 'p9abcdef SIGNAL s9 EXECUTE 2';
+SET DEBUG_SYNC= 'p4a      SIGNAL s4 EXECUTE 2';
+SET DEBUG_SYNC= 'p5abcde  SIGNAL s5 EXECUTE 2';
+SET DEBUG_SYNC= 'p6ab     SIGNAL s6 EXECUTE 2';
+SET DEBUG_SYNC= 'p7       SIGNAL s7 EXECUTE 2';
+SET DEBUG_SYNC= 'p8abcdef SIGNAL s8 EXECUTE 2';
+SET DEBUG_SYNC= 'p3abcdef SIGNAL s3 EXECUTE 2';
+SET DEBUG_SYNC= 'p4a      TEST';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 's4'
+SET DEBUG_SYNC= 'p1abcd   TEST';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 's1'
+SET DEBUG_SYNC= 'p7       TEST';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 's7'
+SET DEBUG_SYNC= 'p9abcdef TEST';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 's9'
+SET DEBUG_SYNC= 'p3abcdef TEST';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 's3'
+SET DEBUG_SYNC= 'p1abcd   CLEAR';
+SET DEBUG_SYNC= 'p2abc    CLEAR';
+SET DEBUG_SYNC= 'p5abcde  CLEAR';
+SET DEBUG_SYNC= 'p6ab     CLEAR';
+SET DEBUG_SYNC= 'p8abcdef CLEAR';
+SET DEBUG_SYNC= 'p9abcdef CLEAR';
+SET DEBUG_SYNC= 'p3abcdef CLEAR';
+SET DEBUG_SYNC= 'p4a      CLEAR';
+SET DEBUG_SYNC= 'p7       CLEAR';
+SET DEBUG_SYNC= 'p1abcd   TEST';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 's3'
+SET DEBUG_SYNC= 'p7       TEST';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 's3'
+SET DEBUG_SYNC= 'p9abcdef TEST';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: 's3'
+SET DEBUG_SYNC= 'RESET';
+SHOW VARIABLES LIKE 'DEBUG_SYNC';
+Variable_name	Value
+debug_sync	ON - current signal: ''
+CREATE USER mysqltest_1@localhost;
+GRANT SUPER ON *.* TO mysqltest_1@localhost;
+connection con1, mysqltest_1
+SET DEBUG_SYNC= 'RESET';
+connection default
+DROP USER mysqltest_1@localhost;
+CREATE USER mysqltest_2@localhost;
+GRANT ALL ON *.* TO mysqltest_2@localhost;
+REVOKE SUPER ON *.* FROM mysqltest_2@localhost;
+connection con1, mysqltest_2
+SET DEBUG_SYNC= 'RESET';
+ERROR 42000: Access denied; you need the SUPER privilege for this operation
+connection default
+DROP USER mysqltest_2@localhost;
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 INT);
+connection con1
+SET DEBUG_SYNC= 'before_lock_tables_takes_lock
+      SIGNAL opened WAIT_FOR flushed';
+INSERT INTO t1 VALUES(1);
+connection default
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+SET DEBUG_SYNC= 'after_flush_unlock SIGNAL flushed';
+FLUSH TABLE t1;
+connection con1
+connection default
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 INT);
+LOCK TABLE t1 WRITE;
+connection con1
+SET DEBUG_SYNC= 'wait_for_lock SIGNAL locked EXECUTE 2';
+INSERT INTO t1 VALUES (1);
+connection default
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+UNLOCK TABLES;
+connection con1
+retrieve INSERT result.
+connection default
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';

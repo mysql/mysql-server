@@ -83,6 +83,9 @@ int maria_rkey(MARIA_HA *info, uchar *buf, int inx, const uchar *key_data,
     rw_rdlock(&keyinfo->root_lock);
 
   nextflag= maria_read_vec[search_flag] | key.flag;
+  if (search_flag != HA_READ_KEY_EXACT ||
+      ((keyinfo->flag & (HA_NOSAME | HA_NULL_PART)) != HA_NOSAME))
+    nextflag|= SEARCH_SAVE_BUFF;
 
   switch (keyinfo->key_alg) {
 #ifdef HAVE_RTREE_KEYS

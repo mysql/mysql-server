@@ -56,15 +56,13 @@
 //#define DEBUG_TRACE_FILES
 //#define INJECT_WRITE_REMAP_ERROR
 /* This is required to make testing on the Mac faster: */
+/* It turns of full file sync. */
+#define DEBUG_FAST_MAC
 #endif
 
 #ifdef DEBUG_TRACE_FILES
 //#define PRINTF		xt_ftracef
 #define PRINTF		xt_trace
-#endif
-
-#if defined(XT_MAC) && defined(F_FULLFSYNC)
-#undef F_FULLFSYNC
 #endif
 
 #ifdef INJECT_WRITE_REMAP_ERROR
@@ -883,7 +881,7 @@ xtPublic xtBool xt_flush_file(XTOpenFilePtr of, XTIOStatsPtr stat, XTThreadPtr X
 	 * fsync didn't really flush index pages to disk. fcntl(F_FULLFSYNC) is considered more effective 
 	 * in such case.
 	 */
-#ifdef F_FULLFSYNC
+#if defined(F_FULLFSYNC) && !defined(DEBUG_FAST_MAC)
 	if (fcntl(of->of_filedes, F_FULLFSYNC, 0) == -1) {
 		xt_register_ferrno(XT_REG_CONTEXT, errno, xt_file_path(of));
 		goto failed;

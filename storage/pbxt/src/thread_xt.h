@@ -536,6 +536,8 @@ extern struct XTThread	**xt_thr_array;
  * Function prototypes
  */
 
+extern "C" void *thr_main_pbxt(void *data);
+
 void			xt_get_now(char *buffer, size_t len);
 xtBool			xt_init_logging(void);
 void			xt_exit_logging(void);
@@ -583,6 +585,7 @@ void			xt_register_xterr(c_char *func, c_char *file, u_int line, int xt_err);
 void			xt_exceptionf(XTExceptionPtr e, XTThreadPtr self, c_char *func, c_char *file, u_int line, int xt_err, int sys_err, c_char *fmt, ...);
 void			xt_exception_error(XTExceptionPtr e, XTThreadPtr self, c_char *func, c_char *file, u_int line, int xt_err, int sys_err, c_char *msg);
 xtBool			xt_exception_errno(XTExceptionPtr e, XTThreadPtr self, c_char *func, c_char *file, u_int line, int err);
+void			xt_exception_xterr(XTExceptionPtr e, XTThreadPtr self, c_char *func, c_char *file, u_int line, int xt_err);
 
 void			xt_log_errno(XTThreadPtr self, c_char *func, c_char *file, u_int line, int err);
 
@@ -610,7 +613,7 @@ void			xt_critical_wait(void);
 void			xt_yield(void);
 void			xt_sleep_milli_second(u_int t);
 xtBool 			xt_suspend(XTThreadPtr self);
-xtBool 			xt_unsuspend(XTThreadPtr self, XTThreadPtr target);
+xtBool			xt_unsuspend(XTThreadPtr target);
 void			xt_lock_thread(XTThreadPtr thread);
 void			xt_unlock_thread(XTThreadPtr thread);
 xtBool			xt_wait_thread(XTThreadPtr thread);

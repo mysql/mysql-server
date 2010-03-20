@@ -31,3 +31,12 @@ DROP TABLE t1;
 --echo **** On Master ****
 connection master;
 DROP TABLE t1;
+
+# We must wait for the slave to stop.
+# Otherwise the warnings in the error log about deadlock may be written to
+# the error log only during shutdown, and currently the suppression of
+# "Deadlock found" set in this test case is not effective during server
+# shutdown.
+connection slave;
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc

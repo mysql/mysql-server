@@ -11,6 +11,7 @@
 # Passes with rbr no problem, removed statement include [jbm]
 
 source include/master-slave.inc;
+call mtr.add_suppression ("Slave I/O: Got fatal error 1236 from master when reading data from binary");
 source include/show_master_status.inc;
 sync_slave_with_master;
 source include/stop_slave.inc;

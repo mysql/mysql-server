@@ -26,3 +26,4 @@ set global innodb_file_format=on;
 --error ER_WRONG_ARGUMENTS
 set global innodb_file_format=off;
 select @@innodb_file_format_check;
+set global innodb_file_format_check=antelope;

@@ -483,7 +483,8 @@ check_user(THD *thd, enum enum_server_command command,
         }
       }
       my_ok(thd);
-      thd->password= test(passwd_len);          // remember for error messages 
+      thd->net.net_skip_rest_factor= 2;  // skip at most 2*max_packet_size
+      thd->password= test(passwd_len);   // remember for error messages 
       /* Ready to handle queries */
       DBUG_RETURN(0);
     }
@@ -1163,7 +1164,7 @@ static int check_connection(THD *thd)
   ulong server_capabilites;
   {
     /* buff[] needs to big enough to hold the server_version variable */
-    char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH + 64];
+    char buff[SERVER_VERSION_LENGTH + 1 + SCRAMBLE_LENGTH + 1 + 64];
     server_capabilites= CLIENT_BASIC_FLAGS;
 
     if (opt_using_transactions)
@@ -1252,6 +1253,7 @@ static int check_connection(THD *thd)
   DBUG_PRINT("info", ("client capabilities: %lu", thd->client_capabilities));
   if (thd->client_capabilities & CLIENT_SSL)
   {
+    char error_string[1024];
     /* Do the SSL layering. */
     if (!ssl_acceptor_fd)
     {
@@ -1260,7 +1262,7 @@ static int check_connection(THD *thd)
       return 1;
     }
     DBUG_PRINT("info", ("IO layer change in progress..."));
-    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout))
+    if (sslaccept(ssl_acceptor_fd, net->vio, net->read_timeout, error_string))
     {
       DBUG_PRINT("error", ("Failed to accept new SSL connection"));
       inc_host_errors(&thd->remote.sin_addr);

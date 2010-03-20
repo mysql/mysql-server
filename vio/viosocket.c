@@ -261,19 +261,13 @@ int vio_close(Vio * vio)
 {
   int r=0;
   DBUG_ENTER("vio_close");
-#ifdef __WIN__
-  if (vio->type == VIO_TYPE_NAMEDPIPE)
-  {
-#if defined(__NT__) && defined(MYSQL_SERVER)
-    CancelIo(vio->hPipe);
-    DisconnectNamedPipe(vio->hPipe);
-#endif
-    r=CloseHandle(vio->hPipe);
-  }
-  else
-#endif /* __WIN__ */
+
  if (vio->type != VIO_CLOSED)
   {
+    DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
+      vio->type == VIO_TYPE_SOCKET ||
+      vio->type == VIO_TYPE_SSL);
+
     DBUG_ASSERT(vio->sd >= 0);
     if (shutdown(vio->sd, SHUT_RDWR))
       r= -1;
@@ -430,44 +424,106 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
 
 
 #ifdef __WIN__
-size_t vio_read_pipe(Vio * vio, uchar* buf, size_t size)
+
+/*
+  Finish pending IO on pipe. Honor wait timeout
+*/
+static size_t pipe_complete_io(Vio* vio, char* buf, size_t size, DWORD timeout_ms)
 {
   DWORD length;
+  DWORD ret;
+
+  DBUG_ENTER("pipe_complete_io");
+
+  ret= WaitForSingleObject(vio->pipe_overlapped.hEvent, timeout_ms);
+  /*
+    WaitForSingleObjects will normally return WAIT_OBJECT_O (success, IO completed)
+    or WAIT_TIMEOUT.
+  */
+  if(ret != WAIT_OBJECT_0)
+  {
+    CancelIo(vio->hPipe);
+    DBUG_PRINT("error",("WaitForSingleObject() returned  %d", ret));
+    DBUG_RETURN((size_t)-1);
+  }
+
+  if (!GetOverlappedResult(vio->hPipe,&(vio->pipe_overlapped),&length, FALSE))
+  {
+    DBUG_PRINT("error",("GetOverlappedResult() returned last error  %d", 
+      GetLastError()));
+    DBUG_RETURN((size_t)-1);
+  }
+
+  DBUG_RETURN(length);
+}
+
+
+size_t vio_read_pipe(Vio * vio, uchar *buf, size_t size)
+{
+  DWORD bytes_read;
+  size_t retval;
   DBUG_ENTER("vio_read_pipe");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
 
-  if (!ReadFile(vio->hPipe, buf, size, &length, NULL))
-    DBUG_RETURN(-1);
+  if (ReadFile(vio->hPipe, buf, (DWORD)size, &bytes_read,
+      &(vio->pipe_overlapped)))
+  {
+    retval= bytes_read;
+  }
+  else
+  {
+    if (GetLastError() != ERROR_IO_PENDING)
+    {
+      DBUG_PRINT("error",("ReadFile() returned last error %d",
+        GetLastError()));
+      DBUG_RETURN((size_t)-1);
+    }
+    retval= pipe_complete_io(vio, buf, size,vio->read_timeout_ms);
+  }
 
-  DBUG_PRINT("exit", ("%d", length));
-  DBUG_RETURN((size_t) length);
+  DBUG_PRINT("exit", ("%lld", (longlong)retval));
+  DBUG_RETURN(retval);
 }
 
 
 size_t vio_write_pipe(Vio * vio, const uchar* buf, size_t size)
 {
-  DWORD length;
+  DWORD bytes_written;
+  size_t retval;
   DBUG_ENTER("vio_write_pipe");
   DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
 
-  if (!WriteFile(vio->hPipe, (char*) buf, size, &length, NULL))
-    DBUG_RETURN(-1);
+  if (WriteFile(vio->hPipe, buf, (DWORD)size, &bytes_written, 
+      &(vio->pipe_overlapped)))
+  {
+    retval= bytes_written;
+  }
+  else
+  {
+    if (GetLastError() != ERROR_IO_PENDING)
+    {
+      DBUG_PRINT("vio_error",("WriteFile() returned last error %d",
+        GetLastError()));
+      DBUG_RETURN((size_t)-1);
+    }
+    retval= pipe_complete_io(vio, (char *)buf, size, vio->write_timeout_ms);
+  }
 
-  DBUG_PRINT("exit", ("%d", length));
-  DBUG_RETURN((size_t) length);
+  DBUG_PRINT("exit", ("%lld", (longlong)retval));
+  DBUG_RETURN(retval);
 }
+
 
 int vio_close_pipe(Vio * vio)
 {
   int r;
   DBUG_ENTER("vio_close_pipe");
-#if defined(__NT__) && defined(MYSQL_SERVER)
-  CancelIo(vio->hPipe);
+
+  CloseHandle(vio->pipe_overlapped.hEvent);
   DisconnectNamedPipe(vio->hPipe);
-#endif
-  r=CloseHandle(vio->hPipe);
+  r= CloseHandle(vio->hPipe);
   if (r)
   {
     DBUG_PRINT("vio_error", ("close() failed, error: %d",GetLastError()));
@@ -479,10 +535,23 @@ int vio_close_pipe(Vio * vio)
 }
 
 
-void vio_ignore_timeout(Vio *vio __attribute__((unused)),
-			uint which __attribute__((unused)),
-			uint timeout __attribute__((unused)))
+void vio_win32_timeout(Vio *vio, uint which , uint timeout_sec)
 {
+    DWORD timeout_ms;
+    /*
+      Windows is measuring timeouts in milliseconds. Check for possible int 
+      overflow.
+    */
+    if (timeout_sec > UINT_MAX/1000)
+      timeout_ms= INFINITE;
+    else
+      timeout_ms= timeout_sec * 1000;
+
+    /* which == 1 means "write", which == 0 means "read".*/
+    if(which)
+      vio->write_timeout_ms= timeout_ms;
+    else
+      vio->read_timeout_ms= timeout_ms;
 }
 
 
@@ -517,7 +586,7 @@ size_t vio_read_shared_memory(Vio * vio, uchar* buf, size_t size)
          WAIT_ABANDONED_0 and WAIT_TIMEOUT - fail.  We can't read anything
       */
       if (WaitForMultipleObjects(array_elements(events), events, FALSE,
-                                 vio->net->read_timeout*1000) != WAIT_OBJECT_0)
+                                 vio->read_timeout_ms) != WAIT_OBJECT_0)
       {
         DBUG_RETURN(-1);
       };
@@ -574,7 +643,7 @@ size_t vio_write_shared_memory(Vio * vio, const uchar* buf, size_t size)
   while (remain != 0)
   {
     if (WaitForMultipleObjects(array_elements(events), events, FALSE,
-                               vio->net->write_timeout*1000) != WAIT_OBJECT_0)
+                               vio->write_timeout_ms) != WAIT_OBJECT_0)
     {
       DBUG_RETURN((size_t) -1);
     }

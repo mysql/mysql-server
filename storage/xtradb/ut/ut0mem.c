@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file ut/ut0mem.c
 Memory primitives
 
 Created 5/11/1994 Heikki Tuuri
@@ -28,41 +29,47 @@ Created 5/11/1994 Heikki Tuuri
 #include "ut0mem.ic"
 #endif
 
-#include "mem0mem.h"
-#include "os0thread.h"
-#include "srv0srv.h"
+#ifndef UNIV_HOTBACKUP
+# include "os0thread.h"
+# include "srv0srv.h"
 
 #include <stdlib.h>
 
-/* This struct is placed first in every allocated memory block */
+/** This struct is placed first in every allocated memory block */
 typedef struct ut_mem_block_struct ut_mem_block_t;
 
-/* The total amount of memory currently allocated from the operating
+/** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large() or malloc().  Does not count malloc()
 if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
 UNIV_INTERN ulint		ut_total_allocated_memory	= 0;
 
-/* Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
+/** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
 UNIV_INTERN os_fast_mutex_t	ut_list_mutex;
 
+/** Dynamically allocated memory block */
 struct ut_mem_block_struct{
 	UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
-			/* mem block list node */
-	ulint	size;	/* size of allocated memory */
-	ulint	magic_n;
+			/*!< mem block list node */
+	ulint	size;	/*!< size of allocated memory */
+	ulint	magic_n;/*!< magic number (UT_MEM_MAGIC_N) */
 };
 
+/** The value of ut_mem_block_struct::magic_n.  Used in detecting
+memory corruption. */
 #define UT_MEM_MAGIC_N	1601650166
 
-/* List of all memory blocks allocated from the operating system
+/** List of all memory blocks allocated from the operating system
 with malloc.  Protected by ut_list_mutex. */
 static UT_LIST_BASE_NODE_T(ut_mem_block_t)   ut_mem_block_list;
 
+/** Flag: has ut_mem_block_list been initialized? */
 static ibool  ut_mem_block_list_inited = FALSE;
 
+/** A dummy pointer for generating a null pointer exception in
+ut_malloc_low() */
 static ulint*	ut_mem_null_ptr	= NULL;
 
-/**************************************************************************
+/**********************************************************************//**
 Initializes the mem block list at database startup. */
 UNIV_INTERN
 void
@@ -74,22 +81,24 @@ ut_mem_init(void)
 	UT_LIST_INIT(ut_mem_block_list);
 	ut_mem_block_list_inited = TRUE;
 }
+#endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
+/**********************************************************************//**
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined and set_to_zero is TRUE. */
+defined and set_to_zero is TRUE.
+@return	own: allocated memory */
 UNIV_INTERN
 void*
 ut_malloc_low(
 /*==========*/
-				/* out, own: allocated memory */
-	ulint	n,		/* in: number of bytes to allocate */
-	ibool	set_to_zero,	/* in: TRUE if allocated memory should be
+	ulint	n,		/*!< in: number of bytes to allocate */
+	ibool	set_to_zero,	/*!< in: TRUE if allocated memory should be
 				set to zero if UNIV_SET_MEM_TO_ZERO is
 				defined */
-	ibool	assert_on_error)/* in: if TRUE, we crash mysqld if the
+	ibool	assert_on_error)/*!< in: if TRUE, we crash mysqld if the
 				memory cannot be allocated */
 {
+#ifndef UNIV_HOTBACKUP
 	ulint	retry_count;
 	void*	ret;
 
@@ -208,31 +217,47 @@ retry:
 	os_fast_mutex_unlock(&ut_list_mutex);
 
 	return((void*)((byte*)ret + sizeof(ut_mem_block_t)));
+#else /* !UNIV_HOTBACKUP */
+	void*	ret = malloc(n);
+	ut_a(ret || !assert_on_error);
+
+# ifdef UNIV_SET_MEM_TO_ZERO
+	if (set_to_zero) {
+		memset(ret, '\0', n);
+	}
+# endif
+	return(ret);
+#endif /* !UNIV_HOTBACKUP */
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined. */
+defined.
+@return	own: allocated memory */
 UNIV_INTERN
 void*
 ut_malloc(
 /*======*/
-			/* out, own: allocated memory */
-	ulint	n)	/* in: number of bytes to allocate */
+	ulint	n)	/*!< in: number of bytes to allocate */
 {
+#ifndef UNIV_HOTBACKUP
 	return(ut_malloc_low(n, TRUE, TRUE));
+#else /* !UNIV_HOTBACKUP */
+	return(malloc(n));
+#endif /* !UNIV_HOTBACKUP */
 }
 
-/**************************************************************************
+#ifndef UNIV_HOTBACKUP
+/**********************************************************************//**
 Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
 out. It cannot be used if we want to return an error message. Prints to
-stderr a message if fails. */
+stderr a message if fails.
+@return	TRUE if succeeded */
 UNIV_INTERN
 ibool
 ut_test_malloc(
 /*===========*/
-			/* out: TRUE if succeeded */
-	ulint	n)	/* in: try to allocate this many bytes */
+	ulint	n)	/*!< in: try to allocate this many bytes */
 {
 	void*	ret;
 
@@ -262,15 +287,17 @@ ut_test_malloc(
 
 	return(TRUE);
 }
+#endif /* !UNIV_HOTBACKUP */
 
-/**************************************************************************
+/**********************************************************************//**
 Frees a memory block allocated with ut_malloc. */
 UNIV_INTERN
 void
 ut_free(
 /*====*/
-	void* ptr)  /* in, own: memory block */
+	void* ptr)  /*!< in, own: memory block */
 {
+#ifndef UNIV_HOTBACKUP
 	ut_mem_block_t* block;
 
 	if (UNIV_LIKELY(srv_use_sys_malloc)) {
@@ -291,9 +318,13 @@ ut_free(
 	free(block);
 
 	os_fast_mutex_unlock(&ut_list_mutex);
+#else /* !UNIV_HOTBACKUP */
+	free(ptr);
+#endif /* !UNIV_HOTBACKUP */
 }
 
-/**************************************************************************
+#ifndef UNIV_HOTBACKUP
+/**********************************************************************//**
 Implements realloc. This is needed by /pars/lexyy.c. Otherwise, you should not
 use this function because the allocation functions in mem0mem.h are the
 recommended ones in InnoDB.
@@ -302,7 +333,7 @@ man realloc in Linux, 2004:
 
        realloc()  changes the size of the memory block pointed to
        by ptr to size bytes.  The contents will be  unchanged  to
-       the minimum of the old and new sizes; newly allocated mem­
+       the minimum of the old and new sizes; newly allocated mem-
        ory will be uninitialized.  If ptr is NULL,  the	 call  is
        equivalent  to malloc(size); if size is equal to zero, the
        call is equivalent to free(ptr).	 Unless ptr is	NULL,  it
@@ -316,14 +347,14 @@ RETURN VALUE
        size  was equal to 0, either NULL or a pointer suitable to
        be passed to free() is returned.	 If realloc()  fails  the
        original	 block	is  left  untouched  - it is not freed or
-       moved. */
+       moved.
+@return	own: pointer to new mem block or NULL */
 UNIV_INTERN
 void*
 ut_realloc(
 /*=======*/
-			/* out, own: pointer to new mem block or NULL */
-	void*	ptr,	/* in: pointer to old block or NULL */
-	ulint	size)	/* in: desired size */
+	void*	ptr,	/*!< in: pointer to old block or NULL */
+	ulint	size)	/*!< in: desired size */
 {
 	ut_mem_block_t* block;
 	ulint		old_size;
@@ -372,7 +403,7 @@ ut_realloc(
 	return(new_ptr);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Frees in shutdown all allocated memory not freed yet. */
 UNIV_INTERN
 void
@@ -402,20 +433,23 @@ ut_free_all_mem(void)
 			" total allocated memory is %lu\n",
 			(ulong) ut_total_allocated_memory);
 	}
-}
 
-/**************************************************************************
+	ut_mem_block_list_inited = FALSE;
+}
+#endif /* !UNIV_HOTBACKUP */
+
+/**********************************************************************//**
 Copies up to size - 1 characters from the NUL-terminated string src to
 dst, NUL-terminating the result. Returns strlen(src), so truncation
-occurred if the return value >= size. */
+occurred if the return value >= size.
+@return	strlen(src) */
 UNIV_INTERN
 ulint
 ut_strlcpy(
 /*=======*/
-				/* out: strlen(src) */
-	char*		dst,	/* in: destination buffer */
-	const char*	src,	/* in: source buffer */
-	ulint		size)	/* in: size of destination buffer */
+	char*		dst,	/*!< in: destination buffer */
+	const char*	src,	/*!< in: source buffer */
+	ulint		size)	/*!< in: size of destination buffer */
 {
 	ulint	src_size = strlen(src);
 
@@ -429,17 +463,17 @@ ut_strlcpy(
 	return(src_size);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Like ut_strlcpy, but if src doesn't fit in dst completely, copies the last
-(size - 1) bytes of src, not the first. */
+(size - 1) bytes of src, not the first.
+@return	strlen(src) */
 UNIV_INTERN
 ulint
 ut_strlcpy_rev(
 /*===========*/
-				/* out: strlen(src) */
-	char*		dst,	/* in: destination buffer */
-	const char*	src,	/* in: source buffer */
-	ulint		size)	/* in: size of destination buffer */
+	char*		dst,	/*!< in: destination buffer */
+	const char*	src,	/*!< in: source buffer */
+	ulint		size)	/*!< in: size of destination buffer */
 {
 	ulint	src_size = strlen(src);
 
@@ -452,18 +486,18 @@ ut_strlcpy_rev(
 	return(src_size);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Make a quoted copy of a NUL-terminated string.	Leading and trailing
 quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_memcpyq(). */
+See also ut_strlenq() and ut_memcpyq().
+@return	pointer to end of dest */
 UNIV_INTERN
 char*
 ut_strcpyq(
 /*=======*/
-				/* out: pointer to end of dest */
-	char*		dest,	/* in: output buffer */
-	char		q,	/* in: the quote character */
-	const char*	src)	/* in: null-terminated string */
+	char*		dest,	/*!< in: output buffer */
+	char		q,	/*!< in: the quote character */
+	const char*	src)	/*!< in: null-terminated string */
 {
 	while (*src) {
 		if ((*dest++ = *src++) == q) {
@@ -474,19 +508,19 @@ ut_strcpyq(
 	return(dest);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Make a quoted copy of a fixed-length string.  Leading and trailing
 quotes will not be included; only embedded quotes will be escaped.
-See also ut_strlenq() and ut_strcpyq(). */
+See also ut_strlenq() and ut_strcpyq().
+@return	pointer to end of dest */
 UNIV_INTERN
 char*
 ut_memcpyq(
 /*=======*/
-				/* out: pointer to end of dest */
-	char*		dest,	/* in: output buffer */
-	char		q,	/* in: the quote character */
-	const char*	src,	/* in: string to be quoted */
-	ulint		len)	/* in: length of src */
+	char*		dest,	/*!< in: output buffer */
+	char		q,	/*!< in: the quote character */
+	const char*	src,	/*!< in: string to be quoted */
+	ulint		len)	/*!< in: length of src */
 {
 	const char*	srcend = src + len;
 
@@ -499,16 +533,17 @@ ut_memcpyq(
 	return(dest);
 }
 
-/**************************************************************************
+#ifndef UNIV_HOTBACKUP
+/**********************************************************************//**
 Return the number of times s2 occurs in s1. Overlapping instances of s2
-are only counted once. */
+are only counted once.
+@return	the number of times s2 occurs in s1 */
 UNIV_INTERN
 ulint
 ut_strcount(
 /*========*/
-				/* out: the number of times s2 occurs in s1 */
-	const char*	s1,	/* in: string to search in */
-	const char*	s2)	/* in: string to search for */
+	const char*	s1,	/*!< in: string to search in */
+	const char*	s2)	/*!< in: string to search for */
 {
 	ulint	count = 0;
 	ulint	len = strlen(s2);
@@ -533,18 +568,17 @@ ut_strcount(
 	return(count);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
-are only replaced once. */
+are only replaced once.
+@return	own: modified string, must be freed with mem_free() */
 UNIV_INTERN
 char*
 ut_strreplace(
 /*==========*/
-				/* out, own: modified string, must be
-				freed with mem_free() */
-	const char*	str,	/* in: string to operate on */
-	const char*	s1,	/* in: string to replace */
-	const char*	s2)	/* in: string to replace s1 with */
+	const char*	str,	/*!< in: string to operate on */
+	const char*	s1,	/*!< in: string to replace */
+	const char*	s2)	/*!< in: string to replace s1 with */
 {
 	char*		new_str;
 	char*		ptr;
@@ -671,3 +705,4 @@ test_ut_str_sql_format()
 }
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */
+#endif /* !UNIV_HOTBACKUP */

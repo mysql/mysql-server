@@ -1,4 +1,3 @@
-#
 # Suppress some common (not fatal) errors in system libraries found by valgrind
 #
 
@@ -470,6 +469,26 @@
 }
 
 {
+   dlclose memory loss from plugin variant 8
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z15free_plugin_memP12st_plugin_dl
+   fun:_Z13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
+   dlclose memory loss from plugin variant 9
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
    dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 1
    Memcheck:Leak
    fun:*alloc
@@ -893,4 +912,114 @@
    obj: /lib64/libnss_dns-*so)
    obj: /lib64/libnss_dns-*so)
    fun: gethostbyaddr_r
+}
+
+# suppressions for glibc 2.6.1 64 bit
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 6
+   Memcheck:Leak
+   fun:malloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 7
+   Memcheck:Leak
+   fun:malloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+   fun:start_thread
+   fun:clone
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 8
+   Memcheck:Leak
+   fun:calloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+   fun:start_thread
+   fun:clone
+}
+
+{
+   Mem loss within nptl_pthread_exit_hack_handler 8
+   Memcheck:Leak
+   fun:calloc
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   obj:*/ld-*.so
+   obj:*/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+   fun:__pthread_unwind
+   fun:pthread_exit
+   fun:nptl_pthread_exit_hack_handler
+}
+
+#
+# Pthread doesn't free all thread specific memory before program exists
+#
+{
+   pthread allocate_tls memory loss in 2.6.1.
+   Memcheck:Leak 
+   fun:calloc
+   obj:*/ld-*.so
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+}
+
+#
+# Bug in Glibc 2.9: http://sourceware.org/bugzilla/show_bug.cgi?id=10391
+# Fixed in latest Glibc, but suppressed here for running tests on hosts
+# with older Glibc version.
+#
+{
+   Glibc bug in __libc_res_nsend
+   Memcheck:Cond
+   fun:__libc_res_nsend
+   fun:__libc_res_nquery
 }

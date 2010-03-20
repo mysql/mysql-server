@@ -58,6 +58,9 @@
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include <maria.h>
+#endif
 #include <my_dir.h>
 #include <waiting_threads.h>
 #include "events.h"
@@ -148,6 +151,7 @@ static void sys_default_general_log_path(THD *thd, enum_var_type type);
 static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 static void fix_sys_log_slow_filter(THD *thd, enum_var_type);
+static uchar *get_myisam_mmap_size(THD *thd);
 
 /*
   Variable definition list
@@ -181,6 +185,8 @@ static sys_var_long_ptr	sys_binlog_cache_size(&vars, "binlog_cache_size",
 					      &binlog_cache_size);
 static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
+static sys_var_thd_bool sys_binlog_direct_non_trans_update(&vars, "binlog_direct_non_transactional_updates",
+                                                           &SV::binlog_direct_non_trans_update);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
 static sys_var_const_os         sys_character_sets_dir(&vars,
@@ -573,11 +579,11 @@ static sys_var_const    sys_skip_networking(&vars, "skip_networking",
 static sys_var_const    sys_skip_show_database(&vars, "skip_show_database",
                                             OPT_GLOBAL, SHOW_BOOL,
                                             (uchar*) &opt_skip_show_db);
-#ifdef HAVE_SYS_UN_H
+
 static sys_var_const    sys_socket(&vars, "socket",
                                    OPT_GLOBAL, SHOW_CHAR_PTR,
                                    (uchar*) &mysqld_unix_port);
-#endif
+
 #ifdef HAVE_THR_SETCONCURRENCY
 /* purecov: begin tested */
 static sys_var_const    sys_thread_concurrency(&vars, "thread_concurrency",
@@ -669,6 +675,12 @@ static sys_var_long_ptr	sys_table_cache_size(&vars, "table_open_cache",
 					     &table_cache_size);
 static sys_var_long_ptr	sys_table_lock_wait_timeout(&vars, "table_lock_wait_timeout",
                                                     &table_lock_wait_timeout);
+
+#if defined(ENABLED_DEBUG_SYNC)
+/* Debug Sync Facility. Implemented in debug_sync.cc. */
+static sys_var_debug_sync sys_debug_sync(&vars, "debug_sync");
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
 static sys_var_long_ptr	sys_thread_cache_size(&vars, "thread_cache_size",
 					      &thread_cache_size);
 #if HAVE_POOL_OF_THREADS == 1
@@ -950,6 +962,10 @@ sys_var_str sys_var_slow_log_path(&vars, "slow_query_log_file", sys_check_log_pa
 				  opt_slow_logname);
 static sys_var_log_output sys_var_log_output_state(&vars, "log_output", &log_output_options,
 					    &log_output_typelib, 0);
+static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
+                                                     OPT_GLOBAL,
+                                                     SHOW_LONGLONG,
+                                                     get_myisam_mmap_size);
 
 
 bool sys_var::check(THD *thd, set_var *var)
@@ -3286,6 +3302,12 @@ static uchar *get_tmpdir(THD *thd)
   return (uchar*)mysql_tmpdir;
 }
 
+static uchar *get_myisam_mmap_size(THD *thd)
+{
+  return (uchar *)&myisam_mmap_size;
+}
+
+
 /****************************************************************************
   Main handling of variables:
   - Initialisation
@@ -3466,8 +3488,7 @@ int set_var_init()
   uint count= 0;
   DBUG_ENTER("set_var_init");
   
-  for (sys_var *var=vars.first; var; var= var->next, count++)
-    ;
+  for (sys_var *var=vars.first; var; var= var->next, count++) ;
 
   if (hash_init(&system_variable_hash, system_charset_info, count, 0,
                 0, (hash_get_key) get_sys_var_length, 0, HASH_UNIQUE))
@@ -3857,7 +3878,7 @@ uchar *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
   LEX_STRING *engine_name;
   plugin_ref plugin= thd->variables.*offset;
   if (type == OPT_GLOBAL)
-    plugin= my_plugin_lock(thd, &(global_system_variables.*offset));
+    plugin= my_plugin_lock(thd, global_system_variables.*offset);
   hton= plugin_data(plugin, handlerton*);
   engine_name= hton_name(hton);
   result= (uchar *) thd->strmake(engine_name->str, engine_name->length);
@@ -3878,7 +3899,7 @@ void sys_var_thd_storage_engine::set_default(THD *thd, enum_var_type type)
   else
   {
     value= &(thd->variables.*offset);
-    new_value= my_plugin_lock(NULL, &(global_system_variables.*offset));
+    new_value= my_plugin_lock(NULL, global_system_variables.*offset);
   }
   DBUG_ASSERT(new_value);
   old_value= *value;
@@ -3895,7 +3916,7 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
   old_value= *value;
   if (old_value != var->save_result.plugin)
   {
-    *value= my_plugin_lock(NULL, &var->save_result.plugin);
+    *value= my_plugin_lock(NULL, var->save_result.plugin);
     plugin_unlock(NULL, old_value);
   }
   return 0;
@@ -4195,7 +4216,7 @@ bool process_key_caches(process_key_cache_t func)
 
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "6.0", "@@log_bin_trust_routine_creators",
+  WARN_DEPRECATED(thd, VER_CELOSIA, "@@log_bin_trust_routine_creators",
                       "'@@log_bin_trust_function_creators'");
 }
 
@@ -4275,6 +4296,7 @@ end_with_read_lock:
 }
 
 
+#ifndef DBUG_OFF
 /* even session variable here requires SUPER, because of -#o,file */
 bool sys_var_thd_dbug::check(THD *thd, set_var *var)
 {
@@ -4322,6 +4344,8 @@ uchar *sys_var_thd_dbug::value_ptr(THD *thd, enum_var_type type, LEX_STRING *b)
   }
   return (uchar*) thd->strdup(buf);
 }
+#endif /* DBUG_OFF */
+
 
 #ifdef HAVE_EVENT_SCHEDULER
 bool sys_var_event_scheduler::check(THD *thd, set_var *var)

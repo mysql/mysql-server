@@ -51,6 +51,7 @@ typedef struct st_ft_superdoc
     double   tmp_weight;
 } FT_SUPERDOC;
 
+
 static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
 			   FT_SUPERDOC *p1, FT_SUPERDOC *p2)
 {
@@ -63,7 +64,8 @@ static int FT_SUPERDOC_cmp(void* cmp_arg __attribute__((unused)),
 
 static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 {
-  int	       subkeys, r;
+  FT_WEIGTH    subkeys;
+  int          r;
   uint	       doc_cnt;
   FT_SUPERDOC  sdoc, *sptr;
   TREE_ELEMENT *selem;
@@ -90,9 +92,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
   /* Skip rows inserted by current inserted */
   for (r= _ma_search(info, &key, SEARCH_FIND, key_root) ;
        !r &&
-         (subkeys=ft_sintXkorr(info->last_key.data +
-                               info->last_key.data_length +
-                               info->last_key.ref_length - extra)) > 0 &&
+         (subkeys.i= ft_sintXkorr(info->last_key.data +
+                                  info->last_key.data_length +
+                                  info->last_key.ref_length - extra)) > 0 &&
          info->cur_row.lastpos >= info->state->data_file_length ;
        r= _ma_search_next(info, &info->last_key, SEARCH_BIGGER, key_root))
     ;
@@ -111,7 +113,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
                         key.data+1, key.data_length-1, 0, 0))
      break;
 
-    if (subkeys<0)
+    if (subkeys.i < 0)
     {
       if (doc_cnt)
         DBUG_RETURN(1); /* index is corrupted */
@@ -127,7 +129,8 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
       goto do_skip;
     }
 #if HA_FT_WTYPE == HA_KEYTYPE_FLOAT
-    tmp_weight=*(float*)&subkeys;
+    /* The weight we read was actually a float */
+    tmp_weight= subkeys.f;
 #else
 #error
 #endif
@@ -162,9 +165,9 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
     else
 	r= _ma_search(info, &info->last_key, SEARCH_BIGGER, key_root);
 do_skip:
-    while ((subkeys=ft_sintXkorr(info->last_key.data +
-                                 info->last_key.data_length +
-                                 info->last_key.ref_length - extra)) > 0 &&
+    while ((subkeys.i= ft_sintXkorr(info->last_key.data +
+                                    info->last_key.data_length +
+                                    info->last_key.ref_length - extra)) > 0 &&
            !r && info->cur_row.lastpos >= info->state->data_file_length)
       r= _ma_search_next(info, &info->last_key, SEARCH_BIGGER, key_root);
 
@@ -205,7 +208,7 @@ static int FT_DOC_cmp(void *unused __attribute__((unused)),
 
 
 FT_INFO *maria_ft_init_nlq_search(MARIA_HA *info, uint keynr, uchar *query,
-			    uint query_len, uint flags, uchar *record)
+                                  size_t query_len, uint flags, uchar *record)
 {
   TREE	      wtree;
   ALL_IN_ONE  aio;

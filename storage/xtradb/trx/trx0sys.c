@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file trx/trx0sys.c
 Transaction system
 
 Created 3/26/1996 Heikki Tuuri
@@ -28,62 +29,74 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0sys.ic"
 #endif
 
+#ifndef UNIV_HOTBACKUP
 #include "fsp0fsp.h"
-#include "mtr0mtr.h"
+#include "mtr0log.h"
+#include "mtr0log.h"
 #include "trx0trx.h"
 #include "trx0rseg.h"
 #include "trx0undo.h"
 #include "srv0srv.h"
 #include "trx0purge.h"
 #include "log0log.h"
+#include "log0recv.h"
 #include "os0file.h"
+#include "read0read.h"
 
-/* The file format tag structure with id and name. */
+/** The file format tag structure with id and name. */
 struct file_format_struct {
-	ulint		id;		/* id of the file format */
-	const char*	name;		/* text representation of the
+	ulint		id;		/*!< id of the file format */
+	const char*	name;		/*!< text representation of the
 					file format */
-	mutex_t		mutex;		/* covers changes to the above
+	mutex_t		mutex;		/*!< covers changes to the above
 					fields */
 };
 
+/** The file format tag */
 typedef struct file_format_struct	file_format_t;
 
-/* The transaction system */
+/** The transaction system */
 UNIV_INTERN trx_sys_t*		trx_sys		= NULL;
+/** The doublewrite buffer */
 UNIV_INTERN trx_doublewrite_t*	trx_doublewrite = NULL;
 
-/* The following is set to TRUE when we are upgrading from the old format data
-files to the new >= 4.1.x format multiple tablespaces format data files */
-
+/** The following is set to TRUE when we are upgrading from pre-4.1
+format data files to the multiple tablespaces format data files */
 UNIV_INTERN ibool	trx_doublewrite_must_reset_space_ids	= FALSE;
+/** Set to TRUE when the doublewrite buffer is being created */
+UNIV_INTERN ibool	trx_doublewrite_buf_is_being_created = FALSE;
 
-/* The following is TRUE when we are using the database in the new format,
-i.e., we have successfully upgraded, or have created a new database
-installation */
-
+/** The following is TRUE when we are using the database in the
+post-4.1 format, i.e., we have successfully upgraded, or have created
+a new database installation */
 UNIV_INTERN ibool	trx_sys_multiple_tablespace_format	= FALSE;
 
-/* In a MySQL replication slave, in crash recovery we store the master log
-file name and position here. We have successfully got the updates to InnoDB
-up to this position. If .._pos is -1, it means no crash recovery was needed,
-or there was no master log position info inside InnoDB. */
-
+/** In a MySQL replication slave, in crash recovery we store the master log
+file name and position here. */
+/* @{ */
+/** Master binlog file name */
 UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN];
+/** Master binlog file position.  We have successfully got the updates
+up to this position.  -1 means that no crash recovery was needed, or
+there was no master log position info inside InnoDB.*/
 UNIV_INTERN ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
+/* @} */
 
 UNIV_INTERN char	trx_sys_mysql_relay_log_name[TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN];
 UNIV_INTERN ib_int64_t	trx_sys_mysql_relay_log_pos	= -1;
 
-/* If this MySQL server uses binary logging, after InnoDB has been inited
+/** If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
-here. If .._pos is -1, it means there was no binlog position info inside
-InnoDB. */
-
+here. */
+/* @{ */
+/** Binlog file name */
 UNIV_INTERN char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+/** Binlog file position, or -1 if unknown */
 UNIV_INTERN ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
+/* @} */
+#endif /* !UNIV_HOTBACKUP */
 
-/* List of animal names representing file format. */
+/** List of animal names representing file format. */
 static const char*	file_format_name_map[] = {
 	"Antelope",
 	"Barracuda",
@@ -113,24 +126,25 @@ static const char*	file_format_name_map[] = {
 	"Zebra"
 };
 
-/* The number of elements in the file format name array. */
+/** The number of elements in the file format name array. */
 static const ulint	FILE_FORMAT_NAME_N
 	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
-/* This is used to track the maximum file format id known to InnoDB. It's
+#ifndef UNIV_HOTBACKUP
+/** This is used to track the maximum file format id known to InnoDB. It's
 updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
 or create a table. */
 static	file_format_t	file_format_max;
 
-/********************************************************************
-Determines if a page number is located inside the doublewrite buffer. */
+/****************************************************************//**
+Determines if a page number is located inside the doublewrite buffer.
+@return TRUE if the location is inside the two blocks of the
+doublewrite buffer */
 UNIV_INTERN
 ibool
 trx_doublewrite_page_inside(
 /*========================*/
-				/* out: TRUE if the location is inside
-				the two blocks of the doublewrite buffer */
-	ulint	page_no)	/* in: page number */
+	ulint	page_no)	/*!< in: page number */
 {
 	if (trx_doublewrite == NULL) {
 
@@ -152,13 +166,13 @@ trx_doublewrite_page_inside(
 	return(FALSE);
 }
 
-/********************************************************************
+/****************************************************************//**
 Creates or initialializes the doublewrite buffer at a database start. */
 static
 void
 trx_doublewrite_init(
 /*=================*/
-	byte*	doublewrite)	/* in: pointer to the doublewrite buf
+	byte*	doublewrite)	/*!< in: pointer to the doublewrite buf
 				header on trx sys page */
 {
 	trx_doublewrite = mem_alloc(sizeof(trx_doublewrite_t));
@@ -186,7 +200,7 @@ trx_doublewrite_init(
 		2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * sizeof(void*));
 }
 
-/********************************************************************
+/****************************************************************//**
 Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
 multiple tablespace format. */
 UNIV_INTERN
@@ -221,7 +235,7 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 	trx_sys_multiple_tablespace_format = TRUE;
 }
 
-/********************************************************************
+/****************************************************************//**
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
 doublewrite buffer is placed on the trx system header page. */
 UNIV_INTERN
@@ -247,6 +261,7 @@ trx_sys_create_doublewrite_buf(void)
 
 start_again:
 	mtr_start(&mtr);
+	trx_doublewrite_buf_is_being_created = TRUE;
 
 	block = buf_page_get(TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO,
 			     RW_X_LATCH, &mtr);
@@ -262,6 +277,7 @@ start_again:
 		trx_doublewrite_init(doublewrite);
 
 		mtr_commit(&mtr);
+		trx_doublewrite_buf_is_being_created = FALSE;
 	} else {
 		fprintf(stderr,
 			"InnoDB: Doublewrite buffer not found:"
@@ -337,15 +353,8 @@ start_again:
 			buf_block_dbg_add_level(new_block,
 						SYNC_NO_ORDER_CHECK);
 
-			/* Make a dummy change to the page to ensure it will
-			be written to disk in a flush */
-
-			mlog_write_ulint(buf_block_get_frame(new_block)
-					 + FIL_PAGE_DATA,
-					 TRX_SYS_DOUBLEWRITE_MAGIC_N,
-					 MLOG_4BYTES, &mtr);
-
 			if (i == FSP_EXTENT_SIZE / 2) {
+				ut_a(page_no == FSP_EXTENT_SIZE);
 				mlog_write_ulint(doublewrite
 						 + TRX_SYS_DOUBLEWRITE_BLOCK1,
 						 page_no, MLOG_4BYTES, &mtr);
@@ -355,6 +364,7 @@ start_again:
 						 page_no, MLOG_4BYTES, &mtr);
 			} else if (i == FSP_EXTENT_SIZE / 2
 				   + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE) {
+				ut_a(page_no == 2 * FSP_EXTENT_SIZE);
 				mlog_write_ulint(doublewrite
 						 + TRX_SYS_DOUBLEWRITE_BLOCK2,
 						 page_no, MLOG_4BYTES, &mtr);
@@ -394,7 +404,7 @@ start_again:
 	}
 }
 
-/********************************************************************
+/****************************************************************//**
 At a database startup initializes the doublewrite buffer memory structure if
 we already have a doublewrite buffer created in the data files. If we are
 upgrading to an InnoDB version which supports multiple tablespaces, then this
@@ -405,7 +415,7 @@ UNIV_INTERN
 void
 trx_sys_doublewrite_init_or_restore_pages(
 /*======================================*/
-	ibool	restore_corrupt_pages)
+	ibool	restore_corrupt_pages)	/*!< in: TRUE=restore pages */
 {
 	byte*	buf;
 	byte*	read_buf;
@@ -544,6 +554,12 @@ trx_sys_doublewrite_init_or_restore_pages(
 			       zip_size ? zip_size : UNIV_PAGE_SIZE,
 			       read_buf, NULL);
 
+			if (srv_recovery_stats && recv_recovery_is_on()) {
+				mutex_enter(&(recv_sys->mutex));
+				recv_sys->stats_doublewrite_check_pages++;
+				mutex_exit(&(recv_sys->mutex));
+			}
+
 			/* Check if the page is corrupt */
 
 			if (UNIV_UNLIKELY
@@ -591,6 +607,13 @@ trx_sys_doublewrite_init_or_restore_pages(
 				       zip_size, page_no, 0,
 				       zip_size ? zip_size : UNIV_PAGE_SIZE,
 				       page, NULL);
+
+				if (srv_recovery_stats && recv_recovery_is_on()) {
+					mutex_enter(&(recv_sys->mutex));
+					recv_sys->stats_doublewrite_overwrite_pages++;
+					mutex_exit(&(recv_sys->mutex));
+				}
+
 				fprintf(stderr,
 					"InnoDB: Recovered the page from"
 					" the doublewrite buffer.\n");
@@ -606,14 +629,14 @@ leave_func:
 	ut_free(unaligned_read_buf);
 }
 
-/********************************************************************
-Checks that trx is in the trx list. */
+/****************************************************************//**
+Checks that trx is in the trx list.
+@return	TRUE if is in */
 UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
-			/* out: TRUE if is in */
-	trx_t*	in_trx)	/* in: trx */
+	trx_t*	in_trx)	/*!< in: trx */
 {
 	trx_t*	trx;
 
@@ -634,7 +657,7 @@ trx_in_trx_list(
 	return(FALSE);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Writes the value of max_trx_id to the file based trx system header. */
 UNIV_INTERN
 void
@@ -655,7 +678,7 @@ trx_sys_flush_max_trx_id(void)
 	mtr_commit(&mtr);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
 replication slave updates the latest master binlog position up to which
@@ -664,11 +687,11 @@ UNIV_INTERN
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
-	const char*	file_name_in,/* in: MySQL log file name */
-	ib_int64_t	offset,	/* in: position in that log file */
-	ulint		field,	/* in: offset of the MySQL log info field in
+	const char*	file_name_in,/*!< in: MySQL log file name */
+	ib_int64_t	offset,	/*!< in: position in that log file */
+	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
-	mtr_t*		mtr)	/* in: mtr */
+	mtr_t*		mtr)	/*!< in: mtr */
 {
 	trx_sysf_t*	sys_header;
 	const char*	file_name;
@@ -721,42 +744,7 @@ trx_sys_update_mysql_binlog_offset(
 			 MLOG_4BYTES, mtr);
 }
 
-#ifdef UNIV_HOTBACKUP
-/*********************************************************************
-Prints to stderr the MySQL binlog info in the system header if the
-magic number shows it valid. */
-UNIV_INTERN
-void
-trx_sys_print_mysql_binlog_offset_from_page(
-/*========================================*/
-	const byte*	page)	/* in: buffer containing the trx
-				system header page, i.e., page number
-				TRX_SYS_PAGE_NO in the tablespace */
-{
-	const trx_sysf_t*	sys_header;
-
-	sys_header = page + TRX_SYS;
-
-	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
-			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
-
-		fprintf(stderr,
-			"ibbackup: Last MySQL binlog file position %lu %lu,"
-			" file name %s\n",
-			(ulong) mach_read_from_4(
-				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-			(ulong) mach_read_from_4(
-				sys_header + TRX_SYS_MYSQL_LOG_INFO
-				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-			sys_header + TRX_SYS_MYSQL_LOG_INFO
-			+ TRX_SYS_MYSQL_LOG_NAME);
-	}
-}
-#endif /* UNIV_HOTBACKUP */
-
-/*********************************************************************
+/*****************************************************************//**
 Stores the MySQL binlog offset info in the trx system header if
 the magic number shows it valid, and print the info to stderr */
 UNIV_INTERN
@@ -806,7 +794,7 @@ trx_sys_print_mysql_binlog_offset(void)
 	mtr_commit(&mtr);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */
 UNIV_INTERN
@@ -886,14 +874,14 @@ trx_sys_print_mysql_master_log_pos(void)
 	mtr_commit(&mtr);
 }
 
-/********************************************************************
-Looks for a free slot for a rollback segment in the trx system file copy. */
+/****************************************************************//**
+Looks for a free slot for a rollback segment in the trx system file copy.
+@return	slot index or ULINT_UNDEFINED if not found */
 UNIV_INTERN
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
-			/* out: slot index or ULINT_UNDEFINED if not found */
-	mtr_t*	mtr)	/* in: mtr */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	trx_sysf_t*	sys_header;
 	ulint		page_no;
@@ -916,14 +904,14 @@ trx_sysf_rseg_find_free(
 	return(ULINT_UNDEFINED);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates the file page for the transaction system. This function is called only
 at the database creation, before trx_sys_init. */
 static
 void
 trx_sysf_create(
 /*============*/
-	mtr_t*	mtr)	/* in: mtr */
+	mtr_t*	mtr)	/*!< in: mtr */
 {
 	trx_sysf_t*	sys_header;
 	ulint		slot_no;
@@ -993,7 +981,7 @@ trx_sysf_create(
 	mutex_exit(&kernel_mutex);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started. */
 UNIV_INTERN
@@ -1081,7 +1069,7 @@ trx_sys_init_at_db_start(void)
 	mtr_commit(&mtr);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Creates and initializes the transaction system at the database creation. */
 UNIV_INTERN
 void
@@ -1124,15 +1112,15 @@ trx_sys_create_extra_rseg(
 	mtr_commit(&mtr);
 }
 
-/*********************************************************************
-Update the file format tag. */
+/*****************************************************************//**
+Update the file format tag.
+@return	always TRUE */
 static
 ibool
 trx_sys_file_format_max_write(
 /*==========================*/
-					/* out: always TRUE */
-	ulint		format_id,	/* in: file format id */
-	const char**	name)		/* out: max file format name, can
+	ulint		format_id,	/*!< in: file format id */
+	const char**	name)		/*!< out: max file format name, can
 					be NULL */
 {
 	mtr_t		mtr;
@@ -1166,14 +1154,13 @@ trx_sys_file_format_max_write(
 	return(TRUE);
 }
 
-/*********************************************************************
-Read the file format tag. */
+/*****************************************************************//**
+Read the file format tag.
+@return	the file format or ULINT_UNDEFINED if not set. */
 static
 ulint
 trx_sys_file_format_max_read(void)
 /*==============================*/
-				/* out: the file format or
-				ULINT_UNDEFINED if not set. */
 {
 	mtr_t			mtr;
 	const byte*		ptr;
@@ -1205,29 +1192,29 @@ trx_sys_file_format_max_read(void)
 	return(format_id);
 }
 
-/*********************************************************************
-Get the name representation of the file format from its id. */
+/*****************************************************************//**
+Get the name representation of the file format from its id.
+@return	pointer to the name */
 UNIV_INTERN
 const char*
 trx_sys_file_format_id_to_name(
 /*===========================*/
-				/* out: pointer to the name */
-	const ulint	id)	/* in: id of the file format */
+	const ulint	id)	/*!< in: id of the file format */
 {
 	ut_a(id < FILE_FORMAT_NAME_N);
 
 	return(file_format_name_map[id]);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Check for the max file format tag stored on disk. Note: If max_format_id
-is == DICT_TF_FORMAT_MAX + 1 then we only print a warning. */
+is == DICT_TF_FORMAT_MAX + 1 then we only print a warning.
+@return	DB_SUCCESS or error code */
 UNIV_INTERN
 ulint
 trx_sys_file_format_max_check(
 /*==========================*/
-				/* out: DB_SUCCESS or error code */
-	ulint	max_format_id)	/* in: max format id to check */
+	ulint	max_format_id)	/*!< in: max format id to check */
 {
 	ulint	format_id;
 
@@ -1273,16 +1260,16 @@ trx_sys_file_format_max_check(
 	return(DB_SUCCESS);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Set the file format id unconditionally except if it's already the
-same value. */
+same value.
+@return	TRUE if value updated */
 UNIV_INTERN
 ibool
 trx_sys_file_format_max_set(
 /*========================*/
-					/* out: TRUE if value updated */
-	ulint		format_id,	/* in: file format id */
-	const char**	name)		/* out: max file format name or
+	ulint		format_id,	/*!< in: file format id */
+	const char**	name)		/*!< out: max file format name or
 					NULL if not needed. */
 {
 	ibool		ret = FALSE;
@@ -1302,7 +1289,7 @@ trx_sys_file_format_max_set(
 	return(ret);
 }
 
-/************************************************************************
+/********************************************************************//**
 Tags the system table space with minimum format id if it has not been
 tagged yet.
 WARNING: This function is only called during the startup and AFTER the
@@ -1322,17 +1309,16 @@ trx_sys_file_format_tag_init(void)
 	}
 }
 
-/************************************************************************
+/********************************************************************//**
 Update the file format tag in the system tablespace only if the given
-format id is greater than the known max id. */
+format id is greater than the known max id.
+@return	TRUE if format_id was bigger than the known max id */
 UNIV_INTERN
 ibool
 trx_sys_file_format_max_upgrade(
 /*============================*/
-					/* out: TRUE if format_id was
-					bigger than the known max id */
-	const char**	name,		/* out: max file format name */
-	ulint		format_id)	/* in: file format identifier */
+	const char**	name,		/*!< out: max file format name */
+	ulint		format_id)	/*!< in: file format identifier */
 {
 	ibool		ret = FALSE;
 
@@ -1352,18 +1338,18 @@ trx_sys_file_format_max_upgrade(
 	return(ret);
 }
 
-/*********************************************************************
-Get the name representation of the file format from its id. */
+/*****************************************************************//**
+Get the name representation of the file format from its id.
+@return	pointer to the max format name */
 UNIV_INTERN
 const char*
 trx_sys_file_format_max_get(void)
 /*=============================*/
-				/* out: pointer to the max format name */
 {
 	return(file_format_max.name);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Initializes the tablespace tag system. */
 UNIV_INTERN
 void
@@ -1380,7 +1366,7 @@ trx_sys_file_format_init(void)
 		file_format_max.id);
 }
 
-/*********************************************************************
+/*****************************************************************//**
 Closes the tablespace tag system. */
 UNIV_INTERN
 void
@@ -1388,4 +1374,313 @@ trx_sys_file_format_close(void)
 /*===========================*/
 {
 	/* Does nothing at the moment */
+}
+#else /* !UNIV_HOTBACKUP */
+/*****************************************************************//**
+Prints to stderr the MySQL binlog info in the system header if the
+magic number shows it valid. */
+UNIV_INTERN
+void
+trx_sys_print_mysql_binlog_offset_from_page(
+/*========================================*/
+	const byte*	page)	/*!< in: buffer containing the trx
+				system header page, i.e., page number
+				TRX_SYS_PAGE_NO in the tablespace */
+{
+	const trx_sysf_t*	sys_header;
+
+	sys_header = page + TRX_SYS;
+
+	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_LOG_INFO
+			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
+
+		fprintf(stderr,
+			"ibbackup: Last MySQL binlog file position %lu %lu,"
+			" file name %s\n",
+			(ulong) mach_read_from_4(
+				sys_header + TRX_SYS_MYSQL_LOG_INFO
+				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
+			(ulong) mach_read_from_4(
+				sys_header + TRX_SYS_MYSQL_LOG_INFO
+				+ TRX_SYS_MYSQL_LOG_OFFSET_LOW),
+			sys_header + TRX_SYS_MYSQL_LOG_INFO
+			+ TRX_SYS_MYSQL_LOG_NAME);
+	}
+}
+
+
+/* THESE ARE COPIED FROM NON-HOTBACKUP PART OF THE INNODB SOURCE TREE
+   (This code duplicaton should be fixed at some point!)
+*/
+
+#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
+/* The offset of the file format tag on the trx system header page */
+#define TRX_SYS_FILE_FORMAT_TAG		(UNIV_PAGE_SIZE - 16)
+/* We use these random constants to reduce the probability of reading
+garbage (from previous versions) that maps to an actual format id. We
+use these as bit masks at the time of  reading and writing from/to disk. */
+#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW	3645922177UL
+#define TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH	2745987765UL
+
+/* END OF COPIED DEFINITIONS */
+
+
+/*****************************************************************//**
+Reads the file format id from the first system table space file.
+Even if the call succeeds and returns TRUE, the returned format id
+may be ULINT_UNDEFINED signalling that the format id was not present
+in the data file.
+@return TRUE if call succeeds */
+UNIV_INTERN
+ibool
+trx_sys_read_file_format_id(
+/*========================*/
+	const char *pathname,  /*!< in: pathname of the first system
+				        table space file */
+	ulint *format_id)      /*!< out: file format of the system table
+				         space */
+{
+	os_file_t	file;
+	ibool		success;
+	byte		buf[UNIV_PAGE_SIZE * 2];
+	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
+	const byte*	ptr;
+	dulint		file_format_id;
+
+	*format_id = ULINT_UNDEFINED;
+	
+	file = os_file_create_simple_no_error_handling(
+		pathname,
+		OS_FILE_OPEN,
+		OS_FILE_READ_ONLY,
+		&success
+	);
+	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+        
+		ut_print_timestamp(stderr);
+        
+		fprintf(stderr,
+"  ibbackup: Error: trying to read system tablespace file format,\n"
+"  ibbackup: but could not open the tablespace file %s!\n",
+			pathname
+		);
+		return(FALSE);
+	}
+
+	/* Read the page on which file format is stored */
+
+	success = os_file_read_no_error_handling(
+		file, page, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE, 0, UNIV_PAGE_SIZE
+	);
+	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+        
+		ut_print_timestamp(stderr);
+        
+		fprintf(stderr,
+"  ibbackup: Error: trying to read system table space file format,\n"
+"  ibbackup: but failed to read the tablespace file %s!\n",
+			pathname
+		);
+		os_file_close(file);
+		return(FALSE);
+	}
+	os_file_close(file);
+
+	/* get the file format from the page */
+	ptr = page + TRX_SYS_FILE_FORMAT_TAG;
+	file_format_id = mach_read_from_8(ptr);
+
+	*format_id = file_format_id.low - TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_LOW;
+
+	if (file_format_id.high != TRX_SYS_FILE_FORMAT_TAG_MAGIC_N_HIGH
+	    || *format_id >= FILE_FORMAT_NAME_N) {
+
+		/* Either it has never been tagged, or garbage in it. */
+		*format_id = ULINT_UNDEFINED;
+		return(TRUE);
+	}
+	
+	return(TRUE);
+}
+
+
+/*****************************************************************//**
+Reads the file format id from the given per-table data file.
+@return TRUE if call succeeds */
+UNIV_INTERN
+ibool
+trx_sys_read_pertable_file_format_id(
+/*=================================*/
+	const char *pathname,  /*!< in: pathname of a per-table
+				        datafile */
+	ulint *format_id)      /*!< out: file format of the per-table
+				         data file */
+{
+	os_file_t	file;
+	ibool		success;
+	byte		buf[UNIV_PAGE_SIZE * 2];
+	page_t*		page = ut_align(buf, UNIV_PAGE_SIZE);
+	const byte*	ptr;
+	ib_uint32_t	flags;
+
+	*format_id = ULINT_UNDEFINED;
+	
+	file = os_file_create_simple_no_error_handling(
+		pathname,
+		OS_FILE_OPEN,
+		OS_FILE_READ_ONLY,
+		&success
+	);
+	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+        
+		ut_print_timestamp(stderr);
+        
+		fprintf(stderr,
+"  ibbackup: Error: trying to read per-table tablespace format,\n"
+"  ibbackup: but could not open the tablespace file %s!\n",
+			pathname
+		);
+		return(FALSE);
+	}
+
+	/* Read the first page of the per-table datafile */
+
+	success = os_file_read_no_error_handling(
+		file, page, 0, 0, UNIV_PAGE_SIZE
+	);
+	if (!success) {
+		/* The following call prints an error message */
+		os_file_get_last_error(TRUE);
+        
+		ut_print_timestamp(stderr);
+        
+		fprintf(stderr,
+"  ibbackup: Error: trying to per-table data file format,\n"
+"  ibbackup: but failed to read the tablespace file %s!\n",
+			pathname
+		);
+		os_file_close(file);
+		return(FALSE);
+	}
+	os_file_close(file);
+
+	/* get the file format from the page */
+	ptr = page + 54;
+	flags = mach_read_from_4(ptr);
+	if (flags == 0) {
+		/* file format is Antelope */
+		*format_id = 0;
+		return (TRUE);
+	} else if (flags & 1) {
+		/* tablespace flags are ok */
+		*format_id = (flags / 32) % 128;
+		return (TRUE);
+	} else {
+		/* bad tablespace flags */
+		return(FALSE);
+	}
+}
+
+
+/*****************************************************************//**
+Get the name representation of the file format from its id.
+@return	pointer to the name */
+UNIV_INTERN
+const char*
+trx_sys_file_format_id_to_name(
+/*===========================*/
+	const ulint	id)	/*!< in: id of the file format */
+{
+	if (!(id < FILE_FORMAT_NAME_N)) {
+		/* unknown id */
+		return ("Unknown");
+	}
+
+	return(file_format_name_map[id]);
+}
+
+#endif /* !UNIV_HOTBACKUP */
+
+/*********************************************************************
+Shutdown/Close the transaction system. */
+UNIV_INTERN
+void
+trx_sys_close(void)
+/*===============*/
+{
+	trx_rseg_t*	rseg;
+	read_view_t*	view;
+
+	ut_ad(trx_sys != NULL);
+
+	/* Check that all read views are closed except read view owned
+	by a purge. */
+
+	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
+		fprintf(stderr,
+			"InnoDB: Error: all read views were not closed"
+			" before shutdown:\n"
+			"InnoDB: %lu read views open \n",
+			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
+	}
+
+	sess_close(trx_dummy_sess);
+	trx_dummy_sess = NULL;
+
+	trx_purge_sys_close();
+
+	mutex_enter(&kernel_mutex);
+
+	/* Free the double write data structures. */
+	ut_a(trx_doublewrite != NULL);
+	ut_free(trx_doublewrite->write_buf_unaligned);
+	trx_doublewrite->write_buf_unaligned = NULL;
+
+	mem_free(trx_doublewrite->buf_block_arr);
+	trx_doublewrite->buf_block_arr = NULL;
+
+	mutex_free(&trx_doublewrite->mutex);
+	mem_free(trx_doublewrite);
+	trx_doublewrite = NULL;
+
+	/* There can't be any active transactions. */
+	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
+
+	while (rseg != NULL) {
+		trx_rseg_t*	prev_rseg = rseg;
+
+		rseg = UT_LIST_GET_NEXT(rseg_list, prev_rseg);
+		UT_LIST_REMOVE(rseg_list, trx_sys->rseg_list, prev_rseg);
+
+		trx_rseg_mem_free(prev_rseg);
+	}
+
+	view = UT_LIST_GET_FIRST(trx_sys->view_list);
+
+	while (view != NULL) {
+		read_view_t*	prev_view = view;
+
+		view = UT_LIST_GET_NEXT(view_list, prev_view);
+
+		/* Views are allocated from the trx_sys->global_read_view_heap.
+		So, we simply remove the element here. */
+		UT_LIST_REMOVE(view_list, trx_sys->view_list, prev_view);
+	}
+
+	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->rseg_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
+
+	mem_free(trx_sys);
+
+	trx_sys = NULL;
+	mutex_exit(&kernel_mutex);
 }

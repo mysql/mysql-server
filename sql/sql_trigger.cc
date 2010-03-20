@@ -409,7 +409,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
       */
       result= FALSE;
       /* Still, we need to log the query ... */
-      stmt_query.append(thd->query, thd->query_length);
+      stmt_query.append(thd->query(), thd->query_length());
       goto end;
     }
   }
@@ -507,7 +507,7 @@ end:
 
   if (!result)
   {
-    write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
+    result= write_bin_log(thd, TRUE, stmt_query.ptr(), stmt_query.length());
   }
 
   VOID(pthread_mutex_unlock(&LOCK_open));
@@ -918,7 +918,7 @@ bool Table_triggers_list::drop_trigger(THD *thd, TABLE_LIST *tables,
   List_iterator<LEX_STRING> it_connection_cl_name(connection_cl_names);
   List_iterator<LEX_STRING> it_db_cl_name(db_cl_names);
 
-  stmt_query->append(thd->query, thd->query_length);
+  stmt_query->append(thd->query(), thd->query_length());
 
   while ((name= it_name++))
   {

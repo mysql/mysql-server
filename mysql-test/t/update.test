@@ -452,3 +452,18 @@ DROP TABLE t1;
 DROP FUNCTION f1;
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug #47919 assert in open_table during ALTER temporary table
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER AUTO_INCREMENT, PRIMARY KEY (f1));
+CREATE TEMPORARY TABLE t2 LIKE t1;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+
+ALTER TABLE t2 COMMENT = 'ABC';
+UPDATE t2, t1 SET t2.f1 = 2, t1.f1 = 9;
+ALTER TABLE t2 COMMENT = 'DEF';
+
+DROP TABLE t1, t2;

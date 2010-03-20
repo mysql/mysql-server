@@ -1246,7 +1246,7 @@ xtPublic void xt_spinlock_init(XTThreadPtr self, XTSpinLockPtr spl)
 	(void) self;
 	spl->spl_lock = 0;
 #ifdef XT_NO_ATOMICS
-	xt_init_mutex(self, &spl->spl_mutex);
+	xt_init_mutex_with_autoname(self, &spl->spl_mutex);
 #endif
 #ifdef DEBUG
 	spl->spl_locker = 0;

@@ -460,8 +460,7 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const
 
 Field *Item_func::tmp_table_field(TABLE *table)
 {
-  Field *field;
-  LINT_INIT(field);
+  Field *field= NULL;
 
   switch (result_type()) {
   case INT_RESULT:
@@ -476,7 +475,7 @@ Field *Item_func::tmp_table_field(TABLE *table)
   case STRING_RESULT:
     return make_string_field(table);
   case DECIMAL_RESULT:
-    field= Field_new_decimal::new_decimal_field(this);
+    field= Field_new_decimal::create_from_item(this);
     break;
   case ROW_RESULT:
   default:
@@ -631,7 +630,7 @@ void Item_func::signal_divide_by_null()
 
 Item *Item_func::get_tmp_table_item(THD *thd)
 {
-  if (!with_sum_func && !const_item() && functype() != SUSERVAR_FUNC)
+  if (!with_sum_func && !const_item())
     return new Item_field(result_field);
   return copy_or_same(thd);
 }
@@ -4284,9 +4283,8 @@ void Item_func_set_user_var::save_item_result(Item *item)
 bool
 Item_func_set_user_var::update()
 {
-  bool res;
+  bool res= 0;
   DBUG_ENTER("Item_func_set_user_var::update");
-  LINT_INIT(res);
 
   switch (cached_result_type) {
   case REAL_RESULT:
@@ -4786,19 +4784,6 @@ void Item_func_get_user_var::fix_length_and_dec()
     thd->fatal_error();
 
   return;
-}
-
-
-uint Item_func_get_user_var::decimal_precision() const
-{
-  uint precision= max_length;
-  Item_result restype= result_type();
-
-  /* Default to maximum as the precision is unknown a priori. */
-  if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT))
-    precision= DECIMAL_MAX_PRECISION;
-
-  return precision;
 }
 
 

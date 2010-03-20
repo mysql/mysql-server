@@ -1,27 +1,72 @@
 
 --disable_warnings
-drop database if exists `drop-temp+table-test`;
+DROP DATABASE IF EXISTS `drop-temp+table-test`;
 --enable_warnings
 
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
-reset master;
-create database `drop-temp+table-test`;
-use `drop-temp+table-test`;
-create temporary table shortn1 (a int);
-create temporary table `table:name` (a int);
-create temporary table shortn2 (a int);
-select get_lock("a",10);
+RESET MASTER;
+CREATE DATABASE `drop-temp+table-test`;
+USE `drop-temp+table-test`;
+CREATE TEMPORARY TABLE shortn1 (a INT);
+CREATE TEMPORARY TABLE `table:name` (a INT);
+CREATE TEMPORARY TABLE shortn2 (a INT);
+
+##############################################################################
+# BUG#46572 DROP TEMPORARY table IF EXISTS does not have a consistent behavior
+# in ROW mode 
+# 
+# In RBR, 'DROP TEMPORARY TABLE ...' statement should never be binlogged no
+# matter if the tables exist or not. In contrast, both in SBR and MBR, the
+# statement should be always binlogged no matter if the tables exist or not.
+##############################################################################
+CREATE TEMPORARY TABLE tmp(c1 int);
+CREATE TEMPORARY TABLE tmp1(c1 int);
+CREATE TEMPORARY TABLE tmp2(c1 int);
+CREATE TEMPORARY TABLE tmp3(c1 int);
+CREATE TABLE t(c1 int);
+
+DROP TEMPORARY TABLE IF EXISTS tmp;
+
+--disable_warnings
+# Before fixing BUG#46572, 'DROP TEMPORARY TABLE IF EXISTS...' statement was
+# binlogged when the table did not exist in RBR.
+DROP TEMPORARY TABLE IF EXISTS tmp;
+
+# In RBR, 'DROP TEMPORARY TABLE ...' statement is never binlogged no matter if
+# the tables exist or not.
+DROP TEMPORARY TABLE IF EXISTS tmp, tmp1;
+DROP TEMPORARY TABLE tmp3;
+
+#In RBR, tmp2 will NOT be binlogged, because it is a temporary table.
+DROP TABLE IF EXISTS tmp2, t;
+
+#In RBR, tmp2 will be binlogged, because it does not exist and master do not know
+# whether it is a temporary table or not.
+DROP TABLE IF EXISTS tmp2, t;
+--enable_warnings
+
+SELECT GET_LOCK("a",10);
+
+#
+# BUG48216 Replication fails on all slaves after upgrade to 5.0.86 on master
+#
+# When the session is closed, any temporary tables of the session are dropped
+# and are binlogged. But it will be binlogged with a wrong database name when
+# the length of the database name('drop-temp-table-test') is greater than the
+# current database name('test').
+#
+USE test;
 disconnect con1;
 
 connection con2;
 # We want to SHOW BINLOG EVENTS, to know what was logged. But there is no
 # guarantee that logging of the terminated con1 has been done yet.
 # To be sure that logging has been done, we use a user lock.
-select get_lock("a",10);
-let $VERSION=`select version()`;
+SELECT GET_LOCK("a",10);
+let $VERSION=`SELECT VERSION()`;
 source include/show_binlog_events.inc;
-drop database `drop-temp+table-test`;
+DROP DATABASE `drop-temp+table-test`;
 
 # End of 4.1 tests

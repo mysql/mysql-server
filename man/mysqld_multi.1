@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_multi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_MULTI\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLD_MULTI\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -51,7 +51,7 @@ to specify which servers you want to start, stop, or obtain a status report for\
 [mysqld]
 group used for starting
 \fBmysqld\fR\&. (See, for example,
-Section\ \&2.11.2.2, \(lqStarting and Stopping MySQL Automatically\(rq\&.) However, when using multiple servers, it is necessary that each one use its own value for options such as the Unix socket file and TCP/IP port number\&. For more information on which options must be unique per server in a multiple\-server environment, see
+Section\ \&2.13.1.2, \(lqStarting and Stopping MySQL Automatically\(rq\&.) However, when using multiple servers, it is necessary that each one use its own value for options such as the Unix socket file and TCP/IP port number\&. For more information on which options must be unique per server in a multiple\-server environment, see
 Section\ \&5.6, \(lqRunning Multiple MySQL Servers on the Same Machine\(rq\&.
 .PP
 To invoke
@@ -183,12 +183,6 @@ Otherwise, option files in the standard list of locations are read, including an
 option, if one is given\&. (If the option is given multiple times, the last value is used\&.)
 .RE
 .PP
-Option files read are searched for
-[mysqld_multi]
-and
-[mysqld\fIN\fR]
-option groups\&.
-.PP
 Before MySQL 5\&.1\&.18, the preceding options are not recognized\&. Files in the standard locations are read, and any file named by the
 \fB\-\-config\-file=\fR\fB\fIfile_name\fR\fR
 option, if one is given\&. A file named by
@@ -198,6 +192,39 @@ is read only for
 option groups, not the
 [mysqld_multi]
 group\&.
+.PP
+Option files read are searched for
+[mysqld_multi]
+and
+[mysqld\fIN\fR]
+option groups\&. The
+[mysqld_multi]
+group can be used for options to
+\fBmysqld_multi\fR
+itself\&.
+[mysqld\fIN\fR]
+groups can be used for options passed to specific
+\fBmysqld\fR
+instances\&.
+.PP
+As of MySQL 5\&.1\&.35, the
+[mysqld]
+or
+[mysqld_safe]
+groups can be used for common options read by all instances of
+\fBmysqld\fR
+or
+\fBmysqld_safe\fR\&. You can specify a
+\fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
+option to use a different configuration file for that instance, in which case the
+[mysqld]
+or
+[mysqld_safe]
+groups from that file will be used for that instance\&. Before MySQL 5\&.1\&.35, some versions of
+\fBmysqld_multi\fR
+pass the
+\fB\-\-no\-defaults\fR
+options to instances, so these techniques are inapplicable\&.
 .PP
 \fBmysqld_multi\fR
 supports the following options:

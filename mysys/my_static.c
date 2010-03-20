@@ -104,6 +104,13 @@ static const char *proc_info_dummy(void *a __attribute__((unused)),
 /* this is to be able to call set_thd_proc_info from the C code */
 const char *(*proc_info_hook)(void *, const char *, const char *, const char *,
                               const unsigned int)= proc_info_dummy;
+#if defined(ENABLED_DEBUG_SYNC)
+/**
+  Global pointer to be set if callback function is defined
+  (e.g. in mysqld). See sql/debug_sync.cc.
+*/
+void (*debug_sync_C_callback_ptr)(const char *, size_t);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
 #ifdef __WIN__
 /* from my_getsystime.c */

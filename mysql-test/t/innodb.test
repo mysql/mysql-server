@@ -1321,7 +1321,7 @@ drop table t1;
 # InnoDB aligns the memory for the buffer pool to a page boundary. This may
 # cause actual pool size to be one less than requested depending on exact
 # alignment of obtained memory.
---replace_result 512 511
+--replace_result 8192 8191
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
@@ -1336,6 +1336,7 @@ SELECT variable_value - @innodb_row_lock_time_max_orig FROM information_schema.g
 SELECT variable_value - @innodb_row_lock_time_avg_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_time_avg';
 
 # Test for innodb_sync_spin_loops variable
+SET @innodb_sync_spin_loops_orig = @@innodb_sync_spin_loops;
 show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=1000;
 show variables like "innodb_sync_spin_loops";
@@ -1343,6 +1344,7 @@ set global innodb_sync_spin_loops=0;
 show variables like "innodb_sync_spin_loops";
 set global innodb_sync_spin_loops=20;
 show variables like "innodb_sync_spin_loops";
+set global innodb_sync_spin_loops=@innodb_sync_spin_loops_orig;
 
 # Test for innodb_thread_concurrency variable
 SET @old_innodb_thread_concurrency= @@global.innodb_thread_concurrency;
@@ -2268,7 +2270,7 @@ disconnect j;
 drop table t1, t2, t3, t5, t6, t8, t9;
 
 # bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
---error 1005
+--error ER_WRONG_COLUMN_NAME
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
 
 #
@@ -2349,18 +2351,6 @@ ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 DELETE FROM t1;
 DROP TABLE t2,t1;
-
-#
-# Bug #26835: table corruption after delete+insert
-#
-
-CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
-ENGINE=InnoDB;
-INSERT INTO t1 VALUES (0xEFBCA4EFBCA4EFBCA4);
-DELETE FROM t1;
-INSERT INTO t1 VALUES ('DDD');
-SELECT * FROM t1;
-DROP TABLE t1;
 
 #
 # Bug #23313 (AUTO_INCREMENT=# not reported back for InnoDB tables)
@@ -2554,6 +2544,8 @@ DISCONNECT c1;
 CONNECTION default;
 
 SET GLOBAL innodb_thread_concurrency = @innodb_thread_concurrency_orig;
+
+-- enable_query_log
 
 #######################################################################
 #                                                                     #

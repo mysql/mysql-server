@@ -344,16 +344,16 @@ public:
 	int couldBeURL(char *blob_url, int size)
 	{
 		if (blob_url && (size < PBMS_BLOB_URL_SIZE)) {
-			char			buffer[PBMS_BLOB_URL_SIZE+1];
-			u_int32_t		db_id = 0;
-			u_int32_t		tab_id = 0;
-			u_int64_t		blob_id = 0;
-			u_int64_t		blob_ref_id = 0;
-			u_int64_t		blob_size = 0;
-			u_int32_t		auth_code = 0;
-			u_int32_t		server_id = 0;
-			char		type, junk[5];
-			int			scanned;
+			char				buffer[PBMS_BLOB_URL_SIZE+1];
+			unsigned long		db_id = 0;
+			unsigned long		tab_id = 0;
+			unsigned long long	blob_id = 0;
+			unsigned long long	blob_ref_id = 0;
+			unsigned long long	blob_size = 0;
+			unsigned long		auth_code = 0;
+			unsigned long		server_id = 0;
+			char				type, junk[5];
+			int					scanned;
 
 			junk[0] = 0;
 			if (blob_url[size]) { // There is no guarantee that the URL will be null terminated.
@@ -364,12 +364,12 @@ public:
 			
 			scanned = sscanf(blob_url, URL_FMT"%4s", &db_id, &type, &tab_id, &blob_id, &auth_code, &server_id, &blob_ref_id, &blob_size, junk);
 			if (scanned != 8) {// If junk is found at the end this will also result in an invalid URL. 
-		printf("Bad URL \"%s\": scanned = %d, junk: %d, %d, %d, %d\n", blob_url, scanned, junk[0], junk[1], junk[2], junk[3]); 
+				printf("Bad URL \"%s\": scanned = %d, junk: %d, %d, %d, %d\n", blob_url, scanned, junk[0], junk[1], junk[2], junk[3]); 
 				return 0;
 			}
 			
 			if (junk[0] || (type != '~' && type != '_')) {
-		printf("Bad URL \"%s\": scanned = %d, junk: %d, %d, %d, %d\n", blob_url, scanned, junk[0], junk[1], junk[2], junk[3]); 
+				printf("Bad URL \"%s\": scanned = %d, junk: %d, %d, %d, %d\n", blob_url, scanned, junk[0], junk[1], junk[2], junk[3]); 
 				return 0;
 			}
 		

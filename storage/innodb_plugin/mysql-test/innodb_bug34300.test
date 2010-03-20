@@ -9,6 +9,7 @@
 -- disable_result_log
 
 # set packet size and reconnect 
+let $max_packet=`select @@global.max_allowed_packet`;
 SET @@global.max_allowed_packet=16777216;
 --connect (newconn, localhost, root,,)
 
@@ -30,3 +31,4 @@ ALTER TABLE bug34300 ADD COLUMN (f10 INT);
 SELECT f4, f8 FROM bug34300;
 
 DROP TABLE bug34300;
+EVAL SET @@global.max_allowed_packet=$max_packet;

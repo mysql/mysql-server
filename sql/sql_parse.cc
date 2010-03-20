@@ -126,6 +126,14 @@ static bool xa_trans_rolled_back(XID_STATE *xid_state)
 */
 static bool xa_trans_rollback(THD *thd)
 {
+  /*
+    Resource Manager error is meaningless at this point, as we perform
+    explicit rollback request by user. We must reset rm_error before
+    calling ha_rollback(), so thd->transaction.xid structure gets reset
+    by ha_rollback()/THD::transaction::cleanup().
+  */
+  thd->transaction.xid_state.rm_error= 0;
+
   bool status= test(ha_rollback(thd));
 
   thd->options&= ~(ulong) OPTION_BEGIN;
@@ -133,7 +141,6 @@ static bool xa_trans_rollback(THD *thd)
   thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   xid_cache_delete(&thd->transaction.xid_state);
   thd->transaction.xid_state.xa_state= XA_NOTR;
-  thd->transaction.xid_state.rm_error= 0;
 
   return status;
 }
@@ -419,29 +426,12 @@ void execute_init_command(THD *thd, sys_var_str *init_command_var,
 }
 
 
-/**
-  Execute commands from bootstrap_file.
-
-  Used when creating the initial grant tables.
-*/
-
-pthread_handler_t handle_bootstrap(void *arg)
+static void handle_bootstrap_impl(THD *thd)
 {
-  THD *thd=(THD*) arg;
   FILE *file=bootstrap_file;
   char *buff;
   const char* found_semicolon= NULL;
 
-  /* The following must be called before DBUG_ENTER */
-  thd->thread_stack= (char*) &thd;
-  if (my_thread_init() || thd->store_globals())
-  {
-#ifndef EMBEDDED_LIBRARY
-    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
-#endif
-    thd->fatal_error();
-    goto end;
-  }
   DBUG_ENTER("handle_bootstrap");
 
 #ifndef EMBEDDED_LIBRARY
@@ -468,7 +458,7 @@ pthread_handler_t handle_bootstrap(void *arg)
   thd->init_for_queries();
   while (fgets(buff, thd->net.max_packet, file))
   {
-    char *query, *res;
+    char *query;
     /* strlen() can't be deleted because fgets() doesn't return length */
     ulong length= (ulong) strlen(buff);
     while (buff[length-1] != '\n' && !feof(file))
@@ -509,10 +499,10 @@ pthread_handler_t handle_bootstrap(void *arg)
                                       thd->db_length + 1 +
                                       QUERY_CACHE_FLAGS_SIZE);
     thd->set_query(query, length);
-    DBUG_PRINT("query",("%-.4096s",thd->query));
+    DBUG_PRINT("query",("%-.4096s", thd->query()));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
     thd->profiling.start_new_query();
-    thd->profiling.set_query_source(thd->query, length);
+    thd->profiling.set_query_source(thd->query(), length);
 #endif
 
     /*
@@ -521,7 +511,7 @@ pthread_handler_t handle_bootstrap(void *arg)
     */
     thd->query_id=next_query_id();
     thd->set_time();
-    mysql_parse(thd, thd->query, length, & found_semicolon);
+    mysql_parse(thd, thd->query(), length, & found_semicolon);
     close_thread_tables(thd);			// Free tables
 
     bootstrap_error= thd->is_error();
@@ -540,6 +530,33 @@ pthread_handler_t handle_bootstrap(void *arg)
 #endif
   }
 
+  DBUG_VOID_RETURN;
+}
+
+
+/**
+  Execute commands from bootstrap_file.
+
+  Used when creating the initial grant tables.
+*/
+
+pthread_handler_t handle_bootstrap(void *arg)
+{
+  THD *thd=(THD*) arg;
+
+  /* The following must be called before DBUG_ENTER */
+  thd->thread_stack= (char*) &thd;
+  if (my_thread_init() || thd->store_globals())
+  {
+#ifndef EMBEDDED_LIBRARY
+    close_connection(thd, ER_OUT_OF_RESOURCES, 1);
+#endif
+    thd->fatal_error();
+    goto end;
+  }
+
+  handle_bootstrap_impl(thd);
+
 end:
   net_end(&thd->net);
   thd->cleanup();
@@ -554,7 +571,8 @@ end:
   my_thread_end();
   pthread_exit(0);
 #endif
-  DBUG_RETURN(0);
+
+  return 0;
 }
 
 /**
@@ -611,8 +629,10 @@ void free_items(Item *item)
   DBUG_VOID_RETURN;
 }
 
-/* This works because items are allocated with sql_alloc() */
-
+/**
+   This works because items are allocated with sql_alloc().
+   @note The function also handles null pointers (empty list).
+*/
 void cleanup_items(Item *item)
 {
   DBUG_ENTER("cleanup_items");  
@@ -1216,20 +1236,21 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     if (alloc_query(thd, packet, packet_length))
       break;					// fatal error is set
-    char *packet_end= thd->query + thd->query_length;
+    char *packet_end= thd->query() + thd->query_length();
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
     const char* end_of_stmt= NULL;
 
-    general_log_write(thd, command, thd->query, thd->query_length);
-    DBUG_PRINT("query",("%-.4096s",thd->query));
+    general_log_write(thd, command, thd->query(), thd->query_length());
+    DBUG_PRINT("query",("%-.4096s",thd->query()));
+    
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
-    thd->profiling.set_query_source(thd->query, thd->query_length);
+    thd->profiling.set_query_source(thd->query(), thd->query_length());
 #endif
 
     if (!(specialflag & SPECIAL_NO_PRIOR))
       my_pthread_setprio(pthread_self(),QUERY_PRIOR);
 
-    mysql_parse(thd, thd->query, thd->query_length, &end_of_stmt);
+    mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt);
 
     while (!thd->killed && (end_of_stmt != NULL) && ! thd->is_error())
     {
@@ -1239,12 +1260,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       ha_maria::implicit_commit(thd, FALSE);
 #endif
 
-      net_end_statement(thd);
-      query_cache_end_of_result(thd);
       /*
         Multiple queries exits, execute them individually
       */
       close_thread_tables(thd);
+
+      net_end_statement(thd);
+      query_cache_end_of_result(thd);
+
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd);
@@ -1308,8 +1331,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     table_list.alias= table_list.table_name= conv_name.str;
     packet= arg_end + 1;
 
-    if (!my_strcasecmp(system_charset_info, table_list.db,
-                       INFORMATION_SCHEMA_NAME.str))
+    if (is_schema_db(table_list.db, table_list.db_length))
     {
       ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, table_list.alias);
       if (schema_table)
@@ -1371,7 +1393,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       if (check_access(thd, CREATE_ACL, db.str , 0, 1, 0,
-                       is_schema_db(db.str)))
+                       is_schema_db(db.str, db.length)))
 	break;
       general_log_print(thd, command, "%.*s", db.length, db.str);
       bzero(&create_info, sizeof(create_info));
@@ -1390,7 +1412,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
 	break;
       }
-      if (check_access(thd, DROP_ACL, db.str, 0, 1, 0, is_schema_db(db.str)))
+      if (check_access(thd, DROP_ACL, db.str, 0, 1, 0,
+                            is_schema_db(db.str, db.length)))
 	break;
       if (thd->locked_tables || thd->active_transaction())
       {
@@ -1441,7 +1464,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_global_access(thd,RELOAD_ACL))
       break;
     general_log_print(thd, command, NullS);
-    if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
+#ifndef DBUG_OFF
+    bool debug_simulate= FALSE;
+    DBUG_EXECUTE_IF("simulate_detached_thread_refresh", debug_simulate= TRUE;);
+    if (debug_simulate)
+    {
+      /*
+        Simulate a reload without a attached thread session.
+        Provides a environment similar to that of when the
+        server receives a SIGHUP signal and reloads caches
+        and flushes tables.
+      */
+      bool res;
+      my_pthread_setspecific_ptr(THR_THD, NULL);
+      res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
+                                NULL, &not_used);
+      my_pthread_setspecific_ptr(THR_THD, thd);
+      if (!res)
+        my_ok(thd);
+      break;
+    }
+#endif
+    if (!reload_acl_and_cache(thd, options, NULL, &not_used))
       my_ok(thd);
     break;
   }
@@ -1611,15 +1655,24 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   ha_maria::implicit_commit(thd, FALSE);
 #endif
 
-  net_end_statement(thd);
-  query_cache_end_of_result(thd);
-
+  if (!(sql_command_flags[thd->lex->sql_command] & CF_CHANGES_DATA))
+  {
+    /* No changes in data;  We can send ok at once to the client */
+    net_end_statement(thd);
+    query_cache_end_of_result(thd);
+  }
   thd->proc_info= "closing tables";
   /* Free tables */
   close_thread_tables(thd);
 
   /* Update status; Must be done after close_thread_tables */
   thd->update_all_stats();
+
+  if (sql_command_flags[thd->lex->sql_command] & CF_CHANGES_DATA)
+  {
+    net_end_statement(thd);
+    query_cache_end_of_result(thd);
+  }
 
   log_slow_statement(thd);
 
@@ -1680,7 +1733,8 @@ void log_slow_statement(THD *thd)
     {
       thd_proc_info(thd, "logging slow query");
       thd->status_var.long_query_count++;
-      slow_log_print(thd, thd->query, thd->query_length, end_utime_of_query);
+      slow_log_print(thd, thd->query(), thd->query_length(), 
+                     end_utime_of_query);
     }
   }
   DBUG_VOID_RETURN;
@@ -2677,6 +2731,8 @@ mysql_execute_command(THD *thd)
       {
         lex->link_first_table_back(create_table, link_to_local);
         create_table->create= TRUE;
+        /* Base table and temporary table are not in the same name space. */
+        create_table->skip_temporary= 1;
       }
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables)))
@@ -3008,7 +3064,7 @@ end_with_restore_list:
       /*
         Presumably, REPAIR and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3042,7 +3098,7 @@ end_with_restore_list:
       /*
         Presumably, ANALYZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3066,7 +3122,7 @@ end_with_restore_list:
       /*
         Presumably, OPTIMIZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3183,7 +3239,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        mysql_bin_log.write(&ev);
+        (void) mysql_bin_log.write(&ev);        /* error is ignored */
         mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
       }
       DBUG_PRINT("debug", ("Just after generate_incident()"));
@@ -3376,9 +3432,9 @@ end_with_restore_list:
 			select_lex->where,
 			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
 			(ORDER *)NULL,
-			select_lex->options | thd->options |
+			(select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                        OPTION_SETUP_TABLES_DONE,
+                        OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
 			del_result, unit, select_lex);
       res|= thd->is_error();
       if (res)
@@ -3401,17 +3457,6 @@ end_with_restore_list:
     }
     else
     {
-      /*
-	If this is a slave thread, we may sometimes execute some 
-	DROP / * 40005 TEMPORARY * / TABLE
-	that come from parts of binlogs (likely if we use RESET SLAVE or CHANGE
-	MASTER TO), while the temporary table has already been dropped.
-	To not generate such irrelevant "table does not exist errors",
-	we silently add IF EXISTS if TEMPORARY was used.
-      */
-      if (thd->slave_thread)
-        lex->drop_if_exists= 1;
-
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
       thd->options|= OPTION_KEEP_LOG;
     }
@@ -3625,7 +3670,7 @@ end_with_restore_list:
     }
 #endif
     if (check_access(thd,CREATE_ACL,lex->name.str, 0, 1, 0,
-                     is_schema_db(lex->name.str)))
+                     is_schema_db(lex->name.str, lex->name.length)))
       break;
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias :
                               lex->name.str), &create_info, 0);
@@ -3660,7 +3705,7 @@ end_with_restore_list:
     }
 #endif
     if (check_access(thd,DROP_ACL,lex->name.str,0,1,0,
-                     is_schema_db(lex->name.str)))
+                     is_schema_db(lex->name.str, lex->name.length)))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -3694,9 +3739,12 @@ end_with_restore_list:
       my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
       break;
     }
-    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
-        check_access(thd, DROP_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
-        check_access(thd, CREATE_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
+    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)) ||
+        check_access(thd, DROP_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)) ||
+        check_access(thd, CREATE_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)))
     {
       res= 1;
       break;
@@ -3739,7 +3787,8 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
+    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -3895,7 +3944,8 @@ end_with_restore_list:
 		     first_table ? &first_table->grant.privilege : 0,
 		     first_table ? 0 : 1, 0,
                      first_table ? (bool) first_table->schema_table :
-                     select_lex->db ? is_schema_db(select_lex->db) : 0))
+                     select_lex->db ?
+                     is_schema_db(select_lex->db) : 0))
       goto error;
 
     if (thd->security_ctx->user)              // If not replication
@@ -4018,7 +4068,8 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        write_bin_log(thd, FALSE, thd->query, thd->query_length);
+        if ((res= write_bin_log(thd, FALSE, thd->query(), thd->query_length())))
+          break;
       }
       my_ok(thd);
     } 
@@ -4238,7 +4289,8 @@ end_with_restore_list:
     }
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0,
-                     is_schema_db(lex->sphead->m_db.str)))
+                     is_schema_db(lex->sphead->m_db.str,
+                                  lex->sphead->m_db.length)))
       goto create_sp_error;
 
     if (end_active_trans(thd))
@@ -4595,12 +4647,12 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
-          write_bin_log(thd, TRUE, thd->query, thd->query_length);
+          res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
-	  res= FALSE;
-	  my_ok(thd);
+          if (!res)
+            my_ok(thd);
 	  break;
 	}
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
@@ -4893,7 +4945,8 @@ create_sp_error:
     res= mysql_xa_recover(thd);
     break;
   case SQLCOM_ALTER_TABLESPACE:
-    if (check_access(thd, ALTER_ACL, thd->db, 0, 1, 0, thd->db ? is_schema_db(thd->db) : 0))
+    if (check_access(thd, ALTER_ACL, thd->db, 0, 1, 0,
+                     thd->db ? is_schema_db(thd->db, thd->db_length) : 0))
       break;
     if (!(res= mysql_alter_tablespace(thd, lex->alter_tablespace_info)))
       my_ok(thd);
@@ -5130,8 +5183,6 @@ bool check_single_table_access(THD *thd, ulong privilege,
   /* Show only 1 table for check_grant */
   if (!(all_tables->belong_to_view &&
         (thd->lex->sql_command == SQLCOM_SHOW_FIELDS)) &&
-      !(all_tables->view &&
-        all_tables->effective_algorithm == VIEW_ALGORITHM_TMPTABLE) &&
       check_grant(thd, privilege, all_tables, 0, 1, no_errors))
     goto deny;
 
@@ -6014,9 +6065,10 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (*found_semicolon &&
-              (thd->query_length= (ulong)(*found_semicolon - thd->query)))
-            thd->query_length--;
+          if (*found_semicolon && (ulong) (*found_semicolon - thd->query()))
+            thd->set_query_inner(thd->query(),
+                                 (uint32) (*found_semicolon -
+                                           thd->query() - 1));
           /* Actually execute the query */
           if (*found_semicolon)
           {
@@ -6324,11 +6376,11 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->table_name_length=table->table.length;
   ptr->lock_type=   lock_type;
   ptr->updating=    test(table_options & TL_OPTION_UPDATING);
+  /* TODO: remove TL_OPTION_FORCE_INDEX as it looks like it's not used */
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
-  if (!ptr->derived && !my_strcasecmp(system_charset_info, ptr->db,
-                                      INFORMATION_SCHEMA_NAME.str))
+  if (!ptr->derived && is_schema_db(ptr->db, ptr->db_length))
   {
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
@@ -6856,13 +6908,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       thd->store_globals();
       lex_start(thd);
     }
-    
+
     if (thd)
     {
       bool reload_acl_failed= acl_reload(thd);
       bool reload_grants_failed= grant_reload(thd);
       bool reload_servers_failed= servers_reload(thd);
-      
+
       if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
       {
         result= 1;
@@ -7054,7 +7106,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     pthread_mutex_unlock(&LOCK_global_user_client_stats);
   }
   *write_to_binlog= tmp_write_to_binlog;
-  return result;
+  /*
+    If the query was killed then this function must fail.
+  */
+  return result || (thd ? thd->killed : 0);
 }
 
 
@@ -7673,6 +7728,9 @@ void get_default_definer(THD *thd, LEX_USER *definer)
 
   definer->host.str= (char *) sctx->priv_host;
   definer->host.length= strlen(definer->host.str);
+
+  definer->password.str= NULL;
+  definer->password.length= 0;
 }
 
 
@@ -7724,6 +7782,8 @@ LEX_USER *create_definer(THD *thd, LEX_STRING *user_name, LEX_STRING *host_name)
 
   definer->user= *user_name;
   definer->host= *host_name;
+  definer->password.str= NULL;
+  definer->password.length= 0;
 
   return definer;
 }

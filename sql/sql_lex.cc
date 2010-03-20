@@ -790,9 +790,9 @@ int MYSQLlex(void *arg, void *yythd)
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   LEX *lex= thd->lex;
   YYSTYPE *yylval=(YYSTYPE*) arg;
-  CHARSET_INFO *cs= thd->charset();
-  uchar *state_map= cs->state_map;
-  uchar *ident_map= cs->ident_map;
+  CHARSET_INFO *const cs= thd->charset();
+  const uchar *const state_map= cs->state_map;
+  const uchar *const ident_map= cs->ident_map;
 
   LINT_INIT(c);
   lip->yylval=yylval;			// The global state
@@ -1843,13 +1843,15 @@ void st_select_lex_unit::exclude_tree()
 
 bool st_select_lex::mark_as_dependent(THD *thd, st_select_lex *last, Item *dependency)
 {
+
+  DBUG_ASSERT(this != last);
+
   /*
     Mark all selects from resolved to 1 before select where was
     found table as depended (of select where was found table)
   */
-  for (SELECT_LEX *s= this;
-       s && s != last;
-       s= s->outer_select())
+  SELECT_LEX *s= this;
+  do
   {
     if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
     {
@@ -1871,7 +1873,7 @@ bool st_select_lex::mark_as_dependent(THD *thd, st_select_lex *last, Item *depen
     if (subquery_expr && subquery_expr->mark_as_dependent(thd, last, 
                                                           dependency))
       return TRUE;
-  }
+  } while ((s= s->outer_select()) != last && s != 0);
   is_correlated= TRUE;
   this->master_unit()->item->is_correlated= TRUE;
   return FALSE;

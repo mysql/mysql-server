@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file os/os0proc.c
 The interface to the operating system
 process control primitives
 
@@ -43,11 +44,12 @@ UNIV_INTERN ibool os_use_large_pages;
 /* Large page size. This may be a boot-time option on some platforms */
 UNIV_INTERN ulint os_large_page_size;
 
-/********************************************************************
+/****************************************************************//**
 Converts the current process id to a number. It is not guaranteed that the
 number is unique. In Linux returns the 'process number' of the current
 thread. That number is the same as one sees in 'top', for example. In Linux
-the thread id is not the same as one sees in 'top'. */
+the thread id is not the same as one sees in 'top'.
+@return	process id as a number */
 UNIV_INTERN
 ulint
 os_proc_get_number(void)
@@ -60,14 +62,14 @@ os_proc_get_number(void)
 #endif
 }
 
-/********************************************************************
-Allocates large pages memory. */
+/****************************************************************//**
+Allocates large pages memory.
+@return	allocated memory */
 UNIV_INTERN
 void*
 os_mem_alloc_large(
 /*===============*/
-					/* out: allocated memory */
-	ulint*	n)			/* in/out: number of bytes */
+	ulint*	n)			/*!< in/out: number of bytes */
 {
 	void*	ptr;
 	ulint	size;
@@ -95,6 +97,7 @@ os_mem_alloc_large(
 			fprintf(stderr, "InnoDB: HugeTLB: Warning: Failed to"
 				" attach shared memory segment, errno %d\n",
 				errno);
+			ptr = NULL;
 		}
 
 		/* Remove the shared memory segment so that it will be
@@ -171,15 +174,15 @@ skip:
 	return(ptr);
 }
 
-/********************************************************************
+/****************************************************************//**
 Frees large pages memory. */
 UNIV_INTERN
 void
 os_mem_free_large(
 /*==============*/
-	void	*ptr,			/* in: pointer returned by
+	void	*ptr,			/*!< in: pointer returned by
 					os_mem_alloc_large() */
-	ulint	size)			/* in: size returned by
+	ulint	size)			/*!< in: size returned by
 					os_mem_alloc_large() */
 {
 	os_fast_mutex_lock(&ut_list_mutex);
@@ -224,39 +227,5 @@ os_mem_free_large(
 		os_fast_mutex_unlock(&ut_list_mutex);
 		UNIV_MEM_FREE(ptr, size);
 	}
-#endif
-}
-
-/********************************************************************
-Sets the priority boost for threads released from waiting within the current
-process. */
-UNIV_INTERN
-void
-os_process_set_priority_boost(
-/*==========================*/
-	ibool	do_boost)	/* in: TRUE if priority boost should be done,
-				FALSE if not */
-{
-#ifdef __WIN__
-	ibool	no_boost;
-
-	if (do_boost) {
-		no_boost = FALSE;
-	} else {
-		no_boost = TRUE;
-	}
-
-#if TRUE != 1
-# error "TRUE != 1"
-#endif
-
-	/* Does not do anything currently!
-	SetProcessPriorityBoost(GetCurrentProcess(), no_boost);
-	*/
-	fputs("Warning: process priority boost setting"
-	      " currently not functional!\n",
-	      stderr);
-#else
-	UT_NOT_USED(do_boost);
 #endif
 }

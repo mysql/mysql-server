@@ -92,3 +92,9 @@ execute abc;
 execute abc;
 deallocate prepare abc;
 
+--echo #
+--echo # Bug#45498: Socket variable not available on Windows
+--echo #
+
+SELECT VARIABLE_NAME FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+  WHERE VARIABLE_NAME = 'socket';

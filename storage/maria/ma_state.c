@@ -528,7 +528,7 @@ void _ma_remove_table_from_trnman(MARIA_SHARE *share, TRN *trn)
 
   safe_mutex_assert_owner(&share->intern_lock);
   
-  for (prev= (MARIA_USED_TABLES**) &trn->used_tables, tables= *prev;
+  for (prev= (MARIA_USED_TABLES**) (char*) &trn->used_tables, tables= *prev;
        tables;
        tables= *prev)
   {

@@ -86,6 +86,9 @@ os_sync_init(void)
 	UT_LIST_INIT(os_event_list);
 	UT_LIST_INIT(os_mutex_list);
 
+	os_sync_mutex = NULL;
+	os_sync_mutex_inited = FALSE;
+
 	os_sync_mutex = os_mutex_create(NULL);
 
 	os_sync_mutex_inited = TRUE;
@@ -713,6 +716,7 @@ os_fast_mutex_free(
 		os_mutex_enter(os_sync_mutex);
 	}
 
+	ut_ad(os_fast_mutex_count > 0);
 	os_fast_mutex_count--;
 
 	if (UNIV_LIKELY(os_sync_mutex_inited)) {

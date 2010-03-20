@@ -803,7 +803,7 @@ trx_commit_off_kernel(
 		in exactly the same order as commit lsn's, if the transactions
 		have different rollback segments. To get exactly the same
 		order we should hold the kernel mutex up to this point,
-		adding to to the contention of the kernel mutex. However, if
+		adding to the contention of the kernel mutex. However, if
 		a transaction T2 is able to see modifications made by
 		a transaction T1, T2 will always get a bigger transaction
 		number and a bigger commit lsn than T1. */
@@ -950,7 +950,7 @@ trx_commit_off_kernel(
 /****************************************************************//**
 Cleans up a transaction at database startup. The cleanup is needed if
 the transaction already got to the middle of a commit when the database
-crashed, andf we cannot roll it back. */
+crashed, and we cannot roll it back. */
 UNIV_INTERN
 void
 trx_cleanup_at_db_startup(
@@ -1636,9 +1636,7 @@ trx_mark_sql_stat_end(
 
 /**********************************************************************//**
 Prints info about a transaction to the given file. The caller must own the
-kernel mutex and must have called
-innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL
-or InnoDB cannot meanwhile change the info printed here. */
+kernel mutex. */
 UNIV_INTERN
 void
 trx_print(

@@ -56,9 +56,9 @@ select reverse_lookup();
 --disable_result_log
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
+select reverse_lookup("localhost");
 --enable_result_log
 
-select reverse_lookup("localhost");
 --error ER_CANT_INITIALIZE_UDF
 select avgcost();
 --error ER_CANT_INITIALIZE_UDF
@@ -342,29 +342,6 @@ drop function myfunc_double;
 drop function myfunc_int;
 
 #
-# Bug #28921: Queries containing UDF functions are cached
-#
-
---replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
-eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
-create table t1 (a char);
-
-set GLOBAL query_cache_size=1355776;
-reset query cache;
-
-select metaphon('MySQL') from t1;
-show status like "Qcache_hits";
-show status like "Qcache_queries_in_cache";
-
-select metaphon('MySQL') from t1;
-show status like "Qcache_hits";
-show status like "Qcache_queries_in_cache";
-
-drop table t1;
-drop function metaphon;
-set GLOBAL query_cache_size=default;
-
-#
 # Bug#28318  CREATE FUNCTION (UDF) requires a schema
 #
 
@@ -435,5 +412,17 @@ SELECT * FROM t2 WHERE a = sequence();
 
 DROP FUNCTION sequence;
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#46259: 5.0.83 -> 5.1.36, query doesn't work
+--echo #
+CREATE TABLE t1 ( a INT );
+
+INSERT INTO t1 VALUES (1), (2), (3);
+
+SELECT IF( a = 1, a, a ) AS `b` FROM t1 ORDER BY field( `b` + 1, 1 );
+SELECT IF( a = 1, a, a ) AS `b` FROM t1 ORDER BY field( `b`, 1 );
+
+DROP TABLE t1;
 
 --echo End of 5.0 tests.

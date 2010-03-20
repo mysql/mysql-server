@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (C) 2009 Sun Microsystems, Inc.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,14 +18,21 @@ INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
 
 noinst_HEADERS = thr_template.c
 
-noinst_PROGRAMS  = bitmap-t base64-t my_atomic-t lf-t waiting_threads-t
-
 LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/mysys/libmysys.a \
 		  $(top_builddir)/dbug/libdbug.a \
 		  $(top_builddir)/strings/libmystrings.a
 
 EXTRA_DIST       = CMakeLists.txt 
+noinst_PROGRAMS  = bitmap-t base64-t my_atomic-t lf-t waiting_threads-t \
+		   my_vsnprintf-t
+
+if NEED_THREAD
+# my_atomic-t is used to check thread functions, so it is safe to 
+# ignore the file in non-threaded builds.
+# In fact, it will not compile without thread support.
+noinst_PROGRAMS += my_atomic-t
+endif
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

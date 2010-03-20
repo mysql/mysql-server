@@ -287,6 +287,11 @@ enum legacy_db_type
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
+/*
+  Better name for DB_TYPE_UNKNOWN. Should be used for engines that do not have
+  a hard-coded type value here.
+ */
+#define DB_TYPE_AUTOASSIGN DB_TYPE_UNKNOWN
 
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
@@ -407,7 +412,6 @@ struct xid_t {
   my_xid get_my_xid()
   {
     return gtrid_length == MYSQL_XID_GTRID_LEN && bqual_length == 0 &&
-           !memcmp(data+MYSQL_XID_PREFIX_LEN, &server_id, sizeof(server_id)) &&
            !memcmp(data, MYSQL_XID_PREFIX, MYSQL_XID_PREFIX_LEN) ?
            quick_get_my_xid() : 0;
   }
@@ -897,9 +901,9 @@ typedef struct {
   ulonglong delete_length;
   ha_rows records;
   ulong mean_rec_length;
-  ulong create_time;
-  ulong check_time;
-  ulong update_time;
+  time_t create_time;
+  time_t check_time;
+  time_t update_time;
   ulonglong check_sum;
 } PARTITION_INFO;
 
@@ -930,6 +934,15 @@ typedef struct st_ha_create_information
   ulong key_block_size;
   SQL_LIST merge_list;
   handlerton *db_type;
+  /**
+    Row type of the table definition.
+
+    Defaults to ROW_TYPE_DEFAULT for all non-ALTER statements.
+    For ALTER TABLE defaults to ROW_TYPE_NOT_USED (means "keep the current").
+
+    Can be changed either explicitly by the parser.
+    If nothing speficied inherits the value of the original table (if present).
+  */
   enum row_type row_type;
   uint null_bits;                       /* NULL bits at start of record */
   uint options;				/* OR of HA_CREATE_ options */
@@ -1237,9 +1250,9 @@ public:
   ha_rows records;
   ha_rows deleted;			/* Deleted records */
   ulong mean_rec_length;		/* physical reclength */
-  ulong create_time;			/* When table was created */
-  ulong check_time;
-  ulong update_time;
+  time_t create_time;			/* When table was created */
+  time_t check_time;
+  time_t update_time;
   uint block_size;			/* index block size */
 
   /*

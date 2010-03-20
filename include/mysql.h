@@ -261,7 +261,7 @@ typedef struct st_mysql
   unsigned char	*connector_fd;		/* ConnectorFd for SSL */
   char		*host,*user,*passwd,*unix_socket,*server_version,*host_info;
   char          *info, *db;
-  struct charset_info_st *charset;
+  const struct charset_info_st *charset;
   MYSQL_FIELD	*fields;
   MEM_ROOT	field_alloc;
   my_ulonglong affected_rows;

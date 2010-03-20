@@ -628,7 +628,7 @@ ha_innobase::add_index(
 	ulint		num_created	= 0;
 	ibool		dict_locked	= FALSE;
 	ulint		new_primary;
-	ulint		error;
+	int		error;
 
 	DBUG_ENTER("ha_innobase::add_index");
 	ut_a(table);
@@ -656,14 +656,18 @@ ha_innobase::add_index(
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
 
-	/* Check that index keys are sensible */
-
-	error = innobase_check_index_keys(key_info, num_of_keys);
+	/* Check if the index name is reserved. */
+	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
+		error = -1;
+	} else {
+		/* Check that index keys are sensible */
+		error = innobase_check_index_keys(key_info, num_of_keys);
+	}
 
 	if (UNIV_UNLIKELY(error)) {
 err_exit:
 		mem_heap_free(heap);
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+		trx_general_rollback_for_mysql(trx, NULL);
 		trx_free_for_mysql(trx);
 		trx_commit_for_mysql(prebuilt->trx);
 		DBUG_RETURN(error);
@@ -761,10 +765,11 @@ err_exit:
 	ut_ad(error == DB_SUCCESS);
 
 	/* Commit the data dictionary transaction in order to release
-	the table locks on the system tables.  Unfortunately, this
-	means that if MySQL crashes while creating a new primary key
-	inside row_merge_build_indexes(), indexed_table will not be
-	dropped on crash recovery.  Thus, it will become orphaned. */
+	the table locks on the system tables.  This means that if
+	MySQL crashes while creating a new primary key inside
+	row_merge_build_indexes(), indexed_table will not be dropped
+	by trx_rollback_active().  It will have to be recovered or
+	dropped by the database administrator. */
 	trx_commit_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -801,7 +806,7 @@ error_handling:
 	alter table t drop index b, add index (b);
 
 	The fix will have to parse the SQL and note that the index
-	being added has the same name as the the one being dropped and
+	being added has the same name as the one being dropped and
 	ignore that in the dup index check.*/
 	//dict_table_check_for_dup_indexes(prebuilt->table);
 #endif
@@ -863,6 +868,7 @@ error_handling:
 		indexed_table->n_mysql_handles_opened++;
 
 		error = row_merge_drop_table(trx, innodb_table);
+		innodb_table = indexed_table;
 		goto convert_error;
 
 	case DB_TOO_BIG_RECORD:
@@ -877,7 +883,9 @@ error:
 		/* fall through */
 	default:
 		if (new_primary) {
-			row_merge_drop_table(trx, indexed_table);
+			if (indexed_table != innodb_table) {
+				row_merge_drop_table(trx, indexed_table);
+			}
 		} else {
 			if (!dict_locked) {
 				row_mysql_lock_data_dictionary(trx);

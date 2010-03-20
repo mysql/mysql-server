@@ -1117,18 +1117,27 @@ be equal for the Statement-format replication to work";
         goto err;
       }
     }
-    else if (is_network_error(mysql_errno(mysql)))
+    else if (is_network_error(err_code= mysql_errno(mysql)))
     {
-      mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                 "Get master TIME_ZONE failed with error: %s", mysql_error(mysql));
+      mi->report(ERROR_LEVEL, err_code,
+                 "Get master TIME_ZONE failed with error: %s",
+                 mysql_error(mysql));
       goto network_err;
-    } 
+    }
+    else if (err_code == ER_UNKNOWN_SYSTEM_VARIABLE)
+    {
+      /* We use ERROR_LEVEL to get the error logged to file */
+      mi->report(ERROR_LEVEL, err_code,
+
+                 "MySQL master doesn't have a TIME_ZONE variable. Note that"
+                 "if your timezone is not same between master and slave, your "
+                 "slave may get wrong data into timestamp columns");
+    }
     else
     {
       /* Fatal error */
       errmsg= "The slave I/O thread stops because a fatal error is encountered \
 when it try to get the value of TIME_ZONE global variable from master.";
-      err_code= mysql_errno(mysql);
       sprintf(err_buff, "%s Error: %s", errmsg, mysql_error(mysql));
       goto err;
     }
@@ -1238,7 +1247,8 @@ static int create_table_from_dump(THD* thd, MYSQL *mysql, const char* db,
   thd->db = (char*)db;
   DBUG_ASSERT(thd->db != 0);
   thd->db_length= strlen(thd->db);
-  mysql_parse(thd, thd->query, packet_len, &found_semicolon); // run create table
+  /* run create table */
+  mysql_parse(thd, thd->query(), packet_len, &found_semicolon);
   thd->db = save_db;            // leave things the way the were before
   thd->db_length= save_db_length;
   thd->options = save_options;
@@ -2033,8 +2043,7 @@ static int has_temporary_error(THD *thd)
   @retval 2 No error calling ev->apply_event(), but error calling
   ev->update_pos().
 */
-int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
-                               bool skip)
+int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli)
 {
   int exec_res= 0;
 
@@ -2079,37 +2088,33 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
     ev->when= my_time(0);
   ev->thd = thd; // because up to this point, ev->thd == 0
 
-  if (skip)
-  {
-    int reason= ev->shall_skip(rli);
-    if (reason == Log_event::EVENT_SKIP_COUNT)
-      --rli->slave_skip_counter;
-    pthread_mutex_unlock(&rli->data_lock);
-    if (reason == Log_event::EVENT_SKIP_NOT)
-      exec_res= ev->apply_event(rli);
-#ifndef DBUG_OFF
-    /*
-      This only prints information to the debug trace.
-
-      TODO: Print an informational message to the error log?
-    */
-    static const char *const explain[] = {
-      // EVENT_SKIP_NOT,
-      "not skipped",
-      // EVENT_SKIP_IGNORE,
-      "skipped because event should be ignored",
-      // EVENT_SKIP_COUNT
-      "skipped because event skip counter was non-zero"
-    };
-    DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
-                        thd->options & OPTION_BEGIN ? 1 : 0,
-                        rli->get_flag(Relay_log_info::IN_STMT)));
-    DBUG_PRINT("skip_event", ("%s event was %s",
-                              ev->get_type_str(), explain[reason]));
-#endif
-  }
-  else
+  int reason= ev->shall_skip(rli);
+  if (reason == Log_event::EVENT_SKIP_COUNT)
+    --rli->slave_skip_counter;
+  pthread_mutex_unlock(&rli->data_lock);
+  if (reason == Log_event::EVENT_SKIP_NOT)
     exec_res= ev->apply_event(rli);
+
+#ifndef DBUG_OFF
+  /*
+    This only prints information to the debug trace.
+
+    TODO: Print an informational message to the error log?
+  */
+  static const char *const explain[] = {
+    // EVENT_SKIP_NOT,
+    "not skipped",
+    // EVENT_SKIP_IGNORE,
+    "skipped because event should be ignored",
+    // EVENT_SKIP_COUNT
+    "skipped because event skip counter was non-zero"
+  };
+  DBUG_PRINT("info", ("OPTION_BEGIN: %d; IN_STMT: %d",
+                      thd->options & OPTION_BEGIN ? 1 : 0,
+                      rli->get_flag(Relay_log_info::IN_STMT)));
+  DBUG_PRINT("skip_event", ("%s event was %s",
+                            ev->get_type_str(), explain[reason]));
+#endif
 
   DBUG_PRINT("info", ("apply_event error = %d", exec_res));
   if (exec_res == 0)
@@ -2213,9 +2218,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       hits the UNTIL barrier.
     */
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-        rli->is_until_satisfied((rli->is_in_group() || !ev->log_pos) ?
-                                rli->group_master_log_pos :
-                                ev->log_pos - ev->data_written))
+        rli->is_until_satisfied(thd, ev))
     {
       char buf[22];
       sql_print_information("Slave SQL thread stopped because it reached its"
@@ -2229,7 +2232,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       delete ev;
       DBUG_RETURN(1);
     }
-    exec_res= apply_event_and_update_pos(ev, thd, rli, TRUE);
+    exec_res= apply_event_and_update_pos(ev, thd, rli);
 
     /*
       Format_description_log_event should not be deleted because it will be
@@ -2629,15 +2632,19 @@ Log entry on master is longer than max_allowed_packet (%ld) on \
 slave. If the entry is correct, restart the server with a higher value of \
 max_allowed_packet",
                           thd->variables.max_allowed_packet);
+          mi->report(ERROR_LEVEL, ER_NET_PACKET_TOO_LARGE,
+                     "%s", ER(ER_NET_PACKET_TOO_LARGE));
           goto err;
         case ER_MASTER_FATAL_ERROR_READING_BINLOG:
-          sql_print_error(ER(mysql_error_number), mysql_error_number,
-                          mysql_error(mysql));
+          mi->report(ERROR_LEVEL, ER_MASTER_FATAL_ERROR_READING_BINLOG,
+                     ER(ER_MASTER_FATAL_ERROR_READING_BINLOG),
+                     mysql_error_number, mysql_error(mysql));
           goto err;
-        case EE_OUTOFMEMORY:
-        case ER_OUTOFMEMORY:
+        case ER_OUT_OF_RESOURCES:
           sql_print_error("\
 Stopping slave I/O thread due to out-of-memory error from master");
+          mi->report(ERROR_LEVEL, ER_OUT_OF_RESOURCES,
+                     "%s", ER(ER_OUT_OF_RESOURCES));
           goto err;
         }
         if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
@@ -2746,9 +2753,11 @@ err:
   pthread_cond_broadcast(&mi->stop_cond);       // tell the world we are done
   DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&mi->run_lock);
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Can't return anything here
+  return 0;                                     // Avoid compiler warnings
 }
 
 /*
@@ -2952,7 +2961,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   */
   pthread_mutex_lock(&rli->data_lock);
   if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-      rli->is_until_satisfied(rli->group_master_log_pos))
+      rli->is_until_satisfied(thd, NULL))
   {
     char buf[22];
     sql_print_information("Slave SQL thread stopped because it reached its"
@@ -3104,10 +3113,11 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   pthread_cond_broadcast(&rli->stop_cond);
   DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
   pthread_mutex_unlock(&rli->run_lock);  // tell the world we are done
-  
+
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   pthread_exit(0);
-  DBUG_RETURN(0);                               // Can't return anything here
+  return 0;                                     // Avoid compiler warnings
 }
 
 
@@ -3705,7 +3715,7 @@ extern "C" void slave_io_thread_detach_vio()
 {
 #ifdef SIGNAL_WITH_VIO_CLOSE
   THD *thd= current_thd;
-  if (thd->slave_thread)
+  if (thd && thd->slave_thread)
     thd->clear_active_vio();
 #endif
 }
@@ -3791,10 +3801,11 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
       suppress_warnings= 0;
       mi->report(ERROR_LEVEL, last_errno,
                  "error %s to master '%s@%s:%d'"
-                 " - retry-time: %d  retries: %lu",
+                 " - retry-time: %d  retries: %lu  message: %s",
                  (reconnect ? "reconnecting" : "connecting"),
                  mi->user, mi->host, mi->port,
-                 mi->connect_retry, master_retry_count);
+                 mi->connect_retry, master_retry_count,
+                 mysql_error(mysql));
     }
     /*
       By default we try forever. The reason is that failure will trigger

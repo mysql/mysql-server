@@ -32,7 +32,7 @@
 #endif
 
 
-static uchar ctype_ucs2[] = {
+static const uchar ctype_ucs2[] = {
     0,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 40, 40, 40, 40, 40, 32, 32,
    32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32,
@@ -52,7 +52,7 @@ static uchar ctype_ucs2[] = {
     0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0
 };
 
-static uchar to_lower_ucs2[] = {
+static const uchar to_lower_ucs2[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -71,7 +71,7 @@ static uchar to_lower_ucs2[] = {
   240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255
 };
 
-static uchar to_upper_ucs2[] = {
+static const uchar to_upper_ucs2[] = {
     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
    16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
    32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
@@ -120,7 +120,7 @@ static size_t my_caseup_ucs2(CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
   
   while ((src < srcend) &&
@@ -142,7 +142,7 @@ static void my_hash_sort_ucs2(CHARSET_INFO *cs, const uchar *s, size_t slen,
   my_wc_t wc;
   int res;
   const uchar *e=s+slen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while (e > s+1 && e[-1] == ' ' && e[-2] == '\0')
     e-= 2;
@@ -174,7 +174,7 @@ static size_t my_casedn_ucs2(CHARSET_INFO *cs, char *src, size_t srclen,
   my_wc_t wc;
   int res;
   char *srcend= src + srclen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((src < srcend) &&
@@ -206,7 +206,7 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
   my_wc_t UNINIT_VAR(s_wc),t_wc;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -270,7 +270,7 @@ static int my_strnncollsp_ucs2(CHARSET_INFO *cs __attribute__((unused)),
 {
   const uchar *se, *te;
   size_t minlen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   /* extra safety to make sure the lengths are even numbers */
   slen&= ~1;
@@ -320,7 +320,7 @@ static int my_strncasecmp_ucs2(CHARSET_INFO *cs,
   my_wc_t UNINIT_VAR(s_wc),t_wc;
   const char *se=s+len;
   const char *te=t+len;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while ( s < se && t < te )
   {
@@ -369,7 +369,7 @@ static size_t my_strnxfrm_ucs2(CHARSET_INFO *cs,
   int plane;
   uchar *de = dst + dstlen;
   const uchar *se = src + srclen;
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
 
   while( src < se && dst < de )
   {
@@ -1360,7 +1360,7 @@ int my_wildcmp_ucs2_ci(CHARSET_INFO *cs,
 		    const char *wildstr,const char *wildend,
 		    int escape, int w_one, int w_many)
 {
-  MY_UNICASE_INFO **uni_plane= cs->caseinfo;
+  MY_UNICASE_INFO *const *uni_plane= cs->caseinfo;
   return my_wildcmp_unicode(cs,str,str_end,wildstr,wildend,
                             escape,w_one,w_many,uni_plane); 
 }
@@ -1498,6 +1498,14 @@ void my_hash_sort_ucs2_bin(CHARSET_INFO *cs __attribute__((unused)),
   }
 }
 
+
+static inline my_wc_t
+ucs2_to_wc(const uchar *ptr)
+{
+  return (((uint) ptr[0]) << 8) + ptr[1];
+}
+
+
 /*
 ** Calculate min_str and max_str that ranges a LIKE string.
 ** Arguments:
@@ -1526,12 +1534,12 @@ my_bool my_like_range_ucs2(CHARSET_INFO *cs,
   char *min_org=min_str;
   char *min_end=min_str+res_length;
   size_t charlen= res_length / cs->mbmaxlen;
-  const char *contraction_flags= cs->contractions ?
-             ((const char*) cs->contractions) + 0x40*0x40 : NULL;
+  my_bool have_contractions= my_uca_have_contractions(cs);
   
   for ( ; ptr + 1 < end && min_str + 1 < min_end && charlen > 0
         ; ptr+=2, charlen--)
   {
+    my_wc_t wc;
     if (ptr[0] == '\0' && ptr[1] == escape && ptr + 1 < end)
     {
       ptr+=2;					/* Skip escape */
@@ -1567,9 +1575,10 @@ fill_max_and_min:
       return 0;
     }
 
-    if (contraction_flags && ptr + 3 < end &&
-        ptr[0] == '\0' && contraction_flags[(uchar) ptr[1]])
+    if (have_contractions && ptr + 3 < end &&
+        my_uca_can_be_contraction_head(cs, (wc= ucs2_to_wc((uchar*) ptr))))
     {
+      my_wc_t wc2;
       /* Contraction head found */
       if (ptr[2] == '\0' && (ptr[3] == w_one || ptr[3] == w_many))
       {
@@ -1581,8 +1590,8 @@ fill_max_and_min:
         Check if the second letter can be contraction part,
         and if two letters really produce a contraction.
       */
-      if (ptr[2] == '\0' && contraction_flags[(uchar) ptr[3]] &&
-          cs->contractions[(ptr[1]-0x40)*0x40 + ptr[3] - 0x40])
+      if (my_uca_can_be_contraction_tail(cs, (wc2= ucs2_to_wc((uchar*) ptr + 2))) &&
+          my_uca_contraction2_weight(cs, wc , wc2))
       {
         /* Contraction found */
         if (charlen == 1 || min_str + 2 >= min_end)
@@ -1602,16 +1611,6 @@ fill_max_and_min:
     *min_str++= *max_str++ = ptr[1];
   }
 
-  /* Temporary fix for handling w_one at end of string (key compression) */
-  {
-    char *tmp;
-    for (tmp= min_str ; tmp-1 > min_org && tmp[-1] == '\0' && tmp[-2]=='\0';)
-    {
-      *--tmp=' ';
-      *--tmp='\0';
-    }
-  }
-  
   *min_length= *max_length = (size_t) (min_str - min_org);
   while (min_str + 1 < min_end)
   {
@@ -1709,7 +1708,7 @@ MY_CHARSET_HANDLER my_charset_ucs2_handler=
 };
 
 
-CHARSET_INFO my_charset_ucs2_general_ci=
+struct charset_info_st my_charset_ucs2_general_ci=
 {
     35,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_PRIMARY|MY_CS_STRNXFRM|MY_CS_UNICODE|MY_CS_NONASCII,
@@ -1741,7 +1740,7 @@ CHARSET_INFO my_charset_ucs2_general_ci=
     &my_collation_ucs2_general_ci_handler
 };
 
-CHARSET_INFO my_charset_ucs2_bin=
+struct charset_info_st my_charset_ucs2_bin=
 {
     90,0,0,		/* number       */
     MY_CS_COMPILED|MY_CS_BINSORT|MY_CS_UNICODE|MY_CS_NONASCII,

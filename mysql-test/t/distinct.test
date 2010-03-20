@@ -573,4 +573,44 @@ SELECT DISTINCT a, b, d, c FROM t1;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #46159: simple query that never returns
+--echo #
+
+# Set max_heap_table_size to the minimum value so that GROUP BY table in the
+# SELECT query below gets converted to MyISAM
+SET @old_max_heap_table_size = @@max_heap_table_size;
+SET @@max_heap_table_size = 16384;
+
+# Set sort_buffer_size to the mininum value so that remove_duplicates() calls
+# remove_dup_with_compare()
+SET @old_sort_buffer_size = @@sort_buffer_size;
+SET @@sort_buffer_size = 32804;
+
+CREATE TABLE t1(c1 int, c2 VARCHAR(20));
+INSERT INTO t1 VALUES (1, '1'), (1, '1'), (2, '2'), (3, '1'), (3, '1'), (4, '4');
+# Now we just need to pad the table with random data so we have enough unique
+# values to force conversion of the GROUP BY table to MyISAM
+INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
+INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
+INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
+INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
+INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
+INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
+INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
+INSERT INTO t1 SELECT 5 + 10000 * RAND(), '5' FROM t1;
+
+# First rows of the GROUP BY table that will be processed by 
+# remove_dup_with_compare()
+SELECT c1, c2, COUNT(*) FROM t1 GROUP BY c1 LIMIT 4;
+
+# The actual test case
+SELECT DISTINCT c2 FROM t1 GROUP BY c1 HAVING COUNT(*) > 1;
+
+# Cleanup
+
+DROP TABLE t1;
+SET @@sort_buffer_size = @old_sort_buffer_size;
+SET @@max_heap_table_size = @old_max_heap_table_size;
+
 --echo End of 5.1 tests

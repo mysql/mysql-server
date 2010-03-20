@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/lock0priv.ic
 Lock module internal inline methods.
 
 Created July 16, 2007 Vasil Dimov
@@ -31,14 +32,14 @@ methods but they are used only in that file. */
 #error Do not include lock0priv.ic outside of the lock/ module
 #endif
 
-/*************************************************************************
-Gets the type of a lock. */
+/*********************************************************************//**
+Gets the type of a lock.
+@return	LOCK_TABLE or LOCK_REC */
 UNIV_INLINE
 ulint
 lock_get_type_low(
 /*==============*/
-				/* out: LOCK_TABLE or LOCK_REC */
-	const lock_t*	lock)	/* in: lock */
+	const lock_t*	lock)	/*!< in: lock */
 {
 	ut_ad(lock);
 

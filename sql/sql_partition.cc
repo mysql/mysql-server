@@ -196,26 +196,27 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
 {
   DBUG_ENTER("partition_default_handling");
 
-  if (part_info->use_default_no_partitions)
+  if (!is_create_table_ind)
   {
-    if (!is_create_table_ind &&
-        table->file->get_no_parts(normalized_path, &part_info->no_parts))
+    if (part_info->use_default_no_partitions)
     {
-      DBUG_RETURN(TRUE);
+      if (table->file->get_no_parts(normalized_path, &part_info->no_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
     }
-  }
-  else if (part_info->is_sub_partitioned() &&
-           part_info->use_default_no_subpartitions)
-  {
-    uint no_parts;
-    if (!is_create_table_ind &&
-        (table->file->get_no_parts(normalized_path, &no_parts)))
+    else if (part_info->is_sub_partitioned() &&
+             part_info->use_default_no_subpartitions)
     {
-      DBUG_RETURN(TRUE);
+      uint no_parts;
+      if (table->file->get_no_parts(normalized_path, &no_parts))
+      {
+        DBUG_RETURN(TRUE);
+      }
+      DBUG_ASSERT(part_info->no_parts > 0);
+      DBUG_ASSERT((no_parts % part_info->no_parts) == 0);
+      part_info->no_subparts= no_parts / part_info->no_parts;
     }
-    DBUG_ASSERT(part_info->no_parts > 0);
-    part_info->no_subparts= no_parts / part_info->no_parts;
-    DBUG_ASSERT((no_parts % part_info->no_parts) == 0);
   }
   part_info->set_up_defaults_for_partitioning(table->file,
                                               (ulonglong)0, (uint)0);
@@ -869,6 +870,8 @@ int check_signed_flag(partition_info *part_info)
     part_info            Reference to partitioning data structure
     is_sub_part          Is the table subpartitioned as well
     is_field_to_be_setup Flag if we are to set-up field arrays
+    is_create_table_ind  Indicator of whether openfrm was called as part of
+                         CREATE or ALTER TABLE
 
   RETURN VALUE
     TRUE                 An error occurred, something was wrong with the
@@ -891,8 +894,9 @@ int check_signed_flag(partition_info *part_info)
     on the field object.
 */
 
-bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
-                          bool is_sub_part, bool is_field_to_be_setup)
+static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
+                          bool is_sub_part, bool is_field_to_be_setup,
+                          bool is_create_table_ind)
 {
   partition_info *part_info= table->part_info;
   uint dir_length, home_dir_length;
@@ -905,6 +909,8 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   char* db_name;
   char db_name_string[FN_REFLEN];
   bool save_use_only_table_context;
+  uint8 saved_full_group_by_flag;
+  nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
   if (part_info->fixed)
@@ -974,9 +980,19 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   save_use_only_table_context= thd->lex->use_only_table_context;
   thd->lex->use_only_table_context= TRUE;
   thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
+  saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
+  saved_allow_sum_func= thd->lex->allow_sum_func;
+  thd->lex->allow_sum_func= 0;
   
   if (!(error= func_expr->fix_fields(thd, (Item**)&func_expr)))
     func_expr->walk(&Item::vcol_in_partition_func_processor, 0, NULL);
+
+  /*
+    Restore full_group_by_flag and allow_sum_func,
+    fix_fields should not affect mysql_select later, see Bug#46923.
+  */
+  thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
+  thd->lex->allow_sum_func= saved_allow_sum_func;
 
   thd->lex->use_only_table_context= save_use_only_table_context;
 
@@ -993,10 +1009,31 @@ bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   thd->where= save_where;
   if (unlikely(func_expr->const_item()))
   {
-    my_error(ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
+    my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
     clear_field_flag(table);
     goto end;
   }
+
+  /*
+    We don't allow creating partitions with timezone-dependent expressions as
+    a (sub)partitioning function, but we want to allow such expressions when
+    opening existing tables for easier maintenance. This exception should be
+    deprecated at some point in future so that we always throw an error.
+  */
+  if (func_expr->walk(&Item::is_timezone_dependent_processor,
+                      0, NULL))
+  {
+    if (is_create_table_ind)
+    {
+      my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
+      goto end;
+    }
+    else
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                   ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
+                   ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
+  }
+
   if ((!is_sub_part) && (error= check_signed_flag(part_info)))
     goto end;
   result= FALSE;
@@ -1604,7 +1641,8 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->subpart_expr,
-                                        table, TRUE, TRUE)))
+                                        table, TRUE, TRUE,
+                                        is_create_table_ind)))
         goto end;
       if (unlikely(part_info->subpart_expr->result_type() != INT_RESULT))
       {
@@ -1632,7 +1670,8 @@ bool fix_partition_func(THD *thd, TABLE *table,
     else
     {
       if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                        table, FALSE, TRUE)))
+                                        table, FALSE, TRUE,
+                                        is_create_table_ind)))
         goto end;
       if (unlikely(part_info->part_expr->result_type() != INT_RESULT))
       {
@@ -1646,7 +1685,8 @@ bool fix_partition_func(THD *thd, TABLE *table,
   {
     const char *error_str;
     if (unlikely(fix_fields_part_func(thd, part_info->part_expr,
-                                      table, FALSE, TRUE)))
+                                      table, FALSE, TRUE,
+                                      is_create_table_ind)))
       goto end;
     if (part_info->part_type == RANGE_PARTITION)
     {
@@ -1680,7 +1720,7 @@ bool fix_partition_func(THD *thd, TABLE *table,
   if (((part_info->part_type != HASH_PARTITION ||
       part_info->list_of_part_fields == FALSE) &&
       check_part_func_fields(part_info->part_field_array, TRUE)) ||
-      (part_info->list_of_part_fields == FALSE &&
+      (part_info->list_of_subpart_fields == FALSE &&
        part_info->is_sub_partitioned() &&
        check_part_func_fields(part_info->subpart_field_array, TRUE)))
   {
@@ -2839,16 +2879,13 @@ int get_partition_id_range(partition_info *part_info,
     part_func_value-= 0x8000000000000000ULL;
   while (max_part_id > min_part_id)
   {
-    loc_part_id= (max_part_id + min_part_id + 1) >> 1;
+    loc_part_id= (max_part_id + min_part_id) / 2;
     if (range_array[loc_part_id] <= part_func_value)
       min_part_id= loc_part_id + 1;
     else
-      max_part_id= loc_part_id - 1;
+      max_part_id= loc_part_id;
   }
   loc_part_id= max_part_id;
-  if (part_func_value >= range_array[loc_part_id])
-    if (loc_part_id != max_partition)
-      loc_part_id++;
   *part_id= (uint32)loc_part_id;
   if (loc_part_id == max_partition &&
       part_func_value >= range_array[loc_part_id] &&
@@ -2922,6 +2959,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
                                            bool include_endpoint)
 {
   longlong *range_array= part_info->range_int_array;
+  longlong part_end_val;
   uint max_partition= part_info->no_parts - 1;
   uint min_part_id= 0, max_part_id= max_partition, loc_part_id;
   /* Get the partitioning function value for the endpoint */
@@ -2955,46 +2993,46 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
     }
   }
 
-
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
   if (left_endpoint && !include_endpoint)
     part_func_value++;
+
+  /*
+    Search for the partition containing part_func_value
+    (including the right endpoint).
+  */
   while (max_part_id > min_part_id)
   {
-    loc_part_id= (max_part_id + min_part_id + 1) >> 1;
-    if (range_array[loc_part_id] <= part_func_value)
+    loc_part_id= (max_part_id + min_part_id) / 2;
+    if (range_array[loc_part_id] < part_func_value)
       min_part_id= loc_part_id + 1;
     else
-      max_part_id= loc_part_id - 1;
+      max_part_id= loc_part_id;
   }
   loc_part_id= max_part_id;
-  if (loc_part_id < max_partition && 
-      part_func_value >= range_array[loc_part_id+1])
-  {
-   loc_part_id++;
-  }
+
+  /* Adjust for endpoints */
+  part_end_val= range_array[loc_part_id];
   if (left_endpoint)
   {
-    longlong bound= range_array[loc_part_id];
     /*
       In case of PARTITION p VALUES LESS THAN MAXVALUE
       the maximum value is in the current partition.
     */
-    if (part_func_value > bound ||
-        (part_func_value == bound &&
-         (!part_info->defined_max_value || loc_part_id < max_partition)))
+    if (part_func_value > part_end_val ||
+        (part_func_value == part_end_val &&
+         (loc_part_id < max_partition || !part_info->defined_max_value)))
       loc_part_id++;
   }
   else 
   {
-    if (loc_part_id < max_partition)
-    {
-      if (part_func_value == range_array[loc_part_id])
-        loc_part_id += test(include_endpoint);
-      else if (part_func_value > range_array[loc_part_id])
-        loc_part_id++;
-    }
+    /* if 'WHERE <= X' and partition is LESS THAN (X) include next partition */
+    if (include_endpoint && loc_part_id < max_partition &&
+        part_func_value == part_end_val)
+      loc_part_id++;
+
+    /* Right endpoint, set end after correct partition */
     loc_part_id++;
   }
   DBUG_RETURN(loc_part_id);
@@ -4077,8 +4115,9 @@ static int fast_end_partition(THD *thd, ulonglong copied,
   }
 
   if ((!is_empty) && (!written_bin_log) &&
-      (!thd->lex->no_write_to_binlog))
-    write_bin_log(thd, FALSE, thd->query, thd->query_length);
+      (!thd->lex->no_write_to_binlog) &&
+    write_bin_log(thd, FALSE, thd->query(), thd->query_length()))
+    DBUG_RETURN(TRUE);
 
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
               (ulong) (copied + deleted),
@@ -5669,8 +5708,7 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   part_info->first_log_entry= NULL;
   build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
-  build_table_filename(tmp_path, sizeof(tmp_path) - 1, lpt->db,
-                       lpt->table_name, "#", 0);
+  build_table_shadow_filename(tmp_path, sizeof(tmp_path) - 1, lpt);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
@@ -5726,8 +5764,7 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
 
   build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
-  build_table_filename(tmp_path, sizeof(tmp_path) - 1, lpt->db,
-                       lpt->table_name, "#", 0);
+  build_table_shadow_filename(tmp_path, sizeof(tmp_path) - 1, lpt);
   pthread_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
@@ -5952,7 +5989,7 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
   partition_info *part_info= lpt->part_info;
   DBUG_ENTER("handle_alter_part_error");
 
-  if (!part_info->first_log_entry &&
+  if (part_info->first_log_entry &&
       execute_ddl_log_entry(current_thd,
                             part_info->first_log_entry->entry_pos))
   {
@@ -6236,7 +6273,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query, thd->query_length), FALSE)) ||
+                        thd->query(), thd->query_length()), FALSE)) ||
         ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
@@ -6303,7 +6340,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query, thd->query_length), FALSE)) ||
+                        thd->query(), thd->query_length()), FALSE)) ||
         ERROR_INJECT_CRASH("crash_add_partition_6") ||
         write_log_rename_frm(lpt) ||
         (not_completed= FALSE) ||
@@ -6393,7 +6430,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_change_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query, thd->query_length), FALSE)) ||
+                        thd->query(), thd->query_length()), FALSE)) ||
         ERROR_INJECT_CRASH("crash_change_partition_7") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ERROR_INJECT_CRASH("crash_change_partition_8") ||
@@ -7210,4 +7247,3 @@ void create_subpartition_name(char *out, const char *in1,
             "#SP#", transl_subpart_name, "#REN#", NullS);
 }
 #endif
-

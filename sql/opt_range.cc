@@ -489,9 +489,9 @@ public:
                                   range_key, *range_key_flag);
     *range_key_flag|= key_tree->min_flag;
     if (key_tree->next_key_part &&
+	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
-	!(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)) &&
-	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+	!(*range_key_flag & (NO_MIN_RANGE | NEAR_MIN)))
       res+= key_tree->next_key_part->store_min_key(key, range_key,
                                                    range_key_flag);
     return res;
@@ -505,9 +505,9 @@ public:
                                  range_key, *range_key_flag);
     (*range_key_flag)|= key_tree->max_flag;
     if (key_tree->next_key_part &&
+	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
 	key_tree->next_key_part->part == key_tree->part+1 &&
-	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)) &&
-	key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+	!(*range_key_flag & (NO_MAX_RANGE | NEAR_MAX)))
       res+= key_tree->next_key_part->store_max_key(key, range_key,
                                                    range_key_flag);
     return res;
@@ -1765,6 +1765,7 @@ SEL_ARG *SEL_ARG::clone(RANGE_OPT_PARAM *param, SEL_ARG *new_parent,
     tmp->prev= *next_arg;			// Link into next/prev chain
     (*next_arg)->next=tmp;
     (*next_arg)= tmp;
+    tmp->part= this->part;
   }
   else
   {
@@ -5728,6 +5729,27 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       !(conf_func->compare_collation()->state & MY_CS_BINSORT))
     goto end;
 
+  if (key_part->image_type == Field::itMBR)
+  {
+    switch (type) {
+    case Item_func::SP_EQUALS_FUNC:
+    case Item_func::SP_DISJOINT_FUNC:
+    case Item_func::SP_INTERSECTS_FUNC:
+    case Item_func::SP_TOUCHES_FUNC:
+    case Item_func::SP_CROSSES_FUNC:
+    case Item_func::SP_WITHIN_FUNC:
+    case Item_func::SP_CONTAINS_FUNC:
+    case Item_func::SP_OVERLAPS_FUNC:
+      break;
+    default:
+      /* 
+        We cannot involve spatial indexes for queries that
+        don't use MBREQUALS(), MBRDISJOINT(), etc. functions.
+      */
+      goto end;
+    }
+  }
+
   if (param->using_real_indexes)
     optimize_range= field->optimize_range(param->real_keynr[key_part->key],
                                           key_part->part);
@@ -5895,6 +5917,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
       if (type == Item_func::LT_FUNC && (value->val_int() > 0))
         type = Item_func::LE_FUNC;
       else if (type == Item_func::GT_FUNC &&
+               (field->type() != FIELD_TYPE_BIT) &&
                !((Field_num*)field)->unsigned_flag &&
                !((Item_int*)value)->unsigned_flag &&
                (value->val_int() < 0))
@@ -5909,6 +5932,17 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
     goto end;
   }
   field->table->in_use->variables.sql_mode= orig_sql_mode;
+
+  /*
+    Any sargable predicate except "<=>" involving NULL as a constant is always
+    FALSE
+  */
+  if (type != Item_func::EQUAL_FUNC && field->is_real_null())
+  {
+    tree= &null_element;
+    goto end;
+  }
+  
   str= (uchar*) alloc_root(alloc, key_part->store_length+1);
   if (!str)
     goto end;
@@ -5932,7 +5966,9 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
    */
   if (field->result_type() == INT_RESULT &&
       value->result_type() == INT_RESULT &&
-      ((Field_num*)field)->unsigned_flag && !((Item_int*)value)->unsigned_flag)
+      ((field->type() == FIELD_TYPE_BIT || 
+       ((Field_num *) field)->unsigned_flag) && 
+       !((Item_int*) value)->unsigned_flag))
   {
     longlong item_val= value->val_int();
     if (item_val < 0)
@@ -5952,7 +5988,7 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
 
   switch (type) {
   case Item_func::LT_FUNC:
-    if (stored_field_cmp_to_item(field,value) == 0)
+    if (stored_field_cmp_to_item(param->thd, field, value) == 0)
       tree->max_flag=NEAR_MAX;
     /* fall through */
   case Item_func::LE_FUNC:
@@ -5967,14 +6003,14 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   case Item_func::GT_FUNC:
     /* Don't use open ranges for partial key_segments */
     if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(field, value) <= 0))
+        (stored_field_cmp_to_item(param->thd, field, value) <= 0))
       tree->min_flag=NEAR_MIN;
     tree->max_flag= NO_MAX_RANGE;
     break;
   case Item_func::GE_FUNC:
     /* Don't use open ranges for partial key_segments */
     if ((!(key_part->flag & HA_PART_KEY_SEG)) &&
-        (stored_field_cmp_to_item(field,value) < 0))
+        (stored_field_cmp_to_item(param->thd, field, value) < 0))
       tree->min_flag= NEAR_MIN;
     tree->max_flag=NO_MAX_RANGE;
     break;
@@ -6528,6 +6564,63 @@ get_range(SEL_ARG **e1,SEL_ARG **e2,SEL_ARG *root1)
 }
 
 
+/**
+   Combine two range expression under a common OR. On a logical level, the
+   transformation is key_or( expr1, expr2 ) => expr1 OR expr2.
+
+   Both expressions are assumed to be in the SEL_ARG format. In a logic sense,
+   theformat is reminiscent of DNF, since an expression such as the following
+
+   ( 1 < kp1 < 10 AND p1 ) OR ( 10 <= kp2 < 20 AND p2 )
+
+   where there is a key consisting of keyparts ( kp1, kp2, ..., kpn ) and p1
+   and p2 are valid SEL_ARG expressions over keyparts kp2 ... kpn, is a valid
+   SEL_ARG condition. The disjuncts appear ordered by the minimum endpoint of
+   the first range and ranges must not overlap. It follows that they are also
+   ordered by maximum endpoints. Thus
+
+   ( 1 < kp1 <= 2 AND ( kp2 = 2 OR kp2 = 3 ) ) OR kp1 = 3
+
+   Is a a valid SER_ARG expression for a key of at least 2 keyparts.
+   
+   For simplicity, we will assume that expr2 is a single range predicate,
+   i.e. on the form ( a < x < b AND ... ). It is easy to generalize to a
+   disjunction of several predicates by subsequently call key_or for each
+   disjunct.
+
+   The algorithm iterates over each disjunct of expr1, and for each disjunct
+   where the first keypart's range overlaps with the first keypart's range in
+   expr2:
+   
+   If the predicates are equal for the rest of the keyparts, or if there are
+   no more, the range in expr2 has its endpoints copied in, and the SEL_ARG
+   node in expr2 is deallocated. If more ranges became connected in expr1, the
+   surplus is also dealocated. If they differ, two ranges are created.
+   
+   - The range leading up to the overlap. Empty if endpoints are equal.
+
+   - The overlapping sub-range. May be the entire range if they are equal.
+
+   Finally, there may be one more range if expr2's first keypart's range has a
+   greater maximum endpoint than the last range in expr1.
+
+   For the overlapping sub-range, we recursively call key_or. Thus in order to
+   compute key_or of
+
+     (1) ( 1 < kp1 < 10 AND 1 < kp2 < 10 ) 
+
+     (2) ( 2 < kp1 < 20 AND 4 < kp2 < 20 )
+
+   We create the ranges 1 < kp <= 2, 2 < kp1 < 10, 10 <= kp1 < 20. For the
+   first one, we simply hook on the condition for the second keypart from (1)
+   : 1 < kp2 < 10. For the second range 2 < kp1 < 10, key_or( 1 < kp2 < 10, 4
+   < kp2 < 20 ) is called, yielding 1 < kp2 < 20. For the last range, we reuse
+   the range 4 < kp2 < 20 from (2) for the second keypart. The result is thus
+   
+   ( 1  <  kp1 <= 2 AND 1 < kp2 < 10 ) OR
+   ( 2  <  kp1 < 10 AND 1 < kp2 < 20 ) OR
+   ( 10 <= kp1 < 20 AND 4 < kp2 < 20 )
+*/
 static SEL_ARG *
 key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 {
@@ -6598,6 +6691,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
     else if ((cmp=tmp->cmp_max_to_min(key2)) < 0)
     {						// Found tmp.max < key2.min
       SEL_ARG *next=tmp->next;
+      /* key1 on the left of key2 non-overlapping */
       if (cmp == -2 && eq_tree(tmp->next_key_part,key2->next_key_part))
       {
 	// Join near ranges like tmp.max < 0 and key2.min >= 0
@@ -6626,6 +6720,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       int tmp_cmp;
       if ((tmp_cmp=tmp->cmp_min_to_max(key2)) > 0) // if tmp.min > key2.max
       {
+        /* tmp is on the right of key2 non-overlapping */
 	if (tmp_cmp == 2 && eq_tree(tmp->next_key_part,key2->next_key_part))
 	{					// ranges are connected
 	  tmp->copy_min_to_min(key2);
@@ -6660,26 +6755,67 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
       }
     }
 
-    // tmp.max >= key2.min && tmp.min <= key.max  (overlapping ranges)
+    /* 
+      tmp.min >= key2.min && tmp.min <= key.max  (overlapping ranges)
+      key2.min <= tmp.min <= key2.max 
+    */  
     if (eq_tree(tmp->next_key_part,key2->next_key_part))
     {
       if (tmp->is_same(key2))
       {
+        /* 
+          Found exact match of key2 inside key1. 
+          Use the relevant range in key1.
+        */
 	tmp->merge_flags(key2);			// Copy maybe flags
 	key2->increment_use_count(-1);		// Free not used tree
       }
       else
       {
 	SEL_ARG *last=tmp;
+        SEL_ARG *first=tmp;
+        /* 
+          Find the last range in tmp that overlaps key2 and has the same 
+          condition on the rest of the keyparts.
+        */
 	while (last->next && last->next->cmp_min_to_max(key2) <= 0 &&
 	       eq_tree(last->next->next_key_part,key2->next_key_part))
 	{
+          /*
+            We've found the last overlapping key1 range in last.
+            This means that the ranges between (and including) the 
+            first overlapping range (tmp) and the last overlapping range
+            (last) are fully nested into the current range of key2 
+            and can safely be discarded. We just need the minimum endpoint
+            of the first overlapping range (tmp) so we can compare it with
+            the minimum endpoint of the enclosing key2 range.
+          */
 	  SEL_ARG *save=last;
 	  last=last->next;
 	  key1=key1->tree_delete(save);
 	}
-        last->copy_min(tmp);
-	if (last->copy_min(key2) || last->copy_max(key2))
+        /*
+          The tmp range (the first overlapping range) could have been discarded
+          by the previous loop. We should re-direct tmp to the new united range 
+          that's taking its place.
+        */
+        tmp= last;
+        last->copy_min(first);
+        bool full_range= last->copy_min(key2);
+        if (!full_range)
+        {
+          if (last->next && key2->cmp_max_to_min(last->next) >= 0)
+          {
+            last->max_value= last->next->min_value;
+            if (last->next->min_flag & NEAR_MIN)
+              last->max_flag&= ~NEAR_MAX;
+            else
+              last->max_flag|= NEAR_MAX;
+          }
+          else
+            full_range= last->copy_max(key2);
+        }
+	if (full_range)
 	{					// Full range
 	  key1->free_tree();
 	  for (; key2 ; key2=key2->next)
@@ -6689,8 +6825,6 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1,SEL_ARG *key2)
 	  return 0;
 	}
       }
-      key2=key2->next;
-      continue;
     }
 
     if (cmp >= 0 && tmp->cmp_min_to_min(key2) < 0)
@@ -7176,27 +7310,25 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
 }
 
 
-/*
-  Count how many times SEL_ARG graph "root" refers to its part "key"
+/**
+  Count how many times SEL_ARG graph "root" refers to its part "key" via
+  transitive closure.
   
-  SYNOPSIS
-    count_key_part_usage()
-      root  An RB-Root node in a SEL_ARG graph.
-      key   Another RB-Root node in that SEL_ARG graph.
+  @param root  An RB-Root node in a SEL_ARG graph.
+  @param key   Another RB-Root node in that SEL_ARG graph.
 
-  DESCRIPTION
-    The passed "root" node may refer to "key" node via root->next_key_part,
-    root->next->n
+  The passed "root" node may refer to "key" node via root->next_key_part,
+  root->next->n
 
-    This function counts how many times the node "key" is referred (via
-    SEL_ARG::next_key_part) by 
-     - intervals of RB-tree pointed by "root", 
-     - intervals of RB-trees that are pointed by SEL_ARG::next_key_part from 
-       intervals of RB-tree pointed by "root",
-     - and so on.
+  This function counts how many times the node "key" is referred (via
+  SEL_ARG::next_key_part) by 
+  - intervals of RB-tree pointed by "root", 
+  - intervals of RB-trees that are pointed by SEL_ARG::next_key_part from 
+  intervals of RB-tree pointed by "root",
+  - and so on.
     
-    Here is an example (horizontal links represent next_key_part pointers, 
-    vertical links - next/prev prev pointers):  
+  Here is an example (horizontal links represent next_key_part pointers, 
+  vertical links - next/prev prev pointers):  
     
          +----+               $
          |root|-----------------+
@@ -7216,8 +7348,8 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
           ...     +---+       $    |
                   |   |------------+
                   +---+       $
-  RETURN 
-    Number of links to "key" from nodes reachable from "root".
+  @return 
+  Number of links to "key" from nodes reachable from "root".
 */
 
 static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
@@ -7570,8 +7702,8 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
                                  &tmp_max_key,max_key_flag);
 
   if (key_tree->next_key_part &&
-      key_tree->next_key_part->part == key_tree->part+1 &&
-      key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
+      key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
+      key_tree->next_key_part->part == key_tree->part+1)
   {						  // const key as prefix
     if ((tmp_min_key - min_key) == (tmp_max_key - max_key) &&
          memcmp(min_key, max_key, (uint)(tmp_max_key - max_key))==0 &&
@@ -9518,7 +9650,11 @@ check_group_min_max_predicates(COND *cond, Item_field *min_max_arg_item,
     }
     else if (cur_arg->const_item())
     {
-      DBUG_RETURN(TRUE);
+      /*
+        For predicates of the form "const OP expr" we also have to check 'expr'
+        to make a decision.
+      */
+      continue;
     }
     else
       DBUG_RETURN(FALSE);

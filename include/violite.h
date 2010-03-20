@@ -44,7 +44,7 @@ enum enum_vio_type
 Vio*	vio_new(my_socket sd, enum enum_vio_type type, uint flags);
 #ifdef __WIN__
 Vio* vio_new_win32pipe(HANDLE hPipe);
-Vio* vio_new_win32shared_memory(NET *net,HANDLE handle_file_map,
+Vio* vio_new_win32shared_memory(HANDLE handle_file_map,
                                 HANDLE handle_map,
                                 HANDLE event_server_wrote,
                                 HANDLE event_server_read,
@@ -123,8 +123,8 @@ struct st_VioSSLFd
   SSL_CTX *ssl_context;
 };
 
-int sslaccept(struct st_VioSSLFd*, Vio *, long timeout);
-int sslconnect(struct st_VioSSLFd*, Vio *, long timeout);
+int sslaccept(struct st_VioSSLFd*, Vio *, long timeout, char *error_string);
+int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, char *error_string);
 
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
@@ -222,7 +222,11 @@ struct st_vio
   HANDLE  event_conn_closed;
   size_t  shared_memory_remain;
   char    *shared_memory_pos;
-  NET     *net;
 #endif /* HAVE_SMEM */
+#ifdef _WIN32
+  OVERLAPPED pipe_overlapped;
+  DWORD read_timeout_ms;
+  DWORD write_timeout_ms;
+#endif
 };
 #endif /* vio_violite_h_ */

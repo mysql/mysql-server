@@ -28,7 +28,7 @@ use Cwd;
 use DBI;
 use Benchmark;
 
-$opt_loop_count=100000;	# Change this to make test harder/easier
+$opt_loop_count=500000;	# Change this to make test harder/easier
 $str_length=65000;	# This is the length of blob strings in PART:5
 $max_test=20;		# How many times to test if the server is busy
 
@@ -161,41 +161,48 @@ if ($opt_fast && defined($server->{vacuum}))
 {
   $server->vacuum(0,\$dbh);
 }
-$dbh->disconnect;
+if (!$main::opt_temporary_tables)
+{
+    $dbh->disconnect;
+}
 
 #
 # First test connect/select/disconnect
 #
-print "Testing connect/select 1 row from table/disconnect\n";
-
-$loop_time=new Benchmark;
-$errors=0;
-
-for ($i=0 ; $i < $small_loop_count ; $i++)
+if (!$main::opt_temporary_tables)
 {
-  for ($j=0; $j < $max_test ; $j++)
+  print "Testing connect/select 1 row from table/disconnect\n";
+
+  $loop_time=new Benchmark;
+  $errors=0;
+
+  for ($i=0 ; $i < $small_loop_count ; $i++)
   {
-    last if ($dbh = DBI->connect($server->{'data_source'}, $opt_user, $opt_password));
-    $errors++;
-  }
-  die $DBI::errstr if ($j == $max_test);
+    for ($j=0; $j < $max_test ; $j++)
+    {
+        last if ($dbh = DBI->connect($server->{'data_source'}, $opt_user, $opt_password));
+        $errors++;
+    }
+    die $DBI::errstr if ($j == $max_test);
 
-  $sth = $dbh->do("select a,i,s,$i from bench1") # Select * from table with 1 record
+    $sth = $dbh->do("select a,i,s,$i from bench1") # Select * from table with 1 record
     or die $DBI::errstr;
-  $dbh->disconnect;
-}
+    $dbh->disconnect;
+  }
 
-$end_time=new Benchmark;
-print "Warning: $errors connections didn't work without a time delay\n" if ($errors);
-print "Time to connect+select_1_row ($small_loop_count): " .
+  $end_time=new Benchmark;
+  print "Warning: $errors connections didn't work without a time delay\n" if ($errors);
+  print "Time to connect+select_1_row ($small_loop_count): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
+
+  $dbh = $server->connect();
+}
 
 #
 # The same test, but without connect/disconnect
 #
 print "Testing select 1 row from table\n";
 
-$dbh = $server->connect();
 $loop_time=new Benchmark;
 
 for ($i=0 ; $i < $opt_loop_count ; $i++)

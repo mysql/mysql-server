@@ -122,12 +122,14 @@ insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
 analyze table t1;
 select count(*) from t1;
 
+--replace_column 9 REF
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
 
 select count(*) from t1 where
   key1a = 2 and key1b is null and key2a = 2 and key2b is null;
 
+--replace_column 9 REF
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
 

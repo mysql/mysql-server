@@ -124,6 +124,8 @@ with_check_option=0
 timestamp=2009-04-10 11:53:37
 create-version=1
 source=select f1 from `a-b-c`.t1 a, information_schema.tables b\nwhere a.f1 = b.table_name
+client_cs_name=utf8
+connection_cl_name=utf8_general_ci
 EOF
 
 show databases like '%a-b-c%';

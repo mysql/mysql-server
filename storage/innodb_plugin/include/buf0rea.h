@@ -33,12 +33,10 @@ Created 11/5/1995 Heikki Tuuri
 High-level function which reads a page asynchronously from a file to the
 buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
-released by the i/o-handler thread. Does a random read-ahead if it seems
-sensible.
-@return number of page read requests issued: this can be greater than
-1 if read-ahead occurred */
+released by the i/o-handler thread.
+@return TRUE if page has been read in, FALSE in case of failure */
 UNIV_INTERN
-ulint
+ibool
 buf_read_page(
 /*==========*/
 	ulint	space,	/*!< in: space id */
@@ -48,7 +46,7 @@ buf_read_page(
 Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.
 Does not read any page if the read-ahead mechanism is not activated. Note
-that the the algorithm looks at the 'natural' adjacent successor and
+that the algorithm looks at the 'natural' adjacent successor and
 predecessor of the page, which on the leaf level of a B-tree are the next
 and previous page in the chain of leaves. To know these, the page specified
 in (space, offset) must already be present in the buf_pool. Thus, the

@@ -215,7 +215,7 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info,
     empty=0;
     for (i= share->state.state.del ; i > 0L && next_link != HA_OFFSET_ERROR ; i--)
     {
-      if (*_ma_killed_ptr(param))
+      if (_ma_killed_ptr(param))
         DBUG_RETURN(1);
       if (test_flag & T_VERBOSE)
 	printf(" %9s",llstr(next_link,buff));
@@ -310,7 +310,7 @@ static int check_k_link(HA_CHECK *param, register MARIA_HA *info,
   records= (ha_rows) (share->state.state.key_file_length / block_size);
   while (next_link != HA_OFFSET_ERROR && records > 0)
   {
-    if (*_ma_killed_ptr(param))
+    if (_ma_killed_ptr(param))
       DBUG_RETURN(1);
     if (param->testflag & T_VERBOSE)
       printf("%16s",llstr(next_link,llbuff));
@@ -876,10 +876,10 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   tmp_key.data= tmp_key_buff;
   for ( ;; )
   {
-    if (*_ma_killed_ptr(param))
-      goto err;
     if (nod_flag)
     {
+      if (_ma_killed_ptr(param))
+        goto err;
       next_page= _ma_kpos(nod_flag,keypos);
       if (chk_index_down(param,info,keyinfo,next_page,
                          temp_buff,keys,key_checksum,level+1))
@@ -1180,7 +1180,7 @@ static int check_static_record(HA_CHECK *param, MARIA_HA *info, int extend,
   pos= 0;
   while (pos < share->state.state.data_file_length)
   {
-    if (*_ma_killed_ptr(param))
+    if (_ma_killed_ptr(param))
       return -1;
     if (my_b_read(&param->read_cache, record,
                   share->base.pack_reclength))
@@ -1230,7 +1230,7 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
   {
     my_bool got_error= 0;
     int flag;
-    if (*_ma_killed_ptr(param))
+    if (_ma_killed_ptr(param))
       DBUG_RETURN(-1);
 
     flag= block_info.second_read=0;
@@ -1451,7 +1451,7 @@ static int check_compressed_record(HA_CHECK *param, MARIA_HA *info, int extend,
   pos= share->pack.header_length;             /* Skip header */
   while (pos < share->state.state.data_file_length)
   {
-    if (*_ma_killed_ptr(param))
+    if (_ma_killed_ptr(param))
       DBUG_RETURN(-1);
 
     if (_ma_read_cache(&param->read_cache, block_info.header, pos,
@@ -1815,7 +1815,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     LINT_INIT(row_count);
     LINT_INIT(empty_space);
 
-    if (*_ma_killed_ptr(param))
+    if (_ma_killed_ptr(param))
     {
       _ma_scan_end_block_record(info);
       return -1;
@@ -4631,7 +4631,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("sort_get_next_record");
 
-  if (*_ma_killed_ptr(param))
+  if (_ma_killed_ptr(param))
     DBUG_RETURN(1);
 
   switch (sort_info->org_data_file_type) {
@@ -6018,7 +6018,7 @@ int maria_update_state_info(HA_CHECK *param, MARIA_HA *info,uint update)
   {
     if (update & UPDATE_TIME)
     {
-      share->state.check_time= (long) time((time_t*) 0);
+      share->state.check_time= time((time_t*) 0);
       if (!share->state.create_time)
 	share->state.create_time= share->state.check_time;
     }

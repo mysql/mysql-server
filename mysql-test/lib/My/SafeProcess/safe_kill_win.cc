@@ -30,7 +30,7 @@ int main(int argc, const char** argv )
   DWORD pid= -1;
   HANDLE shutdown_event;
   char safe_process_name[32]= {0};
-  int retry_open_event= 100;
+  int retry_open_event= 2;
   /* Ignore any signals */
   signal(SIGINT,   SIG_IGN);
   signal(SIGBREAK, SIG_IGN);
@@ -51,15 +51,31 @@ int main(int argc, const char** argv )
   {
      /*
       Check if the process is alive, otherwise there is really
-      no idea to retry the open of the event
+      no sense to retry the open of the event
      */
     HANDLE process;
-    if ((process= OpenProcess(SYNCHRONIZE, FALSE, pid)) == NULL)
+    DWORD exit_code;
+    process= OpenProcess(SYNCHRONIZE| PROCESS_QUERY_INFORMATION, FALSE, pid);
+    if (!process)
     {
-      fprintf(stderr, "Could not open event or process %d, error: %d\n",
-            pid, GetLastError());
-      exit(3);
+      /* Already died */
+      exit(1);
     }
+
+    if (!GetExitCodeProcess(process,&exit_code))
+    {
+       fprintf(stderr,  "GetExitCodeProcess failed, pid= %d, err= %d\n",
+         pid, GetLastError());
+       exit(1);
+    }
+
+    if (exit_code != STILL_ACTIVE)
+    {
+       /* Already died */
+       CloseHandle(process);
+       exit(2);
+    }
+
     CloseHandle(process);
 
     if (retry_open_event--)

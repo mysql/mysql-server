@@ -2,12 +2,12 @@
 .\"     Title: \fBinnochecksum\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBINNOCHECKSUM\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBINNOCHECKSUM\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -29,7 +29,20 @@ innochecksum \- offline InnoDB file checksum utility
 \fBinnochecksum\fR
 prints checksums for
 InnoDB
-files\&.
+files\&. This tool reads an
+InnoDB
+tablespace file, calculates the checksum for each page, compares the calculated checksum to the stored checksum, and reports mismatches, which indicate damaged pages\&. It was originally developed to speed up verifying the integrity of tablespace files after power outages but can also be used after file copies\&. Because checksum mismatches will cause
+InnoDB
+to deliberately shut down a running server, it can be preferable to use this tool rather than waiting for a server in production usage to encounter the damaged pages\&.
+.PP
+\fBinnochecksum\fR
+cannot be used on tablespace files that the server already has open\&. For such files, you should use
+CHECK TABLE
+to check tables within the tablespace\&.
+.PP
+If checksum mismatches are found, you would normally restore the tablespace from backup or start the server and attempt to use
+\fBmysqldump\fR
+to make a backup of the tables within the tablespace\&.
 .PP
 Invoke
 \fBinnochecksum\fR

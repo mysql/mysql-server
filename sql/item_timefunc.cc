@@ -278,9 +278,9 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
   int  strict_week_number_year= -1;
   int frac_part;
   bool usa_time= 0;
-  bool sunday_first_n_first_week_non_iso;
-  bool strict_week_number;
-  bool strict_week_number_year_type;
+  bool UNINIT_VAR(sunday_first_n_first_week_non_iso);
+  bool UNINIT_VAR(strict_week_number);
+  bool UNINIT_VAR(strict_week_number_year_type);
   const char *val_begin= val;
   const char *val_end= val + length;
   const char *ptr= format->format.str;
@@ -391,7 +391,7 @@ static bool extract_date_time(DATE_TIME_FORMAT *format,
 	if (tmp - val > 6)
 	  tmp= (char*) val + 6;
 	l_time->second_part= (int) my_strtoll10(val, &tmp, &error);
-	frac_part= 6 - (uint) (tmp - val);
+	frac_part= 6 - (int) (tmp - val);
 	if (frac_part > 0)
 	  l_time->second_part*= (ulong) log_10_int[frac_part];
 	val= tmp;
@@ -882,9 +882,9 @@ static bool get_interval_info(const char *str,uint length,CHARSET_INFO *cs,
       value= value*LL(10) + (longlong) (*str - '0');
     if (transform_msec && i == count - 1) // microseconds always last
     {
-      long msec_length= 6 - (uint) (str - start);
+      int msec_length= 6 - (int)(str - start);
       if (msec_length > 0)
-	value*= (long) log_10_int[msec_length];
+        value*= (long)log_10_int[msec_length];
     }
     values[i]= value;
     while (str != end && !my_isdigit(cs,*str))
@@ -1350,14 +1350,10 @@ bool get_interval_value(Item *args,interval_type int_type,
 			       String *str_value, INTERVAL *interval)
 {
   ulonglong array[5];
-  longlong value;
-  const char *str;
-  size_t length;
+  longlong UNINIT_VAR(value);
+  const char *UNINIT_VAR(str);
+  size_t UNINIT_VAR(length);
   CHARSET_INFO *cs=str_value->charset();
-
-  LINT_INIT(value);
-  LINT_INIT(str);
-  LINT_INIT(length);
 
   bzero((char*) interval,sizeof(*interval));
   if ((int) int_type <= INTERVAL_MICROSECOND)
@@ -2564,9 +2560,9 @@ void Item_char_typecast::fix_length_and_dec()
                        from_cs != &my_charset_bin &&
                        cast_cs != &my_charset_bin);
   collation.set(cast_cs, DERIVATION_IMPLICIT);
-  char_length= (cast_length >= 0) ?
-                 cast_length :
-                 args[0]->max_length / args[0]->collation.collation->mbmaxlen;
+  char_length= (cast_length >= 0) ? cast_length :
+                args[0]->max_length /
+                (cast_cs == &my_charset_bin ? 1 : args[0]->collation.collation->mbmaxlen);
   max_length= char_length * cast_cs->mbmaxlen;
 }
 

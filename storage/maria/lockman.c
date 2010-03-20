@@ -360,7 +360,7 @@ retry:
     else
     {
       if (my_atomic_casptr((void **)cursor->prev,
-                           (void **)&cursor->curr, cursor->next))
+                           (void **)(char*) &cursor->curr, cursor->next))
         _lf_alloc_free(pins, cursor->curr);
       else
       {
@@ -421,7 +421,8 @@ static int lockinsert(LOCK * volatile *head, LOCK *node, LF_PINS *pins,
       node->link= (intptr)cursor.curr;
       DBUG_ASSERT(node->link != (intptr)node);
       DBUG_ASSERT(cursor.prev != &node->link);
-      if (!my_atomic_casptr((void **)cursor.prev, (void **)&cursor.curr, node))
+      if (!my_atomic_casptr((void **)cursor.prev,
+                            (void **)(char*) &cursor.curr, node))
       {
         res= REPEAT_ONCE_MORE;
         node->flags&= ~ACTIVE;
@@ -498,11 +499,11 @@ static int lockdelete(LOCK * volatile *head, LOCK *node, LF_PINS *pins)
       then we can delete. Good news is - this is only required when rolling
       back a savepoint.
     */
-    if (my_atomic_casptr((void **)&(cursor.curr->link),
-                         (void **)&cursor.next, 1+(char *)cursor.next))
+    if (my_atomic_casptr((void **)(char*)&(cursor.curr->link),
+                         (void **)(char*)&cursor.next, 1+(char *)cursor.next))
     {
       if (my_atomic_casptr((void **)cursor.prev,
-                           (void **)&cursor.curr, cursor.next))
+                           (void **)(char*)&cursor.curr, cursor.next))
         _lf_alloc_free(pins, cursor.curr);
       else
         lockfind(head, node, &cursor, pins);
@@ -573,7 +574,7 @@ static void initialize_bucket(LOCKMAN *lm, LOCK * volatile *node,
     my_free((void *)dummy, MYF(0));
     dummy= cur;
   }
-  my_atomic_casptr((void **)node, (void **)&tmp, dummy);
+  my_atomic_casptr((void **)node, (void **)(char*) &tmp, dummy);
 }
 
 static inline uint calc_hash(uint64 resource)

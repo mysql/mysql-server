@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file trx/trx0rseg.c
 Rollback segment
 
 Created 3/26/1996 Heikki Tuuri
@@ -33,14 +34,14 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0purge.h"
 
-/**********************************************************************
-Looks for a rollback segment, based on the rollback segment id. */
+/******************************************************************//**
+Looks for a rollback segment, based on the rollback segment id.
+@return	rollback segment */
 UNIV_INTERN
 trx_rseg_t*
 trx_rseg_get_on_id(
 /*===============*/
-			/* out: rollback segment */
-	ulint	id)	/* in: rollback segment id */
+	ulint	id)	/*!< in: rollback segment id */
 {
 	trx_rseg_t*	rseg;
 
@@ -55,21 +56,20 @@ trx_rseg_get_on_id(
 	return(rseg);
 }
 
-/********************************************************************
+/****************************************************************//**
 Creates a rollback segment header. This function is called only when
-a new rollback segment is created in the database. */
+a new rollback segment is created in the database.
+@return	page number of the created segment, FIL_NULL if fail */
 UNIV_INTERN
 ulint
 trx_rseg_header_create(
 /*===================*/
-				/* out: page number of the created segment,
-				FIL_NULL if fail */
-	ulint	space,		/* in: space id */
-	ulint	zip_size,	/* in: compressed page size in bytes
+	ulint	space,		/*!< in: space id */
+	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
-	ulint	max_size,	/* in: max size in pages */
-	ulint*	slot_no,	/* out: rseg id == slot number in trx sys */
-	mtr_t*	mtr)		/* in: mtr */
+	ulint	max_size,	/*!< in: max size in pages */
+	ulint*	slot_no,	/*!< out: rseg id == slot number in trx sys */
+	mtr_t*	mtr)		/*!< in: mtr */
 {
 	ulint		page_no;
 	trx_rsegf_t*	rsegf;
@@ -131,22 +131,65 @@ trx_rseg_header_create(
 	return(page_no);
 }
 
+/***********************************************************************//**
+Free's an instance of the rollback segment in memory. */
+UNIV_INTERN
+void
+trx_rseg_mem_free(
+/*==============*/
+	trx_rseg_t*	rseg)	/* in, own: instance to free */
+{
+	trx_undo_t*	undo;
+
+	mutex_free(&rseg->mutex);
+
+	/* There can't be any active transactions. */
+	ut_a(UT_LIST_GET_LEN(rseg->update_undo_list) == 0);
+	ut_a(UT_LIST_GET_LEN(rseg->insert_undo_list) == 0);
+
+	undo = UT_LIST_GET_FIRST(rseg->update_undo_cached);
+
+	while (undo != NULL) {
+		trx_undo_t*	prev_undo = undo;
+
+		undo = UT_LIST_GET_NEXT(undo_list, undo);
+		UT_LIST_REMOVE(undo_list, rseg->update_undo_cached, prev_undo);
+
+		trx_undo_mem_free(prev_undo);
+	}
+
+	undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached);
+
+	while (undo != NULL) {
+		trx_undo_t*	prev_undo = undo;
+
+		undo = UT_LIST_GET_NEXT(undo_list, undo);
+		UT_LIST_REMOVE(undo_list, rseg->insert_undo_cached, prev_undo);
+
+		trx_undo_mem_free(prev_undo);
+	}
+
+	trx_sys_set_nth_rseg(trx_sys, rseg->id, NULL);
+
+	mem_free(rseg);
+}
+
 /***************************************************************************
 Creates and initializes a rollback segment object. The values for the
 fields are read from the header. The object is inserted to the rseg
 list of the trx system object and a pointer is inserted in the rseg
-array in the trx system object. */
+array in the trx system object.
+@return	own: rollback segment object */
 static
 trx_rseg_t*
 trx_rseg_mem_create(
 /*================*/
-				/* out, own: rollback segment object */
-	ulint	id,		/* in: rollback segment id */
-	ulint	space,		/* in: space where the segment placed */
-	ulint	zip_size,	/* in: compressed page size in bytes
+	ulint	id,		/*!< in: rollback segment id */
+	ulint	space,		/*!< in: space where the segment placed */
+	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
-	ulint	page_no,	/* in: page number of the segment header */
-	mtr_t*	mtr)		/* in: mtr */
+	ulint	page_no,	/*!< in: page number of the segment header */
+	mtr_t*	mtr)		/*!< in: mtr */
 {
 	trx_rsegf_t*	rseg_header;
 	trx_rseg_t*	rseg;
@@ -207,15 +250,15 @@ trx_rseg_mem_create(
 	return(rseg);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
 rseg list and array in trx_sys at a database startup. */
 UNIV_INTERN
 void
 trx_rseg_list_and_array_init(
 /*=========================*/
-	trx_sysf_t*	sys_header,	/* in: trx system header */
-	mtr_t*		mtr)		/* in: mtr */
+	trx_sysf_t*	sys_header,	/*!< in: trx system header */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint	i;
 	ulint	page_no;
@@ -244,18 +287,17 @@ trx_rseg_list_and_array_init(
 	}
 }
 
-/********************************************************************
-Creates a new rollback segment to the database. */
+/****************************************************************//**
+Creates a new rollback segment to the database.
+@return	the created segment object, NULL if fail */
 UNIV_INTERN
 trx_rseg_t*
 trx_rseg_create(
 /*============*/
-				/* out: the created segment object, NULL if
-				fail */
-	ulint	space,		/* in: space id */
-	ulint	max_size,	/* in: max size in pages */
-	ulint*	id,		/* out: rseg id */
-	mtr_t*	mtr)		/* in: mtr */
+	ulint	space,		/*!< in: space id */
+	ulint	max_size,	/*!< in: max size in pages */
+	ulint*	id,		/*!< out: rseg id */
+	mtr_t*	mtr)		/*!< in: mtr */
 {
 	ulint		flags;
 	ulint		zip_size;

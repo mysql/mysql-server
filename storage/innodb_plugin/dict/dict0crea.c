@@ -1379,7 +1379,7 @@ dict_create_add_foreign_field_to_dictionary(
 Add a single foreign key definition to the data dictionary tables in the
 database. We also generate names to constraints that were not named by the
 user. A generated constraint has a name of the format
-databasename/tablename_ibfk_<number>, where the numbers start from 1, and
+databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and
 are given locally for this table, that is, the number is not global, as in
 the old format constraints < 4.0.18 it used to be.
 @return	error code or DB_SUCCESS */

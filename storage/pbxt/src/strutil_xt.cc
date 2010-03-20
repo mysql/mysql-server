@@ -21,8 +21,10 @@
  * H&G2JCtL
  */
 
-#include "mysql_priv.h"
 #include "xt_config.h"
+
+#include <stdio.h>
+#include <string.h>
 #include <ctype.h>
 
 #include "strutil_xt.h"
@@ -107,13 +109,17 @@ xtPublic void xt_2nd_last_name_of_path(size_t size, char *dest, c_char *path)
 		*dest = 0;
 		return;
 	}
-        /* If temporary file */
-        if (!is_prefix(path, mysql_data_home) &&
+
+ 	/* {INVALID-OLD-TABLE-FIX}
+	 * I have changed the implementation of
+	 * this bug fix (see {INVALID-OLD-TABLE-FIX}).
+       if (!is_prefix(path, mysql_data_home) &&
             !is_prefix(path, mysql_real_data_home))
         {
           *dest= 0;
           return;
         }
+	 */
 
 	ptr = path + len - 1;
 	while (ptr != path && !XT_IS_DIR_CHAR(*ptr))
@@ -374,7 +380,7 @@ xtPublic void xt_int8_to_byte_size(xtInt8 value, char *string)
 /* Version number must also be set in configure.in! */
 xtPublic c_char *xt_get_version(void)
 {
-	return "1.0.08d RC";
+	return "1.0.09g RC";
 }
 
 /* Copy and URL decode! */

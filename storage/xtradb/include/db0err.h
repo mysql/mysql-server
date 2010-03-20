@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/db0err.h
 Global error codes for the database
 
 Created 5/24/1996 Heikki Tuuri
@@ -31,6 +32,7 @@ enum db_err {
 
 	/* The following are error codes */
 	DB_ERROR,
+	DB_INTERRUPTED,
 	DB_OUT_OF_MEMORY,
 	DB_OUT_OF_FILE_SPACE,
 	DB_LOCK_WAIT,

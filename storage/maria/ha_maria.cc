@@ -102,15 +102,27 @@ TYPELIB maria_translog_purge_type_typelib=
   array_elements(maria_translog_purge_type_names) - 1, "",
   maria_translog_purge_type_names, NULL
 };
+
+/* transactional log directory sync */
 const char *maria_sync_log_dir_names[]=
 {
   "NEVER", "NEWFILE", "ALWAYS", NullS
 };
-
 TYPELIB maria_sync_log_dir_typelib=
 {
   array_elements(maria_sync_log_dir_names) - 1, "",
   maria_sync_log_dir_names, NULL
+};
+
+/* transactional log group commit */
+const char *maria_group_commit_names[]=
+{
+  "none", "hard", "soft", NullS
+};
+TYPELIB maria_group_commit_typelib=
+{
+  array_elements(maria_group_commit_names) - 1, "",
+  maria_group_commit_names, NULL
 };
 
 /** Interval between background checkpoints in seconds */
@@ -118,6 +130,12 @@ static ulong checkpoint_interval;
 static void update_checkpoint_interval(MYSQL_THD thd,
                                        struct st_mysql_sys_var *var,
                                        void *var_ptr, const void *save);
+static void update_maria_group_commit(MYSQL_THD thd,
+                                      struct st_mysql_sys_var *var,
+                                      void *var_ptr, const void *save);
+static void update_maria_group_commit_interval(MYSQL_THD thd,
+                                           struct st_mysql_sys_var *var,
+                                           void *var_ptr, const void *save);
 /** After that many consecutive recovery failures, remove logs */
 static ulong force_start_after_recovery_failures;
 static void update_log_file_size(MYSQL_THD thd,
@@ -163,6 +181,24 @@ static MYSQL_SYSVAR_ULONG(log_file_size, log_file_size,
        "Limit for transaction log size",
        NULL, update_log_file_size, TRANSLOG_FILE_SIZE,
        TRANSLOG_MIN_FILE_SIZE, 0xffffffffL, TRANSLOG_PAGE_SIZE);
+
+static MYSQL_SYSVAR_ENUM(group_commit, maria_group_commit,
+       PLUGIN_VAR_RQCMDARG,
+       "Specifies maria group commit mode. "
+       "Possible values are \"none\" (no group commit), "
+       "\"hard\" (with waiting to actual commit), "
+       "\"soft\" (no wait for commit (DANGEROUS!!!))",
+       NULL, update_maria_group_commit,
+       TRANSLOG_GCOMMIT_NONE, &maria_group_commit_typelib);
+
+static MYSQL_SYSVAR_ULONG(group_commit_interval, maria_group_commit_interval,
+       PLUGIN_VAR_RQCMDARG,
+       "Interval between commite in microseconds (1/1000000c)."
+       " 0 stands for no waiting"
+       " for other threads to come and do a commit in \"hard\" mode and no"
+       " sync()/commit at all in \"soft\" mode.  Option has only an effect"
+       " if maria_group_commit is used",
+       NULL, update_maria_group_commit_interval, 0, 0, UINT_MAX, 1);
 
 static MYSQL_SYSVAR_ENUM(log_purge_type, log_purge_type,
        PLUGIN_VAR_RQCMDARG,
@@ -665,10 +701,9 @@ int maria_check_definition(MARIA_KEYDEF *t1_keyinfo,
 
 extern "C" {
 
-volatile int *_ma_killed_ptr(HA_CHECK *param)
+int _ma_killed_ptr(HA_CHECK *param)
 {
-  /* In theory Unsafe conversion, but should be ok for now */
-  return (int*) &(((THD *) (param->thd))->killed);
+  return thd_killed((THD*)param->thd);
 }
 
 
@@ -1928,8 +1963,7 @@ end:
 bool ha_maria::check_and_repair(THD *thd)
 {
   int error, crashed;
-  char *old_query;
-  uint old_query_length;
+  LEX_STRING old_query;
   HA_CHECK_OPT check_opt;
   DBUG_ENTER("ha_maria::check_and_repair");
 
@@ -1957,11 +1991,9 @@ bool ha_maria::check_and_repair(THD *thd)
   if (!file->state->del && (maria_recover_options & HA_RECOVER_QUICK))
     check_opt.flags |= T_QUICK;
 
-  old_query= thd->query;
-  old_query_length= thd->query_length;
+  old_query= thd->query_string;
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->query= table->s->table_name.str;
-  thd->query_length= table->s->table_name.length;
+  thd->query_string= table->s->table_name;
   pthread_mutex_unlock(&LOCK_thread_count);
 
   if (!(crashed= maria_is_crashed(file)))
@@ -1981,8 +2013,7 @@ bool ha_maria::check_and_repair(THD *thd)
       error= 1;
   }
   pthread_mutex_lock(&LOCK_thread_count);
-  thd->query= old_query;
-  thd->query_length= old_query_length;
+  thd->query_string= old_query;
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_RETURN(error);
 }
@@ -2294,9 +2325,12 @@ int ha_maria::extra(enum ha_extra_function operation)
     extern_lock(F_UNLOCK) (which resets file->trn) followed by maria_close()
     without calling commit/rollback in between.  If file->trn is not set
     we can't remove file->share from the transaction list in the extra() call.
+
+    table->in_use is not set in the case this is a done as part of closefrm()
+    as part of drop table.
   */
 
-  if (!file->trn &&
+  if (file->s->now_transactional && !file->trn && table->in_use && 
       (operation == HA_EXTRA_PREPARE_FOR_DROP ||
        operation == HA_EXTRA_PREPARE_FOR_RENAME))
   {
@@ -2330,7 +2364,7 @@ int ha_maria::delete_all_rows()
 {
   THD *thd= current_thd;
   (void) translog_log_debug_info(file->trn, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query, thd->query_length);
+                                 (uchar*) thd->query(), thd->query_length());
   if (file->s->now_transactional &&
       ((table->in_use->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
        table->in_use->locked_tables))
@@ -2349,7 +2383,7 @@ int ha_maria::delete_table(const char *name)
 {
   THD *thd= current_thd;
   (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query, thd->query_length);
+                                 (uchar*) thd->query(), thd->query_length());
   return maria_delete_table(name);
 }
 
@@ -2430,7 +2464,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
         trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED |
                          TRN_STATE_TABLES_CAN_CHANGE);
         (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
-                                       (uchar*) thd->query, thd->query_length);
+                                       (uchar*) thd->query(),
+                                       thd->query_length());
       }
 #endif
     }
@@ -2526,7 +2561,8 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
     {
       trnman_set_flags(trn, trnman_get_flags(trn) | TRN_STATE_INFO_LOGGED);
       (void) translog_log_debug_info(trn, LOGREC_DEBUG_INFO_QUERY,
-                                     (uchar*) thd->query, thd->query_length);
+                                     (uchar*) thd->query(),
+                                     thd->query_length());
     }
 #endif
   }
@@ -2807,7 +2843,7 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
     create_flags|= HA_CREATE_PAGE_CHECKSUM;
 
   (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query, thd->query_length);
+                                 (uchar*) thd->query(), thd->query_length());
 
   /* TODO: Check that the following fn_format is really needed */
   error=
@@ -2827,7 +2863,7 @@ int ha_maria::rename_table(const char *from, const char *to)
 {
   THD *thd= current_thd;
   (void) translog_log_debug_info(0, LOGREC_DEBUG_INFO_QUERY,
-                                 (uchar*) thd->query, thd->query_length);
+                                 (uchar*) thd->query(), thd->query_length());
   return maria_rename(from, to);
 }
 
@@ -3316,11 +3352,13 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
   MYSQL_SYSVAR(force_start_after_recovery_failures),
-  MYSQL_SYSVAR(page_checksum),
+  MYSQL_SYSVAR(group_commit),
+  MYSQL_SYSVAR(group_commit_interval),
   MYSQL_SYSVAR(log_dir_path),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_purge_type),
   MYSQL_SYSVAR(max_sort_file_size),
+  MYSQL_SYSVAR(page_checksum),
   MYSQL_SYSVAR(pagecache_age_threshold),
   MYSQL_SYSVAR(pagecache_buffer_size),
   MYSQL_SYSVAR(pagecache_division_limit),
@@ -3347,6 +3385,92 @@ static void update_checkpoint_interval(MYSQL_THD thd,
 }
 
 /**
+   @brief Updates group commit mode
+*/
+
+static void update_maria_group_commit(MYSQL_THD thd,
+                                      struct st_mysql_sys_var *var,
+                                      void *var_ptr, const void *save)
+{
+  ulong value= (ulong)*((long *)var_ptr);
+  DBUG_ENTER("update_maria_group_commit");
+  DBUG_PRINT("enter", ("old value: %lu  new value %lu  rate %lu",
+                       value, (ulong)(*(long *)save),
+                       maria_group_commit_interval));
+  /* old value */
+  switch (value) {
+  case TRANSLOG_GCOMMIT_NONE:
+    break;
+  case TRANSLOG_GCOMMIT_HARD:
+    translog_hard_group_commit(FALSE);
+    break;
+  case TRANSLOG_GCOMMIT_SOFT:
+    translog_soft_sync(FALSE);
+    if (maria_group_commit_interval)
+      translog_soft_sync_end();
+    break;
+  default:
+    DBUG_ASSERT(0); /* impossible */
+  }
+  value= *(ulong *)var_ptr= (ulong)(*(long *)save);
+  translog_sync();
+  /* new value */
+  switch (value) {
+  case TRANSLOG_GCOMMIT_NONE:
+    break;
+  case TRANSLOG_GCOMMIT_HARD:
+    translog_hard_group_commit(TRUE);
+    break;
+  case TRANSLOG_GCOMMIT_SOFT:
+    translog_soft_sync(TRUE);
+    /* variable change made under global lock so we can just read it */
+    if (maria_group_commit_interval)
+      translog_soft_sync_start();
+    break;
+  default:
+    DBUG_ASSERT(0); /* impossible */
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
+   @brief Updates group commit interval
+*/
+
+static void update_maria_group_commit_interval(MYSQL_THD thd,
+                                               struct st_mysql_sys_var *var,
+                                               void *var_ptr, const void *save)
+{
+  ulong new_value= (ulong)*((long *)save);
+  ulong *value_ptr= (ulong*) var_ptr;
+  DBUG_ENTER("update_maria_group_commit_interval");
+  DBUG_PRINT("enter", ("old value: %lu  new value %lu  group commit %lu",
+                        *value_ptr, new_value, maria_group_commit));
+
+  /* variable change made under global lock so we can just read it */
+  switch (maria_group_commit) {
+    case TRANSLOG_GCOMMIT_NONE:
+      *value_ptr= new_value;
+      translog_set_group_commit_interval(new_value);
+      break;
+    case TRANSLOG_GCOMMIT_HARD:
+      *value_ptr= new_value;
+      translog_set_group_commit_interval(new_value);
+      break;
+    case TRANSLOG_GCOMMIT_SOFT:
+      if (*value_ptr)
+        translog_soft_sync_end();
+      translog_set_group_commit_interval(new_value);
+      if ((*value_ptr= new_value))
+        translog_soft_sync_start();
+      break;
+    default:
+      DBUG_ASSERT(0); /* impossible */
+  }
+  DBUG_VOID_RETURN;
+}
+
+/**
    @brief Updates the transaction log file limit.
 */
 
@@ -3368,6 +3492,7 @@ static SHOW_VAR status_variables[]= {
   {"Maria_pagecache_reads",              (char*) &maria_pagecache_var.global_cache_read, SHOW_LONGLONG},
   {"Maria_pagecache_write_requests",     (char*) &maria_pagecache_var.global_cache_w_requests, SHOW_LONGLONG},
   {"Maria_pagecache_writes",             (char*) &maria_pagecache_var.global_cache_write, SHOW_LONGLONG},
+  {"Maria_transaction_log_syncs",        (char*) &translog_syncs, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -3437,7 +3562,7 @@ mysql_declare_plugin(maria)
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &maria_storage_engine,
   "MARIA",
-  "MySQL AB",
+  "Monty Program Ab",
   "Crash-safe tables with MyISAM heritage",
   PLUGIN_LICENSE_GPL,
   ha_maria_init,              /* Plugin Init                     */

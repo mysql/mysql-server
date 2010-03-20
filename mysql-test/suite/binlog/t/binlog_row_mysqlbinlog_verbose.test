@@ -1,0 +1,86 @@
+########################################################
+# Test mysqlbinlog command with Ndb produced Binlog
+# variants
+#
+# WHAT
+# ====
+#  This test aims to check that the mysqlbinlog --verbose
+#  command can output binlogs in 4 format variants, currently
+#  used by Ndb
+#
+#  1) Updates logged as write_row events
+#     Only primary key and updated columns included in the 
+#     event
+#  2) Updates logged as write_row_events
+#     All columns included in the event
+#  3) Updates logged as update_row events
+#     Only primary key and updated columns included in the
+#     event
+#  4) Updates logged as update_row events
+#     All columns included in the event
+#
+# Format variant (1) is the Ndb default.
+# Bug#47323 resulted in binlogs generated in format (1) 
+# being incorrectly parsed by the mysqlbinlog --verbose
+# option
+#
+# HOW
+# ===
+#  Row-based binlog files in each format have been 
+#  captured from an Ndb cluster
+#  These are output using the mysqlbinlog --verbose
+#  tool and the output is checked.
+#
+########################################################
+
+# We require binlog_format_row as we're independent of binlog format
+# and there's no point running the same test 3 times
+-- source include/have_binlog_format_row.inc
+
+--disable_query_log
+--let $binlog_file=write-partial-row.binlog
+--exec $MYSQL_BINLOG --verbose suite/binlog/std_data/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+create table raw_binlog_rows (txt varchar(1000));
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql' into table raw_binlog_rows columns terminated by '\n';
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+--enable_query_log
+--echo Verbose statements from : $binlog_file
+# Output --verbose lines, with extra Windows CR's trimmed
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+drop table raw_binlog_rows;
+
+--disable_query_log
+--let $binlog_file=write-full-row.binlog
+--exec $MYSQL_BINLOG --verbose suite/binlog/std_data/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+create table raw_binlog_rows (txt varchar(1000));
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql' into table raw_binlog_rows columns terminated by '\n';
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+--enable_query_log
+--echo Verbose statements from : $binlog_file
+# Output --verbose lines, with extra Windows CR's trimmed
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+drop table raw_binlog_rows;
+
+--disable_query_log
+--let $binlog_file=update-partial-row.binlog
+--exec $MYSQL_BINLOG --verbose suite/binlog/std_data/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+create table raw_binlog_rows (txt varchar(1000));
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql' into table raw_binlog_rows columns terminated by '\n';
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+--enable_query_log
+--echo Verbose statements from : $binlog_file
+# Output --verbose lines, with extra Windows CR's trimmed
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+drop table raw_binlog_rows;
+
+--disable_query_log
+--let $binlog_file=update-full-row.binlog
+--exec $MYSQL_BINLOG --verbose suite/binlog/std_data/$binlog_file > $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+create table raw_binlog_rows (txt varchar(1000));
+--eval load data local infile '$MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql' into table raw_binlog_rows columns terminated by '\n';
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqlbinlog_verbose.sql
+--enable_query_log
+--echo Verbose statements from : $binlog_file
+# Output --verbose lines, with extra Windows CR's trimmed
+select replace(txt,'\r', '') as stmt from raw_binlog_rows where txt like '###%';
+drop table raw_binlog_rows;

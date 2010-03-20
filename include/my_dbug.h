@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB & 2009 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,30 @@
 #ifndef _dbug_h
 #define _dbug_h
 
-#ifdef  __cplusplus
+#if defined(__cplusplus) && !defined(DBUG_OFF)
+class Dbug_violation_helper
+{
+public:
+  inline Dbug_violation_helper() :
+    _entered(TRUE)
+  { }
+
+  inline ~Dbug_violation_helper()
+  {
+    assert(!_entered);
+  }
+
+  inline void leave()
+  {
+    _entered= FALSE;
+  }
+
+private:
+  bool _entered;
+};
+#endif /* C++ */
+
+#ifdef	__cplusplus
 extern "C" {
 #endif
 #if !defined(DBUG_OFF) && !defined(_lint)
@@ -30,34 +53,51 @@ struct _db_stack_frame_ {
 
 struct  _db_code_state_;
 extern  my_bool _dbug_on_;
-extern  my_bool _db_keyword_(struct _db_code_state_ *, const char *, int);
+extern  my_bool _db_keyword_(struct _db_code_state_ *cs, const char *keyword,
+                             int strict_flag);
+extern  int _db_strict_keyword_(const char *keyword);
 extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
 extern  int _db_explain_init_(char *buf, size_t len);
 extern	int _db_is_pushed_(void);
 extern  void _db_setjmp_(void);
 extern  void _db_longjmp_(void);
 extern  void _db_process_(const char *name);
-extern  void _db_push_(const char *control);
-extern  void _db_pop_(void);
+extern	void _db_push_(const char *control);
+extern	void _db_pop_(void);
 extern  void _db_set_(const char *control);
 extern  void _db_set_init_(const char *control);
-extern void _db_enter_(const char *_func_, const char *_file_, uint _line_,
-                       struct _db_stack_frame_ *_stack_frame_);
+extern  void _db_enter_(const char *_func_, const char *_file_, uint _line_,
+                        struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_);
 extern  void _db_pargs_(uint _line_,const char *keyword);
 extern  void _db_doprnt_ _VARARGS((const char *format,...))
   ATTRIBUTE_FORMAT(printf, 1, 2);
-extern  void _db_dump_(uint _line_,const char *keyword,
+extern	void _db_dump_(uint _line_,const char *keyword,
                        const unsigned char *memory, size_t length);
-extern  void _db_end_(void);
-extern  void _db_lock_file_(void);
-extern  void _db_unlock_file_(void);
-extern  FILE *_db_fp_(void);
+extern	void _db_end_(void);
+extern	void _db_lock_file_(void);
+extern	void _db_unlock_file_(void);
+extern FILE *_db_fp_(void);
 extern  void _db_flush_();
+
+#ifdef __cplusplus
+
+#define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
+        Dbug_violation_helper dbug_violation_helper; \
+        _db_enter_ (a,__FILE__,__LINE__,&_db_stack_frame_)
+#define DBUG_VIOLATION_HELPER_LEAVE dbug_violation_helper.leave()
+
+#else /* C */
 
 #define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
         _db_enter_ (a,__FILE__,__LINE__,&_db_stack_frame_)
-#define DBUG_LEAVE _db_return_ (__LINE__, &_db_stack_frame_)
+#define DBUG_VIOLATION_HELPER_LEAVE do { } while(0)
+
+#endif /* C++ */
+
+#define DBUG_LEAVE \
+        DBUG_VIOLATION_HELPER_LEAVE; \
+        _db_return_ (__LINE__, &_db_stack_frame_)
 #define DBUG_RETURN(a1) do {DBUG_LEAVE; return(a1);} while(0)
 #define DBUG_VOID_RETURN do {DBUG_LEAVE; return;} while(0)
 #define DBUG_EXECUTE(keyword,a1) \
@@ -88,28 +128,16 @@ extern  void _db_flush_();
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
 #define IF_DBUG(A) A
-#ifndef __WIN__
 #define DBUG_ABORT()                    (_db_flush_(), abort())
-#else
-/*
-  Avoid popup with abort/retry/ignore buttons. When BUG#31745 is fixed we can
-  call abort() instead of _exit(3) (now it would cause a "test signal" popup).
-*/
-#include <crtdbg.h>
-#define DBUG_ABORT() (_db_flush_(),\
-                     (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE),\
-                     (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR),\
-                     _exit(3))
-#endif
-
 #else                                           /* No debugger */
 
 #define DBUG_ENTER(a1)
+#define DBUG_VIOLATION_HELPER_LEAVE do { } while(0)
 #define DBUG_LEAVE
-#define DBUG_RETURN(a1)                 do { return(a1); } while(0)
-#define DBUG_VOID_RETURN                do { return; } while(0)
-#define DBUG_EXECUTE(keyword,a1)        do { } while(0)
-#define DBUG_EXECUTE_IF(keyword,a1)     do { } while(0)
+#define DBUG_RETURN(a1)             do { return(a1); } while(0)
+#define DBUG_VOID_RETURN            do { return; } while(0)
+#define DBUG_EXECUTE(keyword,a1)    do { } while(0)
+#define DBUG_EXECUTE_IF(keyword,a1) do { } while(0)
 #define DBUG_EVALUATE(keyword,a1,a2) (a2)
 #define DBUG_EVALUATE_IF(keyword,a1,a2) (a2)
 #define DBUG_PRINT(keyword,arglist)     do { } while(0)

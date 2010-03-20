@@ -166,8 +166,8 @@ NULL	db_datadict_2	t4	0	db_datadict_2	PRIMARY	1	f1	NULL	0	NULL	NULL		HASH
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
-GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
 GRANT SELECT ON `db_datadict`.`t1` TO 'testuser1'@'localhost' WITH GRANT OPTION
+GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
 GRANT USAGE ON *.* TO 'testuser2'@'localhost'
@@ -185,8 +185,8 @@ NULL	db_datadict_2	t3	0	db_datadict_2	PRIMARY	1	f1	NULL	0	NULL	NULL		HASH
 SHOW GRANTS FOR 'testuser1'@'localhost';
 Grants for testuser1@localhost
 GRANT USAGE ON *.* TO 'testuser1'@'localhost'
-GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
 GRANT SELECT ON `db_datadict`.`t1` TO 'testuser1'@'localhost' WITH GRANT OPTION
+GRANT SELECT (f5, f1) ON `db_datadict_2`.`t3` TO 'testuser1'@'localhost'
 SHOW GRANTS FOR 'testuser2'@'localhost';
 ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'mysql'
 # Switch to connection testuser2

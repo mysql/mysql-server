@@ -385,7 +385,7 @@ static int examine_log(char * file_name, char **table_names)
       file_info.name=0;
       file_info.show_name=0;
       file_info.record=0;
-      if (read_string(&cache,(uchar**) &file_info.name,
+      if (read_string(&cache,(uchar**) (char*) &file_info.name,
 		      (uint) mi_uint2korr(head)))
 	goto err;
       {

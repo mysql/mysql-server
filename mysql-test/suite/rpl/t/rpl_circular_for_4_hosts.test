@@ -233,16 +233,7 @@ COMMIT;
 --connection master_a
 --enable_query_log
 
-
---let $wait_condition= SELECT COUNT(*)=400 FROM t2 WHERE c = 1
---connection master_a
---source include/wait_condition.inc
---connection master_b
---source include/wait_condition.inc
---connection master_c
---source include/wait_condition.inc
---connection master_d
---source include/wait_condition.inc
+--source include/circular_rpl_for_4_hosts_sync.inc
 
 --connection master_a
 SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 1 GROUP BY b ORDER BY b;
@@ -282,15 +273,7 @@ ROLLBACK;
 --connection master_a
 --enable_query_log
 
---let $wait_condition= SELECT COUNT(*)=200 FROM t2 WHERE c = 2
---connection master_a
---source include/wait_condition.inc
---connection master_b
---source include/wait_condition.inc
---connection master_c
---source include/wait_condition.inc
---connection master_d
---source include/wait_condition.inc
+--source include/circular_rpl_for_4_hosts_sync.inc
 
 --connection master_a
 SELECT 'Master A',b,COUNT(*) FROM t2 WHERE c = 2 GROUP BY b ORDER BY b;

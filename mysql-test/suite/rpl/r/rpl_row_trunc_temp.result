@@ -1,0 +1,29 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TEMPORARY TABLE t1(c1 INTEGER);
+CREATE TABLE t2(c1 INTEGER);
+CREATE TABLE t1(c1 INTEGER);
+INSERT INTO t1 VALUES(1), (2);
+INSERT INTO t2 VALUES(1), (2);
+SELECT * FROM t1;
+c1
+1
+2
+SELECT * FROM t2;
+c1
+1
+2
+TRUNCATE t1;
+TRUNCATE t2;
+SELECT * FROM t1;
+c1
+1
+2
+SELECT * FROM t2;
+c1
+DROP TABLE t1;
+DROP TABLE t2;

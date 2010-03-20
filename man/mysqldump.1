@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -575,7 +575,7 @@ uses
 utf8, and earlier versions use
 latin1\&.
 .sp
-This option has no effect for output data files produced by using the
+Prior to MySQL 5\&.1\&.38, this option has no effect for output data files produced by using the
 \fB\-\-tab\fR
 option\&. See the description for that option\&.
 .RE
@@ -1232,7 +1232,8 @@ statement for the table\&.
 \fB\-\-no\-set\-names\fR
 .sp
 This option is deprecated\&. Use
-\fB\-\-skip\-set\-charset\fR\&. instead\&.
+\fB\-\-skip\-set\-charset\fR
+instead\&.
 .RE
 .sp
 .RS 4
@@ -1657,11 +1658,11 @@ and
 \fB\-\-lines\-terminated\-by\fR
 options\&.
 .sp
-Column values are dumped using the
-binary
-character set and the
+As of MySQL 5\&.1\&.38, column values are written converted to the character set specified by the
 \fB\-\-default\-character\-set\fR
-option is ignored\&. In effect, there is no character set conversion\&. If a table contains columns in several character sets, the output data file will as well and you may not be able to reload the file correctly\&.
+option\&. Prior to 5\&.1\&.38 or if no such option is present, values are dumped using the
+binary
+character set\&. In effect, there is no character set conversion\&. If a table contains columns in several character sets, the output data file will as well and you may not be able to reload the file correctly\&.
 .if n \{\
 .sp
 .\}
@@ -2110,7 +2111,7 @@ InnoDB
 storage engine\&.
 .PP
 For more information on making backups, see
-Section\ \&6.1, \(lqDatabase Backups\(rq, and
+Section\ \&6.1, \(lqDatabase Backup Methods\(rq, and
 Section\ \&6.2, \(lqExample Backup and Recovery Strategy\(rq\&.
 .\" mysqldump: views
 .\" mysqldump: problems

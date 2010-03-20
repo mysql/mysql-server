@@ -1,7 +1,10 @@
-# Test need anonymous user when connection are made as "zedjzlcsjhd"
-source include/add_anonymous_users.inc;
-
 -- source include/master-slave.inc
+
+# Test need anonymous user when connection are made as "zedjzlcsjhd"
+# But we only need it on the master, not the slave.
+SET sql_log_bin = 0;
+source include/add_anonymous_users.inc;
+SET sql_log_bin = 1;
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates
@@ -16,9 +19,6 @@ source include/add_anonymous_users.inc;
 # (otherwise RESET MASTER may come too early).
 save_master_pos;
 connection slave;
-
-# Add suppression for expected warning(s) in slaves error log
-call mtr.add_suppression("Slave: Can\'t find record in \'user\' Error_code: 1032");
 
 sync_with_master;
 reset master;
@@ -116,8 +116,10 @@ SET @@session.sql_select_limit=10, @@session.sql_log_bin=0;
 SELECT @@session.sql_select_limit = @save_select_limit; #shouldn't have changed
 # Now as root, to be sure it works
 connection con2;
+SET @save_conn_id= connection_id();
 SET @@session.pseudo_thread_id=100;
 SET @@session.pseudo_thread_id=connection_id();
+SET @@session.pseudo_thread_id=@save_conn_id;
 SET @@session.sql_log_bin=0;
 SET @@session.sql_log_bin=1;
 
@@ -291,7 +293,9 @@ drop table t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
 # Delete the anonymous users
+SET sql_log_bin = 0;
 source include/delete_anonymous_users.inc;
+SET sql_log_bin = 1;
 
 
 

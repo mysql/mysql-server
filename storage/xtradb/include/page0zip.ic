@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file include/page0zip.ic
 Compressed page interface
 
 Created June 2005 by Marko Makela
@@ -97,25 +98,25 @@ In summary, the compressed page looks like this:
   - deleted records (free list) in link order
 */
 
-/* Start offset of the area that will be compressed */
+/** Start offset of the area that will be compressed */
 #define PAGE_ZIP_START		PAGE_NEW_SUPREMUM_END
-/* Size of an compressed page directory entry */
+/** Size of an compressed page directory entry */
 #define PAGE_ZIP_DIR_SLOT_SIZE	2
-/* Mask of record offsets */
+/** Mask of record offsets */
 #define PAGE_ZIP_DIR_SLOT_MASK	0x3fff
-/* 'owned' flag */
+/** 'owned' flag */
 #define PAGE_ZIP_DIR_SLOT_OWNED	0x4000
-/* 'deleted' flag */
+/** 'deleted' flag */
 #define PAGE_ZIP_DIR_SLOT_DEL	0x8000
 
-/**************************************************************************
-Determine the size of a compressed page in bytes. */
+/**********************************************************************//**
+Determine the size of a compressed page in bytes.
+@return	size in bytes */
 UNIV_INLINE
 ulint
 page_zip_get_size(
 /*==============*/
-						/* out: size in bytes */
-	const page_zip_des_t*	page_zip)	/* in: compressed page */
+	const page_zip_des_t*	page_zip)	/*!< in: compressed page */
 {
 	ulint	size;
 
@@ -130,14 +131,14 @@ page_zip_get_size(
 
 	return(size);
 }
-/**************************************************************************
+/**********************************************************************//**
 Set the size of a compressed page in bytes. */
 UNIV_INLINE
 void
 page_zip_set_size(
 /*==============*/
-	page_zip_des_t*	page_zip,	/* in/out: compressed page */
-	ulint		size)		/* in: size in bytes */
+	page_zip_des_t*	page_zip,	/*!< in/out: compressed page */
+	ulint		size)		/*!< in: size in bytes */
 {
 	if (size) {
 		int	ssize;
@@ -155,19 +156,19 @@ page_zip_set_size(
 	ut_ad(page_zip_get_size(page_zip) == size);
 }
 
-/**************************************************************************
-Determine if a record is so big that it needs to be stored externally. */
+#ifndef UNIV_HOTBACKUP
+/**********************************************************************//**
+Determine if a record is so big that it needs to be stored externally.
+@return	FALSE if the entire record can be stored locally on the page */
 UNIV_INLINE
 ibool
 page_zip_rec_needs_ext(
 /*===================*/
-				/* out: FALSE if the entire record
-				can be stored locally on the page */
-	ulint	rec_size,	/* in: length of the record in bytes */
-	ulint	comp,		/* in: nonzero=compact format */
-	ulint	n_fields,	/* in: number of fields in the record;
+	ulint	rec_size,	/*!< in: length of the record in bytes */
+	ulint	comp,		/*!< in: nonzero=compact format */
+	ulint	n_fields,	/*!< in: number of fields in the record;
 				ignored if zip_size == 0 */
-	ulint	zip_size)	/* in: compressed page size in bytes, or 0 */
+	ulint	zip_size)	/*!< in: compressed page size in bytes, or 0 */
 {
 	ut_ad(rec_size > comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES);
 	ut_ad(ut_is_2pow(zip_size));
@@ -194,16 +195,17 @@ page_zip_rec_needs_ext(
 
 	return(rec_size >= page_get_free_space_of_empty(comp) / 2);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
-/**************************************************************************
-Validate a compressed page descriptor. */
+/**********************************************************************//**
+Validate a compressed page descriptor.
+@return	TRUE if ok */
 UNIV_INLINE
 ibool
 page_zip_simple_validate(
 /*=====================*/
-					/* out: TRUE if ok */
-	const page_zip_des_t*	page_zip)/* in: compressed page descriptor */
+	const page_zip_des_t*	page_zip)/*!< in: compressed page descriptor */
 {
 	ut_ad(page_zip);
 	ut_ad(page_zip->data);
@@ -218,18 +220,17 @@ page_zip_simple_validate(
 }
 #endif /* UNIV_DEBUG */
 
-/**************************************************************************
-Determine if the length of the page trailer. */
+/**********************************************************************//**
+Determine if the length of the page trailer.
+@return length of the page trailer, in bytes, not including the
+terminating zero byte of the modification log */
 UNIV_INLINE
 ibool
 page_zip_get_trailer_len(
 /*=====================*/
-					/* out: length of the page trailer,
-					in bytes, not including the terminating
-					zero byte of the modification log */
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	ibool			is_clust,/* in: TRUE if clustered index */
-	ulint*			entry_size)/* out: size of the uncompressed
+	const page_zip_des_t*	page_zip,/*!< in: compressed page */
+	ibool			is_clust,/*!< in: TRUE if clustered index */
+	ulint*			entry_size)/*!< out: size of the uncompressed
 					portion of a user record */
 {
 	ulint	uncompressed_size;
@@ -258,19 +259,16 @@ page_zip_get_trailer_len(
 	       + page_zip->n_blobs * BTR_EXTERN_FIELD_REF_SIZE);
 }
 
-/**************************************************************************
-Determine how big record can be inserted without recompressing the page. */
+/**********************************************************************//**
+Determine how big record can be inserted without recompressing the page.
+@return a positive number indicating the maximum size of a record
+whose insertion is guaranteed to succeed, or zero or negative */
 UNIV_INLINE
 lint
 page_zip_max_ins_size(
 /*==================*/
-					/* out: a positive number
-					indicating the maximum size of
-					a record whose insertion is
-					guaranteed to succeed, or
-					zero or negative */
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	ibool			is_clust)/* in: TRUE if clustered index */
+	const page_zip_des_t*	page_zip,/*!< in: compressed page */
+	ibool			is_clust)/*!< in: TRUE if clustered index */
 {
 	ulint	uncompressed_size;
 	ulint	trailer_len;
@@ -292,18 +290,17 @@ page_zip_max_ins_size(
 	       - (REC_N_NEW_EXTRA_BYTES - 2));
 }
 
-/**************************************************************************
-Determine if enough space is available in the modification log. */
+/**********************************************************************//**
+Determine if enough space is available in the modification log.
+@return	TRUE if enough space is available */
 UNIV_INLINE
 ibool
 page_zip_available(
 /*===============*/
-					/* out: TRUE if enough space
-					is available */
-	const page_zip_des_t*	page_zip,/* in: compressed page */
-	ibool			is_clust,/* in: TRUE if clustered index */
-	ulint			length,	/* in: combined size of the record */
-	ulint			create)	/* in: nonzero=add the record to
+	const page_zip_des_t*	page_zip,/*!< in: compressed page */
+	ibool			is_clust,/*!< in: TRUE if clustered index */
+	ulint			length,	/*!< in: combined size of the record */
+	ulint			create)	/*!< in: nonzero=add the record to
 					the heap */
 {
 	ulint	uncompressed_size;
@@ -335,29 +332,29 @@ page_zip_available(
 			   < page_zip_get_size(page_zip)));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Initialize a compressed page descriptor. */
 UNIV_INLINE
 void
 page_zip_des_init(
 /*==============*/
-	page_zip_des_t*	page_zip)	/* in/out: compressed page
+	page_zip_des_t*	page_zip)	/*!< in/out: compressed page
 					descriptor */
 {
 	memset(page_zip, 0, sizeof *page_zip);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Write a log record of writing to the uncompressed header portion of a page. */
 UNIV_INTERN
 void
 page_zip_write_header_log(
 /*======================*/
-	const byte*	data,/* in: data on the uncompressed page */
-	ulint		length,	/* in: length of the data */
-	mtr_t*		mtr);	/* in: mini-transaction */
+	const byte*	data,/*!< in: data on the uncompressed page */
+	ulint		length,	/*!< in: length of the data */
+	mtr_t*		mtr);	/*!< in: mini-transaction */
 
-/**************************************************************************
+/**********************************************************************//**
 Write data to the uncompressed header portion of a page.  The data must
 already have been written to the uncompressed page.
 However, the data portion of the uncompressed page may differ from
@@ -367,14 +364,14 @@ UNIV_INLINE
 void
 page_zip_write_header(
 /*==================*/
-	page_zip_des_t*	page_zip,/* in/out: compressed page */
-	const byte*	str,	/* in: address on the uncompressed page */
-	ulint		length,	/* in: length of the data */
-	mtr_t*		mtr)	/* in: mini-transaction, or NULL */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page */
+	const byte*	str,	/*!< in: address on the uncompressed page */
+	ulint		length,	/*!< in: length of the data */
+	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 {
 	ulint	pos;
 
-	ut_ad(buf_frame_get_page_zip(str) == page_zip);
+	ut_ad(PAGE_ZIP_MATCH(str, page_zip));
 	ut_ad(page_zip_simple_validate(page_zip));
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
@@ -388,7 +385,9 @@ page_zip_write_header(
 	/* ut_ad(page_zip_validate(page_zip, str - pos)); */
 
 	if (UNIV_LIKELY_NULL(mtr)) {
+#ifndef UNIV_HOTBACKUP
 		page_zip_write_header_log(str, length, mtr);
+#endif /* !UNIV_HOTBACKUP */
 	}
 }
 

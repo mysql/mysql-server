@@ -167,7 +167,8 @@ public:
     void CleanNew(word32 newSize)
     {
         New(newSize);
-        memset(buffer_, 0, sz_ * sizeof(T));
+        if (sz_ > 0)
+          memset(buffer_, 0, sz_ * sizeof(T));
     }
 
     void New(word32 newSize)

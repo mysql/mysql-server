@@ -20,8 +20,8 @@
 
 typedef struct st_ft_stopwords
 {
-  const char * pos;
-  uint   len;
+  const uchar* pos;
+  size_t len;
 } FT_STOPWORD;
 
 static TREE *stopwords3=NULL;
@@ -30,22 +30,22 @@ static int FT_STOPWORD_cmp(void* cmp_arg __attribute__((unused)),
 			   FT_STOPWORD *w1, FT_STOPWORD *w2)
 {
   return ha_compare_text(default_charset_info,
-			 (uchar *)w1->pos,w1->len,
-			 (uchar *)w2->pos,w2->len,0,0);
+			 w1->pos, w1->len,
+			 w2->pos, w2->len, 0, 0);
 }
 
 static void FT_STOPWORD_free(FT_STOPWORD *w, TREE_FREE action,
                              void *arg __attribute__((unused)))
 {
   if (action == free_free)
-    my_free((uchar*) w->pos, MYF(0));
+    my_free((void*) w->pos, MYF(0));
 }
 
 static int ft_add_stopword(const char *w)
 {
   FT_STOPWORD sw;
   return !w ||
-         (((sw.len= (uint) strlen(sw.pos=w)) >= ft_min_word_len) &&
+    (((sw.len= (uint) strlen(sw.pos=(const uchar *)w)) >= ft_min_word_len) &&
           (tree_insert(stopwords3, &sw, 0, stopwords3->custom_arg)==NULL));
 }
 
@@ -66,7 +66,8 @@ int ft_init_stopwords()
   {
     File fd;
     uint len;
-    uchar *buffer, *start, *end;
+    uchar *buffer;
+    const uchar *start, *end;
     FT_WORD w;
     int error=-1;
 
@@ -109,7 +110,7 @@ err0:
 }
 
 
-int is_stopword(char *word, uint len)
+int is_stopword(const uchar *word, size_t len)
 {
   FT_STOPWORD sw;
   sw.pos=word;

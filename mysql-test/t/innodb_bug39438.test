@@ -9,6 +9,10 @@
 
 -- source include/have_innodb.inc
 
+--disable_query_log
+call mtr.add_suppression("InnoDB: Error: table 'test/bug39438'");
+--enable_query_log
+
 SET storage_engine=InnoDB;
 
 # we care only that the following SQL commands do not crash the server

@@ -106,6 +106,9 @@ For 1 - 8 bytes, the flag value must give the length also! @{ */
 #define MLOG_IBUF_BITMAP_INIT	((byte)27)	/*!< initialize an
 						ibuf bitmap page */
 /*#define	MLOG_FULL_PAGE	((byte)28)	full contents of a page */
+#ifdef UNIV_LOG_LSN_DEBUG
+# define MLOG_LSN		((byte)28)	/* current LSN */
+#endif
 #define MLOG_INIT_FILE_PAGE	((byte)29)	/*!< this means that a
 						file page is taken
 						into use and the prior
@@ -118,7 +121,7 @@ For 1 - 8 bytes, the flag value must give the length also! @{ */
 #define MLOG_WRITE_STRING	((byte)30)	/*!< write a string to
 						a page */
 #define	MLOG_MULTI_REC_END	((byte)31)	/*!< if a single mtr writes
-						log records for several pages,
+						several log records,
 						this log record ends the
 						sequence of these records */
 #define MLOG_DUMMY_RECORD	((byte)32)	/*!< dummy log record used to

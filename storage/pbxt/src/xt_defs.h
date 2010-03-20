@@ -379,6 +379,19 @@ typedef struct XTPathStr {
  */
 //#define XT_IMPLEMENT_NO_ACTION
 
+/* Define this value if online-backup should be supported.
+ * Note that, online backup is currently only supported
+ * by MySQL 6.0.9 or later
+ */
+#define XT_ENABLE_ONLINE_BACKUP
+
+/* Define this switch if you don't want to use atomic
+ * synchronisation.
+ */
+#ifndef XT_NO_ATOMICS
+//#define XT_NO_ATOMICS
+#endif
+
 /* ----------------------------------------------------------------------
  * GLOBAL CONSTANTS
  */
@@ -405,6 +418,8 @@ typedef struct XTPathStr {
 #define XT_TABLE_NAME_SIZE				((XT_IDENTIFIER_CHAR_COUNT * 5) + 1)	// The maximum length of a file name that has been normalized
 
 #define XT_ADD_PTR(p, l)				((void *) ((char *) (p) + (l)))
+
+#define XT_MAX_XA_DATA_SIZE				(3*4 + 128)			/* Corresponds to the maximum size of struct xid_t in handler.h. */
 
 /* ----------------------------------------------------------------------
  * DEFINES DEPENDENT ON  CONSTANTS
@@ -744,6 +759,7 @@ extern xtBool				pbxt_crash_debug;
 #define MYSQL_PLUGIN_VAR_HEADER				DRIZZLE_PLUGIN_VAR_HEADER
 #define MYSQL_SYSVAR_STR					DRIZZLE_SYSVAR_STR
 #define MYSQL_SYSVAR_INT					DRIZZLE_SYSVAR_INT
+#define MYSQL_SYSVAR_BOOL					DRIZZLE_SYSVAR_BOOL
 #define MYSQL_SYSVAR						DRIZZLE_SYSVAR
 #define MYSQL_STORAGE_ENGINE_PLUGIN			DRIZZLE_STORAGE_ENGINE_PLUGIN
 #define MYSQL_INFORMATION_SCHEMA_PLUGIN		DRIZZLE_INFORMATION_SCHEMA_PLUGIN
@@ -752,16 +768,19 @@ extern xtBool				pbxt_crash_debug;
 
 #define mx_tmp_use_all_columns(x, y)		(x)->use_all_columns(y)
 #define mx_tmp_restore_column_map(x, y)		(x)->restore_column_map(y)
-#define MX_BIT_FAST_TEST_AND_SET(x, y)		bitmap_test_and_set(x, y)
 
-#define MX_TABLE_TYPES_T					handler::Table_flags
+#define MX_TABLE_TYPES_T					Cursor::Table_flags
 #define MX_UINT8_T							uint8_t
 #define MX_ULONG_T							uint32_t
 #define MX_ULONGLONG_T						uint64_t
 #define MX_LONGLONG_T						uint64_t
-#define MX_CHARSET_INFO						struct charset_info_st
+#define MX_CHARSET_INFO						const struct charset_info_st
 #define MX_CONST_CHARSET_INFO				const struct charset_info_st			
 #define MX_CONST							const
+#define MX_BITMAP							MyBitmap
+#define MX_BIT_SIZE()						numOfBitsInMap()
+#define MX_BIT_SET(x, y)					(x)->setBit(y)
+#define MX_BIT_FAST_TEST_AND_SET(x, y)				(x)->testAndSet(y)
 
 #define my_bool								bool
 #define int16								int16_t
@@ -771,6 +790,7 @@ extern xtBool				pbxt_crash_debug;
 #define uchar								unsigned char
 #define longlong							int64_t
 #define ulonglong							uint64_t
+#define handler								Cursor
 
 #define HAVE_LONG_LONG
 
@@ -823,10 +843,13 @@ extern xtBool				pbxt_crash_debug;
 
 class PBXTStorageEngine;
 typedef PBXTStorageEngine handlerton;
+class Session;
+
+extern "C" void session_mark_transaction_to_rollback(Session *session, bool all);
 
 #else // DRIZZLED
 /* The MySQL case: */
-#if MYSQL_VERSION_ID >= 60008
+#if MYSQL_VERSION_ID >= 50404
 #define STRUCT_TABLE						struct TABLE
 #else
 #define STRUCT_TABLE						struct st_table
@@ -842,15 +865,15 @@ typedef PBXTStorageEngine handlerton;
 #define MX_ULONGLONG_T						ulonglong
 #define MX_LONGLONG_T						longlong
 #define MX_CHARSET_INFO						CHARSET_INFO
-#define MX_CONST_CHARSET_INFO				struct charset_info_st			
+#define MX_CONST_CHARSET_INFO				const struct charset_info_st			
 #define MX_CONST							
+#define MX_BITMAP							MY_BITMAP
+#define MX_BIT_SIZE()						n_bits
+#define MX_BIT_SET(x, y)					bitmap_set_bit(x, y)
 
 #endif // DRIZZLED
 
-#define MX_BITMAP							MY_BITMAP
-#define MX_BIT_SIZE()						n_bits
 #define MX_BIT_IS_SUBSET(x, y)				bitmap_is_subset(x, y)
-#define MX_BIT_SET(x, y)					bitmap_set_bit(x, y)
 
 #ifndef XT_SCAN_CORE_DEFINED
 #define XT_SCAN_CORE_DEFINED

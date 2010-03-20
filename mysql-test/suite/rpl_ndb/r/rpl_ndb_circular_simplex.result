@@ -102,3 +102,4 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+DROP TABLE t1;

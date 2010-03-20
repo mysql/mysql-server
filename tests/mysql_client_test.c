@@ -49,6 +49,9 @@ static char *opt_user= 0;
 static char *opt_password= 0;
 static char *opt_host= 0;
 static char *opt_unix_socket= 0;
+#ifdef HAVE_SMEM
+static char *shared_memory_base_name= 0;
+#endif
 static unsigned int  opt_port;
 static my_bool tty_password= 0, opt_silent= 0;
 
@@ -233,6 +236,26 @@ static void print_st_error(MYSQL_STMT *stmt, const char *msg)
   }
 }
 
+/*
+  Enhanced version of mysql_client_init(), which may also set shared memory 
+  base on Windows.
+*/
+static MYSQL *mysql_client_init(MYSQL* con)
+{
+  MYSQL* res = mysql_init(con);
+#ifdef HAVE_SMEM
+  if (res && shared_memory_base_name)
+    mysql_options(res, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
+#endif
+  return res;
+}
+
+/*
+  Disable direct calls of mysql_init, as it disregards  shared memory base.
+*/
+#define mysql_init(A) Please use mysql_client_init instead of mysql_init
+
+
 /* Check if the connection has InnoDB tables */
 
 static my_bool check_have_innodb(MYSQL *conn)
@@ -296,10 +319,10 @@ static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
     fprintf(stdout, "\n Establishing a connection to '%s' ...",
             opt_host ? opt_host : "");
 
-  if (!(mysql= mysql_init(NULL)))
+  if (!(mysql= mysql_client_init(NULL)))
   {
     opt_silent= 0;
-    myerror("mysql_init() failed");
+    myerror("mysql_client_init() failed");
     exit(1);
   }
   /* enable local infile, in non-binary builds often disabled by default */
@@ -1165,9 +1188,9 @@ static my_bool thread_query(const char *query)
   error= 0;
   if (!opt_silent)
     fprintf(stdout, "\n in thread_query(%s)", query);
-  if (!(l_mysql= mysql_init(NULL)))
+  if (!(l_mysql= mysql_client_init(NULL)))
   {
-    myerror("mysql_init() failed");
+    myerror("mysql_client_init() failed");
     return 1;
   }
   if (!(mysql_real_connect(l_mysql, opt_host, opt_user,
@@ -2442,6 +2465,34 @@ static uint query_cache_hits(MYSQL *conn)
 
 
 /*
+  Check that query cache is available in server.
+*/
+static my_bool is_query_cache_available()
+{
+  int rc;
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  int res= -1;
+
+  rc= mysql_query(mysql, "SHOW VARIABLES LIKE 'have_query_cache'");
+  myquery(rc);
+
+  result= mysql_store_result(mysql);
+  DIE_UNLESS(result);
+
+  row= mysql_fetch_row(result);
+  DIE_UNLESS(row != NULL);
+  if (strcmp(row[1], "YES") == 0)
+    res= 1;
+  else if (strcmp(row[1], "NO") == 0)
+    res= 0;
+  mysql_free_result(result);
+
+  DIE_UNLESS(res == 0 || res == 1);
+  return res;
+}
+
+/*
   Test that prepared statements make use of the query cache just as normal
   statements (BUG#735).
 */
@@ -2485,6 +2536,12 @@ static void test_ps_query_cache()
 
   myheader("test_ps_query_cache");
 
+  if (! is_query_cache_available())
+  {
+    fprintf(stdout, "Skipping test_ps_query_cache: Query cache not available.\n");
+    return;
+  }
+
   rc= mysql_query(mysql, "SET SQL_MODE=''");
   myquery(rc);
 
@@ -2517,9 +2574,9 @@ static void test_ps_query_cache()
     case TEST_QCACHE_ON_WITH_OTHER_CONN:
       if (!opt_silent)
         fprintf(stdout, "\n Establishing a test connection ...");
-      if (!(lmysql= mysql_init(NULL)))
+      if (!(lmysql= mysql_client_init(NULL)))
       {
-        printf("mysql_init() failed");
+        printf("mysql_client_init() failed");
         DIE_UNLESS(0);
       }
       if (!(mysql_real_connect(lmysql, opt_host, opt_user,
@@ -4965,9 +5022,9 @@ static void test_stmt_close()
 
   if (!opt_silent)
     fprintf(stdout, "\n Establishing a test connection ...");
-  if (!(lmysql= mysql_init(NULL)))
+  if (!(lmysql= mysql_client_init(NULL)))
   {
-    myerror("mysql_init() failed");
+    myerror("mysql_client_init() failed");
     exit(1);
   }
   if (!(mysql_real_connect(lmysql, opt_host, opt_user,
@@ -5856,9 +5913,9 @@ DROP TABLE IF EXISTS test_multi_tab";
   rc= mysql_more_results(mysql);
   DIE_UNLESS(rc == 0);
 
-  if (!(mysql_local= mysql_init(NULL)))
+  if (!(mysql_local= mysql_client_init(NULL)))
   {
-    fprintf(stdout, "\n mysql_init() failed");
+    fprintf(stdout, "\n mysql_client_init() failed");
     exit(1);
   }
 
@@ -5981,9 +6038,9 @@ static void test_prepare_multi_statements()
   char query[MAX_TEST_QUERY_LENGTH];
   myheader("test_prepare_multi_statements");
 
-  if (!(mysql_local= mysql_init(NULL)))
+  if (!(mysql_local= mysql_client_init(NULL)))
   {
-    fprintf(stderr, "\n mysql_init() failed");
+    fprintf(stderr, "\n mysql_client_init() failed");
     exit(1);
   }
 
@@ -7464,9 +7521,9 @@ static void test_prepare_grant()
 
     if (!opt_silent)
       fprintf(stdout, "\n Establishing a test connection ...");
-    if (!(lmysql= mysql_init(NULL)))
+    if (!(lmysql= mysql_client_init(NULL)))
     {
-      myerror("mysql_init() failed");
+      myerror("mysql_client_init() failed");
       exit(1);
     }
     if (!(mysql_real_connect(lmysql, opt_host, "test_grant",
@@ -7921,9 +7978,9 @@ static void test_drop_temp()
 
     if (!opt_silent)
       fprintf(stdout, "\n Establishing a test connection ...");
-    if (!(lmysql= mysql_init(NULL)))
+    if (!(lmysql= mysql_client_init(NULL)))
     {
-      myerror("mysql_init() failed");
+      myerror("mysql_client_init() failed");
       exit(1);
     }
 
@@ -13165,7 +13222,7 @@ static void test_bug15518()
   int rc;
   myheader("test_bug15518");
 
-  mysql1= mysql_init(NULL);
+  mysql1= mysql_client_init(NULL);
 
   if (!mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
                           opt_db ? opt_db : "test", opt_port, opt_unix_socket,
@@ -13321,9 +13378,9 @@ static void test_bug8378()
 
   if (!opt_silent)
     fprintf(stdout, "\n Establishing a test connection ...");
-  if (!(lmysql= mysql_init(NULL)))
+  if (!(lmysql= mysql_client_init(NULL)))
   {
-    myerror("mysql_init() failed");
+    myerror("mysql_client_init() failed");
     exit(1);
   }
   if (mysql_options(lmysql, MYSQL_SET_CHARSET_NAME, "gbk"))
@@ -13862,7 +13919,7 @@ static void test_bug9992()
   if (!opt_silent)
     printf("Establishing a connection with option CLIENT_MULTI_STATEMENTS..\n");
 
-  mysql1= mysql_init(NULL);
+  mysql1= mysql_client_init(NULL);
 
   if (!mysql_real_connect(mysql1, opt_host, opt_user, opt_password,
                           opt_db ? opt_db : "test", opt_port, opt_unix_socket,
@@ -14451,9 +14508,9 @@ static void test_bug12001()
 
   myheader("test_bug12001");
 
-  if (!(mysql_local= mysql_init(NULL)))
+  if (!(mysql_local= mysql_client_init(NULL)))
   {
-    fprintf(stdout, "\n mysql_init() failed");
+    fprintf(stdout, "\n mysql_client_init() failed");
     exit(1);
   }
 
@@ -15178,9 +15235,9 @@ static void test_opt_reconnect()
 
   myheader("test_opt_reconnect");
 
-  if (!(lmysql= mysql_init(NULL)))
+  if (!(lmysql= mysql_client_init(NULL)))
   {
-    myerror("mysql_init() failed");
+    myerror("mysql_client_init() failed");
     exit(1);
   }
 
@@ -15215,9 +15272,9 @@ static void test_opt_reconnect()
 
   mysql_close(lmysql);
 
-  if (!(lmysql= mysql_init(NULL)))
+  if (!(lmysql= mysql_client_init(NULL)))
   {
-    myerror("mysql_init() failed");
+    myerror("mysql_client_init() failed");
     DIE_UNLESS(0);
   }
 
@@ -15252,7 +15309,7 @@ static void test_bug12744()
   int rc;
   myheader("test_bug12744");
 
-  lmysql= mysql_init(NULL);
+  lmysql= mysql_client_init(NULL);
   DIE_UNLESS(lmysql);
 
   if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
@@ -15825,7 +15882,7 @@ static void test_bug15752()
   rc= mysql_query(mysql, "create procedure p1() select 1");
   myquery(rc);
 
-  mysql_init(&mysql_local);
+  mysql_client_init(&mysql_local);
   if (! mysql_real_connect(&mysql_local, opt_host, opt_user,
                            opt_password, current_db, opt_port,
                            opt_unix_socket,
@@ -16712,7 +16769,7 @@ static void test_bug29692()
 {
   MYSQL* conn;
 
-  if (!(conn= mysql_init(NULL)))
+  if (!(conn= mysql_client_init(NULL)))
   {
     myerror("test_bug29692 init failed");
     exit(1);
@@ -16847,7 +16904,7 @@ static void test_bug30472()
 
   /* Create a new connection. */
 
-  DIE_UNLESS(mysql_init(&con));
+  DIE_UNLESS(mysql_client_init(&con));
 
   DIE_UNLESS(mysql_real_connect(&con,
                                 opt_host,
@@ -17021,7 +17078,7 @@ static void test_bug20023()
 
   /* Create a new connection. */
 
-  DIE_UNLESS(mysql_init(&con));
+  DIE_UNLESS(mysql_client_init(&con));
 
   DIE_UNLESS(mysql_real_connect(&con,
                                 opt_host,
@@ -17158,7 +17215,7 @@ static void bug31418_impl()
 
   /* Create a new connection. */
 
-  DIE_UNLESS(mysql_init(&con));
+  DIE_UNLESS(mysql_client_init(&con));
 
   DIE_UNLESS(mysql_real_connect(&con,
                                 opt_host,
@@ -17840,14 +17897,18 @@ static void test_bug43560(void)
   Bug#36326: nested transaction and select
 */
 
-#ifdef HAVE_QUERY_CACHE
-
 static void test_bug36326()
 {
   int rc;
 
   DBUG_ENTER("test_bug36326");
   myheader("test_bug36326");
+
+  if (! is_query_cache_available())
+  {
+    fprintf(stdout, "Skipping test_bug36326: Query cache not available.\n");
+    DBUG_VOID_RETURN;
+  }
 
   rc= mysql_autocommit(mysql, TRUE);
   myquery(rc);
@@ -17887,8 +17948,6 @@ static void test_bug36326()
 
   DBUG_VOID_RETURN;
 }
-
-#endif
 
 /**
   Bug#41078: With CURSOR_TYPE_READ_ONLY mysql_stmt_fetch() returns short
@@ -18008,7 +18067,7 @@ static void test_bug44495()
                          "END;");
   myquery(rc);
 
-  DIE_UNLESS(mysql_init(&con));
+  DIE_UNLESS(mysql_client_init(&con));
 
   DIE_UNLESS(mysql_real_connect(&con, opt_host, opt_user, opt_password,
                                 current_db, opt_port, opt_unix_socket,
@@ -18071,6 +18130,11 @@ static struct my_option client_test_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"silent", 's', "Be more silent", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0,
    0},
+#ifdef HAVE_SMEM
+  {"shared-memory-base-name", 'm', "Base name of shared memory.", 
+  (uchar**) &shared_memory_base_name, (uchar**)&shared_memory_base_name, 0, 
+  GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"socket", 'S', "Socket file to use for connection",
    (uchar **) &opt_unix_socket, (uchar **) &opt_unix_socket, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -18345,9 +18409,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug38486", test_bug38486 },
   { "test_bug40365", test_bug40365 },
   { "test_bug43560", test_bug43560 },
-#ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
-#endif
   { "test_bug41078", test_bug41078 },
   { "test_bug44495", test_bug44495 },
   { 0, 0 }

@@ -29,15 +29,10 @@
  *
  */
 
-/*
-  The following two lines backported by psergey. Remove them when we merge from PBXT again.
-*/
 #include "xt_config.h"
+
 #ifdef PBMS_ENABLED
 
-#define PBMS_API	pbms_enabled_api
-
-#include "pbms_enabled.h"
 #ifdef DRIZZLED
 #include <sys/stat.h>
 #include <drizzled/common_includes.h>
@@ -47,11 +42,15 @@
 #include <mysql/plugin.h>
 #define session_alloc(sess, size) thd_alloc(sess, size);
 #define current_session current_thd
-#endif 
+#endif
 
-#define GET_BLOB_FIELD(t, i) (Field_blob *)(t->field[t->s->blob_field[i]])
-#define DB_NAME(f) (f->table->s->db.str)
-#define TAB_NAME(f) (*(f->table_name))
+#define GET_BLOB_FIELD(t, i)	(Field_blob *)(t->field[t->s->blob_field[i]])
+#define DB_NAME(f)				(f->table->s->db.str)
+#define TAB_NAME(f)				(*(f->table_name))
+
+#define PBMS_API	pbms_enabled_api
+
+#include "pbms_enabled.h"
 
 static PBMS_API pbms_api;
 
@@ -242,4 +241,4 @@ void pbms_completed(TABLE *table, bool ok)
 	 return ;
 }
 
-#endif
+#endif // PBMS_ENABLED

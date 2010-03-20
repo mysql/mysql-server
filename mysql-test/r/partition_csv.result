@@ -1,3 +1,4 @@
+call mtr.add_suppression("Failed to write to mysql.general_log");
 drop table if exists t1;
 create table t1 (a int)
 engine = csv

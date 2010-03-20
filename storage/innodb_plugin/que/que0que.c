@@ -518,6 +518,7 @@ que_graph_free_recursive(
 	upd_node_t*	upd;
 	tab_node_t*	cre_tab;
 	ind_node_t*	cre_ind;
+	purge_node_t*	purge;
 
 	if (node == NULL) {
 
@@ -579,6 +580,13 @@ que_graph_free_recursive(
 		mem_heap_free(ins->entry_sys_heap);
 
 		break;
+	case QUE_NODE_PURGE:
+		purge = node;
+
+		mem_heap_free(purge->heap);
+
+		break;
+
 	case QUE_NODE_UPDATE:
 
 		upd = node;

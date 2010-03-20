@@ -132,7 +132,7 @@ INSERT INTO global_suppressions VALUES
 
  ("Error in Log_event::read_log_event\\\(\\\): 'Sanity check failed', data_len: 258, event_type: 49"),
 
- ("Statement is not safe to log in statement format"),
+ ("Statement may not be safe to log in statement format"),
 
  /* test case for Bug#bug29807 copies a stray frm into database */
  ("InnoDB: Error: table `test`.`bug29807` does not exist in the InnoDB internal"),
@@ -162,6 +162,8 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Unknown column 'c7' in 't15' Error_code: 1054"),
  ("Slave: Can't DROP 'c7'.* 1091"),
  ("Slave: Key column 'c6'.* 1072"),
+ ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
+ (".SELECT UNIX_TIMESTAMP... failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS"),
 
  /* Test case for Bug#31590 in order_by.test produces the following error */
  ("Out of sort memory; increase server sort buffer size"),
@@ -171,6 +173,9 @@ INSERT INTO global_suppressions VALUES
       this error message.
   */
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
+ ("Slave: Unknown table 't1' Error_code: 1051"),
+
+ /* Maria storage engine dependent tests */
 
  /* maria-recovery.test has warning about missing log file */
  ("File '.*maria_log.000.*' not found \\(Errcode: 2\\)"),
@@ -181,6 +186,14 @@ INSERT INTO global_suppressions VALUES
  ("Table '..mysqltest.t_corrupted2' is marked as crashed and should be"),
  ("Incorrect key file for table '..mysqltest.t_corrupted2.MAI'"),
 
+ /*
+   Transient network failures that cause warnings on reconnect.
+   BUG#47743 and BUG#47983.
+ */
+ ("Slave I/O: Get master SERVER_ID failed with error:.*"),
+ ("Slave I/O: Get master clock failed with error:.*"),
+ ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
+ ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
 
  ("THE_LAST_SUPPRESSION")||
 
@@ -217,7 +230,7 @@ BEGIN
     WHERE suspicious=1;
 
   IF @num_warnings > 0 THEN
-    SELECT file_name, line
+    SELECT line
         FROM error_log WHERE suspicious=1;
     --SELECT * FROM test_suppressions;
     -- Return 2 -> check failed

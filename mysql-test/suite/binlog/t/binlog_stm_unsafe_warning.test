@@ -94,15 +94,24 @@ DROP TABLE t1;
 
 SET GLOBAL log_warnings = @old_log_warnings;
 
-let LOG_ERROR= `SELECT @@GLOBAL.log_error`;
+let $log_error_= `SELECT @@GLOBAL.log_error`;
+if(!`select LENGTH('$log_error_')`)
+{
+  # MySQL Server on windows is started with --console and thus
+  # does not know the location of its .err log, use default location
+  let $log_error_ = $MYSQLTEST_VARDIR/log/mysqld.1.err;
+}
+# Assign env variable LOG_ERROR
+let LOG_ERROR=$log_error_;
 
 --echo # Count the number of times the "Unsafe" message was printed
 --echo # to the error log.
 
 perl;
-  $log_error= $ENV{'LOG_ERROR'};
+  use strict;
+  my $log_error= $ENV{'LOG_ERROR'} or die "LOG_ERROR not set";
   open(FILE, "$log_error") or die("Unable to open $log_error: $!\n");
-  $count = () = grep(/Bug#46265/g,<FILE>);
+  my $count = () = grep(/Bug#46265/g,<FILE>);
   print "Occurrences: $count\n";
   close(FILE);
 EOF

@@ -30,6 +30,7 @@ begin;
 insert into t1 values(1),(2),(3);
 
 connection b;
+set innodb_lock_wait_timeout=5;
 --send
 select * from t1 for update;
 
@@ -44,16 +45,20 @@ begin;
 insert into t1 values(4);
 
 connection b;
---send
+# Test that we get a lock timeout.
+# We cannot reliably test that the timeout is exactly 1 seconds due to
+# process scheduling differences on the host running the test suite. But we
+# can test that we are within reasonable range.
+set innodb_lock_wait_timeout=2;
+set @a= current_timestamp();
+--error ER_LOCK_WAIT_TIMEOUT
 select * from t1 for update;
+set @b= current_timestamp();
+set @c= timestampdiff(SECOND, @a, @b);
+select if(@c >= 1 and @c <= 10, 'OK', concat("NOT OK, time passed=", @c));
 
 connection a;
-sleep 2;
 commit;
-
-connection b;
---error ER_LOCK_WAIT_TIMEOUT
-reap;
 drop table t1;
 
 connection default;

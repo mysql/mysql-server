@@ -334,16 +334,18 @@ bool
 sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 {
   Item *expr_item;
+  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
+  bool save_abort_on_warning= thd->abort_on_warning;
+  bool save_stmt_modified_non_trans_table= 
+    thd->transaction.stmt.modified_non_trans_table;
 
   DBUG_ENTER("sp_eval_expr");
 
   if (!*expr_item_ptr)
-    DBUG_RETURN(TRUE);
+    goto error;
 
   if (!(expr_item= sp_prepare_func_item(thd, expr_item_ptr)))
-    DBUG_RETURN(TRUE);
-
-  bool err_status= FALSE;
+    goto error;
 
   /*
     Set THD flags to emit warnings/errors in case of overflow/type errors
@@ -352,10 +354,6 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
     Save original values and restore them after save.
   */
   
-  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
-  bool save_abort_on_warning= thd->abort_on_warning;
-  bool save_stmt_modified_non_trans_table= thd->transaction.stmt.modified_non_trans_table;
-
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   thd->abort_on_warning=
     thd->variables.sql_mode &
@@ -370,13 +368,18 @@ sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   thd->abort_on_warning= save_abort_on_warning;
   thd->transaction.stmt.modified_non_trans_table= save_stmt_modified_non_trans_table;
 
-  if (thd->is_error())
-  {
-    /* Return error status if something went wrong. */
-    err_status= TRUE;
-  }
+  if (!thd->is_error())
+    DBUG_RETURN(FALSE);
 
-  DBUG_RETURN(err_status);
+error:
+  /*
+    In case of error during evaluation, leave the result field set to NULL.
+    Sic: we can't do it in the beginning of the function because the 
+    result field might be needed for its own re-evaluation, e.g. case of 
+    set x = x + 1;
+  */
+  result_field->set_null();
+  DBUG_RETURN (TRUE);
 }
 
 
@@ -1789,6 +1792,7 @@ sp_head::execute_function(THD *thd, Item **argp, uint argcount,
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
                      "Invoked ROUTINE modified a transactional table but MySQL "
                      "failed to reflect this change in the binary log");
+        err_status= TRUE;
       }
       reset_dynamic(&thd->user_var_events);
       /* Forget those values, in case more function calls are binlogged: */
@@ -1926,9 +1930,10 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
       if (spvar->mode == sp_param_out)
       {
         Item_null *null_item= new Item_null();
+        Item *tmp_item= null_item;
 
         if (!null_item ||
-            nctx->set_variable(thd, i, (Item **)&null_item))
+            nctx->set_variable(thd, i, &tmp_item))
         {
           err_status= TRUE;
           break;
@@ -2088,8 +2093,18 @@ sp_head::reset_lex(THD *thd)
   DBUG_RETURN(FALSE);
 }
 
-/// Restore lex during parsing, after we have parsed a sub statement.
-void
+
+/**
+  Restore lex during parsing, after we have parsed a sub statement.
+
+  @param thd Thread handle
+
+  @return
+    @retval TRUE failure
+    @retval FALSE success
+*/
+
+bool
 sp_head::restore_lex(THD *thd)
 {
   DBUG_ENTER("sp_head::restore_lex");
@@ -2100,7 +2115,7 @@ sp_head::restore_lex(THD *thd)
 
   oldlex= (LEX *)m_lex.pop();
   if (! oldlex)
-    return;			// Nothing to restore
+    DBUG_RETURN(FALSE);			// Nothing to restore
 
   oldlex->trg_table_fields.push_back(&sublex->trg_table_fields);
 
@@ -2116,7 +2131,8 @@ sp_head::restore_lex(THD *thd)
     Add routines which are used by statement to respective set for
     this routine.
   */
-  sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines);
+  if (sp_update_sp_used_routines(&m_sroutines, &sublex->sroutines))
+    DBUG_RETURN(TRUE);
   /*
     Merge tables used by this statement (but not by its functions or
     procedures) to multiset of tables used by this routine.
@@ -2128,7 +2144,7 @@ sp_head::restore_lex(THD *thd)
     delete sublex;
   }
   thd->lex= oldlex;
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(FALSE);
 }
 
 /**
@@ -2760,8 +2776,15 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
     m_lex->mark_as_requiring_prelocking(NULL);
   }
   thd->rollback_item_tree_changes();
-  /* Update the state of the active arena. */
-  thd->stmt_arena->state= Query_arena::EXECUTED;
+  /*
+    Update the state of the active arena if no errors on
+    open_tables stage.
+  */
+  if (!res || !thd->is_error() ||
+      (thd->main_da.sql_errno() != ER_CANT_REOPEN_TABLE &&
+       thd->main_da.sql_errno() != ER_NO_SUCH_TABLE &&
+       thd->main_da.sql_errno() != ER_UPDATE_TABLE_USED))
+    thd->stmt_arena->state= Query_arena::EXECUTED;
 
   /*
     Merge here with the saved parent's values
@@ -2827,8 +2850,8 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
   DBUG_ENTER("sp_instr_stmt::execute");
   DBUG_PRINT("info", ("command: %d", m_lex_keeper.sql_command()));
 
-  query= thd->query;
-  query_length= thd->query_length;
+  query= thd->query();
+  query_length= thd->query_length();
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   /* This s-p instr is profilable and will be captured. */
   thd->profiling.set_query_source(m_query.str, m_query.length);
@@ -2841,10 +2864,11 @@ sp_instr_stmt::execute(THD *thd, uint *nextp)
       queries with SP vars can't be cached)
     */
     if (unlikely((thd->options & OPTION_LOG_OFF)==0))
-      general_log_write(thd, COM_QUERY, thd->query, thd->query_length);
+      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
 
     if (query_cache_send_result_to_client(thd,
-					  thd->query, thd->query_length) <= 0)
+          thd->query(), 
+          thd->query_length()) <= 0)
     {
       res= m_lex_keeper.reset_lex_and_exec_core(thd, nextp, FALSE, this);
 
@@ -3865,7 +3889,8 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         tab->lock_type= table->lock_type;
         tab->lock_count= tab->query_lock_count= 1;
         tab->trg_event_map= table->trg_event_map;
-	my_hash_insert(&m_sptabs, (uchar *)tab);
+	if (my_hash_insert(&m_sptabs, (uchar *)tab))
+          return FALSE;
       }
     }
   return TRUE;

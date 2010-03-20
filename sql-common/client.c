@@ -389,7 +389,7 @@ HANDLE create_named_pipe(MYSQL *mysql, uint connect_timeout, char **arg_host,
 			    0,
 			    NULL,
 			    OPEN_EXISTING,
-			    0,
+			    FILE_FLAG_OVERLAPPED,
 			    NULL )) != INVALID_HANDLE_VALUE)
       break;
     if (GetLastError() != ERROR_PIPE_BUSY)
@@ -623,7 +623,7 @@ HANDLE create_shared_memory(MYSQL *mysql,NET *net, uint connect_timeout)
 err2:
   if (error_allow == 0)
   {
-    net->vio= vio_new_win32shared_memory(net,handle_file_map,handle_map,
+    net->vio= vio_new_win32shared_memory(handle_file_map,handle_map,
                                          event_server_wrote,
                                          event_server_read,event_client_wrote,
                                          event_client_read,event_conn_closed);
@@ -1863,6 +1863,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
+  char		error_string[1024];
   char		*end,*host_info= NULL;
   my_socket	sock;
   in_addr_t	ip_addr;
@@ -1939,7 +1940,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #if defined(HAVE_SMEM)
   if ((!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
-      (!host || !strcmp(host,LOCAL_HOST)))
+      (!host || !strcmp(host,LOCAL_HOST)) &&
+      mysql->options.shared_memory_base_name)
   {
     if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) ==
 	INVALID_HANDLE_VALUE)
@@ -1948,7 +1950,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		 ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
 		  host ? host : "<null>",
 		  unix_socket ? unix_socket : "<null>",
-		  (int) mysql->options.shared_memory_base_name,
+		  mysql->options.shared_memory_base_name,
 		  (int) have_tcpip));
       if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
 	goto error;
@@ -2033,7 +2035,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
     else
     {
-      net->vio=vio_new_win32pipe(hPipe);
+      net->vio= vio_new_win32pipe(hPipe);
       my_snprintf(host_info=buff, sizeof(buff)-1,
                   ER(CR_NAMEDPIPE_CONNECTION), unix_socket);
     }
@@ -2331,9 +2333,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     /* Connect to the server */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslconnect(ssl_fd, mysql->net.vio,
-                   (long) (mysql->options.connect_timeout)))
+                   (long) (mysql->options.connect_timeout),
+                   error_string))
     {
-      set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
+                               unknown_sqlstate,
+                               "SSL error: %s",
+                               error_string[0] ? error_string :
+                               ER(CR_SSL_CONNECTION_ERROR));
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change done!"));
@@ -2746,6 +2753,13 @@ void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
 }
 
 
+/*
+  Close a MySQL connection and free all resources attached to it.
+
+  This function is coded in such that it can be called multiple times
+  (As some clients call this after mysql_real_connect() fails)
+*/
+
 void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
@@ -2779,10 +2793,16 @@ void STDCALL mysql_close(MYSQL *mysql)
     }
 #endif
     if (mysql != mysql->master)
+    {
       mysql_close(mysql->master);
+      mysql->master= 0;
+    }
 #ifndef MYSQL_SERVER
     if (mysql->thd)
+    {
       (*mysql->methods->free_embedded_thd)(mysql);
+      mysql->thd= 0;
+    }
 #endif
     if (mysql->free_me)
       my_free((uchar*) mysql,MYF(0));
@@ -3208,7 +3228,7 @@ const char * STDCALL mysql_error(MYSQL *mysql)
     mysql		Connection
 
   EXAMPLE
-    4.1.0-alfa ->  40100
+    MariaDB-4.1.0-alfa ->  40100
   
   NOTES
     We will ensure that a newer server always has a bigger number.
@@ -3221,7 +3241,11 @@ ulong STDCALL
 mysql_get_server_version(MYSQL *mysql)
 {
   uint major, minor, version;
-  char *pos= mysql->server_version, *end_pos;
+  const char *pos= mysql->server_version;
+  char *end_pos;
+  /* Skip possible prefix */
+  while (*pos && !my_isdigit(&my_charset_latin1, *pos))
+    pos++;
   major=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
   minor=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
   version= (uint) strtoul(pos, &end_pos, 10);
@@ -3237,7 +3261,7 @@ mysql_get_server_version(MYSQL *mysql)
 */
 int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
 {
-  struct charset_info_st *cs;
+  CHARSET_INFO *cs;
   const char *save_csdir= charsets_dir;
 
   if (mysql->options.charset_dir)

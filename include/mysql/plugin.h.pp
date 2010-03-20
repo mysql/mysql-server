@@ -1,9 +1,38 @@
+#include <mysql/services.h>
+#include <mysql/service_my_snprintf.h>
+#include <stdarg.h>
+#include <stdlib.h>
+extern struct my_snprintf_service_st {
+  size_t (*my_snprintf_type)(char*, size_t, const char*, ...);
+  size_t (*my_vsnprintf_type)(char *, size_t, const char*, va_list);
+} *my_snprintf_service;
+size_t my_snprintf(char* to, size_t n, const char* fmt, ...);
+size_t my_vsnprintf(char *to, size_t n, const char* fmt, va_list ap);
+#include <mysql/service_thd_alloc.h>
+#include <stdlib.h>
 struct st_mysql_lex_string
 {
   char *str;
-  unsigned int length;
+  size_t length;
 };
 typedef struct st_mysql_lex_string MYSQL_LEX_STRING;
+extern struct thd_alloc_service_st {
+  void *(*thd_alloc_func)(void*, unsigned int);
+  void *(*thd_calloc_func)(void*, unsigned int);
+  char *(*thd_strdup_func)(void*, const char *);
+  char *(*thd_strmake_func)(void*, const char *, unsigned int);
+  void *(*thd_memdup_func)(void*, const void*, unsigned int);
+  MYSQL_LEX_STRING *(*thd_make_lex_string_func)(void*, MYSQL_LEX_STRING *,
+                                        const char *, unsigned int, int);
+} *thd_alloc_service;
+void *thd_alloc(void* thd, unsigned int size);
+void *thd_calloc(void* thd, unsigned int size);
+char *thd_strdup(void* thd, const char *str);
+char *thd_strmake(void* thd, const char *str, unsigned int size);
+void *thd_memdup(void* thd, const void* str, unsigned int size);
+MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
+                                      const char *str, unsigned int size,
+                                      int allocate_lex_string);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -15,7 +44,8 @@ enum enum_mysql_show_type
 {
   SHOW_UNDEF, SHOW_BOOL, SHOW_INT, SHOW_LONG,
   SHOW_LONGLONG, SHOW_CHAR, SHOW_CHAR_PTR,
-  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE
+  SHOW_ARRAY, SHOW_FUNC, SHOW_DOUBLE,
+  SHOW_always_last
 };
 struct st_mysql_show_var {
   const char *name;
@@ -70,19 +100,20 @@ typedef struct st_mysql_ftparser_boolean_info
   char prev;
   char *quot;
 } MYSQL_FTPARSER_BOOLEAN_INFO;
+typedef int mysql_ft_size_t;
 typedef struct st_mysql_ftparser_param
 {
   int (*mysql_parse)(struct st_mysql_ftparser_param *,
-                     char *doc, int doc_len);
+                     const unsigned char *doc, mysql_ft_size_t doc_len);
   int (*mysql_add_word)(struct st_mysql_ftparser_param *,
-                        char *word, int word_len,
+                        const unsigned char *word, mysql_ft_size_t word_len,
                         MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info);
   void *ftparser_state;
   void *mysql_ftparam;
-  struct charset_info_st *cs;
-  char *doc;
-  int length;
-  int flags;
+  const struct charset_info_st *cs;
+  const unsigned char *doc;
+  mysql_ft_size_t length;
+  unsigned int flags;
   enum enum_ftparser_mode mode;
 } MYSQL_FTPARSER_PARAM;
 struct st_mysql_ftparser
@@ -126,14 +157,6 @@ const char *set_thd_proc_info(void*, const char * info, const char *func,
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
 unsigned long thd_get_thread_id(const void* thd);
-void *thd_alloc(void* thd, unsigned int size);
-void *thd_calloc(void* thd, unsigned int size);
-char *thd_strdup(void* thd, const char *str);
-char *thd_strmake(void* thd, const char *str, unsigned int size);
-void *thd_memdup(void* thd, const void* str, unsigned int size);
-MYSQL_LEX_STRING *thd_make_lex_string(void* thd, MYSQL_LEX_STRING *lex_str,
-                                      const char *str, unsigned int size,
-                                      int allocate_lex_string);
 void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void mysql_query_cache_invalidate4(void* thd,
                                    const char *key, unsigned int key_length,

@@ -235,8 +235,9 @@ event_scheduler_thread(void *arg)
   if (!res)
     scheduler->run(thd);
 
+  DBUG_LEAVE;                               // Against gcc warnings
   my_thread_end();
-  DBUG_RETURN(0);                               // Against gcc warnings
+  return 0;
 }
 
 

@@ -387,6 +387,9 @@ int _ma_test_if_changed(register MARIA_HA *info)
   open_count is not maintained on disk for temporary tables.
 */
 
+#define _MA_ALREADY_MARKED_FILE_CHANGED                                 \
+  ((share->state.changed & STATE_CHANGED) && share->global_changed)
+
 int _ma_mark_file_changed(MARIA_HA *info)
 {
   uchar buff[3];
@@ -394,8 +397,6 @@ int _ma_mark_file_changed(MARIA_HA *info)
   int error= 1;
   DBUG_ENTER("_ma_mark_file_changed");
 
-#define _MA_ALREADY_MARKED_FILE_CHANGED                                 \
-  ((share->state.changed & STATE_CHANGED) && share->global_changed)
   if (_MA_ALREADY_MARKED_FILE_CHANGED)
     DBUG_RETURN(0);
   pthread_mutex_lock(&share->intern_lock); /* recheck under mutex */

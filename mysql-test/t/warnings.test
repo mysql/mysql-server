@@ -194,7 +194,6 @@ DROP PROCEDURE sp1;
 DROP PROCEDURE sp2;
 DROP PROCEDURE sp3;
 
-
 #
 # Bug#30059: End-space truncation warnings are inconsistent or incorrect
 #
@@ -227,4 +226,23 @@ insert into t2 values(@q);
 
 drop table t1, t2;
 
+#
+# Bug#42364 SHOW ERRORS returns empty resultset after dropping non existent table
+#
+--error ER_BAD_TABLE_ERROR
+DROP TABLE t1;
+SHOW ERRORS;
+
 --echo End of 5.0 tests
+
+#
+# Test warning with row numbers
+#
+
+set sql_mode = default;
+select CAST(a AS DECIMAL(13,5)) FROM (SELECT '' as a) t;
+create table t1 (a integer unsigned);
+insert into t1 values (1),(-1),(0),(-2);
+drop table t1;
+
+--echo End of 5.1 tests

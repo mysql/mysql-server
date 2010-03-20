@@ -35,7 +35,9 @@
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), thd(0), substitution(0),
   engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
-  const_item_cache(1), inside_first_fix_fields(0), done_first_fix_fields(FALSE),
+  const_item_cache(1), 
+  inside_first_fix_fields(0), done_first_fix_fields(FALSE),
+  eliminated(FALSE), 
   engine_changed(0), changed(0), is_correlated(FALSE)
 {
   with_subselect= 1;
@@ -181,15 +183,14 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar*)&res))
     return TRUE;
   
-  res= engine->prepare();
 
-  // all transformation is done (used by prepared statements)
-  changed= 1;
+  if (!(res= engine->prepare()))
+  {
+    // all transformation is done (used by prepared statements)
+    changed= 1;
   inside_first_fix_fields= FALSE;
 
 
-  if (!res)
-  {
     // all transformation is done (used by prepared statements)
     changed= 1;
 
@@ -201,8 +202,6 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
     */
     if (substitution)
     {
-      int ret= 0;
-
       // did we changed top item of WHERE condition
       if (unit->outer_select()->where == (*ref))
 	unit->outer_select()->where= substitution; // correct WHERE for PS
@@ -216,22 +215,21 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
       substitution= 0;
       thd->where= "checking transformed subquery";
       if (!(*ref)->fixed)
-	ret= (*ref)->fix_fields(thd, ref);
-      thd->where= save_where;
-  done_first_fix_fields= FALSE;
-      return ret;
+	res= (*ref)->fix_fields(thd, ref);
+      goto end;
+//psergey-merge:  done_first_fix_fields= FALSE;
     }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-  done_first_fix_fields= FALSE;
-      return TRUE;
+//psergey-merge:  done_first_fix_fields= FALSE;
+      goto end;
     }
     fix_length_and_dec();
   }
   else
-    goto err;
+    goto end;
   
   if ((uncacheable= engine->uncacheable()))
   {
@@ -241,7 +239,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   }
   fixed= 1;
 
-err:
+end:
   done_first_fix_fields= FALSE;
   thd->where= save_where;
   return res;
@@ -652,6 +650,7 @@ void Item_maxmin_subselect::print(String *str, enum_query_type query_type)
 
 void Item_singlerow_subselect::reset()
 {
+  eliminated= FALSE;
   null_value= 1;
   if (value)
     value->null_value= 1;
@@ -727,6 +726,8 @@ void Item_singlerow_subselect::store(uint i, Item *item)
   row[i]->store(item);
   //psergey-merge: can do without that: row[i]->cache_value();
   //psergey-backport-timours: ^ really, without that ^ 
+  //psergey-try-merge-again:
+  row[i]->cache_value();
 }
 
 enum Item_result Item_singlerow_subselect::result_type() const
@@ -2370,6 +2371,10 @@ int subselect_single_select_engine::prepare()
 {
   if (prepared)
     return 0;
+  if (select_lex->join)
+  {
+    select_lex->cleanup();
+  }
   join= new JOIN(thd, select_lex->item_list,
 		 select_lex->options | SELECT_NO_UNLOCK, result);
   if (!join || !result)
@@ -2574,6 +2579,7 @@ int subselect_single_select_engine::exec()
               tab->read_record.record= tab->table->record[0];
               tab->read_record.thd= join->thd;
               tab->read_record.ref_length= tab->table->file->ref_length;
+              tab->read_record.unlock_row= rr_unlock_row;
               *(last_changed_tab++)= tab;
               break;
             }

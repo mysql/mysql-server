@@ -388,6 +388,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
                      bool if_not_exists)
 {
   int ret;
+  bool save_binlog_row_based;
   DBUG_ENTER("Events::create_event");
 
   /*
@@ -414,7 +415,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
   DBUG_ASSERT(parse_data->expression || parse_data->execute_at);
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, 0, 0, 0,
-                   is_schema_db(parse_data->dbname.str)))
+                   is_schema_db(parse_data->dbname.str,
+                                parse_data->dbname.length)))
     DBUG_RETURN(TRUE);
 
   if (check_db_dir_existence(parse_data->dbname.str))
@@ -429,8 +431,8 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for CREATE EVENT command.
   */
-  if (thd->current_stmt_binlog_row_based)
-    thd->clear_current_stmt_binlog_row_based();
+  save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  thd->clear_current_stmt_binlog_row_based();
 
   pthread_mutex_lock(&LOCK_event_metadata);
 
@@ -464,20 +466,24 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     if (!dropped)
     {
       /* Binlog the create event. */
-      DBUG_ASSERT(thd->query && thd->query_length);
+      DBUG_ASSERT(thd->query() && thd->query_length());
       String log_query;
       if (create_query_string(thd, &log_query))
       {
         sql_print_error("Event Error: An error occurred while creating query string, "
                         "before writing it into binary log.");
+        /* Restore the state of binlog format */
+        thd->current_stmt_binlog_row_based= save_binlog_row_based;
         DBUG_RETURN(TRUE);
       }
       /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
          will be written into the binary log as the definer for the SQL thread. */
-      write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+      ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
 
   DBUG_RETURN(ret);
 }
@@ -507,6 +513,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
                      LEX_STRING *new_dbname, LEX_STRING *new_name)
 {
   int ret;
+  bool save_binlog_row_based;
   Event_queue_element *new_element;
 
   DBUG_ENTER("Events::update_event");
@@ -525,7 +532,8 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     DBUG_RETURN(TRUE);
 
   if (check_access(thd, EVENT_ACL, parse_data->dbname.str, 0, 0, 0,
-                   is_schema_db(parse_data->dbname.str)))
+                   is_schema_db(parse_data->dbname.str,
+                                parse_data->dbname.length)))
     DBUG_RETURN(TRUE);
 
   if (new_dbname)                               /* It's a rename */
@@ -547,7 +555,7 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
       access it.
     */
     if (check_access(thd, EVENT_ACL, new_dbname->str, 0, 0, 0,
-                     is_schema_db(new_dbname->str)))
+                     is_schema_db(new_dbname->str, new_dbname->length)))
       DBUG_RETURN(TRUE);
 
     /* Check that the target database exists */
@@ -562,8 +570,8 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     Turn off row binlogging of this statement and use statement-based 
     so that all supporting tables are updated for UPDATE EVENT command.
   */
-  if (thd->current_stmt_binlog_row_based)
-    thd->clear_current_stmt_binlog_row_based();
+  save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  thd->clear_current_stmt_binlog_row_based();
 
   pthread_mutex_lock(&LOCK_event_metadata);
 
@@ -594,11 +602,13 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
         event_queue->update_event(thd, parse_data->dbname, parse_data->name,
                                   new_element);
       /* Binlog the alter event. */
-      DBUG_ASSERT(thd->query && thd->query_length);
-      write_bin_log(thd, TRUE, thd->query, thd->query_length);
+      DBUG_ASSERT(thd->query() && thd->query_length());
+      ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
 
   DBUG_RETURN(ret);
 }
@@ -632,6 +642,7 @@ bool
 Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
 {
   int ret;
+  bool save_binlog_row_based;
   DBUG_ENTER("Events::drop_event");
 
   /*
@@ -652,15 +663,15 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     DBUG_RETURN(TRUE);
 
   if (check_access(thd, EVENT_ACL, dbname.str, 0, 0, 0,
-                   is_schema_db(dbname.str)))
+                   is_schema_db(dbname.str, dbname.length)))
     DBUG_RETURN(TRUE);
 
   /*
     Turn off row binlogging of this statement and use statement-based so
     that all supporting tables are updated for DROP EVENT command.
   */
-  if (thd->current_stmt_binlog_row_based)
-    thd->clear_current_stmt_binlog_row_based();
+  save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  thd->clear_current_stmt_binlog_row_based();
 
   pthread_mutex_lock(&LOCK_event_metadata);
   /* On error conditions my_error() is called so no need to handle here */
@@ -669,10 +680,12 @@ Events::drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name, bool if_exists)
     if (event_queue)
       event_queue->drop_event(thd, dbname, name);
     /* Binlog the drop event. */
-    DBUG_ASSERT(thd->query && thd->query_length);
-    write_bin_log(thd, TRUE, thd->query, thd->query_length);
+    DBUG_ASSERT(thd->query() && thd->query_length());
+    ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
   }
   pthread_mutex_unlock(&LOCK_event_metadata);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
   DBUG_RETURN(ret);
 }
 
@@ -809,7 +822,7 @@ Events::show_create_event(THD *thd, LEX_STRING dbname, LEX_STRING name)
     DBUG_RETURN(TRUE);
 
   if (check_access(thd, EVENT_ACL, dbname.str, 0, 0, 0,
-                   is_schema_db(dbname.str)))
+                   is_schema_db(dbname.str, dbname.length)))
     DBUG_RETURN(TRUE);
 
   /*
@@ -867,7 +880,7 @@ Events::fill_schema_events(THD *thd, TABLE_LIST *tables, COND * /* cond */)
   if (thd->lex->sql_command == SQLCOM_SHOW_EVENTS)
   {
     DBUG_ASSERT(thd->lex->select_lex.db);
-    if (!is_schema_db(thd->lex->select_lex.db) &&  // There is no events in I_S
+    if (!is_schema_db(thd->lex->select_lex.db) &&    // There is no events in I_S
         check_access(thd, EVENT_ACL, thd->lex->select_lex.db, 0, 0, 0, 0))
       DBUG_RETURN(1);
     db= thd->lex->select_lex.db;

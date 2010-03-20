@@ -829,14 +829,25 @@ static void idx_next_branch_item(XTTableHPtr XT_UNUSED(tab), XTIndexPtr ind, XTI
 
 	result->sr_item.i_item_offset += result->sr_item.i_item_size + result->sr_item.i_node_ref_size;
 	bitem = branch->tb_data + result->sr_item.i_item_offset;
-	if (ind->mi_fix_key)
-		ilen = result->sr_item.i_item_size;
-	else {
-		ilen = myxt_get_key_length(ind, bitem) + XT_RECORD_REF_SIZE;
-		result->sr_item.i_item_size = ilen;
+	if (result->sr_item.i_item_offset < result->sr_item.i_total_size) {
+		if (ind->mi_fix_key)
+			ilen = result->sr_item.i_item_size;
+		else {
+			ilen = myxt_get_key_length(ind, bitem) + XT_RECORD_REF_SIZE;
+			result->sr_item.i_item_size = ilen;
+		}
+		xt_get_res_record_ref(bitem + ilen - XT_RECORD_REF_SIZE, result); /* (Only valid if i_item_offset < i_total_size) */
 	}
-	xt_get_res_record_ref(bitem + ilen - XT_RECORD_REF_SIZE, result); /* (Only valid if i_item_offset < i_total_size) */
-	result->sr_branch = IDX_GET_NODE_REF(tab, bitem, result->sr_item.i_node_ref_size);
+	else {
+		result->sr_item.i_item_size = 0;
+		result->sr_rec_id = 0;
+		result->sr_row_id = 0;
+	}
+	if (result->sr_item.i_node_ref_size)
+		/* IDX_GET_NODE_REF() loads the branch reference to the LEFT of the item. */
+		result->sr_branch = IDX_GET_NODE_REF(tab, bitem, result->sr_item.i_node_ref_size);
+	else
+		result->sr_branch = 0;
 }
 
 xtPublic void xt_prev_branch_item_fix(XTTableHPtr XT_UNUSED(tab), XTIndexPtr XT_UNUSED(ind), XTIdxBranchDPtr branch, register XTIdxResultRec *result)
@@ -3987,7 +3998,7 @@ xtPublic xtBool xt_flush_indices(XTOpenTablePtr ot, off_t *bytes_flushed, xtBool
 		 * here.
 		 */
 		if (!(tab->tab_dic.dic_tab_flags & XT_TAB_FLAGS_TEMP_TAB)) {
-			if (!xt_xlog_flush_log(ot->ot_thread))
+			if (!xt_xlog_flush_log(tab->tab_db, ot->ot_thread))
 				goto failed_2;
 			if (!il->il_flush(ot))
 				goto failed_2;

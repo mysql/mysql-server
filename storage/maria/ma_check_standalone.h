@@ -30,11 +30,9 @@
   Check if check/repair operation was killed by a signal
 */
 
-static int not_killed= 0;
-
-volatile int *_ma_killed_ptr(HA_CHECK *param __attribute__((unused)))
+int _ma_killed_ptr(HA_CHECK *param __attribute__((unused)))
 {
-  return &not_killed;			/* always NULL */
+  return 0;
 }
 
 	/* print warnings and errors */

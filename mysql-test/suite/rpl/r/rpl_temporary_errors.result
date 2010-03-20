@@ -82,3 +82,4 @@ Last_SQL_Error
 DROP TABLE t1;
 **** On Master ****
 DROP TABLE t1;
+STOP SLAVE;

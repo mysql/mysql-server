@@ -601,7 +601,7 @@ AME	AME
 explain 
 select min(a1) from t1 where a1 > 'KKK' or a1 < 'XXX';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY	PRIMARY	0	NULL	1	Using where; Using index
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	3	NULL	15	Using where; Using index
 explain 
 select min(a1) from t1 where a1 != 'KKK';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -885,7 +885,7 @@ cast(sum(distinct df) as signed)
 3
 select cast(min(df) as signed) from t1;
 cast(min(df) as signed)
-0
+1
 select 1e8 * sum(distinct df) from t1;
 1e8 * sum(distinct df)
 330000000

@@ -40,6 +40,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "log0log.h"
 #include "os0file.h"
+#include "read0read.h"
 
 /** The file format tag structure with id and name. */
 struct file_format_struct {
@@ -1533,3 +1534,80 @@ trx_sys_file_format_id_to_name(
 }
 
 #endif /* !UNIV_HOTBACKUP */
+
+/*********************************************************************
+Shutdown/Close the transaction system. */
+UNIV_INTERN
+void
+trx_sys_close(void)
+/*===============*/
+{
+	trx_rseg_t*	rseg;
+	read_view_t*	view;
+
+	ut_ad(trx_sys != NULL);
+
+	/* Check that all read views are closed except read view owned
+	by a purge. */
+
+	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
+		fprintf(stderr,
+			"InnoDB: Error: all read views were not closed"
+			" before shutdown:\n"
+			"InnoDB: %lu read views open \n",
+			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
+	}
+
+	sess_close(trx_dummy_sess);
+	trx_dummy_sess = NULL;
+
+	trx_purge_sys_close();
+
+	mutex_enter(&kernel_mutex);
+
+	/* Free the double write data structures. */
+	ut_a(trx_doublewrite != NULL);
+	ut_free(trx_doublewrite->write_buf_unaligned);
+	trx_doublewrite->write_buf_unaligned = NULL;
+
+	mem_free(trx_doublewrite->buf_block_arr);
+	trx_doublewrite->buf_block_arr = NULL;
+
+	mutex_free(&trx_doublewrite->mutex);
+	mem_free(trx_doublewrite);
+	trx_doublewrite = NULL;
+
+	/* There can't be any active transactions. */
+	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
+
+	while (rseg != NULL) {
+		trx_rseg_t*	prev_rseg = rseg;
+
+		rseg = UT_LIST_GET_NEXT(rseg_list, prev_rseg);
+		UT_LIST_REMOVE(rseg_list, trx_sys->rseg_list, prev_rseg);
+
+		trx_rseg_mem_free(prev_rseg);
+	}
+
+	view = UT_LIST_GET_FIRST(trx_sys->view_list);
+
+	while (view != NULL) {
+		read_view_t*	prev_view = view;
+
+		view = UT_LIST_GET_NEXT(view_list, prev_view);
+
+		/* Views are allocated from the trx_sys->global_read_view_heap.
+		So, we simply remove the element here. */
+		UT_LIST_REMOVE(view_list, trx_sys->view_list, prev_view);
+	}
+
+	ut_a(UT_LIST_GET_LEN(trx_sys->trx_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->rseg_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
+	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
+
+	mem_free(trx_sys);
+
+	trx_sys = NULL;
+	mutex_exit(&kernel_mutex);
+}

@@ -300,9 +300,10 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   uint prefix_len,suffix_len;
   int key_len_skip, seg_len_pack, key_len_left;
   uchar *end, *kseg, *vseg;
-  uchar *sort_order=keyinfo->seg->charset->sort_order;
+  const uchar *sort_order= keyinfo->seg->charset->sort_order;
   uchar tt_buff[HA_MAX_KEY_BUFF+2], *t_buff=tt_buff+2;
-  uchar *saved_from, *saved_to, *saved_vseg;
+  uchar *UNINIT_VAR(saved_from), *UNINIT_VAR(saved_to);
+  uchar *UNINIT_VAR(saved_vseg);
   uint  saved_length=0, saved_prefix_len=0;
   uint  length_pack;
   DBUG_ENTER("_mi_prefix_search");
@@ -310,9 +311,6 @@ int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
   LINT_INIT(length);
   LINT_INIT(prefix_len);
   LINT_INIT(seg_len_pack);
-  LINT_INIT(saved_from);
-  LINT_INIT(saved_to);
-  LINT_INIT(saved_vseg);
 
   t_buff[0]=0;                                  /* Avoid bugs */
   end= page+mi_getint(page);
@@ -1473,7 +1471,8 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   int length;
   uint key_length,ref_length,org_key_length=0,
        length_pack,new_key_length,diff_flag,pack_marker;
-  uchar *start,*end,*key_end,*sort_order;
+  uchar *start,*end,*key_end;
+  const uchar *sort_order;
   my_bool same_length;
 
   length_pack=s_temp->ref_length=s_temp->n_ref_length=s_temp->n_length=0;

@@ -35,7 +35,7 @@
 
 #ifdef DEBUG
 #ifdef DRIZZLED
-#include <drizzled/common_includes.h>
+//#include <drizzled/common_includes.h>
 #else
 #include "mysql_priv.h"
 #endif
@@ -396,7 +396,7 @@ void XTToken::expectNumber(XTThreadPtr self)
 struct charset_info_st;
 
 class XTTokenizer {
-	struct charset_info_st	*tkn_charset;
+	const struct charset_info_st	*tkn_charset;
 	char					*tkn_cstring;
 	char					*tkn_curr_pos;
 	XTToken					*tkn_current;
@@ -436,11 +436,6 @@ class XTTokenizer {
 	XTToken *nextToken(XTThreadPtr self);
 	XTToken *nextToken(XTThreadPtr self, c_char *keyword, XTToken *tk);
 };
-
-void ri_free_token(XTThreadPtr XT_UNUSED(self), XTToken *tk)
-{
-	delete tk;
-}
 
 XTToken *XTTokenizer::newToken(XTThreadPtr self, u_int type, char *start, char *end)
 {
@@ -1329,7 +1324,7 @@ void XTParseTable::parseDropIndex(XTThreadPtr self)
 class XTCreateTable : public XTParseTable {
 	public:
 	bool					ct_convert;
-	struct charset_info_st	*ct_charset;
+	const struct charset_info_st	*ct_charset;
 	XTPathStrPtr			ct_tab_path;
 	u_int					ct_contraint_no;
 	XTDDTable				*ct_curr_table;

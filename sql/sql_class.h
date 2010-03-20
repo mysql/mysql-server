@@ -95,6 +95,8 @@ extern char internal_table_name[2];
 extern char empty_c_string[1];
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
+extern bool volatile shutdown_in_progress;
+
 #define TC_LOG_PAGE_SIZE   8192
 #define TC_LOG_MIN_SIZE    (3*TC_LOG_PAGE_SIZE)
 
@@ -370,6 +372,7 @@ struct system_variables
   ulong ndb_index_stat_cache_entries;
   ulong ndb_index_stat_update_freq;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
+  my_bool binlog_direct_non_trans_update;
   /*
     In slave thread we need to know in behalf of which
     thread the query is being run to replicate temp tables properly
@@ -583,6 +586,8 @@ public:
   { return state == INITIALIZED_FOR_SP; }
   inline bool is_stmt_prepare_or_first_sp_execute() const
   { return (int)state < (int)PREPARED; }
+  inline bool is_stmt_prepare_or_first_stmt_execute() const
+  { return (int)state <= (int)PREPARED; }
   inline bool is_first_stmt_execute() const { return state == PREPARED; }
   inline bool is_stmt_execute() const
   { return state == PREPARED || state == EXECUTED; }
@@ -679,9 +684,12 @@ public:
     This printing is needed at least in SHOW PROCESSLIST and SHOW
     ENGINE INNODB STATUS.
   */
-  char *query;
-  uint32 query_length;                          // current query length
+  LEX_STRING query_string;
   Server_side_cursor *cursor;
+
+  inline char *query() { return query_string.str; }
+  inline uint32 query_length() { return query_string.length; }
+  void set_query_inner(char *query_arg, uint32 query_length_arg);
 
   /**
     Name of the current (default) database.
@@ -1126,6 +1134,31 @@ public:
     /* Ignore error */
     return TRUE;
   }
+};
+
+
+/**
+  This class is an internal error handler implementation for 
+  DROP TABLE statements. The thing is that there may be warnings during
+  execution of these statements, which should not be exposed to the user.
+  This class is intended to silence such warnings.
+*/
+
+class Drop_table_error_handler : public Internal_error_handler
+{
+public:
+  Drop_table_error_handler(Internal_error_handler *err_handler)
+    :m_err_handler(err_handler)
+  { }
+
+public:
+  bool handle_error(uint sql_errno,
+                    const char *message,
+                    MYSQL_ERROR::enum_warning_level level,
+                    THD *thd);
+
+private:
+  Internal_error_handler *m_err_handler;
 };
 
 
@@ -1941,6 +1974,11 @@ public:
   partition_info *work_part_info;
 #endif
 
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Debug Sync facility. See debug_sync.cc. */
+  struct st_debug_sync_control *debug_sync_control;
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   THD();
   ~THD();
 
@@ -1961,6 +1999,7 @@ public:
   void cleanup(void);
   void cleanup_after_query();
   bool store_globals();
+  void reset_globals();
 #ifdef SIGNAL_WITH_VIO_CLOSE
   inline void set_active_vio(Vio* vio)
   {
@@ -2179,7 +2218,11 @@ public:
   {
     int err= killed_errno();
     if (err)
+    {
+      if ((err == KILL_CONNECTION) && !shutdown_in_progress)
+        err = KILL_QUERY;
       my_message(err, ER(err), MYF(0));
+    }
   }
   /* return TRUE if we will abort query if we make a warning now */
   inline bool really_abort_on_warning()
@@ -2650,7 +2693,7 @@ public:
     {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
 
-  void binlog_show_create_table(TABLE **tables, uint count);
+  int binlog_show_create_table(TABLE **tables, uint count);
   void store_values(List<Item> &values);
   void send_error(uint errcode,const char *err);
   bool send_eof();
@@ -2695,7 +2738,32 @@ public:
   ENGINE_COLUMNDEF *recinfo, *start_recinfo;
   KEY *keyinfo;
   ha_rows end_write_records;
-  uint	field_count,sum_func_count,func_count;
+  /**
+    Number of normal fields in the query, including those referred to
+    from aggregate functions. Hence, "SELECT `field1`,
+    SUM(`field2`) from t1" sets this counter to 2.
+
+    @see count_field_types
+  */
+  uint	field_count; 
+  /**
+    Number of fields in the query that have functions. Includes both
+    aggregate functions (e.g., SUM) and non-aggregates (e.g., RAND).
+    Also counts functions referred to from aggregate functions, i.e.,
+    "SELECT SUM(RAND())" sets this counter to 2.
+
+    @see count_field_types
+  */
+  uint  func_count;  
+  /**
+    Number of fields in the query that have aggregate functions. Note
+    that the optimizer may choose to optimize away these fields by
+    replacing them with constants, in which case sum_func_count will
+    need to be updated.
+
+    @see opt_sum_query, count_field_types
+  */
+  uint  sum_func_count;   
   uint  hidden_field_count;
   uint	group_parts,group_length,group_null_parts;
   uint	quick_group;
@@ -3097,7 +3165,8 @@ public:
   bool send_data(List<Item> &items);
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
-  int  do_deletes();
+  int do_deletes();
+  int do_table_deletes(TABLE *table, bool ignore);
   bool send_eof();
   virtual void abort();
 };

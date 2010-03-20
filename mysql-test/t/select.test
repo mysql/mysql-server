@@ -3739,7 +3739,143 @@ EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND a = b LIMIT 2;
 EXPLAIN EXTENDED SELECT a, b FROM t1 WHERE a > 1 AND b = a LIMIT 2;
 
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug#47019: Assertion failed: 0, file .\rt_mbr.c, line 138 when 
+--echo # forcing a spatial index
+--echo #
+CREATE TABLE t1(a LINESTRING NOT NULL, SPATIAL KEY(a));
+INSERT INTO t1 VALUES
+  (GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')),
+  (GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
+EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
+SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2;
+EXPLAIN SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
+SELECT 1 FROM t1 NATURAL LEFT JOIN t1 AS t2 FORCE INDEX(a);
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #48291 : crash with row() operator,select into @var, and 
+--echo #   subquery returning multiple rows
+--echo #
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (2),(3);
+
+--echo # Should not crash
+--error ER_SUBQUERY_NO_1_ROW
+SELECT 1 FROM t1 WHERE a <> 1 AND NOT
+ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1))
+INTO @var0;
+
+DROP TABLE t1;
  
+--echo #
+--echo # Bug #48458: simple query tries to allocate enormous amount of
+--echo #   memory
+--echo #
+
+CREATE TABLE t1(a INT NOT NULL, b YEAR);
+INSERT INTO t1 VALUES ();
+CREATE TABLE t2(c INT);
+--echo # Should not err out because of out-of-memory
+SELECT 1 FROM t2 JOIN t1 ON 1=1
+  WHERE a != '1' AND NOT a >= b OR NOT ROW(b,a )<> ROW(a,a);
+DROP TABLE t1,t2;
+
+
+--echo #
+--echo # Bug #49199: Optimizer handles incorrectly: 
+--echo # field='const1' AND field='const2' in some cases
+--echo
+CREATE TABLE t1(a DATETIME NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+DROP TABLE t1;
+
+CREATE TABLE t1(a DATE NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+DROP TABLE t1;
+
+CREATE TABLE t1(a TIMESTAMP NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
+DROP TABLE t1;
+
+CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+DROP TABLE t1;
+
+CREATE TABLE t1(a DATETIME NOT NULL, b VARCHAR(20) NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
+SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a=b AND b='2001-01-01 00:00:00';
+
+SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01 00:00:00' AND a=b AND b='2001-01-01';
+DROP TABLE t1;
+
+CREATE TABLE t1(a DATETIME NOT NULL, b DATE NOT NULL);
+INSERT INTO t1 VALUES('2001-01-01', '2001-01-01');
+SELECT x.a, y.a, z.a FROM t1 x 
+  JOIN t1 y ON x.a=y.a 
+  JOIN t1 z ON y.a=z.a 
+  WHERE x.a='2001-01-01' AND z.a='2001-01-01 00:00:00';
+EXPLAIN EXTENDED SELECT x.a, y.a, z.a FROM t1 x 
+  JOIN t1 y ON x.a=y.a 
+  JOIN t1 z ON y.a=z.a 
+  WHERE x.a='2001-01-01' AND z.a='2001-01-01 00:00:00';
+DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #49897: crash in ptr_compare when char(0) NOT NULL 
+--echo # column is used for ORDER BY
+--echo #
+SET @old_sort_buffer_size= @@session.sort_buffer_size;
+SET @@sort_buffer_size= 40000;
+
+CREATE TABLE t1(a CHAR(0) NOT NULL);
+--disable_warnings
+INSERT INTO t1 VALUES (0), (0), (0);
+--enable_warnings
+INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;
+EXPLAIN SELECT a FROM t1 ORDER BY a;
+--disable_result_log
+SELECT a FROM t1 ORDER BY a;
+--enable_result_log
+DROP TABLE t1;
+
+CREATE TABLE t1(a CHAR(0) NOT NULL, b CHAR(0) NOT NULL, c int);
+--disable_warnings
+INSERT INTO t1 VALUES (0, 0, 0), (0, 0, 2), (0, 0, 1);
+--enable_warnings
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+INSERT INTO t1 SELECT t11.a, t11.b, t11.c FROM t1 t11, t1 t12;
+EXPLAIN SELECT a FROM t1 ORDER BY a LIMIT 5;
+SELECT a FROM t1 ORDER BY a LIMIT 5;
+EXPLAIN SELECT * FROM t1 ORDER BY a, b LIMIT 5;
+SELECT * FROM t1 ORDER BY a, b LIMIT 5;
+EXPLAIN SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
+SELECT * FROM t1 ORDER BY a, b, c LIMIT 5;
+EXPLAIN SELECT * FROM t1 ORDER BY c, a LIMIT 5;
+SELECT * FROM t1 ORDER BY c, a LIMIT 5;
+
+SET @@sort_buffer_size= @old_sort_buffer_size;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
 
 #
@@ -3885,4 +4021,60 @@ SELECT table1 .`time_key` field2  FROM B table1  LEFT JOIN  BB JOIN A table5 ON 
 
 drop table A,AA,B,BB;
 --echo #end of test for bug#45266
+
+--echo # 
+--echo # BUG#48052: Valgrind warning - uninitialized value in init_read_record()
+--echo # 
+
+# Needed in 6.0 codebase
+#--echo # Disable Index condition pushdown
+#--replace_column 1 #
+#SELECT @old_icp:=@@engine_condition_pushdown;
+#SET SESSION engine_condition_pushdown = 'OFF';
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL,
+  i int(11) DEFAULT NULL,
+  v varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t1 VALUES (2,7,'m');
+INSERT INTO t1 VALUES (3,9,'m');
+
+SELECT  v
+FROM t1
+WHERE NOT pk > 0  
+HAVING v <= 't' 
+ORDER BY pk;
+
+# Needed in 6.0 codebase
+#--echo # Restore old value for Index condition pushdown
+#SET SESSION engine_condition_pushdown=@old_icp;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#49489 Uninitialized cache led to a wrong result.
+--echo #
+CREATE TABLE t1(c1 DOUBLE(5,4));
+INSERT INTO t1 VALUES (9.1234);
+SELECT * FROM t1 WHERE c1 < 9.12345;
+DROP TABLE t1;
+--echo # End of test for bug#49489.
+
+
+--echo #
+--echo # Bug #49517: Inconsistent behavior while using 
+--echo # NULLable BIGINT and INT columns in comparison
+--echo #
+CREATE TABLE t1(a BIGINT UNSIGNED NOT NULL, b BIGINT NULL, c INT NULL);
+INSERT INTO t1 VALUES(105, NULL, NULL);
+SELECT * FROM t1 WHERE b < 102;
+SELECT * FROM t1 WHERE c < 102;
+SELECT * FROM t1 WHERE 102 < b;
+SELECT * FROM t1 WHERE 102 < c;
+DROP TABLE t1;
+
+
 --echo End of 5.1 tests

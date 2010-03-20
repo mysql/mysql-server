@@ -73,7 +73,7 @@
 #define IDX_CAC_UNLOCK(i, o)			xt_xsmutex_unlock(&(i)->cs_lock, (o)->t_id)
 #elif defined(IDX_CAC_USE_PTHREAD_RW)
 #define IDX_CAC_LOCK_TYPE				xt_rwlock_type
-#define IDX_CAC_INIT_LOCK(s, i)			xt_init_rwlock(s, &(i)->cs_lock)
+#define IDX_CAC_INIT_LOCK(s, i)			xt_init_rwlock_with_autoname(s, &(i)->cs_lock)
 #define IDX_CAC_FREE_LOCK(s, i)			xt_free_rwlock(&(i)->cs_lock)	
 #define IDX_CAC_READ_LOCK(i, o)			xt_slock_rwlock_ns(&(i)->cs_lock)
 #define IDX_CAC_WRITE_LOCK(i, o)		xt_xlock_rwlock_ns(&(i)->cs_lock)
@@ -94,8 +94,12 @@
 #define IDX_CAC_UNLOCK(i, s)			xt_spinxslock_unlock(&(i)->cs_lock, (s)->t_id)
 #endif
 
+#ifdef XT_NO_ATOMICS
+#define ID_HANDLE_USE_PTHREAD_RW
+#else
 #define ID_HANDLE_USE_SPINLOCK
 //#define ID_HANDLE_USE_PTHREAD_RW
+#endif
 
 #if defined(ID_HANDLE_USE_PTHREAD_RW)
 #define ID_HANDLE_LOCK_TYPE				xt_mutex_type
@@ -374,7 +378,7 @@ xtPublic void xt_ind_release_handle(XTIndHandlePtr handle, xtBool have_lock, XTT
 {
 	DcHandleSlotPtr	hs;
 	XTIndBlockPtr	block = NULL;
-	u_int		hash_idx = 0;
+	u_int			hash_idx = 0;
 	DcSegmentPtr	seg = NULL;
 	XTIndBlockPtr	xblock;
 
@@ -1379,7 +1383,7 @@ xtPublic xtBool xt_ind_fetch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 	ASSERT_NS(iref->ir_xlock == 2);
 #endif
 	if (!(block = ind_cac_fetch(ot, ind, address, &seg, TRUE)))
-		return 0;
+		return FAILED;
 
 	branch_size = XT_GET_DISK_2(((XTIdxBranchDPtr) block->cb_data)->tb_size_2);
 	if (XT_GET_INDEX_BLOCK_LEN(branch_size) < 2 || XT_GET_INDEX_BLOCK_LEN(branch_size) > XT_INDEX_PAGE_SIZE) {

@@ -82,7 +82,7 @@ static plugin_ref ha_default_plugin(THD *thd)
 {
   if (thd->variables.table_plugin)
     return thd->variables.table_plugin;
-  return my_plugin_lock(thd, &global_system_variables.table_plugin);
+  return my_plugin_lock(thd, global_system_variables.table_plugin);
 }
 
 
@@ -163,13 +163,8 @@ plugin_ref ha_lock_engine(THD *thd, handlerton *hton)
 {
   if (hton)
   {
-    st_plugin_int **plugin= hton2plugin + hton->slot;
-    
-#ifdef DBUG_OFF
-    return my_plugin_lock(thd, plugin);
-#else
-    return my_plugin_lock(thd, &plugin);
-#endif
+    st_plugin_int *plugin= hton2plugin[hton->slot];
+    return my_plugin_lock(thd, plugin_int_to_ref(plugin));
   }
   return NULL;
 }
@@ -1317,7 +1312,8 @@ int ha_rollback_trans(THD *thd, bool all)
     }
     trans->ha_list= 0;
     trans->no_2pc=0;
-    if (is_real_trans && thd->transaction_rollback_request)
+    if (is_real_trans && thd->transaction_rollback_request &&
+        thd->transaction.xid_state.xa_state != XA_NOTR)
       thd->transaction.xid_state.rm_error= thd->main_da.sql_errno();
     if (all)
       thd->variables.tx_isolation=thd->session_tx_isolation;
@@ -1583,16 +1579,6 @@ int ha_recover(HASH *commit_list)
 
   if (info.commit_list)
     sql_print_information("Starting crash recovery...");
-
-#ifndef WILL_BE_DELETED_LATER
-  /*
-    for now, only InnoDB supports 2pc. It means we can always safely
-    rollback all pending transactions, without risking inconsistent data
-  */
-  DBUG_ASSERT(total_ha_2pc == (ulong) opt_bin_log+1); // only InnoDB and binlog
-  tc_heuristic_recover= TC_HEURISTIC_RECOVER_ROLLBACK; // forcing ROLLBACK
-  info.dry_run=FALSE;
-#endif
 
   for (info.len= MAX_XID_LIST_SIZE ; 
        info.list==0 && info.len > MIN_XID_LIST_SIZE; info.len/=2)
@@ -1891,11 +1877,41 @@ bool ha_flush_logs(handlerton *db_type)
   return FALSE;
 }
 
+
+/**
+  @brief make canonical filename
+
+  @param[in]  file     table handler
+  @param[in]  path     original path
+  @param[out] tmp_path buffer for canonized path
+
+  @details Lower case db name and table name path parts for
+           non file based tables when lower_case_table_names
+           is 2 (store as is, compare in lower case).
+           Filesystem path prefix (mysql_data_home or tmpdir)
+           is left intact.
+
+  @note tmp_path may be left intact if no conversion was
+        performed.
+
+  @retval canonized path
+
+  @todo This may be done more efficiently when table path
+        gets built. Convert this function to something like
+        ASSERT_CANONICAL_FILENAME.
+*/
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path)
 {
+  uint i;
   if (lower_case_table_names != 2 || (file->ha_table_flags() & HA_FILE_BASED))
     return path;
+
+  for (i= 0; i <= mysql_tmpdir_list.max; i++)
+  {
+    if (is_prefix(path, mysql_tmpdir_list.list[i]))
+      return path;
+  }
 
   /* Ensure that table handler get path in lower case */
   if (tmp_path != path)
@@ -3483,14 +3499,10 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
   if (!(error=index_next(buf)))
   {
     my_ptrdiff_t ptrdiff= buf - table->record[0];
-    uchar *save_record_0;
-    KEY *key_info;
-    KEY_PART_INFO *key_part;
-    KEY_PART_INFO *key_part_end;
-    LINT_INIT(save_record_0);
-    LINT_INIT(key_info);
-    LINT_INIT(key_part);
-    LINT_INIT(key_part_end);
+    uchar *UNINIT_VAR(save_record_0);
+    KEY *UNINIT_VAR(key_info);
+    KEY_PART_INFO *UNINIT_VAR(key_part);
+    KEY_PART_INFO *UNINIT_VAR(key_part_end);
 
     /*
       key_cmp_if_same() compares table->record[0] against 'key'.

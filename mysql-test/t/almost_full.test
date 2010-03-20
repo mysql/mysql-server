@@ -2,6 +2,8 @@
 # Some special cases with empty tables
 #
 
+call mtr.add_suppression("The table 't1' is full");
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

@@ -89,3 +89,28 @@ xa start 'a';
 xa end 'a';
 xa prepare 'a';
 xa commit 'a';
+CREATE TABLE t1(a INT, KEY(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES(1),(2);
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+BEGIN;
+UPDATE t1 SET a=4 WHERE a=2;
+UPDATE t1 SET a=5 WHERE a=2;
+UPDATE t1 SET a=5 WHERE a=1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+ROLLBACK;
+ROLLBACK;
+BEGIN;
+UPDATE t1 SET a=3 WHERE a=1;
+XA START 'xid1';
+UPDATE t1 SET a=4 WHERE a=2;
+UPDATE t1 SET a=5 WHERE a=2;
+UPDATE t1 SET a=5 WHERE a=1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+XA END 'xid1';
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+XA ROLLBACK 'xid1';
+XA START 'xid1';
+XA END 'xid1';
+XA ROLLBACK 'xid1';
+DROP TABLE t1;

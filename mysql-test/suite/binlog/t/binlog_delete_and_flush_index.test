@@ -1,0 +1,114 @@
+# BUG#34582: FLUSH LOGS does not close and reopen the binlog index
+# file
+#
+# WHAT
+# ==== 
+#
+# We want to test that FLUSH LOGS closes and reopens binlog index
+# file.
+#
+# HOW
+# === 
+#
+#  PREPARE:
+#   1. create some binlog events
+#   2. show index content, binlog events and binlog contents 
+#      for mysql-bin.000001
+#   3. copy the mysql-bin.000001 to mysql-bin-b34582.000001
+#   4. change the index file so that mysql-bin.000001 is replaced 
+#      with mysql-bin-b34582.000001
+#   5. FLUSH the logs so that new index is closed and reopened
+#
+#  ASSERTIONS:
+#   1. index file contents shows mysql-bin-b34582.000001 and 
+#      mysql-bin.000002
+#   1. show binary logs shows current index entries
+#   2. binlog contents for mysql-bin-b34582.000001 are displayed
+#   3. Purge binlogs up to the latest one succeeds
+#   4. SHOW BINARY LOGS presents the latest one only after purging
+#   5. Purged binlogs files don't exist in the filesystem
+#   6. Not purged binlog file exists in the filesystem
+#
+#  CLEAN UP:
+#   1. RESET MASTER
+#
+
+-- source include/have_log_bin.inc
+
+RESET MASTER;
+
+-- let $datadir= `SELECT @@datadir`
+-- let $index=$datadir/master-bin.index
+-- chmod 0644 $index
+
+# action: issue one command so that binlog gets some event
+CREATE TABLE t1 (a int);
+
+-- echo ### assertion: index file contains regular entries
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval SET @index=LOAD_FILE('$index')
+-- replace_regex /\.[\\\/]master/master/
+SELECT @index;
+
+--echo ### assertion: show original binlogs
+-- source include/show_binary_logs.inc
+
+--echo ### assertion: binlog contents from regular entries
+-- source include/show_binlog_events.inc
+
+# action: copy binlogs to other names and change entries in index file
+-- copy_file $datadir/master-bin.000001 $datadir/master-bin-b34582.000001
+let INDEX_FILE=$index;
+perl;
+$file= $ENV{'INDEX_FILE'};
+open(FILE, ">$file") || die "Unable to open $file.";
+truncate(FILE,0);
+close ($file);
+EOF
+
+-- append_file $index 
+master-bin-b34582.000001
+EOF
+
+# action: should cause rotation, and creation of new binlogs
+FLUSH LOGS;
+
+# file is not used anymore - remove it (mysql closed on flush logs).
+-- remove_file $datadir/master-bin.000001
+
+-- echo ### assertion: index file contains renamed binlog and the new one
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval SET @index=LOAD_FILE('$index')
+-- replace_regex /\.[\\\/]master/master/
+SELECT @index;
+
+-- echo ### assertion: original binlog content still exists, despite we
+-- echo ###            renamed and changed the index file 
+-- source include/show_binlog_events.inc
+
+-- echo ### assertion: user changed binlog index shows correct entries
+-- source include/show_binary_logs.inc
+
+DROP TABLE t1;
+
+-- echo ### assertion: purging binlogs up to binlog created after instrumenting index file should work
+-- let $current_binlog= query_get_value(SHOW MASTER STATUS, File, 1)
+-- eval PURGE BINARY LOGS TO '$current_binlog'
+
+-- echo ### assertion: show binary logs should only contain latest binlog
+-- source include/show_binary_logs.inc
+
+-- echo ### assertion: assert that binlog files were indeed purged (using file_exists calls)
+-- error 1
+-- file_exists $datadir/master-bin-b34852.000001
+
+-- echo ### assertion: assert that not purged binlog file exists
+-- file_exists $datadir/$current_binlog
+
+-- echo ### assertion: show index file contents and these should match show binary logs issued above
+-- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+-- eval SET @index=LOAD_FILE('$index')
+-- replace_regex /\.[\\\/]master/master/
+SELECT @index;
+
+RESET MASTER;

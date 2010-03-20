@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisamchk\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYISAMCHK\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -275,7 +275,8 @@ Display a help message and exit\&. Options are presented in a single list\&.
 .\}
 .\" myisamchk: debug option
 .\" debug option: myisamchk
-\fB\-\-debug=\fR\fB\fIdebug_options\fR\fR\fB, \-# \fR\fB\fIdebug_options\fR\fR
+\fB\-\-debug=\fR\fB\fIdebug_options\fR\fR,
+\fB\-# \fR\fB\fIdebug_options\fR\fR
 .sp
 Write a debugging log\&. A typical
 \fIdebug_options\fR
@@ -520,7 +521,7 @@ system variable\&. For more information, see the description of
 myisam_stats_method
 in
 Section\ \&5.1.4, \(lqServer System Variables\(rq, and
-Section\ \&7.4.6, \(lqMyISAM Index Statistics Collection\(rq\&. For MySQL 5\&.1,
+Section\ \&7.4.7, \(lqMyISAM Index Statistics Collection\(rq\&. For MySQL 5\&.1,
 stats_method
 was added in MySQL 5\&.0\&.14\&. For older versions, the statistics collection method is equivalent to
 nulls_equal\&.
@@ -662,6 +663,9 @@ If you are using
 and have plenty of memory, setting the
 key_buffer_size
 variable to a large value helps the repair operation run faster\&.
+.sp
+For a description of the output format, see
+the section called \(lqMYISAMCHK TABLE INFORMATION\(rq\&.
 .RE
 .sp
 .RS 4
@@ -782,7 +786,11 @@ server is using the table and you are running it with external locking disabled\
 .\" files: repairing
 .PP
 \fBmyisamchk\fR
-supports the following options for table repair operations:
+supports the following options for table repair operations (operations performed when an option such as
+\fB\-\-recover\fR
+or
+\fB\-\-safe\-recover\fR
+is given):
 .sp
 .RS 4
 .ie n \{\
@@ -844,7 +852,8 @@ Correct the checksum information for the table\&.
 .\}
 .\" myisamchk: data-file-length option
 .\" data-file-length option: myisamchk
-\fB\-\-data\-file\-length=\fR\fB\fIlen\fR\fR\fB, \-D \fR\fB\fIlen\fR\fR
+\fB\-\-data\-file\-length=\fR\fB\fIlen\fR\fR,
+\fB\-D \fR\fB\fIlen\fR\fR
 .sp
 The maximum length of the data file (when re\-creating data file when it is
 \(lqfull\(rq)\&.
@@ -864,6 +873,9 @@ The maximum length of the data file (when re\-creating data file when it is
 \fB\-e\fR
 .sp
 Do a repair that tries to recover every possible row from the data file\&. Normally, this also finds a lot of garbage rows\&. Do not use this option unless you are desperate\&.
+.sp
+For a description of the output format, see
+the section called \(lqMYISAMCHK TABLE INFORMATION\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1172,7 +1184,10 @@ Find the record that a block at the given offset belongs to\&.
 \fB\-\-description\fR,
 \fB\-d\fR
 .sp
-Print some descriptive information about the table\&.
+Print some descriptive information about the table\&. Specifying the
+\fB\-\-verbose\fR
+option once or twice produces additional information\&. See
+the section called \(lqMYISAMCHK TABLE INFORMATION\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1243,6 +1258,1068 @@ sorts and moves records, it just overwrites record offsets in the index\&. If ke
 \fBmyisamchk\fR
 must unpack key blocks first, then re\-create indexes and pack the key blocks again\&. (In this case, re\-creating indexes is faster than updating offsets for each index\&.)
 .RE
+.SH "MYISAMCHK TABLE INFORMATION"
+.\" table description: myisamchk
+.\" tables: information
+.\" examples: myisamchk output
+.\" myisamchk: example output
+.PP
+To obtain a description of a
+MyISAM
+table or statistics about it, use the commands shown here\&. The output from these commands is explained later in this section\&.
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmyisamchk \-d \fR\fB\fItbl_name\fR\fR
+.sp
+Runs
+\fBmyisamchk\fR
+in
+\(lqdescribe mode\(rq
+to produce a description of your table\&. If you start the MySQL server with external locking disabled,
+\fBmyisamchk\fR
+may report an error for a table that is updated while it runs\&. However, because
+\fBmyisamchk\fR
+does not change the table in describe mode, there is no risk of destroying data\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmyisamchk \-dv \fR\fB\fItbl_name\fR\fR
+.sp
+Adding
+\fB\-v\fR
+runs
+\fBmyisamchk\fR
+in verbose mode so that it produces more information about the table\&. Adding
+\fB\-v\fR
+a second time produces even more information\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmyisamchk \-eis \fR\fB\fItbl_name\fR\fR
+.sp
+Shows only the most important information from a table\&. This operation is slow because it must read the entire table\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBmyisamchk \-eiv \fR\fB\fItbl_name\fR\fR
+.sp
+This is like
+\fB\-eis\fR, but tells you what is being done\&.
+.RE
+.PP
+The
+\fItbl_name\fR
+argument can be either the name of a
+MyISAM
+table or the name of its index file, as described in
+\fBmyisamchk\fR(1)\&. Multiple
+\fItbl_name\fR
+arguments can be given\&.
+.PP
+Suppose that a table named
+person
+has the following structure\&. (The
+MAX_ROWS
+table option is included so that in the example output from
+\fBmyisamchk\fR
+shown later, some values are smaller and fit the output format more easily\&.)
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+CREATE TABLE person
+(
+  id         INT NOT NULL AUTO_INCREMENT,
+  last_name  VARCHAR(20) NOT NULL,
+  first_name VARCHAR(20) NOT NULL,
+  birth      DATE,
+  death      DATE,
+  PRIMARY KEY (id),
+  INDEX (last_name, first_name),
+  INDEX (birth)
+) MAX_ROWS = 1000000;
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Suppose also that the table has these data and index file sizes:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+\-rw\-rw\-\-\-\-  1 mysql  mysql  9347072 Aug 19 11:47 person\&.MYD
+\-rw\-rw\-\-\-\-  1 mysql  mysql  6066176 Aug 19 11:47 person\&.MYI
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Example of
+\fBmyisamchk \-dvv\fR
+output:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+MyISAM file:         person
+Record format:       Packed
+Character set:       latin1_swedish_ci (8)
+File\-version:        1
+Creation time:       2009\-08\-19 16:47:41
+Recover time:        2009\-08\-19 16:47:56
+Status:              checked,analyzed,optimized keys
+Auto increment key:              1  Last value:                306688
+Data records:               306688  Deleted blocks:                 0
+Datafile parts:             306688  Deleted data:                   0
+Datafile pointer (bytes):        4  Keyfile pointer (bytes):        3
+Datafile length:           9347072  Keyfile length:           6066176
+Max datafile length:    4294967294  Max keyfile length:   17179868159
+Recordlength:                   54
+table description:
+Key Start Len Index   Type                 Rec/key         Root  Blocksize
+1   2     4   unique  long                       1        99328       1024
+2   6     20  multip\&. varchar prefix           512      3563520       1024
+    27    20          varchar                  512
+3   48    3   multip\&. uint24 NULL           306688      6065152       1024
+Field Start Length Nullpos Nullbit Type
+1     1     1
+2     2     4                      no zeros
+3     6     21                     varchar
+4     27    21                     varchar
+5     48    3      1       1       no zeros
+6     51    3      1       2       no zeros
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Explanations for the types of information
+\fBmyisamchk\fR
+produces are given here\&.
+\(lqKeyfile\(rq
+refers to the index file\&.
+\(lqRecord\(rq
+and
+\(lqrow\(rq
+are synonymous, as are
+\(lqfield\(rq
+and
+\(lqcolumn\&.\(rq
+.PP
+The initial part of the table description contains these values:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+MyISAM file
+.sp
+Name of the
+MyISAM
+(index) file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Record format
+.sp
+The format used to store table rows\&. The preceding examples use
+Fixed length\&. Other possible values are
+Compressed
+and
+Packed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Chararacter set
+.sp
+The table default character set\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+File\-version
+.sp
+Version of
+MyISAM
+format\&. Currently always 1\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Creation time
+.sp
+When the data file was created\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Recover time
+.sp
+When the index/data file was last reconstructed\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Status
+.sp
+Table status flags\&. Possible values are
+crashed,
+open,
+changed,
+analyzed,
+optimized keys, and
+sorted index pages\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Auto increment key,
+Last value
+.sp
+The key number associated the table\'s
+AUTO_INCREMENT
+column, and the most recently generated value for this column\&. These fields do not appear if there is no such column\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Data records
+.sp
+The number of rows in the table\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Deleted blocks
+.sp
+How many deleted blocks still have reserved space\&. You can optimize your table to minimize this space\&. See
+Section\ \&6.4.4, \(lqTable Optimization\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Datafile parts
+.sp
+For dynamic\-row format, this indicates how many data blocks there are\&. For an optimized table without fragmented rows, this is the same as
+Data records\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Deleted data
+.sp
+How many bytes of unreclaimed deleted data there are\&. You can optimize your table to minimize this space\&. See
+Section\ \&6.4.4, \(lqTable Optimization\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Datafile pointer
+.sp
+The size of the data file pointer, in bytes\&. It is usually 2, 3, 4, or 5 bytes\&. Most tables manage with 2 bytes, but this cannot be controlled from MySQL yet\&. For fixed tables, this is a row address\&. For dynamic tables, this is a byte address\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Keyfile pointer
+.sp
+The size of the index file pointer, in bytes\&. It is usually 1, 2, or 3 bytes\&. Most tables manage with 2 bytes, but this is calculated automatically by MySQL\&. It is always a block address\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Max datafile length
+.sp
+How long the table data file can become, in bytes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Max keyfile length
+.sp
+How long the table index file can become, in bytes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Recordlength
+.sp
+How much space each row takes, in bytes\&.
+.RE
+.PP
+The
+table description
+part of the output includes a list of all keys in the table\&. For each key,
+\fBmyisamchk\fR
+displays some low\-level information:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Key
+.sp
+This key\'s number\&. This value is shown only for the first column of the key\&. If this value is missing, the line corresponds to the second or later column of a multiple\-column key\&. For the table shown in the example, there are two
+table description
+lines for the second index\&. This indicates that it is a multiple\-part index with two parts\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Start
+.sp
+Where in the row this portion of the index starts\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Len
+.sp
+How long this portion of the index is\&. For packed numbers, this should always be the full length of the column\&. For strings, it may be shorter than the full length of the indexed column, because you can index a prefix of a string column\&. The total length of a multiple\-part key is the sum of the
+Len
+values for all key parts\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Index
+.sp
+Whether a key value can exist multiple times in the index\&. Possible values are
+unique
+or
+multip\&.
+(multiple)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Type
+.sp
+What data type this portion of the index has\&. This is a
+MyISAM
+data type with the possible values
+packed,
+stripped, or
+empty\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Root
+.sp
+Address of the root index block\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Blocksize
+.sp
+The size of each index block\&. By default this is 1024, but the value may be changed at compile time when MySQL is built from source\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Rec/key
+.sp
+This is a statistical value used by the optimizer\&. It tells how many rows there are per value for this index\&. A unique index always has a value of 1\&. This may be updated after a table is loaded (or greatly changed) with
+\fBmyisamchk \-a\fR\&. If this is not updated at all, a default value of 30 is given\&.
+.RE
+.PP
+The last part of the output provides information about each column:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Field
+.sp
+The column number\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Start
+.sp
+The byte position of the column within table rows\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Length
+.sp
+The length of the column in bytes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Nullpos,
+Nullbit
+.sp
+For columns that can be
+NULL,
+MyISAM
+stores
+NULL
+values as a flag in a byte\&. Depending on how many nullable columns there are, there can be one or more bytes used for this purpose\&. The
+Nullpos
+and
+Nullbit
+values, if nonempty, indicate which byte and bit contains that flag indicating whether the column is
+NULL\&.
+.sp
+The position and number of bytes used to store
+NULL
+flags is shown in the line for field 1\&. This is why there are six
+Field
+lines for the
+person
+table even though it has only five columns\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Type
+.sp
+The data type\&. The value may contain any of the following descriptors:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+constant
+.sp
+All rows have the same value\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+no endspace
+.sp
+Do not store endspace\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+no endspace, not_always
+.sp
+Do not store endspace and do not do endspace compression for all values\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+no endspace, no empty
+.sp
+Do not store endspace\&. Do not store empty values\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+table\-lookup
+.sp
+The column was converted to an
+ENUM\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+zerofill(\fIN\fR)
+.sp
+The most significant
+\fIN\fR
+bytes in the value are always 0 and are not stored\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+no zeros
+.sp
+Do not store zeros\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+always zero
+.sp
+Zero values are stored using one bit\&.
+.RE
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Huff tree
+.sp
+The number of the Huffman tree associated with the column\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Bits
+.sp
+The number of bits used in the Huffman tree\&.
+.RE
+.PP
+The
+Huff tree
+and
+Bits
+fields are displayed if the table has been compressed with
+\fBmyisampack\fR\&. See
+\fBmyisampack\fR(1), for an example of this information\&.
+.PP
+Example of
+\fBmyisamchk \-eiv\fR
+output:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+Checking MyISAM file: person
+Data records:  306688   Deleted blocks:       0
+\- check file\-size
+\- check record delete\-chain
+No recordlinks
+\- check key delete\-chain
+block_size 1024:
+\- check index reference
+\- check data record references index: 1
+Key:  1:  Keyblocks used:  98%  Packed:    0%  Max levels:  3
+\- check data record references index: 2
+Key:  2:  Keyblocks used:  99%  Packed:   97%  Max levels:  3
+\- check data record references index: 3
+Key:  3:  Keyblocks used:  98%  Packed:  \-14%  Max levels:  3
+Total:    Keyblocks used:  98%  Packed:   89%
+\- check records and index references
+\fI*** LOTS OF ROW NUMBERS DELETED ***\fR
+Records:            306688  M\&.recordlength:       25  Packed:            83%
+Recordspace used:       97% Empty space:           2% Blocks/Record:   1\&.00
+Record blocks:      306688  Delete blocks:         0
+Record data:       7934464  Deleted data:          0
+Lost space:         256512  Linkdata:        1156096
+User time 43\&.08, System time 1\&.68
+Maximum resident set size 0, Integral resident set size 0
+Non\-physical pagefaults 0, Physical pagefaults 0, Swaps 0
+Blocks in 0 out 7, Messages in 0 out 0, Signals 0
+Voluntary context switches 0, Involuntary context switches 0
+Maximum memory usage: 1046926 bytes (1023k)
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+\fBmyisamchk \-eiv\fR
+output includes the following information:
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Data records
+.sp
+The number of rows in the table\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Deleted blocks
+.sp
+How many deleted blocks still have reserved space\&. You can optimize your table to minimize this space\&. See
+Section\ \&6.4.4, \(lqTable Optimization\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Key
+.sp
+The key number\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Keyblocks used
+.sp
+What percentage of the keyblocks are used\&. When a table has just been reorganized with
+\fBmyisamchk\fR, the values are very high (very near theoretical maximum)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Packed
+.sp
+MySQL tries to pack key values that have a common suffix\&. This can only be used for indexes on
+CHAR
+and
+VARCHAR
+columns\&. For long indexed strings that have similar leftmost parts, this can significantly reduce the space used\&. In the preceding example, the second key is 40 bytes long and a 97% reduction in space is achieved\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Max levels
+.sp
+How deep the B\-tree for this key is\&. Large tables with long key values get high values\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Records
+.sp
+How many rows are in the table\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+M\&.recordlength
+.sp
+The average row length\&. This is the exact row length for tables with fixed\-length rows, because all rows have the same length\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Packed
+.sp
+MySQL strips spaces from the end of strings\&. The
+Packed
+value indicates the percentage of savings achieved by doing this\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Recordspace used
+.sp
+What percentage of the data file is used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Empty space
+.sp
+What percentage of the data file is unused\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Blocks/Record
+.sp
+Average number of blocks per row (that is, how many links a fragmented row is composed of)\&. This is always 1\&.0 for fixed\-format tables\&. This value should stay as close to 1\&.0 as possible\&. If it gets too large, you can reorganize the table\&. See
+Section\ \&6.4.4, \(lqTable Optimization\(rq\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Recordblocks
+.sp
+How many blocks (links) are used\&. For fixed\-format tables, this is the same as the number of rows\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Deleteblocks
+.sp
+How many blocks (links) are deleted\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Recorddata
+.sp
+How many bytes in the data file are used\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Deleted data
+.sp
+How many bytes in the data file are deleted (unused)\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Lost space
+.sp
+If a row is updated to a shorter length, some space is lost\&. This is the sum of all such losses, in bytes\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+Linkdata
+.sp
+When the dynamic table format is used, row fragments are linked with pointers (4 to 7 bytes each)\&.
+Linkdata
+is the sum of the amount of storage used by all such pointers\&.
+.RE
 .SH "MYISAMCHK MEMORY USAGE"
 .\" memory usage: myisamchk
 .PP
@@ -1259,8 +2336,10 @@ to operate faster\&. For example, if you have more than 32MB RAM, you could use 
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-sort_buffer_size=16M \-\-key_buffer_size=16M \e\fR
-           \fB\-\-read_buffer_size=1M \-\-write_buffer_size=1M \&.\&.\&.\fR
+shell> \fBmyisamchk \-\-sort_buffer_size=16M \e\fR
+           \fB\-\-key_buffer_size=16M \e\fR
+           \fB\-\-read_buffer_size=1M \e\fR
+           \fB\-\-write_buffer_size=1M \&.\&.\&.\fR
 .fi
 .if n \{\
 .RE
@@ -1275,13 +2354,13 @@ Be aware that
 uses temporary files in
 TMPDIR\&. If
 TMPDIR
-points to a memory file system, you may easily get out of memory errors\&. If this happens, run
+points to a memory file system, out of memory errors can easily occur\&. If this happens, run
 \fBmyisamchk\fR
 with the
 \fB\-\-tmpdir=\fR\fB\fIpath\fR\fR
-option to specify some directory located on a file system that has more space\&.
+option to specify a directory located on a file system that has more space\&.
 .PP
-When repairing,
+When performing repair operations,
 \fBmyisamchk\fR
 also needs a lot of disk space:
 .sp
@@ -1293,7 +2372,7 @@ also needs a lot of disk space:
 .sp -1
 .IP \(bu 2.3
 .\}
-Double the size of the data file (the original file and a copy)\&. This space is not needed if you do a repair with
+Twice the size of the data file (the original file and a copy)\&. This space is not needed if you do a repair with
 \fB\-\-quick\fR; in this case, only the index file is re\-created\&.
 \fIThis space must be available on the same file system as the original data file\fR, as the copy is created in the same directory as the original\&.
 .RE
@@ -1322,7 +2401,10 @@ When using
 or
 \fB\-\-sort\-recover\fR
 (but not when using
-\fB\-\-safe\-recover\fR), you need space for a sort buffer\&. The following formula yields the amount of space required:
+\fB\-\-safe\-recover\fR), you need space on disk for sorting\&. This space is allocated in the temporary directory (specified by
+TMPDIR
+or
+\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR)\&. The following formula yields the amount of space required:
 .sp
 .if n \{\
 .RS 4
@@ -1335,12 +2417,27 @@ or
 .\}
 .sp
 You can check the length of the keys and the
-row_pointer_length
+\fIrow_pointer_length\fR
 with
-\fBmyisamchk \-dv \fR\fB\fItbl_name\fR\fR\&. This space is allocated in the temporary directory (specified by
-TMPDIR
-or
-\fB\-\-tmpdir=\fR\fB\fIpath\fR\fR)\&.
+\fBmyisamchk \-dv \fR\fB\fItbl_name\fR\fR
+(see
+the section called \(lqMYISAMCHK TABLE INFORMATION\(rq)\&. The
+\fIrow_pointer_length\fR
+and
+\fInumber_of_rows\fR
+values are the
+Datafile pointer
+and
+Data records
+values in the table description\&. To determine the
+\fIlargest_key\fR
+value, check the
+Key
+lines in the table description\&. The
+Len
+column indicates the number of bytes for each key part\&. For a multiple\-column index, the key size is the sum of the
+Len
+values for all key parts\&.
 .RE
 .PP
 If you have a problem with disk space during repair, you can try

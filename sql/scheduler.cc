@@ -235,9 +235,7 @@ void thd_scheduler::thread_detach()
   if (thread_attached)
   {
     THD* thd = (THD*)list.data;
-    pthread_mutex_lock(&thd->LOCK_thd_data);
-    thd->mysys_var= NULL;
-    pthread_mutex_unlock(&thd->LOCK_thd_data);
+    thd->reset_globals();
     thread_attached= FALSE;
 #ifndef DBUG_OFF
     /*

@@ -623,7 +623,7 @@ impossible position";
       */
       {
 	log.error=0;
-	bool read_packet = 0, fatal_error = 0;
+	bool read_packet = 0;
 
 #ifndef DBUG_OFF
 	if (max_binlog_dump_events && !left_events--)
@@ -645,7 +645,7 @@ impossible position";
 	*/
 
 	pthread_mutex_lock(log_lock);
-	switch (Log_event::read_log_event(&log, packet, (pthread_mutex_t*)0)) {
+	switch (error= Log_event::read_log_event(&log, packet, (pthread_mutex_t*) 0)) {
 	case 0:
 	  /* we read successfully, so we'll need to send it to the slave */
 	  pthread_mutex_unlock(log_lock);
@@ -671,8 +671,8 @@ impossible position";
 
 	default:
 	  pthread_mutex_unlock(log_lock);
-	  fatal_error = 1;
-	  break;
+          test_for_non_eof_log_read_errors(error, &errmsg);
+          goto err;
 	}
 
 	if (read_packet)
@@ -701,12 +701,6 @@ impossible position";
 	  */
 	}
 
-	if (fatal_error)
-	{
-	  errmsg = "error reading log entry";
-          my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-	  goto err;
-	}
 	log.error=0;
       }
     }
@@ -717,11 +711,14 @@ impossible position";
 
       thd_proc_info(thd, "Finished reading one binlog; switching to next binlog");
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
-      case LOG_INFO_EOF:
-	loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
-	break;
       case 0:
 	break;
+      case LOG_INFO_EOF:
+        if (mysql_bin_log.is_active(log_file_name))
+        {
+          loop_breaker = (flags & BINLOG_DUMP_NON_BLOCK);
+          break;
+        }
       default:
 	errmsg = "could not find next log";
 	my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
@@ -1007,8 +1004,8 @@ int reset_slave(THD *thd, Master_info* mi)
   MY_STAT stat_area;
   char fname[FN_REFLEN];
   int thread_mask= 0, error= 0;
-  uint sql_errno=0;
-  const char* errmsg=0;
+  uint sql_errno=ER_UNKNOWN_ERROR;
+  const char* errmsg= "Unknown error occured while reseting slave";
   DBUG_ENTER("reset_slave");
 
   lock_slave_threads(mi);
@@ -1674,7 +1671,8 @@ err:
    replication events along LOAD DATA processing.
    
    @param file  pointer to io-cache
-   @return 0
+   @retval 0 success
+   @retval 1 failure
 */
 int log_loaded_block(IO_CACHE* file)
 {
@@ -1701,7 +1699,8 @@ int log_loaded_block(IO_CACHE* file)
       Append_block_log_event a(lf_info->thd, lf_info->thd->db, buffer,
                                min(block_len, max_event_size),
                                lf_info->log_delayed);
-      mysql_bin_log.write(&a);
+      if (mysql_bin_log.write(&a))
+        DBUG_RETURN(1);
     }
     else
     {
@@ -1709,7 +1708,8 @@ int log_loaded_block(IO_CACHE* file)
                                    buffer,
                                    min(block_len, max_event_size),
                                    lf_info->log_delayed);
-      mysql_bin_log.write(&b);
+      if (mysql_bin_log.write(&b))
+        DBUG_RETURN(1);
       lf_info->wrote_create_file= 1;
       DBUG_SYNC_POINT("debug_lock.created_file_event",10);
     }

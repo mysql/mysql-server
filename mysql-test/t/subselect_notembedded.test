@@ -8,6 +8,9 @@
 purge master logs before (select adddate(current_timestamp(), interval -4 day));
 purge master logs before adddate(current_timestamp(), interval -4 day);
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
 #
 # Bug31048: Many nested subqueries may cause server crash.
 #
@@ -28,6 +31,7 @@ let $end_pre= )group by b limit 1 ;
 while ($should_work_nesting)
 {
 --echo $should_work_nesting
+  eval select $should_work_nesting as 'STEP-1';
   eval $start $end;
   eval explain $start $end;
   let $start= $start
@@ -40,6 +44,7 @@ while ($should_work_nesting)
 while ($nesting)
 {
 --echo $nesting
+  eval select $nesting as 'STEP-2';
 --error 0,1436
   eval $start $end;
 --error 0,1436

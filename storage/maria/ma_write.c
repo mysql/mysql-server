@@ -587,6 +587,12 @@ my_bool _ma_enlarge_root(MARIA_HA *info, MARIA_KEY *key, my_off_t *root)
 /*
   Search after a position for a key and store it there
 
+  TODO:
+  Change this to use pagecache directly instead of creating a copy
+  of the page. To do this, we must however change write-key-on-page
+  algorithm to not overwrite the buffer but instead store any overflow
+  key in a separate buffer.
+
   @return
   @retval -1   error
   @retval 0    ok

@@ -69,20 +69,25 @@ UNIV_INTERN recv_sys_t*	recv_sys = NULL;
 /** TRUE when applying redo log records during crash recovery; FALSE
 otherwise.  Note that this is FALSE while a background thread is
 rolling back incomplete transactions. */
-UNIV_INTERN ibool	recv_recovery_on = FALSE;
+UNIV_INTERN ibool	recv_recovery_on;
 #ifdef UNIV_LOG_ARCHIVE
 /** TRUE when applying redo log records from an archived log file */
-UNIV_INTERN ibool	recv_recovery_from_backup_on = FALSE;
+UNIV_INTERN ibool	recv_recovery_from_backup_on;
 #endif /* UNIV_LOG_ARCHIVE */
 
 #ifndef UNIV_HOTBACKUP
 /** TRUE when recv_init_crash_recovery() has been called. */
-UNIV_INTERN ibool	recv_needed_recovery = FALSE;
+UNIV_INTERN ibool	recv_needed_recovery;
+# ifdef UNIV_DEBUG
+/** TRUE if writing to the redo log (mtr_commit) is forbidden.
+Protected by log_sys->mutex. */
+UNIV_INTERN ibool	recv_no_log_write = FALSE;
+# endif /* UNIV_DEBUG */
 
 /** TRUE if buf_page_is_corrupted() should check if the log sequence
 number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by
 recv_recovery_from_checkpoint_start_func(). */
-UNIV_INTERN ibool	recv_lsn_checks_on = FALSE;
+UNIV_INTERN ibool	recv_lsn_checks_on;
 
 /** There are two conditions under which we scan the logs, the first
 is normal startup and the second is when we do a recovery from an
@@ -92,7 +97,7 @@ startup. If we find log entries that were written after the last checkpoint
 we know that the server was not cleanly shutdown. We must then initialize
 the crash recovery environment before attempting to store these entries in
 the log hash table. */
-static ibool		recv_log_scan_is_startup_type = FALSE;
+static ibool		recv_log_scan_is_startup_type;
 
 /** If the following is TRUE, the buffer pool file pages must be invalidated
 after recovery and no ibuf operations are allowed; this becomes TRUE if
@@ -103,7 +108,7 @@ buffer pool before the pages have been recovered to the up-to-date state.
 
 TRUE means that recovery is running and no operations on the log files
 are allowed yet: the variable name is misleading. */
-UNIV_INTERN ibool	recv_no_ibuf_operations = FALSE;
+UNIV_INTERN ibool	recv_no_ibuf_operations;
 /** TRUE when the redo log is being backed up */
 # define recv_is_making_a_backup		FALSE
 /** TRUE when recovering from a backed up redo log file */
@@ -111,30 +116,30 @@ UNIV_INTERN ibool	recv_no_ibuf_operations = FALSE;
 #else /* !UNIV_HOTBACKUP */
 # define recv_needed_recovery			FALSE
 /** TRUE when the redo log is being backed up */
-UNIV_INTERN ibool	recv_is_making_a_backup = FALSE;
+UNIV_INTERN ibool	recv_is_making_a_backup	= FALSE;
 /** TRUE when recovering from a backed up redo log file */
 UNIV_INTERN ibool	recv_is_from_backup	= FALSE;
 # define buf_pool_get_curr_size() (5 * 1024 * 1024)
 #endif /* !UNIV_HOTBACKUP */
 /** The following counter is used to decide when to print info on
 log scan */
-static ulint	recv_scan_print_counter	= 0;
+static ulint	recv_scan_print_counter;
 
 /** The type of the previous parsed redo log record */
-static ulint	recv_previous_parsed_rec_type	= 999999;
+static ulint	recv_previous_parsed_rec_type;
 /** The offset of the previous parsed redo log record */
-static ulint	recv_previous_parsed_rec_offset	= 0;
+static ulint	recv_previous_parsed_rec_offset;
 /** The 'multi' flag of the previous parsed redo log record */
-static ulint	recv_previous_parsed_rec_is_multi = 0;
+static ulint	recv_previous_parsed_rec_is_multi;
 
 /** Maximum page number encountered in the redo log */
-UNIV_INTERN ulint	recv_max_parsed_page_no		= 0;
+UNIV_INTERN ulint	recv_max_parsed_page_no;
 
 /** This many frames must be left free in the buffer pool when we scan
 the log and store the scanned log records in the buffer pool: we will
 use these free frames to read in pages when we start applying the
 log records to the database. */
-UNIV_INTERN ulint	recv_n_pool_free_frames		= 256;
+UNIV_INTERN ulint	recv_n_pool_free_frames;
 
 /** The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
@@ -165,7 +170,8 @@ recv_sys_create(void)
 		return;
 	}
 
-	recv_sys = mem_alloc(sizeof(recv_sys_t));
+	recv_sys = mem_alloc(sizeof(*recv_sys));
+	memset(recv_sys, 0x0, sizeof(*recv_sys));
 
 	mutex_create(&recv_sys->mutex, SYNC_RECV);
 
@@ -174,6 +180,106 @@ recv_sys_create(void)
 }
 
 /********************************************************//**
+Release recovery system mutexes. */
+UNIV_INTERN
+void
+recv_sys_close(void)
+/*================*/
+{
+	if (recv_sys != NULL) {
+		if (recv_sys->addr_hash != NULL) {
+			hash_table_free(recv_sys->addr_hash);
+		}
+
+		if (recv_sys->heap != NULL) {
+			mem_heap_free(recv_sys->heap);
+		}
+
+		if (recv_sys->buf != NULL) {
+			ut_free(recv_sys->buf);
+		}
+
+		if (recv_sys->last_block_buf_start != NULL) {
+			mem_free(recv_sys->last_block_buf_start);
+		}
+
+		mutex_free(&recv_sys->mutex);
+
+		mem_free(recv_sys);
+		recv_sys = NULL;
+	}
+}
+
+/********************************************************//**
+Frees the recovery system memory. */
+UNIV_INTERN
+void
+recv_sys_mem_free(void)
+/*===================*/
+{
+	if (recv_sys != NULL) {
+		if (recv_sys->addr_hash != NULL) {
+			hash_table_free(recv_sys->addr_hash);
+		}
+
+		if (recv_sys->heap != NULL) {
+			mem_heap_free(recv_sys->heap);
+		}
+
+		if (recv_sys->buf != NULL) {
+			ut_free(recv_sys->buf);
+		}
+
+		if (recv_sys->last_block_buf_start != NULL) {
+			mem_free(recv_sys->last_block_buf_start);
+		}
+
+		mem_free(recv_sys);
+		recv_sys = NULL;
+	}
+}
+
+/************************************************************
+Reset the state of the recovery system variables. */
+UNIV_INTERN
+void
+recv_sys_var_init(void)
+/*===================*/
+{
+	recv_lsn_checks_on = FALSE;
+
+	recv_n_pool_free_frames = 256;
+
+	recv_recovery_on = FALSE;
+
+#ifdef UNIV_LOG_ARCHIVE
+	recv_recovery_from_backup_on = FALSE;
+#endif /* UNIV_LOG_ARCHIVE */
+
+	recv_needed_recovery = FALSE;
+
+	recv_lsn_checks_on = FALSE;
+
+	recv_log_scan_is_startup_type = FALSE;
+
+	recv_no_ibuf_operations = FALSE;
+
+	recv_scan_print_counter	= 0;
+
+	recv_previous_parsed_rec_type	= 999999;
+
+	recv_previous_parsed_rec_offset	= 0;
+
+	recv_previous_parsed_rec_is_multi = 0;
+
+	recv_max_parsed_page_no	= 0;
+
+	recv_n_pool_free_frames	= 256;
+
+	recv_max_page_lsn = 0;
+}
+
+/************************************************************
 Inits the recovery system for a recovery operation. */
 UNIV_INTERN
 void
@@ -248,8 +354,8 @@ recv_sys_empty_hash(void)
 Frees the recovery system. */
 static
 void
-recv_sys_free(void)
-/*===============*/
+recv_sys_debug_free(void)
+/*=====================*/
 {
 	mutex_enter(&(recv_sys->mutex));
 
@@ -258,8 +364,10 @@ recv_sys_free(void)
 	ut_free(recv_sys->buf);
 	mem_free(recv_sys->last_block_buf_start);
 
-	recv_sys->addr_hash = NULL;
+	recv_sys->buf = NULL;
 	recv_sys->heap = NULL;
+	recv_sys->addr_hash = NULL;
+	recv_sys->last_block_buf_start = NULL;
 
 	mutex_exit(&(recv_sys->mutex));
 }
@@ -853,6 +961,11 @@ recv_parse_or_apply_log_rec_body(
 	}
 
 	switch (type) {
+#ifdef UNIV_LOG_LSN_DEBUG
+	case MLOG_LSN:
+		/* The LSN is checked in recv_parse_log_rec(). */
+		break;
+#endif /* UNIV_LOG_LSN_DEBUG */
 	case MLOG_1BYTE: case MLOG_2BYTES: case MLOG_4BYTES: case MLOG_8BYTES:
 #ifdef UNIV_DEBUG
 		if (page && page_type == FIL_PAGE_TYPE_ALLOCATED
@@ -1269,7 +1382,7 @@ recv_add_to_hash_table(
 					   sizeof(recv_data_t) + len);
 		*prev_field = recv_data;
 
-		ut_memcpy(((byte*)recv_data) + sizeof(recv_data_t), body, len);
+		memcpy(recv_data + 1, body, len);
 
 		prev_field = &(recv_data->next);
 
@@ -1327,6 +1440,7 @@ recv_recover_page_func(
 	buf_block_t*	block)	/*!< in/out: buffer block */
 {
 	page_t*		page;
+	page_zip_des_t*	page_zip;
 	recv_addr_t*	recv_addr;
 	recv_t*		recv;
 	byte*		buf;
@@ -1376,6 +1490,7 @@ recv_recover_page_func(
 	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
 	page = block->frame;
+	page_zip = buf_block_get_page_zip(block);
 
 #ifndef UNIV_HOTBACKUP
 	if (just_read_in) {
@@ -1436,12 +1551,18 @@ recv_recover_page_func(
 		if (recv->type == MLOG_INIT_FILE_PAGE) {
 			page_lsn = page_newest_lsn;
 
-			mach_write_ull(page + UNIV_PAGE_SIZE
-				       - FIL_PAGE_END_LSN_OLD_CHKSUM, 0);
-			mach_write_ull(page + FIL_PAGE_LSN, 0);
+			memset(FIL_PAGE_LSN + page, 0, 8);
+			memset(UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM
+			       + page, 0, 8);
+
+			if (page_zip) {
+				memset(FIL_PAGE_LSN + page_zip->data, 0, 8);
+			}
 		}
 
 		if (recv->start_lsn >= page_lsn) {
+
+			ib_uint64_t	end_lsn;
 
 			if (!modification_to_page) {
 
@@ -1464,11 +1585,17 @@ recv_recover_page_func(
 			recv_parse_or_apply_log_rec_body(recv->type, buf,
 							 buf + recv->len,
 							 block, &mtr);
-			mach_write_ull(page + UNIV_PAGE_SIZE
-				       - FIL_PAGE_END_LSN_OLD_CHKSUM,
-				       recv->start_lsn + recv->len);
-			mach_write_ull(page + FIL_PAGE_LSN,
-				       recv->start_lsn + recv->len);
+
+			end_lsn = recv->start_lsn + recv->len;
+			mach_write_ull(FIL_PAGE_LSN + page, end_lsn);
+			mach_write_ull(UNIV_PAGE_SIZE
+				       - FIL_PAGE_END_LSN_OLD_CHKSUM
+				       + page, end_lsn);
+
+			if (page_zip) {
+				mach_write_ull(FIL_PAGE_LSN
+					       + page_zip->data, end_lsn);
+			}
 		}
 
 		if (recv->len > RECV_DATA_BLOCK_SIZE) {
@@ -1686,6 +1813,7 @@ loop:
 		/* Flush all the file pages to disk and invalidate them in
 		the buffer pool */
 
+		ut_d(recv_no_log_write = TRUE);
 		mutex_exit(&(recv_sys->mutex));
 		mutex_exit(&(log_sys->mutex));
 
@@ -1699,6 +1827,7 @@ loop:
 
 		mutex_enter(&(log_sys->mutex));
 		mutex_enter(&(recv_sys->mutex));
+		ut_d(recv_no_log_write = FALSE);
 
 		recv_no_ibuf_operations = FALSE;
 	}
@@ -1909,6 +2038,17 @@ recv_parse_log_rec(
 
 		return(0);
 	}
+
+#ifdef UNIV_LOG_LSN_DEBUG
+	if (*type == MLOG_LSN) {
+		ib_uint64_t	lsn = (ib_uint64_t) *space << 32 | *page_no;
+# ifdef UNIV_LOG_DEBUG
+		ut_a(lsn == log_sys->old_lsn);
+# else /* UNIV_LOG_DEBUG */
+		ut_a(lsn == recv_sys->recovered_lsn);
+# endif /* UNIV_LOG_DEBUG */
+	}
+#endif /* UNIV_LOG_LSN_DEBUG */
 
 	/* Check that page_no is sensible */
 
@@ -2167,6 +2307,12 @@ loop:
 #endif
 			/* In normal mysqld crash recovery we do not try to
 			replay file operations */
+#ifdef UNIV_LOG_LSN_DEBUG
+		} else if (type == MLOG_LSN) {
+			/* Do not add these records to the hash table.
+			The page number and space id fields are misused
+			for something else. */
+#endif /* UNIV_LOG_LSN_DEBUG */
 		} else {
 			recv_add_to_hash_table(type, space, page_no, body,
 					       ptr + len, old_lsn,
@@ -2198,11 +2344,11 @@ loop:
 				= recv_sys->recovered_offset + total_len;
 			recv_previous_parsed_rec_is_multi = 1;
 
-			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
 #ifdef UNIV_LOG_DEBUG
+			if ((!store_to_hash) && (type != MLOG_MULTI_REC_END)) {
 				recv_check_incomplete_log_recs(ptr, len);
-#endif /* UNIV_LOG_DEBUG */
 			}
+#endif /* UNIV_LOG_DEBUG */
 
 #ifdef UNIV_DEBUG
 			if (log_debug_writes) {
@@ -2266,7 +2412,11 @@ loop:
 				break;
 			}
 
-			if (store_to_hash) {
+			if (store_to_hash
+#ifdef UNIV_LOG_LSN_DEBUG
+			    && type != MLOG_LSN
+#endif /* UNIV_LOG_LSN_DEBUG */
+			    ) {
 				recv_add_to_hash_table(type, space, page_no,
 						       body, ptr + len,
 						       old_lsn,
@@ -2415,8 +2565,7 @@ recv_scan_log_recs(
 	scanned_lsn = start_lsn;
 	more_data = FALSE;
 
-	while (log_block < buf + len && !finished) {
-
+	do {
 		no = log_block_get_hdr_no(log_block);
 		/*
 		fprintf(stderr, "Log block header no %lu\n", no);
@@ -2546,10 +2695,11 @@ recv_scan_log_recs(
 			/* Log data for this group ends here */
 
 			finished = TRUE;
+			break;
 		} else {
 			log_block += OS_FILE_LOG_BLOCK_SIZE;
 		}
-	}
+	} while (log_block < buf + len && !finished);
 
 	*group_scanned_lsn = scanned_lsn;
 
@@ -3102,8 +3252,13 @@ recv_recovery_from_checkpoint_finish(void)
 	recv_recovery_on = FALSE;
 
 #ifndef UNIV_LOG_DEBUG
-	recv_sys_free();
+	recv_sys_debug_free();
 #endif
+	/* Roll back any recovered data dictionary transactions, so
+	that the data dictionary tables will be free of any locks.
+	The data dictionary latch should guarantee that there is at
+	most one data dictionary transaction active at a time. */
+	trx_rollback_or_clean_recovered(FALSE);
 
 	/* Drop partially created indexes. */
 	row_merge_drop_temp_indexes();

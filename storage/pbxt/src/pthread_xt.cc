@@ -578,8 +578,8 @@ xtPublic int xt_p_mutex_unlock(xt_mutex_type *mutex)
 
 xtPublic int xt_p_mutex_destroy(xt_mutex_type *mutex)
 {
-	ASSERT_NS(mutex->mu_init == 12345);
-	mutex->mu_init = 89898;
+	//ASSERT_NS(mutex->mu_init == 12345);
+	mutex->mu_init = 11111;
 #ifdef XT_THREAD_LOCK_INFO
 	xt_thread_lock_info_free(&mutex->mu_lock_info);
 #endif

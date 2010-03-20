@@ -1,0 +1,22 @@
+DROP TABLE IF EXISTS `t1`;
+# Bug#46922: crash when adding partitions and open_files_limit is reached
+CREATE TABLE t1 (a INT PRIMARY KEY) 
+ENGINE=MyISAM PARTITION BY KEY () PARTITIONS 1;
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10), (11);
+# if the bug exists, then crash will happen here
+ALTER TABLE t1 ADD PARTITION PARTITIONS 511;
+ERROR HY000: Out of resources when opening file '<partition file>' (Errcode: 24)
+SELECT * FROM t1;
+a
+1
+10
+11
+2
+3
+4
+5
+6
+7
+8
+9
+DROP TABLE t1;

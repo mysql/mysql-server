@@ -43,6 +43,7 @@
 #include "sp_rcontext.h"
 #include "sp_cache.h"
 #include "sql_select.h" /* declares create_tmp_table() */
+#include "debug_sync.h"
 
 /*
   The following is used to initialise Table_ident with a internal
@@ -432,15 +433,20 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  if (thd->query)
+  pthread_mutex_lock(&thd->LOCK_thd_data);
+
+  if (thd->query())
   {
     if (max_query_len < 1)
-      len= thd->query_length;
+      len= thd->query_length();
     else
-      len= min(thd->query_length, max_query_len);
+      len= min(thd->query_length(), max_query_len);
     str.append('\n');
-    str.append(thd->query, len);
+    str.append(thd->query(), len);
   }
+
+  pthread_mutex_unlock(&thd->LOCK_thd_data);
+
   if (str.c_ptr_safe() == buffer)
     return buffer;
 
@@ -455,6 +461,31 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   buffer[length]= '\0';
   return buffer;
 }
+
+
+/**
+  Implementation of Drop_table_error_handler::handle_error().
+  The reason in having this implementation is to silence technical low-level
+  warnings during DROP TABLE operation. Currently we don't want to expose
+  the following warnings during DROP TABLE:
+    - Some of table files are missed or invalid (the table is going to be
+      deleted anyway, so why bother that something was missed);
+    - A trigger associated with the table does not have DEFINER (One of the
+      MySQL specifics now is that triggers are loaded for the table being
+      dropped. So, we may have a warning that trigger does not have DEFINER
+      attribute during DROP TABLE operation).
+
+  @return TRUE if the condition is handled.
+*/
+bool Drop_table_error_handler::handle_error(uint sql_errno,
+                                            const char *message,
+                                            MYSQL_ERROR::enum_warning_level level,
+                                            THD *thd)
+{
+  return ((sql_errno == EE_DELETE && my_errno == ENOENT) ||
+          sql_errno == ER_TRG_NO_DEFINER);
+}
+
 
 /**
   Clear this diagnostics area. 
@@ -618,6 +649,9 @@ THD::THD()
    derived_tables_processing(FALSE),
    spcont(NULL),
    m_parser_state(NULL)
+#if defined(ENABLED_DEBUG_SYNC)
+   , debug_sync_control(0)
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 {
   ulong tmp;
 
@@ -757,17 +791,13 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 bool THD::handle_error(uint sql_errno, const char *message,
                        MYSQL_ERROR::enum_warning_level level)
 {
-  if (!m_internal_handler)
-    return FALSE;
-
   for (Internal_error_handler *error_handler= m_internal_handler;
        error_handler;
        error_handler= m_internal_handler->m_prev_internal_handler)
   {
     if (error_handler->handle_error(sql_errno, message, level, this))
-    return TRUE;
+      return TRUE;
   }
-
   return FALSE;
 }
 
@@ -878,6 +908,10 @@ void THD::init(void)
   /* Set to handle counting of aborted connections */
   userstat_running= opt_userstat_running;
   last_global_update_time= current_connect_time= time(NULL);
+#if defined(ENABLED_DEBUG_SYNC)
+  /* Initialize the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_init_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 }
 
  
@@ -1009,6 +1043,12 @@ void THD::cleanup(void)
     close_thread_tables(this);
   }
   wt_thd_destroy(&transaction.wt);
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
+
   mysql_ha_cleanup(this);
   delete_dynamic(&user_var_events);
   hash_free(&user_vars);
@@ -1291,6 +1331,19 @@ bool THD::store_globals()
   return 0;
 }
 
+
+/**
+   Untie THD from current thread
+
+   Used when using --thread-handling=pool-of-threads
+*/
+
+void THD::reset_globals()
+{
+  pthread_mutex_lock(&LOCK_thd_data);
+  mysys_var= 0;
+  pthread_mutex_unlock(&LOCK_thd_data);
+}
 
 /*
   Cleanup after query.
@@ -2123,7 +2176,7 @@ bool select_export::send_data(List<Item> &items)
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
-                            item->name, row_count);
+                            item->name, (ulong) row_count);
       }
       cvt_str.length(bytes);
       res= &cvt_str;
@@ -2575,12 +2628,12 @@ Statement::Statement(LEX *lex_arg, MEM_ROOT *mem_root_arg,
   id(id_arg),
   mark_used_columns(MARK_COLUMNS_READ),
   lex(lex_arg),
-  query(0),
-  query_length(0),
   cursor(0),
   db(NULL),
   db_length(0)
 {
+  query_string.length= 0;
+  query_string.str= NULL;
   name.str= NULL;
 }
 
@@ -2596,8 +2649,7 @@ void Statement::set_statement(Statement *stmt)
   id=             stmt->id;
   mark_used_columns=   stmt->mark_used_columns;
   lex=            stmt->lex;
-  query=          stmt->query;
-  query_length=   stmt->query_length;
+  query_string=   stmt->query_string;
   cursor=         stmt->cursor;
 }
 
@@ -2618,6 +2670,15 @@ void Statement::restore_backup_statement(Statement *stmt, Statement *backup)
   stmt->set_statement(this);
   set_statement(backup);
   DBUG_VOID_RETURN;
+}
+
+
+/** Assign a new value to thd->query.  */
+
+void Statement::set_query_inner(char *query_arg, uint32 query_length_arg)
+{
+  query_string.str= query_arg;
+  query_string.length= query_length_arg;
 }
 
 
@@ -2856,9 +2917,11 @@ bool select_dumpvar::send_data(List<Item> &items)
     else
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
-      suv->fix_fields(thd, 0);
+      if (suv->fix_fields(thd, 0))
+        DBUG_RETURN (1);
       suv->save_item_result(item);
-      suv->update();
+      if (suv->update())
+        DBUG_RETURN (1);
     }
   }
   DBUG_RETURN(thd->is_error());
@@ -3196,14 +3259,29 @@ extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
 
 
 #ifdef INNODB_COMPATIBILITY_HOOKS
-extern "C" struct charset_info_st *thd_charset(MYSQL_THD thd)
+extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
 {
   return(thd->charset());
 }
 
+/**
+  OBSOLETE : there's no way to ensure the string is null terminated.
+  Use thd_query_string instead()
+*/
 extern "C" char **thd_query(MYSQL_THD thd)
 {
-  return(&thd->query);
+  return(&thd->query_string.str);
+}
+
+/**
+  Get the current query string for the thread.
+
+  @param The MySQL internal thread pointer
+  @return query string and length. May be non-null-terminated.
+*/
+extern "C" LEX_STRING * thd_query_string (MYSQL_THD thd)
+{
+  return(&thd->query_string);
 }
 
 extern "C" int thd_slave_thread(const MYSQL_THD thd)
@@ -3227,6 +3305,11 @@ extern "C" int thd_binlog_format(const MYSQL_THD thd)
 extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
 {
   mark_transaction_to_rollback(thd, all);
+}
+
+extern "C" bool thd_binlog_filter_ok(const MYSQL_THD thd)
+{
+  return binlog_filter->db_ok(thd->db);
 }
 #endif // INNODB_COMPATIBILITY_HOOKS */
 
@@ -3384,8 +3467,7 @@ void THD::set_statement(Statement *stmt)
 void THD::set_query(char *query_arg, uint32 query_length_arg)
 {
   pthread_mutex_lock(&LOCK_thd_data);
-  query= query_arg;
-  query_length= query_length_arg;
+  set_query_inner(query_arg, query_length_arg);
   pthread_mutex_unlock(&LOCK_thd_data);
 }
 
@@ -3403,6 +3485,16 @@ void mark_transaction_to_rollback(THD *thd, bool all)
   {
     thd->is_fatal_sub_stmt_error= TRUE;
     thd->transaction_rollback_request= all;
+    /*
+      Aborted transactions can not be IGNOREd.
+      Switch off the IGNORE flag for the current
+      SELECT_LEX. This should allow my_error()
+      to report the error and abort the execution
+      flow, even in presence
+      of IGNORE clause.
+    */
+    if (thd->lex->current_select)
+      thd->lex->current_select->no_error= FALSE;
   }
 }
 /***************************************************************************

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/************************************************************************
+/********************************************************************//**
+@file mem/mem0mem.c
 The memory management
 
 Created 6/9/1994 Heikki Tuuri
@@ -97,64 +98,43 @@ UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
 
 #endif
 
-/**************************************************************************
-Duplicates a NUL-terminated string, allocated from a memory heap. */
+/**********************************************************************//**
+Duplicates a NUL-terminated string, allocated from a memory heap.
+@return	own: a copy of the string */
 UNIV_INTERN
 char*
 mem_heap_strdup(
 /*============*/
-				/* out, own: a copy of the string */
-	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
-	const char*	str)	/* in: string to be copied */
+	mem_heap_t*	heap,	/*!< in: memory heap where string is allocated */
+	const char*	str)	/*!< in: string to be copied */
 {
 	return(mem_heap_dup(heap, str, strlen(str) + 1));
 }
 
-/**************************************************************************
-Duplicate a block of data, allocated from a memory heap. */
+/**********************************************************************//**
+Duplicate a block of data, allocated from a memory heap.
+@return	own: a copy of the data */
 UNIV_INTERN
 void*
 mem_heap_dup(
 /*=========*/
-				/* out, own: a copy of the data */
-	mem_heap_t*	heap,	/* in: memory heap where copy is allocated */
-	const void*	data,	/* in: data to be copied */
-	ulint		len)	/* in: length of data, in bytes */
+	mem_heap_t*	heap,	/*!< in: memory heap where copy is allocated */
+	const void*	data,	/*!< in: data to be copied */
+	ulint		len)	/*!< in: length of data, in bytes */
 {
 	return(memcpy(mem_heap_alloc(heap, len), data, len));
 }
 
-/**************************************************************************
-Concatenate two memory blocks and return the result, using a memory heap. */
-UNIV_INTERN
-void*
-mem_heap_cat(
-/*=========*/
-				/* out, own: the result */
-	mem_heap_t*	heap,	/* in: memory heap where result is allocated */
-	const void*	b1,	/* in: block 1 */
-	ulint		len1,	/* in: length of b1, in bytes */
-	const void*	b2,	/* in: block 2 */
-	ulint		len2)	/* in: length of b2, in bytes */
-{
-	void*	res = mem_heap_alloc(heap, len1 + len2);
-
-	memcpy(res, b1, len1);
-	memcpy((char*)res + len1, b2, len2);
-
-	return(res);
-}
-
-/**************************************************************************
-Concatenate two strings and return the result, using a memory heap. */
+/**********************************************************************//**
+Concatenate two strings and return the result, using a memory heap.
+@return	own: the result */
 UNIV_INTERN
 char*
 mem_heap_strcat(
 /*============*/
-				/* out, own: the result */
-	mem_heap_t*	heap,	/* in: memory heap where string is allocated */
-	const char*	s1,	/* in: string 1 */
-	const char*	s2)	/* in: string 2 */
+	mem_heap_t*	heap,	/*!< in: memory heap where string is allocated */
+	const char*	s1,	/*!< in: string 1 */
+	const char*	s2)	/*!< in: string 2 */
 {
 	char*	s;
 	ulint	s1_len = strlen(s1);
@@ -171,18 +151,17 @@ mem_heap_strcat(
 }
 
 
-/********************************************************************
-Helper function for mem_heap_printf. */
+/****************************************************************//**
+Helper function for mem_heap_printf.
+@return	length of formatted string, including terminating NUL */
 static
 ulint
 mem_heap_printf_low(
 /*================*/
-				/* out: length of formatted string,
-				including terminating NUL */
-	char*		buf,	/* in/out: buffer to store formatted string
+	char*		buf,	/*!< in/out: buffer to store formatted string
 				in, or NULL to just calculate length */
-	const char*	format,	/* in: format string */
-	va_list		ap)	/* in: arguments */
+	const char*	format,	/*!< in: format string */
+	va_list		ap)	/*!< in: arguments */
 {
 	ulint 		len = 0;
 
@@ -281,18 +260,18 @@ mem_heap_printf_low(
 	return(len);
 }
 
-/********************************************************************
+/****************************************************************//**
 A simple (s)printf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
-required for the 'u' type). */
+required for the 'u' type).
+@return	heap-allocated formatted string */
 UNIV_INTERN
 char*
 mem_heap_printf(
 /*============*/
-				/* out: heap-allocated formatted string */
-	mem_heap_t*	heap,	/* in: memory heap */
-	const char*	format,	/* in: format string */
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	const char*	format,	/*!< in: format string */
 	...)
 {
 	va_list		ap;
@@ -314,24 +293,25 @@ mem_heap_printf(
 	return(str);
 }
 
-/*******************************************************************
-Creates a memory heap block where data can be allocated. */
+/***************************************************************//**
+Creates a memory heap block where data can be allocated.
+@return own: memory heap block, NULL if did not succeed (only possible
+for MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
-				/* out, own: memory heap block, NULL if
-				did not succeed (only possible for
-				MEM_HEAP_BTR_SEARCH type heaps) */
-	mem_heap_t*	heap,	/* in: memory heap or NULL if first block
+	mem_heap_t*	heap,	/*!< in: memory heap or NULL if first block
 				should be created */
-	ulint		n,	/* in: number of bytes needed for user data */
-	ulint		type,	/* in: type of heap: MEM_HEAP_DYNAMIC or
+	ulint		n,	/*!< in: number of bytes needed for user data */
+	ulint		type,	/*!< in: type of heap: MEM_HEAP_DYNAMIC or
 				MEM_HEAP_BUFFER */
-	const char*	file_name,/* in: file name where created */
-	ulint		line)	/* in: line where created */
+	const char*	file_name,/*!< in: file name where created */
+	ulint		line)	/*!< in: line where created */
 {
+#ifndef UNIV_HOTBACKUP
 	buf_block_t*	buf_block = NULL;
+#endif /* !UNIV_HOTBACKUP */
 	mem_block_t*	block;
 	ulint		len;
 
@@ -345,6 +325,7 @@ mem_heap_create_block(
 	/* In dynamic allocation, calculate the size: block header + data. */
 	len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
 
+#ifndef UNIV_HOTBACKUP
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
 
 		ut_ad(type == MEM_HEAP_DYNAMIC || n <= MEM_MAX_ALLOC_IN_BUF);
@@ -374,6 +355,13 @@ mem_heap_create_block(
 
 	ut_ad(block);
 	block->buf_block = buf_block;
+	block->free_block = NULL;
+#else /* !UNIV_HOTBACKUP */
+	len = MEM_BLOCK_HEADER_SIZE + MEM_SPACE_NEEDED(n);
+	block = ut_malloc(len);
+	ut_ad(block);
+#endif /* !UNIV_HOTBACKUP */
+
 	block->magic_n = MEM_BLOCK_MAGIC_N;
 	ut_strlcpy_rev(block->file_name, file_name, sizeof(block->file_name));
 	block->line = line;
@@ -395,24 +383,21 @@ mem_heap_create_block(
 	mem_block_set_free(block, MEM_BLOCK_HEADER_SIZE);
 	mem_block_set_start(block, MEM_BLOCK_HEADER_SIZE);
 
-	block->free_block = NULL;
-
 	ut_ad((ulint)MEM_BLOCK_HEADER_SIZE < len);
 
 	return(block);
 }
 
-/*******************************************************************
-Adds a new block to a memory heap. */
+/***************************************************************//**
+Adds a new block to a memory heap.
+@return created block, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
 UNIV_INTERN
 mem_block_t*
 mem_heap_add_block(
 /*===============*/
-				/* out: created block, NULL if did not
-				succeed (only possible for
-				MEM_HEAP_BTR_SEARCH type heaps)*/
-	mem_heap_t*	heap,	/* in: memory heap */
-	ulint		n)	/* in: number of bytes user needs */
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	ulint		n)	/*!< in: number of bytes user needs */
 {
 	mem_block_t*	block;
 	mem_block_t*	new_block;
@@ -458,18 +443,20 @@ mem_heap_add_block(
 	return(new_block);
 }
 
-/**********************************************************************
+/******************************************************************//**
 Frees a block from a memory heap. */
 UNIV_INTERN
 void
 mem_heap_block_free(
 /*================*/
-	mem_heap_t*	heap,	/* in: heap */
-	mem_block_t*	block)	/* in: block to free */
+	mem_heap_t*	heap,	/*!< in: heap */
+	mem_block_t*	block)	/*!< in: block to free */
 {
 	ulint		type;
 	ulint		len;
-	buf_block_t*	buf_block;
+#ifndef UNIV_HOTBACKUP
+	buf_block_t*	buf_block	= block->buf_block;
+#endif /* !UNIV_HOTBACKUP */
 
 	if (block->magic_n != MEM_BLOCK_MAGIC_N) {
 		mem_analyze_corruption(block);
@@ -486,18 +473,20 @@ mem_heap_block_free(
 #endif
 	type = heap->type;
 	len = block->len;
-	buf_block = block->buf_block;
 	block->magic_n = MEM_FREED_BLOCK_MAGIC_N;
 
+#ifndef UNIV_HOTBACKUP
+	if (!srv_use_sys_malloc) {
 #ifdef UNIV_MEM_DEBUG
-	/* In the debug version we set the memory to a random combination
-	of hex 0xDE and 0xAD. */
+		/* In the debug version we set the memory to a random
+		combination of hex 0xDE and 0xAD. */
 
-	mem_erase_buf((byte*)block, len);
+		mem_erase_buf((byte*)block, len);
 #else /* UNIV_MEM_DEBUG */
-	UNIV_MEM_ASSERT_AND_FREE(block, len);
+		UNIV_MEM_ASSERT_AND_FREE(block, len);
 #endif /* UNIV_MEM_DEBUG */
 
+	}
 	if (type == MEM_HEAP_DYNAMIC || len < UNIV_PAGE_SIZE / 2) {
 
 		ut_ad(!buf_block);
@@ -507,15 +496,27 @@ mem_heap_block_free(
 
 		buf_block_free(buf_block);
 	}
+#else /* !UNIV_HOTBACKUP */
+#ifdef UNIV_MEM_DEBUG
+	/* In the debug version we set the memory to a random
+	combination of hex 0xDE and 0xAD. */
+
+	mem_erase_buf((byte*)block, len);
+#else /* UNIV_MEM_DEBUG */
+	UNIV_MEM_ASSERT_AND_FREE(block, len);
+#endif /* UNIV_MEM_DEBUG */
+	ut_free(block);
+#endif /* !UNIV_HOTBACKUP */
 }
 
-/**********************************************************************
+#ifndef UNIV_HOTBACKUP
+/******************************************************************//**
 Frees the free_block field from a memory heap. */
 UNIV_INTERN
 void
 mem_heap_free_block_free(
 /*=====================*/
-	mem_heap_t*	heap)	/* in: heap */
+	mem_heap_t*	heap)	/*!< in: heap */
 {
 	if (UNIV_LIKELY_NULL(heap->free_block)) {
 
@@ -524,9 +525,10 @@ mem_heap_free_block_free(
 		heap->free_block = NULL;
 	}
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef MEM_PERIODIC_CHECK
-/**********************************************************************
+/******************************************************************//**
 Goes through the list of all allocated mem blocks, checks their magic
 numbers, and reports possible corruption. */
 UNIV_INTERN

@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 08/12/2009
+.\"      Date: 11/04/2009
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "08/12/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -41,8 +41,9 @@ processes cooperate in handling data\&. These processes can execute on the same 
 .\" command options (MySQL Cluster): ndbd
 .\" MySQL Cluster: ndbd process
 .PP
-The following list describes command options specific to the MySQL Cluster data node program
-\fBndbd\fR\&.
+The following table includes command options specific to the MySQL Cluster data node program
+\fBndbd\fR\&. Additional descriptions follow the table\&. For options common to all MySQL Cluster programs, see
+Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 .if n \{\
 .sp
 .\}
@@ -68,7 +69,7 @@ wherever the latter occurs in this section\&.
 For options common to all
 NDBCLUSTER
 programs, see
-Section\ \&17.6.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
+Section\ \&17.4.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -81,9 +82,11 @@ Section\ \&17.6.2, \(lqOptions Common to MySQL Cluster Programs\(rq\&.
 \fB\-\-bind\-address\fR
 .TS
 allbox tab(:);
-l l
-l l
-l l.
+l l s
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBVersion Introduced\fR
 T}:T{
@@ -95,28 +98,16 @@ T}:T{
 \-\-bind\-address=name
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 string
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 T}
@@ -141,36 +132,26 @@ This option was added in MySQL 5\&.1\&.12\&.
 \fB\-d\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-daemon
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 TRUE
@@ -182,6 +163,12 @@ Instructs
 to execute as a daemon process\&. This is the default behavior\&.
 \fB\-\-nodaemon\fR
 can be used to prevent the process from running as a daemon\&.
+.sp
+This option has no effect when running
+\fBndbd\fR
+or
+\fBndbmtd\fR
+on Windows platforms\&.
 .RE
 .sp
 .RS 4
@@ -197,36 +184,26 @@ can be used to prevent the process from running as a daemon\&.
 \fB\-\-initial\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-initial
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -321,9 +298,11 @@ Backup files that have already been created by the affected node
 .IP \(bu 2.3
 .\}
 MySQL Cluster Disk Data files (see
-Section\ \&17.10, \(lqMySQL Cluster Disk Data Tables\(rq)\&.
+Section\ \&17.5.9, \(lqMySQL Cluster Disk Data Tables\(rq)\&.
 .RE
 .RS 4
+.sp
+This option also has no effect on recovery of data by a data node that is just starting (or restarting) from data nodes that are already running\&. This recovery of data occurs automatically, and requires no user intervention in a MySQL Cluster that is running normally\&.
 .sp .5v
 .RE
 It is permissible to use this option when starting the cluster for the very first time (that is, before any data node files have been created); however, it is
@@ -344,9 +323,11 @@ necessary to do so\&.
 \fB\-\-initial\-start\fR
 .TS
 allbox tab(:);
-l l
-l l
-l l.
+l l s
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBVersion Introduced\fR
 T}:T{
@@ -358,28 +339,16 @@ T}:T{
 \-\-initial\-start
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -435,9 +404,11 @@ Prior to MySQL 5\&.1\&.19, it was not possible to perform DDL operations involvi
 \fB\-\-nowait\-nodes=\fR\fB\fInode_id_1\fR\fR\fB[, \fR\fB\fInode_id_2\fR\fR\fB[, \&.\&.\&.]]\fR
 .TS
 allbox tab(:);
-l l
-l l
-l l.
+l l s
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBVersion Introduced\fR
 T}:T{
@@ -449,28 +420,16 @@ T}:T{
 \-\-nowait\-nodes=list
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 string
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 T}
@@ -508,36 +467,26 @@ This option was added in MySQL 5\&.1\&.9\&.
 \fB\-\-nodaemon\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-nodaemon
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -549,6 +498,12 @@ Instructs
 not to start as a daemon process\&. This is useful when
 \fBndbd\fR
 is being debugged and you want output to be redirected to the screen\&.
+.sp
+As of MySQL Cluster NDB 7\&.0\&.8, the default behavior for
+\fBndbd\fR
+and
+\fBndbmtd\fR
+on Windows is to run in the foreground, making this option unnecessary on Windows platforms\&. (\m[blue]\fBBug#45588\fR\m[]\&\s-2\u[2]\d\s+2)
 .RE
 .sp
 .RS 4
@@ -567,36 +522,26 @@ is being debugged and you want output to be redirected to the screen\&.
 \fB\-n\fR
 .TS
 allbox tab(:);
-l l
-l l.
+l l s
+l l s
+^ l l
+^ l l.
 T{
 \fBCommand Line Format\fR
 T}:T{
 \-\-nostart
 T}
 T{
-\fBPermitted Values \fR
+\ \&
 T}:T{
-[\fInested\ table\fR]*
+\fBPermitted Values \fR
 T}
-.TE
-.sp 1
-.sp
-.it 1 an-trap
-.nr an-no-space-flag 1
-.nr an-break-flag 1
-.br
-.B *[nested\ table]
-.TS
-allbox tab(:);
-l l
-l l.
-T{
+:T{
 \fBType\fR
 T}:T{
 boolean
 T}
-T{
+:T{
 \fBDefault\fR
 T}:T{
 FALSE
@@ -610,7 +555,7 @@ not to start automatically\&. When this option is used,
 connects to the management server, obtains configuration data from it, and initializes communication objects\&. However, it does not actually start the execution engine until specifically requested to do so by the management server\&. This can be accomplished by issuing the proper
 START
 command in the management client (see
-Section\ \&17.7.2, \(lqCommands in the MySQL Cluster Management Client\(rq)\&.
+Section\ \&17.5.2, \(lqCommands in the MySQL Cluster Management Client\(rq)\&.
 .RE
 .\" MySQL Cluster: log files
 .\" log files (MySQL Cluster)
@@ -668,7 +613,7 @@ TraceFile: ndb_2_trace\&.log\&.2
 Listings of possible
 \fBndbd\fR
 exit codes and messages generated when a data node process shuts down prematurely can be found in
-\m[blue]\fBndbd Error Messages\fR\m[]\&\s-2\u[2]\d\s+2\&.
+\m[blue]\fBndbd Error Messages\fR\m[]\&\s-2\u[3]\d\s+2\&.
 .if n \{\
 .sp
 .\}
@@ -784,7 +729,7 @@ shell> \fBndbd \-\-connect\-string="nodeid=2;host=ndb_mgmd\&.mysql\&.com:1186"\f
 .\}
 .PP
 See
-Section\ \&17.3.4.3, \(lqThe MySQL Cluster Connectstring\(rq, for additional information about this issue\&.
+Section\ \&17.3.2.3, \(lqThe MySQL Cluster Connectstring\(rq, for additional information about this issue\&.
 \fBndbd\fR(8), describes other options for
 \fBndbd\fR\&.
 .PP
@@ -810,7 +755,7 @@ process can consume up to 2 CPUs if permitted to do so\&.
 For a machine with many CPUs it is possible to use several
 \fBndbd\fR
 processes which belong to different node groups; however, such a configuration is still considered experimental and is not supported for MySQL 5\&.1 in a production setting\&. See
-Section\ \&17.12, \(lqKnown Limitations of MySQL Cluster\(rq\&.
+Section\ \&17.1.5, \(lqKnown Limitations of MySQL Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
@@ -829,6 +774,11 @@ Bug#24631
 \%http://bugs.mysql.com/24631
 .RE
 .IP " 2." 4
+Bug#45588
+.RS 4
+\%http://bugs.mysql.com/45588
+.RE
+.IP " 3." 4
 ndbd Error Messages
 .RS 4
 \%http://dev.mysql.com/doc/ndbapi/en/ndbd-error-messages.html

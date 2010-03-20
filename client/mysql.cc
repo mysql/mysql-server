@@ -54,6 +54,9 @@ static char *server_version= NULL;
 /* Array of options to pass to libemysqld */
 #define MAX_SERVER_ARGS               64
 
+/* Version numbers for deprecation messages */
+#define VER_CELOSIA "5.6"
+
 void* sql_alloc(unsigned size);	     // Don't use mysqld alloc for these
 void sql_element_free(void *ptr);
 #include "sql_string.h"
@@ -83,7 +86,7 @@ extern "C" {
 #include <term.h>
 #endif
 #endif
-#endif
+#endif /* defined(HAVE_CURSES_H) && defined(HAVE_TERM_H) */
 
 #undef bcmp				// Fix problem with new readline
 #if defined(__WIN__)
@@ -92,7 +95,6 @@ extern "C" {
 #include <readline/readline.h>
 #define HAVE_READLINE
 #endif
-  //int vidattr(long unsigned int attrs);	// Was missing in sun curses
 }
 
 #if !defined(HAVE_VIDATTR)
@@ -1024,7 +1026,7 @@ static const char *load_default_groups[]= { "mysql","client",0 };
 static int         embedded_server_arg_count= 0;
 static char       *embedded_server_args[MAX_SERVER_ARGS];
 static const char *embedded_server_groups[]=
-{ "server", "embedded", "mysql_SERVER", 0 };
+{ "server", "embedded", "mysql_SERVER", "mariadb_SERVER", 0 };
 
 #ifdef HAVE_READLINE
 /*
@@ -1281,21 +1283,38 @@ sig_handler handle_sigint(int sig)
   MYSQL *kill_mysql= NULL;
 
   /* terminate if no query being executed, or we already tried interrupting */
-  if (!executing_query || interrupted_query)
+  if (!executing_query || (interrupted_query == 2))
+  {
+    tee_fprintf(stdout, "Ctrl-C -- exit!\n");
     goto err;
+  }
 
   kill_mysql= mysql_init(kill_mysql);
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
+  {
+    tee_fprintf(stdout, "Ctrl-C -- sorry, cannot connect to server to kill query, giving up ...\n");
     goto err;
+  }
+
+  /* First time try to kill the query, second time the connection */
+  interrupted_query++;
+
+  /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
+  if ((interrupted_query == 1) && (mysql_get_server_version(&mysql) < 50000))
+    interrupted_query= 2;
 
   /* kill_buffer is always big enough because max length of %lu is 15 */
-  sprintf(kill_buffer, "KILL /*!50000 QUERY */ %lu", mysql_thread_id(&mysql));
-  mysql_real_query(kill_mysql, kill_buffer, strlen(kill_buffer));
+  sprintf(kill_buffer, "KILL %s%lu",
+          (interrupted_query == 1) ? "QUERY " : "",
+          mysql_thread_id(&mysql));
+  if (verbose)
+    tee_fprintf(stdout, "Ctrl-C -- sending \"%s\" to server ...\n",
+                kill_buffer);
+  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
   mysql_close(kill_mysql);
-  tee_fprintf(stdout, "Query aborted by Ctrl+C\n");
-
-  interrupted_query= 1;
+  tee_fprintf(stdout, "Ctrl-C -- query killed. Continuing normally.\n");
+  interrupted_query= 0;
 
   return;
 
@@ -1308,7 +1327,6 @@ err:
    handler called mysql_end(). 
   */
   mysql_thread_end();
-  return;
 #else
   mysql_end(sig);
 #endif  
@@ -1334,7 +1352,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_rehash, (uchar**) &opt_rehash, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0,
    0, 0},
   {"no-auto-rehash", 'A',
-   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect. WARNING: options deprecated; use --disable-auto-rehash instead.",
+   "No automatic rehashing. One has to use 'rehash' to get table and field completion. This gives a quicker start of mysql and disables rehashing on reconnect.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"batch", 'B',
    "Don't use history file. Disable interactive behavior. (Enables --silent)", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1403,7 +1421,7 @@ static struct my_option my_long_options[] =
   {"line-numbers", OPT_LINE_NUMBERS, "Write line numbers for errors.",
    (uchar**) &line_numbers, (uchar**) &line_numbers, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},  
-  {"skip-line-numbers", 'L', "Don't write line number for errors. WARNING: -L is deprecated, use long version of this option instead.", 0, 0, 0, GET_NO_ARG,
+  {"skip-line-numbers", 'L', "Don't write line number for errors.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"unbuffered", 'n', "Flush buffer after each query.", (uchar**) &unbuffered,
    (uchar**) &unbuffered, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -1411,7 +1429,7 @@ static struct my_option my_long_options[] =
    (uchar**) &column_names, (uchar**) &column_names, 0, GET_BOOL,
    NO_ARG, 1, 0, 0, 0, 0, 0},
   {"skip-column-names", 'N',
-   "Don't write column names in results. WARNING: -N is deprecated, use long version of this options instead.",
+   "Don't write column names in results.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-variable", 'O',
    "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
@@ -1618,7 +1636,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       init_tee(argument);
     break;
   case OPT_NOTEE:
-    printf("WARNING: option deprecated; use --disable-tee instead.\n");
+    WARN_DEPRECATED(VER_CELOSIA, "--no-tee", "--disable-tee");
     if (opt_outfile)
       end_tee();
     break;
@@ -1641,7 +1659,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     }
     break;
   case OPT_NOPAGER:
-    printf("WARNING: option deprecated; use --disable-pager instead.\n");
+    WARN_DEPRECATED(VER_CELOSIA, "--no-pager", "--disable-pager");
     opt_nopager= 1;
     break;
   case OPT_MYSQL_PROTOCOL:
@@ -1687,11 +1705,17 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     if (!(status.line_buff= batch_readline_command(status.line_buff, argument)))
       return 1;
     break;
+  case 'g':
+    WARN_DEPRECATED(VER_CELOSIA, "-g, --no-named-commands", "--skip-named-commands");
+    break;
   case 'o':
     if (argument == disabled_my_option)
       one_database= 0;
     else
       one_database= skip_updates= 1;
+    break;
+  case 'O':
+    WARN_DEPRECATED(VER_CELOSIA, "-O, --set-variable", "--variable-name=value");
     break;
   case 'p':
     if (argument == disabled_my_option)
@@ -2868,13 +2892,8 @@ com_help(String *buffer __attribute__((unused)),
 	  return com_server_help(buffer,line,help_arg);
   }
 
-  put_info("\nFor information about MySQL products and services, visit:\n"
-           "   http://www.mysql.com/\n"
-           "For developer information, including the MySQL Reference Manual, "
-           "visit:\n"
-           "   http://dev.mysql.com/\n"
-           "To buy MySQL Network Support, training, or other products, visit:\n"
-           "   https://shop.mysql.com/\n", INFO_INFO);
+  put_info("\nGeneral information about MariaDB can be found at\n"
+           "http://askmonty.org/wiki/index.php/Manual:Contents\n", INFO_INFO);
   put_info("List of all MySQL commands:", INFO_INFO);
   if (!named_cmds)
     put_info("Note that all text commands must be first on line and end with ';'",INFO_INFO);
@@ -3520,7 +3539,8 @@ print_table_data_vertically(MYSQL_RES *result)
     for (uint off=0; off < mysql_num_fields(result); off++)
     {
       field= mysql_fetch_field(result);
-      tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
+      if (column_names)
+        tee_fprintf(PAGER, "%*s: ",(int) max_length,field->name);
       if (cur[off])
       {
         unsigned int i;
@@ -4205,7 +4225,7 @@ char *get_arg(char *line, my_bool get_next_arg)
     if (*ptr == '\\' && ptr[1]) // escaped character
     {
       // Remove the backslash
-      strmov(ptr, ptr+1);
+      strmov_overlapp(ptr, ptr+1);
     }
     else if ((!quoted && *ptr == ' ') || (quoted && *ptr == qtype))
     {
@@ -4346,7 +4366,7 @@ com_status(String *buffer __attribute__((unused)),
     Don't remove "limit 1",
     it is protection againts SQL_SELECT_LIMIT=0
   */
-  if (mysql_store_result_for_lazy(&result))
+  if (!mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
@@ -4391,7 +4411,7 @@ com_status(String *buffer __attribute__((unused)),
     if (mysql_errno(&mysql) == CR_SERVER_GONE_ERROR)
       return 0;
   }
-  if (mysql_store_result_for_lazy(&result))
+  if (!mysql_store_result_for_lazy(&result))
   {
     MYSQL_ROW cur=mysql_fetch_row(result);
     if (cur)
@@ -4486,9 +4506,7 @@ server_version_string(MYSQL *con)
     */
 
     if (server_version == NULL)
-    {
-      server_version= strdup(mysql_get_server_info(con));
-    }
+      server_version= my_strdup(mysql_get_server_info(con), MYF(MY_WME));
   }
 
   return server_version ? server_version : "";

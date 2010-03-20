@@ -62,7 +62,7 @@ struct thr_local_struct{
 	os_thread_t	handle;	/*!< operating system handle to the thread */
 	ulint		slot_no;/*!< the index of the slot in the thread table
 				for this thread */
-	ibool		in_ibuf;/*!< TRUE if the the thread is doing an ibuf
+	ibool		in_ibuf;/*!< TRUE if the thread is doing an ibuf
 				operation */
 	hash_node_t	hash;	/*!< hash chain node */
 	ulint		magic_n;/*!< magic number (THR_LOCAL_MAGIC_N) */
@@ -245,4 +245,35 @@ thr_local_init(void)
 	thr_local_hash = hash_create(OS_THREAD_MAX_N + 100);
 
 	mutex_create(&thr_local_mutex, SYNC_THR_LOCAL);
+}
+
+/********************************************************************
+Close the thread local storage module. */
+UNIV_INTERN
+void
+thr_local_close(void)
+/*=================*/
+{
+	ulint		i;
+
+	ut_a(thr_local_hash != NULL);
+
+	/* Free the hash elements. We don't remove them from the table
+	because we are going to destroy the table anyway. */
+	for (i = 0; i < hash_get_n_cells(thr_local_hash); i++) {
+		thr_local_t*	local;
+
+		local = HASH_GET_FIRST(thr_local_hash, i);
+
+		while (local) {
+			thr_local_t*	prev_local = local;
+
+			local = HASH_GET_NEXT(hash, prev_local);
+			ut_a(prev_local->magic_n == THR_LOCAL_MAGIC_N);
+			mem_free(prev_local);
+		}
+	}
+
+	hash_table_free(thr_local_hash);
+	thr_local_hash = NULL;
 }

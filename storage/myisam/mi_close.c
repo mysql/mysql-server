@@ -64,8 +64,9 @@ int mi_close(register MI_INFO *info)
                     if (share->kfile >= 0) abort(););
     if (share->kfile >= 0 &&
 	flush_key_blocks(share->key_cache, share->kfile,
-			 share->temporary ? FLUSH_IGNORE_CHANGED :
-			 FLUSH_RELEASE))
+                         ((share->temporary || share->deleting) ?
+                          FLUSH_IGNORE_CHANGED :
+                          FLUSH_RELEASE)))
       error=my_errno;
     if (share->kfile >= 0)
     {

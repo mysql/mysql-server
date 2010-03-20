@@ -239,6 +239,18 @@ UNIV_INTERN
 void
 recv_sys_create(void);
 /*=================*/
+/**********************************************************//**
+Release recovery system mutexes. */
+UNIV_INTERN
+void
+recv_sys_close(void);
+/*================*/
+/********************************************************//**
+Frees the recovery system memory. */
+UNIV_INTERN
+void
+recv_sys_mem_free(void);
+/*===================*/
 /********************************************************//**
 Inits the recovery system for a recovery operation. */
 UNIV_INTERN
@@ -246,6 +258,12 @@ void
 recv_sys_init(
 /*==========*/
 	ulint	available_memory);	/*!< in: available memory in bytes */
+/********************************************************//**
+Reset the state of the recovery system variables. */
+UNIV_INTERN
+void
+recv_sys_var_init(void);
+/*===================*/
 /*******************************************************************//**
 Empties the hash table of stored log records, applying them to appropriate
 pages. */
@@ -433,6 +451,11 @@ are allowed yet: the variable name is misleading. */
 extern ibool		recv_no_ibuf_operations;
 /** TRUE when recv_init_crash_recovery() has been called. */
 extern ibool		recv_needed_recovery;
+#ifdef UNIV_DEBUG
+/** TRUE if writing to the redo log (mtr_commit) is forbidden.
+Protected by log_sys->mutex. */
+extern ibool		recv_no_log_write;
+#endif /* UNIV_DEBUG */
 
 /** TRUE if buf_page_is_corrupted() should check if the log sequence
 number (FIL_PAGE_LSN) is in the future.  Initially FALSE, and set by

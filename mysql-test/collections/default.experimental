@@ -1,6 +1,41 @@
+# For easier human reading (MTR doesn't care), please keep entries
+# in alphabetical order. This also helps with merge conflict resolution.
+
+binlog.binlog_multi_engine               # joro : NDB tests marked as experimental as agreed with bochklin
+
 funcs_1.charset_collation_1              # depends on compile-time decisions
-binlog.binlog_tmp_table                  # Bug#45578: Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
-main.ctype_gbk_binlog                    # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
-rpl.rpl_row_create_table                 # Bug#45576: rpl_row_create_table fails on PB2
+funcs_1.is_cml_ndb                       # joro : NDB tests marked as experimental as agreed with bochklin
+funcs_1.is_columns_ndb                   # joro : NDB tests marked as experimental as agreed with bochklin
+funcs_1.is_engines_ndb                   # joro : NDB tests marked as experimental as agreed with bochklin
+funcs_1.is_tables_ndb                    # joro : NDB tests marked as experimental as agreed with bochklin
+funcs_1.ndb*                             # joro : NDB tests marked as experimental as agreed with bochklin
+
+funcs_2.ndb_charset                      # joro : NDB tests marked as experimental as agreed with bochklin
+
+main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
+main.plugin_load  @solaris               # Bug#42144
+main.outfile_loaddata @solaris           # joro : Bug #46895
+
+ndb.*                                    # joro : NDB tests marked as experimental as agreed with bochklin
+
+rpl.rpl_innodb_bug28430*  @solaris       # Bug#46029
+
+rpl_ndb.*                                # joro : NDB tests marked as experimental as agreed with bochklin
 rpl_ndb.rpl_ndb_log                      # Bug#38998
-rpl.rpl_innodb_bug28430                  # Bug#46029
+
+stress.ddl_ndb                           # joro : NDB tests marked as experimental as agreed with bochklin
+
+parts.ndb_dd_backuprestore               # joro : NDB tests marked as experimental as agreed with bochklin
+parts.part_supported_sql_func_ndb        # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_alter1_1_ndb             # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_alter1_1_2_ndb           # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_alter1_2_ndb             # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_auto_increment_ndb       # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_basic_ndb                # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_engine_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_int_ndb                  # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_mgm_lc0_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_mgm_lc1_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_mgm_lc2_ndb              # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_syntax_ndb               # joro : NDB tests marked as experimental as agreed with bochklin
+parts.partition_value_ndb                # joro : NDB tests marked as experimental as agreed with bochklin

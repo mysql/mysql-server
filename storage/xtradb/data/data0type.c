@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/******************************************************
+/**************************************************//**
+@file data/data0type.c
 Data types
 
 Created 1/16/1996 Heikki Tuuri
@@ -28,26 +29,8 @@ Created 1/16/1996 Heikki Tuuri
 #include "data0type.ic"
 #endif
 
-/**********************************************************************
-This function is used to find the storage length in bytes of the first n
-characters for prefix indexes using a multibyte character set. The function
-finds charset information and returns length of prefix_len characters in the
-index field in bytes.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-ulint
-innobase_get_at_most_n_mbchars(
-/*===========================*/
-				/* out: number of bytes occupied by the first
-				n characters */
-	ulint charset_id,	/* in: character set id */
-	ulint prefix_len,	/* in: prefix length in bytes of the index
-				(this has to be divided by mbmaxlen to get the
-				number of CHARACTERS n in the prefix) */
-	ulint data_len,		/* in: length of the string in bytes */
-	const char* str);	/* in: character string */
+#ifndef UNIV_HOTBACKUP
+# include "ha_prototypes.h"
 
 /* At the database startup we store the default-charset collation number of
 this MySQL installation to this global variable. If we have < 4.1.2 format
@@ -56,29 +39,27 @@ charset-collation code for them. */
 
 UNIV_INTERN ulint	data_mysql_default_charset_coll;
 
-/*************************************************************************
+/*********************************************************************//**
 Determine how many bytes the first n characters of the given string occupy.
 If the string is shorter than n characters, returns the number of bytes
-the characters in the string occupy. */
+the characters in the string occupy.
+@return	length of the prefix, in bytes */
 UNIV_INTERN
 ulint
 dtype_get_at_most_n_mbchars(
 /*========================*/
-					/* out: length of the prefix,
-					in bytes */
-	ulint		prtype,		/* in: precise type */
-	ulint		mbminlen,	/* in: minimum length of a
+	ulint		prtype,		/*!< in: precise type */
+	ulint		mbminlen,	/*!< in: minimum length of a
 					multi-byte character */
-	ulint		mbmaxlen,	/* in: maximum length of a
+	ulint		mbmaxlen,	/*!< in: maximum length of a
 					multi-byte character */
-	ulint		prefix_len,	/* in: length of the requested
+	ulint		prefix_len,	/*!< in: length of the requested
 					prefix, in characters, multiplied by
 					dtype_get_mbmaxlen(dtype) */
-	ulint		data_len,	/* in: length of str (in bytes) */
-	const char*	str)		/* in: the string whose prefix
+	ulint		data_len,	/*!< in: length of str (in bytes) */
+	const char*	str)		/*!< in: the string whose prefix
 					length is being determined */
 {
-#ifndef UNIV_HOTBACKUP
 	ut_a(data_len != UNIV_SQL_NULL);
 	ut_ad(!mbmaxlen || !(prefix_len % mbmaxlen));
 
@@ -96,23 +77,18 @@ dtype_get_at_most_n_mbchars(
 	}
 
 	return(data_len);
-#else /* UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-#endif /* UNIV_HOTBACKUP */
 }
+#endif /* UNIV_HOTBACKUP */
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a data main type is a string type. Also a BLOB is considered a
-string type. */
+string type.
+@return	TRUE if string type */
 UNIV_INTERN
 ibool
 dtype_is_string_type(
 /*=================*/
-			/* out: TRUE if string type */
-	ulint	mtype)	/* in: InnoDB main data type code: DATA_CHAR, ... */
+	ulint	mtype)	/*!< in: InnoDB main data type code: DATA_CHAR, ... */
 {
 	if (mtype <= DATA_BLOB
 	    || mtype == DATA_MYSQL
@@ -124,17 +100,17 @@ dtype_is_string_type(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a type is a binary string type. Note that for tables created with
 < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
-those DATA_BLOB columns this function currently returns FALSE. */
+those DATA_BLOB columns this function currently returns FALSE.
+@return	TRUE if binary string type */
 UNIV_INTERN
 ibool
 dtype_is_binary_string_type(
 /*========================*/
-			/* out: TRUE if binary string type */
-	ulint	mtype,	/* in: main data type */
-	ulint	prtype)	/* in: precise type */
+	ulint	mtype,	/*!< in: main data type */
+	ulint	prtype)	/*!< in: precise type */
 {
 	if ((mtype == DATA_FIXBINARY)
 	    || (mtype == DATA_BINARY)
@@ -146,18 +122,18 @@ dtype_is_binary_string_type(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Checks if a type is a non-binary string type. That is, dtype_is_string_type is
 TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
 with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
-For those DATA_BLOB columns this function currently returns TRUE. */
+For those DATA_BLOB columns this function currently returns TRUE.
+@return	TRUE if non-binary string type */
 UNIV_INTERN
 ibool
 dtype_is_non_binary_string_type(
 /*============================*/
-			/* out: TRUE if non-binary string type */
-	ulint	mtype,	/* in: main data type */
-	ulint	prtype)	/* in: precise type */
+	ulint	mtype,	/*!< in: main data type */
+	ulint	prtype)	/*!< in: precise type */
 {
 	if (dtype_is_string_type(mtype) == TRUE
 	    && dtype_is_binary_string_type(mtype, prtype) == FALSE) {
@@ -168,16 +144,17 @@ dtype_is_non_binary_string_type(
 	return(FALSE);
 }
 
-/*************************************************************************
+/*********************************************************************//**
 Forms a precise type from the < 4.1.2 format precise type plus the
-charset-collation code. */
+charset-collation code.
+@return precise type, including the charset-collation code */
 UNIV_INTERN
 ulint
 dtype_form_prtype(
 /*==============*/
-	ulint	old_prtype,	/* in: the MySQL type code and the flags
+	ulint	old_prtype,	/*!< in: the MySQL type code and the flags
 				DATA_BINARY_TYPE etc. */
-	ulint	charset_coll)	/* in: MySQL charset-collation code */
+	ulint	charset_coll)	/*!< in: MySQL charset-collation code */
 {
 	ut_a(old_prtype < 256 * 256);
 	ut_a(charset_coll < 256);
@@ -185,14 +162,14 @@ dtype_form_prtype(
 	return(old_prtype + (charset_coll << 16));
 }
 
-/*************************************************************************
-Validates a data type structure. */
+/*********************************************************************//**
+Validates a data type structure.
+@return	TRUE if ok */
 UNIV_INTERN
 ibool
 dtype_validate(
 /*===========*/
-				/* out: TRUE if ok */
-	const dtype_t*	type)	/* in: type struct to validate */
+	const dtype_t*	type)	/*!< in: type struct to validate */
 {
 	ut_a(type);
 	ut_a(type->mtype >= DATA_VARCHAR);
@@ -202,18 +179,21 @@ dtype_validate(
 		ut_a((type->prtype & DATA_MYSQL_TYPE_MASK) < DATA_N_SYS_COLS);
 	}
 
+#ifndef UNIV_HOTBACKUP
 	ut_a(type->mbminlen <= type->mbmaxlen);
+#endif /* !UNIV_HOTBACKUP */
 
 	return(TRUE);
 }
 
-/*************************************************************************
+#ifndef UNIV_HOTBACKUP
+/*********************************************************************//**
 Prints a data type structure. */
 UNIV_INTERN
 void
 dtype_print(
 /*========*/
-	const dtype_t*	type)	/* in: type */
+	const dtype_t*	type)	/*!< in: type */
 {
 	ulint	mtype;
 	ulint	prtype;
@@ -257,6 +237,22 @@ dtype_print(
 		fputs("DATA_SYS", stderr);
 		break;
 
+	case DATA_FLOAT:
+		fputs("DATA_FLOAT", stderr);
+		break;
+
+	case DATA_DOUBLE:
+		fputs("DATA_DOUBLE", stderr);
+		break;
+
+	case DATA_DECIMAL:
+		fputs("DATA_DECIMAL", stderr);
+		break;
+
+	case DATA_VARMYSQL:
+		fputs("DATA_VARMYSQL", stderr);
+		break;
+
 	default:
 		fprintf(stderr, "type %lu", (ulong) mtype);
 		break;
@@ -298,3 +294,4 @@ dtype_print(
 
 	fprintf(stderr, " len %lu", (ulong) len);
 }
+#endif /* !UNIV_HOTBACKUP */

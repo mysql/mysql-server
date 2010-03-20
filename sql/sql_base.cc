@@ -17,6 +17,7 @@
 /* Basic functions needed by many modules */
 
 #include "mysql_priv.h"
+#include "debug_sync.h"
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sp.h"
@@ -24,6 +25,7 @@
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
+#include "rpl_filter.h"
 #ifdef  __WIN__
 #include <io.h>
 #endif
@@ -106,7 +108,7 @@ static bool open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
 static void close_old_data_files(THD *thd, TABLE *table, bool morph_locks,
                                  bool send_refresh);
 static bool
-has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables);
+has_write_table_with_auto_increment(TABLE_LIST *tables);
 
 
 extern "C" uchar *table_cache_key(const uchar *record, size_t *length,
@@ -928,7 +930,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
       if (remove_table_from_cache(thd, table->db, table->table_name,
-                                  RTFC_OWNED_BY_THD_FLAG))
+                                  RTFC_OWNED_BY_THD_FLAG, table->deleting))
 	found=1;
     }
     if (!found)
@@ -950,6 +952,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
     close_old_data_files(thd,thd->open_tables,1,1);
     mysql_ha_flush(thd);
+    DEBUG_SYNC(thd, "after_flush_unlock");
 
     bool found=1;
     /* Wait until all threads has closed all the tables we had locked */
@@ -1333,7 +1336,7 @@ void close_thread_tables(THD *thd)
       handled either before writing a query log event (inside
       binlog_query()) or when preparing a pending event.
      */
-    thd->binlog_flush_pending_rows_event(TRUE);
+    (void)thd->binlog_flush_pending_rows_event(TRUE);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -1551,8 +1554,13 @@ void close_temporary_tables(THD *thd)
                             s_query.length() - 1 /* to remove trailing ',' */,
                             0, FALSE, 0);
       qinfo.db= db.ptr();
+      qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
-      mysql_bin_log.write(&qinfo);
+      if (mysql_bin_log.write(&qinfo))
+      {
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, MYF(0),
+                     "Failed to write the DROP statement for temporary tables to binary log");
+      }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
     }
     else
@@ -2319,7 +2327,8 @@ bool reopen_name_locked_table(THD* thd, TABLE_LIST* table_list, bool link_in)
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->null_row= table->maybe_null= table->force_index= 0;
+  table->null_row= table->maybe_null= 0;
+  table->force_index= table->force_index_order= table->force_index_group= 0;
   table->status=STATUS_NO_RECORD;
   DBUG_RETURN(FALSE);
 }
@@ -2946,7 +2955,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_PRINT("info", ("inserting table '%s'.'%s' 0x%lx into the cache",
                         table->s->db.str, table->s->table_name.str,
                         (long) table));
-    VOID(my_hash_insert(&open_cache,(uchar*) table));
+    if (my_hash_insert(&open_cache,(uchar*) table))
+    {
+      my_free(table, MYF(0));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      DBUG_RETURN(NULL);
+    }
   }
 
   check_unused();				// Debugging call
@@ -2977,7 +2991,8 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->tablenr=thd->current_tablenr++;
   table->used_fields=0;
   table->const_table=0;
-  table->null_row= table->maybe_null= table->force_index= 0;
+  table->null_row= table->maybe_null= 0;
+  table->force_index= table->force_index_order= table->force_index_group= 0;
   table->status=STATUS_NO_RECORD;
   table->insert_values= 0;
   table->fulltext_searched= 0;
@@ -4051,9 +4066,13 @@ retry:
         end = strxmov(strmov(query, "DELETE FROM `"),
                       share->db.str,"`.`",share->table_name.str,"`", NullS);
         int errcode= query_error_code(thd, TRUE);
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          query, (ulong)(end-query),
-                          FALSE, FALSE, errcode);
+        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              query, (ulong)(end-query),
+                              FALSE, FALSE, errcode))
+        {
+          my_free(query, MYF(0));
+          goto err;
+        }
         my_free(query, MYF(0));
       }
       else
@@ -5125,7 +5144,16 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
 
 int decide_logging_format(THD *thd, TABLE_LIST *tables)
 {
-  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG))
+  /*
+    In SBR mode, we are only proceeding if we are binlogging this
+    statement, ie, the filtering rules won't later filter this out.
+
+    This check here is needed to prevent some spurious error to be
+    raised in some cases (See BUG#42829).
+   */
+  if (mysql_bin_log.is_open() && (thd->options & OPTION_BIN_LOG) &&
+      (thd->variables.binlog_format != BINLOG_FORMAT_STMT ||
+       binlog_filter->db_ok(thd->db)))
   {
     /*
       Compute the starting vectors for the computations by creating a
@@ -5308,17 +5336,21 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       thd->in_lock_tables=1;
       thd->options|= OPTION_TABLE_LOCK;
       /*
-        If we have >= 2 different tables to update with auto_inc columns,
-        statement-based binlogging won't work. We can solve this problem in
-        mixed mode by switching to row-based binlogging:
+        A query that modifies autoinc column in sub-statement can make the 
+        master and slave inconsistent.
+        We can solve these problems in mixed mode by switching to binlogging 
+        if at least one updated table is used by sub-statement
       */
-      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED &&
-          has_two_write_locked_tables_with_auto_increment(tables))
+      /* The BINLOG_FORMAT_MIXED judgement is saved for suppressing 
+         warnings, but it will be removed by fixing bug#45827 */
+      if (thd->variables.binlog_format == BINLOG_FORMAT_MIXED && tables && 
+          has_write_table_with_auto_increment(thd->lex->first_not_own_table()))
       {
         thd->lex->set_stmt_unsafe();
-        thd->set_current_stmt_binlog_row_based_if_mixed();
       }
     }
+
+    DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
                                         lock_flag, need_reopen)))
@@ -5690,7 +5722,8 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
     if (!my_strcasecmp(system_charset_info, field_it.name(), name))
     {
       // in PS use own arena or data will be freed after prepare
-      if (register_tree_change && thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
+      if (register_tree_change &&
+          thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute())
         arena= thd->activate_stmt_arena_if_needed(&backup);
       /*
         create_item() may, or may not create a new Item, depending on
@@ -5839,6 +5872,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   {
     /* This is a base table. */
     DBUG_ASSERT(nj_col->view_field == NULL);
+    Item *ref= 0;
     /*
       This fix_fields is not necessary (initially this item is fixed by
       the Item_field constructor; after reopen_tables the Item_func_eq
@@ -5846,12 +5880,13 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       reopening for columns that was dropped by the concurrent connection.
     */
     if (!nj_col->table_field->fixed &&
-        nj_col->table_field->fix_fields(thd, (Item **)&nj_col->table_field))
+        nj_col->table_field->fix_fields(thd, &ref))
     {
       DBUG_PRINT("info", ("column '%s' was dropped by the concurrent connection",
                           nj_col->table_field->name));
       DBUG_RETURN(NULL);
     }
+    DBUG_ASSERT(ref == 0);                      // Should not have changed
     DBUG_ASSERT(nj_col->table_ref->table == nj_col->table_field->field->table);
     found_field= nj_col->table_field->field;
     update_field_dependencies(thd, found_field, nj_col->table_ref->table);
@@ -8526,6 +8561,11 @@ void remove_db_from_cache(const char *db)
     if (!strcmp(table->s->db.str, db))
     {
       table->s->version= 0L;			/* Free when thread is ready */
+      /*
+        This functions only called from DROP DATABASE code, so we are going
+        to drop all tables so we mark them as deleting
+      */
+      table->s->deleting= TRUE;
       if (!table->in_use)
 	relink_unused(table);
     }
@@ -8568,7 +8608,7 @@ void flush_tables()
 */
 
 bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
-                             uint flags)
+                             uint flags, my_bool deleting)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
@@ -8615,19 +8655,26 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   	  result=1;
         }
         /* Kill delayed insert threads */
-        if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-            ! in_use->killed)
+        if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT))
         {
-	  in_use->killed= THD::KILL_CONNECTION;
-	  pthread_mutex_lock(&in_use->mysys_var->mutex);
-	  if (in_use->mysys_var->current_cond)
-	  {
-	    pthread_mutex_lock(in_use->mysys_var->current_mutex);
-            signalled= 1;
-	    pthread_cond_broadcast(in_use->mysys_var->current_cond);
-	    pthread_mutex_unlock(in_use->mysys_var->current_mutex);
-	  }
-	  pthread_mutex_unlock(&in_use->mysys_var->mutex);
+          if (!in_use->killed)
+          {
+            in_use->killed= THD::KILL_CONNECTION;
+            pthread_mutex_lock(&in_use->mysys_var->mutex);
+            if (in_use->mysys_var->current_cond)
+            {
+              pthread_mutex_lock(in_use->mysys_var->current_mutex);
+              signalled= 1;
+              pthread_cond_broadcast(in_use->mysys_var->current_cond);
+              pthread_mutex_unlock(in_use->mysys_var->current_mutex);
+            }
+            pthread_mutex_unlock(&in_use->mysys_var->mutex);
+          }
+          /*
+            Don't abort locks. Instead give the delayed insert thread
+            time to finish it's inserts and die gracefully. 
+          */
+          continue;
         }
         /*
 	  Now we must abort all tables locks used by this thread
@@ -8655,7 +8702,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       }
     }
     while (unused_tables && !unused_tables->s->version)
+    {
+      unused_tables->s->deleting= deleting;
       VOID(hash_delete(&open_cache,(uchar*) unused_tables));
+    }
 
     DBUG_PRINT("info", ("Removing table from table_def_cache"));
     /* Remove table from table definition cache if it's not in use */
@@ -8849,7 +8899,8 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
   /* If MERGE child, forward lock handling to parent. */
   mysql_lock_abort(lpt->thd, lpt->table->parent ? lpt->table->parent :
                    lpt->table, TRUE);
-  VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags));
+  VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags,
+                               FALSE));
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(0);
 }
@@ -8874,7 +8925,7 @@ void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   VOID(pthread_mutex_lock(&LOCK_open));
   remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name,
-                          RTFC_WAIT_OTHER_THREAD_FLAG);
+                          RTFC_WAIT_OTHER_THREAD_FLAG, FALSE);
   VOID(pthread_mutex_unlock(&LOCK_open));
   /* If MERGE child, forward lock handling to parent. */
   mysql_lock_downgrade_write(lpt->thd, lpt->table->parent ? lpt->table->parent :
@@ -8978,47 +9029,31 @@ void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table
 
 
 /*
-  Tells if two (or more) tables have auto_increment columns and we want to
-  lock those tables with a write lock.
+  Check if one (or more) write tables have auto_increment columns.
 
-  SYNOPSIS
-    has_two_write_locked_tables_with_auto_increment
-      tables        Table list
+  @param[in] tables Table list
+
+  @retval 0 if at least one write tables has an auto_increment column
+  @retval 1 otherwise
 
   NOTES:
     Call this function only when you have established the list of all tables
     which you'll want to update (including stored functions, triggers, views
     inside your statement).
-
-  RETURN
-    0  No
-    1  Yes
 */
 
 static bool
-has_two_write_locked_tables_with_auto_increment(TABLE_LIST *tables)
+has_write_table_with_auto_increment(TABLE_LIST *tables)
 {
-  char *first_table_name= NULL, *first_db;
-  LINT_INIT(first_db);
-
   for (TABLE_LIST *table= tables; table; table= table->next_global)
   {
     /* we must do preliminary checks as table->table may be NULL */
     if (!table->placeholder() &&
         table->table->found_next_number_field &&
         (table->lock_type >= TL_WRITE_ALLOW_WRITE))
-    {
-      if (first_table_name == NULL)
-      {
-        first_table_name= table->table_name;
-        first_db= table->db;
-        DBUG_ASSERT(first_db);
-      }
-      else if (strcmp(first_db, table->db) ||
-               strcmp(first_table_name, table->table_name))
-        return 1;
-    }
+      return 1;
   }
+
   return 0;
 }
 

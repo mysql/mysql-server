@@ -89,10 +89,10 @@ static void set_data_file_type(MI_SORT_INFO *sort_info, MYISAM_SHARE *share);
 void myisamchk_init(HA_CHECK *param)
 {
   bzero((uchar*) param,sizeof(*param));
+  /* Set all params that are not 0 */
   param->opt_follow_links=1;
   param->keys_in_use= ~(ulonglong) 0;
   param->search_after_block=HA_OFFSET_ERROR;
-  param->auto_increment_value= 0;
   param->use_buffers=USE_BUFFER_INIT;
   param->read_buffer_length=READ_BUFFER_INIT;
   param->write_buffer_length=READ_BUFFER_INIT;
@@ -100,7 +100,6 @@ void myisamchk_init(HA_CHECK *param)
   param->sort_key_blocks=BUFFERS_WHEN_SORTING;
   param->tmpfile_createflag=O_RDWR | O_TRUNC | O_EXCL;
   param->myf_rw=MYF(MY_NABP | MY_WME | MY_WAIT_IF_FULL);
-  param->start_check_pos=0;
   param->max_record_length= LONGLONG_MAX;
   param->key_cache_block_size= KEY_CACHE_BLOCK_SIZE;
   param->stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
@@ -166,7 +165,7 @@ int chk_del(HA_CHECK *param, register MI_INFO *info, ulonglong test_flag)
     empty=0;
     for (i= info->state->del ; i > 0L && next_link != HA_OFFSET_ERROR ; i--)
     {
-      if (*killed_ptr(param))
+      if (killed_ptr(param))
         DBUG_RETURN(1);
       if (test_flag & T_VERBOSE)
 	printf(" %9s",llstr(next_link,buff));
@@ -261,7 +260,7 @@ static int check_k_link(HA_CHECK *param, register MI_INFO *info, uint nr)
   records= (ha_rows) (info->state->key_file_length / block_size);
   while (next_link != HA_OFFSET_ERROR && records > 0)
   {
-    if (*killed_ptr(param))
+    if (killed_ptr(param))
       DBUG_RETURN(1);
     if (param->testflag & T_VERBOSE)
       printf("%16s",llstr(next_link,llbuff));
@@ -778,7 +777,7 @@ static int chk_index(HA_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   }
   for ( ;; )
   {
-    if (*killed_ptr(param))
+    if (killed_ptr(param))
       goto err;
     memcpy((char*) info->lastkey,(char*) key,key_length);
     info->lastkey_length=key_length;
@@ -990,7 +989,7 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
   bzero((char*) key_checksum, info->s->base.keys * sizeof(key_checksum[0]));
   while (pos < info->state->data_file_length)
   {
-    if (*killed_ptr(param))
+    if (killed_ptr(param))
       goto err2;
     switch (info->s->data_file_type) {
     case BLOCK_RECORD:
@@ -1545,6 +1544,8 @@ int mi_repair(HA_CHECK *param, register MI_INFO *info,
 
   if (info->s->options & (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD))
     param->testflag|=T_CALC_CHECKSUM;
+
+  DBUG_ASSERT(param->use_buffers < SIZE_T_MAX);
 
   if (!param->using_global_keycache)
     VOID(init_key_cache(dflt_key_cache, param->key_cache_block_size,
@@ -2560,8 +2561,9 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,share->base.raid_chunks,
 			  MYF(MY_WME)));
-      if (info->dfile == new_file)
-	info->dfile= -1;
+      if (info->dfile == new_file) /* Retry with key cache */
+        if (unlikely(mi_open_datafile(info, share, name, -1)))
+          param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   }
@@ -2701,6 +2703,8 @@ int mi_repair_parallel(HA_CHECK *param, register MI_INFO *info,
   /* Initialize pthread structures before goto err. */
   pthread_mutex_init(&sort_info.mutex, MY_MUTEX_INIT_FAST);
   pthread_cond_init(&sort_info.cond, 0);
+  pthread_mutex_init(&param->print_msg_mutex, MY_MUTEX_INIT_FAST);
+  param->need_print_msg_lock= 1;
 
   if (!(sort_info.key_block=
 	alloc_key_blocks(param, (uint) param->sort_key_blocks,
@@ -3094,8 +3098,9 @@ err:
       VOID(my_close(new_file,MYF(0)));
       VOID(my_raid_delete(param->temp_filename,share->base.raid_chunks,
 			  MYF(MY_WME)));
-      if (info->dfile == new_file)
-	info->dfile= -1;
+      if (info->dfile == new_file) /* Retry with key cache */
+        if (unlikely(mi_open_datafile(info, share, name, -1)))
+          param->retry_repair= 0; /* Safety */
     }
     mi_mark_crashed_on_repair(info);
   }
@@ -3105,6 +3110,8 @@ err:
 
   pthread_cond_destroy (&sort_info.cond);
   pthread_mutex_destroy(&sort_info.mutex);
+  pthread_mutex_destroy(&param->print_msg_mutex);
+  param->need_print_msg_lock= 0;
 
   my_free((uchar*) sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
   my_free((uchar*) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
@@ -3247,7 +3254,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
   char llbuff[22],llbuff2[22];
   DBUG_ENTER("sort_get_next_record");
 
-  if (*killed_ptr(param))
+  if (killed_ptr(param))
     DBUG_RETURN(1);
 
   switch (share->data_file_type) {
@@ -4440,7 +4447,7 @@ int update_state_info(HA_CHECK *param, MI_INFO *info,uint update)
   {
     if (update & UPDATE_TIME)
     {
-      share->state.check_time= (long) time((time_t*) 0);
+      share->state.check_time= time((time_t*) 0);
       if (!share->state.create_time)
 	share->state.create_time=share->state.check_time;
     }

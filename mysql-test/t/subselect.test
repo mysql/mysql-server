@@ -41,7 +41,7 @@ SELECT 1 IN (SELECT 1);
 SELECT 1 FROM (SELECT 1 as a) b WHERE 1 IN (SELECT (SELECT a));
 -- error ER_WRONG_USAGE
 select (SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE(1));
--- error ER_WRONG_USAGE
+-- error ER_WRONG_PARAMETERS_TO_PROCEDURE
 SELECT 1 FROM (SELECT 1) a PROCEDURE ANALYSE((SELECT 1));
 -- error ER_BAD_FIELD_ERROR
 SELECT (SELECT 1) as a FROM (SELECT 1) b WHERE (SELECT a) IS NULL;
@@ -4065,5 +4065,19 @@ SELECT 1 FROM t1 GROUP BY
 DROP TABLE t1;
 
 set @@optimizer_switch=@save_optimizer_switch;
+--echo #
+--echo # Bug #49512 : subquery with aggregate function crash 
+--echo #   subselect_single_select_engine::exec()
+
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES();
+
+--echo # should not crash
+SELECT 1 FROM t1 WHERE a <> SOME
+(
+ SELECT MAX((SELECT a FROM t1 LIMIT 1)) AS d
+ FROM t1,t1 a
+);
+DROP TABLE t1;
 
 --echo End of 5.1 tests.

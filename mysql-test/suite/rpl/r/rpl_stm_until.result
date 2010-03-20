@@ -212,3 +212,51 @@ start slave sql_thread;
 start slave until master_log_file='master-bin.000001', master_log_pos=776;
 Warnings:
 Note	1254	Slave is already running
+include/stop_slave.inc
+drop table if exists t1;
+reset slave;
+change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
+drop table if exists t1;
+reset master;
+create table t1 (a int primary key auto_increment);
+start slave;
+include/stop_slave.inc
+master and slave are in sync now
+select 0 as zero;
+zero
+0
+insert into t1 set a=null;
+insert into t1 set a=null;
+select count(*) as two from t1;
+two
+2
+start slave until master_log_file='master-bin.000001', master_log_pos= UNTIL_POS;;
+slave stopped at the prescribed position
+select 0 as zero;
+zero
+0
+select count(*) as one from t1;
+one
+1
+drop table t1;
+start slave;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 't1'
+flush logs;
+stop slave;
+reset slave;
+start slave until master_log_file='master-bin.000001', master_log_pos=294 /* to stop right before DROP */;
+show tables /* t1 must exist */;
+Tables_in_test
+t1
+drop table t1;
+stop slave;
+reset slave;
+reset master;

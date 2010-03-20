@@ -27,35 +27,43 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #pragma interface			/* gcc class implementation */
 #endif
 
+/** InnoDB table share */
 typedef struct st_innobase_share {
-  THR_LOCK lock;
-  pthread_mutex_t mutex;
-  const char* table_name;
-  uint use_count;
-  void* table_name_hash;
+	THR_LOCK	lock;		/*!< MySQL lock protecting
+					this structure */
+	const char*	table_name;	/*!< InnoDB table name */
+	uint		use_count;	/*!< reference count,
+					incremented in get_share()
+					and decremented in free_share() */
+	void*		table_name_hash;/*!< hash table chain node */
 } INNOBASE_SHARE;
 
 
+/** InnoDB B-tree index */
 struct dict_index_struct;
+/** Prebuilt structures in an Innobase table handle used within MySQL */
 struct row_prebuilt_struct;
 
+/** InnoDB B-tree index */
 typedef struct dict_index_struct dict_index_t;
+/** Prebuilt structures in an Innobase table handle used within MySQL */
 typedef struct row_prebuilt_struct row_prebuilt_t;
 
-/* The class defining a handle to an Innodb table */
+/** The class defining a handle to an Innodb table */
 class ha_innobase: public handler
 {
-	row_prebuilt_t*	prebuilt;	/* prebuilt struct in InnoDB, used
+	row_prebuilt_t*	prebuilt;	/*!< prebuilt struct in InnoDB, used
 					to save CPU time with prebuilt data
 					structures*/
-	THD*		user_thd;	/* the thread handle of the user
+	THD*		user_thd;	/*!< the thread handle of the user
 					currently using the handle; this is
 					set in external_lock function */
 	THR_LOCK_DATA	lock;
-	INNOBASE_SHARE	*share;
+	INNOBASE_SHARE*	share;		/*!< information for MySQL
+					table locking */
 
-	uchar*		upd_buff;	/* buffer used in updates */
-	uchar*		key_val_buff;	/* buffer used in converting
+	uchar*		upd_buff;	/*!< buffer used in updates */
+	uchar*		key_val_buff;	/*!< buffer used in converting
 					search key values from MySQL format
 					to Innodb format */
 	ulong		upd_and_key_val_buff_len;
@@ -63,13 +71,13 @@ class ha_innobase: public handler
 					two buffers */
 	Table_flags	int_table_flags;
 	uint		primary_key;
-	ulong		start_of_scan;	/* this is set to 1 when we are
+	ulong		start_of_scan;	/*!< this is set to 1 when we are
 					starting a table scan but have not
 					yet fetched any row, else 0 */
 	uint		last_match_mode;/* match mode of the latest search:
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
 					or undefined */
-	uint		num_write_row;	/* number of write_row() calls */
+	uint		num_write_row;	/*!< number of write_row() calls */
 
 	uint store_key_val_for_row(uint keynr, char* buff, uint buff_len,
                                    const uchar* record);
@@ -119,14 +127,6 @@ class ha_innobase: public handler
 	void try_semi_consistent_read(bool yes);
 	void unlock_row();
 
-#ifdef ROW_MERGE_IS_INDEX_USABLE
-	/** Check if an index can be used by this transaction.
-	* @param keynr	key number to check
-	* @return	true if available, false if the index
-	*		does not contain old records that exist
-	*		in the read view of this transaction */
-	bool is_index_available(uint keynr);
-#endif /* ROW_MERGE_IS_INDEX_USABLE */
 	int index_init(uint index, bool sorted);
 	int index_end();
 	int index_read(uchar * buf, const uchar * key,
@@ -274,27 +274,55 @@ int thd_binlog_format(const MYSQL_THD thd);
   @param  all   TRUE <=> rollback main transaction.
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
+
+#if MYSQL_VERSION_ID > 50140
+/**
+  Check if binary logging is filtered for thread's current db.
+  @param  thd   Thread handle
+  @retval 1 the query is not filtered, 0 otherwise.
+*/
+bool thd_binlog_filter_ok(const MYSQL_THD thd);
+#endif /* MYSQL_VERSION_ID > 50140 */
 }
 
 typedef struct trx_struct trx_t;
-/************************************************************************
+/********************************************************************//**
+@file handler/ha_innodb.h
 Converts an InnoDB error code to a MySQL error code and also tells to MySQL
 about a possible transaction rollback inside InnoDB caused by a lock wait
-timeout or a deadlock. */
+timeout or a deadlock.
+@return	MySQL error code */
 extern "C"
 int
 convert_error_code_to_mysql(
 /*========================*/
-				/* out: MySQL error code */
-	int		error,	/* in: InnoDB error code */
-	ulint		flags,	/* in: InnoDB table flags, or 0 */
-	MYSQL_THD	thd);	/* in: user thread handle or NULL */
+	int		error,	/*!< in: InnoDB error code */
+	ulint		flags,	/*!< in: InnoDB table flags, or 0 */
+	MYSQL_THD	thd);	/*!< in: user thread handle or NULL */
 
-/*************************************************************************
-Allocates an InnoDB transaction for a MySQL handler object. */
+/*********************************************************************//**
+Allocates an InnoDB transaction for a MySQL handler object.
+@return	InnoDB transaction handle */
 extern "C"
 trx_t*
 innobase_trx_allocate(
 /*==================*/
-				/* out: InnoDB transaction handle */
-	MYSQL_THD	thd);	/* in: user thread handle */
+	MYSQL_THD	thd);	/*!< in: user thread handle */
+
+
+/*********************************************************************//**
+This function checks each index name for a table against reserved
+system default primary index name 'GEN_CLUST_INDEX'. If a name
+matches, this function pushes an warning message to the client,
+and returns true. */
+extern "C"
+bool
+innobase_index_name_is_reserved(
+/*============================*/
+					/* out: true if the index name
+					matches the reserved name */
+	const trx_t*	trx,		/* in: InnoDB transaction handle */
+	const KEY*	key_info,	/* in: Indexes to be created */
+	ulint		num_of_keys);	/* in: Number of indexes to
+					be created. */
+

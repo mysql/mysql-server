@@ -1,0 +1,206 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS `t1`;
+### TABLE with field_metadata_size == 290
+CREATE TABLE `t1` (
+`c1` int(11) NOT NULL AUTO_INCREMENT,
+`c2` varchar(30) NOT NULL,
+`c3` varchar(30) DEFAULT NULL,
+`c4` varchar(30) DEFAULT NULL,
+`c5` varchar(30) DEFAULT NULL,
+`c6` varchar(30) DEFAULT NULL,
+`c7` varchar(30) DEFAULT NULL,
+`c8` varchar(30) DEFAULT NULL,
+`c9` varchar(30) DEFAULT NULL,
+`c10` varchar(30) DEFAULT NULL,
+`c11` varchar(30) DEFAULT NULL,
+`c12` varchar(30) DEFAULT NULL,
+`c13` varchar(30) DEFAULT NULL,
+`c14` varchar(30) DEFAULT NULL,
+`c15` varchar(30) DEFAULT NULL,
+`c16` varchar(30) DEFAULT NULL,
+`c17` varchar(30) DEFAULT NULL,
+`c18` varchar(30) DEFAULT NULL,
+`c19` varchar(30) DEFAULT NULL,
+`c20` varchar(30) DEFAULT NULL,
+`c21` varchar(30) DEFAULT NULL,
+`c22` varchar(30) DEFAULT NULL,
+`c23` varchar(30) DEFAULT NULL,
+`c24` varchar(30) DEFAULT NULL,
+`c25` varchar(30) DEFAULT NULL,
+`c26` varchar(30) DEFAULT NULL,
+`c27` varchar(30) DEFAULT NULL,
+`c28` varchar(30) DEFAULT NULL,
+`c29` varchar(30) DEFAULT NULL,
+`c30` varchar(30) DEFAULT NULL,
+`c31` varchar(30) DEFAULT NULL,
+`c32` varchar(30) DEFAULT NULL,
+`c33` varchar(30) DEFAULT NULL,
+`c34` varchar(30) DEFAULT NULL,
+`c35` varchar(30) DEFAULT NULL,
+`c36` varchar(30) DEFAULT NULL,
+`c37` varchar(30) DEFAULT NULL,
+`c38` varchar(30) DEFAULT NULL,
+`c39` varchar(30) DEFAULT NULL,
+`c40` varchar(30) DEFAULT NULL,
+`c41` varchar(30) DEFAULT NULL,
+`c42` varchar(30) DEFAULT NULL,
+`c43` varchar(30) DEFAULT NULL,
+`c44` varchar(30) DEFAULT NULL,
+`c45` varchar(30) DEFAULT NULL,
+`c46` varchar(30) DEFAULT NULL,
+`c47` varchar(30) DEFAULT NULL,
+`c48` varchar(30) DEFAULT NULL,
+`c49` varchar(30) DEFAULT NULL,
+`c50` varchar(30) DEFAULT NULL,
+`c51` varchar(30) DEFAULT NULL,
+`c52` varchar(30) DEFAULT NULL,
+`c53` varchar(30) DEFAULT NULL,
+`c54` varchar(30) DEFAULT NULL,
+`c55` varchar(30) DEFAULT NULL,
+`c56` varchar(30) DEFAULT NULL,
+`c57` varchar(30) DEFAULT NULL,
+`c58` varchar(30) DEFAULT NULL,
+`c59` varchar(30) DEFAULT NULL,
+`c60` varchar(30) DEFAULT NULL,
+`c61` varchar(30) DEFAULT NULL,
+`c62` varchar(30) DEFAULT NULL,
+`c63` varchar(30) DEFAULT NULL,
+`c64` varchar(30) DEFAULT NULL,
+`c65` varchar(30) DEFAULT NULL,
+`c66` varchar(30) DEFAULT NULL,
+`c67` varchar(30) DEFAULT NULL,
+`c68` varchar(30) DEFAULT NULL,
+`c69` varchar(30) DEFAULT NULL,
+`c70` varchar(30) DEFAULT NULL,
+`c71` varchar(30) DEFAULT NULL,
+`c72` varchar(30) DEFAULT NULL,
+`c73` varchar(30) DEFAULT NULL,
+`c74` varchar(30) DEFAULT NULL,
+`c75` varchar(30) DEFAULT NULL,
+`c76` varchar(30) DEFAULT NULL,
+`c77` varchar(30) DEFAULT NULL,
+`c78` varchar(30) DEFAULT NULL,
+`c79` varchar(30) DEFAULT NULL,
+`c80` varchar(30) DEFAULT NULL,
+`c81` varchar(30) DEFAULT NULL,
+`c82` varchar(30) DEFAULT NULL,
+`c83` varchar(30) DEFAULT NULL,
+`c84` varchar(30) DEFAULT NULL,
+`c85` varchar(30) DEFAULT NULL,
+`c86` varchar(30) DEFAULT NULL,
+`c87` varchar(30) DEFAULT NULL,
+`c88` varchar(30) DEFAULT NULL,
+`c89` varchar(30) DEFAULT NULL,
+`c90` varchar(30) DEFAULT NULL,
+`c91` varchar(30) DEFAULT NULL,
+`c92` varchar(30) DEFAULT NULL,
+`c93` varchar(30) DEFAULT NULL,
+`c94` varchar(30) DEFAULT NULL,
+`c95` varchar(30) DEFAULT NULL,
+`c96` varchar(30) DEFAULT NULL,
+`c97` varchar(30) DEFAULT NULL,
+`c98` varchar(30) DEFAULT NULL,
+`c99` varchar(30) DEFAULT NULL,
+`c100` varchar(30) DEFAULT NULL,
+`c101` varchar(30) DEFAULT NULL,
+`c102` varchar(30) DEFAULT NULL,
+`c103` varchar(30) DEFAULT NULL,
+`c104` varchar(30) DEFAULT NULL,
+`c105` varchar(30) DEFAULT NULL,
+`c106` varchar(30) DEFAULT NULL,
+`c107` varchar(30) DEFAULT NULL,
+`c108` varchar(30) DEFAULT NULL,
+`c109` varchar(30) DEFAULT NULL,
+`c110` varchar(30) DEFAULT NULL,
+`c111` varchar(30) DEFAULT NULL,
+`c112` varchar(30) DEFAULT NULL,
+`c113` varchar(30) DEFAULT NULL,
+`c114` varchar(30) DEFAULT NULL,
+`c115` varchar(30) DEFAULT NULL,
+`c116` varchar(30) DEFAULT NULL,
+`c117` varchar(30) DEFAULT NULL,
+`c118` varchar(30) DEFAULT NULL,
+`c119` varchar(30) DEFAULT NULL,
+`c120` varchar(30) DEFAULT NULL,
+`c121` varchar(30) DEFAULT NULL,
+`c122` varchar(30) DEFAULT NULL,
+`c123` varchar(30) DEFAULT NULL,
+`c124` varchar(30) DEFAULT NULL,
+`c125` varchar(30) DEFAULT NULL,
+`c126` varchar(30) DEFAULT NULL,
+`c127` varchar(30) DEFAULT NULL,
+`c128` varchar(30) DEFAULT NULL,
+`c129` varchar(30) DEFAULT NULL,
+`c130` varchar(30) DEFAULT NULL,
+`c131` varchar(30) DEFAULT NULL,
+`c132` varchar(30) DEFAULT NULL,
+`c133` varchar(30) DEFAULT NULL,
+`c134` varchar(30) DEFAULT NULL,
+`c135` varchar(30) DEFAULT NULL,
+`c136` varchar(30) DEFAULT NULL,
+`c137` varchar(30) DEFAULT NULL,
+`c138` varchar(30) DEFAULT NULL,
+`c139` varchar(30) DEFAULT NULL,
+`c140` varchar(30) DEFAULT NULL,
+`c141` varchar(30) DEFAULT NULL,
+`c142` varchar(30) DEFAULT NULL,
+`c143` varchar(30) DEFAULT NULL,
+`c144` varchar(30) DEFAULT NULL,
+`c145` varchar(30) DEFAULT NULL,
+`c146` varchar(30) DEFAULT NULL,
+PRIMARY KEY (`c1`)
+) ENGINE=InnoDB;
+LOCK TABLES `t1` WRITE;
+INSERT INTO `t1`(c2) VALUES ('1');
+FLUSH LOGS;
+### assertion: the slave replicated event successfully and tables match
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE `t1`;
+=== Using mysqlbinlog to detect failure. Before the patch mysqlbinlog would find a corrupted event, thence would fail.
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+### action: generating several tables with different metadata 
+###         sizes (resorting to perl)
+### testing table with 249 field metadata size.
+### testing table with 250 field metadata size.
+### testing table with 251 field metadata size.
+### testing table with 252 field metadata size.
+### testing table with 253 field metadata size.
+### testing table with 254 field metadata size.
+### testing table with 255 field metadata size.
+### testing table with 256 field metadata size.
+### testing table with 257 field metadata size.
+### testing table with 258 field metadata size.
+FLUSH LOGS;
+### assertion: the slave replicated event successfully and tables match for t10
+Comparing tables master:test.t10 and slave:test.t10
+### assertion: the slave replicated event successfully and tables match for t9
+Comparing tables master:test.t9 and slave:test.t9
+### assertion: the slave replicated event successfully and tables match for t8
+Comparing tables master:test.t8 and slave:test.t8
+### assertion: the slave replicated event successfully and tables match for t7
+Comparing tables master:test.t7 and slave:test.t7
+### assertion: the slave replicated event successfully and tables match for t6
+Comparing tables master:test.t6 and slave:test.t6
+### assertion: the slave replicated event successfully and tables match for t5
+Comparing tables master:test.t5 and slave:test.t5
+### assertion: the slave replicated event successfully and tables match for t4
+Comparing tables master:test.t4 and slave:test.t4
+### assertion: the slave replicated event successfully and tables match for t3
+Comparing tables master:test.t3 and slave:test.t3
+### assertion: the slave replicated event successfully and tables match for t2
+Comparing tables master:test.t2 and slave:test.t2
+### assertion: the slave replicated event successfully and tables match for t1
+Comparing tables master:test.t1 and slave:test.t1
+### assertion: check that binlog is not corrupt. Using mysqlbinlog to 
+###            detect failure. Before the patch mysqlbinlog would find 
+###            a corrupted event, thence would fail.

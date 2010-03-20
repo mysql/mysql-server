@@ -82,6 +82,11 @@ void maria_end(void)
     maria_inited= maria_multi_threaded= FALSE;
     ft_free_stopwords();
     ma_checkpoint_end();
+    if (translog_status == TRANSLOG_OK)
+    {
+      translog_soft_sync_end();
+      translog_sync();
+    }
     if ((trid= trnman_get_max_trid()) > max_trid_in_control_file)
     {
       /*

@@ -16,7 +16,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/***********************************************************************
+/*******************************************************************//**
+@file rem/rem0cmp.c
 Comparison services for records
 
 Created 7/1/1994 Heikki Tuuri
@@ -35,7 +36,7 @@ Created 7/1/1994 Heikki Tuuri
 
 The records are put into alphabetical order in the following
 way: let F be the first field where two records disagree.
-If there is a character in some position n where the the
+If there is a character in some position n where the
 records disagree, the order is determined by comparison of
 the characters at position n, possibly after
 collating transformation. If there is no such character,
@@ -50,75 +51,70 @@ where two records disagree only in the way that one
 has more fields than the other. */
 
 #ifdef UNIV_DEBUG
-/*****************************************************************
+/*************************************************************//**
 Used in debug checking of cmp_dtuple_... .
 This function is used to compare a data tuple to a physical record. If
 dtuple has n fields then rec must have either m >= n fields, or it must
-differ from dtuple in some of the m fields rec has. */
+differ from dtuple in some of the m fields rec has.
+@return 1, 0, -1, if dtuple is greater, equal, less than rec,
+respectively, when only the common first fields are compared */
 static
 int
 cmp_debug_dtuple_rec_with_match(
 /*============================*/
-				/* out: 1, 0, -1, if dtuple is greater, equal,
-				less than rec, respectively, when only the
-				common first fields are compared */
-	const dtuple_t*	dtuple,	/* in: data tuple */
-	const rec_t*	rec,	/* in: physical record which differs from
+	const dtuple_t*	dtuple,	/*!< in: data tuple */
+	const rec_t*	rec,	/*!< in: physical record which differs from
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint*		matched_fields);/* in/out: number of already
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	ulint*		matched_fields);/*!< in/out: number of already
 				completely  matched fields; when function
 				returns, contains the value for current
 				comparison */
 #endif /* UNIV_DEBUG */
-#ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
-must be a copy of the the one in ha_innobase.cc! */
+must be a copy of the one in ha_innobase.cc!
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
 extern
 int
 innobase_mysql_cmp(
 /*===============*/
-					/* out: 1, 0, -1, if a is greater,
-					equal, less than b, respectively */
-	int		mysql_type,	/* in: MySQL type */
-	uint		charset_number,	/* in: number of the charset */
-	const unsigned char* a,		/* in: data field */
-	unsigned int	a_length,	/* in: data field length,
+	int		mysql_type,	/*!< in: MySQL type */
+	uint		charset_number,	/*!< in: number of the charset */
+	const unsigned char* a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
 					not UNIV_SQL_NULL */
-	const unsigned char* b,		/* in: data field */
-	unsigned int	b_length);	/* in: data field length,
+	const unsigned char* b,		/*!< in: data field */
+	unsigned int	b_length);	/*!< in: data field length,
 					not UNIV_SQL_NULL */
-#endif /* !UNIV_HOTBACKUP */
-/*************************************************************************
+/*********************************************************************//**
 Transforms the character code so that it is ordered appropriately for the
 language. This is only used for the latin1 char set. MySQL does the
-comparisons for other char sets. */
+comparisons for other char sets.
+@return	collation order position */
 UNIV_INLINE
 ulint
 cmp_collate(
 /*========*/
-			/* out: collation order position */
-	ulint	code)	/* in: code of a character stored in database record */
+	ulint	code)	/*!< in: code of a character stored in database record */
 {
 	return((ulint) srv_latin1_ordering[code]);
 }
 
-/*****************************************************************
-Returns TRUE if two columns are equal for comparison purposes. */
+/*************************************************************//**
+Returns TRUE if two columns are equal for comparison purposes.
+@return	TRUE if the columns are considered equal in comparisons */
 UNIV_INTERN
 ibool
 cmp_cols_are_equal(
 /*===============*/
-					/* out: TRUE if the columns are
-					considered equal in comparisons */
-	const dict_col_t*	col1,	/* in: column 1 */
-	const dict_col_t*	col2,	/* in: column 2 */
+	const dict_col_t*	col1,	/*!< in: column 1 */
+	const dict_col_t*	col2,	/*!< in: column 2 */
 	ibool			check_charsets)
-					/* in: whether to check charsets */
+					/*!< in: whether to check charsets */
 {
 	if (dtype_is_non_binary_string_type(col1->mtype, col1->prtype)
 	    && dtype_is_non_binary_string_type(col2->mtype, col2->prtype)) {
@@ -161,23 +157,21 @@ cmp_cols_are_equal(
 	return(col1->mtype != DATA_INT || col1->len == col2->len);
 }
 
-#ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 Innobase uses this function to compare two data fields for which the data type
-is such that we must compare whole fields or call MySQL to do the comparison */
+is such that we must compare whole fields or call MySQL to do the comparison
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
 static
 int
 cmp_whole_field(
 /*============*/
-					/* out: 1, 0, -1, if a is greater,
-					equal, less than b, respectively */
-	ulint		mtype,		/* in: main type */
-	ulint		prtype,		/* in: precise type */
-	const byte*	a,		/* in: data field */
-	unsigned int	a_length,	/* in: data field length,
+	ulint		mtype,		/*!< in: main type */
+	ulint		prtype,		/*!< in: precise type */
+	const byte*	a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
 					not UNIV_SQL_NULL */
-	const byte*	b,		/* in: data field */
-	unsigned int	b_length)	/* in: data field length,
+	const byte*	b,		/*!< in: data field */
+	unsigned int	b_length)	/*!< in: data field length,
 					not UNIV_SQL_NULL */
 {
 	float		f_1;
@@ -288,27 +282,24 @@ cmp_whole_field(
 
 	return(0);
 }
-#endif /* !UNIV_HOTBACKUP */
 
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two data fields for which we know the
-data type. */
+data type.
+@return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
 UNIV_INTERN
 int
 cmp_data_data_slow(
 /*===============*/
-				/* out: 1, 0, -1, if data1 is greater, equal,
-				less than data2, respectively */
-	ulint		mtype,	/* in: main type */
-	ulint		prtype,	/* in: precise type */
-	const byte*	data1,	/* in: data field (== a pointer to a memory
+	ulint		mtype,	/*!< in: main type */
+	ulint		prtype,	/*!< in: precise type */
+	const byte*	data1,	/*!< in: data field (== a pointer to a memory
 				buffer) */
-	ulint		len1,	/* in: data field length or UNIV_SQL_NULL */
-	const byte*	data2,	/* in: data field (== a pointer to a memory
+	ulint		len1,	/*!< in: data field length or UNIV_SQL_NULL */
+	const byte*	data2,	/*!< in: data field (== a pointer to a memory
 				buffer) */
-	ulint		len2)	/* in: data field length or UNIV_SQL_NULL */
+	ulint		len2)	/*!< in: data field length or UNIV_SQL_NULL */
 {
-#ifndef UNIV_HOTBACKUP
 	ulint	data1_byte;
 	ulint	data2_byte;
 	ulint	cur_bytes;
@@ -401,48 +392,39 @@ next_byte:
 		data1++;
 		data2++;
 	}
-#else /* !UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-#endif /* !UNIV_HOTBACKUP */
 
 	return(0);		/* Not reached */
 }
 
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare a data tuple to a physical record.
 Only dtuple->n_fields_cmp first fields are taken into account for
-the the data tuple! If we denote by n = n_fields_cmp, then rec must
+the data tuple! If we denote by n = n_fields_cmp, then rec must
 have either m >= n fields, or it must differ from dtuple in some of
 the m fields rec has. If rec has an externally stored field we do not
 compare it but return with value 0 if such a comparison should be
-made. */
+made.
+@return 1, 0, -1, if dtuple is greater, equal, less than rec,
+respectively, when only the common first fields are compared, or until
+the first externally stored field in rec */
 UNIV_INTERN
 int
 cmp_dtuple_rec_with_match(
 /*======================*/
-				/* out: 1, 0, -1, if dtuple is greater, equal,
-				less than rec, respectively, when only the
-				common first fields are compared, or
-				until the first externally stored field in
-				rec */
-	const dtuple_t*	dtuple,	/* in: data tuple */
-	const rec_t*	rec,	/* in: physical record which differs from
+	const dtuple_t*	dtuple,	/*!< in: data tuple */
+	const rec_t*	rec,	/*!< in: physical record which differs from
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint*		matched_fields, /* in/out: number of already completely
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	ulint*		matched_fields, /*!< in/out: number of already completely
 				matched fields; when function returns,
 				contains the value for current comparison */
-	ulint*		matched_bytes) /* in/out: number of already matched
+	ulint*		matched_bytes) /*!< in/out: number of already matched
 				bytes within the first field not completely
 				matched; when function returns, contains the
 				value for current comparison */
 {
-#ifndef UNIV_HOTBACKUP
 	const dfield_t*	dtuple_field;	/* current field in logical record */
 	ulint		dtuple_f_len;	/* the length of the current field
 					in the logical record */
@@ -650,27 +632,19 @@ order_resolved:
 	*matched_bytes = cur_bytes;
 
 	return(ret);
-#else /* !UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-	return(0);
-#endif /* !UNIV_HOTBACKUP */
 }
 
-/******************************************************************
-Compares a data tuple to a physical record. */
+/**************************************************************//**
+Compares a data tuple to a physical record.
+@see cmp_dtuple_rec_with_match
+@return 1, 0, -1, if dtuple is greater, equal, less than rec, respectively */
 UNIV_INTERN
 int
 cmp_dtuple_rec(
 /*===========*/
-				/* out: 1, 0, -1, if dtuple is greater, equal,
-				less than rec, respectively; see the comments
-				for cmp_dtuple_rec_with_match */
-	const dtuple_t*	dtuple,	/* in: data tuple */
-	const rec_t*	rec,	/* in: physical record */
-	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+	const dtuple_t*	dtuple,	/*!< in: data tuple */
+	const rec_t*	rec,	/*!< in: physical record */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ulint	matched_fields	= 0;
 	ulint	matched_bytes	= 0;
@@ -680,17 +654,17 @@ cmp_dtuple_rec(
 					 &matched_fields, &matched_bytes));
 }
 
-/******************************************************************
+/**************************************************************//**
 Checks if a dtuple is a prefix of a record. The last field in dtuple
-is allowed to be a prefix of the corresponding field in the record. */
+is allowed to be a prefix of the corresponding field in the record.
+@return	TRUE if prefix */
 UNIV_INTERN
 ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
-				/* out: TRUE if prefix */
-	const dtuple_t*	dtuple,	/* in: data tuple */
-	const rec_t*	rec,	/* in: physical record */
-	const ulint*	offsets)/* in: array returned by rec_get_offsets() */
+	const dtuple_t*	dtuple,	/*!< in: data tuple */
+	const rec_t*	rec,	/*!< in: physical record */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ulint	n_fields;
 	ulint	matched_fields	= 0;
@@ -720,33 +694,31 @@ cmp_dtuple_is_prefix_of_rec(
 	return(FALSE);
 }
 
-#ifndef UNIV_HOTBACKUP
-/*****************************************************************
+/*************************************************************//**
 Compare two physical records that contain the same number of columns,
-none of which are stored externally. */
+none of which are stored externally.
+@return	1, 0, -1 if rec1 is greater, equal, less, respectively, than rec2 */
 UNIV_INTERN
 int
 cmp_rec_rec_simple(
 /*===============*/
-					/* out: 1, 0 , -1 if rec1 is greater,
-					equal, less, respectively, than rec2 */
-	const rec_t*		rec1,	/* in: physical record */
-	const rec_t*		rec2,	/* in: physical record */
-	const ulint*		offsets1,/* in: rec_get_offsets(rec1, index) */
-	const ulint*		offsets2,/* in: rec_get_offsets(rec2, index) */
-	const dict_index_t*	index)	/* in: data dictionary index */
+	const rec_t*		rec1,	/*!< in: physical record */
+	const rec_t*		rec2,	/*!< in: physical record */
+	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
+	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
+	const dict_index_t*	index)	/*!< in: data dictionary index */
 {
-	ulint		rec1_f_len;	/* length of current field in rec1 */
-	const byte*	rec1_b_ptr;	/* pointer to the current byte
+	ulint		rec1_f_len;	/*!< length of current field in rec1 */
+	const byte*	rec1_b_ptr;	/*!< pointer to the current byte
 					in rec1 field */
-	ulint		rec1_byte;	/* value of current byte to be
+	ulint		rec1_byte;	/*!< value of current byte to be
 					compared in rec1 */
-	ulint		rec2_f_len;	/* length of current field in rec2 */
-	const byte*	rec2_b_ptr;	/* pointer to the current byte
+	ulint		rec2_f_len;	/*!< length of current field in rec2 */
+	const byte*	rec2_b_ptr;	/*!< pointer to the current byte
 					in rec2 field */
-	ulint		rec2_byte;	/* value of current byte to be
+	ulint		rec2_byte;	/*!< value of current byte to be
 					compared in rec2 */
-	ulint		cur_field;	/* current field number */
+	ulint		cur_field;	/*!< current field number */
 	ulint		n_uniq;
 
 	n_uniq = dict_index_get_n_unique(index);
@@ -870,35 +842,31 @@ next_field:
 	/* If we ran out of fields, rec1 was equal to rec2. */
 	return(0);
 }
-#endif /* !UNIV_HOTBACKUP */
 
-/*****************************************************************
+/*************************************************************//**
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is
-encountered, then 0 is returned. */
+encountered, then 0 is returned.
+@return 1, 0, -1 if rec1 is greater, equal, less, respectively */
 UNIV_INTERN
 int
 cmp_rec_rec_with_match(
 /*===================*/
-				/* out: 1, 0 , -1 if rec1 is greater, equal,
-				less, respectively, than rec2; only the common
-				first fields are compared */
-	const rec_t*	rec1,	/* in: physical record */
-	const rec_t*	rec2,	/* in: physical record */
-	const ulint*	offsets1,/* in: rec_get_offsets(rec1, index) */
-	const ulint*	offsets2,/* in: rec_get_offsets(rec2, index) */
-	dict_index_t*	index,	/* in: data dictionary index */
-	ulint*		matched_fields, /* in/out: number of already completely
+	const rec_t*	rec1,	/*!< in: physical record */
+	const rec_t*	rec2,	/*!< in: physical record */
+	const ulint*	offsets1,/*!< in: rec_get_offsets(rec1, index) */
+	const ulint*	offsets2,/*!< in: rec_get_offsets(rec2, index) */
+	dict_index_t*	index,	/*!< in: data dictionary index */
+	ulint*		matched_fields, /*!< in/out: number of already completely
 				matched fields; when the function returns,
 				contains the value the for current
 				comparison */
-	ulint*		matched_bytes, /* in/out: number of already matched
+	ulint*		matched_bytes, /*!< in/out: number of already matched
 				bytes within the first field not completely
 				matched; when the function returns, contains
 				the value for the current comparison */
 	ulint		stats_method)
 {
-#ifndef UNIV_HOTBACKUP
 	ulint		rec1_n_fields;	/* the number of fields in rec */
 	ulint		rec1_f_len;	/* length of current field in rec */
 	const byte*	rec1_b_ptr;	/* pointer to the current byte
@@ -1116,36 +1084,28 @@ order_resolved:
 	*matched_bytes = cur_bytes;
 
 	return(ret);
-#else /* !UNIV_HOTBACKUP */
-	/* This function depends on MySQL code that is not included in
-	InnoDB Hot Backup builds.  Besides, this function should never
-	be called in InnoDB Hot Backup. */
-	ut_error;
-	return(0);
-#endif /* !UNIV_HOTBACKUP */
 }
 
 #ifdef UNIV_DEBUG
-/*****************************************************************
+/*************************************************************//**
 Used in debug checking of cmp_dtuple_... .
 This function is used to compare a data tuple to a physical record. If
 dtuple has n fields then rec must have either m >= n fields, or it must
 differ from dtuple in some of the m fields rec has. If encounters an
-externally stored field, returns 0. */
+externally stored field, returns 0.
+@return 1, 0, -1, if dtuple is greater, equal, less than rec,
+respectively, when only the common first fields are compared */
 static
 int
 cmp_debug_dtuple_rec_with_match(
 /*============================*/
-				/* out: 1, 0, -1, if dtuple is greater, equal,
-				less than rec, respectively, when only the
-				common first fields are compared */
-	const dtuple_t*	dtuple,	/* in: data tuple */
-	const rec_t*	rec,	/* in: physical record which differs from
+	const dtuple_t*	dtuple,	/*!< in: data tuple */
+	const rec_t*	rec,	/*!< in: physical record which differs from
 				dtuple in some of the common fields, or which
 				has an equal number or more fields than
 				dtuple */
-	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
-	ulint*		matched_fields) /* in/out: number of already
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	ulint*		matched_fields) /*!< in/out: number of already
 				completely matched fields; when function
 				returns, contains the value for current
 				comparison */

@@ -34,12 +34,16 @@
 
 #include "ha_pbxt.h"
 
+#ifdef DRIZZLED
+#include <drizzled/data_home.h>
+using drizzled::plugin::Registry;
+#endif
+
 #include "xactlog_xt.h"
 #include "database_xt.h"
 #include "util_xt.h"
 #include "strutil_xt.h"
 #include "filesys_xt.h"
-#include "restart_xt.h"
 #include "myxt_xt.h"
 #include "trace_xt.h"
 
@@ -57,13 +61,27 @@
 //#define PRINTF		xt_ftracef
 //#define PRINTF		xt_trace
 
-void xt_print_bytes(xtWord1 *buf, u_int len)
+/*
+ * -----------------------------------------------------------------------
+ * GLOBALS
+ */
+
+xtPublic int				pbxt_recovery_state;
+
+/*
+ * -----------------------------------------------------------------------
+ * UTILITIES
+ */
+
+#ifdef TRACE_RECORD_DATA
+static void xt_print_bytes(xtWord1 *buf, u_int len)
 {
 	for (u_int i=0; i<len; i++) {
 		PRINTF("%02x ", (u_int) *buf);
 		buf++;
 	}
 }
+#endif
 
 void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr record)
 {
@@ -252,7 +270,7 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 			rec_type = "DELETE";
 			break;
 		case XT_LOG_ENT_DELETE_FL:
-			rec_type = "DELETE-FL-BG";
+			rec_type = "DELETE-FL";
 			break;
 		case XT_LOG_ENT_UPDATE_BG:
 			rec_type = "UPDATE-BG";
@@ -320,6 +338,11 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 		case XT_LOG_ENT_END_OF_LOG:
 			rec_type = "END OF LOG";
 			break;
+		case XT_LOG_ENT_PREPARE:
+			rec_type = "PREPARE";
+			xn_id = XT_GET_DISK_4(record->xp.xp_xact_id_4);
+			xn_set = TRUE;
+			break;
 	}
 
 	if (log)
@@ -327,6 +350,8 @@ void xt_print_log_record(xtLogID log, xtLogOffset offset, XTXactLogBufferDPtr re
 	PRINTF("%s ", rec_type);
 	if (type)
 		PRINTF("op=%lu tab=%lu %s=%lu ", (u_long) op_no, (u_long) tab_id, type, (u_long) rec_id);
+	else if (tab_id)
+		PRINTF("tab=%lu ", (u_long) tab_id);
 	if (row_id)
 		PRINTF("row=%lu ", (u_long) row_id);
 	if (log_id)
@@ -459,6 +484,7 @@ static xtBool xres_open_table(XTThreadPtr self, XTWriterStatePtr ws, xtTableID t
 		}
 		return OK;
 	}
+
 	ws->ws_tab_gone = tab_id;
 	return FAILED;
 }
@@ -629,6 +655,7 @@ static void xres_apply_change(XTThreadPtr self, XTOpenTablePtr ot, XTXactLogBuff
 	xtWord1				*rec_data = NULL;
 	XTTabRecFreeDPtr	free_data;
 
+	ASSERT(ot->ot_thread == self);
 	if (tab->tab_dic.dic_key_count == 0)
 		check_index = FALSE;
 
@@ -1300,7 +1327,7 @@ static void xres_apply_operations(XTThreadPtr self, XTWriterStatePtr ws, xtBool 
  * These operations are applied even though operations
  * in sequence are missing.
  */
-xtBool xres_sync_operations(XTThreadPtr self, XTDatabaseHPtr db, XTWriterStatePtr ws)
+static xtBool xres_sync_operations(XTThreadPtr self, XTDatabaseHPtr db, XTWriterStatePtr ws)
 {
 	u_int			edx;
 	XTTableEntryPtr	te_ptr;
@@ -1881,15 +1908,6 @@ xtBool XTXactRestart::xres_check_checksum(XTXlogCheckpointDPtr buffer, size_t si
 void XTXactRestart::xres_recover_progress(XTThreadPtr self, XTOpenFilePtr *of, int perc)
 {
 #ifdef XT_USE_GLOBAL_DB
-	if (!perc) {
-		char file_path[PATH_MAX];
-
-		xt_strcpy(PATH_MAX, file_path, xres_db->db_main_path);
-		xt_add_pbxt_file(PATH_MAX, file_path, "recovery-progress");
-		*of = xt_open_file(self, file_path, XT_FS_CREATE | XT_FS_MAKE_PATH);
-		xt_set_eof_file(self, *of, 0);
-	}
-
 	if (perc > 100) {
 		char file_path[PATH_MAX];
 
@@ -1904,6 +1922,15 @@ void XTXactRestart::xres_recover_progress(XTThreadPtr self, XTOpenFilePtr *of, i
 	}
 	else {
 		char number[40];
+
+		if (!*of) {
+			char file_path[PATH_MAX];
+
+			xt_strcpy(PATH_MAX, file_path, xres_db->db_main_path);
+			xt_add_pbxt_file(PATH_MAX, file_path, "recovery-progress");
+			*of = xt_open_file(self, file_path, XT_FS_CREATE | XT_FS_MAKE_PATH);
+			xt_set_eof_file(self, *of, 0);
+		}
 
 		sprintf(number, "%d", perc);
 		if (!xt_pwrite_file(*of, 0, strlen(number), number, &self->st_statistics.st_x, self))
@@ -1927,10 +1954,11 @@ xtBool XTXactRestart::xres_restart(XTThreadPtr self, xtLogID *log_id, xtLogOffse
 	off_t					bytes_to_read;
 	volatile xtBool			print_progress = FALSE;
 	volatile off_t			perc_size = 0, next_goal = 0;
-	int						perc_complete = 1;
+	int						perc_complete = 1, perc_to_write = 1;
 	XTOpenFilePtr			progress_file = NULL;
 	xtBool					min_ram_xn_id_set = FALSE;
 	u_int					log_count;
+	time_t					start_time;
 
 	memset(&ws, 0, sizeof(ws));
 
@@ -1955,12 +1983,11 @@ xtBool XTXactRestart::xres_restart(XTThreadPtr self, xtLogID *log_id, xtLogOffse
 	/* Don't print anything about recovering an empty database: */
 	if (bytes_to_read != 0)
 		xt_logf(XT_NT_INFO, "PBXT: Recovering from %lu-%llu, bytes to read: %llu\n", (u_long) xres_cp_log_id, (u_llong) xres_cp_log_offset, (u_llong) bytes_to_read);
-	if (bytes_to_read >= 10*1024*1024) {
-		print_progress = TRUE;
-		perc_size = bytes_to_read / 100;
-		next_goal = perc_size;
-		xres_recover_progress(self, &progress_file, 0);
-	}
+
+	print_progress = FALSE;
+	start_time = time(NULL);
+	perc_size = bytes_to_read / 100;
+	next_goal = perc_size;
 
 	if (!db->db_xlog.xlog_seq_start(&ws.ws_seqread, xres_cp_log_id, xres_cp_log_offset, FALSE)) {
 		ok = FALSE;
@@ -1983,17 +2010,28 @@ xtBool XTXactRestart::xres_restart(XTThreadPtr self, xtLogID *log_id, xtLogOffse
 #ifdef PRINT_LOG_ON_RECOVERY
 			xt_print_log_record(ws.ws_seqread.xseq_rec_log_id, ws.ws_seqread.xseq_rec_log_offset, record);
 #endif
-			if (print_progress && bytes_read > next_goal) {
-				if (((perc_complete - 1) % 25) == 0)
-					xt_logf(XT_NT_INFO, "PBXT: ");
-				if ((perc_complete % 25) == 0)
-					xt_logf(XT_NT_INFO, "%2d\n", (int) perc_complete);
-				else
-					xt_logf(XT_NT_INFO, "%2d ", (int) perc_complete);
-				xt_log_flush(self);
-				xres_recover_progress(self, &progress_file, perc_complete);
-				next_goal += perc_size;
-				perc_complete++;
+			if (bytes_read >= next_goal) {
+				while (bytes_read >= next_goal) {
+					next_goal += perc_size;
+					perc_complete++;
+				}
+				if (!print_progress) {
+					if (time(NULL) - start_time > 2)
+						print_progress = TRUE;
+				}
+				if (print_progress) {
+					while (perc_to_write < perc_complete) {
+						if (((perc_to_write - 1) % 25) == 0)
+							xt_logf(XT_NT_INFO, "PBXT: ");
+						if ((perc_to_write % 25) == 0)
+							xt_logf(XT_NT_INFO, "%2d\n", (int) perc_to_write);
+						else
+							xt_logf(XT_NT_INFO, "%2d ", (int) perc_to_write);
+						xt_log_flush(self);
+						xres_recover_progress(self, &progress_file, perc_to_write);
+						perc_to_write++;
+					}
+				}
 			}
 			switch (record->xl.xl_status_1) {
 				case XT_LOG_ENT_HEADER:
@@ -2053,8 +2091,11 @@ xtBool XTXactRestart::xres_restart(XTThreadPtr self, xtLogID *log_id, xtLogOffse
 						xact->xd_end_xn_id = xn_id;
 						xact->xd_flags |= XT_XN_XAC_ENDED | XT_XN_XAC_SWEEP;
 						xact->xd_flags &= ~XT_XN_XAC_RECOVERED; // We can expect an end record on cleanup!
+						xact->xd_flags &= ~XT_XN_XAC_PREPARED;  // Prepared transactions cannot be swept!
 						if (record->xl.xl_status_1 == XT_LOG_ENT_COMMIT)
 							xact->xd_flags |= XT_XN_XAC_COMMITTED;
+						if (xt_sl_get_size(db->db_xn_xa_list) > 0)
+							xt_xn_delete_xa_data_by_xact(db, xn_id, self);
 					}
 					break;
 				case XT_LOG_ENT_CLEANUP:
@@ -2070,6 +2111,14 @@ xtBool XTXactRestart::xres_restart(XTThreadPtr self, xtLogID *log_id, xtLogOffse
 
 					rec_log_id = XT_GET_DISK_4(record->xl.xl_log_id_4);
 					xt_dl_set_to_delete(self, db, rec_log_id);
+					break;
+				case XT_LOG_ENT_PREPARE:
+					xn_id = XT_GET_DISK_4(record->xp.xp_xact_id_4);
+					if ((xact = xt_xn_get_xact(db, xn_id, self))) {
+						xact->xd_flags |= XT_XN_XAC_PREPARED;
+						if (!xt_xn_store_xa_data(db, xn_id, record->xp.xp_xa_len_1, record->xp.xp_xa_data, self))
+							xt_throw(self);
+					}
 					break;
 				default:
 					xt_xres_apply_in_order(self, &ws, ws.ws_seqread.xseq_rec_log_id, ws.ws_seqread.xseq_rec_log_offset, record);
@@ -2534,7 +2583,8 @@ static void xres_cp_main(XTThreadPtr self)
 				/* This condition means we could checkpoint: */
 				if (!(xt_sl_get_size(db->db_datalogs.dlc_to_delete) == 0 &&
 					xt_sl_get_size(db->db_datalogs.dlc_deleted) == 0 &&
-					xt_comp_log_pos(log_id, log_offset, db->db_restart.xres_cp_log_id, db->db_restart.xres_cp_log_offset) <= 0))
+					xt_comp_log_pos(log_id, log_offset, db->db_restart.xres_cp_log_id, db->db_restart.xres_cp_log_offset) <= 0) &&
+					xt_sl_get_size(db->db_xn_xa_list) == 0)
 					break;
 
 				xres_cp_wait_for_log_writer(self, db, 400);
@@ -2654,7 +2704,7 @@ xtPublic xtBool xt_begin_checkpoint(XTDatabaseHPtr db, xtBool have_table_lock, X
 	 * until they are flushed.
 	 */
 	/* This is an alternative to the above.
-	if (!xt_xlog_flush_log(self))
+	if (!xt_xlog_flush_log(db, self))
 		xt_throw(self);
 	*/
 	xt_lock_mutex_ns(&db->db_wr_lock);
@@ -2775,6 +2825,14 @@ xtPublic xtBool xt_end_checkpoint(XTDatabaseHPtr db, XTThreadPtr thread, xtBool 
 	u_int					table_count;
 	size_t					chk_size = 0; 
 	u_int					no_of_logs = 0; 
+
+	/* As long as we have outstanding XA transactions, we may not checkpoint! */
+	if (xt_sl_get_size(db->db_xn_xa_list) > 0) {
+#ifdef DEBUG
+		printf("Checkpoint must wait\n");
+#endif
+		return OK;
+	}
 
 #ifdef NEVER_CHECKPOINT
 	return OK;
@@ -3183,7 +3241,7 @@ xtPublic void xt_dump_xlogs(XTDatabaseHPtr db, xtLogID start_log)
  * D A T A B A S E   R E C O V E R Y   T H R E A D
  */
 
-extern XTDatabaseHPtr	pbxt_database;
+
 static XTThreadPtr		xres_recovery_thread;
 
 static void *xn_xres_run_recovery_thread(XTThreadPtr self)
@@ -3193,18 +3251,18 @@ static void *xn_xres_run_recovery_thread(XTThreadPtr self)
 	if (!(mysql_thread = (THD *) myxt_create_thread()))
 		xt_throw(self);
 
-	while (!xres_recovery_thread->t_quit && !ha_resolve_by_legacy_type(mysql_thread, DB_TYPE_PBXT))
-		xt_sleep_milli_second(1);
+	myxt_wait_pbxt_plugin_slot_assigned(self);
 
 	if (!xres_recovery_thread->t_quit) {
-		/* {GLOBAL-DB}
-		 * It can happen that something will just get in before this
-		 * thread and open/recover the database!
-		 */
-		if (!pbxt_database) {
-			try_(a) {
+		try_(a) {
+			/* {GLOBAL-DB}
+			 * It can happen that something will just get in before this
+			 * thread and open/recover the database!
+			 */
+			if (!pbxt_database) {
 				xt_open_database(self, mysql_real_data_home, TRUE);
-				/* This can be done at the same time by a foreground thread,
+				/* {GLOBAL-DB}
+				 * This can be done at the same time as the recovery thread,
 				 * strictly speaking I need a lock.
 				 */
 				if (!pbxt_database) {
@@ -3212,11 +3270,22 @@ static void *xn_xres_run_recovery_thread(XTThreadPtr self)
 					xt_heap_reference(self, pbxt_database);
 				}
 			}
-			catch_(a) {
-				xt_log_and_clear_exception(self);
-			}
-			cont_(a);
+			else
+				xt_use_database(self, pbxt_database, XT_FOR_USER);
+
+			pbxt_recovery_state = XT_RECOVER_DONE;
+
+			/* {WAIT-FOR-SW-AFTER-RECOV}
+			 * Moved to here...
+			 */
+			xt_wait_for_sweeper(self, self->st_database, 0);
+
+			pbxt_recovery_state = XT_RECOVER_SWEPT;
 		}
+		catch_(a) {
+			xt_log_and_clear_exception(self);
+		}
+		cont_(a);
 	}
 
    /*
@@ -3245,7 +3314,7 @@ static void *xn_xres_run_recovery_thread(XTThreadPtr self)
 	* #7	0x000c0db2 in THD::~THD at sql_class.cc:934
 	* #8	0x003b025b in myxt_destroy_thread at myxt_xt.cc:2999
 	* #9	0x003b66b5 in xn_xres_run_recovery_thread at restart_xt.cc:3196
-	* #10	0x003cbfbb in thr_main at thread_xt.cc:1020
+	* #10	0x003cbfbb in thr_main_pbxt at thread_xt.cc:1020
 	*
 	myxt_destroy_thread(mysql_thread, TRUE);
 	*/
@@ -3261,11 +3330,12 @@ xtPublic void xt_xres_start_database_recovery(XTThreadPtr self)
 	sprintf(name, "DB-RECOVERY-%s", xt_last_directory_of_path(mysql_real_data_home));
 	xt_remove_dir_char(name);
 
+	pbxt_recovery_state = XT_RECOVER_PENDING;
 	xres_recovery_thread = xt_create_daemon(self, name);
 	xt_run_thread(self, xres_recovery_thread, xn_xres_run_recovery_thread);
 }
 
-xtPublic void xt_xres_wait_for_recovery(XTThreadPtr self)
+xtPublic void xt_xres_terminate_recovery(XTThreadPtr self)
 {
 	XTThreadPtr thr_rec;
 

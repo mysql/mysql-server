@@ -583,6 +583,126 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 }
 
 
+/**
+   An Internal_error_handler that suppresses errors regarding views'
+   underlying tables that occur during privilege checking within SHOW CREATE
+   VIEW commands. This happens in the cases when
+
+   - A view's underlying table (e.g. referenced in its SELECT list) does not
+     exist. There should not be an error as no attempt was made to access it
+     per se.
+
+   - Access is denied for some table, column, function or stored procedure
+     such as mentioned above. This error gets raised automatically, since we
+     can't untangle its access checking from that of the view itself.
+ */
+class Show_create_error_handler : public Internal_error_handler {
+  
+  TABLE_LIST *m_top_view;
+  bool m_handling;
+  Security_context *m_sctx;
+
+  char m_view_access_denied_message[MYSQL_ERRMSG_SIZE];
+  char *m_view_access_denied_message_ptr;
+
+public:
+
+  /**
+     Creates a new Show_create_error_handler for the particular security
+     context and view. 
+
+     @thd Thread context, used for security context information if needed.
+     @top_view The view. We do not verify at this point that top_view is in
+     fact a view since, alas, these things do not stay constant.
+  */
+  explicit Show_create_error_handler(THD *thd, TABLE_LIST *top_view) : 
+    m_top_view(top_view), m_handling(FALSE),
+    m_view_access_denied_message_ptr(NULL) 
+  {
+    
+    m_sctx = test(m_top_view->security_ctx) ?
+      m_top_view->security_ctx : thd->security_ctx;
+  }
+
+  /**
+     Lazy instantiation of 'view access denied' message. The purpose of the
+     Show_create_error_handler is to hide details of underlying tables for
+     which we have no privileges behind ER_VIEW_INVALID messages. But this
+     obviously does not apply if we lack privileges on the view itself.
+     Unfortunately the information about for which table privilege checking
+     failed is not available at this point. The only way for us to check is by
+     reconstructing the actual error message and see if it's the same.
+  */
+  char* get_view_access_denied_message() 
+  {
+    if (!m_view_access_denied_message_ptr)
+    {
+      m_view_access_denied_message_ptr= m_view_access_denied_message;
+      my_snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,
+                  ER(ER_TABLEACCESS_DENIED_ERROR), "SHOW VIEW",
+                  m_sctx->priv_user,
+                  m_sctx->host_or_ip, m_top_view->get_table_name());
+    }
+    return m_view_access_denied_message_ptr;
+  }
+
+  bool handle_error(uint sql_errno, const char *message, 
+                    MYSQL_ERROR::enum_warning_level level, THD *thd) {
+    /* 
+       The handler does not handle the errors raised by itself.
+       At this point we know if top_view is really a view.
+    */
+    if (m_handling || !m_top_view->view)
+      return FALSE;
+
+    m_handling= TRUE;
+
+    bool is_handled;
+    
+    switch (sql_errno)
+    {
+    case ER_TABLEACCESS_DENIED_ERROR:
+      if (!strcmp(get_view_access_denied_message(), message))
+      {
+        /* Access to top view is not granted, don't interfere. */
+        is_handled= FALSE;
+        break;
+      }
+    case ER_COLUMNACCESS_DENIED_ERROR:
+    case ER_VIEW_NO_EXPLAIN: /* Error was anonymized, ignore all the same. */
+    case ER_PROCACCESS_DENIED_ERROR:
+      is_handled= TRUE;
+      break;
+
+    case ER_NO_SUCH_TABLE:
+      /* Established behavior: warn if underlying tables are missing. */
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                          ER_VIEW_INVALID,
+                          ER(ER_VIEW_INVALID),
+                          m_top_view->get_db_name(),
+                          m_top_view->get_table_name());
+      is_handled= TRUE;
+      break;
+
+    case ER_SP_DOES_NOT_EXIST:
+      /* Established behavior: warn if underlying functions are missing. */
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 
+                          ER_VIEW_INVALID,
+                          ER(ER_VIEW_INVALID),
+                          m_top_view->get_db_name(),
+                          m_top_view->get_table_name());
+      is_handled= TRUE;
+      break;
+    default:
+      is_handled= FALSE;
+    }
+
+    m_handling= FALSE;
+    return is_handled;
+  }
+};
+
+
 bool
 mysqld_show_create(THD *thd, TABLE_LIST *table_list)
 {
@@ -596,26 +716,13 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   /* We want to preserve the tree for views. */
   thd->lex->view_prepare_mode= TRUE;
 
-  /* Only one table for now, but VIEW can involve several tables */
-  if (open_normal_and_derived_tables(thd, table_list, 0))
   {
-    if (!table_list->view ||
-        (thd->is_error() && thd->main_da.sql_errno() != ER_VIEW_INVALID))
+    Show_create_error_handler view_error_suppressor(thd, table_list);
+    thd->push_internal_handler(&view_error_suppressor);
+    bool error= open_normal_and_derived_tables(thd, table_list, 0);
+    thd->pop_internal_handler();
+    if (error && (thd->killed || thd->main_da.is_error()))
       DBUG_RETURN(TRUE);
-
-    /*
-      Clear all messages with 'error' level status and
-      issue a warning with 'warning' level status in
-      case of invalid view and last error is ER_VIEW_INVALID
-    */
-    mysql_reset_errors(thd, true);
-    thd->clear_error();
-
-    push_warning_printf(thd,MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_VIEW_INVALID,
-                        ER(ER_VIEW_INVALID),
-                        table_list->view_db.str,
-                        table_list->view_name.str);
   }
 
   /* TODO: add environment variables show when it become possible */
@@ -722,8 +829,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(TRUE);
   }
 #endif
-  if (!my_strcasecmp(system_charset_info, dbname,
-                     INFORMATION_SCHEMA_NAME.str))
+  if (is_schema_db(dbname))
   {
     dbname= INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset= system_charset_info;
@@ -1762,6 +1868,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->command;
+        pthread_mutex_lock(&tmp->LOCK_thd_data);
         if ((mysys_var= tmp->mysys_var))
           pthread_mutex_lock(&mysys_var->mutex);
         thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
@@ -1781,20 +1888,16 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 #endif
         if (mysys_var)
           pthread_mutex_unlock(&mysys_var->mutex);
+        pthread_mutex_unlock(&tmp->LOCK_thd_data);
 
         thd_info->start_time= tmp->start_time;
         thd_info->query=0;
         /* Lock THD mutex that protects its data when looking at it. */
         pthread_mutex_lock(&tmp->LOCK_thd_data);
-        if (tmp->query)
+        if (tmp->query())
         {
-	  /*
-            query_length is always set to 0 when we set query = NULL; see
-	    the comment in sql_class.h why this prevents crashes in possible
-            races with query_length
-          */
-          uint length= min(max_query_length, tmp->query_length);
-          thd_info->query=(char*) thd->strmake(tmp->query,length);
+          uint length= min(max_query_length, tmp->query_length());
+          thd_info->query= (char*) thd->strmake(tmp->query(),length);
         }
         pthread_mutex_unlock(&tmp->LOCK_thd_data);
         thread_infos.append(thd_info);
@@ -1907,7 +2010,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
                     tmp->mysys_var->current_cond ?
                     "Waiting on cond" : NullS);
 #else
-      val= (char *) "Writing to net";
+      val= (char *) (tmp->proc_info ? tmp->proc_info : NullS);
 #endif
       if (val)
       {
@@ -1919,11 +2022,11 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, COND* cond)
         pthread_mutex_unlock(&mysys_var->mutex);
 
       /* INFO */
-      if (tmp->query)
+      if (tmp->query())
       {
-        table->field[7]->store(tmp->query,
+        table->field[7]->store(tmp->query(),
                                min(PROCESS_LIST_INFO_WIDTH,
-                                   tmp->query_length), cs);
+                                   tmp->query_length()), cs);
         table->field[7]->set_notnull();
       }
 
@@ -3021,8 +3124,8 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
   */
   if (lookup_field_vals->db_value.str)
   {
-    if (!my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str,
-                       lookup_field_vals->db_value.str))
+    if (is_schema_db(lookup_field_vals->db_value.str, 
+                     lookup_field_vals->db_value.length))
     {
       *with_i_schema= 1;
       if (files->push_back(i_s_name_copy))
@@ -3609,11 +3712,11 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   while ((db_name= it++))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (!check_access(thd,SELECT_ACL, db_name->str,
-                      &thd->col_access, 0, 1, with_i_schema) ||
+    if (!(check_access(thd,SELECT_ACL, db_name->str, 
+                       &thd->col_access, 0, 1, with_i_schema) ||
+          (!thd->col_access && check_grant_db(thd, db_name->str))) ||
         sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0) ||
-	!check_grant_db(thd, db_name->str))
+        acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0))
 #endif
     {
       thd->no_warnings_for_error= 1;
@@ -3877,7 +3980,9 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     TABLE_SHARE *share= show_table->s;
     handler *file= show_table->file;
     handlerton *tmp_db_type= share->db_type();
+#ifdef WITH_PARTITION_STORAGE_ENGINE
     bool is_partitioned= FALSE;
+#endif
     if (share->tmp_table == SYSTEM_TMP_TABLE)
       table->field[3]->store(STRING_WITH_LEN("SYSTEM VIEW"), cs);
     else if (share->tmp_table)
@@ -5474,7 +5579,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   */
   if (thd->lex->sql_command != SQLCOM_SHOW_EVENTS &&
       check_access(thd, EVENT_ACL, et.dbname.str, 0, 0, 1,
-                   is_schema_db(et.dbname.str)))
+                   is_schema_db(et.dbname.str, et.dbname.length)))
     DBUG_RETURN(0);
 
   /* ->field[0] is EVENT_CATALOG and is by default NULL */

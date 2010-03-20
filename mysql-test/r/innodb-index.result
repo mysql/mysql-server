@@ -1,4 +1,3 @@
-SET @save_innodb_file_format_check=@@global.innodb_file_format_check;
 create table t1(a int not null, b int, c char(10) not null, d varchar(20)) engine = innodb;
 insert into t1 values (5,5,'oo','oo'),(4,4,'tr','tr'),(3,4,'ad','ad'),(2,3,'ak','ak');
 commit;
@@ -629,7 +628,7 @@ drop table t1;
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
 insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe'),(5,4,'affe','affe');
 alter table t1 add unique index (b), add unique index (c), add unique index (d);
-ERROR 23000: Duplicate entry '4' for key 'b'
+ERROR 23000: Duplicate entry 'ac' for key 'c'
 alter table t1 add unique index (c), add unique index (b), add index (d);
 ERROR 23000: Duplicate entry 'ac' for key 'c'
 show create table t1;
@@ -970,6 +969,7 @@ create index t1u on t1 (u(1));
 drop table t1;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
+set global innodb_file_format_check=Antelope;
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 CREATE TABLE t1(
@@ -1134,4 +1134,40 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 DROP TABLE t2;
 DROP TABLE t1;
-SET GLOBAL innodb_file_format_check=@save_innodb_file_format_check;
+call mtr.add_suppression("InnoDB: insufficient history for index");
+CREATE TABLE t1 (a INT, b CHAR(1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (3,'a'),(3,'b'),(1,'c'),(0,'d'),(1,'e');
+BEGIN;
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+CREATE INDEX t1a ON t1(a);
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+ERROR HY000: Table definition has changed, please retry transaction
+SELECT * FROM t1;
+a	b
+3	a
+3	b
+1	c
+0	d
+1	e
+COMMIT;
+SELECT * FROM t1 FORCE INDEX(t1a) ORDER BY a;
+a	b
+0	d
+1	c
+1	e
+3	a
+3	b
+DROP TABLE t1;

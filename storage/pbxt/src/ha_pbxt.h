@@ -27,9 +27,9 @@
 
 #ifdef DRIZZLED
 #include <drizzled/common.h>
-#include <drizzled/handler.h>
-#include <drizzled/plugin/storage_engine.h>
 #include <mysys/thr_lock.h>
+#include <drizzled/cursor.h>
+
 #else
 #include "mysql_priv.h"
 #endif
@@ -53,17 +53,31 @@ class ha_pbxt;
 
 #ifdef DRIZZLED
 
-class PBXTStorageEngine : public StorageEngine {
+class PBXTStorageEngine : public drizzled::plugin::StorageEngine 
+{
+
+	int delete_system_table(const char *table_path);
+	int rename_system_table(const char * from, const char * to);
+
 public:
 	PBXTStorageEngine(std::string name_arg)
-	: StorageEngine(name_arg, HTON_NO_FLAGS) {}
+	: drizzled::plugin::StorageEngine(name_arg, HTON_NO_FLAGS) {}
+
+	void operator delete(void *) {}
+	void operator delete[] (void *) {}
 
 	/* override */ int close_connection(Session *);
 	/* override */ int commit(Session *, bool);
 	/* override */ int rollback(Session *, bool);
-	/* override */ handler *create(TABLE_SHARE *, MEM_ROOT *);
+	/* override */ Cursor *create(TABLE_SHARE *, MEM_ROOT *);
 	/* override */ void drop_database(char *);
 	/* override */ bool show_status(Session *, stat_print_fn *, enum ha_stat_type);
+        /* override */ const char **bas_ext() const;
+	/* override */ int doCreateTable(Session *session, const char *table_name, 
+				Table &table_arg, HA_CREATE_INFO
+                                &create_info, drizzled::message::Table &proto);
+	/* override */ int doRenameTable(Session *, const char *from, const char *to);
+	/* override */ int doDropTable(Session &session, std::string table_path);
 };
 
 typedef PBXTStorageEngine handlerton;
@@ -139,9 +153,9 @@ class ha_pbxt: public handler
 	 * don't implement this method unless you really have indexes.
 	 */
 	const char *index_type(uint inx) { (void) inx; return "BTREE"; }
-
+#ifndef DRIZZLED
 	const char **bas_ext() const;
-
+#endif
 	MX_UINT8_T table_cache_type();
 
 	/*
@@ -241,11 +255,13 @@ class ha_pbxt: public handler
 	int		optimize(THD* thd, HA_CHECK_OPT* check_opt);
 	int		check(THD* thd, HA_CHECK_OPT* check_opt);
 	ha_rows	records_in_range(uint inx, key_range *min_key, key_range *max_key);
-	int		delete_table(const char *from);
+#ifndef DRIZZLED
 	int		delete_system_table(const char *table_path);
-	int		rename_table(const char * from, const char * to);
+	int		delete_table(const char *from);
 	int		rename_system_table(const char * from, const char * to);
+	int		rename_table(const char * from, const char * to);
 	int		create(const char *name, TABLE *form, HA_CREATE_INFO *create_info);				//required
+#endif
 	void	update_create_info(HA_CREATE_INFO *create_info);
 
 	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to, enum thr_lock_type lock_type);		 //required
@@ -277,6 +293,7 @@ struct XTThread	*xt_ha_thd_to_self(THD* thd);
 int				xt_ha_pbxt_to_mysql_error(int xt_err);
 int				xt_ha_pbxt_thread_error_for_mysql(THD *thd, const XTThreadPtr self, int ignore_dup_key);
 void			xt_ha_all_threads_close_database(XTThreadPtr self, XTDatabase *db);
+void			ha_set_auto_increment(XTOpenTablePtr ot, Field *nr);
 
 /*
  * These hooks are suppossed to only be used by InnoDB:

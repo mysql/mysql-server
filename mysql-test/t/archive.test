@@ -1601,3 +1601,48 @@ INSERT INTO t1 VALUES (NULL, NULL),(NULL, NULL);
 FLUSH TABLE t1;
 SELECT * FROM t1 ORDER BY a;
 DROP TABLE t1;
+
+#
+# BUG#29203 - archive tables have weird values in show table status
+#
+CREATE TABLE t1(a INT, b BLOB) ENGINE=archive;
+SELECT DATA_LENGTH, AVG_ROW_LENGTH FROM
+  INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test';
+INSERT INTO t1 VALUES(1, 'sampleblob1'),(2, 'sampleblob2');
+SELECT DATA_LENGTH, AVG_ROW_LENGTH FROM
+  INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1' AND TABLE_SCHEMA='test';
+DROP TABLE t1;
+
+#
+# BUG#46961 - archive engine loses rows during self joining select!
+#
+SET @save_join_buffer_size= @@join_buffer_size;
+SET @@join_buffer_size= 8228;
+CREATE TABLE t1(a CHAR(255)) ENGINE=archive;
+INSERT INTO t1 VALUES('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+                     ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+                     ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+SELECT COUNT(t1.a) FROM t1, t1 a, t1 b, t1 c, t1 d, t1 e;
+DROP TABLE t1;
+SET @@join_buffer_size= @save_join_buffer_size;
+
+#
+# BUG#47012 archive tables are not upgradeable, and server crashes on any access
+#
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+copy_file std_data/bug47012.frm $MYSQLD_DATADIR/test/t1.frm;
+copy_file std_data/bug47012.ARZ $MYSQLD_DATADIR/test/t1.ARZ;
+copy_file std_data/bug47012.ARM $MYSQLD_DATADIR/test/t1.ARM;
+
+--error ER_TABLE_NEEDS_UPGRADE
+SHOW CREATE TABLE t1;
+
+--error ER_TABLE_NEEDS_UPGRADE
+SELECT * FROM t1;
+
+--error ER_TABLE_NEEDS_UPGRADE
+INSERT INTO t1 (col1, col2) VALUES (1, "value");
+
+REPAIR TABLE t1;
+DROP TABLE t1;
+remove_file $MYSQLD_DATADIR/test/t1.ARM;

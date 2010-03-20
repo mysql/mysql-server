@@ -14831,7 +14831,7 @@ void Dblqh::srLogLimits(Signal* signal)
   while(true) {
     ndbrequire(tmbyte < clogFileSize);
     if (logPartPtr.p->logExecState == LogPartRecord::LES_SEARCH_STOP) {
-      if (logFilePtr.p->logMaxGciCompleted[tmbyte] < logPartPtr.p->logLastGci) {
+      if (logFilePtr.p->logMaxGciCompleted[tmbyte] <= logPartPtr.p->logLastGci) {
         jam();
       /* --------------------------------------------------------------------
        *  WE ARE STEPPING BACKWARDS FROM MBYTE TO MBYTE. THIS IS THE FIRST 

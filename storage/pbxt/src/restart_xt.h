@@ -37,6 +37,8 @@ struct XTOpenTable;
 struct XTDatabase;
 struct XTTable;
 
+extern int				pbxt_recovery_state;
+
 typedef struct XTWriterState {
 	struct XTDatabase		*ws_db;
 	xtBool					ws_in_recover;
@@ -132,6 +134,16 @@ void xt_print_log_record(xtLogID log, off_t offset, XTXactLogBufferDPtr record);
 void xt_dump_xlogs(struct XTDatabase *db, xtLogID start_log);
 
 void xt_xres_start_database_recovery(XTThreadPtr self);
-void xt_xres_wait_for_recovery(XTThreadPtr self);
+void xt_xres_terminate_recovery(XTThreadPtr self);
+
+#define XT_RECOVER_PENDING			0
+#define XT_RECOVER_DONE				1
+#define XT_RECOVER_SWEPT			2
+
+inline void xt_xres_wait_for_recovery(XTThreadPtr XT_UNUSED(self), int state)
+{
+	while (pbxt_recovery_state < state)
+		xt_sleep_milli_second(100);
+}
 
 #endif

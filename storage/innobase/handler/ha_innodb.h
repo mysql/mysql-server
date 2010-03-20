@@ -78,9 +78,8 @@ class ha_innobase: public handler
 	ulong innobase_reset_autoinc(ulonglong auto_inc);
 	ulong innobase_get_autoinc(ulonglong* value);
 	ulong innobase_update_autoinc(ulonglong	auto_inc);
-	ulong innobase_initialize_autoinc();
+	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
- 	ulonglong innobase_get_int_col_max_value(const Field* field);
 
 	/* Init values for the class: */
  public:
@@ -253,4 +252,11 @@ int thd_binlog_format(const MYSQL_THD thd);
   @param  all   TRUE <=> rollback main transaction.
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
+
+/**
+  Check if binary logging is filtered for thread's current db.
+  @param  thd   Thread handle
+  @retval 1 the query is not filtered, 0 otherwise.
+*/
+bool thd_binlog_filter_ok(const MYSQL_THD thd);
 }

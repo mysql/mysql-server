@@ -1,6 +1,13 @@
 /*****************************************************************************
 
 Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2009, Sun Microsystems, Inc.
+
+Portions of this file contain modifications contributed and copyrighted by
+Sun Microsystems, Inc. Those modifications are gratefully acknowledged and
+are described briefly in the InnoDB documentation. The contributions by
+Sun Microsystems are incorporated with their permission, and subject to the
+conditions contained in the file COPYING.Sun_Microsystems.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -16,7 +23,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
 
-/*******************************************************************
+/***************************************************************//**
+@file ut/ut0ut.c
 Various utilities for Innobase.
 
 Created 5/11/1994 Heikki Tuuri
@@ -32,31 +40,32 @@ Created 5/11/1994 Heikki Tuuri
 #include <string.h>
 #include <ctype.h>
 
-#include "trx0trx.h"
-#include "ha_prototypes.h"
 #ifndef UNIV_HOTBACKUP
+# include "trx0trx.h"
+# include "ha_prototypes.h"
 # include "mysql_com.h" /* NAME_LEN */
 #endif /* UNIV_HOTBACKUP */
 
+/** A constant to prevent the compiler from optimizing ut_delay() away. */
 UNIV_INTERN ibool	ut_always_false	= FALSE;
 
 #ifdef __WIN__
-/*********************************************************************
+/*****************************************************************//**
 NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
 epoch starts from 1970/1/1. For selection of constant see:
 http://support.microsoft.com/kb/167296/ */
 #define WIN_TO_UNIX_DELTA_USEC  ((ib_int64_t) 11644473600000000ULL)
 
 
-/*********************************************************************
-This is the Windows version of gettimeofday(2).*/
+/*****************************************************************//**
+This is the Windows version of gettimeofday(2).
+@return	0 if all OK else -1 */
 static
 int
 ut_gettimeofday(
 /*============*/
-			/* out: 0 if all OK else -1 */
-	struct timeval*	tv,	/* out: Values are relative to Unix epoch */
-	void*		tz)	/* in: not used */
+	struct timeval*	tv,	/*!< out: Values are relative to Unix epoch */
+	void*		tz)	/*!< in: not used */
 {
 	FILETIME	ft;
 	ib_int64_t	tm;
@@ -86,19 +95,21 @@ ut_gettimeofday(
 	return(0);
 }
 #else
+/** An alias for gettimeofday(2).  On Microsoft Windows, we have to
+reimplement this function. */
 #define	ut_gettimeofday		gettimeofday
 #endif
 
-/************************************************************
+/********************************************************//**
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
 but since there seem to be compiler bugs in both gcc and Visual C++,
-we do this by a special conversion. */
+we do this by a special conversion.
+@return	a >> 32 */
 UNIV_INTERN
 ulint
 ut_get_high32(
 /*==========*/
-			/* out: a >> 32 */
-	ulint	a)	/* in: ulint */
+	ulint	a)	/*!< in: ulint */
 {
 	ib_int64_t	i;
 
@@ -109,9 +120,10 @@ ut_get_high32(
 	return((ulint)i);
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns system time. We do not specify the format of the time returned:
-the only way to manipulate it is to use the function ut_difftime. */
+the only way to manipulate it is to use the function ut_difftime.
+@return	system time */
 UNIV_INTERN
 ib_time_t
 ut_time(void)
@@ -120,18 +132,19 @@ ut_time(void)
 	return(time(NULL));
 }
 
-/**************************************************************
+#ifndef UNIV_HOTBACKUP
+/**********************************************************//**
 Returns system time.
 Upon successful completion, the value 0 is returned; otherwise the
 value -1 is returned and the global variable errno is set to indicate the
-error. */
+error.
+@return	0 on success, -1 otherwise */
 UNIV_INTERN
 int
 ut_usectime(
 /*========*/
-			/* out: 0 on success, -1 otherwise */
-	ulint*	sec,	/* out: seconds since the Epoch */
-	ulint*	ms)	/* out: microseconds since the Epoch+*sec */
+	ulint*	sec,	/*!< out: seconds since the Epoch */
+	ulint*	ms)	/*!< out: microseconds since the Epoch+*sec */
 {
 	struct timeval	tv;
 	int		ret;
@@ -162,16 +175,16 @@ ut_usectime(
 	return(ret);
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns the number of microseconds since epoch. Similar to
 time(3), the return value is also stored in *tloc, provided
-that tloc is non-NULL. */
+that tloc is non-NULL.
+@return	us since epoch */
 UNIV_INTERN
 ullint
 ut_time_us(
 /*=======*/
-			/* out: us since epoch */
-	ullint*	tloc)	/* out: us since epoch, if non-NULL */
+	ullint*	tloc)	/*!< out: us since epoch, if non-NULL */
 {
 	struct timeval	tv;
 	ullint		us;
@@ -187,26 +200,44 @@ ut_time_us(
 	return(us);
 }
 
-/**************************************************************
-Returns the difference of two times in seconds. */
+/**********************************************************//**
+Returns the number of milliseconds since some epoch.  The
+value may wrap around.  It should only be used for heuristic
+purposes.
+@return	ms since epoch */
+UNIV_INTERN
+ulint
+ut_time_ms(void)
+/*============*/
+{
+	struct timeval	tv;
+
+	ut_gettimeofday(&tv, NULL);
+
+	return((ulint) tv.tv_sec * 1000 + tv.tv_usec / 1000);
+}
+#endif /* !UNIV_HOTBACKUP */
+
+/**********************************************************//**
+Returns the difference of two times in seconds.
+@return	time2 - time1 expressed in seconds */
 UNIV_INTERN
 double
 ut_difftime(
 /*========*/
-				/* out: time2 - time1 expressed in seconds */
-	ib_time_t	time2,	/* in: time */
-	ib_time_t	time1)	/* in: time */
+	ib_time_t	time2,	/*!< in: time */
+	ib_time_t	time1)	/*!< in: time */
 {
 	return(difftime(time2, time1));
 }
 
-/**************************************************************
+/**********************************************************//**
 Prints a timestamp to a file. */
 UNIV_INTERN
 void
 ut_print_timestamp(
 /*===============*/
-	FILE*  file) /* in: file where to print */
+	FILE*  file) /*!< in: file where to print */
 {
 #ifdef __WIN__
 	SYSTEMTIME cal_tm;
@@ -243,13 +274,13 @@ ut_print_timestamp(
 #endif
 }
 
-/**************************************************************
+/**********************************************************//**
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
 UNIV_INTERN
 void
 ut_sprintf_timestamp(
 /*=================*/
-	char*	buf) /* in: buffer where to sprintf */
+	char*	buf) /*!< in: buffer where to sprintf */
 {
 #ifdef __WIN__
 	SYSTEMTIME cal_tm;
@@ -287,14 +318,14 @@ ut_sprintf_timestamp(
 }
 
 #ifdef UNIV_HOTBACKUP
-/**************************************************************
+/**********************************************************//**
 Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'. */
 UNIV_INTERN
 void
 ut_sprintf_timestamp_without_extra_chars(
 /*=====================================*/
-	char*	buf) /* in: buffer where to sprintf */
+	char*	buf) /*!< in: buffer where to sprintf */
 {
 #ifdef __WIN__
 	SYSTEMTIME cal_tm;
@@ -331,15 +362,15 @@ ut_sprintf_timestamp_without_extra_chars(
 #endif
 }
 
-/**************************************************************
+/**********************************************************//**
 Returns current year, month, day. */
 UNIV_INTERN
 void
 ut_get_year_month_day(
 /*==================*/
-	ulint*	year,	/* out: current year */
-	ulint*	month,	/* out: month */
-	ulint*	day)	/* out: day */
+	ulint*	year,	/*!< out: current year */
+	ulint*	month,	/*!< out: month */
+	ulint*	day)	/*!< out: day */
 {
 #ifdef __WIN__
 	SYSTEMTIME cal_tm;
@@ -369,28 +400,24 @@ ut_get_year_month_day(
 }
 #endif /* UNIV_HOTBACKUP */
 
-/*****************************************************************
+#ifndef UNIV_HOTBACKUP
+/*************************************************************//**
 Runs an idle loop on CPU. The argument gives the desired delay
-in microseconds on 100 MHz Pentium + Visual C++. */
-extern ulint	srv_spins_microsec;
-
+in microseconds on 100 MHz Pentium + Visual C++.
+@return	dummy value */
 UNIV_INTERN
 ulint
 ut_delay(
 /*=====*/
-			/* out: dummy value */
-	ulint	delay)	/* in: delay in microseconds on 100 MHz Pentium */
+	ulint	delay)	/*!< in: delay in microseconds on 100 MHz Pentium */
 {
 	ulint	i, j;
 
 	j = 0;
 
-	for (i = 0; i < delay * srv_spins_microsec; i++) {
-#if (defined (__i386__) || defined (__x86_64__)) && defined (__GNUC__)
-		/* it is equal to the instruction 'pause' */
-		__asm__ __volatile__ ("rep; nop");
-#endif
+	for (i = 0; i < delay * 50; i++) {
 		j += i;
+		UT_RELAX_CPU();
 	}
 
 	if (ut_always_false) {
@@ -399,16 +426,17 @@ ut_delay(
 
 	return(j);
 }
+#endif /* !UNIV_HOTBACKUP */
 
-/*****************************************************************
+/*************************************************************//**
 Prints the contents of a memory buffer in hex and ascii. */
 UNIV_INTERN
 void
 ut_print_buf(
 /*=========*/
-	FILE*		file,	/* in: file where to print */
-	const void*	buf,	/* in: memory buffer */
-	ulint		len)	/* in: length of the buffer */
+	FILE*		file,	/*!< in: file where to print */
+	const void*	buf,	/*!< in: memory buffer */
+	ulint		len)	/*!< in: length of the buffer */
 {
 	const byte*	data;
 	ulint		i;
@@ -433,14 +461,14 @@ ut_print_buf(
 	putc(';', file);
 }
 
-/*****************************************************************
-Calculates fast the number rounded up to the nearest power of 2. */
+/*************************************************************//**
+Calculates fast the number rounded up to the nearest power of 2.
+@return	first power of 2 which is >= n */
 UNIV_INTERN
 ulint
 ut_2_power_up(
 /*==========*/
-			/* out: first power of 2 which is >= n */
-	ulint	n)	/* in: number != 0 */
+	ulint	n)	/*!< in: number != 0 */
 {
 	ulint	res;
 
@@ -455,14 +483,14 @@ ut_2_power_up(
 	return(res);
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Outputs a NUL-terminated file name, quoted with apostrophes. */
 UNIV_INTERN
 void
 ut_print_filename(
 /*==============*/
-	FILE*		f,	/* in: output stream */
-	const char*	name)	/* in: name to print */
+	FILE*		f,	/*!< in: output stream */
+	const char*	name)	/*!< in: name to print */
 {
 	putc('\'', f);
 	for (;;) {
@@ -480,8 +508,8 @@ ut_print_filename(
 done:
 	putc('\'', f);
 }
-
-/**************************************************************************
+#ifndef UNIV_HOTBACKUP
+/**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
@@ -490,16 +518,16 @@ UNIV_INTERN
 void
 ut_print_name(
 /*==========*/
-	FILE*		f,	/* in: output stream */
-	trx_t*		trx,	/* in: transaction */
-	ibool		table_id,/* in: TRUE=print a table name,
+	FILE*		f,	/*!< in: output stream */
+	trx_t*		trx,	/*!< in: transaction */
+	ibool		table_id,/*!< in: TRUE=print a table name,
 				FALSE=print other identifier */
-	const char*	name)	/* in: name to print */
+	const char*	name)	/*!< in: name to print */
 {
 	ut_print_namel(f, trx, table_id, name, strlen(name));
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
@@ -508,16 +536,13 @@ UNIV_INTERN
 void
 ut_print_namel(
 /*===========*/
-	FILE*		f,	/* in: output stream */
-	trx_t*		trx,	/* in: transaction (NULL=no quotes) */
-	ibool		table_id,/* in: TRUE=print a table name,
+	FILE*		f,	/*!< in: output stream */
+	trx_t*		trx,	/*!< in: transaction (NULL=no quotes) */
+	ibool		table_id,/*!< in: TRUE=print a table name,
 				FALSE=print other identifier */
-	const char*	name,	/* in: name to print */
-	ulint		namelen)/* in: length of name */
+	const char*	name,	/*!< in: name to print */
+	ulint		namelen)/*!< in: length of name */
 {
-#ifdef UNIV_HOTBACKUP
-	fwrite(name, 1, namelen, f);
-#else
 	/* 2 * NAME_LEN for database and table name,
 	and some slack for the #mysql50# prefix and quotes */
 	char		buf[3 * NAME_LEN];
@@ -529,17 +554,16 @@ ut_print_namel(
 				       table_id);
 
 	fwrite(buf, 1, bufend - buf, f);
-#endif
 }
 
-/**************************************************************************
+/**********************************************************************//**
 Catenate files. */
 UNIV_INTERN
 void
 ut_copy_file(
 /*=========*/
-	FILE*	dest,	/* in: output file */
-	FILE*	src)	/* in: input file to be appended to output */
+	FILE*	dest,	/*!< in: output file */
+	FILE*	src)	/*!< in: input file to be appended to output */
 {
 	long	len = ftell(src);
 	char	buf[4096];
@@ -557,22 +581,23 @@ ut_copy_file(
 		}
 	} while (len > 0);
 }
-
-/**************************************************************************
-snprintf(). */
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef __WIN__
-#include <stdarg.h>
+# include <stdarg.h>
+/**********************************************************************//**
+A substitute for snprintf(3), formatted output conversion into
+a limited buffer.
+@return number of characters that would have been printed if the size
+were unlimited, not including the terminating '\0'. */
+UNIV_INTERN
 int
 ut_snprintf(
-				/* out: number of characters that would
-				have been printed if the size were
-				unlimited, not including the terminating
-				'\0'. */
-	char*		str,	/* out: string */
-	size_t		size,	/* in: str size */
-	const char*	fmt,	/* in: format */
-	...)			/* in: format values */
+/*========*/
+	char*		str,	/*!< out: string */
+	size_t		size,	/*!< in: str size */
+	const char*	fmt,	/*!< in: format */
+	...)			/*!< in: format values */
 {
 	int	res;
 	va_list	ap1;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -292,6 +292,25 @@ static int gettimeofday(struct timeval *tp, void *tzp)
 }
 #endif
 
+void set_mysql_connect_options(MYSQL *mysql)
+{
+  if (opt_compress)
+    mysql_options(mysql,MYSQL_OPT_COMPRESS,NullS);
+#ifdef HAVE_OPENSSL
+  if (opt_use_ssl)
+    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+                  opt_ssl_capath, opt_ssl_cipher);
+#endif
+  if (opt_protocol)
+    mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
+#endif
+  mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+}
+
+
 int main(int argc, char **argv)
 {
   MYSQL mysql;
@@ -323,20 +342,7 @@ int main(int argc, char **argv)
     exit(1);
   }
   mysql_init(&mysql);
-  if (opt_compress)
-    mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-                  opt_ssl_capath, opt_ssl_cipher);
-#endif
-  if (opt_protocol)
-    mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
-  if (shared_memory_base_name)
-    mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
-#endif
-  mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  set_mysql_connect_options(&mysql);
 
   if (!opt_only_print) 
   {
@@ -423,6 +429,7 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
   stats *sptr;
   conclusions conclusion;
   unsigned long long client_limit;
+  int sysret;
 
   head_sptr= (stats *)my_malloc(sizeof(stats) * iterations, 
                                 MYF(MY_ZEROFILL|MY_FAE|MY_WME));
@@ -471,8 +478,10 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (commit_rate)
       run_query(mysql, "SET AUTOCOMMIT=0", strlen("SET AUTOCOMMIT=0"));
 
-    if (pre_system)
-      if (system(pre_system)) { /* Ignore for now */ }
+    if (pre_system && (sysret= system(pre_system)) != 0)
+      fprintf(stderr,
+              "Warning: Execution of pre_system option returned %d.\n", 
+              sysret);
 
     /* 
       Pre statements are always run after all other logic so they can 
@@ -486,9 +495,10 @@ void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr)
     if (post_statements)
       run_statements(mysql, post_statements);
 
-    if (post_system)
-      if (system(post_system)) { /* Ignore for now */ }
-
+    if (post_system && (sysret= system(post_system)) != 0)
+      fprintf(stderr,
+              "Warning: Execution of post_system option returned %d.\n", 
+              sysret);
     /* We are finished with this run */
     if (auto_generate_sql_autoincrement || auto_generate_sql_guid_primary)
       drop_primary_key_list();
@@ -597,8 +607,8 @@ static struct my_option my_long_options[] =
     (uchar**) &detach_rate, (uchar**) &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Comma separated list of storage engines to use for creating the table."
-     "The test is run for each engine. You can also specify an option for an engine"
-     "after a `:', like memory:max_row=2300",
+     " The test is run for each engine. You can also specify an option for an engine"
+     " after a `:', like memory:max_row=2300",
     (uchar**) &default_engine, (uchar**) &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", (uchar**) &host, (uchar**) &host, 0, GET_STR,
@@ -1811,6 +1821,7 @@ pthread_handler_t run_task(void *p)
             my_progname, mysql_error(mysql));
     exit(0);
   }
+  set_mysql_connect_options(mysql);
 
   if (mysql_thread_init())
   {
@@ -1851,7 +1862,6 @@ limit_not_met:
                   my_progname, mysql_error(mysql));
           exit(0);
         }
-
         if (slap_connect(mysql))
           goto end;
       }
@@ -1942,7 +1952,7 @@ end:
   if (!opt_only_print) 
     mysql_close(mysql);
 
-  my_thread_end();
+  mysql_thread_end();
 
   pthread_mutex_lock(&counter_mutex);
   thread_counter--;
@@ -2219,6 +2229,7 @@ slap_connect(MYSQL *mysql)
   int x, connect_error= 1;
   for (x= 0; x < 10; x++)
   {
+    set_mysql_connect_options(mysql);
     if (mysql_real_connect(mysql, host, user, opt_password,
                            create_schema_string,
                            opt_mysql_port,

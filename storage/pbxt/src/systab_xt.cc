@@ -130,7 +130,7 @@ static int pbms_discover_handler(handlerton *hton, THD* thd, const char *db, con
  * MYSQL UTILITIES
  */
 
-void xt_my_set_notnull_in_record(Field *field, char *record)
+static void xt_my_set_notnull_in_record(Field *field, char *record)
 {
 	if (field->null_ptr)
 		record[(uint) (field->null_ptr - (uchar *) field->table->record[0])] &= (uchar) ~field->null_bit;
@@ -518,7 +518,7 @@ bool XTStatisticsTable::seqScanRead(xtWord4 rec_id, char *buf)
  * SYSTEM TABLE SHARES
  */
 
-void st_path_to_table_name(size_t size, char *buffer, const char *path)
+static void st_path_to_table_name(size_t size, char *buffer, const char *path)
 {
 	char *str;
 

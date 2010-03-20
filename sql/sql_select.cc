@@ -157,6 +157,7 @@ static int join_read_system(JOIN_TAB *tab);
 static int join_read_const(JOIN_TAB *tab);
 static int join_read_key(JOIN_TAB *tab);
 static int join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref);
+static void join_read_key_unlock_row(st_join_table *tab);
 static int join_read_always_key(JOIN_TAB *tab);
 static int join_read_last_key(JOIN_TAB *tab);
 static int join_no_more_records(READ_RECORD *info);
@@ -532,6 +533,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   }
   
   int res= check_and_do_in_subquery_rewrites(this);
+  //psergey-merge: if (!thd->lex->view_prepare_mode && !(select_options & SELECT_DESCRIBE))
 
   select_lex->fix_prepare_information(thd, &conds, &having);
   
@@ -540,13 +542,26 @@ JOIN::prepare(Item ***rref_pointer_array,
 
   if (order)
   {
+    bool real_order= FALSE;
     ORDER *ord;
     for (ord= order; ord; ord= ord->next)
     {
       Item *item= *ord->item;
+      /*
+        Disregard sort order if there's only "{VAR}CHAR(0) NOT NULL" fields
+        there. Such fields don't contain any data to sort.
+      */
+      if (!real_order &&
+          (item->type() != Item::FIELD_ITEM ||
+           ((Item_field *) item)->field->maybe_null() ||
+           ((Item_field *) item)->field->sort_length()))
+        real_order= TRUE;
+
       if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
         item->split_sum_func(thd, ref_pointer_array, all_fields);
     }
+    if (!real_order)
+      order= NULL;
   }
 
   if (having && having->with_sum_func)
@@ -635,6 +650,18 @@ JOIN::prepare(Item ***rref_pointer_array,
                  MYF(0));                       /* purecov: inspected */
       goto err;					/* purecov: inspected */
     }
+    if (thd->lex->derived_tables)
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", 
+               thd->lex->derived_tables & DERIVED_VIEW ?
+               "view" : "subquery"); 
+      goto err;
+    }
+    if (thd->lex->sql_command != SQLCOM_SELECT)
+    {
+      my_error(ER_WRONG_USAGE, MYF(0), "PROCEDURE", "non-SELECT");
+      goto err;
+    }
   }
 
   if (!procedure && result && result->prepare(fields_list, unit_arg))
@@ -646,8 +673,11 @@ JOIN::prepare(Item ***rref_pointer_array,
   this->group= group_list != 0;
   unit= unit_arg;
 
+  if (tmp_table_param.sum_func_count && !group_list)
+    implicit_grouping= TRUE;
+
 #ifdef RESTRICTED_GROUP
-  if (sum_func_count && !group_list && (func_count || field_count))
+  if (implicit_grouping)
   {
     my_message(ER_WRONG_SUM_SELECT,ER(ER_WRONG_SUM_SELECT),MYF(0));
     goto err;
@@ -810,15 +840,23 @@ JOIN::optimize()
   }
 #endif
 
-  /* Optimize count(*), min() and max() */
-  if (tables_list && tmp_table_param.sum_func_count && ! group_list)
+  /* 
+     Try to optimize count(*), min() and max() to const fields if
+     there is implicit grouping (aggregate functions but no
+     group_list). In this case, the result set shall only contain one
+     row. 
+  */
+  if (tables_list && implicit_grouping)
   {
     int res;
     /*
       opt_sum_query() returns HA_ERR_KEY_NOT_FOUND if no rows match
       to the WHERE conditions,
-      or 1 if all items were resolved,
+      or 1 if all items were resolved (optimized away),
       or 0, or an error number HA_ERR_...
+
+      If all items were resolved by opt_sum_query, there is no need to
+      open any tables.
     */
     if ((res=opt_sum_query(select_lex->leaf_tables, all_fields, conds)))
     {
@@ -847,6 +885,7 @@ JOIN::optimize()
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
       tables_list= 0;				// All tables resolved
+      const_tables= tables;
       /*
         Extract all table-independent conditions and replace the WHERE
         clause with them. All other conditions were computed by opt_sum_query
@@ -891,8 +930,20 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 
-  /* Remove distinct if only const tables */
-  select_distinct= select_distinct && (const_tables != tables);
+  if (rollup.state != ROLLUP::STATE_NONE)
+  {
+    if (rollup_process_const_fields())
+    {
+      DBUG_PRINT("error", ("Error: rollup_process_fields() failed"));
+      DBUG_RETURN(1);
+    }
+  }
+  else
+  {
+    /* Remove distinct if only const tables */
+    select_distinct= select_distinct && (const_tables != tables);
+  }
+
   thd_proc_info(thd, "preparing");
   if (result->initialize_tables(this))
   {
@@ -1021,7 +1072,7 @@ JOIN::optimize()
        join_tab[const_tables].select->quick->get_type() != 
        QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
   {
-    if (group_list &&
+    if (group_list && rollup.state == ROLLUP::STATE_NONE &&
        list_contains_unique_index(join_tab[const_tables].table,
                                  find_field_in_order_list,
                                  (void *) group_list))
@@ -1065,7 +1116,8 @@ JOIN::optimize()
     if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
       select_distinct=0;
   }
-  else if (select_distinct && tables - const_tables == 1)
+  else if (select_distinct && tables - const_tables == 1 &&
+           rollup.state == ROLLUP::STATE_NONE)
   {
     /*
       We are only using one table. In this case we change DISTINCT to a
@@ -1164,13 +1216,22 @@ JOIN::optimize()
       (!group_list && tmp_table_param.sum_func_count))
     order=0;
 
-  // Can't use sort on head table if using row cache
+  // Can't use sort on head table if using join buffering
   if (full_join)
   {
-    if (group_list)
-      simple_group=0;
-    if (order)
-      simple_order=0;
+    TABLE *stable= (sort_by_table == (TABLE *) 1 ? 
+      join_tab[const_tables].table : sort_by_table);
+    /* 
+      FORCE INDEX FOR ORDER BY can be used to prevent join buffering when
+      sorting on the first table.
+    */
+    if (!stable || !stable->force_index_order)
+    {
+      if (group_list)
+        simple_group= 0;
+      if (order)
+        simple_order= 0;
+    }
   }
 
   /*
@@ -1181,11 +1242,14 @@ JOIN::optimize()
     - We are using an ORDER BY or GROUP BY on fields not in the first table
     - We are using different ORDER BY and GROUP BY orders
     - The user wants us to buffer the result.
+    When the WITH ROLLUP modifier is present, we cannot skip temporary table
+    creation for the DISTINCT clause just because there are only const tables.
   */
-  need_tmp= (const_tables != tables &&
+  need_tmp= ((const_tables != tables &&
 	     ((select_distinct || !simple_order || !simple_group) ||
 	      (group_list && order) ||
-	      test(select_options & OPTION_BUFFER_RESULT)));
+	      test(select_options & OPTION_BUFFER_RESULT))) ||
+             (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
   /*
     If the hint FORCE INDEX FOR ORDER BY/GROUP BY is used for the table
@@ -1935,7 +1999,8 @@ JOIN::exec()
     count_field_types(select_lex, &curr_join->tmp_table_param, 
                       *curr_all_fields, 0);
   
-  if (curr_join->group || curr_join->tmp_table_param.sum_func_count ||
+  if (curr_join->group || curr_join->implicit_grouping ||
+      curr_join->tmp_table_param.sum_func_count ||
       (procedure && (procedure->flags & PROC_GROUP)))
   {
     if (make_group_fields(this, curr_join))
@@ -2003,17 +2068,13 @@ JOIN::exec()
 	    DBUG_VOID_RETURN;
 	if (!curr_table->select->cond)
 	  curr_table->select->cond= sort_table_cond;
-	else					// This should never happen
+	else
 	{
 	  if (!(curr_table->select->cond=
 		new Item_cond_and(curr_table->select->cond,
 				  sort_table_cond)))
 	    DBUG_VOID_RETURN;
-	  /*
-	    Item_cond_and do not need fix_fields for execution, its parameters
-	    are fixed or do not need fix_fields, too
-	  */
-	  curr_table->select->cond->quick_fix_field();
+	  curr_table->select->cond->fix_fields(thd, 0);
 	}
         curr_table->set_select_cond(curr_table->select->cond, __LINE__);
 	curr_table->select_cond->top_level_item();
@@ -2170,7 +2231,7 @@ JOIN::destroy()
 	tab->cleanup();
     }
     tmp_join->tmp_join= 0;
-    tmp_table_param.copy_field=0;
+    tmp_table_param.cleanup();
     DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
@@ -2464,6 +2525,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   JOIN_TAB *stat,*stat_end,*s,**stat_ref;
   KEYUSE *keyuse,*start_keyuse;
   table_map outer_join=0;
+  table_map no_rows_const_tables= 0;
   SARGABLE_PARAM *sargables= 0;
   JOIN_TAB *stat_vector[MAX_TABLES+1];
   DBUG_ENTER("make_join_statistics");
@@ -2524,6 +2586,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 #endif
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
+        no_rows_const_tables |= table->map;
 	set_position(join,const_count++,s,(KEYUSE*) 0);
 	continue;
       }
@@ -2560,6 +2623,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
         !table->fulltext_searched && !join->no_const_tables)
     {
       set_position(join,const_count++,s,(KEYUSE*) 0);
+      no_rows_const_tables |= table->map;
     }
   }
   stat_vector[i]=0;
@@ -2605,9 +2669,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
                             ~outer_join, join->select_lex, &sargables))
       goto error;
 
-  join->const_table_map= 0;
+  join->const_table_map= no_rows_const_tables;
   join->const_tables= const_count;
   eliminate_tables(join);
+  join->const_table_map &= ~no_rows_const_tables;
   const_count= join->const_tables;
   found_const_table_map= join->const_table_map;
 
@@ -3603,8 +3668,9 @@ add_key_fields(JOIN *join, KEY_FIELD **key_fields, uint *and_level,
         {
           if (!field->eq(item->field))
           {
+            Item *tmp_item= item;
             add_key_field(key_fields, *and_level, cond_func, field,
-                          TRUE, (Item **) &item, 1, usable_tables,
+                          TRUE, &tmp_item, 1, usable_tables,
                           sargables);
           }
         }
@@ -3646,7 +3712,7 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
     {
       if (!(form->keys_in_use_for_query.is_set(key)))
 	continue;
-      if (form->key_info[key].flags & HA_FULLTEXT)
+      if (form->key_info[key].flags & (HA_FULLTEXT | HA_SPATIAL))
 	continue;    // ToDo: ft-keys in non-ft queries.   SerG
 
       uint key_parts= (uint) form->key_info[key].key_parts;
@@ -3693,20 +3759,20 @@ add_ft_keys(DYNAMIC_ARRAY *keyuse_array,
       cond_func=(Item_func_match *)cond;
     else if (func->arg_count == 2)
     {
-      Item_func *arg0=(Item_func *)(func->arguments()[0]),
-                *arg1=(Item_func *)(func->arguments()[1]);
-      if (arg1->const_item()  &&
-           arg0->type() == Item::FUNC_ITEM            &&
-           arg0->functype() == Item_func::FT_FUNC     &&
+      Item *arg0= func->arguments()[0],
+           *arg1= func->arguments()[1];
+      if (arg1->const_item() && arg1->cols() == 1 &&
+           arg0->type() == Item::FUNC_ITEM &&
+           ((Item_func *) arg0)->functype() == Item_func::FT_FUNC &&
           ((functype == Item_func::GE_FUNC && arg1->val_real() > 0) ||
-           (functype == Item_func::GT_FUNC && arg1->val_real() >=0)))
-        cond_func=(Item_func_match *) arg0;
-      else if (arg0->const_item() &&
-                arg1->type() == Item::FUNC_ITEM          &&
-                arg1->functype() == Item_func::FT_FUNC   &&
+           (functype == Item_func::GT_FUNC && arg1->val_real() >= 0)))
+        cond_func= (Item_func_match *) arg0;
+      else if (arg0->const_item() && arg0->cols() == 1 &&
+                arg1->type() == Item::FUNC_ITEM &&
+                ((Item_func *) arg1)->functype() == Item_func::FT_FUNC &&
                ((functype == Item_func::LE_FUNC && arg0->val_real() > 0) ||
-                (functype == Item_func::LT_FUNC && arg0->val_real() >=0)))
-        cond_func=(Item_func_match *) arg1;
+                (functype == Item_func::LT_FUNC && arg0->val_real() >= 0)))
+        cond_func= (Item_func_match *) arg1;
     }
   }
   else if (cond->type() == Item::COND_ITEM)
@@ -5900,6 +5966,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   }
   j->ref.key_buff2=j->ref.key_buff+ALIGN_SIZE(length);
   j->ref.key_err=1;
+  j->ref.has_record= FALSE;
   j->ref.null_rejecting= 0;
   j->ref.disable_cache= FALSE;
   keyuse=org_keyuse;
@@ -6902,6 +6969,68 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
 }
 
 
+/**
+  The default implementation of unlock-row method of READ_RECORD,
+  used in all access methods.
+*/
+
+void rr_unlock_row(st_join_table *tab)
+{
+  READ_RECORD *info= &tab->read_record;
+  info->file->unlock_row();
+}
+
+
+/**
+  Pick the appropriate access method functions
+
+  Sets the functions for the selected table access method
+
+  @param      tab               Table reference to put access method
+*/
+
+static void
+pick_table_access_method(JOIN_TAB *tab)
+{
+  switch (tab->type) 
+  {
+  case JT_REF:
+    tab->read_first_record= join_read_always_key;
+    tab->read_record.read_record= join_read_next_same;
+    break;
+
+  case JT_REF_OR_NULL:
+    tab->read_first_record= join_read_always_key_or_null;
+    tab->read_record.read_record= join_read_next_same_or_null;
+    break;
+
+  case JT_CONST:
+    tab->read_first_record= join_read_const;
+    tab->read_record.read_record= join_no_more_records;
+    break;
+
+  case JT_EQ_REF:
+    tab->read_first_record= join_read_key;
+    tab->read_record.read_record= join_no_more_records;
+    break;
+
+  case JT_FT:
+    tab->read_first_record= join_ft_read_first;
+    tab->read_record.read_record= join_ft_read_next;
+    break;
+
+  case JT_SYSTEM:
+    tab->read_first_record= join_read_system;
+    tab->read_record.read_record= join_no_more_records;
+    break;
+
+  /* keep gcc happy */  
+  default:
+    break;  
+  }
+}
+
+
 /* 
   Revise usage of join buffer for the specified table and the whole nest   
 
@@ -7264,6 +7393,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     bool icp_other_tables_ok;
     tab->read_record.table= table;
     tab->read_record.file=table->file;
+    tab->read_record.unlock_row= rr_unlock_row;
     tab->next_select=sub_select;		/* normal select */
 
     /*
@@ -7301,20 +7431,22 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       if (setup_sj_materialization(tab))
         return TRUE;
     }
+    table->status=STATUS_NO_RECORD;
+    pick_table_access_method (tab);
+
     switch (tab->type) {
-    case JT_SYSTEM:				// Only happens with left join
+    case JT_SYSTEM:				// Only happens with left join 
     case JT_CONST:				// Only happens with left join
       /* Only happens with outer joins */
-      table->status=STATUS_NO_RECORD;
       tab->read_first_record= tab->type == JT_SYSTEM ?
                                 join_read_system :join_read_const;
-      tab->read_record.read_record= join_no_more_records;
       if (check_join_cache_usage(tab, join, options, no_jbuf_after,
                                  &icp_other_tables_ok))
       {
         tab->use_join_cache= TRUE;
         tab[-1].next_select=sub_select_cache;
       }
+      else
       if (table->covering_keys.is_set(tab->ref.key) &&
           !table->no_keyread)
       {
@@ -7323,18 +7455,10 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       }
       else
         push_index_cond(tab, tab->ref.key, icp_other_tables_ok);
-      break;
+        break;
     case JT_EQ_REF:
-      table->status=STATUS_NO_RECORD;
-      if (tab->select)
-      {
-	delete tab->select->quick;
-	tab->select->quick=0;
-      }
-      delete tab->quick;
-      tab->quick=0;
-      tab->read_first_record= join_read_key;
-      tab->read_record.read_record= join_no_more_records;
+      tab->read_record.unlock_row= join_read_key_unlock_row;
+      /* fall through */
       if (check_join_cache_usage(tab, join, options, no_jbuf_after,
                                  &icp_other_tables_ok))
       {
@@ -7352,7 +7476,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       break;
     case JT_REF_OR_NULL:
     case JT_REF:
-      table->status=STATUS_NO_RECORD;
       if (tab->select)
       {
 	delete tab->select->quick;
@@ -7366,16 +7489,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         tab->use_join_cache= TRUE;
         tab[-1].next_select=sub_select_cache;
       }
-      if (tab->type == JT_REF)
-      {
-	tab->read_first_record= join_read_always_key;
-	tab->read_record.read_record= join_read_next_same;
-      }
-      else
-      {
-	tab->read_first_record= join_read_always_key_or_null;
-	tab->read_record.read_record= join_read_next_same_or_null;
-      }
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
       {
@@ -7385,11 +7498,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       else
         push_index_cond(tab, tab->ref.key, icp_other_tables_ok);
       break;
-    case JT_FT:
-      table->status=STATUS_NO_RECORD;
-      tab->read_first_record= join_ft_read_first;
-      tab->read_record.read_record= join_ft_read_next;
-      break;
     case JT_ALL:
       /*
 	If previous table use cache
@@ -7397,7 +7505,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         Also don't use cache if this is the first table in semi-join
           materialization nest.
       */
-      table->status=STATUS_NO_RECORD;
       if (check_join_cache_usage(tab, join, options, no_jbuf_after,
                                  &icp_other_tables_ok))
       {
@@ -7481,6 +7588,8 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
             tab->select->quick->index != MAX_KEY && ! tab->table->key_read)
           push_index_cond(tab, tab->select->quick->index, icp_other_tables_ok);
       }
+      break;
+    case JT_FT:
       break;
     default:
       DBUG_PRINT("error",("Table type %d found",tab->type)); /* purecov: deadcode */
@@ -7892,6 +8001,7 @@ static void update_depend_map(JOIN *join, ORDER *order)
     table_map depend_map;
     order->item[0]->update_used_tables();
     order->depend_map=depend_map=order->item[0]->used_tables();
+    order->used= 0;
     // Not item_sum(), RAND() and no reference to table outside of sub select
     if (!(order->depend_map & (OUTER_REF_TABLE_BIT | RAND_TABLE_BIT))
         && !order->item[0]->with_sum_func)
@@ -7949,7 +8059,19 @@ remove_const(JOIN *join,ORDER *first_order, COND *cond,
   for (order=first_order; order ; order=order->next)
   {
     table_map order_tables=order->item[0]->used_tables();
-    if (order->item[0]->with_sum_func)
+    if (order->item[0]->with_sum_func ||
+        /*
+          If the outer table of an outer join is const (either by itself or
+          after applying WHERE condition), grouping on a field from such a
+          table will be optimized away and filesort without temporary table
+          will be used unless we prevent that now. Filesort is not fit to
+          handle joins and the join condition is not applied. We can't detect
+          the case without an expensive test, however, so we force temporary
+          table for all queries containing more than one table, ROLLUP, and an
+          outer join.
+         */
+        (join->tables > 1 && join->rollup.state == ROLLUP::STATE_INITED &&
+        join->outer_join))
       *simple_order=0;				// Must do a temp table to sort
     else if (!(order_tables & not_const_tables))
     {
@@ -8357,7 +8479,7 @@ static bool check_simple_equality(Item *left_item, Item *right_item,
           already contains a constant and its value is  not equal to
           the value of const_item.
         */
-        item_equal->add(const_item);
+        item_equal->add(const_item, field_item);
       }
       else
       {
@@ -8661,12 +8783,12 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
         {
           item_equal->fix_length_and_dec();
           item_equal->update_used_tables();
+          set_if_bigger(thd->lex->current_select->max_equal_elems,
+                        item_equal->members());  
+          return item_equal;
 	}
-        else
-          item_equal= (Item_equal *) eq_list.pop();
-        set_if_bigger(thd->lex->current_select->max_equal_elems,
-                      item_equal->members());  
-        return item_equal;
+
+        return eq_list.pop();
       }
       else
       {
@@ -9735,14 +9857,22 @@ static uint reset_nj_counters(JOIN *join, List<TABLE_LIST> *join_list)
   while ((table= li++))
   {
     NESTED_JOIN *nested_join;
+    bool is_eliminated_nest= FALSE;
     if ((nested_join= table->nested_join))
     {
       nested_join->counter= 0;
       //nested_join->n_tables= my_count_bits(nested_join->used_tables & 
       //                                     ~join->eliminated_tables);
       nested_join->n_tables= reset_nj_counters(join, &nested_join->join_list);
+      if (!nested_join->n_tables)
+        is_eliminated_nest= TRUE;
     }
-    if (table->table && (table->table->map & ~join->eliminated_tables))
+    //if (!table->table || (table->table->map & ~join->eliminated_tables))
+    //psergey-merge10^
+    //if (!table->table && (table->table->map & ~join->eliminated_tables))
+    //psergey-merge11^
+    if ((!table->table && !is_eliminated_nest) || 
+        (table->table && (table->table->map & ~join->eliminated_tables)))
       n++;
   }
   DBUG_RETURN(n);
@@ -9906,7 +10036,10 @@ static void restore_prev_nj_state(JOIN_TAB *last)
       join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
     else if (last_emb->nested_join->n_tables-1 ==
              last_emb->nested_join->counter) 
+    {
       join->cur_embedding_map|= last_emb->nested_join->nj_map;
+      break;
+    }
     else
       break;
     last_emb= last_emb->embedding;
@@ -10450,7 +10583,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
     new_field->set_derivation(item->collation.derivation);
     break;
   case DECIMAL_RESULT:
-    new_field= Field_new_decimal::new_decimal_field(item);
+    new_field= Field_new_decimal::create_from_item(item);
     break;
   case ROW_RESULT:
   default:
@@ -11061,7 +11194,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   /* future: storage engine selection can be made dynamic? */
   if (blob_count || using_unique_constraint ||
       (select_options & (OPTION_BIG_TABLES | SELECT_SMALL_RESULT)) ==
-      OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM))
+      OPTION_BIG_TABLES || (select_options & TMP_TABLE_FORCE_MYISAM) ||
+      !thd->variables.tmp_table_size)
   {
     share->db_plugin= ha_lock_engine(0, TMP_ENGINE_HTON);
     table->file= get_new_handler(share, &table->mem_root,
@@ -11663,7 +11797,7 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
     {
       /* Create an unique key */
       bzero((char*) &keydef,sizeof(keydef));
-      keydef.flag=HA_NOSAME | HA_BINARY_PACK_KEY | HA_PACK_KEY;
+      keydef.flag=HA_NOSAME;
       keydef.keysegs=  keyinfo->key_parts;
       keydef.seg= seg;
     }
@@ -11688,7 +11822,7 @@ bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
 	seg->type= keyinfo->key_part[i].type;
         /* Tell handler if it can do suffic space compression */
 	if (field->real_type() == MYSQL_TYPE_STRING &&
-	    keyinfo->key_part[i].length > 4)
+	    keyinfo->key_part[i].length > 32)
 	  seg->flag|= HA_SPACE_PACK;
       }
       if (!(field->flags & NOT_NULL_FLAG))
@@ -12005,7 +12139,7 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   delete table->file;
   table->file=0;
   plugin_unlock(0, table->s->db_plugin);
-  share.db_plugin= my_plugin_lock(0, &share.db_plugin);
+  share.db_plugin= my_plugin_lock(0, share.db_plugin);
   new_table.s= table->s;                       // Keep old share
   *table= new_table;
   *table->s= share;
@@ -12131,6 +12265,12 @@ Next_select_func setup_end_select_func(JOIN *join)
   }
   else
   {
+    /* 
+       Choose method for presenting result to user. Use end_send_group
+       if the query requires grouping (has a GROUP BY clause and/or one or
+       more aggregate functions). Use end_send if the query should not
+       be grouped.
+     */
     if ((join->sort_and_group ||
          (join->procedure && join->procedure->flags & PROC_GROUP)) &&
         !tmp_tbl->precomputed_group_by)
@@ -12736,7 +12876,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
   COND *select_cond= join_tab->select_cond;
-  bool found= TRUE;
+  bool select_cond_result= TRUE;
 
   DBUG_ENTER("evaluate_join_record");
   DBUG_PRINT("enter",
@@ -12751,16 +12891,19 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     join->thd->send_kill_message();
     DBUG_RETURN(NESTED_LOOP_KILLED);            /* purecov: inspected */
   }
-  update_virtual_fields(join_tab->table);     
+
+  update_virtual_fields(join_tab->table);
+
   if (select_cond)
   {
-    found= test(select_cond->val_int());
+    select_cond_result= test(select_cond->val_int());
 
     /* check for errors evaluating the condition */
     if (join->thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR);
   }
-  if (found)
+
+  if (!select_cond || select_cond_result)
   {
     /*
       There is no select condition or the attached pushed down
@@ -12867,7 +13010,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         DBUG_RETURN(NESTED_LOOP_NO_MORE_ROWS);
     }
     else
-      join_tab->read_record.file->unlock_row();
+      join_tab->read_record.unlock_row(join_tab);
   }
   else
   {
@@ -12877,7 +13020,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
     */
     join->examined_rows++;
     join->thd->row_count++;
-    join_tab->read_record.file->unlock_row();
+    join_tab->read_record.unlock_row(join_tab);
   }
   DBUG_RETURN(NESTED_LOOP_OK);
 }
@@ -13209,6 +13352,15 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
       table->status=STATUS_NOT_FOUND;
       return -1;
     }
+    /*
+      Moving away from the current record. Unlock the row
+      in the handler if it did not match the partial WHERE.
+    */
+    if (tab->ref.has_record && tab->ref.use_count == 0)
+    {
+      tab->read_record.file->unlock_row();
+      tab->ref.has_record= FALSE;
+    }
     error=table->file->ha_index_read_map(table->record[0],
                                   table_ref->key_buff,
                                   make_prev_keypart_map(table_ref->key_parts),
@@ -13216,11 +13368,38 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
     if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
 
+    if (! error)
+    {
+      tab->ref.has_record= TRUE;
+      tab->ref.use_count= 1;
+    }
+  }
+  else if (table->status == 0)
+  {
+    DBUG_ASSERT(tab->ref.has_record);
+    tab->ref.use_count++;
   }
   table->null_row=0;
   return table->status ? -1 : 0;
 }
 
+
+/**
+  Since join_read_key may buffer a record, do not unlock
+  it if it was not used in this invocation of join_read_key().
+  Only count locks, thus remembering if the record was left unused,
+  and unlock already when pruning the current value of
+  TABLE_REF buffer.
+  @sa join_read_key()
+*/
+
+static void
+join_read_key_unlock_row(st_join_table *tab)
+{
+  DBUG_ASSERT(tab->ref.use_count);
+  if (tab->ref.use_count)
+    tab->ref.use_count--;
+}
 
 /*
   ref access method implementation: "read_first" function
@@ -14845,6 +15024,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           if (create_ref_for_key(tab->join, tab, keyuse, 
                                  tab->join->const_table_map))
             goto use_filesort;
+
+          pick_table_access_method(tab);
 	}
 	else
 	{
@@ -15185,7 +15366,7 @@ check_reverse_order:
 	select->quick=tmp;
       }
     }
-    else if (tab->type != JT_NEXT && 
+    else if (tab->type != JT_NEXT && tab->type != JT_REF_OR_NULL &&
              tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
     {
       /*
@@ -15517,7 +15698,10 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     if (error)
     {
       if (error == HA_ERR_RECORD_DELETED)
-	continue;
+      {
+        error= file->ha_rnd_next(record);
+        continue;
+      }
       if (error == HA_ERR_END_OF_FILE)
 	break;
       goto err;
@@ -15672,7 +15856,10 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 	goto err;
     }
     else
-      (void) my_hash_insert(&hash, org_key_pos);
+    {
+      if (my_hash_insert(&hash, org_key_pos))
+        goto err;
+    }
     key_pos+=extra_length;
   }
   my_free((char*) key_buffer,MYF(0));
@@ -17085,7 +17272,11 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     DBUG_RETURN(TRUE);
 
   if (!cond->fixed)
-    cond->fix_fields(thd, (Item**)&cond);
+  {
+    Item *tmp_item= (Item*) cond;
+    cond->fix_fields(thd, &tmp_item);
+    DBUG_ASSERT(cond == tmp_item);
+  }
   if (join_tab->select)
   {
     error=(int) cond->add(join_tab->select->cond);
@@ -17261,32 +17452,7 @@ bool JOIN::rollup_init()
       {
         item->maybe_null= 1;
         found_in_group= 1;
-        if (item->const_item())
-        {
-          /*
-            For ROLLUP queries each constant item referenced in GROUP BY list
-            is wrapped up into an Item_func object yielding the same value
-            as the constant item. The objects of the wrapper class are never
-            considered as constant items and besides they inherit all
-            properties of the Item_result_field class.
-            This wrapping allows us to ensure writing constant items
-            into temporary tables whenever the result of the ROLLUP
-            operation has to be written into a temporary table, e.g. when
-            ROLLUP is used together with DISTINCT in the SELECT list.
-            Usually when creating temporary tables for a intermidiate
-            result we do not include fields for constant expressions.
-	  */           
-          Item* new_item= new Item_func_rollup_const(item);
-          if (!new_item)
-            return 1;
-          new_item->fix_fields(thd, (Item **) 0);
-          thd->change_item_tree(it.ref(), new_item);
-          for (ORDER *tmp= group_tmp; tmp; tmp= tmp->next)
-          { 
-            if (*tmp->item == item)
-              thd->change_item_tree(tmp->item, new_item);
-          }
-        }
+        break;
       }
     }
     if (item->type() == Item::FUNC_ITEM && !found_in_group)
@@ -17302,6 +17468,59 @@ bool JOIN::rollup_init()
       if (changed)
         item->with_sum_func= 1;
     }
+  }
+  return 0;
+}
+
+/**
+   Wrap all constant Items in GROUP BY list.
+
+   For ROLLUP queries each constant item referenced in GROUP BY list
+   is wrapped up into an Item_func object yielding the same value
+   as the constant item. The objects of the wrapper class are never
+   considered as constant items and besides they inherit all
+   properties of the Item_result_field class.
+   This wrapping allows us to ensure writing constant items
+   into temporary tables whenever the result of the ROLLUP
+   operation has to be written into a temporary table, e.g. when
+   ROLLUP is used together with DISTINCT in the SELECT list.
+   Usually when creating temporary tables for a intermidiate
+   result we do not include fields for constant expressions.
+
+   @retval
+     0  if ok
+   @retval
+     1  on error
+*/
+
+bool JOIN::rollup_process_const_fields()
+{
+  ORDER *group_tmp;
+  Item *item;
+  List_iterator<Item> it(all_fields);
+
+  for (group_tmp= group_list; group_tmp; group_tmp= group_tmp->next)
+  {
+    if (!(*group_tmp->item)->const_item())
+      continue;
+    while ((item= it++))
+    {
+      if (*group_tmp->item == item)
+      {
+        Item* new_item= new Item_func_rollup_const(item);
+        if (!new_item)
+          return 1;
+        new_item->fix_fields(thd, (Item **) 0);
+        thd->change_item_tree(it.ref(), new_item);
+        for (ORDER *tmp= group_tmp; tmp; tmp= tmp->next)
+        {
+          if (*tmp->item == item)
+            thd->change_item_tree(tmp->item, new_item);
+        }
+        break;
+      }
+    }
+    it.rewind();
   }
   return 0;
 }

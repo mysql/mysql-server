@@ -712,7 +712,7 @@ dict_index_find_on_id_low(
 	dulint	id);	/*!< in: index id */
 /**********************************************************************//**
 Adds an index to the dictionary cache.
-@return	DB_SUCCESS or error code */
+@return	DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
 UNIV_INTERN
 ulint
 dict_index_add_to_cache(
@@ -1150,6 +1150,13 @@ UNIV_INTERN
 void
 dict_ind_init(void);
 /*===============*/
+
+/**********************************************************************//**
+Closes the data dictionary module. */
+UNIV_INTERN
+void
+dict_close(void);
+/*============*/
 
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"

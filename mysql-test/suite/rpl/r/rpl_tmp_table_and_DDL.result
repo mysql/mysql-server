@@ -1,0 +1,96 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TEMPORARY TABLE t1 (a INT);
+CREATE TABLE t2 (a INT, b INT) ENGINE= MyISAM;
+INSERT INTO t1 VALUES (1);
+CREATE EVENT e1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+INSERT INTO t1 VALUES (1);
+ALTER EVENT e1 ON SCHEDULE EVERY 20 HOUR DO SELECT 1;
+INSERT INTO t1 VALUES (1);
+DROP EVENT IF EXISTS e1;
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p1() SELECT 1;
+INSERT INTO t1 VALUES (1);
+ALTER PROCEDURE p1 SQL SECURITY INVOKER;
+INSERT INTO t1 VALUES (1);
+CREATE FUNCTION f1() RETURNS INT RETURN 123;
+INSERT INTO t1 VALUES (1);
+ALTER FUNCTION f1 SQL SECURITY INVOKER;
+INSERT INTO t1 VALUES (1);
+CREATE DATABASE mysqltest1;
+INSERT INTO t1 VALUES (1);
+DROP DATABASE mysqltest1;
+INSERT INTO t1 VALUES (1);
+CREATE USER test_1@localhost;
+INSERT INTO t1 VALUES (1);
+GRANT SELECT ON t2 TO test_1@localhost;
+INSERT INTO t1 VALUES (1);
+GRANT ALL ON f1 TO test_1@localhost;
+INSERT INTO t1 VALUES (1);
+GRANT ALL ON p1 TO test_1@localhost;
+INSERT INTO t1 VALUES (1);
+GRANT USAGE ON *.* TO test_1@localhost;
+INSERT INTO t1 VALUES (1);
+REVOKE ALL PRIVILEGES ON f1 FROM test_1@localhost;
+INSERT INTO t1 VALUES (1);
+REVOKE ALL PRIVILEGES ON p1 FROM test_1@localhost;
+INSERT INTO t1 VALUES (1);
+REVOKE ALL PRIVILEGES ON t2 FROM test_1@localhost;
+INSERT INTO t1 VALUES (1);
+REVOKE USAGE ON *.* FROM test_1@localhost;
+INSERT INTO t1 VALUES (1);
+RENAME USER test_1@localhost TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+DROP USER test_2@localhost;
+INSERT INTO t1 VALUES (1);
+CREATE PROCEDURE p2()
+BEGIN
+# CREATE USER when a temporary table is open. 
+CREATE TEMPORARY TABLE t3 (a INT);
+CREATE USER test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# GRANT select on table to user when a temporary table is open.
+GRANT SELECT ON t2 TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# GRANT all on function to user  when a temporary table is open.
+GRANT ALL ON f1 TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# GRANT all on procedure to user when a temporary table is open.
+GRANT ALL ON p1 TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# GRANT usage on *.* to user  when a temporary table is open.
+GRANT USAGE ON *.* TO test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# REVOKE ALL PRIVILEGES on function to user when a temporary table is open.
+REVOKE ALL PRIVILEGES ON f1 FROM test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# REVOKE ALL PRIVILEGES on procedure to user when a temporary table is open.
+REVOKE ALL PRIVILEGES ON p1 FROM test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# REVOKE ALL PRIVILEGES on table to user when a temporary table is open.
+REVOKE ALL PRIVILEGES ON t2 FROM test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# REVOKE usage on *.* from user when a temporary table is open.
+REVOKE USAGE ON *.* FROM test_2@localhost;
+INSERT INTO t1 VALUES (1);
+# RENAME USER when a temporary table is open.
+RENAME USER test_2@localhost TO test_3@localhost;
+INSERT INTO t1 VALUES (1);
+# DROP USER when a temporary table is open.
+DROP USER test_3@localhost;
+INSERT INTO t1 VALUES (1);
+DROP TEMPORARY TABLE t3;
+END |
+DROP PROCEDURE p1;
+INSERT INTO t1 VALUES (1);
+DROP PROCEDURE p2;
+INSERT INTO t1 VALUES (1);
+DROP FUNCTION f1;
+INSERT INTO t1 VALUES (1);
+DROP TABLE t2;
+INSERT INTO t1 VALUES (1);
+DROP TEMPORARY TABLE t1;

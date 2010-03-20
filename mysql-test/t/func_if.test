@@ -5,6 +5,11 @@
 drop table if exists t1;
 --enable_warnings
 
+--disable_query_log
+# Set timezone to something specific, to make it possible to use unix_timestamp
+set time_zone="+03:00";
+--enable_query_log
+
 #
 # Simple IF tests
 #
@@ -163,5 +168,9 @@ SELECT * FROM (SELECT MAX(IFNULL(CAST(c AS UNSIGNED), 0)) FROM t1) AS te;
 
 DROP TABLE t1;
 
-
 --echo End of 5.0 tests
+
+--disable_query_log
+# Restore timezone to default
+set time_zone= @@global.time_zone;
+--enable_query_log

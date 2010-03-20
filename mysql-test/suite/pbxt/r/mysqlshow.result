@@ -117,7 +117,7 @@ Database: information_schema
 | INNODB_RSEG                           |
 | XTRADB_ENHANCEMENTS                   |
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
-| INNODB_INDEX_STATS                    |
+| XTRADB_ADMIN_COMMAND                  |
 | INNODB_TRX                            |
 | INNODB_CMP_RESET                      |
 | INNODB_LOCK_WAITS                     |
@@ -126,6 +126,7 @@ Database: information_schema
 | INNODB_CMPMEM                         |
 | INNODB_TABLE_STATS                    |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_INDEX_STATS                    |
 +---------------------------------------+
 Database: INFORMATION_SCHEMA
 +---------------------------------------+
@@ -169,7 +170,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_RSEG                           |
 | XTRADB_ENHANCEMENTS                   |
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
-| INNODB_INDEX_STATS                    |
+| XTRADB_ADMIN_COMMAND                  |
 | INNODB_TRX                            |
 | INNODB_CMP_RESET                      |
 | INNODB_LOCK_WAITS                     |
@@ -178,6 +179,7 @@ Database: INFORMATION_SCHEMA
 | INNODB_CMPMEM                         |
 | INNODB_TABLE_STATS                    |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
+| INNODB_INDEX_STATS                    |
 +---------------------------------------+
 Wildcard: inf_rmation_schema
 +--------------------+

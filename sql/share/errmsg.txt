@@ -3173,22 +3173,22 @@ ER_CANT_CREATE_THREAD
         swe "Kan inte skapa en ny tråd (errno %d)"
         ukr "îÅ ÍÏÖÕ ÓÔ×ÏÒÉÔÉ ÎÏ×Õ Ç¦ÌËÕ (ĞÏÍÉÌËÁ %d). ñËİÏ ×É ÎÅ ×ÉËÏÒÉÓÔÁÌÉ ÕÓÀ ĞÁÍ'ÑÔØ, ÔÏ ĞÒÏŞÉÔÁÊÔÅ ÄÏËÕÍÅÎÔÁÃ¦À ÄÏ ×ÁÛÏ§ ïó - ÍÏÖÌÉ×Ï ÃÅ ĞÏÍÉÌËÁ ïó"
 ER_WRONG_VALUE_COUNT_ON_ROW 21S01 
-        cze "Po-Bèet sloupcù neodpovídá poètu hodnot na øádku %ld"
-        dan "Kolonne antallet stemmer ikke overens med antallet af værdier i post %ld"
-        nla "Kolom aantal komt niet overeen met waarde aantal in rij %ld"
-        eng "Column count doesn't match value count at row %ld"
-        est "Tulpade hulk erineb väärtuste hulgast real %ld"
-        ger "Anzahl der Felder stimmt nicht mit der Anzahl der Werte in Zeile %ld überein"
-        hun "Az oszlopban talalhato ertek nem egyezik meg a %ld sorban szamitott ertekkel"
-        ita "Il numero delle colonne non corrisponde al conteggio alla riga %ld"
-        kor "Row %ld¿¡¼­ Ä®·³ Ä«¿îÆ®¿Í value Ä«¿îÅÍ¿Í ÀÏÄ¡ÇÏÁö ¾Ê½À´Ï´Ù."
-        por "Contagem de colunas não confere com a contagem de valores na linha %ld"
-        rum "Numarul de coloane nu corespunde cu numarul de valori la linia %ld"
-        rus "ëÏÌÉŞÅÓÔ×Ï ÓÔÏÌÂÃÏ× ÎÅ ÓÏ×ĞÁÄÁÅÔ Ó ËÏÌÉŞÅÓÔ×ÏÍ ÚÎÁŞÅÎÉÊ × ÚÁĞÉÓÉ %ld"
-        serbian "Broj kolona ne odgovara broju vrednosti u slogu %ld"
-        spa "El número de columnas no corresponde al número en la línea %ld"
-        swe "Antalet kolumner motsvarar inte antalet värden på rad: %ld"
-        ukr "ë¦ÌØË¦ÓÔØ ÓÔÏ×ÂÃ¦× ÎÅ ÓĞ¦×ĞÁÄÁ¤ Ú Ë¦ÌØË¦ÓÔÀ ÚÎÁŞÅÎØ Õ ÓÔÒÏÃ¦ %ld"
+        cze "Po-Bèet sloupcù neodpovídá poètu hodnot na øádku %lu"
+        dan "Kolonne antallet stemmer ikke overens med antallet af værdier i post %lu"
+        nla "Kolom aantal komt niet overeen met waarde aantal in rij %lu"
+        eng "Column count doesn't match value count at row %lu"
+        est "Tulpade hulk erineb väärtuste hulgast real %lu"
+        ger "Anzahl der Felder stimmt nicht mit der Anzahl der Werte in Zeile %lu überein"
+        hun "Az oszlopban talalhato ertek nem egyezik meg a %lu sorban szamitott ertekkel"
+        ita "Il numero delle colonne non corrisponde al conteggio alla riga %lu"
+        kor "Row %lu¿¡¼­ Ä®·³ Ä«¿îÆ®¿Í value Ä«¿îÅÍ¿Í ÀÏÄ¡ÇÏÁö ¾Ê½À´Ï´Ù."
+        por "Contagem de colunas não confere com a contagem de valores na linha %lu"
+        rum "Numarul de coloane nu corespunde cu numarul de valori la linia %lu"
+        rus "ëÏÌÉŞÅÓÔ×Ï ÓÔÏÌÂÃÏ× ÎÅ ÓÏ×ĞÁÄÁÅÔ Ó ËÏÌÉŞÅÓÔ×ÏÍ ÚÎÁŞÅÎÉÊ × ÚÁĞÉÓÉ %lu"
+        serbian "Broj kolona ne odgovara broju vrednosti u slogu %lu"
+        spa "El número de columnas no corresponde al número en la línea %lu"
+        swe "Antalet kolumner motsvarar inte antalet värden på rad: %lu"
+        ukr "ë¦ÌØË¦ÓÔØ ÓÔÏ×ÂÃ¦× ÎÅ ÓĞ¦×ĞÁÄÁ¤ Ú Ë¦ÌØË¦ÓÔÀ ÚÎÁŞÅÎØ Õ ÓÔÒÏÃ¦ %lu"
 ER_CANT_REOPEN_TABLE  
         cze "Nemohu znovuotev-Bøít tabulku: '%-.192s"
         dan "Kan ikke genåbne tabel '%-.192s"
@@ -4702,7 +4702,7 @@ ER_NOT_SUPPORTED_YET 42000
         swe "Denna version av MySQL kan ännu inte utföra '%s'"
 ER_MASTER_FATAL_ERROR_READING_BINLOG  
         nla "Kreeg fatale fout %d: '%-.128s' van master tijdens lezen van data uit binaire log"
-        eng "Got fatal error %d: '%-.128s' from master when reading data from binary log"
+        eng "Got fatal error %d from master when reading data from binary log: '%-.128s'"
         ger "Schwerer Fehler %d: '%-.128s vom Master beim Lesen des binären Logs"
         ita "Errore fatale %d: '%-.128s' dal master leggendo i dati dal log binario"
         por "Obteve fatal erro %d: '%-.128s' do master quando lendo dados do binary log"
@@ -4887,29 +4887,29 @@ ER_CUT_VALUE_GROUP_CONCAT
         swe "%d rad(er) kapades av group_concat()"
         ukr "%d line(s) was(were) cut by group_concat()"
 ER_WARN_TOO_FEW_RECORDS 01000 
-        eng "Row %ld doesn't contain data for all columns"
-        ger "Zeile %ld enthält nicht für alle Felder Daten"
-        nla "Rij %ld bevat niet de data voor alle kolommen"
-        por "Conta de registro é menor que a conta de coluna na linha %ld"
-        spa "Línea %ld no contiene datos para todas las columnas"
+        eng "Row %lu doesn't contain data for all columns"
+        ger "Zeile %lu enthält nicht für alle Felder Daten"
+        nla "Rij %lu bevat niet de data voor alle kolommen"
+        por "Conta de registro é menor que a conta de coluna na linha %lu"
+        spa "Línea %lu no contiene datos para todas las columnas"
 ER_WARN_TOO_MANY_RECORDS 01000 
-        eng "Row %ld was truncated; it contained more data than there were input columns"
-        ger "Zeile %ld gekürzt, die Zeile enthielt mehr Daten, als es Eingabefelder gibt"
-        nla "Regel %ld ingekort, bevatte meer data dan invoer kolommen"
-        por "Conta de registro é maior que a conta de coluna na linha %ld"
-        spa "Línea %ld fué truncada; La misma contine mas datos que las que existen en las columnas de entrada"
+        eng "Row %lu was truncated; it contained more data than there were input columns"
+        ger "Zeile %lu gekürzt, die Zeile enthielt mehr Daten, als es Eingabefelder gibt"
+        nla "Regel %lu ingekort, bevatte meer data dan invoer kolommen"
+        por "Conta de registro é maior que a conta de coluna na linha %lu"
+        spa "Línea %lu fué truncada; La misma contine mas datos que las que existen en las columnas de entrada"
 ER_WARN_NULL_TO_NOTNULL 22004 
-        eng "Column set to default value; NULL supplied to NOT NULL column '%s' at row %ld"
-        ger "Feld auf Vorgabewert gesetzt, da NULL für NOT-NULL-Feld '%s' in Zeile %ld angegeben"
-        por "Dado truncado, NULL fornecido para NOT NULL coluna '%s' na linha %ld"
-        spa "Datos truncado, NULL suministrado para NOT NULL columna '%s' en la línea %ld"
+        eng "Column set to default value; NULL supplied to NOT NULL column '%s' at row %lu"
+        ger "Feld auf Vorgabewert gesetzt, da NULL für NOT-NULL-Feld '%s' in Zeile %lu angegeben"
+        por "Dado truncado, NULL fornecido para NOT NULL coluna '%s' na linha %lu"
+        spa "Datos truncado, NULL suministrado para NOT NULL columna '%s' en la línea %lu"
 ER_WARN_DATA_OUT_OF_RANGE 22003 
-        eng "Out of range value for column '%s' at row %ld"
+        eng "Out of range value for column '%s' at row %lu"
 WARN_DATA_TRUNCATED 01000 
-        eng "Data truncated for column '%s' at row %ld"
-        ger "Daten abgeschnitten für Feld '%s' in Zeile %ld"
-        por "Dado truncado para coluna '%s' na linha %ld"
-        spa "Datos truncados para columna '%s' en la línea %ld"
+        eng "Data truncated for column '%s' at row %lu"
+        ger "Daten abgeschnitten für Feld '%s' in Zeile %lu"
+        por "Dado truncado para coluna '%s' na linha %lu"
+        spa "Datos truncados para columna '%s' en la línea %lu"
 ER_WARN_USING_OTHER_HANDLER  
         eng "Using storage engine %s for table '%s'"
         ger "Für Tabelle '%s' wird Speicher-Engine %s benutzt"
@@ -5090,8 +5090,8 @@ ER_UNKNOWN_TIME_ZONE
         eng "Unknown or incorrect time zone: '%-.64s'"
         ger "Unbekannte oder falsche Zeitzone: '%-.64s'"
 ER_WARN_INVALID_TIMESTAMP  
-        eng "Invalid TIMESTAMP value in column '%s' at row %ld"
-        ger "Ungültiger TIMESTAMP-Wert in Feld '%s', Zeile %ld"
+        eng "Invalid TIMESTAMP value in column '%s' at row %lu"
+        ger "Ungültiger TIMESTAMP-Wert in Feld '%s', Zeile %lu"
 ER_INVALID_CHARACTER_STRING  
         eng "Invalid %s character string: '%.64s'"
         ger "Ungültiger %s-Zeichen-String: '%.64s'"
@@ -5138,11 +5138,11 @@ ER_SP_BADSTATEMENT 0A000
         eng "%s is not allowed in stored procedures"
         ger "%s ist in gespeicherten Prozeduren nicht erlaubt"
 ER_UPDATE_LOG_DEPRECATED_IGNORED 42000 
-        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored"
-        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wird ignoriert"
+        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been ignored. This option will be removed in MySQL 5.6."
+        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wird ignoriert. Diese Option wird in MySQL 5.6 entfernt."
 ER_UPDATE_LOG_DEPRECATED_TRANSLATED 42000 
-        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN"
-        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wurde in SET SQL_LOG_BIN übersetzt"
+        eng "The update log is deprecated and replaced by the binary log; SET SQL_LOG_UPDATE has been translated to SET SQL_LOG_BIN. This option will be removed in MySQL 5.6."
+        ger "Das Update-Log ist veraltet und wurde durch das Binär-Log ersetzt. SET SQL_LOG_UPDATE wurde in SET SQL_LOG_BIN übersetzt. Diese Option wird in MySQL 5.6 entfernt."
 ER_QUERY_INTERRUPTED 70100 
         eng "Query execution was interrupted"
         ger "Ausführung der Abfrage wurde unterbrochen"
@@ -5322,8 +5322,8 @@ ER_DIVISION_BY_ZERO 22012
         eng "Division by 0"
         ger "Division durch 0"
 ER_TRUNCATED_WRONG_VALUE_FOR_FIELD  
-        eng "Incorrect %-.32s value: '%-.128s' for column '%.192s' at row %ld"
-        ger "Falscher %-.32s-Wert: '%-.128s' für Feld '%.192s' in Zeile %ld"
+        eng "Incorrect %-.32s value: '%-.128s' for column '%.192s' at row %lu"
+        ger "Falscher %-.32s-Wert: '%-.128s' für Feld '%.192s' in Zeile %lu"
 ER_ILLEGAL_VALUE_FOR_TYPE 22007 
         eng "Illegal %s '%-.192s' value found during parsing"
         ger "Nicht zulässiger %s-Wert '%-.192s' beim Parsen gefunden"
@@ -5456,8 +5456,8 @@ ER_PROC_AUTO_REVOKE_FAIL
         eng "Failed to revoke all privileges to dropped routine"
         ger "Rücknahme aller Rechte für die gelöschte Routine fehlgeschlagen"
 ER_DATA_TOO_LONG 22001
-        eng "Data too long for column '%s' at row %ld"
-        ger "Daten zu lang für Feld '%s' in Zeile %ld"
+        eng "Data too long for column '%s' at row %lu"
+        ger "Daten zu lang für Feld '%s' in Zeile %lu"
 ER_SP_BAD_SQLSTATE 42000
         eng "Bad SQLSTATE: '%s'"
         ger "Ungültiger SQLSTATE: '%s'"
@@ -5696,8 +5696,8 @@ ER_PARTITION_WRONG_NO_SUBPART_ERROR
         eng "Wrong number of subpartitions defined, mismatch with previous setting"
         ger "Falsche Anzahl von Unterpartitionen definiert, stimmt nicht mit vorherigen Einstellungen überein"
         swe "Antal subpartitioner definierade och antal subpartitioner är inte lika"
-ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR
-        eng "Constant/Random expression in (sub)partitioning function is not allowed"
+ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
+        eng "Constant, random or timezone-dependent expressions in (sub)partitioning function are not allowed"
         ger "Konstante oder Random-Ausdrücke in (Unter-)Partitionsfunktionen sind nicht erlaubt"
         swe "Konstanta uttryck eller slumpmässiga uttryck är inte tillåtna (sub)partitioneringsfunktioner"
 ER_NO_CONST_EXPR_IN_RANGE_OR_LIST_ERROR
@@ -6233,3 +6233,10 @@ ER_UNSUPPORTED_ACTION_ON_VIRTUAL_COLUMN
 
 ER_CONST_EXPR_IN_VCOL
          eng "Constant expression in computed column function is not allowed."
+
+ER_DEBUG_SYNC_TIMEOUT
+  eng "debug sync point wait timed out"
+  ger "Debug Sync Point Wartezeit überschritten"
+ER_DEBUG_SYNC_HIT_LIMIT
+  eng "debug sync point hit limit reached"
+  ger "Debug Sync Point Hit Limit erreicht"
