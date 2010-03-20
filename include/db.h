@@ -107,6 +107,9 @@ typedef struct __toku_engine_status {
   u_int64_t        logger_ilock_ctr;        /* how many times has logger input lock been taken or released  */ 
   u_int64_t        logger_olock_ctr;        /* how many times has logger output condition lock been taken or released  */ 
   u_int64_t        logger_swap_ctr;         /* how many times have logger buffers been swapped  */ 
+  char             enospc_most_recent[26];  /* time of most recent ENOSPC error return from disk write  */ 
+  u_int64_t        enospc_threads_blocked;  /* how many threads are currently blocked by ENOSPC */ 
+  u_int64_t        enospc_total;            /* how many times has ENOSPC been returned by disk write */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,

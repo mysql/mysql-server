@@ -459,6 +459,13 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        sequential_queries;      /* ydb sequential queries               */ \n");
     printf("  u_int64_t        fsync_count;             /* number of times fsync performed      */ \n");
     printf("  u_int64_t        fsync_time;              /* total time required to fsync         */ \n");
+    printf("  u_int64_t        logger_ilock_ctr;        /* how many times has logger input lock been taken or released  */ \n");
+    printf("  u_int64_t        logger_olock_ctr;        /* how many times has logger output condition lock been taken or released  */ \n");
+    printf("  u_int64_t        logger_swap_ctr;         /* how many times have logger buffers been swapped  */ \n");
+    printf("  char             enospc_most_recent[26];  /* time of most recent ENOSPC error return from disk write  */ \n");
+    printf("  u_int64_t        enospc_threads_blocked;  /* how many threads are currently blocked by ENOSPC */ \n");
+    printf("  u_int64_t        enospc_total;            /* how many times has ENOSPC been returned by disk write */ \n");
+    
     printf("} ENGINE_STATUS;\n");
 
     print_dbtype();

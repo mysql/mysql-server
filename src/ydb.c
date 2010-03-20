@@ -1396,6 +1396,14 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->logger_olock_ctr = log_stat.olock_ctr;
 	    engstat->logger_swap_ctr  = log_stat.swap_ctr;
 	}
+	{
+	    time_t    enospc_most_recent_timestamp;
+	    u_int64_t enospc_threads_blocked, enospc_total;
+	    toku_fs_get_write_info(&enospc_most_recent_timestamp, &enospc_threads_blocked, &enospc_total);
+	    format_time(&enospc_most_recent_timestamp, engstat->enospc_most_recent);	    
+	    engstat->enospc_threads_blocked = enospc_threads_blocked;
+	    engstat->enospc_total = enospc_total;
+	}
 
     }
     return r;
@@ -1455,6 +1463,12 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
     n += snprintf(buff + n, bufsiz - n, "fsync_count                      %"PRIu64"\n", engstat.fsync_count);
     n += snprintf(buff + n, bufsiz - n, "fsync_time                       %"PRIu64"\n", engstat.fsync_time);
+    n += snprintf(buff + n, bufsiz - n, "logger ilock count               %"PRIu64"\n", engstat.logger_ilock_ctr);
+    n += snprintf(buff + n, bufsiz - n, "logger olock count               %"PRIu64"\n", engstat.logger_olock_ctr);
+    n += snprintf(buff + n, bufsiz - n, "logger swap count                %"PRIu64"\n", engstat.logger_swap_ctr);
+    n += snprintf(buff + n, bufsiz - n, "enospc_most_recent               %s \n", engstat.enospc_most_recent);
+    n += snprintf(buff + n, bufsiz - n, "enospc threads blocked           %"PRIu64"\n", engstat.enospc_threads_blocked);
+    n += snprintf(buff + n, bufsiz - n, "enospc total                     %"PRIu64"\n", engstat.enospc_total);
 
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
