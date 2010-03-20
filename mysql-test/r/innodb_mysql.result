@@ -2317,6 +2317,39 @@ ref	NULL
 rows	10
 Extra	Using index
 DROP TABLE t1;
+#
+# Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
+#   corrupt definition at engine
+#
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b)) 
+ENGINE=InnoDB;
+ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
+SHOW INDEXES FROM t1;;
+Table	t1
+Non_unique	0
+Key_name	k
+Seq_in_index	1
+Column_name	a
+Collation	A
+Cardinality	0
+Sub_part	NULL
+Packed	NULL
+Null	
+Index_type	BTREE
+Comment	
+Table	t1
+Non_unique	0
+Key_name	k
+Seq_in_index	2
+Column_name	b
+Collation	A
+Cardinality	0
+Sub_part	NULL
+Packed	NULL
+Null	
+Index_type	BTREE
+Comment	
+DROP TABLE t1;
 End of 5.1 tests
 #
 # Test for bug #39932 "create table fails if column for FK is in different

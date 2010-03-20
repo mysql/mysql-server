@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -986,7 +986,7 @@ protected:
     was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
-  void setup(Item *item, Item *value_arg);
+  void setup_hybrid(Item *item, Item *value_arg);
   void clear();
   double val_real();
   longlong val_int();

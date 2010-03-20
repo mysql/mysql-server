@@ -1,0 +1,105 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 CHAR(30) NOT NULL, c2 CHAR(20) NOT NULL, c3 CHAR(10) NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` char(30) NOT NULL,
+  `c2` char(20) NOT NULL,
+  `c3` char(10) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` char(30) NOT NULL,
+  `c2` char(20) NOT NULL,
+  `c3` char(10) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 VARCHAR(30) NOT NULL, c2 VARCHAR(20) NOT NULL, c3 VARCHAR(10) NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(30) NOT NULL,
+  `c2` varchar(20) NOT NULL,
+  `c3` varchar(10) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(30) NOT NULL,
+  `c2` varchar(20) NOT NULL,
+  `c3` varchar(10) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 BINARY(30) NOT NULL, c2 BINARY(20) NOT NULL, c3 BINARY(10) NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` binary(30) NOT NULL,
+  `c2` binary(20) NOT NULL,
+  `c3` binary(10) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` binary(30) NOT NULL,
+  `c2` binary(20) NOT NULL,
+  `c3` binary(10) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 VARBINARY(30) NOT NULL, c2 VARBINARY(20) NOT NULL, c3 VARBINARY(10) NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varbinary(30) NOT NULL,
+  `c2` varbinary(20) NOT NULL,
+  `c3` varbinary(10) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varbinary(30) NOT NULL,
+  `c2` varbinary(20) NOT NULL,
+  `c3` varbinary(10) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
