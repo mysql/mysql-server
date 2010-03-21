@@ -141,6 +141,7 @@ private:
     DropEvntReq _DropEvntReq;
     SubGcpCompleteAck _SubGcpCompleteAck;
     ApiRegReq _ApiRegReq;
+    ApiRegConf _ApiRegConf;
     ArbitSignalData _ArbitSignalData;
   };
   NdbApiSignal *theNextSignal;

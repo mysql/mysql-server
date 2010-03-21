@@ -5050,8 +5050,8 @@ NdbDictionaryImpl::listObjects(List& list,
   }
 
   ListTablesReq req;
-  req.requestData = 0;
-  req.tableId = 0;
+  req.init();
+  req.setTableId(0);
   req.setTableType(getKernelConstant(type, objectTypeMapping, 0));
   req.setListNames(true);
   if (!list2.count)
@@ -5082,9 +5082,9 @@ int
 NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
 {
   ListTablesReq req;
-  req.requestData = 0;
+  req.init();
   req.setTableId(indexId);
-  req.tableType = 0;
+  req.setTableType(0);
   req.setListNames(true);
   req.setListIndexes(true);
   return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
@@ -5097,11 +5097,9 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
   bool listTablesLongSignal = false;
   NdbApiSignal tSignal(m_reference);
   ListTablesReq* const req = CAST_PTR(ListTablesReq, tSignal.getDataPtrSend());
+  memcpy(req, &ltreq, sizeof(ListTablesReq));
   req->senderRef = m_reference;
   req->senderData = 0;
-  req->requestData = ltreq.requestData;
-  req->setTableId(ltreq.getTableId());
-  req->setTableType(ltreq.getTableType());
   if (ltreq.getTableId() > 4096)
   {
     /*

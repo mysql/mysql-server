@@ -3095,7 +3095,8 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   apiRegConf->apiHeartbeatFrequency = (chbApiDelay / 10);
   apiRegConf->version = NDB_VERSION;
   apiRegConf->mysql_version = NDB_MYSQL_VERSION_D;
-  NodeState state= apiRegConf->nodeState = getNodeState();
+  NodeState state = getNodeState();
+  apiRegConf->nodeState = state;
   {
     NodeRecPtr nodePtr;
     nodePtr.i = getOwnNodeId();
