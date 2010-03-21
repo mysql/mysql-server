@@ -22,8 +22,8 @@
 #include <NdbOut.hpp>
 #include <NodeBitmask.hpp>
 
-class NodeState {
-public:
+struct NodeStatePOD
+{
   enum StartLevel {
     /**
      * SL_NOTHING 
@@ -107,10 +107,6 @@ public:
   /**
    * Constructor(s)
    */
-  NodeState();
-  NodeState(StartLevel);
-  NodeState(StartLevel, bool systemShutdown);
-  NodeState(StartLevel, Uint32 startPhase, StartType);
   void init();
  
   /**
@@ -184,8 +180,17 @@ public:
    * Is in single user mode
    */
   Uint32 getSingleUserApi() const;
+};
 
-  friend NdbOut & operator<<(NdbOut&, const NodeState&); 
+class NodeState : public NodeStatePOD
+{
+public:
+  NodeState();
+  NodeState(StartLevel);
+  NodeState(StartLevel, bool systemShutdown);
+  NodeState(StartLevel, Uint32 startPhase, StartType);
+
+  NodeState& operator=(const NodeStatePOD&);
 };
 
 inline
@@ -195,7 +200,7 @@ NodeState::NodeState(){
 
 inline
 void
-NodeState::init(){
+NodeStatePOD::init(){
   startLevel = SL_CMVMI;
   nodeGroup = 0xFFFFFFFF;
   dynamicId = 0xFFFFFFFF;
@@ -232,49 +237,49 @@ NodeState::NodeState(StartLevel sl, bool sys){
 }
 
 inline
-void NodeState::setDynamicId(Uint32 dynamic){
+void NodeStatePOD::setDynamicId(Uint32 dynamic){
   dynamicId = dynamic;
 }
   
 inline
-void NodeState::setNodeGroup(Uint32 group){
+void NodeStatePOD::setNodeGroup(Uint32 group){
   nodeGroup = group;
 }
 
 inline 
-void NodeState::setSingleUser(Uint32 s) {
+void NodeStatePOD::setSingleUser(Uint32 s) {
   singleUserMode = s;
 }
 
 inline 
-void NodeState::setSingleUserApi(Uint32 n) {
+void NodeStatePOD::setSingleUserApi(Uint32 n) {
   singleUserApi = n;
 }
 inline 
-bool NodeState::getNodeRestartInProgress() const {
+bool NodeStatePOD::getNodeRestartInProgress() const {
   return startLevel == SL_STARTING && 
     (starting.restartType == ST_NODE_RESTART || 
      starting.restartType == ST_INITIAL_NODE_RESTART);
 }
 
 inline 
-bool NodeState::getSingleUserMode() const {
+bool NodeStatePOD::getSingleUserMode() const {
   return singleUserMode;
 }
 
 inline 
-Uint32 NodeState::getSingleUserApi() const {
+Uint32 NodeStatePOD::getSingleUserApi() const {
   return singleUserApi;
 }
 
 inline 
-bool NodeState::getSystemRestartInProgress() const {
+bool NodeStatePOD::getSystemRestartInProgress() const {
   return startLevel == SL_STARTING && starting.restartType == ST_SYSTEM_RESTART;
 }
 
 inline
 NdbOut &
-operator<<(NdbOut& ndbout, const NodeState & state){
+operator<<(NdbOut& ndbout, const NodeStatePOD & state){
   ndbout << "[NodeState: startLevel: ";
   switch(state.startLevel){
   case NodeState::SL_NOTHING:
@@ -325,4 +330,16 @@ operator<<(NdbOut& ndbout, const NodeState & state){
   return ndbout;
 }
 
+inline
+NodeState&
+NodeState::operator=(const NodeStatePOD& ns)
+{
+  startLevel = ns.startLevel;
+  nodeGroup  = ns.nodeGroup;
+  dynamicId  = ns.dynamicId;
+  singleUserMode = ns.singleUserMode;
+  singleUserApi  = ns.singleUserApi;
+  m_connected_nodes.assign(ns.m_connected_nodes);
+  return * this;
+}
 #endif

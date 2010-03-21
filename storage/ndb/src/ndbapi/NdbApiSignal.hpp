@@ -143,6 +143,7 @@ private:
     SchemaTransBeginReq _SchemaTransBeginReq;
     SchemaTransEndReq _SchemaTransEndReq;
     ApiRegReq _ApiRegReq;
+    ApiRegConf _ApiRegConf;
     ArbitSignalData _ArbitSignalData;
   };
   NdbApiSignal *theNextSignal;
