@@ -3958,7 +3958,7 @@ Dbtup::nr_delete_page_callback(Signal* signal,
 {
   Ptr<GlobalPage> gpage;
   m_global_page_pool.getPtr(gpage, page_id);
-  PagePtr pagePtr= *(PagePtr*)&gpage;
+  PagePtr pagePtr= { (Tup_page*)gpage.p, gpage.i };
   disk_page_set_dirty(pagePtr);
   Dblqh::Nr_op_info op;
   op.m_ptr_i = userpointer;
