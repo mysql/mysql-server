@@ -1,5 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "$Id: brt.c 10921 2009-04-01 16:54:40Z yfogel $"
+#ident "$Id$"
 #ident "Copyright (c) 2007-2009 Tokutek Inc.  All rights reserved."
 #ifndef _TOKU_PTHREAD_H
 #define _TOKU_PTHREAD_H
