@@ -420,10 +420,10 @@ n	m	o	n	m	o
 select t1.*, t2.* from t1 left join t2 on t1.n = t2.n and
 t1.m = t2.m where t1.n = 1 order by t1.o;
 n	m	o	n	m	o
+1	2	11	1	2	3
 1	2	7	1	2	3
 1	2	9	1	2	3
 1	3	9	NULL	NULL	NULL
-1	2	11	1	2	3
 drop table t1,t2;
 CREATE TABLE t1 (id1 INT NOT NULL PRIMARY KEY, dat1 CHAR(1), id2 INT);
 INSERT INTO t1 VALUES (1,'a',1);
