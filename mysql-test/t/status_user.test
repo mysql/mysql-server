@@ -22,7 +22,7 @@ set @@global.general_log=0;
 set @@global.userstat=1;
 flush status;
 
-create table t1 (a int, primary key (a), b int default 0) engine=myisam;
+create table t1 (a int, primary key (a), b int default 0) engine=innodb;
 insert into t1 (a) values (1),(2),(3),(4);
 update t1 set b=1;
 update t1 set b=5 where a=2;

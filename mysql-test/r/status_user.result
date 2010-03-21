@@ -67,7 +67,7 @@ set @save_general_log=@@global.general_log;
 set @@global.general_log=0;
 set @@global.userstat=1;
 flush status;
-create table t1 (a int, primary key (a), b int default 0) engine=myisam;
+create table t1 (a int, primary key (a), b int default 0) engine=innodb;
 insert into t1 (a) values (1),(2),(3),(4);
 update t1 set b=1;
 update t1 set b=5 where a=2;
@@ -96,12 +96,12 @@ Rows_read	6
 Rows_sent	1
 show status like "ha%";
 Variable_name	Value
-Handler_commit	10
+Handler_commit	19
 Handler_delete	1
 Handler_discover	0
-Handler_prepare	10
-Handler_read_first	0
-Handler_read_key	3
+Handler_prepare	18
+Handler_read_first	1
+Handler_read_key	8
 Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
@@ -113,7 +113,7 @@ Handler_update	5
 Handler_write	7
 select variable_value - @global_read_key as "handler_read_key" from information_schema.global_status where variable_name="handler_read_key";
 handler_read_key
-3
+8
 set @@global.userstat=0;
 select * from information_schema.index_statistics;
 TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	ROWS_READ
@@ -138,7 +138,7 @@ ROWS_UPDATED	5
 SELECT_COMMANDS	3
 UPDATE_COMMANDS	11
 OTHER_COMMANDS	9
-COMMIT_TRANSACTIONS	10
+COMMIT_TRANSACTIONS	19
 ROLLBACK_TRANSACTIONS	2
 DENIED_CONNECTIONS	0
 LOST_CONNECTIONS	0
@@ -155,7 +155,7 @@ ROWS_UPDATED	5
 SELECT_COMMANDS	3
 UPDATE_COMMANDS	11
 OTHER_COMMANDS	9
-COMMIT_TRANSACTIONS	10
+COMMIT_TRANSACTIONS	19
 ROLLBACK_TRANSACTIONS	2
 DENIED_CONNECTIONS	0
 LOST_CONNECTIONS	0
