@@ -3119,6 +3119,7 @@ public:
   virtual bool cache_value()= 0;
   bool basic_const_item() const
   { return test(example && example->basic_const_item());}
+  bool walk (Item_processor processor, bool walk_subquery, uchar *argument);
 };
 
 
