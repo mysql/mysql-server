@@ -92,7 +92,7 @@ private:
   Uint32 apiHeartbeatFrequency;
   Uint32 mysql_version;
   Uint32 minDbVersion;
-  NodeState nodeState;
+  NodeStatePOD nodeState;
 };
 
 #endif
