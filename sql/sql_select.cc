@@ -130,7 +130,8 @@ static void restore_prev_sj_state(const table_map remaining_tables,
 
 static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
-			   Item::cond_result *cond_value);
+			   bool build_equalities,
+                           Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo, 
@@ -1494,7 +1495,7 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
 
-  conds= optimize_cond(this, conds, join_list, &cond_value);   
+  conds= optimize_cond(this, conds, join_list, TRUE, &cond_value);
   if (thd->is_error())
   {
     error= 1;
@@ -1503,7 +1504,7 @@ JOIN::optimize()
   }
 
   {
-    having= optimize_cond(this, having, join_list, &having_value);
+    having= optimize_cond(this, having, join_list, FALSE, &having_value);
     if (thd->is_error())
     {
       error= 1;
@@ -9538,14 +9539,45 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       Item_equal *item_eq;
       Field *copy_to=((Item_field*)it++)->field; 
       Item *head;
+      /*
+        Tricks with Item_equal are due to the following: suppose we have a
+        query:
+        
+        ... WHERE cond(ot.col) AND ot.col IN (SELECT it2.col FROM it1,it2
+                                               WHERE it1.col= it2.col)
+         then equality propagation will create an 
+         
+           Item_equal(it1.col, it2.col, ot.col) 
+         
+         then substitute_for_best_equal_field() will change the conditions
+         according to the join order:
+
+           it1
+           it2    it1.col=it2.col
+           ot     cond(it1.col)
+
+         although we've originally had "SELECT it2.col", conditions attached 
+         to subsequent outer tables will refer to it1.col, so SJM-Scan will
+         need to unpack data to there. 
+         That is, if an element from subquery's select list participates in 
+         equality propagation, then we need to unpack it to the first
+         element equality propagation member that refers to table that is
+         within the subquery.
+      */
       item_eq= find_item_equal(tab->join->cond_equal, copy_to, &dummy);
 
-      if (!item_eq->const_item && 
-          (head= item_eq->fields.head())->used_tables() &
-          emb_sj_nest->sj_inner_tables)
+      if (item_eq)
       {
-        DBUG_ASSERT(head->type() == Item::FIELD_ITEM);
-        copy_to= ((Item_field*)head)->field;
+        List_iterator<Item_field> it(item_eq->fields);
+        Item_field *item;
+        while ((item= it++))
+        {
+          if (!(item->used_tables() & ~emb_sj_nest->sj_inner_tables))
+          {
+            copy_to= item->field;
+            break;
+          }
+        }
       }
       sjm->copy_field[i].set(copy_to, sjm->table->field[i], FALSE);
     }
@@ -12790,7 +12822,7 @@ static void restore_prev_sj_state(const table_map remaining_tables,
 
 static COND *
 optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
-              Item::cond_result *cond_value)
+              bool build_equalities, Item::cond_result *cond_value)
 {
   THD *thd= join->thd;
   DBUG_ENTER("optimize_cond");
@@ -12808,10 +12840,12 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
       multiple equality contains a constant.
     */ 
     DBUG_EXECUTE("where", print_where(conds, "original", QT_ORDINARY););
-    conds= build_equal_items(join->thd, conds, NULL, join_list,
-                             &join->cond_equal);
-    DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
-
+    if (build_equalities)
+    {
+      conds= build_equal_items(join->thd, conds, NULL, join_list,
+                               &join->cond_equal);
+      DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
+    }
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
     /*
