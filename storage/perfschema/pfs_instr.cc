@@ -798,7 +798,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
   dirlen= dirname_length(safe_filename);
   if (dirlen == 0)
   {
-    dirbuffer[0]= FN_HOMELIB;
+    dirbuffer[0]= FN_CURLIB;
     dirbuffer[1]= FN_LIBCHAR;
     dirbuffer[2]= '\0';
   }
