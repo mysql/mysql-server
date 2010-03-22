@@ -326,6 +326,15 @@ eval select $mysql_errno as "after_!errno_masked_error" ;
 --exec echo "disable_abort_on_error; error 1000; select 3 from t1; error 1000; select 3 from t1;" | $MYSQL_TEST  2>&1
 
 # ----------------------------------------------------------------------------
+# Check some non-query statements that would fail
+# ----------------------------------------------------------------------------
+--exec illegal_command
+--cat_file does_not_exist
+--perl
+  exit(1);
+EOF
+
+# ----------------------------------------------------------------------------
 # Switch the abort on error on and check the effect on $mysql_errno
 # ----------------------------------------------------------------------------
 --error ER_PARSE_ERROR
