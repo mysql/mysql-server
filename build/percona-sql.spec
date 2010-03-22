@@ -309,7 +309,7 @@ judgment as a high-performance consulting company.
 %patch05 -p1
 %patch06 -p1
 %patch07 -p1
-%patch08 -p1
+%patch08 -p0
 
 if [ "%{redhatversion}" = "5" ] ; then 
 tar xfz $RPM_SOURCE_DIR/%{perconaxtradbplugin} -C storage/innobase --strip-components=1
