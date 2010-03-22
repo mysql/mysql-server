@@ -67,7 +67,7 @@ CACHE STRING "Installation directory layout. Options are: STANDALONE (as in zip 
 #ENDIF()
 
 IF(UNIX)
-  IF(INSTALL_LAYOUT MATCHES "UNIX")
+  IF(INSTALL_LAYOUT MATCHES "RPM")
     SET(default_prefix "/usr")
   ELSEIF(INSTALL_LAYOUT MATCHES "SVR4")
     SET(default_prefix "/opt/mysql/mysql")
