@@ -156,3 +156,73 @@ WHERE varchar_nokey IN (
  t1
 ) XOR pk = 30;
 drop table t1;
+
+--echo #
+--echo # BUG#41842: Semi-join materialization strategy crashes when the upper query has HAVING
+--echo #
+
+CREATE TABLE t1 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  int_nokey int(11) NOT NULL,
+  time_key time NOT NULL,
+  datetime_key datetime NOT NULL,
+  datetime_nokey datetime NOT NULL,
+  varchar_key varchar(1) NOT NULL,
+  varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY time_key (time_key),
+  KEY datetime_key (datetime_key),
+  KEY varchar_key (varchar_key)
+);
+INSERT INTO t1 VALUES 
+(1,0, '00:16:10','2008-09-03 14:25:40','2008-09-03 14:25:40','h','h'),
+(2,7, '00:00:00','2001-01-13 00:00:00','2001-01-13 00:00:00','',''),
+(3,0, '00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','x','x'),
+(4,2, '16:29:24','2000-10-16 01:39:08','2000-10-16 01:39:08','w','w'),
+(5,1, '09:23:32','0000-00-00 00:00:00','0000-00-00 00:00:00','p','p'),
+(6,3, '00:00:00','2007-12-02 00:00:00','2007-12-02 00:00:00','o','o'),
+(7,3, '00:00:00','2008-09-11 00:00:00','2008-09-11 00:00:00','',''),
+(8,0, '13:59:04','0000-00-00 00:00:00','0000-00-00 00:00:00','s','s'),
+(9,7, '09:01:06','0000-00-00 00:00:00','0000-00-00 00:00:00','d','d'),
+(10,5,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','n','n'),
+(11,0,'21:06:46','0000-00-00 00:00:00','0000-00-00 00:00:00','o','o'),
+(12,2,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','',''),
+(13,6,'14:45:34','2003-07-28 02:34:08','2003-07-28 02:34:08','w','w'),
+(14,1,'15:04:12','0000-00-00 00:00:00','0000-00-00 00:00:00','o','o'),
+(15,0,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','x','x'),
+(16,0,'15:55:23','2004-03-17 00:32:27','2004-03-17 00:32:27','p','p'),
+(17,1,'16:30:00','2004-12-27 19:20:00','2004-12-27 19:20:00','d','d'),
+(18,0,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','h','h'),
+(19,0,'14:13:26','2008-11-09 05:53:48','2008-11-09 05:53:48','o','o'),
+(20,0,'00:00:00','2009-10-11 06:58:04','2009-10-11 06:58:04','k','k');
+
+CREATE TABLE t2 (
+  pk int(11) NOT NULL AUTO_INCREMENT,
+  int_nokey int(11) NOT NULL,
+  time_key time NOT NULL,
+  datetime_key datetime NOT NULL,
+  datetime_nokey datetime NOT NULL,
+  varchar_key varchar(1) NOT NULL,
+  varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY time_key (time_key),
+  KEY datetime_key (datetime_key),
+  KEY varchar_key (varchar_key)
+);
+INSERT INTO t2 VALUES 
+(10,0,'19:39:13','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),
+(11,8,'03:43:53','0000-00-00 00:00:00','0000-00-00 00:00:00','b','b');
+SELECT OUTR.datetime_nokey AS X FROM t1 AS OUTR 
+WHERE 
+  OUTR.varchar_nokey IN (SELECT 
+                             INNR . varchar_nokey AS Y 
+                             FROM t2 AS INNR 
+                             WHERE
+                               INNR . datetime_key >= INNR . time_key OR 
+                               INNR . pk = INNR . int_nokey  
+                             ) 
+  AND OUTR . varchar_nokey <= 'w' 
+HAVING X > '2012-12-12';
+drop table t1, t2;
+
+
