@@ -143,6 +143,7 @@ Patch04: microsec_process.patch
 Patch05: userstat.patch
 Patch06: optimizer_fix.patch
 Patch07: mysql-test_for_xtradb.diff
+Patch08: mysql-show_temp_51.patch
 
 
 %define perconaxtradbplugin percona-xtradb-%{pluginversion}-%{xtradbversion}.tar.gz
@@ -308,6 +309,7 @@ judgment as a high-performance consulting company.
 %patch05 -p1
 %patch06 -p1
 %patch07 -p1
+%patch08 -p1
 
 if [ "%{redhatversion}" = "5" ] ; then 
 tar xfz $RPM_SOURCE_DIR/%{perconaxtradbplugin} -C storage/innobase --strip-components=1
