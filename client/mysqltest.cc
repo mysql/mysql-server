@@ -1075,8 +1075,9 @@ void handle_command_error(struct st_command *command, uint error)
                           command->first_word_len, command->query, error));
       DBUG_VOID_RETURN;
     }
-    die("command \"%.*s\" failed with wrong error: %d",
-        command->first_word_len, command->query, error);
+    if (command->expected_errors.count > 0)
+      die("command \"%.*s\" failed with wrong error: %d",
+          command->first_word_len, command->query, error);
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
            command->expected_errors.err[0].code.errnum != 0)
@@ -1345,14 +1346,14 @@ void log_msg(const char *fmt, ...)
 
 */
 
-void cat_file(DYNAMIC_STRING* ds, const char* filename)
+int cat_file(DYNAMIC_STRING* ds, const char* filename)
 {
   int fd;
   size_t len;
   char buff[512];
 
   if ((fd= my_open(filename, O_RDONLY, MYF(0))) < 0)
-    die("Failed to open file '%s'", filename);
+    return 1;
   while((len= my_read(fd, (uchar*)&buff,
                       sizeof(buff), MYF(0))) > 0)
   {
@@ -1376,6 +1377,7 @@ void cat_file(DYNAMIC_STRING* ds, const char* filename)
     dynstr_append_mem(ds, start, p-start);
   }
   my_close(fd, MYF(0));
+  return 0;
 }
 
 
@@ -2769,8 +2771,9 @@ void do_exec(struct st_command *command)
     else
     {
       dynstr_free(&ds_cmd);
-      die("command \"%s\" failed with wrong error: %d",
-          command->first_argument, status);
+      if (command->expected_errors.count > 0)
+        die("command \"%s\" failed with wrong error: %d",
+            command->first_argument, status);
     }
   }
   else if (command->expected_errors.err[0].type == ERR_ERRNO &&
@@ -3549,6 +3552,7 @@ void do_append_file(struct st_command *command)
 
 void do_cat_file(struct st_command *command)
 {
+  int error;
   static DYNAMIC_STRING ds_filename;
   const struct command_arg cat_file_args[] = {
     { "filename", ARG_STRING, TRUE, &ds_filename, "File to read from" }
@@ -3563,8 +3567,8 @@ void do_cat_file(struct st_command *command)
 
   DBUG_PRINT("info", ("Reading from, file: %s", ds_filename.str));
 
-  cat_file(&ds_res, ds_filename.str);
-
+  error= cat_file(&ds_res, ds_filename.str);
+  handle_command_error(command, error);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
 }
