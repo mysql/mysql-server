@@ -1820,7 +1820,8 @@ buf_page_set_file_page_was_freed(
 
 	bpage = buf_page_hash_get(space, offset);
 
-	if (bpage && !buf_pool_watch_is(bpage)) {
+	if (bpage) {
+		ut_ad(!buf_pool_watch_is(bpage));
 		bpage->file_page_was_freed = TRUE;
 	}
 
@@ -1848,7 +1849,8 @@ buf_page_reset_file_page_was_freed(
 
 	bpage = buf_page_hash_get(space, offset);
 
-	if (bpage && !buf_pool_watch_is(bpage)) {
+	if (bpage) {
+		ut_ad(!buf_pool_watch_is(bpage));
 		bpage->file_page_was_freed = FALSE;
 	}
 
@@ -1889,7 +1891,8 @@ buf_page_get_zip(
 		buf_pool_mutex_enter();
 lookup:
 		bpage = buf_page_hash_get(space, offset);
-		if (bpage && !buf_pool_watch_is(bpage)) {
+		if (bpage) {
+			ut_ad(!buf_pool_watch_is(bpage));
 			break;
 		}
 
