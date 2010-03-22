@@ -193,7 +193,7 @@ static int TRACENR_FLAG = 0;
 static NdbOut * traceopout = 0;
 #define TRACE_OP(regTcPtr, place) do { if (TRACE_OP_CHECK(regTcPtr)) TRACE_OP_DUMP(regTcPtr, place); } while(0)
 #else
-#define TRACE_OP(x, y) {}
+#define TRACE_OP(x, y) { (void)x;}
 #endif
 
 struct LogPosition
@@ -2931,6 +2931,7 @@ void Dblqh::execLQHKEYREF(Signal* signal)
 {
   jamEntry();
   tcConnectptr.i = signal->theData[0];
+  Uint32 tcOprec  = signal->theData[1];
   terrorCode = signal->theData[2];
   Uint32 transid1 = signal->theData[3];
   Uint32 transid2 = signal->theData[4];
@@ -2938,20 +2939,38 @@ void Dblqh::execLQHKEYREF(Signal* signal)
     errorReport(signal, 3);
     return;
   }//if
-/*------------------------------------------------------------------*/
-/*       WE HAVE TO CHECK THAT THE SIGNAL DO NOT BELONG TO SOMETHING*/
-/*       REMOVED DUE TO A TIME-OUT.                                 */
-/*------------------------------------------------------------------*/
+
   ptrAss(tcConnectptr, tcConnectionrec);
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
+
+  if (likely(! ((regTcPtr->connectState == TcConnectionrec::LOG_CONNECTED) ||
+                (regTcPtr->connectState == TcConnectionrec::COPY_CONNECTED))))
+  {
+    /**
+     * This...is unpleasant...
+     *   LOG_CONNECTED and COPY_CONNECTED will not release there tcConnectptr
+     *   before all outstanding is finished.
+     *
+     *   CONNECTED on the other hand can, (in ::execABORT)
+     *     which means that findTransaction *should* be used
+     *     to make sure that correct tcConnectptr is accessed.
+     *
+     *   However, as LOG_CONNECTED & COPY_CONNECTED only uses 1 tcConnectptr
+     *     (and fiddles) with transid and other stuff, I could
+     *     not find an easy way to modify the code so that findTransaction
+     *     is usable also for them
+     */
+    if (findTransaction(transid1, transid2, tcOprec) != ZOK)
+    {
+      jam();
+      warningReport(signal, 14);
+      return;
+    }
+  }
+
   switch (regTcPtr->connectState) {
   case TcConnectionrec::CONNECTED:
     jam();
-    if ((regTcPtr->transid[0] != transid1) ||
-        (regTcPtr->transid[1] != transid2)) {
-      warningReport(signal, 14);
-      return;
-    }//if
     if (regTcPtr->abortState != TcConnectionrec::ABORT_IDLE) {
       warningReport(signal, 15);
       return;
@@ -3342,6 +3361,7 @@ void Dblqh::execTUPKEYREF(Signal* signal)
 /* ------------------------------------------------------------------------- */
     break;
   default:
+    jamLine(tcConnectptr.p->transactionState);
     ndbrequire(false);
     break;
   }//switch
@@ -7327,7 +7347,7 @@ void Dblqh::execLQHKEYCONF(Signal* signal)
     return;
     break;
   default:
-    jam();
+    jamLine(tcConnectptr.p->connectState);
     ndbrequire(false);
     break;
   }//switch
@@ -8367,6 +8387,7 @@ void Dblqh::abortContinueAfterBlockedLab(Signal* signal)
   Uint32 canBlock = 2; // 2, block if needed
   switch(regTcPtr->transactionState){
   case TcConnectionrec::WAIT_TUP:
+    jam();
     /**
      * This is when getting from execTUPKEYREF
      *   in which case we *do* have ACC lock
@@ -16111,14 +16132,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   cnewestGci = req->newestGci;
   cstartRecReqData = req->senderData;
 
-#if 0
-  /**
-   * This require fails...
-   *   investigate what is reasonable to do!!
-   *   and what it means
-   */
   ndbrequire(crestartOldestGci <= crestartNewestGci);
-#endif
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
@@ -18177,6 +18191,8 @@ void Dblqh::readSrFourthPhaseLab(Signal* signal)
      * If "keepGci" is bigger than latest-completed-gci
      *   move cnewest/cnewestCompletedGci forward
      */
+    ndbout_c("readSrFourthPhaseLab: gci %u => %u",
+             gci, crestartOldestGci);
     gci = crestartOldestGci;
   }
   cnewestGci = gci;
