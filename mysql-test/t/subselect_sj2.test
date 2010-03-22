@@ -796,3 +796,12 @@ explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 select count(a) from t2 where a in ( SELECT  a FROM t3);
 
 drop table t0,t1,t2,t3;
+
+--echo
+--echo BUG#42740: crash in optimize_semijoin_nests
+--echo
+create table t1 (c6 timestamp,key (c6)) engine=innodb;
+create table t2 (c2 double) engine=innodb;
+explain select 1 from t2 where c2 = any (select log10(null) from t1 where c6 <null)  ;
+drop table t1, t2;
+
