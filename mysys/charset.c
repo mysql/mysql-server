@@ -245,6 +245,8 @@ static int add_collation(CHARSET_INFO *cs)
       if (cs_copy_data(all_charsets[cs->number],cs))
         return MY_XML_ERROR;
 
+      newcs->caseup_multiply= newcs->casedn_multiply= 1;
+
       if (!strcmp(cs->csname,"ucs2") )
       {
 #if defined(HAVE_CHARSET_ucs2) && defined(HAVE_UCA_COLLATIONS)

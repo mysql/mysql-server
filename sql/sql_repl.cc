@@ -2003,7 +2003,6 @@ int log_loaded_block(IO_CACHE* file)
       if (mysql_bin_log.write(&b))
         DBUG_RETURN(1);
       lf_info->wrote_create_file= 1;
-      DBUG_SYNC_POINT("debug_lock.created_file_event",10);
     }
   }
   DBUG_RETURN(0);
