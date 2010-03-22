@@ -31,14 +31,12 @@ ELSE()
   SET(ini_file_extension "cnf")
 ENDIF()
 
-IF(UNIX)
-  IF(INSTALL_LAYOUT MATCHES "STANDALONE")
-    SET(inst_location ${INSTALL_SUPPORTFILESDIR})
-  ELSE()
-    SET(inst_location ${INSTALL_DOCREADMEDIR})
-  ENDIF()
-ELSE()
+# XXX: shouldn't we just have variables for all this stuff and centralise
+# XXX: their configuration in install_layout.cmake?
+IF(WIN32)
   SET(inst_location ${INSTALL_DOCREADMEDIR})
+ELSE()
+  SET(inst_location ${INSTALL_SUPPORTFILESDIR})
 ENDIF()
 
 FOREACH(inifile my-huge my-innodb-heavy-4G my-large my-medium my-small)
@@ -48,14 +46,13 @@ FOREACH(inifile my-huge my-innodb-heavy-4G my-large my-medium my-small)
 ENDFOREACH()
 
 IF(UNIX)
+  # XXX: again, used elsewhere (scripts/), should be standardised in
+  # XXX: install_layout.cmake
   IF(INSTALL_LAYOUT MATCHES "STANDALONE")
     SET(prefix ".")
-    SET(inst_location ${INSTALL_SUPPORTFILESDIR})
   ELSE()
     SET(prefix ${CMAKE_INSTALL_PREFIX})
-    SET(inst_location ${INSTALL_MYSQLSHAREDIR})
   ENDIF()
-
  
   FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure
     config.medium.ini config.small.ini config.huge.ini ndb-config-2-node.ini)
