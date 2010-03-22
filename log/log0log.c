@@ -608,7 +608,9 @@ log_group_calc_lsn_offset(
 
 	offset = (gr_lsn_size_offset + difference) % group_size;
 
+	if (sizeof(ulint) == 4) {
 	ut_a(offset < (((ib_int64_t) 1) << 32)); /* offset must be < 4 GB */
+	}
 
 	/* fprintf(stderr,
 	"Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
@@ -1805,6 +1807,7 @@ log_group_checkpoint(
 	mach_write_to_4(buf + LOG_CHECKPOINT_LOG_BUF_SIZE, log_sys->buf_size);
 
 #ifdef UNIV_LOG_ARCHIVE
+#error "UNIV_LOG_ARCHIVE could not be enabled"
 	if (log_sys->archiving_state == LOG_ARCH_OFF) {
 		archived_lsn = IB_ULONGLONG_MAX;
 	} else {
@@ -1818,7 +1821,9 @@ log_group_checkpoint(
 
 	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, archived_lsn);
 #else /* UNIV_LOG_ARCHIVE */
-	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN, IB_ULONGLONG_MAX);
+	mach_write_ull(buf + LOG_CHECKPOINT_ARCHIVED_LSN,
+			(ib_uint64_t)log_group_calc_lsn_offset(
+				log_sys->next_checkpoint_lsn, group));
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < LOG_MAX_N_GROUPS; i++) {

@@ -1018,6 +1018,10 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Mar 22 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
+
+XtraDB Release 10
+
 * Thu Feb 11 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
 
 Package name changed to Percona-XtraDB

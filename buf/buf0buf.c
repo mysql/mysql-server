@@ -52,6 +52,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "log0recv.h"
 #include "page0zip.h"
 #include "trx0trx.h"
+#include "srv0start.h"
 
 /* prototypes for new functions added to ha_innodb.cc */
 trx_t* innobase_get_trx();
@@ -348,6 +349,27 @@ buf_calc_page_new_checksum(
 	return(checksum);
 }
 
+UNIV_INTERN
+ulint
+buf_calc_page_new_checksum_32(
+/*==========================*/
+	const byte*	page)	/*!< in: buffer page */
+{
+	ulint checksum;
+
+	checksum = ut_fold_binary(page + FIL_PAGE_OFFSET,
+				  FIL_PAGE_FILE_FLUSH_LSN - FIL_PAGE_OFFSET)
+		+ ut_fold_binary(page + FIL_PAGE_DATA,
+				 FIL_PAGE_DATA_ALIGN_32 - FIL_PAGE_DATA)
+		+ ut_fold_binary_32(page + FIL_PAGE_DATA_ALIGN_32,
+				    UNIV_PAGE_SIZE - FIL_PAGE_DATA_ALIGN_32
+				    - FIL_PAGE_END_LSN_OLD_CHKSUM);
+
+	checksum = checksum & 0xFFFFFFFFUL;
+
+	return(checksum);
+}
+
 /********************************************************************//**
 In versions < 4.0.14 and < 4.1.1 there was a bug that the checksum only
 looked at the first few bytes of the page. This calculates that old
@@ -462,8 +484,20 @@ buf_page_is_corrupted(
 		/* InnoDB versions < 4.0.14 and < 4.1.1 stored the space id
 		(always equal to 0), to FIL_PAGE_SPACE_OR_CHKSUM */
 
-		if (checksum_field != 0
+		if (!srv_fast_checksum
+		    && checksum_field != 0
 		    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+		    && checksum_field
+		    != buf_calc_page_new_checksum(read_buf)) {
+
+			return(TRUE);
+		}
+
+		if (srv_fast_checksum
+		    && checksum_field != 0
+		    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+		    && checksum_field
+		    != buf_calc_page_new_checksum_32(read_buf)
 		    && checksum_field
 		    != buf_calc_page_new_checksum(read_buf)) {
 
@@ -488,6 +522,7 @@ buf_page_print(
 	dict_index_t*	index;
 #endif /* !UNIV_HOTBACKUP */
 	ulint		checksum;
+	ulint		checksum_32;
 	ulint		old_checksum;
 	ulint		size	= zip_size;
 
@@ -574,12 +609,14 @@ buf_page_print(
 
 	checksum = srv_use_checksums
 		? buf_calc_page_new_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
+	checksum_32 = srv_use_checksums
+		? buf_calc_page_new_checksum_32(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 	old_checksum = srv_use_checksums
 		? buf_calc_page_old_checksum(read_buf) : BUF_NO_CHECKSUM_MAGIC;
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
-		"  InnoDB: Page checksum %lu, prior-to-4.0.14-form"
+		"  InnoDB: Page checksum %lu (32bit_calc: %lu), prior-to-4.0.14-form"
 		" checksum %lu\n"
 		"InnoDB: stored checksum %lu, prior-to-4.0.14-form"
 		" stored checksum %lu\n"
@@ -588,7 +625,7 @@ buf_page_print(
 		"InnoDB: Page number (if stored to page already) %lu,\n"
 		"InnoDB: space id (if created with >= MySQL-4.1.1"
 		" and stored already) %lu\n",
-		(ulong) checksum, (ulong) old_checksum,
+		(ulong) checksum, (ulong) checksum_32, (ulong) old_checksum,
 		(ulong) mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM),
 		(ulong) mach_read_from_4(read_buf + UNIV_PAGE_SIZE
 					 - FIL_PAGE_END_LSN_OLD_CHKSUM),
@@ -1809,6 +1846,14 @@ err_exit:
 		return(NULL);
 	}
 
+	if (srv_pass_corrupt_table) {
+		if (bpage->is_corrupt) {
+			rw_lock_s_unlock(&page_hash_latch);
+			return(NULL);
+		}
+	}
+	ut_a(!(bpage->is_corrupt));
+
 	block_mutex = buf_page_get_mutex_enter(bpage);
 
 	rw_lock_s_unlock(&page_hash_latch);
@@ -2245,6 +2290,14 @@ loop2:
 
 		return(NULL);
 	}
+
+	if (srv_pass_corrupt_table) {
+		if (block->page.is_corrupt) {
+			mutex_exit(block_mutex);
+			return(NULL);
+		}
+	}
+	ut_a(!(block->page.is_corrupt));
 
 	switch (buf_block_get_state(block)) {
 		buf_page_t*	bpage;
@@ -2874,6 +2927,7 @@ buf_page_init_low(
 	bpage->newest_modification = 0;
 	bpage->oldest_modification = 0;
 	HASH_INVALIDATE(bpage, hash);
+	bpage->is_corrupt = FALSE;
 #ifdef UNIV_DEBUG_FILE_ACCESSES
 	bpage->file_page_was_freed = FALSE;
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
@@ -3329,7 +3383,8 @@ UNIV_INTERN
 void
 buf_page_io_complete(
 /*=================*/
-	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
+	buf_page_t*	bpage,	/*!< in: pointer to the block in question */
+	trx_t*		trx)
 {
 	enum buf_io_fix	io_type;
 	const ibool	uncompressed = (buf_page_get_state(bpage)
@@ -3406,6 +3461,7 @@ buf_page_io_complete(
 				(ulong) bpage->offset);
 		}
 
+		if (!srv_pass_corrupt_table || !bpage->is_corrupt) {
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
 
@@ -3447,6 +3503,19 @@ corrupt:
 			      REFMAN "forcing-recovery.html\n"
 			      "InnoDB: about forcing recovery.\n", stderr);
 
+			if (srv_pass_corrupt_table && bpage->space > 0
+			    && bpage->space < SRV_LOG_SPACE_FIRST_ID) {
+				fprintf(stderr,
+					"InnoDB: space %lu will be treated as corrupt.\n",
+					bpage->space);
+				fil_space_set_corrupt(bpage->space);
+				if (trx && trx->dict_operation_lock_mode == 0) {
+					dict_table_set_corrupt_by_space(bpage->space, TRUE);
+				} else {
+					dict_table_set_corrupt_by_space(bpage->space, FALSE);
+				}
+				bpage->is_corrupt = TRUE;
+			} else
 			if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
 				fputs("InnoDB: Ending processing because of"
 				      " a corrupt database page.\n",
@@ -3454,6 +3523,7 @@ corrupt:
 				exit(1);
 			}
 		}
+		} /**/
 
 		if (recv_recovery_is_on()) {
 			/* Pages must be uncompressed for crash recovery. */
@@ -3463,8 +3533,11 @@ corrupt:
 
 		if (uncompressed && !recv_no_ibuf_operations) {
 			ibuf_merge_or_delete_for_page(
+				/* Delete possible entries, if bpage is_corrupt */
+				(srv_pass_corrupt_table && bpage->is_corrupt) ? NULL :
 				(buf_block_t*) bpage, bpage->space,
 				bpage->offset, buf_page_get_zip_size(bpage),
+				(srv_pass_corrupt_table && bpage->is_corrupt) ? FALSE :
 				TRUE);
 		}
 	}

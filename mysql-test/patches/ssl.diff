@@ -1,0 +1,263 @@
+--- mysql-test/std_data/cacert.pem.orig	2010-01-15 12:47:12.000000000 -0500
++++ mysql-test/std_data/cacert.pem	2010-02-14 17:01:32.000000000 -0500
+@@ -1,17 +1,22 @@
+ -----BEGIN CERTIFICATE-----
+-MIICrTCCAhagAwIBAgIJAJXpePU0UOTVMA0GCSqGSIb3DQEBBQUAMEQxCzAJBgNV
++MIIDsjCCApqgAwIBAgIJAOiD3vW/l9QoMA0GCSqGSIb3DQEBBQUAMEQxCzAJBgNV
+ BAYTAlNFMRAwDgYDVQQIEwdVcHBzYWxhMRAwDgYDVQQHEwdVcHBzYWxhMREwDwYD
+-VQQKEwhNeVNRTCBBQjAeFw0wOTAxMjgxMDQ5NDZaFw0xNDAxMjcxMDQ5NDZaMEQx
++VQQKEwhNeVNRTCBBQjAeFw0xMDAyMTQyMjAxMzBaFw0xMjExMTAyMjAxMzBaMEQx
+ CzAJBgNVBAYTAlNFMRAwDgYDVQQIEwdVcHBzYWxhMRAwDgYDVQQHEwdVcHBzYWxh
+-MREwDwYDVQQKEwhNeVNRTCBBQjCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEA
+-4XQHAe5R1+TXC8noZtWf+d5E0v1C59FWpn9SWEUCBjE5UiIwuJvi4Y+7xWGOXLAI
+-/JzJx5gNXLBiTsE/zh0uX9fKlajLhxB0GN+QU0ZlpQ1BeYipEcNXeI/7cT499f6v
+-XWabnTflivdCgHSWUOQ20/Lzs6kP6/e6OoZd/DPSjPECAwEAAaOBpjCBozAdBgNV
+-HQ4EFgQU8uLqVWWkmuKsnZf1RWz294wRrd8wdAYDVR0jBG0wa4AU8uLqVWWkmuKs
+-nZf1RWz294wRrd+hSKRGMEQxCzAJBgNVBAYTAlNFMRAwDgYDVQQIEwdVcHBzYWxh
+-MRAwDgYDVQQHEwdVcHBzYWxhMREwDwYDVQQKEwhNeVNRTCBBQoIJAJXpePU0UOTV
+-MAwGA1UdEwQFMAMBAf8wDQYJKoZIhvcNAQEFBQADgYEAMMTE5sDN+Z0ZlV7KvH3g
+-6+aKvql8dTpRT3hYukeQlWua0nq74WPGVw0c4e/M/vbiMwmJcCYpB9pd4+dHqzSw
+-aPyoenjY6UF8n7B4quWy3SIUk2LSHeJLW+kzJn2afN9gvipFhdVh/uU2TIyLGOur
+-Z/vmJX2W7hF1uqPnbfa8Lrw=
++MREwDwYDVQQKEwhNeVNRTCBBQjCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC
++ggEBAL7i2wnVrN8RUYVwJySWauBwWTuIjqn/4vw74YLbkQAHEvzjS2paEHMjCbBH
++5e6mR7xPsOQuzO7bKysdt7DjuipRqvPCbl/OZQ+IP80XMDcNk1hUar8mGayMszS/
++TL7CLD8Zj88kHCYa/jHYGYw+ZosBqJRtba1CHObSmguazIXU5Oy2jTvRB8wChJuU
++lc7QfepHfXcaS4uSe1dbiGV916OyUYs4xjSgHarfRB7lgtrkFm+4Td27mfcAXGmo
++lytwtOI1hUz+1vBcydd3u4vKUNDyQOhBLvwBk8LrOMQTpuTWkmsTaTgTiUfRnSkd
++nMTmbQ9IJobe5pqU/qrwh3vxdrUCAwEAAaOBpjCBozAdBgNVHQ4EFgQUnzrA4oId
++BRTt60onkInqYMF1BJ0wdAYDVR0jBG0wa4AUnzrA4oIdBRTt60onkInqYMF1BJ2h
++SKRGMEQxCzAJBgNVBAYTAlNFMRAwDgYDVQQIEwdVcHBzYWxhMRAwDgYDVQQHEwdV
++cHBzYWxhMREwDwYDVQQKEwhNeVNRTCBBQoIJAOiD3vW/l9QoMAwGA1UdEwQFMAMB
++Af8wDQYJKoZIhvcNAQEFBQADggEBAFvBWGTiLK4cc9k94iOQUc1odKBNlohHQ2UQ
++rOZecsCydIoNtImFmGWE0WKAdUUrCQZAqyQguODBd4a5YlGYRNXc2H93LuAdYvyo
++pldMywYfKyqb+vxGueClkW10hq9E+C8/KNTVE+CcGT7/j805OZOHMVGQqEuQRORR
++uqAtxCcsB/h1cCzvx8pjHIesXklwEOCYpThI6hC0vnoIPbDf1rgg2B+zNAEspTV1
++rYVvVf7mb0cqaDaGn5V09WIpaec3bnsa3U1BFDuUkmB4R874TJA+VaoN+qYbX8Kk
++ayDax257qtTqcQPy4ckVibMmreuVFJVDcoYiXRE4ly0cfeF+G8I=
+ -----END CERTIFICATE-----
+--- mysql-test/std_data/server-cert.pem.orig	2010-02-14 17:01:30.000000000 -0500
++++ mysql-test/std_data/server-cert.pem	2010-02-14 17:01:32.000000000 -0500
+@@ -1,55 +1,20 @@
+-Certificate:
+-    Data:
+-        Version: 3 (0x2)
+-        Serial Number: 1 (0x1)
+-        Signature Algorithm: sha1WithRSAEncryption
+-        Issuer: C=SE, ST=Uppsala, L=Uppsala, O=MySQL AB
+-        Validity
+-            Not Before: Jan 28 10:55:13 2009 GMT
+-            Not After : Jan 28 10:55:13 2010 GMT
+-        Subject: C=SE, ST=Uppsala, O=MySQL AB, CN=localhost/emailAddress=abstract.mysql.developer@mysql.com
+-        Subject Public Key Info:
+-            Public Key Algorithm: rsaEncryption
+-            RSA Public Key: (512 bit)
+-                Modulus (512 bit):
+-                    00:b6:8f:e5:b7:b4:86:83:13:8a:f9:bf:63:cb:64:
+-                    2d:b9:51:d1:de:ab:7b:45:1f:aa:b5:66:73:13:f9:
+-                    a6:07:d5:ba:7c:fa:92:bd:37:e2:ad:87:db:3e:b6:
+-                    6a:12:64:f8:ee:17:e3:15:06:2f:a8:82:68:bf:57:
+-                    8d:c3:04:98:27
+-                Exponent: 65537 (0x10001)
+-        X509v3 extensions:
+-            X509v3 Basic Constraints: 
+-                CA:FALSE
+-            X509v3 Subject Key Identifier: 
+-                D9:9A:B8:5F:22:EA:04:10:C8:25:7D:82:57:E6:2E:FD:19:29:E7:DA
+-            X509v3 Authority Key Identifier: 
+-                keyid:F2:E2:EA:55:65:A4:9A:E2:AC:9D:97:F5:45:6C:F6:F7:8C:11:AD:DF
+-                DirName:/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB
+-                serial:95:E9:78:F5:34:50:E4:D5
+-
+-    Signature Algorithm: sha1WithRSAEncryption
+-        54:07:2d:21:0b:a5:af:3b:58:23:32:5e:56:7f:ab:58:63:48:
+-        91:aa:38:90:89:16:f9:cc:bf:a4:0e:78:2b:9f:c5:1b:58:a6:
+-        e6:08:8f:2e:ae:97:03:21:9b:f1:cd:c0:26:8f:1d:d7:28:27:
+-        a0:8e:81:09:1b:1c:0f:c9:a5:41:3a:2d:44:3f:9c:fa:87:ff:
+-        c8:4c:2b:44:f7:1b:c1:3e:4f:01:7f:e9:26:cc:9f:1c:06:b5:
+-        0b:27:d1:10:90:be:93:0c:9c:e7:b0:d1:ea:27:99:4e:06:14:
+-        0c:7a:e9:c1:52:c5:33:68:bc:61:0d:db:81:3b:57:48:57:bf:
+-        42:9a
+ -----BEGIN CERTIFICATE-----
+-MIICkzCCAfygAwIBAgIBATANBgkqhkiG9w0BAQUFADBEMQswCQYDVQQGEwJTRTEQ
+-MA4GA1UECBMHVXBwc2FsYTEQMA4GA1UEBxMHVXBwc2FsYTERMA8GA1UEChMITXlT
+-UUwgQUIwHhcNMDkwMTI4MTA1NTEzWhcNMTAwMTI4MTA1NTEzWjB5MQswCQYDVQQG
+-EwJTRTEQMA4GA1UECBMHVXBwc2FsYTERMA8GA1UEChMITXlTUUwgQUIxEjAQBgNV
+-BAMTCWxvY2FsaG9zdDExMC8GCSqGSIb3DQEJARYiYWJzdHJhY3QubXlzcWwuZGV2
+-ZWxvcGVyQG15c3FsLmNvbTBcMA0GCSqGSIb3DQEBAQUAA0sAMEgCQQC2j+W3tIaD
+-E4r5v2PLZC25UdHeq3tFH6q1ZnMT+aYH1bp8+pK9N+Kth9s+tmoSZPjuF+MVBi+o
+-gmi/V43DBJgnAgMBAAGjgaMwgaAwCQYDVR0TBAIwADAdBgNVHQ4EFgQU2Zq4XyLq
+-BBDIJX2CV+Yu/Rkp59owdAYDVR0jBG0wa4AU8uLqVWWkmuKsnZf1RWz294wRrd+h
+-SKRGMEQxCzAJBgNVBAYTAlNFMRAwDgYDVQQIEwdVcHBzYWxhMRAwDgYDVQQHEwdV
+-cHBzYWxhMREwDwYDVQQKEwhNeVNRTCBBQoIJAJXpePU0UOTVMA0GCSqGSIb3DQEB
+-BQUAA4GBAFQHLSELpa87WCMyXlZ/q1hjSJGqOJCJFvnMv6QOeCufxRtYpuYIjy6u
+-lwMhm/HNwCaPHdcoJ6COgQkbHA/JpUE6LUQ/nPqH/8hMK0T3G8E+TwF/6SbMnxwG
+-tQsn0RCQvpMMnOew0eonmU4GFAx66cFSxTNovGEN24E7V0hXv0Ka
++MIIDMTCCAhkCAQEwDQYJKoZIhvcNAQEFBQAwRDELMAkGA1UEBhMCU0UxEDAOBgNV
++BAgTB1VwcHNhbGExEDAOBgNVBAcTB1VwcHNhbGExETAPBgNVBAoTCE15U1FMIEFC
++MB4XDTEwMDIxNDIyMDEzMFoXDTEyMTExMDIyMDEzMFoweTELMAkGA1UEBhMCU0Ux
++EDAOBgNVBAgTB1VwcHNhbGExETAPBgNVBAoTCE15U1FMIEFCMRIwEAYDVQQDEwls
++b2NhbGhvc3QxMTAvBgkqhkiG9w0BCQEWImFic3RyYWN0Lm15c3FsLmRldmVsb3Bl
++ckBteXNxbC5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCl73DV
+++fAIPRQrImR4uv5QT3Yj1okuSf9nrR3V4PxX8KdyvLJEOYX59VcYm8F/6edH/e3f
++WQKRk5J8Hpu8l3wAjHfarg6nI4wRuxnYT+7e0+R9X7VcwfHizAE7TNUP5sXLM8Pb
++DpMo/fozSihZ1zy/KoA7um9h6OZX+9N8hl1XEJ0JflAsFK5NTzE+fU4albTm5s5h
++31+s7KGIrbTSOpq553uIlASggmrfZIEXkR1YdnTiib94sxc+0aJ96LmWjM2EiV+L
++BfqbUt3rudiO4QjPO72jzIMaocp2uJdrek1rbDh0R81Z20SlYe4qm8GsLHG9ajyD
++bkx275UeduG3nbSXAgMBAAEwDQYJKoZIhvcNAQEFBQADggEBALMewBn360Aw7VIw
++Jzw7rr5B0aHL80zwvKcqX1koPoI6y36xKMmkMzakOWQhD7565mm096KOvPYoNy9E
++7U/wsaylLF0lSHOe541llDgvOCH/emIQiKBCmXscQncFzEkme9/va0wTU1yRad5D
++ftbcCjuqTysq/eUUBnNd9rWBQW31dqpL4eWMassU2qk5G+XIoEnYCikp2tahg1OR
++3IO99uUw6XbSUth6NxiMpOCnp+P5aaB0V9Hj8JuLiRUG+y/W6LoNL4Jeyi8t/JxG
++9G7I8APLt9KAoJrV46S/4NGt7Z5KrQrCGIhjFLKPkGktefeIO7m4XsvdCyL0Hi37
++48xn888=
+ -----END CERTIFICATE-----
+--- mysql-test/std_data/server-key.pem.orig	2010-01-15 12:47:13.000000000 -0500
++++ mysql-test/std_data/server-key.pem	2010-02-14 17:01:32.000000000 -0500
+@@ -1,9 +1,27 @@
+ -----BEGIN RSA PRIVATE KEY-----
+-MIIBOQIBAAJBALaP5be0hoMTivm/Y8tkLblR0d6re0UfqrVmcxP5pgfVunz6kr03
+-4q2H2z62ahJk+O4X4xUGL6iCaL9XjcMEmCcCAwEAAQJASA5VwgNb0CKHiPm0ntOk
+-hG+54SRX3DmafEy6gRjZIl/bZ/asSLhXUZ+CeohyrQh7BZgYWvykd8pRISL9eKsU
+-GQIhAOXkUrOtP/EtjyqNluEqZdG+RZi/7p61JS3Ce13Myu+LAiEAy0uMlV34AJpM
+-b40FPKqlHxw8DD/Dt1iKhNVAg8+LDVUCIFjv7fbJDbW2VG63/Cj8CAwOukoP5rbL
+-iaicVrHBKrllAiB9+MiaXeopZXNrxDS0jQFYr8Q9yt1aJVFgUkxx4Q9HKQIgZPs0
+-KlF3NNNWw78INaAEkyf0IEssnLMsuoCWw0DIOak=
++MIIEowIBAAKCAQEApe9w1fnwCD0UKyJkeLr+UE92I9aJLkn/Z60d1eD8V/Cncryy
++RDmF+fVXGJvBf+nnR/3t31kCkZOSfB6bvJd8AIx32q4OpyOMEbsZ2E/u3tPkfV+1
++XMHx4swBO0zVD+bFyzPD2w6TKP36M0ooWdc8vyqAO7pvYejmV/vTfIZdVxCdCX5Q
++LBSuTU8xPn1OGpW05ubOYd9frOyhiK200jqaued7iJQEoIJq32SBF5EdWHZ04om/
++eLMXPtGifei5lozNhIlfiwX6m1Ld67nYjuEIzzu9o8yDGqHKdriXa3pNa2w4dEfN
++WdtEpWHuKpvBrCxxvWo8g25Mdu+VHnbht520lwIDAQABAoIBAGageYQNyhP+Wrv2
++0HcPB/z5uFKf/EYhxBIGMt62ALwO/jFrXUHu5drbj1uL8ZhAPSf8eCNb9Me+oqmb
++cKyqcCoStooMfsmGpbnNo0Vy4oT0PmwARrYwyX6At/5KHbhw/UIZKPgRwphmxFj2
++c5BlG5AMJDVMsFi458Xg3UM2AwK2J6u7CimblEbNAIykB7KK47UElyERJNbGSkJQ
++llnyrW4D2QwMLhCZpYg0ekwGgoFXBQRfndRu60/JWltdzoAgJI+QnbNf1QnURObo
++tXdpfr0JztN+wVj4w30cCiU5tgP38FcLFVE2ZbGe6vtXliBPa24tpABHKbJYVujy
++FZxh5rkCgYEA1DmOgLkqE2gV2dTWYCptnWJ8+MF1Idvak3ABtXuBvbrhpJE3NClN
++Ii3e6zyrVb3qpcBhFl/jriQ/UjxhDHVh0kUiWQOBP8oNklzfgqTasYbMG62m1PGi
++qBvN2ncd0fManIlMmRjHczyRK+zdMMytrthhROHers99A1s+YG03A00CgYEAyCmV
++7IkbCSE0KqRXbghKw6ZXGcuwfkBcdJlBzhJicPP5gsOdjQ0/xHWpA5ouLMJYYh6Z
++WLPG+wOkDcVYzQs/c/uu0OUyrzLN5VdggciBwGTl6qYLx7DEfrmh3UPD0hGKmE4r
++O9tLCbpJNFD3WuEqWGy8m48sr0WnHzQ8hlPlnXMCgYEAmL98g8XCNQmbgJeiXMDs
+++HRkwp5rch1NqwTZFgh5D1gtBEfI1fBMJieh5Opb33C8LOTUfEg0FajdMpFmwJLT
++/4Xm/O563rDNJ+VUsjF5foEo81r/UxFAI4MvnOhTPEOfib+AtEiTdavISTdI1NDc
++yZXQHMX9gxCwR/QqZzj0eZkCgYBs9t6MBtN18+JvOEn0N4Vj3wDZpR4ujKEIRIoj
++QbTfYqG5Av6Y09ab/6WDtYJfkWkF+Txnom63JXNAn+dIsE/ZtvCi/bLK13Bo4llC
++LcIc15CmXcBZ9Cv0BOBOEN7gU/ZMFXnJuwathADn/w+5JIyl2IQQdy/PNq7U+N3e
++DnwYawKBgDrElqNO4FZY8C+gJeK4AGrf+rvxFrHRbX0XaNr7vCHAwjqDLcK4DGvp
++AXLXQNd7sLjaNlSXMtxdivkKqMJOvBE6Rqs5mNFnxjMBufbmuZLXUeqV/MBFkLu3
++T8TcStB21mTepHvuEaLl78VCC2kKPL0p0kY2HoaG/FbXiWIoASxb
+ -----END RSA PRIVATE KEY-----
+--- mysql-test/std_data/client-key.pem.orig	2010-01-15 12:47:12.000000000 -0500
++++ mysql-test/std_data/client-key.pem	2010-02-14 17:01:32.000000000 -0500
+@@ -1,9 +1,27 @@
+ -----BEGIN RSA PRIVATE KEY-----
+-MIIBOQIBAAJBAOFSMCzZvmQokV16/dnpFDV60pROkUbg259refRMrG4HYTSGdGKn
+-qESv+oeHqH1CYf+rUNR7v3X61dWzdPtWHjcCAwEAAQJAXYooM8ZlcuEgj+VKU1ee
+-qyEFIMqJJxqcMk+E/nWCM96WxCP3zHNSrqNfSpI3ld7QzMwhdRz+gFLxT2gGNpIw
+-MQIhAPxzM/lDihe67X3ADYtDl9ZjA8Pm430x9sXlcxI17tCZAiEA5H1SyFl4mUee
+-9VnfSC2XGW7lwz72ZygfVX+b7tLWF08CIEh40gzW5MfXM+KLxdea+fXjyursV5ZT
+-R6KcMiKiNQLRAiAcmHqlzFzFgisotai2Fc6VRkXHG7gmzOSvBJt1VjmpDQIge6jf
+-2N7whTdvC4ferB+zUlgWQdyvx1c3T4gnt6PYdaY=
++MIIEpAIBAAKCAQEA7kqQa6iYg7ylOtVeJX+UqXoBYZZJyGfBGTsE1W/yfXVAZ5v1
++C4BorYreRwAHxDJAqx7Q288L5Y/YQxegMR0vgvsdpqU7JjlTO1zOpOI8B1IqC3Ks
++W8e/xR92z001yjligf7p1IHzqJbKunBUXf44oyc7q5iNOlcyiK3v/W99VgrSNOKO
++PH6mJfEEpOGdj5uaGZZ5q5jG5YyqkMFSMxBK9nRVOBGc1wl0p6YCJ6pUDOG5YLCs
++Ff8sDkUGzmXHvPP9FxRhs7GpPO40EzWY1xeQgchN+wA3dMcFpVvuW9qMor9U/C1C
++jdevUXnEHkFK5FpEnSEuDVai2VK/tlwNsuRiMwIDAQABAoIBAQDhym+MQ6W4dkEO
++PW1HFNu1tvCmGnTxWzbChITxBXF9ZWPQiRupeVQ21LYICsRRKNjUDJAVJ9v6+tEN
++yc41m5UQhIe1By3D61+tiSQZYnFE8pr6W/9rvBs/WrAGf/+vDa8ExJmmjjhmD/Qq
++sxOOOLxMBHnq/9Maa9NrZX1Y5JKbujLjDUE8eSHSTBPtczB/2g5CU1GH3zjb8Xyz
++1YhnVIOQfgi5XZVs8Js56oH8voAWNxPTv0p1KGRpQxBgkA5HVQcfmmIXsEajs4H0
++8iHK1o8eBFAXUOq6hq3DOf/Mz/Ute+/7KfYtHDz4jVmY77AdK2KR3tnZa4k8TyEh
++6QSMOuFZAoGBAP8RZMHz/L9DIj2rR9ZmCw67IZcAMc5I1h/fVgQEhXCnc+XM3bWk
++z+cWRmrtEFVFD3qwP7F6Ew5QDU5EtGWtflQY+MtdcyeczrDQjTLaTA0lBM3D5+7E
+++L+hNBeQdvm0UCnT9HM9Dcyog306VyvDcj5o1JPO4NTZyIMbHDpgE3nvAoGBAO8p
++egMrr5TgVazceaCQTl/gJHDHIHD2V4h7agKNSft6UWQYzD62sPzosS20naTw8Six
++S0+vs9R9EIODKDNxL2Us+2eQMz4SLJcuq/tcRglhfYex4tgszhQcOTTxmuWzOibm
++/ysX58TJFTPySt8ETHGt++T0OtFmXV/abNyB3i/9AoGAJAgm/acj6zjmm2OY0Fa1
++9SzGP/iNEKEFbpc0JXkmCJX/L1VTdJeFrxVceTpn9kO9Pg2r0bx2+KyiVI4sFbj+
++gY7Nhpz66XujTyMG70obODgkh5THLNmycg+ptjJ4PCoWsPH6NFVJn8GmYYheTBZe
++Cybv8Llm1Wq2gp7PzAdKeQ0CgYEA6H+a1MBAZeucfnqrZtNCzePZqSV7vTVOLSlF
++CowOMwJbY4LT89eowYT40aT3aCSvXM7WlvYJTXXzetYjW7cZyzLqiGhf2GTUonhF
++ywuOLopu/V6KV3tfL5+sYXLLEailzLHduCf6MY0GJsTR0nKcWhs4eQCQuYbZGVj/
++YXKC7IUCgYAeEVwVaamkuMnaU5AsJiLNTxY7XB18FpZiPyVpcvHnIk9saHRKAN9Q
+++vxwkp3hhK8iCTtm6aWYvnKKrqJtnXBgVPWHNFzKER75m5irhnPvYiyjqi/y6avl
++d4rTrS+RlcbeSC3yvX/zoQRI4HGluvS4M9hR45b4WCe1TZJPMqoAzg==
+ -----END RSA PRIVATE KEY-----
+--- mysql-test/std_data/client-cert.pem.orig	2010-02-14 17:01:30.000000000 -0500
++++ mysql-test/std_data/client-cert.pem	2010-02-14 17:01:32.000000000 -0500
+@@ -1,55 +1,19 @@
+-Certificate:
+-    Data:
+-        Version: 3 (0x2)
+-        Serial Number: 3 (0x3)
+-        Signature Algorithm: sha1WithRSAEncryption
+-        Issuer: C=SE, ST=Uppsala, L=Uppsala, O=MySQL AB
+-        Validity
+-            Not Before: Jan 28 11:04:39 2009 GMT
+-            Not After : Jan 28 11:04:39 2010 GMT
+-        Subject: C=SE, ST=Uppsala, O=MySQL AB/emailAddress=abstract.mysql.developer@mysql.com
+-        Subject Public Key Info:
+-            Public Key Algorithm: rsaEncryption
+-            RSA Public Key: (512 bit)
+-                Modulus (512 bit):
+-                    00:e1:52:30:2c:d9:be:64:28:91:5d:7a:fd:d9:e9:
+-                    14:35:7a:d2:94:4e:91:46:e0:db:9f:6b:79:f4:4c:
+-                    ac:6e:07:61:34:86:74:62:a7:a8:44:af:fa:87:87:
+-                    a8:7d:42:61:ff:ab:50:d4:7b:bf:75:fa:d5:d5:b3:
+-                    74:fb:56:1e:37
+-                Exponent: 65537 (0x10001)
+-        X509v3 extensions:
+-            X509v3 Basic Constraints: 
+-                CA:FALSE
+-            X509v3 Subject Key Identifier: 
+-                58:30:B5:9B:2C:05:94:06:BA:3D:3C:F0:B2:CD:1D:67:65:E3:7F:85
+-            X509v3 Authority Key Identifier: 
+-                keyid:F2:E2:EA:55:65:A4:9A:E2:AC:9D:97:F5:45:6C:F6:F7:8C:11:AD:DF
+-                DirName:/C=SE/ST=Uppsala/L=Uppsala/O=MySQL AB
+-                serial:95:E9:78:F5:34:50:E4:D5
+-
+-    Signature Algorithm: sha1WithRSAEncryption
+-        05:19:e3:13:14:fc:c5:28:bf:69:f8:00:b3:25:cb:bd:ca:9f:
+-        2f:4c:b3:a8:04:11:f0:74:27:bd:82:2c:b4:49:9b:a7:59:f0:
+-        f7:87:d1:e0:ba:99:a2:fe:4b:1d:10:6f:e4:a2:b3:cd:7f:8b:
+-        68:31:46:ee:cd:9e:e2:47:e1:4c:fa:74:d1:e2:8b:cc:a0:4b:
+-        a8:24:d1:a4:c3:6b:2a:c6:28:cd:41:e0:06:48:e6:cf:f2:3c:
+-        ca:37:95:d7:29:64:6b:91:91:83:e7:ac:c8:0b:87:bc:da:a6:
+-        aa:f1:44:43:c8:74:7b:15:26:91:2e:03:c4:71:50:6c:f8:68:
+-        dc:8c
+ -----BEGIN CERTIFICATE-----
+-MIICfzCCAeigAwIBAgIBAzANBgkqhkiG9w0BAQUFADBEMQswCQYDVQQGEwJTRTEQ
+-MA4GA1UECBMHVXBwc2FsYTEQMA4GA1UEBxMHVXBwc2FsYTERMA8GA1UEChMITXlT
+-UUwgQUIwHhcNMDkwMTI4MTEwNDM5WhcNMTAwMTI4MTEwNDM5WjBlMQswCQYDVQQG
+-EwJTRTEQMA4GA1UECBMHVXBwc2FsYTERMA8GA1UEChMITXlTUUwgQUIxMTAvBgkq
+-hkiG9w0BCQEWImFic3RyYWN0Lm15c3FsLmRldmVsb3BlckBteXNxbC5jb20wXDAN
+-BgkqhkiG9w0BAQEFAANLADBIAkEA4VIwLNm+ZCiRXXr92ekUNXrSlE6RRuDbn2t5
+-9EysbgdhNIZ0YqeoRK/6h4eofUJh/6tQ1Hu/dfrV1bN0+1YeNwIDAQABo4GjMIGg
+-MAkGA1UdEwQCMAAwHQYDVR0OBBYEFFgwtZssBZQGuj088LLNHWdl43+FMHQGA1Ud
+-IwRtMGuAFPLi6lVlpJrirJ2X9UVs9veMEa3foUikRjBEMQswCQYDVQQGEwJTRTEQ
+-MA4GA1UECBMHVXBwc2FsYTEQMA4GA1UEBxMHVXBwc2FsYTERMA8GA1UEChMITXlT
+-UUwgQUKCCQCV6Xj1NFDk1TANBgkqhkiG9w0BAQUFAAOBgQAFGeMTFPzFKL9p+ACz
+-Jcu9yp8vTLOoBBHwdCe9giy0SZunWfD3h9Hgupmi/ksdEG/korPNf4toMUbuzZ7i
+-R+FM+nTR4ovMoEuoJNGkw2sqxijNQeAGSObP8jzKN5XXKWRrkZGD56zIC4e82qaq
+-8URDyHR7FSaRLgPEcVBs+GjcjA==
++MIIDHTCCAgUCAQEwDQYJKoZIhvcNAQEFBQAwRDELMAkGA1UEBhMCU0UxEDAOBgNV
++BAgTB1VwcHNhbGExEDAOBgNVBAcTB1VwcHNhbGExETAPBgNVBAoTCE15U1FMIEFC
++MB4XDTEwMDIxNDIyMDEzMloXDTEyMTExMDIyMDEzMlowZTELMAkGA1UEBhMCU0Ux
++EDAOBgNVBAgTB1VwcHNhbGExETAPBgNVBAoTCE15U1FMIEFCMTEwLwYJKoZIhvcN
++AQkBFiJhYnN0cmFjdC5teXNxbC5kZXZlbG9wZXJAbXlzcWwuY29tMIIBIjANBgkq
++hkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA7kqQa6iYg7ylOtVeJX+UqXoBYZZJyGfB
++GTsE1W/yfXVAZ5v1C4BorYreRwAHxDJAqx7Q288L5Y/YQxegMR0vgvsdpqU7JjlT
++O1zOpOI8B1IqC3KsW8e/xR92z001yjligf7p1IHzqJbKunBUXf44oyc7q5iNOlcy
++iK3v/W99VgrSNOKOPH6mJfEEpOGdj5uaGZZ5q5jG5YyqkMFSMxBK9nRVOBGc1wl0
++p6YCJ6pUDOG5YLCsFf8sDkUGzmXHvPP9FxRhs7GpPO40EzWY1xeQgchN+wA3dMcF
++pVvuW9qMor9U/C1CjdevUXnEHkFK5FpEnSEuDVai2VK/tlwNsuRiMwIDAQABMA0G
++CSqGSIb3DQEBBQUAA4IBAQBCMIFcSpokk52j0o01FZrb2L6xFZPcd0/7C0Gv+f6w
++F3lnoeOLuAilTBxMEe1g/YE/Bh31LS9qP0LoTMmKTY/3HUfBW3VouCyA5O6Nk32n
++mzYrrsi3d66QfMy/6wrnFhPw0aSoP7Kaf0urRqw9Sf3gk2WGy22y8THWpzK0ltLH
++A1wFTr9TCahriprVDdEYG//s582O4AKh0WidlWZZmv+Ij5Dz0iqg08nScHeUk7wP
++mJuV6MamVfMF5NtLtlkZ6nDEK6/quH4idc6yX+VrouPKsHf987oxIzVUCL1jbTYL
++b9pjGdB2odCvrt4LkONjMhW0+vLI3+fjjcZHnQyamYD5
+ -----END CERTIFICATE-----

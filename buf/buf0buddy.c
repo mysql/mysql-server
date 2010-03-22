@@ -43,7 +43,7 @@ static ulint buf_buddy_n_frames;
 #endif /* UNIV_DEBUG */
 /** Statistics of the buddy system, indexed by block size.
 Protected by buf_pool_mutex. */
-UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES + 1];
+UNIV_INTERN buf_buddy_stat_t buf_buddy_stat[BUF_BUDDY_SIZES_MAX + 1];
 
 /**********************************************************************//**
 Get the offset of the buddy of a compressed page frame.

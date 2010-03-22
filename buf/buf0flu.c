@@ -711,7 +711,9 @@ buf_flush_init_for_writing(
 
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 			srv_use_checksums
-			? buf_calc_page_new_checksum(page)
+			? (!srv_fast_checksum
+			   ? buf_calc_page_new_checksum(page)
+			   : buf_calc_page_new_checksum_32(page))
 			: BUF_NO_CHECKSUM_MAGIC);
 
 	/* We overwrite the first 4 bytes of the end lsn field to store

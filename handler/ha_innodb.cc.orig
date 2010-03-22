@@ -128,6 +128,9 @@ extern ib_int64_t	trx_sys_mysql_relay_log_pos;
 # ifndef MYSQL_PLUGIN_IMPORT
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
+/* This is needed because of Bug #3596. Let us hope that pthread_mutex_t
+is defined the same in both builds: the MySQL server and the InnoDB plugin. */
+extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 
 #if MYSQL_VERSION_ID < 50124
 /* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
@@ -921,6 +924,36 @@ convert_error_code_to_mysql(
 	case DB_UNSUPPORTED:
 		return(HA_ERR_UNSUPPORTED);
 	}
+}
+
+/*************************************************************//**
+If you want to print a thd that is not associated with the current thread,
+you must call this function before reserving the InnoDB kernel_mutex, to
+protect MySQL from setting thd->query NULL. If you print a thd of the current
+thread, we know that MySQL cannot modify thd->query, and it is not necessary
+to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
+the kernel_mutex. */
+extern "C" UNIV_INTERN
+void
+innobase_mysql_prepare_print_arbitrary_thd(void)
+/*============================================*/
+{
+	ut_ad(!mutex_own(&kernel_mutex));
+	VOID(pthread_mutex_lock(&LOCK_thread_count));
+}
+
+/*************************************************************//**
+Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
+In the InnoDB latching order, the mutex sits right above the
+kernel_mutex.  In debug builds, we assert that the kernel_mutex is
+released before this function is invoked. */
+extern "C" UNIV_INTERN
+void
+innobase_mysql_end_print_arbitrary_thd(void)
+/*========================================*/
+{
+	ut_ad(!mutex_own(&kernel_mutex));
+	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 }
 
 /*************************************************************//**
@@ -2592,10 +2625,7 @@ innobase_alter_table_flags(
 {
 	return(HA_ONLINE_ADD_INDEX_NO_WRITES
 		| HA_ONLINE_DROP_INDEX_NO_WRITES
-		/* Current InnoDB doesn't sort unique indexes along mysqld's order
-		   It is dangerous to use index. So it is disabled until
-		   the bug http://bugs.mysql.com/47622 */
-		/* | HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES */
+		| HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES
 		| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES
 		| HA_ONLINE_ADD_PK_INDEX_NO_WRITES);
 }
@@ -4768,29 +4798,24 @@ no_commit:
 			update the table upper limit. Note: last_value
 			will be 0 if get_auto_increment() was not called.*/
 
-			if (auto_inc >= prebuilt->autoinc_last_value) {
+			if (auto_inc <= col_max_value
+			    && auto_inc >= prebuilt->autoinc_last_value) {
 set_max_autoinc:
-				/* This should filter out the negative
-				values set explicitly by the user. */
-				if (auto_inc <= col_max_value) {
-					ut_a(prebuilt->autoinc_increment > 0);
+				ut_a(prebuilt->autoinc_increment > 0);
 
-					ulonglong	need;
-					ulonglong	offset;
+				ulonglong	need;
+				ulonglong	offset;
 
-					offset = prebuilt->autoinc_offset;
-					need = prebuilt->autoinc_increment;
+				offset = prebuilt->autoinc_offset;
+				need = prebuilt->autoinc_increment;
 
-					auto_inc = innobase_next_autoinc(
-						auto_inc,
-						need, offset, col_max_value);
+				auto_inc = innobase_next_autoinc(
+					auto_inc, need, offset, col_max_value);
 
-					err = innobase_set_max_autoinc(
-						auto_inc);
+				err = innobase_set_max_autoinc(auto_inc);
 
-					if (err != DB_SUCCESS) {
-						error = err;
-					}
+				if (err != DB_SUCCESS) {
+					error = err;
 				}
 			}
 			break;
@@ -9815,20 +9840,6 @@ ha_innobase::check_if_incompatible_data(
 		return(COMPATIBLE_DATA_NO);
 	}
 
-	/* Renaming column asynchronizes dictionary between mysqld and InnoDB...
-	   If not synchronized, treat as COMPATIBLE_DATA_NO
-	   until the bug http://bugs.mysql.com/47621 is fixed officialily */
-	{
-		uint	i;
-		for (i = 0; i < table->s->fields; i++) {
-			if (table->field[i]->flags & FIELD_IN_ADD_INDEX
-			    && innobase_strcasecmp(table->field[i]->field_name,
-					dict_table_get_col_name(prebuilt->table, i))) {
-				return(COMPATIBLE_DATA_NO);
-			}
-		}
-	}
-
 	/* Check if a column participating in a foreign key is being renamed.
 	There is no mechanism for updating InnoDB foreign key definitions. */
 	if (foreign_key_column_is_being_renamed(prebuilt, table)) {
@@ -10346,7 +10357,7 @@ static MYSQL_SYSVAR_BOOL(extra_undoslots, innobase_extra_undoslots,
 static MYSQL_SYSVAR_BOOL(fast_recovery, innobase_fast_recovery,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
   "Enable to use speed hack of recovery avoiding flush list sorting.",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(recovery_stats, innobase_recovery_stats,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -10356,7 +10367,7 @@ static MYSQL_SYSVAR_BOOL(recovery_stats, innobase_recovery_stats,
 static MYSQL_SYSVAR_ULONG(use_purge_thread, srv_use_purge_thread,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of purge devoted threads. #### over 1 is EXPERIMENTAL ####",
-  NULL, NULL, 1, 0, 64, 0);
+  NULL, NULL, 0, 0, 64, 0);
 
 static MYSQL_SYSVAR_BOOL(overwrite_relay_log_info, innobase_overwrite_relay_log_info,
   PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
@@ -10456,7 +10467,7 @@ static MYSQL_SYSVAR_ULONG(max_dirty_pages_pct, srv_max_buf_pool_modified_pct,
 static MYSQL_SYSVAR_BOOL(adaptive_flushing, srv_adaptive_flushing,
   PLUGIN_VAR_NOCMDARG,
   "Attempt flushing dirty pages to avoid IO bursts at checkpoints.",
-  NULL, NULL, FALSE);
+  NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(max_purge_lag, srv_max_purge_lag,
   PLUGIN_VAR_RQCMDARG,
@@ -10681,7 +10692,7 @@ static MYSQL_SYSVAR_LONGLONG(ibuf_max_size, srv_ibuf_max_size,
 static MYSQL_SYSVAR_ULONG(ibuf_active_contract, srv_ibuf_active_contract,
   PLUGIN_VAR_RQCMDARG,
   "Enable/Disable active_contract of insert buffer. 0:disable 1:enable",
-  NULL, NULL, 1, 0, 1, 0);
+  NULL, NULL, 0, 0, 1, 0);
 
 static MYSQL_SYSVAR_ULONG(ibuf_accel_rate, srv_ibuf_accel_rate,
   PLUGIN_VAR_RQCMDARG,
@@ -10759,8 +10770,8 @@ TYPELIB adaptive_checkpoint_typelib=
 };
 static MYSQL_SYSVAR_ENUM(adaptive_checkpoint, srv_adaptive_checkpoint,
   PLUGIN_VAR_RQCMDARG,
-  "Enable/Disable flushing along modified age. (none, reflex, [estimate])",
-  NULL, innodb_adaptive_checkpoint_update, 2, &adaptive_checkpoint_typelib);
+  "Enable/Disable flushing along modified age. ([none], reflex, estimate)",
+  NULL, innodb_adaptive_checkpoint_update, 0, &adaptive_checkpoint_typelib);
 
 static MYSQL_SYSVAR_ULONG(enable_unsafe_group_commit, srv_enable_unsafe_group_commit,
   PLUGIN_VAR_RQCMDARG,
@@ -10909,8 +10920,6 @@ i_s_innodb_cmpmem_reset,
 i_s_innodb_table_stats,
 i_s_innodb_index_stats,
 i_s_innodb_admin_command,
-i_s_innodb_sys_tables,
-i_s_innodb_sys_indexes,
 i_s_innodb_patches
 mysql_declare_plugin_end;
 

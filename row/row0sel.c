@@ -3766,6 +3766,13 @@ rec_loop:
 	/* PHASE 4: Look for matching records in a loop */
 
 	rec = btr_pcur_get_rec(pcur);
+
+	if (srv_pass_corrupt_table && !rec) {
+		err = DB_CORRUPTION;
+		goto lock_wait_or_error;
+	}
+	ut_a(rec);
+
 	ut_ad(!!page_rec_is_comp(rec) == comp);
 #ifdef UNIV_SEARCH_DEBUG
 	/*

@@ -3364,26 +3364,23 @@ lock_deadlock_recursive(
 		bit_no = lock_rec_find_set_bit(wait_lock);
 
 		ut_a(bit_no != ULINT_UNDEFINED);
-                
-                /* get the starting point for the search for row level locks 
-                   since we are scanning from the front of the list */
-                lock = lock_rec_get_first_on_page_addr(wait_lock->un_member.rec_lock.space, 
-                                                       wait_lock->un_member.rec_lock.page_no);
 	}
-        else {
-                /* table level locks use a two-way linked list so scanning backwards is OK */
-                lock = UT_LIST_GET_PREV(un_member.tab_lock.locks,
-						lock);
-        }
 
 	/* Look at the locks ahead of wait_lock in the lock queue */
 
 	for (;;) {
+		if (lock_get_type_low(lock) & LOCK_TABLE) {
 
+			lock = UT_LIST_GET_PREV(un_member.tab_lock.locks,
+						lock);
+		} else {
+			ut_ad(lock_get_type_low(lock) == LOCK_REC);
+			ut_a(bit_no != ULINT_UNDEFINED);
 
-                /* reached the original lock in the queue for row level locks
-                   or past beginning of the list for table level locks */
-		if (lock == NULL || lock == wait_lock) {
+			lock = (lock_t*) lock_rec_get_prev(lock, bit_no);
+		}
+
+		if (lock == NULL) {
 			/* We can mark this subtree as searched */
 			trx->deadlock_mark = 1;
 
@@ -3507,17 +3504,6 @@ lock_deadlock_recursive(
 					return(ret);
 				}
 			}
-		}
-
-                /* next lock to check */
-                if (lock_get_type_low(lock) & LOCK_TABLE) {
-			lock = UT_LIST_GET_PREV(un_member.tab_lock.locks,
-						lock);
-		} else {
-			ut_ad(lock_get_type_low(lock) == LOCK_REC);
-			ut_a(bit_no != ULINT_UNDEFINED);
-
-			lock = (lock_t*) lock_rec_get_next(bit_no, lock);
 		}
 	}/* end of the 'for (;;)'-loop */
 }
