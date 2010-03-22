@@ -8074,20 +8074,19 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
 
 
 /*
-  Set up join struct according to best position.
+  Set up join struct according to the picked join order in
   
   SYNOPSIS
     get_best_combination()
-      join  The join to process
+      join  The join to process (the picked join order is mainly in
+            join->best_positions)
 
   DESCRIPTION
-    Setup join structures according the picked join order:
+    Setup join structures according the picked join order
     - finalize semi-join strategy choices (see
         fix_semijoin_strategies_for_picked_join_order)
-
     - create join->join_tab array and put there the JOIN_TABs in the join order
-      
-    - create ref access data structures
+    - create data structures describing ref access methods.
 
   RETURN 
     FALSE  OK
