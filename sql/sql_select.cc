@@ -3913,14 +3913,12 @@ int pull_out_semijoin_tables(JOIN *join)
         {
           if (inner_tables & tbl->table->map)
           {
-            // This table is not pulled out
+            /* This table is not pulled out */
             tbl->table->reginfo.join_tab->emb_sj_nest= sj_nest;
           }
           else
           {
-            /* 
-              This table has been pulled out of the semi-join nest
-            */
+            /* This table has been pulled out of the semi-join nest */
             tbl->table->reginfo.join_tab->emb_sj_nest= NULL;
             /*
               Pull the table up in the same way as simplify_joins() does:
