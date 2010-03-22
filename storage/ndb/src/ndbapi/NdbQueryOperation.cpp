@@ -1882,6 +1882,65 @@ NdbQueryImpl::prepareSend()
 } // NdbQueryImpl::prepareSend
 
 
+
+/** This iterator is used for inserting a sequence of receiver ids 
+ * for the initial batch of a scan into a section via a GenericSectionPtr.*/
+class InitialReceiverIdIterator: public GenericSectionIterator
+{
+public:
+  
+  InitialReceiverIdIterator(const NdbQueryImpl& query)
+    :m_query(query),
+     m_currFragNo(0)
+  {}
+  
+  virtual ~InitialReceiverIdIterator() {};
+  
+  /**
+   * Get next batch of receiver ids. 
+   * @param sz This will be set to the number of receiver ids that have been
+   * put in the buffer (0 if end has been reached.)
+   * @return Array of receiver ids (or NULL if end reached.
+   */
+  virtual const Uint32* getNextWords(Uint32& sz);
+
+  virtual void reset()
+  { m_currFragNo = 0;};
+  
+private:
+  /** Size of internal receiver id buffer.*/
+  static const Uint32 bufSize = 16;
+  /** The query with the scan root operation that we list receiver ids for.*/
+  const NdbQueryImpl& m_query;
+  /** The next fragment numnber to be processed. (Range for 0 to no of 
+   * fragments.)*/
+  Uint32 m_currFragNo;
+  /** Buffer for storing one batch of receiver ids.*/
+  Uint32 m_receiverIds[bufSize];
+};
+
+const Uint32* InitialReceiverIdIterator::getNextWords(Uint32& sz)
+{
+  sz = 0;
+  if (m_currFragNo >= m_query.getRootFragCount())
+  {
+    return NULL;
+  }
+  else
+  {
+    const NdbQueryOperationImpl& root = m_query.getQueryOperation(0U);
+    while (sz < bufSize && 
+           m_currFragNo < m_query.getRootFragCount())
+    {
+      m_receiverIds[sz] = root.getReceiver(m_currFragNo).getId();
+      sz++;
+      m_currFragNo++;
+    }
+    return m_receiverIds;
+  }
+}
+  
+
 /******************************************************************************
 int doSend()
 
@@ -2010,24 +2069,21 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
      * Section 1 : ATTRINFO section
      * Section 2 : Optional KEYINFO section
      */
-    LinearSectionPtr secs[3];
-    Uint32 receivers[64];  // TODO: 64 is a temp hack
+    GenericSectionPtr secs[3];
+    InitialReceiverIdIterator receiverIdIter(*this);
+    LinearSectionIterator attrInfoIter(m_attrInfo.addr(), m_attrInfo.getSize());
+    LinearSectionIterator keyInfoIter(m_keyInfo.addr(), m_keyInfo.getSize());
  
-    const NdbQueryOperationImpl& queryOp = getRoot();
-    for(Uint32 i = 0; i<getRootFragCount(); i++){
-      receivers[i] = queryOp.getReceiver(i).getId();
-    }
-
-    secs[0].p= receivers;
+    secs[0].sectionIter= &receiverIdIter;
     secs[0].sz= getRootFragCount();
 
-    secs[1].p= m_attrInfo.addr();
+    secs[1].sectionIter= &attrInfoIter;
     secs[1].sz= m_attrInfo.getSize();
 
     Uint32 numSections= 2;
     if (m_keyInfo.getSize() > 0)
     {
-      secs[2].p= m_keyInfo.addr();
+      secs[2].sectionIter= &keyInfoIter;
       secs[2].sz= m_keyInfo.getSize();
       numSections= 3;
     }
@@ -2133,6 +2189,95 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)  // TODO: Use 'lastFlag'
 } // NdbQueryImpl::doSend()
 
 
+/** This iterator is used for inserting a sequence of receiver ids for scan
+ * batches other than the first batch  into a section via a GenericSectionPtr.
+*/
+class ReceiverIdIterator: public GenericSectionIterator
+{
+public:
+  
+  ReceiverIdIterator(const NdbQueryImpl& query)
+    :m_query(query),
+     m_currFragNo(0)
+  {}
+
+  virtual ~ReceiverIdIterator() {}
+  
+  virtual void reset()
+  { m_currFragNo = 0; };
+  
+  /**
+   * Get next batch of receiver ids. 
+   * @param sz This will be set to the number of receiver ids that have been
+   * put in the buffer (0 if end has been reached.)
+   * @return Array of receiver ids (or NULL if end reached.
+   */
+  virtual const Uint32* getNextWords(Uint32& sz);
+
+  /** Get the fragment number of the buffEntryNo'th entry in the internal
+   * buffer.
+   */
+  Uint32 getRootFragNo(Uint32 buffEntryNo) const
+  { 
+    assert(buffEntryNo < bufSize);
+    return m_rootFragNos[buffEntryNo]; 
+  }
+
+private:
+  /** Size of internal receiver id buffer.*/
+  static const Uint32 bufSize = 16;
+  /** The query with the scan root operation that we list receiver ids for.*/
+  const NdbQueryImpl& m_query;
+  /** The next fragment numnber to be processed. (Range for 0 to [no of 
+   * fragments] - 1.)*/
+  Uint32 m_currFragNo;
+  /** Buffer for storing one batch of receiver ids.*/
+  Uint32 m_receiverIds[bufSize];
+  /** Buffer of fragment numbers for the root operation. (Fragments are 
+   * numbered from 0 to [no of fragments] - 1)*/
+  Uint32 m_rootFragNos[bufSize];
+};
+
+
+const Uint32* ReceiverIdIterator::getNextWords(Uint32& sz)
+{
+  sz = 0;
+  if(m_query.getRoot().getOrdering() == NdbScanOrdering_unordered)
+  {
+    while (m_currFragNo < m_query.getRootFragCount()
+           && sz < bufSize)
+    {
+      const Uint32 tcPtrI = 
+        m_query.getRoot().getReceiver(m_currFragNo).m_tcPtrI;
+      if (tcPtrI != RNIL) // Check if we have received the final batch.
+      {
+        m_receiverIds[sz] = tcPtrI;
+        m_rootFragNos[sz++] = m_currFragNo;
+      }
+      m_currFragNo++;
+    }
+  }
+  else if (m_currFragNo == 0)
+  {
+    /* For ordred scans we must have records buffered for each (non-finished)
+     * root fragment at all times, in order to find the lowest remaining 
+     * record. When one root fragment is empty, we must block the scan ask 
+     * for a new batch for that particular fragment.
+     */
+    const NdbRootFragment* const emptyFrag = m_query.m_applFrags.getEmpty();
+    if(emptyFrag!=NULL)
+    {
+      sz = 1;
+      m_receiverIds[0] = emptyFrag->getResultStream(0).getReceiver().m_tcPtrI;
+      assert(m_receiverIds[0] != RNIL);
+      m_rootFragNos[0] = emptyFrag->getFragNo();
+    }
+    m_currFragNo = 1;
+  }
+  
+  return sz == 0 ? NULL : m_receiverIds;
+}
+
 /******************************************************************************
 int sendFetchMore() - Fetch another scan batch, optionaly closing the scan
                 
@@ -2151,52 +2296,34 @@ NdbQueryImpl::sendFetchMore(int nodeId)
 {
   Uint32 sent = 0;
   NdbQueryOperationImpl& root = getRoot();
-  Uint32 receivers[64];  // TODO: 64 is a temp hack
-
   assert (root.m_resultStreams!=NULL);
   assert(m_pendingFrags==0);
-  if(root.getOrdering() == NdbScanOrdering_unordered)
+
+  ReceiverIdIterator receiverIdIter(*this);
+
+  Uint32 idBuffSize = 0;
+  receiverIdIter.getNextWords(idBuffSize);
+
+  /* Iterate over the fragments for which we will reqest a new batch.*/
+  while (idBuffSize > 0)
   {
-    for(unsigned i = 0; i<getRootFragCount(); i++)
+    sent += idBuffSize;
+    m_pendingFrags += idBuffSize;
+  
+    for (Uint32 i = 0; i<idBuffSize; i++)
     {
-      const Uint32 tcPtrI = root.getReceiver(i).m_tcPtrI;
-      if (tcPtrI != RNIL) // Check if we have received the final batch.
-      {
-        receivers[sent++] = tcPtrI;
-        m_pendingFrags++;
-
-        m_rootFrags[i].reset();
-
-        for (unsigned op=0; op<m_countOperations; op++) 
-        {
-          m_operations[op].m_resultStreams[i]->reset();
-        }
-      }
-    }
-  }
-  else
-  {
-    /* For ordred scans we must have records buffered for each (non-finished)
-     * root fragment at all times, in order to find the lowest remaining record.
-     * When one root fragment is empty, we must block the scan ask for a new 
-     * batch for that particular fragment.
-     */
-    NdbRootFragment* const emptyFrag 
-      = m_applFrags.getEmpty();
-    if(emptyFrag!=NULL)
-    {
-      receivers[0] = emptyFrag->getResultStream(0).getReceiver().m_tcPtrI;
-      sent = 1;
-      m_pendingFrags = 1;
-
+      NdbRootFragment* const emptyFrag = 
+        m_rootFrags + receiverIdIter.getRootFragNo(i);
       emptyFrag->reset();
-
+  
       for (unsigned op=0; op<m_countOperations; op++) 
       {
         emptyFrag->getResultStream(op).reset();
       }
     }
+    receiverIdIter.getNextWords(idBuffSize);
   }
+  receiverIdIter.reset();
 
 //printf("::sendFetchMore, to nodeId:%d, sent:%d\n", nodeId, sent);
   if (sent==0)
@@ -2221,8 +2348,8 @@ NdbQueryImpl::sendFetchMore(int nodeId)
   scanNextReq->transId2 = (Uint32) (transId >> 32);
   tSignal.setLength(ScanNextReq::SignalLength);
 
-  LinearSectionPtr secs[1];
-  secs[ScanNextReq::ReceiverIdsSectionNum].p = receivers;
+  GenericSectionPtr secs[1];
+  secs[ScanNextReq::ReceiverIdsSectionNum].sectionIter = &receiverIdIter;
   secs[ScanNextReq::ReceiverIdsSectionNum].sz = sent;
 
   TransporterFacade* tp = ndb.theImpl->m_transporter_facade;

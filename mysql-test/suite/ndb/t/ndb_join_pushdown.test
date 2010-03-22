@@ -1466,16 +1466,16 @@ create table T1 (a int NOT NULL,
 # We use key values that have the same representation in little and big endian.
 # Otherwise, the numbers for local and remote reads may depend on endian-ness,
 # since hashing is endian dependent.
-insert into T1 values (0x01010101, 0x02020202, 0x02020202);
-insert into T1 values (0x02020202, 0x03030303, 0x03030303);
-insert into T1 values (0x03030303, 0x04040404, 0x04040404);
+insert into T1 values (1, 2, 2);
+insert into T1 values (2, 3, 3);
+insert into T1 values (3, 4, 4);
 
 # Run some queries that should increment the counters.
-select * from T1 t1, T1 t2 where t1.a = 0x02020202 and t2.a = t1.b; 
+select * from T1 t1, T1 t2 where t1.a = 2 and t2.a = t1.b; 
 
 select count(*) from T1 t1, T1 t2 where t2.a = t1.b; 
 
-select count(*) from T1 t1, T1 t2 where t1.a >= 0x02020202 and t2.a = t1.b; 
+select count(*) from T1 t1, T1 t2 where t1.a >= 2 and t2.a = t1.b; 
 
 
 # Get new counter values.
@@ -1489,7 +1489,15 @@ create temporary table new_count
 --sorted_result
 select new_count.counter_name, new_count.val - old_count.val 
        from new_count, old_count 
-       where new_count.counter_name = old_count.counter_name;
+       where new_count.counter_name = old_count.counter_name
+       and new_count.counter_name <> 'LOCAL_READS_SENT'
+       and new_count.counter_name <> 'REMOTE_READS_SENT';
+
+select 'READS_SENT', sum(new_count.val - old_count.val) 
+       from new_count, old_count 
+       where new_count.counter_name = old_count.counter_name
+       and (new_count.counter_name = 'LOCAL_READS_SENT'
+       or new_count.counter_name = 'REMOTE_READS_SENT');
 
 drop table old_count;
 drop table new_count;

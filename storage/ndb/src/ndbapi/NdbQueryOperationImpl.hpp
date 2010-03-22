@@ -45,7 +45,8 @@ class NdbQueryImpl {
 
   /* NdbQueryOperations are allowed to access it containing query */
   friend class NdbQueryOperationImpl;
-
+  friend class ReceiverIdIterator;
+  
   /** For debugging.*/
   friend NdbOut& operator<<(NdbOut& out, const class NdbQueryOperationImpl&);
 
@@ -199,6 +200,10 @@ public:
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
   int isPrunable(bool& pruned);
+
+  /** Get the number of fragments to be read for the root operation.*/
+  Uint32 getRootFragCount() const
+  { return m_rootFragCount; }
 
 private:
   /** Possible return values from NdbQuery::fetchMoreResults. Integer values
@@ -460,10 +465,6 @@ private:
    *  @return True if batch is complete.
    */
   bool incrementPendingFrags(int increment);
-
-  /** Get the number of fragments to be read for the root operation.*/
-  Uint32 getRootFragCount() const
-  { return m_rootFragCount; }
 
   /** Check if batch is complete (no outstanding messages).*/
   bool isBatchComplete() const;
