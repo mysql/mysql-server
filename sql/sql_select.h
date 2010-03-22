@@ -598,7 +598,9 @@ public:
      Bitmap of all inner tables from outer joins
   */
   table_map outer_join;
-  ha_rows  send_records,found_records,examined_rows,row_limit, select_limit;
+  /* Number of records produced after join + group operation */
+  ha_rows  send_records;
+  ha_rows found_records,examined_rows,row_limit, select_limit;
   /**
     Used to fetch no more than given amount of rows per one
     fetch operation of server side cursor.
@@ -618,7 +620,8 @@ public:
     NULL    - otherwise
   */
   TABLE_LIST *emb_sjm_nest;
-
+  
+  /* Current join optimization state */
   POSITION positions[MAX_TABLES+1];
   
   /*
@@ -646,6 +649,11 @@ public:
 
 
   Next_select_func first_select;
+  /*
+    The cost of best complete join plan found so far during optimization,
+    after optimization phase - cost of picked join order (not taking into
+    account the changes made by test_if_skip_sort_order()).
+  */
   double   best_read;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;

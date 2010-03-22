@@ -647,6 +647,11 @@ public:
   */
   bool using_real_indexes;
   
+  /*
+    Aggressively remove "scans" that do not have conditions on first
+    keyparts. Such scans are usable when doing partition pruning but not
+    regular range optimization.
+  */
   bool remove_jump_scans;
   
   /*

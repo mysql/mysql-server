@@ -108,7 +108,11 @@ class QUICK_RANGE :public Sql_alloc {
 
   4. Delete the select:
     delete quick;
-
+  
+  NOTE 
+    quick select doesn't use Sql_alloc/MEM_ROOT allocation because "range
+    checked for each record" functionality may create/destroy
+    O(#records_in_some_table) quick selects during query execution.
 */
 
 class QUICK_SELECT_I
