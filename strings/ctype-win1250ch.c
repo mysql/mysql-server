@@ -36,19 +36,9 @@
  * .configure. strxfrm_multiply_win1250ch=2
  */
 
-#define REAL_MYSQL
-#ifdef REAL_MYSQL
-
 #include "my_global.h"
 #include "m_string.h"
 #include "m_ctype.h"
-
-#else
-
-#include <stdio.h>
-#define uchar unsigned char
-
-#endif
 
 #ifdef HAVE_CHARSET_cp1250
 
@@ -399,49 +389,74 @@ static uchar NEAR _sort_order_win1250ch2[] = {
 0x02, 0x06, 0x04, 0x0a, 0x08, 0x04, 0x06, 0x01
 };
 
-struct wordvalue {
-	const uchar *word;
-	uchar pass1;
-	uchar pass2;
-};
-static struct wordvalue doubles[] = {
-	{ (uchar*) "ch", 0xad, 0x03 },
-	{ (uchar*) "c",  0xa6, 0x02 },
-	{ (uchar*) "Ch", 0xad, 0x02 },
-	{ (uchar*) "CH", 0xad, 0x01 },
-	{ (uchar*) "C",  0xa6, 0x01 },
+struct wordvalue
+{
+  const uchar * word;
+  uchar pass1;
+  uchar pass2;
 };
 
-#define NEXT_CMP_VALUE(src, p, pass, value, len)			\
-	while (1) {							\
-		if (IS_END(p, src, len)) {				\
-			if (pass == 0 && len > 0) { p= src; pass++; }	\
-			else { value = 0; break; }			\
-		}							\
-		value = ((pass == 0) ? _sort_order_win1250ch1[*p]	\
-			: _sort_order_win1250ch2[*p]);			\
-		if (value == 0xff) {					\
-			int i;						\
-			for (i = 0; i < (int) sizeof(doubles); i++) {	\
-				const uchar *patt = doubles[i].word;	\
-				const uchar *q = (const uchar *) p;	\
-				while (*patt				\
-					&& !(IS_END(q, src, len))	\
-					&& (*patt == *q)) {		\
-					patt++; q++;			\
-				}					\
-				if (!(*patt)) {				\
-					value = (int)((pass == 0)	\
-						? doubles[i].pass1	\
-						: doubles[i].pass2);	\
-					p = (const uchar *) q - 1;	\
-					break;				\
-				}					\
-			}						\
-		}							\
-		p++;							\
-		break;							\
-	}
+static struct wordvalue doubles[]=
+{
+  { (uchar*) "ch", 0xad, 0x03 },
+  { (uchar*) "c",  0xa6, 0x02 },
+  { (uchar*) "Ch", 0xad, 0x02 },
+  { (uchar*) "CH", 0xad, 0x01 },
+  { (uchar*) "C",  0xa6, 0x01 },
+};
+
+/*
+  ml - a flag indicating whether automatically
+       switch to the secondary level,
+       or stop on the primary level
+*/
+
+#define NEXT_CMP_VALUE(src, p, pass, value, len, ml)      \
+  while (1)                                               \
+  {                                                       \
+    if (IS_END(p, src, len))                              \
+    {                                                     \
+      if (pass == 0 && ml && len > 0)                     \
+      {                                                   \
+        p= src;                                           \
+        pass++;                                           \
+      }                                                   \
+      else                                                \
+      {                                                   \
+        value= 0;                                         \
+        break;                                            \
+      }                                                   \
+    }                                                     \
+    value= (pass == 0) ?                                  \
+             _sort_order_win1250ch1[*p] :                 \
+             _sort_order_win1250ch2[*p];                  \
+    if (value == 0xff)                                    \
+    {                                                     \
+      int i;                                              \
+      for (i= 0; i < (int) array_elements(doubles); i++)  \
+      {                                                   \
+        const uchar *patt= doubles[i].word;               \
+        const uchar *q= (const uchar *) p;                \
+        while (*patt &&                                   \
+               !IS_END(q, src, len) &&                    \
+               (*patt == *q))                             \
+        {                                                 \
+          patt++;                                         \
+          q++;                                            \
+        }                                                 \
+        if (!(*patt))                                     \
+        {                                                 \
+          value= (int) ((pass == 0) ?                     \
+                          doubles[i].pass1 :              \
+                          doubles[i].pass2);              \
+          p= (const uchar *) q - 1;                       \
+          break;                                          \
+        }                                                 \
+      }                                                   \
+    }                                                     \
+    p++;                                                  \
+    break;                                                \
+  }
 
 #define IS_END(p, src, len)	(((char *)p - (char *)src) >= (len))
 
@@ -462,8 +477,8 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 
   do
   {
-    NEXT_CMP_VALUE(s1, p1, pass1, v1, (int)len1);
-    NEXT_CMP_VALUE(s2, p2, pass2, v2, (int)len2);
+    NEXT_CMP_VALUE(s1, p1, pass1, v1, (int)len1, 1);
+    NEXT_CMP_VALUE(s2, p2, pass2, v2, (int)len2, 1);
     if ((diff = v1 - v2))
       return diff;
   } while (v1);
@@ -472,46 +487,110 @@ static int my_strnncoll_win1250ch(CHARSET_INFO *cs __attribute__((unused)),
 
 
 /*
-  TODO: Has to be fixed as strnncollsp in ctype-simple
+  Compare strings, ignore trailing spaces
 */
 
-static
-int my_strnncollsp_win1250ch(CHARSET_INFO * cs, 
-			     const uchar *s, size_t slen, 
-			     const uchar *t, size_t tlen,
-                             my_bool diff_if_only_endspace_difference
-                             __attribute__((unused)))
+static int
+my_strnncollsp_win1250ch(CHARSET_INFO * cs __attribute__((unused)),
+                         const uchar *s, size_t slen,
+                         const uchar *t, size_t tlen,
+                         my_bool diff_if_only_endspace_difference
+                         __attribute__((unused)))
 {
-  for ( ; slen && s[slen-1] == ' ' ; slen--);
-  for ( ; tlen && t[tlen-1] == ' ' ; tlen--);
-  return my_strnncoll_win1250ch(cs,s,slen,t,tlen,0);
+  int level;
+
+  for (level= 0; level <= 3; level++)
+  {
+    const uchar *s1= s;
+    const uchar *t1= t;
+    
+    for (;;)
+    {
+      int sval, tval, diff;
+      NEXT_CMP_VALUE(s, s1, level, sval, (int) slen, 0);
+      NEXT_CMP_VALUE(t, t1, level, tval, (int) tlen, 0);
+      if (!sval)
+      {
+        sval= level ? _sort_order_win1250ch2[32] : _sort_order_win1250ch1[32];
+        for (; tval;)
+        {
+          if ((diff= sval - tval))
+            return diff;
+          NEXT_CMP_VALUE(t, t1, level, tval, (int) tlen, 0);
+        }
+        break;
+      }
+      else if (!tval)
+      {
+        tval= level ? _sort_order_win1250ch2[32] : _sort_order_win1250ch1[32];
+        for (; sval;)
+        {
+          if ((diff= sval - tval))
+            return diff;
+          NEXT_CMP_VALUE(s, s1, level, sval, (int) slen, 0);
+        }
+        break;
+      }
+
+      if ((diff= sval - tval))
+        return diff;
+    }
+  }
+  return 0;
 }
 
 
-static size_t my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
-                                    uchar *dest, size_t len, 
-                                    const uchar *src, size_t srclen)
+static size_t
+my_strnxfrm_win1250ch(CHARSET_INFO * cs  __attribute__((unused)),
+                      uchar *dst, size_t dstlen, uint nweights_arg,
+                      const uchar *src, size_t srclen, uint flags)
 {
-  int value;
-  const uchar *p;
-  int pass = 0;
-  size_t totlen = 0;
-  p = src;
+  uint level;
+  uchar *dst0= dst;
+  uchar *de= dst + dstlen;
 
-  do {
-    NEXT_CMP_VALUE(src, p, pass, value, (int)srclen);
-    if (totlen <= len)
-      dest[totlen] = value;
-    totlen++;
-  } while (value) ;
-  if (len > totlen)
-    bfill(dest + totlen, len - totlen, ' ');
-  return len;
+  if (!(flags & 0x03)) /* All levels by default */
+    flags|= 0x03;
+
+  for (level= 0; level <= 1; level++)
+  {
+    if (flags & (1 << level))
+    {
+      uint nweights= nweights_arg;
+      const uchar *p= src;
+      int value;
+      uchar *dstl= dst;
+
+      for (; dst < de && nweights; nweights--)
+      {
+        NEXT_CMP_VALUE(src, p, level, value, (int) srclen, 0);
+        if (!value)
+          break;
+        *dst++= value;
+      }
+
+      if (dst < de && nweights && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+      {
+        uint pad_length= de - dst;
+        set_if_smaller(pad_length, nweights);
+        /* [82.01] - weights for space character */
+        bfill(dst, pad_length, (int) (level ? 0x01 : 0x82));
+        dst+= pad_length;
+      }
+      my_strxfrm_desc_and_reverse(dstl, dst, flags, level);
+    }
+  }
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && dst < de)
+  {
+    uint fill_length= de - dst;
+    cs->cset->fill(cs, (char*) dst, fill_length, 0);
+    dst= de;
+  }
+  return dst - dst0;
 }
 
 #undef IS_END
 
-#ifdef REAL_MYSQL
 
 static uchar NEAR like_range_prefix_min_win1250ch[]=
 {
@@ -705,11 +784,11 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   0,				/* max_sort_char */
   ' ',                          /* pad char      */
   0,                            /* escape_with_backslash_is_dangerous */
+  2,                            /* levels_for_compare */
+  2,                            /* levels_for_order   */
   &my_charset_8bit_handler,
   &my_collation_czech_ci_handler
 };
 
-
-#endif /* REAL_MYSQL */
 
 #endif /* HAVE_CHARSET_cp1250 */

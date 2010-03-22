@@ -17,6 +17,7 @@ SET collation_connection='gbk_chinese_ci';
 -- source include/ctype_innodb_like.inc
 -- source include/ctype_like_escape.inc
 -- source include/ctype_like_range_f1f2.inc
+-- source include/ctype_ascii_order.inc
 SET collation_connection='gbk_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
@@ -158,4 +159,31 @@ DROP TABLE t1;
 
 --echo #
 --echo # End of 5.5 tests
+--echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set names gbk;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_A1A1.inc
+--source include/weight_string_8140.inc
+--source include/weight_string_8EA1.inc
+
+set collation_connection=gbk_bin;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_A1A1.inc
+--source include/weight_string_8140.inc
+--source include/weight_string_8EA1.inc
+
+--echo #
+--echo # End of 5.6 tests
 --echo #

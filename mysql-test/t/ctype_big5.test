@@ -17,6 +17,7 @@ SET collation_connection='big5_chinese_ci';
 -- source include/ctype_innodb_like.inc
 -- source include/ctype_like_escape.inc
 -- source include/ctype_like_range_f1f2.inc
+-- source include/ctype_ascii_order.inc
 SET collation_connection='big5_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
@@ -81,6 +82,7 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 load data infile 't1.txt' into table t1;
 select hex(a) from t1;
 --remove_file $MYSQLD_DATADIR/test/t1.txt
+
 drop table t1;
 
 --echo End of 5.0 tests
@@ -144,4 +146,27 @@ DROP TABLE t1;
 
 --echo #
 --echo # End of 5.5 tests
+--echo #
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set names big5;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_A1A1.inc
+
+set collation_connection=big5_bin;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+--source include/weight_string_A1A1.inc
+
+--echo #
+--echo # End of 5.6 tests
 --echo #
