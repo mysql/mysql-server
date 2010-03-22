@@ -143,7 +143,7 @@ Patch04: microsec_process.patch
 Patch05: userstat.patch
 Patch06: optimizer_fix.patch
 Patch07: mysql-test_for_xtradb.diff
-Patch08: mysql-show_temp_51.patch
+Patch08: show_temp_51.patch
 
 
 %define perconaxtradbplugin percona-xtradb-%{pluginversion}-%{xtradbversion}.tar.gz
