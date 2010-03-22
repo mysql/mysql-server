@@ -577,7 +577,7 @@ int runCheckStarted(NDBT_Context* ctx, NDBT_Step* step){
 
   // Make sure atrt assigns nodeid != -1
   SqlResultSet procs;
-  if (!atrt.doQuery("SELECT * FROM process", procs))
+  if (!atrt.doQuery("SELECT * FROM process where type <> \'mysql\'", procs))
     return NDBT_FAILED;
 
   while (procs.next())
