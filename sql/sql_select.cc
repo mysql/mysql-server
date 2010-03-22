@@ -6858,45 +6858,6 @@ choose_plan(JOIN *join, table_map join_tables)
             jtab_sort_func, (void*)join->emb_sjm_nest);
   join->cur_sj_inner_tables= 0;
 
-#if 0
-  if (!join->emb_sjm_nest && straight_join)
-  {
-    /* Put all sj-inner tables right after their last outer table table.  */
-    uint inner;
-
-    /* Find the first inner table (inner tables follow outer) */
-    for (inner= join->const_tables;
-         inner < join->tables && !join->best_ref[inner]->emb_sj_nest;
-         inner++);
-
-    while (inner < join->tables) /* for each group of inner tables... */
-    {
-      TABLE_LIST *emb_sj_nest= join->best_ref[inner]->emb_sj_nest;
-      uint n_tables= my_count_bits(emb_sj_nest->sj_inner_tables);
-      table_map cur_map= join->const_table_map;
-      table_map needed_map= emb_sj_nest->nested_join->sj_depends_on |
-                            emb_sj_nest->nested_join->sj_corr_tables;
-      /* Locate the last outer table with which this semi-join is correlated */
-      uint last_outer;
-      for (last_outer= join->const_tables; last_outer < inner; last_outer++)
-      {
-        cur_map |= join->best_ref[last_outer]->table->map;
-        if (!(needed_map & ~cur_map))
-          break;
-      }
-      /* Move the inner tables to here */
-      JOIN_TAB *tmp[MAX_TABLES];
-      memcpy(tmp, join->best_ref + inner, n_tables*sizeof(JOIN_TAB));
-      for (uint i= inner - 1; i > last_outer; i--)
-      {
-        join->best_ref[i + n_tables]= join->best_ref[i]; 
-      }
-      memcpy(join->best_ref + last_outer + 1, tmp, n_tables*sizeof(JOIN_TAB));
-      inner += n_tables;
-    }
-  }
-#endif
-
   if (straight_join)
   {
     optimize_straight_join(join, join_tables);
