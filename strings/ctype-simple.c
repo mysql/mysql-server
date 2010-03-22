@@ -71,28 +71,30 @@ size_t my_strnxfrmlen_simple(CHARSET_INFO *cs, size_t len)
 */
 
 
-size_t my_strnxfrm_simple(CHARSET_INFO * cs, 
-                          uchar *dest, size_t len,
-                          const uchar *src, size_t srclen)
+size_t
+my_strnxfrm_simple(CHARSET_INFO * cs,
+                   uchar *dst, size_t dstlen, uint nweights,
+                   const uchar *src, size_t srclen, uint flags)
 {
   uchar *map= cs->sort_order;
-  size_t dstlen= len;
-  set_if_smaller(len, srclen);
-  if (dest != src)
+  uchar *d0= dst;
+  uint frmlen;
+  if ((frmlen= min(dstlen, nweights)) > srclen)
+    frmlen= srclen;
+  if (dst != src)
   {
     const uchar *end;
-    for ( end=src+len; src < end ;  )
-      *dest++= map[*src++];
+    for (end= src + frmlen; src < end;)
+      *dst++= map[*src++];
   }
   else
   {
     const uchar *end;
-    for ( end=dest+len; dest < end ; dest++)
-      *dest= (char) map[(uchar) *dest];
+    for (end= dst + frmlen; dst < end; dst++)
+      *dst= map[(uchar) *dst];
   }
-  if (dstlen > len)
-    bfill(dest, dstlen - len, ' ');
-  return dstlen;
+  return my_strxfrm_pad_desc_and_reverse(cs, d0, dst, d0 + dstlen,
+                                         nweights - frmlen, flags, 0);
 }
 
 
@@ -1775,6 +1777,150 @@ my_bool my_propagate_complex(CHARSET_INFO *cs __attribute__((unused)),
                              size_t length __attribute__((unused)))
 {
   return 0;
+}
+
+
+/*
+  Normalize strxfrm flags
+
+  SYNOPSIS:
+    my_strxfrm_flag_normalize()
+    flags    - non-normalized flags
+    nlevels  - number of levels
+    
+  NOTES:
+    If levels are omitted, then 1-maximum is assumed.
+    If any level number is greater than the maximum,
+    it is treated as the maximum.
+
+  RETURN
+    normalized flags
+*/
+
+uint my_strxfrm_flag_normalize(uint flags, uint maximum)
+{
+  DBUG_ASSERT(maximum >= 1 && maximum <= MY_STRXFRM_NLEVELS);
+  
+  /* If levels are omitted, then 1-maximum is assumed*/
+  if (!(flags & MY_STRXFRM_LEVEL_ALL))
+  {
+    static uint def_level_flags[]= {0, 0x01, 0x03, 0x07, 0x0F, 0x1F, 0x3F };
+    uint flag_pad= flags &
+                   (MY_STRXFRM_PAD_WITH_SPACE | MY_STRXFRM_PAD_TO_MAXLEN);
+    flags= def_level_flags[maximum] | flag_pad;
+  }
+  else
+  {
+    uint i;
+    uint flag_lev= flags & MY_STRXFRM_LEVEL_ALL;
+    uint flag_dsc= (flags >> MY_STRXFRM_DESC_SHIFT) & MY_STRXFRM_LEVEL_ALL;
+    uint flag_rev= (flags >> MY_STRXFRM_REVERSE_SHIFT) & MY_STRXFRM_LEVEL_ALL;
+    uint flag_pad= flags &
+                   (MY_STRXFRM_PAD_WITH_SPACE | MY_STRXFRM_PAD_TO_MAXLEN);
+
+    /*
+      If any level number is greater than the maximum,
+      it is treated as the maximum.
+    */
+    for (maximum--, flags= 0, i= 0; i < MY_STRXFRM_NLEVELS; i++)
+    {
+      uint src_bit= 1 << i;
+      if (flag_lev & src_bit)
+      {
+        uint dst_bit= 1 << min(i, maximum);
+        flags|= dst_bit;
+        flags|= (flag_dsc & dst_bit) << MY_STRXFRM_DESC_SHIFT;
+        flags|= (flag_rev & dst_bit) << MY_STRXFRM_REVERSE_SHIFT;
+      }
+      else
+      {
+        /* Check that there are no DESC or REVERSE flag for skipped level */
+        DBUG_ASSERT(!(flag_dsc & src_bit) && !(flag_rev & src_bit));
+      }
+    }
+    flags|= flag_pad;
+  }
+  
+  return flags;
+}
+
+
+/*
+  Apply DESC and REVERSE collation rules.
+
+  SYNOPSIS:
+    my_strxfrm_desc_and_reverse()
+    str      - pointer to string
+    strend   - end of string
+    flags    - flags
+    level    - which level, starting from 0.
+    
+  NOTES:
+    Apply DESC or REVERSE or both flags.
+    
+    If DESC flag is given, then the weights
+    come out NOTed or negated for that level.
+    
+    If REVERSE flags is given, then the weights come out in
+    reverse order for that level, that is, starting with
+    the last character and ending with the first character.
+    
+    If nether DESC nor REVERSE flags are give,
+    the string is not changed.
+    
+*/
+void
+my_strxfrm_desc_and_reverse(uchar *str, uchar *strend,
+                            uint flags, uint level)
+{
+  if (flags & (MY_STRXFRM_DESC_LEVEL1 << level))
+  {
+    if (flags & (MY_STRXFRM_REVERSE_LEVEL1 << level))
+    {
+      for (strend--; str <= strend;)
+      {
+        uchar tmp= *str;
+        *str++= ~*strend;
+        *strend--= ~tmp;
+      }
+    }
+    else
+    {
+      for (; str < strend; str++)
+        *str= ~*str;
+    }
+  }
+  else if (flags & (MY_STRXFRM_REVERSE_LEVEL1 << level))
+  {
+    for (strend--; str < strend;)
+    {
+      uchar tmp= *str;
+      *str++= *strend;
+      *strend--= tmp;
+    }
+  }
+}
+
+
+size_t
+my_strxfrm_pad_desc_and_reverse(CHARSET_INFO *cs,
+                                uchar *str, uchar *frmend, uchar *strend,
+                                uint nweights, uint flags, uint level)
+{
+  if (nweights && frmend < strend && (flags & MY_STRXFRM_PAD_WITH_SPACE))
+  {
+    uint fill_length= min((uint) (strend - frmend), nweights * cs->mbminlen);
+    cs->cset->fill(cs, (char*) frmend, fill_length, cs->pad_char);
+    frmend+= fill_length;
+  }
+  my_strxfrm_desc_and_reverse(str, frmend, flags, level);
+  if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && frmend < strend)
+  {
+    uint fill_length= strend - frmend;
+    cs->cset->fill(cs, (char*) frmend, fill_length, cs->pad_char);
+    frmend= strend;
+  }
+  return frmend - str;
 }
 
 

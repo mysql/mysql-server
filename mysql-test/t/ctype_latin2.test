@@ -50,3 +50,26 @@ SELECT group_concat(a collate latin2_croatian_ci order by binary a) from t1 grou
 drop table t1;
 
 # End of 4.1 tests
+
+--echo End of 5.1 tests
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set names latin2;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+
+set collation_connection=latin2_bin;
+--source include/weight_string.inc
+--source include/weight_string_l1.inc
+
+--echo #
+--echo # End of 5.6 tests
+--echo #

@@ -143,3 +143,40 @@ create table t1 (s1 char(5) character set latin1 collate latin1_german2_ci);
 insert into t1 values (0xf6) /* this is o-umlaut */;
 select * from t1 where length(s1)=1 and s1='oe';
 drop table t1;
+
+--echo End of 5.1 tests
+
+
+--echo #
+--echo # Start of 5.6 tests
+--echo #
+
+--echo #
+--echo # WL#3664 WEIGHT_STRING
+--echo #
+
+set @@collation_connection=latin1_german2_ci;
+--source include/weight_string.inc
+--source include/weight_string_euro.inc
+--source include/weight_string_l1.inc
+select hex(weight_string('Ä'));
+select hex(weight_string('ä'));
+select hex(weight_string('Ö'));
+select hex(weight_string('ö'));
+select hex(weight_string('Ü'));
+select hex(weight_string('ü'));
+select hex(weight_string('S'));
+select hex(weight_string('s'));
+select hex(weight_string('ß'));
+select hex(weight_string('ä' as char(1)));
+select hex(weight_string('ö' as char(1)));
+select hex(weight_string('ü' as char(1)));
+select hex(weight_string('ß' as char(1)));
+select hex(weight_string('xä' as char(2)));
+select hex(weight_string('xö' as char(2)));
+select hex(weight_string('xü' as char(2)));
+select hex(weight_string('xß' as char(2)));
+
+--echo #
+--echo # End of 5.6 tests
+--echo #
