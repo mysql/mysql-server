@@ -1112,6 +1112,31 @@ JOIN::optimize()
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
+
+  /*
+    It's necessary to check const part of HAVING cond as
+    there is a chance that some cond parts may become
+    const items after make_join_statisctics(for example
+    when Item is a reference to cost table field from
+    outer join).
+    This check is performed only for those conditions
+    which do not use aggregate functions. In such case
+    temporary table may not be used and const condition
+    elements may be lost during further having
+    condition transformation in JOIN::exec.
+  */
+  if (having && !having->with_sum_func)
+  {
+    COND *const_cond= make_cond_for_table(having, const_table_map, 0);
+    DBUG_EXECUTE("where", print_where(const_cond, "const_having_cond",
+                                      QT_ORDINARY););
+    if (const_cond && !const_cond->val_int())
+    {
+      zero_result_cause= "Impossible HAVING noticed after reading const tables";
+      DBUG_RETURN(0);
+    }
+  }
+
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -2943,7 +2968,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      if (records == 0 && s->table->reginfo.impossible_range)
+      if (records == 0 && s->table->reginfo.impossible_range &&
+          (s->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
       {
 	/*
 	  Impossible WHERE or ON expression
