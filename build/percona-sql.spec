@@ -318,7 +318,7 @@ tar xfz $RPM_SOURCE_DIR/%{perconaxtradbplugin} -C storage/innobase --strip-path=
 fi
 %patch0 -p1
 
-cd storage/innobase && bash -x ./setup.sh
+#cd storage/innobase && bash -x ./setup.sh
 
 ##############################################################################
 # The actual build
