@@ -685,6 +685,7 @@ JOIN::prepare(Item ***rref_pointer_array,
           !select_lex->is_part_of_union() &&                            // 2
           select_lex->master_unit()->first_select()->leaf_tables &&     // 3
           thd->lex->sql_command == SQLCOM_SELECT &&                     // *
+          select_lex->outer_select()->leaf_tables &&                    // 3A
           subquery_types_allow_materialization(thd, in_subs, NULL))
       {
         // psergey-todo: duplicated_subselect_card_check: where it's done?
@@ -4570,7 +4571,7 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
            sj_nest->sj_subq_pred->types_allow_materialization)
       {
         join->emb_sjm_nest= sj_nest;
-        if (choose_plan(join, all_table_map))
+        if (choose_plan(join, all_table_map & ~join->const_table_map))
           DBUG_RETURN(TRUE); /* purecov: inspected */
         /*
           The best plan to run the subquery is now in join->best_positions,
@@ -16346,12 +16347,32 @@ join_read_key2(JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
       table->status=STATUS_NOT_FOUND;
       return -1;
     }
+    /*
+      Moving away from the current record. Unlock the row
+      in the handler if it did not match the partial WHERE.
+    */
+    if (tab->ref.has_record && tab->ref.use_count == 0)
+    {
+      tab->read_record.file->unlock_row();
+      tab->ref.has_record= FALSE;
+    }
     error=table->file->index_read_map(table->record[0],
                                       table_ref->key_buff,
                                       make_prev_keypart_map(table_ref->key_parts),
                                       HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_error(table, error);
+
+    if (! error)
+    {
+      tab->ref.has_record= TRUE;
+      tab->ref.use_count= 1;
+    }
+  }
+  else if (table->status == 0)
+  {
+    DBUG_ASSERT(tab->ref.has_record);
+    tab->ref.use_count++;
   }
   table->null_row=0;
   return table->status ? -1 : 0;

@@ -848,7 +848,7 @@ create table t1 (a char(2), b varchar(10));
 insert into t1 values ('a',  'aaa');
 insert into t1 values ('aa', 'aaaa');
 
-set @@optimizer_switch='default, semijoin=off';
+set @@optimizer_switch='default,semijoin=off';
 explain select a,b from t1 where b in (select a from t1);
 select a,b from t1 where b in (select a from t1);
 prepare st1 from "select a,b from t1 where b in (select a from t1)";

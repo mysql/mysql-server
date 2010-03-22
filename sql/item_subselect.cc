@@ -3136,7 +3136,7 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
   if (!(tmp_table_ref= (TABLE_LIST*) thd->calloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(TRUE);
 
-  tmp_table_ref->init_one_table(NULL, 0, "materialized subselect", 22,
+  tmp_table_ref->init_one_table("", 0, "materialized subselect", 22,
                                 "materialized subselect", TL_READ);
   tmp_table_ref->table= tmp_table;
 
