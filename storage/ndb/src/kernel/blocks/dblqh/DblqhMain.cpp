@@ -15223,14 +15223,7 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   cnewestGci = req->newestGci;
   cstartRecReqData = req->senderData;
 
-#if 0
-  /**
-   * This require fails...
-   *   investigate what is reasonable to do!!
-   *   and what it means
-   */
   ndbrequire(crestartOldestGci <= crestartNewestGci);
-#endif
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
@@ -17185,6 +17178,8 @@ void Dblqh::readSrFourthPhaseLab(Signal* signal)
      * If "keepGci" is bigger than latest-completed-gci
      *   move cnewest/cnewestCompletedGci forward
      */
+    ndbout_c("readSrFourthPhaseLab: gci %u => %u",
+             gci, crestartOldestGci);
     gci = crestartOldestGci;
   }
   cnewestGci = gci;
