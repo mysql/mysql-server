@@ -29,6 +29,12 @@ echo Slave_SQL_Running= $status;
 
 start slave io_thread;
 
+#
+# Notice a difference between versions in showing p.2: 
+# 5.1 has two OFF,ON IO-thread state running state whereas later versions
+# have three: OFF,Connecting,ON.
+# Hence, 5.1 must display OFF NO NO where as 5.1+ OFF Connecting NO
+#
 --echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF NO NO in three following queries
 
 SHOW STATUS LIKE 'Slave_running';
