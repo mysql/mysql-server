@@ -23015,7 +23015,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
     {
       jam();
       setError(error, SchemaTransBeginRef::IncompatibleVersions, __LINE__);
-      return;
+      break;
     }
 
     if (!seizeSchemaTrans(trans_ptr)) {
