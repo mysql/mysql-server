@@ -47,7 +47,7 @@ int my_rename(const char *from, const char *to, myf MyFlags)
   if(!MoveFileEx(from, to, MOVEFILE_COPY_ALLOWED|
                            MOVEFILE_REPLACE_EXISTING))
   {
-    my_errno=EACCES;
+    my_osmaperr(GetLastError());
 #else
 #if defined(HAVE_RENAME)
   if (rename(from,to))
