@@ -626,3 +626,12 @@ select count(a) from t2 where a in ( SELECT  a FROM t3);
 count(a)
 1000
 drop table t0,t1,t2,t3;
+
+BUG#42740: crash in optimize_semijoin_nests
+
+create table t1 (c6 timestamp,key (c6)) engine=innodb;
+create table t2 (c2 double) engine=innodb;
+explain select 1 from t2 where c2 = any (select log10(null) from t1 where c6 <null)  ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+drop table t1, t2;
