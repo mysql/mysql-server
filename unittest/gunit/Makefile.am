@@ -23,9 +23,9 @@ EXTRA_DIST  = CMakeLists.txt FindGTest.cmake
 # Allow implicit templates when compiling gtest.h
 override CXXFLAGS += @CXXFLAGS_OVERRIDE@
 
-UNIT_TEST_LIBS= $(top_builddir)/mysys/libmysys.la \
-		$(top_builddir)/dbug/libdbug.la \
-		$(top_builddir)/strings/libmystrings.la
+UNIT_TEST_LIBS= $(top_builddir)/mysys/libmysys.a \
+		$(top_builddir)/dbug/libdbug.a \
+		$(top_builddir)/strings/libmystrings.a
 
 UNIT_TEST_OBJS= $(top_builddir)/sql/sql_state.o \
 		$(top_builddir)/sql/sql_string.o \
