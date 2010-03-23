@@ -5930,7 +5930,9 @@ restart_cluster_failure:
         }
       }
     }
-    else if (res > 0)
+    else if (res > 0 ||
+             (opt_ndb_log_empty_epochs &&
+              gci > ndb_latest_handled_binlog_epoch))
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
@@ -5974,9 +5976,32 @@ restart_cluster_failure:
       }
       NdbEventOperation *pOp= i_ndb->nextEvent();
       ndb_binlog_index_row _row;
+      ndb_binlog_index_row *rows= &_row;
+      injector::transaction trans;
+      unsigned trans_row_count= 0;
+      if (!pOp)
+      {
+        /*
+          Must be an empty epoch since the condition
+          (opt_ndb_log_empty_epochs &&
+           gci > ndb_latest_handled_binlog_epoch)
+          must be true we write empty epoch into
+          ndb_binlog_index
+        */
+        DBUG_PRINT("info", ("Writing empty epoch for gci %llu", gci));
+        rows= &_row;
+        bzero((char*)&_row, sizeof(_row));
+        thd->variables.character_set_client= &my_charset_latin1;
+        if (!trans.good())
+        {
+          DBUG_PRINT("info", ("Initializing transaction"));
+          inj->new_trans(thd, &trans);
+        }        
+        goto commit_to_binlog;
+      }
       while (pOp != NULL)
       {
-        ndb_binlog_index_row *rows= &_row;
+        rows= &_row;
 #ifdef RUN_NDB_BINLOG_TIMER
         Timer gci_timer, write_timer;
         int event_count= 0;
@@ -5999,8 +6024,7 @@ restart_cluster_failure:
 
         bzero((char*)&_row, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
-        injector::transaction trans;
-        unsigned trans_row_count= 0;
+        trans_row_count= 0;
         // pass table map before epoch
         {
           Uint32 iter= 0;
@@ -6204,6 +6228,7 @@ restart_cluster_failure:
             }
             break;
           }
+      commit_to_binlog:
           thd->proc_info= "Committing events to binlog";
           injector::transaction::binlog_pos start= trans.start_pos();
           if (int r= trans.commit())
