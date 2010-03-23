@@ -125,6 +125,25 @@ int toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
     return 0;
 }
 
+static int toku_assert_on_write_enospc = 0;
+static const int toku_write_enospc_sleep = 1;
+static uint64_t toku_write_enospc_last_report;      // timestamp of most recent report to error log
+static time_t   toku_write_enospc_last_time;        // timestamp of most recent ENOSPC
+static uint32_t toku_write_enospc_current;          // number of threads currently blocked on ENOSPC
+static uint64_t toku_write_enospc_total;            // total number of times ENOSPC was returned from an attempt to write
+
+void toku_set_assert_on_write_enospc(int do_assert) {
+    toku_assert_on_write_enospc = do_assert;
+}
+
+void
+toku_fs_get_write_info(time_t *enospc_last_time, uint64_t *enospc_current, uint64_t *enospc_total) {
+    *enospc_last_time = toku_write_enospc_last_time;
+    *enospc_current = toku_write_enospc_current;
+    *enospc_total = toku_write_enospc_total;
+}
+
+
 //Print any necessary errors
 //Return whether we should try the write again.
 static void
@@ -135,24 +154,76 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
     int errno_write = errno;
     assert(errno_write != 0);
     switch (errno_write) {
-        case EINTR: { //The call was interrupted by a signal before any data was written; see signal(7).
-            char err_msg[sizeof("Write of [] bytes to fd=[] interrupted.  Retrying.") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
-            snprintf(err_msg, sizeof(err_msg), "Write of [%"PRIu64"] bytes to fd=[%d] interrupted.  Retrying.", (uint64_t)len, fd);
-            perror(err_msg);
-            fflush(stderr);
-            try_again = 1;
-            break;
-        }
-        case ENOSPC: {
+    case EINTR: { //The call was interrupted by a signal before any data was written; see signal(7).
+	char err_msg[sizeof("Write of [] bytes to fd=[] interrupted.  Retrying.") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
+	snprintf(err_msg, sizeof(err_msg), "Write of [%"PRIu64"] bytes to fd=[%d] interrupted.  Retrying.", (uint64_t)len, fd);
+	perror(err_msg);
+	fflush(stderr);
+	try_again = 1;
+	break;
+    }
+    case ENOSPC: {
+        if (toku_assert_on_write_enospc) {
             char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
             snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", (uint64_t)len, fd);
             perror(err_msg);
             fflush(stderr);
             int out_of_disk_space = 1;
             assert(!out_of_disk_space); //Give an error message that might be useful if this is the only one that survives.
-        }
-        default:
+        } else {
+            toku_sync_fetch_and_increment_uint64(&toku_write_enospc_total);
+            toku_sync_fetch_and_increment_uint32(&toku_write_enospc_current);
+
+            time_t tnow = time(0);
+            toku_write_enospc_last_time = tnow;
+            if (toku_write_enospc_last_report == 0 || tnow - toku_write_enospc_last_report >= 60) {
+                toku_write_enospc_last_report = tnow;
+
+                const int tstr_length = 26;
+                char tstr[tstr_length];
+                time_t t = time(0);
+                ctime_r(&t, tstr);
+
+#if 0
+                //TODO: Find out how to get name from fd or handle
+                //In vista/server08 and later there exists GetFinalPathNameByHandle()
+                //In XP there exists:
+                //  Example code that requires on kernel-level functions that
+                //  are not guaranteed to stay around.
+                //    http://rubyforge.org/pipermail/win32utils-devel/2008-May/001091.html
+                //  Example code that works for files of length > 0 (according
+                //  to author).  This one appears to not require unsafe apis
+                //  (not guaranteed to stick around)
+                //    http://msdn.microsoft.com/en-us/library/aa366789%28VS.85%29.aspx
+                //  Can we use runtime-checks to determine what version of OS we
+                //  are using so we can choose which function to use?
+                //  We CAN do compile-time checks, but then we would need to
+                //  release multiple versions of binary.
+                //  Is this important?
+                //
+                const int MY_MAX_PATH = 256;
+                char fname[MY_MAX_PATH], symname[MY_MAX_PATH];
+                sprintf(fname, "/proc/%d/fd/%d", getpid(), fd);
+                ssize_t n = readlink(fname, symname, MY_MAX_PATH);
+                if ((int)n == -1)
+                    fprintf(stderr, "%.24s Tokudb No space when writing %"PRIu64" bytes to fd=%d ", tstr, (uint64_t) len, fd);
+                else
+                    fprintf(stderr, "%.24s Tokudb No space when writing %"PRIu64" bytes to %*s ", tstr, (uint64_t) len, (int) n, symname); 
+#else
+                fprintf(stderr, "%.24s Tokudb No space when writing %"PRIu64" bytes to fd=%d ", tstr, (uint64_t) len, fd);
+#endif
+
+                fprintf(stderr, "retry in %d second%s\n", toku_write_enospc_sleep, toku_write_enospc_sleep > 1 ? "s" : "");
+                fflush(stderr);
+            }
+            sleep(toku_write_enospc_sleep);
+            try_again = 1;
+            toku_sync_fetch_and_decrement_uint32(&toku_write_enospc_current);
             break;
+        }
+    }
+    default:
+	break;
     }
     assert(try_again);
     errno = errno_write;
