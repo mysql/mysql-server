@@ -682,7 +682,8 @@ private:
   bool has_null_in_unique_index(uint idx_no) const;
   bool check_index_fields_not_null(KEY *key_info);
 
-  bool check_if_pushable(const NdbQueryOperationTypeWrapper& type) const;
+  bool check_if_pushable(const NdbQueryOperationTypeWrapper& type,
+                         uint idx= MAX_KEY) const;
   bool check_is_pushed() const;
   NdbQuery* create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
 
