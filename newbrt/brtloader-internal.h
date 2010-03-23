@@ -4,7 +4,24 @@
 
 /* These functions are exported to allow the tests to compile. */
 
-int brtloader_open_temp_file (BRTLOADER bl, FILE **filep, char **fnamep);
+/* These structures maintain a collection of all the open temporary files used by the loader. */
+struct file_info {
+    BOOL is_open;
+    BOOL is_extant; // if true, the file must be unlinked.
+    char *fname;
+    FILE *file;
+};
+struct file_infos {
+    int n_files;
+    int n_files_limit;
+    struct file_info *file_infos;
+    int n_files_open, n_files_extant;
+};
+typedef struct fidx { int idx; } FIDX;
+static const FIDX FIDX_NULL __attribute__((__unused__)) = {-1};
+
+int brtloader_open_temp_file (BRTLOADER bl, FIDX*file_idx);
+
 
 struct brtloader_s {
     int panic;
@@ -20,15 +37,17 @@ struct brtloader_s {
     const char **new_fnames_in_env; // the file names that the final data will be written to (relative to env).
 
     const char *temp_file_template;
-    FILE *fprimary_rows;  char *fprimary_rows_name;
-    FILE *fprimary_idx;   char *fprimary_idx_name;
+    FIDX fprimary_rows; // the file index (in the file_infos) for the data
+    FIDX fprimary_idx;  // the file index for the index
     u_int64_t fprimary_offset;
     CACHETABLE cachetable;
+    /* To make it easier to recover from errors, we don't use FILE*, instead we use an index into the file_infos. */
+    struct file_infos file_infos;
 };
 
 /* These data structures are used for manipulating a collection of rows in main memory. */
 struct row {
-    char *data;
+    size_t off; // the offset in the data array.
     int   klen,vlen;
 };
 struct rowset {
@@ -38,25 +57,42 @@ struct rowset {
     char *data;
 };
 
-void init_rowset (struct rowset *rows);
+int init_rowset (struct rowset *rows);
 void destroy_rowset (struct rowset *rows);
 void add_row (struct rowset *rows, DBT *key, DBT *val);
 
-int loader_write_row(DBT *key, DBT *val, FILE *data, FILE *idx, u_int64_t *dataoff, BRTLOADER bl);
-int loader_read_row (FILE *f, DBT *key, DBT *val, BRTLOADER bl);
+int loader_write_row(DBT *key, DBT *val, FIDX data, FIDX idx, u_int64_t *dataoff, BRTLOADER bl);
+int loader_read_row (FIDX f, DBT *key, DBT *val, BRTLOADER bl);
 
-void merge (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row b[/*bn*/], int bn,
-	    DB *dest_db, brt_compare_func);
-void mergesort_row_array (struct row rows[/*n*/], int n, DB *dest_db, brt_compare_func);
-
-struct fileset {
-    int n_temp_files, n_temp_files_limit;
-    char **temp_data_names;
-    char **temp_idx_names;
+struct error_callback_s {
+    void (*error_callback)(DB *, int which_db, int err, DBT *key, DBT *val, void *extra);
+    DB *db;
+    int which_db;
+    void *extra;
 };
 
-void init_fileset (struct fileset *fs);
+int merge (struct row dest[/*an+bn*/], struct row a[/*an*/], int an, struct row b[/*bn*/], int bn,
+	   DB *dest_db, brt_compare_func,
+	   struct error_callback_s *,
+	   struct rowset *);
+int mergesort_row_array (struct row rows[/*n*/], int n, DB *dest_db, brt_compare_func, struct error_callback_s *, struct rowset *);
 
-int sort_and_write_rows (struct rowset *rows, struct fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func);
-int merge_files (struct fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func);
-int write_file_to_dbfile (int outfile, FILE *infile, BRTLOADER bl, const struct descriptor *descriptor);
+struct merge_fileset {
+    int n_temp_files, n_temp_files_limit;
+    FIDX *data_fidxs;
+    FIDX *idx_fidxs;
+};
+
+void init_merge_fileset (struct merge_fileset *fs);
+void destroy_merge_fileset (struct merge_fileset *fs);
+
+int sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func,
+			 struct error_callback_s *error_callback);
+int merge_files (struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func, struct error_callback_s *);
+int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor);
+
+int brtloader_init_file_infos (struct file_infos *fi);
+void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error);
+int brtloader_fi_close (struct file_infos *fi, FIDX idx);
+int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode);
+int brtloader_fi_unlink (struct file_infos *fi, FIDX idx);

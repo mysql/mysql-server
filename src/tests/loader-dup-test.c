@@ -177,6 +177,25 @@ static void check_results(DB **dbs)
     printf("\nCheck OK\n");
 }
 
+struct error_extra {
+    int bad_i;
+    int error_count;
+};
+
+static void error_callback (DB *db, int which_db, int err, DBT *key, DBT *val, void *extra) {
+    assert(db);
+    assert(extra);
+    assert(err==DB_KEYEXIST);
+    assert(which_db>=0);
+    assert(key->size==4);
+    assert(which_db==0);
+    struct error_extra *e =(struct error_extra *)extra;
+    assert(e->bad_i == *(int*)key->data);
+    val=val;
+    assert(e->error_count==0);
+    e->error_count++;
+}
+
 static void test_loader(DB **dbs)
 {
     int r;
@@ -195,7 +214,8 @@ static void test_loader(DB **dbs)
     CKERR(r);
     r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags, NULL);
     CKERR(r);
-    r = loader->set_error_callback(loader, NULL, NULL);
+    struct error_extra error_extra = {.error_count=0};
+    r = loader->set_error_callback(loader, error_callback, (void*)&error_extra);
     CKERR(r);
     r = loader->set_poll_function(loader, NULL);
     CKERR(r);
@@ -203,6 +223,17 @@ static void test_loader(DB **dbs)
     // using loader->put, put values into DB
     DBT key, val;
     unsigned int k, v;
+    {   // put a duplicate row in.
+	int i = NUM_ROWS;
+        k = i;
+        v = generate_val(i, 0);
+        dbt_init(&key, &k, sizeof(unsigned int));
+        dbt_init(&val, &v, sizeof(unsigned int));
+        r = loader->put(loader, &key, &val);
+        CKERR(r);
+        if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
+	error_extra.bad_i = i;
+    }
     for(int i=1;i<=NUM_ROWS;i++) {
         k = i;
         v = generate_val(i, 0);
@@ -215,10 +246,11 @@ static void test_loader(DB **dbs)
     if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
         
     // close the loader
-    printf("closing"); fflush(stdout);
+    if (verbose) { printf("closing"); fflush(stdout); }
     r = loader->close(loader);
-    printf(" done\n");
-    CKERR(r);
+    if (verbose) {  printf(" done\n"); }
+    assert(r==DB_KEYEXIST);
+    assert(error_extra.error_count==1);
 
     r = txn->commit(txn, 0);
     CKERR(r);
@@ -241,8 +273,7 @@ static void run_test(void)
     r = env->set_default_dup_compare(env, uint_dbt_cmp);                                                      CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
-//    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
+    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     //Disable auto-checkpointing
@@ -283,9 +314,20 @@ static void run_test(void)
 // ------------ infrastructure ----------
 static void do_args(int argc, char * const argv[]);
 
+int num_rows_set = FALSE;
+
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    run_test();
+    if (num_rows_set)
+	run_test();
+    else {
+	int sizes[]={1,4000000,-1};
+	for (int i=0; sizes[i]>=0; i++) {
+	    if (verbose) printf("Doing %d\n", sizes[i]);
+	    NUM_ROWS = sizes[i];
+	    run_test();
+	}
+    }
     return 0;
 }
 
@@ -320,6 +362,7 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);
+	    num_rows_set = TRUE;
         } else if (strcmp(argv[0], "-c")==0) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-p")==0) {

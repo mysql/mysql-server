@@ -25,5 +25,12 @@ int ydb_load_inames(DB_ENV * env,
 		    DB * dbs[/*N*/],
 		    /*out*/ char * new_inames_in_env[N]);
 
+// Wrapper to ydb_load_inames if you are not holding the ydb lock.
+int locked_ydb_load_inames(DB_ENV * env,
+                           DB_TXN * txn,
+                           int N,
+                           DB * dbs[/*N*/],
+                           /*out*/ char * new_inames_in_env[N]);
+
 
 #endif

@@ -38,7 +38,8 @@ struct __toku_loader_internal {
     uint32_t *dbt_flags;
     uint32_t loader_flags;
     void *extra;
-    void (*error_callback)(DB *db, int i, int err, DBT *key, DBT *val, void *extra);
+    void (*error_callback)(DB *db, int i, int err, DBT *key, DBT *val, void *extra_extra);
+    void *error_extra;
     int  (*poll_func)(void *extra, float progress);
     char *temp_file_template;
 
@@ -147,7 +148,7 @@ int toku_loader_create_loader(DB_ENV *env,
 	}
         loader->i->ekeys = NULL;
         loader->i->evals = NULL;
-        r = ydb_load_inames (env, txn, N, dbs, new_inames_in_env);
+        r = locked_ydb_load_inames (env, txn, N, dbs, new_inames_in_env);
         assert(r==0);
         toku_brt_loader_open(&loader->i->brt_loader,
                              loader->i->env->i->cachetable,
@@ -175,9 +176,11 @@ int toku_loader_set_poll_function(DB_LOADER *loader,
 }
 
 int toku_loader_set_error_callback(DB_LOADER *loader, 
-                                   void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *extra)) 
+                                   void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *extra),
+				   void *error_extra) 
 {
     loader->i->error_callback = error_cb;
+    loader->i->error_extra    = error_extra;
     return 0;
 }
 
@@ -230,31 +233,36 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
 
 int toku_loader_close(DB_LOADER *loader) 
 {
+    int r=0;
     if ( loader->i->err_errno != 0 ) {
         if ( loader->i->error_callback != NULL ) {
-            loader->i->error_callback(loader->i->dbs[loader->i->err_i], loader->i->err_i, loader->i->err_errno, &loader->i->err_key, &loader->i->err_val, NULL);
+            loader->i->error_callback(loader->i->dbs[loader->i->err_i], loader->i->err_i, loader->i->err_errno, &loader->i->err_key, &loader->i->err_val, loader->i->error_extra);
         }
         toku_free(loader->i->err_key.data);
         toku_free(loader->i->err_val.data);
     }
 
     if ( !(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
-        toku_brt_loader_close(loader->i->brt_loader);
+        r = toku_brt_loader_close(loader->i->brt_loader, loader->i->error_callback, loader->i->error_extra);
+	if (r!=0) goto cleanup_and_return_r;
 
         for (int i=0; i<loader->i->N; i++) {
             toku_ydb_lock(); //Must hold ydb lock for dictionary_redirect.
-            int r = toku_dictionary_redirect(loader->i->inames_in_env[i],
-                                             loader->i->dbs[i]->i->brt,
-                                             db_txn_struct_i(loader->i->txn)->tokutxn);
+            r = toku_dictionary_redirect(loader->i->inames_in_env[i],
+					 loader->i->dbs[i]->i->brt,
+					 db_txn_struct_i(loader->i->txn)->tokutxn);
             assert(r==0);
             toku_ydb_unlock();
-            toku_free(loader->i->inames_in_env[i]);
         }
+    cleanup_and_return_r:
+        for (int i=0; i<loader->i->N; i++) {
+            toku_free(loader->i->inames_in_env[i]);
+	}
         toku_free(loader->i->inames_in_env);
         toku_free(loader->i->brt_loader);
         // TODO: release table locks
-    }
-    if (loader->i->loader_flags & LOADER_USE_PUTS) {
+    } else {
+	// (loader->i->loader_flags & LOADER_USE_PUTS);
         int num_dbts = loader->i->N;
         for (int i=0; i<num_dbts; i++) {
             if (loader->i->ekeys &&
@@ -274,7 +282,7 @@ int toku_loader_close(DB_LOADER *loader)
     toku_free(loader->i->temp_file_template);
     toku_free(loader->i);
     toku_free(loader);
-    return 0;
+    return r;
 }
 
 int toku_loader_abort(DB_LOADER *loader) 
