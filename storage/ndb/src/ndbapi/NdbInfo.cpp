@@ -313,7 +313,15 @@ void NdbInfo::flush_tables()
   // Delete all but the hardcoded tables
   while (m_tables.entries() > NUM_HARDCODED_TABLES)
   {
-    m_tables.remove(NUM_HARDCODED_TABLES);
+    for (size_t i = 0; i<m_tables.entries(); i++)
+    {
+      Table * tab = m_tables.value(i);
+      if (! (tab == m_tables_table || tab == m_columns_table))
+      {
+        m_tables.remove(i);
+        break;
+      }
+    }
   }
   assert(m_tables.entries() == NUM_HARDCODED_TABLES);
 }
