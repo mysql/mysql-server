@@ -11,3 +11,4 @@
 ##############################################################################
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
+subselect_notembedded    : MariaDB LPBUG#545137: crashes on some platforms
