@@ -10724,7 +10724,7 @@ static MYSQL_SYSVAR_BOOL(use_sys_malloc, srv_use_sys_malloc,
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
   "Buffer changes to reduce random access: "
-  "OFF, ON, inserting, deleting, changing, or purging.",
+  "OFF, ON, none, inserts.",
   innodb_change_buffering_validate,
   innodb_change_buffering_update, NULL);
 
