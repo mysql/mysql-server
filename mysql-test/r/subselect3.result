@@ -1055,7 +1055,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	8	Using where; Using temporary; Using filesort; Start materialize; Scan
 1	PRIMARY	t12	ALL	NULL	NULL	NULL	NULL	8	Using where; End materialize; Using join buffer
 1	PRIMARY	t21	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer
-1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	32	Using where; Using join buffer
+1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
@@ -1063,7 +1063,7 @@ a	b	c
 drop table t1, t11, t12, t21, t22;
 create table t1(a int);
 insert into t1 values (0),(1);
-set @@optimizer_switch='no_firstmatch';
+set @@optimizer_switch='firstmatch=off';
 explain 
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1074,13 +1074,13 @@ select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) a
 subq
 NULL
 0
-set @@optimizer_switch='';
+set @@optimizer_switch='default';
 drop table t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 as select * from t0;
 insert into t1 select a+10 from t0;
-set @@optimizer_switch='no_firstmatch,no_materialization';
+set @@optimizer_switch='firstmatch=off,materialization=off';
 insert into t0 values(2);
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1108,7 +1108,7 @@ a
 17
 18
 19
-set @@optimizer_switch='no_materialization';
+set @@optimizer_switch='default,materialization=off';
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	11	Using where; FirstMatch
@@ -1135,7 +1135,7 @@ a
 17
 18
 19
-set @@optimizer_switch='';
+set @@optimizer_switch='default';
 explain select * from (select a from t0) X where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	
@@ -1158,13 +1158,13 @@ insert into t4 select a from t3;
 explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
 and t4.pk=t1.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using index condition; Using MRR; LooseScan
+1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using where; LooseScan
 1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index; FirstMatch(t1)
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where
 drop table t1, t3, t4;
 create table t1 (a int) as select * from t0 where a < 5;
 set @save_max_heap_table_size=@@max_heap_table_size;
-set @@optimizer_switch='no_firstmatch,no_materialization';
+set @@optimizer_switch='default,firstmatch=off,materialization=off';
 set @@max_heap_table_size= 16384;
 explain select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1181,7 +1181,7 @@ show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
 set @save_max_heap_table_size=@@max_heap_table_size;
-set @@optimizer_switch=default;
+set @@optimizer_switch='default';
 drop table t0, t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -1192,13 +1192,13 @@ insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	Using where
 select * from t3 where a in (select a from t2);
 a	filler
 1	filler
 2	filler
 drop table t0, t2, t3;
-set @@optimizer_switch='no_firstmatch,no_materialization';
+set @@optimizer_switch='default,firstmatch=off,materialization=off';
 create table t1 (a date);
 insert into t1 values ('2008-01-01'),('2008-01-01'),('2008-02-01'),('2008-02-01');
 create table t2 (a int);
@@ -1230,7 +1230,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer
 drop table t1;
-set @@optimizer_switch=default;
+set @@optimizer_switch='default';
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 as select * from t1;
@@ -1240,7 +1240,7 @@ explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using where
 explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	Using where
@@ -1269,7 +1269,7 @@ explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using where
 create table t4 as select a as x, a as y from t1;
 explain select * from t0, t3 where (t3.a, t3.b) in (select x,y from t4) and (t3.a < 10 or t3.a >30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1277,6 +1277,15 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	10	Using where; Materialize; Scan
 1	PRIMARY	t3	ref	a	a	5	test.t4.x	10	Using where
 drop table t0,t1,t2,t3,t4;
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b int, filler char(100), key(a,b));
+insert into t1 select A.a, B.a, 'filler' from t0 A, t0 B;
+create table t2 as select * from t1;
+explain select * from t2 where a in (select b from t1 where a=3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	range	a	a	5	NULL	8	Using where; Using index; LooseScan
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Using where
 explain select * from t2 where (b,a) in (select a,b from t1 where a=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	range	a	a	5	NULL	8	Using where; Using index; LooseScan
@@ -1286,7 +1295,7 @@ create table t1 (a int, b int);
 insert into t1 select a,a from t0;
 create table t2 (a int, b int);
 insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
-set @@optimizer_switch='no_firstmatch';
+set @@optimizer_switch='default,firstmatch=off';
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	
@@ -1298,7 +1307,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Materialize
 set @@optimizer_search_depth=@save_optimizer_search_depth;
-set @@optimizer_switch='';
+set @@optimizer_switch='default';
 drop table t0, t1, t2;
 create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);
