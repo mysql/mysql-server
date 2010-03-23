@@ -8,11 +8,11 @@ source include/have_debug.inc;
 source include/have_debug_sync.inc;
 
 connection slave;
+
 SET DEBUG_SYNC= 'RESET';
 source include/stop_slave.inc;
 let $debug_saved= `select @@global.debug`;
 set global debug= 'd,dbug.before_get_running_status_yes'; # to block due-started IO
-
 
 # Test 1. Slave is stopped
 
@@ -24,8 +24,8 @@ echo Slave_IO_Running= $status;
 let $status= query_get_value("show slave status", Slave_SQL_Running, 1);
 echo Slave_SQL_Running= $status;
 
-# Test 2. The slave IO thread is started but not yet got connected to master
-#         and SQL thread is not started
+#  Test 2. The slave IO thread is started but not yet got connected to master
+#          and SQL thread is not started
 
 start slave io_thread;
 
@@ -35,7 +35,7 @@ start slave io_thread;
 # have three: OFF,Connecting,ON.
 # Hence, 5.1 must display OFF NO NO where as 5.1+ OFF Connecting NO
 #
---echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF NO NO in three following queries
+--echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF Connecting NO in three following queries
 
 SHOW STATUS LIKE 'Slave_running';
 let $status= query_get_value("show slave status", Slave_IO_Running, 1);
