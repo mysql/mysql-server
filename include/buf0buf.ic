@@ -81,7 +81,7 @@ buf_page_peek_if_too_old(
 		unsigned	access_time = buf_page_is_accessed(bpage);
 
 		if (access_time > 0
-		    && (ut_time_ms() - access_time)
+		    && ((ib_uint32_t) (ut_time_ms() - access_time))
 		    >= buf_LRU_old_threshold_ms) {
 			return(TRUE);
 		}
