@@ -134,6 +134,12 @@ public:
    */
   const NdbDictionary::Table* getTable() const;
 
+  /**
+   * Get index object for this operation if relevant,
+   * return NULL else.
+   */
+  const NdbDictionary::Index* getIndex() const;
+
   NdbQueryOperationDefImpl& getImpl() const;
 
 protected:
@@ -153,10 +159,6 @@ private:
 class NdbQueryLookupOperationDef : public NdbQueryOperationDef
 {
 public:
-  /**
-   * Get index object for this operation
-   */
-  const NdbDictionary::Index* getIndex() const;
 
 private:
   // Enforce object creation through NdbQueryBuilder factory
@@ -207,11 +209,6 @@ public:
 
   /** Get the result ordering for this operation.*/
   NdbScanOrdering getOrdering() const;
-
-  /**
-   * Get index object for this operation
-   */
-  const NdbDictionary::Index* getIndex() const;
 
 private:
   // Enforce object creation through NdbQueryBuilder factory 

@@ -505,7 +505,7 @@ NdbQueryOperationDef::getTable() const
 }
 
 const NdbDictionary::Index*
-NdbQueryLookupOperationDef::getIndex() const
+NdbQueryOperationDef::getIndex() const
 {
   return ::getImpl(*this).getIndex();
 }
@@ -520,12 +520,6 @@ NdbScanOrdering
 NdbQueryIndexScanOperationDef::getOrdering() const
 {
   return ::getImpl(*this).getOrdering();
-}
-
-const NdbDictionary::Index*
-NdbQueryIndexScanOperationDef::getIndex() const
-{
-  return ::getImpl(*this).getIndex();
 }
 
 /*******************************************
