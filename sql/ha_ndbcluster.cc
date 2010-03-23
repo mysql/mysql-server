@@ -654,8 +654,8 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
   DBUG_PRINT("info", ("join_root is pushable:"));
   DBUG_EXECUTE("info", join_root->dbug_print(););
 
-  ndb_table_access_map pushed_joins(0);
-  pushed_joins.set_bit(join_root->get_access_no());
+  ndb_table_access_map pushed_scope(0);
+  pushed_scope.set_bit(join_root->get_access_no());
 
   /**
    * Past this point we know at least join_root to be join pushable 
@@ -702,7 +702,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
       DBUG_PRINT("info", ("Table %d has user defined partioning, not pushable", join_cnt));
       continue;
     }
-    if (!field_ref_is_join_pushable(plan, pushed_joins, join_tab, join_items, join_parent))
+    if (!field_ref_is_join_pushable(plan, pushed_scope, join_tab, join_items, join_parent))
     {
       DBUG_PRINT("info", ("Table %d not EQ_REF-joined, not pushable", join_cnt));
       continue;
@@ -799,7 +799,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
           parent_op= operation_defs[op_ix];
           break;
         }
-        if (pushed_joins.is_set(p->get_access_no()))
+        if (pushed_scope.is_set(p->get_access_no()))
           op_ix++;
       }
       DBUG_ASSERT(parent_op != NULL);
@@ -878,7 +878,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
     if (unlikely(!operation_defs[push_cnt]))
       DBUG_RETURN(0);
 
-    pushed_joins.set_bit(join_tab->get_access_no());
+    pushed_scope.set_bit(join_tab->get_access_no());
     push_cnt++;
 
     if (push_cnt >= ndb_pushed_join::MAX_PUSHED_OPERATIONS)
@@ -904,7 +904,7 @@ ha_ndbcluster::make_pushed_join(const AQP::Join_plan& plan)
   m_thd_ndb->m_query_defs = list_item;
   
   DBUG_PRINT("info", ("Created pushed join with %d child operations", push_cnt-1));
-  m_pushed_join= new ndb_pushed_join(plan, pushed_joins, fld_refs, referred_fields, query_def);
+  m_pushed_join= new ndb_pushed_join(plan, pushed_scope, fld_refs, referred_fields, query_def);
 
   for (uint i = 0; i < push_cnt; i++)
   {
@@ -933,7 +933,7 @@ is_shrinked_varchar(const Field *field)
 
 
 NdbQuery*
-ha_ndbcluster::exec_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs)
+ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs)
 {
   // There may be referrences to Field values from tables outside the scope of
   // our pushed join: These are expected to be supplied as paramValues()
@@ -955,11 +955,11 @@ ha_ndbcluster::exec_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs)
 
   return m_active_query;
 
-} // ha_ndbcluster::exec_pushed_join
+} // ha_ndbcluster::create_pushed_join
 
 
 uint 
-ha_ndbcluster::has_pushed_joins() const
+ha_ndbcluster::is_parent_of_pushed_join() const
 {
   if (!m_pushed_join)
     return 0;
@@ -4059,7 +4059,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     offset+= key_part->store_length;
   }
 
-  NdbQuery* const query= exec_pushed_join(paramValues, key_def->key_parts);
+  NdbQuery* const query= create_pushed_join(paramValues, key_def->key_parts);
   if (unlikely(!query))
     DBUG_RETURN(NULL);
 
@@ -4236,7 +4236,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 #endif
 
     NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
-    NdbQuery* const query= exec_pushed_join(paramValues);
+    NdbQuery* const query= create_pushed_join(paramValues);
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
 
@@ -4472,7 +4472,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
                );
 
     NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
-    NdbQuery* const query= exec_pushed_join(paramValues);
+    NdbQuery* const query= create_pushed_join(paramValues);
     if (unlikely(!query))
       ERR_RETURN(trans->getNdbError());
 
@@ -12690,7 +12690,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
              m_pushed_join->get_table(0)->alias));
 
           NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
-          NdbQuery* const query= exec_pushed_join(paramValues);
+          NdbQuery* const query= create_pushed_join(paramValues);
           if (unlikely(!query))
             ERR_RETURN(trans->getNdbError());
 

@@ -585,7 +585,7 @@ static void set_tabname(const char *pathname, char *tabname);
 
   bool test_push_flag(enum ha_push_flag flag) const;
 
-  uint has_pushed_joins() const;
+  uint is_parent_of_pushed_join() const;
   const handler* member_of_pushed_join() const
   { return m_pushed_join_member;
   }
@@ -684,7 +684,7 @@ private:
 
   bool check_if_pushable(const NdbQueryOperationTypeWrapper& type) const;
   bool check_is_pushed() const;
-  NdbQuery* exec_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
+  NdbQuery* create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
 
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,

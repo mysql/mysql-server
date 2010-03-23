@@ -1505,7 +1505,7 @@ JOIN::optimize()
      temp table later being filesorted.
   */
   if (order && simple_order && !skip_sort_order && 
-      join_tab[const_tables].table->file->has_pushed_joins())
+      join_tab[const_tables].table->file->is_parent_of_pushed_join())
   {
     need_tmp=1; simple_order=simple_group=0;  // Force tmp table+sort, no further 'simple' logic
     DBUG_PRINT("info", ("need_tmp= %d, at:%d", need_tmp, __LINE__));
@@ -16675,14 +16675,14 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
           for (JOIN_TAB* prev= join->join_tab; prev <= tab; prev++)
           {
-            if (prev->table->file->has_pushed_joins() > 0)
+            if (prev->table->file->is_parent_of_pushed_join() > 0)
             {
               pushed_id++;
               if (prev->table->file->member_of_pushed_join() == pushed_join)
                 break;
             }
           }
-          uint pushed_count= tab->table->file->has_pushed_joins();
+          uint pushed_count= tab->table->file->is_parent_of_pushed_join();
           if (pushed_count > 0)
           {
 	    len= my_snprintf(buf, sizeof(buf)-1,

@@ -1844,7 +1844,7 @@ public:
     Reports #tables included in pushed join starting from 
     this handler instance.
   */
-  virtual uint has_pushed_joins() const
+  virtual uint is_parent_of_pushed_join() const
   { return 0; }
 
   /**
