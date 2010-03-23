@@ -188,6 +188,8 @@ static void init_re(void);
 static int match_re(my_regex_t *, char *);
 static void free_re(void);
 
+static uint opt_protocol=0;
+
 DYNAMIC_ARRAY q_lines;
 
 #include "sslopt-vars.h"
@@ -5165,10 +5167,12 @@ void do_connect(struct st_command *command)
 #ifdef __WIN__
   if (con_pipe)
   {
-    uint protocol= MYSQL_PROTOCOL_PIPE;
-    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, &protocol);
+    opt_protocol= MYSQL_PROTOCOL_PIPE;
   }
 #endif
+
+  if (opt_protocol)
+    mysql_options(&con_slot->mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
 
 #ifdef HAVE_SMEM
   if (con_shm)
@@ -5886,6 +5890,8 @@ static struct my_option my_long_options[] =
    GET_INT, REQUIRED_ARG, 128, 8, 5120, 0, 0, 0},
   {"password", 'p', "Password to use when connecting to server.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
+   0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to use for connection or 0 for default to, in "
    "order of preference, my.cnf, $MYSQL_TCP_PORT, "
 #if MYSQL_PORT_DEFAULT == 0
@@ -6023,7 +6029,7 @@ void read_embedded_server_arguments(const char *name)
 
 
 static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+get_one_option(int optid, const struct my_option *opt,
 	       char *argument)
 {
   switch(optid) {
@@ -6112,6 +6118,10 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'V':
     print_version();
     exit(0);
+  case OPT_MYSQL_PROTOCOL:
+    opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
+                                    opt->name);
+    break;
   case '?':
     usage();
     exit(0);
@@ -7861,6 +7871,9 @@ int main(int argc, char **argv)
   if (opt_charsets_dir)
     mysql_options(&con->mysql, MYSQL_SET_CHARSET_DIR,
                   opt_charsets_dir);
+
+  if (opt_protocol)
+    mysql_options(&con->mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 
 #ifdef HAVE_OPENSSL
 
