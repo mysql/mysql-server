@@ -608,14 +608,14 @@ buf_read_recv_pages(
 		while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
 
 			os_aio_simulated_wake_handler_threads();
-			os_thread_sleep(500000);
+			os_thread_sleep(10000);
 
 			count++;
 
-			if (count > 100) {
+			if (count > 1000) {
 				fprintf(stderr,
 					"InnoDB: Error: InnoDB has waited for"
-					" 50 seconds for pending\n"
+					" 10 seconds for pending\n"
 					"InnoDB: reads to the buffer pool to"
 					" be finished.\n"
 					"InnoDB: Number of pending reads %lu,"
