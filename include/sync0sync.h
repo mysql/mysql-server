@@ -206,7 +206,8 @@ UNIV_INTERN
 ibool
 mutex_own(
 /*======*/
-	const mutex_t*	mutex);	/*!< in: mutex */
+	const mutex_t*	mutex)	/*!< in: mutex */
+	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
