@@ -25,6 +25,9 @@
 #  RPM
 #    Build as per default RPM layout, with prefix=/usr
 #
+#  DEB
+#    Build as per STANDALONE, prefix=/opt/mysql-$major.$minor
+#
 #  SVR4
 #    Solaris package layout suitable for pkg* tools, prefix=/opt/mysql/mysql
 #
@@ -69,6 +72,10 @@ CACHE STRING "Installation directory layout. Options are: STANDALONE (as in zip 
 IF(UNIX)
   IF(INSTALL_LAYOUT MATCHES "RPM")
     SET(default_prefix "/usr")
+  ELSEIF(INSTALL_LAYOUT MATCHES "DEB")
+    SET(default_prefix "/opt/${MYSQL_BASE_VERSION}")
+    # This is required to avoid "cpack -GDEB" default of prefix=/usr
+    SET(CPACK_SET_DESTDIR ON)
   ELSEIF(INSTALL_LAYOUT MATCHES "SVR4")
     SET(default_prefix "/opt/mysql/mysql")
   ELSE()
@@ -120,6 +127,23 @@ SET(INSTALL_SQLBENCHROOTDIR_RPM "")
 SET(INSTALL_DOCREADMEDIR_RPM "share/mysql/doc/MySQL-server-${MYSQL_NO_DASH_VERSION}")
 SET(INSTALL_SUPPORTFILESDIR_RPM "share/mysql")
 SET(INSTALL_MYSQLDATADIR_RPM "var")
+
+# DEB layout
+SET(INSTALL_BINDIR_DEB "bin")
+SET(INSTALL_SBINDIR_DEB "bin")
+SET(INSTALL_LIBDIR_DEB "lib")
+SET(INSTALL_INCLUDEDIR_DEB "include")
+SET(INSTALL_PLUGINDIR_DEB "lib/plugin")
+SET(INSTALL_DOCDIR_DEB "docs")
+SET(INSTALL_MANDIR_DEB "man")
+SET(INSTALL_MYSQLSHAREDIR_DEB "share")
+SET(INSTALL_SHAREDIR_DEB "share")
+SET(INSTALL_SCRIPTDIR_DEB "scripts")
+SET(INSTALL_MYSQLTESTDIR_DEB "mysql-test")
+SET(INSTALL_SQLBENCHROOTDIR_DEB ".")
+SET(INSTALL_DOCREADMEDIR_DEB ".")
+SET(INSTALL_SUPPORTFILESDIR_DEB "support-files")
+SET(INSTALL_MYSQLDATADIR_DEB "data")
 
 # SVR4 layout
 SET(INSTALL_BINDIR_SVR4 "bin")
