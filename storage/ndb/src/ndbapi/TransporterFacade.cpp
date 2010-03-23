@@ -446,7 +446,9 @@ TransporterFacade::start_instance(NodeId nodeId,
   if (!theTransporterRegistry->init(nodeId))
     return -1;
 
-  theClusterMgr = new ClusterMgr(*this);
+  if (theClusterMgr == NULL)
+    theClusterMgr = new ClusterMgr(*this);
+
   if (theClusterMgr == NULL)
     return -1;
 
@@ -750,6 +752,9 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
 #ifdef API_TRACE
   apiSignalLog = 0;
 #endif
+
+  theClusterMgr = new ClusterMgr(*this);
+
   DBUG_VOID_RETURN;
 }
 
