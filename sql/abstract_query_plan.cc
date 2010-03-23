@@ -37,10 +37,10 @@ namespace AQP
     @param join_tab Array of access methods constituting the nested loop join.
     @param access_count Length of array.
   */
-  Join_plan::Join_plan(const JOIN_TAB* join_tab, uint access_count)
-    :m_access_count(access_count),
-     m_join_tabs(join_tab),
-     m_table_accesses(new Table_access[access_count])
+  Join_plan::Join_plan(const JOIN* join)
+   : m_join_tabs(join->join_tab),
+     m_access_count(join->tables),
+     m_table_accesses(NULL)
   {
     /*
       This combination is assumed not to appear. If it does, code must
@@ -51,9 +51,10 @@ namespace AQP
                 || (m_join_tabs[0].select == NULL)
                 || (m_join_tabs[0].select->quick == NULL));
 
-    for(uint i= 0; i < access_count; i++)
+    m_table_accesses= new Table_access[m_access_count];
+    for(uint i= 0; i < m_access_count; i++)
     {
-      m_table_accesses[i].m_root_tab= join_tab; 
+      m_table_accesses[i].m_join_plan= this; 
       m_table_accesses[i].m_tab_no= i;
     }
   }
@@ -77,17 +78,22 @@ namespace AQP
     table within this Join_plan.
   */
   const Table_access*
-  Join_plan::get_referred_table_access(const Item_field* field_item) const
+  Join_plan::get_referred_table_access(const Item_field* field_item,
+                                       const Table_access* start_tab) const
   {
     DBUG_ASSERT(field_item->type() == Item::FIELD_ITEM);
+    DBUG_ASSERT(start_tab >= m_table_accesses &&
+                start_tab < m_table_accesses+get_access_count());
 
-    for (uint i= 0; i < get_access_count(); i++)
+    const Table_access* end_tab= m_table_accesses+get_access_count();
+    for (const Table_access* tab= start_tab; tab < end_tab; tab++)
     {
-      if (get_join_tab(i)->table->map == field_item->field->table->map)
-        return (m_table_accesses + i);
+      if (tab->get_join_tab()->table->map == field_item->field->table->map)
+        return tab;
     }
     return NULL;
   }
+
 
   /**
     Get the number of key values for this operation. It is an error
@@ -137,7 +143,7 @@ namespace AQP
   /** Get the JOIN_TAB object that corresponds to this operation.*/
   const JOIN_TAB* Table_access::get_join_tab() const
   {
-    return m_root_tab + m_tab_no;
+    return m_join_plan->get_join_tab(m_tab_no);
   }
 
   /**
@@ -332,7 +338,7 @@ namespace AQP
 
 
   Table_access::Table_access()
-    :m_root_tab(NULL),
+    :m_join_plan(NULL),
      m_tab_no(0),
      m_access_type(AT_VOID),
      m_index_no(-1)

@@ -1661,15 +1661,17 @@ make_pushed_join(JOIN *join)
 {
   int active_pushed_joins= 0;
 
+  // Let handler extract whatever it might implement of pushed joins
+  AQP::Join_plan plan(join);
+
+  // Set up table accessors for child operations of pushed joins
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
 
     if (!tab->table->file->member_of_pushed_join())
     {
-      // Try to start a pushed join from current join_tab
-      AQP::Join_plan plan(tab, join->tables-i);
-      uint pushed_joins= tab->table->file->make_pushed_join(plan);
+      uint pushed_joins= tab->table->file->make_pushed_join(plan,i);
       if (pushed_joins > 0)
         active_pushed_joins += (pushed_joins-1);
     }
