@@ -3178,17 +3178,20 @@ private:
  * as it works its way into the nested loop join.)
  *
  * @param type This is the operation type that the server want to execute.
+ * @param idx  Index used whenever relevant for operation type
  * @return True if the operation may be pushed.
  */
 bool 
-ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type) const
+ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type, uint idx) const
 {
   bool pushable= FALSE;
 
   if (m_pushed_join != NULL)
   {
-    const NdbQueryOperationTypeWrapper& query_def_type= 
-      m_pushed_join->get_query_def().getQueryOperation(0U)->getType();
+    const NdbQueryOperationDef* const root_operation= 
+      m_pushed_join->get_query_def().getQueryOperation(0U);
+
+    const NdbQueryOperationTypeWrapper& query_def_type=  root_operation->getType();
 
     if (query_def_type == type)
     {
@@ -3198,16 +3201,40 @@ ha_ndbcluster::check_if_pushable(const NdbQueryOperationTypeWrapper& type) const
       }
       else
       {
+        const NdbDictionary::Index* const expected_index= root_operation->getIndex();
         pushable= TRUE;
+
+        switch (type)
+        {
+          case NdbQueryOperationDef::PrimaryKeyAccess:
+            DBUG_ASSERT(idx==table->s->primary_key);
+            break;
+          case NdbQueryOperationDef::UniqueIndexAccess:
+            DBUG_ASSERT(idx<MAX_KEY);
+//          DBUG_ASSERT(m_index[idx].unique_index == expected_index);
+            pushable= (m_index[idx].unique_index == expected_index);
+            break;
+          case NdbQueryOperationDef::TableScan:
+            DBUG_ASSERT (idx==MAX_KEY);
+            break;
+          case NdbQueryOperationDef::OrderedIndexScan:
+            DBUG_ASSERT(idx<MAX_KEY);
+//          DBUG_ASSERT(m_index[idx].index == expected_index);
+            pushable= (m_index[idx].index == expected_index);
+            break;
+          default:
+            DBUG_ASSERT(false);
+            break;
+        }
       }
     }
     else
     {
       DBUG_PRINT("info", 
                  ("Cannot execute push join. Root operation prepared as %s "
-                  "not executable as %s.",
+                  "not executable as %s w/ index %d",
                   NdbQueryOperationDef::getTypeName(query_def_type),
-                  NdbQueryOperationDef::getTypeName(type)));
+                  NdbQueryOperationDef::getTypeName(type), idx));
     }
   }
   return pushable;
@@ -3243,7 +3270,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
 
-  if (check_if_pushable(NdbQueryOperationDef::PrimaryKeyAccess))
+  if (check_if_pushable(NdbQueryOperationDef::PrimaryKeyAccess, table->s->primary_key))
   {
     // Is parent of pushed join
     NdbQuery *query;
@@ -3647,7 +3674,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
 
-  if (check_if_pushable(NdbQueryOperationDef::UniqueIndexAccess))
+  if (check_if_pushable(NdbQueryOperationDef::UniqueIndexAccess, active_index))
   {
 #ifndef DBUG_OFF
     /* 
@@ -3658,8 +3685,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
       m_pushed_join->get_query_def().getQueryOperation(0U);
     
     const NdbDictionary::Index* const expected_index=
-      static_cast<const NdbQueryLookupOperationDef*>(root_operation)
-      ->getIndex();
+      root_operation->getIndex();
 
     DBUG_ASSERT(m_index[active_index].unique_index == expected_index);
 #endif
@@ -4211,7 +4237,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     pbound = &bound;
   }
 
-  if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan))
+  if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index))
   {
     DBUG_PRINT("info", 
                ("executing chain of a index scan + %d primary key joins."
@@ -12679,7 +12705,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       }
 
       /* Create the scan operation for the first scan range. */
-      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan))
+      if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index))
       {
         if (!m_active_query)
         {
@@ -12730,7 +12756,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
             handler->_m_next_row= 0;
           }
         }
-      } // check_if_pushable_parent()
+      } // check_if_pushable()
 
       else if (!m_multi_cursor)
       {
