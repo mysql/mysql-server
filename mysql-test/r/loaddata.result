@@ -484,4 +484,15 @@ SET character_set_filesystem=default;
 select @@character_set_filesystem;
 @@character_set_filesystem
 binary
+#
+# Bug #51850: crash/memory overlap when using load data infile and set 
+#  col equal to itself!
+#
+CREATE TABLE t1(col0 LONGBLOB);
+SELECT 'test' INTO OUTFILE 't1.txt';
+LOAD DATA INFILE 't1.txt' IGNORE INTO TABLE t1 SET col0=col0;
+SELECT * FROM t1;
+col0
+test
+DROP TABLE t1;
 End of 5.1 tests
