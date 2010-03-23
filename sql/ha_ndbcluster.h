@@ -581,7 +581,7 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
-  uint make_pushed_join(const AQP::Join_plan& plan);
+  uint make_pushed_join(AQP::Join_plan& plan, uint root);
 
   bool test_push_flag(enum ha_push_flag flag) const;
 

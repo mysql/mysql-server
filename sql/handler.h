@@ -1837,7 +1837,7 @@ public:
    If possible, push join sequence down to the table handler.
    Returns #tables included in generated pushed join.
   */
-  virtual uint make_pushed_join(const AQP::Join_plan& plan)
+  virtual uint make_pushed_join(AQP::Join_plan& plan, uint root)
   { return 0; }
 
   /**

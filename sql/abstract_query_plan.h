@@ -21,9 +21,9 @@
 
 struct st_join_table;
 typedef st_join_table JOIN_TAB;
+class JOIN;
 class Item;
 class Item_field;
-class Table_accessSet;
 class Item_equal_iterator;
 
 /**
@@ -58,9 +58,10 @@ namespace AQP
   class Join_plan
   {
     friend class Equal_set_iterator;
+    friend class Table_access;
   public:
 
-    explicit Join_plan(const JOIN_TAB* join_tab, uint access_count);
+    explicit Join_plan(const JOIN* join);
 
     ~Join_plan();
 
@@ -69,18 +70,18 @@ namespace AQP
     uint get_access_count() const;
 
     const Table_access* 
-      get_referred_table_access(const Item_field* field_item) const;
+    get_referred_table_access(const Item_field* field_item,
+                              const Table_access* base ) const;
 
   private:
-    /** Number of table access operations.*/
-    const uint m_access_count;
-
     /** 
       Array of the JOIN_TABs that are the internal representation of table
       access operations.
     */
     const JOIN_TAB* const m_join_tabs;
 
+    /** Number of table access operations. */
+    const uint m_access_count;
     Table_access* m_table_accesses;
 
     const JOIN_TAB* get_join_tab(uint join_tab_no) const;
@@ -187,7 +188,7 @@ namespace AQP
   private:
 
     /** The first access operation in the plan. */
-    const JOIN_TAB* m_root_tab;
+    const Join_plan* m_join_plan;
 
     /** This operation corresponds to m_root_tab[m_tab_no].*/
     uint m_tab_no;
