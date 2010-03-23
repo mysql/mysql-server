@@ -1191,8 +1191,6 @@ buf_relocate(
 
 	HASH_DELETE(buf_page_t, hash, buf_pool->page_hash, fold, bpage);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold, dpage);
-
-	UNIV_MEM_INVALID(bpage, sizeof *bpage);
 }
 
 /********************************************************************//**
@@ -2224,22 +2222,8 @@ wait_until_unfixed:
 			ut_ad(!block->page.in_flush_list);
 		} else {
 			/* Relocate buf_pool->flush_list. */
-			buf_page_t*	b;
-
-			b = UT_LIST_GET_PREV(list, &block->page);
-			ut_ad(block->page.in_flush_list);
-			UT_LIST_REMOVE(list, buf_pool->flush_list,
-				       &block->page);
-
-			if (b) {
-				UT_LIST_INSERT_AFTER(
-					list, buf_pool->flush_list, b,
-					&block->page);
-			} else {
-				UT_LIST_ADD_FIRST(
-					list, buf_pool->flush_list,
-					&block->page);
-			}
+			buf_flush_relocate_on_flush_list(bpage,
+							 &block->page);
 		}
 
 		/* Buffer-fix, I/O-fix, and X-latch the block
@@ -2253,6 +2237,9 @@ wait_until_unfixed:
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
 		rw_lock_x_lock(&block->lock);
+
+		UNIV_MEM_INVALID(bpage, sizeof *bpage);
+
 		mutex_exit(&block->mutex);
 		mutex_exit(&buf_pool_zip_mutex);
 		buf_pool->n_pend_unzip++;

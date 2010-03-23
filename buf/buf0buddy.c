@@ -391,6 +391,8 @@ buf_buddy_relocate_block(
 		UT_LIST_ADD_FIRST(list, buf_pool->zip_clean, dpage);
 	}
 
+	UNIV_MEM_INVALID(bpage, sizeof *bpage);
+
 	mutex_exit(&buf_pool_zip_mutex);
 	return(TRUE);
 }
