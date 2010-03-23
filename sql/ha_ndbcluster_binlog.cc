@@ -1289,7 +1289,8 @@ static int ndbcluster_find_all_databases(THD *thd)
         Uint64 query_length= 0;
         if (query_blob_handle->getLength(query_length))
         {
-          sql_print_information("NDB: Unable to find query for db: '%s'", db);
+          printf("NDB: Unable to find query for db(%u): '%s'", db_len, db);
+          fflush(stdout);
           abort();
         }
         query[query_length]= 0;
