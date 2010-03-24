@@ -173,11 +173,11 @@ static void test_read_write_rows (char *template) {
     r = brtloader_open_temp_file(&bl, &idx);
     CKERR(r);
 
-    size_t dataoff=0;
+    u_int64_t dataoff=0;
 
     char *keystrings[] = {"abc", "b", "cefgh"};
     char *valstrings[] = {"defg", "", "xyz"};
-    size_t actual_size=0;
+    u_int64_t actual_size=0;
     for (int i=0; i<3; i++) {
 	DBT key = {.size=strlen(keystrings[i]), .data=keystrings[i]};
 	DBT val = {.size=strlen(valstrings[i]), .data=valstrings[i]};
