@@ -329,11 +329,7 @@ client/server version.
 
 ##############################################################################
 %prep
-# We unpack the source two times, for 'debug' and 'release' build.
-%setup -T -a 0 -c -n mysql-%{mysql_version}
-mv mysql-%{mysql_version} mysql-debug-%{mysql_version}
-%setup -D -T -a 0 -n mysql-%{mysql_version}
-mv mysql-%{mysql_version} mysql-release-%{mysql_version}
+%setup -T -a 0 -c -n %{src_dir}
 
 ##############################################################################
 %build
@@ -376,7 +372,7 @@ mkdir debug
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
                   -e 's/ $//'`
-  ${CMAKE} .. -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
               -DCMAKE_BUILD_TYPE=Debug
   make VERBOSE=1 mysqld mysqlserver
 )
@@ -384,7 +380,7 @@ mkdir debug
 mkdir release
 (
   cd release
-  ${CMAKE} .. -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM
+  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM
   make VERBOSE=1
 )
 
