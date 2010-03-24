@@ -11509,21 +11509,45 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
       return NESTED_LOOP_KILLED; // Aborted by user /* purecov: inspected */
     }
     SQL_SELECT *select=join_tab->select;
-    if (rc == NESTED_LOOP_OK &&
-        (!join_tab->cache.select || !join_tab->cache.select->skip_record()))
+    if (rc == NESTED_LOOP_OK)
     {
-      uint i;
-      reset_cache_read(&join_tab->cache);
-      for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
+      bool consider_record= !join_tab->cache.select || 
+        !join_tab->cache.select->skip_record();
+
+      /*
+        Check for error: skip_record() can execute code by calling
+        Item_subselect::val_*. We need to check for errors (if any)
+        after such call.
+      */
+      if (join->thd->is_error())
       {
-	read_cached_record(join_tab);
-	if (!select || !select->skip_record())
+        reset_cache_write(&join_tab->cache);
+        return NESTED_LOOP_ERROR;
+      }
+
+      if (consider_record)  
+      {
+        uint i;
+        reset_cache_read(&join_tab->cache);
+        for (i=(join_tab->cache.records- (skip_last ? 1 : 0)) ; i-- > 0 ;)
         {
-          rc= (join_tab->next_select)(join,join_tab+1,0);
-	  if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+          read_cached_record(join_tab);
+          if (!select || !select->skip_record())
           {
-            reset_cache_write(&join_tab->cache);
-            return rc;
+            /*
+              Check for error: skip_record() can execute code by calling
+              Item_subselect::val_*. We need to check for errors (if any)
+              after such call.
+              */
+            if (join->thd->is_error())
+              rc= NESTED_LOOP_ERROR;
+            else
+              rc= (join_tab->next_select)(join,join_tab+1,0);
+            if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+            {
+              reset_cache_write(&join_tab->cache);
+              return rc;
+            }
           }
         }
       }
