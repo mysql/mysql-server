@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -131,10 +131,10 @@ Summary:	MySQL: a very fast and reliable SQL database server
 Group:		Applications/Databases
 Version:	@MYSQL_U_SCORE_VERSION@
 Release:	%{release}
-License:	Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
+License:	Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
 Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:		http://www.mysql.com/
-Packager:	%{mysql_vendor} Product Engineering Team <build@mysql.com>
+Packager:	MySQL Build Team <build@mysql.com>
 Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server mysql
 BuildRequires: ncurses-devel
@@ -152,7 +152,7 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 %{mysql_vendor}
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.
+Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved.
 Use is subject to license terms.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
@@ -180,7 +180,7 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 %{mysql_vendor}
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.
+Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved.
 Use is subject to license terms.
 
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,
@@ -328,9 +328,6 @@ client/server version.
 %endif
 
 ##############################################################################
-#
-##############################################################################
-
 %prep
 # We unpack the source two times, for 'debug' and 'release' build.
 %setup -T -a 0 -c -n mysql-%{mysql_version}
@@ -339,197 +336,72 @@ mv mysql-%{mysql_version} mysql-debug-%{mysql_version}
 mv mysql-%{mysql_version} mysql-release-%{mysql_version}
 
 ##############################################################################
-# The actual build
-##############################################################################
-
 %build
 
-BuildMySQL() {
-# Let "MYSQL_BUILD_*FLAGS" take precedence.
-CFLAGS=${MYSQL_BUILD_CFLAGS:-$CFLAGS}
-CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-$CXXFLAGS}
-LDFLAGS=${MYSQL_BUILD_LDFLAGS:-$LDFLAGS}
-# Fall back on RPM_OPT_FLAGS (part of RPM environment) if no flags are given.
-CFLAGS=${CFLAGS:-$RPM_OPT_FLAGS}
-CXXFLAGS=${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti }
-# Evaluate current setting of $DEBUG
-if [ $DEBUG -gt 0 ] ; then
-	OPT_COMMENT='--with-comment="%{debug_comment}"'
-	OPT_DEBUG='--with-debug'
-	CFLAGS=`echo   " $CFLAGS "   | \
-	    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
-	        -e 's/^ //' -e 's/ $//'`
-	CXXFLAGS=`echo " $CXXFLAGS " | \
-	    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
-	        -e 's/^ //' -e 's/ $//'`
-else
-	OPT_COMMENT='--with-comment="%{ndbug_comment}"'
-	OPT_DEBUG=''
-fi
-# The --enable-assembler simply does nothing on systems that does not
-# support assembler speedups.
-sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
-	CC=\"${MYSQL_BUILD_CC:-$CC}\" \
-	CXX=\"${MYSQL_BUILD_CXX:-$CXX}\" \
-	CFLAGS=\"$CFLAGS\" \
-	CXXFLAGS=\"$CXXFLAGS\" \
-	LDFLAGS=\"$LDFLAGS\" \
-	./configure \
- 	    $* \
-	    --with-mysqld-ldflags='-static' \
-	    --with-client-ldflags='-static' \
-	    --enable-assembler \
-	    --enable-local-infile \
-	    --with-fast-mutexes \
-	    --with-mysqld-user=%{mysqld_user} \
-	    --with-unix-socket-path=/var/lib/mysql/mysql.sock \
-	    --with-pic \
-	    --prefix=/ \
-%if %{CLUSTER_BUILD}
-	    --with-extra-charsets=all \
-%else
-	    --with-extra-charsets=complex \
-%endif
-%if %{YASSL_BUILD}
-	    --with-ssl \
-%else
-	    --without-ssl \
-%endif
-	    --exec-prefix=%{_exec_prefix} \
-	    --libexecdir=%{_sbindir} \
-	    --libdir=%{_libdir} \
-	    --sysconfdir=%{_sysconfdir} \
-	    --datadir=%{_datadir} \
-	    --localstatedir=%{mysqldatadir} \
-	    --infodir=%{_infodir} \
-	    --includedir=%{_includedir} \
-	    --mandir=%{_mandir} \
-	    --enable-thread-safe-client \
-	    $OPT_COMMENT \
-	    $OPT_DEBUG \
-	    --with-readline \
-%if %{WITH_BUNDLED_ZLIB}
-	    --with-zlib-dir=bundled \
-%endif
-%if %{CLUSTER_BUILD}
-		--with-plugin-ndbcluster \
-%else
-		--without-plugin-ndbcluster \
-%endif
-%if %{INNODB_BUILD}
-		--with-plugin-innobase \
-%else
-		--without-plugin-innobase \
-%endif
-%if %{PARTITION_BUILD}
-		--with-plugin-partition \
-%else
-		--without-plugin-partition \
-%endif
-		--with-plugin-csv \
-		--with-plugin-archive \
-		--with-plugin-blackhole \
-		--with-plugin-federated \
-		--without-plugin-daemon_example \
-		--without-plugin-ftexample \
-%if %{EMBEDDED_BUILD}
-		--with-embedded-server \
-%else
-		--without-embedded-server \
-%endif
-		--with-big-tables \
-		--enable-shared \
-		"
- make
-}
-# end of function definition "BuildMySQL"
+# Be strict about variables, bail at earliest opportunity, etc.
+set -eu
 
-# Use our own copy of glibc
+# Use specific MYSQL_BUILD_* setup if requested
+${MYSQL_BUILD_PATH:+PATH="${MYSQL_BUILD_PATH}"}
+${MYSQL_BUILD_CC:+CC="${MYSQL_BUILD_CC}"}
+${MYSQL_BUILD_CC:+CC="${MYSQL_BUILD_CC}"}
+${MYSQL_BUILD_CXX:+CXX="${MYSQL_BUILD_CXX}"}
+${MYSQL_BUILD_CFLAGS:+CFLAGS="${MYSQL_BUILD_CFLAGS}"}
+${MYSQL_BUILD_CXXFLAGS:+CXXFLAGS="${MYSQL_BUILD_CXXFLAGS}"}
+${MYSQL_BUILD_LDFLAGS:+LDFLAGS="${MYSQL_BUILD_LDFLAGS}"}
+${MYSQL_BUILD_CMAKE:+CMAKE="${MYSQL_BUILD_CMAKE}"}
 
-OTHER_LIBC_DIR=/usr/local/mysql-glibc
-USE_OTHER_LIBC_DIR=""
-if test -d "$OTHER_LIBC_DIR"
-then
-  USE_OTHER_LIBC_DIR="--with-other-libc=$OTHER_LIBC_DIR"
-fi
+# Set defaults.  $RPM_OPT_FLAGS should be part of RPM environment
+: ${CC:="gcc"}
+: ${CXX:="g++"}
+: ${CFLAGS:="${RPM_OPT_FLAGS}"}
+: ${CXXFLAGS:="${RPM_OPT_FLAGS} -felide-constructors -fno-exceptions -fno-rtti"}
+: ${LDFLAGS:=""}
+: ${CMAKE:="cmake"}
+
+# Build debug mysqld and libmysqld.a
+mkdir debug
+(
+  cd debug
+  # Attempt to remove any optimisation flags from the debug build
+  CFLAGS=`echo " ${CFLAGS} " | \
+            sed -e 's/ -O[0-9]* / /' \
+                -e 's/ -unroll2 / /' \
+                -e 's/ -ip / /' \
+                -e 's/^ //' \
+                -e 's/ $//'`
+  CXXFLAGS=`echo " ${CXXFLAGS} " | \
+              sed -e 's/ -O[0-9]* / /' \
+                  -e 's/ -unroll2 / /' \
+                  -e 's/ -ip / /' \
+                  -e 's/^ //' \
+                  -e 's/ $//'`
+  ${CMAKE} .. -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+              -DCMAKE_BUILD_TYPE=Debug
+  make VERBOSE=1 mysqld mysqlserver
+)
+# Build full release
+mkdir release
+(
+  cd release
+  ${CMAKE} .. -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM
+  make VERBOSE=1
+)
 
 # Use the build root for temporary storage of the shared libraries.
-
 RBR=$RPM_BUILD_ROOT
 
 # Clean up the BuildRoot first
-[ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
+[ "$RBR" != "/" ] && [ -d "$RBR" ] && rm -rf "$RBR";
 mkdir -p $RBR%{_libdir}/mysql
-
-#
-# Use MYSQL_BUILD_PATH so that we can use a dedicated version of gcc
-#
-PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
-export PATH
-
-# Build the Debug binary.
-
-# Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
-# including exceptions into the code
-if [ -z "$CXX" -a -z "$CC" ] ; then
-	export CC="gcc" CXX="gcc"
-fi
-
-
-##############################################################################
-#
-#  Build the debug version
-#
-##############################################################################
-
-(
-# We are in a subshell, so we can modify variables just for one run.
-
-# Add -g and --with-debug.
-DEBUG=1
-cd mysql-debug-%{mysql_version} &&
-CFLAGS="$CFLAGS" \
-CXXFLAGS="$CXXFLAGS" \
-BuildMySQL 
-)
-
-# We might want to save the config log file
-if test -n "$MYSQL_DEBUGCONFLOG_DEST"
-then
-  cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
-fi
-
-(cd mysql-debug-%{mysql_version} ; make test-bt-debug)
-
-##############################################################################
-#
-#  Build the release binary
-#
-##############################################################################
-
-DEBUG=0
-(cd mysql-release-%{mysql_version} &&
-CFLAGS="$CFLAGS" \
-CXXFLAGS="$CXXFLAGS" \
-BuildMySQL 
-)
-# We might want to save the config log file
-if test -n "$MYSQL_CONFLOG_DEST"
-then
-  cp -fp  mysql-release-%{mysql_version}/config.log "$MYSQL_CONFLOG_DEST"
-fi
-
-(cd mysql-release-%{mysql_version} ; make test-bt)
-
-##############################################################################
 
 # For gcc builds, include libgcc.a in the devel subpackage (BUG 4921)
 # Some "icc" calls may have "gcc" in the argument string, so we should first
 # check for "icc". (If we don't check, the "--print-libgcc-file" call will fail.)
 if expr "$CC" : ".*icc.*" > /dev/null ;
 then
-    %define WITH_LIBGCC 0
-    :
+  %define WITH_LIBGCC 0
+  :
 elif expr "$CC" : ".*gcc.*" > /dev/null ;
 then
   libgcc=`$CC $CFLAGS --print-libgcc-file`
@@ -542,15 +414,15 @@ then
     :
   fi
 else
-    %define WITH_LIBGCC 0
-    :
+  %define WITH_LIBGCC 0
+  :
 fi
 
 ##############################################################################
-
 %install
+
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-release-%{mysql_version}
+MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
@@ -561,40 +433,25 @@ install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 
-# Get the plugin files from the debug build
-mkdir $RBR/tmp-debug-plugin $MBD/plugin/debug
-( cd $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/plugin
-  make install DESTDIR=$RBR/tmp-debug-plugin
-  mv $RBR/tmp-debug-plugin/usr/local/mysql/lib/mysql/plugin/* $MBD/plugin/debug/
-  # From here, the install hook in "plugin/Makefile.am" will do the rest.
-)
-rmdir -p $RBR/tmp-debug-plugin/usr/local/mysql/lib/mysql/plugin
-
 # Install all binaries
-(cd $MBD && make install DESTDIR=$RBR testroot=%{_datadir})
-# Old packages put shared libs in %{_libdir}/ (not %{_libdir}/mysql), so do
-# the same here.
-mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
+(
+  cd $MBD/release
+  make DESTDIR=$RBR install
+)
 
-# install "mysqld-debug"
-$MBD/libtool --mode=execute install -m 755 \
-                 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
-                 $RBR%{_sbindir}/mysqld-debug
+# FIXME: kent attempted to have debug libmysqld.a installed automatically but
+# FIXME: could not get it working, so do it manually for now
+install -m 644 $MBD/debug/libmysqld/libmysqld.a \
+               $RBR%{_libdir}/mysql/libmysqld-debug.a
 
-# install saved perror binary with NDB support (BUG#13740)
-install -m 755 $MBD/extra/perror $RBR%{_bindir}/perror
+# FIXME: at some point we should stop doing this and just install everything
+# FIXME: directly into %{_libdir}/mysql - perhaps at the same time as renaming
+# FIXME: the shared libraries to use libmysql*-$major.$minor.so syntax
+mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 
 # Install logrotate and autostart
 install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
 install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
-
-%if %{EMBEDDED_BUILD}
-# Install embedded server library in the build root
-install -m 644 $MBD/libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
-%endif
-
-# in RPMs, it is unlikely that anybody should use "sql-bench"
-rm -fr $RBR%{_datadir}/sql-bench
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
