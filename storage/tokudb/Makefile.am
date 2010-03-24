@@ -1,41 +1,33 @@
-# Used to build Makefile.in
+#called from the top level Makefile
 
-EXTRA_DIST = ha_tokudb.h CMakeFiles.txt plug.in tokudb_probes.d
+MYSQLDATAdir =          $(localstatedir)
+MYSQLSHAREdir =         $(pkgdatadir)
+MYSQLBASEdir=           $(prefix)
+MYSQLLIBdir=            $(pkglibdir)
+TOKUDBdir=              $(top_builddir)/../tokudb/release
+INCLUDES =              -I$(top_builddir)/include \
+			-I$(top_srcdir)/include \
+			-I$(top_srcdir)/regex \
+			-I$(top_srcdir)/sql \
+                        -I$(srcdir) \
+			-I$(TOKUDBdir)/include
+LDADD =
 
-# this is for regular mysql builds
-# INCLUDES =   $(MYSQL_INC) $(TOKUDB_INC)
+DEFS =	@DEFS@
+noinst_HEADERS	  =	
 
-# this is for debug mysql builds
-INCLUDES = -DDBUG_ON -DSAFE_MUTEX -DEXTRA_DEBUG -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX $(MYSQL_INC) $(TOKUDB_INC)
+EXTRA_LTLIBRARIES =	ha_tokudb.la
+pkglib_LTLIBRARIES =	@plugin_tokudb_shared_target@
+ha_tokudb_la_LIBADD =   -L$(TOKUDBdir)/lib -ltokudb -ltokuportability
+ha_tokudb_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
+ha_tokudb_la_CXXFLAGS =	$(AM_CFLAGS) -DMYSQL_PLUGIN
+ha_tokudb_la_SOURCES =	hatoku_hton.cc hatoku_cmp.cc ha_tokudb.cc
 
-LIBS= -ltokudb
+#EXTRA_LIBRARIES =	libtokudb.a
+#noinst_LIBRARIES =	@plugin_tokudb_static_target@
+#libtokudb_a_CXXFLAGS =	$(AM_CFLAGS)
+#libtokudb_a_SOURCES =	ha_tokudb.cc
 
-DTRACE =                @DTRACE@
-DTRACEFLAGS =           @DTRACEFLAGS@
-DTRACEFILES =           .libs/libtokudb_engine_la-ha_tokudb.o
-
-noinst_HEADERS = ha_tokudb.h \
-		 tokudb_probes.h
-
-lib_LTLIBRARIES = libtokudb_engine.la
-libtokudb_engine_la_SOURCES = ha_tokudb.cc
-libtokudb_engine_la_LIBADD =
-
-if HAVE_DTRACE
-  libtokudb_engine_la_LIBADD += tokudb_probes.o
-endif
-
-libtokudb_engine_la_LDFLAGS =	-module $(TOKUDB_LIB)
-libtokudb_engine_la_CFLAGS = $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-libtokudb_engine_la_CXXFLAGS = $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-
-tokudb_probes.h: tokudb_probes.d
-	$(DTRACE) $(DTRACEFLAGS) -h -s tokudb_probes.d
-	mv tokudb_probes.h tokudb_probes.h.bak
-	sed "s/#include <unistd.h>//g" tokudb_probes.h.bak > tokudb_probes.h
-	rm tokudb_probes.h.bak
-
-tokudb_probes.o:
-	$(DTRACE) $(DTRACEFLAGS) -G -s tokudb_probes.d $(DTRACEFILES)
-
-# End
+EXTRA_DIST =		CMakeLists.txt plug.in
+# Don't update the files from bitkeeper
+%::SCCS/s.%
