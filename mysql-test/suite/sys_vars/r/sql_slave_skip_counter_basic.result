@@ -14,9 +14,9 @@ SET @@global.sql_slave_skip_counter = 2147483648*2;
 Warnings:
 Warning	1292	Truncated incorrect sql_slave_skip_counter value: '4294967296'
 SET @@global.sql_slave_skip_counter = 2147483648*2-1;
-SET @@global.sql_slave_skip_counter = 4294967295*4294967295;
+SET @@global.sql_slave_skip_counter = 18446744065119617025;
 Warnings:
-Warning	1292	Truncated incorrect sql_slave_skip_counter value: '-8589934591'
+Warning	1292	Truncated incorrect sql_slave_skip_counter value: '18446744065119617025'
 '#--------------------FN_DYNVARS_165_03-------------------------#'
 SET @@global.sql_slave_skip_counter = '5';
 ERROR 42000: Incorrect argument type to variable 'sql_slave_skip_counter'

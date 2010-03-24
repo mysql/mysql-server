@@ -65,7 +65,7 @@ ADD_CUSTOM_TARGET(GenFixPrivs
 
 IF(UNIX)
  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution 
-   "cd ${CMAKE_BINARY_DIR} && ${CMAKE_CPACK_COMMAND} -G TGZ --config CPackConfig.cmake" )
+   "cd ${CMAKE_BINARY_DIR} && '${CMAKE_CPACK_COMMAND}' -G TGZ --config CPackConfig.cmake" )
  EXECUTE_PROCESS(
   COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution
 )
@@ -261,7 +261,8 @@ IF(WIN32)
   SET(PLIN_FILES mysql_config mysql_secure_installation)
   # Input files with .sh extension
 
-  SET(SH_FILES mysql_convert_table_format mysqld_multi)
+  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow 
+    mysqlhotcopy)
 
   FOREACH(file ${PLIN_FILES})
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.pl.in
