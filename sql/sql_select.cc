@@ -1108,8 +1108,13 @@ JOIN::optimize()
     const items after make_join_statisctics(for example
     when Item is a reference to cost table field from
     outer join).
+    This check is performed only for those conditions
+    which do not use aggregate functions. In such case
+    temporary table may not be used and const condition
+    elements may be lost during further having
+    condition transformation in JOIN::exec.
   */
-  if (having && (having->used_tables() & ~const_table_map))
+  if (having && !having->with_sum_func && !need_tmp)
   {
     COND *const_cond= make_cond_for_table(having, const_table_map, 0);
     DBUG_EXECUTE("where", print_where(const_cond, "const_having_cond",
