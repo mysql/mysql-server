@@ -2651,8 +2651,8 @@ ibuf_get_volume_buffered_hash(
 	const byte*	data,	/*!< in: start of user record data */
 	ulint		comp,	/*!< in: 0=ROW_FORMAT=REDUNDANT,
 				nonzero=ROW_FORMAT=COMPACT */
-	byte*		hash,	/*!< in/out: hash array */
-	ulint		size)	/*!< in: size of hash array, in bytes */
+	ulint*		hash,	/*!< in/out: hash array */
+	ulint		size)	/*!< in: number of elements in hash array */
 {
 	ulint		len;
 	ulint		fold;
@@ -2662,8 +2662,8 @@ ibuf_get_volume_buffered_hash(
 				FALSE, comp);
 	fold = ut_fold_binary(data, len);
 
-	hash += (fold / 8) % size;
-	bitmask = 1 << (fold % 8);
+	hash += (fold / (CHAR_BIT * sizeof *hash)) % size;
+	bitmask = 1 << (fold % (CHAR_BIT * sizeof *hash));
 
 	if (*hash & bitmask) {
 
@@ -2686,8 +2686,8 @@ ulint
 ibuf_get_volume_buffered_count(
 /*===========================*/
 	const rec_t*	rec,	/*!< in: insert buffer record */
-	byte*		hash,	/*!< in/out: hash array */
-	ulint		size,	/*!< in: size of hash array, in bytes */
+	ulint*		hash,	/*!< in/out: hash array */
+	ulint		size,	/*!< in: number of elements in hash array */
 	lint*		n_recs)	/*!< in/out: estimated number of records
 				on the page that rec points to */
 {
@@ -2822,7 +2822,7 @@ ibuf_get_volume_buffered(
 	page_t*	prev_page;
 	ulint	next_page_no;
 	page_t*	next_page;
-	byte	hash_bitmap[128]; /* bitmap of buffered records */
+	ulint	hash_bitmap[128 / sizeof(ulint)]; /* bitmap of buffered recs */
 
 	ut_a(trx_sys_multiple_tablespace_format);
 
@@ -2858,7 +2858,7 @@ ibuf_get_volume_buffered(
 		}
 
 		volume += ibuf_get_volume_buffered_count(
-			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
+			rec, hash_bitmap, UT_ARR_SIZE(hash_bitmap), n_recs);
 
 		rec = page_rec_get_prev(rec);
 	}
