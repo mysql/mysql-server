@@ -6003,14 +6003,11 @@ restart_cluster_failure:
           ndb_binlog_index
         */
         DBUG_PRINT("info", ("Writing empty epoch for gci %llu", gci));
+        DBUG_PRINT("info", ("Initializing transaction"));
+        inj->new_trans(thd, &trans);
         rows= &_row;
         bzero((char*)&_row, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
-        if (!trans.good())
-        {
-          DBUG_PRINT("info", ("Initializing transaction"));
-          inj->new_trans(thd, &trans);
-        }        
         goto commit_to_binlog;
       }
       while (pOp != NULL)
@@ -6038,6 +6035,8 @@ restart_cluster_failure:
 
         bzero((char*)&_row, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
+        DBUG_PRINT("info", ("Initializing transaction"));
+        inj->new_trans(thd, &trans);
         trans_row_count= 0;
         // pass table map before epoch
         {
