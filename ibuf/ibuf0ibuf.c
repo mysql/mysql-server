@@ -91,7 +91,7 @@ looking at the length of the field modulo DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE.
 The high-order bit of the character set field in the type info is the
 "nullable" flag for the field.
 
-In versions >= InnoDB+ plugin:
+In versions >= 5.5:
 
 The optional marker byte at the start of the fourth field is replaced by
 mandatory 3 fields, totaling 4 bytes:
@@ -247,7 +247,7 @@ data from it. For details, see the description of the record format at the
 top of this file. */
 
 /** @name Format of the fourth column of an insert buffer record
-The fourth column in the InnoDB+ Plugin format contains an operation
+The fourth column in the MySQL 5.5 format contains an operation
 type, counter, and some flags. */
 /* @{ */
 #define IBUF_REC_INFO_SIZE	4	/*!< Combined size of info fields at
