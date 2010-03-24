@@ -4252,21 +4252,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
                 m_pushed_join->get_table(0)->alias)
               );
 
-#ifndef DBUG_OFF
-    /*
-      Check that we are still using the same index as when we defined the 
-      NdbQueryOperationDef object.
-     */
-    const NdbQueryOperationDef* const root_operation= 
-      m_pushed_join->get_query_def().getQueryOperation(0U);
-    
-    const NdbDictionary::Index* const expected_index=
-      static_cast<const NdbQueryIndexScanOperationDef*>(root_operation)
-      ->getIndex();
-
-    DBUG_ASSERT(m_index[active_index].index == expected_index);
-#endif
-
     NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
     NdbQuery* const query= create_pushed_join(paramValues);
     if (unlikely(!query))
