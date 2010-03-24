@@ -430,6 +430,7 @@ sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
 		--with-plugin-archive \
 		--with-plugin-blackhole \
 		--with-plugin-federated \
+		--with-perfschema \
 		--without-plugin-daemon_example \
 		--without-plugin-ftexample \
 %if %{EMBEDDED_BUILD}
@@ -1049,6 +1050,10 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Mar 24 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Add "--with-perfschema" to the configure options.
+
 * Mon Mar 22 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - User "usr/lib*" to allow for both "usr/lib" and "usr/lib64",
