@@ -16,12 +16,18 @@ CREATE TABLE bug38231 (a INT);
 
 -- connect (con1,localhost,root,,)
 -- connect (con2,localhost,root,,)
+-- connect (con3,localhost,root,,)
 
 -- connection con1
 SET autocommit=0;
 LOCK TABLE bug38231 WRITE;
 
 -- connection con2
+SET autocommit=0;
+-- send
+LOCK TABLE bug38231 WRITE;
+
+-- connection con3
 SET autocommit=0;
 -- send
 LOCK TABLE bug38231 WRITE;
@@ -31,10 +37,20 @@ LOCK TABLE bug38231 WRITE;
 TRUNCATE TABLE bug38231;
 
 -- connection con1
-# give time to TRUNCATE and others to be executed; without sleep, sometimes
-# UNLOCK executes before TRUNCATE
-# TODO: Replace with wait_condition once possible under embedded server.
--- sleep 0.2
+# Wait for TRUNCATE and the other two LOCKs to be executed; without this,
+# sometimes UNLOCK executes before them. We assume there are no other
+# sessions executing at the same time with the same SQL commands.
+let $wait_condition =
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = 'TRUNCATE TABLE bug38231';
+-- source include/wait_condition.inc
+let $wait_condition =
+  SELECT COUNT(*) = 2 FROM information_schema.processlist
+  WHERE info = 'LOCK TABLE bug38231 WRITE';
+-- source include/wait_condition.inc
+# the above enables query log, re-disable it
+-- disable_query_log
+
 # this crashes the server if the bug is present
 UNLOCK TABLES;
 
@@ -44,10 +60,16 @@ UNLOCK TABLES;
 -- reap
 UNLOCK TABLES;
 
+-- connection con3
+-- reap
+UNLOCK TABLES;
+
 -- connection default
 -- reap
+
 -- disconnect con1
 -- disconnect con2
+-- disconnect con3
 
 # test that TRUNCATE works with with row-level locks
 
