@@ -37,10 +37,10 @@ struct __toku_loader_internal {
     uint32_t *db_flags;
     uint32_t *dbt_flags;
     uint32_t loader_flags;
-    void *extra;
-    void (*error_callback)(DB *db, int i, int err, DBT *key, DBT *val, void *extra_extra);
+    void (*error_callback)(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra);
     void *error_extra;
-    int  (*poll_func)(void *extra, float progress);
+    int  (*poll_func)(void *poll_extra, float progress);
+    void *poll_extra;
     char *temp_file_template;
 
     DBT *ekeys;
@@ -81,11 +81,10 @@ int toku_loader_create_loader(DB_ENV *env,
                               DB *dbs[], 
                               uint32_t db_flags[N], 
                               uint32_t dbt_flags[N], 
-                              uint32_t loader_flags,
-                              void *extra UU())
+                              uint32_t loader_flags)
 {
     DB_LOADER *loader;
-    XCALLOC(loader);       // init to all zeroes
+    XCALLOC(loader);       // init to all zeroes (thus initializing the error_callback and poll_func)
     XCALLOC(loader->i);
 
     loader->i->env                = env;
@@ -96,7 +95,6 @@ int toku_loader_create_loader(DB_ENV *env,
     loader->i->db_flags           = db_flags;
     loader->i->dbt_flags          = dbt_flags;
     loader->i->loader_flags       = loader_flags;
-    loader->i->extra              = extra;
     loader->i->temp_file_template = (char *)toku_malloc(MAX_FILE_SIZE);
 
     int n = snprintf(loader->i->temp_file_template, MAX_FILE_SIZE, "%s/tempXXXXXX", env->i->dir);
@@ -169,9 +167,11 @@ int toku_loader_create_loader(DB_ENV *env,
 }
 
 int toku_loader_set_poll_function(DB_LOADER *loader,
-                                  int (*poll_func)(void *extra, float progress)) 
+                                  int (*poll_func)(void *extra, float progress),
+				  void *poll_extra) 
 {
     loader->i->poll_func = poll_func;
+    loader->i->poll_extra = poll_extra;
     return 0;
 }
 
@@ -243,7 +243,9 @@ int toku_loader_close(DB_LOADER *loader)
     }
 
     if ( !(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
-        r = toku_brt_loader_close(loader->i->brt_loader, loader->i->error_callback, loader->i->error_extra);
+        r = toku_brt_loader_close(loader->i->brt_loader,
+				  loader->i->error_callback, loader->i->error_extra,
+				  loader->i->poll_func,      loader->i->poll_extra);
 	if (r!=0) goto cleanup_and_return_r;
 
         for (int i=0; i<loader->i->N; i++) {

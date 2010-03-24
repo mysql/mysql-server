@@ -51,7 +51,7 @@ struct __toku_loader_internal;
 struct __toku_loader {
   struct __toku_loader_internal *i;
   int (*set_error_callback)(DB_LOADER *loader, void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra), void *error_extra); /* set the error callback */
-  int (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress));             /* set the polling function */
+  int (*set_poll_function)(DB_LOADER *loader, int (*poll_func)(void *extra, float progress), void *poll_extra);             /* set the polling function */
   int (*put)(DB_LOADER *loader, DBT *key, DBT* val);                                                      /* give a row to the loader */
   int (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */
   int (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */
@@ -71,7 +71,6 @@ typedef struct __toku_engine_status {
   u_int64_t        time_ydb_lock_held_unavailable;  /* number of times a thread migrated and theld is unavailable */ 
   u_int64_t        max_time_ydb_lock_held;  /* max time a client thread held the ydb lock  */ 
   u_int64_t        total_time_ydb_lock_held;/* total time client threads held the ydb lock  */ 
-  u_int64_t        logger_lock_ctr;         /* how many times has logger lock been taken/released */ 
   u_int32_t        checkpoint_period;       /* delay between automatic checkpoints  */ 
   u_int32_t        checkpoint_footprint;    /* state of checkpoint procedure        */ 
   char             checkpoint_time_begin[26]; /* time of last checkpoint begin      */ 
@@ -219,7 +218,7 @@ struct __toku_db_env {
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */;
-  int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags, void *extra);
+  int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags);
   void *app_private;
   int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,

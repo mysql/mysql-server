@@ -177,6 +177,16 @@ static void check_results(DB **dbs)
     printf("\nCheck OK\n");
 }
 
+static void *expect_poll_void = &expect_poll_void;
+static int poll_count=0;
+static int poll_function (void *extra, float progress) {
+    //printf("progress: %5.1f%%\n", progress*100);
+    assert(extra==expect_poll_void);
+    assert(0.0<=progress && progress<1.0);
+    poll_count++;
+    return 0;
+}
+
 static void test_loader(DB **dbs)
 {
     int r;
@@ -193,11 +203,11 @@ static void test_loader(DB **dbs)
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               
     CKERR(r);
-    r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags, NULL);
+    r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags);
     CKERR(r);
     r = loader->set_error_callback(loader, NULL, NULL);
     CKERR(r);
-    r = loader->set_poll_function(loader, NULL);
+    r = loader->set_poll_function(loader, poll_function, expect_poll_void);
     CKERR(r);
 
     // using loader->put, put values into DB
@@ -214,11 +224,15 @@ static void test_loader(DB **dbs)
     }
     if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
         
+    poll_count=0;
+
     // close the loader
     printf("closing"); fflush(stdout);
     r = loader->close(loader);
     printf(" done\n");
     CKERR(r);
+
+    assert(poll_count>0);
 
     r = txn->commit(txn, 0);
     CKERR(r);
