@@ -114,8 +114,8 @@ SET @@global.myisam_repair_threads  = 429496729533;
 SELECT @@global.myisam_repair_threads ;
 
 
---Error ER_PARSE_ERROR
-SET @@global.myisam_repair_threads  = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.myisam_repair_threads  = 65530.34;
 SELECT @@global.myisam_repair_threads ;
 
 --Error ER_WRONG_TYPE_FOR_VAR
@@ -141,9 +141,8 @@ SELECT @@session.myisam_repair_threads ;
 SET @@session.myisam_repair_threads  = -2;
 SELECT @@session.myisam_repair_threads ;
 
---Error ER_PARSE_ERROR
-
-SET @@session.myisam_repair_threads  = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.myisam_repair_threads  = 65530.34;
 SELECT @@session.myisam_repair_threads ;
 
 

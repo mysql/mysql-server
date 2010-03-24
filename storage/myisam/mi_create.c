@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -572,7 +572,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= (long) time((time_t*) 0);
 
-  pthread_mutex_lock(&THR_LOCK_myisam);
+  mysql_mutex_lock(&THR_LOCK_myisam);
 
   /*
     NOTE: For test_if_reopen() we need a real path name. Hence we need
@@ -638,8 +638,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     goto err;
   }
 
-  if ((file= my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
-				    MYF(MY_WME | create_flag))) < 0)
+  if ((file= mysql_file_create_with_symlink(mi_key_file_kfile,
+                                            linkname_ptr, filename, 0,
+                                            create_mode,
+                                            MYF(MY_WME | create_flag))) < 0)
     goto err;
   errpos=1;
 
@@ -694,8 +696,10 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
         create_flag=(flags & HA_CREATE_KEEP_FILES) ? 0 : MY_DELETE_OLD;
       }
       if ((dfile=
-	   my_create_with_symlink(linkname_ptr, filename, 0, create_mode,
-				  MYF(MY_WME | create_flag))) < 0)
+           mysql_file_create_with_symlink(mi_key_file_dfile,
+                                          linkname_ptr, filename, 0,
+                                          create_mode,
+                                          MYF(MY_WME | create_flag))) < 0)
 	goto err;
     }
     errpos=3;
@@ -706,9 +710,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       mi_base_info_write(file, &share.base))
     goto err;
 #ifndef DBUG_OFF
-  if ((uint) my_tell(file,MYF(0)) != base_pos+ MI_BASE_INFO_SIZE)
+  if ((uint) mysql_file_tell(file, MYF(0)) != base_pos + MI_BASE_INFO_SIZE)
   {
-    uint pos=(uint) my_tell(file,MYF(0));
+    uint pos=(uint) mysql_file_tell(file, MYF(0));
     DBUG_PRINT("warning",("base_length: %d  != used_length: %d",
 			  base_pos+ MI_BASE_INFO_SIZE, pos));
   }
@@ -803,9 +807,9 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       goto err;
 
 #ifndef DBUG_OFF
-  if ((uint) my_tell(file,MYF(0)) != info_length)
+  if ((uint) mysql_file_tell(file, MYF(0)) != info_length)
   {
-    uint pos= (uint) my_tell(file,MYF(0));
+    uint pos= (uint) mysql_file_tell(file, MYF(0));
     DBUG_PRINT("warning",("info_length: %d  != used_length: %d",
 			  info_length, pos));
   }
@@ -813,46 +817,49 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 
 	/* Enlarge files */
   DBUG_PRINT("info", ("enlarge to keystart: %lu", (ulong) share.base.keystart));
-  if (my_chsize(file,(ulong) share.base.keystart,0,MYF(0)))
+  if (mysql_file_chsize(file, (ulong) share.base.keystart, 0, MYF(0)))
     goto err;
 
   if (! (flags & HA_DONT_TOUCH_DATA))
   {
 #ifdef USE_RELOC
-    if (my_chsize(dfile,share.base.min_pack_length*ci->reloc_rows,0,MYF(0)))
+    if (mysql_file_chsize(dfile, share.base.min_pack_length*ci->reloc_rows,
+                          0, MYF(0)))
       goto err;
 #endif
     errpos=2;
-    if (my_close(dfile,MYF(0)))
+    if (mysql_file_close(dfile, MYF(0)))
       goto err;
   }
   errpos=0;
-  pthread_mutex_unlock(&THR_LOCK_myisam);
-  if (my_close(file,MYF(0)))
+  mysql_mutex_unlock(&THR_LOCK_myisam);
+  if (mysql_file_close(file, MYF(0)))
     goto err;
   my_free((char*) rec_per_key_part,MYF(0));
   DBUG_RETURN(0);
 
 err:
-  pthread_mutex_unlock(&THR_LOCK_myisam);
+  mysql_mutex_unlock(&THR_LOCK_myisam);
   save_errno=my_errno;
   switch (errpos) {
   case 3:
-    VOID(my_close(dfile,MYF(0)));
+    (void) mysql_file_close(dfile, MYF(0));
     /* fall through */
   case 2:
     /* QQ: Tõnu should add a call to my_raid_delete() here */
   if (! (flags & HA_DONT_TOUCH_DATA))
-    my_delete_with_symlink(fn_format(filename,name,"",MI_NAME_DEXT,
-                                     MY_UNPACK_FILENAME | MY_APPEND_EXT),
-			   MYF(0));
+    mysql_file_delete_with_symlink(mi_key_file_dfile,
+                                   fn_format(filename, name, "", MI_NAME_DEXT,
+                                             MY_UNPACK_FILENAME | MY_APPEND_EXT),
+                                   MYF(0));
     /* fall through */
   case 1:
-    VOID(my_close(file,MYF(0)));
+    (void) mysql_file_close(file, MYF(0));
     if (! (flags & HA_DONT_TOUCH_DATA))
-      my_delete_with_symlink(fn_format(filename,name,"",MI_NAME_IEXT,
-                                       MY_UNPACK_FILENAME | MY_APPEND_EXT),
-			     MYF(0));
+      mysql_file_delete_with_symlink(mi_key_file_kfile,
+                                     fn_format(filename, name, "", MI_NAME_IEXT,
+                                               MY_UNPACK_FILENAME | MY_APPEND_EXT),
+                                     MYF(0));
   }
   my_free((char*) rec_per_key_part, MYF(0));
   DBUG_RETURN(my_errno=save_errno);		/* return the fatal errno */

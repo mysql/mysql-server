@@ -7,15 +7,19 @@ start slave;
 connection slave
 SET @start_max_connections= @@global.max_connections;
 SET @start_init_slave= @@global.init_slave;
-SET @@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1';
+SET NAMES utf8;
+SET @@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1 -- комментарий';
 DROP TABLE IF EXISTS t1;
 CREATE TEMPORARY TABLE t1 AS SELECT @@global.init_slave AS my_column;
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-my_column	varchar(59)	YES		NULL	
+my_column	varchar(74)	YES		NULL	
+select length(my_column) from t1;
+length(my_column)
+85
 DROP TABLE t1;
-SELECT @@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1';
-@@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1'
+SELECT @@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1 -- комментарий';
+@@global.init_slave = 'SET @@global.max_connections = @@global.max_connections + 1 -- комментарий'
 1
 Expect 1
 SELECT @@global.max_connections= @start_max_connections;

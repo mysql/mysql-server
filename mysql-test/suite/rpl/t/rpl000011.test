@@ -4,7 +4,9 @@ create table t1 (n int);
 insert into t1 values(1);
 sync_slave_with_master; 
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 start slave;
+--source include/wait_for_slave_to_start.inc
 connection master;
 insert into t1 values(2);
 #let slave catch up

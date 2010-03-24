@@ -47,8 +47,6 @@ SET @@global.myisam_max_sort_file_size = 500000;
 SET @@global.myisam_max_sort_file_size = DEFAULT;
 SELECT @@global.myisam_max_sort_file_size;
 
---echo 'Bug# 34876: This variable has invalid default value as compared to documentation';
-
 --echo '#--------------------FN_DYNVARS_094_02-------------------------#'
 ###################################################################
 #     Check the DEFAULT value of myisam_max_sort_file_size         #
@@ -102,17 +100,14 @@ SET @@global.myisam_max_sort_file_size = -2147483648;
 SELECT @@global.myisam_max_sort_file_size;
 SET @@global.myisam_max_sort_file_size = -2147483649;
 SELECT @@global.myisam_max_sort_file_size;
---Error ER_PARSE_ERROR
-SET @@global.myisam_max_sort_file_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.myisam_max_sort_file_size = 65530.34;
 SELECT @@global.myisam_max_sort_file_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.myisam_max_sort_file_size = 2147483649.56;
 SELECT @@global.myisam_max_sort_file_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.myisam_max_sort_file_size = 1G;
-
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
 
 --echo '#------------------FN_DYNVARS_094_06-----------------------#'
 ####################################################################

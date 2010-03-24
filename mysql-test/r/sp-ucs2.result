@@ -12,6 +12,114 @@ a
 foo string
 drop function bug17615|
 drop table t3|
+CREATE FUNCTION f(f1 VARCHAR(64) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci)
+RETURNS VARCHAR(64) CHARACTER SET ucs2 COLLATE ucs2_danish_ci
+BEGIN
+DECLARE f2 VARCHAR(64) CHARACTER SET ucs2 COLLATE ucs2_swedish_ci;
+DECLARE f3 VARCHAR(64) CHARACTER SET ucs2 COLLATE ucs2_bin;
+SET f1= concat(collation(f1), ' ', collation(f2), ' ', collation(f3));
+RETURN f1;
+END|
+SELECT f('a')|
+f('a')
+ucs2_unicode_ci ucs2_swedish_ci ucs2_bin
+SELECT collation(f('a'))|
+collation(f('a'))
+ucs2_danish_ci
+DROP FUNCTION f|
+CREATE FUNCTION f()
+RETURNS VARCHAR(64) UNICODE BINARY
+BEGIN
+RETURN '';
+END|
+SHOW CREATE FUNCTION f;
+DROP FUNCTION f;
+CREATE FUNCTION f()
+RETURNS VARCHAR(64) BINARY UNICODE
+BEGIN
+RETURN '';
+END|
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f		CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
+BEGIN
+RETURN '';
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW CREATE FUNCTION f;
+DROP FUNCTION f;
+#
+# Testing keywords ASCII + BINARY
+#
+CREATE FUNCTION f()
+RETURNS VARCHAR(64) ASCII BINARY
+BEGIN
+RETURN '';
+END|
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f		CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET ucs2 COLLATE ucs2_bin
+BEGIN
+RETURN '';
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW CREATE FUNCTION f;
+DROP FUNCTION f;
+CREATE FUNCTION f()
+RETURNS VARCHAR(64) BINARY ASCII
+BEGIN
+RETURN '';
+END|
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f		CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
+BEGIN
+RETURN '';
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW CREATE FUNCTION f;
+DROP FUNCTION f;
+#
+# Testing COLLATE in OUT parameter
+#
+CREATE PROCEDURE p1(IN  f1 VARCHAR(64) CHARACTER SET ucs2 COLLATE ucs2_czech_ci,
+OUT f2 VARCHAR(64) CHARACTER SET ucs2 COLLATE ucs2_polish_ci)
+BEGIN
+SET f2= f1;
+SET f2= concat(collation(f1), ' ', collation(f2));
+END|
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f		CREATE DEFINER=`root`@`localhost` FUNCTION `f`() RETURNS varchar(64) CHARSET latin1 COLLATE latin1_bin
+BEGIN
+RETURN '';
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+CREATE FUNCTION f1()
+RETURNS VARCHAR(64) CHARACTER SET ucs2
+BEGIN
+DECLARE f1 VARCHAR(64) CHARACTER SET ucs2;
+DECLARE f2 VARCHAR(64) CHARACTER SET ucs2;
+SET f1='str';
+CALL p1(f1, f2);
+RETURN f2;
+END|
+SELECT f1()|
+f1()
+ucs2_czech_ci ucs2_polish_ci
+DROP PROCEDURE p1|
+DROP FUNCTION f1|
+CREATE FUNCTION f(f1 VARCHAR(64) COLLATE ucs2_unicode_ci)
+RETURNS VARCHAR(64) CHARACTER SET ucs2
+BEGIN
+RETURN 'str';
+END|
+ERROR 42000: This version of MySQL doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
+CREATE FUNCTION f(f1 VARCHAR(64) CHARACTER SET ucs2)
+RETURNS VARCHAR(64) COLLATE ucs2_unicode_ci
+BEGIN
+RETURN 'str';
+END|
+ERROR 42000: This version of MySQL doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
+CREATE FUNCTION f(f1 VARCHAR(64) CHARACTER SET ucs2)
+RETURNS VARCHAR(64) CHARACTER SET ucs2
+BEGIN
+DECLARE f2 VARCHAR(64) COLLATE ucs2_unicode_ci;
+RETURN 'str';
+END|
+ERROR 42000: This version of MySQL doesn't yet support 'COLLATE with no CHARACTER SET in SP parameters, RETURNS, DECLARE'
 SET NAMES utf8;
 DROP FUNCTION IF EXISTS bug48766;
 CREATE FUNCTION bug48766 ()
@@ -24,7 +132,7 @@ RETURN 0	utf8	utf8_general_ci	latin1_swedish_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_NAME='bug48766';
 DTD_IDENTIFIER
-enum('w') CHARSET ucs2
+enum('w')
 DROP FUNCTION bug48766;
 CREATE FUNCTION bug48766 ()
 RETURNS ENUM('а','б','в','г') CHARACTER SET ucs2
@@ -36,5 +144,5 @@ RETURN 0	utf8	utf8_general_ci	latin1_swedish_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES
 WHERE ROUTINE_NAME='bug48766';
 DTD_IDENTIFIER
-enum('а','б','в','г') CHARSET ucs2
+enum('а','б','в','г')
 DROP FUNCTION bug48766;

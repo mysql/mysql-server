@@ -1,0 +1,247 @@
+#------------------------------------------------------------------------------
+# i_s_routines.test
+# .test file for MySQL regression suite
+# Purpose:  To test the presence, structure, and behavior
+#                    of INFORMATION_SCHEMA.ROUTINES
+# Author:  pcrews
+# Last modified:  2007-12-04
+#------------------------------------------------------------------------------
+
+################################################################################
+# Testcase routines.1: Ensure that the INFORMATION_SCHEMA.ROUTINES
+#                   table has the following columns, in the following order:
+#
+#                   SPECIFIC_NAME (shows the name of an accessible stored
+#                          procedure, or routine),
+#                   ROUTINE_CATALOG (always shows NULL),
+#                   ROUTINE_SCHEMA (shows the database, or schema, in which
+#                          the routine resides),
+#                   ROUTINE_NAME (shows the same stored procedure name),
+#                   ROUTINE_TYPE (shows whether the stored procedure is a
+#                          procedure or a function),
+#                   DATA_TYPE (new column as of 6.0)
+#                   CHARACTER_MAXIMUM_LENGTH  (new column as of 6.0)
+#                   CHARACTER_OCTET_LENGTH  (new column as of 6.0)
+#                   NUMERIC_PRECISION  (new column as of 6.0)
+#                   NUMERIC_SCALE  (new column as of 6.0)
+#                   CHARACTER_SET_NAME  (new column as of 6.0)
+#                   COLLATION_NAME  (new column as of 6.0)
+#                   DTD_IDENTIFIER (shows, for a function, the complete
+#                          data type definition of the value the function will
+#                          return; otherwise NULL),
+#                   ROUTINE_BODY (shows the language in which the stored
+#                          procedure is written; currently always SQL),
+#                   ROUTINE_DEFINITION (shows as much of the routine body as
+#                          is possible in the allotted space),
+#                   EXTERNAL_NAME (always shows NULL),
+#                   EXTERNAL_LANGUAGE (always shows NULL),
+#                   PARAMETER_STYLE (shows the routine's parameter style;
+#                          always SQL),
+#                   IS_DETERMINISTIC (shows whether the routine is
+#                          deterministic),
+#                   SQL_DATA_ACCESS (shows the routine's defined
+#                          sql-data-access clause value),
+#                   SQL_PATH (always shows NULL),
+#                   SECURITY_TYPE (shows whether the routine's defined
+#                          security_type is 'definer' or 'invoker'),
+#                   CREATED (shows the timestamp of the time the routine was
+#                          created),
+#                   LAST_ALTERED (shows the timestamp of the time the routine
+#                          was last altered),
+#                   SQL_MODE (shows the sql_mode setting at the time the
+#                          routine was created),
+#                   ROUTINE_COMMENT (shows the comment, if any, defined for
+#                          the routine; otherwise NULL),
+#                   DEFINER (shows the user who created the routine).
+################################################################################
+-- echo # ========== routines.1 ==========
+USE INFORMATION_SCHEMA;
+--replace_result ENGINE=MyISAM "" ENGINE=MARIA "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE INFORMATION_SCHEMA.ROUTINES;
+
+# embedded server does not display privileges
+--replace_column 18 #
+query_vertical SELECT * FROM information_schema.columns
+WHERE table_schema = 'information_schema'
+  AND table_name   = 'routines'
+ORDER BY ordinal_position;
+
+DESCRIBE INFORMATION_SCHEMA.ROUTINES;
+
+###############################################################################
+# Testcase routines.2:  Unsuccessful stored procedure CREATE will not populate
+#                     I_S.ROUTINES view
+###############################################################################
+-- echo # ========== routines.2 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_routines_test;
+--enable_warnings
+
+CREATE DATABASE i_s_routines_test;
+USE i_s_routines_test;
+
+# Missing closing ')' character at the end of 's char(20) in func declaration
+--error ER_PARSE_ERROR
+CREATE FUNCTION test_func1 (s char(20) RETURNS CHAR(50)
+RETURN CONCAT('Hello', ,s,'!');
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
+
+###############################################################################
+# Testcase routines.3:  DROP FUNCTION - Verify DROP of a stored procedure
+#                                     removes I_S.PARAMETERS data for that
+#                                     function / procedure
+###############################################################################
+-- echo # ========== routines.3 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_routines_test;
+--enable_warnings
+
+CREATE DATABASE i_s_routines_test;
+USE i_s_routines_test;
+
+CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
+RETURN CONCAT('Hello, ',s,'!');
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
+DROP FUNCTION test_func1;
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
+
+
+################################################################################
+# Testcase routines.4:  Verify that the new columns from WL#2822 are NULL for a
+#                    stored procedure
+################################################################################
+-- echo # ========== routines.4 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_routines_test;
+--enable_warnings
+
+CREATE DATABASE i_s_routines_test;
+USE i_s_routines_test;
+
+delimiter //;
+CREATE PROCEDURE testproc (OUT param1 INT)
+  BEGIN
+   SELECT 2+2 as param1;
+  END;
+//
+delimiter ;//
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'testproc';
+
+
+################################################################################
+# Testcase routines.5:  Verify that the new columns from WL#2822 are populated
+#                    for a stored function, that the NUMERIC columns
+#                    are not populated when the function returns non-numeric
+#                    data, and that the CHARACTER columns are populated
+#                    for CHAR functions
+################################################################################
+-- echo # ========== routines.5 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_routines_test;
+--enable_warnings
+
+CREATE DATABASE i_s_routines_test;
+USE i_s_routines_test;
+
+CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
+RETURN CONCAT('Hello, ',s,'!');
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func1';
+
+
+
+################################################################################
+# Testcase routines.6:  Verify that the new columns from WL#2822 are populated
+#                    for a stored function, that the CHARACTER columns
+#                    are not populated when the function returns numeric
+#                    data, and that the NUMERIC columns are populated
+#                    for numeric functions
+################################################################################
+-- echo # ========== routines.6 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_routines_test;
+--enable_warnings
+
+CREATE DATABASE i_s_routines_test;
+USE i_s_routines_test;
+
+CREATE FUNCTION test_func2 (s int) RETURNS INT RETURN s*2;
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func2';
+
+################################################################################
+# Testcase routines.7:  Verify that the new columns from WL#2822 are populated
+#                    for a stored function, that the CHARACTER and NUMERIC
+#                    columns are not populated when the function returns date
+#                    or time data
+################################################################################
+-- echo # ========== routines.7 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_routines_test;
+--enable_warnings
+
+CREATE DATABASE i_s_routines_test;
+USE i_s_routines_test;
+
+CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
+RETURN CURRENT_TIMESTAMP;
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
+
+###############################################################################
+# Testcase routines.8:  ALTER FUNCTION
+#                     Quick check to ensure ALTER properly updates
+#                     I_S.ROUTINES.COMMENT
+###############################################################################
+-- echo # ========== routines.8 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_routines_test;
+--enable_warnings
+
+CREATE DATABASE i_s_routines_test;
+USE i_s_routines_test;
+
+CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
+RETURN CURRENT_TIMESTAMP;
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
+ALTER FUNCTION test_func5 COMMENT 'new comment added';
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
+
+###############################################################################
+# Testcase routines.9:  MULTI-BYTE CHAR SETS
+#                     Verify that CHAR_MAX_LENGTH and CHAR_OCTET_LENGTH
+#                     differ as expected for multi-byte char sets
+#                     Normally both values are equal
+###############################################################################
+-- echo # ========== routines.9 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_routines_test;
+--enable_warnings
+
+
+CREATE DATABASE i_s_routines_test CHARACTER SET  utf8;
+USE i_s_routines_test;
+
+CREATE FUNCTION test_func5 (s CHAR(20)) RETURNS VARCHAR(30)
+RETURN CONCAT('XYZ, ' ,s);
+--replace_column 23 <created> 24 <modified>
+SELECT * FROM INFORMATION_SCHEMA.ROUTINES
+WHERE ROUTINE_SCHEMA = 'i_s_routines_test' AND ROUTINE_NAME = 'test_func5';
+
+# final clean up
+DROP DATABASE i_s_routines_test;

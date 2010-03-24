@@ -119,8 +119,8 @@ SET @@global.max_sp_recursion_depth = -1;
 SELECT @@global.max_sp_recursion_depth;
 SET @@global.max_sp_recursion_depth = 3000;
 SELECT @@global.max_sp_recursion_depth;
---Error ER_PARSE_ERROR
-SET @@global.max_sp_recursion_depth = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_sp_recursion_depth = 65530.34;
 SELECT @@global.max_sp_recursion_depth;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_sp_recursion_depth = test;
@@ -134,8 +134,8 @@ SET @@session.max_sp_recursion_depth = 500000;
 SELECT @@session.max_sp_recursion_depth;
 SET @@session.max_sp_recursion_depth = -001;
 SELECT @@session.max_sp_recursion_depth;
---Error ER_PARSE_ERROR
-SET @@session.max_sp_recursion_depth = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_sp_recursion_depth = 65530.34;
 SET @@session.max_sp_recursion_depth = 10737418241;
 SELECT @@session.max_sp_recursion_depth;
 --Error ER_WRONG_TYPE_FOR_VAR

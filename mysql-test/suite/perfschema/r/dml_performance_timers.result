@@ -1,0 +1,29 @@
+select * from performance_schema.PERFORMANCE_TIMERS;
+TIMER_NAME	TIMER_FREQUENCY	TIMER_RESOLUTION	TIMER_OVERHEAD
+CYCLE	<frequency>	<resolution>	<overhead>
+NANOSECOND	<frequency>	<resolution>	<overhead>
+MICROSECOND	<frequency>	<resolution>	<overhead>
+MILLISECOND	<frequency>	<resolution>	<overhead>
+TICK	<frequency>	<resolution>	<overhead>
+select * from performance_schema.PERFORMANCE_TIMERS
+where timer_name='CYCLE';
+TIMER_NAME	TIMER_FREQUENCY	TIMER_RESOLUTION	TIMER_OVERHEAD
+CYCLE	<frequency>	<resolution>	<overhead>
+insert into performance_schema.PERFORMANCE_TIMERS
+set timer_name='FOO', timer_frequency=1,
+timer_resolution=2, timer_overhead=3;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'PERFORMANCE_TIMERS'
+update performance_schema.PERFORMANCE_TIMERS
+set timer_frequency=12 where timer_name='CYCLE';
+ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'PERFORMANCE_TIMERS'
+delete from performance_schema.PERFORMANCE_TIMERS;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'PERFORMANCE_TIMERS'
+delete from performance_schema.PERFORMANCE_TIMERS
+where timer_name='CYCLE';
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'PERFORMANCE_TIMERS'
+LOCK TABLES performance_schema.PERFORMANCE_TIMERS READ;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'PERFORMANCE_TIMERS'
+UNLOCK TABLES;
+LOCK TABLES performance_schema.PERFORMANCE_TIMERS WRITE;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'PERFORMANCE_TIMERS'
+UNLOCK TABLES;

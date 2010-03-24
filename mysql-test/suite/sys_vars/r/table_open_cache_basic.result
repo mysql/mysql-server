@@ -61,7 +61,6 @@ Warning	1292	Truncated incorrect table_open_cache value: '0'
 SELECT @@global.table_open_cache ;
 @@global.table_open_cache
 1
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.table_open_cache = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'table_open_cache'
 SET @@global.table_open_cache = ON;

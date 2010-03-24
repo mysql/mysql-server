@@ -16,6 +16,8 @@ INSERT INTO t2 VALUES('aa3','bb');
 INSERT INTO t2 VALUES('aa4','bb');
 '#--------------------FN_DYNVARS_161_01-------------------------#'
 SET SESSION sql_max_join_size=9;
+Warnings:
+Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
 SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
 ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
 Expected error The SELECT would examine more than MAX_JOIN_SIZE rows.
@@ -30,6 +32,8 @@ aa3	bb	aa3	bb
 aa4	bb	aa4	bb
 This should work
 SET SESSION sql_max_join_size=DEFAULT;
+Warnings:
+Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
 DELETE FROM t2 WHERE a = 'aa4';
 SELECT * FROM t1 INNER JOIN t2 ON t1.a = t2.a;
 a	b	a	b
@@ -40,6 +44,8 @@ aa3	bb	aa3	bb
 This should work
 '#----------------------------FN_DYNVARS_136_05-------------------------#'
 SET GLOBAL sql_max_join_size = 4;
+Warnings:
+Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
 ** Connecting con_int1 using root **
 ** Connection con_int1 **
 SELECT @@SESSION.sql_max_join_size;
@@ -47,6 +53,8 @@ SELECT @@SESSION.sql_max_join_size;
 4
 4 Expected
 SET SESSION sql_max_join_size = 2;
+Warnings:
+Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
 ** Connecting con_int2 using root **
 ** Connection con_int2 **
 SELECT @@SESSION.sql_max_join_size;
@@ -54,6 +62,8 @@ SELECT @@SESSION.sql_max_join_size;
 4
 4 Expected
 SET SESSION sql_max_join_size = 10;
+Warnings:
+Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
 ** Connection con_int2 **
 SELECT @@SESSION.sql_max_join_size;
 @@SESSION.sql_max_join_size
@@ -71,7 +81,11 @@ SELECT @@GLOBAL.sql_max_join_size;
 ** Connection default **
 Disconnecting Connections con_int1, con_int2
 SET @@SESSION.sql_max_join_size = @session_max_join_size;
+Warnings:
+Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
 SET @@GLOBAL.sql_max_join_size = @global_max_join_size ;
+Warnings:
+Warning	1287	The syntax '@@sql_max_join_size' is deprecated and will be removed in MySQL 7.0.
 SET @@SESSION.sql_big_selects = @session_sql_big_selects;
 DROP TABLE t1;
 DROP TABLE t2;

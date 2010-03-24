@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -115,7 +115,7 @@ void mi_remap_file(MI_INFO *info, my_off_t size)
 {
   if (info->s->file_map)
   {
-    VOID(my_munmap((char*) info->s->file_map,
+    (void) (my_munmap((char*) info->s->file_map,
                    (size_t) info->s->mmaped_length));
     mi_dynmap_file(info, size);
   }
@@ -143,7 +143,7 @@ size_t mi_mmap_pread(MI_INFO *info, uchar *Buffer,
 {
   DBUG_PRINT("info", ("mi_read with mmap %d\n", info->dfile));
   if (info->s->concurrent_insert)
-    rw_rdlock(&info->s->mmap_lock);
+    mysql_rwlock_rdlock(&info->s->mmap_lock);
 
   /*
     The following test may fail in the following cases:
@@ -156,24 +156,24 @@ size_t mi_mmap_pread(MI_INFO *info, uchar *Buffer,
   {
     memcpy(Buffer, info->s->file_map + offset, Count);
     if (info->s->concurrent_insert)
-      rw_unlock(&info->s->mmap_lock);
+      mysql_rwlock_unlock(&info->s->mmap_lock);
     return 0;
   }
   else
   {
     if (info->s->concurrent_insert)
-      rw_unlock(&info->s->mmap_lock);
-    return my_pread(info->dfile, Buffer, Count, offset, MyFlags);
+      mysql_rwlock_unlock(&info->s->mmap_lock);
+    return mysql_file_pread(info->dfile, Buffer, Count, offset, MyFlags);
   }
 }
 
 
-        /* wrapper for my_pread in case if mmap isn't used */
+        /* wrapper for mysql_file_pread in case if mmap isn't used */
 
 size_t mi_nommap_pread(MI_INFO *info, uchar *Buffer,
                        size_t Count, my_off_t offset, myf MyFlags)
 {
-  return my_pread(info->dfile, Buffer, Count, offset, MyFlags);
+  return mysql_file_pread(info->dfile, Buffer, Count, offset, MyFlags);
 }
 
 
@@ -198,7 +198,7 @@ size_t mi_mmap_pwrite(MI_INFO *info, const uchar *Buffer,
 {
   DBUG_PRINT("info", ("mi_write with mmap %d\n", info->dfile));
   if (info->s->concurrent_insert)
-    rw_rdlock(&info->s->mmap_lock);
+    mysql_rwlock_rdlock(&info->s->mmap_lock);
 
   /*
     The following test may fail in the following cases:
@@ -211,26 +211,26 @@ size_t mi_mmap_pwrite(MI_INFO *info, const uchar *Buffer,
   {
     memcpy(info->s->file_map + offset, Buffer, Count); 
     if (info->s->concurrent_insert)
-      rw_unlock(&info->s->mmap_lock);
+      mysql_rwlock_unlock(&info->s->mmap_lock);
     return 0;
   }
   else
   {
     info->s->nonmmaped_inserts++;
     if (info->s->concurrent_insert)
-      rw_unlock(&info->s->mmap_lock);
-    return my_pwrite(info->dfile, Buffer, Count, offset, MyFlags);
+      mysql_rwlock_unlock(&info->s->mmap_lock);
+    return mysql_file_pwrite(info->dfile, Buffer, Count, offset, MyFlags);
   }
 
 }
 
 
-        /* wrapper for my_pwrite in case if mmap isn't used */
+        /* wrapper for mysql_file_pwrite in case if mmap isn't used */
 
 size_t mi_nommap_pwrite(MI_INFO *info, const uchar *Buffer,
                       size_t Count, my_off_t offset, myf MyFlags)
 {
-  return my_pwrite(info->dfile, Buffer, Count, offset, MyFlags);
+  return mysql_file_pwrite(info->dfile, Buffer, Count, offset, MyFlags);
 }
 
 
@@ -1523,7 +1523,7 @@ int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 panic:
   my_errno=HA_ERR_WRONG_IN_RECORD;
 err:
-  VOID(_mi_writeinfo(info,0));
+  (void) _mi_writeinfo(info,0);
   DBUG_RETURN(-1);
 }
 
@@ -1650,7 +1650,7 @@ static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
 
   while (length > IO_SIZE*2)
   {
-    if (my_pread(file,temp_buff,next_length,filepos, MYF(MY_NABP)) ||
+    if (mysql_file_pread(file, temp_buff, next_length, filepos, MYF(MY_NABP)) ||
 	memcmp(buff, temp_buff, next_length))
       goto err;
     filepos+=next_length;
@@ -1658,7 +1658,7 @@ static int _mi_cmp_buffer(File file, const uchar *buff, my_off_t filepos,
     length-= next_length;
     next_length=IO_SIZE*2;
   }
-  if (my_pread(file,temp_buff,length,filepos,MYF(MY_NABP)))
+  if (mysql_file_pread(file, temp_buff, length, filepos, MYF(MY_NABP)))
     goto err;
   DBUG_RETURN(memcmp(buff,temp_buff,length));
 err:
@@ -1839,8 +1839,9 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
             block_info.filepos + block_info.data_len &&
             flush_io_cache(&info->rec_cache))
           goto err;
-	/* VOID(my_seek(info->dfile,filepos,MY_SEEK_SET,MYF(0))); */
-	if (my_read(info->dfile,(uchar*) to,block_info.data_len,MYF(MY_NABP)))
+        /* mysql_file_seek(info->dfile, filepos, MY_SEEK_SET, MYF(0)); */
+        if (mysql_file_read(info->dfile, (uchar*) to, block_info.data_len,
+                            MYF(MY_NABP)))
 	{
 	  if (my_errno == -1)
 	    my_errno= HA_ERR_WRONG_IN_RECORD;	/* Unexpected end of file */
@@ -1873,7 +1874,7 @@ panic:
   my_errno=HA_ERR_WRONG_IN_RECORD;		/* Something is fatal wrong */
 err:
   save_errno=my_errno;
-  VOID(_mi_writeinfo(info,0));
+  (void) _mi_writeinfo(info,0);
   DBUG_RETURN(my_errno=save_errno);
 }
 
@@ -1888,12 +1889,12 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
   if (file >= 0)
   {
     /*
-      We do not use my_pread() here because we want to have the file
+      We do not use mysql_file_pread() here because we want to have the file
       pointer set to the end of the header after this function.
-      my_pread() may leave the file pointer untouched.
+      mysql_file_pread() may leave the file pointer untouched.
     */
-    VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
-    if (my_read(file, header, sizeof(info->header),MYF(0)) !=
+    mysql_file_seek(file, filepos, MY_SEEK_SET, MYF(0));
+    if (mysql_file_read(file, header, sizeof(info->header), MYF(0)) !=
 	sizeof(info->header))
       goto err;
   }

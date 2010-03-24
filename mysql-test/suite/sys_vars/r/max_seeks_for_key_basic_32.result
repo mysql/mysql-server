@@ -87,8 +87,8 @@ Warning	1292	Truncated incorrect max_seeks_for_key value: '4294967296'
 SELECT @@global.max_seeks_for_key;
 @@global.max_seeks_for_key
 4294967295
-SET @@global.max_seeks_for_key = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.max_seeks_for_key = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
 SELECT @@global.max_seeks_for_key;
 @@global.max_seeks_for_key
 4294967295
@@ -109,15 +109,14 @@ Warning	1292	Truncated incorrect max_seeks_for_key value: '-2'
 SELECT @@session.max_seeks_for_key;
 @@session.max_seeks_for_key
 1
-SET @@session.max_seeks_for_key = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.max_seeks_for_key = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
 SET @@session.max_seeks_for_key = 4294967296;
 Warnings:
 Warning	1292	Truncated incorrect max_seeks_for_key value: '4294967296'
 SELECT @@session.max_seeks_for_key;
 @@session.max_seeks_for_key
 4294967295
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.max_seeks_for_key = test;
 ERROR 42000: Incorrect argument type to variable 'max_seeks_for_key'
 SELECT @@session.max_seeks_for_key;

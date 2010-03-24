@@ -1,0 +1,6 @@
+show variables like 'performance_schema_max_thread_classes';
+Variable_name	Value
+performance_schema_max_thread_classes	12
+show variables like 'performance_schema_max_thread_instances';
+Variable_name	Value
+performance_schema_max_thread_instances	318

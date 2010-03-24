@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,16 +45,16 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     if the user is trying to to do this in a transcation context
   */
 
-  if (thd->locked_tables || thd->active_transaction())
+  if (thd->locked_tables_mode || thd->active_transaction())
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
     DBUG_RETURN(1);
   }
 
-  mysql_ha_rm_tables(thd, table_list, FALSE);
+  mysql_ha_rm_tables(thd, table_list);
 
-  if (wait_if_global_read_lock(thd,0,1))
+  if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
     DBUG_RETURN(1);
 
   if (logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
@@ -134,12 +134,14 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     }
   }
 
-  pthread_mutex_lock(&LOCK_open);
-  if (lock_table_names_exclusively(thd, table_list))
-  {
-    pthread_mutex_unlock(&LOCK_open);
+  if (lock_table_names(thd, table_list))
     goto err;
-  }
+
+  mysql_mutex_lock(&LOCK_open);
+
+  for (ren_table= table_list; ren_table; ren_table= ren_table->next_local)
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, ren_table->db,
+                     ren_table->table_name);
 
   error=0;
   if ((ren_table=rename_tables(thd,table_list,0)))
@@ -173,7 +175,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     higher concurrency - query_cache_invalidate can take minutes to
     complete.
   */
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_unlock(&LOCK_open);
 
   if (!silent && !error)
   {
@@ -185,12 +187,10 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   if (!error)
     query_cache_invalidate3(thd, table_list, 0);
 
-  pthread_mutex_lock(&LOCK_open);
-  unlock_table_names(thd, table_list, (TABLE_LIST*) 0);
-  pthread_mutex_unlock(&LOCK_open);
+  unlock_table_names(thd);
 
 err:
-  start_waiting_global_read_lock(thd);
+  thd->global_read_lock.start_waiting_global_read_lock(thd);
   DBUG_RETURN(error || binlog_error);
 }
 

@@ -1,0 +1,88 @@
+#
+# Bug #22876 Four-way deadlock
+#
+DROP TABLE IF EXISTS t1;
+# Connection 1
+set @@autocommit=0;
+CREATE TABLE t1(s1 INT UNIQUE) ENGINE=innodb;
+INSERT INTO t1 VALUES (1);
+# Connection 2
+set @@autocommit=0;
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (1);
+# Connection 3
+set @@autocommit=0;
+DROP TABLE t1;
+# Connection 1
+# Connection 1 is now holding the lock.
+# Issuing insert from connection 1 while connection 2&3 
+# is waiting for the lock should give a deadlock error.
+INSERT INTO t1 VALUES (2);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Cleanup
+commit;
+set @@autocommit=1;
+commit;
+set @@autocommit=1;
+set @@autocommit=1;
+#
+# Test for bug #37346 "innodb does not detect deadlock between update
+#                      and alter table".
+#
+drop table if exists t1;
+create table t1 (c1 int primary key, c2 int, c3 int) engine=InnoDB;
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+# Run statement which acquires X-lock on one of table's rows.
+update t1 set c3=c3+1 where c2=3;
+#
+# Switching to connection 'con37346'.
+# The below ALTER TABLE statement should wait till transaction
+# in connection 'default' is complete and then succeed.
+# It should not deadlock or fail with ER_LOCK_DEADLOCK error.
+# Sending:
+alter table t1 add column c4 int;;
+#
+# Switching to connection 'default'.
+# Wait until the above ALTER TABLE gets blocked because this
+# connection holds SW metadata lock on table to be altered.
+# The below statement should succeed. It should not
+# deadlock or end with ER_LOCK_DEADLOCK error.
+update t1 set c3=c3+1 where c2=4;
+# Unblock ALTER TABLE by committing transaction.
+commit;
+#
+# Switching to connection 'con37346'.
+# Reaping ALTER TABLE.
+#
+# Switching to connection 'default'.
+drop table t1;
+#
+# Bug #42147 Concurrent DML and LOCK TABLE ... READ for InnoDB 
+#            table cause warnings in errlog
+#
+#
+# Note that this test for now relies on a global suppression of 
+# the warning "Found lock of type 6 that is write and read locked"
+# This suppression rule can be removed once Bug#42147 is properly
+# fixed. See bug page for more info.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (i INT) engine= innodb;
+# Connection 2
+# Get user-level lock
+SELECT get_lock('bug42147_lock', 60);
+get_lock('bug42147_lock', 60)
+1
+# Connection 1
+INSERT INTO t1 SELECT get_lock('bug42147_lock', 60);
+# Connection 2
+LOCK TABLES t1 READ;
+SELECT release_lock('bug42147_lock');
+release_lock('bug42147_lock')
+1
+# Connection 1
+# Connection 2
+UNLOCK TABLES;
+# Connection 1
+DROP TABLE t1;

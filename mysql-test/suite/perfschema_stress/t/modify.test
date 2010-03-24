@@ -1,0 +1,55 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+--source include/not_embedded.inc
+--source suite/perfschema_stress/include/settings.inc
+
+let $have_table= `SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+                  WHERE TABLE_SCHEMA='test' AND TABLE_NAME='t1'`;
+
+if (`SELECT ($have_table = 0)`) {
+    --source suite/perfschema_stress/t/setup.test
+}
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET TIMED = 'NO';
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET ENABLED = 'NO';
+
+UPDATE performance_schema.SETUP_TIMERS
+SET TIMER_NAME = 'NANOSECOND' WHERE NAME = 'Wait';
+
+# Let it run some time with the new timer name and instruments
+--sleep 1
+
+UPDATE performance_schema.SETUP_TIMERS
+SET TIMER_NAME = 'CYCLE' WHERE NAME = 'Wait';
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET TIMED = 'YES';
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET ENABLED = 'YES'
+WHERE NAME IN ('wait/io/file/sql/FRM',
+               'thread/sql/Connection',
+               'wait/synch/cond/sql/COND_mdl',
+               'wait/synch/rwlock/sql/LOCK_sys_init_connect',
+               'wait/synch/mutex/sql/LOCK_mdl');
+
+# Two short lived changes to see that switching does not lead
+# to havoc.
+
+UPDATE performance_schema.SETUP_CONSUMERS SET ENABLED = 'NO'
+WHERE NAME = 'events_waits_history';
+
+UPDATE performance_schema.SETUP_CONSUMERS SET ENABLED = 'YES'
+WHERE NAME = 'events_waits_history';

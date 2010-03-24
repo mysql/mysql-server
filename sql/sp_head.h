@@ -109,35 +109,20 @@ public:
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_qname;
-  /**
-    Key representing routine in the set of stored routines used by statement.
-    Consists of 1-byte routine type and m_qname (which usually refences to
-    same buffer). Note that one must complete initialization of the key by
-    calling set_routine_type().
-  */
-  LEX_STRING m_sroutines_key;
   bool       m_explicit_name;                   /**< Prepend the db name? */
 
   sp_name(LEX_STRING db, LEX_STRING name, bool use_explicit_name)
     : m_db(db), m_name(name), m_explicit_name(use_explicit_name)
   {
-    m_qname.str= m_sroutines_key.str= 0;
-    m_qname.length= m_sroutines_key.length= 0;
+    m_qname.str= 0;
+    m_qname.length= 0;
   }
 
-  /**
-    Creates temporary sp_name object from key, used mainly
-    for SP-cache lookups.
-  */
-  sp_name(THD *thd, char *key, uint key_len);
+  /** Create temporary sp_name object from MDL key. */
+  sp_name(const MDL_key *key, char *qname_buff);
 
   // Init. the qualified name from the db and name.
   void init_qname(THD *thd);	// thd for memroot allocation
-
-  void set_routine_type(char type)
-  {
-    m_sroutines_key.str[0]= type;
-  }
 
   ~sp_name()
   {}
@@ -165,9 +150,8 @@ public:
     HAS_COMMIT_OR_ROLLBACK= 128,
     LOG_SLOW_STATEMENTS= 256,   // Used by events
     LOG_GENERAL_LOG= 512,        // Used by events
-    BINLOG_ROW_BASED_IF_MIXED= 1024,
-    HAS_SQLCOM_RESET= 2048,
-    HAS_SQLCOM_FLUSH= 4096
+    HAS_SQLCOM_RESET= 1024,
+    HAS_SQLCOM_FLUSH= 2048
   };
 
   /** TYPE_ENUM_FUNCTION, TYPE_ENUM_PROCEDURE or TYPE_ENUM_TRIGGER */
@@ -181,12 +165,6 @@ public:
   ulong m_sql_mode;		///< For SHOW CREATE and execution
   LEX_STRING m_qname;		///< db.name
   bool m_explicit_name;         ///< Prepend the db name? */
-  /**
-    Key representing routine in the set of stored routines used by statement.
-    [routine_type]db.name
-    @sa sp_name::m_sroutines_key
-  */
-  LEX_STRING m_sroutines_key;
   LEX_STRING m_db;
   LEX_STRING m_name;
   LEX_STRING m_params;
@@ -196,8 +174,40 @@ public:
   LEX_STRING m_definer_user;
   LEX_STRING m_definer_host;
 
+  /**
+    Is this routine being executed?
+  */
+  bool is_invoked() const { return m_flags & IS_INVOKED; }
+
+  /**
+    Get the value of the SP cache version, as remembered
+    when the routine was inserted into the cache.
+  */
+  ulong sp_cache_version() const { return m_sp_cache_version; }
+
+  /** Set the value of the SP cache version.  */
+  void set_sp_cache_version(ulong version_arg)
+  {
+    m_sp_cache_version= version_arg;
+  }
 private:
+  /**
+    Version of the stored routine cache at the moment when the
+    routine was added to it. Is used only for functions and
+    procedures, not used for triggers or events.  When sp_head is
+    created, its version is 0. When it's added to the cache, the
+    version is assigned the global value 'Cversion'.
+    If later on Cversion is incremented, we know that the routine
+    is obsolete and should not be used --
+    sp_cache_flush_obsolete() will purge it.
+  */
+  ulong m_sp_cache_version;
   Stored_program_creation_ctx *m_creation_ctx;
+  /**
+    Boolean combination of (1<<flag), where flag is a member of
+    LEX::enum_binlog_stmt_unsafe.
+  */
+  uint32 unsafe_flags;
 
 public:
   inline Stored_program_creation_ctx *get_creation_ctx()
@@ -283,9 +293,6 @@ public:
   /** Set the statement-definition (body-definition) end position. */
   void
   set_stmt_end(THD *thd);
-
-  int
-  create(THD *thd);
 
   virtual ~sp_head();
 
@@ -454,21 +461,27 @@ public:
 
   /*
     This method is intended for attributes of a routine which need
-    to propagate upwards to the LEX of the caller (when a property of a
-    sp_head needs to "taint" the caller).
+    to propagate upwards to the Query_tables_list of the caller (when
+    a property of a sp_head needs to "taint" the calling statement).
   */
-  void propagate_attributes(LEX *lex)
+  void propagate_attributes(Query_tables_list *prelocking_ctx)
   {
+    DBUG_ENTER("sp_head::propagate_attributes");
     /*
       If this routine needs row-based binary logging, the entire top statement
       too (we cannot switch from statement-based to row-based only for this
       routine, as in statement-based the top-statement may be binlogged and
       the substatements not).
     */
-    if (m_flags & BINLOG_ROW_BASED_IF_MIXED)
-      lex->set_stmt_unsafe();
+    DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
+                        prelocking_ctx->get_stmt_unsafe_flags()));
+    DBUG_PRINT("info", ("sp_head(0x%p=%s)->unsafe_flags: 0x%x",
+                        this, name(), unsafe_flags));
+    prelocking_ctx->set_stmt_unsafe_flags(unsafe_flags);
+    DBUG_VOID_RETURN;
   }
 
+  sp_pcontext *get_parse_context() { return m_pcont; }
 
 private:
 

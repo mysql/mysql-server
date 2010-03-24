@@ -3,15 +3,10 @@ SELECT @start_value;
 @start_value
 300
 '#--------------------FN_DYNVARS_056_01------------------------#'
-SET @@global.key_cache_age_threshold = 99;
-Warnings:
-Warning	1292	Truncated incorrect key_cache_age_threshold value: '99'
 SET @@global.key_cache_age_threshold = DEFAULT;
-ERROR 42000: Variable 'key_cache_age_threshold' doesn't have a default value
-'Bug# 34878: This variable has default value according to documentation';
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
-100
+300
 '#---------------------FN_DYNVARS_056_02-------------------------#'
 SET @@global.key_cache_age_threshold = @start_value;
 SELECT @@global.key_cache_age_threshold = 300;
@@ -23,6 +18,8 @@ SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 100
 SET @@global.key_cache_age_threshold = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_age_threshold value: '4294967295'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 4294967200
@@ -31,17 +28,18 @@ SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 1800
 SET @@global.key_cache_age_threshold = 65535;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_age_threshold value: '65535'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 65500
-'Bug# 34877 : Invalid Values are coming in variable on assigning valid values and Out Of Memory Warnings are coming';
 '#--------------------FN_DYNVARS_056_04-------------------------#'
 SET @@global.key_cache_age_threshold = -1;
 Warnings:
-Warning	1292	Truncated incorrect key_cache_age_threshold value: '18446744073709551615'
+Warning	1292	Truncated incorrect key_cache_age_threshold value: '-1'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
-4294967200
+100
 SET @@global.key_cache_age_threshold = 42949672951;
 Warnings:
 Warning	1292	Truncated incorrect key_cache_age_threshold value: '42949672951'
@@ -55,17 +53,16 @@ SELECT @@global.key_cache_age_threshold;
 4294967200
 SET @@global.key_cache_age_threshold = -1024;
 Warnings:
-Warning	1292	Truncated incorrect key_cache_age_threshold value: '18446744073709550592'
+Warning	1292	Truncated incorrect key_cache_age_threshold value: '-1024'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
-4294967200
+100
 SET @@global.key_cache_age_threshold = 99;
 Warnings:
 Warning	1292	Truncated incorrect key_cache_age_threshold value: '99'
 SELECT @@global.key_cache_age_threshold;
 @@global.key_cache_age_threshold
 100
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
 SET @@global.key_cache_age_threshold = ON;
 ERROR 42000: Incorrect argument type to variable 'key_cache_age_threshold'
 SELECT @@global.key_cache_age_threshold;
@@ -107,6 +104,8 @@ SELECT @@global.key_cache_age_threshold;
 100
 '#---------------------FN_DYNVARS_056_08----------------------#'
 SET @@global.key_cache_age_threshold = 101;
+Warnings:
+Warning	1292	Truncated incorrect key_cache_age_threshold value: '101'
 SELECT @@key_cache_age_threshold = @@global.key_cache_age_threshold;
 @@key_cache_age_threshold = @@global.key_cache_age_threshold
 1

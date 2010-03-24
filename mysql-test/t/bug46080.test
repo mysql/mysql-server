@@ -3,6 +3,8 @@
 --echo #  sort_buffer_size cannot allocate
 --echo #
 
+--source include/have_debug.inc
+
 call mtr.add_suppression("Out of memory at line .*, '.*my_alloc.c'");
 call mtr.add_suppression("needed .* byte (.*k)., memory in use: .* bytes (.*k)");
 

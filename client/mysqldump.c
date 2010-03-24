@@ -98,6 +98,8 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 opt_complete_insert= 0, opt_drop_database= 0,
                 opt_replace_into= 0,
                 opt_dump_triggers= 0, opt_routines=0, opt_tz_utc=1,
+                opt_slave_apply= 0, 
+                opt_include_master_host_port= 0,
                 opt_events= 0,
                 opt_alltspcs=0, opt_notspcs= 0;
 static my_bool insert_pat_inited= 0, debug_info_flag= 0, debug_check_flag= 0;
@@ -118,7 +120,10 @@ static my_bool server_supports_switching_charsets= TRUE;
 static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
+#define MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL 1
+#define MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL 2
 static uint opt_mysql_port= 0, opt_master_data;
+static uint opt_slave_data;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int   first_error=0;
@@ -179,9 +184,6 @@ HASH ignore_table;
 
 static struct my_option my_long_options[] =
 {
-  {"all", OPT_ALL, "Deprecated. Use --create-options instead.",
-   (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
-   0, 0, 0, 0, 0},
   {"all-databases", 'A',
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (uchar**) &opt_alldbs, (uchar**) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
@@ -206,6 +208,10 @@ static struct my_option my_long_options[] =
   {"allow-keywords", OPT_KEYWORDS,
    "Allow creation of column names that are keywords.", (uchar**) &opt_keywords,
    (uchar**) &opt_keywords, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"apply-slave-statements", OPT_MYSQLDUMP_SLAVE_APPLY,
+   "Adds 'STOP SLAVE' prior to 'CHANGE MASTER' and 'START SLAVE' to bottom of dump.",
+   (uchar**) &opt_slave_apply, (uchar**) &opt_slave_apply, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
   {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -264,6 +270,19 @@ static struct my_option my_long_options[] =
   {"disable-keys", 'K',
    "'/*!40000 ALTER TABLE tb_name DISABLE KEYS */; and '/*!40000 ALTER TABLE tb_name ENABLE KEYS */; will be put in the output.", (uchar**) &opt_disable_keys,
    (uchar**) &opt_disable_keys, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"dump-slave", OPT_MYSQLDUMP_SLAVE_DATA,
+   "This causes the binary log position and filename of the master to be "
+   "appended to the dumped data output. Setting the value to 1, will print"
+   "it as a CHANGE MASTER command in the dumped data output; if equal"
+   " to 2, that command will be prefixed with a comment symbol. "
+   "This option will turn --lock-all-tables on, unless "
+   "--single-transaction is specified too (in which case a "
+   "global read lock is only taken a short time at the beginning of the dump "
+   "- don't forget to read about --single-transaction below). In all cases "
+   "any action on logs will happen at the exact moment of the dump."
+   "Option automatically turns --lock-tables off.",
+   (uchar**) &opt_slave_data, (uchar**) &opt_slave_data, 0,
+   GET_UINT, OPT_ARG, 0, 0, MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL, 0, 0, 0},
   {"events", 'E', "Dump events.",
      (uchar**) &opt_events, (uchar**) &opt_events, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -280,16 +299,13 @@ static struct my_option my_long_options[] =
    (uchar**) &enclosed, (uchar**) &enclosed, 0, 
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
   {"fields-optionally-enclosed-by", OPT_O_ENC,
-   "Fields in the output file are optionally enclosed by the given character.", 
-   (uchar**) &opt_enclosed, (uchar**) &opt_enclosed, 0, 
+   "Fields in the output file are optionally enclosed by the given character.",
+   (uchar**) &opt_enclosed, (uchar**) &opt_enclosed, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
-  {"fields-escaped-by", OPT_ESC, 
+  {"fields-escaped-by", OPT_ESC,
    "Fields in the output file are escaped by the given character.",
-   (uchar**) &escaped, (uchar**) &escaped, 0, 
+   (uchar**) &escaped, (uchar**) &escaped, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"first-slave", OPT_FIRST_SLAVE, "Deprecated, renamed to --lock-all-tables.",
-   (uchar**) &opt_lock_all_tables, (uchar**) &opt_lock_all_tables, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},
   {"flush-logs", 'F', "Flush logs file in server before starting dump. "
    "Note that if you dump many databases at once (using the option "
    "--databases= or --all-databases), the logs will be flushed for "
@@ -323,6 +339,12 @@ static struct my_option my_long_options[] =
    "be specified with both database and table names, e.g., "
    "--ignore-table=database.table.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"include-master-host-port", OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT,
+   "Adds 'MASTER_HOST=<host>, MASTER_PORT=<port>' to 'CHANGE MASTER TO..' in dump produced with --dump-slave.",
+   (uchar**) &opt_include_master_host_port, 
+   (uchar**) &opt_include_master_host_port, 
+   0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
   {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
    (uchar**) &opt_ignore, (uchar**) &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -377,7 +399,7 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-data", 'd', "No row information.", (uchar**) &opt_no_data,
    (uchar**) &opt_no_data, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-set-names", 'N',"Suppress the SET NAMES statement",
+  {"no-set-names", 'N',  "Same as--skip-set-charset.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"opt", OPT_OPTIMIZE,
    "Same as --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys. Enabled by default, disable with --skip-opt.",
@@ -413,12 +435,9 @@ static struct my_option my_long_options[] =
      (uchar**) &opt_routines, (uchar**) &opt_routines, 0, GET_BOOL,
      NO_ARG, 0, 0, 0, 0, 0, 0},
   {"set-charset", OPT_SET_CHARSET,
-   "Add 'SET NAMES default_character_set' to the output. Enabled by default; suppress with --skip-set-charset.",
+   "Add 'SET NAMES default_character_set' to the output.",
    (uchar**) &opt_set_charset, (uchar**) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
-  {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
@@ -773,18 +792,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case '?':
     usage();
     exit(0);
-  case 'O':
-    WARN_DEPRECATED(VER_CELOSIA, "--set-variable", "--variable-name=value");
-    break;
-  case (int) OPT_ALL:
-    WARN_DEPRECATED(VER_CELOSIA, "--all", "--create-options");
-    break;
-  case (int) OPT_FIRST_SLAVE:
-    WARN_DEPRECATED(VER_CELOSIA, "--first-slave", "--lock-all-tables");
-    break;
   case (int) OPT_MASTER_DATA:
     if (!argument) /* work like in old versions */
       opt_master_data= MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL;
+    break;
+  case (int) OPT_MYSQLDUMP_SLAVE_DATA:
+    if (!argument) /* work like in old versions */
+      opt_slave_data= MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL;
     break;
   case (int) OPT_OPTIMIZE:
     extended_insert= opt_drop= opt_lock= quick= create_options=
@@ -880,7 +894,8 @@ static int get_options(int *argc, char ***argv)
   opt_net_buffer_length= *mysql_params->p_net_buffer_length;
 
   md_result_file= stdout;
-  load_defaults("my",load_default_groups,argc,argv);
+  if (load_defaults("my",load_default_groups,argc,argv))
+    return 1;
   defaults_argv= *argv;
 
   if (my_hash_init(&ignore_table, charset_info, 16, 0, 0,
@@ -918,6 +933,14 @@ static int get_options(int *argc, char ***argv)
     return(EX_USAGE);
   }
 
+  /* We don't delete master logs if slave data option */
+  if (opt_slave_data)
+  {
+    opt_lock_all_tables= !opt_single_transaction;
+    opt_master_data= 0;
+    opt_delete_master_logs= 0;
+  }
+
   /* Ensure consistency of the set of binlog & locking options */
   if (opt_delete_master_logs && !opt_master_data)
     opt_master_data= MYSQL_OPT_MASTER_DATA_COMMENTED_SQL;
@@ -928,7 +951,10 @@ static int get_options(int *argc, char ***argv)
     return(EX_USAGE);
   }
   if (opt_master_data)
+  {
     opt_lock_all_tables= !opt_single_transaction;
+    opt_slave_data= 0;
+  }
   if (opt_single_transaction || opt_lock_all_tables)
     lock_tables= 0;
   if (enclosed && opt_enclosed)
@@ -1980,7 +2006,7 @@ static uint dump_events_for_db(char *db)
   mysql_free_result(event_list_res);
 
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 }
 
@@ -2183,7 +2209,7 @@ static uint dump_routines_for_db(char *db)
     DBUG_RETURN(1);
 
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 }
 
@@ -3815,8 +3841,12 @@ static int dump_all_databases()
     return 1;
   while ((row= mysql_fetch_row(tableres)))
   {
-    if (mysql_get_server_version(mysql) >= 50003 &&
-        !my_strcasecmp(&my_charset_latin1, row[0], "information_schema"))
+    if (mysql_get_server_version(mysql) >= FIRST_INFORMATION_SCHEMA_VERSION &&
+        !my_strcasecmp(&my_charset_latin1, row[0], INFORMATION_SCHEMA_DB_NAME))
+      continue;
+
+    if (mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
+        !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
       continue;
 
     if (dump_all_tables_in_db(row[0]))
@@ -3833,8 +3863,12 @@ static int dump_all_databases()
     }
     while ((row= mysql_fetch_row(tableres)))
     {
-      if (mysql_get_server_version(mysql) >= 50003 &&
-          !my_strcasecmp(&my_charset_latin1, row[0], "information_schema"))
+      if (mysql_get_server_version(mysql) >= FIRST_INFORMATION_SCHEMA_VERSION &&
+          !my_strcasecmp(&my_charset_latin1, row[0], INFORMATION_SCHEMA_DB_NAME))
+        continue;
+
+      if (mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
+          !my_strcasecmp(&my_charset_latin1, row[0], PERFORMANCE_SCHEMA_DB_NAME))
         continue;
 
       if (dump_all_views_in_db(row[0]))
@@ -4065,7 +4099,7 @@ static int dump_all_tables_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   if (flush_privileges && using_mysql_db == 0)
   {
     fprintf(md_result_file,"\n--\n-- Flush Grant Tables \n--\n");
@@ -4139,7 +4173,7 @@ static my_bool dump_all_views_in_db(char *database)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   return 0;
 } /* dump_all_tables_in_db */
 
@@ -4235,10 +4269,12 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   }
   end= pos;
 
-  /* Can't LOCK TABLES in INFORMATION_SCHEMA, so don't try. */
+  /* Can't LOCK TABLES in I_S / P_S, so don't try. */
   if (lock_tables &&
-      !(mysql_get_server_version(mysql) >= 50003 &&
-        !my_strcasecmp(&my_charset_latin1, db, "information_schema")))
+      !(mysql_get_server_version(mysql) >= FIRST_INFORMATION_SCHEMA_VERSION &&
+        !my_strcasecmp(&my_charset_latin1, db, INFORMATION_SCHEMA_DB_NAME)) &&
+      !(mysql_get_server_version(mysql) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
+        !my_strcasecmp(&my_charset_latin1, db, PERFORMANCE_SCHEMA_DB_NAME)))
   {
     if (mysql_real_query(mysql, lock_tables_query.str,
                          lock_tables_query.length-1))
@@ -4311,7 +4347,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     check_io(md_result_file);
   }
   if (lock_tables)
-    VOID(mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES"));
+    (void) mysql_query_with_error_report(mysql, 0, "UNLOCK TABLES");
   DBUG_RETURN(0);
 } /* dump_selected_tables */
 
@@ -4354,6 +4390,130 @@ static int do_show_master_status(MYSQL *mysql_con)
   }
   return 0;
 }
+
+static int do_stop_slave_sql(MYSQL *mysql_con)
+{
+  MYSQL_RES *slave;
+  /* We need to check if the slave sql is running in the first place */
+  if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS"))
+    return(1);
+  else
+  {
+    MYSQL_ROW row= mysql_fetch_row(slave);
+    if (row && row[11])
+    {
+      /* if SLAVE SQL is not running, we don't stop it */
+      if (!strcmp(row[11],"No"))
+      {
+        mysql_free_result(slave);
+        /* Silently assume that they don't have the slave running */
+        return(0);
+      }
+    }
+  }
+  mysql_free_result(slave);
+
+  /* now, stop slave if running */
+  if (mysql_query_with_error_report(mysql_con, 0, "STOP SLAVE SQL_THREAD"))
+    return(1);
+
+  return(0);
+}
+
+static int add_stop_slave(void)
+{
+  if (opt_comments)
+    fprintf(md_result_file,
+            "\n--\n-- stop slave statement to make a recovery dump)\n--\n\n");
+  fprintf(md_result_file, "STOP SLAVE;\n");
+  return(0);
+}
+
+static int add_slave_statements(void)
+{
+  if (opt_comments)
+    fprintf(md_result_file,
+            "\n--\n-- start slave statement to make a recovery dump)\n--\n\n");
+  fprintf(md_result_file, "START SLAVE;\n");
+  return(0);
+}
+
+static int do_show_slave_status(MYSQL *mysql_con)
+{
+  MYSQL_RES *slave;
+  const char *comment_prefix=
+    (opt_slave_data == MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL) ? "-- " : "";
+  if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS"))
+  {
+    if (!ignore_errors)
+    {
+      /* SHOW SLAVE STATUS reports nothing and --force is not enabled */
+      my_printf_error(0, "Error: Slave not set up", MYF(0));
+    }
+    mysql_free_result(slave);
+    return 1;
+  }
+  else
+  {
+    MYSQL_ROW row= mysql_fetch_row(slave);
+    if (row && row[9] && row[21])
+    {
+      /* SHOW MASTER STATUS reports file and position */
+      if (opt_comments)
+        fprintf(md_result_file,
+                "\n--\n-- Position to start replication or point-in-time "
+                "recovery from (the master of this slave)\n--\n\n");
+
+      fprintf(md_result_file, "%sCHANGE MASTER TO ", comment_prefix);
+
+      if (opt_include_master_host_port)
+      {
+        if (row[1])
+          fprintf(md_result_file, "MASTER_HOST='%s', ", row[1]);
+        if (row[3])
+          fprintf(md_result_file, "MASTER_PORT='%s', ", row[3]);
+      }
+      fprintf(md_result_file,
+              "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n", row[9], row[21]);
+
+      check_io(md_result_file);
+    }
+    mysql_free_result(slave);
+  }
+  return 0;
+}
+
+static int do_start_slave_sql(MYSQL *mysql_con)
+{
+  MYSQL_RES *slave;
+  /* We need to check if the slave sql is stopped in the first place */
+  if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS"))
+    return(1);
+  else
+  {
+    MYSQL_ROW row= mysql_fetch_row(slave);
+    if (row && row[11])
+    {
+      /* if SLAVE SQL is not running, we don't start it */
+      if (!strcmp(row[11],"Yes"))
+      {
+        mysql_free_result(slave);
+        /* Silently assume that they don't have the slave running */
+        return(0);
+      }
+    }
+  }
+  mysql_free_result(slave);
+
+  /* now, start slave if stopped */
+  if (mysql_query_with_error_report(mysql_con, 0, "START SLAVE"))
+  {
+    my_printf_error(0, "Error: Unable to start slave", MYF(0));
+    return 1;
+  }
+  return(0);
+}
+
 
 
 static int do_flush_tables_read_lock(MYSQL *mysql_con)
@@ -5017,6 +5177,9 @@ int main(int argc, char **argv)
   if (!path)
     write_header(md_result_file, *argv);
 
+  if (opt_slave_data && do_stop_slave_sql(mysql))
+    goto err;
+
   if ((opt_lock_all_tables || opt_master_data) &&
       do_flush_tables_read_lock(mysql))
     goto err;
@@ -5035,7 +5198,12 @@ int main(int argc, char **argv)
       goto err;
     flush_logs= 0; /* not anymore; that would not be sensible */
   }
+  /* Add 'STOP SLAVE to beginning of dump */
+  if (opt_slave_apply && add_stop_slave())
+    goto err;
   if (opt_master_data && do_show_master_status(mysql))
+    goto err;
+  if (opt_slave_data && do_show_slave_status(mysql))
     goto err;
   if (opt_single_transaction && do_unlock_tables(mysql)) /* unlock but no commit! */
     goto err;
@@ -5063,6 +5231,14 @@ int main(int argc, char **argv)
       dump_tablespaces_for_databases(argv);
     dump_databases(argv);
   }
+
+  /* if --dump-slave , start the slave sql thread */
+  if (opt_slave_data && do_start_slave_sql(mysql))
+    goto err;
+
+  /* add 'START SLAVE' to end of dump */
+  if (opt_slave_apply && add_slave_statements())
+    goto err;
 
   /* ensure dumped data flushed */
   if (md_result_file && fflush(md_result_file))

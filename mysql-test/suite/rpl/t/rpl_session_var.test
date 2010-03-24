@@ -2,6 +2,11 @@
 # FOREIGN_KEY_CHECKS is tested in rpl_insert_id.test
 
 source include/master-slave.inc;
+
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 drop table if exists t1;
 create table t1(a varchar(100),b int);
 set @@session.sql_mode=pipes_as_concat;
@@ -9,9 +14,7 @@ insert into t1 values('My'||'SQL', 1);
 set @@session.sql_mode=default;
 insert into t1 values('1'||'2', 2);
 select * from t1 where b<3 order by a;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from t1 where b<3 order by a;
 connection master;
 # if the slave does the next sync_with_master fine, then it means it accepts the
@@ -31,15 +34,11 @@ set @@session.sql_auto_is_null=0;
 insert into t1 values(null);
 insert into t2 select 2,a from t1 where a is null;
 select * from t2 order by b;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from t2 order by b;
 connection master;
 drop table t1,t2;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 #
 # Bug #29878 Garbage data generation when executing SESSION_USER() on a slave. 
@@ -54,12 +53,9 @@ CREATE TABLE t1 (
 --disable_warnings
 INSERT INTO t1(data) VALUES(SESSION_USER());
 --enable_warnings
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT length(data) < 100 FROM t1;
 connection master;
 drop table t1;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
+

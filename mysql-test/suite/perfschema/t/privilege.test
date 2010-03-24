@@ -1,0 +1,362 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+show grants;
+
+grant ALL on *.* to 'pfs_user_1'@localhost with GRANT OPTION;
+
+# Test denied privileges on performance_schema.*
+
+--error ER_DBACCESS_DENIED_ERROR
+grant ALL on performance_schema.* to 'pfs_user_2'@localhost
+  with GRANT OPTION;
+
+# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+grant CREATE on performance_schema.* to 'pfs_user_2'@localhost;
+
+# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+grant DROP on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant REFERENCES on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant INDEX on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant ALTER on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant CREATE TEMPORARY TABLES on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant EXECUTE on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant CREATE VIEW on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant SHOW VIEW on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant CREATE ROUTINE on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant ALTER ROUTINE on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant EVENT on performance_schema.* to 'pfs_user_2'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant TRIGGER on performance_schema.* to 'pfs_user_2'@localhost;
+
+# Test allowed privileges on performance_schema.*
+
+grant SELECT on performance_schema.* to 'pfs_user_2'@localhost;
+grant INSERT on performance_schema.* to 'pfs_user_2'@localhost;
+grant UPDATE on performance_schema.* to 'pfs_user_2'@localhost;
+grant DELETE on performance_schema.* to 'pfs_user_2'@localhost;
+grant LOCK TABLES on performance_schema.* to 'pfs_user_2'@localhost;
+
+# Test denied privileges on specific performance_schema tables.
+# SETUP_INSTRUMENT : example of PFS_updatable_acl
+# EVENTS_WAITS_CURRENT : example of PFS_truncatable_acl
+# FILE_INSTANCES : example of PFS_readonly_acl
+
+--error ER_DBACCESS_DENIED_ERROR
+grant ALL on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost
+  with GRANT OPTION;
+
+# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+grant CREATE on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+grant DROP on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant REFERENCES on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant INDEX on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant ALTER on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant CREATE VIEW on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant SHOW VIEW on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant TRIGGER on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_TABLEACCESS_DENIED_ERROR
+grant INSERT on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_TABLEACCESS_DENIED_ERROR
+grant DELETE on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+
+grant SELECT on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost
+  with GRANT OPTION;
+
+grant UPDATE on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost
+  with GRANT OPTION;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant ALL on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost
+  with GRANT OPTION;
+
+# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+grant CREATE on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+grant DROP on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant REFERENCES on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant INDEX on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant ALTER on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant CREATE VIEW on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant SHOW VIEW on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant TRIGGER on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+--replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
+--error ER_TABLEACCESS_DENIED_ERROR
+grant INSERT on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+--replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
+--error ER_TABLEACCESS_DENIED_ERROR
+grant UPDATE on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+--replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
+--error ER_TABLEACCESS_DENIED_ERROR
+grant DELETE on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+
+grant SELECT on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost
+  with GRANT OPTION;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant ALL on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost
+  with GRANT OPTION;
+
+# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+grant CREATE on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+# will be ER_DBACCESS_DENIED_ERROR once .FRM are removed
+grant DROP on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant REFERENCES on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant INDEX on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant ALTER on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant CREATE VIEW on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant SHOW VIEW on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+--error ER_DBACCESS_DENIED_ERROR
+grant TRIGGER on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+--replace_result '\'file_instances' '\'FILE_INSTANCES'
+--error ER_TABLEACCESS_DENIED_ERROR
+grant INSERT on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+--replace_result '\'file_instances' '\'FILE_INSTANCES'
+--error ER_TABLEACCESS_DENIED_ERROR
+grant UPDATE on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+--replace_result '\'file_instances' '\'FILE_INSTANCES'
+--error ER_TABLEACCESS_DENIED_ERROR
+grant DELETE on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+
+grant SELECT on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost
+  with GRANT OPTION;
+
+# See bug#45354 LOCK TABLES is not a TABLE privilege
+grant LOCK TABLES on performance_schema.* to 'pfs_user_3'@localhost
+  with GRANT OPTION;
+
+flush privileges;
+
+--source ../include/privilege.inc
+
+connect (con1, localhost, pfs_user_1, , );
+
+--source ../include/privilege.inc
+
+--disconnect con1
+
+connect (con2, localhost, pfs_user_2, , );
+
+--source ../include/privilege.inc
+
+--disconnect con2
+
+connect (con3, localhost, pfs_user_3, , );
+
+--source ../include/privilege.inc
+
+--disconnect con3
+
+--connection default
+
+revoke all privileges, grant option from 'pfs_user_1'@localhost;
+revoke all privileges, grant option from 'pfs_user_2'@localhost;
+revoke all privileges, grant option from 'pfs_user_3'@localhost;
+drop user 'pfs_user_1'@localhost;
+drop user 'pfs_user_2'@localhost;
+drop user 'pfs_user_3'@localhost;
+flush privileges;
+
+--echo # Test cases from WL#4818
+--echo # Setup user
+
+CREATE user pfs_user_4;
+--connect (pfs_user_4, localhost, pfs_user_4, , )
+
+--echo #
+--echo # WL#4818, NFS4: Normal user does not have access to view data
+--echo #                without grants
+--echo #
+
+--connection pfs_user_4
+--echo # Select as pfs_user_4 should fail without grant
+
+--replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT event_id FROM performance_schema.EVENTS_WAITS_HISTORY;
+
+--replace_result '\'events_waits_history_long' '\'EVENTS_WAITS_HISTORY_LONG'
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT event_id FROM performance_schema.EVENTS_WAITS_HISTORY_LONG;
+
+--replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT event_id FROM performance_schema.EVENTS_WAITS_CURRENT;
+
+--replace_result '\'events_waits_summary_by_instance' '\'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT event_name FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE;
+
+--replace_result '\'file_summary_by_instance' '\'FILE_SUMMARY_BY_INSTANCE'
+--error ER_TABLEACCESS_DENIED_ERROR
+SELECT event_name FROM performance_schema.FILE_SUMMARY_BY_INSTANCE;
+
+--echo #
+--echo # WL#4818, NFS3: Normal user does not have access to change what is
+--echo #                instrumented without grants
+--echo #
+
+--connection pfs_user_4
+--echo # User pfs_user_4 should not be allowed to tweak instrumentation without
+--echo # explicit grant
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'YES';
+
+--replace_result '\'setup_instruments' '\'SETUP_INSTRUMENTS'
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES'
+WHERE name LIKE 'wait/synch/mutex/%'
+   OR name LIKE 'wait/synch/rwlock/%';
+
+--replace_result '\'setup_consumers' '\'SETUP_CONSUMERS'
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.SETUP_CONSUMERS SET enabled = 'YES';
+
+--replace_result '\'setup_timers' '\'SETUP_TIMERS'
+--error ER_TABLEACCESS_DENIED_ERROR
+UPDATE performance_schema.SETUP_TIMERS SET timer_name = 'TICK';
+
+--replace_result '\'events_waits_history_long' '\'EVENTS_WAITS_HISTORY_LONG'
+--error ER_TABLEACCESS_DENIED_ERROR
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+
+--replace_result '\'events_waits_history' '\'EVENTS_WAITS_HISTORY'
+--error ER_TABLEACCESS_DENIED_ERROR
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+
+--replace_result '\'events_waits_current' '\'EVENTS_WAITS_CURRENT'
+--error ER_TABLEACCESS_DENIED_ERROR
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+
+--echo #
+--echo # WL#4814, NFS1: Can use grants to give normal user access
+--echo #                to turn on and off instrumentation
+--echo #
+
+--connection default
+--echo # Grant access to change tables with the root account
+
+GRANT UPDATE ON performance_schema.SETUP_CONSUMERS TO pfs_user_4;
+GRANT UPDATE ON performance_schema.SETUP_TIMERS TO pfs_user_4;
+GRANT UPDATE, SELECT ON performance_schema.SETUP_INSTRUMENTS TO pfs_user_4;
+GRANT DROP ON performance_schema.EVENTS_WAITS_CURRENT TO pfs_user_4;
+GRANT DROP ON performance_schema.EVENTS_WAITS_HISTORY TO pfs_user_4;
+GRANT DROP ON performance_schema.EVENTS_WAITS_HISTORY_LONG TO pfs_user_4;
+
+--connection pfs_user_4
+--echo # User pfs_user_4 should now be allowed to tweak instrumentation
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'YES';
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES'
+WHERE name LIKE 'wait/synch/mutex/%'
+   OR name LIKE 'wait/synch/rwlock/%';
+
+UPDATE performance_schema.SETUP_CONSUMERS SET enabled = 'YES';
+
+UPDATE performance_schema.SETUP_TIMERS SET timer_name = 'TICK';
+
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+
+--echo # Clean up
+
+--connection default
+--disconnect pfs_user_4
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM pfs_user_4;
+DROP USER pfs_user_4;
+flush privileges;
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+UPDATE performance_schema.SETUP_CONSUMERS SET enabled = 'YES';
+UPDATE performance_schema.SETUP_TIMERS SET timer_name = 'CYCLE';
+

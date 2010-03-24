@@ -113,7 +113,6 @@ Warning	1292	Truncated incorrect default_week_format value: '65550'
 SELECT @@session.default_week_format;
 @@session.default_week_format
 7
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
 '#------------------FN_DYNVARS_022_06-----------------------#'
 SELECT @@global.default_week_format = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 

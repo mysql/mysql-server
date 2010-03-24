@@ -19,6 +19,8 @@
 #                                                                              #
 ################################################################################
 
+call mtr.add_suppression("The table 't1' is full");
+
 --echo '#--------------------FN_DYNVARS_093_01-------------------------#'
 ###############################################################################
 # Check if setting myisam_data_pointer_size is changed in every new connection#

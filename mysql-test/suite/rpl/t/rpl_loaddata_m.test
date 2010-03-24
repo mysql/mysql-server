@@ -28,9 +28,7 @@ LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE mysqltest.t1;
 SELECT COUNT(*) FROM mysqltest.t1;
 
 # Now lets check the slave to see what we have :-)
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 SHOW DATABASES;
 

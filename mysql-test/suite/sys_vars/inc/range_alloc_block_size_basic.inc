@@ -73,12 +73,10 @@ SELECT @@session.range_alloc_block_size = 2048;
 
 SET @@global.range_alloc_block_size = 2048;
 SELECT @@global.range_alloc_block_size;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 SET @@global.range_alloc_block_size = 4294967295;
 SELECT @@global.range_alloc_block_size;
 SET @@global.range_alloc_block_size = 4294967294;
 SELECT @@global.range_alloc_block_size;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 
 
 --echo '#--------------------FN_DYNVARS_137_04-------------------------#'
@@ -105,8 +103,8 @@ SET @@global.range_alloc_block_size = -1024;
 SELECT @@global.range_alloc_block_size;
 SET @@global.range_alloc_block_size = 42949672951;
 SELECT @@global.range_alloc_block_size;
---Error ER_PARSE_ERROR
-SET @@global.range_alloc_block_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.range_alloc_block_size = 65530.34;
 SELECT @@global.range_alloc_block_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.range_alloc_block_size = test;
@@ -116,11 +114,10 @@ SET @@session.range_alloc_block_size = 0;
 SELECT @@session.range_alloc_block_size;
 SET @@session.range_alloc_block_size = -2;
 SELECT @@session.range_alloc_block_size;
---Error ER_PARSE_ERROR
-SET @@session.range_alloc_block_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.range_alloc_block_size = 65530.34;
 SET @@session.range_alloc_block_size = 4294967296;
 SELECT @@session.range_alloc_block_size;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.range_alloc_block_size = test;

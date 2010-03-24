@@ -5,18 +5,11 @@
 # statement based format. This tests work completed in WL#3629.   #
 ###################################################################
 
---source include/not_embedded.inc
 --source include/master-slave.inc
 
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 let $engine_type= MyISAM;
-
-set binlog_format=row;
-
-# Embedded server doesn't support binlogging
 --source include/rpl_udf.inc
-
-set binlog_format=statement;
-
-# Embedded server doesn't support binlogging
---source include/rpl_udf.inc
-

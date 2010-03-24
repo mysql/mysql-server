@@ -70,7 +70,6 @@ Warning	1292	Truncated incorrect max_prepared_stmt_count value: '104857612'
 SELECT @@global.max_prepared_stmt_count;
 @@global.max_prepared_stmt_count
 1048576
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.max_prepared_stmt_count = ON;
 ERROR 42000: Incorrect argument type to variable 'max_prepared_stmt_count'
 SELECT @@global.max_prepared_stmt_count;

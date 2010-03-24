@@ -1,6 +1,21 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
 #
 ##############################################################################
 #
@@ -95,6 +110,7 @@ $SIG{INT}= sub { mtr_error("Got ^C signal"); };
 our $mysql_version_id;
 our $glob_mysql_test_dir;
 our $basedir;
+our $bindir;
 
 our $path_charsetsdir;
 our $path_client_bindir;
@@ -129,7 +145,9 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb,innodb";
+# If you add a new suite, please check TEST_DIRS in Makefile.am.
+#
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,rpl_ndb,ndb,innodb,perfschema";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -838,6 +856,7 @@ sub command_line_setup {
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \$opt_experimental,
+	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
 	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
@@ -926,8 +945,8 @@ sub command_line_setup {
 	     'max-connections=i'        => \$opt_max_connections,
 
              'help|h'                   => \$opt_usage,
-	       'list-options'             => \$opt_list_options,
-	      );
+             'list-options'             => \$opt_list_options,
+           );
 
   GetOptions(%options) or usage("Can't read options");
 
@@ -973,7 +992,11 @@ sub command_line_setup {
   {
     $basedir= dirname($basedir);
   }
-
+  
+  # Respect MTR_BINDIR variable, which is typically set in to the 
+  # build directory in out-of-source builds.
+  $bindir=$ENV{MTR_BINDIR}||$basedir;
+  
   # Look for the client binaries directory
   if ($path_client_bindir)
   {
@@ -982,21 +1005,21 @@ sub command_line_setup {
   }
   else
   {
-    $path_client_bindir= mtr_path_exists("$basedir/client_release",
-					 "$basedir/client_debug",
+    $path_client_bindir= mtr_path_exists("$bindir/client_release",
+					 "$bindir/client_debug",
 					 vs_config_dirs('client', ''),
-					 "$basedir/client",
-					 "$basedir/bin");
+					 "$bindir/client",
+					 "$bindir/bin");
   }
 
   # Look for language files and charsetsdir, use same share
-  $path_language=   mtr_path_exists("$basedir/share/mysql",
-                                    "$basedir/sql/share",
-                                    "$basedir/share");
-
-
+  $path_language=   mtr_path_exists("$bindir/share/mysql",
+                                    "$bindir/sql/share",
+                                    "$bindir/share");
   my $path_share= $path_language;
-  $path_charsetsdir=   mtr_path_exists("$path_share/charsets");
+  $path_charsetsdir =   mtr_path_exists("$basedir/share/mysql/charsets",
+                                    "$basedir/sql/share/charsets",
+                                    "$basedir/share/charsets");
 
   if (using_extern())
   {
@@ -1149,7 +1172,14 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Set the "var/" directory, the base for everything else
   # --------------------------------------------------------------------------
-  $default_vardir= "$glob_mysql_test_dir/var";
+  if(defined $ENV{MTR_BINDIR})
+  {
+    $default_vardir= "$ENV{MTR_BINDIR}/mysql-test/var";
+  }
+  else
+  {
+    $default_vardir= "$glob_mysql_test_dir/var";
+  }
   if ( ! $opt_vardir )
   {
     $opt_vardir= $default_vardir;
@@ -1608,7 +1638,8 @@ sub collect_mysqld_features_from_running_server ()
 }
 
 sub find_mysqld {
-  my ($mysqld_basedir)= @_;
+
+  my ($mysqld_basedir)= $ENV{MTR_BINDIR}|| @_;
 
   my @mysqld_names= ("mysqld", "mysqld-max-nt", "mysqld-max",
 		     "mysqld-nt");
@@ -1692,26 +1723,8 @@ sub client_debug_arg($$) {
 }
 
 
-sub mysql_fix_arguments () {
-
-  return "" if ( IS_WINDOWS );
-
-  my $exe=
-    mtr_script_exists("$basedir/scripts/mysql_fix_privilege_tables",
-		      "$path_client_bindir/mysql_fix_privilege_tables");
-  my $args;
-  mtr_init_args(\$args);
-  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
-
-  mtr_add_arg($args, "--basedir=%s", $basedir);
-  mtr_add_arg($args, "--bindir=%s", $path_client_bindir);
-  mtr_add_arg($args, "--verbose");
-  return mtr_args2str($exe, @$args);
-}
-
-
 sub client_arguments ($;$) {
-  my $client_name= shift;
+ my $client_name= shift;
   my $group_suffix= shift;
   my $client_exe= mtr_exe_exists("$path_client_bindir/$client_name");
 
@@ -1794,6 +1807,30 @@ sub mysql_client_test_arguments(){
 # Set environment to be used by childs of this process for
 # things that are constant during the whole lifetime of mysql-test-run
 #
+
+sub find_plugin($$)
+{
+  my ($plugin, $location)  = @_;
+  my $plugin_filename;
+    
+  if (IS_WINDOWS)
+  {
+     $plugin_filename = $plugin.".dll"; 
+  }
+  else 
+  {
+     $plugin_filename = $plugin.".so";
+  }
+
+  my $lib_example_plugin=
+    mtr_file_exists(vs_config_dirs($location,$plugin_filename),
+                    "$basedir/lib/plugin/".$plugin_filename,
+                    "$basedir/$location/.libs/".$plugin_filename,
+					"$basedir/lib/mysql/plugin/".$plugin_filename,
+                    );
+  return $lib_example_plugin;
+}
+
 sub environment_setup {
 
   umask(022);
@@ -1832,9 +1869,18 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find udf_example.so
   # --------------------------------------------------------------------------
+  my $udf_example_filename;
+  if (IS_WINDOWS)
+  {
+    $udf_example_filename = "udf_example.dll";
+  }
+  else
+  {
+    $udf_example_filename = "udf_example.so";
+  }
   my $lib_udf_example=
-    mtr_file_exists(vs_config_dirs('sql', 'udf_example.dll'),
-		    "$basedir/sql/.libs/udf_example.so",);
+    mtr_file_exists(vs_config_dirs('sql', $udf_example_filename),
+		    "$basedir/sql/.libs/$udf_example_filename",);
 
   if ( $lib_udf_example )
   {
@@ -1850,62 +1896,39 @@ sub environment_setup {
   # Add the path where mysqld will find ha_example.so
   # --------------------------------------------------------------------------
   if ($mysql_version_id >= 50100) {
-    my $plugin_filename;
-    if (IS_WINDOWS)
-    {
-       $plugin_filename = "ha_example.dll";
-    }
-    else 
-    {
-       $plugin_filename = "ha_example.so";
-    }
-    my $lib_example_plugin=
-      mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
-		      "$basedir/storage/example/.libs/".$plugin_filename,
-                      "$basedir/lib/mysql/plugin/".$plugin_filename);
-    $ENV{'EXAMPLE_PLUGIN'}=
-      ($lib_example_plugin ? basename($lib_example_plugin) : "");
-    $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
+    my ($lib_example_plugin) = find_plugin("ha_example", "storage/example");
+    
+    if($lib_example_plugin) 
+    {  
+      $ENV{'EXAMPLE_PLUGIN'}=
+        ($lib_example_plugin ? basename($lib_example_plugin) : "");
+      $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
       ($lib_example_plugin ? dirname($lib_example_plugin) : "");
 
-    $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
-    $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
+      $ENV{'HA_EXAMPLE_SO'}="'".basename($lib_example_plugin)."'";
+      $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".basename($lib_example_plugin);
+    }
+    else
+    {
+      # Some ".opt" files use some of these variables, so they must be defined
+      $ENV{'EXAMPLE_PLUGIN'}= "";
+      $ENV{'EXAMPLE_PLUGIN_OPT'}= "";
+      $ENV{'HA_EXAMPLE_SO'}= "";
+      $ENV{'EXAMPLE_PLUGIN_LOAD'}= "";
+    }
   }
-  else
-  {
-    # Some ".opt" files use some of these variables, so they must be defined
-    $ENV{'EXAMPLE_PLUGIN'}= "";
-    $ENV{'EXAMPLE_PLUGIN_OPT'}= "";
-    $ENV{'HA_EXAMPLE_SO'}= "";
-    $ENV{'EXAMPLE_PLUGIN_LOAD'}= "";
-  }
+ 
 
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find semisync plugins
   # --------------------------------------------------------------------------
   if (!$opt_embedded_server) {
-    my $semisync_master_filename;
-    my $semisync_slave_filename;
-    if (IS_WINDOWS)
-    {
-       $semisync_master_filename = "semisync_master.dll";
-       $semisync_slave_filename = "semisync_slave.dll";
-    }
-    else
-    {
-       $semisync_master_filename = "semisync_master.so";
-       $semisync_slave_filename = "semisync_slave.so";
-    }
-    my $lib_semisync_master_plugin=
-      mtr_file_exists(vs_config_dirs('plugin/semisync',$semisync_master_filename),
-		      "$basedir/plugin/semisync/.libs/" . $semisync_master_filename,
-                      "$basedir/lib/mysql/plugin/" . $semisync_master_filename,
-                      "$basedir/lib/plugin/" . $semisync_master_filename);
-    my $lib_semisync_slave_plugin=
-      mtr_file_exists(vs_config_dirs('plugin/semisync',$semisync_slave_filename),
-		      "$basedir/plugin/semisync/.libs/" . $semisync_slave_filename,
-                      "$basedir/lib/mysql/plugin/" . $semisync_slave_filename,
-                      "$basedir/lib/plugin/" . $semisync_slave_filename);
+
+
+    my ($lib_semisync_master_plugin) = find_plugin("semisync_master", "plugin/semisync");
+    my ($lib_semisync_slave_plugin) = find_plugin("semisync_slave", "plugin/semisync");
+
+
     if ($lib_semisync_master_plugin && $lib_semisync_slave_plugin)
     {
       $ENV{'SEMISYNC_MASTER_PLUGIN'}= basename($lib_semisync_master_plugin);
@@ -1923,10 +1946,10 @@ sub environment_setup {
   # ----------------------------------------------------
   # Add the path where mysqld will find mypluglib.so
   # ----------------------------------------------------
-  my $lib_simple_parser=
-    mtr_file_exists(vs_config_dirs('plugin/fulltext', 'mypluglib.dll'),
-		    "$basedir/plugin/fulltext/.libs/mypluglib.so",);
 
+  my  ($lib_simple_parser) = find_plugin("mypluglib", "plugin/fulltext"); 
+
+  $ENV{'MYPLUGLIB_SO'}="'".basename($lib_simple_parser)."'";
   $ENV{'SIMPLE_PARSER'}=
     ($lib_simple_parser ? basename($lib_simple_parser) : "");
   $ENV{'SIMPLE_PARSER_OPT'}= "--plugin-dir=".
@@ -1975,7 +1998,6 @@ sub environment_setup {
                         split(':', $ENV{'LIBPATH'}) : ());
   mtr_debug("LIBPATH: $ENV{'LIBPATH'}");
 
-  $ENV{'CHARSETSDIR'}=              $path_charsetsdir;
   $ENV{'UMASK'}=              "0660"; # The octal *string*
   $ENV{'UMASK_DIR'}=          "0770"; # The octal *string*
 
@@ -1993,9 +2015,12 @@ sub environment_setup {
   $ENV{'LC_COLLATE'}=         "C";
   $ENV{'USE_RUNNING_SERVER'}= using_extern();
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
-  $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'master-port'} || 3306;
+  $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'port'};
   $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
+  $ENV{'MYSQL_LIBDIR'}=       "$basedir/lib";
+  $ENV{'MYSQL_SHAREDIR'}=     $path_language;
+  $ENV{'MYSQL_CHARSETSDIR'}=  $path_charsetsdir;
 
   # ----------------------------------------------------
   # Setup env for NDB
@@ -2040,7 +2065,6 @@ sub environment_setup {
   $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
-  $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
 
   # ----------------------------------------------------
@@ -2355,18 +2379,15 @@ sub vs_config_dirs ($$) {
   my ($path_part, $exe) = @_;
 
   $exe = "" if not defined $exe;
-
-  # Don't look in these dirs when not on windows
-  return () unless IS_WINDOWS;
-
   if ($opt_vs_config)
   {
-    return ("$basedir/$path_part/$opt_vs_config/$exe");
+    return ("$bindir/$path_part/$opt_vs_config/$exe");
   }
 
-  return ("$basedir/$path_part/release/$exe",
-          "$basedir/$path_part/relwithdebinfo/$exe",
-          "$basedir/$path_part/debug/$exe");
+  return ("$bindir/$path_part/Release/$exe",
+          "$bindir/$path_part/RelWithDebinfo/$exe",
+          "$bindir/$path_part/Debug/$exe",
+          "$bindir/$path_part/$exe");
 }
 
 
@@ -2606,14 +2627,6 @@ sub create_config_file_for_extern {
 [mysqlbinlog]
 character-sets-dir= $path_charsetsdir
 local-load= $opt_tmpdir
-
-# mysql_fix_privilege_tables.sh don't read from [client]
-[mysql_fix_privilege_tables]
-socket            = $opts{'socket'}
-port              = $opts{'port'}
-user              = $opts{'user'}
-password          = $opts{'password'}
-
 
 EOF
 ;
@@ -3838,7 +3851,7 @@ sub start_check_warnings ($$) {
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
-  mtr_add_arg($args, "--skip-safemalloc");
+  mtr_add_arg($args, "--loose-skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
 
   if ( $opt_embedded_server )
@@ -4269,7 +4282,7 @@ sub mysqld_arguments ($$$) {
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "--skip-safemalloc");
+    mtr_add_arg($args, "--loose-skip-safemalloc");
 
     if ( $mysql_version_id < 50100 )
     {
@@ -4308,6 +4321,11 @@ sub mysqld_arguments ($$$) {
            $mysqld->option("log-slave-updates"))
     {
       ; # Dont add --skip-log-bin when mysqld have --log-slave-updates in config
+    }
+    elsif ($arg eq "")
+    {
+      # We can get an empty argument when  we set environment variables to ""
+      # (e.g plugin not found). Just skip it.
     }
     else
     {

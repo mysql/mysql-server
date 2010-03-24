@@ -1,4 +1,4 @@
-/* Copyright (C) 2000,2004 MySQL AB
+/* Copyright (C) 2000-2004 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ typedef struct st_heap_share
   char * name;			/* Name of "memory-file" */
 #ifdef THREAD
   THR_LOCK lock;
-  pthread_mutex_t intern_lock;		/* Locking for use with _locking */
+  mysql_mutex_t intern_lock;            /* Locking for use with _locking */
 #endif
   my_bool delete_on_close;
   LIST open_list;

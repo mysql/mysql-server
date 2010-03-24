@@ -38,7 +38,6 @@ connect (con1,localhost,root,,,,);
 connection con1;
 SELECT @@global.character_set_database;
 SELECT @@session.character_set_database;
---echo 'Bug#35356: session character_set_database differ from global character_set_database'
 disconnect con1;
 
 --echo '#--------------------FN_DYNVARS_008_02-------------------------#'
@@ -69,8 +68,6 @@ CREATE TABLE t1(a INT, b VARCHAR(40));
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 DROP DATABASE db1;
-
---echo 'Bug#35357: character_set_database does not effects CREATE DATABASE without characater set'
 
 #==============================================================================
 --echo '--ascii character set specified--'
@@ -109,9 +106,6 @@ DROP TABLE IF EXISTS t1;
 
 
 #==============================================================================
---echo 'Bug#27208: If no current database, character_set_database !=character_set_server'
-#==============================================================================
-
 SET GLOBAL character_set_server=latin5;
 
 connect (con2, localhost, root,,);

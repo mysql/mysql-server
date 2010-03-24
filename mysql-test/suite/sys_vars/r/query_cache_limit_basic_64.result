@@ -60,7 +60,6 @@ SET @@global.query_cache_limit = 42949672950;
 SELECT @@global.query_cache_limit;
 @@global.query_cache_limit
 42949672950
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.query_cache_limit = ON;
 ERROR 42000: Incorrect argument type to variable 'query_cache_limit'
 SELECT @@global.query_cache_limit;

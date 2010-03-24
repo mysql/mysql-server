@@ -1,0 +1,42 @@
+#
+# 2010-01-20 OBN - Added check for variable value matching I_S tables
+#
+
+
+SET @start_global_value = @@global.lc_messages;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.lc_messages;
+select @@session.lc_messages;
+show global variables like 'lc_messages';
+show session variables like 'lc_messages';
+select * from information_schema.global_variables where variable_name='lc_messages';
+select * from information_schema.session_variables where variable_name='lc_messages';
+
+#
+# show that it's writable
+#
+set global lc_messages=1;
+select @@global.lc_messages;
+set session lc_messages=2;
+select @@session.lc_messages;
+set global lc_messages="en_US";
+set session lc_messages="en_GB";
+select @@global.lc_messages;
+select @@session.lc_messages;
+select * from information_schema.global_variables where variable_name='lc_messages';
+select * from information_schema.session_variables where variable_name='lc_messages';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global lc_messages=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global lc_messages=1e1;
+
+SET @@global.lc_messages = @start_global_value;
+SELECT @@global.lc_messages;

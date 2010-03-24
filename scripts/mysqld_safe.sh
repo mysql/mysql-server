@@ -54,6 +54,8 @@ Usage: $0 [OPTIONS]
   --mysqld=FILE              Use the specified file as mysqld
   --mysqld-version=VERSION   Use "mysqld-VERSION" as mysqld
   --nice=NICE                Set the scheduling priority of mysqld
+  --plugin-dir=DIR           Plugins are under DIR or DIR/VERSION, if
+                             VERSION is given
   --skip-kill-mysqld         Don't try to kill stray mysqld processes
   --syslog                   Log messages to syslog with 'logger'
   --skip-syslog              Log messages to error log (default)
@@ -160,12 +162,19 @@ parse_arguments() {
   fi
 
   for arg do
-    val=`echo "$arg" | sed -e "s;--[^=]*=;;"`
+    # the parameter after "=", or the whole $arg if no match
+    val=`echo "$arg" | sed -e 's;^--[^=]*=;;'`
+    # what's before "=", or the whole $arg if no match
+    optname=`echo "$arg" | sed -e 's/^\(--[^=]*\)=.*$/\1/'`
+    # replace "_" by "-" ; mysqld_safe must accept "_" like mysqld does.
+    optname_subst=`echo "$optname" | sed 's/_/-/g'`
+    arg=`echo $arg | sed "s/^$optname/$optname_subst/"`
     case "$arg" in
       # these get passed explicitly to mysqld
       --basedir=*) MY_BASEDIR_VERSION="$val" ;;
       --datadir=*) DATADIR="$val" ;;
       --pid-file=*) pid_file="$val" ;;
+      --plugin-dir=*) PLUGIN_DIR="$val" ;;
       --user=*) user="$val"; SET_USER=1 ;;
 
       # these might have been set in a [mysqld_safe] section of my.cnf
@@ -183,6 +192,7 @@ parse_arguments() {
         if test -n "$val"
         then
           MYSQLD="mysqld-$val"
+          PLUGIN_VARIANT="/$val"
         else
           MYSQLD="mysqld"
         fi
@@ -355,6 +365,9 @@ then
   if test -x "$MY_BASEDIR_VERSION/libexec/mysqld"
   then
     ledir="$MY_BASEDIR_VERSION/libexec"
+  elif test -x "$MY_BASEDIR_VERSION/sbin/mysqld"
+  then
+    ledir="$MY_BASEDIR_VERSION/sbin"
   else
     ledir="$MY_BASEDIR_VERSION/bin"
   fi
@@ -367,6 +380,10 @@ elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/libexec/mysqld"
 then
   MY_BASEDIR_VERSION="$MY_PWD"		# Where libexec, share and var are
   ledir="$MY_PWD/libexec"		# Where mysqld is
+elif test -f "$relpkgdata"/english/errmsg.sys -a -x "$MY_PWD/sbin/mysqld"
+then
+  MY_BASEDIR_VERSION="$MY_PWD"		# Where sbin, share and var are
+  ledir="$MY_PWD/sbin"			# Where mysqld is
 # Since we didn't find anything, used the compiled-in defaults
 else
   MY_BASEDIR_VERSION='@prefix@'
@@ -682,8 +699,10 @@ fi
 
 cmd="`mysqld_ld_preload_text`$NOHUP_NICENESS"
 
+plugin_dir="${PLUGIN_DIR:-@pkgplugindir@}${PLUGIN_VARIANT}"
+
 for i in  "$ledir/$MYSQLD" "$defaults" "--basedir=$MY_BASEDIR_VERSION" \
-  "--datadir=$DATADIR" "$USER_OPTION"
+  "--datadir=$DATADIR" "--plugin-dir=$plugin_dir" "$USER_OPTION"
 do
   cmd="$cmd "`shell_quote_string "$i"`
 done

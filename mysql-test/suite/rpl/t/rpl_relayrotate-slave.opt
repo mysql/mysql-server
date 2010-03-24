@@ -1,2 +1,2 @@
--O max_relay_log_size=16384
+--max_relay_log_size=16384
 --log-warnings

@@ -258,14 +258,21 @@ set global slow_query_log='OFF';
 # check that alter table doesn't work for other engines
 set @save_storage_engine= @@session.storage_engine;
 set storage_engine= MEMORY;
+# After fixing bug#35765 the error behaivor changed:
+# If compiled in/enabled ER_UNSUPORTED_LOG_ENGINE
+# If not (i.e. not existant) it will show a warning
+# and use the current one.
+alter table mysql.slow_log engine=NonExistentEngine;
 --error ER_UNSUPORTED_LOG_ENGINE
-alter table mysql.slow_log engine=ndb;
---error ER_UNSUPORTED_LOG_ENGINE
-alter table mysql.slow_log engine=innodb;
---error ER_UNSUPORTED_LOG_ENGINE
-alter table mysql.slow_log engine=archive;
---error ER_UNSUPORTED_LOG_ENGINE
-alter table mysql.slow_log engine=blackhole;
+alter table mysql.slow_log engine=memory;
+#--error ER_UNSUPORTED_LOG_ENGINE
+#alter table mysql.slow_log engine=ndb;
+#--error ER_UNSUPORTED_LOG_ENGINE
+#alter table mysql.slow_log engine=innodb;
+#--error ER_UNSUPORTED_LOG_ENGINE
+#alter table mysql.slow_log engine=archive;
+#--error ER_UNSUPORTED_LOG_ENGINE
+#alter table mysql.slow_log engine=blackhole;
 set storage_engine= @save_storage_engine;
 
 drop table mysql.slow_log;

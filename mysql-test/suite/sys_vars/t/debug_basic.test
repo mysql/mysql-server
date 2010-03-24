@@ -1,0 +1,22 @@
+--source include/have_debug.inc
+#
+# exists both as global and session
+#
+set session debug="L";
+
+select @@global.debug="1"; # just to show that global.debug exists
+select @@session.debug;    # here we know the value and can display it
+--replace_column 2 #
+show global variables like 'debug';
+show session variables like 'debug';
+--replace_column 2 #
+select * from information_schema.global_variables where variable_name="debug";
+select * from information_schema.session_variables where variable_name="debug";
+
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug=1;
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set @@global.debug=1e1;
+

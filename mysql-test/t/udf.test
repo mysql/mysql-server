@@ -439,6 +439,75 @@ SELECT * FROM t2 WHERE a = sequence();
 DROP FUNCTION sequence;
 DROP TABLE t1,t2;
 
+#
+# Bug#31767 (DROP FUNCTION name resolution)
+#
+
+--disable_warnings
+drop function if exists test.metaphon;
+drop function if exists metaphon;
+--enable_warnings
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+select metaphon("Hello");
+
+# The UDF should not be dropped
+drop function if exists test.metaphon;
+
+select metaphon("Hello");
+
+drop function metaphon;
+
+CREATE FUNCTION test.metaphon(a TEXT) RETURNS TEXT return "This is a SF";
+
+create database db_31767;
+use db_31767;
+
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION metaphon RETURNS STRING SONAME "$UDF_EXAMPLE_LIB";
+
+use test;
+
+# Uses the UDF
+select metaphon("Hello");
+
+# Uses the SF
+select test.metaphon("Hello");
+
+# Should drop the UDF, resolving the name the same way select does.
+drop function metaphon;
+
+# Should call the SF
+select metaphon("Hello");
+
+# Drop the SF
+drop function metaphon;
+
+# Change the current database to none.
+use db_31767;
+drop database db_31767;
+
+drop function if exists no_such_func;
+
+--error ER_SP_DOES_NOT_EXIST
+drop function no_such_func;
+
+drop function if exists test.no_such_func;
+
+--error ER_SP_DOES_NOT_EXIST
+drop function test.no_such_func;
+
+--error ER_NO_DB_ERROR
+drop procedure if exists no_such_proc;
+
+--error ER_NO_DB_ERROR
+drop procedure no_such_proc;
+
+use test;
+
+
 --echo #
 --echo # Bug#46259: 5.0.83 -> 5.1.36, query doesn't work
 --echo #
@@ -452,3 +521,17 @@ SELECT IF( a = 1, a, a ) AS `b` FROM t1 ORDER BY field( `b`, 1 );
 DROP TABLE t1;
 
 --echo End of 5.0 tests.
+
+--echo #
+--echo # Bug#33546: Slowdown on re-evaluation of constant expressions.
+--echo #
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES(1),(50);
+--replace_result $UDF_EXAMPLE_LIB UDF_EXAMPLE_LIB
+eval CREATE FUNCTION myfunc_double RETURNS INTEGER SONAME "$UDF_EXAMPLE_LIB";
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE f1=1 + myfunc_double(1);
+DROP FUNCTION myfunc_double;
+DROP TABLE t1;
+--echo #
+--echo End of 5.1 tests.
+

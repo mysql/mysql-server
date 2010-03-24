@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB
+/* Copyright (C) 2007 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,7 +54,7 @@ scheduler_functions::scheduler_functions()
 static bool no_threads_end(THD *thd, bool put_in_cache)
 {
   unlink_thd(thd);
-  pthread_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thread_count);
   return 1;                                     // Abort handle_one_connection
 }
 

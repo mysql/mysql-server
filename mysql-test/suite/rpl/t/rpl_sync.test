@@ -64,8 +64,15 @@ stop slave IO_THREAD;
 source include/wait_for_slave_io_to_stop.inc;
 
 let $file= query_get_value("SHOW SLAVE STATUS", Relay_Log_File, 1);
---replace_result $MYSQLD_SLAVE_DATADIR MYSQLD_SLAVE_DATADIR
---exec echo "failure" > $MYSQLD_SLAVE_DATADIR/$file
+
+--let FILE_TO_CORRUPT= $MYSQLD_SLAVE_DATADIR/$file
+perl;
+$file= $ENV{'FILE_TO_CORRUPT'};
+open(FILE, ">$file") || die "Unable to open $file.";
+truncate(FILE,0);
+print FILE "failure";
+close ($file);
+EOF
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 SET SESSION debug="d,crash_before_rotate_relaylog";
@@ -102,9 +109,6 @@ insert into t1(a) values(8);
 insert into t1(a) values(9);
 
 connection slave;
---replace_result $MYSQLD_SLAVE_DATADIR MYSQLD_SLAVE_DATADIR
---exec cat $MYSQLD_SLAVE_DATADIR/master.backup > $MYSQLD_SLAVE_DATADIR/master.info
-
 let MYSQLD_SLAVE_DATADIR=`select @@datadir`;
 
 --perl

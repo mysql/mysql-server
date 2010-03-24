@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -128,7 +128,7 @@ static struct my_option my_long_options[] =
    "Faster than extended-check, but only finds 99.99 percent of all errors. Should be good enough for most cases.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
-   "Log ANALYZE, OPTIMIZE and REPAIR TABLE commands. Enabled by default; use --skip-write-binlog when commands should not be sent to replication slaves.",
+   "Log ANALYZE, OPTIMIZE and REPAIR TABLE commands. Use --skip-write-binlog when commands should not be sent to replication slaves.",
    (uchar**) &opt_write_binlog, (uchar**) &opt_write_binlog, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"optimize", 'o', "Optimize table.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0,
@@ -344,9 +344,8 @@ static int get_options(int *argc, char ***argv)
     exit(0);
   }
 
-  load_defaults("my", load_default_groups, argc, argv);
-
-  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+  if ((ho_error= load_defaults("my", load_default_groups, argc, argv)) ||
+      (ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
     exit(ho_error);
 
   if (!what_to_do)
@@ -644,8 +643,11 @@ static int process_one_db(char *database)
 
 static int use_db(char *database)
 {
-  if (mysql_get_server_version(sock) >= 50003 &&
-      !my_strcasecmp(&my_charset_latin1, database, "information_schema"))
+  if (mysql_get_server_version(sock) >= FIRST_INFORMATION_SCHEMA_VERSION &&
+      !my_strcasecmp(&my_charset_latin1, database, INFORMATION_SCHEMA_DB_NAME))
+    return 1;
+  if (mysql_get_server_version(sock) >= FIRST_PERFORMANCE_SCHEMA_VERSION &&
+      !my_strcasecmp(&my_charset_latin1, database, PERFORMANCE_SCHEMA_DB_NAME))
     return 1;
   if (mysql_select_db(sock, database))
   {

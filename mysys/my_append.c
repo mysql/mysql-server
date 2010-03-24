@@ -58,7 +58,7 @@ int my_append(const char *from, const char *to, myf MyFlags)
     }
   }
 err:
-  if (from_file >= 0) VOID(my_close(from_file,MyFlags));
-  if (to_file >= 0)   VOID(my_close(to_file,MyFlags));
+  if (from_file >= 0) (void) my_close(from_file,MyFlags);
+  if (to_file >= 0)   (void) my_close(to_file,MyFlags);
   DBUG_RETURN(-1);
 }

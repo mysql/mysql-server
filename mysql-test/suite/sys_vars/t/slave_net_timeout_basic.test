@@ -105,17 +105,14 @@ SELECT @@global.slave_net_timeout;
 SET @@global.slave_net_timeout = 2147483649*2;
 SELECT @@global.slave_net_timeout;
 
---Error ER_PARSE_ERROR
-SET @@global.slave_net_timeout = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.slave_net_timeout = 65530.34;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.slave_net_timeout = 100s;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.slave_net_timeout = 7483649.56;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.slave_net_timeout = 0.6;
-
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
-
 
 --echo '#------------------FN_DYNVARS_146_06-----------------------#'
 ####################################################################

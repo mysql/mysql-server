@@ -1,0 +1,120 @@
+SET @@global.general_log= 0;
+SET @start_global_value = @@global.server_id;
+SELECT @start_global_value;
+@start_global_value
+1
+'#--------------------FN_DYNVARS_144_01-------------------------#'
+SET @@global.server_id = 500000;
+SET @@global.server_id = DEFAULT;
+SELECT @@global.server_id;
+@@global.server_id
+0
+'#--------------------FN_DYNVARS_144_02-------------------------#'
+SET @@global.server_id = DEFAULT;
+SELECT @@global.server_id = 0;
+@@global.server_id = 0
+1
+'#--------------------FN_DYNVARS_144_03-------------------------#'
+SET @@global.server_id = 0;
+SELECT @@global.server_id;
+@@global.server_id
+0
+SET @@global.server_id = 1;
+SELECT @@global.server_id;
+@@global.server_id
+1
+SET @@global.server_id = 15;
+SELECT @@global.server_id;
+@@global.server_id
+15
+SET @@global.server_id = 1024;
+SELECT @@global.server_id;
+@@global.server_id
+1024
+SET @@global.server_id = 123456789;
+SELECT @@global.server_id;
+@@global.server_id
+123456789
+SET @@global.server_id = 2147483648;
+SELECT @@global.server_id;
+@@global.server_id
+2147483648
+SET @@global.server_id = 2147483648*2-1;
+SELECT @@global.server_id;
+@@global.server_id
+4294967295
+'#--------------------FN_DYNVARS_144_04-------------------------#'
+SET @@server_id = 2;
+ERROR HY000: Variable 'server_id' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@session.server_id = 3;
+ERROR HY000: Variable 'server_id' is a GLOBAL variable and should be set with SET GLOBAL
+SET @@local.server_id = 4;
+ERROR HY000: Variable 'server_id' is a GLOBAL variable and should be set with SET GLOBAL
+'#------------------FN_DYNVARS_144_05-----------------------#'
+SET @@global.server_id = -1;
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '-1'
+SELECT @@global.server_id;
+@@global.server_id
+0
+SET @@global.server_id = -2147483648;
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '-2147483648'
+SELECT @@global.server_id;
+@@global.server_id
+0
+SET @@global.server_id = 2147483649*2;
+Warnings:
+Warning	1292	Truncated incorrect server_id value: '4294967298'
+SELECT @@global.server_id;
+@@global.server_id
+4294967295
+SET @@global.server_id = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'server_id'
+SET @@global.server_id = '125';
+ERROR 42000: Incorrect argument type to variable 'server_id'
+SET @@global.server_id = 7483649.56;
+ERROR 42000: Incorrect argument type to variable 'server_id'
+SET @@global.server_id = 1G;
+ERROR 42000: Incorrect argument type to variable 'server_id'
+'#------------------FN_DYNVARS_144_06-----------------------#'
+SET @@global.server_id = 3000;
+SELECT @@global.server_id = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='server_id';
+@@global.server_id = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_144_07-----------------------#'
+SELECT count(VARIABLE_VALUE) 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='server_id';
+count(VARIABLE_VALUE)
+1
+'#------------------FN_DYNVARS_144_08-----------------------#'
+SET @@global.server_id = TRUE;
+SELECT @@global.server_id;
+@@global.server_id
+1
+SET @@global.server_id = FALSE;
+SELECT @@global.server_id;
+@@global.server_id
+0
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@global.server_id = 512;
+SELECT @@server_id = @@global.server_id;
+@@server_id = @@global.server_id
+1
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET server_id = 2048;
+ERROR HY000: Variable 'server_id' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT server_id;
+ERROR 42S22: Unknown column 'server_id' in 'field list'
+SELECT @@server_id;
+@@server_id
+512
+SET global server_id = 99;
+SET @@global.server_id = @start_global_value;
+SELECT @@global.server_id;
+@@global.server_id
+1
+SET @@global.general_log= 1;

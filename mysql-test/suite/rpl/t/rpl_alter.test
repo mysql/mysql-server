@@ -10,15 +10,11 @@ insert into mysqltest.t1 values (1,2);
 create table mysqltest.t2 (n int);
 insert into mysqltest.t2 values (45);
 rename table mysqltest.t2 to mysqltest.t3, mysqltest.t1 to mysqltest.t2;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from mysqltest.t2;
 select * from mysqltest.t3;
 connection master;
 drop database mysqltest;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # End of 4.1 tests

@@ -10,6 +10,12 @@
 # * Circular replication
 #############################################################
 --source include/master-slave.inc
+#
+# The test runs long and does not have any specifics to 
+# binlog_format. It is choosen therefore to run with MIXED mode
+# in order to not slow down much `make test'.
+#
+--source include/have_binlog_format_mixed.inc
 --echo
 
 --echo *** Preparing ***
@@ -462,6 +468,9 @@ EOF
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --connection slave
+# make sure IO thread has re-connected 
+# due to slow valgrind env the following wait_for_status may time out
+--source include/wait_for_slave_io_to_start.inc
 # Wait until slave_received_heartbeats will be incremented
 let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $status_var= slave_received_heartbeats;
@@ -470,7 +479,7 @@ let $status_var_comparsion= >;
 --echo Heartbeat event received
 --echo
 
-# Circular replication
+# Circular replication: demonstrating bidirectional hearbeat flow
 --echo *** Circular replication ***
 # Configure circular replication
 --source include/master-slave-reset.inc
@@ -487,6 +496,8 @@ CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
 INSERT INTO t1 VALUES(1, 'on master');
 --save_master_pos
 --connection slave
+## set slave period 1/10 of master's
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
 --source include/start_slave.inc
 --sync_with_master
 INSERT INTO t1 VALUES(2, 'on slave');
@@ -497,15 +508,16 @@ SELECT * FROM t1 ORDER BY a;
 let $master_rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 --connection slave
 SELECT * FROM t1 ORDER BY a;
-# Wait heartbeat event on master
+
+# Wait for heartbeat event on master
 --connection master
 let $status_var= slave_received_heartbeats;
 let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $status_var_comparsion= >;
 --source include/wait_for_status_var.inc
 --echo Heartbeat event received on master
-let $master_rcvd_heartbeats= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-# Wait heartbeat event on slave
+
+# Wait heartbeat events on slave
 --connection slave
 let $status_var= slave_received_heartbeats;
 let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
@@ -513,11 +525,6 @@ let $status_var_comparsion= >;
 --source include/wait_for_status_var.inc
 --echo Heartbeat event received on slave
 let $slave_rcvd_heartbeats= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-# Heartbeat period on slave less than on master therefore number of received events on slave
-# should be greater than on master
-let $result= query_get_value(SELECT ($slave_rcvd_heartbeats DIV $master_rcvd_heartbeats) > 1 AS Result, Result, 1);
---echo Slave has received more events than master (1 means 'yes'): $result
---echo
 
 #
 # Clean up and restore system variables
@@ -531,5 +538,5 @@ DROP TABLE t1;
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 --echo
 
-# End of 6.0 test
---echo End of 6.0 test
+# End of tests
+--echo End of tests

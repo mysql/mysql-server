@@ -1,0 +1,42 @@
+
+#
+# 2010-01-10 OBN - Added check for I_S values after change of variable value
+#
+
+SET @start_global_value = @@global.sql_select_limit;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.sql_select_limit;
+select @@session.sql_select_limit;
+show global variables like 'sql_select_limit';
+show session variables like 'sql_select_limit';
+select * from information_schema.global_variables where variable_name='sql_select_limit';
+select * from information_schema.session_variables where variable_name='sql_select_limit';
+
+#
+# show that it's writable
+#
+set global sql_select_limit=10;
+set session sql_select_limit=20;
+select @@global.sql_select_limit;
+select @@session.sql_select_limit;
+show global variables like 'sql_select_limit';
+show session variables like 'sql_select_limit';
+select * from information_schema.global_variables where variable_name='sql_select_limit';
+select * from information_schema.session_variables where variable_name='sql_select_limit';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global sql_select_limit=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global sql_select_limit=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global sql_select_limit="foo";
+
+SET @@global.sql_select_limit = @start_global_value;
+SELECT @@global.sql_select_limit;

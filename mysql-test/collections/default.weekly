@@ -1,0 +1,1 @@
+perl mysql-test-run.pl --timer --force --comment=1st --experimental=collections/default.experimental 1st

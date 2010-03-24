@@ -1,0 +1,10 @@
+perl mysql-test-run.pl --force --timer --comment=normal  --skip-ndbcluster --report-features --experimental=collections/default.experimental
+perl mysql-test-run.pl --force --timer --comment=ps --skip-ndbcluster --ps-protocol --experimental=collections/default.experimental
+perl mysql-test-run.pl --force --timer --comment=funcs1+ps  --suite=funcs_1 --ps-protocol --experimental=collections/default.experimental
+perl mysql-test-run.pl --force --timer --comment=funcs2     --suite=funcs_2 --experimental=collections/default.experimental
+perl mysql-test-run.pl --force --timer --comment=partitions --suite=parts   --experimental=collections/default.experimental
+perl mysql-test-run.pl --force --timer --comment=stress     --suite=stress  --experimental=collections/default.experimental
+perl mysql-test-run.pl --force --timer --comment=jp         --suite=jp      --experimental=collections/default.experimental
+perl mysql-test-run.pl --force --timer --comment=embedded  --embedded-server --skip-rpl --skip-ndbcluster --experimental=collections/default.experimental
+perl mysql-test-run.pl --force --timer --comment=nist --suite=nist --experimental=collections/default.experimental
+perl mysql-test-run.pl --force --timer --comment=nist+ps --suite=nist --ps-protocol --experimental=collections/default.experimental

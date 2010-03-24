@@ -468,3 +468,5 @@ int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
   exit(0);
 }
 #endif /*HAVE_RTREE_KEYS*/
+
+#include "mi_extrafunc.h"

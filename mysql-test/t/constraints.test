@@ -10,7 +10,7 @@ create table t1 (a int check (a>0));
 insert into t1 values (1);
 insert into t1 values (0);
 drop table t1;
-create table t1 (a int ,b int, check a>b);
+create table t1 (a int, b int, check (a>b));
 insert into t1 values (1,0);
 insert into t1 values (0,1);
 drop table t1;
@@ -29,3 +29,45 @@ show create table t1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug#35578 (Parser allows useless/illegal CREATE TABLE syntax)
+#
+
+--disable_warnings
+drop table if exists t_illegal;
+--enable_warnings
+
+--error ER_PARSE_ERROR
+create table t_illegal (a int, b int, check a>b);
+
+--error ER_PARSE_ERROR
+create table t_illegal (a int, b int, constraint abc check a>b);
+
+--error ER_PARSE_ERROR
+create table t_illegal (a int, b int, constraint abc);
+
+#
+# Bug#11714 (Non-sensical ALTER TABLE ADD CONSTRAINT allowed)
+#
+
+--disable_warnings
+drop table if exists t_11714;
+--enable_warnings
+
+create table t_11714(a int, b int);
+
+--error ER_PARSE_ERROR
+alter table t_11714 add constraint cons1;
+
+drop table t_11714;
+
+#
+# Bug#38696 (CREATE TABLE ... CHECK ... allows illegal syntax)
+
+--error ER_PARSE_ERROR
+CREATE TABLE t_illegal (col_1 INT CHECK something (whatever));
+
+--error ER_PARSE_ERROR
+CREATE TABLE t_illegal (col_1 INT CHECK something);
+

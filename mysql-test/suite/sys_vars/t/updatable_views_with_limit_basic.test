@@ -166,7 +166,7 @@ SET @@global.updatable_views_with_limit = 2345;
 SET @@global.updatable_views_with_limit = "FALSE";
 
 
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.updatable_views_with_limit = 65530.34;
 
 --Error ER_WRONG_VALUE_FOR_VAR

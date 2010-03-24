@@ -9,10 +9,6 @@ show profile all;
 show session variables like 'profil%';
 select @@profiling;
 
-# setting global variable is an error
---error ER_LOCAL_VARIABLE
-set global profiling = ON;
-
 # But size is okay
 set @start_value= @@global.profiling_history_size;
 set global profiling_history_size=100;

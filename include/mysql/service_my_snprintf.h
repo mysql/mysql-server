@@ -53,7 +53,7 @@
   <length modifier> can be 'l', 'll', or 'z'.
 
   Supported formats are 's' (null pointer is accepted, printed as
-  "(null)"), 'b' (extension, see below), 'c', 'd', 'u', 'x',
+  "(null)"), 'b' (extension, see below), 'c', 'd', 'u', 'x', 'o',
   'X', 'p' (works as 0x%x).
 
   Standard syntax for positional arguments $n is supported.

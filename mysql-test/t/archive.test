@@ -5,6 +5,8 @@
 -- source include/have_archive.inc
 -- source include/have_binlog_format_mixed_or_statement.inc
 
+CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 --disable_warnings
 DROP TABLE if exists t1,t2,t3,t4,t5,t6;
 --enable_warnings
@@ -1615,7 +1617,7 @@ DROP TABLE t1;
 # BUG#46961 - archive engine loses rows during self joining select!
 #
 SET @save_join_buffer_size= @@join_buffer_size;
-SET @@join_buffer_size= 8228;
+SET @@join_buffer_size= 8192;
 CREATE TABLE t1(a CHAR(255)) ENGINE=archive;
 INSERT INTO t1 VALUES('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
                      ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
@@ -1623,6 +1625,18 @@ INSERT INTO t1 VALUES('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
 SELECT COUNT(t1.a) FROM t1, t1 a, t1 b, t1 c, t1 d, t1 e;
 DROP TABLE t1;
 SET @@join_buffer_size= @save_join_buffer_size;
+
+--echo End of 5.1 tests
+
+#
+# BUG#40677 - Archive tables joined on primary return no result
+#
+CREATE TABLE t1(id INT NOT NULL AUTO_INCREMENT, name VARCHAR(128) NOT NULL, PRIMARY KEY(id)) ENGINE=archive;
+INSERT INTO t1 VALUES(NULL,'a'),(NULL,'a');
+CREATE TABLE t2(id INT NOT NULL AUTO_INCREMENT, name VARCHAR(128) NOT NULL, PRIMARY KEY(id)) ENGINE=archive;
+INSERT INTO t2 VALUES(NULL,'b'),(NULL,'b');
+SELECT t1.id, t2.id, t1.name, t2.name FROM t1,t2 WHERE t1.id = t2.id;
+DROP TABLE t1,t2;
 
 #
 # BUG#47012 archive tables are not upgradeable, and server crashes on any access

@@ -1,0 +1,189 @@
+# Copyright (C) 2009-2010 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+# Verify that statistics aggregated by different criteria are consistent.
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--echo "General cleanup"
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+update performance_schema.SETUP_INSTRUMENTS set enabled = 'NO';
+update performance_schema.SETUP_CONSUMERS set enabled = 'NO';
+
+# Cleanup statistics
+truncate table performance_schema.FILE_SUMMARY_BY_EVENT_NAME;
+truncate table performance_schema.FILE_SUMMARY_BY_INSTANCE;
+truncate table performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME;
+truncate table performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE;
+truncate table performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME;
+
+# Start recording data
+update performance_schema.SETUP_CONSUMERS set enabled = 'YES';
+update performance_schema.SETUP_INSTRUMENTS
+  set enabled = 'YES', timed = 'YES';
+
+
+create table t1 (
+  id INT PRIMARY KEY,
+  b CHAR(100) DEFAULT 'initial value')
+  ENGINE=MyISAM;
+
+insert into t1 (id) values (1), (2), (3), (4), (5), (6), (7), (8);
+
+# Stop recording data, so the select below don't add noise.
+update performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO';
+# Disable all consumers, for long standing waits
+update performance_schema.SETUP_CONSUMERS set enabled = 'NO';
+
+# Helper to debug
+set @dump_all=FALSE;
+
+# Note that in general:
+# - COUNT/SUM/MAX(FILE_SUMMARY_BY_EVENT_NAME) >=
+#   COUNT/SUM/MAX(FILE_SUMMARY_BY_INSTANCE).
+# - MIN(FILE_SUMMARY_BY_EVENT_NAME) <=
+#   MIN(FILE_SUMMARY_BY_INSTANCE).
+# There will be equality only when file instances are not removed,
+# aka when a file is not deleted from the file system,
+# because doing so removes a row in FILE_SUMMARY_BY_INSTANCE.
+
+# Likewise:
+# - COUNT/SUM/MAX(EVENTS_WAITS_SUMMARY_BY_EVENT_NAME) >=
+#   COUNT/SUM/MAX(EVENTS_WAITS_SUMMARY_BY_INSTANCE)
+# - MIN(EVENTS_WAITS_SUMMARY_BY_EVENT_NAME) <=
+#   MIN(EVENTS_WAITS_SUMMARY_BY_INSTANCE)
+# There will be equality only when an instrument instance
+# is not removed, which is next to impossible to predictably guarantee
+# in the server.
+# For example, a MyISAM table removed from the table cache
+# will cause a mysql_mutex_destroy on myisam/MYISAM_SHARE::intern_lock.
+# Another example, a thread terminating will cause a mysql_mutex_destroy
+# on sql/LOCK_delete
+# Both cause a row to be deleted from EVENTS_WAITS_SUMMARY_BY_INSTANCE.
+
+# Likewise:
+# - COUNT/SUM/MAX(EVENTS_WAITS_SUMMARY_BY_EVENT_NAME) >=
+#   COUNT/SUM/MAX(EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME)
+# - MIN(EVENTS_WAITS_SUMMARY_BY_EVENT_NAME) <=
+#   MIN(EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME)
+# There will be equality only when no thread is removed,
+# that is if no thread disconnects, or no sub thread (for example insert
+# delayed) ever completes.
+# A thread completing will cause rows in
+# EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME to be removed.
+
+--echo "Verifying file aggregate consistency"
+
+# Since the code generating the load in this test does:
+# - create table
+# - insert
+# - does not cause temporary tables to be used
+# we can test for equality here for file aggregates.
+
+# If any of these queries returns data, the test failed.
+
+SELECT EVENT_NAME, e.COUNT_READ, SUM(i.COUNT_READ)
+FROM performance_schema.FILE_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.FILE_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.COUNT_READ <> SUM(i.COUNT_READ))
+OR @dump_all;
+
+SELECT EVENT_NAME, e.COUNT_WRITE, SUM(i.COUNT_WRITE)
+FROM performance_schema.FILE_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.FILE_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.COUNT_WRITE <> SUM(i.COUNT_WRITE))
+OR @dump_all;
+
+SELECT EVENT_NAME, e.SUM_NUMBER_OF_BYTES_READ, SUM(i.SUM_NUMBER_OF_BYTES_READ)
+FROM performance_schema.FILE_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.FILE_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.SUM_NUMBER_OF_BYTES_READ <> SUM(i.SUM_NUMBER_OF_BYTES_READ))
+OR @dump_all;
+
+SELECT EVENT_NAME, e.SUM_NUMBER_OF_BYTES_WRITE, SUM(i.SUM_NUMBER_OF_BYTES_WRITE)
+FROM performance_schema.FILE_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.FILE_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.SUM_NUMBER_OF_BYTES_WRITE <> SUM(i.SUM_NUMBER_OF_BYTES_WRITE))
+OR @dump_all;
+
+--echo "Verifying waits aggregate consistency (instance)"
+
+SELECT EVENT_NAME, e.SUM_TIMER_WAIT, SUM(i.SUM_TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.SUM_TIMER_WAIT < SUM(i.SUM_TIMER_WAIT))
+OR @dump_all;
+
+SELECT EVENT_NAME, e.MIN_TIMER_WAIT, MIN(i.MIN_TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.MIN_TIMER_WAIT > MIN(i.MIN_TIMER_WAIT))
+AND (MIN(i.MIN_TIMER_WAIT) != 0)
+OR @dump_all;
+
+SELECT EVENT_NAME, e.MAX_TIMER_WAIT, MAX(i.MAX_TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE AS i USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.MAX_TIMER_WAIT < MAX(i.MAX_TIMER_WAIT))
+OR @dump_all;
+
+--echo "Verifying waits aggregate consistency (thread)"
+
+SELECT EVENT_NAME, e.SUM_TIMER_WAIT, SUM(t.SUM_TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME AS t
+USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.SUM_TIMER_WAIT < SUM(t.SUM_TIMER_WAIT))
+OR @dump_all;
+
+SELECT EVENT_NAME, e.MIN_TIMER_WAIT, MIN(t.MIN_TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME AS t
+USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.MIN_TIMER_WAIT > MIN(t.MIN_TIMER_WAIT))
+AND (MIN(t.MIN_TIMER_WAIT) != 0)
+OR @dump_all;
+
+SELECT EVENT_NAME, e.MAX_TIMER_WAIT, MAX(t.MAX_TIMER_WAIT)
+FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_EVENT_NAME AS e
+JOIN performance_schema.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME AS t
+USING (EVENT_NAME)
+GROUP BY EVENT_NAME
+HAVING (e.MAX_TIMER_WAIT < MAX(t.MAX_TIMER_WAIT))
+OR @dump_all;
+
+
+# Cleanup
+
+update performance_schema.SETUP_CONSUMERS set enabled = 'YES';
+update performance_schema.SETUP_INSTRUMENTS
+  set enabled = 'YES', timed = 'YES';
+
+drop table test.t1;

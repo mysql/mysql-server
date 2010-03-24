@@ -103,8 +103,8 @@ SET @@global.auto_increment_increment = -1024;
 SELECT @@global.auto_increment_increment;
 SET @@global.auto_increment_increment = 65536;
 SELECT @@global.auto_increment_increment;
---Error ER_PARSE_ERROR
-SET @@global.auto_increment_increment = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.auto_increment_increment = 65530.34;
 SELECT @@global.auto_increment_increment;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.auto_increment_increment = test;
@@ -114,11 +114,10 @@ SET @@session.auto_increment_increment = 0;
 SELECT @@session.auto_increment_increment;
 SET @@session.auto_increment_increment = -2;
 SELECT @@session.auto_increment_increment;
---Error ER_PARSE_ERROR
-SET @@session.auto_increment_increment = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.auto_increment_increment = 65530.34;
 SET @@session.auto_increment_increment = 65550;
 SELECT @@session.auto_increment_increment;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.auto_increment_increment = test;

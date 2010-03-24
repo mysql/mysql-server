@@ -1,0 +1,19 @@
+--source include/not_embedded.inc
+#
+# only global
+#
+select @@global.log_slave_updates;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.log_slave_updates;
+show global variables like 'log_slave_updates';
+show session variables like 'log_slave_updates';
+select * from information_schema.global_variables where variable_name='log_slave_updates';
+select * from information_schema.session_variables where variable_name='log_slave_updates';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global log_slave_updates=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session log_slave_updates=1;

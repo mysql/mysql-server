@@ -78,6 +78,7 @@ SELECT global collation_database;
 ##############################################################################
 SET @@collation_database = latin1_bin;
 SET @@collation_database = DEFAULT;
+SELECT DEFAULT_COLLATION_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME=DATABASE();
 SELECT @@collation_database AS DEFAULT_VALUE;
 
 SET @@global.collation_database = latin1_bin;
@@ -120,7 +121,7 @@ SET @@collation_database = latin7_general_ci + latin7_general_cs;
 #     Change the value of collation_database to a valid value for session #
 ###########################################################################
 
-let collation_variable = @@session.collation_database;
+let $collation_variable = @@session.collation_database;
 --source suite/sys_vars/inc/collation_basic.inc
 
 
@@ -129,7 +130,7 @@ let collation_variable = @@session.collation_database;
 #     Change the value of collation_database to a valid value for global      #
 ###############################################################################
 
-let collation_variable = @@global.collation_database;
+let $collation_variable = @@global.collation_database;
 --source suite/sys_vars/inc/collation_basic.inc
 
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2006 MySQL AB
+/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -196,7 +196,7 @@ Event_basic::Event_basic()
 {
   DBUG_ENTER("Event_basic::Event_basic");
   /* init memory root */
-  init_alloc_root(&mem_root, 256, 512);
+  init_sql_alloc(&mem_root, 256, 512);
   dbname.str= name.str= NULL;
   dbname.length= name.length= 0;
   time_zone= NULL;
@@ -834,8 +834,9 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   }
   else
   {
-    long diff_months= (long) (local_now.year - local_start.year)*12 +
-                      (local_now.month - local_start.month);
+    long diff_months= ((long) local_now.year - (long) local_start.year)*12 +
+                      ((long) local_now.month - (long) local_start.month);
+
     /*
       Unlike for seconds above, the formula below returns the interval
       that, when added to the local_start, will give the time in the
@@ -1402,8 +1403,7 @@ Event_job_data::execute(THD *thd, bool drop)
   }
 #endif
 
-  if (check_access(thd, EVENT_ACL, dbname.str,
-                   0, 0, 0, is_schema_db(dbname.str, dbname.length)))
+  if (check_access(thd, EVENT_ACL, dbname.str, NULL, NULL, 0, 0))
   {
     /*
       This aspect of behavior is defined in the worklog,

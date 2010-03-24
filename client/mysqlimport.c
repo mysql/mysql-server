@@ -597,7 +597,8 @@ int main(int argc, char **argv)
   char **argv_to_free;
   MY_INIT(argv[0]);
 
-  load_defaults("my",load_default_groups,&argc,&argv);
+  if (load_defaults("my",load_default_groups,&argc,&argv))
+    return 1;
   /* argv is changed in the program */
   argv_to_free= argv;
   if (get_options(&argc, &argv))
@@ -615,8 +616,8 @@ int main(int argc, char **argv)
     pthread_attr_setdetachstate(&attr,
                                 PTHREAD_CREATE_DETACHED);
 
-    VOID(pthread_mutex_init(&counter_mutex, NULL));
-    VOID(pthread_cond_init(&count_threshhold, NULL));
+    pthread_mutex_init(&counter_mutex, NULL);
+    pthread_cond_init(&count_threshhold, NULL);
 
     for (counter= 0; *argv != NULL; argv++) /* Loop through tables */
     {
@@ -655,8 +656,8 @@ int main(int argc, char **argv)
       pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
     }
     pthread_mutex_unlock(&counter_mutex);
-    VOID(pthread_mutex_destroy(&counter_mutex));
-    VOID(pthread_cond_destroy(&count_threshhold));
+    pthread_mutex_destroy(&counter_mutex);
+    pthread_cond_destroy(&count_threshhold);
     pthread_attr_destroy(&attr);
   }
   else

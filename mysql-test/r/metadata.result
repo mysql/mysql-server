@@ -126,7 +126,7 @@ renamed
 1
 select * from v3 where renamed=1 group by renamed;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def		v3	v3	renamed	renamed	8	12	0	Y	32896	0	63
+def		v3	v3	renamed	renamed	8	11	0	Y	32896	0	63
 renamed
 drop table t1;
 drop view v1,v2,v3;

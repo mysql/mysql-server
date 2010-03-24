@@ -1,7 +1,7 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-
 /* Definitions for parameters to do with handler-routines */
 
 #ifdef USE_PRAGMA_INTERFACE
@@ -30,8 +29,6 @@
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
 #endif
-
-#define USING_TRANSACTIONS
 
 // the following is for checking tables
 
@@ -127,6 +124,29 @@
 */
 #define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
 #define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
+/*
+    When a multiple key conflict happens in a REPLACE command mysql
+    expects the conflicts to be reported in the ascending order of
+    key names.
+
+    For e.g.
+
+    CREATE TABLE t1 (a INT, UNIQUE (a), b INT NOT NULL, UNIQUE (b), c INT NOT
+                     NULL, INDEX(c));
+
+    REPLACE INTO t1 VALUES (1,1,1),(2,2,2),(2,1,3);
+
+    MySQL expects the conflict with 'a' to be reported before the conflict with
+    'b'.
+
+    If the underlying storage engine does not report the conflicting keys in
+    ascending order, it causes unexpected errors when the REPLACE command is
+    executed.
+
+    This flag helps the underlying SE to inform the server that the keys are not
+    ordered.
+*/
+#define HA_DUPLICATE_KEY_NOT_IN_ORDER    (LL(1) << 36)
 
 /*
   Set of all binlog flags. Currently only contain the capabilities
@@ -284,6 +304,8 @@ enum legacy_db_type
   DB_TYPE_MEMCACHE,
   DB_TYPE_FALCON,
   DB_TYPE_MARIA,
+  /** Performance schema engine. */
+  DB_TYPE_PERFORMANCE_SCHEMA,
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
@@ -515,6 +537,48 @@ class st_alter_tablespace : public Sql_alloc
 /* The handler for a table type.  Will be included in the TABLE structure */
 
 struct TABLE;
+
+/*
+  Make sure that the order of schema_tables and enum_schema_tables are the same.
+*/
+enum enum_schema_tables
+{
+  SCH_CHARSETS= 0,
+  SCH_COLLATIONS,
+  SCH_COLLATION_CHARACTER_SET_APPLICABILITY,
+  SCH_COLUMNS,
+  SCH_COLUMN_PRIVILEGES,
+  SCH_ENGINES,
+  SCH_EVENTS,
+  SCH_FILES,
+  SCH_GLOBAL_STATUS,
+  SCH_GLOBAL_VARIABLES,
+  SCH_KEY_COLUMN_USAGE,
+  SCH_OPEN_TABLES,
+  SCH_PARAMETERS,
+  SCH_PARTITIONS,
+  SCH_PLUGINS,
+  SCH_PROCESSLIST,
+  SCH_PROFILES,
+  SCH_REFERENTIAL_CONSTRAINTS,
+  SCH_PROCEDURES,
+  SCH_SCHEMATA,
+  SCH_SCHEMA_PRIVILEGES,
+  SCH_SESSION_STATUS,
+  SCH_SESSION_VARIABLES,
+  SCH_STATISTICS,
+  SCH_STATUS,
+  SCH_TABLES,
+  SCH_TABLESPACES,
+  SCH_TABLE_CONSTRAINTS,
+  SCH_TABLE_NAMES,
+  SCH_TABLE_PRIVILEGES,
+  SCH_TRIGGERS,
+  SCH_USER_PRIVILEGES,
+  SCH_VARIABLES,
+  SCH_VIEWS
+};
+
 struct TABLE_SHARE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
@@ -679,9 +743,9 @@ struct handlerton
    uint (*partition_flags)();
    uint (*alter_table_flags)(uint flags);
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
-   int (*fill_files_table)(handlerton *hton, THD *thd,
-                           TABLE_LIST *tables,
-                           class Item *cond);
+   int (*fill_is_table)(handlerton *hton, THD *thd, TABLE_LIST *tables, 
+                        class Item *cond, 
+                        enum enum_schema_tables);
    uint32 flags;                                /* global handler flags */
    /*
       Those handlerton functions below are properly initialized at handler
@@ -879,9 +943,6 @@ enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
 
-enum ndb_distribution { ND_KEYHASH= 0, ND_LINHASH= 1 };
-
-
 typedef struct {
   ulonglong data_file_length;
   ulonglong max_data_file_length;
@@ -950,6 +1011,7 @@ typedef struct st_key_create_information
   enum ha_key_alg algorithm;
   ulong block_size;
   LEX_STRING parser_name;
+  LEX_STRING comment;
 } KEY_CREATE_INFO;
 
 
@@ -1013,7 +1075,6 @@ typedef class Item COND;
 typedef struct st_ha_check_opt
 {
   st_ha_check_opt() {}                        /* Remove gcc warning */
-  ulong sort_buffer_size;
   uint flags;       /* isam layer flags (e.g. for myisamchk) */
   uint sql_flags;   /* sql layer flags - for something myisamchk cannot do */
   KEY_CACHE *key_cache;	/* new key cache when changing key cache */
@@ -1158,6 +1219,20 @@ public:
   */
   uint auto_inc_intervals_count;
 
+  /**
+    Instrumented table associated with this handler.
+    This member should be set to NULL when no instrumentation is in place,
+    so that linking an instrumented/non instrumented server/plugin works.
+    For example:
+    - the server is compiled with the instrumentation.
+    The server expects either NULL or valid pointers in m_psi.
+    - an engine plugin is compiled without instrumentation.
+    The plugin can not leave this pointer uninitialized,
+    or can not leave a trash value on purpose in this pointer,
+    as this would crash the server.
+  */
+  PSI_table *m_psi;
+
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
@@ -1166,7 +1241,8 @@ public:
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
-    auto_inc_intervals_count(0)
+    auto_inc_intervals_count(0),
+    m_psi(NULL)
     {}
   virtual ~handler(void)
   {
@@ -1254,8 +1330,6 @@ public:
                          uint *dup_key_found);
   int ha_delete_all_rows();
   int ha_reset_auto_increment(ulonglong value);
-  int ha_backup(THD* thd, HA_CHECK_OPT* check_opt);
-  int ha_restore(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int ha_analyze(THD* thd, HA_CHECK_OPT* check_opt);
   bool ha_check_and_repair(THD *thd);
@@ -1541,9 +1615,7 @@ public:
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /* end of the list of admin commands */
 
-  virtual int dump(THD* thd, int fd = -1) { return HA_ERR_WRONG_COMMAND; }
   virtual int indexes_are_disabled(void) {return 0;}
-  virtual int net_read_dump(NET* net) { return HA_ERR_WRONG_COMMAND; }
   virtual char *update_table_comment(const char * comment)
   { return (char*) comment;}
   virtual void append_create_info(String *packet) {}
@@ -1771,6 +1843,39 @@ protected:
   THD *ha_thd(void) const;
 
   /**
+    Acquire the instrumented table information from a table share.
+    @param share a table share
+    @return an instrumented table share, or NULL.
+  */
+  PSI_table_share *ha_table_share_psi(const TABLE_SHARE *share) const;
+
+  inline void psi_open()
+  {
+    DBUG_ASSERT(m_psi == NULL);
+    DBUG_ASSERT(table_share != NULL);
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server)
+    {
+      PSI_table_share *share_psi= ha_table_share_psi(table_share);
+      if (share_psi)
+        m_psi= PSI_server->open_table(share_psi, this);
+    }
+#endif
+  }
+
+  inline void psi_close()
+  {
+#ifdef HAVE_PSI_INTERFACE
+    if (PSI_server && m_psi)
+    {
+      PSI_server->close_table(m_psi);
+      m_psi= NULL; /* instrumentation handle, invalid after close_table() */
+    }
+#endif
+    DBUG_ASSERT(m_psi == NULL);
+  }
+
+  /**
     Default rename_table() and delete_table() rename/delete files with a
     given name and extensions from bas_ext().
 
@@ -1911,14 +2016,6 @@ private:
   */
   virtual int reset_auto_increment(ulonglong value)
   { return HA_ERR_WRONG_COMMAND; }
-  virtual int backup(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
-  /**
-    Restore assumes .frm file must exist, and that generate_table() has been
-    called; It will just copy the data file and run repair.
-  */
-  virtual int restore(THD* thd, HA_CHECK_OPT* check_opt)
-  { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int optimize(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
@@ -1956,12 +2053,8 @@ extern const char *ha_row_type[];
 extern MYSQL_PLUGIN_IMPORT const char *tx_isolation_names[];
 extern MYSQL_PLUGIN_IMPORT const char *binlog_format_names[];
 extern TYPELIB tx_isolation_typelib;
-extern TYPELIB myisam_stats_method_typelib;
+extern const char *myisam_stats_method_names[];
 extern ulong total_ha, total_ha_2pc;
-
-       /* Wrapper functions */
-#define ha_commit(thd) (ha_commit_trans((thd), TRUE))
-#define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
 /* lookups */
 handlerton *ha_default_handlerton(THD *thd);
@@ -2030,7 +2123,6 @@ extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
-int ha_end_key_cache(KEY_CACHE *key_cache);
 
 /* report to InnoDB that control passes to the client */
 int ha_release_temporary_latches(THD *thd);
@@ -2039,13 +2131,12 @@ int ha_release_temporary_latches(THD *thd);
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_or_rollback_by_xid(XID *xid, bool commit);
 int ha_commit_one_phase(THD *thd, bool all);
+int ha_commit_trans(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
 
 /* transactions: these functions never call handlerton functions directly */
-int ha_commit_trans(THD *thd, bool all);
-int ha_autocommit_or_rollback(THD *thd, int error);
 int ha_enable_transaction(THD *thd, bool on);
 
 /* savepoints */

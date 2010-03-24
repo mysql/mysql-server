@@ -20,6 +20,13 @@
 
 #define BIG_TABLES
 
+/*
+  Minimal version of Windows we should be able to run on.
+  Currently Windows XP.
+*/
+#define _WIN32_WINNT     0x0501
+
+
 #if defined(_MSC_VER) && _MSC_VER >= 1400
 /* Avoid endless warnings about sprintf() etc. being unsafe. */
 #define _CRT_SECURE_NO_DEPRECATE 1
@@ -27,6 +34,7 @@
 
 #include <sys/locking.h>
 #include <winsock2.h>
+#include <Ws2tcpip.h>
 #include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
@@ -88,6 +96,12 @@
 
 #define S_IROTH		S_IREAD		/* for my_lib */
 
+/* Winsock2 constant (Vista SDK and later)*/
+#define IPPROTO_IPV6 41
+#ifndef IPV6_V6ONLY
+#define IPV6_V6ONLY 27
+#endif
+
 #ifdef __BORLANDC__
 #define FILE_BINARY	O_BINARY	/* my_fopen in binary mode */
 #define O_TEMPORARY	0
@@ -145,10 +159,21 @@ typedef __int64 os_off_t;
 #ifdef _WIN64
 typedef UINT_PTR rf_SetTimer;
 #else
-#ifndef HAVE_SIZE_T
-typedef unsigned int size_t;
-#endif
 typedef uint rf_SetTimer;
+#endif
+
+#ifndef HAVE_SIZE_T
+#ifndef _SIZE_T_DEFINED
+typedef SIZE_T size_t;
+#define _SIZE_T_DEFINED
+#endif
+#endif
+
+#ifndef HAVE_SSIZE_T
+#ifndef _SSIZE_T_DEFINED
+typedef SSIZE_T ssize_t;
+#define _SSIZE_T_DEFINED
+#endif
 #endif
 
 #define Socket_defined
@@ -293,10 +318,11 @@ inline ulonglong double2ulonglong(double d)
 #define strcasecmp stricmp
 #define strncasecmp strnicmp
 
-#ifdef NOT_USED
-#define HAVE_SNPRINTF		/* Gave link error */
-#define _snprintf snprintf
-#endif
+#define HAVE_SNPRINTF 1
+#define snprintf _snprintf
+
+#define HAVE_SETENV 1
+#define setenv(VAR,VAL,X)       _putenv_s(VAR,VAL)
 
 #ifdef _MSC_VER
 #define HAVE_LDIV		/* The optimizer breaks in zortech for ldiv */
@@ -335,7 +361,7 @@ inline ulonglong double2ulonglong(double d)
 #define FN_ROOTDIR	"\\"
 #define FN_DEVCHAR	':'
 #define FN_NETWORK_DRIVES	/* Uses \\ to indicate network drives */
-#define FN_NO_CASE_SENCE	/* Files are not case-sensitive */
+#define FN_NO_CASE_SENSE        /* Files are not case-sensitive */
 #define OS_FILE_LIMIT	UINT_MAX /* No limit*/
 
 #define DO_NOT_REMOVE_THREAD_WRAPPERS
@@ -406,6 +432,9 @@ inline ulonglong double2ulonglong(double d)
 #define HAVE_CHARSET_ucs2 1
 #define HAVE_CHARSET_ujis 1
 #define HAVE_CHARSET_utf8 1
+#define HAVE_CHARSET_utf8mb4 1
+#define HAVE_CHARSET_utf16 1
+#define HAVE_CHARSET_utf32 1
 
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1

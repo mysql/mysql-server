@@ -22,10 +22,6 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
-#ifndef NOT_FIXED_DEC
-#define NOT_FIXED_DEC			31
-#endif
-
 class String;
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);

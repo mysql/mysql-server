@@ -8,7 +8,6 @@ SET @@global.max_connections = DEFAULT;
 SELECT @@global.max_connections;
 @@global.max_connections
 151
-'Bug# 34876: This variable has invalid default value as compared to documentation';
 '#---------------------FN_DYNVARS_074_02-------------------------#'
 SET @@global.max_connections = @start_value;
 SELECT @@global.max_connections = 151;
@@ -35,7 +34,6 @@ SET @@global.max_connections = 2;
 SELECT @@global.max_connections;
 @@global.max_connections
 2
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 '#--------------------FN_DYNVARS_074_04-------------------------#'
 SET @@global.max_connections = -1;
 Warnings:
@@ -72,7 +70,6 @@ Warning	1292	Truncated incorrect max_connections value: '100001'
 SELECT @@global.max_connections;
 @@global.max_connections
 100000
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.max_connections = ON;
 ERROR 42000: Incorrect argument type to variable 'max_connections'
 SELECT @@global.max_connections;

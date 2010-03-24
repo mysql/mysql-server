@@ -43,9 +43,7 @@ SELECT @start_value;
 #############################################################
 
 SET @@global.flush = ON;
---Error ER_NO_DEFAULT
 SET @@global.flush = DEFAULT;
---echo 'Bug# 34878: FN_DYNVARS_002_01 - Default value is off according to Documentation of MySQL';
 SELECT @@global.flush;
 
 

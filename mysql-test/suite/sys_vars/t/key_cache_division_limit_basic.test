@@ -1,0 +1,179 @@
+############## mysql-test\t\key_cache_division_limit_basic.test ###############
+#                                                                             #
+# Variable Name: key_cache_division_limit                                     #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+# Default Value: 100                                                          #
+# Range: 1-100                                                                #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Salman                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable key_cache_division_limit #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+##################################################################### 
+#            START OF key_cache_division_limit TESTS                #
+#####################################################################
+
+
+############################################################################## 
+#  Saving initial value of key_cache_division_limit in a temporary variable  #
+##############################################################################
+
+SET @start_value = @@global.key_cache_division_limit;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_058_01------------------------#'
+################################################################################ 
+#              Display the DEFAULT value of key_cache_division_limit           #
+################################################################################ 
+
+SET @@global.key_cache_division_limit = DEFAULT;
+SELECT @@global.key_cache_division_limit;
+
+
+--echo '#---------------------FN_DYNVARS_058_02-------------------------#'
+############################################### 
+#     Verify default value of variable        #
+############################################### 
+
+SET @@global.key_cache_division_limit = @start_value;
+SELECT @@global.key_cache_division_limit = 100;
+
+
+--echo '#--------------------FN_DYNVARS_058_03------------------------#'
+############################################################################### 
+#        Change the value of key_cache_division_limit to a valid value        #
+############################################################################### 
+
+SET @@global.key_cache_division_limit = 1;
+SELECT @@global.key_cache_division_limit;
+SET @@global.key_cache_division_limit = 50;
+SELECT @@global.key_cache_division_limit;
+SET @@global.key_cache_division_limit = 99;
+SELECT @@global.key_cache_division_limit;
+SET @@global.key_cache_division_limit = 2;
+SELECT @@global.key_cache_division_limit;
+
+
+--echo '#--------------------FN_DYNVARS_058_04-------------------------#'
+########################################################################### 
+#         Change the value of key_cache_division_limit to invalid value    #
+########################################################################### 
+
+SET @@global.key_cache_division_limit = -1;
+SELECT @@global.key_cache_division_limit;
+SET @@global.key_cache_division_limit = 101;
+SELECT @@global.key_cache_division_limit;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_cache_division_limit = 10000.01;
+SELECT @@global.key_cache_division_limit;
+SET @@global.key_cache_division_limit = -1024;
+SELECT @@global.key_cache_division_limit;
+SET @@global.key_cache_division_limit = 0;
+SELECT @@global.key_cache_division_limit;
+SET @@global.key_cache_division_limit = 200;
+SELECT @@global.key_cache_division_limit;
+SET @@global.key_cache_division_limit = 65535;
+SELECT @@global.key_cache_division_limit;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_cache_division_limit = ON;
+SELECT @@global.key_cache_division_limit;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_cache_division_limit = 'test';
+SELECT @@global.key_cache_division_limit;
+
+
+--echo '#-------------------FN_DYNVARS_058_05----------------------------#'
+########################################################################### 
+#       Test if accessing session key_cache_division_limit gives error     #
+########################################################################### 
+
+--Error ER_GLOBAL_VARIABLE
+SET @@session.key_cache_division_limit = 0;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.key_cache_division_limit;
+
+
+--echo '#----------------------FN_DYNVARS_058_06------------------------#'
+############################################################################## 
+# Check if the value in GLOBAL & SESSION Tables matches values in variable   #
+##############################################################################
+
+SELECT @@global.key_cache_division_limit = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='key_cache_division_limit';
+
+SELECT @@key_cache_division_limit = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='key_cache_division_limit';
+
+
+--echo '#---------------------FN_DYNVARS_058_07----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@global.key_cache_division_limit = TRUE;
+SELECT @@global.key_cache_division_limit;
+SET @@global.key_cache_division_limit = FALSE;
+SELECT @@global.key_cache_division_limit;
+
+
+--echo '#---------------------FN_DYNVARS_058_08----------------------#'
+########################################################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points to same session variable  #
+########################################################################################################
+
+SET @@global.key_cache_division_limit = 90;
+SELECT @@key_cache_division_limit = @@global.key_cache_division_limit;
+
+
+--echo '#---------------------FN_DYNVARS_058_09----------------------#'
+############################################################################### 
+#  Check if key_cache_division_limit can be accessed with and without @@ sign #
+###############################################################################;
+
+--Error ER_GLOBAL_VARIABLE
+SET key_cache_division_limit = 80;
+SELECT @@key_cache_division_limit;
+--Error ER_PARSE_ERROR
+SET local.key_cache_division_limit = 10;
+--Error ER_UNKNOWN_TABLE
+SELECT local.key_cache_division_limit;
+--Error ER_PARSE_ERROR
+SET global.key_cache_division_limit = 10;
+--Error ER_UNKNOWN_TABLE
+SELECT global.key_cache_division_limit;
+--Error ER_BAD_FIELD_ERROR
+SELECT key_cache_division_limit = @@session.key_cache_division_limit;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.key_cache_division_limit = @start_value;
+SELECT @@global.key_cache_division_limit;
+
+
+#####################################################################
+#              END OF key_cache_division_limit TESTS                #
+#####################################################################
+

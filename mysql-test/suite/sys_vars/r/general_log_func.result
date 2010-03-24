@@ -12,6 +12,10 @@ SET @@global.general_log = OFF;
 SELECT @@general_log;
 @@general_log
 0
+flush logs;
+SET @@global.general_log = ON;
+flush logs;
+SET @@global.general_log = OFF;
 ## Inserting some Records & Verifying output in log ##
 INSERT into t1(name) values('Record_1');
 INSERT into t1(name) values('Record_2');
@@ -25,12 +29,11 @@ SELECT @@general_log;
 ## Inserting some Records & Verifying output in log ##
 INSERT into t1(name) values('Record_3');
 INSERT into t1(name) values('Record_4');
-## There should be a difference ##
-SET @@global.max_allowed_packet= 1024*1024*1024;
+## old log is a proper prefix of the new log ##
 SET @orig_file= load_file('MYSQLD_LOGFILE.orig');
 SET @copy_file= load_file('MYSQLD_LOGFILE.copy');
-SELECT STRCMP(@orig_file, @copy_file);
-STRCMP(@orig_file, @copy_file)
-1
+SELECT @orig_file > @copy_file, left(@orig_file, length(@copy_file)) = @copy_file;
+@orig_file > @copy_file	left(@orig_file, length(@copy_file)) = @copy_file
+1	1
 ## Dropping tables ##
 DROP TABLE t1;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,7 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 
   if (!create_info->internal_table)
   {
-    pthread_mutex_lock(&THR_LOCK_heap);
+    mysql_mutex_lock(&THR_LOCK_heap);
     if ((share= hp_find_named_heap(name)) && share->open_count == 0)
     {
       hp_free(share);
@@ -85,8 +85,6 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
           keyinfo->seg[j].type= HA_KEYTYPE_VARTEXT1;
           /* fall_through */
         case HA_KEYTYPE_VARTEXT1:
-          if (!my_binary_compare(keyinfo->seg[j].charset))
-            keyinfo->flag|= HA_END_SPACE_KEY;
           keyinfo->flag|= HA_VAR_LENGTH_KEY;
           length+= 2;
           /* Save number of bytes used to store length */
@@ -96,8 +94,6 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
           /* Case-insensitiveness is handled in coll->hash_sort */
           /* fall_through */
         case HA_KEYTYPE_VARTEXT2:
-          if (!my_binary_compare(keyinfo->seg[j].charset))
-            keyinfo->flag|= HA_END_SPACE_KEY;
           keyinfo->flag|= HA_VAR_LENGTH_KEY;
           length+= 2;
           /* Save number of bytes used to store length */
@@ -111,8 +107,6 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
 	default:
 	  break;
 	}
-        if (keyinfo->seg[j].flag & HA_END_SPACE_ARE_EQUAL)
-          keyinfo->flag|= HA_END_SPACE_KEY;
       }
       keyinfo->length= length;
       length+= keyinfo->rb_tree.size_of_element + 
@@ -194,7 +188,8 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
     }
 #ifdef THREAD
     thr_lock_init(&share->lock);
-    VOID(pthread_mutex_init(&share->intern_lock,MY_MUTEX_INIT_FAST));
+    mysql_mutex_init(hp_key_mutex_HP_SHARE_intern_lock,
+                     &share->intern_lock, MY_MUTEX_INIT_FAST);
 #endif
     if (!create_info->internal_table)
     {
@@ -205,14 +200,14 @@ int heap_create(const char *name, uint keys, HP_KEYDEF *keydef,
       share->delete_on_close= 1;
   }
   if (!create_info->internal_table)
-    pthread_mutex_unlock(&THR_LOCK_heap);
+    mysql_mutex_unlock(&THR_LOCK_heap);
 
   *res= share;
   DBUG_RETURN(0);
 
 err:
   if (!create_info->internal_table)
-    pthread_mutex_unlock(&THR_LOCK_heap);
+    mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(1);
 } /* heap_create */
 
@@ -266,7 +261,7 @@ int heap_delete_table(const char *name)
   reg1 HP_SHARE *share;
   DBUG_ENTER("heap_delete_table");
 
-  pthread_mutex_lock(&THR_LOCK_heap);
+  mysql_mutex_lock(&THR_LOCK_heap);
   if ((share= hp_find_named_heap(name)))
   {
     heap_try_free(share);
@@ -276,7 +271,7 @@ int heap_delete_table(const char *name)
   {
     result= my_errno=ENOENT;
   }
-  pthread_mutex_unlock(&THR_LOCK_heap);
+  mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(result);
 }
 
@@ -284,9 +279,9 @@ int heap_delete_table(const char *name)
 void heap_drop_table(HP_INFO *info)
 {
   DBUG_ENTER("heap_drop_table");
-  pthread_mutex_lock(&THR_LOCK_heap);
+  mysql_mutex_lock(&THR_LOCK_heap);
   heap_try_free(info->s);
-  pthread_mutex_unlock(&THR_LOCK_heap);
+  mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_VOID_RETURN;
 }
 
@@ -298,7 +293,7 @@ void hp_free(HP_SHARE *share)
   hp_clear(share);			/* Remove blocks from memory */
 #ifdef THREAD
   thr_lock_delete(&share->lock);
-  VOID(pthread_mutex_destroy(&share->intern_lock));
+  mysql_mutex_destroy(&share->intern_lock);
 #endif
   my_free((uchar*) share->name, MYF(0));
   my_free((uchar*) share, MYF(0));

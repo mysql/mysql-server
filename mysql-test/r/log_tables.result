@@ -247,13 +247,10 @@ set global general_log='OFF';
 set global slow_query_log='OFF';
 set @save_storage_engine= @@session.storage_engine;
 set storage_engine= MEMORY;
-alter table mysql.slow_log engine=ndb;
-ERROR HY000: This storage engine cannot be used for log tables"
-alter table mysql.slow_log engine=innodb;
-ERROR HY000: This storage engine cannot be used for log tables"
-alter table mysql.slow_log engine=archive;
-ERROR HY000: This storage engine cannot be used for log tables"
-alter table mysql.slow_log engine=blackhole;
+alter table mysql.slow_log engine=NonExistentEngine;
+Warnings:
+Warning	1286	Unknown storage engine 'NonExistentEngine'
+alter table mysql.slow_log engine=memory;
 ERROR HY000: This storage engine cannot be used for log tables"
 set storage_engine= @save_storage_engine;
 drop table mysql.slow_log;

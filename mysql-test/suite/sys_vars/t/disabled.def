@@ -1,0 +1,17 @@
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+query_cache_size_basic_32           : Bug#36747: Allocating a large query cache is not deterministic
+query_cache_size_basic_64           : Bug#36747: Allocating a large query cache is not deterministic
+transaction_prealloc_size_basic_32  : Bug#36747
+transaction_prealloc_size_basic_64  : Bug#36747
+#thread_cache_size_func             : Bug#40575: 2008-11-07 joro main.thread_cache_size_func fails in pushbuild when run with pool of threads
+

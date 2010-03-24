@@ -73,7 +73,6 @@ extern "C" {
 #undef HAVE_FINITE
 #undef HAVE_GETPWNAM
 #undef HAVE_GETPWUID
-#undef HAVE_PTHREAD_SETSCHEDPARAM
 #undef HAVE_READLINK
 #undef HAVE_STPCPY
 /* changes  end  */
@@ -101,7 +100,7 @@ extern "C" {
 #define USE_OLD_FUNCTIONS 1
 
 /* no case sensitivity */
-#define FN_NO_CASE_SENCE 1
+#define FN_NO_CASE_SENSE 1
 
 /* the thread alarm is not used */
 #define DONT_USE_THR_ALARM 1

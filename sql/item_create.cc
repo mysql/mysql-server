@@ -2387,10 +2387,11 @@ Create_udf_func::create(THD *thd, udf_func *udf, List<Item> *item_list)
   Item *func= NULL;
   int arg_count= 0;
 
+  DBUG_ENTER("Create_udf_func::create");
   if (item_list != NULL)
     arg_count= item_list->elements;
 
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UDF);
 
   DBUG_ASSERT(   (udf->type == UDFTYPE_FUNCTION)
               || (udf->type == UDFTYPE_AGGREGATE));
@@ -2474,7 +2475,7 @@ Create_udf_func::create(THD *thd, udf_func *udf, List<Item> *item_list)
   }
   }
   thd->lex->safe_to_cache_query= 0;
-  return func;
+  DBUG_RETURN(func);
 }
 #endif
 
@@ -2945,9 +2946,7 @@ Create_func_cot Create_func_cot::s_singleton;
 Item*
 Create_func_cot::create(THD *thd, Item *arg1)
 {
-  Item *i1= new (thd->mem_root) Item_int((char*) "1", 1, 1);
-  Item *i2= new (thd->mem_root) Item_func_tan(arg1);
-  return new (thd->mem_root) Item_func_div(i1, i2);
+  return new (thd->mem_root) Item_func_cot(arg1);
 }
 
 
@@ -3400,9 +3399,10 @@ Create_func_found_rows Create_func_found_rows::s_singleton;
 Item*
 Create_func_found_rows::create(THD *thd)
 {
-  thd->lex->set_stmt_unsafe();
+  DBUG_ENTER("Create_func_found_rows::create");
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->safe_to_cache_query= 0;
-  return new (thd->mem_root) Item_func_found_rows();
+  DBUG_RETURN(new (thd->mem_root) Item_func_found_rows());
 }
 
 
@@ -3561,7 +3561,7 @@ Create_func_get_lock Create_func_get_lock::s_singleton;
 Item*
 Create_func_get_lock::create(THD *thd, Item *arg1, Item *arg2)
 {
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_get_lock(arg1, arg2);
 }
@@ -3673,7 +3673,7 @@ Create_func_is_free_lock Create_func_is_free_lock::s_singleton;
 Item*
 Create_func_is_free_lock::create(THD *thd, Item *arg1)
 {
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_is_free_lock(arg1);
 }
@@ -3684,7 +3684,7 @@ Create_func_is_used_lock Create_func_is_used_lock::s_singleton;
 Item*
 Create_func_is_used_lock::create(THD *thd, Item *arg1)
 {
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_is_used_lock(arg1);
 }
@@ -3831,9 +3831,10 @@ Create_func_load_file Create_func_load_file::s_singleton;
 Item*
 Create_func_load_file::create(THD *thd, Item *arg1)
 {
-  thd->lex->set_stmt_unsafe();
+  DBUG_ENTER("Create_func_load_file::create");
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
-  return new (thd->mem_root) Item_load_file(arg1);
+  DBUG_RETURN(new (thd->mem_root) Item_load_file(arg1));
 }
 
 
@@ -4001,7 +4002,7 @@ Create_func_master_pos_wait::create_native(THD *thd, LEX_STRING name,
   Item *func= NULL;
   int arg_count= 0;
 
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
 
   if (item_list != NULL)
     arg_count= item_list->elements;
@@ -4223,7 +4224,7 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
     between master and slave, because the order is undefined.  Hence,
     the statement is unsafe to log in statement format.
   */
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
 
   switch (arg_count) {
   case 0:
@@ -4255,7 +4256,7 @@ Create_func_release_lock Create_func_release_lock::s_singleton;
 Item*
 Create_func_release_lock::create(THD *thd, Item *arg1)
 {
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_release_lock(arg1);
 }
@@ -4313,9 +4314,10 @@ Create_func_row_count Create_func_row_count::s_singleton;
 Item*
 Create_func_row_count::create(THD *thd)
 {
-  thd->lex->set_stmt_unsafe();
+  DBUG_ENTER("Create_func_row_count::create");
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->safe_to_cache_query= 0;
-  return new (thd->mem_root) Item_func_row_count();
+  DBUG_RETURN(new (thd->mem_root) Item_func_row_count());
 }
 
 
@@ -4378,7 +4380,7 @@ Create_func_sleep Create_func_sleep::s_singleton;
 Item*
 Create_func_sleep::create(THD *thd, Item *arg1)
 {
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
   return new (thd->mem_root) Item_func_sleep(arg1);
 }
@@ -4632,9 +4634,10 @@ Create_func_uuid Create_func_uuid::s_singleton;
 Item*
 Create_func_uuid::create(THD *thd)
 {
-  thd->lex->set_stmt_unsafe();
+  DBUG_ENTER("Create_func_uuid::create");
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->safe_to_cache_query= 0;
-  return new (thd->mem_root) Item_func_uuid();
+  DBUG_RETURN(new (thd->mem_root) Item_func_uuid());
 }
 
 
@@ -4643,9 +4646,10 @@ Create_func_uuid_short Create_func_uuid_short::s_singleton;
 Item*
 Create_func_uuid_short::create(THD *thd)
 {
-  thd->lex->set_stmt_unsafe();
+  DBUG_ENTER("Create_func_uuid_short::create");
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->safe_to_cache_query= 0;
-  return new (thd->mem_root) Item_func_uuid_short();
+  DBUG_RETURN(new (thd->mem_root) Item_func_uuid_short());
 }
 
 
@@ -4654,7 +4658,7 @@ Create_func_version Create_func_version::s_singleton;
 Item*
 Create_func_version::create(THD *thd)
 {
-  thd->lex->set_stmt_unsafe();
+  thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   return new (thd->mem_root) Item_static_string_func("version()",
                                                      server_version,
                                                      (uint) strlen(server_version),
