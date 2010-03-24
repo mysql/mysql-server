@@ -5043,6 +5043,11 @@ greedy_search(JOIN      *join,
     if (best_extension_by_limited_search(join, remaining_tables, idx, record_count,
                                          read_time, search_depth, prune_level))
       DBUG_RETURN(TRUE);
+    /*
+      'best_read < DBL_MAX' means that optimizer managed to find
+      some plan and updated 'best_positions' array accordingly.
+    */
+    DBUG_ASSERT(join->best_read < DBL_MAX); 
 
     if (size_remain <= search_depth)
     {
@@ -8824,8 +8829,14 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
           we still make the inner tables dependent on the outer tables.
           It would be enough to set dependency only on one outer table
           for them. Yet this is really a rare case.
+          Note:
+          RAND_TABLE_BIT mask should not be counted as it
+          prevents update of inner table dependences.
+          For example it might happen if RAND() function
+          is used in JOIN ON clause.
 	*/  
-        if (!(prev_table->on_expr->used_tables() & ~prev_used_tables))
+        if (!((prev_table->on_expr->used_tables() & ~RAND_TABLE_BIT) &
+              ~prev_used_tables))
           prev_table->dep_tables|= used_tables;
       }
     }
