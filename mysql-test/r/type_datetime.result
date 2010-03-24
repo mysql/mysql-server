@@ -449,11 +449,11 @@ f4	datetime	YES		NULL
 create table t5 as select coalesce(f1,f3) as f4 from t1;
 desc t5;
 Field	Type	Null	Key	Default	Extra
-f4	varbinary(20)	YES		NULL	
+f4	varchar(20)	YES		NULL	
 create table t6 as select coalesce(f2,f3) as f4 from t1;
 desc t6;
 Field	Type	Null	Key	Default	Extra
-f4	varbinary(20)	YES		NULL	
+f4	varchar(20)	YES		NULL	
 create table t7 as select coalesce(makedate(1997,1),f2) as f4 from t1;
 desc t7;
 Field	Type	Null	Key	Default	Extra

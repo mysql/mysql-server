@@ -1,0 +1,187 @@
+############## mysql-test\t\auto_commit_basic.test #############################
+#                                                                              #
+# Variable Name: autocommit                                                    #
+# Scope: SESSION                                                               #
+# Access Type: Dynamic                                                         #
+# Data Type: Boolean                                                           #
+# Default Value: NA                                                            #
+# Range: NA                                                                    #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-02-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "autocommit"              #
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+#                                                                              #
+# Reference: (Not Mentioned on website)                                        #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+######################################################################## 
+#                    START OF autocommit TESTS                         #
+######################################################################## 
+
+
+######################################################################## 
+#      Saving initial value of autocommit in a temporary variable      #
+######################################################################## 
+
+SET @start_value = @@global.autocommit;
+SELECT @start_value;
+
+
+--echo '#--------------------FN_DYNVARS_003_01------------------------#'
+######################################################################## 
+#                    Display the DEFAULT value of autocommit           #
+######################################################################## 
+
+SET @@autocommit = 0;
+SET @@autocommit = DEFAULT;
+SELECT @@autocommit;
+
+--echo '#---------------------FN_DYNVARS_003_02-------------------------#'
+############################################### 
+#      Check default value of variable        #
+############################################### 
+
+SET @@autocommit = @start_value;
+SELECT @@autocommit = 1;
+
+
+--echo '#--------------------FN_DYNVARS_003_03------------------------#'
+######################################################################## 
+#              Change the value of autocommit to a valid value         #
+######################################################################## 
+SET @@autocommit = 0;
+SELECT @@autocommit;
+SET @@autocommit = 1;
+SELECT @@autocommit;
+
+
+--echo '#--------------------FN_DYNVARS_003_04-------------------------#'
+########################################################################### 
+#               Change the value of autocommit to invalid value           #
+########################################################################### 
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = 2;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = TRUEF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = TRUE_F;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = FALSE0;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = OON;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = ONN;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = OOFF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = 0FF;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = ' ';
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = " ";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@autocommit = '';
+
+
+--echo '#-------------------FN_DYNVARS_003_05----------------------------#'
+########################################################################### 
+#              Test if accessing global autocommit gives error            #
+########################################################################### 
+
+SET @@global.autocommit = 0;
+SELECT @@global.autocommit;
+SET @@global.autocommit = 1;
+
+
+--echo '#----------------------FN_DYNVARS_003_06------------------------#'
+######################################################################### 
+#     Check if the value in SESSION Table matches value in variable     #
+#########################################################################
+
+SELECT IF(@@session.autocommit, "ON", "OFF") = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='autocommit';
+
+--echo '#----------------------FN_DYNVARS_003_07------------------------#'
+######################################################################### 
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+SET @@autocommit = 1;
+SELECT IF(@@autocommit, "ON", "OFF") = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='autocommit';
+
+--echo '#---------------------FN_DYNVARS_003_08-------------------------#'
+################################################################### 
+#        Check if ON and OFF values can be used on variable       #
+################################################################### 
+
+SET @@autocommit = OFF;
+SELECT @@autocommit;
+SET @@autocommit = ON;
+SELECT @@autocommit;
+
+--echo '#---------------------FN_DYNVARS_003_09----------------------#'
+################################################################### 
+#      Check if TRUE and FALSE values can be used on variable     #
+################################################################### 
+
+SET @@autocommit = TRUE;
+SELECT @@autocommit;
+SET @@autocommit = FALSE;
+SELECT @@autocommit;
+
+
+--echo '#---------------------FN_DYNVARS_003_10----------------------#'
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+#    to same session variable                                                #
+##############################################################################
+
+SET @@autocommit = 0;
+SELECT @@autocommit = @@local.autocommit;
+SELECT @@local.autocommit = @@session.autocommit;
+SET @@autocommit = 1;
+SELECT @@autocommit = @@local.autocommit;
+SELECT @@session.autocommit = @@autocommit;
+
+
+--echo '#---------------------FN_DYNVARS_003_11----------------------#'
+#####################################################################  
+#   Check if autocommit can be accessed with and without @@ sign    #
+#####################################################################
+
+SET autocommit = 1;
+SELECT @@autocommit;
+--Error ER_UNKNOWN_TABLE
+SELECT local.autocommit;
+--Error ER_UNKNOWN_TABLE
+SELECT session.autocommit;
+--Error ER_BAD_FIELD_ERROR
+SELECT autocommit = @@session.autocommit;
+
+
+##############################  
+#   Restore initial value    #
+##############################
+
+SET @@global.autocommit = @start_value;
+SELECT @@global.autocommit;
+
+######################################################################## 
+#                    END OF autocommit TESTS                           #
+######################################################################## 

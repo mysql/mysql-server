@@ -1,0 +1,45 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+# Check error handling for invalid server start options
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--error 7
+--exec $MYSQLD_BOOTSTRAP_CMD --loose-console --performance-schema-enabled=maybe > $MYSQLTEST_VARDIR/tmp/bad_option_1.txt 2>&1
+
+perl;
+    use strict;
+    use warnings;
+    my $fname= "$ENV{'MYSQLTEST_VARDIR'}/tmp/bad_option_1.txt";
+    open(FILE, "<", $fname) or die;
+    my @lines= <FILE>;
+    # those must be in the file for the test to pass
+    my @patterns=
+      ("unknown variable 'performance-schema-enabled=maybe'",
+       "Aborting");
+    foreach my $one_line (@lines)
+    {
+      foreach my $one_pattern (@patterns)
+      {
+        # print pattern, not line, to get a stable output
+        print "Found: $one_pattern\n" if ($one_line =~ /$one_pattern/);
+      }
+    }
+    close FILE;
+EOF
+

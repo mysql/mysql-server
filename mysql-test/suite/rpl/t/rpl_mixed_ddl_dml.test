@@ -18,6 +18,7 @@ show slave hosts;
 drop table t1;
 sync_slave_with_master;
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 connection master;
 
 # Test replication of timestamp
@@ -35,6 +36,7 @@ create table t5 select * from t4;
 save_master_pos;
 connection slave;
 start slave;
+--source include/wait_for_slave_to_start.inc
 sync_with_master;
 select * from t2;
 show create table t3;

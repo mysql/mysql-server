@@ -118,7 +118,7 @@ ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 
 SET @@global.updatable_views_with_limit = "FALSE";
 ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'FALSE'
 SET @@global.updatable_views_with_limit = 65530.34;
-ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of '65530'
+ERROR 42000: Incorrect argument type to variable 'updatable_views_with_limit'
 SET @@global.updatable_views_with_limit ="Testing";
 ERROR 42000: Variable 'updatable_views_with_limit' can't be set to the value of 'Testing'
 SET @@session.updatable_views_with_limit = "ON";

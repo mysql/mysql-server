@@ -1,0 +1,49 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+RESET MASTER;
+
+select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS;
+
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO'
+  where name like "wait/synch/rwlock/%";
+
+select count(*) > 0 from performance_schema.EVENTS_WAITS_CURRENT;
+
+--disable_warnings
+drop table if exists test.t1;
+drop table if exists test.t2;
+--enable_warnings
+
+create table test.t1 (thread_id integer);
+create table test.t2 (name varchar(128));
+
+insert into test.t1
+  select thread_id from performance_schema.EVENTS_WAITS_CURRENT;
+
+insert into test.t2
+  select name from performance_schema.SETUP_INSTRUMENTS
+    where name like "wait/synch/rwlock/%";
+
+drop table test.t1;
+drop table test.t2;
+
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+  where name like "wait/synch/rwlock/%";
+
+--source include/show_binlog_events.inc
+

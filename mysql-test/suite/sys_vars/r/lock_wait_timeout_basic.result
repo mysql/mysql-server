@@ -1,0 +1,177 @@
+SET @start_global_value = @@global.lock_wait_timeout;
+SELECT @start_global_value;
+@start_global_value
+31536000
+SET @start_session_value = @@session.lock_wait_timeout;
+SELECT @start_session_value;
+@start_session_value
+31536000
+'#--------------------FN_DYNVARS_002_01-------------------------#'
+SET @@global.lock_wait_timeout = 100;
+SET @@global.lock_wait_timeout = DEFAULT;
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+31536000
+SET @@session.lock_wait_timeout = 200;
+SET @@session.lock_wait_timeout = DEFAULT;
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+31536000
+'#--------------------FN_DYNVARS_002_02-------------------------#'
+SET @@global.lock_wait_timeout = @start_global_value;
+SELECT @@global.lock_wait_timeout = 31536000;
+@@global.lock_wait_timeout = 31536000
+1
+SET @@session.lock_wait_timeout = @start_session_value;
+SELECT @@session.lock_wait_timeout = 31536000;
+@@session.lock_wait_timeout = 31536000
+1
+'#--------------------FN_DYNVARS_002_03-------------------------#'
+SET @@global.lock_wait_timeout = 1;
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+1
+SET @@global.lock_wait_timeout = 60020;
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+60020
+SET @@global.lock_wait_timeout = 65535;
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+65535
+'#--------------------FN_DYNVARS_002_04-------------------------#'
+SET @@session.lock_wait_timeout = 1;
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+1
+SET @@session.lock_wait_timeout = 50050;
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+50050
+SET @@session.lock_wait_timeout = 65535;
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+65535
+'#------------------FN_DYNVARS_002_05-----------------------#'
+SET @@global.lock_wait_timeout = 0;
+Warnings:
+Warning	1292	Truncated incorrect lock_wait_timeout value: '0'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+1
+SET @@global.lock_wait_timeout = -1024;
+Warnings:
+Warning	1292	Truncated incorrect lock_wait_timeout value: '-1024'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+1
+SET @@global.lock_wait_timeout = 31536001;
+Warnings:
+Warning	1292	Truncated incorrect lock_wait_timeout value: '31536001'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+31536000
+SET @@global.lock_wait_timeout = ON;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+31536000
+SET @@global.lock_wait_timeout = OFF;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+31536000
+SET @@global.lock_wait_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+31536000
+SET @@session.lock_wait_timeout = 0;
+Warnings:
+Warning	1292	Truncated incorrect lock_wait_timeout value: '0'
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+1
+SET @@session.lock_wait_timeout = -2;
+Warnings:
+Warning	1292	Truncated incorrect lock_wait_timeout value: '-2'
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+1
+SET @@session.lock_wait_timeout = 31537000;
+Warnings:
+Warning	1292	Truncated incorrect lock_wait_timeout value: '31537000'
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+31536000
+SET @@session.lock_wait_timeout = ON;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+31536000
+SET @@session.lock_wait_timeout = OFF;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+31536000
+SET @@session.lock_wait_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'lock_wait_timeout'
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+31536000
+'#------------------FN_DYNVARS_002_06-----------------------#'
+SELECT @@global.lock_wait_timeout = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='lock_wait_timeout';
+@@global.lock_wait_timeout = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_002_07-----------------------#'
+SELECT @@session.lock_wait_timeout = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='lock_wait_timeout';
+@@session.lock_wait_timeout = VARIABLE_VALUE
+1
+'#------------------FN_DYNVARS_002_08-----------------------#'
+SET @@global.lock_wait_timeout = TRUE;
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+1
+SET @@global.lock_wait_timeout = FALSE;
+Warnings:
+Warning	1292	Truncated incorrect lock_wait_timeout value: '0'
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+1
+'#---------------------FN_DYNVARS_001_09----------------------#'
+SET @@global.lock_wait_timeout = 10;
+SET @@session.lock_wait_timeout = 11;
+SELECT @@lock_wait_timeout = @@global.lock_wait_timeout;
+@@lock_wait_timeout = @@global.lock_wait_timeout
+0
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET @@lock_wait_timeout = 100;
+SELECT @@lock_wait_timeout = @@local.lock_wait_timeout;
+@@lock_wait_timeout = @@local.lock_wait_timeout
+1
+SELECT @@local.lock_wait_timeout = @@session.lock_wait_timeout;
+@@local.lock_wait_timeout = @@session.lock_wait_timeout
+1
+'#---------------------FN_DYNVARS_001_11----------------------#'
+SET lock_wait_timeout = 1;
+SELECT @@lock_wait_timeout;
+@@lock_wait_timeout
+1
+SELECT local.lock_wait_timeout;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.lock_wait_timeout;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT lock_wait_timeout = @@session.lock_wait_timeout;
+ERROR 42S22: Unknown column 'lock_wait_timeout' in 'field list'
+SET @@global.lock_wait_timeout = @start_global_value;
+SELECT @@global.lock_wait_timeout;
+@@global.lock_wait_timeout
+31536000
+SET @@session.lock_wait_timeout = @start_session_value;
+SELECT @@session.lock_wait_timeout;
+@@session.lock_wait_timeout
+31536000

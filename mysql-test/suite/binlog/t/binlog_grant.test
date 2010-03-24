@@ -22,14 +22,10 @@ connect (root,localhost,root,,test);
 
 connection root;
 --echo [root]
---error ER_LOCAL_VARIABLE
-set global sql_log_bin = 1;
 set session sql_log_bin = 1;
 
 connection plain;
 --echo [plain]
---error ER_LOCAL_VARIABLE
-set global sql_log_bin = 1;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 set session sql_log_bin = 1;
 

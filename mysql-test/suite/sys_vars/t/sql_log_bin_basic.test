@@ -97,12 +97,8 @@ SET @@session.sql_log_bin = "Y";
 SET @@session.sql_log_bin = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_bin = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_bin = OF;
-SELECT @@session.sql_log_bin;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_bin = ÓFF;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -116,11 +112,9 @@ SET @@session.sql_log_bin = NO;
 #       Test if accessing global sql_log_bin gives error                  #
 ########################################################################### 
 
---Error ER_LOCAL_VARIABLE
 SET @@global.sql_log_bin = 0;
-
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@global.sql_log_bin;
+SET @@global.sql_log_bin = 1;
 
 --echo '#----------------------FN_DYNVARS_156_06------------------------#'
 ######################################################################### 

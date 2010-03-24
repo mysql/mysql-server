@@ -236,8 +236,8 @@ static void print_error(int exit_code, const char *fmt,...)
 
   va_start(args,fmt);
   fprintf(stderr,"%s: error: ",my_progname);
-  VOID(vfprintf(stderr, fmt, args));
-  VOID(fputc('\n',stderr));
+  (void) vfprintf(stderr, fmt, args);
+  (void) fputc('\n',stderr);
   fflush(stderr);
   va_end(args);
   exit(exit_code);

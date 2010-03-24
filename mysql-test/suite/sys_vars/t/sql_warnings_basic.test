@@ -87,10 +87,8 @@ SELECT @@session.sql_warnings;
 #       Change the value of sql_warnings to invalid value                 #
 ########################################################################### 
 
---Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = -0.6;
---Error ER_WRONG_VALUE_FOR_VAR
-SET @@session.sql_warnings = 1.9;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.sql_warnings = 0.6;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_warnings = "T";
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -99,12 +97,8 @@ SET @@session.sql_warnings = "Y";
 SET @@session.sql_warnings = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_warnings = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_warnings = OF;
-SELECT @@session.sql_warnings;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_warnings = ÓFF;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -118,10 +112,9 @@ SET @@session.sql_warnings = NO;
 #       Test if accessing global sql_warnings gives error                 #
 ########################################################################### 
 
---Error ER_LOCAL_VARIABLE
-SET @@global.sql_warnings = 0;
-
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.sql_warnings = 1-@@global.sql_warnings;
+SELECT @@global.sql_warnings;
+SET @@global.sql_warnings = 1-@@global.sql_warnings;
 SELECT @@global.sql_warnings;
 
 
@@ -147,7 +140,6 @@ SELECT @@session.sql_warnings;
 SELECT VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_warnings';
---echo 'Bug: value in information schema does not match'
 
 --echo '#---------------------FN_DYNVARS_166_08-------------------------#'
 ################################################################### 

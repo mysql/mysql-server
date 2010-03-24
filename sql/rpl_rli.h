@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@
 
 struct RPL_TABLE_LIST;
 class Master_info;
+extern uint sql_slave_skip_counter;
 
 /****************************************************************************
 
@@ -122,17 +123,17 @@ public:
   TABLE *save_temporary_tables;
 
   /*
-    standard lock acquistion order to avoid deadlocks:
+    standard lock acquisition order to avoid deadlocks:
     run_lock, data_lock, relay_log.LOCK_log, relay_log.LOCK_index
   */
-  pthread_mutex_t data_lock,run_lock;
+  mysql_mutex_t data_lock, run_lock;
 
   /*
     start_cond is broadcast when SQL thread is started
     stop_cond - when stopped
     data_cond - when data protected by data_lock changes
   */
-  pthread_cond_t start_cond, stop_cond, data_cond;
+  mysql_cond_t start_cond, stop_cond, data_cond;
 
   /* parent Master_info structure */
   Master_info *mi;
@@ -214,15 +215,21 @@ public:
   volatile uint32 slave_skip_counter;
   volatile ulong abort_pos_wait;	/* Incremented on change master */
   volatile ulong slave_run_id;		/* Incremented on slave start */
-  pthread_mutex_t log_space_lock;
-  pthread_cond_t log_space_cond;
+  mysql_mutex_t log_space_lock;
+  mysql_cond_t log_space_cond;
   THD * sql_thd;
 #ifndef DBUG_OFF
   int events_till_abort;
 #endif  
 
-  /* if not set, the value of other members of the structure are undefined */
-  bool inited;
+  /*
+    inited changes its value within LOCK_active_mi-guarded critical
+    sections  at times of start_slave_threads() (0->1) and end_slave() (1->0).
+    Readers may not acquire the mutex while they realize potential concurrency
+    issue.
+    If not set, the value of other members of the structure are undefined.
+  */
+  volatile bool inited;
   volatile bool abort_slave;
   volatile uint slave_running;
 
@@ -327,13 +334,21 @@ public:
   uint tables_to_lock_count;        /* RBR: Count of tables to lock */
   table_mapping m_table_map;      /* RBR: Mapping table-id to table */
 
-  inline table_def *get_tabledef(TABLE *tbl)
+  bool get_table_data(TABLE *table_arg, table_def **tabledef_var, TABLE **conv_table_var) const
   {
-    table_def *td= 0;
-    for (TABLE_LIST *ptr= tables_to_lock; ptr && !td; ptr= ptr->next_global)
-      if (ptr->table == tbl)
-        td= &((RPL_TABLE_LIST *)ptr)->m_tabledef;
-    return (td);
+    DBUG_ASSERT(tabledef_var && conv_table_var);
+    for (TABLE_LIST *ptr= tables_to_lock ; ptr != NULL ; ptr= ptr->next_global)
+      if (ptr->table == table_arg)
+      {
+        *tabledef_var= &static_cast<RPL_TABLE_LIST*>(ptr)->m_tabledef;
+        *conv_table_var= static_cast<RPL_TABLE_LIST*>(ptr)->m_conv_table;
+        DBUG_PRINT("debug", ("Fetching table data for table %s.%s:"
+                             " tabledef: %p, conv_table: %p",
+                             table_arg->s->db.str, table_arg->s->table_name.str,
+                             *tabledef_var, *conv_table_var));
+        return true;
+      }
+    return false;
   }
 
   /*
@@ -346,6 +361,7 @@ public:
   bool cached_charset_compare(char *charset) const;
 
   void cleanup_context(THD *, bool);
+  void slave_close_thread_tables(THD *);
   void clear_tables_to_lock();
 
   /*
@@ -420,7 +436,7 @@ public:
      @retval false Replication thread is currently not inside a group
    */
   bool is_in_group() const {
-    return (sql_thd->options & OPTION_BEGIN) ||
+    return (sql_thd->variables.option_bits & OPTION_BEGIN) ||
       (m_flags & (1UL << IN_STMT));
   }
 

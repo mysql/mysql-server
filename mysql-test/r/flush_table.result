@@ -3,20 +3,13 @@ create table t1 (a int not null auto_increment primary key);
 insert into t1 values(0);
 lock table t1 read;
 flush table t1;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+unlock tables;
+lock table t1 write;
+flush table t1;
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-unlock tables;
-lock table t1 read;
-lock table t1 read;
-flush table t1;
-select * from t1;
-a
-1
-unlock tables;
-select * from t1;
-a
-1
 unlock tables;
 lock table t1 write;
 lock table t1 read;
@@ -26,7 +19,7 @@ a
 1
 unlock tables;
 unlock tables;
-lock table t1 read;
+lock table t1 write;
 lock table t1 write;
 flush table t1;
 select * from t1;

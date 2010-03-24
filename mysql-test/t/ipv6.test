@@ -1,0 +1,36 @@
+# Copyright (C) 2009 SUN Microsystems
+# All rights reserved. Use is subject to license terms.
+# Author: Horst Hunger
+# Nov. 19, 2009
+# Test of ipv6 format
+# Options: --skip-name-resolve, --bind-address=:: (see corresponding opt file).
+#
+--source include/check_ipv6.inc
+# Can't be tested with embedded server
+--source include/not_embedded.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+echo =============Test of '::1' ========================================;
+let $IPv6= ::1;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+
+echo =============Test of '::1/128' ====================================;
+let $IPv6= ::1/128;
+#--source include/ipv6_clients.inc
+#--source include/ipv6.inc
+
+echo =============Test of '0000:0000:0000:0000:0000:0000:0000:0001' ====;
+let $IPv6= 0000:0000:0000:0000:0000:0000:0000:0001;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+
+echo =============Test of '0:0:0:0:0:0:0:1' ============================;
+let $IPv6= 0:0:0:0:0:0:0:1;
+--source include/ipv6_clients.inc
+--source include/ipv6.inc
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

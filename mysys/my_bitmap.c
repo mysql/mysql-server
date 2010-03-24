@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,7 @@ static inline void bitmap_lock(MY_BITMAP *map __attribute__((unused)))
 {
 #ifdef THREAD
   if (map->mutex)
-    pthread_mutex_lock(map->mutex);
+    mysql_mutex_lock(map->mutex);
 #endif
 }
 
@@ -95,7 +95,7 @@ static inline void bitmap_unlock(MY_BITMAP *map __attribute__((unused)))
 {
 #ifdef THREAD
   if (map->mutex)
-    pthread_mutex_unlock(map->mutex);
+    mysql_mutex_unlock(map->mutex);
 #endif
 }
 
@@ -112,7 +112,7 @@ my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
     if (thread_safe)
     {
       size_in_bytes= ALIGN_SIZE(size_in_bytes);
-      extra= sizeof(pthread_mutex_t);
+      extra= sizeof(mysql_mutex_t);
     }
     map->mutex= 0;
 #endif
@@ -121,8 +121,8 @@ my_bool bitmap_init(MY_BITMAP *map, my_bitmap_map *buf, uint n_bits,
 #ifdef THREAD
     if (thread_safe)
     {
-      map->mutex= (pthread_mutex_t *) ((char*) buf + size_in_bytes);
-      pthread_mutex_init(map->mutex, MY_MUTEX_INIT_FAST);
+      map->mutex= (mysql_mutex_t *) ((char*) buf + size_in_bytes);
+      mysql_mutex_init(key_BITMAP_mutex, map->mutex, MY_MUTEX_INIT_FAST);
     }
 #endif
   }
@@ -148,7 +148,7 @@ void bitmap_free(MY_BITMAP *map)
   {
 #ifdef THREAD
     if (map->mutex)
-      pthread_mutex_destroy(map->mutex);
+      mysql_mutex_destroy(map->mutex);
 #endif
     my_free((char*) map->bitmap, MYF(0));
     map->bitmap=0;

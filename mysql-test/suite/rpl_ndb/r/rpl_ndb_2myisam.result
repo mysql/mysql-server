@@ -924,4 +924,5 @@ DELETE FROM t1;
 --- End test 5 key partition testing ---
 --- Do Cleanup ---
 DROP TABLE IF EXISTS t1;
+set @@global.slave_exec_mode= DEFAULT;
 drop table mysql.ndb_apply_status;

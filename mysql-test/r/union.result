@@ -153,48 +153,6 @@ ERROR 42S22: Unknown column 'a' in 'field list'
 1	3
 1	3
 2	1
-CREATE TABLE t1 (a INT);
-INSERT INTO t1 VALUES (1);
-SELECT a INTO @v FROM (
-SELECT a FROM t1
-UNION
-SELECT a FROM t1
-) alias;
-SELECT a INTO OUTFILE '<MYSQLTEST_VARDIR>/tmp/union.out.file' FROM (
-SELECT a FROM t1
-UNION
-SELECT a FROM t1 WHERE 0
-) alias;
-SELECT a INTO DUMPFILE '<MYSQLTEST_VARDIR>/tmp/union.out.file' FROM (
-SELECT a FROM t1
-UNION
-SELECT a FROM t1 WHERE 0
-) alias;
-SELECT a FROM (
-SELECT a FROM t1
-UNION
-SELECT a INTO @v FROM t1
-) alias;
-SELECT a FROM (
-SELECT a FROM t1
-UNION
-SELECT a INTO OUTFILE '<MYSQLTEST_VARDIR>/tmp/union.out.file' FROM t1
-) alias;
-SELECT a FROM (
-SELECT a FROM t1
-UNION
-SELECT a INTO DUMPFILE '<MYSQLTEST_VARDIR>/tmp/union.out.file' FROM t1
-) alias;
-SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
-SELECT a FROM t1 UNION SELECT a INTO OUTFILE '<MYSQLTEST_VARDIR>/tmp/union.out.file' FROM t1;
-SELECT a FROM t1 UNION SELECT a INTO DUMPFILE '<MYSQLTEST_VARDIR>/tmp/union.out.file' FROM t1;
-SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
-SELECT a INTO OUTFILE '<MYSQLTEST_VARDIR>/tmp/union.out.file' FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
-SELECT a INTO DUMPFILE '<MYSQLTEST_VARDIR>/tmp/union.out.file' FROM t1 UNION SELECT a FROM t1;
-ERROR HY000: Incorrect usage of UNION and INTO
-DROP TABLE t1;
 CREATE TABLE t1 (
 `pseudo` char(35) NOT NULL default '',
 `pseudo1` char(35) NOT NULL default '',
@@ -596,7 +554,7 @@ aa
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varbinary(2) NOT NULL DEFAULT ''
+  `a` varchar(2) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT 12 as a UNION select 12.2 as a;
@@ -697,7 +655,7 @@ f
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `f` varbinary(12) DEFAULT NULL
+  `f` varchar(12) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select da from t2;
@@ -708,7 +666,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` varbinary(10) DEFAULT NULL
+  `y` varchar(10) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT y from t2 UNION select dt from t2;
@@ -719,7 +677,7 @@ y
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `y` varbinary(19) DEFAULT NULL
+  `y` varchar(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT da from t2 UNION select dt from t2;
@@ -741,7 +699,7 @@ testc
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` varbinary(19) DEFAULT NULL
+  `dt` varchar(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT dt from t2 UNION select sv from t2;
@@ -752,7 +710,7 @@ testv
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `dt` varbinary(19) DEFAULT NULL
+  `dt` varchar(19) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 SELECT sc from t2 UNION select sv from t2;
@@ -1347,6 +1305,8 @@ SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
 1048576
 SET @@global.max_allowed_packet=25000000;
+Warnings:
+Warning	1292	Truncated incorrect max_allowed_packet value: '25000000'
 CREATE TABLE t1 (a mediumtext);
 CREATE TABLE t2 (b varchar(20));
 INSERT INTO t1 VALUES ('a');
@@ -1588,6 +1548,42 @@ Warnings:
 Note	1003	select NULL AS `a` from `test`.`t1` union select NULL AS `a` from `test`.`t1` order by `a`
 DROP TABLE t1;
 End of 5.0 tests
+#
+# Bug#32858: Error: "Incorrect usage of UNION and INTO" does not take 
+# subselects into account
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+# Tests fix in parser rule select_derived_union.
+SELECT a INTO @v FROM (
+SELECT a FROM t1
+UNION
+SELECT a FROM t1
+) alias;
+SELECT a INTO OUTFILE 'union.out.file' FROM (
+SELECT a FROM t1
+UNION
+SELECT a FROM t1 WHERE 0
+) alias;
+SELECT a INTO DUMPFILE 'union.out.file2' FROM (
+SELECT a FROM t1
+UNION
+SELECT a FROM t1 WHERE 0
+) alias;
+SELECT a FROM t1 UNION SELECT a INTO @v FROM t1;
+SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file5' FROM t1;
+SELECT a FROM t1 UNION SELECT a INTO OUTFILE 'union.out.file6' FROM t1;
+SELECT a INTO @v FROM t1 UNION SELECT a FROM t1;
+ERROR HY000: Incorrect usage of UNION and INTO
+SELECT a INTO OUTFILE 'union.out.file7' FROM t1 UNION SELECT a FROM t1;
+ERROR HY000: Incorrect usage of UNION and INTO
+SELECT a INTO DUMPFILE 'union.out.file8' FROM t1 UNION SELECT a FROM t1;
+ERROR HY000: Incorrect usage of UNION and INTO
+# Tests fix in parser rule query_expression_body.
+SELECT ( SELECT a UNION SELECT a ) INTO @v FROM t1;
+SELECT ( SELECT a UNION SELECT a ) INTO OUTFILE  'union.out.file3' FROM t1;
+SELECT ( SELECT a UNION SELECT a ) INTO DUMPFILE 'union.out.file4' FROM t1;
+DROP TABLE t1;
 # 
 # Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
 #   <any non-const-function>

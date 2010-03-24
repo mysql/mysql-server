@@ -32,8 +32,8 @@ t1	CREATE TABLE `t1` (
   KEY `key_a` (`a`(3))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW KEYS FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	key_a	1	a	A	NULL	3	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key_a	1	a	A	NULL	3	NULL	YES	BTREE		
 ALTER TABLE t1 CHANGE a a CHAR(4);
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -42,8 +42,8 @@ t1	CREATE TABLE `t1` (
   KEY `key_a` (`a`(3))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW KEYS FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	key_a	1	a	A	NULL	3	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key_a	1	a	A	NULL	3	NULL	YES	BTREE		
 ALTER TABLE t1 CHANGE a a CHAR(4) CHARACTER SET utf8;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -52,6 +52,6 @@ t1	CREATE TABLE `t1` (
   KEY `key_a` (`a`(3))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW KEYS FROM t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	key_a	1	a	A	NULL	3	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	key_a	1	a	A	NULL	3	NULL	YES	BTREE		
 DROP TABLE t1;

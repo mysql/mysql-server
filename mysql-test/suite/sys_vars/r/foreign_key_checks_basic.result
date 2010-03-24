@@ -7,8 +7,7 @@ SET @@session.foreign_key_checks = 1;
 SET @@session.foreign_key_checks = DEFAULT;
 SELECT @@session.foreign_key_checks;
 @@session.foreign_key_checks
-1
-'Bug# 34878: No DEFAULT value for variable. Also setting DEFAULT does not give error'
+0
 '#---------------------FN_DYNVARS_032_02-------------------------#'
 SET foreign_key_checks = 1;
 SELECT @@foreign_key_checks;
@@ -41,25 +40,23 @@ ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'T'
 SET @@session.foreign_key_checks = "Y";
 ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'Y'
 SET @@session.foreign_key_checks = TRÜE;
-ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'TRÜE'
 SET @@session.foreign_key_checks = ÕN;
-ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'ÕN'
 SET @@session.foreign_key_checks = OF;
-SELECT @@session.foreign_key_checks;
-@@session.foreign_key_checks
-0
-'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'OF'
 SET @@session.foreign_key_checks = ÓFF;
-ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'ÓFF'
 SET @@session.foreign_key_checks = '¹';
 ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of '¹'
 SET @@session.foreign_key_checks = NO;
 ERROR 42000: Variable 'foreign_key_checks' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_032_05----------------------------#'
 SET @@global.foreign_key_checks = 0;
-ERROR HY000: Variable 'foreign_key_checks' is a SESSION variable and can't be used with SET GLOBAL
 SELECT @@global.foreign_key_checks;
-ERROR HY000: Variable 'foreign_key_checks' is a SESSION variable
+@@global.foreign_key_checks
+0
+SET @@global.foreign_key_checks = 1;
 '#----------------------FN_DYNVARS_032_06------------------------#'
 SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='foreign_key_checks';
 count(VARIABLE_VALUE)
@@ -72,12 +69,12 @@ IF(@@session.foreign_key_checks, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@session.foreign_key_checks;
 @@session.foreign_key_checks
-0
+1
 SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='foreign_key_checks';
 VARIABLE_VALUE
-OFF
+ON
 '#---------------------FN_DYNVARS_032_08-------------------------#'
 SET @@session.foreign_key_checks = OFF;
 SELECT @@session.foreign_key_checks;

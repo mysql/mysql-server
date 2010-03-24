@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ static handler *blackhole_create_handler(handlerton *hton,
 
 /* Static declarations for shared structures */
 
-static pthread_mutex_t blackhole_mutex;
+static mysql_mutex_t blackhole_mutex;
 static HASH blackhole_open_tables;
 
 static st_blackhole_share *get_share(const char *table_name);
@@ -317,7 +317,7 @@ static st_blackhole_share *get_share(const char *table_name)
   uint length;
 
   length= (uint) strlen(table_name);
-  pthread_mutex_lock(&blackhole_mutex);
+  mysql_mutex_lock(&blackhole_mutex);
     
   if (!(share= (st_blackhole_share*)
         my_hash_search(&blackhole_open_tables,
@@ -343,16 +343,16 @@ static st_blackhole_share *get_share(const char *table_name)
   share->use_count++;
   
 error:
-  pthread_mutex_unlock(&blackhole_mutex);
+  mysql_mutex_unlock(&blackhole_mutex);
   return share;
 }
 
 static void free_share(st_blackhole_share *share)
 {
-  pthread_mutex_lock(&blackhole_mutex);
+  mysql_mutex_lock(&blackhole_mutex);
   if (!--share->use_count)
     my_hash_delete(&blackhole_open_tables, (uchar*) share);
-  pthread_mutex_unlock(&blackhole_mutex);
+  mysql_mutex_unlock(&blackhole_mutex);
 }
 
 static void blackhole_free_key(st_blackhole_share *share)
@@ -368,16 +368,43 @@ static uchar* blackhole_get_key(st_blackhole_share *share, size_t *length,
   return (uchar*) share->table_name;
 }
 
+#ifdef HAVE_PSI_INTERFACE
+static PSI_mutex_key bh_key_mutex_blackhole;
+
+static PSI_mutex_info all_blackhole_mutexes[]=
+{
+  { &bh_key_mutex_blackhole, "blackhole", PSI_FLAG_GLOBAL}
+};
+
+void init_blackhole_psi_keys()
+{
+  const char* category= "blackhole";
+  int count;
+
+  if (PSI_server == NULL)
+    return;
+
+  count= array_elements(all_blackhole_mutexes);
+  PSI_server->register_mutex(category, all_blackhole_mutexes, count);
+}
+#endif
+
 static int blackhole_init(void *p)
 {
   handlerton *blackhole_hton;
+
+#ifdef HAVE_PSI_INTERFACE
+  init_blackhole_psi_keys();
+#endif
+
   blackhole_hton= (handlerton *)p;
   blackhole_hton->state= SHOW_OPTION_YES;
   blackhole_hton->db_type= DB_TYPE_BLACKHOLE_DB;
   blackhole_hton->create= blackhole_create_handler;
   blackhole_hton->flags= HTON_CAN_RECREATE;
-  
-  VOID(pthread_mutex_init(&blackhole_mutex, MY_MUTEX_INIT_FAST));
+
+  mysql_mutex_init(bh_key_mutex_blackhole,
+                   &blackhole_mutex, MY_MUTEX_INIT_FAST);
   (void) my_hash_init(&blackhole_open_tables, system_charset_info,32,0,0,
                       (my_hash_get_key) blackhole_get_key,
                       (my_hash_free_key) blackhole_free_key, 0);
@@ -388,7 +415,7 @@ static int blackhole_init(void *p)
 static int blackhole_fini(void *p)
 {
   my_hash_free(&blackhole_open_tables);
-  pthread_mutex_destroy(&blackhole_mutex);
+  mysql_mutex_destroy(&blackhole_mutex);
 
   return 0;
 }

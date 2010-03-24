@@ -37,7 +37,6 @@ Warning	1292	Truncated incorrect range_alloc_block_size value: '2048'
 SELECT @@global.range_alloc_block_size;
 @@global.range_alloc_block_size
 4096
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 SET @@global.range_alloc_block_size = 4294967295;
 Warnings:
 Warning	1292	Truncated incorrect range_alloc_block_size value: '4294967295'
@@ -50,7 +49,6 @@ Warning	1292	Truncated incorrect range_alloc_block_size value: '4294967294'
 SELECT @@global.range_alloc_block_size;
 @@global.range_alloc_block_size
 4294966272
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 '#--------------------FN_DYNVARS_137_04-------------------------#'
 SET @@session.range_alloc_block_size = 2048;
 Warnings:
@@ -89,8 +87,8 @@ Warning	1292	Truncated incorrect range_alloc_block_size value: '42949672951'
 SELECT @@global.range_alloc_block_size;
 @@global.range_alloc_block_size
 4294966272
-SET @@global.range_alloc_block_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.range_alloc_block_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'range_alloc_block_size'
 SELECT @@global.range_alloc_block_size;
 @@global.range_alloc_block_size
 4294966272
@@ -111,15 +109,14 @@ Warning	1292	Truncated incorrect range_alloc_block_size value: '-2'
 SELECT @@session.range_alloc_block_size;
 @@session.range_alloc_block_size
 4096
-SET @@session.range_alloc_block_size = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.range_alloc_block_size = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'range_alloc_block_size'
 SET @@session.range_alloc_block_size = 4294967296;
 Warnings:
 Warning	1292	Truncated incorrect range_alloc_block_size value: '4294967296'
 SELECT @@session.range_alloc_block_size;
 @@session.range_alloc_block_size
 4294966272
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@session.range_alloc_block_size = test;
 ERROR 42000: Incorrect argument type to variable 'range_alloc_block_size'
 SELECT @@session.range_alloc_block_size;

@@ -40,17 +40,18 @@
 #include <my_global.h>
 #include "m_string.h"
 
-#if defined(HAVE_LONG_LONG) && !defined(longlong2str) && !defined(HAVE_LONGLONG2STR)
+#ifndef ll2str
 
 /*
   This assumes that longlong multiplication is faster than longlong division.
 */
 
-char *longlong2str(longlong val,char *dst,int radix)
+char *ll2str(longlong val,char *dst,int radix, int upcase)
 {
   char buffer[65];
   register char *p;
   long long_val;
+  char *dig_vec= upcase ? _dig_vec_upper : _dig_vec_lower;
   ulonglong uval= (ulonglong) val;
 
   if (radix < 0)
@@ -80,20 +81,19 @@ char *longlong2str(longlong val,char *dst,int radix)
   {
     ulonglong quo= uval/(uint) radix;
     uint rem= (uint) (uval- quo* (uint) radix);
-    *--p = _dig_vec_upper[rem];
+    *--p= dig_vec[rem];
     uval= quo;
   }
   long_val= (long) uval;
   while (long_val != 0)
   {
     long quo= long_val/radix;
-    *--p = _dig_vec_upper[(uchar) (long_val - quo*radix)];
+    *--p= dig_vec[(uchar) (long_val - quo*radix)];
     long_val= quo;
   }
   while ((*dst++ = *p++) != 0) ;
   return dst-1;
 }
-
 #endif
 
 #ifndef longlong10_to_str

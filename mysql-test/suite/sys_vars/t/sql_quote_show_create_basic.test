@@ -97,12 +97,8 @@ SET @@session.sql_quote_show_create = "Y";
 SET @@session.sql_quote_show_create = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_quote_show_create = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_quote_show_create = OF;
-SELECT @@session.sql_quote_show_create;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_quote_show_create = ÓFF;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -116,10 +112,9 @@ SET @@session.sql_quote_show_create = NO;
 #       Test if accessing global sql_quote_show_create gives error       #
 ########################################################################## 
 
---Error ER_LOCAL_VARIABLE
-SET @@global.sql_quote_show_create = 0;
-
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.sql_quote_show_create = 1-@@global.sql_quote_show_create;
+SELECT @@global.sql_quote_show_create;
+SET @@global.sql_quote_show_create = 1-@@global.sql_quote_show_create;
 SELECT @@global.sql_quote_show_create;
 
 --echo '#----------------------FN_DYNVARS_162_06------------------------#'

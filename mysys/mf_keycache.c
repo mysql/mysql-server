@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -59,13 +59,13 @@
   time only.
 
   Before starting to wait on its condition variable with
-  pthread_cond_wait(), the thread enters itself to a specific wait queue
+  mysql_cond_wait(), the thread enters itself to a specific wait queue
   with link_into_queue() (double linked with '*next' + '**prev') or
   wait_on_queue() (single linked with '*next').
 
   Another thread, when releasing a resource, looks up the waiting thread
   in the related wait queue. It sends a signal with
-  pthread_cond_signal() to the waiting thread.
+  mysql_cond_signal() to the waiting thread.
 
   NOTE: Depending on the particular wait situation, either the sending
   thread removes the waiting thread from the wait queue with
@@ -128,8 +128,8 @@
     accessing it;
     to set this number equal to <N> add
       #define MAX_THREADS <N>
-  - to substitute calls of pthread_cond_wait for calls of
-    pthread_cond_timedwait (wait with timeout set up);
+  - to substitute calls of mysql_cond_wait for calls of
+    mysql_cond_timedwait (wait with timeout set up);
     this setting should be used only when you want to trap a deadlock
     situation, which theoretically should not happen;
     to set timeout equal to <T> seconds add
@@ -160,7 +160,7 @@
 #define  COND_FOR_SAVED     1
 #define  COND_FOR_READERS   2
 
-typedef pthread_cond_t KEYCACHE_CONDVAR;
+typedef mysql_cond_t KEYCACHE_CONDVAR;
 
 /* descriptor of the page in the key cache block buffer */
 struct st_keycache_page
@@ -227,7 +227,7 @@ KEY_CACHE *dflt_key_cache= &dflt_key_cache_var;
 static int flush_all_key_blocks(KEY_CACHE *keycache);
 #ifdef THREAD
 static void wait_on_queue(KEYCACHE_WQUEUE *wqueue,
-                          pthread_mutex_t *mutex);
+                          mysql_mutex_t *mutex);
 static void release_whole_queue(KEYCACHE_WQUEUE *wqueue);
 #else
 #define wait_on_queue(wqueue, mutex)    do {} while (0)
@@ -314,20 +314,20 @@ static long keycache_thread_id;
   ((uint) (((char*)(h)-(char *) keycache->hash_link_root)/sizeof(HASH_LINK)))
 
 #if (defined(KEYCACHE_TIMEOUT) && !defined(__WIN__)) || defined(KEYCACHE_DEBUG)
-static int keycache_pthread_cond_wait(pthread_cond_t *cond,
-                                      pthread_mutex_t *mutex);
+static int keycache_pthread_cond_wait(mysql_cond_t *cond,
+                                      mysql_mutex_t *mutex);
 #else
-#define  keycache_pthread_cond_wait pthread_cond_wait
+#define keycache_pthread_cond_wait(C, M) mysql_cond_wait(C, M)
 #endif
 
 #if defined(KEYCACHE_DEBUG)
-static int keycache_pthread_mutex_lock(pthread_mutex_t *mutex);
-static void keycache_pthread_mutex_unlock(pthread_mutex_t *mutex);
-static int keycache_pthread_cond_signal(pthread_cond_t *cond);
+static int keycache_pthread_mutex_lock(mysql_mutex_t *mutex);
+static void keycache_pthread_mutex_unlock(mysql_mutex_t *mutex);
+static int keycache_pthread_cond_signal(mysql_cond_t *cond);
 #else
-#define keycache_pthread_mutex_lock pthread_mutex_lock
-#define keycache_pthread_mutex_unlock pthread_mutex_unlock
-#define keycache_pthread_cond_signal pthread_cond_signal
+#define keycache_pthread_mutex_lock(M) mysql_mutex_lock(M)
+#define keycache_pthread_mutex_unlock(M) mysql_mutex_unlock(M)
+#define keycache_pthread_cond_signal(C) mysql_cond_signal(C)
 #endif /* defined(KEYCACHE_DEBUG) */
 
 #if !defined(DBUG_OFF)
@@ -403,7 +403,8 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     keycache->cnt_for_resize_op= 0;
     keycache->waiting_for_resize_cnt.last_thread= NULL;
     keycache->in_init= 0;
-    pthread_mutex_init(&keycache->cache_lock, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_KEY_CACHE_cache_lock,
+                     &keycache->cache_lock, MY_MUTEX_INIT_FAST);
     keycache->resize_queue.last_thread= NULL;
   }
 
@@ -773,7 +774,7 @@ void end_key_cache(KEY_CACHE *keycache, my_bool cleanup)
 
   if (cleanup)
   {
-    pthread_mutex_destroy(&keycache->cache_lock);
+    mysql_mutex_destroy(&keycache->cache_lock);
     keycache->key_cache_inited= keycache->can_be_used= 0;
     KEYCACHE_DEBUG_CLOSE;
   }
@@ -888,7 +889,7 @@ static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
 */
 
 static void wait_on_queue(KEYCACHE_WQUEUE *wqueue,
-                          pthread_mutex_t *mutex)
+                          mysql_mutex_t *mutex)
 {
   struct st_my_thread_var *last;
   struct st_my_thread_var *thread= my_thread_var;
@@ -4166,7 +4167,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache)
 
   do
   {
-    safe_mutex_assert_owner(&keycache->cache_lock);
+    mysql_mutex_assert_owner(&keycache->cache_lock);
     total_found= 0;
 
     /*
@@ -4407,8 +4408,8 @@ static void keycache_dump(KEY_CACHE *keycache)
 #if defined(KEYCACHE_TIMEOUT) && !defined(__WIN__)
 
 
-static int keycache_pthread_cond_wait(pthread_cond_t *cond,
-                                      pthread_mutex_t *mutex)
+static int keycache_pthread_cond_wait(mysql_cond_t *cond,
+                                      mysql_mutex_t *mutex)
 {
   int rc;
   struct timeval  now;            /* time when we started waiting        */
@@ -4435,7 +4436,7 @@ static int keycache_pthread_cond_wait(pthread_cond_t *cond,
     fprintf(keycache_debug_log, "waiting...\n");
     fflush(keycache_debug_log);
 #endif
-  rc= pthread_cond_timedwait(cond, mutex, &timeout);
+  rc= mysql_cond_timedwait(cond, mutex, &timeout);
   KEYCACHE_THREAD_TRACE_BEGIN("finished waiting");
   if (rc == ETIMEDOUT || rc == ETIME)
   {
@@ -4456,12 +4457,12 @@ static int keycache_pthread_cond_wait(pthread_cond_t *cond,
 }
 #else
 #if defined(KEYCACHE_DEBUG)
-static int keycache_pthread_cond_wait(pthread_cond_t *cond,
-                                      pthread_mutex_t *mutex)
+static int keycache_pthread_cond_wait(mysql_cond_t *cond,
+                                      mysql_mutex_t *mutex)
 {
   int rc;
   KEYCACHE_THREAD_TRACE_END("started waiting");
-  rc= pthread_cond_wait(cond, mutex);
+  rc= mysql_cond_wait(cond, mutex);
   KEYCACHE_THREAD_TRACE_BEGIN("finished waiting");
   return rc;
 }
@@ -4471,27 +4472,27 @@ static int keycache_pthread_cond_wait(pthread_cond_t *cond,
 #if defined(KEYCACHE_DEBUG)
 
 
-static int keycache_pthread_mutex_lock(pthread_mutex_t *mutex)
+static int keycache_pthread_mutex_lock(mysql_mutex_t *mutex)
 {
   int rc;
-  rc= pthread_mutex_lock(mutex);
+  rc= mysql_mutex_lock(mutex);
   KEYCACHE_THREAD_TRACE_BEGIN("");
   return rc;
 }
 
 
-static void keycache_pthread_mutex_unlock(pthread_mutex_t *mutex)
+static void keycache_pthread_mutex_unlock(mysql_mutex_t *mutex)
 {
   KEYCACHE_THREAD_TRACE_END("");
-  pthread_mutex_unlock(mutex);
+  mysql_mutex_unlock(mutex);
 }
 
 
-static int keycache_pthread_cond_signal(pthread_cond_t *cond)
+static int keycache_pthread_cond_signal(mysql_cond_t *cond)
 {
   int rc;
   KEYCACHE_THREAD_TRACE("signal");
-  rc= pthread_cond_signal(cond);
+  rc= mysql_cond_signal(cond);
   return rc;
 }
 

@@ -86,3 +86,132 @@ ASC LIMIT 1;
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug#27249 table_wild with alias: select t1.* as something
+#
+
+--disable_warnings
+drop table if exists t1,t2,t3;
+--enable_warnings
+
+create table t1 (a int, b int, c int);
+create table t2 (d int);
+create table t3 (a1 int, b1 int, c1 int);
+insert into t1 values(1,2,3);
+insert into t1 values(11,22,33);
+insert into t2 values(99);
+
+# Invalid queries with alias on wild
+--error ER_PARSE_ERROR
+select t1.* as 'with_alias' from t1;
+--error ER_PARSE_ERROR
+select t2.* as 'with_alias' from t2;
+--error ER_PARSE_ERROR
+select t1.*, t1.* as 'with_alias' from t1;
+--error ER_PARSE_ERROR
+select t1.* as 'with_alias', t1.* from t1;
+--error ER_PARSE_ERROR
+select t1.* as 'with_alias', t1.* as 'alias2' from t1;
+--error ER_PARSE_ERROR
+select t1.* as 'with_alias', a, t1.* as 'alias2' from t1;
+
+# other fields without alias
+--error ER_PARSE_ERROR
+select a, t1.* as 'with_alias' from t1;
+--error ER_PARSE_ERROR
+select t1.* as 'with_alias', a from t1;
+--error ER_PARSE_ERROR
+select a, t1.* as 'with_alias', b from t1;
+--error ER_PARSE_ERROR
+select (select d from t2 where d > a), t1.* as 'with_alias' from t1;
+--error ER_PARSE_ERROR
+select t1.* as 'with_alias', (select a from t2 where d > a) from t1;
+
+# other fields with alias
+--error ER_PARSE_ERROR
+select a as 'x', t1.* as 'with_alias' from t1;
+--error ER_PARSE_ERROR
+select t1.* as 'with_alias', a as 'x' from t1;
+--error ER_PARSE_ERROR
+select a as 'x', t1.* as 'with_alias', b as 'x' from t1;
+--error ER_PARSE_ERROR
+select (select d from t2 where d > a) as 'x', t1.* as 'with_alias' from t1;
+--error ER_PARSE_ERROR
+select t1.* as 'with_alias', (select a from t2 where d > a) as 'x' from t1;
+
+# some more subquery
+--error ER_PARSE_ERROR
+select (select t2.* as 'x' from t2) from t1;
+--error ER_PARSE_ERROR
+select a, (select t2.* as 'x' from t2) from t1;
+--error ER_PARSE_ERROR
+select t1.*, (select t2.* as 'x' from t2) from t1;
+
+# insert
+--error ER_PARSE_ERROR
+insert into t3 select t1.* as 'with_alias' from t1;
+--error ER_PARSE_ERROR
+insert into t3 select t2.* as 'with_alias', 1, 2 from t2;
+--error ER_PARSE_ERROR
+insert into t3 select t2.* as 'with_alias', d as 'x', d as 'z' from t2;
+--error ER_PARSE_ERROR
+insert into t3 select t2.*, t2.* as 'with_alias', 3 from t2;
+
+# create
+--error ER_PARSE_ERROR
+create table t3 select t1.* as 'with_alias' from t1;
+--error ER_PARSE_ERROR
+create table t3 select t2.* as 'with_alias', 1, 2 from t2;
+--error ER_PARSE_ERROR
+create table t3 select t2.* as 'with_alias', d as 'x', d as 'z' from t2;
+--error ER_PARSE_ERROR
+create table t3 select t2.*, t2.* as 'with_alias', 3 from t2;
+
+#
+# Valid queries without alias on wild
+# (proof the above fail due to invalid aliasing)
+#
+
+select t1.* from t1;
+select t2.* from t2;
+select t1.*, t1.* from t1;
+select t1.*, a, t1.* from t1;
+
+# other fields without alias
+select a, t1.* from t1;
+select t1.*, a from t1;
+select a, t1.*, b from t1;
+select (select d from t2 where d > a), t1.* from t1;
+select t1.*, (select a from t2 where d > a) from t1;
+
+# other fields with alias
+select a as 'x', t1.* from t1;
+select t1.*, a as 'x' from t1;
+select a as 'x', t1.*, b as 'x' from t1;
+select (select d from t2 where d > a) as 'x', t1.* from t1;
+select t1.*, (select a from t2 where d > a) as 'x' from t1;
+
+# some more subquery
+select (select t2.* from t2) from t1;
+select a, (select t2.* from t2) from t1;
+select t1.*, (select t2.* from t2) from t1;
+
+# insert
+insert into t3 select t1.* from t1;
+insert into t3 select t2.*, 1, 2 from t2;
+insert into t3 select t2.*, d as 'x', d as 'z' from t2;
+insert into t3 select t2.*, t2.*, 3 from t2;
+
+# create
+create table t4 select t1.* from t1;
+drop table t4;
+create table t4 select t2.*, 1, 2 from t2;
+drop table t4;
+create table t4 select t2.*, d as 'x', d as 'z' from t2;
+drop table t4;
+
+# end
+drop table t1,t2,t3;
+
+# End of 5.2 tests

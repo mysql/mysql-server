@@ -4,6 +4,9 @@
 -- source include/not_ndb_default.inc
 -- source include/have_innodb.inc
 -- source include/master-slave.inc
+
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 let $engine_type=innodb;
 let $engine_type2=myisam;
 -- source extra/rpl_tests/rpl_insert_ignore.test

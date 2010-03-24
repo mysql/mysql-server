@@ -10,6 +10,8 @@
 # Only run test if "mysql_upgrade" is found
 --source include/have_mysql_upgrade.inc
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 connection master;
 --disable_warnings
 DROP DATABASE IF EXISTS `#mysql50#mysqltest-1`;

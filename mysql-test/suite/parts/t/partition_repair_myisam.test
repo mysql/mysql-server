@@ -3,6 +3,8 @@
 --disable_warnings
 --disable_query_log
 drop table if exists t1_will_crash;
+call mtr.add_suppression("Got an error from thread_id=.*ha_myisam.cc:");
+call mtr.add_suppression("MySQL thread id .*, query id .* localhost.*root Checking table");
 --enable_query_log
 --enable_warnings
 

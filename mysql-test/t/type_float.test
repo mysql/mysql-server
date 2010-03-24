@@ -7,7 +7,7 @@ drop table if exists t1,t2;
 --enable_warnings
 
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
-SELECT 6e-05, -6e-05, --6e-05, -6e-05+1.000000;
+SELECT 6e-16, -6e-16, --6e-16, -6e-16+1.000000;
 SELECT 1e1,1.e1,1.0e1,1e+1,1.e+1,1.0e+1,1e-1,1.e-1,1.0e-1;
 SELECT 0.001e+1,0.001e-1, -0.001e+01,-0.001e-01;
 SELECT 123.23E+02,-123.23E-02,"123.23E+02"+0.0,"-123.23E-02"+0.0;
@@ -250,6 +250,37 @@ insert into t1 values (1e29), (-1e29);
 insert into t1 values (1e30), (-1e30);
 insert into t1 values (2e30), (-2e30);
 select f1 + 0e0 from t1;
+drop table t1;
+
+#
+# Bug #12860 "Difference in zero padding of exponent between Unix and Windows"
+#
+
+create table t1 (c char(6));
+insert into t1 values (2e6),(2e-5);
+select * from t1;
+drop table t1;
+
+#
+# Bug #21497 "DOUBLE truncated to unusable value"
+#
+
+CREATE TABLE d1 (d DOUBLE);
+INSERT INTO d1 VALUES (1.7976931348623157E+308);
+SELECT * FROM d1;
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+INSERT INTO d1 VALUES (1.79769313486232e+308);
+SELECT * FROM d1;
+DROP TABLE d1;
+
+#
+# Bug #26788 "mysqld (debug) aborts when inserting specific numbers into char 
+#             fields"
+#
+
+create table t1 (a char(20));
+insert into t1 values (1.225e-05);
+select a+0 from t1;
 drop table t1;
 
 # 

@@ -122,7 +122,7 @@ SET @@global.low_priority_updates = FELSE;
 SET @@global.low_priority_updates = -1024;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.low_priority_updates = 65536;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.low_priority_updates = 65530.34;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.low_priority_updates = test;
@@ -131,20 +131,16 @@ SET @@global.low_priority_updates = test;
 SET @@session.low_priority_updates = ONN;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.low_priority_updates = ONF;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.low_priority_updates = OF;
-SELECT @@session.low_priority_updates;
---echo 'Bug# 34828: OF is also working as OFF and no error is coming';
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.low_priority_updates = 'OFN';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.low_priority_updates = -2;
---Error ER_PARSE_ERROR
-SET @@session.low_priority_updates = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.low_priority_updates = 65530.34;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.low_priority_updates = 65550;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.low_priority_updates = test;

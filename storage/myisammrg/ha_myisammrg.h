@@ -22,15 +22,62 @@
 
 #include <myisammrg.h>
 
+/** 
+  Represents one name of a MERGE child.
+
+  @todo: Add MYRG_SHARE and store chlidren names in the
+  share.
+*/
+
+class Mrg_child_def: public Sql_alloc
+{
+  /* Remembered MERGE child def version.  See top comment in ha_myisammrg.cc */
+  enum_table_ref_type m_child_table_ref_type;
+  ulong m_child_def_version;
+public:
+  LEX_STRING db;
+  LEX_STRING name;
+
+  /* Access MERGE child def version.  See top comment in ha_myisammrg.cc */
+  inline enum_table_ref_type get_child_table_ref_type()
+  {
+    return m_child_table_ref_type;
+  }
+  inline ulong get_child_def_version()
+  {
+    return m_child_def_version;
+  }
+  inline void set_child_def_version(enum_table_ref_type child_table_ref_type,
+                                    ulong version)
+  {
+    m_child_table_ref_type= child_table_ref_type;
+    m_child_def_version= version;
+  }
+
+  Mrg_child_def(char *db_arg, size_t db_len_arg,
+                char *table_name_arg, size_t table_name_len_arg)
+  {
+    db.str= db_arg;
+    db.length= db_len_arg;
+    name.str= table_name_arg;
+    name.length= table_name_len_arg;
+    m_child_def_version= ~0UL;
+    m_child_table_ref_type= TABLE_REF_NULL;
+  }
+};
+
+
 class ha_myisammrg: public handler
 {
   MYRG_INFO *file;
   my_bool is_cloned;                    /* This instance has been cloned */
 
- public:
-  TABLE_LIST    *next_child_attach;     /* next child to attach */
+public:
+  MEM_ROOT      children_mem_root;      /* mem root for children list */
+  List<Mrg_child_def> child_def_list;
+  TABLE_LIST    *children_l;            /* children list */
+  TABLE_LIST    **children_last_l;      /* children list end */
   uint          test_if_locked;         /* flags from ::open() */
-  bool          need_compat_check;      /* if need compatibility check */
 
   ha_myisammrg(handlerton *hton, TABLE_SHARE *table_arg);
   ~ha_myisammrg();
@@ -60,6 +107,7 @@ class ha_myisammrg: public handler
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + file->tables; }
 
   int open(const char *name, int mode, uint test_if_locked);
+  int add_children_list(void);
   int attach_children(void);
   int detach_children(void);
   virtual handler *clone(MEM_ROOT *mem_root);

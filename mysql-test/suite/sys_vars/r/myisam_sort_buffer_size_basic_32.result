@@ -71,8 +71,8 @@ Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '429496729533'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
 4294967295
-SET @@global.myisam_sort_buffer_size   = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.myisam_sort_buffer_size   = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@global.myisam_sort_buffer_size  ;
 @@global.myisam_sort_buffer_size
 4294967295
@@ -108,8 +108,8 @@ Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '-2'
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
 4
-SET @@session.myisam_sort_buffer_size   = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@session.myisam_sort_buffer_size   = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'myisam_sort_buffer_size'
 SELECT @@session.myisam_sort_buffer_size  ;
 @@session.myisam_sort_buffer_size
 4

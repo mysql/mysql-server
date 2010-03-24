@@ -1,0 +1,224 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SET @positive= 18446744073709551615;
+SET @negative= -9223372036854775808;
+CREATE TABLE t1 (`tinyint` TINYINT,
+`smallint` SMALLINT,
+`mediumint` MEDIUMINT, 
+`integer` INTEGER,
+`bigint` BIGINT,
+`utinyint` TINYINT UNSIGNED,
+`usmallint` SMALLINT UNSIGNED,
+`umediumint` MEDIUMINT UNSIGNED, 
+`uinteger` INTEGER UNSIGNED,
+`ubigint` BIGINT UNSIGNED,
+`double` DOUBLE, 
+`float` FLOAT, 
+`real` REAL(30,2), 
+`decimal` DECIMAL(30,2)) ENGINE = MyISAM;
+### insert max unsigned
+### a) declarative
+INSERT INTO t1 VALUES (18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615,18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615);;
+#########################################
+#### [ on master ]
+SELECT * FROM t1;
+tinyint	127
+smallint	32767
+mediumint	8388607
+integer	2147483647
+bigint	9223372036854775807
+utinyint	255
+usmallint	65535
+umediumint	16777215
+uinteger	4294967295
+ubigint	18446744073709551615
+double	1.8446744073709552e19
+float	1.84467e19
+real	18446744073709552000.00
+decimal	18446744073709551615.00
+#### [ on slave ]
+SELECT * FROM t1;
+tinyint	127
+smallint	32767
+mediumint	8388607
+integer	2147483647
+bigint	9223372036854775807
+utinyint	255
+usmallint	65535
+umediumint	16777215
+uinteger	4294967295
+ubigint	18446744073709551615
+double	1.8446744073709552e19
+float	1.84467e19
+real	18446744073709552000.00
+decimal	18446744073709551615.00
+#########################################
+## assertion: master and slave tables are in sync
+Comparing tables master:test.t1 and slave:test.t1
+TRUNCATE t1;
+### b) user var
+INSERT INTO t1 VALUES (@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive);
+#########################################
+#### [ on master ]
+SELECT * FROM t1;
+tinyint	127
+smallint	32767
+mediumint	8388607
+integer	2147483647
+bigint	9223372036854775807
+utinyint	255
+usmallint	65535
+umediumint	16777215
+uinteger	4294967295
+ubigint	18446744073709551615
+double	1.8446744073709552e19
+float	1.84467e19
+real	18446744073709552000.00
+decimal	18446744073709551615.00
+#### [ on slave ]
+SELECT * FROM t1;
+tinyint	127
+smallint	32767
+mediumint	8388607
+integer	2147483647
+bigint	9223372036854775807
+utinyint	255
+usmallint	65535
+umediumint	16777215
+uinteger	4294967295
+ubigint	18446744073709551615
+double	1.8446744073709552e19
+float	1.84467e19
+real	18446744073709552000.00
+decimal	18446744073709551615.00
+#########################################
+## assertion: master and slave tables are in sync
+Comparing tables master:test.t1 and slave:test.t1
+TRUNCATE t1;
+### insert min signed
+### a) declarative
+INSERT INTO t1 VALUES (-9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808,-9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808);;
+#########################################
+#### [ on master ]
+SELECT * FROM t1;
+tinyint	-128
+smallint	-32768
+mediumint	-8388608
+integer	-2147483648
+bigint	-9223372036854775808
+utinyint	0
+usmallint	0
+umediumint	0
+uinteger	0
+ubigint	0
+double	-9.223372036854776e18
+float	-9.22337e18
+real	-9223372036854776000.00
+decimal	-9223372036854775808.00
+#### [ on slave ]
+SELECT * FROM t1;
+tinyint	-128
+smallint	-32768
+mediumint	-8388608
+integer	-2147483648
+bigint	-9223372036854775808
+utinyint	0
+usmallint	0
+umediumint	0
+uinteger	0
+ubigint	0
+double	-9.223372036854776e18
+float	-9.22337e18
+real	-9223372036854776000.00
+decimal	-9223372036854775808.00
+#########################################
+## assertion: master and slave tables are in sync
+Comparing tables master:test.t1 and slave:test.t1
+TRUNCATE t1;
+### b) user var
+INSERT INTO t1 VALUES (@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative);
+#########################################
+#### [ on master ]
+SELECT * FROM t1;
+tinyint	-128
+smallint	-32768
+mediumint	-8388608
+integer	-2147483648
+bigint	-9223372036854775808
+utinyint	0
+usmallint	0
+umediumint	0
+uinteger	0
+ubigint	0
+double	-9.223372036854776e18
+float	-9.22337e18
+real	-9223372036854776000.00
+decimal	-9223372036854775808.00
+#### [ on slave ]
+SELECT * FROM t1;
+tinyint	-128
+smallint	-32768
+mediumint	-8388608
+integer	-2147483648
+bigint	-9223372036854775808
+utinyint	0
+usmallint	0
+umediumint	0
+uinteger	0
+ubigint	0
+double	-9.223372036854776e18
+float	-9.22337e18
+real	-9223372036854776000.00
+decimal	-9223372036854775808.00
+#########################################
+## assertion: master and slave tables are in sync
+Comparing tables master:test.t1 and slave:test.t1
+TRUNCATE t1;
+## check: contents of both tables master's and slave's
+DROP TABLE t1;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 ( c INT, PRIMARY KEY (c)) Engine=MyISAM;
+CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW SET @aux = -1 ;
+SET @aux = 10294947273192243200;
+SET @aux1= @aux;
+INSERT INTO t1 VALUES (@aux) , (@aux1);
+ERROR 23000: Duplicate entry '2147483647' for key 'PRIMARY'
+## assertion: master and slave tables are in sync
+Comparing tables master:test.t1 and slave:test.t1
+DROP TRIGGER tr1;
+DROP TABLE t1;

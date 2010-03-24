@@ -646,6 +646,10 @@ select conv(255 AS p1, 10 AS p2, 16 AS p3);
 
 # Native function with a variable number of arguments
 
+# Bug in libm.so on Solaris:
+#   atan(10) from 32-bit version returns 1.4711276743037347
+#   atan(10) from 64-bit version returns 1.4711276743037345
+--replace_result 1.4711276743037345 1.4711276743037347
 select atan(10);
 -- error ER_WRONG_PARAMETERS_TO_NATIVE_FCT
 select atan(10 AS p1);

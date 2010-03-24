@@ -4,11 +4,12 @@ SELECT @start_value;
 1073741824
 '#--------------------FN_DYNVARS_072_01------------------------#'
 SET @@global.max_binlog_size = 5000;
+Warnings:
+Warning	1292	Truncated incorrect max_binlog_size value: '5000'
 SET @@global.max_binlog_size = DEFAULT;
 SELECT @@global.max_binlog_size;
 @@global.max_binlog_size
 1073741824
-'Bug# 34878: This variable has invalid default value as compared to documentation';
 '#---------------------FN_DYNVARS_072_02-------------------------#'
 SET @@global.max_binlog_size = @start_value;
 SELECT @@global.max_binlog_size = 1073741824;
@@ -24,18 +25,23 @@ SELECT @@global.max_binlog_size;
 @@global.max_binlog_size
 1073741824
 SET @@global.max_binlog_size = 1073741823;
+Warnings:
+Warning	1292	Truncated incorrect max_binlog_size value: '1073741823'
 SELECT @@global.max_binlog_size;
 @@global.max_binlog_size
 1073737728
 SET @@global.max_binlog_size = 4097;
+Warnings:
+Warning	1292	Truncated incorrect max_binlog_size value: '4097'
 SELECT @@global.max_binlog_size;
 @@global.max_binlog_size
 4096
 SET @@global.max_binlog_size = 65535;
+Warnings:
+Warning	1292	Truncated incorrect max_binlog_size value: '65535'
 SELECT @@global.max_binlog_size;
 @@global.max_binlog_size
 61440
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 '#--------------------FN_DYNVARS_072_04-------------------------#'
 SET @@global.max_binlog_size = -1;
 Warnings:
@@ -78,7 +84,6 @@ Warning	1292	Truncated incorrect max_binlog_size value: '4095'
 SELECT @@global.max_binlog_size;
 @@global.max_binlog_size
 4096
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.max_binlog_size = ON;
 ERROR 42000: Incorrect argument type to variable 'max_binlog_size'
 SELECT @@global.max_binlog_size;
@@ -120,6 +125,8 @@ SELECT @@global.max_binlog_size;
 4096
 '#---------------------FN_DYNVARS_072_08----------------------#'
 SET @@global.max_binlog_size = 5000;
+Warnings:
+Warning	1292	Truncated incorrect max_binlog_size value: '5000'
 SELECT @@max_binlog_size = @@global.max_binlog_size;
 @@max_binlog_size = @@global.max_binlog_size
 1

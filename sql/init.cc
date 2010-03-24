@@ -40,7 +40,7 @@ void unireg_init(ulong options)
   my_abort_hook=unireg_abort;		/* Abort with close of databases */
 #endif
 
-  VOID(strmov(reg_ext,".frm"));
+  (void) strmov(reg_ext,".frm");
   reg_ext_length= 4;
   specialflag=SPECIAL_SAME_DB_NAME | options;  /* Set options from argv */
   DBUG_VOID_RETURN;

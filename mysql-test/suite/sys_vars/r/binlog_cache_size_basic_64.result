@@ -21,14 +21,20 @@ SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 4096
 SET @@global.binlog_cache_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect binlog_cache_size value: '4294967295'
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 4294963200
 SET @@global.binlog_cache_size = 10000;
+Warnings:
+Warning	1292	Truncated incorrect binlog_cache_size value: '10000'
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 8192
 SET @@global.binlog_cache_size = 21221204;
+Warnings:
+Warning	1292	Truncated incorrect binlog_cache_size value: '21221204'
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 21217280
@@ -49,6 +55,8 @@ SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 4096
 SET @@global.binlog_cache_size = 42949672950;
+Warnings:
+Warning	1292	Truncated incorrect binlog_cache_size value: '42949672950'
 SELECT @@global.binlog_cache_size;
 @@global.binlog_cache_size
 42949668864

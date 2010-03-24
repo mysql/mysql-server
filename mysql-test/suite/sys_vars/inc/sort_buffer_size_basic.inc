@@ -40,12 +40,6 @@
 #                 Save initial value                        #
 #############################################################
 
-# due to differences when running on Windows (Bug#36695)
---source include/not_windows.inc
-
-let $kbrange32 = BETWEEN 32776 AND 32999;
-let $mbrange2 = BETWEEN 2097116 AND 2100000;
-
 --disable_warnings
 
 SET @start_global_value = @@global.sort_buffer_size;
@@ -59,12 +53,12 @@ SET @start_session_value = @@session.sort_buffer_size;
 SET @@global.sort_buffer_size = 1000;
 SET @@global.sort_buffer_size = DEFAULT;
 eval
-SELECT @@global.sort_buffer_size $mbrange2;
+SELECT @@global.sort_buffer_size;
 
 SET @@session.sort_buffer_size = 2000;
 SET @@session.sort_buffer_size = DEFAULT;
 eval 
-SELECT @@session.sort_buffer_size $mbrange2;
+SELECT @@session.sort_buffer_size;
 
 
 --echo '#--------------------FN_DYNVARS_151_02-------------------------#'
@@ -74,11 +68,11 @@ SELECT @@session.sort_buffer_size $mbrange2;
 
 SET @@global.sort_buffer_size = DEFAULT;
 eval 
-SELECT @@global.sort_buffer_size $mbrange2;
+SELECT @@global.sort_buffer_size;
 
 SET @@session.sort_buffer_size = DEFAULT;
 eval 
-SELECT @@session.sort_buffer_size $mbrange2;
+SELECT @@session.sort_buffer_size;
 
 
 --echo '#--------------------FN_DYNVARS_151_03-------------------------#'
@@ -88,10 +82,10 @@ SELECT @@session.sort_buffer_size $mbrange2;
 
 SET @@global.sort_buffer_size = 32776;
 eval 
-SELECT @@global.sort_buffer_size $kbrange32;
+SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = 32777;
 eval 
-SELECT @@global.sort_buffer_size $kbrange32;
+SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = 4294967295;
 SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = 4294967294;
@@ -104,10 +98,10 @@ SELECT @@global.sort_buffer_size;
  
 SET @@session.sort_buffer_size = 32776;
 eval 
-SELECT @@session.sort_buffer_size $kbrange32;
+SELECT @@session.sort_buffer_size;
 SET @@session.sort_buffer_size = 32777;
 eval 
-SELECT @@session.sort_buffer_size $kbrange32;
+SELECT @@session.sort_buffer_size;
 SET @@session.sort_buffer_size = 4294967295;
 SELECT @@session.sort_buffer_size;
 SET @@session.sort_buffer_size = 4294967294;
@@ -121,14 +115,14 @@ SELECT @@session.sort_buffer_size;
 
 SET @@global.sort_buffer_size = 32775;
 eval 
-SELECT @@global.sort_buffer_size $kbrange32;
+SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = -1024;
 eval 
-SELECT @@global.sort_buffer_size $kbrange32;
+SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = 4294967296;
 SELECT @@global.sort_buffer_size;
---Error ER_PARSE_ERROR
-SET @@global.sort_buffer_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.sort_buffer_size = 65530.34;
 SELECT @@global.sort_buffer_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.sort_buffer_size = test;
@@ -136,12 +130,12 @@ SELECT @@global.sort_buffer_size;
 
 SET @@session.sort_buffer_size = 32775;
 eval 
-SELECT @@session.sort_buffer_size $kbrange32;
+SELECT @@session.sort_buffer_size;
 SET @@session.sort_buffer_size = -2;
 eval 
-SELECT @@session.sort_buffer_size $kbrange32;
---Error ER_PARSE_ERROR
-SET @@session.sort_buffer_size = 65530.34.;
+SELECT @@session.sort_buffer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.sort_buffer_size = 65530.34;
 SET @@session.sort_buffer_size = 4294967296;
 SELECT @@session.sort_buffer_size;
 
@@ -173,10 +167,10 @@ INFORMATION_SCHEMA.SESSION_VARIABLES WHERE VARIABLE_NAME='sort_buffer_size';
 
 SET @@global.sort_buffer_size = TRUE;
 eval 
-SELECT @@global.sort_buffer_size $kbrange32;
+SELECT @@global.sort_buffer_size;
 SET @@global.sort_buffer_size = FALSE;
 eval 
-SELECT @@global.sort_buffer_size $kbrange32;
+SELECT @@global.sort_buffer_size;
 
 --echo '#---------------------FN_DYNVARS_151_09----------------------#'
 #################################################################################### 
@@ -203,7 +197,7 @@ SELECT @@local.sort_buffer_size = @@session.sort_buffer_size;
 
 SET sort_buffer_size = 9100;
 eval 
-SELECT @@sort_buffer_size $kbrange32;
+SELECT @@sort_buffer_size;
 --Error ER_UNKNOWN_TABLE
 SELECT local.sort_buffer_size;
 --Error ER_UNKNOWN_TABLE

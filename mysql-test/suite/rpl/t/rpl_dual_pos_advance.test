@@ -22,6 +22,7 @@ connection master;
 eval change master to master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root";
 
 start slave;
+--source include/wait_for_slave_to_start.inc
 
 # now we test it
 
@@ -38,12 +39,11 @@ sync_with_master;
 #             log-slave-updates and circul repl
 #
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 
 create table t2 (n int); # create one ignored event
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 connection slave;
 
@@ -85,6 +85,7 @@ start slave until master_log_file="slave-bin.000001",master_log_pos=663;
 select * from t3;
 
 start slave;
+--source include/wait_for_slave_to_start.inc
 
 # BUG#13023 is that Exec_master_log_pos may stay too low "forever":
 
@@ -94,9 +95,7 @@ create table t4 (n int); # create 3 ignored events
 create table t5 (n int);
 create table t6 (n int);
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 connection slave;
 
@@ -114,11 +113,10 @@ show tables;
 # cleanup
 
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 reset slave;
 drop table t1,t2,t3,t4,t5,t6;
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # End of 4.1 tests

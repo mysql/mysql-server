@@ -51,9 +51,7 @@ CALL simpleproc3();
 
 select * from t1;
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 use test1;
 select * from t1;

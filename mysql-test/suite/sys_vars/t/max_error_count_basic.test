@@ -75,7 +75,6 @@ SET @@global.max_error_count = 1;
 SELECT @@global.max_error_count;
 SET @@global.max_error_count = 0;
 SELECT @@global.max_error_count;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 
 SET @@global.max_error_count = 65535;
 SELECT @@global.max_error_count;
@@ -110,8 +109,8 @@ SET @@global.max_error_count = 65536;
 SELECT @@global.max_error_count;
 SET @@global.max_error_count = 10737418241;
 SELECT @@global.max_error_count;
---Error ER_PARSE_ERROR
-SET @@global.max_error_count = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_error_count = 65530.34;
 SELECT @@global.max_error_count;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_error_count = test;
@@ -123,11 +122,10 @@ SET @@session.max_error_count = 65536;
 SELECT @@session.max_error_count;
 SET @@session.max_error_count = -2;
 SELECT @@session.max_error_count;
---Error ER_PARSE_ERROR
-SET @@session.max_error_count = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_error_count = 65530.34;
 SET @@session.max_error_count = 10737418241;
 SELECT @@session.max_error_count;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_error_count = test;

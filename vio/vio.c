@@ -22,6 +22,28 @@
 
 #include "vio_priv.h"
 
+#if defined(__WIN__) || defined(HAVE_SMEM)
+
+/**
+  Stub poll_read method that defaults to indicate that there
+  is data to read.
+
+  Used for named pipe and shared memory VIO types.
+
+  @param vio      Unused.
+  @param timeout  Unused.
+
+  @retval FALSE   There is data to read.
+*/
+
+static my_bool no_poll_read(Vio *vio __attribute__((unused)),
+                            uint timeout __attribute__((unused)))
+{
+  return FALSE;
+}
+
+#endif
+
 /*
  * Helper to fill most of the Vio* with defaults.
  */
@@ -56,9 +78,11 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_close_pipe;
     vio->peer_addr	=vio_peer_addr;
-    vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
+
+    vio->poll_read      =no_poll_read;
+    vio->is_connected   =vio_is_connected_pipe;
 
     vio->timeout=vio_win32_timeout;
     /* Set default timeout */
@@ -81,9 +105,11 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_close_shared_memory;
     vio->peer_addr	=vio_peer_addr;
-    vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_blocking;
     vio->is_blocking	=vio_is_blocking;
+
+    vio->poll_read      =no_poll_read;
+    vio->is_connected   =vio_is_connected_shared_memory;
 
     /* Currently, shared memory is on Windows only, hence the below is ok*/
     vio->timeout= vio_win32_timeout; 
@@ -106,27 +132,29 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
     vio->was_interrupted=vio_was_interrupted;
     vio->vioclose	=vio_ssl_close;
     vio->peer_addr	=vio_peer_addr;
-    vio->in_addr	=vio_in_addr;
     vio->vioblocking	=vio_ssl_blocking;
     vio->is_blocking	=vio_is_blocking;
     vio->timeout	=vio_timeout;
+    vio->poll_read      =vio_poll_read;
+    vio->is_connected   =vio_is_connected;
     DBUG_VOID_RETURN;
   }
 #endif /* HAVE_OPENSSL */
-  vio->viodelete	=vio_delete;
-  vio->vioerrno	=vio_errno;
-  vio->read= (flags & VIO_BUFFERED_READ) ? vio_read_buff : vio_read;
-  vio->write		=vio_write;
-  vio->fastsend	=vio_fastsend;
-  vio->viokeepalive	=vio_keepalive;
-  vio->should_retry	=vio_should_retry;
-  vio->was_interrupted=vio_was_interrupted;
-  vio->vioclose	=vio_close;
-  vio->peer_addr	=vio_peer_addr;
-  vio->in_addr	=vio_in_addr;
-  vio->vioblocking	=vio_blocking;
-  vio->is_blocking	=vio_is_blocking;
-  vio->timeout	=vio_timeout;
+  vio->viodelete        =vio_delete;
+  vio->vioerrno         =vio_errno;
+  vio->read=            (flags & VIO_BUFFERED_READ) ? vio_read_buff : vio_read;
+  vio->write            =vio_write;
+  vio->fastsend         =vio_fastsend;
+  vio->viokeepalive     =vio_keepalive;
+  vio->should_retry     =vio_should_retry;
+  vio->was_interrupted  =vio_was_interrupted;
+  vio->vioclose         =vio_close;
+  vio->peer_addr        =vio_peer_addr;
+  vio->vioblocking      =vio_blocking;
+  vio->is_blocking      =vio_is_blocking;
+  vio->timeout          =vio_timeout;
+  vio->poll_read        =vio_poll_read;
+  vio->is_connected     =vio_is_connected;
   DBUG_VOID_RETURN;
 }
 

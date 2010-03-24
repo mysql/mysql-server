@@ -94,6 +94,11 @@ SELECT @@global.init_connect;
 SET @@global.init_connect="SET autocomit=0;REVOKE ALL ON INFORMATION_SCHEMA.*";
 SELECT @@global.init_connect;
 
+SET @@global.init_connect='set @a="12\034"';
+SELECT @@global.init_connect;
+SELECT hex(@@global.init_connect);
+SHOW VARIABLES LIKE 'init_connect';
+
 SET @@global.init_connect='SHOW VARIABLES';
 SELECT @@global.init_connect;
 

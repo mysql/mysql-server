@@ -43,7 +43,6 @@ SET @@global.delayed_insert_limit = 42949672950;
 SELECT @@global.delayed_insert_limit;
 @@global.delayed_insert_limit
 42949672950
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
 SET @@global.delayed_insert_limit = 429496729.5;
 ERROR 42000: Incorrect argument type to variable 'delayed_insert_limit'
 SELECT @@global.delayed_insert_limit;

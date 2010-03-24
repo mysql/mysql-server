@@ -1,4 +1,5 @@
 drop table if exists t1;
+set @@session.sql_auto_is_null=1;
 select {fn length("hello")}, { date "1997-10-20" };
 {fn length("hello")}	1997-10-20
 5	1997-10-20
@@ -7,9 +8,9 @@ insert into t1 SET A=NULL,B=1;
 insert into t1 SET a=null,b=2;
 select * from t1 where a is null and b=2;
 a	b
-2	2
 select * from t1 where a is null;
 a	b
+2	2
 explain select * from t1 where b is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
@@ -25,3 +26,4 @@ SELECT sql_no_cache a, last_insert_id() FROM t1;
 a	last_insert_id()
 1	1
 DROP TABLE t1;
+set @@session.sql_auto_is_null=default;

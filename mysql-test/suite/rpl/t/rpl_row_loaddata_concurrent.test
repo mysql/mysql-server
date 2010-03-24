@@ -1,0 +1,14 @@
+-- source include/not_ndb_default.inc
+-- source include/have_log_bin.inc
+-- source include/have_binlog_format_row.inc
+
+let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+CREATE TABLE t1 (c1 char(50));
+LOAD DATA INFILE '../../std_data/words.dat' INTO TABLE t1;
+LOAD DATA CONCURRENT INFILE '../../std_data/words.dat' INTO TABLE t1;
+-- source include/show_binlog_events.inc
+DROP TABLE t1;
+
+let $lock_option= CONCURRENT;
+let $engine_type=MyISAM;
+-- source extra/rpl_tests/rpl_loaddata.test

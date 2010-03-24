@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,10 @@
 class Relay_log_info;
 
 class Format_description_log_event;
+
+bool trans_has_updated_trans_table(const THD* thd);
+bool stmt_has_updated_trans_table(const THD *thd);
+bool use_trans_cache(const THD* thd, bool is_transactional);
 
 /*
   Transaction Coordinator log - a base abstract class
@@ -65,8 +69,8 @@ class TC_LOG_MMAP: public TC_LOG
     int size, free;       // max and current number of free xid slots on the page
     int waiters;          // number of waiters on condition
     PAGE_STATE state;     // see above
-    pthread_mutex_t lock; // to access page data or control structure
-    pthread_cond_t  cond; // to wait for a sync
+    mysql_mutex_t lock; // to access page data or control structure
+    mysql_cond_t  cond; // to wait for a sync
   } PAGE;
 
   char logname[FN_REFLEN];
@@ -81,8 +85,8 @@ class TC_LOG_MMAP: public TC_LOG
     one has to use active->lock.
     Same for LOCK_pool and LOCK_sync
   */
-  pthread_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
-  pthread_cond_t COND_pool, COND_active;
+  mysql_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
+  mysql_cond_t COND_pool, COND_active;
 
   public:
   TC_LOG_MMAP(): inited(0) {}
@@ -121,7 +125,24 @@ extern TC_LOG_DUMMY tc_log_dummy;
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
 
+/* 
+  Maximum unique log filename extension.
+  Note: setting to 0x7FFFFFFF due to atol windows 
+        overflow/truncate.
+ */
+#define MAX_LOG_UNIQUE_FN_EXT 0x7FFFFFFF
+
+/* 
+   Number of warnings that will be printed to error log
+   before extension number is exhausted.
+*/
+#define LOG_WARN_UNIQUE_FN_EXT_LEFT 1000
+
 class Relay_log_info;
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_LOG_INFO_lock;
+#endif
 
 typedef struct st_log_info
 {
@@ -129,15 +150,15 @@ typedef struct st_log_info
   my_off_t index_file_offset, index_file_start_offset;
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
-  pthread_mutex_t lock;
+  mysql_mutex_t lock;
   st_log_info()
     : index_file_offset(0), index_file_start_offset(0),
       pos(0), fatal(0)
     {
       log_file_name[0] = '\0';
-      pthread_mutex_init(&lock, MY_MUTEX_INIT_FAST);
+      mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
     }
-  ~st_log_info() { pthread_mutex_destroy(&lock);}
+  ~st_log_info() { mysql_mutex_destroy(&lock);}
 } LOG_INFO;
 
 /*
@@ -185,7 +206,7 @@ public:
   int generate_new_name(char *new_name, const char *log_name);
  protected:
   /* LOCK_log is inited by init_pthread_objects() */
-  pthread_mutex_t LOCK_log;
+  mysql_mutex_t LOCK_log;
   char *name;
   char log_file_name[FN_REFLEN];
   char time_buff[20], db[NAME_LEN + 1];
@@ -231,10 +252,10 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
 {
  private:
   /* LOCK_log and LOCK_index are inited by init_pthread_objects() */
-  pthread_mutex_t LOCK_index;
-  pthread_mutex_t LOCK_prep_xids;
-  pthread_cond_t  COND_prep_xids;
-  pthread_cond_t update_cond;
+  mysql_mutex_t LOCK_index;
+  mysql_mutex_t LOCK_prep_xids;
+  mysql_cond_t  COND_prep_xids;
+  mysql_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
   char index_file_name[FN_REFLEN];
@@ -334,8 +355,9 @@ public:
   ulonglong table_map_version() const { return m_table_map_version; }
   void update_table_map_version() { ++m_table_map_version; }
 
-  int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event);
-  int remove_pending_rows_event(THD *thd);
+  int flush_and_set_pending_rows_event(THD *thd, Rows_log_event* event,
+                                       bool is_transactional);
+  int remove_pending_rows_event(THD *thd, bool is_transactional);
 
 #endif /* !defined(MYSQL_CLIENT) */
   void reset_bytes_written()
@@ -374,7 +396,7 @@ public:
   /* Use this to start writing a new log file */
   void new_file();
 
-  bool write(Log_event* event_info); // binary log write
+  bool write(Log_event* event_info);
   bool write(THD *thd, IO_CACHE *cache, Log_event *commit_event, bool incident);
   bool write_incident(THD *thd, bool lock);
 
@@ -439,11 +461,11 @@ public:
   inline char* get_index_fname() { return index_file_name;}
   inline char* get_log_fname() { return log_file_name; }
   inline char* get_name() { return name; }
-  inline pthread_mutex_t* get_log_lock() { return &LOCK_log; }
+  inline mysql_mutex_t* get_log_lock() { return &LOCK_log; }
   inline IO_CACHE* get_log_file() { return &log_file; }
 
-  inline void lock_index() { pthread_mutex_lock(&LOCK_index);}
-  inline void unlock_index() { pthread_mutex_unlock(&LOCK_index);}
+  inline void lock_index() { mysql_mutex_lock(&LOCK_index);}
+  inline void unlock_index() { mysql_mutex_unlock(&LOCK_index);}
   inline IO_CACHE *get_index_file() { return &index_file;}
   inline uint32 get_open_count() { return open_count; }
 };
@@ -538,7 +560,7 @@ public:
 /* Class which manages slow, general and error log event handlers */
 class LOGGER
 {
-  rw_lock_t LOCK_logger;
+  mysql_rwlock_t LOCK_logger;
   /* flag to check whether logger mutex is initialized */
   uint inited;
 
@@ -558,9 +580,9 @@ public:
   LOGGER() : inited(0), table_log_handler(NULL),
              file_log_handler(NULL), is_log_tables_initialized(FALSE)
   {}
-  void lock_shared() { rw_rdlock(&LOCK_logger); }
-  void lock_exclusive() { rw_wrlock(&LOCK_logger); }
-  void unlock() { rw_unlock(&LOCK_logger); }
+  void lock_shared() { mysql_rwlock_rdlock(&LOCK_logger); }
+  void lock_exclusive() { mysql_rwlock_wrlock(&LOCK_logger); }
+  void unlock() { mysql_rwlock_unlock(&LOCK_logger); }
   bool is_log_table_enabled(uint log_table_type);
   bool log_command(THD *thd, enum enum_server_command command);
 
@@ -573,6 +595,8 @@ public:
   void init_base();
   void init_log_tables();
   bool flush_logs(THD *thd);
+  bool flush_slow_log();
+  bool flush_general_log();
   /* Perform basic logger cleanup. this will leave e.g. error log open. */
   void cleanup_base();
   /* Free memory. Nothing could be logged after this function is called */
@@ -595,13 +619,13 @@ public:
   void init_general_log(uint general_log_printer);
   void deactivate_log_handler(THD* thd, uint log_type);
   bool activate_log_handler(THD* thd, uint log_type);
-  MYSQL_QUERY_LOG *get_slow_log_file_handler()
+  MYSQL_QUERY_LOG *get_slow_log_file_handler() const
   { 
     if (file_log_handler)
       return file_log_handler->get_mysql_slow_log();
     return NULL;
   }
-  MYSQL_QUERY_LOG *get_log_file_handler()
+  MYSQL_QUERY_LOG *get_log_file_handler() const
   { 
     if (file_log_handler)
       return file_log_handler->get_mysql_log();
@@ -610,22 +634,14 @@ public:
 };
 
 enum enum_binlog_format {
-  /*
-    statement-based except for cases where only row-based can work (UUID()
-    etc):
-  */
-  BINLOG_FORMAT_MIXED= 0,
-  BINLOG_FORMAT_STMT= 1, // statement-based
-  BINLOG_FORMAT_ROW= 2, // row_based
-/*
-  This value is last, after the end of binlog_format_typelib: it has no
-  corresponding cell in this typelib. We use this value to be able to know if
-  the user has explicitely specified a binlog format at startup or not.
-*/
-  BINLOG_FORMAT_UNSPEC= 3
+  BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
+  BINLOG_FORMAT_STMT=  1, ///< statement-based
+  BINLOG_FORMAT_ROW=   2, ///< row-based
+  BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
 };
 extern TYPELIB binlog_format_typelib;
 
 int query_error_code(THD *thd, bool not_killed);
+uint purge_log_get_error_code(int res);
 
 #endif /* LOG_H */

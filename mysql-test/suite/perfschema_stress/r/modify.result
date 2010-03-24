@@ -1,0 +1,17 @@
+UPDATE performance_schema.SETUP_INSTRUMENTS SET TIMED = 'NO';
+UPDATE performance_schema.SETUP_INSTRUMENTS SET ENABLED = 'NO';
+UPDATE performance_schema.SETUP_TIMERS 
+SET TIMER_NAME = 'NANOSECOND' WHERE NAME = 'Wait';
+UPDATE performance_schema.SETUP_TIMERS 
+SET TIMER_NAME = 'CYCLE' WHERE NAME = 'Wait';
+UPDATE performance_schema.SETUP_INSTRUMENTS SET TIMED = 'YES';
+UPDATE performance_schema.SETUP_INSTRUMENTS SET ENABLED = 'YES' 
+WHERE NAME IN ('wait/io/file/sql/FRM', 
+'thread/sql/Connection', 
+'wait/synch/cond/sql/COND_mdl', 
+'wait/synch/rwlock/sql/LOCK_sys_init_connect', 
+'wait/synch/mutex/sql/LOCK_mdl');
+UPDATE performance_schema.SETUP_CONSUMERS SET ENABLED = 'NO'
+WHERE NAME = 'events_waits_history';
+UPDATE performance_schema.SETUP_CONSUMERS SET ENABLED = 'YES'
+WHERE NAME = 'events_waits_history';

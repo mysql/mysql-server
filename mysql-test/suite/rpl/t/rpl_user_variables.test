@@ -5,6 +5,11 @@
 ###################################
 
 -- source include/master-slave.inc
+
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 # Disable PS as the log positions differs
 --disable_ps_protocol
 
@@ -20,9 +25,7 @@
 # test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
 # We wait for the slave to have written all he wants to the binlog
 # (otherwise RESET MASTER may come too early).
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 reset master;
 connection master;
 

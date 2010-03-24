@@ -56,28 +56,10 @@ SELECT @@global.log_queries_not_using_indexes;
 SET GLOBAL log_queries_not_using_indexes= -0;
 SELECT @@global.log_queries_not_using_indexes;
 
+--error ER_WRONG_TYPE_FOR_VAR
 SET GLOBAL log_queries_not_using_indexes= 0.00;
-SELECT @@global.log_queries_not_using_indexes;
-
-SET GLOBAL log_queries_not_using_indexes= -0.0;
-SELECT @@global.log_queries_not_using_indexes;
-
-SET GLOBAL log_queries_not_using_indexes= 001.00;
-SELECT @@global.log_queries_not_using_indexes;
-
-SET GLOBAL log_queries_not_using_indexes= +1.0;
-SELECT @@global.log_queries_not_using_indexes;
 
 SET GLOBAL log_queries_not_using_indexes= +0;
-SELECT @@global.log_queries_not_using_indexes;
-
-SET GLOBAL log_queries_not_using_indexes= +0.000000;
-SELECT @@global.log_queries_not_using_indexes;
-
-SET GLOBAL log_queries_not_using_indexes= 0000.00000;
-SELECT @@global.log_queries_not_using_indexes;
-
-SET GLOBAL log_queries_not_using_indexes= .0;
 SELECT @@global.log_queries_not_using_indexes;
 
 #################################################################
@@ -95,9 +77,6 @@ SET @@global.log_queries_not_using_indexes= BLABLA;
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@global.log_queries_not_using_indexes= 25;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET @@global.log_queries_not_using_indexes= 12.34;
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET GLOBAL log_queries_not_using_indexes= -1;
@@ -127,7 +106,5 @@ SET @@global log_queries_not_using_indexes= TRUE;
 --error ER_PARSE_ERROR
 SET @@SESSION log_queries_not_using_indexes= TRUE;
 
-
 SET @@global.log_queries_not_using_indexes= @start_value;
-SELECT IF(@@GLOBAL.log_queries_not_using_indexes, "ON", "OFF") = VARIABLE_VALUE
 

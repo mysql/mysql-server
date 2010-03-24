@@ -90,6 +90,7 @@ Database: information_schema
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
+| PARAMETERS                            |
 | PARTITIONS                            |
 | PLUGINS                               |
 | PROCESSLIST                           |
@@ -102,6 +103,7 @@ Database: information_schema
 | SESSION_VARIABLES                     |
 | STATISTICS                            |
 | TABLES                                |
+| TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
@@ -130,6 +132,7 @@ Database: INFORMATION_SCHEMA
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | KEY_COLUMN_USAGE                      |
+| PARAMETERS                            |
 | PARTITIONS                            |
 | PLUGINS                               |
 | PROCESSLIST                           |
@@ -142,6 +145,7 @@ Database: INFORMATION_SCHEMA
 | SESSION_VARIABLES                     |
 | STATISTICS                            |
 | TABLES                                |
+| TABLESPACES                           |
 | TABLE_CONSTRAINTS                     |
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |

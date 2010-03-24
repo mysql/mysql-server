@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ typedef struct st_myrg_info
   LIST	 open_list;
   QUEUE  by_key;
   ulong *rec_per_key_part;			/* for sql optimizing */
-  pthread_mutex_t mutex;
+  mysql_mutex_t mutex;
 } MYRG_INFO;
 
 

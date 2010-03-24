@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (C) 2000 MySQL AB, 2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ typedef struct st_bitmap
      acquiring the mutex
    */
 #ifdef THREAD
-  pthread_mutex_t *mutex;
+  mysql_mutex_t *mutex;
 #endif
 } MY_BITMAP;
 

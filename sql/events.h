@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (C) 2004-2006 MySQL AB
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @defgroup Event_Scheduler Event Scheduler
@@ -24,6 +24,13 @@
 
   A public interface of Events_Scheduler module.
 */
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_LOCK_event_metadata,
+                     key_event_scheduler_LOCK_scheduler_state;
+extern PSI_cond_key key_event_scheduler_COND_state;
+extern PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
+#endif /* HAVE_PSI_INTERFACE */
 
 class Event_parse_data;
 class Event_db_repository;
@@ -56,7 +63,7 @@ sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
   The life cycle of the Events module is the following:
 
   At server start up:
-     set_opt_event_scheduler() -> init_mutexes() -> init()
+     init_mutexes() -> init()
   When the server is running:
      create_event(), drop_event(), start_or_stop_event_scheduler(), etc
   At shutdown:
@@ -70,23 +77,20 @@ sortcmp_lex_string(LEX_STRING s, LEX_STRING t, CHARSET_INFO *cs);
 class Events
 {
 public:
-  /* The order should match the order in opt_typelib */
-  enum enum_opt_event_scheduler
-  {
-    EVENTS_OFF= 0,
-    EVENTS_ON= 1,
-    EVENTS_DISABLED= 4
-  };
+  /*
+    the following block is to support --event-scheduler command line option
+    and the @@global.event_scheduler SQL variable.
+    See sys_var.cc
+  */
+  enum enum_opt_event_scheduler { EVENTS_OFF, EVENTS_ON, EVENTS_DISABLED };
+  /* Protected using LOCK_global_system_variables only. */
+  static uint opt_event_scheduler;
+  static mysql_mutex_t LOCK_event_metadata;
+  static bool check_if_system_tables_error();
+  static bool start();
+  static bool stop();
 
-  /* Possible values of @@event_scheduler variable */
-  static const TYPELIB var_typelib;
-
-  static bool
-  set_opt_event_scheduler(char *argument);
-
-  static const char *
-  get_opt_event_scheduler_str();
-
+public:
   /* A hack needed for Event_queue_element */
   static Event_db_repository *
   get_db_repository() { return db_repository; }
@@ -102,9 +106,6 @@ public:
 
   static void
   destroy_mutexes();
-
-  static bool
-  switch_event_scheduler_state(enum enum_opt_event_scheduler new_state);
 
   static bool
   create_event(THD *thd, Event_parse_data *parse_data, bool if_exists);
@@ -134,20 +135,14 @@ public:
   dump_internal_status();
 
 private:
-  static bool check_if_system_tables_error();
 
   static bool
   load_events_from_db(THD *thd);
 
 private:
-  /* Command line option names */
-  static const TYPELIB opt_typelib;
-  static pthread_mutex_t LOCK_event_metadata;
   static Event_queue         *event_queue;
   static Event_scheduler     *scheduler;
   static Event_db_repository *db_repository;
-  /* Current state of Event Scheduler */
-  static enum enum_opt_event_scheduler opt_event_scheduler;
   /* Set to TRUE if an error at start up */
   static bool check_system_tables_error;
 

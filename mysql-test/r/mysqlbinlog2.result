@@ -22,7 +22,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -31,25 +31,55 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -61,34 +91,64 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=1/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=1/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -100,22 +160,44 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=4/*!*/;
-use test/*!*/;
-SET TIMESTAMP=1579609946/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=4/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -130,7 +212,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -139,17 +221,25 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
-SET INSERT_ID=3/*!*/;
-SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -161,18 +251,21 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=4/*!*/;
-use test/*!*/;
-SET TIMESTAMP=1579609946/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-insert into t1 values(null, "d")
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+insert into t1 values(null, "c")
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -184,26 +277,44 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -218,7 +329,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -227,13 +338,25 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -249,7 +372,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -258,40 +381,76 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=6/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -303,49 +462,85 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=1/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=1/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=6/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -357,37 +552,65 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=4/*!*/;
-use test/*!*/;
-SET TIMESTAMP=1579609946/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=4/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=6/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -402,7 +625,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -411,28 +634,69 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=6/*!*/;
 DELIMITER ;
 # End of log file
@@ -444,41 +708,65 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=6/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -493,7 +781,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -502,13 +790,25 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -523,7 +823,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -532,25 +832,55 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -562,34 +892,64 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=1/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=1/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -600,22 +960,44 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-SET INSERT_ID=4/*!*/;
-use test/*!*/;
-SET TIMESTAMP=1579609946/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=4/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -630,7 +1012,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -639,17 +1021,25 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
-SET INSERT_ID=3/*!*/;
-SET TIMESTAMP=1579609944/*!*/;
-insert into t1 values(null, "c")
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -660,18 +1050,21 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-SET INSERT_ID=4/*!*/;
-use test/*!*/;
-SET TIMESTAMP=1579609946/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-insert into t1 values(null, "d")
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+insert into t1 values(null, "c")
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -683,26 +1076,44 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -717,7 +1128,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -726,13 +1137,25 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -747,7 +1170,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -756,40 +1179,76 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=6/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -801,49 +1260,85 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=1/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=1/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=6/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -854,37 +1349,65 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
-SET INSERT_ID=4/*!*/;
-use test/*!*/;
-SET TIMESTAMP=1579609946/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=4/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=6/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -899,7 +1422,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -908,29 +1431,69 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-SET INSERT_ID=6/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -941,41 +1504,65 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-SET INSERT_ID=3/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=3/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
 DELIMITER ;
 DELIMITER /*!*/;
-SET INSERT_ID=6/*!*/;
-use test/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
 SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+SET INSERT_ID=6/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -990,7 +1577,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -999,13 +1586,25 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -1020,7 +1619,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
@@ -1029,29 +1628,65 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 create table t1 (a int auto_increment not null primary key, b char(3))
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "a")
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=2/*!*/;
 SET TIMESTAMP=1579609942/*!*/;
 insert into t1 values(null, "b")
 /*!*/;
+SET TIMESTAMP=1579609942/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=3/*!*/;
 SET TIMESTAMP=1579609944/*!*/;
 insert into t1 values(null, "c")
+/*!*/;
+SET TIMESTAMP=1579609944/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
 /*!*/;
 SET INSERT_ID=4/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "d")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=5/*!*/;
 SET TIMESTAMP=1579609946/*!*/;
 insert into t1 values(null, "e")
 /*!*/;
+SET TIMESTAMP=1579609946/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+BEGIN
+/*!*/;
 SET INSERT_ID=6/*!*/;
 SET TIMESTAMP=1579609943/*!*/;
 insert into t1 values(null, "f")
+/*!*/;
+SET TIMESTAMP=1579609943/*!*/;
+COMMIT
 /*!*/;
 DELIMITER ;
 # End of log file

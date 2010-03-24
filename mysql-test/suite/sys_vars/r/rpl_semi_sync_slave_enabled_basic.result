@@ -1,0 +1,73 @@
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so';
+select @@global.rpl_semi_sync_slave_enabled;
+@@global.rpl_semi_sync_slave_enabled
+0
+SET @start_global_value = @@global.rpl_semi_sync_slave_enabled;
+select @@global.rpl_semi_sync_slave_enabled in (0,1);
+@@global.rpl_semi_sync_slave_enabled in (0,1)
+1
+select @@session.rpl_semi_sync_slave_enabled;
+ERROR HY000: Variable 'rpl_semi_sync_slave_enabled' is a GLOBAL variable
+show global variables like 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+rpl_semi_sync_slave_enabled	OFF
+show session variables like 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+rpl_semi_sync_slave_enabled	OFF
+select * from information_schema.global_variables where variable_name='rpl_semi_sync_slave_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+RPL_SEMI_SYNC_SLAVE_ENABLED	OFF
+select * from information_schema.session_variables where variable_name='rpl_semi_sync_slave_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+RPL_SEMI_SYNC_SLAVE_ENABLED	OFF
+set global rpl_semi_sync_slave_enabled=0;
+set session rpl_semi_sync_slave_enabled=0;
+ERROR HY000: Variable 'rpl_semi_sync_slave_enabled' is a GLOBAL variable and should be set with SET GLOBAL
+select @@global.rpl_semi_sync_slave_enabled;
+@@global.rpl_semi_sync_slave_enabled
+0
+select @@session.rpl_semi_sync_slave_enabled;
+ERROR HY000: Variable 'rpl_semi_sync_slave_enabled' is a GLOBAL variable
+show global variables like 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+rpl_semi_sync_slave_enabled	OFF
+show session variables like 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+rpl_semi_sync_slave_enabled	OFF
+select * from information_schema.global_variables where variable_name='rpl_semi_sync_slave_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+RPL_SEMI_SYNC_SLAVE_ENABLED	OFF
+select * from information_schema.session_variables where variable_name='rpl_semi_sync_slave_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+RPL_SEMI_SYNC_SLAVE_ENABLED	OFF
+set global rpl_semi_sync_slave_enabled=1;
+set session rpl_semi_sync_slave_enabled=1;
+ERROR HY000: Variable 'rpl_semi_sync_slave_enabled' is a GLOBAL variable and should be set with SET GLOBAL
+select @@global.rpl_semi_sync_slave_enabled;
+@@global.rpl_semi_sync_slave_enabled
+-1
+select @@session.rpl_semi_sync_slave_enabled;
+ERROR HY000: Variable 'rpl_semi_sync_slave_enabled' is a GLOBAL variable
+show global variables like 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+rpl_semi_sync_slave_enabled	ON
+show session variables like 'rpl_semi_sync_slave_enabled';
+Variable_name	Value
+rpl_semi_sync_slave_enabled	ON
+select * from information_schema.global_variables where variable_name='rpl_semi_sync_slave_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+RPL_SEMI_SYNC_SLAVE_ENABLED	ON
+select * from information_schema.session_variables where variable_name='rpl_semi_sync_slave_enabled';
+VARIABLE_NAME	VARIABLE_VALUE
+RPL_SEMI_SYNC_SLAVE_ENABLED	ON
+set global rpl_semi_sync_slave_enabled=1.1;
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_slave_enabled'
+set global rpl_semi_sync_slave_enabled=1e1;
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_slave_enabled'
+set global rpl_semi_sync_slave_enabled="some text";
+ERROR 42000: Variable 'rpl_semi_sync_slave_enabled' can't be set to the value of 'some text'
+SET @@global.rpl_semi_sync_slave_enabled = @start_global_value;
+select @@global.rpl_semi_sync_slave_enabled;
+@@global.rpl_semi_sync_slave_enabled
+0
+UNINSTALL PLUGIN rpl_semi_sync_slave;

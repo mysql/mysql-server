@@ -1,10 +1,10 @@
 create table t1 (id int) engine=NDB;
 Warnings:
-Warning	1286	Unknown table engine 'NDB'
+Warning	1286	Unknown storage engine 'NDB'
 Warning	1266	Using storage engine MyISAM for table 't1'
 alter table t1 engine=NDB;
 Warnings:
-Warning	1286	Unknown table engine 'NDB'
+Warning	1286	Unknown storage engine 'NDB'
 drop table t1;
 SELECT ENGINE, SUPPORT FROM INFORMATION_SCHEMA.ENGINES WHERE ENGINE='ndbcluster';
 ENGINE	SUPPORT

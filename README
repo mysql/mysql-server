@@ -1,6 +1,58 @@
-DO NOT TRANSLATE OR LOCALIZE
+This is a release of MySQL, a dual-license SQL database server.
+MySQL is brought to you by the MySQL team at Oracle Corporation.
 
-***************************************************************************
+************************************************************
+LICENSE
+************************************************************
+License information and use restrictions of this software can
+be found in these files:
+- For GPL (free) distributions, see the COPYING file and
+  the EXCEPTIONS-CLIENT file.
+- For commercial distributions, see the LICENSE.mysql file.
+
+GPLv2 Disclaimer
+For the avoidance of doubt, except that if any license choice
+other than GPL or LGPL is available it will apply instead, Oracle
+elects to use only the General Public License version 2 (GPLv2)
+at this time for any software where a choice of GPL license versions
+is made available with the language indicating that GPLv2 or any
+later version may be used, or where a choice of which version of
+the GPL is applied is otherwise unspecified.
+
+************************************************************
+FURTHER INFORMATION
+************************************************************
+For further information about MySQL or additional documentation, see:
+- The latest information about MySQL: http://dev.mysql.com/
+- The current MySQL documentation: http://dev.mysql.com/doc/
+
+Some manual sections of special interest:
+- If you are migrating from an older version of MySQL, please read 
+the "Upgrading from..." section first!
+- To see what MySQL can do, take a look at the features section.
+- For installation instructions, see the Installing and Upgrading
+chapter.
+- For the new features/bugfix history, see the Change History appendix.
+- For the currently known bugs/misfeatures (known errors) see the
+Problems and Common Errors appendix.
+- For a list of developers and other contributors, see the Credits
+appendix.
+
+A local copy of the MySQL Reference Manual can be found in the Docs
+directory in GNU Info format. You can also browse the manual online or
+download it in any of several formats at the URL given earlier in this
+file.
+
+************************************************************
+IMPORTANT:
+
+Bug or error reports should be sent to http://bugs.mysql.com.
+************************************************************
+
+
+************************************************************
+THIRD-PARTY SOFTWARE
+************************************************************
 
 %%The following software may be included in this product:
 FindGTest.cmake (part of CMake 2.8.0)

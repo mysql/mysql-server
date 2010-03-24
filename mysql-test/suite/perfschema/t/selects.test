@@ -1,0 +1,156 @@
+# Copyright (C) 2008-2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+#
+# WL#4814, 4.1.2 STORAGE ENGINE, FSE8: Selects
+#
+
+# Make some data that we can work on:
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
+ENGINE=MyISAM;
+INSERT INTO t1 (id) VALUES (1), (2), (3), (4), (5), (6), (7), (8);
+
+# ORDER BY, GROUP BY and HAVING
+
+--replace_column 2 [NUM_BYTES]
+SELECT OPERATION, SUM(NUMBER_OF_BYTES) AS TOTAL
+FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+GROUP BY OPERATION
+HAVING TOTAL IS NOT NULL
+ORDER BY OPERATION
+LIMIT 1;
+
+# Sub SELECT
+--replace_column 1 [EVENT_ID]
+SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
+WHERE THREAD_ID IN
+  (SELECT THREAD_ID FROM performance_schema.PROCESSLIST)
+AND EVENT_NAME IN
+  (SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
+   WHERE NAME LIKE "wait/synch/%")
+LIMIT 1;
+
+# JOIN
+
+--replace_column 1 [EVENT_ID]
+SELECT DISTINCT EVENT_ID
+FROM performance_schema.EVENTS_WAITS_CURRENT
+JOIN performance_schema.EVENTS_WAITS_HISTORY USING (EVENT_ID)
+JOIN performance_schema.EVENTS_WAITS_HISTORY_LONG USING (EVENT_ID)
+ORDER BY EVENT_ID
+LIMIT 1;
+
+# Self JOIN
+
+--replace_column 1 [THREAD_ID] 2 [EVENT_ID] 3 [EVENT_NAME] 4 [TIMER_WAIT]
+SELECT t1.THREAD_ID, t2.EVENT_ID, t3.EVENT_NAME, t4.TIMER_WAIT
+FROM performance_schema.EVENTS_WAITS_HISTORY t1
+JOIN performance_schema.EVENTS_WAITS_HISTORY t2 USING (EVENT_ID)
+JOIN performance_schema.EVENTS_WAITS_HISTORY t3 ON (t2.THREAD_ID = t3.THREAD_ID)
+JOIN performance_schema.EVENTS_WAITS_HISTORY t4 ON (t3.EVENT_NAME = t4.EVENT_NAME)
+ORDER BY t1.EVENT_ID, t2.EVENT_ID
+LIMIT 5;
+
+# UNION
+--replace_column 1 [THREAD_ID] 2 [EVENT_ID]
+SELECT THREAD_ID, EVENT_ID FROM (
+SELECT THREAD_ID, EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
+UNION
+SELECT THREAD_ID, EVENT_ID FROM performance_schema.EVENTS_WAITS_HISTORY
+UNION
+SELECT THREAD_ID, EVENT_ID FROM performance_schema.EVENTS_WAITS_HISTORY_LONG
+) t1 ORDER BY THREAD_ID, EVENT_ID
+LIMIT 5;
+
+# EVENT
+
+CREATE EVENT t_ps_event
+ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 SECOND
+DO SELECT DISTINCT EVENT_ID
+   FROM performance_schema.EVENTS_WAITS_CURRENT
+   JOIN performance_schema.EVENTS_WAITS_HISTORY USING (EVENT_ID)
+   ORDER BY EVENT_ID
+   LIMIT 1;
+
+--sleep 2
+
+# TRIGGER
+
+ALTER TABLE t1 ADD COLUMN c INT;
+
+delimiter |;
+
+CREATE TRIGGER t_ps_trigger BEFORE INSERT ON t1
+  FOR EACH ROW BEGIN
+     SET NEW.c = (SELECT MAX(EVENT_ID)
+                  FROM performance_schema.EVENTS_WAITS_CURRENT);
+  END;
+|
+
+delimiter ;|
+
+INSERT INTO t1 (id) VALUES (11), (12), (13);
+
+--replace_column 2 [EVENT_ID]
+SELECT id, c FROM t1 WHERE id > 10 ORDER BY c;
+
+DROP TRIGGER t_ps_trigger;
+
+# PROCEDURE
+
+delimiter |;
+
+CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
+BEGIN
+   SELECT id FROM performance_schema.PROCESSLIST
+   WHERE THREAD_ID = tid INTO pid;
+END;
+
+|
+
+delimiter ;|
+
+CALL t_ps_proc(0, @p_id);
+
+# FUNCTION
+
+delimiter |;
+
+CREATE FUNCTION t_ps_func(tid INT) RETURNS int
+BEGIN
+   return (SELECT id FROM performance_schema.PROCESSLIST
+           WHERE THREAD_ID = tid);
+END;
+
+|
+
+delimiter ;|
+
+SELECT t_ps_func(0) = @p_id;
+
+DROP PROCEDURE t_ps_proc;
+DROP FUNCTION t_ps_func;
+
+# Clean up
+DROP TABLE t1;

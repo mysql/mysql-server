@@ -6,7 +6,7 @@
 # And it requires InnoDB
 --source include/have_innodb.inc
 
-# Save the initial number of concurrent sessions
+--echo # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
 --echo # Establish connection con1 (user=root)
@@ -30,18 +30,24 @@ INSERT INTO t1 VALUES(1);
 --echo # Switch to connection con2
 connection con2;
 FLUSH TABLES WITH READ LOCK;
-SELECT * FROM t1;
 --echo # Switch to connection con1
 connection con1;
-send COMMIT; # blocked by con2
-sleep 1;
+--echo # Sending:
+--send COMMIT
 --echo # Switch to connection con2
 connection con2;
-SELECT * FROM t1; # verify con1 was blocked and data did not move
+--echo # Wait until COMMIT gets blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for release of readlock" and info = "COMMIT";
+--source include/wait_condition.inc
+--echo # Verify that 'con1' was blocked and data did not move.
+SELECT * FROM t1;
 UNLOCK TABLES;
 --echo # Switch to connection con1
 connection con1;
-reap;
+--echo # Reaping COMMIT
+--reap
 
 # No deadlock ?
 
@@ -63,6 +69,7 @@ COMMIT; # should not be blocked by con3
 --echo # Switch to connection con2
 connection con2;
 reap;
+COMMIT;
 --echo # Switch to connection con3
 connection con3;
 reap;
@@ -79,8 +86,6 @@ connection con1;
 BEGIN;
 INSERT INTO t1 VALUES(10);
 FLUSH TABLES WITH READ LOCK;
-COMMIT;
-UNLOCK TABLES;
 --echo # Switch to connection con2
 connection con2;
 FLUSH TABLES WITH READ LOCK; # bug caused hang here
@@ -91,19 +96,21 @@ UNLOCK TABLES;
 BEGIN;
 SELECT * FROM t1;
 SHOW CREATE DATABASE test;
+COMMIT;
 
-DROP TABLE t1;
 
-
-# Cleanup
+--echo # Cleanup
 --echo # Switch to connection default and close connections con1, con2, con3
 connection default;
 disconnect con1;
 disconnect con2;
 disconnect con3;
 
-# End of 4.1 tests
+--echo # We commit open transactions when we disconnect: only then we can
+--echo # drop the table.
+DROP TABLE t1;
+--echo # End of 4.1 tests
 
-# Wait till all disconnects are completed
+--echo # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

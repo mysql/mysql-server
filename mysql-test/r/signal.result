@@ -2181,7 +2181,7 @@ drop procedure peter_p1 $$
 drop procedure peter_p2 $$
 drop procedure if exists peter_p3 $$
 Warnings:
-Note	1305	PROCEDURE peter_p3 does not exist
+Note	1305	PROCEDURE test.peter_p3 does not exist
 create procedure peter_p3()
 begin
 declare continue handler for sqlexception

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -158,7 +158,7 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
       my_message(EE_OUTOFMEMORY, buff, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH));
     }
     DBUG_PRINT("error",("Out of memory, in use: %ld at line %d, '%s'",
-			sf_malloc_max_memory,lineno, filename));
+			(long)sf_malloc_max_memory,lineno, filename));
     if (MyFlags & MY_FAE)
       exit(1);
     DBUG_RETURN ((void*) 0);
@@ -178,7 +178,7 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
   irem->prev=	  NULL;
 
   /* Add this remember structure to the linked list */
-  pthread_mutex_lock(&THR_LOCK_malloc);
+  mysql_mutex_lock(&THR_LOCK_malloc);
   if ((irem->next= sf_malloc_root))
     sf_malloc_root->prev= irem;
   sf_malloc_root= irem;
@@ -188,7 +188,7 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
   if (sf_malloc_cur_memory > sf_malloc_max_memory)
     sf_malloc_max_memory= sf_malloc_cur_memory;
   sf_malloc_count++;
-  pthread_mutex_unlock(&THR_LOCK_malloc);
+  mysql_mutex_unlock(&THR_LOCK_malloc);
 
   /* Set the memory to the aribtrary wierd value */
   if ((MyFlags & MY_ZEROFILL) || !sf_malloc_quick)
@@ -291,7 +291,7 @@ void _myfree(void *ptr, const char *filename, uint lineno, myf myflags)
   }
 
   /* Remove this structure from the linked list */
-  pthread_mutex_lock(&THR_LOCK_malloc);
+  mysql_mutex_lock(&THR_LOCK_malloc);
   if (irem->prev)
     irem->prev->next= irem->next;
    else
@@ -302,7 +302,7 @@ void _myfree(void *ptr, const char *filename, uint lineno, myf myflags)
   /* Handle the statistics */
   sf_malloc_cur_memory-= irem->datasize;
   sf_malloc_count--;
-  pthread_mutex_unlock(&THR_LOCK_malloc);
+  mysql_mutex_unlock(&THR_LOCK_malloc);
 
 #ifndef HAVE_purify
   /* Mark this data as free'ed */
@@ -365,7 +365,7 @@ void TERMINATE(FILE *file, uint flag)
 {
   struct st_irem *irem;
   DBUG_ENTER("TERMINATE");
-  pthread_mutex_lock(&THR_LOCK_malloc);
+  mysql_mutex_lock(&THR_LOCK_malloc);
 
   /*
     Report the difference between number of calls to
@@ -428,7 +428,7 @@ void TERMINATE(FILE *file, uint flag)
   DBUG_PRINT("safe",("Maximum memory usage: %lu bytes (%luk)",
 		     (ulong) sf_malloc_max_memory,
 		     (ulong) (sf_malloc_max_memory + 1023L) /1024L));
-  pthread_mutex_unlock(&THR_LOCK_malloc);
+  mysql_mutex_unlock(&THR_LOCK_malloc);
   DBUG_VOID_RETURN;
 }
 
@@ -505,7 +505,7 @@ int _sanity(const char *filename, uint lineno)
   reg2 int flag=0;
   uint count=0;
 
-  pthread_mutex_lock(&THR_LOCK_malloc);
+  mysql_mutex_lock(&THR_LOCK_malloc);
 #ifndef PEDANTIC_SAFEMALLOC  
   if (sf_malloc_tampered && (int) sf_malloc_count < 0)
     sf_malloc_count=0;
@@ -513,7 +513,7 @@ int _sanity(const char *filename, uint lineno)
   count=sf_malloc_count;
   for (irem= sf_malloc_root; irem != NULL && count-- ; irem= irem->next)
     flag+= _checkchunk (irem, filename, lineno);
-  pthread_mutex_unlock(&THR_LOCK_malloc);
+  mysql_mutex_unlock(&THR_LOCK_malloc);
   if (count || irem)
   {
     const char *format="Error: Safemalloc link list destroyed, discovered at '%s:%d'";

@@ -45,6 +45,7 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
   const char *end= str + strip->cset->lengthsp(strip, str, length);
   ulonglong found= 0;
   *err_pos= 0;                  // No error yet
+  *err_len= 0;
   if (str != end)
   {
     const char *start= str;    
@@ -71,7 +72,7 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
       var_len= (uint) (pos - start);
       uint find= cs ? find_type2(lib, start, var_len, cs) :
                       find_type(lib, start, var_len, (bool) 0);
-      if (!find)
+      if (!find && *err_len == 0) // report the first error with length > 0
       {
         *err_pos= (char*) start;
         *err_len= var_len;
@@ -86,209 +87,6 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length, CHARSET_INFO *cs,
   }
   return found;
 }
-
-
-static const char *on_off_default_names[]=
-{
-  "off","on","default", NullS
-};
-
-static const unsigned int on_off_default_names_len[]=
-{
-  sizeof("off") - 1,
-  sizeof("on") - 1,
-  sizeof("default") - 1
-};
-
-static TYPELIB on_off_default_typelib= {array_elements(on_off_default_names)-1,
-                                        "", on_off_default_names,
-                                        (unsigned int *)on_off_default_names_len};
-
-
-/*
-  Parse a TYPELIB name from the buffer
-
-  SYNOPSIS
-    parse_name()
-      lib          Set of names to scan for.
-      strpos INOUT Start of the buffer (updated to point to the next
-                   character after the name)
-      end          End of the buffer
-      cs           Charset used in the buffer
-
-  DESCRIPTION
-    Parse a TYPELIB name from the buffer. The buffer is assumed to contain
-    one of the names specified in the TYPELIB, followed by comma, '=', or
-    end of the buffer.
-
-  RETURN
-    0	No matching name
-    >0  Offset+1 in typelib for matched name
-*/
-
-static uint parse_name(TYPELIB *lib, const char **strpos, const char *end, 
-                       CHARSET_INFO *cs)
-{
-  const char *pos= *strpos;
-  const char *start= pos;
-
-  /* Find the length */
-  if (cs && cs->mbminlen > 1)
-  {
-    int mblen= 0;
-    for ( ; pos < end; pos+= mblen)
-    {
-      my_wc_t wc;
-      if ((mblen= cs->cset->mb_wc(cs, &wc, (const uchar *) pos,
-                                           (const uchar *) end)) < 1)
-        mblen= 1; // Not to hang on a wrong multibyte sequence
-      if (wc == (my_wc_t) '=' || wc == (my_wc_t) ',')
-        break;
-    }
-  }
-  else
-    for (; pos != end && *pos != '=' && *pos !=',' ; pos++) ;
-
-  uint var_len= (uint) (pos - start);
-  /* Determine which flag it is */
-  uint find= cs ? find_type2(lib, start, var_len, cs) :
-                  find_type(lib, start, var_len, (bool) 0);
-  *strpos= pos;
-  return find;
-}
-
-
-/* Read next character from the buffer in a charset-aware way */
-
-static my_wc_t get_next_char(const char **pos, const char *end, CHARSET_INFO *cs)
-{
-  my_wc_t wc;
-  if (*pos == end)
-      return (my_wc_t)-1;
-
-  if (cs && cs->mbminlen > 1)
-  {
-    int mblen;
-    if ((mblen= cs->cset->mb_wc(cs, &wc, (const uchar *) *pos,
-                                         (const uchar *) end)) < 1)
-      mblen= 1; // Not to hang on a wrong multibyte sequence
-    *pos += mblen;
-    return wc;
-  }
-  else
-    return *((*pos)++);
-}
-
-
-/*
-  Parse and apply a set of flag assingments
-
-  SYNOPSIS
-    find_set_from_flags()
-      lib               Flag names
-      default_name      Number of "default" in the typelib
-      cur_set           Current set of flags (start from this state)
-      default_set       Default set of flags (use this for assign-default
-                        keyword and flag=default assignments)
-      str               String to be parsed
-      length            Length of the string
-      cs                String charset
-      err_pos      OUT  If error, set to point to start of wrong set string
-                        NULL on success
-      err_len      OUT  If error, set to the length of wrong set string
-      set_warning  OUT  TRUE <=> Some string in set couldn't be used
-
-  DESCRIPTION
-    Parse a set of flag assignments, that is, parse a string in form:
-
-      param_name1=value1,param_name2=value2,... 
-    
-    where the names are specified in the TYPELIB, and each value can be
-    either 'on','off', or 'default'. Setting the same name twice is not 
-    allowed.
-    
-    Besides param=val assignments, we support the "default" keyword (keyword 
-    #default_name in the typelib). It can be used one time, if specified it 
-    causes us to build the new set over the default_set rather than cur_set
-    value.
-    
-  RETURN
-    Parsed set value if (*errpos == NULL)
-    Otherwise undefined
-*/
-
-ulonglong find_set_from_flags(TYPELIB *lib, uint default_name,
-                              ulonglong cur_set, ulonglong default_set,
-                              const char *str, uint length, CHARSET_INFO *cs,
-                              char **err_pos, uint *err_len, bool *set_warning)
-{
-  CHARSET_INFO *strip= cs ? cs : &my_charset_latin1;
-  const char *end= str + strip->cset->lengthsp(strip, str, length);
-  ulonglong flags_to_set= 0, flags_to_clear= 0;
-  bool set_defaults= 0;
-  *err_pos= 0;                  // No error yet
-  if (str != end)
-  {
-    const char *start= str;    
-    for (;;)
-    {
-      const char *pos= start;
-      uint flag_no, value;
-
-      if (!(flag_no= parse_name(lib, &pos, end, cs)))
-        goto err;
-
-      if (flag_no == default_name)
-      {
-        /* Using 'default' twice isn't allowed. */
-        if (set_defaults)
-          goto err;
-        set_defaults= TRUE;
-      }
-      else
-      {
-        ulonglong bit=  ((longlong) 1 << (flag_no - 1));
-        /* parse the '=on|off|default' */
-        if ((flags_to_clear | flags_to_set) & bit ||
-            get_next_char(&pos, end, cs) != '=' ||
-            !(value= parse_name(&on_off_default_typelib, &pos, end, cs)))
-        {
-          goto err;
-        }
-        
-        if (value == 1) // this is '=off'
-          flags_to_clear|= bit;
-        else if (value == 2) // this is '=on'
-          flags_to_set|= bit;
-        else // this is '=default' 
-        {
-          if (default_set & bit)
-            flags_to_set|= bit;
-          else
-            flags_to_clear|= bit;
-        }
-      }
-      if (pos >= end)
-        break;
-
-      if (get_next_char(&pos, end, cs) != ',')
-        goto err;
-
-      start=pos;
-      continue;
-   err:
-      *err_pos= (char*)start;
-      *err_len= end - start;
-      *set_warning= TRUE;
-      break;
-    }
-  }
-  ulonglong res= set_defaults? default_set : cur_set;
-  res|= flags_to_set;
-  res&= ~flags_to_clear;
-  return res;
-}
-
 
 /*
   Function to find a string in a TYPELIB
@@ -543,3 +341,60 @@ int find_string_in_array(LEX_STRING * const haystack, LEX_STRING * const needle,
     }
   return -1;
 }
+
+
+char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
+                    const char *lib[])
+{
+  char buff[STRING_BUFFER_USUAL_SIZE*8];
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  LEX_STRING unused;
+
+  if (!result)
+    result= &unused;
+
+  tmp.length(0);
+
+  for (uint i= 0; set; i++, set >>= 1)
+    if (set & 1) {
+      tmp.append(lib[i]);
+      tmp.append(',');
+    }
+
+  if (tmp.length())
+  {
+    result->str=    thd->strmake(tmp.ptr(), tmp.length()-1);
+    result->length= tmp.length()-1;
+  }
+  else
+  {
+    result->str= const_cast<char*>("");
+    result->length= 0;
+  }
+  return result->str;
+}
+
+char *flagset_to_string(THD *thd, LEX_STRING *result, ulonglong set,
+                        const char *lib[])
+{
+  char buff[STRING_BUFFER_USUAL_SIZE*8];
+  String tmp(buff, sizeof(buff), &my_charset_latin1);
+  LEX_STRING unused;
+
+  if (!result) result= &unused;
+
+  tmp.length(0);
+
+  // note that the last element is always "default", and it's ignored below
+  for (uint i= 0; lib[i+1]; i++, set >>= 1)
+  {
+    tmp.append(lib[i]);
+    tmp.append(set & 1 ? "=on," : "=off,");
+  }
+
+  result->str=    thd->strmake(tmp.ptr(), tmp.length()-1);
+  result->length= tmp.length()-1;
+
+  return result->str;
+}
+

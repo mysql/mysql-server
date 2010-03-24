@@ -90,8 +90,6 @@ SET @@session.insert_id = -1024;
 SELECT @@session.insert_id;
 SET @@session.insert_id = 42949672950;
 SELECT @@session.insert_id;
-echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
-
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.insert_id = ON;
 SELECT @@session.insert_id;

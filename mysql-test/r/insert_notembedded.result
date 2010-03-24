@@ -122,5 +122,6 @@ a	b
 connection: default
 select * from t1;
 a	b
+unlock tables;
 drop table t1;
 set low_priority_updates=default;

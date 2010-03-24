@@ -23,9 +23,7 @@ load data infile '../../std_data/loaddata6.dat' into table t1 character set koi8
 
 select hex(a) from t1;
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 select hex(a) from t1;
 connection master;

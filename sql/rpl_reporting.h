@@ -1,6 +1,21 @@
 #ifndef RPL_REPORTING_H
 #define RPL_REPORTING_H
 
+/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
 /**
    Maximum size of an error message from a slave thread.
  */
@@ -17,17 +32,13 @@ class Slave_reporting_capability
 {
 public:
   /** lock used to synchronize m_last_error on 'SHOW SLAVE STATUS' **/
-  mutable pthread_mutex_t err_lock;
+  mutable mysql_mutex_t err_lock;
   /**
      Constructor.
 
      @param thread_name Printable name of the slave thread that is reporting.
    */
-  Slave_reporting_capability(char const *thread_name)
-    : m_thread_name(thread_name)
-  {
-      pthread_mutex_init(&err_lock, MY_MUTEX_INIT_FAST);
-  }
+  Slave_reporting_capability(char const *thread_name);
 
   /**
      Writes a message and, if it's an error message, to Last_Error
@@ -47,9 +58,9 @@ public:
      STATUS</code>.
    */
   void clear_error() {
-    pthread_mutex_lock(&err_lock);
+    mysql_mutex_lock(&err_lock);
     m_last_error.clear();
-    pthread_mutex_unlock(&err_lock);
+    mysql_mutex_unlock(&err_lock);
   }
 
   /**

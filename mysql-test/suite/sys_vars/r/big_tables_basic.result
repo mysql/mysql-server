@@ -7,8 +7,7 @@ SET @@big_tables = 1;
 SET @@big_tables = DEFAULT;
 SELECT @@big_tables;
 @@big_tables
-1
-'Bug# 34829: No default value for variable and setting default does not raise error';
+0
 '#--------------------FN_DYNVARS_005_02------------------------#'
 SET @@big_tables = 0;
 SELECT @@big_tables;
@@ -44,17 +43,17 @@ ERROR 42000: Variable 'big_tables' can't be set to the value of ' '
 SET @@big_tables = '';
 ERROR 42000: Variable 'big_tables' can't be set to the value of ''
 '#-------------------FN_DYNVARS_005_04----------------------------#'
-SET @@global.big_tables = 0;
-ERROR HY000: Variable 'big_tables' is a SESSION variable and can't be used with SET GLOBAL
+SET @@global.big_tables = 1-@@global.big_tables;
 SELECT @@global.big_tables;
-ERROR HY000: Variable 'big_tables' is a SESSION variable
+@@global.big_tables
+1
+SET @@global.big_tables = 1-@@global.big_tables;
 '#----------------------FN_DYNVARS_005_05------------------------#'
 SELECT IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='big_tables';
 IF(@@big_tables, "ON", "OFF") = VARIABLE_VALUE
 1
-Bug # 34839: Values in variable and information_schema do not match for autocommit
 '#---------------------FN_DYNVARS_005_06----------------------#'
 SET @@big_tables = OFF;
 SELECT @@big_tables;

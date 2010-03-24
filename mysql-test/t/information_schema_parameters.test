@@ -1,0 +1,251 @@
+#------------------------------------------------------------------------------
+# i_s_parameters.test
+# .test file for MySQL regression suite
+# Purpose:  To test the presence, structure, and behavior
+#                    of INFORMATION_SCHEMA.PARAMETERS
+# Author:  pcrews
+# Last modified:  2007-12-03
+#------------------------------------------------------------------------------
+
+###############################################################################
+# Testcase parameters.1: Verify INFORMATION_SCHEMA.PARAMETERS view has the
+#                    following structure:
+#  SPECIFIC_CATALOG                         NULL
+#  SPECIFIC_SCHEMA                          routine's database
+#  SPECIFIC_NAME                            routine's name
+#  ORDINAL_POSITION                         first stored routine parameter is 1,
+#                                           always 0 for stored function RETURN
+#  PARAMETER_MODE                           'IN' or 'OUT' or 'INOUT'
+#  PARAMETER_NAME                           the parameter's name
+#  DATA_TYPE                                same as for COLUMNS
+#  CHARACTER_MAXIMUM_LENGTH                 same as for COLUMNS
+#  CHARACTER_OCTET_LENGTH                   same as for COLUMNS
+#  CHARACTER_SET_NAME                       same as for COLUMNS
+#  COLLATION_NAME                           same as for COLUMNS
+#  NUMERIC_PRECISION                        same as for COLUMNS
+#  NUMERIC_SCALE                            same as for COLUMNS
+#  DTD_IDENTIFIER                           same as for PARAMETERS
+###############################################################################
+-- echo # ========== parameters.1 ==========
+USE INFORMATION_SCHEMA;
+--replace_result ENGINE=MyISAM "" ENGINE=MARIA "" " PAGE_CHECKSUM=1" "" " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE INFORMATION_SCHEMA.PARAMETERS;
+
+# embedded server does not display privileges
+--replace_column 18 #
+query_vertical SELECT * FROM information_schema.columns
+WHERE table_schema = 'information_schema'
+  AND table_name   = 'parameters'
+ORDER BY ordinal_position;
+
+DESCRIBE INFORMATION_SCHEMA.PARAMETERS;
+
+###############################################################################
+# Testcase parameters.2:  Unsuccessful stored procedure CREATE will not populate
+#                     I_S.PARAMETERS view
+###############################################################################
+-- echo # ========== parameters.2 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+# Missing closing ')' character at the end of 's char(20) in func declaration
+--error ER_PARSE_ERROR
+CREATE FUNCTION test_func1 (s char(20) RETURNS CHAR(50)
+RETURN CONCAT('Hello', ,s,'!');
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
+
+###############################################################################
+# Testcase parameters.3:  DROP FUNCTION - Verify DROP of a stored procedure
+#                                     removes I_S.PARAMETERS data for that
+#                                     function / procedure
+###############################################################################
+-- echo # ========== parameters.3 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
+RETURN CONCAT('Hello, ',s,'!');
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
+DROP FUNCTION test_func1;
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
+
+###############################################################################
+# Testcase parameters.4:  CREATE PROCEDURE - IN
+###############################################################################
+-- echo # ========== parameters.4 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+delimiter //;
+CREATE PROCEDURE testproc (OUT param1 INT)
+  BEGIN
+   SELECT 2+2 as param1;
+  END;
+//
+delimiter ;//
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'testproc';
+
+
+###############################################################################
+# Testcase parameters.5:  CREATE PROCEDURE - INOUT
+###############################################################################
+-- echo # ========== parameters.5 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+CREATE PROCEDURE test_proc(INOUT P INT) SET @x=P*2;
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_proc';
+
+###############################################################################
+# Testcase parameters.6:  CREATE PROCEDURE - OUT
+###############################################################################
+-- echo # ========== parameters.6 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+CREATE PROCEDURE test_proc(OUT p VARCHAR(10)) SET P='test';
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_proc';
+
+###############################################################################
+# Testcase parameters.7:  CREATE FUNCTION - ORDINAL POSITION
+#                     Verify proper behavior for several aspects here
+#                     3 rows should be created -- 1 for each IN parameter
+#                                                 1 for the RETURNS param
+#                     ORDINAL POSITION values should be 0 for RETURNS
+#                                             1 and 2 for IN parameters
+#                     PARAM NAME and MODE should = NULL for RETURNS parm
+###############################################################################
+-- echo # ========== parameters.7 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+CREATE FUNCTION test_func1 (s char(20), t char(20)) RETURNS CHAR(40)
+RETURN CONCAT(s,t);
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
+
+###############################################################################
+# Testcase parameters.8:  CREATE FUNCTION - CHAR parameters
+#                     Verify CHAR related columns are populated for such a
+#                     parameter -- NUMERIC columns should be NULL
+###############################################################################
+-- echo # ========== parameters.8 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+CREATE FUNCTION test_func1 (s char(20)) RETURNS CHAR(50)
+RETURN CONCAT('Hello, ',s,'!');
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func1';
+
+###############################################################################
+# Testcase parameters.9:  CREATE FUNCTION - NUMERIC parameters
+#                     Verify NUMERIC related columns are populated for such
+#                     parameter -- CHAR columns should be NULL
+###############################################################################
+-- echo # ========== parameters.9 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+CREATE FUNCTION test_func2 (s int) RETURNS INT RETURN s*2;
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func2';
+
+###############################################################################
+# Testcase parameters.10:  CREATE FUNCTION - DATE
+#                     Verify NUMERIC and CHAR related columns are NULL
+###############################################################################
+-- echo # ========== parameters.10 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
+RETURN CURRENT_TIMESTAMP;
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
+
+###############################################################################
+# Testcase parameters.11:  ALTER FUNCTION
+#                     Quick check to ensure ALTER doesn't affect this view
+#                     Should have no effect -- comment visible in ROUTINES
+#                     tested in i_s_routines.test
+###############################################################################
+-- echo # ========== parameters.11 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test;
+USE i_s_parameters_test;
+
+CREATE FUNCTION test_func5 (s date) RETURNS TIMESTAMP
+RETURN CURRENT_TIMESTAMP;
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
+ALTER FUNCTION test_func5 COMMENT 'new comment added';
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
+
+###############################################################################
+# Testcase parameters.12:  MULTI-BYTE CHAR SETS
+#                     Verify that CHAR_MAX_LENGTH and CHAR_OCTET_LENGTH
+#                     differ as expected for multi-byte char sets
+#                     Normally both values are equal
+###############################################################################
+-- echo # ========== parameters.12 ==========
+--disable_warnings
+DROP DATABASE IF EXISTS i_s_parameters_test;
+--enable_warnings
+
+CREATE DATABASE i_s_parameters_test CHARACTER SET  utf8;
+USE i_s_parameters_test;
+
+CREATE FUNCTION test_func5 (s CHAR(20)) RETURNS VARCHAR(30)
+RETURN CONCAT('XYZ, ' ,s);
+SELECT * FROM INFORMATION_SCHEMA.PARAMETERS
+WHERE SPECIFIC_SCHEMA = 'i_s_parameters_test' AND SPECIFIC_NAME = 'test_func5';
+
+# Cleanup
+DROP DATABASE i_s_parameters_test;

@@ -66,7 +66,6 @@ Warning	1292	Truncated incorrect expire_logs_days value: '42949672950'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
 SET @@global.expire_logs_days = ON;
 ERROR 42000: Incorrect argument type to variable 'expire_logs_days'
 SELECT @@global.expire_logs_days;

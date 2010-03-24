@@ -20,6 +20,7 @@ do
 done
 IFS="$save_ifs"
 
+rm -rf configure
 aclocal || die "Can't execute aclocal" 
 autoheader || die "Can't execute autoheader"
 # --force means overwrite ltmain.sh script if it already exists 
@@ -29,3 +30,9 @@ $LIBTOOLIZE --automake --force --copy || die "Can't execute libtoolize"
 # and --force to overwrite them if they already exist
 automake --add-missing --force  --copy || die "Can't execute automake"
 autoconf || die "Can't execute autoconf"
+# Do not use autotools generated configure directly. Instead, use a script
+# that will either call CMake or original configure shell script at build 
+# time (CMake is preferred if installed).
+mv configure configure.am
+cp BUILD/choose_configure.sh configure
+chmod a+x configure

@@ -17,81 +17,76 @@ WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
 ORDER BY variable_name;
 
 #
-# Test setting a lot of different formats to see which formats are accepted and
-# which aren't
-#
-
-SET time_format='%H%i%s';
-SET time_format='%H:%i:%s.%f';
-SET time_format='%h-%i-%s.%f%p';
-SET time_format='%h:%i:%s.%f %p';
-SET time_format='%h:%i:%s%p';
-
-SET date_format='%Y%m%d';
-SET date_format='%Y.%m.%d';
-SET date_format='%d.%m.%Y';
-SET date_format='%m-%d-%Y';
-
-set datetime_format= '%Y%m%d%H%i%s';
-set datetime_format= '%Y-%m-%d %H:%i:%s';
-set datetime_format= '%m-%d-%y %H:%i:%s.%f';
-set datetime_format= '%d-%m-%Y %h:%i:%s%p';
-set datetime_format= '%H:%i:%s %Y-%m-%d';
-set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
-set datetime_format= '%h:%i:%s %p %Y-%m-%d';
-set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
-
-SELECT variable_name, variable_value
-FROM information_schema.session_variables
-WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
-ORDER BY variable_name;
-
---error 1231
-SET time_format='%h:%i:%s';
---error 1231
-SET time_format='%H %i:%s';
---error 1231
-SET time_format='%H::%i:%s';
---error 1231
-SET time_format='%H:%i:%s%f';
---error 1231
-SET time_format='%H:%i.%f:%s';
---error 1231
-SET time_format='%H:%i:%s%p';
---error 1231
-SET time_format='%h:%i:%s.%f %p %Y-%m-%d';
---error 1231
-SET time_format='%H%i%s.%f';
---error 1231
-SET time_format='%H:%i-%s.%f';
---error 1231
-SET date_format='%d.%m.%d';
---error 1231
-SET datetime_format='%h.%m.%y %d.%i.%s';
---error 1231
-set datetime_format= '%H:%i:%s.%f %p %Y-%m-%d';
-
-#
-# Test GLOBAL values
-
-set GLOBAL datetime_format= '%H:%i:%s %Y-%m-%d';
-SET SESSION datetime_format=default;
-select @@global.datetime_format, @@session.datetime_format;
-SET GLOBAL datetime_format=default;
-SET SESSION datetime_format=default;
-select @@global.datetime_format, @@session.datetime_format;
-
-SET GLOBAL date_format=default;
-SET GLOBAL time_format=default;
-SET GLOBAL datetime_format=default;
-SET time_format=default;
-SET date_format=default;
-SET datetime_format=default;
-
-#
 # The following tests will work only when we at some point will enable
 # dynamic changing of formats
 #
+
+# SET time_format='%H%i%s';
+# SET time_format='%H:%i:%s.%f';
+# SET time_format='%h-%i-%s.%f%p';
+# SET time_format='%h:%i:%s.%f %p';
+# SET time_format='%h:%i:%s%p';
+# 
+# SET date_format='%Y%m%d';
+# SET date_format='%Y.%m.%d';
+# SET date_format='%d.%m.%Y';
+# SET date_format='%m-%d-%Y';
+# 
+# set datetime_format= '%Y%m%d%H%i%s';
+# set datetime_format= '%Y-%m-%d %H:%i:%s';
+# set datetime_format= '%m-%d-%y %H:%i:%s.%f';
+# set datetime_format= '%d-%m-%Y %h:%i:%s%p';
+# set datetime_format= '%H:%i:%s %Y-%m-%d';
+# set datetime_format= '%H:%i:%s.%f %m-%d-%Y';
+# set datetime_format= '%h:%i:%s %p %Y-%m-%d';
+# set datetime_format= '%h:%i:%s.%f %p %Y-%m-%d';
+# 
+# SELECT variable_name, variable_value
+# FROM information_schema.session_variables
+# WHERE variable_name IN ('date_format', 'datetime_format', 'time_format')
+# ORDER BY variable_name;
+# 
+# --error 1231
+# SET time_format='%h:%i:%s';
+# --error 1231
+# SET time_format='%H %i:%s';
+# --error 1231
+# SET time_format='%H::%i:%s';
+# --error 1231
+# SET time_format='%H:%i:%s%f';
+# --error 1231
+# SET time_format='%H:%i.%f:%s';
+# --error 1231
+# SET time_format='%H:%i:%s%p';
+# --error 1231
+# SET time_format='%h:%i:%s.%f %p %Y-%m-%d';
+# --error 1231
+# SET time_format='%H%i%s.%f';
+# --error 1231
+# SET time_format='%H:%i-%s.%f';
+# --error 1231
+# SET date_format='%d.%m.%d';
+# --error 1231
+# SET datetime_format='%h.%m.%y %d.%i.%s';
+# --error 1231
+# set datetime_format= '%H:%i:%s.%f %p %Y-%m-%d';
+# 
+# #
+# # Test GLOBAL values
+# 
+# set GLOBAL datetime_format= '%H:%i:%s %Y-%m-%d';
+# SET SESSION datetime_format=default;
+# select @@global.datetime_format, @@session.datetime_format;
+# SET GLOBAL datetime_format=default;
+# SET SESSION datetime_format=default;
+# select @@global.datetime_format, @@session.datetime_format;
+# 
+# SET GLOBAL date_format=default;
+# SET GLOBAL time_format=default;
+# SET GLOBAL datetime_format=default;
+# SET time_format=default;
+# SET date_format=default;
+# SET datetime_format=default;
 
 # SET date_format='%d.%m.%Y';
 # select CAST('01.01.2001' as DATE) as a;

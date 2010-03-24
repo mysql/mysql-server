@@ -37,7 +37,7 @@ EXTRA_SCRIPTS =		test-ATIS.sh test-connect.sh test-create.sh \
 			graph-compare-results.sh innotest1.sh innotest1a.sh \
 			innotest1b.sh innotest2.sh innotest2a.sh innotest2b.sh \
 			bench-count-distinct.sh
-EXTRA_DIST =		$(EXTRA_SCRIPTS)
+EXTRA_DIST =		$(EXTRA_SCRIPTS) CMakeLists.txt
 
 dist-hook:
 	mkdir -p $(distdir)/Data/ATIS $(distdir)/Data/Wisconsin \

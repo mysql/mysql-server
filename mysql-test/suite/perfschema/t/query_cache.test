@@ -1,0 +1,68 @@
+# Copyright (C) 2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+# This test verifies that performance schema tables, because they contain
+# data that is volatile, are never cached in the query cache.
+
+--source include/have_query_cache.inc
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1 (a int not null);
+insert into t1 values (1), (2), (3);
+
+SET GLOBAL query_cache_size=1355776;
+
+flush query cache;
+reset query cache;
+
+select * from t1;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+select * from t1;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+select spins from performance_schema.EVENTS_WAITS_CURRENT order by event_name limit 1;
+
+select name from performance_schema.SETUP_INSTRUMENTS order by name limit 1;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+select spins from performance_schema.EVENTS_WAITS_CURRENT order by event_name limit 1;
+
+select name from performance_schema.SETUP_INSTRUMENTS order by name limit 1;
+
+show status like "Qcache_queries_in_cache";
+show status like "Qcache_inserts";
+show status like "Qcache_hits";
+
+SET GLOBAL query_cache_size= default;
+
+drop table t1;
+

@@ -38,7 +38,7 @@ RESET SLAVE;
 *** Warning if updated slave_net_timeout < slave_heartbeat_timeout ***
 SET @@global.slave_net_timeout=FLOOR(SLAVE_HEARTBEAT_TIMEOUT)-1;
 Warnings:
-Warning	1624	The currect value for master_heartbeat_period exceeds the new value of `slave_net_timeout' sec. A sensible value for the period should be less than the timeout.
+Warning	1624	The current value for master_heartbeat_period exceeds the new value of `slave_net_timeout' sec. A sensible value for the period should be less than the timeout.
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 RESET SLAVE;
 
@@ -277,6 +277,7 @@ CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=SLAVE_PORT, MASTER_USER='r
 include/start_slave.inc
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10));
 INSERT INTO t1 VALUES(1, 'on master');
+CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(2, 'on slave');
 SELECT * FROM t1 ORDER BY a;
@@ -289,12 +290,10 @@ a	b
 2	on slave
 Heartbeat event received on master
 Heartbeat event received on slave
-Slave has received more events than master (1 means 'yes'): 1
-
 *** Clean up ***
 include/stop_slave.inc
 DROP TABLE t1;
 include/stop_slave.inc
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 
-End of 6.0 test
+End of tests

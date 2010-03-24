@@ -11,12 +11,14 @@ select * from information_schema.SCHEMATA where schema_name > 'm';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
 def	mtr	latin1	latin1_swedish_ci	NULL
 def	mysql	latin1	latin1_swedish_ci	NULL
+def	performance_schema	utf8	utf8_general_ci	NULL
 def	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
 information_schema
 mtr
 mysql
+performance_schema
 test
 show databases like 't%';
 Database (t%)
@@ -26,6 +28,7 @@ Database
 information_schema
 mtr
 mysql
+performance_schema
 test
 show databases where `database` = 't%';
 Database
@@ -53,6 +56,7 @@ FILES
 GLOBAL_STATUS
 GLOBAL_VARIABLES
 KEY_COLUMN_USAGE
+PARAMETERS
 PARTITIONS
 PLUGINS
 PROCESSLIST
@@ -65,6 +69,7 @@ SESSION_STATUS
 SESSION_VARIABLES
 STATISTICS
 TABLES
+TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
 TRIGGERS
@@ -103,6 +108,7 @@ inner join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
+TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
@@ -122,6 +128,7 @@ left join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
+TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
@@ -141,6 +148,7 @@ right join information_schema.TABLES v2 on (v1.c=v2.table_name)
 where v1.c like "t%";
 c	table_name
 TABLES	TABLES
+TABLESPACES	TABLESPACES
 TABLE_CONSTRAINTS	TABLE_CONSTRAINTS
 TABLE_PRIVILEGES	TABLE_PRIVILEGES
 TRIGGERS	TRIGGERS
@@ -161,11 +169,11 @@ table_name
 t1
 t4
 select * from information_schema.STATISTICS where TABLE_SCHEMA = "mysqltest";
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
-def	mysqltest	t1	1	mysqltest	string_data	1	b	A	NULL	NULL	NULL	YES	BTREE	
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
+def	mysqltest	t1	1	mysqltest	string_data	1	b	A	NULL	NULL	NULL	YES	BTREE		
 show keys from t3 where Key_name = "a_data";
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t3	1	a_data	1	a	A	NULL	NULL	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t3	1	a_data	1	a	A	NULL	NULL	NULL	YES	BTREE		
 show tables like 't%';
 Tables_in_test (t%)
 t2
@@ -359,6 +367,7 @@ c
 information_schema
 mtr
 mysql
+performance_schema
 test
 explain select * from v0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -391,7 +400,7 @@ latin1_general_ci
 latin1_general_cs
 latin1_spanish_ci
 show keys from v4;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 select * from information_schema.views where TABLE_NAME like "v%";
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 def	test	v0	select `information_schema`.`schemata`.`SCHEMA_NAME` AS `c` from `information_schema`.`schemata`	NONE	NO	root@localhost	DEFINER	latin1	latin1_swedish_ci
@@ -611,7 +620,7 @@ user
 drop view v1;
 create view vo as select 'a' union select 'a';
 show index from vo;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 select * from information_schema.TABLE_CONSTRAINTS where
 TABLE_NAME= "vo";
 CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
@@ -628,6 +637,7 @@ COLLATIONS	SYSTEM VIEW	MEMORY
 show tables from information_schema like "T%";
 Tables_in_information_schema (T%)
 TABLES
+TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
 TRIGGERS
@@ -637,6 +647,7 @@ use information_schema;
 show full tables like "T%";
 Tables_in_information_schema (T%)	Table_type
 TABLES	SYSTEM VIEW
+TABLESPACES	SYSTEM VIEW
 TABLE_CONSTRAINTS	SYSTEM VIEW
 TABLE_PRIVILEGES	SYSTEM VIEW
 TRIGGERS	SYSTEM VIEW
@@ -649,6 +660,7 @@ use information_schema;
 show tables like "T%";
 Tables_in_information_schema (T%)
 TABLES
+TABLESPACES
 TABLE_CONSTRAINTS
 TABLE_PRIVILEGES
 TRIGGERS
@@ -765,11 +777,13 @@ table_schema	table_name	column_name
 information_schema	COLUMNS	COLUMN_DEFAULT
 information_schema	COLUMNS	COLUMN_TYPE
 information_schema	EVENTS	EVENT_DEFINITION
+information_schema	PARAMETERS	DTD_IDENTIFIER
 information_schema	PARTITIONS	PARTITION_EXPRESSION
 information_schema	PARTITIONS	SUBPARTITION_EXPRESSION
 information_schema	PARTITIONS	PARTITION_DESCRIPTION
 information_schema	PLUGINS	PLUGIN_DESCRIPTION
 information_schema	PROCESSLIST	INFO
+information_schema	ROUTINES	DTD_IDENTIFIER
 information_schema	ROUTINES	ROUTINE_DEFINITION
 information_schema	ROUTINES	ROUTINE_COMMENT
 information_schema	TRIGGERS	ACTION_CONDITION
@@ -855,7 +869,7 @@ table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	28
+information_schema	30
 mysql	22
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1116,8 +1130,8 @@ describe t1;
 Field	Type	Null	Key	Default	Extra
 f1	int(11)	YES	MUL	NULL	
 show indexes from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	1	f1	1	f1	A	NULL	NULL	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	1	f1	1	f1	A	NULL	NULL	NULL	YES	BTREE		
 drop table t1;
 create table t1(f1 binary(32), f2 varbinary(64));
 select character_maximum_length, character_octet_length
@@ -1305,6 +1319,7 @@ FILES	information_schema.FILES	1
 GLOBAL_STATUS	information_schema.GLOBAL_STATUS	1
 GLOBAL_VARIABLES	information_schema.GLOBAL_VARIABLES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
+PARAMETERS	information_schema.PARAMETERS	1
 PARTITIONS	information_schema.PARTITIONS	1
 PLUGINS	information_schema.PLUGINS	1
 PROCESSLIST	information_schema.PROCESSLIST	1
@@ -1317,6 +1332,7 @@ SESSION_STATUS	information_schema.SESSION_STATUS	1
 SESSION_VARIABLES	information_schema.SESSION_VARIABLES	1
 STATISTICS	information_schema.STATISTICS	1
 TABLES	information_schema.TABLES	1
+TABLESPACES	information_schema.TABLESPACES	1
 TABLE_CONSTRAINTS	information_schema.TABLE_CONSTRAINTS	1
 TABLE_PRIVILEGES	information_schema.TABLE_PRIVILEGES	1
 TRIGGERS	information_schema.TRIGGERS	1
@@ -1517,9 +1533,9 @@ CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	UNIQUE_CONSTRAINT_CATALOG	U
 select * from information_schema.schemata where schema_name = NULL;
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
 select * from `information_schema`.`STATISTICS` where `TABLE_SCHEMA` = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
 select * from `information_schema`.`STATISTICS` where `TABLE_NAME` = NULL;
-TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT	INDEX_COMMENT
 select * from information_schema.tables where table_schema = NULL;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
 select * from information_schema.tables where table_catalog = NULL;
@@ -1666,6 +1682,57 @@ DROP USER nonpriv;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 End of 5.1 tests.
+#
+# Additional test for WL#3726 "DDL locking for all metadata objects"
+# To avoid possible deadlocks process of filling of I_S tables should
+# use high-priority metadata lock requests when opening tables.
+# Below we just test that we really use high-priority lock request
+# since reproducing a deadlock will require much more complex test.
+#
+drop tables if exists t1, t2, t3;
+create table t1 (i int);
+create table t2 (j int primary key auto_increment);
+# Switching to connection 'con3726_1'
+lock table t2 read;
+# Switching to connection 'con3726_2'
+# RENAME below will be blocked by 'lock table t2 read' above but
+# will add two pending requests for exclusive metadata locks.
+rename table t2 to t3;
+# Switching to connection 'default'
+# These statements should not be blocked by pending lock requests
+select table_name, column_name, data_type from information_schema.columns
+where table_schema = 'test' and table_name in ('t1', 't2');
+table_name	column_name	data_type
+t1	i	int
+t2	j	int
+select table_name, auto_increment from information_schema.tables
+where table_schema = 'test' and table_name in ('t1', 't2');
+table_name	auto_increment
+t1	NULL
+t2	1
+# Switching to connection 'con3726_1'
+unlock tables;
+# Switching to connection 'con3726_2'
+# Switching to connection 'default'
+drop tables t1, t3;
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	KEY_COLUMN_USAGE	ALL	NULL	NULL	NULL	NULL	NULL	Open_full_table; Scanned all databases
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	PARTITIONS	ALL	NULL	TABLE_NAME	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
+WHERE CONSTRAINT_SCHEMA='test';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	REFERENTIAL_CONSTRAINTS	ALL	NULL	CONSTRAINT_SCHEMA	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+WHERE TABLE_NAME='t1' and TABLE_SCHEMA='test';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	TABLE_CONSTRAINTS	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Open_full_table; Scanned 0 databases
+EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
+WHERE EVENT_OBJECT_SCHEMA='test';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	TRIGGERS	ALL	NULL	EVENT_OBJECT_SCHEMA	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 1 database
 create table information_schema.t1 (f1 INT);
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 drop table information_schema.t1;
@@ -1704,28 +1771,10 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 LOCK TABLES t1 READ, information_schema.tables READ;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 DROP TABLE t1;
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	KEY_COLUMN_USAGE	ALL	NULL	NULL	NULL	NULL	NULL	Open_full_table; Scanned all databases
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME='t1';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	PARTITIONS	ALL	NULL	TABLE_NAME	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
-WHERE CONSTRAINT_SCHEMA='test';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	REFERENTIAL_CONSTRAINTS	ALL	NULL	CONSTRAINT_SCHEMA	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
-WHERE TABLE_NAME='t1' and TABLE_SCHEMA='test';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	TABLE_CONSTRAINTS	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	Using where; Open_full_table; Scanned 0 databases
-EXPLAIN SELECT * FROM INFORMATION_SCHEMA.TRIGGERS
-WHERE EVENT_OBJECT_SCHEMA='test';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	TRIGGERS	ALL	NULL	EVENT_OBJECT_SCHEMA	NULL	NULL	NULL	Using where; Open_full_table; Scanned 1 database
 SELECT *
-FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
-LEFT JOIN INFORMATION_SCHEMA.COLUMNS 
-USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME) 
-WHERE COLUMNS.TABLE_SCHEMA = 'test' 
+FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+LEFT JOIN INFORMATION_SCHEMA.COLUMNS
+USING (TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME)
+WHERE COLUMNS.TABLE_SCHEMA = 'test'
 AND COLUMNS.TABLE_NAME = 't1';
 TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_CATALOG	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME	TABLE_CATALOG	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT

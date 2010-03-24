@@ -7,7 +7,7 @@ SET @@session.sql_log_bin = 0;
 SET @@session.sql_log_bin = DEFAULT;
 SELECT @@session.sql_log_bin;
 @@session.sql_log_bin
-0
+1
 SET @@session.sql_log_bin = 1;
 SET @@session.sql_log_bin = DEFAULT;
 SELECT @@session.sql_log_bin;
@@ -45,25 +45,23 @@ ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'T'
 SET @@session.sql_log_bin = "Y";
 ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'Y'
 SET @@session.sql_log_bin = TRÜE;
-ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'TRÜE'
 SET @@session.sql_log_bin = ÕN;
-ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'ÕN'
 SET @@session.sql_log_bin = OF;
-SELECT @@session.sql_log_bin;
-@@session.sql_log_bin
-0
-'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'OF'
 SET @@session.sql_log_bin = ÓFF;
-ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'ÓFF'
 SET @@session.sql_log_bin = '¹';
 ERROR 42000: Variable 'sql_log_bin' can't be set to the value of '¹'
 SET @@session.sql_log_bin = NO;
 ERROR 42000: Variable 'sql_log_bin' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_156_05----------------------------#'
 SET @@global.sql_log_bin = 0;
-ERROR HY000: Variable 'sql_log_bin' is a SESSION variable and can't be used with SET GLOBAL
 SELECT @@global.sql_log_bin;
-ERROR HY000: Variable 'sql_log_bin' is a SESSION variable
+@@global.sql_log_bin
+0
+SET @@global.sql_log_bin = 1;
 '#----------------------FN_DYNVARS_156_06------------------------#'
 SELECT count(VARIABLE_VALUE) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='sql_log_bin';
 count(VARIABLE_VALUE)
@@ -76,12 +74,12 @@ IF(@@session.sql_log_bin, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@session.sql_log_bin;
 @@session.sql_log_bin
-0
+1
 SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_log_bin';
 VARIABLE_VALUE
-OFF
+ON
 '#---------------------FN_DYNVARS_156_08-------------------------#'
 SET @@session.sql_log_bin = OFF;
 SELECT @@session.sql_log_bin;

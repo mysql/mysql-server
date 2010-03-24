@@ -550,18 +550,14 @@ CREATE VIEW v1 AS SELECT SQL_NO_CACHE NOW();
 SHOW CREATE VIEW v1;
 DROP VIEW v1;
 
-# Check that SQL_NO_CACHE always wins.
+--error ER_WRONG_USAGE
 CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE NOW();
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
 
+--error ER_WRONG_USAGE
 CREATE VIEW v1 AS SELECT SQL_NO_CACHE SQL_CACHE NOW();
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
 
+--error ER_WRONG_USAGE
 CREATE VIEW v1 AS SELECT SQL_CACHE SQL_NO_CACHE SQL_CACHE NOW();
-SHOW CREATE VIEW v1;
-DROP VIEW v1;
 
 # Check CREATE VIEW in a prepared statement in a procedure.
 delimiter |;
@@ -629,7 +625,6 @@ show plugins;
 show columns in t1;
 show slave hosts;
 show keys in t1;
-show table types;
 show storage engines;
 show authors;
 show contributors;
@@ -908,7 +903,7 @@ CREATE TABLE t1(колонка1 INT);
 --echo
 --echo ---> Dumping mysqltest1 to outfile1
 
---exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $outfile1
+--exec $MYSQL_DUMP --default-character-set=latin1 --character-sets-dir=$MYSQL_SHAREDIR/charsets --databases mysqltest1 > $outfile1
 
 #   - Clean mysqltest1;
 
@@ -1008,11 +1003,6 @@ disconnect con4;
 #
 
 --disable_result_log
-show full plugin;
---enable_result_log
-show warnings;
---disable_result_log
-show plugin;
 show plugins;
 --enable_result_log
 
@@ -1178,14 +1168,6 @@ DROP PROCEDURE p1;
 DROP FUNCTION f1;
 DROP TABLE t1;
 DROP EVENT ev1;
-
-#
-# Bug#30036 SHOW TABLE TYPES causes the debug client to crash
-#
---disable_result_log
-SHOW TABLE TYPES;
---enable_result_log
-
 
 #
 # Bug#32710 SHOW INNODB STATUS requires SUPER

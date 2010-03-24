@@ -43,10 +43,8 @@ SELECT @start_value;
 #     Verify default value of variable        #
 ############################################### 
 
---Error ER_NO_DEFAULT
 SET @@global.event_scheduler = DEFAULT;
-#SELECT @@global.event_scheduler = OFF;
---echo 'Bug# 34878: According to documentation the default value of variable is OFF';
+SELECT @@global.event_scheduler;
 
 --echo '#--------------------FN_DYNVARS_004_02------------------------#'
 #######################################################################

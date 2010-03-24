@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -195,7 +195,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   } 
 
-  if (open_and_lock_tables(thd, table_list))
+  if (open_and_lock_tables(thd, table_list, TRUE, 0))
     DBUG_RETURN(TRUE);
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
@@ -341,7 +341,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                        MY_RETURN_REAL_PATH);
 #if !defined(__WIN__) && ! defined(__NETWARE__)
       MY_STAT stat_info;
-      if (!my_stat(name,&stat_info,MYF(MY_WME)))
+      if (!mysql_file_stat(key_file_load, name, &stat_info, MYF(MY_WME)))
 	DBUG_RETURN(TRUE);
 
       // if we are not in slave thread, the file must be:
@@ -394,7 +394,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       }
 
     }
-    if ((file=my_open(name,O_RDONLY,MYF(MY_WME))) < 0)
+    if ((file= mysql_file_open(key_file_load,
+                               name, O_RDONLY, MYF(MY_WME))) < 0)
       DBUG_RETURN(TRUE);
   }
 
@@ -412,8 +413,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 		      info.escape_char, read_file_from_client, is_fifo);
   if (read_info.error)
   {
-    if	(file >= 0)
-      my_close(file,MYF(0));			// no files in net reading
+    if (file >= 0)
+      mysql_file_close(file, MYF(0));           // no files in net reading
     DBUG_RETURN(TRUE);				// Can't allocate buffers
   }
 
@@ -453,7 +454,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         (!table->triggers ||
          !table->triggers->has_delete_triggers()))
         table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
-    if (!thd->prelocked_mode)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
@@ -474,7 +475,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       error= read_sep_field(thd, info, table_list, fields_vars,
                             set_fields, set_values, read_info,
 			    *enclosed, skip_lines, ignore);
-    if (!thd->prelocked_mode && table->file->ha_end_bulk_insert() && !error)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
+        table->file->ha_end_bulk_insert() && !error)
     {
       table->file->print_error(my_errno, MYF(0));
       error= 1;
@@ -484,7 +486,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     table->next_number_field=0;
   }
   if (file >= 0)
-    my_close(file,MYF(0));
+    mysql_file_close(file, MYF(0));
   free_blobs(table);				/* if pack_blob was used */
   table->copy_blobs=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -580,8 +582,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       version for the binary log to mark that table maps are invalid
       after this point.
      */
-    if (thd->current_stmt_binlog_row_based)
-      error= thd->binlog_flush_pending_rows_event(true);
+    if (thd->is_current_stmt_binlog_format_row())
+      error= thd->binlog_flush_pending_rows_event(TRUE, transactional_table);
     else
     {
       /*
@@ -735,7 +737,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       (uint) ((char*) fname_end - (char*) thd->query()),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
-      transactional_table, FALSE, errcode);
+      transactional_table, FALSE, FALSE, errcode);
   e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }

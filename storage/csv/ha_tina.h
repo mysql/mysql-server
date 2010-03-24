@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ typedef struct st_tina_share {
     share initialization.
   */
   my_off_t saved_data_file_length;
-  pthread_mutex_t mutex;
+  mysql_mutex_t mutex;
   THR_LOCK lock;
   bool update_file_opened;
   bool tina_write_opened;

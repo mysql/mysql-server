@@ -33,7 +33,7 @@ set @my_query_cache_type          =@@global.query_cache_type;
 set @my_rpl_recovery_rank         =@@global.rpl_recovery_rank;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
-set @my_storage_engine            =@@global.storage_engine;
+set @my_storage_engine            =@@global.default_storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
 set @my_max_allowed_packet        =@@global.max_allowed_packet;
 set @my_join_buffer_size          =@@global.join_buffer_size;
@@ -132,12 +132,12 @@ set global timed_mutexes=0;
 show variables like 'timed_mutexes';
 select * from information_schema.session_variables where variable_name like 'timed_mutexes';
 
-set storage_engine=MYISAM, storage_engine="HEAP", global storage_engine="MERGE";
-show local variables like 'storage_engine';
-select * from information_schema.session_variables where variable_name like 'storage_engine';
-show global variables like 'storage_engine';
-select * from information_schema.global_variables where variable_name like 'storage_engine';
-set GLOBAL query_cache_size=100000;
+set default_storage_engine=MYISAM, default_storage_engine="HEAP", global default_storage_engine="MERGE";
+show local variables like 'default_storage_engine';
+select * from information_schema.session_variables where variable_name like 'default_storage_engine';
+show global variables like 'default_storage_engine';
+select * from information_schema.global_variables where variable_name like 'default_storage_engine';
+set GLOBAL query_cache_size=102400;
 
 set GLOBAL myisam_max_sort_file_size=2000000;
 show global variables like 'myisam_max_sort_file_size';
@@ -213,7 +213,6 @@ set @@query_alloc_block_size=1024*17+2;
 set @@query_prealloc_size=1024*18-1023;
 set @@transaction_alloc_block_size=1024*20-1;
 set @@transaction_prealloc_size=1024*21-1;
-select @@query_alloc_block_size;
 --echo ==+ Check manipulated values ==+
 SHOW VARIABLES WHERE variable_name IN ('range_alloc_block_size',
 'query_alloc_block_size', 'query_prealloc_size',
@@ -250,14 +249,12 @@ set unknown_variable=1;
 --error ER_WRONG_TYPE_FOR_VAR
 set max_join_size="hello";
 --error ER_UNKNOWN_STORAGE_ENGINE
-set storage_engine=UNKNOWN_TABLE_TYPE;
+set default_storage_engine=UNKNOWN_TABLE_TYPE;
 --error ER_WRONG_VALUE_FOR_VAR
-set storage_engine=MERGE, big_tables=2;
-show local variables like 'storage_engine';
+set default_storage_engine=MERGE, big_tables=2;
+show local variables like 'default_storage_engine';
 --error ER_GLOBAL_VARIABLE
 set SESSION query_cache_size=10000;
---error ER_NO_DEFAULT
-set GLOBAL storage_engine=DEFAULT;
 --error ER_UNKNOWN_CHARACTER_SET
 set character_set_client=UNKNOWN_CHARACTER_SET;
 --error ER_UNKNOWN_COLLATION
@@ -266,18 +263,12 @@ set collation_connection=UNKNOWN_COLLATION;
 set character_set_client=NULL;
 --error ER_WRONG_VALUE_FOR_VAR
 set collation_connection=NULL;
---error ER_LOCAL_VARIABLE
-set global autocommit=1;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@global.timestamp;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR 
 set @@version='';
 --error ER_GLOBAL_VARIABLE
 set @@concurrent_insert=1;
---error ER_LOCAL_VARIABLE
-set @@global.sql_auto_is_null=1;
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-select @@global.sql_auto_is_null;
 --error ER_GLOBAL_VARIABLE
 set myisam_max_sort_file_size=100;
 --error ER_WRONG_VALUE_FOR_VAR
@@ -355,10 +346,7 @@ set sql_big_tables=1;
 set sql_buffer_result=1;
 set sql_log_bin=1;
 set sql_log_off=1;
-set sql_log_update=1;
 set sql_low_priority_updates=1;
-set sql_max_join_size=200;
-select @@sql_max_join_size,@@max_join_size;
 set sql_quote_show_create=1;
 set sql_safe_updates=1;
 set sql_select_limit=1;
@@ -366,7 +354,7 @@ set sql_select_limit=1;
 set sql_select_limit=default;
 set sql_warnings=1;
 set global table_open_cache=100;
-set storage_engine=myisam;
+set default_storage_engine=myisam;
 set global thread_cache_size=100;
 set timestamp=1, timestamp=default;
 set tmp_table_size=100;
@@ -832,7 +820,7 @@ set global query_cache_type          =@my_query_cache_type;
 set global rpl_recovery_rank         =@my_rpl_recovery_rank;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
-set global storage_engine            =@my_storage_engine;
+set global default_storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 set global max_allowed_packet        =@my_max_allowed_packet;
 set global join_buffer_size          =@my_join_buffer_size;
@@ -841,8 +829,8 @@ set global join_buffer_size          =@my_join_buffer_size;
 # Bug#28580 Repeatation of status variables
 #
 --replace_column 2 #
-show global variables where Variable_name='table_definition_cache' or
-Variable_name='table_lock_wait_timeout';
+show global variables where Variable_name='table_definition_cache';
+# Note: table_lock_wait_timeout no longer exists. See bug#45225.
 
 ###########################################################################
 
@@ -1187,7 +1175,7 @@ SET GLOBAL auto_increment_offset=0;
 #
 
 --enable_metadata
-select @@storage_engine;
+select @@default_storage_engine;
 --disable_metadata
 
 #

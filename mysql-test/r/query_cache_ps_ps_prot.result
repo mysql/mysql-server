@@ -1,7 +1,7 @@
 ---- establish connection con1 (root) ----
 ---- switch to connection default ----
 set @initial_query_cache_size = @@global.query_cache_size;
-set @@global.query_cache_size=100000;
+set @@global.query_cache_size=102400;
 flush status;
 drop table if exists t1;
 create table t1(c1 int);
@@ -211,7 +211,7 @@ show status like 'Qcache_hits';
 Variable_name	Value
 Qcache_hits	14
 ---- switch to connection default ----
-set global query_cache_size=100000;
+set global query_cache_size=102400;
 execute stmt1;
 c1
 10
@@ -297,7 +297,7 @@ prepare stmt1 from "select * from t1 where c1=10";
 ---- switch to connection con1 ----
 prepare stmt3 from "select * from t1 where c1=10";
 ---- switch to connection default ----
-set global query_cache_size=100000;
+set global query_cache_size=102400;
 show status like 'Qcache_hits';
 Variable_name	Value
 Qcache_hits	19
@@ -344,7 +344,7 @@ Qcache_hits	19
 ---- switch to connection default ----
 set global query_cache_size=0;
 prepare stmt1 from "select * from t1 where c1=?";
-set global query_cache_size=100000;
+set global query_cache_size=102400;
 show status like 'Qcache_hits';
 Variable_name	Value
 Qcache_hits	19
@@ -548,7 +548,7 @@ alter table t1 add column b int;
 execute stmt;
 a
 Pack my box with five dozen liquor jugs.
-set @@global.query_cache_size=100000;
+set @@global.query_cache_size=102400;
 execute stmt;
 a
 Pack my box with five dozen liquor jugs.

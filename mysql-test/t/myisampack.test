@@ -1,3 +1,6 @@
+-- disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3;
+-- enable_warnings
 #
 # BUG#31277 - myisamchk --unpack corrupts a table
 #
@@ -105,5 +108,116 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --exec $MYISAMCHK -srq $MYSQLD_DATADIR/mysql_db1/t1
 SELECT COUNT(*) FROM mysql_db1.t1 WHERE c2 < 5;
 #
+# Bug#36573 myisampack --join does not create destination table .frm file
+#
+#############################################################################
+# Testcase myisampack.1: Positive test for myisampack --join
+# To test myisampack --join operation creates .frm file
+# If it creates .frm file, we will be able to access from mysql
+# server
+#############################################################################
+--echo # ===== myisampack.1 =====
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(20);
+
+let $i=9;
+--disable_query_log
+while ($i)
+{
+ INSERT INTO t1 SELECT a from t1;
+ dec $i;
+}
+--enable_query_log
+
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES(40);
+
+let $i=9;
+--disable_query_log
+while ($i)
+{
+ INSERT INTO t2 SELECT a from t2;
+ dec $i;
+}
+--enable_query_log
+
+FLUSH TABLE t1,t2;
+--exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
+
+--echo #If the myisampack --join operation is successful, we have table t3(.frm)
+--echo #so we should be able to query about the table from server.
+SELECT COUNT(a) FROM t3;
+
+#############################################################################
+# Testcase myisampack.2: 2nd Positive test for myisampack --join
+# Test myisampack join operation  with an existing destination frm file.
+# It should finish the join operation successfully
+#############################################################################
+--echo # ===== myisampack.2 =====
+FLUSH TABLE t3;
+--remove_file $MYSQLD_DATADIR/test/t3.MYI
+--remove_file $MYSQLD_DATADIR/test/t3.MYD
+--exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
+--echo #Tests the myisampack join operation with an existing destination .frm file, 
+--echo #the command should return correct exit status(0) and
+--echo #we should be able to query the table.
+
+SELECT COUNT(a) FROM t3;
+
+#############################################################################
+# Testcase myisampack.3: 3rd Positive test for myisampack --join
+# Test myisampack join operation  without frm file for first table and second
+# table. It should finish the join operation successfully
+#############################################################################
+--echo # ===== myisampack.3 =====
+--copy_file $MYSQLD_DATADIR/test/t1.frm  $MYSQLTEST_VARDIR/tmp/bug36573.t1.frm
+--copy_file $MYSQLD_DATADIR/test/t2.frm  $MYSQLTEST_VARDIR/tmp/bug36573.t2.frm
+--remove_file $MYSQLD_DATADIR/test/t1.frm
+--remove_file $MYSQLD_DATADIR/test/t2.frm
+
+DROP TABLE t3;
+--exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
+--echo #Tests the myisampack join operation without frm file for the first and second table
+--echo #No frm file is generated in this and we shouldn't  be able to access the newly 
+--echo #created table
+
+--error ER_NO_SUCH_TABLE
+SELECT COUNT(a) FROM t3;
+
+--copy_file $MYSQLTEST_VARDIR/tmp/bug36573.t1.frm  $MYSQLD_DATADIR/test/t1.frm
+--copy_file $MYSQLTEST_VARDIR/tmp/bug36573.t2.frm  $MYSQLD_DATADIR/test/t2.frm
+--copy_file $MYSQLTEST_VARDIR/tmp/bug36573.t1.frm  $MYSQLD_DATADIR/test/t3.frm
+--remove_file $MYSQLTEST_VARDIR/tmp/bug36573.t1.frm
+--remove_file $MYSQLTEST_VARDIR/tmp/bug36573.t2.frm
+
+#############################################################################
+# Testcase myisampack.4: Negative test for myisampack --join
+# Test myisampack join operation  with an existing .MYI,.MDI,.frm files
+# the test should fail
+#############################################################################
+--echo # ===== myisampack.4 =====
+--echo #Tests the myisampack join operation with an existing destination .frm,.MYI,.MDI 
+--echo #the command should fail with exit status 2
+#
+# Note: Use of regular expressions in this file is for output printed in result file
+#       The main purpose of this regular expression is to supress the filenames for
+#       error messages produced so that we can create a generic result file
+#
+#1.    /.*myisampack(\.exe)?: Can't create\/write to file .*\(/myisampack: Can't create\/write to file (/
+#      Replace everything before "myisampack" or "myisampack.exe" and followed by
+#      ": Can't create\/write to file " until the first open paranthesis , with
+#      "myisampack:  Can't create\/write to file ("
+#      
+#2.    /Aborted: .*is/Aborted: file is/
+#      Replace everything after starting with "Aborted: " until ending with "is" with
+#      "Aborted: file is/
+#
+--replace_regex /.*myisampack(\.exe)?: Can't create\/write to file .*\(/myisampack: Can't create\/write to file (/ /Aborted: .*is/Aborted: file is/
+--error 2
+--exec $MYISAMPACK --join=$MYSQLD_DATADIR/test/t3 $MYSQLD_DATADIR/test/t1 $MYSQLD_DATADIR/test/t2 2>&1
+
+DROP TABLE t1,t2,t3;
+
 DROP TABLE mysql_db1.t1;
 DROP DATABASE mysql_db1;
+

@@ -10,4 +10,5 @@
 #
 ##############################################################################
 binlog_truncate_innodb	: BUG#42643 2009-02-06 mats Changes to InnoDB requires to complete fix for BUG#36763
+binlog_unsafe           : BUG#50312 2010-01-13 lsoares Warnings for unsafe sub-statement not returned to client
 

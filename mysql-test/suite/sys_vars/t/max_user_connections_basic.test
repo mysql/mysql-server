@@ -49,12 +49,8 @@ SET @@global.max_user_connections = 1000;
 SET @@global.max_user_connections = DEFAULT;
 SELECT @@global.max_user_connections;
 
---Error ER_GLOBAL_VARIABLE  
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_user_connections = 1000;
---Error ER_NO_DEFAULT  
-SET @@session.max_user_connections = DEFAULT;
-SELECT @@session.max_user_connections;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 
 --echo '#--------------------FN_DYNVARS_087_02-------------------------#'
@@ -65,10 +61,9 @@ SELECT @@session.max_user_connections;
 SET @@global.max_user_connections = DEFAULT;
 SELECT @@global.max_user_connections = 0;
 
---Error ER_NO_DEFAULT
+--Error ER_VARIABLE_IS_READONLY
 SET @@session.max_user_connections = DEFAULT;
-SELECT @@session.max_user_connections = 0;
-
+SELECT @@session.max_user_connections;
 
 
 --echo '#--------------------FN_DYNVARS_087_03-------------------------#'
@@ -102,8 +97,8 @@ SET @@global.max_user_connections = -1;
 SELECT @@global.max_user_connections;
 SET @@global.max_user_connections = 429496729500;
 SELECT @@global.max_user_connections;
---Error ER_PARSE_ERROR
-SET @@global.max_user_connections = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_user_connections = 65530.34;
 SELECT @@global.max_user_connections;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_user_connections = test;

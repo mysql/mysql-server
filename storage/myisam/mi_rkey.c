@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     goto err;
 
   if (share->concurrent_insert)
-    rw_rdlock(&share->key_root_lock[inx]);
+    mysql_rwlock_rdlock(&share->key_root_lock[inx]);
 
   nextflag=myisam_read_vec[search_flag];
   use_key_length=pack_key_length;
@@ -156,7 +156,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     }
   }
   if (share->concurrent_insert)
-    rw_unlock(&share->key_root_lock[inx]);
+    mysql_rwlock_unlock(&share->key_root_lock[inx]);
 
   /* Calculate length of the found key;  Used by mi_rnext_same */
   if ((keyinfo->flag & HA_VAR_LENGTH_KEY) && last_used_keyseg &&

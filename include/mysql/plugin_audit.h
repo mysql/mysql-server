@@ -1,0 +1,97 @@
+/* Copyright (C) 2007 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+#ifndef _my_audit_h
+#define _my_audit_h
+
+/*************************************************************************
+  API for Audit plugin. (MYSQL_AUDIT_PLUGIN)
+*/
+
+#include "plugin.h"
+
+#define MYSQL_AUDIT_CLASS_MASK_SIZE 1
+
+#define MYSQL_AUDIT_INTERFACE_VERSION 0x0100
+
+/*
+  The first word in every event class struct indicates the specific
+  class of the event.
+*/
+struct mysql_event
+{
+  int event_class;
+};
+
+
+/*************************************************************************
+  AUDIT CLASS : GENERAL
+  
+  LOG events occurs before emitting to the general query log.
+  ERROR events occur before transmitting errors to the user. 
+  RESULT events occur after transmitting a resultset to the user.
+*/
+
+#define MYSQL_AUDIT_GENERAL_CLASS 0
+#define MYSQL_AUDIT_GENERAL_CLASSMASK (1 << MYSQL_AUDIT_GENERAL_CLASS)
+#define MYSQL_AUDIT_GENERAL_LOG 0
+#define MYSQL_AUDIT_GENERAL_ERROR 1
+#define MYSQL_AUDIT_GENERAL_RESULT 2
+
+struct mysql_event_general
+{
+  int event_class;
+  int general_error_code;
+  unsigned long general_thread_id;
+  const char *general_user;
+  unsigned int general_user_length;
+  const char *general_command;
+  unsigned int general_command_length;
+  const char *general_query;
+  unsigned int general_query_length;
+  struct charset_info_st *general_charset;
+  unsigned long long general_time;
+  unsigned long long general_rows;
+};
+
+
+/*************************************************************************
+  Here we define the descriptor structure, that is referred from
+  st_mysql_plugin.
+
+  release_thd() event occurs when the event class consumer is to be
+  disassociated from the specified THD. This would typically occur
+  before some operation which may require sleeping - such as when
+  waiting for the next query from the client.
+  
+  event_notify() is invoked whenever an event occurs which is of any
+  class for which the plugin has interest. The first word of the
+  mysql_event argument indicates the specific event class and the
+  remainder of the structure is as required for that class.
+  
+  class_mask is an array of bits used to indicate what event classes
+  that this plugin wants to receive.
+*/
+
+struct st_mysql_audit
+{
+  int interface_version;
+  void (*release_thd)(MYSQL_THD);
+  void (*event_notify)(MYSQL_THD, const struct mysql_event *);
+  unsigned long class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+};
+
+
+#endif

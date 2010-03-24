@@ -1,0 +1,43 @@
+
+SET @start_global_value = @@global.sync_master_info;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.sync_master_info;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.sync_master_info;
+show global variables like 'sync_master_info';
+show session variables like 'sync_master_info';
+select * from information_schema.global_variables where variable_name='sync_master_info';
+select * from information_schema.session_variables where variable_name='sync_master_info';
+
+#
+# show that it's writable
+#
+set global sync_master_info=1;
+select @@global.sync_master_info;
+--error ER_GLOBAL_VARIABLE
+set session sync_master_info=1;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global sync_master_info=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global sync_master_info=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global sync_master_info="foo";
+
+#
+# min/max values
+#
+set global sync_master_info=0;
+select @@global.sync_master_info;
+set global sync_master_info=cast(-1 as unsigned int);
+select @@global.sync_master_info;
+
+SET @@global.sync_master_info = @start_global_value;
+SELECT @@global.sync_master_info;

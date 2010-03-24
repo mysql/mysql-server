@@ -148,7 +148,7 @@ set names utf8|
 --echo
 --echo ---> Dumping mysqltest1 to ddl_i18n_utf8views.mysqltest1.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --databases mysqltest1 > $views_dump1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --databases mysqltest1 > $views_dump1
 
 #   - Clean mysqltest1;
 
@@ -408,22 +408,22 @@ set names utf8|
 --echo
 --echo ---> Dump of mysqltest1
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --routines --databases mysqltest1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --routines --databases mysqltest1
 
 --echo
 --echo ---> Dumping mysqltest1 to ddl_i18n_utf8sp.mysqltest1.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --routines --databases mysqltest1 > $sp_dump1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --routines --databases mysqltest1 > $sp_dump1
 
 --echo
 --echo ---> Dump of mysqltest2
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --routines --databases mysqltest2
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --routines --databases mysqltest2
 
 --echo
 --echo ---> Dumping mysqltest2 to ddl_i18n_utf8sp.mysqltest2.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --routines --databases mysqltest2 > $sp_dump2
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --routines --databases mysqltest2 > $sp_dump2
 
 #   - Clean mysqltest1, mysqltest2;
 
@@ -685,22 +685,22 @@ use mysqltest1|
 --echo
 --echo ---> Dump of mysqltest1
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --triggers --databases mysqltest1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --triggers --databases mysqltest1
 
 --echo
 --echo ---> Dumping mysqltest1 to ddl_i18n_utf8triggers.mysqltest1.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --triggers --databases mysqltest1 > $triggers_dump1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --triggers --databases mysqltest1 > $triggers_dump1
 
 --echo
 --echo ---> Dump of mysqltest2
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --triggers --databases mysqltest2
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --triggers --databases mysqltest2
 
 --echo
 --echo ---> Dumping mysqltest2 to ddl_i18n_utf8triggers.mysqltest2.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --triggers --databases mysqltest2 > $triggers_dump2
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --triggers --databases mysqltest2 > $triggers_dump2
 
 #   - Clean mysqltest1, mysqltest2;
 
@@ -946,22 +946,22 @@ set names utf8|
 --echo
 --echo ---> Dump of mysqltest1
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --events --databases mysqltest1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --events --databases mysqltest1
 
 --echo
 --echo ---> Dumping mysqltest1 to ddl_i18n_utf8events.mysqltest1.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --events --databases mysqltest1 > $events_dump1
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --events --databases mysqltest1 > $events_dump1
 
 --echo
 --echo ---> Dump of mysqltest2
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --events --databases mysqltest2
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --events --databases mysqltest2
 
 --echo
 --echo ---> Dumping mysqltest2 to ddl_i18n_utf8events.mysqltest2.sql
 
---exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --compact --events --databases mysqltest2 > $events_dump2
+--exec $MYSQL_DUMP --character-sets-dir=$MYSQL_SHAREDIR/charsets --compact --events --databases mysqltest2 > $events_dump2
 
 #   - Clean mysqltest1, mysqltest2;
 

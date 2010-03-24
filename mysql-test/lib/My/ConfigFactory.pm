@@ -30,6 +30,15 @@ sub get_basedir {
   return $basedir;
 }
 
+# Retrive build directory (which is different from basedir in out-of-source build)
+sub get_bindir {
+  if (defined $ENV{MTR_BINDIR})
+  {
+    return $ENV{MTR_BINDIR};
+  }
+  my ($self, $group)= @_;
+  return $self->get_basedir($group);
+}
 
 sub fix_charset_dir {
   my ($self, $config, $group_name, $group)= @_;
@@ -39,7 +48,7 @@ sub fix_charset_dir {
 
 sub fix_language {
   my ($self, $config, $group_name, $group)= @_;
-  return my_find_dir($self->get_basedir($group),
+  return my_find_dir($self->get_bindir($group),
 		     \@share_locations);
 }
 
@@ -335,6 +344,7 @@ my @mysql_upgrade_rules=
 sub post_check_client_group {
   my ($self, $config, $client_group_name, $mysqld_group_name)= @_;
 
+
   #  Settings needed for client, copied from its "mysqld"
   my %client_needs=
     (
@@ -344,7 +354,6 @@ sub post_check_client_group {
      user       => '#user',
      password   => '#password',
     );
-
   my $group_to_copy_from= $config->group($mysqld_group_name);
   while (my ($name_to, $name_from)= each( %client_needs )) {
     my $option= $group_to_copy_from->option($name_from);

@@ -1,9 +1,10 @@
 SET @start_value = @@global.slow_query_log_file;
 '#---------------------FN_DYNVARS_004_01-------------------------#'
 SET @@global.slow_query_log_file = DEFAULT;
-SELECT RIGHT(@@global.slow_query_log_file,15);
-RIGHT(@@global.slow_query_log_file,15)
-mysqld-slow.log
+SET @a=concat(left(@@hostname, instr(concat(@@hostname, '.'), '.')-1), '-slow.log');
+SELECT RIGHT(@@global.slow_query_log_file, length(@a)) = @a;
+RIGHT(@@global.slow_query_log_file, length(@a)) = @a
+1
 '#--------------------FN_DYNVARS_004_02------------------------#'
 SET @@global.slow_query_log_file = mytest.log;
 SET @@global.slow_query_log_file = 12;

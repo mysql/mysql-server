@@ -1,0 +1,577 @@
+show grants;
+Grants for root@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
+grant ALL on *.* to 'pfs_user_1'@localhost with GRANT OPTION;
+grant ALL on performance_schema.* to 'pfs_user_2'@localhost
+with GRANT OPTION;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE on performance_schema.* to 'pfs_user_2'@localhost;
+grant DROP on performance_schema.* to 'pfs_user_2'@localhost;
+grant REFERENCES on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant INDEX on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant ALTER on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE TEMPORARY TABLES on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant EXECUTE on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE VIEW on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant SHOW VIEW on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE ROUTINE on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant ALTER ROUTINE on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant EVENT on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant TRIGGER on performance_schema.* to 'pfs_user_2'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant SELECT on performance_schema.* to 'pfs_user_2'@localhost;
+grant INSERT on performance_schema.* to 'pfs_user_2'@localhost;
+grant UPDATE on performance_schema.* to 'pfs_user_2'@localhost;
+grant DELETE on performance_schema.* to 'pfs_user_2'@localhost;
+grant LOCK TABLES on performance_schema.* to 'pfs_user_2'@localhost;
+grant ALL on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost
+with GRANT OPTION;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+grant DROP on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+grant REFERENCES on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant INDEX on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant ALTER on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE VIEW on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant SHOW VIEW on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant TRIGGER on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant INSERT on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+ERROR 42000: INSERT,GRANT command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
+grant DELETE on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
+ERROR 42000: DELETE,GRANT command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
+grant SELECT on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost
+with GRANT OPTION;
+grant UPDATE on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost
+with GRANT OPTION;
+grant ALL on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost
+with GRANT OPTION;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+grant DROP on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+grant REFERENCES on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant INDEX on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant ALTER on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE VIEW on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant SHOW VIEW on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant TRIGGER on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant INSERT on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+ERROR 42000: INSERT,GRANT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+grant UPDATE on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+ERROR 42000: UPDATE,GRANT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+grant DELETE on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
+ERROR 42000: DELETE,GRANT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+grant SELECT on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost
+with GRANT OPTION;
+grant ALL on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost
+with GRANT OPTION;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+grant DROP on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+grant REFERENCES on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant INDEX on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant ALTER on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant CREATE VIEW on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant SHOW VIEW on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant TRIGGER on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+grant INSERT on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+ERROR 42000: INSERT,GRANT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+grant UPDATE on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+ERROR 42000: UPDATE,GRANT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+grant DELETE on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
+ERROR 42000: DELETE,GRANT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+grant SELECT on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost
+with GRANT OPTION;
+grant LOCK TABLES on performance_schema.* to 'pfs_user_3'@localhost
+with GRANT OPTION;
+flush privileges;
+drop table if exists test.t1;
+rename table performance_schema.SETUP_INSTRUMENTS to test.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT to test.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+rename table performance_schema.FILE_INSTANCES to test.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+rename table performance_schema.SETUP_INSTRUMENTS to performance_schema.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT to performance_schema.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+rename table performance_schema.FILE_INSTANCES to performance_schema.t1;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+rename table performance_schema.SETUP_INSTRUMENTS
+to performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT
+to performance_schema.SETUP_INSTRUMENTS;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+create procedure performance_schema.my_proc() begin end;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+create function performance_schema.my_func() returns int return 0;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+create event performance_schema.my_event on schedule every 15 minute
+do begin end;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_setup_instruments
+before insert on performance_schema.SETUP_INSTRUMENTS
+for each row begin end;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_events_waits_current
+before insert on performance_schema.EVENTS_WAITS_CURRENT
+for each row begin end;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_file_instances
+before insert on performance_schema.FILE_INSTANCES
+for each row begin end;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.SETUP_INSTRUMENTS;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.EVENTS_WAITS_CURRENT;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.FILE_INSTANCES;
+ERROR HY000: Invalid performance_schema usage.
+insert into performance_schema.SETUP_INSTRUMENTS
+set name="foo";
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
+insert into performance_schema.EVENTS_WAITS_CURRENT
+set name="foo";
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+insert into performance_schema.FILE_INSTANCES
+set name="foo";
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+delete from performance_schema.SETUP_INSTRUMENTS;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
+delete from performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+delete from performance_schema.FILE_INSTANCES;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+lock table performance_schema.SETUP_INSTRUMENTS read;
+unlock tables;
+lock table performance_schema.SETUP_INSTRUMENTS write;
+unlock tables;
+lock table performance_schema.EVENTS_WAITS_CURRENT read;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+unlock tables;
+lock table performance_schema.EVENTS_WAITS_CURRENT write;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+unlock tables;
+lock table performance_schema.FILE_INSTANCES read;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+unlock tables;
+lock table performance_schema.FILE_INSTANCES write;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+unlock tables;
+#
+# WL#4818, NFS2: Can use grants to give normal user access
+#                to view data from _CURRENT and _HISTORY tables
+#
+# Should work as pfs_user_1 and pfs_user_2, but not as pfs_user_3.
+# (Except for EVENTS_WAITS_CURRENT, which is granted.)
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY_LONG LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_CURRENT LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.FILE_SUMMARY_BY_INSTANCE LIMIT 1;
+can select
+can select
+drop table if exists test.t1;
+rename table performance_schema.SETUP_INSTRUMENTS to test.t1;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT to test.t1;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+rename table performance_schema.FILE_INSTANCES to test.t1;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+rename table performance_schema.SETUP_INSTRUMENTS to performance_schema.t1;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT to performance_schema.t1;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+rename table performance_schema.FILE_INSTANCES to performance_schema.t1;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+rename table performance_schema.SETUP_INSTRUMENTS
+to performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT
+to performance_schema.SETUP_INSTRUMENTS;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+create procedure performance_schema.my_proc() begin end;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+create function performance_schema.my_func() returns int return 0;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+create event performance_schema.my_event on schedule every 15 minute
+do begin end;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_setup_instruments
+before insert on performance_schema.SETUP_INSTRUMENTS
+for each row begin end;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_events_waits_current
+before insert on performance_schema.EVENTS_WAITS_CURRENT
+for each row begin end;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_file_instances
+before insert on performance_schema.FILE_INSTANCES
+for each row begin end;
+ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
+create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.SETUP_INSTRUMENTS;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.EVENTS_WAITS_CURRENT;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.FILE_INSTANCES;
+ERROR HY000: Invalid performance_schema usage.
+insert into performance_schema.SETUP_INSTRUMENTS
+set name="foo";
+ERROR 42000: INSERT command denied to user 'pfs_user_1'@'localhost' for table 'SETUP_INSTRUMENTS'
+insert into performance_schema.EVENTS_WAITS_CURRENT
+set name="foo";
+ERROR 42000: INSERT command denied to user 'pfs_user_1'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+insert into performance_schema.FILE_INSTANCES
+set name="foo";
+ERROR 42000: INSERT command denied to user 'pfs_user_1'@'localhost' for table 'FILE_INSTANCES'
+delete from performance_schema.SETUP_INSTRUMENTS;
+ERROR 42000: DELETE command denied to user 'pfs_user_1'@'localhost' for table 'SETUP_INSTRUMENTS'
+delete from performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: DELETE command denied to user 'pfs_user_1'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+delete from performance_schema.FILE_INSTANCES;
+ERROR 42000: DELETE command denied to user 'pfs_user_1'@'localhost' for table 'FILE_INSTANCES'
+lock table performance_schema.SETUP_INSTRUMENTS read;
+unlock tables;
+lock table performance_schema.SETUP_INSTRUMENTS write;
+unlock tables;
+lock table performance_schema.EVENTS_WAITS_CURRENT read;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_1'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+unlock tables;
+lock table performance_schema.EVENTS_WAITS_CURRENT write;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_1'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+unlock tables;
+lock table performance_schema.FILE_INSTANCES read;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_1'@'localhost' for table 'FILE_INSTANCES'
+unlock tables;
+lock table performance_schema.FILE_INSTANCES write;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_1'@'localhost' for table 'FILE_INSTANCES'
+unlock tables;
+#
+# WL#4818, NFS2: Can use grants to give normal user access
+#                to view data from _CURRENT and _HISTORY tables
+#
+# Should work as pfs_user_1 and pfs_user_2, but not as pfs_user_3.
+# (Except for EVENTS_WAITS_CURRENT, which is granted.)
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY_LONG LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_CURRENT LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.FILE_SUMMARY_BY_INSTANCE LIMIT 1;
+can select
+can select
+drop table if exists test.t1;
+rename table performance_schema.SETUP_INSTRUMENTS to test.t1;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT to test.t1;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+rename table performance_schema.FILE_INSTANCES to test.t1;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+rename table performance_schema.SETUP_INSTRUMENTS to performance_schema.t1;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT to performance_schema.t1;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+rename table performance_schema.FILE_INSTANCES to performance_schema.t1;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+rename table performance_schema.SETUP_INSTRUMENTS
+to performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT
+to performance_schema.SETUP_INSTRUMENTS;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+create procedure performance_schema.my_proc() begin end;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+create function performance_schema.my_func() returns int return 0;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+create event performance_schema.my_event on schedule every 15 minute
+do begin end;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_setup_instruments
+before insert on performance_schema.SETUP_INSTRUMENTS
+for each row begin end;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_events_waits_current
+before insert on performance_schema.EVENTS_WAITS_CURRENT
+for each row begin end;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_file_instances
+before insert on performance_schema.FILE_INSTANCES
+for each row begin end;
+ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
+create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.SETUP_INSTRUMENTS;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.EVENTS_WAITS_CURRENT;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.FILE_INSTANCES;
+ERROR HY000: Invalid performance_schema usage.
+insert into performance_schema.SETUP_INSTRUMENTS
+set name="foo";
+ERROR 42000: INSERT command denied to user 'pfs_user_2'@'localhost' for table 'SETUP_INSTRUMENTS'
+insert into performance_schema.EVENTS_WAITS_CURRENT
+set name="foo";
+ERROR 42000: INSERT command denied to user 'pfs_user_2'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+insert into performance_schema.FILE_INSTANCES
+set name="foo";
+ERROR 42000: INSERT command denied to user 'pfs_user_2'@'localhost' for table 'FILE_INSTANCES'
+delete from performance_schema.SETUP_INSTRUMENTS;
+ERROR 42000: DELETE command denied to user 'pfs_user_2'@'localhost' for table 'SETUP_INSTRUMENTS'
+delete from performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: DELETE command denied to user 'pfs_user_2'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+delete from performance_schema.FILE_INSTANCES;
+ERROR 42000: DELETE command denied to user 'pfs_user_2'@'localhost' for table 'FILE_INSTANCES'
+lock table performance_schema.SETUP_INSTRUMENTS read;
+unlock tables;
+lock table performance_schema.SETUP_INSTRUMENTS write;
+unlock tables;
+lock table performance_schema.EVENTS_WAITS_CURRENT read;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_2'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+unlock tables;
+lock table performance_schema.EVENTS_WAITS_CURRENT write;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_2'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+unlock tables;
+lock table performance_schema.FILE_INSTANCES read;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_2'@'localhost' for table 'FILE_INSTANCES'
+unlock tables;
+lock table performance_schema.FILE_INSTANCES write;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_2'@'localhost' for table 'FILE_INSTANCES'
+unlock tables;
+#
+# WL#4818, NFS2: Can use grants to give normal user access
+#                to view data from _CURRENT and _HISTORY tables
+#
+# Should work as pfs_user_1 and pfs_user_2, but not as pfs_user_3.
+# (Except for EVENTS_WAITS_CURRENT, which is granted.)
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY_LONG LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_CURRENT LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.FILE_SUMMARY_BY_INSTANCE LIMIT 1;
+can select
+can select
+drop table if exists test.t1;
+rename table performance_schema.SETUP_INSTRUMENTS to test.t1;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT to test.t1;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+rename table performance_schema.FILE_INSTANCES to test.t1;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+rename table performance_schema.SETUP_INSTRUMENTS to performance_schema.t1;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT to performance_schema.t1;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+rename table performance_schema.FILE_INSTANCES to performance_schema.t1;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+rename table performance_schema.SETUP_INSTRUMENTS
+to performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+rename table performance_schema.EVENTS_WAITS_CURRENT
+to performance_schema.SETUP_INSTRUMENTS;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+create procedure performance_schema.my_proc() begin end;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+create function performance_schema.my_func() returns int return 0;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+create event performance_schema.my_event on schedule every 15 minute
+do begin end;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_setup_instruments
+before insert on performance_schema.SETUP_INSTRUMENTS
+for each row begin end;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_events_waits_current
+before insert on performance_schema.EVENTS_WAITS_CURRENT
+for each row begin end;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+create trigger performance_schema.bi_file_instances
+before insert on performance_schema.FILE_INSTANCES
+for each row begin end;
+ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
+create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.SETUP_INSTRUMENTS;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.EVENTS_WAITS_CURRENT;
+ERROR HY000: Invalid performance_schema usage.
+create table test.t1 like performance_schema.FILE_INSTANCES;
+ERROR HY000: Invalid performance_schema usage.
+insert into performance_schema.SETUP_INSTRUMENTS
+set name="foo";
+ERROR 42000: INSERT command denied to user 'pfs_user_3'@'localhost' for table 'SETUP_INSTRUMENTS'
+insert into performance_schema.EVENTS_WAITS_CURRENT
+set name="foo";
+ERROR 42000: INSERT command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+insert into performance_schema.FILE_INSTANCES
+set name="foo";
+ERROR 42000: INSERT command denied to user 'pfs_user_3'@'localhost' for table 'FILE_INSTANCES'
+delete from performance_schema.SETUP_INSTRUMENTS;
+ERROR 42000: DELETE command denied to user 'pfs_user_3'@'localhost' for table 'SETUP_INSTRUMENTS'
+delete from performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: DELETE command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+delete from performance_schema.FILE_INSTANCES;
+ERROR 42000: DELETE command denied to user 'pfs_user_3'@'localhost' for table 'FILE_INSTANCES'
+lock table performance_schema.SETUP_INSTRUMENTS read;
+unlock tables;
+lock table performance_schema.SETUP_INSTRUMENTS write;
+unlock tables;
+lock table performance_schema.EVENTS_WAITS_CURRENT read;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+unlock tables;
+lock table performance_schema.EVENTS_WAITS_CURRENT write;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+unlock tables;
+lock table performance_schema.FILE_INSTANCES read;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_3'@'localhost' for table 'FILE_INSTANCES'
+unlock tables;
+lock table performance_schema.FILE_INSTANCES write;
+ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_3'@'localhost' for table 'FILE_INSTANCES'
+unlock tables;
+#
+# WL#4818, NFS2: Can use grants to give normal user access
+#                to view data from _CURRENT and _HISTORY tables
+#
+# Should work as pfs_user_1 and pfs_user_2, but not as pfs_user_3.
+# (Except for EVENTS_WAITS_CURRENT, which is granted.)
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY LIMIT 1;
+ERROR 42000: SELECT command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_HISTORY'
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_HISTORY_LONG LIMIT 1;
+ERROR 42000: SELECT command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_HISTORY_LONG'
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_CURRENT LIMIT 1;
+can select
+can select
+SELECT "can select" FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE LIMIT 1;
+ERROR 42000: SELECT command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
+SELECT "can select" FROM performance_schema.FILE_SUMMARY_BY_INSTANCE LIMIT 1;
+ERROR 42000: SELECT command denied to user 'pfs_user_3'@'localhost' for table 'FILE_SUMMARY_BY_INSTANCE'
+revoke all privileges, grant option from 'pfs_user_1'@localhost;
+revoke all privileges, grant option from 'pfs_user_2'@localhost;
+revoke all privileges, grant option from 'pfs_user_3'@localhost;
+drop user 'pfs_user_1'@localhost;
+drop user 'pfs_user_2'@localhost;
+drop user 'pfs_user_3'@localhost;
+flush privileges;
+# Test cases from WL#4818
+# Setup user
+CREATE user pfs_user_4;
+#
+# WL#4818, NFS4: Normal user does not have access to view data
+#                without grants
+#
+# Select as pfs_user_4 should fail without grant
+SELECT event_id FROM performance_schema.EVENTS_WAITS_HISTORY;
+ERROR 42000: SELECT command denied to user 'pfs_user_4'@'localhost' for table 'EVENTS_WAITS_HISTORY'
+SELECT event_id FROM performance_schema.EVENTS_WAITS_HISTORY_LONG;
+ERROR 42000: SELECT command denied to user 'pfs_user_4'@'localhost' for table 'EVENTS_WAITS_HISTORY_LONG'
+SELECT event_id FROM performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: SELECT command denied to user 'pfs_user_4'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+SELECT event_name FROM performance_schema.EVENTS_WAITS_SUMMARY_BY_INSTANCE;
+ERROR 42000: SELECT command denied to user 'pfs_user_4'@'localhost' for table 'EVENTS_WAITS_SUMMARY_BY_INSTANCE'
+SELECT event_name FROM performance_schema.FILE_SUMMARY_BY_INSTANCE;
+ERROR 42000: SELECT command denied to user 'pfs_user_4'@'localhost' for table 'FILE_SUMMARY_BY_INSTANCE'
+#
+# WL#4818, NFS3: Normal user does not have access to change what is
+#                instrumented without grants
+#
+# User pfs_user_4 should not be allowed to tweak instrumentation without
+# explicit grant
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'YES';
+ERROR 42000: UPDATE command denied to user 'pfs_user_4'@'localhost' for table 'SETUP_INSTRUMENTS'
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES'
+WHERE name LIKE 'wait/synch/mutex/%'
+   OR name LIKE 'wait/synch/rwlock/%';
+ERROR 42000: UPDATE command denied to user 'pfs_user_4'@'localhost' for table 'SETUP_INSTRUMENTS'
+UPDATE performance_schema.SETUP_CONSUMERS SET enabled = 'YES';
+ERROR 42000: UPDATE command denied to user 'pfs_user_4'@'localhost' for table 'SETUP_CONSUMERS'
+UPDATE performance_schema.SETUP_TIMERS SET timer_name = 'TICK';
+ERROR 42000: UPDATE command denied to user 'pfs_user_4'@'localhost' for table 'SETUP_TIMERS'
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+ERROR 42000: DROP command denied to user 'pfs_user_4'@'localhost' for table 'EVENTS_WAITS_HISTORY_LONG'
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+ERROR 42000: DROP command denied to user 'pfs_user_4'@'localhost' for table 'EVENTS_WAITS_HISTORY'
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+ERROR 42000: DROP command denied to user 'pfs_user_4'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+#
+# WL#4814, NFS1: Can use grants to give normal user access
+#                to turn on and off instrumentation
+#
+# Grant access to change tables with the root account
+GRANT UPDATE ON performance_schema.SETUP_CONSUMERS TO pfs_user_4;
+GRANT UPDATE ON performance_schema.SETUP_TIMERS TO pfs_user_4;
+GRANT UPDATE, SELECT ON performance_schema.SETUP_INSTRUMENTS TO pfs_user_4;
+GRANT DROP ON performance_schema.EVENTS_WAITS_CURRENT TO pfs_user_4;
+GRANT DROP ON performance_schema.EVENTS_WAITS_HISTORY TO pfs_user_4;
+GRANT DROP ON performance_schema.EVENTS_WAITS_HISTORY_LONG TO pfs_user_4;
+# User pfs_user_4 should now be allowed to tweak instrumentation
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'YES';
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES'
+WHERE name LIKE 'wait/synch/mutex/%'
+   OR name LIKE 'wait/synch/rwlock/%';
+UPDATE performance_schema.SETUP_CONSUMERS SET enabled = 'YES';
+UPDATE performance_schema.SETUP_TIMERS SET timer_name = 'TICK';
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY_LONG;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_HISTORY;
+TRUNCATE TABLE performance_schema.EVENTS_WAITS_CURRENT;
+# Clean up
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM pfs_user_4;
+DROP USER pfs_user_4;
+flush privileges;
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+UPDATE performance_schema.SETUP_CONSUMERS SET enabled = 'YES';
+UPDATE performance_schema.SETUP_TIMERS SET timer_name = 'CYCLE';

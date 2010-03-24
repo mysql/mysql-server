@@ -16,7 +16,7 @@
 
 # Start MySQL
 
-bin/safe_mysqld -O key_buffer=16M &
+bin/safe_mysqld --key_buffer=16M &
 
 #
 # Now we run the test that can be found in the sql-bench directory in the

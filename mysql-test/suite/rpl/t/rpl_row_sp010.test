@@ -39,9 +39,7 @@ delimiter ;|
 CALL test.p2();
 SELECT * FROM test.t1 ORDER BY a;
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 show tables;
 
 connection master;
@@ -61,9 +59,7 @@ delimiter ;|
 CALL test.p4();
 SELECT * FROM test.t2 ORDER BY a;
 
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM test.t2 ORDER BY a;
 
 # Cleanup

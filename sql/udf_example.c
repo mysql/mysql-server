@@ -107,7 +107,7 @@
 ** option.
 **
 ** If you can't get AGGREGATES to work, check that you have the column
-** 'type' in the mysql.func table.  If not, run 'mysql_fix_privilege_tables'.
+** 'type' in the mysql.func table.  If not, run 'mysql_upgrade'.
 **
 */
 
@@ -767,14 +767,14 @@ char *lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
     return 0;
   }
 #else
-  VOID(pthread_mutex_lock(&LOCK_hostname));
+  pthread_mutex_lock(&LOCK_hostname);
   if (!(hostent= gethostbyname((char*) name_buff)))
   {
-    VOID(pthread_mutex_unlock(&LOCK_hostname));
+    pthread_mutex_unlock(&LOCK_hostname);
     *null_value= 1;
     return 0;
   }
-  VOID(pthread_mutex_unlock(&LOCK_hostname));
+  pthread_mutex_unlock(&LOCK_hostname);
 #endif
   memcpy_fixed((char*) &in,(char*) *hostent->h_addr_list, sizeof(in.s_addr));
   *res_length= (ulong) (strmov(result, inet_ntoa(in)) - result);
@@ -871,14 +871,14 @@ char *reverse_lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
     return 0;
   }
 #else
-  VOID(pthread_mutex_lock(&LOCK_hostname));
+  pthread_mutex_lock(&LOCK_hostname);
   if (!(hp= gethostbyaddr((char*) &taddr, sizeof(taddr), AF_INET)))
   {
-    VOID(pthread_mutex_unlock(&LOCK_hostname));
+    pthread_mutex_unlock(&LOCK_hostname);
     *null_value= 1;
     return 0;
   }
-  VOID(pthread_mutex_unlock(&LOCK_hostname));
+  pthread_mutex_unlock(&LOCK_hostname);
 #endif
   *res_length=(ulong) (strmov(result,hp->h_name) - result);
   return result;

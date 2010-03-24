@@ -148,12 +148,12 @@ a	2
 drop table t1;
 create table t1 (a int not null unique, b int unique, c int, d int not null primary key, key(c), e int not null unique);
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	d	A	0	NULL	NULL		BTREE	
-t1	0	a	1	a	A	0	NULL	NULL		BTREE	
-t1	0	e	1	e	A	0	NULL	NULL		BTREE	
-t1	0	b	1	b	A	NULL	NULL	NULL	YES	BTREE	
-t1	1	c	1	c	A	NULL	NULL	NULL	YES	BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	d	A	0	NULL	NULL		BTREE		
+t1	0	a	1	a	A	0	NULL	NULL		BTREE		
+t1	0	e	1	e	A	0	NULL	NULL		BTREE		
+t1	0	b	1	b	A	NULL	NULL	NULL	YES	BTREE		
+t1	1	c	1	c	A	NULL	NULL	NULL	YES	BTREE		
 drop table t1;
 CREATE TABLE t1 (c CHAR(10) NOT NULL,i INT NOT NULL AUTO_INCREMENT,
 UNIQUE (c,i));

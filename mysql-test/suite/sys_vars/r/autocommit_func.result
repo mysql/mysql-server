@@ -89,7 +89,6 @@ id	name
 1	Record_1
 2	Record_2
 3	Record_3
-'Bug#35373: Records donot get committed in transaction on switching connections'
 INSERT into t1(name) values('Record_6');
 SELECT * from t1;
 id	name
@@ -104,6 +103,8 @@ id	name
 2	Record_2
 4	Record_4
 5	Record_5
+## Commit changes
+COMMIT;
 ## Dropping table t1 ##
 DROP table t1;
 ## Disconnecting both connections ##
