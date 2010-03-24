@@ -176,9 +176,6 @@ static COND *make_cond_for_table(COND *cond,table_map table,
 				 table_map used_table);
 static Item* part_of_refkey(TABLE *form,Field *field);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
-static bool test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,
-				    ha_rows select_limit, bool no_changes,
-                                    key_map *map);
 static bool list_contains_unique_index(TABLE *table,
                           bool (*find_func) (Field *, void *), void *data);
 static bool find_field_in_item_list (Field *field, void *data);
@@ -1467,20 +1464,6 @@ JOIN::optimize()
     if (order)
     {
       /*
-        Explore skipability of ORDER BY expression. Can skip if either completely obsolete,
-        or if an index may be used to scan in sorted order. In later case JT_NEXT and
-        tab->index is set by test_if_skip_sort_order()
-      */
-      if (!(select_options & SELECT_BIG_RESULT) &&
-          (simple_order && !skip_sort_order))
-      { 
-        skip_sort_order= test_if_skip_sort_order(&join_tab[const_tables], order,
-                                        unit->select_limit_cnt, 0, 
-                                        &join_tab[const_tables].table->
-                                        keys_in_use_for_order_by);
-      }
-
-      /*
         Force using of tmp table if sorting by a SP or UDF function due to
         their expensive and probably non-deterministic nature.
       */
@@ -1499,17 +1482,6 @@ JOIN::optimize()
 
   if (make_pushed_join(this))
     DBUG_RETURN(1);
-
-  /* If we just pushed a join containing an order by clause, we have to ensure that
-     we eiter can skip the sort by scaning an ordered index, or write to a
-     temp table later being filesorted.
-  */
-  if (order && simple_order && !skip_sort_order && 
-      join_tab[const_tables].table->file->is_parent_of_pushed_join())
-  {
-    need_tmp=1; simple_order=simple_group=0;  // Force tmp table+sort, no further 'simple' logic
-    DBUG_PRINT("info", ("need_tmp= %d, at:%d", need_tmp, __LINE__));
-  }
 
   tmp_having= having;
   if (select_options & SELECT_DESCRIBE)
@@ -1696,6 +1668,28 @@ make_pushed_join(JOIN *join)
       tab->next_select=sub_select;
     }
   }
+
+  /* If we just pushed a join containing an ORDER BY and/or GROUP BY clause,
+   * we have to ensure that we either can skip the sort by scanning an ordered index,
+   * or write to a temp. table later being filesorted.
+   */
+  if (join->const_tables < join->tables &&
+      join->join_tab[join->const_tables].table->file->is_parent_of_pushed_join())
+  {
+    if (join->group_list && join->simple_group &&
+        !plan.group_by_filesort_is_skippable())
+    {
+      join->need_tmp= 1;
+      join->simple_order= join->simple_group= 0;
+    }
+    else if (join->order && join->simple_order &&
+             !plan.order_by_filesort_is_skippable())
+    {
+      join->need_tmp= 1;
+      join->simple_order= join->simple_group= 0;
+    }
+  }
+
   DBUG_ASSERT(active_pushed_joins==0);
   return 0;
 }
@@ -13310,7 +13304,7 @@ find_field_in_item_list (Field *field, void *data)
     1    We can use an index.
 */
 
-static bool
+bool
 test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 			bool no_changes, key_map *map)
 {

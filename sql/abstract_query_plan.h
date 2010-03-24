@@ -73,6 +73,14 @@ namespace AQP
     get_referred_table_access(const Item_field* field_item,
                               const Table_access* base ) const;
 
+    /**
+      Can filesort(), normally required by execution of GROUP BY 
+      or ORDER BY, be skipped due to the columns already being
+      accessible in required sorted order.
+    */
+    bool group_by_filesort_is_skippable() const;
+    bool order_by_filesort_is_skippable() const;
+
   private:
     /** 
       Array of the JOIN_TABs that are the internal representation of table
@@ -83,6 +91,11 @@ namespace AQP
     /** Number of table access operations. */
     const uint m_access_count;
     Table_access* m_table_accesses;
+
+    mutable bool m_group_by_filesort_is_skippable;
+    mutable bool m_order_by_filesort_is_skippable;
+
+    void find_skippabable_group_or_order() const;
 
     const JOIN_TAB* get_join_tab(uint join_tab_no) const;
 
