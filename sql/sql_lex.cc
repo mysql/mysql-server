@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -340,7 +340,7 @@ void lex_start(THD *thd)
   lex->select_lex.sql_cache= SELECT_LEX::SQL_CACHE_UNSPECIFIED;
   lex->select_lex.init_order();
   lex->select_lex.group_list.empty();
-  lex->describe= 0;
+  lex->describe= DESCRIBE_NONE;
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
   lex->derived_tables= 0;
