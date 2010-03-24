@@ -392,6 +392,10 @@ typedef ulonglong my_xid; // this line is the same as in log_event.h
 #define COMPATIBLE_DATA_YES 0
 #define COMPATIBLE_DATA_NO  1
 
+namespace AQP {
+  class Join_plan;
+};
+
 /* Flag used for for test_push_flag() */
 enum ha_push_flag {
 
@@ -769,6 +773,10 @@ struct handlerton
                      const char *wild, bool dir, List<LEX_STRING> *files);
    int (*table_exists_in_engine)(handlerton *hton, THD* thd, const char *db,
                                  const char *name);
+
+   int (*make_pushed_join)(handlerton *hton, THD* thd, 
+                           AQP::Join_plan* plan);
+
    uint32 license; /* Flag for Engine License */
    void *data; /* Location for engines to keep personal structures */
 };
@@ -1144,10 +1152,6 @@ uint calculate_key_len(TABLE *, uint, const uchar *, key_part_map);
 */
 #define make_prev_keypart_map(N) (((key_part_map)1 << (N)) - 1)
 
-
-namespace AQP{
-  class Join_plan;
-};
 
 /**
   The handler class is the interface for dynamically loadable
@@ -1833,13 +1837,6 @@ public:
  */
  virtual void cond_pop() { return; };
 
- /**
-   If possible, push join sequence down to the table handler.
-   Returns #tables included in generated pushed join.
-  */
-  virtual uint make_pushed_join(AQP::Join_plan& plan, uint root)
-  { return 0; }
-
   /**
     Reports #tables included in pushed join starting from 
     this handler instance.
@@ -2275,6 +2272,9 @@ int ha_enable_transaction(THD *thd, bool on);
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
+
+/* Build pushed joins in handlers implementing this feature */
+int ha_make_pushed_joins(THD *thd, AQP::Join_plan* plan);
 
 /* these are called by storage engines */
 void trans_register_ha(THD *thd, bool all, handlerton *ht);

@@ -92,6 +92,8 @@ static int ndbcluster_fill_files_table(handlerton *hton,
                                        THD *thd, 
                                        TABLE_LIST *tables, 
                                        COND *cond);
+static int ndbcluster_make_pushed_join(handlerton *hton, THD* thd,
+                                       AQP::Join_plan* plan);
 
 handlerton *ndbcluster_hton;
 
@@ -613,26 +615,19 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
 } // field_ref_is_join_pushable
 
 
-uint
-ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan, uint root)
+int
+ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
+                                const AQP::Table_access* const join_root)
 {
   DBUG_ENTER("make_pushed_join");
-  DBUG_PRINT("enter", ("Investigating from table %d as root", root));
-
-  if (!(current_thd->variables.ndb_join_pushdown))
-    DBUG_RETURN(0);
 
   if (m_pushed_join_member)  // Already member of another pushed join.
     DBUG_RETURN(0);
 
-  /* Need at least 2 joined tables in a pushed join. */
-  if (plan.get_access_count() < root+2)
-    DBUG_RETURN(0);
-
-  const AQP::Table_access* const join_root=  plan.get_table_access(root);
   const AQP::enum_access_type access_type= join_root->get_access_type();
   DBUG_ASSERT(access_type != AQP::AT_VOID);
 
+  DBUG_PRINT("enter", ("Investigating from table %d as root", join_root->get_access_no()));
   if (access_type == AQP::AT_OTHER)
   {
     DBUG_PRINT("info", ("join_root->get_access_type() == AQP::AT_OTHER"
@@ -677,7 +672,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan, uint root)
   uint fld_refs= 0;
   Field* referred_fields[ndb_pushed_join::MAX_REFERRED_FIELDS];
 
-  for (uint join_cnt= root+1; join_cnt<plan.get_access_count(); join_cnt++)
+  for (uint join_cnt= join_root->get_access_no()+1; join_cnt<plan.get_access_count(); join_cnt++)
   {
     const Item* join_items[ndb_pushed_join::MAX_LINKED_KEYS+1];
     const AQP::Table_access* join_parent= NULL;
@@ -797,7 +792,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan, uint root)
     if (join_parent != NULL)
     {
       int op_ix= 0;
-      for (uint i= root; i < join_cnt; i++)
+      for (uint i= join_root->get_access_no(); i < join_cnt; i++)
       {
         const AQP::Table_access* const p= plan.get_table_access(i);
         if (join_parent == p)
@@ -920,8 +915,35 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan, uint root)
     handler->m_pushed_join_member= this;
   }
 
-  DBUG_RETURN(push_cnt);
+  DBUG_RETURN(0);
 } // ha_ndbcluster::make_pushed_join()
+
+
+static
+int ndbcluster_make_pushed_join(handlerton *hton, THD* thd,
+                                AQP::Join_plan* plan)
+{
+  DBUG_ENTER("ndbcluster_make_pushed_join");
+
+  if (!(thd->variables.ndb_join_pushdown))
+    DBUG_RETURN(0);
+
+  for (uint i= 0; i < plan->get_access_count()-1; i++)
+  {
+    const AQP::Table_access* const join_root=  plan->get_table_access(i);
+    if (join_root->get_table()->file->ht == ndbcluster_hton)
+    {
+      ha_ndbcluster* const handler=
+        static_cast<ha_ndbcluster*>(join_root->get_table()->file);
+
+      int error= handler->make_pushed_join(*plan,join_root);
+      if (unlikely(error))
+        DBUG_RETURN(error);
+    }
+  }
+
+  DBUG_RETURN(0);
+} // ndbcluster_make_pushed_join
 
 
 static
@@ -11039,6 +11061,7 @@ static int ndbcluster_init(void *p)
     h->discover=         ndbcluster_discover;
     h->find_files= ndbcluster_find_files;
     h->table_exists_in_engine= ndbcluster_table_exists_in_engine;
+    h->make_pushed_join= ndbcluster_make_pushed_join;
   }
 
   // Initialize ndb interface
