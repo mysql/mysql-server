@@ -139,3 +139,36 @@ TRUNCATE t1;
 -- connection master
 DROP TABLE t1;
 -- sync_slave_with_master
+
+#####################################################################
+#
+# BUG#51426
+#
+#####################################################################
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE t1 ( c INT, PRIMARY KEY (c)) Engine=MyISAM;
+
+# offending trigger that would reset the unsigned flag for aux before
+# binlogging of User_var_log_event would take place.
+CREATE TRIGGER tr1 AFTER INSERT ON t1 FOR EACH ROW SET @aux = -1 ;
+
+SET @aux = 10294947273192243200;
+SET @aux1= @aux;
+-- error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (@aux) , (@aux1);
+
+-- sync_slave_with_master
+
+-- echo ## assertion: master and slave tables are in sync
+-- let $diff_table_1=master:test.t1
+-- let $diff_table_2=slave:test.t1
+-- source include/diff_tables.inc
+
+--connection master
+DROP TRIGGER tr1;
+DROP TABLE t1;
+
+-- sync_slave_with_master
+

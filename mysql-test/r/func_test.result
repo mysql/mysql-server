@@ -63,8 +63,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	select (10 % 7) AS `10 % 7`,(10 % 7) AS `10 mod 7`,(10 DIV 3) AS `10 div 3`
-select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
-(1 << 64)-1	((1 << 64)-1) DIV 1	((1 << 64)-1) DIV 2
+select 18446744073709551615, 18446744073709551615 DIV 1, 18446744073709551615 DIV 2;
+18446744073709551615	18446744073709551615 DIV 1	18446744073709551615 DIV 2
 18446744073709551615	18446744073709551615	9223372036854775807
 explain extended select (1 << 64)-1, ((1 << 64)-1) DIV 1, ((1 << 64)-1) DIV 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra

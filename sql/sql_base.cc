@@ -2421,7 +2421,7 @@ open_table_get_mdl_lock(THD *thd, TABLE_LIST *table_list,
                         required to remedy problem appeared during attempt
                         to open table.
     flags               Bitmap of flags to modify how open works:
-                          MYSQL_LOCK_IGNORE_FLUSH - Open table even if
+                          MYSQL_OPEN_IGNORE_FLUSH - Open table even if
                           someone has done a flush or there is a pending
                           exclusive metadata lock requests against it
                           (i.e. request high priority metadata lock).
@@ -2479,6 +2479,31 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   key_length= (create_table_def_key(thd, key, table_list, 1) -
                TMP_TABLE_KEY_EXTRA);
 
+  /*
+    We need this to work for all tables, including temporary
+    tables, for backwards compatibility. But not under LOCK
+    TABLES, since under LOCK TABLES one can't use a non-prelocked
+    table.  This code only works for updates done inside DO/SELECT
+    f1() statements, normal DML is handled by means of
+    sql_command_flags.
+  */
+  if (global_read_lock && table_list->lock_type >= TL_WRITE_ALLOW_WRITE &&
+      ! (flags & MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK) &&
+      ! thd->locked_tables_mode)
+  {
+    /*
+      Someone has issued FLUSH TABLES WITH READ LOCK and we want
+      a write lock. Wait until the lock is gone.
+    */
+    if (thd->global_read_lock.wait_if_global_read_lock(thd, 1, 1))
+      DBUG_RETURN(TRUE);
+
+    if (thd->version != refresh_version)
+    {
+      (void) ot_ctx->request_backoff_action(Open_table_context::OT_WAIT_TDC);
+      DBUG_RETURN(TRUE);
+    }
+  }
   /*
     Unless requested otherwise, try to resolve this table in the list
     of temporary tables of this thread. In MySQL temporary tables
@@ -2680,7 +2705,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   if (!thd->open_tables)
     thd->version=refresh_version;
   else if ((thd->version != refresh_version) &&
-           ! (flags & MYSQL_LOCK_IGNORE_FLUSH))
+           ! (flags & MYSQL_OPEN_IGNORE_FLUSH))
   {
     /* Someone did a refresh while thread was opening tables */
     mysql_mutex_unlock(&LOCK_open);
@@ -2811,7 +2836,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 
   if (share->version != refresh_version)
   {
-    if (!(flags & MYSQL_LOCK_IGNORE_FLUSH))
+    if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
     {
        /*
          We already have an MDL lock. But we have encountered an old
@@ -3293,7 +3318,6 @@ bool
 Locked_tables_list::reopen_tables(THD *thd)
 {
   Open_table_context ot_ctx_unused(thd, LONG_TIMEOUT);
-  bool lt_refresh_unused;
   size_t reopen_count= 0;
   MYSQL_LOCK *lock;
   MYSQL_LOCK *merged_lock;
@@ -3333,7 +3357,7 @@ Locked_tables_list::reopen_tables(THD *thd)
       break something else.
     */
     lock= mysql_lock_tables(thd, m_reopen_array, reopen_count,
-                            MYSQL_OPEN_REOPEN, &lt_refresh_unused);
+                            MYSQL_OPEN_REOPEN);
     thd->in_lock_tables= 0;
     if (lock == NULL || (merged_lock=
                          mysql_lock_merge(thd->lock, lock)) == NULL)
@@ -5061,7 +5085,6 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   TABLE *table;
   Open_table_context ot_ctx(thd, (lock_flags & MYSQL_LOCK_IGNORE_TIMEOUT) ?
                             LONG_TIMEOUT : thd->variables.lock_wait_timeout);
-  bool refresh;
   bool error;
   DBUG_ENTER("open_ltable");
 
@@ -5073,8 +5096,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* open_ltable can be used only for BASIC TABLEs */
   table_list->required_type= FRMTYPE_TABLE;
 
-retry:
-  while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx, 0)) &&
+  while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx, lock_flags)) &&
          ot_ctx.can_recover_from_failed_open())
   {
     /*
@@ -5120,18 +5142,9 @@ retry:
       DBUG_ASSERT(thd->lock == 0);	// You must lock everything at once
       if ((table->reginfo.lock_type= lock_type) != TL_UNLOCK)
 	if (! (thd->lock= mysql_lock_tables(thd, &table_list->table, 1,
-                                            lock_flags, &refresh)))
+                                            lock_flags)))
         {
-          if (refresh)
-          {
-            close_thread_tables(thd);
-            table_list->table= NULL;
-            table_list->mdl_request.ticket= NULL;
-            thd->mdl_context.rollback_to_savepoint(ot_ctx.start_of_statement_svp());
-            goto retry;
-          }
-          else
-            table= 0;
+          table= 0;
         }
     }
   }
@@ -5168,42 +5181,27 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
                           Prelocking_strategy *prelocking_strategy)
 {
   uint counter;
-  bool need_reopen;
-  /*
-    Remember the set of metadata locks which this connection
-    managed to acquire before the start of the current statement.
-    It can be either transaction-scope locks, or HANDLER locks,
-    or LOCK TABLES locks. If mysql_lock_tables() fails with
-    need_reopen request, we'll use it to instruct
-    close_tables_for_reopen() to release all locks of this
-    statement.
-  */
-  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("open_and_lock_tables");
   DBUG_PRINT("enter", ("derived handling: %d", derived));
 
-  for ( ; ; ) 
-  {
-    if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
-      DBUG_RETURN(TRUE);
-    DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {
-      const char *old_proc_info= thd->proc_info;
-      thd->proc_info= "DBUG sleep";
-      my_sleep(6000000);
-      thd->proc_info= old_proc_info;});
+  if (open_tables(thd, &tables, &counter, flags, prelocking_strategy))
+    DBUG_RETURN(TRUE);
 
-    if (!lock_tables(thd, tables, counter, flags,
-                     &need_reopen))
-      break;
-    if (!need_reopen)
-      DBUG_RETURN(TRUE);
-    close_tables_for_reopen(thd, &tables, start_of_statement_svp);
-  }
+  DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {
+                  const char *old_proc_info= thd->proc_info;
+                  thd->proc_info= "DBUG sleep";
+                  my_sleep(6000000);
+                  thd->proc_info= old_proc_info;});
+
+  if (lock_tables(thd, tables, counter, flags))
+    DBUG_RETURN(TRUE);
+
   if (derived &&
       (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
        (thd->fill_derived_tables() &&
         mysql_handle_derived(thd->lex, &mysql_derived_filling))))
     DBUG_RETURN(TRUE); /* purecov: inspected */
+
   DBUG_RETURN(FALSE);
 }
 
@@ -5216,7 +5214,7 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
     thd		- thread handler
     tables	- list of tables for open
     flags       - bitmap of flags to modify how the tables will be open:
-                  MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
+                  MYSQL_OPEN_IGNORE_FLUSH - open table even if someone has
                   done a flush or namelock on it.
 
   RETURN
@@ -5261,37 +5259,28 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table)
 }
 
 
-/*
-  Lock all tables in list
+/**
+  Lock all tables in a list.
 
-  SYNOPSIS
-    lock_tables()
-    thd			Thread handler
-    tables		Tables to lock
-    count		Number of opened tables
-    flags               Options (see mysql_lock_tables() for details)
-    need_reopen         Out parameter which if TRUE indicates that some
-                        tables were dropped or altered during this call
-                        and therefore invoker should reopen tables and
-                        try to lock them once again (in this case
-                        lock_tables() will also return error).
+  @param  thd           Thread handler
+  @param  tables        Tables to lock
+  @param  count         Number of opened tables
+  @param  flags         Options (see mysql_lock_tables() for details)
 
-  NOTES
-    You can't call lock_tables twice, as this would break the dead-lock-free
-    handling thr_lock gives us.  You most always get all needed locks at
-    once.
+  You can't call lock_tables() while holding thr_lock locks, as
+  this would break the dead-lock-free handling thr_lock gives us.
+  You must always get all needed locks at once.
 
-    If query for which we are calling this function marked as requiring
-    prelocking, this function will change locked_tables_mode to
-    LTM_PRELOCKED.
+  If the query for which we are calling this function is marked as
+  requiring prelocking, this function will change
+  locked_tables_mode to LTM_PRELOCKED.
 
-  RETURN VALUES
-   0	ok
-   -1	Error
+  @retval FALSE         Success. 
+  @retval TRUE          A lock wait timeout, deadlock or out of memory.
 */
 
 bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
-                 uint flags, bool *need_reopen)
+                 uint flags)
 {
   TABLE_LIST *table;
 
@@ -5302,7 +5291,6 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
   */
   DBUG_ASSERT(thd->locked_tables_mode <= LTM_LOCK_TABLES ||
               !thd->lex->requires_prelocking());
-  *need_reopen= FALSE;
 
   if (!tables && !thd->lex->requires_prelocking())
     DBUG_RETURN(thd->decide_logging_format(tables));
@@ -5347,7 +5335,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
     DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
 
     if (! (thd->lock= mysql_lock_tables(thd, start, (uint) (ptr - start),
-                                        flags, need_reopen)))
+                                        flags)))
       DBUG_RETURN(TRUE);
 
     DEBUG_SYNC(thd, "after_lock_tables_takes_lock");
@@ -8869,7 +8857,7 @@ open_system_tables_for_read(THD *thd, TABLE_LIST *table_list,
   thd->reset_n_backup_open_tables_state(backup);
 
   if (open_and_lock_tables(thd, table_list, FALSE,
-                           MYSQL_LOCK_IGNORE_FLUSH |
+                           MYSQL_OPEN_IGNORE_FLUSH |
                            MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     lex->restore_backup_query_tables_list(&query_tables_list_backup);
@@ -8957,11 +8945,11 @@ open_system_table_for_update(THD *thd, TABLE_LIST *one_table)
 TABLE *
 open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
 {
-  uint flags= ( MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |
+  uint flags= ( MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
                 MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
-                MYSQL_LOCK_IGNORE_FLUSH |
+                MYSQL_OPEN_IGNORE_FLUSH |
                 MYSQL_LOCK_IGNORE_TIMEOUT |
-                MYSQL_LOCK_PERF_SCHEMA);
+                MYSQL_LOCK_LOG_TABLE);
   TABLE *table;
   /* Save value that is changed in mysql_lock_tables() */
   ulonglong save_utime_after_lock= thd->utime_after_lock;
@@ -8989,8 +8977,7 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
       open tables cannot be accepted when restoring the open tables
       state.
     */
-    if (thd->killed)
-      close_thread_tables(thd);
+    close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
   }
 
