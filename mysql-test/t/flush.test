@@ -324,3 +324,34 @@ disconnect con1;
 --source include/wait_until_disconnected.inc
 connection default;
 drop table t1, t2, t3;
+
+--echo #
+--echo # Bug#51710 FLUSH TABLES <view> WITH READ LOCK kills the server
+--echo #
+--disable_warnings
+drop view if exists v1, v2, v3;
+drop table if exists t1, v1;
+--enable_warnings
+create table t1 (a int);
+create view v1 as select 1;
+create view v2 as select * from t1;
+create view v3 as select * from v2;
+
+--error ER_WRONG_OBJECT
+flush table v1, v2, v3 with read lock;
+--error ER_WRONG_OBJECT
+flush table v1 with read lock;
+--error ER_WRONG_OBJECT
+flush table v2 with read lock;
+--error ER_WRONG_OBJECT
+flush table v3 with read lock;
+create temporary table v1 (a int);
+--error ER_WRONG_OBJECT
+flush table v1 with read lock;
+drop view v1;
+create table v1 (a int);
+flush table v1 with read lock;
+drop temporary table v1;
+unlock tables;
+drop view v2, v3;
+drop table t1, v1;

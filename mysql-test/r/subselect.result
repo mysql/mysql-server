@@ -363,9 +363,9 @@ INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
 EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
-4	SUBQUERY	t8	const	PRIMARY	PRIMARY	37		1	100.00	Using index
+4	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
 2	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	
-3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37		1	100.00	Using index
+3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
 Warnings:
 Note	1003	select 'joce' AS `pseudo`,(select 'test' AS `email` from `test`.`t8` where 1) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from `test`.`t8` where 1
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
