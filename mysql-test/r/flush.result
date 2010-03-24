@@ -207,3 +207,30 @@ insert into t2 (a) values (3);
 unlock tables;
 # --> connection con1
 drop table t1, t2, t3;
+#
+# Bug#51710 FLUSH TABLES <view> WITH READ LOCK kills the server
+#
+drop view if exists v1, v2, v3;
+drop table if exists t1, v1;
+create table t1 (a int);
+create view v1 as select 1;
+create view v2 as select * from t1;
+create view v3 as select * from v2;
+flush table v1, v2, v3 with read lock;
+ERROR HY000: 'test.v1' is not BASE TABLE
+flush table v1 with read lock;
+ERROR HY000: 'test.v1' is not BASE TABLE
+flush table v2 with read lock;
+ERROR HY000: 'test.v2' is not BASE TABLE
+flush table v3 with read lock;
+ERROR HY000: 'test.v3' is not BASE TABLE
+create temporary table v1 (a int);
+flush table v1 with read lock;
+ERROR HY000: 'test.v1' is not BASE TABLE
+drop view v1;
+create table v1 (a int);
+flush table v1 with read lock;
+drop temporary table v1;
+unlock tables;
+drop view v2, v3;
+drop table t1, v1;

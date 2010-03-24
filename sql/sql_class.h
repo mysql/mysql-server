@@ -75,6 +75,7 @@ typedef struct st_user_var_events
   ulong length;
   Item_result type;
   uint charset_number;
+  bool unsigned_flag;
 } BINLOG_USER_VAR_EVENT;
 
 #define RP_LOCK_LOG_IS_ALREADY_LOCKED 1
@@ -1161,9 +1162,7 @@ public:
 class Drop_table_error_handler : public Internal_error_handler
 {
 public:
-  Drop_table_error_handler(Internal_error_handler *err_handler)
-    :m_err_handler(err_handler)
-  { }
+  Drop_table_error_handler() {}
 
 public:
   bool handle_condition(THD *thd,
@@ -1174,7 +1173,6 @@ public:
                         MYSQL_ERROR ** cond_hdl);
 
 private:
-  Internal_error_handler *m_err_handler;
 };
 
 

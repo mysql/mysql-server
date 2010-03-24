@@ -1,4 +1,4 @@
-/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "mysql_priv.h"
 #include "events.h"
@@ -367,15 +367,14 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
       {
         sql_print_error("Event Error: An error occurred while creating query string, "
                         "before writing it into binary log.");
-        /* Restore the state of binlog format */
-        DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
-        if (save_binlog_row_based)
-          thd->set_current_stmt_binlog_format_row();
-        DBUG_RETURN(TRUE);
+        ret= TRUE;
       }
-      /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER 
-         will be written into the binary log as the definer for the SQL thread. */
-      ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+      else
+      {
+        /* If the definer is not set or set to CURRENT_USER, the value of CURRENT_USER
+           will be written into the binary log as the definer for the SQL thread. */
+        ret= write_bin_log(thd, TRUE, log_query.c_ptr(), log_query.length());
+      }
     }
   }
   mysql_mutex_unlock(&LOCK_event_metadata);
@@ -1017,7 +1016,11 @@ Events::dump_internal_status()
   puts("LLA = Last Locked At  LUA = Last Unlocked At");
   puts("WOC = Waiting On Condition  DL = Data Locked");
 
-  mysql_mutex_lock(&LOCK_event_metadata);
+  /*
+    opt_event_scheduler should only be accessed while
+    holding LOCK_global_system_variables.
+  */
+  mysql_mutex_lock(&LOCK_global_system_variables);
   if (opt_event_scheduler == EVENTS_DISABLED)
     puts("The Event Scheduler is disabled");
   else
@@ -1026,7 +1029,7 @@ Events::dump_internal_status()
     event_queue->dump_internal_status();
   }
 
-  mysql_mutex_unlock(&LOCK_event_metadata);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   DBUG_VOID_RETURN;
 }
 

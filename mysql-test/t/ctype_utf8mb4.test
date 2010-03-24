@@ -1763,6 +1763,13 @@ INSERT INTO t1(subject) VALUES ('abcd');
 INSERT INTO t1(subject) VALUES(x'f0909080');
 DROP TABLE t1;
 
+#
+# Make sure fulltext does not crash on supplementary characters
+#
+CREATE TABLE t1 (a TEXT CHARACTER SET utf8mb4, FULLTEXT INDEX(a));
+INSERT INTO t1 VALUES (0xF0A08080 /* U+20000 */ );
+DROP TABLE t1;
+
 --echo #
 --echo # Bug #51676 Server crashes on SELECT, ORDER BY on 'utf8mb4' column
 --echo #
