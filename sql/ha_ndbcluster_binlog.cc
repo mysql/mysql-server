@@ -1268,7 +1268,11 @@ static int ndbcluster_find_all_databases(THD *thd)
     }
     op= trans->getNdbScanOperation(ndbtab);
     if (op == NULL)
-      abort();
+    {
+      ndb_error= trans->getNdbError();
+      goto error;
+    }
+
     op->readTuples(NdbScanOperation::LM_Read,
                    NdbScanOperation::SF_TupScan, 1);
     
@@ -1278,7 +1282,10 @@ static int ndbcluster_find_all_databases(THD *thd)
     r|= query_blob_handle->getValue(query, sizeof(query));
 
     if (r)
-      abort();
+    {
+      ndb_error= op->getNdbError();
+      goto error;
+    }
 
     if (trans->execute(NdbTransaction::NoCommit))
     {
@@ -1303,9 +1310,8 @@ static int ndbcluster_find_all_databases(THD *thd)
         Uint64 query_length= 0;
         if (query_blob_handle->getLength(query_length))
         {
-          printf("NDB: Unable to find query for db(%u): '%s'", db_len, db);
-          fflush(stdout);
-          abort();
+          ndb_error= query_blob_handle->getNdbError();
+          goto error;
         }
         query[query_length]= 0;
         build_table_filename(name, sizeof(name), db, "", "", 0);
@@ -1372,10 +1378,20 @@ static int ndbcluster_find_all_databases(THD *thd)
     {
       if (retries--)
       {
+        sql_print_warning("NDB: ndbcluster_find_all_databases retry: %u - %s",
+                          ndb_error.code,
+                          ndb_error.message);
         do_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
+    if (!thd->killed)
+    {
+      sql_print_error("NDB: ndbcluster_find_all_databases fail: %u - %s",
+                      ndb_error.code,
+                      ndb_error.message);
+    }
+
     DBUG_RETURN(1); // not temp error or too many retries
   }
 }
