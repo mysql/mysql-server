@@ -54,6 +54,7 @@ class ndb_query_def_list;
 
 namespace AQP{
   class Join_plan;
+  class Table_access;
 };
 
 typedef enum ndb_index_type {
@@ -581,7 +582,8 @@ static void set_tabname(const char *pathname, char *tabname);
  */
   void cond_pop();
 
-  uint make_pushed_join(AQP::Join_plan& plan, uint root);
+  int make_pushed_join(AQP::Join_plan& plan,
+                       const AQP::Table_access* const join_root);
 
   bool test_push_flag(enum ha_push_flag flag) const;
 

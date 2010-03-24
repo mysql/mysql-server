@@ -232,7 +232,7 @@ static Item *remove_additional_cond(Item* conds);
 static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static bool test_if_ref(Item_field *left_item,Item *right_item);
 
-static int  make_pushed_join(JOIN *join);
+static int  make_pushed_join(THD *thd, JOIN *join);
 
 
 /**
@@ -1480,7 +1480,7 @@ JOIN::optimize()
     }
   }
 
-  if (make_pushed_join(this))
+  if (make_pushed_join(thd, this))
     DBUG_RETURN(1);
 
   tmp_having= having;
@@ -1629,31 +1629,36 @@ JOIN::optimize()
 
 
 static int
-make_pushed_join(JOIN *join)
+make_pushed_join(THD *thd, JOIN *join)
 {
   int active_pushed_joins= 0;
 
   // Let handler extract whatever it might implement of pushed joins
   AQP::Join_plan plan(join);
 
+  const int error= ha_make_pushed_joins(thd, &plan);
+  if (unlikely(error))
+    return error;
+
   // Set up table accessors for child operations of pushed joins
   for (uint i=join->const_tables ; i < join->tables ; i++)
   {
     JOIN_TAB *tab=join->join_tab+i;
 
-    if (!tab->table->file->member_of_pushed_join())
+    if (tab->table->file->member_of_pushed_join())
     {
-      uint pushed_joins= tab->table->file->make_pushed_join(plan,i);
-      if (pushed_joins > 0)
-        active_pushed_joins += (pushed_joins-1);
-    }
-    else
-    {
-      // Replace 'read_key' access with its linked counterpart 
-      // ... Which is effectively a NOOP as the row is read as part of the linked operation
-      tab->read_first_record= join_read_linked_key;
-      tab->read_record.read_record= join_no_more_records;
-      tab->read_record.unlock_row= rr_unlock_row;
+      uint pushed_joins= tab->table->file->is_parent_of_pushed_join();
+      active_pushed_joins += pushed_joins;
+
+      if (pushed_joins == 0)
+      {
+        // Is child of a pushed join operation:
+        // Replace 'read_key' access with its linked counterpart 
+        // ... Which is effectively a NOOP as the row is read as part of the linked operation
+        tab->read_first_record= join_read_linked_key;
+        tab->read_record.read_record= join_no_more_records;
+        tab->read_record.unlock_row= rr_unlock_row;
+      }
       active_pushed_joins--;
     }
 
