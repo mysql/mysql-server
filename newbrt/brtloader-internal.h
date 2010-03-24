@@ -10,6 +10,7 @@ struct file_info {
     BOOL is_extant; // if true, the file must be unlinked.
     char *fname;
     FILE *file;
+    u_int64_t n_rows; // how many rows were written into that file
 };
 struct file_infos {
     int n_files;
@@ -36,6 +37,8 @@ struct brtloader_s {
     const struct descriptor **descriptors; // N of these
     const char **new_fnames_in_env; // the file names that the final data will be written to (relative to env).
 
+    u_int64_t n_rows; // how many rows have been put?
+
     const char *temp_file_template;
     FIDX fprimary_rows; // the file index (in the file_infos) for the data
     FIDX fprimary_idx;  // the file index for the index
@@ -43,6 +46,16 @@ struct brtloader_s {
     CACHETABLE cachetable;
     /* To make it easier to recover from errors, we don't use FILE*, instead we use an index into the file_infos. */
     struct file_infos file_infos;
+
+#define PROGRESS_MAX (1<<16)
+    int progress;       // Progress runs from 0 to PROGRESS_MAX.  When we call the poll function we convert to a float from 0.0 to 1.0
+    // We use an integer so that we can add to the progress using a fetch-and-add instruction.
+
+    // These two are set in the close function, and used while running close
+    int (*poll_function)(void *extra, float progress);
+    void *poll_extra;
+
+    int user_said_stop; // 0 if the poll_function always returned zero.  If it ever returns nonzero, then store that value here.
 };
 
 /* These data structures are used for manipulating a collection of rows in main memory. */
@@ -87,9 +100,9 @@ void init_merge_fileset (struct merge_fileset *fs);
 void destroy_merge_fileset (struct merge_fileset *fs);
 
 int sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func,
-			 struct error_callback_s *error_callback);
-int merge_files (struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func, struct error_callback_s *);
-int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor);
+			 struct error_callback_s *error_callback, int progress_allocation);
+int merge_files (struct merge_fileset *fs, BRTLOADER bl, DB *dest_db, brt_compare_func, struct error_callback_s *, int progress_allocation);
+int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor, int progress_allocation);
 
 int brtloader_init_file_infos (struct file_infos *fi);
 void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error);
