@@ -2661,12 +2661,15 @@ int
 toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log) {
     int r = 0;
     assert(txn);
+    toku_txn_force_fsync_on_commit(txn);  //If the txn commits, the commit MUST be in the log
+                                          //before the (old) file is actually unlinked
     TOKULOGGER logger = toku_txn_logger(txn);
 
     BYTESTRING old_iname_bs = {.len=strlen(old_iname),
                                .data=toku_memdup_in_rollback(txn, old_iname, strlen(old_iname))};
     BYTESTRING new_iname_bs = {.len=strlen(new_iname),
                                .data=toku_memdup_in_rollback(txn, new_iname, strlen(new_iname))};
+
     r = toku_logger_save_rollback_load(txn, old_iname_bs, new_iname_bs);
     if (r==0 && do_log && logger) {
         TXNID xid = toku_txn_get_txnid(txn);
