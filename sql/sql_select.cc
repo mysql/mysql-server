@@ -16714,8 +16714,11 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 	  else if (tab->select->cond)
           {
             const COND *pushed_cond= tab->table->file->pushed_cond;
+            bool pushed_join_child=
+                   pushed_join && !tab->table->file->is_parent_of_pushed_join();
 
-            if (thd->variables.engine_condition_pushdown && pushed_cond)
+            if (pushed_cond && !pushed_join_child &&
+                thd->variables.engine_condition_pushdown)
             {
               extra.append(STRING_WITH_LEN("; Using where with pushed "
                                            "condition"));
