@@ -2733,7 +2733,6 @@ ibuf_get_volume_buffered_count(
 
 	case IBUF_REC_INFO_SIZE:
 		ibuf_op = (ibuf_op_t) types[IBUF_REC_OFFSET_TYPE];
-		types += IBUF_REC_INFO_SIZE;
 		break;
 	}
 
