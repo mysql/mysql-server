@@ -219,9 +219,10 @@ static const char *recover_state(RECOVER_ENV renv) {
     return scan_state_string(&renv->ss);
 }
 
-// Null function supplied to transaction commit and abort
-static void recover_yield(voidfp UU(f), void *UU(extra)) {
-    // nothing
+// function supplied to transaction commit and abort
+// No yielding is necessary, but it must call the f function if provided.
+static void recover_yield(voidfp f, void *UU(extra)) {
+    if (f) f();
 }
 
 static int
