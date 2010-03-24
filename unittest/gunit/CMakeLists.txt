@@ -59,7 +59,7 @@ IF(NOT GTEST_FOUND)
     # Give one-time warning
     IF(NOT ONETIME_GTEST_WARNING)
       MESSAGE(STATUS 
-        "Googletest was not found. gtest-based unit tests will be disabled."
+        "Googletest was not found. gtest-based unit tests will be disabled. "
         "You can run cmake . -DENABLE_DOWNLOADS=1 to automatically download and "
         "build required components from source.")
       SET(ONETIME_GTEST_WARNING 1 CACHE INTERNAL "")
@@ -136,18 +136,21 @@ ENDIF()
 
 
 INCLUDE_DIRECTORIES(
- ${GTEST_INCLUDE_DIRS}
- ${CMAKE_SOURCE_DIR}/include
- ${CMAKE_SOURCE_DIR}/sql
- ${CMAKE_SOURCE_DIR}/unittest/mytap
+  ${GTEST_INCLUDE_DIRS}
+  ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/sql
+  ${CMAKE_SOURCE_DIR}/unittest/mytap
 )
 
 # main-wrapper library (with tap-compatible option).
-ADD_LIBRARY(gunit STATIC gunit_test_main.cc tap_event_listener.cc thread_utils.cc)
+ADD_LIBRARY(gunit STATIC
+  gunit_test_main.cc tap_event_listener.cc thread_utils.cc)
 TARGET_LINK_LIBRARIES(gunit mysys mytap dbug strings ${GTEST_LIBRARIES})
 
 # Add some defines.
-ADD_DEFINITIONS(-DMYSQL_SERVER) 
+ADD_DEFINITIONS(-DMYSQL_SERVER)
+# We use -fno-rtti with gcc, so disable RTTI in gtest as well.
+ADD_DEFINITIONS(-DGTEST_HAS_RTTI=0)
 
 # Remove -fno-implicit-templates, gunit sources cannot be compiled with it.
 IF(CMAKE_CXX_FLAGS)
