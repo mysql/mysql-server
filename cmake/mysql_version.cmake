@@ -55,6 +55,7 @@ MACRO(GET_MYSQL_VERSION)
   ENDIF()
   
   SET(VERSION ${VERSION_STRING})
+  STRING(REPLACE "-" "_" MYSQL_U_SCORE_VERSION "${VERSION_STRING}")
   
   # Remove trailing (non-numeric) part of the version string
   STRING(REGEX REPLACE "[^\\.0-9].*" "" VERSION_STRING ${VERSION_STRING})
@@ -114,6 +115,16 @@ INCLUDE(cpack_source_ignore_files)
 # Defintions for windows version resources
 SET(PRODUCTNAME "MySQL Server")
 SET(COMPANYNAME ${CPACK_PACKAGE_VENDOR})
+
+# Windows 'date' command has unpredictable output, so cannot rely on it to
+# set MYSQL_COPYRIGHT_YEAR - if someone finds a portable way to do so then
+# it might be useful
+#IF (WIN32)
+#  EXECUTE_PROCESS(COMMAND "date" "/T" OUTPUT_VARIABLE TMP_DATE)
+#  STRING(REGEX REPLACE "(..)/(..)/..(..).*" "\\3\\2\\1" MYSQL_COPYRIGHT_YEAR ${TMP_DATE})
+IF(UNIX)
+  EXECUTE_PROCESS(COMMAND "date" "+%Y" OUTPUT_VARIABLE MYSQL_COPYRIGHT_YEAR)
+ENDIF()
 
 # Add version information to the exe and dll files
 # Refer to http://msdn.microsoft.com/en-us/library/aa381058(VS.85).aspx
