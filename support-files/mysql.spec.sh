@@ -565,10 +565,10 @@ install -d $RBR%{_sbindir}
 mkdir $RBR/tmp-debug-plugin $MBD/plugin/debug
 ( cd $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/plugin
   make install DESTDIR=$RBR/tmp-debug-plugin
-  mv $RBR/tmp-debug-plugin/usr/local/mysql/lib/mysql/plugin/* $MBD/plugin/debug/
+  mv $RBR/tmp-debug-plugin/usr/lib*/mysql/plugin/* $MBD/plugin/debug/
   # From here, the install hook in "plugin/Makefile.am" will do the rest.
 )
-rmdir -p $RBR/tmp-debug-plugin/usr/local/mysql/lib/mysql/plugin
+rmdir -p $RBR/tmp-debug-plugin/usr/lib*/mysql/plugin || true
 
 # Install all binaries
 (cd $MBD && make install DESTDIR=$RBR testroot=%{_datadir})
@@ -605,8 +605,8 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 touch $RBR%{_sysconfdir}/my.cnf
 
 %if %{WITH_TCMALLOC}
-# Even though this is a shared library, put it under /usr/lib/mysql, so it
-# doesn't conflict with possible shared lib by the same name in /usr/lib.  See
+# Even though this is a shared library, put it under /usr/lib*/mysql, so it
+# doesn't conflict with possible shared lib by the same name in /usr/lib*.  See
 # `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
 install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
@@ -874,10 +874,8 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
 
@@ -1008,14 +1006,10 @@ fi
 %{_libdir}/mysql/libvio.a
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
-%{_libdir}/mysql/plugin/ha_example.a
-%{_libdir}/mysql/plugin/ha_example.la
 %{_libdir}/mysql/plugin/semisync_master.a
 %{_libdir}/mysql/plugin/semisync_master.la
 %{_libdir}/mysql/plugin/semisync_slave.a
 %{_libdir}/mysql/plugin/semisync_slave.la
-%{_libdir}/mysql/plugin/debug/ha_example.a
-%{_libdir}/mysql/plugin/debug/ha_example.la
 %{_libdir}/mysql/plugin/debug/semisync_master.a
 %{_libdir}/mysql/plugin/debug/semisync_master.la
 %{_libdir}/mysql/plugin/debug/semisync_slave.a
@@ -1055,6 +1049,16 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Mar 22 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- User "usr/lib*" to allow for both "usr/lib" and "usr/lib64",
+  mask "rmdir" return code 1.
+- Remove "ha_example.*" files from the list, they aren't built.
+
+* Wed Mar 17 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Fix a wrong path name in handling the debug plugins.
+
 * Wed Mar 10 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Take the result of the debug plugin build and put it into the optimized tree,
