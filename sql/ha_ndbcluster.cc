@@ -12581,12 +12581,15 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   DBUG_PRINT("info", ("blob fields=%d read_set=0x%x", table_share->blob_fields, table->read_set->bitmap[0]));
 
   /**
-   * blobs and unique hash index with NULL can't be batched currently
+   * Blobs and unique hash index with NULL can't be batched currently.
+   * Neither are pushed lookup joins batchable.
    */
   if (uses_blob_value(table->read_set) ||
       (cur_index_type ==  UNIQUE_INDEX &&
        has_null_in_unique_index(active_index) &&
        null_value_index_search(ranges, ranges+range_count, buffer))
+      || (m_pushed_join && !m_disable_pushed_join &&
+         !m_pushed_join->get_query_def().isScanQuery())
       || m_delete_cannot_batch || m_update_cannot_batch)
   {
     DBUG_PRINT("info", ("read_multi_range not possible, falling back to default handler implementation"));
