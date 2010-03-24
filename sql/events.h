@@ -1,6 +1,6 @@
 #ifndef _EVENT_H_
 #define _EVENT_H_
-/* Copyright (C) 2004-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @defgroup Event_Scheduler Event Scheduler
@@ -83,6 +83,7 @@ public:
     See sys_var.cc
   */
   enum enum_opt_event_scheduler { EVENTS_OFF, EVENTS_ON, EVENTS_DISABLED };
+  /* Protected using LOCK_global_system_variables only. */
   static uint opt_event_scheduler;
   static mysql_mutex_t LOCK_event_metadata;
   static bool check_if_system_tables_error();
@@ -105,9 +106,6 @@ public:
 
   static void
   destroy_mutexes();
-
-  static bool
-  switch_event_scheduler_state(enum enum_opt_event_scheduler new_state);
 
   static bool
   create_event(THD *thd, Event_parse_data *parse_data, bool if_exists);
