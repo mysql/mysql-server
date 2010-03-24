@@ -285,6 +285,10 @@ dtype_new_store_for_order_and_null_size(
 #endif
 	ulint	len;
 
+	ut_ad(type);
+	ut_ad(type->mtype >= DATA_VARCHAR);
+	ut_ad(type->mtype <= DATA_MYSQL);
+
 	buf[0] = (byte)(type->mtype & 0xFFUL);
 
 	if (type->prtype & DATA_BINARY_TYPE) {
