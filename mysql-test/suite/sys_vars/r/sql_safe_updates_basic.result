@@ -12,7 +12,7 @@ SET @@session.sql_safe_updates = 1;
 SET @@session.sql_safe_updates = DEFAULT;
 SELECT @@session.sql_safe_updates;
 @@session.sql_safe_updates
-1
+0
 '#---------------------FN_DYNVARS_163_02-------------------------#'
 SET sql_safe_updates = 1;
 SELECT @@sql_safe_updates;
@@ -45,25 +45,26 @@ ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'T'
 SET @@session.sql_safe_updates = "Y";
 ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'Y'
 SET @@session.sql_safe_updates = TRÜE;
-ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'TRÃœE'
+ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'TRÜE'
 SET @@session.sql_safe_updates = ÕN;
-ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'Ã•N'
+ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'ÕN'
 SET @@session.sql_safe_updates = OF;
-SELECT @@session.sql_safe_updates;
-@@session.sql_safe_updates
-0
-'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
+ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'OF'
 SET @@session.sql_safe_updates = ÓFF;
-ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'Ã“FF'
+ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'ÓFF'
 SET @@session.sql_safe_updates = '¹';
 ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of '¹'
 SET @@session.sql_safe_updates = NO;
 ERROR 42000: Variable 'sql_safe_updates' can't be set to the value of 'NO'
 '#-------------------FN_DYNVARS_163_05----------------------------#'
-SET @@global.sql_safe_updates = 0;
-ERROR HY000: Variable 'sql_safe_updates' is a SESSION variable and can't be used with SET GLOBAL
+SET @@global.sql_safe_updates = 1-@@global.sql_safe_updates;
 SELECT @@global.sql_safe_updates;
-ERROR HY000: Variable 'sql_safe_updates' is a SESSION variable
+@@global.sql_safe_updates
+1
+SET @@global.sql_safe_updates = 1-@@global.sql_safe_updates;
+SELECT @@global.sql_safe_updates;
+@@global.sql_safe_updates
+0
 '#----------------------FN_DYNVARS_163_06------------------------#'
 SELECT count(VARIABLE_VALUE) 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
@@ -78,12 +79,12 @@ IF(@@session.sql_safe_updates, "ON", "OFF") = VARIABLE_VALUE
 1
 SELECT @@session.sql_safe_updates;
 @@session.sql_safe_updates
-0
+1
 SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
 WHERE VARIABLE_NAME='sql_safe_updates';
 VARIABLE_VALUE
-OFF
+ON
 '#---------------------FN_DYNVARS_163_08-------------------------#'
 SET @@session.sql_safe_updates = OFF;
 SELECT @@session.sql_safe_updates;

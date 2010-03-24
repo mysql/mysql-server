@@ -68,9 +68,8 @@ Warning	1292	Truncated incorrect slave_transaction_retries value: '4611686022722
 SELECT @@global.slave_transaction_retries;
 @@global.slave_transaction_retries
 4294967295
-'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
-SET @@global.slave_transaction_retries = 65530.34.;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.' at line 1
+SET @@global.slave_transaction_retries = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'slave_transaction_retries'
 SET @@global.slave_transaction_retries = '100';
 ERROR 42000: Incorrect argument type to variable 'slave_transaction_retries'
 SET @@global.slave_transaction_retries = 7483649.56;

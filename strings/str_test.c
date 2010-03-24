@@ -265,13 +265,13 @@ extern void dummy_functions(void);
 
 void dummy_functions(void)
 {
-  VOID(memchr(from,'a',5));
-  VOID(memcmp(from,to,5));
-  VOID(memcpy(from,to,5));
-  VOID(memset(from,' ',5));
-  VOID(strcmp(from,to));
-  VOID(strcpy(from,to));
-  VOID(strstr(from,to));
-  VOID(strrchr(from,'a'));
+  (void) memchr(from,'a',5);
+  (void) memcmp(from,to,5);
+  (void) memcpy(from,to,5);
+  (void) memset(from,' ',5);
+  (void) strcmp(from,to);
+  (void) strcpy(from,to);
+  (void) strstr(from,to);
+  (void) strrchr(from,'a');
   return;
 }

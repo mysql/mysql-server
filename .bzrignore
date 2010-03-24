@@ -392,6 +392,7 @@ client/rpl_record_old.h
 client/rpl_tblmap.h
 client/rpl_tblmap.cc
 client/rpl_utility.h
+client/rpl_utility.cc
 client/select_test
 client/sql_string.cpp
 client/ssl_test
@@ -1143,6 +1144,7 @@ libmysqld/rpl_handler.cc
 libmysqld/rpl_injector.cc
 libmysqld/rpl_record.cc
 libmysqld/rpl_record_old.cc
+libmysqld/rpl_utility.cc
 libmysqld/scheduler.cc
 libmysqld/set_var.cc
 libmysqld/simple-test
@@ -3070,3 +3072,11 @@ libmysqld/rpl_handler.cc
 libmysqld/debug_sync.cc
 libmysqld/rpl_handler.cc
 dbug/tests
+libmysqld/mdl.cc
+client/transaction.h
+libmysqld/transaction.cc
+libmysqld/sys_vars.cc
+libmysqld/keycaches.cc
+client/dtoa.c
+libmysqld/sql_audit.cc
+configure.am

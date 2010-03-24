@@ -110,8 +110,8 @@ SET @@global.max_seeks_for_key = -1024;
 SELECT @@global.max_seeks_for_key;
 SET @@global.max_seeks_for_key = 4294967296;
 SELECT @@global.max_seeks_for_key;
---Error ER_PARSE_ERROR
-SET @@global.max_seeks_for_key = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_seeks_for_key = 65530.34;
 SELECT @@global.max_seeks_for_key;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_seeks_for_key = test;
@@ -121,11 +121,10 @@ SET @@session.max_seeks_for_key = 0;
 SELECT @@session.max_seeks_for_key;
 SET @@session.max_seeks_for_key = -2;
 SELECT @@session.max_seeks_for_key;
---Error ER_PARSE_ERROR
-SET @@session.max_seeks_for_key = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_seeks_for_key = 65530.34;
 SET @@session.max_seeks_for_key = 4294967296;
 SELECT @@session.max_seeks_for_key;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_seeks_for_key = test;

@@ -23,10 +23,7 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <m_ctype.h>
-#ifdef HAVE_FCONVERT
-#include <floatingpoint.h>
-#endif
-
+#include <mysql_com.h>
 /*
   The following extern declarations are ok as these are interface functions
   required by the string function
@@ -106,82 +103,19 @@ bool String::set_int(longlong num, bool unsigned_flag, CHARSET_INFO *cs)
 
 bool String::set_real(double num,uint decimals, CHARSET_INFO *cs)
 {
-  char buff[331];
+  char buff[FLOATING_POINT_BUFFER];
   uint dummy_errors;
+  size_t len;
 
   str_charset=cs;
   if (decimals >= NOT_FIXED_DEC)
   {
-    uint32 len= my_sprintf(buff,(buff, "%.15g",num));// Enough for a DATETIME
+    len= my_gcvt(num, MY_GCVT_ARG_DOUBLE, sizeof(buff) - 1, buff, NULL);
     return copy(buff, len, &my_charset_latin1, cs, &dummy_errors);
   }
-#ifdef HAVE_FCONVERT
-  int decpt,sign;
-  char *pos,*to;
-
-  VOID(fconvert(num,(int) decimals,&decpt,&sign,buff+1));
-  if (!my_isdigit(&my_charset_latin1, buff[1]))
-  {						// Nan or Inf
-    pos=buff+1;
-    if (sign)
-    {
-      buff[0]='-';
-      pos=buff;
-    }
-    uint dummy_errors;
-    return copy(pos,(uint32) strlen(pos), &my_charset_latin1, cs, &dummy_errors);
-  }
-  if (alloc((uint32) ((uint32) decpt+3+decimals)))
-    return TRUE;
-  to=Ptr;
-  if (sign)
-    *to++='-';
-
-  pos=buff+1;
-  if (decpt < 0)
-  {					/* value is < 0 */
-    *to++='0';
-    if (!decimals)
-      goto end;
-    *to++='.';
-    if ((uint32) -decpt > decimals)
-      decpt= - (int) decimals;
-    decimals=(uint32) ((int) decimals+decpt);
-    while (decpt++ < 0)
-      *to++='0';
-  }
-  else if (decpt == 0)
-  {
-    *to++= '0';
-    if (!decimals)
-      goto end;
-    *to++='.';
-  }
-  else
-  {
-    while (decpt-- > 0)
-      *to++= *pos++;
-    if (!decimals)
-      goto end;
-    *to++='.';
-  }
-  while (decimals--)
-    *to++= *pos++;
-
-end:
-  *to=0;
-  str_length=(uint32) (to-Ptr);
-  return FALSE;
-#else
-#ifdef HAVE_SNPRINTF
-  buff[sizeof(buff)-1]=0;			// Safety
-  snprintf(buff,sizeof(buff)-1, "%.*f",(int) decimals,num);
-#else
-  sprintf(buff,"%.*f",(int) decimals,num);
-#endif
-  return copy(buff,(uint32) strlen(buff), &my_charset_latin1, cs,
+  len= my_fcvt(num, decimals, buff, NULL);
+  return copy(buff, (uint32) len, &my_charset_latin1, cs,
               &dummy_errors);
-#endif
 }
 
 
@@ -478,11 +412,25 @@ bool String::append(const char *s)
 
 bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
 {
-  uint32 dummy_offset;
+  uint32 offset;
   
-  if (needs_conversion(arg_length, cs, str_charset, &dummy_offset))
+  if (needs_conversion(arg_length, cs, str_charset, &offset))
   {
-    uint32 add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
+    uint32 add_length;
+    if ((cs == &my_charset_bin) && offset)
+    {
+      DBUG_ASSERT(str_charset->mbminlen > offset);
+      offset= str_charset->mbminlen - offset; // How many characters to pad
+      add_length= arg_length + offset;
+      if (realloc(str_length + add_length))
+        return TRUE;
+      bzero((char*) Ptr + str_length, offset);
+      memcpy(Ptr + str_length + offset, s, arg_length);
+      str_length+= add_length;
+      return FALSE;
+    }
+
+    add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
     uint dummy_errors;
     if (realloc(str_length + add_length)) 
       return TRUE;
@@ -498,22 +446,6 @@ bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
   }
   return FALSE;
 }
-
-
-#ifdef TO_BE_REMOVED
-bool String::append(FILE* file, uint32 arg_length, myf my_flags)
-{
-  if (realloc(str_length+arg_length))
-    return TRUE;
-  if (my_fread(file, (uchar*) Ptr + str_length, arg_length, my_flags))
-  {
-    shrink(str_length);
-    return TRUE;
-  }
-  str_length+=arg_length;
-  return FALSE;
-}
-#endif
 
 bool String::append(IO_CACHE* file, uint32 arg_length)
 {
@@ -676,7 +608,8 @@ void String::qs_append(const char *str, uint32 len)
 void String::qs_append(double d)
 {
   char *buff = Ptr + str_length;
-  str_length+= my_sprintf(buff, (buff, "%.15g", d));
+  str_length+= my_gcvt(d, MY_GCVT_ARG_DOUBLE, FLOATING_POINT_BUFFER - 1, buff,
+                       NULL);
 }
 
 void String::qs_append(double *d)
@@ -1047,6 +980,24 @@ well_formed_copy_nchars(CHARSET_INFO *to_cs,
         uint pad_length= to_cs->mbminlen - from_offset;
         bzero(to, pad_length);
         memmove(to + pad_length, from, from_offset);
+        /*
+          In some cases left zero-padding can create an incorrect character.
+          For example:
+            INSERT INTO t1 (utf32_column) VALUES (0x110000);
+          We'll pad the value to 0x00110000, which is a wrong UTF32 sequence!
+          The valid characters range is limited to 0x00000000..0x0010FFFF.
+          
+          Make sure we didn't pad to an incorrect character.
+        */
+        if (to_cs->cset->well_formed_len(to_cs,
+                                         to, to + to_cs->mbminlen, 1,
+                                         &well_formed_error) !=
+                                         to_cs->mbminlen)
+        {
+          *from_end_pos= *well_formed_error_pos= from;
+          *cannot_convert_error_pos= NULL;
+          return 0;
+        }
         nchars--;
         from+= from_offset;
         from_length-= from_offset;

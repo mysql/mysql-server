@@ -562,3 +562,4 @@ int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
 }
 #endif /*HAVE_SPATIAL*/
 
+#include "mi_extrafunc.h"

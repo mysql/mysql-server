@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2002, 2004 MySQL AB
+/* Copyright (C) 2000-2002, 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,9 +103,14 @@ extern void hp_clear_keys(HP_SHARE *info);
 extern uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
                            key_part_map keypart_map);
 #ifdef THREAD
-extern pthread_mutex_t THR_LOCK_heap;
-#else
-#define pthread_mutex_lock(A)
-#define pthread_mutex_unlock(A)
+extern mysql_mutex_t THR_LOCK_heap;
 #endif
+
+#ifdef HAVE_PSI_INTERFACE
+#ifdef THREAD
+extern PSI_mutex_key hp_key_mutex_HP_SHARE_intern_lock;
+#endif /* THREAD */
+void init_heap_psi_keys();
+#endif /* HAVE_PSI_INTERFACE */
+
 C_MODE_END

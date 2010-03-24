@@ -1,0 +1,19 @@
+#
+# only global
+#
+select @@global.ft_max_word_len;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.ft_max_word_len;
+show global variables like 'ft_max_word_len';
+show session variables like 'ft_max_word_len';
+select * from information_schema.global_variables where variable_name='ft_max_word_len';
+select * from information_schema.session_variables where variable_name='ft_max_word_len';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global ft_max_word_len=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session ft_max_word_len=1;
+

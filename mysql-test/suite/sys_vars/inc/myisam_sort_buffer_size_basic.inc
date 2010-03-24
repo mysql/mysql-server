@@ -113,8 +113,8 @@ SET @@global.myisam_sort_buffer_size   = 429496729533;
 SELECT @@global.myisam_sort_buffer_size  ;
 
 
---Error ER_PARSE_ERROR
-SET @@global.myisam_sort_buffer_size   = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.myisam_sort_buffer_size   = 65530.34;
 SELECT @@global.myisam_sort_buffer_size  ;
 
 --Error ER_WRONG_TYPE_FOR_VAR
@@ -140,9 +140,8 @@ SELECT @@session.myisam_sort_buffer_size  ;
 SET @@session.myisam_sort_buffer_size   = -2;
 SELECT @@session.myisam_sort_buffer_size  ;
 
---Error ER_PARSE_ERROR
-
-SET @@session.myisam_sort_buffer_size   = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.myisam_sort_buffer_size   = 65530.34;
 SELECT @@session.myisam_sort_buffer_size  ;
 
 

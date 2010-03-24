@@ -32,6 +32,7 @@ C_MODE_START
 #define GET_ENUM      12
 #define GET_SET       13
 #define GET_DOUBLE    14
+#define GET_FLAGSET   15
 
 #define GET_ASK_ADDR	 128
 #define GET_TYPE_MASK	 127
@@ -42,24 +43,40 @@ struct st_typelib;
 
 struct my_option
 {
-  const char *name;                     /* Name of the option */
-  int        id;                        /* unique id or short option */
-  const char *comment;                  /* option comment, for autom. --help */
-  uchar      **value;                   /* The variable value */
-  uchar      **u_max_value;             /* The user def. max variable value */
-  struct st_typelib *typelib;           /* Pointer to possible values */
-  ulong     var_type;
-  enum get_opt_arg_type arg_type;
-  longlong   def_value;                 /* Default value */
-  longlong   min_value;                 /* Min allowed value */
-  longlong   max_value;                 /* Max allowed value */
-  longlong   sub_size;                  /* Subtract this from given value */
-  long       block_size;                /* Value should be a mult. of this */
-  void       *app_type;                 /* To be used by an application */
+  const char *name;                     /**< Name of the option. name=NULL
+                                           marks the end of the my_option[]
+                                           array.
+                                         */
+  int        id;                        /**< For 0<id<255 it's means one
+                                           character for a short option
+                                           (like -A), if >255 no short option
+                                           is created, but a long option still
+                                           can be identified uniquely in the
+                                           my_get_one_option() callback.
+                                           If an opton needs neither special
+                                           treatment in the my_get_one_option()
+                                           nor one-letter short equivalent
+                                           use id=0
+                                         */
+  const char *comment;                  /**< option comment, for autom. --help.
+                                           if it's NULL the option is not
+                                           visible in --help.
+                                         */
+  uchar      **value;                   /**< A pointer to the variable value */
+  uchar      **u_max_value;             /**< The user def. max variable value */
+  struct st_typelib *typelib;           /**< Pointer to possible values */
+  ulong     var_type;                   /**< GET_BOOL, GET_ULL, etc */
+  enum get_opt_arg_type arg_type;       /**< e.g. REQUIRED_ARG or OPT_ARG */
+  longlong   def_value;                 /**< Default value */
+  longlong   min_value;                 /**< Min allowed value (for numbers) */
+  longlong   max_value;                 /**< Max allowed value (for numbers) */
+  longlong   sub_size;                  /**< Unused                          */
+  long       block_size;                /**< Value should be a mult. of this (for numbers) */
+  void       *app_type;                 /**< To be used by an application */
 };
 
-typedef my_bool (* my_get_one_option) (int, const struct my_option *, char * );
-typedef void (* my_error_reporter) (enum loglevel level, const char *format, ... );
+typedef my_bool (*my_get_one_option) (int, const struct my_option *, char * );
+typedef void (*my_error_reporter) (enum loglevel level, const char *format, ... );
 
 extern char *disabled_my_option;
 extern my_bool my_getopt_print_errors;
@@ -78,6 +95,8 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
                                  my_bool *fix);
 longlong getopt_ll_limit_value(longlong, const struct my_option *,
                                my_bool *fix);
+double getopt_double_limit_value(double num, const struct my_option *optp,
+                                 my_bool *fix);
 my_bool getopt_compare_strings(const char *s, const char *t, uint length);
 
 C_MODE_END

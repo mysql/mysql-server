@@ -15,6 +15,7 @@
 
 source include/have_log_bin.inc;
 source include/have_debug.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
 
 --echo #
 --echo # Initialization

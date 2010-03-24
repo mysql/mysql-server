@@ -1,0 +1,23 @@
+#
+# only global
+#
+--replace_result 4294967295 18446744073709551615
+select @@global.myisam_mmap_size;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.myisam_mmap_size;
+--replace_result 4294967295 18446744073709551615
+show global variables like 'myisam_mmap_size';
+--replace_result 4294967295 18446744073709551615
+show session variables like 'myisam_mmap_size';
+--replace_result 4294967295 18446744073709551615
+select * from information_schema.global_variables where variable_name='myisam_mmap_size';
+--replace_result 4294967295 18446744073709551615
+select * from information_schema.session_variables where variable_name='myisam_mmap_size';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global myisam_mmap_size=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session myisam_mmap_size=1;

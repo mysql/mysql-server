@@ -84,8 +84,6 @@ id	name
 ## Setting value of variable less than last insert id ##
 SET @@session.auto_increment_offset = 5;
 INSERT into t1(name) values('Record_9');
-'Bug#35367: Random value of id is increasing on assigning value to';
-'variable that is less than current offset';
 INSERT into t1(name) values('Record_10');
 INSERT into t1(name) values('Record_11');
 INSERT into t1(name) values('Record_12');
@@ -125,8 +123,6 @@ id	name
 125	Record_12
 134	Record_13
 140	Record_14
-'Bug#35369: Some invalid value of id is increasing on assigning value to';
-'variable that is greater than auto_increment_increment';
 '#--------------------FN_DYNVARS_002_06-------------------------#'
 ## Changing datatype of column id with primary key to SmallInt ##
 ALTER table t1 modify id SMALLINT NOT NULL auto_increment;
@@ -206,8 +202,6 @@ id	name
 180	Record_18
 181	Record_17
 191	Record_18
-'Bug#35370: Some invalid value of id is increasing on assigning negative';
-' value in variable';
 ## Assigning value that is out of range of variable ##
 SET @@auto_increment_offset = 65536;
 Warnings:

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2004, 2006 MySQL AB
+/* Copyright (C) 2000-2004, 2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -69,13 +69,13 @@ HP_INFO *heap_open_from_share_and_register(HP_SHARE *share, int mode)
   HP_INFO *info;
   DBUG_ENTER("heap_open_from_share_and_register");
 
-  pthread_mutex_lock(&THR_LOCK_heap);
+  mysql_mutex_lock(&THR_LOCK_heap);
   if ((info= heap_open_from_share(share, mode)))
   {
     info->open_list.data= (void*) info;
     heap_open_list= list_add(heap_open_list,&info->open_list);
   }
-  pthread_mutex_unlock(&THR_LOCK_heap);
+  mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(info);
 }
 
@@ -94,11 +94,11 @@ HP_INFO *heap_open(const char *name, int mode)
   HP_SHARE *share;
   DBUG_ENTER("heap_open");
 
-  pthread_mutex_lock(&THR_LOCK_heap);
+  mysql_mutex_lock(&THR_LOCK_heap);
   if (!(share= hp_find_named_heap(name)))
   {
     my_errno= ENOENT;
-    pthread_mutex_unlock(&THR_LOCK_heap);
+    mysql_mutex_unlock(&THR_LOCK_heap);
     DBUG_RETURN(0);
   }
   if ((info= heap_open_from_share(share, mode)))
@@ -106,7 +106,7 @@ HP_INFO *heap_open(const char *name, int mode)
     info->open_list.data= (void*) info;
     heap_open_list= list_add(heap_open_list,&info->open_list);
   }
-  pthread_mutex_unlock(&THR_LOCK_heap);
+  mysql_mutex_unlock(&THR_LOCK_heap);
   DBUG_RETURN(info);
 }
 

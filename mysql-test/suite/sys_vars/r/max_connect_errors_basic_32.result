@@ -8,7 +8,6 @@ SET @@global.max_connect_errors = DEFAULT;
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
 10
-'Bug# 34876: This variable has invalid default value as compared to documentation';
 '#---------------------FN_DYNVARS_073_02-------------------------#'
 SET @@global.max_connect_errors = @start_value;
 SELECT @@global.max_connect_errors = 10;
@@ -35,7 +34,6 @@ SET @@global.max_connect_errors = 2;
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
 2
-'Bug# 34877:  Invalid Values are coming in variable on assigning valid values';
 '#--------------------FN_DYNVARS_073_04-------------------------#'
 SET @@global.max_connect_errors = -1;
 Warnings:
@@ -72,7 +70,6 @@ Warning	1292	Truncated incorrect max_connect_errors value: '4294967296'
 SELECT @@global.max_connect_errors;
 @@global.max_connect_errors
 4294967295
-'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 SET @@global.max_connect_errors = ON;
 ERROR 42000: Incorrect argument type to variable 'max_connect_errors'
 SELECT @@global.max_connect_errors;

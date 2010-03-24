@@ -1989,7 +1989,7 @@ DROP TABLE t1;
 #
 
 create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
+insert into t1 values (1,0), (1,1), (18446744073709551615,0);
 select a-b  from t1 order by 1;
 select a-b , (a-b < 0)  from t1 order by 1;
 select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
@@ -2910,6 +2910,7 @@ DROP TABLE t1,t2;
 # cases to prevent fixing this accidently. It is intended behaviour)
 #
 
+SET SQL_MODE='NO_UNSIGNED_SUBTRACTION';
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
 UPDATE t1 SET i = -1;
@@ -2919,6 +2920,7 @@ SELECT * FROM t1;
 UPDATE t1 SET i = i - 1;
 SELECT * FROM t1;
 DROP TABLE t1;
+SET SQL_MODE=default;
 
 # BUG#17379
 
@@ -3767,8 +3769,13 @@ INSERT INTO t1 VALUES (2),(3);
 --echo # Should not crash
 --error ER_SUBQUERY_NO_1_ROW
 SELECT 1 FROM t1 WHERE a <> 1 AND NOT
-ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1))
+ROW(1,a) <=> ROW(1,(SELECT 1 FROM t1))
 INTO @var0;
+
+# Query correctly return 2 rows since comparison a <=> fisrt_subquery is
+# always false, thus the second query is never executed.
+SELECT 1 FROM t1 WHERE a <> 1 AND NOT
+ROW(a,a) <=> ROW((SELECT 1 FROM t1 WHERE 1=2),(SELECT 1 FROM t1));
 
 DROP TABLE t1;
  
@@ -4021,6 +4028,39 @@ SELECT table1 .`time_key` field2  FROM B table1  LEFT JOIN  BB JOIN A table5 ON 
 
 drop table A,AA,B,BB;
 --echo #end of test for bug#45266
+
+--echo #
+--echo # Bug#33546: Slowdown on re-evaluation of constant expressions.
+--echo #
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (2);
+SELECT * FROM t1 WHERE a = 1 + 1;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a = 1 + 1;
+SELECT * FROM t1 HAVING a = 1 + 1;
+EXPLAIN EXTENDED SELECT * FROM t1 HAVING a = 1 + 1;
+SELECT * FROM t1, t2 WHERE a = b + (1 + 1);
+EXPLAIN EXTENDED SELECT * FROM t1, t2 WHERE a = b + (1 + 1);
+SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
+EXPLAIN EXTENDED SELECT * FROM t2 LEFT JOIN t1 ON a = b + 1;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a > UNIX_TIMESTAMP('2009-03-10 00:00:00');
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INT DETERMINISTIC
+BEGIN
+  SET @cnt := @cnt + 1;
+  RETURN 1;
+END;|
+delimiter ;|
+
+SET @cnt := 0;
+SELECT * FROM t1 WHERE a = f1();
+SELECT @cnt;
+EXPLAIN EXTENDED SELECT * FROM t1 WHERE a = f1();
+DROP TABLE t1, t2;
+DROP FUNCTION f1;
+--echo # End of bug#33546
 
 --echo # 
 --echo # BUG#48052: Valgrind warning - uninitialized value in init_read_record()

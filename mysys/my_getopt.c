@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB
+/* Copyright (C) 2002-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,30 +22,21 @@
 #include <errno.h>
 #include <m_string.h>
 
-typedef void (*init_func_p)(const struct my_option *option, uchar* *variable,
+typedef void (*init_func_p)(const struct my_option *option, uchar **variable,
                             longlong value);
 
 static void default_reporter(enum loglevel level, const char *format, ...);
 my_error_reporter my_getopt_error_reporter= &default_reporter;
 
-static int findopt(char *optpat, uint length,
-		   const struct my_option **opt_res,
-		   char **ffname);
-my_bool getopt_compare_strings(const char *s,
-			       const char *t,
-			       uint length);
+static int findopt(char *, uint, const struct my_option **, char **);
+my_bool getopt_compare_strings(const char *, const char *, uint);
 static longlong getopt_ll(char *arg, const struct my_option *optp, int *err);
-static ulonglong getopt_ull(char *arg, const struct my_option *optp,
-			    int *err);
+static ulonglong getopt_ull(char *, const struct my_option *, int *);
 static double getopt_double(char *arg, const struct my_option *optp, int *err);
-static void init_variables(const struct my_option *options,
-                           init_func_p init_one_value);
-static void init_one_value(const struct my_option *option, uchar* *variable,
-			   longlong value);
-static void fini_one_value(const struct my_option *option, uchar* *variable,
-			   longlong value);
-static int setval(const struct my_option *opts, uchar* *value, char *argument,
-		  my_bool set_maximum_value);
+static void init_variables(const struct my_option *, init_func_p);
+static void init_one_value(const struct my_option *, uchar **, longlong);
+static void fini_one_value(const struct my_option *, uchar **, longlong);
+static int setval(const struct my_option *, uchar **, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
 
 /*
@@ -60,6 +51,7 @@ enum enum_special_opt
 { OPT_SKIP, OPT_DISABLE, OPT_ENABLE, OPT_MAXIMUM, OPT_LOOSE};
 
 char *disabled_my_option= (char*) "0";
+char *enabled_my_option= (char*) "1";
 
 /* 
    This is a flag that can be set in client programs. 0 means that
@@ -91,16 +83,6 @@ static void default_reporter(enum loglevel level,
   fflush(stderr);
 }
 
-/* 
-  function: handle_options
-
-  Sort options; put options first, until special end of options (--), or
-  until end of argv. Parse options; check that the given option matches with
-  one of the options in struct 'my_option', return error in case of ambiguous
-  or unknown option. Check that option was given an argument if it requires
-  one. Call function 'get_one_option()' once for each option.
-*/
-
 static uchar** (*getopt_get_addr)(const char *, uint, const struct my_option *, int *);
 
 void my_getopt_register_get_addr(uchar** (*func_addr)(const char *, uint,
@@ -109,6 +91,22 @@ void my_getopt_register_get_addr(uchar** (*func_addr)(const char *, uint,
   getopt_get_addr= func_addr;
 }
 
+/**
+  Handle command line options.
+  Sort options.
+  Put options first, until special end of options (--),
+  or until the end of argv. Parse options, check that the given option
+  matches with one of the options in struct 'my_option'.
+  Check that option was given an argument if it requires one
+  Call the optional 'get_one_option()' function once for each option.
+  @param [in, out] argc      command line options (count)
+  @param [in, out] argv      command line options (values)
+  @param [in] longopts       descriptor of all valid options
+  @param [in] get_one_option optional callback function to process each option,
+                            can be NULL.
+  @return error in case of ambiguous or unknown options,
+          0 on success.
+*/
 int handle_options(int *argc, char ***argv, 
 		   const struct my_option *longopts,
                    my_get_one_option get_one_option)
@@ -167,78 +165,15 @@ int handle_options(int *argc, char ***argv,
       option_is_loose=   0;
 
       cur_arg++;		/* skip '-' */
-      if (*cur_arg == '-' || *cur_arg == 'O') /* check for long option, */
-      {                                       /* --set-variable, or -O  */
-	if (*cur_arg == 'O')
-	{
-          my_getopt_error_reporter(WARNING_LEVEL, 
-                                   "%s: Option '-O' is deprecated. "
-                                   "Use --variable-name=value instead.",
-                                   my_progname);
-	  must_be_var= 1;
-
-	  if (!(*++cur_arg))	/* If not -Ovar=# */
-	  {
-	    /* the argument must be in next argv */
-	    if (!*++pos)
-	    {
-	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(ERROR_LEVEL,
-                                         "%s: Option '-O' requires an argument",
-                                         my_progname);
-	      return EXIT_ARGUMENT_REQUIRED;
-	    }
-	    cur_arg= *pos;
-	    (*argc)--;
-	  }
-	}
-	else if (!getopt_compare_strings(cur_arg, "-set-variable", 13))
-	{
-          my_getopt_error_reporter(WARNING_LEVEL, 
-                                   "%s: Option '--set-variable' is deprecated. "
-                                   "Use --variable-name=value instead.",
-                                   my_progname);
-                                   
-	  must_be_var= 1;
-	  if (cur_arg[13] == '=')
-	  {
-	    cur_arg+= 14;
-	    if (!*cur_arg)
-	    {
-	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(ERROR_LEVEL,
-                                         "%s: Option '--set-variable' requires an argument",
-                                         my_progname);
-	      return EXIT_ARGUMENT_REQUIRED;
-	    }
-	  }
-	  else if (cur_arg[14]) /* garbage, or another option. break out */
-	    must_be_var= 0;
-	  else
-	  {
-	    /* the argument must be in next argv */
-	    if (!*++pos)
-	    {
-	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(ERROR_LEVEL,
-                                         "%s: Option '--set-variable' requires an argument",
-                                         my_progname);
-	      return EXIT_ARGUMENT_REQUIRED;
-	    }
-	    cur_arg= *pos;
-	    (*argc)--;
-	  }
-	}
-	else if (!must_be_var)
-	{
-	  if (!*++cur_arg)	/* skip the double dash */
-	  {
-	    /* '--' means end of options, look no further */
-	    end_of_options= 1;
-	    (*argc)--;
-	    continue;
-	  }
-	}
+      if (*cur_arg == '-')      /* check for long option, */
+      {
+        if (!*++cur_arg)	/* skip the double dash */
+        {
+          /* '--' means end of options, look no further */
+          end_of_options= 1;
+          (*argc)--;
+          continue;
+        }
 	opt_str= check_struct_option(cur_arg, key_name);
 	optend= strcend(opt_str, '=');
 	length= (uint) (optend - opt_str);
@@ -285,7 +220,7 @@ int handle_options(int *argc, char ***argv,
                       my_getopt_error_reporter(ERROR_LEVEL,
                                                "%s: ambiguous option '--%s-%s' (--%s-%s)",
                                                my_progname, special_opt_prefix[i],
-                                               cur_arg, special_opt_prefix[i],
+                                               opt_str, special_opt_prefix[i],
                                                prev_found);
 		    return EXIT_AMBIGUOUS_OPTION;
 		  }
@@ -297,11 +232,11 @@ int handle_options(int *argc, char ***argv,
 		      for example: --skip-option=0 -> option = TRUE
 		    */
 		    optend= (optend && *optend == '0' && !(*(optend + 1))) ?
-		      (char*) "1" : disabled_my_option;
+		      enabled_my_option : disabled_my_option;
 		    break;
 		  case OPT_ENABLE:
 		    optend= (optend && *optend == '0' && !(*(optend + 1))) ?
-                      disabled_my_option : (char*) "1";
+                      disabled_my_option : enabled_my_option;
 		    break;
 		  case OPT_MAXIMUM:
 		    set_maximum_value= 1;
@@ -318,12 +253,7 @@ int handle_options(int *argc, char ***argv,
 	  {
             if (my_getopt_skip_unknown)
             {
-              /*
-                preserve all the components of this unknown option, this may
-                occurr when the user provides options like: "-O foo" or
-                "--set-variable foo" (note that theres a space in there)
-                Generally, these kind of options are to be avoided
-              */
+              /* Preserve all the components of this unknown option. */
               do {
                 (*argv)[argvpos++]= *first++;
               } while (first <= pos);
@@ -389,7 +319,7 @@ int handle_options(int *argc, char ***argv,
 	  }
 	  return EXIT_OPTION_DISABLED;
 	}
-	if (must_be_var && (optp->var_type & GET_TYPE_MASK) == GET_NO_ARG)
+	if (must_be_var && optp->arg_type == NO_ARG)
 	{
 	  if (my_getopt_print_errors)
             my_getopt_error_reporter(ERROR_LEVEL, 
@@ -431,33 +361,19 @@ int handle_options(int *argc, char ***argv,
 	    else
 	    {
 	      my_getopt_error_reporter(WARNING_LEVEL,
-				       "%s: ignoring option '--%s' due to \
-invalid value '%s'",
+				       "%s: ignoring option '--%s' "
+                                       "due to invalid value '%s'",
 				       my_progname, optp->name, optend);
 	      continue;
 	    }
-	    if (get_one_option(optp->id, optp,
+            if (get_one_option && get_one_option(optp->id, optp,
                                *((my_bool*) value) ?
-                               (char*) "1" : disabled_my_option))
+                               enabled_my_option : disabled_my_option))
               return EXIT_ARGUMENT_INVALID;
 	    continue;
 	  }
 	  argument= optend;
 	}
-	else if (optp->arg_type == OPT_ARG &&
-		 (((optp->var_type & GET_TYPE_MASK) == GET_BOOL) ||
-                   (optp->var_type & GET_TYPE_MASK) == GET_ENUM))
-  {
-    if (optend == disabled_my_option)
-      init_one_value(optp, value, 0);
-    else
-    {
-      if (!optend) /* No argument -> enable option */
-        init_one_value(optp, value, 1);
-      else
-        argument= optend;
-    }
-  }
 	else if (optp->arg_type == REQUIRED_ARG && !optend)
 	{
 	  /* Check if there are more arguments after this one,
@@ -484,9 +400,9 @@ invalid value '%s'",
 	for (optend= cur_arg; *optend; optend++)
 	{
 	  opt_found= 0;
-	  for (optp= longopts; optp->id; optp++)
+	  for (optp= longopts; optp->name; optp++)
 	  {
-	    if (optp->id == (int) (uchar) *optend)
+	    if (optp->id && optp->id == (int) (uchar) *optend)
 	    {
 	      /* Option recognized. Find next what to do with it */
 	      opt_found= 1;
@@ -502,7 +418,7 @@ invalid value '%s'",
 		  optp->arg_type == NO_ARG)
 	      {
 		*((my_bool*) optp->value)= (my_bool) 1;
-		if (get_one_option(optp->id, optp, argument))
+                if (get_one_option && get_one_option(optp->id, optp, argument))
                   return EXIT_UNSPECIFIED_ERROR;
 		continue;
 	      }
@@ -522,7 +438,7 @@ invalid value '%s'",
                   {
                     if (optp->var_type == GET_BOOL)
                       *((my_bool*) optp->value)= (my_bool) 1;
-                    if (get_one_option(optp->id, optp, argument))
+                    if (get_one_option && get_one_option(optp->id, optp, argument))
                       return EXIT_UNSPECIFIED_ERROR;
                     continue;
                   }
@@ -542,13 +458,8 @@ invalid value '%s'",
 	      }
 	      if ((error= setval(optp, optp->value, argument,
 				 set_maximum_value)))
-	      {
-                my_getopt_error_reporter(ERROR_LEVEL,
-                                         "%s: Error while setting value '%s' to '%s'",
-                                         my_progname, argument, optp->name);
 		return error;
-	      }
-	      if (get_one_option(optp->id, optp, argument))
+              if (get_one_option && get_one_option(optp->id, optp, argument))
                 return EXIT_UNSPECIFIED_ERROR;
 	      break;
 	    }
@@ -566,13 +477,8 @@ invalid value '%s'",
 	continue;
       }
       if ((error= setval(optp, value, argument, set_maximum_value)))
-      {
-        my_getopt_error_reporter(ERROR_LEVEL,
-                                 "%s: Error while setting value '%s' to '%s'",
-                                 my_progname, argument, optp->name);
 	return error;
-      }
-      if (get_one_option(optp->id, optp, argument))
+      if (get_one_option && get_one_option(optp->id, optp, argument))
         return EXIT_UNSPECIFIED_ERROR;
 
       (*argc)--; /* option handled (short or long), decrease argument count */
@@ -640,79 +546,130 @@ static char *check_struct_option(char *cur_arg, char *key_name)
   Will set the option value to given value
 */
 
-static int setval(const struct my_option *opts, uchar* *value, char *argument,
+static int setval(const struct my_option *opts, uchar **value, char *argument,
 		  my_bool set_maximum_value)
 {
-  int err= 0;
+  int err= 0, res= 0;
 
-  if (value && argument)
+  if (!argument)
+    argument= enabled_my_option;
+
+  if (value)
   {
-    uchar* *result_pos= ((set_maximum_value) ?
-		       opts->u_max_value : value);
-
-    if (!result_pos)
+    if (set_maximum_value && !(value= opts->u_max_value))
+    {
+      my_getopt_error_reporter(ERROR_LEVEL,
+                               "%s: Maximum value of '%s' cannot be set",
+                               my_progname, opts->name);
       return EXIT_NO_PTR_TO_VARIABLE;
+    }
 
     switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) result_pos)= (my_bool) atoi(argument) != 0;
+      *((my_bool*) value)= (my_bool) atoi(argument) != 0;
       break;
     case GET_INT:
-      *((int*) result_pos)= (int) getopt_ll(argument, opts, &err);
+      *((int*) value)= (int) getopt_ll(argument, opts, &err);
       break;
     case GET_UINT:
-      *((uint*) result_pos)= (uint) getopt_ull(argument, opts, &err);
+      *((uint*) value)= (uint) getopt_ull(argument, opts, &err);
       break;
     case GET_LONG:
-      *((long*) result_pos)= (long) getopt_ll(argument, opts, &err);
+      *((long*) value)= (long) getopt_ll(argument, opts, &err);
       break;
     case GET_ULONG:
-      *((long*) result_pos)= (long) getopt_ull(argument, opts, &err);
+      *((long*) value)= (long) getopt_ull(argument, opts, &err);
       break;
     case GET_LL:
-      *((longlong*) result_pos)= getopt_ll(argument, opts, &err);
+      *((longlong*) value)= getopt_ll(argument, opts, &err);
       break;
     case GET_ULL:
-      *((ulonglong*) result_pos)= getopt_ull(argument, opts, &err);
+      *((ulonglong*) value)= getopt_ull(argument, opts, &err);
       break;
     case GET_DOUBLE:
-      *((double*) result_pos)= getopt_double(argument, opts, &err);
+      *((double*) value)= getopt_double(argument, opts, &err);
       break;
     case GET_STR:
-      *((char**) result_pos)= argument;
+      if (argument == enabled_my_option)
+        break; /* string options don't use this default of "1" */
+      *((char**) value)= argument;
       break;
     case GET_STR_ALLOC:
-      if ((*((char**) result_pos)))
-	my_free((*(char**) result_pos), MYF(MY_WME | MY_FAE));
-      if (!(*((char**) result_pos)= my_strdup(argument, MYF(MY_WME))))
-	return EXIT_OUT_OF_MEMORY;
+      if (argument == enabled_my_option)
+        break; /* string options don't use this default of "1" */
+      if ((*((char**) value)))
+	my_free((*(char**) value), MYF(MY_WME | MY_FAE));
+      if (!(*((char**) value)= my_strdup(argument, MYF(MY_WME))))
+      {
+        res= EXIT_OUT_OF_MEMORY;
+        goto ret;
+      };
       break;
     case GET_ENUM:
-      if (((*(int*)result_pos)=
-             find_type(argument, opts->typelib, 2) - 1) < 0)
+      if (((*(uint*)value)=
+             find_type(argument, opts->typelib, 2) - 1) == (uint)-1)
       {
-        /*
-          Accept an integer representation of the enumerated item.
-        */
+        /* Accept an integer representation of the enumerated item */
         char *endptr;
-        unsigned int arg= (unsigned int) strtol(argument, &endptr, 10);
+        uint arg= (uint) strtol(argument, &endptr, 10);
         if (*endptr || arg >= opts->typelib->count)
-          return EXIT_ARGUMENT_INVALID;
-        *(int*)result_pos= arg;
+        {
+          res= EXIT_ARGUMENT_INVALID;
+          goto ret;
+        };
+        *(uint*)value= arg;
       }
       break;
     case GET_SET:
-      *((ulonglong*)result_pos)= find_typeset(argument, opts->typelib, &err);
+      *((ulonglong*)value)= find_typeset(argument, opts->typelib, &err);
       if (err)
-        return EXIT_ARGUMENT_INVALID;
+      {
+        /* Accept an integer representation of the set */
+        char *endptr;
+        ulonglong arg= (ulonglong) strtol(argument, &endptr, 10);
+        if (*endptr || (arg >> 1) >= (1ULL << (opts->typelib->count-1)))
+        {
+          res= EXIT_ARGUMENT_INVALID;
+          goto ret;
+        };
+        *(ulonglong*)value= arg;
+        err= 0;
+      }
       break;
-    default:    /* dummy default to avoid compiler warnings */
+    case GET_FLAGSET:
+      {
+        char *error;
+        uint error_len;
+
+        *((ulonglong*)value)=
+              find_set_from_flags(opts->typelib, opts->typelib->count, 
+                                  *(ulonglong *)value, opts->def_value,
+                                  argument, strlen(argument),
+                                  &error, &error_len);
+        if (error)
+        {
+          res= EXIT_ARGUMENT_INVALID;
+          goto ret;
+        };
+      }
+      break;
+    case GET_NO_ARG: /* get_one_option has taken care of the value already */
+    default:         /* dummy default to avoid compiler warnings */
       break;
     }
     if (err)
-      return EXIT_UNKNOWN_SUFFIX;
+    {
+      res= EXIT_UNKNOWN_SUFFIX;
+      goto ret;
+    };
   }
   return 0;
+
+ret:
+  my_getopt_error_reporter(ERROR_LEVEL,
+                           "%s: Error while setting value '%s' to '%s'",
+                           my_progname, argument, opts->name);
+  return res;
 }
 
 
@@ -890,7 +847,7 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
     break;
   }
 
-  num= ((num - optp->sub_size) / block_size);
+  num= (num / block_size);
   num= (longlong) (num * block_size);
 
   if (num < optp->min_value)
@@ -901,7 +858,7 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   }
 
   if (fix)
-    *fix= adjusted;
+    *fix= old != num;
   else if (adjusted)
     my_getopt_error_reporter(WARNING_LEVEL,
                              "option '%s': signed value %s adjusted to %s",
@@ -973,7 +930,7 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
   }
 
   if (fix)
-    *fix= adjusted;
+    *fix= old != num;
   else if (adjusted)
     my_getopt_error_reporter(WARNING_LEVEL,
                              "option '%s': unsigned value %s adjusted to %s",
@@ -982,6 +939,29 @@ ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
   return num;
 }
 
+double getopt_double_limit_value(double num, const struct my_option *optp,
+                                 my_bool *fix)
+{
+  my_bool adjusted= FALSE;
+  double old= num;
+  if (optp->max_value && num > (double) optp->max_value)
+  {
+    num= (double) optp->max_value;
+    adjusted= TRUE;
+  }
+  if (num < (double) optp->min_value)
+  {
+    num= (double) optp->min_value;
+    adjusted= TRUE;
+  }
+  if (fix)
+    *fix= adjusted;
+  else if (adjusted)
+    my_getopt_error_reporter(WARNING_LEVEL,
+                             "option '%s': value %g adjusted to %g",
+                             optp->name, old, num);
+  return num;
+}
 
 /*
   Get double value withing ranges
@@ -1003,15 +983,12 @@ static double getopt_double(char *arg, const struct my_option *optp, int *err)
   num= my_strtod(arg, &end, &error);
   if (end[0] != 0 || error)
   {
-    fprintf(stderr,
-            "%s: ERROR: Invalid decimal value for option '%s'\n",
-            my_progname, optp->name);
+    my_getopt_error_reporter(ERROR_LEVEL,
+            "Invalid decimal value for option '%s'\n", optp->name);
     *err= EXIT_ARGUMENT_INVALID;
     return 0.0;
   }
-  if (optp->max_value && num > (double) optp->max_value)
-    num= (double) optp->max_value;
-  return max(num, (double) optp->min_value);
+  return getopt_double_limit_value(num, optp, NULL);
 }
 
 /*
@@ -1053,6 +1030,7 @@ static void init_one_value(const struct my_option *option, uchar* *variable,
     *((ulonglong*) variable)= (ulonglong) getopt_ull_limit_value((ulonglong) value, option, NULL);
     break;
   case GET_SET:
+  case GET_FLAGSET:
     *((ulonglong*) variable)= (ulonglong) value;
     break;
   case GET_DOUBLE:
@@ -1128,7 +1106,7 @@ void my_cleanup_options(const struct my_option *options)
 
   NOTES
     We will initialize the value that is pointed to by options->value.
-    If the value is of type GET_ASK_ADDR, we will also ask for the address
+    If the value is of type GET_ASK_ADDR, we will ask for the address
     for a value and initialize.
 */
 
@@ -1138,7 +1116,7 @@ static void init_variables(const struct my_option *options,
   DBUG_ENTER("init_variables");
   for (; options->name; options++)
   {
-    uchar* *variable;
+    uchar **value;
     DBUG_PRINT("options", ("name: '%s'", options->name));
     /*
       We must set u_max_value first as for some variables
@@ -1147,15 +1125,22 @@ static void init_variables(const struct my_option *options,
     */
     if (options->u_max_value)
       init_one_value(options, options->u_max_value, options->max_value);
-    if (options->value)
-      init_one_value(options, options->value, options->def_value);
-    if (options->var_type & GET_ASK_ADDR &&
-	(variable= (*getopt_get_addr)("", 0, options, 0)))
-      init_one_value(options, variable, options->def_value);
+    value= (options->var_type & GET_ASK_ADDR ?
+		  (*getopt_get_addr)("", 0, options, 0) : options->value);
+    if (value)
+      init_one_value(options, value, options->def_value);
   }
   DBUG_VOID_RETURN;
 }
 
+/** Prints variable or option name, replacing _ with - */
+static uint print_name(const struct my_option *optp)
+{
+  const char *s= optp->name;
+  for (;*s;s++)
+    putchar(*s == '_' ? '-' : *s);
+  return s - optp->name;
+}
 
 /*
   function: my_print_options
@@ -1171,9 +1156,9 @@ void my_print_help(const struct my_option *options)
   const char *line_end;
   const struct my_option *optp;
 
-  for (optp= options; optp->id; optp++)
+  for (optp= options; optp->name; optp++)
   {
-    if (optp->id < 256)
+    if (optp->id && optp->id < 256)
     {
       printf("  -%c%s", optp->id, strlen(optp->name) ? ", " : "  ");
       col= 6;
@@ -1185,20 +1170,23 @@ void my_print_help(const struct my_option *options)
     }
     if (strlen(optp->name))
     {
-      printf("--%s", optp->name);
-      col+= 2 + (uint) strlen(optp->name);
-      if ((optp->var_type & GET_TYPE_MASK) == GET_STR ||
-	  (optp->var_type & GET_TYPE_MASK) == GET_STR_ALLOC)
+      printf("--");
+      col+= 2 + print_name(optp);
+      if (optp->arg_type == NO_ARG ||
+	  (optp->var_type & GET_TYPE_MASK) == GET_BOOL)
+      {
+	putchar(' ');
+	col++;
+      }
+      else if ((optp->var_type & GET_TYPE_MASK) == GET_STR       ||
+               (optp->var_type & GET_TYPE_MASK) == GET_STR_ALLOC ||
+               (optp->var_type & GET_TYPE_MASK) == GET_ENUM      ||
+               (optp->var_type & GET_TYPE_MASK) == GET_SET       ||
+               (optp->var_type & GET_TYPE_MASK) == GET_FLAGSET    )
       {
 	printf("%s=name%s ", optp->arg_type == OPT_ARG ? "[" : "",
 	       optp->arg_type == OPT_ARG ? "]" : "");
 	col+= (optp->arg_type == OPT_ARG) ? 8 : 6;
-      }
-      else if ((optp->var_type & GET_TYPE_MASK) == GET_NO_ARG ||
-	       (optp->var_type & GET_TYPE_MASK) == GET_BOOL)
-      {
-	putchar(' ');
-	col++;
       }
       else
       {
@@ -1231,6 +1219,15 @@ void my_print_help(const struct my_option *options)
       printf("%s", comment);
     }
     putchar('\n');
+    if ((optp->var_type & GET_TYPE_MASK) == GET_BOOL)
+    {
+      if (optp->def_value != 0)
+      {
+        printf("%*s(Defaults to on; use --skip-", name_space, "");
+        print_name(optp);
+        printf(" to disable.)\n");
+      }
+    }
   }
 }
 
@@ -1244,35 +1241,52 @@ void my_print_help(const struct my_option *options)
 void my_print_variables(const struct my_option *options)
 {
   uint name_space= 34, length, nr;
-  ulonglong bit, llvalue;
+  ulonglong llvalue;
   char buff[255];
   const struct my_option *optp;
 
-  printf("\nVariables (--variable-name=value)\n");
-  printf("and boolean options {FALSE|TRUE}  Value (after reading options)\n");
-  printf("--------------------------------- -----------------------------\n");
-  for (optp= options; optp->id; optp++)
+  for (optp= options; optp->name; optp++)
   {
-    uchar* *value= (optp->var_type & GET_ASK_ADDR ?
+    length= strlen(optp->name)+1;
+    if (length > name_space)
+      name_space= length;
+  }
+
+  printf("\nVariables (--variable-name=value)\n");
+  printf("%-*s%s", name_space, "and boolean options {FALSE|TRUE}",
+         "Value (after reading options)\n");
+  for (length=1; length < 75; length++)
+    putchar(length == name_space ? ' ' : '-');
+  putchar('\n');
+  
+  for (optp= options; optp->name; optp++)
+  {
+    uchar **value= (optp->var_type & GET_ASK_ADDR ?
 		  (*getopt_get_addr)("", 0, optp, 0) : optp->value);
     if (value)
     {
-      printf("%s ", optp->name);
-      length= (uint) strlen(optp->name)+1;
+      length= print_name(optp);
       for (; length < name_space; length++)
 	putchar(' ');
       switch ((optp->var_type & GET_TYPE_MASK)) {
       case GET_SET:
         if (!(llvalue= *(ulonglong*) value))
-	  printf("%s\n", "(No default value)");
+	  printf("%s\n", "");
 	else
-        for (nr= 0, bit= 1; llvalue && nr < optp->typelib->count; nr++, bit<<=1)
+        for (nr= 0; llvalue && nr < optp->typelib->count; nr++, llvalue >>=1)
 	{
-	  if (!(bit & llvalue))
-	    continue;
-	  llvalue&= ~bit;
-	  printf( llvalue ? "%s," : "%s\n", get_type(optp->typelib, nr));
+	  if (llvalue & 1)
+            printf( llvalue > 1 ? "%s," : "%s\n", get_type(optp->typelib, nr));
 	}
+	break;
+      case GET_FLAGSET:
+        llvalue= *(ulonglong*) value;
+        for (nr= 0; llvalue && nr < optp->typelib->count; nr++, llvalue >>=1)
+	{
+          printf("%s%s=", (nr ? "," : ""), get_type(optp->typelib, nr));
+	  printf(llvalue & 1 ? "on" : "off");
+	}
+        printf("\n");
 	break;
       case GET_ENUM:
         printf("%s\n", get_type(optp->typelib, *(uint*) value));
@@ -1306,6 +1320,9 @@ void my_print_variables(const struct my_option *options)
 	break;
       case GET_DOUBLE:
 	printf("%g\n", *(double*) value);
+	break;
+      case GET_NO_ARG:
+	printf("(No default value)\n");
 	break;
       default:
 	printf("(Disabled)\n");

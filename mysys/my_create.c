@@ -39,14 +39,11 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
   DBUG_ENTER("my_create");
   DBUG_PRINT("my",("Name: '%s' CreateFlags: %d  AccessFlags: %d  MyFlags: %d",
 		   FileName, CreateFlags, access_flags, MyFlags));
-
-#if !defined(NO_OPEN_3)
-  fd= open((char *) FileName, access_flags | O_CREAT,
-	    CreateFlags ? CreateFlags : my_umask);
-#elif defined(_WIN32)
+#if defined(_WIN32)
   fd= my_win_open(FileName, access_flags | O_CREAT);
 #else
-  fd= open(FileName, access_flags);
+  fd= open((char *) FileName, access_flags | O_CREAT,
+	    CreateFlags ? CreateFlags : my_umask);
 #endif
 
   if ((MyFlags & MY_SYNC_DIR) && (fd >=0) &&

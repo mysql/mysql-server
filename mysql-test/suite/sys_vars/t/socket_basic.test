@@ -1,0 +1,23 @@
+#
+# only global
+#
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select @@global.socket;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.socket;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+show global variables like 'socket';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+show session variables like 'socket';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select * from information_schema.global_variables where variable_name='socket';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+select * from information_schema.session_variables where variable_name='socket';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global socket=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session socket=1;

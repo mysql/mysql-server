@@ -1,10 +1,10 @@
+source include/have_binlog_format_row.inc;
 source include/master-slave.inc;
 
 call mtr.add_suppression("Deadlock found");
 
 --echo **** On Master ****
 connection master;
-SET SESSION BINLOG_FORMAT=ROW;
 CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
 INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 --echo **** On Slave ****

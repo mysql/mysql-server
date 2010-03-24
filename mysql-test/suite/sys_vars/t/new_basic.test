@@ -121,7 +121,7 @@ SET @@global.new = FELSE;
 SET @@global.new = -1024;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.new = 65536;
---Error ER_WRONG_VALUE_FOR_VAR
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.new = 65530.34;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.new = test;
@@ -130,17 +130,14 @@ SET @@global.new = test;
 SET @@session.new = ONN;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.new = ONF;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.new = OF;
-SELECT @@session.new;
---echo 'Bug# 34828: FN_DYNVARS_113_05 - OF is also working as OFF and no error is coming';
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.new = 'OFN';
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.new = -2;
---Error ER_PARSE_ERROR
-SET @@session.new = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.new = 65530.34;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.new = 65550;
 

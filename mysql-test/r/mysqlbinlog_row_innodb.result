@@ -495,10 +495,10 @@ c15	0000000000
 c16	-9223372036854775808
 c17	0
 c18	00000000000000000000
-c19	-3.40282e+38
+c19	-3.40282e38
 c20	1.17549e-38
 c21	000000000000
-c22	-1.7976931348623e+308
+c22	-1.7976931348623e308
 c23	2.2250738585072e-308
 c24	0000000000000000000000
 c25	-9999999999
@@ -574,12 +574,12 @@ c15	4294967295
 c16	9223372036854775807
 c17	18446744073709551615
 c18	18446744073709551615
-c19	3.40282e+38
-c20	3.40282e+38
-c21	03.40282e+38
-c22	1.7976931348623e+308
-c23	1.7976931348623e+308
-c24	001.7976931348623e+308
+c19	3.40282e38
+c20	3.40282e38
+c21	003.40282e38
+c22	1.7976931348623e308
+c23	1.7976931348623e308
+c24	0001.7976931348623e308
 c25	9999999999
 c26	9999999999
 c27	9999999999
@@ -1557,12 +1557,12 @@ c15	4294967295
 c16	9223372036854775807
 c17	18446744073709551615
 c18	18446744073709551615
-c19	3.40282e+38
-c20	3.40282e+38
-c21	03.40282e+38
-c22	1.7976931348623e+308
-c23	1.7976931348623e+308
-c24	001.7976931348623e+308
+c19	3.40282e38
+c20	3.40282e38
+c21	003.40282e38
+c22	1.7976931348623e308
+c23	1.7976931348623e308
+c24	0001.7976931348623e308
 c25	9999999999
 c26	9999999999
 c27	9999999999
@@ -1636,10 +1636,10 @@ c15	0000000000
 c16	-9223372036854775808
 c17	0
 c18	00000000000000000000
-c19	-3.40282e+38
+c19	-3.40282e38
 c20	1.17549e-38
 c21	000000000000
-c22	-1.7976931348623e+308
+c22	-1.7976931348623e308
 c23	2.2250738585072e-308
 c24	0000000000000000000000
 c25	-9999999999
@@ -2256,7 +2256,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -2405,10 +2405,10 @@ BEGIN
 ###   @38='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 ###   @39='' /* STRING(3) meta=65027 nullable=1 is_null=0 */
 ###   @40='' /* STRING(765) meta=57085 nullable=1 is_null=0 */
-###   @41='\x00' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+###   @41='' /* STRING(2) meta=65026 nullable=1 is_null=0 */
 ###   @42='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
-###   @43='\x00' /* STRING(2) meta=65026 nullable=1 is_null=0 */
-###   @44='\x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00' /* STRING(510) meta=61182 nullable=1 is_null=0 */
+###   @43='' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+###   @44='' /* STRING(510) meta=61182 nullable=1 is_null=0 */
 ###   @45='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 ###   @46='' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 ###   @47='' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -2580,7 +2580,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -2767,10 +2767,10 @@ BEGIN
 ###   @38='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 ###   @39='' /* STRING(3) meta=65027 nullable=1 is_null=0 */
 ###   @40='' /* STRING(765) meta=57085 nullable=1 is_null=0 */
-###   @41='\x00' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+###   @41='' /* STRING(2) meta=65026 nullable=1 is_null=0 */
 ###   @42='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
-###   @43='\x00' /* STRING(2) meta=65026 nullable=1 is_null=0 */
-###   @44='\x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00' /* STRING(510) meta=61182 nullable=1 is_null=0 */
+###   @43='' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+###   @44='' /* STRING(510) meta=61182 nullable=1 is_null=0 */
 ###   @45='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 ###   @46='' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 ###   @47='' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -3020,10 +3020,10 @@ BEGIN
 ###   @38='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 ###   @39='' /* STRING(3) meta=65027 nullable=1 is_null=0 */
 ###   @40='' /* STRING(765) meta=57085 nullable=1 is_null=0 */
-###   @41='\x00' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+###   @41='' /* STRING(2) meta=65026 nullable=1 is_null=0 */
 ###   @42='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
-###   @43='\x00' /* STRING(2) meta=65026 nullable=1 is_null=0 */
-###   @44='\x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00' /* STRING(510) meta=61182 nullable=1 is_null=0 */
+###   @43='' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+###   @44='' /* STRING(510) meta=61182 nullable=1 is_null=0 */
 ###   @45='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 ###   @46='' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 ###   @47='' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -3100,7 +3100,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -3353,7 +3353,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -3552,10 +3552,10 @@ BEGIN
 ###   @38='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 ###   @39='' /* STRING(3) meta=65027 nullable=1 is_null=0 */
 ###   @40='' /* STRING(765) meta=57085 nullable=1 is_null=0 */
-###   @41='\x00' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+###   @41='' /* STRING(2) meta=65026 nullable=1 is_null=0 */
 ###   @42='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
-###   @43='\x00' /* STRING(2) meta=65026 nullable=1 is_null=0 */
-###   @44='\x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00 \x00' /* STRING(510) meta=61182 nullable=1 is_null=0 */
+###   @43='' /* STRING(2) meta=65026 nullable=1 is_null=0 */
+###   @44='' /* STRING(510) meta=61182 nullable=1 is_null=0 */
 ###   @45='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 ###   @46='' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 ###   @47='' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -3725,7 +3725,7 @@ BEGIN
 ###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
 ###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=10 meta=0 nullable=1 is_null=1 */
+###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
 ###   @29=NULL /* type=12 meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP meta=0 nullable=0 is_null=0 */
 ###   @31=NULL /* TIMESTAMP meta=0 nullable=1 is_null=1 */
@@ -3879,7 +3879,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -4246,7 +4246,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
@@ -4807,7 +4807,7 @@ ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;

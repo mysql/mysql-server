@@ -1308,9 +1308,11 @@ select f3()|
 select id, f3() from t1 as t11 order by id|
 # Degenerate cases work too :)
 select f0()|
+# But these should not (particularly views should be locked explicitly).
+--error ER_TABLE_NOT_LOCKED
 select * from v0|
+--error ER_TABLE_NOT_LOCKED
 select *, f0() from v0, (select 123) as d1|
-# But these should not !
 --error ER_TABLE_NOT_LOCKED
 select id, f3() from t1|
 --error ER_TABLE_NOT_LOCKED
@@ -3748,7 +3750,7 @@ begin
 end|
 
 set @qcs1 = @@query_cache_size|
-set global query_cache_size = 100000|
+set global query_cache_size = 102400|
 set @x = 1|
 insert into t1 values ("qc", 42)|
 select bug9902() from t1|
@@ -4061,34 +4063,41 @@ drop procedure bug11529|
 # BUG#6063: Stored procedure labels are subject to restrictions (partial)
 # BUG#7088: Stored procedures: labels won't work if character set is utf8
 #
+
+set character set utf8|
+
 --disable_warnings
 drop procedure if exists bug6063|
 drop procedure if exists bug7088_1|
 drop procedure if exists bug7088_2|
 --enable_warnings
 
---disable_parsing # temporarily disabled until Bar fixes BUG#11986
 create procedure bug6063()
-  lâbel: begin end|
-call bug6063()|
-# QQ Known bug: this will not show the label correctly.
-show create procedure bug6063|
+begin
+  lâbel: begin end;
+  label: begin end;
+  label1: begin end;
+end|
 
-set character set utf8|
 create procedure bug7088_1()
   label1: begin end label1|
+
 create procedure bug7088_2()
   läbel1: begin end|
+
+call bug6063()|
 call bug7088_1()|
 call bug7088_2()|
+
 set character set default|
+
+show create procedure bug6063|
 show create procedure bug7088_1|
 show create procedure bug7088_2|
 
 drop procedure bug6063|
 drop procedure bug7088_1|
 drop procedure bug7088_2|
---enable_parsing
 
 #
 # BUG#9565: "Wrong locking in stored procedure if a sub-sequent procedure
@@ -5207,20 +5216,15 @@ drop procedure bug5967|
 
 --disable_warnings
 drop procedure if exists bug13012|
+--enable_warnings
 # Disable warnings also for BACKUP/RESTORE: they are deprecated.
---replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
 eval create procedure bug13012()
     BEGIN
        REPAIR TABLE t1;
-       BACKUP TABLE t1 to '$backupdir';
-       DROP TABLE t1;
-       RESTORE TABLE t1 FROM '$backupdir';
     END|
 call bug13012()|
 
 --enable_warnings
---remove_file $backupdir/t1.frm
---remove_file $backupdir/t1.MYD
 
 drop procedure bug13012|
 
@@ -7072,11 +7076,14 @@ select bug20777(9223372036854775807) as '9223372036854775807   2**63-1';
 select bug20777(9223372036854775808) as '9223372036854775808   2**63+0';
 select bug20777(9223372036854775809) as '9223372036854775809   2**63+1';
 select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
+--error ER_DATA_OUT_OF_RANGE
 select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
 select bug20777(9223372036854775807) as 'upper bounds signed bigint';
+--error ER_DATA_OUT_OF_RANGE
 select bug20777(0) as 'lower bounds unsigned bigint';
 select bug20777(18446744073709551615) as 'upper bounds unsigned bigint';
 select bug20777(18446744073709551616) as 'upper bounds unsigned bigint + 1';
+--error ER_DATA_OUT_OF_RANGE
 select bug20777(-1) as 'lower bounds unsigned bigint - 1';
 
 create table examplebug20777 as select 
@@ -7087,10 +7094,8 @@ create table examplebug20777 as select
   bug20777(9223372036854775809) as '2**63+1',
   bug20777(18446744073709551614) as '2**64-2',
   bug20777(18446744073709551615) as '2**64-1', 
-  bug20777(18446744073709551616) as '2**64',
-  bug20777(0) as '0',
-  bug20777(-1) as '-1';
-insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
+  bug20777(18446744073709551616) as '2**64';
+insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616);
 show create table examplebug20777;
 select * from examplebug20777 order by i;
 
@@ -8202,14 +8207,13 @@ DROP FUNCTION f1;
 drop procedure if exists p;
 --enable_warnings
 set @old_mode= @@sql_mode;
-set @@sql_mode= pow(2,32)-1;
+set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();
-select @@sql_mode;
 set @@sql_mode= @old_mode;
 # Rename SQL modes that differ in name between the server and the table definition.
-select replace(@full_mode, '?', 'NOT_USED') into @full_mode;
+select replace(@full_mode, ',,,', ',NOT_USED,') into @full_mode;
 select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
 select name from mysql.proc where name = 'p' and sql_mode = @full_mode;
 drop procedure p;
@@ -8381,6 +8385,119 @@ SELECT * FROM t1 WHERE a = f1();
 DROP FUNCTION f1;
 DROP TABLE t1;
 
+#
+# Bug#36649: Condition area is not properly cleaned up after stored routine invocation
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1(a INT, b CHAR)
+BEGIN
+  IF a > 0 THEN
+    CALL p1(a-1, 'ab');
+  ELSE
+    SELECT 1;
+  END IF;
+END|
+delimiter ;|
+
+SET @save_max_sp_recursion= @@max_sp_recursion_depth;
+SET @@max_sp_recursion_depth= 5;
+CALL p1(4, 'a');
+SET @@max_sp_recursion_depth= @save_max_sp_recursion;
+
+DROP PROCEDURE p1;
+
+#
+# Ensure that rules for message list clean up are being respected.
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1(a CHAR)
+BEGIN
+  SELECT 1;
+  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT 1;
+END|
+delimiter ;|
+
+CALL p1('data truncated parameter');
+
+DROP PROCEDURE p1;
+
+#
+# Cascading stored procedure/function calls.
+#
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+DROP PROCEDURE IF EXISTS p4;
+--enable_warnings
+
+delimiter |;
+CREATE PROCEDURE p1()
+  CALL p2()|
+CREATE PROCEDURE p2()
+  CALL p3()|
+CREATE PROCEDURE p3()
+  CALL p4()|
+CREATE PROCEDURE p4()
+BEGIN
+  SELECT 1;
+  SELECT CAST('10 ' as UNSIGNED INTEGER);
+  SELECT 2;
+END|
+delimiter ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+DROP FUNCTION IF EXISTS f2;
+DROP FUNCTION IF EXISTS f3;
+DROP FUNCTION IF EXISTS f4;
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (a CHAR(2));
+
+INSERT INTO t1 VALUES ('aa');
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS CHAR
+  RETURN (SELECT f2())|
+CREATE FUNCTION f2() RETURNS CHAR
+  RETURN (SELECT f3())|
+CREATE FUNCTION f3() RETURNS CHAR
+  RETURN (SELECT f4())|
+CREATE FUNCTION f4() RETURNS CHAR
+BEGIN
+  RETURN (SELECT a FROM t1);
+END|
+delimiter ;|
+
+SELECT f1();
+
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP FUNCTION f4;
+DROP TABLE t1;
+
 --echo #
 --echo # Bug#34197: CREATE PROCEDURE fails when COMMENT truncated in non 
 --echo #            strict SQL mode
@@ -8401,4 +8518,85 @@ SELECT comment FROM mysql.proc WHERE name = "p1";
 SELECT routine_comment FROM information_schema.routines WHERE routine_name = "p1";
 
 DROP PROCEDURE p1;
+
+
+--echo #
+--echo # Bug #47313 assert in check_key_in_view during CALL procedure
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS t1, t2_unrelated;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE PROCEDURE p1(IN x INT) INSERT INTO t1 VALUES (x);
+CREATE VIEW t1 AS SELECT 10 AS f1;
+
+--echo # t1 refers to the view
+--error ER_NON_INSERTABLE_TABLE
+CALL p1(1);
+
+CREATE TEMPORARY TABLE t1 (f1 INT);
+
+--echo # t1 still refers to the view since it was inlined
+--error ER_NON_INSERTABLE_TABLE
+CALL p1(2);
+
+DROP VIEW t1;
+
+--echo # t1 now refers to the temporary table
+CALL p1(3);
+
+--echo # Check which values were inserted into the temp table.
+SELECT * FROM t1;
+
+DROP TEMPORARY TABLE t1;
+DROP PROCEDURE p1;
+
+--echo # Now test what happens if the sp cache is invalidated.
+
+CREATE PROCEDURE p1(IN x INT) INSERT INTO t1 VALUES (x);
+CREATE VIEW t1 AS SELECT 10 AS f1;
+CREATE VIEW v2_unrelated AS SELECT 1 AS r1;
+
+--echo # Load the procedure into the sp cache
+--error ER_NON_INSERTABLE_TABLE
+CALL p1(4);
+
+CREATE TEMPORARY TABLE t1 (f1 int);
+
+ALTER VIEW v2_unrelated AS SELECT 2 AS r1;
+
+--echo # Alter view causes the sp cache to be invalidated.
+--echo # Now t1 refers to the temporary table, not the view.
+CALL p1(5);
+
+--echo # Check which values were inserted into the temp table.
+SELECT * FROM t1;
+
+DROP TEMPORARY TABLE t1;
+DROP VIEW t1, v2_unrelated;
+DROP PROCEDURE p1;
+
+CREATE PROCEDURE p1(IN x INT) INSERT INTO t1 VALUES (x);
+CREATE TEMPORARY TABLE t1 (f1 INT);
+
+--echo # t1 refers to the temporary table
+CALL p1(6);
+
+CREATE VIEW t1 AS SELECT 10 AS f1;
+
+--echo # Create view causes the sp cache to be invalidated.
+--echo # t1 still refers to the temporary table since it shadows the view.
+CALL p1(7);
+
+DROP VIEW t1;
+
+--echo # Check which values were inserted into the temp table.
+SELECT * FROM t1;
+
+DROP TEMPORARY TABLE t1;
+DROP PROCEDURE p1;
+
 

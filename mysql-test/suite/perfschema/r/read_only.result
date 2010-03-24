@@ -1,0 +1,49 @@
+use performance_schema;
+set @start_read_only= @@global.read_only;
+grant SELECT, UPDATE on performance_schema.* to pfsuser@localhost;
+flush privileges;
+connect (con1, localhost, pfsuser, , test);
+connection default;
+set global read_only=0;
+connection con1;
+select @@global.read_only;
+@@global.read_only
+0
+show grants;
+Grants for pfsuser@localhost
+GRANT USAGE ON *.* TO 'pfsuser'@'localhost'
+GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
+select * from performance_schema.SETUP_INSTRUMENTS;
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+connection default;
+set global read_only=1;
+connection con1;
+select @@global.read_only;
+@@global.read_only
+1
+show grants;
+Grants for pfsuser@localhost
+GRANT USAGE ON *.* TO 'pfsuser'@'localhost'
+GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
+select * from performance_schema.SETUP_INSTRUMENTS;
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+connection default;
+grant super on *.* to pfsuser@localhost;
+flush privileges;
+connect (con1, localhost, pfsuser, , test);
+select @@global.read_only;
+@@global.read_only
+1
+show grants;
+Grants for pfsuser@localhost
+GRANT SUPER ON *.* TO 'pfsuser'@'localhost'
+GRANT SELECT, UPDATE ON `performance_schema`.* TO 'pfsuser'@'localhost'
+select * from performance_schema.SETUP_INSTRUMENTS;
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+connection default;
+set global read_only= @start_read_only;
+drop user pfsuser@localhost;
+flush privileges;

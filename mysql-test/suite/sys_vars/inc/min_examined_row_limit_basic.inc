@@ -116,8 +116,8 @@ SET @@global.min_examined_row_limit = -1024;
 SELECT @@global.min_examined_row_limit;
 SET @@global.min_examined_row_limit = 429496729500;
 SELECT @@global.min_examined_row_limit;
---Error ER_PARSE_ERROR
-SET @@global.min_examined_row_limit = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.min_examined_row_limit = 65530.34;
 SELECT @@global.min_examined_row_limit;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.min_examined_row_limit = test;
@@ -127,11 +127,10 @@ SET @@session.min_examined_row_limit = 4294967296;
 SELECT @@session.min_examined_row_limit;
 SET @@session.min_examined_row_limit = -1;
 SELECT @@session.min_examined_row_limit;
---Error ER_PARSE_ERROR
-SET @@session.min_examined_row_limit = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.min_examined_row_limit = 65530.34;
 SET @@session.min_examined_row_limit = 4294967295021;
 SELECT @@session.min_examined_row_limit;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.min_examined_row_limit = test;

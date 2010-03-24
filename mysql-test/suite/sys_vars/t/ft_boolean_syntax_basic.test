@@ -145,10 +145,7 @@ WHERE VARIABLE_NAME='ft_boolean_syntax') AS res;
 #############################################################################
 # Content of initial variable
 SELECT @global_start_value;
---Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.ft_boolean_syntax = @global_start_value;
---echo 'Bug# 34883: ft_boolean_syntax cant be assigned values from session temporary';
---echo 'variables';
 
 ####################################
 #     Restore Default value        #

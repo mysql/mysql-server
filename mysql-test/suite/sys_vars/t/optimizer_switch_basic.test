@@ -1,0 +1,50 @@
+
+#
+# 2010-01-20 OBN Added check for I_S values after variable value changed
+#
+
+SET @start_global_value = @@global.optimizer_switch;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.optimizer_switch;
+select @@session.optimizer_switch;
+show global variables like 'optimizer_switch';
+show session variables like 'optimizer_switch';
+select * from information_schema.global_variables where variable_name='optimizer_switch';
+select * from information_schema.session_variables where variable_name='optimizer_switch';
+
+#
+# show that it's writable
+#
+set global optimizer_switch=10;
+set session optimizer_switch=5;
+select @@global.optimizer_switch;
+select @@session.optimizer_switch;
+set global optimizer_switch="index_merge_sort_union=on";
+set session optimizer_switch="index_merge=off";
+select @@global.optimizer_switch;
+select @@session.optimizer_switch;
+show global variables like 'optimizer_switch';
+show session variables like 'optimizer_switch';
+select * from information_schema.global_variables where variable_name='optimizer_switch';
+select * from information_schema.session_variables where variable_name='optimizer_switch';
+set session optimizer_switch="default";
+select @@session.optimizer_switch;
+
+#
+# incorrect assignments
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global optimizer_switch=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global optimizer_switch=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set session optimizer_switch="index_merge";
+--error ER_WRONG_VALUE_FOR_VAR
+set session optimizer_switch="foobar";
+
+SET @@global.optimizer_switch = @start_global_value;
+SELECT @@global.optimizer_switch;

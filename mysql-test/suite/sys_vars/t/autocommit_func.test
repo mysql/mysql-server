@@ -145,13 +145,16 @@ SELECT * from t1;
 --echo ## Connecting with connection # 01 and inserting few records ## 
 CONNECTION test_con1;
 SELECT * from t1;
---echo 'Bug#35373: Records donot get committed in transaction on switching connections'
 INSERT into t1(name) values('Record_6');
 SELECT * from t1;
 
 --echo ## Now verifying the effect of these new records in second connection ## 
 CONNECTION test_con2;
 SELECT * from t1;
+
+--echo ## Commit changes
+CONNECTION test_con1;
+COMMIT;
 
 --echo ## Dropping table t1 ##
 DROP table t1;

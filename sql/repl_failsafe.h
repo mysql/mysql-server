@@ -1,7 +1,7 @@
 #ifndef REPL_FAILSAFE_INCLUDED
 #define REPL_FAILSAFE_INCLUDED
 
-/* Copyright (C) 2001-2005 MySQL AB & Sasha
+/* Copyright (C) 2001-2005 MySQL AB & Sasha, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,14 +22,14 @@
 #include "my_sys.h"
 #include "slave.h"
 
-typedef enum {RPL_AUTH_MASTER=0,RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE,
+typedef enum {RPL_AUTH_MASTER=0,RPL_IDLE_SLAVE,RPL_ACTIVE_SLAVE,
 	      RPL_LOST_SOLDIER,RPL_TROOP_SOLDIER,
 	      RPL_RECOVERY_CAPTAIN,RPL_NULL /* inactive */,
 	      RPL_ANY /* wild card used by change_rpl_status */ } RPL_STATUS;
 extern RPL_STATUS rpl_status;
 
-extern pthread_mutex_t LOCK_rpl_status;
-extern pthread_cond_t COND_rpl_status;
+extern mysql_mutex_t LOCK_rpl_status;
+extern mysql_cond_t COND_rpl_status;
 extern TYPELIB rpl_role_typelib, rpl_status_typelib;
 extern const char* rpl_role_type[], *rpl_status_type[];
 

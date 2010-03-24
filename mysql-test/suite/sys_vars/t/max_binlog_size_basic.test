@@ -45,7 +45,6 @@ SELECT @start_value;
 SET @@global.max_binlog_size = 5000;
 SET @@global.max_binlog_size = DEFAULT;
 SELECT @@global.max_binlog_size;
---echo 'Bug# 34878: This variable has invalid default value as compared to documentation';
 
 --echo '#---------------------FN_DYNVARS_072_02-------------------------#'
 ############################################### 
@@ -70,7 +69,6 @@ SET @@global.max_binlog_size = 4097;
 SELECT @@global.max_binlog_size;
 SET @@global.max_binlog_size = 65535;
 SELECT @@global.max_binlog_size;
---echo 'Bug# 34877: Invalid Values are coming in variable on assigning valid values';
 
 
 --echo '#--------------------FN_DYNVARS_072_04-------------------------#'
@@ -93,8 +91,6 @@ SET @@global.max_binlog_size = 4294967296;
 SELECT @@global.max_binlog_size;
 SET @@global.max_binlog_size = 4095;
 SELECT @@global.max_binlog_size;
-
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_binlog_size = ON;

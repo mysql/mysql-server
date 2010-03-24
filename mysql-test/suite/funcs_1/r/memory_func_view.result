@@ -911,13 +911,13 @@ SELECT LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_double), my_double, id FROM t
 WHERE select_id = 151 OR select_id IS NULL order by id;
 LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_double)	my_double	id
 NULL	NULL	1
-	-1.7976931348623e+308	2
-AaBbCcDdEeFfGgHhIiJjÄäÜüÖö	1.7976931348623e+308	3
+	-1.7976931348623e308	2
+AaBbCcDdEeFfGgHhIiJjÄäÜüÖö	1.7976931348623e308	3
 	0	4
 	-1	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
+Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e308'
+Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e308'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö',`t1_values`.`my_double`) AS `LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_double)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -926,13 +926,13 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 151 OR select_id IS NULL) order by id;
 LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_double)	my_double	id
 NULL	NULL	1
-	-1.7976931348623e+308	2
-AaBbCcDdEeFfGgHhIiJjÄäÜüÖö	1.7976931348623e+308	3
+	-1.7976931348623e308	2
+AaBbCcDdEeFfGgHhIiJjÄäÜüÖö	1.7976931348623e308	3
 	0	4
 	-1	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
+Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e308'
+Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e308'
 DROP VIEW v1;
 
 
@@ -1355,8 +1355,8 @@ my_double, id FROM t1_values
 WHERE select_id = 133 OR select_id IS NULL order by id;
 IFNULL(my_double,'IS_NULL')	my_double	id
 IS_NULL	NULL	1
--1.7976931348623e+308	-1.7976931348623e+308	2
-1.7976931348623e+308	1.7976931348623e+308	3
+-1.7976931348623e308	-1.7976931348623e308	2
+1.7976931348623e308	1.7976931348623e308	3
 0	0	4
 -1	-1	5
 SHOW CREATE VIEW v1;
@@ -1367,8 +1367,8 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 133 OR select_id IS NULL) order by id;
 IFNULL(my_double,'IS_NULL')	my_double	id
 IS_NULL	NULL	1
--1.7976931348623e+308	-1.7976931348623e+308	2
-1.7976931348623e+308	1.7976931348623e+308	3
+-1.7976931348623e308	-1.7976931348623e308	2
+1.7976931348623e308	1.7976931348623e308	3
 0	0	4
 -1	-1	5
 DROP VIEW v1;
@@ -1683,8 +1683,8 @@ WHERE select_id = 121 OR select_id IS NULL order by id;
 IF(my_double IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_double	id
 IS     NULL	NULL	1
-IS NOT NULL	-1.7976931348623e+308	2
-IS NOT NULL	1.7976931348623e+308	3
+IS NOT NULL	-1.7976931348623e308	2
+IS NOT NULL	1.7976931348623e308	3
 IS NOT NULL	0	4
 IS NOT NULL	-1	5
 SHOW CREATE VIEW v1;
@@ -1697,8 +1697,8 @@ WHERE select_id = 121 OR select_id IS NULL) order by id;
 IF(my_double IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_double	id
 IS     NULL	NULL	1
-IS NOT NULL	-1.7976931348623e+308	2
-IS NOT NULL	1.7976931348623e+308	3
+IS NOT NULL	-1.7976931348623e308	2
+IS NOT NULL	1.7976931348623e308	3
 IS NOT NULL	0	4
 IS NOT NULL	-1	5
 DROP VIEW v1;
@@ -2015,8 +2015,8 @@ my_double, id FROM t1_values
 WHERE select_id = 109 OR select_id IS NULL order by id;
 IF(my_double, 'IS     TRUE', 'IS NOT TRUE')	my_double	id
 IS NOT TRUE	NULL	1
-IS     TRUE	-1.7976931348623e+308	2
-IS     TRUE	1.7976931348623e+308	3
+IS     TRUE	-1.7976931348623e308	2
+IS     TRUE	1.7976931348623e308	3
 IS NOT TRUE	0	4
 IS     TRUE	-1	5
 SHOW CREATE VIEW v1;
@@ -2027,8 +2027,8 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 109 OR select_id IS NULL) order by id;
 IF(my_double, 'IS     TRUE', 'IS NOT TRUE')	my_double	id
 IS NOT TRUE	NULL	1
-IS     TRUE	-1.7976931348623e+308	2
-IS     TRUE	1.7976931348623e+308	3
+IS     TRUE	-1.7976931348623e308	2
+IS     TRUE	1.7976931348623e308	3
 IS NOT TRUE	0	4
 IS     TRUE	-1	5
 DROP VIEW v1;
@@ -2563,13 +2563,13 @@ my_double, id FROM t1_values
 WHERE select_id = 89 OR select_id IS NULL order by id;
 CAST(my_double AS UNSIGNED INTEGER)	my_double	id
 NULL	NULL	1
-9223372036854775808	-1.7976931348623e+308	2
-9223372036854775807	1.7976931348623e+308	3
+9223372036854775808	-1.7976931348623e308	2
+9223372036854775807	1.7976931348623e308	3
 0	0	4
 18446744073709551615	-1	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
+Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e308'
+Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e308'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as unsigned) AS `CAST(my_double AS UNSIGNED INTEGER)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2578,13 +2578,13 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 89 OR select_id IS NULL) order by id;
 CAST(my_double AS UNSIGNED INTEGER)	my_double	id
 NULL	NULL	1
-9223372036854775808	-1.7976931348623e+308	2
-9223372036854775807	1.7976931348623e+308	3
+9223372036854775808	-1.7976931348623e308	2
+9223372036854775807	1.7976931348623e308	3
 0	0	4
 18446744073709551615	-1	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
+Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e308'
+Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e308'
 DROP VIEW v1;
 
 
@@ -2931,13 +2931,13 @@ my_double, id FROM t1_values
 WHERE select_id = 77 OR select_id IS NULL order by id;
 CAST(my_double AS SIGNED INTEGER)	my_double	id
 NULL	NULL	1
--9223372036854775808	-1.7976931348623e+308	2
-9223372036854775807	1.7976931348623e+308	3
+-9223372036854775808	-1.7976931348623e308	2
+9223372036854775807	1.7976931348623e308	3
 0	0	4
 -1	-1	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
+Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e308'
+Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e308'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as signed) AS `CAST(my_double AS SIGNED INTEGER)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -2946,13 +2946,13 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 77 OR select_id IS NULL) order by id;
 CAST(my_double AS SIGNED INTEGER)	my_double	id
 NULL	NULL	1
--9223372036854775808	-1.7976931348623e+308	2
-9223372036854775807	1.7976931348623e+308	3
+-9223372036854775808	-1.7976931348623e308	2
+9223372036854775807	1.7976931348623e308	3
 0	0	4
 -1	-1	5
 Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
+Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e308'
+Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e308'
 DROP VIEW v1;
 
 
@@ -3289,8 +3289,8 @@ my_double, id FROM t1_values
 WHERE select_id = 65 OR select_id IS NULL order by id;
 CAST(my_double AS DECIMAL(37,2))	my_double	id
 NULL	NULL	1
--99999999999999999999999999999999999.99	-1.7976931348623e+308	2
-99999999999999999999999999999999999.99	1.7976931348623e+308	3
+-99999999999999999999999999999999999.99	-1.7976931348623e308	2
+99999999999999999999999999999999999.99	1.7976931348623e308	3
 0.00	0	4
 -1.00	-1	5
 -3333.33	-3333.3333	30
@@ -3307,8 +3307,8 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 65 OR select_id IS NULL) order by id;
 CAST(my_double AS DECIMAL(37,2))	my_double	id
 NULL	NULL	1
--99999999999999999999999999999999999.99	-1.7976931348623e+308	2
-99999999999999999999999999999999999.99	1.7976931348623e+308	3
+-99999999999999999999999999999999999.99	-1.7976931348623e308	2
+99999999999999999999999999999999999.99	1.7976931348623e308	3
 0.00	0	4
 -1.00	-1	5
 -3333.33	-3333.3333	30
@@ -3681,14 +3681,14 @@ my_double, id FROM t1_values
 WHERE select_id = 53 OR select_id IS NULL order by id;
 CAST(my_double AS TIME)	my_double	id
 NULL	NULL	1
-NULL	-1.7976931348623e+308	2
-NULL	1.7976931348623e+308	3
+NULL	-1.7976931348623e308	2
+NULL	1.7976931348623e308	3
 00:00:00	0	4
 -00:00:01	-1	5
 00:17:58	1758	25
 Warnings:
-Warning	1292	Truncated incorrect time value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect time value: '1.7976931348623e+308'
+Warning	1292	Truncated incorrect time value: '-1.7976931348623e308'
+Warning	1292	Truncated incorrect time value: '1.7976931348623e308'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as time) AS `CAST(my_double AS TIME)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3697,14 +3697,14 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 53 OR select_id IS NULL) order by id;
 CAST(my_double AS TIME)	my_double	id
 NULL	NULL	1
-NULL	-1.7976931348623e+308	2
-NULL	1.7976931348623e+308	3
+NULL	-1.7976931348623e308	2
+NULL	1.7976931348623e308	3
 00:00:00	0	4
 -00:00:01	-1	5
 00:17:58	1758	25
 Warnings:
-Warning	1292	Truncated incorrect time value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect time value: '1.7976931348623e+308'
+Warning	1292	Truncated incorrect time value: '-1.7976931348623e308'
+Warning	1292	Truncated incorrect time value: '1.7976931348623e308'
 DROP VIEW v1;
 
 
@@ -4043,14 +4043,14 @@ my_double, id FROM t1_values
 WHERE select_id = 42 OR select_id IS NULL order by id;
 CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
-NULL	-1.7976931348623e+308	2
-NULL	1.7976931348623e+308	3
+NULL	-1.7976931348623e308	2
+NULL	1.7976931348623e308	3
 NULL	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '1.7976931348623e+308'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
+Warning	1292	Incorrect datetime value: '1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
@@ -4062,14 +4062,14 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 42 OR select_id IS NULL) order by id;
 CAST(my_double AS DATETIME)	my_double	id
 NULL	NULL	1
-NULL	-1.7976931348623e+308	2
-NULL	1.7976931348623e+308	3
+NULL	-1.7976931348623e308	2
+NULL	1.7976931348623e308	3
 NULL	0	4
 NULL	-1	5
 NULL	200506271758	19
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '1.7976931348623e+308'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
+Warning	1292	Incorrect datetime value: '1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 Warning	1292	Incorrect datetime value: '200506271758'
@@ -4417,14 +4417,14 @@ my_double, id FROM t1_values
 WHERE select_id = 31 OR select_id IS NULL order by id;
 CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
-NULL	-1.7976931348623e+308	2
-NULL	1.7976931348623e+308	3
+NULL	-1.7976931348623e308	2
+NULL	1.7976931348623e308	3
 NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '1.7976931348623e+308'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
+Warning	1292	Incorrect datetime value: '1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 SHOW CREATE VIEW v1;
@@ -4435,14 +4435,14 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 31 OR select_id IS NULL) order by id;
 CAST(my_double AS DATE)	my_double	id
 NULL	NULL	1
-NULL	-1.7976931348623e+308	2
-NULL	1.7976931348623e+308	3
+NULL	-1.7976931348623e308	2
+NULL	1.7976931348623e308	3
 NULL	0	4
 NULL	-1	5
 2005-06-27	20050627	13
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e+308'
-Warning	1292	Incorrect datetime value: '1.7976931348623e+308'
+Warning	1292	Incorrect datetime value: '-1.7976931348623e308'
+Warning	1292	Incorrect datetime value: '1.7976931348623e308'
 Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '-1'
 DROP VIEW v1;
@@ -4777,8 +4777,8 @@ my_double, id FROM t1_values
 WHERE select_id = 20 OR select_id IS NULL order by id;
 CAST(my_double AS CHAR)	my_double	id
 NULL	NULL	1
--1.7976931348623e+308	-1.7976931348623e+308	2
-1.7976931348623e+308	1.7976931348623e+308	3
+-1.7976931348623e308	-1.7976931348623e308	2
+1.7976931348623e308	1.7976931348623e308	3
 0	0	4
 -1	-1	5
 SHOW CREATE VIEW v1;
@@ -4789,8 +4789,8 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 20 OR select_id IS NULL) order by id;
 CAST(my_double AS CHAR)	my_double	id
 NULL	NULL	1
--1.7976931348623e+308	-1.7976931348623e+308	2
-1.7976931348623e+308	1.7976931348623e+308	3
+-1.7976931348623e308	-1.7976931348623e308	2
+1.7976931348623e308	1.7976931348623e308	3
 0	0	4
 -1	-1	5
 DROP VIEW v1;
@@ -5089,8 +5089,8 @@ my_double, id FROM t1_values
 WHERE select_id = 8 OR select_id IS NULL order by id;
 CAST(my_double AS BINARY)	my_double	id
 NULL	NULL	1
--1.7976931348623e+308	-1.7976931348623e+308	2
-1.7976931348623e+308	1.7976931348623e+308	3
+-1.7976931348623e308	-1.7976931348623e308	2
+1.7976931348623e308	1.7976931348623e308	3
 0	0	4
 -1	-1	5
 SHOW CREATE VIEW v1;
@@ -5101,8 +5101,8 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 8 OR select_id IS NULL) order by id;
 CAST(my_double AS BINARY)	my_double	id
 NULL	NULL	1
--1.7976931348623e+308	-1.7976931348623e+308	2
-1.7976931348623e+308	1.7976931348623e+308	3
+-1.7976931348623e308	-1.7976931348623e308	2
+1.7976931348623e308	1.7976931348623e308	3
 0	0	4
 -1	-1	5
 DROP VIEW v1;

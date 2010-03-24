@@ -1,0 +1,175 @@
+-- source include/have_innodb.inc
+
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug #22876 Four-way deadlock
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+connect (con3,localhost,root,,);
+
+--echo # Connection 1
+connection con1;
+set @@autocommit=0;
+CREATE TABLE t1(s1 INT UNIQUE) ENGINE=innodb;
+INSERT INTO t1 VALUES (1);
+
+--echo # Connection 2
+connection con2;
+set @@autocommit=0;
+INSERT INTO t1 VALUES (2);
+--send INSERT INTO t1 VALUES (1)
+
+--echo # Connection 3
+connection con3;
+set @@autocommit=0;
+--send DROP TABLE t1
+
+--echo # Connection 1
+connection con1;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = "INSERT INTO t1 VALUES (1)" and 
+  state = "update";
+--source include/wait_condition.inc
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE info = "DROP TABLE t1" and 
+  state = "Waiting for table";
+--source include/wait_condition.inc
+--echo # Connection 1 is now holding the lock.
+--echo # Issuing insert from connection 1 while connection 2&3 
+--echo # is waiting for the lock should give a deadlock error.
+--error ER_LOCK_DEADLOCK
+INSERT INTO t1 VALUES (2);
+
+--echo # Cleanup
+connection con2;
+--reap
+commit;
+set @@autocommit=1;
+connection con1;
+commit;
+set @@autocommit=1;
+connection con3;
+--reap
+set @@autocommit=1;
+connection default;
+
+disconnect con1;
+disconnect con3;
+
+
+--echo #
+--echo # Test for bug #37346 "innodb does not detect deadlock between update
+--echo #                      and alter table".
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (c1 int primary key, c2 int, c3 int) engine=InnoDB;
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+--echo # Run statement which acquires X-lock on one of table's rows.
+update t1 set c3=c3+1 where c2=3;
+
+--echo #
+--echo # Switching to connection 'con37346'.
+connect (con37346,localhost,root,,test,,);
+connection con37346;
+--echo # The below ALTER TABLE statement should wait till transaction
+--echo # in connection 'default' is complete and then succeed.
+--echo # It should not deadlock or fail with ER_LOCK_DEADLOCK error.
+--echo # Sending:
+--send alter table t1 add column c4 int;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until the above ALTER TABLE gets blocked because this
+--echo # connection holds SW metadata lock on table to be altered.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 add column c4 int";
+--source include/wait_condition.inc
+
+--echo # The below statement should succeed. It should not
+--echo # deadlock or end with ER_LOCK_DEADLOCK error.
+update t1 set c3=c3+1 where c2=4;
+
+--echo # Unblock ALTER TABLE by committing transaction.
+commit;
+
+--echo #
+--echo # Switching to connection 'con37346'.
+connection con37346;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con37346;
+drop table t1;
+
+
+--echo #
+--echo # Bug #42147 Concurrent DML and LOCK TABLE ... READ for InnoDB 
+--echo #            table cause warnings in errlog
+--echo #
+
+--echo #
+--echo # Note that this test for now relies on a global suppression of 
+--echo # the warning "Found lock of type 6 that is write and read locked"
+--echo # This suppression rule can be removed once Bug#42147 is properly
+--echo # fixed. See bug page for more info.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (i INT) engine= innodb;
+
+--echo # Connection 2
+--echo # Get user-level lock
+connection con2;
+SELECT get_lock('bug42147_lock', 60);
+
+--echo # Connection 1
+connection default;
+--send INSERT INTO t1 SELECT get_lock('bug42147_lock', 60)
+
+--echo # Connection 2
+connection con2;
+let $wait_condition=
+  SELECT COUNT(*) > 0 FROM information_schema.processlist
+  WHERE state = 'User lock' 
+  AND info = 'INSERT INTO t1 SELECT get_lock(\'bug42147_lock\', 60)';
+--source include/wait_condition.inc
+LOCK TABLES t1 READ;
+SELECT release_lock('bug42147_lock');
+
+--echo # Connection 1
+connection default;
+--reap
+
+--echo # Connection 2
+connection con2;
+UNLOCK TABLES;
+
+--echo # Connection 1
+connection default;
+disconnect con2;
+DROP TABLE t1;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

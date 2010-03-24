@@ -11,31 +11,32 @@ let $VERSION=`select version()`;
 connection master;
 CREATE TABLE t1(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
-DROP TABLE t1;
 # Save master log postion for query DROP TABLE t1
-save_master_pos;
-let $master_pos_drop_t1= query_get_value(SHOW BINLOG EVENTS, Pos, 7);
+let $master_pos_drop_t1= query_get_value(SHOW MASTER STATUS, Position, 1);
+DROP TABLE t1;
+#show binlog events;
 
-CREATE TABLE t2(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
 # Save master log postion for query CREATE TABLE t2
-save_master_pos;
-let $master_pos_create_t2= query_get_value(SHOW BINLOG EVENTS, Pos, 8);
+let $master_pos_create_t2= query_get_value(SHOW MASTER STATUS, Position, 1);
+CREATE TABLE t2(n INT NOT NULL AUTO_INCREMENT PRIMARY KEY);
+#show binlog events;
 
 INSERT INTO t2 VALUES (1),(2);
-save_master_pos;
 # Save master log postion for query INSERT INTO t2 VALUES (1),(2);
-let $master_pos_insert1_t2= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 12);
+let $master_pos_insert1_t2= query_get_value(SHOW MASTER STATUS, Position, 1);
 sync_slave_with_master;
+#show binlog events;
 
 # Save relay log postion for query INSERT INTO t2 VALUES (1),(2);
-let $relay_pos_insert1_t2= query_get_value(show slave status, Relay_Log_Pos, 1);
+let $relay_pos_insert1_t2= query_get_value(SHOW SLAVE STATUS, Relay_Log_Pos, 1);
 
 connection master;
 INSERT INTO t2 VALUES (3),(4);
 DROP TABLE t2;
-# Save master log postion for query INSERT INTO t2 VALUES (1),(2);
-let $master_pos_drop_t2= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 17);
+# Save master log postion for query DROP TABLE t2;
+let $master_pos_drop_t2= query_get_value(SHOW MASTER STATUS, Position, 1);
 sync_slave_with_master;
+#show binlog events;
 
 --source include/stop_slave.inc
 # Reset slave.
@@ -45,6 +46,7 @@ eval CHANGE MASTER TO MASTER_USER='root', MASTER_CONNECT_RETRY=1, MASTER_HOST='1
 --enable_query_log
 
 # Try to replicate all queries until drop of t1
+
 connection slave;
 echo START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=master_pos_drop_t1;
 --disable_query_log

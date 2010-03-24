@@ -1,0 +1,66 @@
+SET @session_start_value = @@session.timestamp;
+'#--------------------FN_DYNVARS_001_01------------------------#'
+SET @@timestamp = DEFAULT;
+SELECT @@timestamp = UNIX_TIMESTAMP();
+@@timestamp = UNIX_TIMESTAMP()
+1
+'#---------------------FN_DYNVARS_001_02-------------------------#'
+SET @@global.timestamp = "1000";
+ERROR HY000: Variable 'timestamp' is a SESSION variable and can't be used with SET GLOBAL
+'#--------------------FN_DYNVARS_001_03------------------------#'
+SET @@timestamp = 0;
+SELECT @@timestamp = UNIX_TIMESTAMP();
+@@timestamp = UNIX_TIMESTAMP()
+1
+'Setting 0 resets timestamp to session default timestamp'
+SET @@timestamp = -1000000000;
+Warnings:
+Warning	1292	Truncated incorrect timestamp value: '-1000000000'
+SELECT @@timestamp = UNIX_TIMESTAMP();
+@@timestamp = UNIX_TIMESTAMP()
+1
+SET @temp_ts = @@timestamp - @@timestamp;
+SELECT @temp_ts;
+@temp_ts
+0
+'#--------------------FN_DYNVARS_001_04-------------------------#'
+SET @@timestamp = "100";
+ERROR 42000: Incorrect argument type to variable 'timestamp'
+SET @@timestamp = " ";
+ERROR 42000: Incorrect argument type to variable 'timestamp'
+SET @@timestamp = 1.1;
+ERROR 42000: Incorrect argument type to variable 'timestamp'
+SET @@timestamp = 9999999999999999999999;
+ERROR 42000: Incorrect argument type to variable 'timestamp'
+'#----------------------FN_DYNVARS_001_06------------------------#'
+'#---------------------FN_DYNVARS_001_08-------------------------#'
+SET @@timestamp = OFF;
+ERROR 42000: Incorrect argument type to variable 'timestamp'
+SET @@timestamp = ON;
+ERROR 42000: Incorrect argument type to variable 'timestamp'
+SET @@timestamp = TRUE;
+SELECT @@timestamp;
+@@timestamp
+1
+SET @@timestamp = FALSE;
+'#---------------------FN_DYNVARS_001_10----------------------#'
+SET @@timestamp = 123456;
+SELECT @@timestamp = @@local.timestamp and @@timestamp = @@session.timestamp;
+@@timestamp = @@local.timestamp and @@timestamp = @@session.timestamp
+1
+SET @@timestamp = 654321;
+SELECT @@timestamp = @@local.timestamp and @@timestamp = @@session.timestamp;
+@@timestamp = @@local.timestamp and @@timestamp = @@session.timestamp
+1
+'#---------------------FN_DYNVARS_001_11----------------------#'
+SET timestamp = 1;
+SELECT @@timestamp;
+@@timestamp
+1
+SELECT local.timestamp;
+ERROR 42S02: Unknown table 'local' in field list
+SELECT session.timestamp;
+ERROR 42S02: Unknown table 'session' in field list
+SELECT timestamp = @@session.timestamp;
+ERROR 42S22: Unknown column 'timestamp' in 'field list'
+SET @@timestamp = @session_start_value;

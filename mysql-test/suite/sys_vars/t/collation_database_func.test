@@ -38,8 +38,6 @@ SELECT @@global.collation_database;
 SELECT @@session.collation_database;
 disconnect con1;
 
---echo 'Bug#35378: New session collation_database is not change by global collation_database'
-
 --echo '#--------------------FN_DYNVARS_011_02-------------------------#'
 #########################################################
 # Begin the functionality Testing of collation_database #
@@ -69,7 +67,6 @@ SET @@session.collation_database = latin2_croatian_ci;
 CREATE DATABASE db1;
 USE db1;
 SHOW CREATE DATABASE db1;
---echo 'Bug#35380: collation_database does not effects CREATE DATABASE without characater set'
 
 CREATE TABLE t1(a CHAR(20));
 SHOW CREATE TABLE t1;

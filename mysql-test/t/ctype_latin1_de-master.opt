@@ -1,1 +1,1 @@
---default-character-set=latin1 --default-collation=latin1_german2_ci
+--character-set-server=latin1 --collation-server=latin1_german2_ci

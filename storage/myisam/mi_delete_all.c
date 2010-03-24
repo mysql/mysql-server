@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003, 2005 MySQL AB
+/* Copyright (C) 2000-2003, 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,10 +57,10 @@ int mi_delete_all_rows(MI_INFO *info)
   if (share->file_map)
     _mi_unmap_file(info);
 #endif
-  if (my_chsize(info->dfile, 0, 0, MYF(MY_WME)) ||
-      my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
+  if (mysql_file_chsize(info->dfile, 0, 0, MYF(MY_WME)) ||
+      mysql_file_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME)))
     goto err;
-  VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+  (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
 #ifdef HAVE_MMAP
   /* Map again */
   if (share->file_map)
@@ -72,7 +72,7 @@ int mi_delete_all_rows(MI_INFO *info)
 err:
   {
     int save_errno=my_errno;
-    VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
+    (void) _mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE);
     info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
     allow_break();			/* Allow SIGHUP & SIGINT */
     DBUG_RETURN(my_errno=save_errno);

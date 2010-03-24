@@ -28,6 +28,8 @@ extern "C" {
 #define HA_FT_MAXBYTELEN 254
 #define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/3)
 
+#define DEFAULT_FTB_SYNTAX "+ -><()~*:\"\"&|"
+
 typedef struct st_ft_info FT_INFO;
 struct _ft_vft
 {
@@ -51,7 +53,7 @@ extern const char *ft_precompiled_stopwords[];
 extern ulong ft_min_word_len;
 extern ulong ft_max_word_len;
 extern ulong ft_query_expansion_limit;
-extern char  ft_boolean_syntax[15];
+extern const char *ft_boolean_syntax;
 extern struct st_mysql_ftparser ft_default_parser;
 
 int ft_init_stopwords(void);

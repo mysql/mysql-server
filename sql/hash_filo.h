@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003, 2005 MySQL AB
+/* Copyright (C) 2000-2003, 2005 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ class hash_filo
 
   hash_filo_element *first_link,*last_link;
 public:
-  pthread_mutex_t lock;
+  mysql_mutex_t lock;
   HASH cache;
 
   hash_filo(uint size_arg, uint key_offset_arg , uint key_length_arg,
@@ -64,7 +64,7 @@ public:
     {
       if (cache.array.buffer)	/* Avoid problems with thread library */
 	(void) my_hash_free(&cache);
-      pthread_mutex_destroy(&lock);
+      mysql_mutex_destroy(&lock);
     }
   }
   void clear(bool locked=0)
@@ -72,15 +72,15 @@ public:
     if (!init)
     {
       init=1;
-      (void) pthread_mutex_init(&lock,MY_MUTEX_INIT_FAST);
+      mysql_mutex_init(key_hash_filo_lock, &lock, MY_MUTEX_INIT_FAST);
     }
     if (!locked)
-      (void) pthread_mutex_lock(&lock);
+      mysql_mutex_lock(&lock);
     (void) my_hash_free(&cache);
     (void) my_hash_init(&cache,hash_charset,size,key_offset, 
     		     key_length, get_key, free_element,0);
     if (!locked)
-      (void) pthread_mutex_unlock(&lock);
+      mysql_mutex_unlock(&lock);
     first_link=last_link=0;
   }
 

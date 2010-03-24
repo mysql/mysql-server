@@ -178,7 +178,7 @@ SELECT @@session.lc_time_names;
 SET @@session.lc_time_names=de_LU;
 SELECT @@session.lc_time_names;
 
---Error ER_UNKNOWN_ERROR
+--error ER_UNKNOWN_LOCALE
 SET @@session.lc_time_names=EE;
 --echo 'Bug: The locale for Estonian - Estonia is not supported. It is present';
 --echo 'in manual';
@@ -322,6 +322,8 @@ SET @@session.lc_time_names=sr_YU;
 SELECT @@session.lc_time_names;
 SET @@session.lc_time_names=sv_FI;
 SELECT @@session.lc_time_names;
+SET @@session.lc_time_names=sr_RS;
+SELECT @@session.lc_time_names;
 SET @@session.lc_time_names=sv_SE;
 SELECT @@session.lc_time_names;
 SET @@session.lc_time_names=ta_IN;
@@ -407,7 +409,7 @@ SELECT @@global.lc_time_names;
 SET @@global.lc_time_names=de_LU;
 SELECT @@global.lc_time_names;
 
---Error ER_UNKNOWN_ERROR
+--error ER_UNKNOWN_LOCALE
 SET @@global.lc_time_names=EE;
 --echo 'Bug: The locale for Estonian - Estonia is not supported. It is';
 --echo 'present in manual';
@@ -553,6 +555,8 @@ SET @@global.lc_time_names=sr_YU;
 SELECT @@global.lc_time_names;
 SET @@global.lc_time_names=sv_FI;
 SELECT @@global.lc_time_names;
+SET @@global.lc_time_names=sr_RS;
+SELECT @@global.lc_time_names;
 SET @@global.lc_time_names=sv_SE;
 SELECT @@global.lc_time_names;
 SET @@global.lc_time_names=ta_IN;
@@ -616,27 +620,27 @@ SET @@lc_time_names = 107;
 SELECT @@lc_time_names;
 SET @@lc_time_names = 108;
 SELECT @@lc_time_names;
-
---Error ER_UNKNOWN_ERROR
 SET @@lc_time_names = 109;
-
+SELECT @@lc_time_names;
+--Error ER_UNKNOWN_LOCALE
+SET @@lc_time_names = 110;
 
 --echo '#--------------------FN_DYNVARS_060_10-------------------------#'
 #############################################################################
 #     Change the value of lc_time_names to an invalid value for session     #
 #############################################################################
 
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@lc_time_names = en_EN;
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@lc_time_names = US_en;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@lc_time_names = 1.1;
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@lc_time_names = -1;
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@lc_time_names = 'en US';
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@lc_time_names = 'enUS';
 
 SET @@lc_time_names = true;
@@ -644,7 +648,7 @@ SELECT @@lc_time_names AS res_with_true;
 SET @@lc_time_names = false;
 SELECT @@lc_time_names AS res_with_false;
 
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@lc_time_names = ON;
 
 
@@ -653,17 +657,17 @@ SET @@lc_time_names = ON;
 #     Change the value of lc_time_names to an invalid value for global     #
 ############################################################################
 
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@global.lc_time_names = en_EN;
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@global.lc_time_names = US_en;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.lc_time_names = 1.1;
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@global.lc_time_names = -1;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.lc_time_names = NULL;
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@global.lc_time_names = 'enUS';
 
 SET @@global.lc_time_names = true;
@@ -671,7 +675,7 @@ SELECT @@global.lc_time_names;
 SET @@global.lc_time_names = false;
 SELECT @@global.lc_time_names;
 
---Error ER_UNKNOWN_ERROR
+--Error ER_UNKNOWN_LOCALE
 SET @@global.lc_time_names = ON;
 
 --echo '#--------------------FN_DYNVARS_060_12-------------------------#'

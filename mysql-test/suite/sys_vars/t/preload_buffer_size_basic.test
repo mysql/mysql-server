@@ -112,8 +112,8 @@ SET @@global.preload_buffer_size = 1023;
 SELECT @@global.preload_buffer_size;
 SET @@global.preload_buffer_size = 1073741825;
 SELECT @@global.preload_buffer_size;
---Error ER_PARSE_ERROR
-SET @@global.preload_buffer_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.preload_buffer_size = 65530.34;
 SELECT @@global.preload_buffer_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.preload_buffer_size = test;
@@ -123,13 +123,12 @@ SET @@session.preload_buffer_size = 64;
 SELECT @@session.preload_buffer_size;
 SET @@session.preload_buffer_size = -2;
 SELECT @@session.preload_buffer_size;
---Error ER_PARSE_ERROR
-SET @@session.preload_buffer_size = 65530.34.;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.preload_buffer_size = 65530.34;
 SET @@session.preload_buffer_size = 1023;
 SELECT @@session.preload_buffer_size;
 SET @@session.preload_buffer_size = 1073741825;
 SELECT @@session.preload_buffer_size;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.preload_buffer_size = test;

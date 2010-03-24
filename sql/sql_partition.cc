@@ -50,6 +50,7 @@
 #include <errno.h>
 #include <m_ctype.h>
 #include "my_md5.h"
+#include "transaction.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -933,6 +934,85 @@ int check_signed_flag(partition_info *part_info)
   return error;
 }
 
+/**
+  Initialize lex object for use in fix_fields and parsing.
+
+  SYNOPSIS
+    init_lex_with_single_table()
+    @param thd                 The thread object
+    @param table               The table object
+  @return Operation status
+    @retval TRUE                An error occurred, memory allocation error
+    @retval FALSE               Ok
+
+  DESCRIPTION
+    This function is used to initialize a lex object on the
+    stack for use by fix_fields and for parsing. In order to
+    work properly it also needs to initialize the
+    Name_resolution_context object of the lexer.
+    Finally it needs to set a couple of variables to ensure
+    proper functioning of fix_fields.
+*/
+
+static int
+init_lex_with_single_table(THD *thd, TABLE *table, LEX *lex)
+{
+  TABLE_LIST *table_list;
+  Table_ident *table_ident;
+  SELECT_LEX *select_lex= &lex->select_lex;
+  Name_resolution_context *context= &select_lex->context;
+  /*
+    We will call the parser to create a part_info struct based on the
+    partition string stored in the frm file.
+    We will use a local lex object for this purpose. However we also
+    need to set the Name_resolution_object for this lex object. We
+    do this by using add_table_to_list where we add the table that
+    we're working with to the Name_resolution_context.
+  */
+  thd->lex= lex;
+  lex_start(thd);
+  context->init();
+  if ((!(table_ident= new Table_ident(thd,
+                                      table->s->table_name,
+                                      table->s->db, TRUE))) ||
+      (!(table_list= select_lex->add_table_to_list(thd,
+                                                   table_ident,
+                                                   NULL,
+                                                   0))))
+    return TRUE;
+  context->resolve_in_table_list_only(table_list);
+  lex->use_only_table_context= TRUE;
+  select_lex->cur_pos_in_select_list= UNDEF_POS;
+  table->map= 1; //To ensure correct calculation of const item
+  table->get_fields_in_item_tree= TRUE;
+  table_list->table= table;
+  return FALSE;
+}
+
+/**
+  End use of local lex with single table
+
+  SYNOPSIS
+    end_lex_with_single_table()
+    @param thd               The thread object
+    @param table             The table object
+    @param old_lex           The real lex object connected to THD
+
+  DESCRIPTION
+    This function restores the real lex object after calling
+    init_lex_with_single_table and also restores some table
+    variables temporarily set.
+*/
+
+static void
+end_lex_with_single_table(THD *thd, TABLE *table, LEX *old_lex)
+{
+  LEX *lex= thd->lex;
+  table->map= 0;
+  table->get_fields_in_item_tree= FALSE;
+  lex_end(lex);
+  thd->lex= old_lex;
+}
 
 /*
   The function uses a new feature in fix_fields where the flag 
@@ -975,57 +1055,20 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
                           bool is_sub_part, bool is_create_table_ind)
 {
   partition_info *part_info= table->part_info;
-  uint dir_length, home_dir_length;
   bool result= TRUE;
-  TABLE_LIST tables;
-  TABLE_LIST *save_table_list, *save_first_table, *save_last_table;
   int error;
-  Name_resolution_context *context;
   const char *save_where;
-  char* db_name;
-  char db_name_string[FN_REFLEN];
-  bool save_use_only_table_context;
+  LEX *old_lex= thd->lex;
+  LEX lex;
   uint8 saved_full_group_by_flag;
   nesting_map saved_allow_sum_func;
   DBUG_ENTER("fix_fields_part_func");
 
-  /*
-    Set-up the TABLE_LIST object to be a list with a single table
-    Set the object to zero to create NULL pointers and set alias
-    and real name to table name and get database name from file name.
-    TODO: Consider generalizing or refactoring Lex::add_table_to_list() so
-    it can be used in all places where we create TABLE_LIST objects.
-    Also consider creating appropriate constructors for TABLE_LIST.
-  */
+  if (init_lex_with_single_table(thd, table, &lex))
+    goto end;
 
-  bzero((void*)&tables, sizeof(TABLE_LIST));
-  tables.alias= tables.table_name= (char*) table->s->table_name.str;
-  tables.table= table;
-  tables.next_local= 0;
-  tables.next_name_resolution_table= 0;
-  /*
-    Cache the table in Item_fields. All the tables can be cached except
-    the trigger pseudo table.
-  */
-  tables.cacheable_table= TRUE;
-  context= thd->lex->current_context();
-  tables.select_lex= context->select_lex;
-  strmov(db_name_string, table->s->normalized_path.str);
-  dir_length= dirname_length(db_name_string);
-  db_name_string[dir_length - 1]= 0;
-  home_dir_length= dirname_length(db_name_string);
-  db_name= &db_name_string[home_dir_length];
-  tables.db= db_name;
-
-  table->map= 1; //To ensure correct calculation of const item
-  table->get_fields_in_item_tree= TRUE;
-  save_table_list= context->table_list;
-  save_first_table= context->first_name_resolution_table;
-  save_last_table= context->last_name_resolution_table;
-  context->table_list= &tables;
-  context->first_name_resolution_table= &tables;
-  context->last_name_resolution_table= NULL;
-  func_expr->walk(&Item::change_context_processor, 0, (uchar*) context);
+  func_expr->walk(&Item::change_context_processor, 0,
+                  (uchar*) &lex.select_lex.context);
   save_where= thd->where;
   thd->where= "partition function";
   /*
@@ -1040,19 +1083,14 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     that does this during val_int must be disallowed as partition
     function.
     SEE Bug #21658
-  */
-  /*
+
     This is a tricky call to prepare for since it can have a large number
     of interesting side effects, both desirable and undesirable.
   */
-
-  save_use_only_table_context= thd->lex->use_only_table_context;
-  thd->lex->use_only_table_context= TRUE;
-  thd->lex->current_select->cur_pos_in_select_list= UNDEF_POS;
   saved_full_group_by_flag= thd->lex->current_select->full_group_by_flag;
   saved_allow_sum_func= thd->lex->allow_sum_func;
   thd->lex->allow_sum_func= 0;
-  
+
   error= func_expr->fix_fields(thd, (Item**)&func_expr);
 
   /*
@@ -1062,18 +1100,12 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   thd->lex->current_select->full_group_by_flag= saved_full_group_by_flag;
   thd->lex->allow_sum_func= saved_allow_sum_func;
 
-  thd->lex->use_only_table_context= save_use_only_table_context;
-
-  context->table_list= save_table_list;
-  context->first_name_resolution_table= save_first_table;
-  context->last_name_resolution_table= save_last_table;
   if (unlikely(error))
   {
     DBUG_PRINT("info", ("Field in partition function not part of table"));
     clear_field_flag(table);
     goto end;
   }
-  thd->where= save_where;
   if (unlikely(func_expr->const_item()))
   {
     my_error(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR, MYF(0));
@@ -1105,8 +1137,11 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     goto end;
   result= set_up_field_array(table, is_sub_part);
 end:
-  table->get_fields_in_item_tree= FALSE;
-  table->map= 0; //Restore old value
+  end_lex_with_single_table(thd, table, old_lex);
+#if !defined(DBUG_OFF)
+  func_expr->walk(&Item::change_context_processor, 0,
+                  (uchar*) 0);
+#endif
   DBUG_RETURN(result);
 }
 
@@ -1846,7 +1881,7 @@ end:
 
 static int add_write(File fptr, const char *buf, uint len)
 {
-  uint ret_code= my_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
+  uint ret_code= mysql_file_write(fptr, (const uchar*)buf, len, MYF(MY_FNABP));
 
   if (likely(ret_code == 0))
     return 0;
@@ -1943,11 +1978,11 @@ static int add_part_field_list(File fptr, List<char> field_list)
     const char *field_str= part_it++;
     String field_string("", 0, system_charset_info);
     THD *thd= current_thd;
-    ulonglong save_options= thd->options;
-    thd->options= 0;
+    ulonglong save_options= thd->variables.option_bits;
+    thd->variables.option_bits= 0;
     append_identifier(thd, &field_string, field_str,
                       strlen(field_str));
-    thd->options= save_options;
+    thd->variables.option_bits= save_options;
     err+= add_string_object(fptr, &field_string);
     if (i != (num_fields-1))
       err+= add_comma(fptr);
@@ -1962,12 +1997,12 @@ static int add_name_string(File fptr, const char *name)
   int err;
   String name_string("", 0, system_charset_info);
   THD *thd= current_thd;
-  ulonglong save_options= thd->options;
+  ulonglong save_options= thd->variables.option_bits;
 
-  thd->options= 0;
+  thd->variables.option_bits= 0;
   append_identifier(thd, &name_string, name,
                     strlen(name));
-  thd->options= save_options;
+  thd->variables.option_bits= save_options;
   err= add_string_object(fptr, &name_string);
   return err;
 }
@@ -2093,8 +2128,6 @@ static int check_part_field(enum_field_types sql_type,
   }
   switch (sql_type)
   {
-    case MYSQL_TYPE_NEWDECIMAL:
-    case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -2116,6 +2149,8 @@ static int check_part_field(enum_field_types sql_type,
       *result_type= STRING_RESULT;
       *need_cs_check= TRUE;
       return FALSE;
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_FLOAT:
@@ -2443,8 +2478,7 @@ char *generate_partition_syntax(partition_info *part_info,
     default:
       DBUG_ASSERT(0);
       /* We really shouldn't get here, no use in continuing from here */
-      my_error(ER_OUT_OF_RESOURCES, MYF(0));
-      current_thd->fatal_error();
+      my_error(ER_OUT_OF_RESOURCES, MYF(ME_FATALERROR));
       DBUG_RETURN(NULL);
   }
   if (part_info->part_expr)
@@ -2559,10 +2593,11 @@ char *generate_partition_syntax(partition_info *part_info,
   }
   if (err)
     goto close_file;
-  buffer_length= my_seek(fptr, 0L,MY_SEEK_END,MYF(0));
+  buffer_length= mysql_file_seek(fptr, 0L, MY_SEEK_END, MYF(0));
   if (unlikely(buffer_length == MY_FILEPOS_ERROR))
     goto close_file;
-  if (unlikely(my_seek(fptr, 0L, MY_SEEK_SET, MYF(0)) == MY_FILEPOS_ERROR))
+  if (unlikely(mysql_file_seek(fptr, 0L, MY_SEEK_SET, MYF(0))
+               == MY_FILEPOS_ERROR))
     goto close_file;
   *buf_length= (uint)buffer_length;
   if (use_sql_alloc)
@@ -2572,7 +2607,7 @@ char *generate_partition_syntax(partition_info *part_info,
   if (!buf)
     goto close_file;
 
-  if (unlikely(my_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
+  if (unlikely(mysql_file_read(fptr, (uchar*)buf, *buf_length, MYF(MY_FNABP))))
   {
     if (!use_sql_alloc)
       my_free(buf, MYF(0));
@@ -2583,7 +2618,7 @@ char *generate_partition_syntax(partition_info *part_info,
     buf[*buf_length]= 0;
 
 close_file:
-  my_close(fptr, MYF(0));
+  mysql_file_close(fptr, MYF(0));
   DBUG_RETURN(buf);
 }
 
@@ -4149,26 +4184,13 @@ bool mysql_unpack_partition(THD *thd,
   LEX lex;
   DBUG_ENTER("mysql_unpack_partition");
 
-  thd->lex= &lex;
   thd->variables.character_set_client= system_charset_info;
 
   Parser_state parser_state(thd, part_buf, part_info_len);
 
-  lex_start(thd);
-  *work_part_info_used= false;
-  /*
-    We need to use the current SELECT_LEX since I need to keep the
-    Name_resolution_context object which is referenced from the
-    Item_field objects.
-    This is not a nice solution since if the parser uses current_select
-    for anything else it will corrupt the current LEX object.
-    Also, we need to make sure there even is a select -- if the statement
-    was a "USE ...", current_select will be NULL, but we may still end up
-    here if we try to log to a partitioned table. This is currently
-    unsupported, but should still fail rather than crash!
-  */
-  if (!(thd->lex->current_select= old_lex->current_select))
+  if (init_lex_with_single_table(thd, table, &lex))
     goto end;
+
   /*
     All Items created is put into a free list on the THD object. This list
     is used to free all Item objects after completing a query. We don't
@@ -4178,6 +4200,7 @@ bool mysql_unpack_partition(THD *thd,
     Thus we move away the current list temporarily and start a new list that
     we then save in the partition info structure.
   */
+  *work_part_info_used= FALSE;
   lex.part_info= new partition_info();/* Indicates MYSQLparse from this place */
   if (!lex.part_info)
   {
@@ -4215,39 +4238,22 @@ bool mysql_unpack_partition(THD *thd,
              ha_resolve_storage_engine_name(default_db_type)));
   if (is_create_table_ind && old_lex->sql_command == SQLCOM_CREATE_TABLE)
   {
-    if (old_lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
-    {
-      /*
-        This code is executed when we create table in CREATE TABLE t1 LIKE t2.
-        old_lex->query_tables contains table list element for t2 and the table
-        we are opening has name t1.
-      */
-      if (partition_default_handling(table, part_info, FALSE,
-                                     old_lex->query_tables->table->s->path.str))
-      {
-        result= TRUE;
-        goto end;
-      }
-    }
-    else
-    {
-      /*
-        When we come here we are doing a create table. In this case we
-        have already done some preparatory work on the old part_info
-        object. We don't really need this new partition_info object.
-        Thus we go back to the old partition info object.
-        We need to free any memory objects allocated on item_free_list
-        by the parser since we are keeping the old info from the first
-        parser call in CREATE TABLE.
-        We'll ensure that this object isn't put into table cache also
-        just to ensure we don't get into strange situations with the
-        item objects.
-      */
-      thd->free_items();
-      part_info= thd->work_part_info;
-      table->s->version= 0UL;
-      *work_part_info_used= true;
-    }
+    /*
+      When we come here we are doing a create table. In this case we
+      have already done some preparatory work on the old part_info
+      object. We don't really need this new partition_info object.
+      Thus we go back to the old partition info object.
+      We need to free any memory objects allocated on item_free_list
+      by the parser since we are keeping the old info from the first
+      parser call in CREATE TABLE.
+
+      This table object can not be used any more. However, since
+      this is CREATE TABLE, we know that it will be destroyed by the
+      caller, and rely on that.
+    */
+    thd->free_items();
+    part_info= thd->work_part_info;
+    *work_part_info_used= true;
   }
   table->part_info= part_info;
   table->file->set_part_info(part_info);
@@ -4291,8 +4297,7 @@ bool mysql_unpack_partition(THD *thd,
 
   result= FALSE;
 end:
-  lex_end(thd->lex);
-  thd->lex= old_lex;
+  end_lex_with_single_table(thd, table, old_lex);
   thd->variables.character_set_client= old_character_set_client;
   DBUG_RETURN(result);
 }
@@ -4355,7 +4360,6 @@ set_engine_all_partitions(partition_info *part_info,
 
 static int fast_end_partition(THD *thd, ulonglong copied,
                               ulonglong deleted,
-                              TABLE *table,
                               TABLE_LIST *table_list, bool is_empty,
                               ALTER_PARTITION_PARAM_TYPE *lpt,
                               bool written_bin_log)
@@ -4369,16 +4373,12 @@ static int fast_end_partition(THD *thd, ulonglong copied,
   if (!is_empty)
     query_cache_invalidate3(thd, table_list, 0);
 
-  error= ha_autocommit_or_rollback(thd, 0);
-  if (end_active_trans(thd))
+  error= trans_commit_stmt(thd);
+  if (trans_commit_implicit(thd))
     error= 1;
 
   if (error)
-  {
-    /* If error during commit, no need to rollback, it's done. */
-    table->file->print_error(error, MYF(0));
-    DBUG_RETURN(TRUE);
-  }
+    DBUG_RETURN(TRUE);                      /* The error has been reported */
 
   if ((!is_empty) && (!written_bin_log) &&
       (!thd->lex->no_write_to_binlog) &&
@@ -4551,12 +4551,11 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   }
   /*
     We are going to manipulate the partition info on the table object
-    so we need to ensure that the data structure of the table object
-    is freed by setting version to 0. table->s->version= 0 forces a
-    flush of the table object in close_thread_tables().
+    so we need to ensure that the table instance is removed from the
+    table cache.
   */
   if (table->part_info)
-    table->s->version= 0L;
+    table->m_needs_reopen= TRUE;
 
   thd->work_part_info= thd->lex->part_info;
   if (thd->work_part_info &&
@@ -5530,10 +5529,7 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
                                          &lpt->deleted, lpt->pack_frm_data,
                                          lpt->pack_frm_len)))
   {
-    if (error != ER_OUTOFMEMORY)
-      file->print_error(error, MYF(0));
-    else
-      lpt->thd->fatal_error();
+    file->print_error(error, MYF(error != ER_OUTOFMEMORY ? 0 : ME_FATALERROR));
     DBUG_RETURN(TRUE);
   }
   DBUG_RETURN(FALSE);
@@ -5955,7 +5951,7 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   DBUG_ENTER("write_log_drop_shadow_frm");
 
   build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, NULL,
                                   (const char*)shadow_path, FALSE))
     goto error;
@@ -5963,13 +5959,13 @@ static bool write_log_drop_shadow_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (write_execute_ddl_log_entry(log_entry->entry_pos,
                                     FALSE, &exec_log_entry))
     goto error;
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   set_part_info_exec_log_entry(part_info, exec_log_entry);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
@@ -6003,7 +5999,7 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
   build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
   build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_replace_delete_frm(lpt, 0UL, shadow_path, path, TRUE))
     goto error;
   log_entry= part_info->first_log_entry;
@@ -6012,12 +6008,12 @@ static bool write_log_rename_frm(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     FALSE, &exec_log_entry))
     goto error;
   release_part_info_log_entries(old_first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= old_first_log_entry;
   part_info->frm_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
@@ -6055,7 +6051,7 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
   build_table_shadow_filename(tmp_path, sizeof(tmp_path) - 1, lpt);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
     goto error;
@@ -6068,12 +6064,12 @@ static bool write_log_drop_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     FALSE, &exec_log_entry))
     goto error;
   release_part_info_log_entries(old_first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= old_first_log_entry;
   part_info->frm_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
@@ -6111,7 +6107,7 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
   build_table_shadow_filename(tmp_path, sizeof(tmp_path) - 1, lpt);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                                    FALSE))
     goto error;
@@ -6122,13 +6118,13 @@ static bool write_log_add_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (write_execute_ddl_log_entry(log_entry->entry_pos,
                                     FALSE, &exec_log_entry))
     goto error;
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   set_part_info_exec_log_entry(part_info, exec_log_entry);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
   DBUG_RETURN(TRUE);
@@ -6166,7 +6162,7 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
   build_table_filename(path, sizeof(path) - 1, lpt->db,
                        lpt->table_name, "", 0);
   build_table_shadow_filename(shadow_path, sizeof(shadow_path) - 1, lpt);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_log_dropped_partitions(lpt, &next_entry, (const char*)path,
                       lpt->alter_info->flags & ALTER_REORGANIZE_PARTITION))
     goto error;
@@ -6180,12 +6176,12 @@ static bool write_log_final_change_partition(ALTER_PARTITION_PARAM_TYPE *lpt)
                                     FALSE, &exec_log_entry))
     goto error;
   release_part_info_log_entries(old_first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   DBUG_RETURN(FALSE);
 
 error:
   release_part_info_log_entries(part_info->first_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= old_first_log_entry;
   part_info->frm_log_entry= NULL;
   my_error(ER_DDL_LOG_ERROR, MYF(0));
@@ -6212,7 +6208,7 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
   DBUG_ENTER("write_log_completed");
 
   DBUG_ASSERT(log_entry);
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   if (write_execute_ddl_log_entry(0UL, TRUE, &log_entry))
   {
     /*
@@ -6226,7 +6222,7 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
   }
   release_part_info_log_entries(part_info->first_log_entry);
   release_part_info_log_entries(part_info->exec_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->exec_log_entry= NULL;
   part_info->first_log_entry= NULL;
   DBUG_VOID_RETURN;
@@ -6244,10 +6240,10 @@ static void write_log_completed(ALTER_PARTITION_PARAM_TYPE *lpt,
 
 static void release_log_entries(partition_info *part_info)
 {
-  pthread_mutex_lock(&LOCK_gdl);
+  mysql_mutex_lock(&LOCK_gdl);
   release_part_info_log_entries(part_info->first_log_entry);
   release_part_info_log_entries(part_info->exec_log_entry);
-  pthread_mutex_unlock(&LOCK_gdl);
+  mysql_mutex_unlock(&LOCK_gdl);
   part_info->first_log_entry= NULL;
   part_info->exec_log_entry= NULL;
 }
@@ -6264,30 +6260,13 @@ static void release_log_entries(partition_info *part_info)
 */
 static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  int err;
-  if (lpt->thd->locked_tables)
-  {
-    /*
-      When we have the table locked, it is necessary to reopen the table
-      since all table objects were closed and removed as part of the
-      ALTER TABLE of partitioning structure.
-    */
-    pthread_mutex_lock(&LOCK_open);
-    lpt->thd->in_lock_tables= 1;
-    err= reopen_tables(lpt->thd, 1, 1);
-    lpt->thd->in_lock_tables= 0;
-    if (err)
-    {
-      /*
-       Issue a warning since we weren't able to regain the lock again.
-       We also need to unlink table from thread's open list and from
-       table_cache
-     */
-      unlink_open_table(lpt->thd, lpt->table, FALSE);
-      sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
-    }
-    pthread_mutex_unlock(&LOCK_open);
-  }
+  THD *thd= lpt->thd;
+
+  close_all_tables_for_name(thd, lpt->table->s, FALSE);
+  lpt->table= 0;
+  lpt->table_list->table= 0;
+  if (thd->locked_tables_list.reopen_tables(thd))
+    sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
 }
 
 /*
@@ -6301,18 +6280,40 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
 
 static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
+  TABLE_SHARE *share= lpt->table->s;
   THD *thd= lpt->thd;
-  const char *db= lpt->db;
-  const char *table_name= lpt->table_name;
+  TABLE *table;
   DBUG_ENTER("alter_close_tables");
   /*
-    We need to also unlock tables and close all handlers.
-    We set lock to zero to ensure we don't do this twice
-    and we set db_stat to zero to ensure we don't close twice.
+    We must keep LOCK_open while manipulating with thd->open_tables.
+    Another thread may be working on it.
   */
-  pthread_mutex_lock(&LOCK_open);
-  close_data_files_and_morph_locks(thd, db, table_name);
-  pthread_mutex_unlock(&LOCK_open);
+  mysql_mutex_lock(&LOCK_open);
+  /*
+    We can safely remove locks for all tables with the same name:
+    later they will all be closed anyway in
+    alter_partition_lock_handling().
+  */
+  for (table= thd->open_tables; table ; table= table->next)
+  {
+    if (!strcmp(table->s->table_name.str, share->table_name.str) &&
+	!strcmp(table->s->db.str, share->db.str))
+    {
+      mysql_lock_remove(thd, thd->lock, table);
+      table->file->close();
+      table->db_stat= 0;                        // Mark file closed
+      /*
+        Ensure that we won't end up with a crippled table instance
+        in the table cache if an error occurs before we reach
+        alter_partition_lock_handling() and the table is closed
+        by close_thread_tables() instead.
+      */
+      tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
+                       table->s->db.str,
+                       table->s->table_name.str);
+    }
+  }
+  mysql_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
 
@@ -6478,6 +6479,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
   DBUG_ENTER("fast_alter_partition_table");
 
   lpt->thd= thd;
+  lpt->table_list= table_list;
   lpt->part_info= part_info;
   lpt->alter_info= alter_info;
   lpt->create_info= create_info;
@@ -6577,10 +6579,10 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       3) Lock the table in TL_WRITE_ONLY to ensure all other accesses to
          the table have completed. This ensures that other threads can not
          execute on the table in parallel.
-      4) Get a name lock on the table. This ensures that we can release all
-         locks on the table and since no one can open the table, there can
-         be no new threads accessing the table. They will be hanging on the
-         name lock.
+      4) Get an exclusive metadata lock on the table. This ensures that we
+         can release all other locks on the table and since no one can open
+         the table, there can be no new threads accessing the table. They
+         will be hanging on this exclusive lock.
       5) Close all tables that have already been opened but didn't stumble on
          the abort locked previously. This is done as part of the
          close_data_files_and_morph_locks call.
@@ -6613,7 +6615,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_drop_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_3") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        abort_and_upgrade_lock(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_4") ||
         alter_close_tables(lpt) ||
         ERROR_INJECT_CRASH("crash_drop_partition_5") ||
@@ -6655,14 +6657,15 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       3) Lock all partitions in TL_WRITE_ONLY to ensure that no users
          are still using the old partitioning scheme. Wait until all
          ongoing users have completed before progressing.
-      4) Get a name lock on the table. This ensures that we can release all
-         locks on the table and since no one can open the table, there can
-         be no new threads accessing the table. They will be hanging on the
-         name lock.
+      4) Get an exclusive metadata lock on the table. This ensures that we
+         can release all other locks on the table and since no one can open
+         the table, there can be no new threads accessing the table. They
+         will be hanging on this exclusive lock.
       5) Close all tables that have already been opened but didn't stumble on
          the abort locked previously. This is done as part of the
          close_data_files_and_morph_locks call.
-      6) Close all table handlers and unlock all handlers but retain name lock
+      6) Close all table handlers and unlock all handlers but retain
+         metadata lock.
       7) Write binlog
       8) Now the change is completed except for the installation of the
          new frm file. We thus write an action in the log to change to
@@ -6680,7 +6683,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_2") ||
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
-        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        abort_and_upgrade_lock(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_4") ||
         alter_close_tables(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
@@ -6696,7 +6699,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_8") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_add_partition_9") ||
-        (alter_partition_lock_handling(lpt), FALSE)) 
+        (alter_partition_lock_handling(lpt), FALSE))
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       goto err;
@@ -6743,23 +6746,18 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          Copy from the reorganised partitions to the new partitions
       4) Log that operation is completed and log all complete actions
          needed to complete operation from here
-      5) Lock all partitions in TL_WRITE_ONLY to ensure that no users
-         are still using the old partitioning scheme. Wait until all
-         ongoing users have completed before progressing.
-      6) Get a name lock of the table
-      7) Close all tables opened but not yet locked, after this call we are
-         certain that no other thread is in the lock wait queue or has
-         opened the table. The name lock will ensure that they are blocked
-         on the open call.
-         This is achieved also by close_data_files_and_morph_locks call.
-      8) Close all partitions opened by this thread, but retain name lock.
-      9) Write bin log
-      10) Prepare handlers for rename and delete of partitions
-      11) Rename and drop the reorged partitions such that they are no
-          longer used and rename those added to their real new names.
-      12) Install the shadow frm file
-      13) Reopen the table if under lock tables
-      14) Complete query
+      5) Upgrade shared metadata lock on the table to an exclusive one.
+         After this we can be sure that there is no other connection
+         using this table (they will be waiting for metadata lock).
+      6) Close all table instances opened by this thread, but retain
+         exclusive metadata lock.
+      7) Write bin log
+      8) Prepare handlers for rename and delete of partitions
+      9) Rename and drop the reorged partitions such that they are no
+         longer used and rename those added to their real new names.
+      10) Install the shadow frm file
+      11) Reopen the table if under lock tables
+      12) Complete query
     */
     if (write_log_add_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_1") ||
@@ -6770,7 +6768,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         write_log_final_change_partition(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_4") ||
         (not_completed= FALSE) ||
-        abort_and_upgrade_lock(lpt) || /* Always returns 0 */
+        abort_and_upgrade_lock(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_5") ||
         alter_close_tables(lpt) ||
         ERROR_INJECT_CRASH("crash_change_partition_6") ||
@@ -6798,7 +6796,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
     user
   */
   DBUG_RETURN(fast_end_partition(thd, lpt->copied, lpt->deleted,
-                                 table, table_list, FALSE, NULL,
+                                 table_list, FALSE, NULL,
                                  written_bin_log));
 err:
   close_thread_tables(thd);

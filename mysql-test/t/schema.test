@@ -4,6 +4,9 @@
 # Drop mysqltest1 database, as it can left from the previous tests.
 #
 
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
 --disable_warnings
 drop database if exists mysqltest1;
 --enable_warnings
@@ -12,3 +15,93 @@ create schema foo;
 show create schema foo;
 show schemas;
 drop schema foo;
+
+
+--echo #
+--echo # Bug #48940 MDL deadlocks against mysql_rm_db
+--echo #
+
+--disable_warnings
+DROP SCHEMA IF EXISTS schema1;
+--enable_warnings
+
+connect(con2, localhost, root);
+
+--echo # Connection default
+connection default;
+
+CREATE SCHEMA schema1;
+CREATE TABLE schema1.t1 (a INT);
+
+SET autocommit= FALSE;
+INSERT INTO schema1.t1 VALUES (1);
+
+--echo # Connection 2
+connection con2;
+--send DROP SCHEMA schema1
+
+--echo # Connection default
+connection default;
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+                     WHERE state= 'Waiting for table' 
+                     AND info='DROP SCHEMA schema1';
+--source include/wait_condition.inc
+# Listing the error twice to prevent result diffences based on filename
+--error 1,1
+ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
+SET autocommit= TRUE;
+
+--echo # Connection 2
+connection con2;
+--reap
+
+--echo # Connection default
+connection default;
+disconnect con2;
+
+
+--echo #
+--echo # Bug #49988 MDL deadlocks with mysql_create_db, reload_acl_and_cache
+--echo #
+
+--disable_warnings
+DROP SCHEMA IF EXISTS schema1;
+--enable_warnings
+
+connect (con2, localhost, root);
+
+--echo # Connection default
+connection default;
+CREATE SCHEMA schema1;
+CREATE TABLE schema1.t1 (id INT);
+LOCK TABLE schema1.t1 WRITE;
+
+--echo # Connection con2
+connection con2;
+--send DROP SCHEMA schema1
+
+--echo # Connection default
+connection default;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
+  WHERE state='Waiting for table' and info='DROP SCHEMA schema1';
+--source include/wait_condition.inc
+
+--echo # CREATE SCHEMA used to give a deadlock.
+--echo # Now we prohibit CREATE SCHEMA in LOCK TABLES mode.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+CREATE SCHEMA IF NOT EXISTS schema1;
+
+--echo # UNLOCK TABLES so DROP SCHEMA can continue.
+UNLOCK TABLES;
+
+--echo # Connection con2
+connection con2;
+--reap
+
+--echo # Connection default
+connection default;
+disconnect con2;
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

@@ -93,3 +93,92 @@ SELECT hex(a), hex(lower(a)), hex(upper(a)) FROM t1 ORDER BY binary(a);
 DROP TABLE t1;
 
 --echo # End of 5.1 tests
+
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # Testing WL#4583 Case conversion in Asian character sets 
+--echo #
+#
+# Populate t1 with all hex digits
+#
+SET NAMES utf8;
+SET collation_connection=sjis_japanese_ci;
+CREATE TABLE t1 (b VARCHAR(2));
+INSERT INTO t1 VALUES ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
+INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
+#
+# Populate tables head and tail with values '00'-'FF'
+#
+CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 b2;
+CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
+DROP TABLE t1;
+#
+# Populate table t1 with all codes [80..FF][20..FF]
+# excluding Half Width Kana [A1..DF]
+# Expected valid sjis codes:
+# [81..9F,E0..FC][40..7E,80..fC]  (60x188=11280 characters)
+#
+CREATE TABLE t1 AS
+SELECT concat(head, tail) AS code, ' ' AS a
+FROM head, tail
+WHERE (head BETWEEN '80' AND 'FF') AND (head NOT BETWEEN 'A1' AND 'DF')
+AND   (tail BETWEEN '20' AND 'FF')
+ORDER BY head, tail;
+#
+# Populate Half Width Kana: [A1..DF]
+# 
+INSERT t1 (code) SELECT head FROM head WHERE (head BETWEEN 'A1' AND 'DF');
+DROP TEMPORARY TABLE head, tail;
+SHOW CREATE TABLE t1;
+UPDATE t1 SET a=unhex(code) ORDER BY code;
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=1;
+SELECT COUNT(*) FROM t1 WHERE a<>'' AND OCTET_LENGTH(a)=2;
+#
+# Display all characters that have upper or lower case mapping.
+#
+SELECT code, hex(upper(a)), hex(lower(a)),a, upper(a), lower(a)
+FROM t1
+WHERE hex(a)<>hex(upper(a)) OR hex(a)<>hex(lower(a))
+ORDER BY code;
+#
+# Make sure all possible conversion happened
+#
+# Expect U+212B ANGSTROM SIGN
+#
+SELECT * FROM t1
+WHERE HEX(CAST(LOWER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(LOWER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+#
+# Expect no results
+#
+SELECT * FROM t1
+WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
+      HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
+
+--echo #
+--echo # WL#3090 Japanese Character Set adjustments
+--echo # Test sjis->Unicode conversion
+--echo #
+SELECT HEX(a), HEX(CONVERT(a USING utf8)) as b FROM t1
+WHERE a<>'' HAVING b<>'3F' ORDER BY code;
+
+DROP TABLE t1;
+
+
+--echo #
+--echo # WL#3090 Japanese Character Set adjustments
+--echo # Test Unicode->sjis conversion
+--echo #
+--source include/ctype_utf8_table.inc
+SELECT HEX(a), HEX(CONVERT(a using sjis)) as b FROM t1 HAVING b<>'3F' ORDER BY BINARY a;
+DROP TABLE t1;
+
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

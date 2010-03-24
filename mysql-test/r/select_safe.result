@@ -1,5 +1,5 @@
 drop table if exists t1;
-SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, SQL_MAX_JOIN_SIZE=9;
+SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, MAX_JOIN_SIZE=9;
 create table t1 (a int auto_increment primary key, b char(20));
 insert into t1 values(1,"test");
 SELECT SQL_BUFFER_RESULT * from t1;
@@ -90,4 +90,4 @@ set local  max_join_size=1;
 select * from (select 1 union select 2 union select 3) x;
 ERROR 42000: The SELECT would examine more than MAX_JOIN_SIZE rows; check your WHERE and use SET SQL_BIG_SELECTS=1 or SET SQL_MAX_JOIN_SIZE=# if the SELECT is okay
 drop table t1;
-SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, SQL_MAX_JOIN_SIZE=DEFAULT;
+SET SQL_SAFE_UPDATES=0,SQL_SELECT_LIMIT=DEFAULT, MAX_JOIN_SIZE=DEFAULT;

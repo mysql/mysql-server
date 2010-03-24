@@ -9,6 +9,8 @@
 # column and index but without primary key.
 ##############################################################
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 --echo #
 --echo # Setup
 --echo #
@@ -117,6 +119,7 @@ sync_slave_with_master;
 --echo #
 
 connection master;
+set @@session.sql_auto_is_null=1;
 eval create table t1(a int auto_increment, key(a)) engine=$engine_type;
 eval create table t2(a int) engine=$engine_type;
 insert into t1 (a) values (null);
@@ -179,13 +182,17 @@ begin
 end|
 delimiter ;|
 
+--disable_warnings
 insert into t1 (last_id) values (0);
+--enable_warnings
 
 drop trigger t1_bi;
 
 # Check that nested call doesn't affect outer context.
 select last_insert_id();
+--disable_warnings
 select bug15728_insert();
+--enable_warnings
 select last_insert_id();
 insert into t1 (last_id) values (bug15728());
 # This should be exactly one greater than in the previous call.
@@ -438,7 +445,9 @@ delimiter ;|
 
 INSERT INTO t1 VALUES (NULL, -1);
 CALL p1();
+--disable_warnings
 SELECT f1();
+--enable_warnings
 INSERT INTO t1 VALUES (NULL, f2()), (NULL, LAST_INSERT_ID()),
                       (NULL, LAST_INSERT_ID()), (NULL, f2()), (NULL, f2());
 INSERT INTO t1 VALUES (NULL, f2());
@@ -507,12 +516,16 @@ insert into t2 (id) values(1),(2),(3);
 delete from t2;
 set sql_log_bin=1;
 #inside SELECT, then inside INSERT
+--disable_warnings
 select insid();
+--enable_warnings
 set sql_log_bin=0;
 insert into t2 (id) values(5),(6),(7);
 delete from t2 where id>=5;
 set sql_log_bin=1;
+--disable_warnings
 insert into t1 select insid();
+--enable_warnings
 select * from t1 order by id;
 select * from t2 order by id;
 
@@ -548,4 +561,5 @@ connection master;
 drop table t1, t2;
 drop procedure foo;
 SET @@global.concurrent_insert= @old_concurrent_insert;
+set @@session.sql_auto_is_null=default;
 sync_slave_with_master;

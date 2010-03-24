@@ -109,7 +109,7 @@ int main(int argc,char **argv)
       sleep(1);
       return 0;
     }
-    VOID(rnd(1));
+    (void) rnd(1);
   }
 
   for (i=0 ; i < forks ; i++)
@@ -487,6 +487,8 @@ int test_update(MI_INFO *file,int id,int lock_type)
   printf("%2d: update: %5d\n",id,update); fflush(stdout);
   return 0;
 }
+
+#include "mi_extrafunc.h"
 
 #else /* __NETWARE__ */
 

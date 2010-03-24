@@ -1,5 +1,3 @@
--- source include/not_embedded.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
@@ -10,31 +8,44 @@ drop table if exists t1,t2;
 # Test to see if select will get the lock ahead of low priority update
 
 connect (locker,localhost,root,,);
+connect (locker2,localhost,root,,);
 connect (reader,localhost,root,,);
 connect (writer,localhost,root,,);
 
 connection locker;
 create table t1(n int);
 insert into t1 values (1);
-lock tables t1 write;
+connection locker2;
+select get_lock("mysqltest_lock", 100);
+connection locker;
+send
+update t1 set n = 2 and get_lock('mysqltest_lock', 100);
 connection writer;
+# Wait till above update gets blocked on a user lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and info = "update t1 set n = 2 and get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
 send
 update low_priority t1 set n = 4;
 connection reader;
 # Sleep a bit till the update of connection writer is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "update low_priority t1 set n = 4";
+  where state = "Table lock" and info = "update low_priority t1 set n = 4";
 --source include/wait_condition.inc
 send
 select n from t1;
-connection locker;
+connection locker2;
 # Sleep a bit till the select of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "select n from t1";
+  where state = "Table lock" and info = "select n from t1";
 --source include/wait_condition.inc
-unlock tables;
+select release_lock("mysqltest_lock");
+connection locker;
+reap;
+select release_lock("mysqltest_lock");
 connection writer;
 reap;
 connection reader;
@@ -44,19 +55,31 @@ drop table t1;
 connection locker;
 create table t1(n int);
 insert into t1 values (1);
-lock tables t1 read;
+connection locker2;
+select get_lock("mysqltest_lock", 100);
+connection locker;
+send
+select n from t1 where get_lock('mysqltest_lock', 100);
 connection writer;
+# Wait till above select gets blocked on a user lock.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "User lock" and info = "select n from t1 where get_lock('mysqltest_lock', 100)";
+--source include/wait_condition.inc
 send
 update low_priority t1 set n = 4;
 connection reader;
 # Sleep a bit till the update of connection writer is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "update low_priority t1 set n = 4";
+  where state = "Table lock" and info = "update low_priority t1 set n = 4";
 --source include/wait_condition.inc
 select n from t1;
+connection locker2;
+select release_lock("mysqltest_lock");
 connection locker;
-unlock tables;
+reap;
+select release_lock("mysqltest_lock");
 connection writer;
 reap;
 drop table t1;
@@ -78,6 +101,7 @@ update t1,t2 set c=a where b=d;
 connection reader;
 select c from t2;
 connection locker;
+unlock tables;
 drop table t1;
 drop table t2;
 
@@ -96,9 +120,10 @@ insert t1 select * from t2;
 connection locker;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert t1 select * from t2";
+  where state = "Waiting for table" and info = "insert t1 select * from t2";
 --source include/wait_condition.inc
 drop table t2;
+unlock tables;
 connection reader;
 --error ER_NO_SUCH_TABLE
 reap;
@@ -120,9 +145,10 @@ connection locker;
 # Sleep a bit till the insert of connection reader is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert t1 select * from t2";
+  where state = "Waiting for table" and info = "insert t1 select * from t2";
 --source include/wait_condition.inc
 drop table t2;
+unlock tables;
 connection reader;
 --error ER_NO_SUCH_TABLE
 reap;
@@ -164,8 +190,8 @@ SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1;
 connection locker;
 # Sleep a bit till the select of connection reader is in work and hangs
 let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info =
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table" AND info =
   "SELECT user.Select_priv FROM user, db WHERE user.user = db.user LIMIT 1";
 --source include/wait_condition.inc
 # Make test case independent from earlier grants.
@@ -197,9 +223,10 @@ connection writer;
 # Sleep a bit till the flush of connection locker is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
+  where state = "Waiting for table" and info = "FLUSH TABLES WITH READ LOCK";
 --source include/wait_condition.inc
 # This must not block.
+--error ER_TABLE_NOT_LOCKED
 CREATE TABLE t2 (c1 int);
 UNLOCK TABLES;
 #
@@ -209,7 +236,7 @@ reap;
 UNLOCK TABLES;
 #
 connection default;
-DROP TABLE t1, t2;
+DROP TABLE t1;
 #
 # Test if CREATE TABLE SELECT with LOCK TABLE deadlocks.
 #
@@ -227,7 +254,7 @@ connection writer;
 # Sleep a bit till the flush of connection locker is in work and hangs
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables" and info = "FLUSH TABLES WITH READ LOCK";
+  where state = "Waiting for table" and info = "FLUSH TABLES WITH READ LOCK";
 --source include/wait_condition.inc
 --error ER_TABLE_NOT_LOCKED
 CREATE TABLE t2 AS SELECT * FROM t1;
@@ -299,7 +326,7 @@ connection reader;
 # Wait till connection writer is blocked
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "alter table t1 auto_increment=0";
+  where state = "Waiting for table" and info = "alter table t1 auto_increment=0";
 --source include/wait_condition.inc
 send
 alter table t1 auto_increment=0;
@@ -307,7 +334,7 @@ connection locker;
 # Wait till connection reader is blocked
 let $wait_condition=
   select count(*) = 2 from information_schema.processlist
-  where state = "Locked" and info = "alter table t1 auto_increment=0";
+  where state = "Waiting for table" and info = "alter table t1 auto_increment=0";
 --source include/wait_condition.inc
 unlock tables;
 connection writer;
@@ -338,10 +365,10 @@ connection con2;
 send flush tables with read lock;
 connection con5;
 --echo # con5
-let $show_statement= SHOW PROCESSLIST;
-let $field= State;
-let $condition= = 'Flushing tables';
---source include/wait_show_condition.inc
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "flush tables with read lock";
+--source include/wait_condition.inc
 --echo # global read lock is taken
 connection con3;
 --echo # con3
@@ -462,16 +489,16 @@ update t1 set i= 10;
 connection reader;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "update t1 set i= 10";
+  where state = "Table lock" and info = "update t1 set i= 10";
 --source include/wait_condition.inc
 send
 select * from t1;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "select * from t1";
+  where state = "Table lock" and info = "select * from t1";
 --source include/wait_condition.inc
-let $ID= `select id from information_schema.processlist where state = "Locked" and info = "update t1 set i= 10"`;
+let $ID= `select id from information_schema.processlist where state = "Table lock" and info = "update t1 set i= 10"`;
 --replace_result $ID ID
 eval kill query $ID;
 connection reader;
@@ -502,6 +529,7 @@ drop table t1;
 
 # Disconnect sessions used in many subtests above
 disconnect locker;
+disconnect locker2;
 disconnect reader;
 disconnect writer;
 
@@ -529,7 +557,7 @@ connection default;
 --echo connection: default
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 alter table t1 add column j int;
 connect (insert,localhost,root,,test,,);
@@ -537,7 +565,7 @@ connection insert;
 --echo connection: insert
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 --send insert into t1 values (1,2);
 --echo connection: default
@@ -587,18 +615,14 @@ connection default;
 --echo connection: default
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 flush tables;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Flushing tables";
+  where state = "Waiting for table";
 --source include/wait_condition.inc
 unlock tables;
-let $wait_condition=
-  select count(*) = 0 from information_schema.processlist
-  where state = "Flushing tables";
---source include/wait_condition.inc
 connection flush;
 --reap
 connection default;
@@ -618,11 +642,11 @@ lock tables t1 read;
 let $tlwa= `show status like 'Table_locks_waited'`;
 connect (waiter,localhost,root,,);
 connection waiter;
---send insert into t1 values(1);
+send insert into t1 values(1);
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and info = "insert into t1 values(1)";
+  where state = "Table lock" and info = "insert into t1 values(1)";
 --source include/wait_condition.inc
 let $tlwb= `show status like 'Table_locks_waited'`;
 unlock tables;
@@ -639,6 +663,460 @@ select @tlwa < @tlwb;
 
 --echo End of 5.1 tests
 
+#
+# Test that DROP TABLES does not wait for a impending FLUSH TABLES
+# WITH READ LOCK
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (i int);
+connect (flush,localhost,root,,test,,);
+connection default;
+--echo connection: default
+lock tables t1 write;
+connection flush;
+--echo connection: flush
+--send flush tables with read lock;
+connection default;
+--echo connection: default
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table";
+--source include/wait_condition.inc
+flush tables;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table";
+--source include/wait_condition.inc
+drop table t1;
+connection flush;
+--reap
+connection default;
+disconnect flush;
+
+
+--echo #
+--echo # Test for bug #46272 "MySQL 5.4.4, new MDL: unnecessary deadlock".
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (c1 int primary key, c2 int, c3 int);
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+update t1 set c3=c3+1 where c2=3;
+
+--echo #
+--echo # Switching to connection 'con46272'.
+connect (con46272,localhost,root,,test,,);
+connection con46272;
+--echo # The below ALTER TABLE statement should wait till transaction
+--echo # in connection 'default' is complete and then succeed.
+--echo # It should not deadlock or fail with ER_LOCK_DEADLOCK error.
+--echo # Sending:
+--send alter table t1 add column c4 int;
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until the above ALTER TABLE gets blocked because this
+--echo # connection holds SW metadata lock on table to be altered.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 add column c4 int";
+--source include/wait_condition.inc
+
+--echo # The below statement should succeed. It should not
+--echo # deadlock or end with ER_LOCK_DEADLOCK error.
+update t1 set c3=c3+1 where c2=4;
+
+--echo # Unblock ALTER TABLE by committing transaction.
+commit;
+
+--echo #
+--echo # Switching to connection 'con46272'.
+connection con46272;
+--echo # Reaping ALTER TABLE.
+--reap
+
+--echo #
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con46272;
+drop table t1;
+
+
+--echo #
+--echo # Bug#47249 assert in MDL_global_lock::is_lock_type_compatible
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW  IF EXISTS v1;
+--enable_warnings
+
+--echo #
+--echo # Test 1: LOCK TABLES v1 WRITE, t1 READ;
+--echo #
+--echo # Thanks to the fact that we no longer allow DDL on tables
+--echo # which are locked for write implicitly, the exact scenario
+--echo # in which assert was failing is no longer repeatable.
+
+CREATE TABLE t1 ( f1 integer );
+CREATE VIEW v1 AS SELECT f1 FROM t1 ;
+
+LOCK TABLES v1 WRITE, t1 READ;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+FLUSH TABLE t1;
+UNLOCK TABLES;
+
+# Cleanup
+DROP TABLE t1;
+DROP VIEW v1;
+
+--echo #
+--echo # Test 2: LOCK TABLES t1 WRITE, v1 READ;
+--echo #
+
+CREATE TABLE t1 ( f1 integer );
+CREATE VIEW v1 AS SELECT f1 FROM t1 ;
+
+--echo # Connection 2
+connect (con2,localhost,root);
+LOCK TABLES t1 WRITE, v1 READ;
+FLUSH TABLE t1;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+
+--echo # Connection 1
+connection default;
+LOCK TABLES t1 WRITE;
+FLUSH TABLE t1;                                    # Assertion happened here
+
+# Cleanup
+DROP TABLE t1;
+DROP VIEW v1;
+
+
+--echo #
+--echo # Test for bug #50913 "Deadlock between open_and_lock_tables_derived
+--echo # and MDL". Also see additional coverage in mdl_sync.test.
+--echo # 
+--disable_warnings
+drop table if exists t1;
+drop view if exists v1;
+--enable_warnings
+connect (con50913,localhost,root);
+connection default;
+create table t1 (i int);
+create view v1 as select i from t1;
+begin;
+select * from t1;
+
+--echo # Switching to connection 'con50913'.
+connection con50913;
+--echo # Sending:
+--send alter table t1 add column j int
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until ALTER TABLE gets blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 add column j int";
+--source include/wait_condition.inc
+--echo # The below statement should try to acquire SW lock on 't1'
+--echo # and therefore should get ER_LOCK_DEADLOCK error. Before
+--echo # bug fix it acquired SR lock and hung on thr_lock.c lock.
+--error ER_LOCK_DEADLOCK
+delete a from t1 as a where i = 1;
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Switching to connection 'con50913'.
+connection con50913;
+--echo # Reaping ALTER TABLE;
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+begin;
+select * from v1;
+
+--echo # Switching to connection 'con50913'.
+connection con50913;
+--echo # Sending:
+--send alter table t1 drop column j
+
+--echo # Switching to connection 'default'.
+connection default;
+--echo # Wait until ALTER TABLE gets blocked.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "alter table t1 drop column j";
+--source include/wait_condition.inc
+--echo # The below statement should try to acquire SW lock on 't1'
+--echo # and therefore should get ER_LOCK_DEADLOCK error. Before
+--echo # bug fix it acquired SR lock and hung on thr_lock.c lock.
+--error ER_LOCK_DEADLOCK
+insert into v1 values (1);
+--echo # Unblock ALTER TABLE.
+commit;
+
+--echo # Switching to connection 'con50913'.
+connection con50913;
+--echo # Reaping ALTER TABLE;
+--reap
+
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con50913;
+drop view v1;
+drop table t1;
+
+
+--echo #
+--echo # Bug#45225 Locking: hang if drop table with no timeout
+--echo #
+--echo # These tests also provide function coverage for the
+--echo # lock_wait_timeout server variable.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id int);
+
+connect(con2, localhost, root,,);
+SET SESSION lock_wait_timeout= 1;
+
+--echo #
+--echo # Test 1: acquire exclusive lock
+--echo #
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+
+--echo # Connection 2
+connection con2;
+--error ER_LOCK_WAIT_TIMEOUT
+DROP TABLE t1;
+
+--echo # Connection default
+connection default;
+COMMIT;
+
+--echo #
+--echo # Test 2: upgrade shared lock
+--echo #
+
+--echo # Connection default
+connection default;
+START TRANSACTION;
+SELECT * FROM t1;
+
+--echo # Connection 2
+connection con2;
+--error ER_LOCK_WAIT_TIMEOUT
+ALTER TABLE t1 RENAME TO t2;
+
+--echo # Connection default
+connection default;
+COMMIT;
+
+--echo #
+--echo # Test 3: acquire shared lock
+--echo #
+
+--echo # Connection default
+connection default;
+LOCK TABLE t1 WRITE;
+
+--echo # Connection 2
+connection con2;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1(id) VALUES (2);
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # Test 4: table level locks
+--echo #
+
+--echo # Connection default
+connection default;
+LOCK TABLE t1 READ;
+
+--echo # Connection 2
+connection con2;
+--error ER_LOCK_WAIT_TIMEOUT
+INSERT INTO t1(id) VALUES(4);
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+
+--echo #
+--echo # Test 5: Waiting on Table Definition Cache (TDC)
+--echo #
+
+connect(con3, localhost, root);
+
+--echo # Connection default
+connection default;
+LOCK TABLE t1 READ;
+
+--echo # Connection con3
+connection con3;
+--echo # Sending:
+--send FLUSH TABLES
+
+--echo # Connection con2
+connection con2;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Flushing tables" AND info = "FLUSH TABLES";
+--source include/wait_condition.inc
+--error ER_LOCK_WAIT_TIMEOUT
+SELECT * FROM t1;
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+
+--echo # Connection con3
+connection con3;
+--echo # Reaping: FLUSH TABLES
+--reap
+
+--echo #
+--echo # Test 6: Timeouts in I_S queries
+--echo #
+
+--echo # Connection default
+connection default;
+CREATE TABLE t2 (id INT);
+LOCK TABLE t2 WRITE;
+
+--echo # Connection con3
+connection con3;
+--echo # Sending:
+--send DROP TABLE t1, t2
+
+--echo # Connection con2
+connection con2;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table" AND info = "DROP TABLE t1, t2";
+--source include/wait_condition.inc
+# Note: This query causes two timeouts.
+# 1: try_acquire_high_prio_shared_mdl_lock on t1
+# 2: recover_from_failed_open on t1
+SELECT table_name, table_comment FROM information_schema.tables
+  WHERE table_schema= 'test' AND table_name= 't1';
+
+--echo # Connection default
+connection default;
+UNLOCK TABLES;
+
+--echo # Connection con3
+connection con3;
+--echo # Reaping: DROP TABLE t1, t2
+--reap
+
+--echo # Connection default
+connection default;
+--echo # Cleanup
+disconnect con2;
+disconnect con3;
+
+
+--echo #
+--echo # Test for bug #51134 "Crash in MDL_lock::destroy on a concurrent
+--echo #                      DDL workload".
+--echo #
+--disable_warnings
+drop tables if exists t1, t2, t3;
+--enable_warnings
+connect (con1, localhost, root, , );
+connect (con2, localhost, root, , );
+connection default;
+create table t3 (i int);
+
+--echo # Switching to connection 'con1'
+connection con1;
+--echo # Lock 't3' so upcoming RENAME is blocked.
+lock table t3 read;
+
+--echo # Switching to connection 'con2'
+connection con2;
+--echo # Remember ID for this connection.
+let $ID= `select connection_id()`;
+--echo # Start statement which will try to acquire two instances
+--echo # of X metadata lock on the same object.
+--echo # Sending:
+--send rename tables t1 to t2, t2 to t3;
+
+--echo # Switching to connection 'default'
+connection default;
+--echo # Wait until RENAME TABLE is blocked on table 't3'.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for table" and info = "rename tables t1 to t2, t2 to t3";
+--source include/wait_condition.inc
+--echo # Kill RENAME TABLE.
+--replace_result $ID ID
+eval kill query $ID;
+
+--echo # Switching to connection 'con2'
+connection con2;
+--echo # RENAME TABLE should be aborted but should not crash.
+--error ER_QUERY_INTERRUPTED
+--reap
+
+--echo # Switching to connection 'con1'
+connection con1;
+unlock tables;
+
+--echo # Switching to connection 'default'
+connection default;
+disconnect con1;
+disconnect con2;
+drop table t3;
+
+
+--echo # 
+--echo # Test for the bug where upgradable metadata locks was acquired
+--echo # even if the table to altered was temporary.
+--echo # Bug found while working on the related bug #51240.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1 (id INT);
+LOCK TABLE t1 WRITE;
+
+--echo # Connection con1
+connect (con1, localhost, root);
+CREATE TEMPORARY TABLE t1 (id INT);
+# This alter should not block and timeout.
+ALTER TABLE t1 ADD COLUMN j INT;
+
+--echo # Connection default
+connection default;
+disconnect con1;
+UNLOCK TABLES;
+DROP TABLE t1;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-

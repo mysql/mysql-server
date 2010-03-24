@@ -2,6 +2,8 @@
 -- source include/master-slave.inc
 -- source include/have_innodb.inc
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 # Create a test and replicate it to slave
 connection master;
 create user test;
@@ -40,12 +42,16 @@ set global read_only=0;
 connection master1;
 BEGIN;
 insert into t1 values(1002);
+--disable_warnings
 insert into t2 values(2002);
+--enable_warnings
 
 connection master2;
 BEGIN;
 insert into t1 values(1003);
+--disable_warnings
 insert into t2 values(2003);
+--enable_warnings
 
 connection master;
 set global read_only=1;

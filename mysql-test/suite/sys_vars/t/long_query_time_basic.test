@@ -109,8 +109,7 @@ SET @@global.long_query_time = 100000000000;
 SELECT @@global.long_query_time;
 SET @@global.long_query_time = -1;
 SELECT @@global.long_query_time;
---Error ER_PARSE_ERROR
-SET @@global.long_query_time = 65530.34.;
+SET @@global.long_query_time = 65530.34;
 SELECT @@global.long_query_time;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.long_query_time = test;
@@ -120,9 +119,8 @@ SET @@session.long_query_time = 100000000000;
 SELECT @@session.long_query_time;
 SET @@session.long_query_time = -2;
 SELECT @@session.long_query_time;
---Error ER_PARSE_ERROR
-SET @@session.long_query_time = 65530.34.;
---echo 'Bug # 34837: Errors are not coming on assigning invalid values to variable';
+SET @@session.long_query_time = 65530.34;
+SELECT @@session.long_query_time;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.long_query_time = test;

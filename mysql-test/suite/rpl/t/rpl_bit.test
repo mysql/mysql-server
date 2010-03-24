@@ -78,10 +78,8 @@ SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
 SELECT hex(bit1) FROM test.t1 ORDER BY bit1;
 SELECT hex(bit2) from test.t1 ORDER BY bit2;
 SELECT hex(bit3) from test.t1 ORDER BY bit3;
-save_master_pos;
+sync_slave_with_master;
 
-connection slave;
-sync_with_master;
 SELECT  oSupp, sSuppD, GSuppDf, VNotSupp, x034 FROM test.t1;
 SELECT hex(bit1) FROM test.t1 ORDER BY bit1;
 SELECT hex(bit2) from test.t1 ORDER BY bit2;

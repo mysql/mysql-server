@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,9 +50,10 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   DBUG_ENTER("myrg_open");
 
   bzero((char*) &file,sizeof(file));
-  if ((fd=my_open(fn_format(name_buff,name,"",MYRG_NAME_EXT,
-                            MY_UNPACK_FILENAME|MY_APPEND_EXT),
-		  O_RDONLY | O_SHARE,MYF(0))) < 0)
+  if ((fd= mysql_file_open(rg_key_file_MRG,
+                           fn_format(name_buff, name, "", MYRG_NAME_EXT,
+                                     MY_UNPACK_FILENAME|MY_APPEND_EXT),
+                           O_RDONLY | O_SHARE, MYF(0))) < 0)
     goto err;
   errpos=1;
   if (init_io_cache(&file, fd, 4*IO_SIZE, READ_CACHE, 0, 0,
@@ -87,9 +88,9 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
 
     if (!has_path(buff))
     {
-      VOID(strmake(name_buff+dir_length,buff,
-                   sizeof(name_buff)-1-dir_length));
-      VOID(cleanup_dirname(buff,name_buff));
+      (void) strmake(name_buff+dir_length,buff,
+                   sizeof(name_buff)-1-dir_length);
+      (void) cleanup_dirname(buff,name_buff);
     }
     else
       fn_format(buff, buff, "", "", 0);
@@ -167,13 +168,14 @@ MYRG_INFO *myrg_open(const char *name, int mode, int handle_locking)
   m_info->last_used_table=m_info->open_tables;
   m_info->children_attached= TRUE;
 
-  VOID(my_close(fd,MYF(0)));
+  (void) mysql_file_close(fd, MYF(0));
   end_io_cache(&file);
-  VOID(pthread_mutex_init(&m_info->mutex, MY_MUTEX_INIT_FAST));
+  mysql_mutex_init(rg_key_mutex_MYRG_INFO_mutex,
+                   &m_info->mutex, MY_MUTEX_INIT_FAST);
   m_info->open_list.data=(void*) m_info;
-  pthread_mutex_lock(&THR_LOCK_open);
+  mysql_mutex_lock(&THR_LOCK_open);
   myrg_open_list=list_add(myrg_open_list,&m_info->open_list);
-  pthread_mutex_unlock(&THR_LOCK_open);
+  mysql_mutex_unlock(&THR_LOCK_open);
   DBUG_RETURN(m_info);
 
 bad_children:
@@ -190,7 +192,7 @@ err:
     end_io_cache(&file);
     /* Fall through */
   case 1:
-    VOID(my_close(fd,MYF(0)));
+    (void) mysql_file_close(fd, MYF(0));
   }
   my_errno=save_errno;
   DBUG_RETURN (NULL);
@@ -241,9 +243,11 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   bzero((char*) &file_cache, sizeof(file_cache));
 
   /* Open MERGE meta file. */
-  if ((fd= my_open(fn_format(parent_name_buff, parent_name, "", MYRG_NAME_EXT,
-                             MY_UNPACK_FILENAME|MY_APPEND_EXT),
-                   O_RDONLY | O_SHARE, MYF(0))) < 0)
+  if ((fd= mysql_file_open(rg_key_file_MRG,
+                           fn_format(parent_name_buff, parent_name,
+                                     "", MYRG_NAME_EXT,
+                                     MY_UNPACK_FILENAME|MY_APPEND_EXT),
+                           O_RDONLY | O_SHARE, MYF(0))) < 0)
     goto err; /* purecov: inspected */
   errpos= 1;
 
@@ -319,13 +323,14 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   }
 
   end_io_cache(&file_cache);
-  VOID(my_close(fd, MYF(0)));
-  VOID(pthread_mutex_init(&m_info->mutex, MY_MUTEX_INIT_FAST));
+  (void) mysql_file_close(fd, MYF(0));
+  mysql_mutex_init(rg_key_mutex_MYRG_INFO_mutex,
+                   &m_info->mutex, MY_MUTEX_INIT_FAST);
 
   m_info->open_list.data= (void*) m_info;
-  pthread_mutex_lock(&THR_LOCK_open);
+  mysql_mutex_lock(&THR_LOCK_open);
   myrg_open_list= list_add(myrg_open_list, &m_info->open_list);
-  pthread_mutex_unlock(&THR_LOCK_open);
+  mysql_mutex_unlock(&THR_LOCK_open);
 
   DBUG_RETURN(m_info);
 
@@ -340,7 +345,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
     end_io_cache(&file_cache);
     /* Fall through */
   case 1:
-    VOID(my_close(fd, MYF(0)));
+    (void) mysql_file_close(fd, MYF(0));
   }
   my_errno= save_errno;
   DBUG_RETURN (NULL);
@@ -397,7 +402,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
     'open_tables' has all the pointers to the children. Use of a mutex
     here and in ha_myisammrg::store_lock() forces consistent data.
   */
-  pthread_mutex_lock(&m_info->mutex);
+  mysql_mutex_lock(&m_info->mutex);
   rc= 1;
   errpos= 0;
   file_offset= 0;
@@ -477,7 +482,7 @@ int myrg_attach_children(MYRG_INFO *m_info, int handle_locking,
   m_info->keys= min_keys;
   m_info->last_used_table= m_info->open_tables;
   m_info->children_attached= TRUE;
-  pthread_mutex_unlock(&m_info->mutex);
+  mysql_mutex_unlock(&m_info->mutex);
   DBUG_RETURN(0);
 
 bad_children:
@@ -489,7 +494,7 @@ err:
     my_free((char*) m_info->rec_per_key_part, MYF(0));
     m_info->rec_per_key_part= NULL;
   }
-  pthread_mutex_unlock(&m_info->mutex);
+  mysql_mutex_unlock(&m_info->mutex);
   my_errno= save_errno;
   DBUG_RETURN(1);
 }
@@ -512,7 +517,7 @@ int myrg_detach_children(MYRG_INFO *m_info)
 {
   DBUG_ENTER("myrg_detach_children");
   /* For symmetry with myrg_attach_children() we use the mutex here. */
-  pthread_mutex_lock(&m_info->mutex);
+  mysql_mutex_lock(&m_info->mutex);
   if (m_info->tables)
   {
     /* Do not attach/detach an empty child list. */
@@ -523,7 +528,7 @@ int myrg_detach_children(MYRG_INFO *m_info)
   m_info->del= 0;
   m_info->data_file_length= 0;
   m_info->options= 0;
-  pthread_mutex_unlock(&m_info->mutex);
+  mysql_mutex_unlock(&m_info->mutex);
   DBUG_RETURN(0);
 }
 

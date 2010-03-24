@@ -160,22 +160,24 @@ public:
 
   my_decimal *val_decimal(my_decimal *);
 
-  bool agg_arg_collations(DTCollation &c, Item **items, uint nitems,
-                          uint flags)
-  {
-    return agg_item_collations(c, func_name(), items, nitems, flags, 1);
-  }
-  bool agg_arg_collations_for_comparison(DTCollation &c,
-                                         Item **items, uint nitems,
-                                         uint flags)
-  {
-    return agg_item_collations_for_comparison(c, func_name(),
-                                              items, nitems, flags);
-  }
   bool agg_arg_charsets(DTCollation &c, Item **items, uint nitems,
                         uint flags, int item_sep)
   {
     return agg_item_charsets(c, func_name(), items, nitems, flags, item_sep);
+  }
+  bool agg_arg_charsets_for_string_result(DTCollation &c,
+                                          Item **items, uint nitems,
+                                          int item_sep= 1)
+  {
+    return agg_item_charsets_for_string_result(c, func_name(),
+                                               items, nitems, item_sep);
+  }
+  bool agg_arg_charsets_for_comparison(DTCollation &c,
+                                       Item **items, uint nitems,
+                                       int item_sep= 1)
+  {
+    return agg_item_charsets_for_comparison(c, func_name(),
+                                            items, nitems, item_sep);
   }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
@@ -185,12 +187,55 @@ public:
                      void * arg, traverse_order order);
   bool is_expensive_processor(uchar *arg);
   virtual bool is_expensive() { return 0; }
-  inline double fix_result(double value)
+  inline void raise_numeric_overflow(const char *type_name)
   {
-    if (isfinite(value))
-      return value;
-    null_value=1;
+    char buf[256];
+    String str(buf, sizeof(buf), system_charset_info);
+    str.length(0);
+    print(&str, QT_ORDINARY);
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), type_name, str.c_ptr_safe());
+  }
+  inline double raise_float_overflow()
+  {
+    raise_numeric_overflow("DOUBLE");
     return 0.0;
+  }
+  inline longlong raise_integer_overflow()
+  {
+    raise_numeric_overflow(unsigned_flag ? "BIGINT UNSIGNED": "BIGINT");
+    return 0;
+  }
+  inline int raise_decimal_overflow()
+  {
+    raise_numeric_overflow("DECIMAL");
+    return E_DEC_OVERFLOW;
+  }
+  /**
+     Throw an error if the input double number is not finite, i.e. is either
+     +/-INF or NAN.
+  */
+  inline double check_float_overflow(double value)
+  {
+    return isfinite(value) ? value : raise_float_overflow();
+  }
+  /**
+    Throw an error if the input BIGINT value represented by the
+    (longlong value, bool unsigned flag) pair cannot be returned by the
+    function, i.e. is not compatible with this Item's unsigned_flag.
+  */
+  inline longlong check_integer_overflow(longlong value, bool val_unsigned)
+  {
+    if ((unsigned_flag && !val_unsigned && value < 0) ||
+        (!unsigned_flag && val_unsigned && (ulonglong) value > LONGLONG_MAX))
+      return raise_integer_overflow();
+    return value;
+  }
+  /**
+     Throw an error if the error code of a DECIMAL operation is E_DEC_OVERFLOW.
+  */
+  inline int check_decimal_overflow(int error)
+  {
+    return (error == E_DEC_OVERFLOW) ? raise_decimal_overflow() : error;
   }
   bool has_timestamp_args()
   {
@@ -226,10 +271,10 @@ public:
 class Item_real_func :public Item_func
 {
 public:
-  Item_real_func() :Item_func() {}
-  Item_real_func(Item *a) :Item_func(a) {}
-  Item_real_func(Item *a,Item *b) :Item_func(a,b) {}
-  Item_real_func(List<Item> &list) :Item_func(list) {}
+  Item_real_func() :Item_func() { collation.set_numeric(); }
+  Item_real_func(Item *a) :Item_func(a) { collation.set_numeric(); }
+  Item_real_func(Item *a,Item *b) :Item_func(a,b) { collation.set_numeric(); }
+  Item_real_func(List<Item> &list) :Item_func(list) { collation.set_numeric(); }
   String *val_str(String*str);
   my_decimal *val_decimal(my_decimal *decimal_value);
   longlong val_int()
@@ -246,13 +291,13 @@ protected:
   Item_result hybrid_type;
 public:
   Item_func_numhybrid(Item *a) :Item_func(a), hybrid_type(REAL_RESULT)
-  {}
+  { collation.set_numeric(); }
   Item_func_numhybrid(Item *a,Item *b)
     :Item_func(a,b), hybrid_type(REAL_RESULT)
-  {}
+  { collation.set_numeric(); }
   Item_func_numhybrid(List<Item> &list)
     :Item_func(list), hybrid_type(REAL_RESULT)
-  {}
+  { collation.set_numeric(); }
 
   enum Item_result result_type () const { return hybrid_type; }
   void fix_length_and_dec();
@@ -335,13 +380,18 @@ class Item_num_op :public Item_func_numhybrid
 class Item_int_func :public Item_func
 {
 public:
-  Item_int_func() :Item_func() { max_length= 21; }
-  Item_int_func(Item *a) :Item_func(a) { max_length= 21; }
-  Item_int_func(Item *a,Item *b) :Item_func(a,b) { max_length= 21; }
+  Item_int_func() :Item_func()
+  { collation.set_numeric(); fix_char_length(21); }
+  Item_int_func(Item *a) :Item_func(a)
+  { collation.set_numeric(); fix_char_length(21); }
+  Item_int_func(Item *a,Item *b) :Item_func(a,b)
+  { collation.set_numeric(); fix_char_length(21); }
   Item_int_func(Item *a,Item *b,Item *c) :Item_func(a,b,c)
-  { max_length= 21; }
-  Item_int_func(List<Item> &list) :Item_func(list) { max_length= 21; }
-  Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item) {}
+  { collation.set_numeric(); fix_char_length(21); }
+  Item_int_func(List<Item> &list) :Item_func(list)
+  { collation.set_numeric(); fix_char_length(21); }
+  Item_int_func(THD *thd, Item_int_func *item) :Item_func(thd, item)
+  { collation.set_numeric(); }
   double val_real();
   String *val_str(String*str);
   enum Item_result result_type () const { return INT_RESULT; }
@@ -370,7 +420,7 @@ public:
   longlong val_int();
   longlong val_int_from_str(int *error);
   void fix_length_and_dec()
-  { max_length=args[0]->max_length; unsigned_flag=0; }
+  { fix_char_length(args[0]->max_char_length()); unsigned_flag=0; }
   virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
@@ -383,7 +433,8 @@ public:
   const char *func_name() const { return "cast_as_unsigned"; }
   void fix_length_and_dec()
   {
-    max_length= min(args[0]->max_length, DECIMAL_MAX_PRECISION + 2);
+    fix_char_length(min(args[0]->max_char_length(),
+                        DECIMAL_MAX_PRECISION + 2));
     unsigned_flag=1;
   }
   longlong val_int();
@@ -398,8 +449,9 @@ public:
   Item_decimal_typecast(Item *a, int len, int dec) :Item_func(a)
   {
     decimals= dec;
-    max_length= my_decimal_precision_to_length_no_truncation(len, dec,
-                                                             unsigned_flag);
+    collation.set_numeric();
+    fix_char_length(my_decimal_precision_to_length_no_truncation(len, dec,
+                                                                 unsigned_flag));
   }
   String *val_str(String *str);
   double val_real();
@@ -656,6 +708,14 @@ public:
   Item_func_tan(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "tan"; }
+};
+
+class Item_func_cot :public Item_dec_func
+{
+public:
+  Item_func_cot(Item *a) :Item_dec_func(a) {}
+  double val_real();
+  const char *func_name() const { return "cot"; }
 };
 
 class Item_func_integer :public Item_int_func

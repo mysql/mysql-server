@@ -28,11 +28,11 @@ pkgplugin_LTLIBRARIES =	semisync_master.la semisync_slave.la
 semisync_master_la_LDFLAGS =	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
 semisync_master_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 semisync_master_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-semisync_master_la_SOURCES =	semisync.cc semisync_master.cc semisync_master_plugin.cc
+semisync_master_la_SOURCES = semisync.cc semisync_master.cc semisync_master_plugin.cc
 
 semisync_slave_la_LDFLAGS =	-module -rpath $(pkgplugindir) -L$(top_builddir)/libservices -lmysqlservices
 semisync_slave_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 semisync_slave_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
-semisync_slave_la_SOURCES =	semisync.cc semisync_slave.cc semisync_slave_plugin.cc
+semisync_slave_la_SOURCES = semisync.cc semisync_slave.cc semisync_slave_plugin.cc
 
 EXTRA_DIST=		CMakeLists.txt plug.in

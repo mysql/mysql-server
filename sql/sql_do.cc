@@ -17,6 +17,7 @@
 /* Execute DO statement */
 
 #include "mysql_priv.h"
+#include "transaction.h"
 
 bool mysql_do(THD *thd, List<Item> &values)
 {
@@ -36,7 +37,7 @@ bool mysql_do(THD *thd, List<Item> &values)
       will clear the error and the rollback in the end of
       dispatch_command() won't work.
     */
-    ha_autocommit_or_rollback(thd, thd->is_error());
+    trans_rollback_stmt(thd);
     thd->clear_error(); // DO always is OK
   }
   my_ok(thd);

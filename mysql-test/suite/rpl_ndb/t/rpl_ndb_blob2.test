@@ -3,6 +3,11 @@
 # Using wrapper to share test   #
 # code between engine tests     #
 #################################
+#
+# Since the master generates row-based events, the slave may not be in
+# STATEMENT mode to accept the events.
+#
+-- source include/have_binlog_format_mixed_or_row.inc
 -- source include/have_ndb.inc
 -- source include/ndb_master-slave.inc
 let $engine_type=NDBCLUSTER;

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001 MySQL AB
+/* Copyright (C) 2000-2001 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,10 +55,10 @@ int myrg_close(MYRG_INFO *info)
   else
     my_free((uchar*) info->rec_per_key_part, MYF(MY_ALLOW_ZERO_PTR));
   delete_queue(&info->by_key);
-  pthread_mutex_lock(&THR_LOCK_open);
+  mysql_mutex_lock(&THR_LOCK_open);
   myrg_open_list=list_delete(myrg_open_list,&info->open_list);
-  pthread_mutex_unlock(&THR_LOCK_open);
-  VOID(pthread_mutex_destroy(&info->mutex));
+  mysql_mutex_unlock(&THR_LOCK_open);
+  mysql_mutex_destroy(&info->mutex);
   my_free((uchar*) info,MYF(0));
   if (error)
   {

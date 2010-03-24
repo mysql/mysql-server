@@ -41,7 +41,6 @@
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
-
 char server_version[SERVER_VERSION_LENGTH];
 ulong server_id = 0;
 
@@ -443,6 +442,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   {
     error("Could not construct local filename %s%s.",
           target_dir_name,bname);
+    my_free(fname, MYF(0));
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -450,9 +450,15 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
   rec.fname= fname;
   rec.event= ce;
 
+  /*
+     fname is freed in process_event()
+     after Execute_load_query_log_event or Execute_load_log_event
+     will have been processed, otherwise in Load_log_processor::destroy()
+  */
   if (set_dynamic(&file_names, (uchar*)&rec, file_id))
   {
     error("Out of memory.");
+    my_free(fname, MYF(0));
     delete ce;
     DBUG_RETURN(ERROR_STOP);
   }
@@ -833,10 +839,16 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         glob_description_event->common_header_len;
       ev->print(result_file, print_event_info);
       if (!remote_opt)
+      {
         ev->free_temp_buf(); // free memory allocated in dump_local_log_entries
+      }
       else
-        // disassociate but not free dump_remote_log_entries time memory
+      {
+        /*
+          disassociate but not free dump_remote_log_entries time memory
+        */
         ev->temp_buf= 0;
+      }
       /*
         We don't want this event to be deleted now, so let's hide it (I
         (Guilhem) should later see if this triggers a non-serious Valgrind
@@ -1065,11 +1077,6 @@ static struct my_option my_long_options[] =
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
    (uchar**) &port, (uchar**) &port, 0, GET_INT, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
-  {"position", OPT_POSITION, "Deprecated. Use --start-position instead.",
-   (uchar**) &start_position, (uchar**) &start_position, 0, GET_ULL,
-   REQUIRED_ARG, BIN_LOG_HEADER_SIZE, BIN_LOG_HEADER_SIZE,
-   /* COM_BINLOG_DUMP accepts only 4 bytes for the position */
-   (ulonglong)(~(uint32)0), 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
    "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1318,9 +1325,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case 'R':
     remote_opt= 1;
-    break;
-  case OPT_POSITION:
-    WARN_DEPRECATED(VER_CELOSIA, "--position", "--start-position");
     break;
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
@@ -2131,4 +2135,4 @@ int main(int argc, char** argv)
 #include "my_decimal.cc"
 #include "log_event.cc"
 #include "log_event_old.cc"
-
+#include "rpl_utility.cc"

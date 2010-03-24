@@ -16,7 +16,8 @@
 /* Synchronization - readers / writer thread locks */
 
 #include "mysys_priv.h"
-#if defined(THREAD) && !defined(HAVE_PTHREAD_RWLOCK_RDLOCK) && !defined(HAVE_RWLOCK_INIT)
+#if defined(THREAD)
+#if defined(NEED_MY_RW_LOCK)
 #include <errno.h>
 
 /*
@@ -58,7 +59,7 @@
 *  Mountain View, California  94043
 */
 
-int my_rwlock_init(rw_lock_t *rwp, void *arg __attribute__((unused)))
+int my_rw_init(my_rw_lock_t *rwp, my_bool *prefer_readers_attr)
 {
   pthread_condattr_t	cond_attr;
 
@@ -70,12 +71,14 @@ int my_rwlock_init(rw_lock_t *rwp, void *arg __attribute__((unused)))
 
   rwp->state	= 0;
   rwp->waiters	= 0;
+  /* If attribute argument is NULL use default value - prefer writers. */
+  rwp->prefer_readers= prefer_readers_attr ? *prefer_readers_attr : FALSE;
 
   return(0);
 }
 
 
-int my_rwlock_destroy(rw_lock_t *rwp)
+int my_rw_destroy(my_rw_lock_t *rwp)
 {
   pthread_mutex_destroy( &rwp->lock );
   pthread_cond_destroy( &rwp->readers );
@@ -84,12 +87,13 @@ int my_rwlock_destroy(rw_lock_t *rwp)
 }
 
 
-int my_rw_rdlock(rw_lock_t *rwp)
+int my_rw_rdlock(my_rw_lock_t *rwp)
 {
   pthread_mutex_lock(&rwp->lock);
 
   /* active or queued writers */
-  while (( rwp->state < 0 ) || rwp->waiters)
+  while (( rwp->state < 0 ) ||
+         (rwp->waiters && ! rwp->prefer_readers))
     pthread_cond_wait( &rwp->readers, &rwp->lock);
 
   rwp->state++;
@@ -97,11 +101,12 @@ int my_rw_rdlock(rw_lock_t *rwp)
   return(0);
 }
 
-int my_rw_tryrdlock(rw_lock_t *rwp)
+int my_rw_tryrdlock(my_rw_lock_t *rwp)
 {
   int res;
   pthread_mutex_lock(&rwp->lock);
-  if ((rwp->state < 0 ) || rwp->waiters)
+  if ((rwp->state < 0 ) ||
+      (rwp->waiters && ! rwp->prefer_readers))
     res= EBUSY;					/* Can't get lock */
   else
   {
@@ -113,7 +118,7 @@ int my_rw_tryrdlock(rw_lock_t *rwp)
 }
 
 
-int my_rw_wrlock(rw_lock_t *rwp)
+int my_rw_wrlock(my_rw_lock_t *rwp)
 {
   pthread_mutex_lock(&rwp->lock);
   rwp->waiters++;				/* another writer queued */
@@ -127,7 +132,7 @@ int my_rw_wrlock(rw_lock_t *rwp)
 }
 
 
-int my_rw_trywrlock(rw_lock_t *rwp)
+int my_rw_trywrlock(my_rw_lock_t *rwp)
 {
   int res;
   pthread_mutex_lock(&rwp->lock);
@@ -143,7 +148,7 @@ int my_rw_trywrlock(rw_lock_t *rwp)
 }
 
 
-int my_rw_unlock(rw_lock_t *rwp)
+int my_rw_unlock(my_rw_lock_t *rwp)
 {
   DBUG_PRINT("rw_unlock",
 	     ("state: %d waiters: %d", rwp->state, rwp->waiters));
@@ -160,7 +165,8 @@ int my_rw_unlock(rw_lock_t *rwp)
   }
   else
   {
-    if ( --rwp->state == 0 )	/* no more readers */
+    if ( --rwp->state == 0 &&   /* no more readers */
+        rwp->waiters)
       pthread_cond_signal( &rwp->writers );
   }
 
@@ -168,4 +174,30 @@ int my_rw_unlock(rw_lock_t *rwp)
   return(0);
 }
 
-#endif
+
+int rw_pr_init(struct st_my_rw_lock_t *rwlock)
+{
+  my_bool prefer_readers_attr= TRUE;
+  return my_rw_init(rwlock, &prefer_readers_attr);
+}
+
+#else
+
+/*
+  We are on system which has native read/write locks which support
+  preferring of readers.
+*/
+
+int rw_pr_init(rw_pr_lock_t *rwlock)
+{
+  pthread_rwlockattr_t rwlock_attr;
+
+  pthread_rwlockattr_init(&rwlock_attr);
+  pthread_rwlockattr_setkind_np(&rwlock_attr, PTHREAD_RWLOCK_PREFER_READER_NP);
+  pthread_rwlock_init(rwlock, NULL);
+  pthread_rwlockattr_destroy(&rwlock_attr);
+  return 0;
+}
+
+#endif /* defined(NEED_MY_RW_LOCK) */
+#endif /* defined(THREAD) */

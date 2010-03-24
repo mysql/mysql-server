@@ -1,0 +1,67 @@
+# Copyright (C) 2008-2009 Sun Microsystems, Inc
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# Several selects so the output is readable
+
+# Note that TABLE_NAME is in uppercase is some platforms,
+# and in lowercase in others.
+# Using upper(TABLE_NAME) to have consistent results.
+
+select TABLE_SCHEMA, upper(TABLE_NAME), TABLE_CATALOG
+  from information_schema.tables
+  where TABLE_SCHEMA='performance_schema';
+
+select upper(TABLE_NAME), TABLE_TYPE, ENGINE
+  from information_schema.tables
+  where TABLE_SCHEMA='performance_schema';
+
+select upper(TABLE_NAME), VERSION, ROW_FORMAT
+  from information_schema.tables
+  where TABLE_SCHEMA='performance_schema';
+
+select upper(TABLE_NAME), TABLE_ROWS, AVG_ROW_LENGTH
+  from information_schema.tables
+  where TABLE_SCHEMA='performance_schema';
+
+select upper(TABLE_NAME), DATA_LENGTH, MAX_DATA_LENGTH
+  from information_schema.tables
+  where TABLE_SCHEMA='performance_schema';
+
+select upper(TABLE_NAME), INDEX_LENGTH, DATA_FREE, AUTO_INCREMENT
+  from information_schema.tables
+  where TABLE_SCHEMA='performance_schema';
+
+select upper(TABLE_NAME), CREATE_TIME, UPDATE_TIME, CHECK_TIME
+  from information_schema.tables
+  where TABLE_SCHEMA='performance_schema';
+
+select upper(TABLE_NAME), TABLE_COLLATION, CHECKSUM
+  from information_schema.tables
+  where TABLE_SCHEMA='performance_schema';
+
+# TABLESPACE_NAME does not exist in 5.4
+# select upper(TABLE_NAME), CREATE_OPTIONS, TABLESPACE_NAME
+#   from information_schema.tables
+#   where TABLE_SCHEMA='performance_schema';
+
+select upper(TABLE_NAME), TABLE_COMMENT
+  from information_schema.tables
+  where TABLE_SCHEMA='performance_schema';
+

@@ -45,7 +45,6 @@ Warning	1292	Truncated incorrect connect_timeout value: '42949672950'
 SELECT @@global.connect_timeout;
 @@global.connect_timeout
 31536000
-'Bug # 34837: Errors are not coming on assigning invalid values to variable'
 SET @@global.connect_timeout = 21221204.10;
 ERROR 42000: Incorrect argument type to variable 'connect_timeout'
 SET @@global.connect_timeout = ON;

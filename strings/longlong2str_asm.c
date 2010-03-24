@@ -26,7 +26,8 @@
 extern char *longlong2str_with_dig_vector(longlong val,char *dst,int radix,
                                           const char *dig_vector);
 
-char *longlong2str(longlong val,char *dst,int radix)
+char *ll2str(longlong val,char *dst,int radix, int upcase)
 {
-  return longlong2str_with_dig_vector(val, dst, radix, _dig_vec_upper);
+  return longlong2str_with_dig_vector(val, dst, radix,
+                                      upcase ? _dig_vec_upper : _dig_vec_lower);
 }

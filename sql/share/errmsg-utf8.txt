@@ -1777,7 +1777,7 @@ ER_TOO_BIG_FIELDLENGTH 42000 S1009
         dan "For stor feltlængde for kolonne '%-.192s' (maks = %lu). Brug BLOB i stedet"
         nla "Te grote kolomlengte voor '%-.192s' (max = %lu). Maak hiervoor gebruik van het type BLOB"
         eng "Column length too big for column '%-.192s' (max = %lu); use BLOB or TEXT instead"
-        jps "column '%-.192s' は,確保する column の大きさが多すぎます. (最大 %lu まで). BLOB をかわりに使用してください.",
+        jps "column '%-.192s' は,確保する column の大きさが多すぎます. (最大 %lu まで). BLOB をかわりに使用してください."
         est "Tulba '%-.192s' pikkus on liiga pikk (maksimaalne pikkus: %lu). Kasuta BLOB väljatüüpi"
         fre "Champ '%-.192s' trop long (max = %lu). Utilisez un BLOB"
         ger "Feldlänge für Feld '%-.192s' zu groß (maximal %lu). BLOB- oder TEXT-Spaltentyp verwenden!"
@@ -2827,26 +2827,26 @@ ER_TOO_BIG_ROWSIZE 42000
         swe "För stor total radlängd. Den högst tillåtna radlängden, förutom BLOBs, är %ld. Ändra några av dina fält till BLOB"
         ukr "Задовга строка. Найбільшою довжиною строки, не рахуючи BLOB, є %ld. Вам потрібно привести деякі стовбці до типу BLOB"
 ER_STACK_OVERRUN  
-        cze "P-Břetečení zásobníku threadu: použito %ld z %ld. Použijte 'mysqld -O thread_stack=#' k zadání většího zásobníku"
-        dan "Thread stack brugt:  Brugt: %ld af en %ld stak.  Brug 'mysqld -O thread_stack=#' for at allokere en større stak om nødvendigt"
-        nla "Thread stapel overrun:  Gebruikte: %ld van een %ld stack. Gebruik 'mysqld -O thread_stack=#' om een grotere stapel te definieren (indien noodzakelijk)."
-        eng "Thread stack overrun:  Used: %ld of a %ld stack.  Use 'mysqld -O thread_stack=#' to specify a bigger stack if needed"
-        jps "Thread stack overrun:  Used: %ld of a %ld stack.  スタック領域を多くとりたい場合、'mysqld -O thread_stack=#' と指定してください",
-        fre "Débordement de la pile des tâches (Thread stack). Utilisées: %ld pour une pile de %ld.  Essayez 'mysqld -O thread_stack=#' pour indiquer une plus grande valeur"
-        ger "Thread-Stack-Überlauf. Benutzt: %ld von %ld Stack. 'mysqld -O thread_stack=#' verwenden, um bei Bedarf einen größeren Stack anzulegen"
-        greek "Stack overrun στο thread:  Used: %ld of a %ld stack.  Παρακαλώ χρησιμοποιείστε 'mysqld -O thread_stack=#' για να ορίσετε ένα μεγαλύτερο stack αν χρειάζεται"
-        hun "Thread verem tullepes:  Used: %ld of a %ld stack. Hasznalja a 'mysqld -O thread_stack=#' nagyobb verem definialasahoz"
-        ita "Thread stack overrun:  Usati: %ld di uno stack di %ld.  Usa 'mysqld -O thread_stack=#' per specificare uno stack piu` grande."
-        jpn "Thread stack overrun:  Used: %ld of a %ld stack.  スタック領域を多くとりたい場合、'mysqld -O thread_stack=#' と指定してください"
-        kor "쓰레드 스택이 넘쳤습니다.  사용: %ld개 스택: %ld개.  만약 필요시 더큰 스택을 원할때에는 'mysqld -O thread_stack=#' 를 정의하세요"
-        por "Estouro da pilha do 'thread'. Usados %ld de uma pilha de %ld. Use 'mysqld -O thread_stack=#' para especificar uma pilha maior, se necessário"
-        rum "Stack-ul thread-ului a fost depasit (prea mic):  Folositi: %ld intr-un stack de %ld.  Folositi 'mysqld -O thread_stack=#' ca sa specifici un stack mai mare"
-        rus "Стек потоков переполнен:  использовано: %ld из %ld стека.  Применяйте 'mysqld -O thread_stack=#' для указания большего размера стека, если необходимо"
-        serbian "Prepisivanje thread stack-a:  Upotrebljeno: %ld od %ld stack memorije.  Upotrebite 'mysqld -O thread_stack=#' da navedete veći stack ako je potrebno"
-        slo "Pretečenie zásobníku vlákna:  použité: %ld z %ld.  Použite 'mysqld -O thread_stack=#' k zadaniu väčšieho zásobníka"
-        spa "Sobrecarga de la pila de thread:  Usada: %ld de una %ld pila.  Use 'mysqld -O thread_stack=#' para especificar una mayor pila si necesario"
-        swe "Trådstacken tog slut:  Har använt %ld av %ld bytes.  Använd 'mysqld -O thread_stack=#' ifall du behöver en större stack"
-        ukr "Стек гілок переповнено:  Використано: %ld з %ld. Використовуйте 'mysqld -O thread_stack=#' аби зазначити більший стек, якщо необхідно"
+        cze "P-Břetečení zásobníku threadu: použito %ld z %ld. Použijte 'mysqld --thread_stack=#' k zadání většího zásobníku"
+        dan "Thread stack brugt:  Brugt: %ld af en %ld stak.  Brug 'mysqld --thread_stack=#' for at allokere en større stak om nødvendigt"
+        nla "Thread stapel overrun:  Gebruikte: %ld van een %ld stack. Gebruik 'mysqld --thread_stack=#' om een grotere stapel te definieren (indien noodzakelijk)."
+        eng "Thread stack overrun:  Used: %ld of a %ld stack.  Use 'mysqld --thread_stack=#' to specify a bigger stack if needed"
+        jps "Thread stack overrun:  Used: %ld of a %ld stack.  スタック領域を多くとりたい場合、'mysqld --thread_stack=#' と指定してください",
+        fre "Débordement de la pile des tâches (Thread stack). Utilisées: %ld pour une pile de %ld.  Essayez 'mysqld --thread_stack=#' pour indiquer une plus grande valeur"
+        ger "Thread-Stack-Überlauf. Benutzt: %ld von %ld Stack. 'mysqld --thread_stack=#' verwenden, um bei Bedarf einen größeren Stack anzulegen"
+        greek "Stack overrun στο thread:  Used: %ld of a %ld stack.  Παρακαλώ χρησιμοποιείστε 'mysqld --thread_stack=#' για να ορίσετε ένα μεγαλύτερο stack αν χρειάζεται"
+        hun "Thread verem tullepes:  Used: %ld of a %ld stack. Hasznalja a 'mysqld --thread_stack=#' nagyobb verem definialasahoz"
+        ita "Thread stack overrun:  Usati: %ld di uno stack di %ld.  Usa 'mysqld --thread_stack=#' per specificare uno stack piu` grande."
+        jpn "Thread stack overrun:  Used: %ld of a %ld stack.  スタック領域を多くとりたい場合、'mysqld --thread_stack=#' と指定してください"
+        kor "쓰레드 스택이 넘쳤습니다.  사용: %ld개 스택: %ld개.  만약 필요시 더큰 스택을 원할때에는 'mysqld --thread_stack=#' 를 정의하세요"
+        por "Estouro da pilha do 'thread'. Usados %ld de uma pilha de %ld. Use 'mysqld --thread_stack=#' para especificar uma pilha maior, se necessário"
+        rum "Stack-ul thread-ului a fost depasit (prea mic):  Folositi: %ld intr-un stack de %ld.  Folositi 'mysqld --thread_stack=#' ca sa specifici un stack mai mare"
+        rus "Стек потоков переполнен:  использовано: %ld из %ld стека.  Применяйте 'mysqld --thread_stack=#' для указания большего размера стека, если необходимо"
+        serbian "Prepisivanje thread stack-a:  Upotrebljeno: %ld od %ld stack memorije.  Upotrebite 'mysqld --thread_stack=#' da navedete veći stack ako je potrebno"
+        slo "Pretečenie zásobníku vlákna:  použité: %ld z %ld.  Použite 'mysqld --thread_stack=#' k zadaniu väčšieho zásobníka"
+        spa "Sobrecarga de la pila de thread:  Usada: %ld de una %ld pila.  Use 'mysqld --thread_stack=#' para especificar una mayor pila si necesario"
+        swe "Trådstacken tog slut:  Har använt %ld av %ld bytes.  Använd 'mysqld --thread_stack=#' ifall du behöver en större stack"
+        ukr "Стек гілок переповнено:  Використано: %ld з %ld. Використовуйте 'mysqld --thread_stack=#' аби зазначити більший стек, якщо необхідно"
 ER_WRONG_OUTER_JOIN 42000 
         cze "V OUTER JOIN byl nalezen k-Břížový odkaz. Prověřte ON podmínky"
         dan "Krydsreferencer fundet i OUTER JOIN; check dine ON conditions"
@@ -5014,12 +5014,10 @@ ER_WARN_HOSTNAME_WONT_WORK
         por "MySQL foi inicializado em modo --skip-name-resolve. Você necesita reincializá-lo sem esta opção para este grant funcionar"
         spa "MySQL esta inicializado en modo --skip-name-resolve. Usted necesita reinicializarlo sin esta opción para este derecho funcionar"
 ER_UNKNOWN_STORAGE_ENGINE 42000 
-        eng "Unknown table engine '%s'"
+        eng "Unknown storage engine '%s'"
         ger "Unbekannte Speicher-Engine '%s'"
         por "Motor de tabela desconhecido '%s'"
         spa "Desconocido motor de tabla '%s'"
-# When using this error code, use ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER)
-# for the message string.  See, for example, code in mysql_priv.h.
 ER_WARN_DEPRECATED_SYNTAX  
         eng "'%s' is deprecated and will be removed in a future release. Please use %s instead"
         ger "'%s' ist veraltet. Bitte benutzen Sie '%s'"
@@ -5487,10 +5485,10 @@ ER_FAILED_ROUTINE_BREAK_BINLOG
         ger "Eine Routine, die weder NO SQL noch READS SQL DATA in der Deklaration hat, schlug fehl und Binärlogging ist aktiv. Wenn Nicht-Transaktions-Tabellen aktualisiert wurden, enthält das Binärlog ihre Änderungen nicht"
 ER_BINLOG_UNSAFE_ROUTINE
         eng "This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)"
-        ger "Diese Routine hat weder DETERMINISTIC, NO SQL noch READS SQL DATA in der Deklaration und Binärlogging ist aktiv (*vielleicht* sollten Sie die weniger sichere Variable log_bin_trust_routine_creators verwenden)"
+        ger "Diese Routine hat weder DETERMINISTIC, NO SQL noch READS SQL DATA in der Deklaration und Binärlogging ist aktiv (*vielleicht* sollten Sie die weniger sichere Variable log_bin_trust_function_creators verwenden)"
 ER_BINLOG_CREATE_ROUTINE_NEED_SUPER
         eng "You do not have the SUPER privilege and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)"
-        ger "Sie haben keine SUPER-Berechtigung und Binärlogging ist aktiv (*vielleicht* sollten Sie die weniger sichere Variable log_bin_trust_routine_creators verwenden)"
+        ger "Sie haben keine SUPER-Berechtigung und Binärlogging ist aktiv (*vielleicht* sollten Sie die weniger sichere Variable log_bin_trust_function_creators verwenden)"
 ER_EXEC_STMT_WITH_OPEN_CURSOR
         eng "You can't execute a prepared statement which has an open cursor associated with it. Reset the statement to re-execute it."
         ger "Sie können keine vorbereitete Anweisung ausführen, die mit einem geöffneten Cursor verknüpft ist. Setzen Sie die Anweisung zurück, um sie neu auszuführen"
@@ -5540,8 +5538,8 @@ ER_TRG_IN_WRONG_SCHEMA
         eng "Trigger in wrong schema"
         ger "Trigger im falschen Schema"
 ER_STACK_OVERRUN_NEED_MORE
-        eng "Thread stack overrun:  %ld bytes used of a %ld byte stack, and %ld bytes needed.  Use 'mysqld -O thread_stack=#' to specify a bigger stack."
-        ger "Thread-Stack-Überlauf: %ld Bytes eines %ld-Byte-Stacks in Verwendung, und %ld Bytes benötigt. Verwenden Sie 'mysqld -O thread_stack=#', um einen größeren Stack anzugeben"
+        eng "Thread stack overrun:  %ld bytes used of a %ld byte stack, and %ld bytes needed.  Use 'mysqld --thread_stack=#' to specify a bigger stack."
+        ger "Thread-Stack-Überlauf: %ld Bytes eines %ld-Byte-Stacks in Verwendung, und %ld Bytes benötigt. Verwenden Sie 'mysqld --thread_stack=#', um einen größeren Stack anzugeben"
 ER_TOO_LONG_BODY 42000 S1009
         eng "Routine body for '%-.100s' is too long"
         ger "Routinen-Body für '%-.100s' ist zu lang"
@@ -6070,8 +6068,7 @@ ER_SLAVE_INCIDENT
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
 ER_BINLOG_UNSAFE_STATEMENT
-        eng "Statement may not be safe to log in statement format."
-        swe "Detta är inte säkert att logga i statement-format."
+        eng "Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: %s"
 ER_SLAVE_FATAL_ERROR
         eng "Fatal error: %s"
 ER_SLAVE_RELAY_LOG_READ_FAILURE
@@ -6108,7 +6105,7 @@ ER_TRG_CANT_OPEN_TABLE
 
 ER_CANT_CREATE_SROUTINE
   eng "Cannot create stored routine `%-.64s`. Check warnings"
-ER_SLAVE_AMBIGOUS_EXEC_MODE
+ER_NEVER_USED
   eng "Ambiguous slave modes combination. %s"
 
 ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
@@ -6120,7 +6117,7 @@ ER_LOAD_DATA_INVALID_COLUMN
   eng "Invalid column reference (%-.64s) in LOAD DATA"
 
 ER_LOG_PURGE_NO_FILE  
-	eng "Being purged log %s was not found"
+  eng "Being purged log %s was not found"
 
 ER_XA_RBTIMEOUT XA106
 	eng "XA_RBTIMEOUT: Transaction branch was rolled back: took too long"
@@ -6196,7 +6193,7 @@ ER_RENAMED_NAME
   eng "Renamed"
   swe "Namnändrad"
 ER_TOO_MANY_CONCURRENT_TRXS
-        eng  "Too many active concurrent transactions"
+  eng  "Too many active concurrent transactions"
 
 WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED
   eng "Non-ASCII separator arguments are not fully supported"
@@ -6235,7 +6232,7 @@ WARN_COND_ITEM_TRUNCATED
 ER_COND_ITEM_TOO_LONG
         eng "Data too long for condition item '%s'"
 
-ER_UNKNOWN_LOCALE                                                                                                                                                                    
+ER_UNKNOWN_LOCALE
         eng "Unknown locale: '%-.64s'"
 
 ER_SLAVE_IGNORE_SERVER_IDS
@@ -6260,5 +6257,73 @@ ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
   eng "Field '%-.192s' is of a not allowed type for this type of partitioning"
 ER_PARTITION_FIELDS_TOO_LONG
   eng "The total length of the partitioning fields is too large"
+ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
+  eng "Cannot execute statement: binlogging impossible since both row-incapable engines and statement-incapable engines are involved."
+ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
+  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging."
+ER_BINLOG_UNSAFE_AND_STMT_ENGINE
+  eng "Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: %s"
+ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
+  eng "Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging."
+ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
+  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging.%s"
+ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
+  eng "Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT."
+ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
+  eng "Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging."
+
+ER_BINLOG_UNSAFE_LIMIT
+  eng "Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
+ER_BINLOG_UNSAFE_INSERT_DELAYED
+  eng "Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted."
+ER_BINLOG_UNSAFE_SYSTEM_TABLE
+  eng "Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave."
+ER_BINLOG_UNSAFE_AUTOINC_COLUMNS
+  eng "Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically."
+ER_BINLOG_UNSAFE_UDF
+  eng "Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave."
+ER_BINLOG_UNSAFE_SYSTEM_VARIABLE
+  eng "Statement uses a system variable whose value may differ on slave."
+ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
+  eng "Statement uses a system function whose value may differ on slave."
+ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
+  eng "Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction."
+
+ER_MESSAGE_AND_STATEMENT
+  eng "%s Statement: %s"
+
+ER_SLAVE_CONVERSION_FAILED
+  eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"
+ER_SLAVE_CANT_CREATE_CONVERSION
+  eng "Can't create conversion table for table '%-.192s.%-.192s'"
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
+  eng "Cannot modify @@session.binlog_format inside a transaction"
+ER_PATH_LENGTH
+  eng "The path specified for %.64s is too long."
+ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT  
+  eng "The syntax '%s' is deprecated and will be removed in MySQL %s."
+  ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt."
+
+ER_WRONG_NATIVE_TABLE_STRUCTURE
+        eng "Native table '%-.64s'.'%-.64s' has the wrong structure"
+
+ER_WRONG_PERFSCHEMA_USAGE
+        eng "Invalid performance_schema usage."
+ER_WARN_I_S_SKIPPED_TABLE
+  eng "Table '%s'.'%s' was skipped since its definition is being modified by concurrent DDL statement"
+
+ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT
+  eng "Cannot modify @@session.binlog_direct_non_transactional_updates inside a transaction"
+ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT
+  eng "Cannot change the binlog direct flag inside a stored function or trigger"
 ER_SPATIAL_MUST_HAVE_GEOM_COL 42000
   eng "A SPATIAL index may only contain a geometrical type column"
+
+ER_TOO_LONG_INDEX_COMMENT
+  eng "Comment for index '%-.64s' is too long (max = %lu)"
+
+ER_LOCK_ABORTED
+  eng "Wait on a lock was aborted due to a pending exclusive lock"
+
+ER_DATA_OUT_OF_RANGE 22003 
+  eng "%s value is out of range in '%s'"

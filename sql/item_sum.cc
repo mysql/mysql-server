@@ -29,6 +29,18 @@
 #include "sql_select.h"
 
 /**
+  Calculate the affordable RAM limit for structures like TREE or Unique
+  used in Item_sum_*
+*/
+
+ulonglong Item_sum::ram_limitation(THD *thd)
+{
+  return min(thd->variables.tmp_table_size,
+      thd->variables.max_heap_table_size);
+}
+
+
+/**
   Prepare an aggregate function item for checking context conditions.
 
     The function initializes the members of the Item_sum object created
@@ -566,7 +578,14 @@ int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
 {
   if (aggr)
   {
+    /* 
+      Dependent subselects may be executed multiple times, making
+      set_aggregator to be called multiple times. The aggregator type
+      will be the same, but it needs to be reset so that it is
+      reevaluated with the new dependent data.
+    */
     DBUG_ASSERT(aggregator == aggr->Aggrtype());
+    aggr->clear();
     return FALSE;
   }
   switch (aggregator)
@@ -766,8 +785,8 @@ bool Aggregator_distinct::setup(THD *thd)
     }    
     if (!(table= create_tmp_table(thd, tmp_table_param, list, (ORDER*) 0, 1,
                                   0,
-                                  (select_lex->options | thd->options),
-                                  HA_POS_ERROR, (char*)"")))
+                                  (select_lex->options | thd->variables.option_bits),
+                                  HA_POS_ERROR, "")))
       return TRUE;
     table->file->extra(HA_EXTRA_NO_ROWS);		// Don't update rows
     table->no_rows=1;
@@ -832,7 +851,7 @@ bool Aggregator_distinct::setup(THD *thd)
       }
       DBUG_ASSERT(tree == 0);
       tree= new Unique(compare_key, cmp_arg, tree_key_length,
-                       thd->variables.max_heap_table_size);
+                       item_sum->ram_limitation(thd));
       /*
         The only time tree_key_length could be 0 is if someone does
         count(distinct) on a char(0) field - stupid thing to do,
@@ -901,7 +920,7 @@ bool Aggregator_distinct::setup(THD *thd)
       are converted to binary representation as well.
     */
     tree= new Unique(simple_raw_key_cmp, &tree_key_length, tree_key_length,
-                       thd->variables.max_heap_table_size);
+                     item_sum->ram_limitation(thd));
 
     DBUG_RETURN(tree == 0);
   }
@@ -1195,7 +1214,8 @@ void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
-  value->store(value_arg);
+  if (value_arg)
+    value->store(value_arg);
   cmp= new Arg_comparator();
   cmp->set_cmp_func(this, args, (Item**)&value, FALSE);
   collation.set(item->collation);
@@ -3182,11 +3202,9 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
       return TRUE;
   }
 
-  if (agg_item_charsets(collation, func_name(),
-                        args,
-			/* skip charset aggregation for order columns */
-			arg_count - arg_count_order,
-			MY_COLL_ALLOW_CONV, 1))
+  /* skip charset aggregation for order columns */
+  if (agg_item_charsets_for_string_result(collation, func_name(),
+                                          args, arg_count - arg_count_order))
     return 1;
 
   result.set_charset(collation.collation);
@@ -3311,7 +3329,7 @@ bool Item_func_group_concat::setup(THD *thd)
   */
   if (!(table= create_tmp_table(thd, tmp_table_param, all_fields,
                                 (ORDER*) 0, 0, TRUE,
-                                (select_lex->options | thd->options),
+                                (select_lex->options | thd->variables.option_bits),
                                 HA_POS_ERROR, (char*) "")))
     DBUG_RETURN(TRUE);
   table->file->extra(HA_EXTRA_NO_ROWS);
@@ -3342,7 +3360,7 @@ bool Item_func_group_concat::setup(THD *thd)
     unique_filter= new Unique(group_concat_key_cmp_with_distinct,
                               (void*)this,
                               tree_key_length,
-                              thd->variables.max_heap_table_size);
+                              ram_limitation(thd));
   
   DBUG_RETURN(FALSE);
 }

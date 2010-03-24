@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -77,8 +77,8 @@ class Master_info : public Slave_reporting_capability
   File fd; // we keep the file open, so we need to remember the file pointer
   IO_CACHE file;
 
-  pthread_mutex_t data_lock,run_lock;
-  pthread_cond_t data_cond,start_cond,stop_cond;
+  mysql_mutex_t data_lock, run_lock;
+  mysql_cond_t data_cond, start_cond, stop_cond;
   THD *io_thd;
   MYSQL* mysql;
   uint32 file_id;				/* for 3.23 load data infile */
@@ -113,8 +113,7 @@ class Master_info : public Slave_reporting_capability
   DYNAMIC_ARRAY ignore_server_ids;
   ulong master_id;
 };
-
-void init_master_info_with_options(Master_info* mi);
+void init_master_log_pos(Master_info* mi);
 int init_master_info(Master_info* mi, const char* master_info_fname,
 		     const char* slave_info_fname,
 		     bool abort_if_no_master_info_file,

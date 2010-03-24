@@ -1303,7 +1303,11 @@ set_linux_configs()
       compiler_flags="$compiler_flags -m32"
     fi
     if test "x$fast_flag" != "xno" ; then
-      compiler_flags="$compiler_flags -O2"
+      if test "x$fast_flag" = "xyes" ; then
+        compiler_flags="$compiler_flags -O3"
+      else
+        compiler_flags="$compiler_flags -O2"
+      fi
     else
       compiler_flags="$compiler_flags -O0"
     fi

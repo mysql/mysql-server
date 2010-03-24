@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,46 +30,6 @@
 #endif
 
 uint thd_lib_detected= 0;
-
-#ifndef my_pthread_setprio
-void my_pthread_setprio(pthread_t thread_id,int prior)
-{
-#ifdef HAVE_PTHREAD_SETSCHEDPARAM
-  struct sched_param tmp_sched_param;
-  bzero((char*) &tmp_sched_param,sizeof(tmp_sched_param));
-  tmp_sched_param.sched_priority=prior;
-  VOID(pthread_setschedparam(thread_id,SCHED_POLICY,&tmp_sched_param));
-#endif
-}
-#endif
-
-#ifndef my_pthread_getprio
-int my_pthread_getprio(pthread_t thread_id)
-{
-#ifdef HAVE_PTHREAD_SETSCHEDPARAM
-  struct sched_param tmp_sched_param;
-  int policy;
-  if (!pthread_getschedparam(thread_id,&policy,&tmp_sched_param))
-  {
-    return tmp_sched_param.sched_priority;
-  }
-#endif
-  return -1;
-}
-#endif
-
-#ifndef my_pthread_attr_setprio
-void my_pthread_attr_setprio(pthread_attr_t *attr, int priority)
-{
-#ifdef HAVE_PTHREAD_SETSCHEDPARAM
-  struct sched_param tmp_sched_param;
-  bzero((char*) &tmp_sched_param,sizeof(tmp_sched_param));
-  tmp_sched_param.sched_priority=priority;
-  VOID(pthread_attr_setschedparam(attr,&tmp_sched_param));
-#endif
-}
-#endif
-
 
 /* To allow use of pthread_getspecific with two arguments */
 
@@ -136,7 +96,7 @@ int my_sigwait(const sigset_t *set,int *sig)
 
 #if !defined(HAVE_LOCALTIME_R) || !defined(HAVE_GMTIME_R)
 
-extern pthread_mutex_t LOCK_localtime_r;
+extern mysql_mutex_t LOCK_localtime_r;
 
 #endif
 
@@ -144,10 +104,10 @@ extern pthread_mutex_t LOCK_localtime_r;
 struct tm *localtime_r(const time_t *clock, struct tm *res)
 {
   struct tm *tmp;
-  pthread_mutex_lock(&LOCK_localtime_r);
+  mysql_mutex_lock(&LOCK_localtime_r);
   tmp=localtime(clock);
   *res= *tmp;
-  pthread_mutex_unlock(&LOCK_localtime_r);
+  mysql_mutex_unlock(&LOCK_localtime_r);
   return res;
 }
 #endif
@@ -161,10 +121,10 @@ struct tm *localtime_r(const time_t *clock, struct tm *res)
 struct tm *gmtime_r(const time_t *clock, struct tm *res)
 {
   struct tm *tmp;
-  pthread_mutex_lock(&LOCK_localtime_r);
+  mysql_mutex_lock(&LOCK_localtime_r);
   tmp= gmtime(clock);
   *res= *tmp;
-  pthread_mutex_unlock(&LOCK_localtime_r);
+  mysql_mutex_unlock(&LOCK_localtime_r);
   return res;
 }
 #endif
@@ -308,7 +268,7 @@ void sigwait_handle_sig(int sig)
 {
   pthread_mutex_lock(&LOCK_sigwait);
   sigaddset(&pending_set, sig);
-  VOID(pthread_cond_signal(&COND_sigwait)); /* inform sigwait() about signal */
+  pthread_cond_signal(&COND_sigwait); /* inform sigwait() about signal */
   pthread_mutex_unlock(&LOCK_sigwait);
 }
 
@@ -357,16 +317,15 @@ int sigwait(sigset_t *setp, int *sigp)
     pthread_t sigwait_thread_id;
     inited=1;
     sigemptyset(&pending_set);
-    pthread_mutex_init(&LOCK_sigwait,MY_MUTEX_INIT_FAST);
-    pthread_cond_init(&COND_sigwait,NULL);
+    pthread_mutex_init(&LOCK_sigwait, MY_MUTEX_INIT_FAST);
+    pthread_cond_init(&COND_sigwait, NULL);
 
     pthread_attr_init(&thr_attr);
     pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
     pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
     pthread_attr_setstacksize(&thr_attr,8196);
-    my_pthread_attr_setprio(&thr_attr,100);	/* Very high priority */
-    VOID(pthread_create(&sigwait_thread_id,&thr_attr,sigwait_thread,setp));
-    VOID(pthread_attr_destroy(&thr_attr));
+    pthread_create(&sigwait_thread_id, &thr_attr, sigwait_thread, setp);
+    pthread_attr_destroy(&thr_attr);
   }
 
   pthread_mutex_lock(&LOCK_sigwait);
@@ -392,7 +351,7 @@ int sigwait(sigset_t *setp, int *sigp)
 	return 0;
       }
     }
-    VOID(pthread_cond_wait(&COND_sigwait,&LOCK_sigwait));
+    pthread_cond_wait(&COND_sigwait, &LOCK_sigwait);
   }
   return 0;
 }

@@ -90,9 +90,7 @@ delimiter ;//
 INSERT INTO test.t2 VALUES(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW');
 
 SELECT * FROM t2 ORDER BY a;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM t2 ORDER BY a;
 
 connection master;
@@ -105,17 +103,13 @@ SELECT * FROM t2 ORDER BY a;
 connection master;
 call test.p2(2);
 SELECT * FROM t2 ORDER BY a;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM t2 ORDER BY a;
 
 connection master;
 call test.p2(3);
 SELECT * FROM t2 ORDER BY a;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 SELECT * FROM t2 ORDER BY a;
 
 ##Used for debugging

@@ -23,3 +23,75 @@ create unique index b on t1 (a,b);
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug#34455 (Ambiguous foreign keys syntax is accepted)
+#
+
+--disable_warnings
+drop table if exists t_34455;
+--enable_warnings
+
+# 2 match clauses, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a) match full match partial);
+
+# match after on delete, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a) on delete set default match full);
+
+# match after on update, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a) on update set default match full);
+
+# 2 on delete clauses, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a)
+  on delete set default on delete set default);
+
+# 2 on update clauses, illegal
+--error ER_PARSE_ERROR
+create table t_34455 (
+  a int not null,
+  foreign key (a) references t3 (a)
+  on update set default on update set default);
+
+create table t_34455 (a int not null);
+
+# 2 match clauses, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a) match full match partial);
+
+# match after on delete, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a) on delete set default match full);
+
+# match after on update, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a) on update set default match full);
+
+# 2 on delete clauses, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a)
+  on delete set default on delete set default);
+
+# 2 on update clauses, illegal
+--error ER_PARSE_ERROR
+alter table t_34455
+  add foreign key (a) references t3 (a)
+  on update set default on update set default);
+
+drop table t_34455;
+

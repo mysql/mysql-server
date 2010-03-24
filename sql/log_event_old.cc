@@ -6,6 +6,7 @@
 #endif
 #include "log_event_old.h"
 #include "rpl_record_old.h"
+#include "transaction.h"
 
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
 
@@ -32,8 +33,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
      */
     DBUG_ASSERT(ev->get_flags(Old_rows_log_event::STMT_END_F));
 
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(ev_thd);
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(ev_thd);
     ev_thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -59,24 +59,21 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
       We also call the mysql_reset_thd_for_next_command(), since this
       is the logical start of the next "statement". Note that this
-      call might reset the value of current_stmt_binlog_row_based, so
+      call might reset the value of current_stmt_binlog_format, so
       we need to do any changes to that value after this function.
     */
     lex_start(ev_thd);
     mysql_reset_thd_for_next_command(ev_thd);
 
     /*
-      Check if the slave is set to use SBR.  If so, it should switch
-      to using RBR until the end of the "statement", i.e., next
-      STMT_END_F or next error.
+      This is a row injection, so we flag the "statement" as
+      such. Note that this code is called both when the slave does row
+      injections and when the BINLOG statement is used to do row
+      injections.
     */
-    if (!ev_thd->current_stmt_binlog_row_based &&
-        mysql_bin_log.is_open() && (ev_thd->options & OPTION_BIN_LOG))
-    {
-      ev_thd->set_current_stmt_binlog_row_based();
-    }
+    ev_thd->lex->set_stmt_row_injection();
 
-    if (simple_open_n_lock_tables(ev_thd, rli->tables_to_lock))
+    if (open_and_lock_tables(ev_thd, rli->tables_to_lock, FALSE, 0))
     {
       uint actual_error= ev_thd->stmt_da->sql_errno();
       if (ev_thd->is_slave_error || ev_thd->is_fatal_error)
@@ -91,7 +88,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
                      "unexpected success or fatal error"));
         ev_thd->is_slave_error= 1;
       }
-      const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+      const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
       DBUG_RETURN(actual_error);
     }
 
@@ -107,14 +104,19 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
       for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
       {
-        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        TABLE *conv_table;
+        if (!ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
+                                             ptr->table, &conv_table))
         {
-          mysql_unlock_tables(ev_thd, ev_thd->lock);
-          ev_thd->lock= 0;
           ev_thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(ev_thd);
           DBUG_RETURN(Old_rows_log_event::ERR_BAD_TABLE_DEF);
         }
+        DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
+                             " - conv_table: %p",
+                             ptr->table->s->db.str,
+                             ptr->table->s->table_name.str, conv_table));
+        ptr->m_conv_table= conv_table;
       }
     }
 
@@ -166,16 +168,16 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       the event.
     */
     if (ev->get_flags(Old_rows_log_event::NO_FOREIGN_KEY_CHECKS_F))
-        ev_thd->options|= OPTION_NO_FOREIGN_KEY_CHECKS;
+        ev_thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
     else
-        ev_thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+        ev_thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
 
     if (ev->get_flags(Old_rows_log_event::RELAXED_UNIQUE_CHECKS_F))
-        ev_thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
+        ev_thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
-        ev_thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+        ev_thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
     /* A small test to verify that objects have consistent types */
-    DBUG_ASSERT(sizeof(ev_thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
+    DBUG_ASSERT(sizeof(ev_thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -229,19 +231,12 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(table, error);
-    if (!ev->cache_stmt)
+    if (!ev->use_trans_cache())
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
-      ev_thd->options|= OPTION_KEEP_LOG;
+      ev_thd->variables.option_bits|= OPTION_KEEP_LOG;
     }
   }
-
-  /*
-    We need to delay this clear until the table def is no longer needed.
-    The table def is needed in unpack_row().
-  */
-  if (rli->tables_to_lock && ev->get_flags(Old_rows_log_event::STMT_END_F))
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
 
   if (error)
   {                     /* error has occured during the transaction */
@@ -263,7 +258,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
       thread is certainly going to stop.
       rollback at the caller along with sbr.
     */
-    ev_thd->reset_current_stmt_binlog_row_based();
+    ev_thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(ev_thd, error);
     ev_thd->is_slave_error= 1;
     DBUG_RETURN(error);
@@ -1220,9 +1215,9 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
   DBUG_ASSERT((tbl_arg && tbl_arg->s && tid != ~0UL) ||
               (!tbl_arg && !cols && tid == ~0UL));
 
-  if (thd_arg->options & OPTION_NO_FOREIGN_KEY_CHECKS)
+  if (thd_arg->variables.option_bits & OPTION_NO_FOREIGN_KEY_CHECKS)
       set_flags(NO_FOREIGN_KEY_CHECKS_F);
-  if (thd_arg->options & OPTION_RELAXED_UNIQUE_CHECKS)
+  if (thd_arg->variables.option_bits & OPTION_RELAXED_UNIQUE_CHECKS)
       set_flags(RELAXED_UNIQUE_CHECKS_F);
   /* if bitmap_init fails, caught in is_valid() */
   if (likely(!bitmap_init(&m_cols,
@@ -1440,8 +1435,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     DBUG_ASSERT(get_flags(STMT_END_F));
 
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(thd);
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -1461,8 +1455,6 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
   */
   if (!thd->lock)
   {
-    bool need_reopen= 1; /* To execute the first lap of the loop below */
-
     /*
       lock_tables() reads the contents of thd->lex, so they must be
       initialized. Contrary to in
@@ -1471,79 +1463,31 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     */
     lex_start(thd);
 
-    while ((error= lock_tables(thd, rli->tables_to_lock,
-                               rli->tables_to_lock_count, &need_reopen)))
+    if ((error= lock_tables(thd, rli->tables_to_lock,
+                               rli->tables_to_lock_count, 0)))
     {
-      if (!need_reopen)
+      if (thd->is_slave_error || thd->is_fatal_error)
       {
-        if (thd->is_slave_error || thd->is_fatal_error)
-        {
-          /*
-            Error reporting borrowed from Query_log_event with many excessive
-            simplifications (we don't honour --slave-skip-errors)
-          */
-          uint actual_error= thd->net.last_errno;
-          rli->report(ERROR_LEVEL, actual_error,
-                      "Error '%s' in %s event: when locking tables",
-                      (actual_error ? thd->net.last_error :
-                       "unexpected success or fatal error"),
-                      get_type_str());
-          thd->is_fatal_error= 1;
-        }
-        else
-        {
-          rli->report(ERROR_LEVEL, error,
-                      "Error in %s event: when locking tables",
-                      get_type_str());
-        }
-        const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-        DBUG_RETURN(error);
+        /*
+          Error reporting borrowed from Query_log_event with many excessive
+          simplifications (we don't honour --slave-skip-errors)
+        */
+        uint actual_error= thd->net.last_errno;
+        rli->report(ERROR_LEVEL, actual_error,
+                    "Error '%s' in %s event: when locking tables",
+                    (actual_error ? thd->net.last_error :
+                     "unexpected success or fatal error"),
+                    get_type_str());
+        thd->is_fatal_error= 1;
       }
-
-      /*
-        So we need to reopen the tables.
-
-        We need to flush the pending RBR event, since it keeps a
-        pointer to an open table.
-
-        ALTERNATIVE SOLUTION (not implemented): Extract a pointer to
-        the pending RBR event and reset the table pointer after the
-        tables has been reopened.
-
-        NOTE: For this new scheme there should be no pending event:
-        need to add code to assert that is the case.
-       */
-      error= thd->binlog_flush_pending_rows_event(false);
-      if (error)
+      else
       {
-        rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                    ER(ER_SLAVE_FATAL_ERROR),
-                    "call to binlog_flush_pending_rows_event() failed");
-        thd->is_slave_error= 1;
-        DBUG_RETURN(error);
+        rli->report(ERROR_LEVEL, error,
+                    "Error in %s event: when locking tables",
+                    get_type_str());
       }
-      TABLE_LIST *tables= rli->tables_to_lock;
-      close_tables_for_reopen(thd, &tables);
-
-      uint tables_count= rli->tables_to_lock_count;
-      if ((error= open_tables(thd, &tables, &tables_count, 0)))
-      {
-        if (thd->is_slave_error || thd->is_fatal_error)
-        {
-          /*
-            Error reporting borrowed from Query_log_event with many excessive
-            simplifications (we don't honour --slave-skip-errors)
-          */
-          uint actual_error= thd->net.last_errno;
-          rli->report(ERROR_LEVEL, actual_error,
-                      "Error '%s' on reopening tables",
-                      (actual_error ? thd->net.last_error :
-                       "unexpected success or fatal error"));
-          thd->is_slave_error= 1;
-        }
-        const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-        DBUG_RETURN(error);
-      }
+      const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
+      DBUG_RETURN(error);
     }
 
     /*
@@ -1558,20 +1502,22 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       RPL_TABLE_LIST *ptr= rli->tables_to_lock;
       for ( ; ptr ; ptr= static_cast<RPL_TABLE_LIST*>(ptr->next_global))
       {
-        if (ptr->m_tabledef.compatible_with(rli, ptr->table))
+        TABLE *conv_table;
+        if (ptr->m_tabledef.compatible_with(thd, const_cast<Relay_log_info*>(rli),
+                                            ptr->table, &conv_table))
         {
-          mysql_unlock_tables(thd, thd->lock);
-          thd->lock= 0;
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
+        ptr->m_conv_table= conv_table;
       }
     }
 
     /*
-      ... and then we add all the tables to the table map and remove
-      them from tables to lock.
+      ... and then we add all the tables to the table map but keep
+      them in the tables to lock list.
+
 
       We also invalidate the query cache for all the tables, since
       they will now be changed.
@@ -1619,16 +1565,16 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       the event.
     */
     if (get_flags(NO_FOREIGN_KEY_CHECKS_F))
-        thd->options|= OPTION_NO_FOREIGN_KEY_CHECKS;
+        thd->variables.option_bits|= OPTION_NO_FOREIGN_KEY_CHECKS;
     else
-        thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+        thd->variables.option_bits&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
 
     if (get_flags(RELAXED_UNIQUE_CHECKS_F))
-        thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
+        thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
-        thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+        thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
     /* A small test to verify that objects have consistent types */
-    DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
+    DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -1727,19 +1673,12 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(rli, error);
-    if (!cache_stmt)
+    if (!use_trans_cache())
     {
       DBUG_PRINT("info", ("Marked that we need to keep log"));
-      thd->options|= OPTION_KEEP_LOG;
+      thd->variables.option_bits|= OPTION_KEEP_LOG;
     }
   } // if (table)
-
-  /*
-    We need to delay this clear until here bacause unpack_current_row() uses
-    master-side table definitions stored in rli.
-  */
-  if (rli->tables_to_lock && get_flags(STMT_END_F))
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
 
   if (error)
   {                     /* error has occured during the transaction */
@@ -1761,7 +1700,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       thread is certainly going to stop.
       rollback at the caller along with sbr.
     */
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, error);
     thd->is_slave_error= 1;
     DBUG_RETURN(error);
@@ -1773,7 +1712,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     last_event_start_time here instead.
   */
   if (table && (table->s->primary_key == MAX_KEY) &&
-      !cache_stmt && get_flags(STMT_END_F) == RLE_NO_FLAGS)
+      !use_trans_cache() && get_flags(STMT_END_F) == RLE_NO_FLAGS)
   {
     /*
       ------------ Temporary fix until WL#2975 is implemented ---------
@@ -1811,7 +1750,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       (assume the last master's transaction is ignored by the slave because of
       replicate-ignore rules).
     */
-    int binlog_error= thd->binlog_flush_pending_rows_event(true);
+    int binlog_error= thd->binlog_flush_pending_rows_event(TRUE);
 
     /*
       If this event is not in a transaction, the call below will, if some
@@ -1822,7 +1761,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    if ((error= ha_autocommit_or_rollback(thd, binlog_error)))
+    if ((error= (binlog_error ? trans_rollback_stmt(thd) : trans_commit_stmt(thd))))
       rli->report(ERROR_LEVEL, error,
                   "Error in %s event: commit of row events failed, "
                   "table `%s`.`%s`",
@@ -1840,7 +1779,7 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
       event flushed.
     */
 
-    thd->reset_current_stmt_binlog_row_based();
+    thd->reset_current_stmt_binlog_format_row();
     const_cast<Relay_log_info*>(rli)->cleanup_context(thd, 0);
   }
 

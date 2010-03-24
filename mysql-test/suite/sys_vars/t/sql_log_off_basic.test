@@ -96,12 +96,8 @@ SET @@session.sql_log_off = "Y";
 SET @@session.sql_log_off = TRÜE;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_off = ÕN;
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_off = OF;
-SELECT @@session.sql_log_off;
-
---echo 'Bug# 34828: OF is taken as OFF and a value of 0 is set.'
-
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.sql_log_off = ÓFF;
 --Error ER_WRONG_VALUE_FOR_VAR
@@ -115,10 +111,9 @@ SET @@session.sql_log_off = NO;
 #       Test if accessing global sql_log_off gives error                  #
 ########################################################################### 
 
---Error ER_LOCAL_VARIABLE
-SET @@global.sql_log_off = 0;
-
---Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.sql_log_off = 1-@@global.sql_log_off;
+SELECT @@global.sql_log_off;
+SET @@global.sql_log_off = 1-@@global.sql_log_off;
 SELECT @@global.sql_log_off;
 
 --echo '#----------------------FN_DYNVARS_157_06------------------------#'

@@ -27,15 +27,11 @@ truncate table t1;
 --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 eval load data local infile '$MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' into table t1;
 --remove_file $MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select a,count(*) from t1 group by a;
 connection master;
 drop table t1;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # End of 4.1 tests
 

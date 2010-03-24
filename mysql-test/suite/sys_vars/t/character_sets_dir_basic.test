@@ -1,0 +1,24 @@
+#
+# show the global and session values;
+#
+--replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
+select @@global.character_sets_dir;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.character_sets_dir;
+--replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
+show global variables like 'character_sets_dir';
+--replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
+show session variables like 'character_sets_dir';
+--replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
+select * from information_schema.global_variables where variable_name='character_sets_dir';
+--replace_result $MYSQL_CHARSETSDIR MYSQL_CHARSETSDIR
+select * from information_schema.session_variables where variable_name='character_sets_dir';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global character_sets_dir="foo";
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session character_sets_dir="foo";
+

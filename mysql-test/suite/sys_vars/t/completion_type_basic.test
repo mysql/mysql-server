@@ -53,18 +53,6 @@ SET @@session.completion_type = DEFAULT;
 SELECT @@session.completion_type;
 
 
---echo '#--------------------FN_DYNVARS_017_02-------------------------#'
-###############################################################
-#     Check the DEFAULT value of completion_type              #
-###############################################################
-
-SET @@global.completion_type = @start_global_value;
-SELECT @@global.completion_type = 0;
-
-SET @@session.completion_type = @start_session_value;
-SELECT @@session.completion_type = 0;
-
-
 --echo '#--------------------FN_DYNVARS_017_03-------------------------#'
 #########################################################################
 # Change the value of completion_type to a valid value for GLOBAL Scope #
@@ -77,6 +65,12 @@ SELECT @@global.completion_type;
 SET @@global.completion_type = 2;
 SELECT @@global.completion_type;
 
+SET @@global.completion_type = NO_CHAIN;
+SELECT @@global.completion_type;
+SET @@global.completion_type = CHAIN;
+SELECT @@global.completion_type;
+SET @@global.completion_type = 'RELEASE';
+SELECT @@global.completion_type;
 
 --echo '#--------------------FN_DYNVARS_017_04-------------------------#'
 ##########################################################################
@@ -90,19 +84,25 @@ SELECT @@session.completion_type;
 SET @@session.completion_type = 2;
 SELECT @@session.completion_type;
 
+SET @@session.completion_type = 'NO_CHAIN';
+SELECT @@session.completion_type;
+SET @@session.completion_type = 'CHAIN';
+SELECT @@session.completion_type;
+SET @@session.completion_type = 'RELEASE';
+SELECT @@session.completion_type;
 
 --echo '#------------------FN_DYNVARS_017_05-----------------------#'
 ###########################################################
 # Change the value of completion_type to an invalid value #
 ###########################################################
-
+set sql_mode=TRADITIONAL;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.completion_type = 10;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.completion_type = -1024;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.completion_type = 2.4;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.completion_type = OFF;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.completion_type = 10;
@@ -110,7 +110,7 @@ SET @@session.completion_type = 10;
 SET @@session.completion_type = -2;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.completion_type = 1.2;
---Error ER_WRONG_TYPE_FOR_VAR
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.completion_type = ON;
 
 
@@ -177,6 +177,7 @@ SET @@global.completion_type = @start_global_value;
 SELECT @@global.completion_type;
 SET @@session.completion_type = @start_session_value;
 SELECT @@session.completion_type;
+set sql_mode='';
 
 ############################################
 #         END OF completion_type TESTS     #

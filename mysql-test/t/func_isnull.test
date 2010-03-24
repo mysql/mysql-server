@@ -13,3 +13,15 @@ select * from t1 where isnull(to_days(mydate));
 drop table t1;
 
 # End of 4.1 tests
+
+#
+# Bug #41371    Select returns 1 row with condition "col is not null and col is null"
+#
+
+CREATE TABLE t1 (id INTEGER UNSIGNED NOT NULL AUTO_INCREMENT, PRIMARY KEY(id));
+INSERT INTO t1( id ) VALUES ( NULL );
+SELECT t1.id  FROM t1  WHERE (id  is not null and id is null );
+DROP TABLE t1;
+
+# End of 5.1 tests
+

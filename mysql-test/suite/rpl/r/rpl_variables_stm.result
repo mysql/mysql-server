@@ -4,9 +4,9 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
 ==== Initialization ====
 [on master]
-SET @m_pseudo_thread_id=         @@global.pseudo_thread_id;
 SET @m_auto_increment_increment= @@global.auto_increment_increment;
 SET @m_auto_increment_offset=    @@global.auto_increment_offset;
 SET @m_character_set_client=     @@global.character_set_client;
@@ -16,7 +16,6 @@ SET @m_time_zone=                @@global.time_zone;
 SET @m_lc_time_names=            @@global.lc_time_names;
 SET @m_collation_database=       @@global.collation_database;
 [on slave]
-SET @s_pseudo_thread_id=         @@global.pseudo_thread_id;
 SET @s_auto_increment_increment= @@global.auto_increment_increment;
 SET @s_auto_increment_offset=    @@global.auto_increment_offset;
 SET @s_character_set_client=     @@global.character_set_client;
@@ -25,7 +24,6 @@ SET @s_collation_server=         @@global.collation_server;
 SET @s_time_zone=                @@global.time_zone;
 SET @s_lc_time_names=            @@global.lc_time_names;
 SET @s_collation_database=       @@global.collation_database;
-SET @@global.pseudo_thread_id= 4711;
 SET @@global.auto_increment_increment=19;
 SET @@global.auto_increment_offset=4;
 SET @@global.character_set_client='latin2';
@@ -505,7 +503,6 @@ DROP PROCEDURE proc;
 DROP FUNCTION func;
 DROP TRIGGER trig;
 DROP TABLE tstmt, tproc, tfunc, ttrig, tprep, trigger_table;
-SET @@global.pseudo_thread_id=         @m_pseudo_thread_id;
 SET @@global.auto_increment_increment= @m_auto_increment_increment;
 SET @@global.auto_increment_offset=    @m_auto_increment_offset;
 SET @@global.character_set_client=     @m_character_set_client;
@@ -515,7 +512,6 @@ SET @@global.time_zone=                @m_time_zone;
 SET @@global.lc_time_names=            @m_lc_time_names;
 SET @@global.collation_database=       @m_collation_database;
 [on slave]
-SET @@global.pseudo_thread_id=         @s_pseudo_thread_id;
 SET @@global.auto_increment_increment= @s_auto_increment_increment;
 SET @@global.auto_increment_offset=    @s_auto_increment_offset;
 SET @@global.character_set_client=     @s_character_set_client;

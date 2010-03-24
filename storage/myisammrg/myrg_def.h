@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2001, 2003 MySQL AB
+/* Copyright (C) 2000-2001, 2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 extern LIST *myrg_open_list;
 
 #ifdef THREAD
-extern pthread_mutex_t THR_LOCK_open;
+extern mysql_mutex_t THR_LOCK_open;
 #endif
 
 int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag);
@@ -33,3 +33,14 @@ int _myrg_mi_read_record(MI_INFO *info, uchar *buf);
 extern "C" 
 #endif
 void myrg_print_wrong_table(const char *table_name);
+
+#ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key rg_key_mutex_MYRG_INFO_mutex;
+
+extern PSI_file_key rg_key_file_MRG;
+
+C_MODE_START
+void init_myisammrg_psi_keys();
+C_MODE_END
+#endif /* HAVE_PSI_INTERFACE */
+

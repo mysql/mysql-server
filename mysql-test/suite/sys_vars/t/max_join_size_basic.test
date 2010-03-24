@@ -1,0 +1,54 @@
+
+
+#
+# 2010-01-20 - OBN - Added check for variable value sameas I_S table
+#                    after variable value change
+#
+
+
+SET @start_global_value = @@global.max_join_size;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.max_join_size;
+select @@session.max_join_size;
+show global variables like 'max_join_size';
+show session variables like 'max_join_size';
+select * from information_schema.global_variables where variable_name='max_join_size';
+select * from information_schema.session_variables where variable_name='max_join_size';
+
+#
+# show that it's writable
+#
+set global max_join_size=10;
+set session max_join_size=20;
+select @@global.max_join_size;
+select @@session.max_join_size;
+show global variables like 'max_join_size';
+show session variables like 'max_join_size';
+select * from information_schema.global_variables where variable_name='max_join_size';
+select * from information_schema.session_variables where variable_name='max_join_size';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global max_join_size=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global max_join_size=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global max_join_size="foo";
+
+#
+# affects OPTION_BIG_SELECTS
+#
+select @@sql_big_selects;
+set max_join_size=cast(-1 as unsigned int);
+select @@sql_big_selects;
+set max_join_size=100;
+select @@sql_big_selects;
+
+SET @@global.max_join_size = @start_global_value;
+SELECT @@global.max_join_size;

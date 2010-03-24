@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -503,9 +503,13 @@ int my_load_defaults(const char *conf_file, const char **groups,
   ctx.args= &args;
   ctx.group= &group;
 
-  error= my_search_option_files(conf_file, argc, argv, &args_used,
-                                handle_default_option, (void *) &ctx,
-                                dirs);
+  if ((error= my_search_option_files(conf_file, argc, argv, &args_used,
+                                     handle_default_option, (void *) &ctx,
+                                     dirs)))
+  {
+    free_root(&alloc,MYF(0));
+    DBUG_RETURN(error);
+  }
   /*
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
@@ -557,10 +561,10 @@ int my_load_defaults(const char *conf_file, const char **groups,
     exit(0);
   }
 
-  if (error == 0 && default_directories)
+  if (default_directories)
     *default_directories= dirs;
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(0);
 
  err:
   fprintf(stderr,"Fatal error in defaults handling. Program aborted\n");
@@ -683,7 +687,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   static const char includedir_keyword[]= "includedir";
   static const char include_keyword[]= "include";
   const int max_recursion_level= 10;
-  FILE *fp;
+  MYSQL_FILE *fp;
   uint line=0;
   my_bool found_group=0;
   uint i;
@@ -723,10 +727,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     }
   }
 #endif
-  if (!(fp= my_fopen(name, O_RDONLY, MYF(0))))
+  if (!(fp= mysql_file_fopen(key_file_cnf, name, O_RDONLY, MYF(0))))
     return 1;					/* Ignore wrong files */
 
-  while (fgets(buff, sizeof(buff) - 1, fp))
+  while (mysql_file_fgets(buff, sizeof(buff) - 1, fp))
   {
     line++;
     /* Ignore comment and empty lines */
@@ -916,11 +920,11 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
         goto err;
     }
   }
-  my_fclose(fp,MYF(0));
+  mysql_file_fclose(fp, MYF(0));
   return(0);
 
  err:
-  my_fclose(fp,MYF(0));
+  mysql_file_fclose(fp, MYF(0));
   return -1;					/* Fatal error */
 }
 

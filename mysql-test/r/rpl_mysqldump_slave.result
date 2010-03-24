@@ -1,0 +1,17 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+#
+# New --dump-slave, --apply-slave-statements functionality
+#
+use test;
+CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=107;
+STOP SLAVE;
+CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=107;
+START SLAVE;
+STOP SLAVE;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT='MASTER_MYPORT', MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=107;
+START SLAVE;

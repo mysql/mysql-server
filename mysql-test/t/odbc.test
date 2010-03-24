@@ -3,6 +3,8 @@
 drop table if exists t1;
 --enable_warnings
 
+set @@session.sql_auto_is_null=1;
+
 #
 # Test some ODBC compatibility
 #
@@ -32,3 +34,5 @@ SELECT sql_no_cache a, last_insert_id() FROM t1;
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+set @@session.sql_auto_is_null=default;

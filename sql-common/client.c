@@ -38,6 +38,10 @@
 
 #include "mysql.h"
 
+#ifndef __WIN__
+#include <netdb.h>
+#endif
+
 /* Remove client convenience wrappers */
 #undef max_allowed_packet
 #undef net_buffer_length
@@ -1957,7 +1961,7 @@ const MY_CSET_OS_NAME charsets[]=
   {"cp10029",        "macce",    my_cs_exact},
   {"cp12001",        "utf32",    my_cs_unsupp},
   {"cp20107",        "swe7",     my_cs_exact},
-  {"cp20127",        "ascii",    my_cs_exact},
+  {"cp20127",        "latin1",   my_cs_approx},
   {"cp20866",        "koi8r",    my_cs_exact},
   {"cp20932",        "ujis",     my_cs_exact},
   {"cp20936",        "gb2312",   my_cs_approx},
@@ -1985,11 +1989,11 @@ const MY_CSET_OS_NAME charsets[]=
 #else /* not Windows */
 
   {"646",            "latin1",   my_cs_approx}, /* Default on Solaris */
-  {"ANSI_X3.4-1968", "ascii",    my_cs_exact},
+  {"ANSI_X3.4-1968", "latin1",   my_cs_approx},
   {"ansi1251",       "cp1251",   my_cs_exact},
   {"armscii8",       "armscii8", my_cs_exact},
   {"armscii-8",      "armscii8", my_cs_exact},
-  {"ASCII",          "ascii",    my_cs_exact},
+  {"ASCII",          "latin1",   my_cs_approx},
   {"Big5",           "big5",     my_cs_exact},
   {"cp1251",         "cp1251",   my_cs_exact},
   {"cp1255",         "hebrew",   my_cs_approx},
@@ -2062,7 +2066,7 @@ const MY_CSET_OS_NAME charsets[]=
 
   {"ujis",           "ujis",     my_cs_exact},
 
-  {"US-ASCII",       "ascii",    my_cs_exact},
+  {"US-ASCII",       "latin1",   my_cs_approx},
 
   {"utf8",           "utf8",     my_cs_exact},
   {"utf-8",          "utf8",     my_cs_exact},
@@ -2227,9 +2231,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
   char		*end,*host_info= NULL;
-  my_socket	sock;
-  in_addr_t	ip_addr;
-  struct	sockaddr_in sock_addr;
   ulong		pkt_length;
   NET		*net= &mysql->net;
 #ifdef MYSQL_SERVER
@@ -2335,7 +2336,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     else
     {
       mysql->options.protocol=MYSQL_PROTOCOL_MEMORY;
-      sock=0;
       unix_socket = 0;
       host=mysql->options.shared_memory_base_name;
       my_snprintf(host_info=buff, sizeof(buff)-1,
@@ -2350,12 +2350,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (unix_socket || mysql_unix_port) &&
       (!host || !strcmp(host,LOCAL_HOST)))
   {
-    host=LOCAL_HOST;
-    if (!unix_socket)
-      unix_socket=mysql_unix_port;
-    host_info=(char*) ER(CR_LOCALHOST_CONNECTION);
-    DBUG_PRINT("info",("Using UNIX sock '%s'",unix_socket));
-    if ((sock = socket(AF_UNIX,SOCK_STREAM,0)) == SOCKET_ERROR)
+    DBUG_PRINT("info", ("Using socket"));
+    my_socket sock= socket(AF_UNIX, SOCK_STREAM, 0);
+    if (sock == SOCKET_ERROR)
     {
       set_mysql_extended_error(mysql, CR_SOCKET_CREATE_ERROR,
                                unknown_sqlstate,
@@ -2363,12 +2360,28 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                                socket_errno);
       goto error;
     }
+
     net->vio= vio_new(sock, VIO_TYPE_SOCKET,
                       VIO_LOCALHOST | VIO_BUFFERED_READ);
-    bzero((char*) &UNIXaddr,sizeof(UNIXaddr));
-    UNIXaddr.sun_family = AF_UNIX;
+    if (!net->vio)
+    {
+      DBUG_PRINT("error",("Unknow protocol %d ", mysql->options.protocol));
+      set_mysql_error(mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
+      closesocket(sock);
+      goto error;
+    }
+
+    host= LOCAL_HOST;
+    if (!unix_socket)
+      unix_socket= mysql_unix_port;
+    host_info= (char*) ER(CR_LOCALHOST_CONNECTION);
+    DBUG_PRINT("info", ("Using UNIX sock '%s'", unix_socket));
+
+    bzero((char*) &UNIXaddr, sizeof(UNIXaddr));
+    UNIXaddr.sun_family= AF_UNIX;
     strmake(UNIXaddr.sun_path, unix_socket, sizeof(UNIXaddr.sun_path)-1);
-    if (my_connect(sock,(struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
+
+    if (my_connect(sock, (struct sockaddr *) &UNIXaddr, sizeof(UNIXaddr),
 		   mysql->options.connect_timeout))
     {
       DBUG_PRINT("error",("Got error %d on connect to local server",
@@ -2377,6 +2390,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                                unknown_sqlstate,
                                ER(CR_CONNECTION_ERROR),
                                unix_socket, socket_errno);
+      vio_delete(net->vio);
+      net->vio= 0;
       goto error;
     }
     mysql->options.protocol=MYSQL_PROTOCOL_SOCKET;
@@ -2387,7 +2402,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
        (host && !strcmp(host,LOCAL_HOST_NAMEDPIPE)) ||
        (! have_tcpip && (unix_socket || !host && is_NT()))))
   {
-    sock=0;
     if ((hPipe= create_named_pipe(mysql, mysql->options.connect_timeout,
                                   (char**) &host, (char**) &unix_socket)) ==
 	INVALID_HANDLE_VALUE)
@@ -2417,94 +2431,124 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       (!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_TCP))
   {
-    int status= -1;
+    struct addrinfo *res_lst, hints, *t_res;
+    int gai_errno;
+    char port_buf[NI_MAXSERV];
+    my_socket sock= SOCKET_ERROR;
+    int UNINIT_VAR(saved_error), status= -1;
+
     unix_socket=0;				/* This is not used */
+
     if (!port)
-      port=mysql_port;
+      port= mysql_port;
+
     if (!host)
-      host=LOCAL_HOST;
-    my_snprintf(host_info=buff,sizeof(buff)-1,ER(CR_TCP_CONNECTION),host);
-    DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host,port));
+      host= LOCAL_HOST;
+
+    my_snprintf(host_info=buff, sizeof(buff)-1, ER(CR_TCP_CONNECTION), host);
+    DBUG_PRINT("info",("Server name: '%s'.  TCP sock: %d", host, port));
 #ifdef MYSQL_SERVER
     thr_alarm_init(&alarmed);
     thr_alarm(&alarmed, mysql->options.connect_timeout, &alarm_buff);
 #endif
-    /* _WIN64 ;  Assume that the (int) range is enough for socket() */
-    sock = (my_socket) socket(AF_INET,SOCK_STREAM,0);
+
+    DBUG_PRINT("info",("IP '%s'", "client"));
+
 #ifdef MYSQL_SERVER
     thr_end_alarm(&alarmed);
 #endif
+
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_socktype= SOCK_STREAM;
+    hints.ai_protocol= IPPROTO_TCP;
+    hints.ai_family= AF_UNSPEC;
+
+    DBUG_PRINT("info",("IPV6 getaddrinfo %s", host));
+    my_snprintf(port_buf, NI_MAXSERV, "%d", port);
+    gai_errno= getaddrinfo(host, port_buf, &hints, &res_lst);
+
+    if (gai_errno != 0) 
+    { 
+      /* 
+        For DBUG we are keeping the right message but for client we default to
+        historical error message.
+      */
+      DBUG_PRINT("info",("IPV6 getaddrinfo error %d", gai_errno));
+      set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
+                               ER(CR_UNKNOWN_HOST), host, errno);
+
+      goto error;
+    }
+
+    /*
+      A hostname might map to multiple IP addresses (IPv4/IPv6). Go over the
+      list of IP addresses until a successful connection can be established.
+    */
+    DBUG_PRINT("info", ("Try connect on all addresses for host."));
+    for (t_res= res_lst; t_res; t_res= t_res->ai_next)
+    {
+      DBUG_PRINT("info", ("Create socket, family: %d  type: %d  proto: %d",
+                          t_res->ai_family, t_res->ai_socktype,
+                          t_res->ai_protocol));
+      sock= socket(t_res->ai_family, t_res->ai_socktype, t_res->ai_protocol);
+      if (sock == SOCKET_ERROR)
+      {
+        saved_error= socket_errno;
+        continue;
+      }
+
+      DBUG_PRINT("info", ("Connect socket"));
+      status= my_connect(sock, t_res->ai_addr, t_res->ai_addrlen,
+                         mysql->options.connect_timeout);
+      /*
+        Here we rely on my_connect() to return success only if the
+        connect attempt was really successful. Otherwise we would stop
+        trying another address, believing we were successful.
+      */
+      if (!status)
+        break;
+
+      /*
+        Save value as socket errno might be overwritten due to
+        calling a socket function below.
+      */
+      saved_error= socket_errno;
+
+      DBUG_PRINT("info", ("No success, close socket, try next address."));
+      closesocket(sock);
+    }
+    DBUG_PRINT("info",
+               ("End of connect attempts, sock: %d  status: %d  error: %d",
+                sock, status, saved_error));
+
+    freeaddrinfo(res_lst);
+
     if (sock == SOCKET_ERROR)
     {
       set_mysql_extended_error(mysql, CR_IPSOCK_ERROR, unknown_sqlstate,
-                               ER(CR_IPSOCK_ERROR), socket_errno);
+                                ER(CR_IPSOCK_ERROR), saved_error);
       goto error;
-    }
-    net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
-    bzero((char*) &sock_addr,sizeof(sock_addr));
-    sock_addr.sin_family = AF_INET;
-    sock_addr.sin_port = (ushort) htons((ushort) port);
-
-    /*
-      The server name may be a host name or IP address
-    */
-
-    if ((int) (ip_addr = inet_addr(host)) != (int) INADDR_NONE)
-    {
-      memcpy_fixed(&sock_addr.sin_addr,&ip_addr,sizeof(ip_addr));
-      status= my_connect(sock, (struct sockaddr *) &sock_addr,
-                         sizeof(sock_addr), mysql->options.connect_timeout);
-    }
-    else
-    {
-      int i, tmp_errno;
-      struct hostent tmp_hostent,*hp;
-      char buff2[GETHOSTBYNAME_BUFF_SIZE];
-      hp = my_gethostbyname_r(host,&tmp_hostent,buff2,sizeof(buff2),
-			      &tmp_errno);
-
-      /*
-        Don't attempt to connect to non IPv4 addresses as the client could
-        end up sending information to a unknown server. For example, a IPv6
-        address might be returned from gethostbyname depending on options
-        set via the RES_OPTIONS environment variable.
-      */
-      if (!hp || (hp->h_addrtype != AF_INET))
-      {
-	my_gethostbyname_r_free();
-        set_mysql_extended_error(mysql, CR_UNKNOWN_HOST, unknown_sqlstate,
-                                 ER(CR_UNKNOWN_HOST), host, tmp_errno);
-	goto error;
-      }
-
-      for (i= 0; status && hp->h_addr_list[i]; i++)
-      {
-        char ipaddr[18] __attribute__((unused));
-        memcpy(&sock_addr.sin_addr, hp->h_addr_list[i],
-               min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
-        DBUG_PRINT("info",("Trying %s...",
-                          (my_inet_ntoa(sock_addr.sin_addr, ipaddr), ipaddr)));
-        /*
-          Here we rely on my_connect() to return success only if the
-          connect attempt was really successful. Otherwise we would stop
-          trying another address, believing we were successful.
-        */
-        status= my_connect(sock, (struct sockaddr *) &sock_addr,
-                           sizeof(sock_addr), mysql->options.connect_timeout);
-      }
-
-      my_gethostbyname_r_free();
     }
 
     if (status)
     {
-      DBUG_PRINT("error",("Got error %d on connect to '%s'",socket_errno,
-			  host));
+      DBUG_PRINT("error",("Got error %d on connect to '%s'", saved_error, host));
       set_mysql_extended_error(mysql, CR_CONN_HOST_ERROR, unknown_sqlstate,
-                               ER(CR_CONN_HOST_ERROR), host, socket_errno);
+                                ER(CR_CONN_HOST_ERROR), host, saved_error);
+      goto error;
+    }
+
+    net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
+    if (! net->vio )
+    {
+      DBUG_PRINT("error",("Unknow protocol %d ", mysql->options.protocol));
+      set_mysql_error(mysql, CR_CONN_UNKNOW_PROTOCOL, unknown_sqlstate);
+      closesocket(sock);
       goto error;
     }
   }
+
+  DBUG_PRINT("info", ("net->vio: %p", net->vio));
   if (!net->vio)
   {
     DBUG_PRINT("error",("Unknow protocol %d ",mysql->options.protocol));
@@ -2640,14 +2684,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (client_flag & CLIENT_MULTI_STATEMENTS)
     client_flag|= CLIENT_MULTI_RESULTS;
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (mysql->options.ssl_key || mysql->options.ssl_cert ||
       mysql->options.ssl_ca || mysql->options.ssl_capath ||
       mysql->options.ssl_cipher)
     mysql->options.use_ssl= 1;
   if (mysql->options.use_ssl)
     client_flag|=CLIENT_SSL;
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY*/
   if (db)
     client_flag|=CLIENT_CONNECT_WITH_DB;
 
@@ -2676,7 +2720,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   }
   mysql->client_flag=client_flag;
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (client_flag & CLIENT_SSL)
   {
     /* Do the SSL layering. */
@@ -2727,7 +2771,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     }
 
   }
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
   DBUG_PRINT("info",("Server version = '%s'  capabilites: %lu  status: %u  client_flag: %lu",
 		     mysql->server_version,mysql->server_capabilities,

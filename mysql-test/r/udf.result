@@ -390,6 +390,52 @@ a
 4
 DROP FUNCTION sequence;
 DROP TABLE t1,t2;
+drop function if exists test.metaphon;
+drop function if exists metaphon;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+select metaphon("Hello");
+metaphon("Hello")
+HL
+drop function if exists test.metaphon;
+Warnings:
+Note	1305	FUNCTION test.metaphon does not exist
+select metaphon("Hello");
+metaphon("Hello")
+HL
+drop function metaphon;
+CREATE FUNCTION test.metaphon(a TEXT) RETURNS TEXT return "This is a SF";
+create database db_31767;
+use db_31767;
+CREATE FUNCTION metaphon RETURNS STRING SONAME "UDF_EXAMPLE_LIB";
+use test;
+select metaphon("Hello");
+metaphon("Hello")
+HL
+select test.metaphon("Hello");
+test.metaphon("Hello")
+This is a SF
+drop function metaphon;
+select metaphon("Hello");
+metaphon("Hello")
+This is a SF
+drop function metaphon;
+use db_31767;
+drop database db_31767;
+drop function if exists no_such_func;
+Warnings:
+Note	1305	FUNCTION (UDF) no_such_func does not exist
+drop function no_such_func;
+ERROR 42000: FUNCTION (UDF) no_such_func does not exist
+drop function if exists test.no_such_func;
+Warnings:
+Note	1305	FUNCTION test.no_such_func does not exist
+drop function test.no_such_func;
+ERROR 42000: FUNCTION test.no_such_func does not exist
+drop procedure if exists no_such_proc;
+ERROR 3D000: No database selected
+drop procedure no_such_proc;
+ERROR 3D000: No database selected
+use test;
 #
 # Bug#46259: 5.0.83 -> 5.1.36, query doesn't work
 #
@@ -407,3 +453,18 @@ b
 1
 DROP TABLE t1;
 End of 5.0 tests.
+#
+# Bug#33546: Slowdown on re-evaluation of constant expressions.
+#
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES(1),(50);
+CREATE FUNCTION myfunc_double RETURNS INTEGER SONAME "UDF_EXAMPLE_LIB";
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE f1=1 + myfunc_double(1);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+Warnings:
+Note	1003	select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`f1` = <cache>((1 + myfunc_double(1 AS `1`))))
+DROP FUNCTION myfunc_double;
+DROP TABLE t1;
+#
+End of 5.1 tests.

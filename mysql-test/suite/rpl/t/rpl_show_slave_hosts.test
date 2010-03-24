@@ -1,0 +1,47 @@
+###############################################################################
+# Bug#13963 SHOW SLAVE HOSTS is unreliable
+#
+# Slaves only appear in the output of SHOW SLAVE HOSTS when report-host option
+# is set. If an expected slave does not appear in the list, nobody knows
+# whether the slave does not connect or has started without the "report-host"
+# option.
+#
+# Remove the "Rpl_recovery_rank" column from SHOW SLAVE HOSTS, It is not
+# implemented.
+#######################################################################
+source include/master-slave.inc;
+connect (slave2,127.0.0.1,root,,test,$SLAVE_MYPORT2,);
+
+connection slave2;
+RESET SLAVE;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--eval CHANGE MASTER TO master_host='127.0.0.1',master_port=$MASTER_MYPORT,master_user='root'
+START SLAVE IO_THREAD;
+source include/wait_for_slave_io_to_start.inc;
+
+connection master;
+let $show_statement= SHOW SLAVE HOSTS;
+let $field= Server_id;
+# 3 is server_id of slave2.
+let $connection= ='3';
+source include/wait_show_condition.inc;
+--replace_result $SLAVE_MYPORT SLAVE_PORT $DEFAULT_MASTER_PORT DEFAULT_PORT
+SHOW SLAVE HOSTS;
+
+connection slave2;
+STOP SLAVE IO_THREAD;
+source include/wait_for_slave_io_to_stop.inc;
+
+connection master;
+let $show_statement= SHOW SLAVE HOSTS;
+let $field= Server_id;
+# 3 is server_id of slave2.
+let $condition= <> '3';
+# All rows of 'SHOW SLAVE HOSTS' are not equal to 3.  It mean that master has
+# knew the leave of slave2 and has unregistered it.
+let $wait_for_all= 1;
+source include/wait_show_condition.inc;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+SHOW SLAVE HOSTS;
+
+source include/master-slave-end.inc;

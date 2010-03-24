@@ -66,8 +66,8 @@ Unique::Unique(qsort_cmp2 comp_func, void * comp_func_fixed_arg,
   */
   max_elements= (ulong) (max_in_memory_size /
                          ALIGN_SIZE(sizeof(TREE_ELEMENT)+size));
-  VOID(open_cached_file(&file, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE,
-		   MYF(MY_WME)));
+  (void) open_cached_file(&file, mysql_tmpdir,TEMP_PREFIX, DISK_BUFFER_SIZE,
+		   MYF(MY_WME));
 }
 
 

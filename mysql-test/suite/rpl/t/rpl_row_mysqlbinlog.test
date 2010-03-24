@@ -116,16 +116,14 @@ sync_slave_with_master;
 #(the server was started with skip-slave-start)
 --disable_warnings
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 --enable_warnings
---require r/slave-stopped.result
-show status like 'Slave_running';
 connection master;
 reset master;
 connection slave;
 reset slave;
 start slave;
---require r/slave-running.result
-show status like 'Slave_running';
+--source include/wait_for_slave_to_start.inc
 connection master;
 
 # We should be clean at this point, now we will run in the file from above.
@@ -163,14 +161,14 @@ connection master;
 remove_file $MYSQLTEST_VARDIR/tmp/master.sql;
 
 
-# this test for position option
-# By setting this position to 417, we should only get the create of t3
+# this test for start-position option
+# By setting this position to 416, we should only get the create of t3
 --disable_query_log
 select "--- Test 2 position test --" as "";
 --enable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=417 --stop-position=570 $MYSQLD_DATADIR/master-bin.000001
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --start-position=417 --stop-position=570 $MYSQLD_DATADIR/master-bin.000001
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -181,9 +179,7 @@ select "--- Test 3 First Remote test --" as "";
 
 # This is broken now
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=570 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
-
-# This part is disabled due to bug #17654
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --stop-position=569 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 
 --disable_query_log
 select "--- Test 4 Second Remote test --" as "";
@@ -206,16 +202,14 @@ sync_slave_with_master;
 
 --disable_warnings
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 --enable_warnings
---require r/slave-stopped.result
-show status like 'Slave_running';
 connection master;
 reset master;
 connection slave;
 reset slave;
 start slave;
---require r/slave-running.result
-show status like 'Slave_running';
+--source include/wait_for_slave_to_start.inc
 connection master;
 
 # We should be clean at this point, now we will run in the file from above.
@@ -272,8 +266,8 @@ let $MYSQLD_DATADIR= `select @@datadir;`;
 select "--- Test 7 reading stdin w/position --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --position=417 --stop-position=569 - < $MYSQLD_DATADIR/master-bin.000001
-
+--exec $MYSQL_BINLOG --short-form --start-position=417 --stop-position=570 - < $MYSQLD_DATADIR/master-bin.000001
+       
 # Bug#16217 (mysql client did not know how not switch its internal charset)
 --disable_query_log
 select "--- Test 8 switch internal charset --" as "";
@@ -285,16 +279,14 @@ sync_slave_with_master;
 
 --disable_warnings
 stop slave;
+--source include/wait_for_slave_to_stop.inc
 --enable_warnings
---require r/slave-stopped.result
-show status like 'Slave_running';
 connection master;
 reset master;
 connection slave;
 reset slave;
 start slave;
---require r/slave-running.result
-show status like 'Slave_running';
+--source include/wait_for_slave_to_start.inc
 connection master;
 
 create table t4 (f text character set utf8);
