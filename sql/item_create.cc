@@ -2946,9 +2946,7 @@ Create_func_cot Create_func_cot::s_singleton;
 Item*
 Create_func_cot::create(THD *thd, Item *arg1)
 {
-  Item *i1= new (thd->mem_root) Item_int((char*) "1", 1, 1);
-  Item *i2= new (thd->mem_root) Item_func_tan(arg1);
-  return new (thd->mem_root) Item_func_div(i1, i2);
+  return new (thd->mem_root) Item_func_cot(arg1);
 }
 
 

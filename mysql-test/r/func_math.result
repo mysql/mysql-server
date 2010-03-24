@@ -98,7 +98,7 @@ explain extended select pi(),format(sin(pi()/2),6),format(cos(pi()/2),6),format(
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select pi() AS `pi()`,format(sin((pi() / 2)),6) AS `format(sin(pi()/2),6)`,format(cos((pi() / 2)),6) AS `format(cos(pi()/2),6)`,format(abs(tan(pi())),6) AS `format(abs(tan(pi())),6)`,format((1 / tan(1)),6) AS `format(cot(1),6)`,format(asin(1),6) AS `format(asin(1),6)`,format(acos(0),6) AS `format(acos(0),6)`,format(atan(1),6) AS `format(atan(1),6)`
+Note	1003	select pi() AS `pi()`,format(sin((pi() / 2)),6) AS `format(sin(pi()/2),6)`,format(cos((pi() / 2)),6) AS `format(cos(pi()/2),6)`,format(abs(tan(pi())),6) AS `format(abs(tan(pi())),6)`,format(cot(1),6) AS `format(cot(1),6)`,format(asin(1),6) AS `format(asin(1),6)`,format(acos(0),6) AS `format(acos(0),6)`,format(atan(1),6) AS `format(atan(1),6)`
 select degrees(pi()),radians(360);
 degrees(pi())	radians(360)
 180	6.283185307179586
@@ -451,23 +451,17 @@ SELECT 1 FROM (SELECT ROUND(f1, f1) AS a FROM t1) AS s WHERE a LIKE 'a';
 DROP TABLE t1;
 End of 5.0 tests
 SELECT 1e308 + 1e308;
-1e308 + 1e308
-NULL
+ERROR 22003: DOUBLE value is out of range in '(1e308 + 1e308)'
 SELECT -1e308 - 1e308;
--1e308 - 1e308
-NULL
+ERROR 22003: DOUBLE value is out of range in '(-(1e308) - 1e308)'
 SELECT 1e300 * 1e300;
-1e300 * 1e300
-NULL
+ERROR 22003: DOUBLE value is out of range in '(1e300 * 1e300)'
 SELECT 1e300 / 1e-300;
-1e300 / 1e-300
-NULL
+ERROR 22003: DOUBLE value is out of range in '(1e300 / 1e-300)'
 SELECT EXP(750);
-EXP(750)
-NULL
+ERROR 22003: DOUBLE value is out of range in 'exp(750)'
 SELECT POW(10, 309);
-POW(10, 309)
-NULL
+ERROR 22003: DOUBLE value is out of range in 'pow(10,309)'
 #
 # Bug #44768: SIGFPE crash when selecting rand from a view
 #             containing null
@@ -488,11 +482,121 @@ RAND(i)
 DROP TABLE t1;
 #
 select 123456789012345678901234567890.123456789012345678901234567890 div 1 as x;
-ERROR 22003: Out of range value for column 'x' at row 1
+ERROR 22003: BIGINT value is out of range in '(123456789012345678901234567890.123456789012345678901234567890 DIV 1)'
 select "123456789012345678901234567890.123456789012345678901234567890" div 1 as x;
-ERROR 22003: Out of range value for column 'x' at row 1
+ERROR 22003: BIGINT value is out of range in '('123456789012345678901234567890.123456789012345678901234567890' DIV 1)'
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1292	Truncated incorrect DECIMAL value: ''
-Error	1264	Out of range value for column 'x' at row 1
+Error	1690	BIGINT value is out of range in '('123456789012345678901234567890.123456789012345678901234567890' DIV 1)'
 End of 5.1 tests
+#
+# Bug #8433: Overflow must be an error
+#
+SELECT 1e308 + 1e308;
+ERROR 22003: DOUBLE value is out of range in '(1e308 + 1e308)'
+SELECT -1e308 - 1e308;
+ERROR 22003: DOUBLE value is out of range in '(-(1e308) - 1e308)'
+SELECT 1e300 * 1e300;
+ERROR 22003: DOUBLE value is out of range in '(1e300 * 1e300)'
+SELECT 1e300 / 1e-300;
+ERROR 22003: DOUBLE value is out of range in '(1e300 / 1e-300)'
+SELECT EXP(750);
+ERROR 22003: DOUBLE value is out of range in 'exp(750)'
+SELECT POW(10, 309);
+ERROR 22003: DOUBLE value is out of range in 'pow(10,309)'
+SELECT COT(0);
+ERROR 22003: DOUBLE value is out of range in 'cot(0)'
+SELECT DEGREES(1e307);
+ERROR 22003: DOUBLE value is out of range in 'degrees(1e307)'
+SELECT 9223372036854775808 + 9223372036854775808;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(9223372036854775808 + 9223372036854775808)'
+SELECT 18446744073709551615 + 1;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(18446744073709551615 + 1)'
+SELECT 1 + 18446744073709551615;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(1 + 18446744073709551615)'
+SELECT -2 + CAST(1 AS UNSIGNED);
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(-(2) + cast(1 as unsigned))'
+SELECT CAST(1 AS UNSIGNED) + -2;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(cast(1 as unsigned) + -(2))'
+SELECT -9223372036854775808 + -9223372036854775808;
+ERROR 22003: BIGINT value is out of range in '(-(9223372036854775808) + -(9223372036854775808))'
+SELECT 9223372036854775807 + 9223372036854775807;
+ERROR 22003: BIGINT value is out of range in '(9223372036854775807 + 9223372036854775807)'
+SELECT CAST(0 AS UNSIGNED) - 9223372036854775809;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(cast(0 as unsigned) - 9223372036854775809)'
+SELECT 9223372036854775808 - 9223372036854775809;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(9223372036854775808 - 9223372036854775809)'
+SELECT CAST(1 AS UNSIGNED) - 2;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(cast(1 as unsigned) - 2)'
+SELECT 18446744073709551615 - (-1);
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(18446744073709551615 - -(1))'
+SELECT -1 - 9223372036854775808;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(-(1) - 9223372036854775808)'
+SELECT -1 - CAST(1 AS UNSIGNED);
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(-(1) - cast(1 as unsigned))'
+SELECT -9223372036854775808 - 1;
+ERROR 22003: BIGINT value is out of range in '(-(9223372036854775808) - 1)'
+SELECT 9223372036854775807 - -9223372036854775808;
+ERROR 22003: BIGINT value is out of range in '(9223372036854775807 - -(9223372036854775808))'
+set SQL_MODE='NO_UNSIGNED_SUBTRACTION';
+SELECT 18446744073709551615 - 1;
+ERROR 22003: BIGINT value is out of range in '(18446744073709551615 - 1)'
+SELECT 18446744073709551615 - CAST(1 AS UNSIGNED);
+ERROR 22003: BIGINT value is out of range in '(18446744073709551615 - cast(1 as unsigned))'
+SELECT 18446744073709551614 - (-1);
+ERROR 22003: BIGINT value is out of range in '(18446744073709551614 - -(1))'
+SELECT 9223372036854775807 - -1;
+ERROR 22003: BIGINT value is out of range in '(9223372036854775807 - -(1))'
+set SQL_MODE=default;
+SELECT 4294967296 * 4294967296;
+ERROR 22003: BIGINT value is out of range in '(4294967296 * 4294967296)'
+SELECT 9223372036854775808 * 2;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(9223372036854775808 * 2)'
+SELECT 9223372036854775808 * 2;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(9223372036854775808 * 2)'
+SELECT 7158278827 * 3221225472;
+ERROR 22003: BIGINT value is out of range in '(7158278827 * 3221225472)'
+SELECT 9223372036854775807 * (-2);
+ERROR 22003: BIGINT value is out of range in '(9223372036854775807 * -(2))'
+SELECT CAST(1 as UNSIGNED) * (-1);
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(cast(1 as unsigned) * -(1))'
+SELECT 9223372036854775807 * 2;
+ERROR 22003: BIGINT value is out of range in '(9223372036854775807 * 2)'
+SELECT ABS(-9223372036854775808);
+ERROR 22003: BIGINT value is out of range in 'abs(-(9223372036854775808))'
+SELECT -9223372036854775808 DIV -1;
+ERROR 22003: BIGINT value is out of range in '(-(9223372036854775808) DIV -(1))'
+SELECT 18446744073709551615 DIV -1;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(18446744073709551615 DIV -(1))'
+CREATE TABLE t1(a BIGINT, b BIGINT UNSIGNED);
+INSERT INTO t1 VALUES(-9223372036854775808, 9223372036854775809);
+SELECT -a FROM t1;
+ERROR 22003: BIGINT value is out of range in '-('-9223372036854775808')'
+SELECT -b FROM t1;
+ERROR 22003: BIGINT value is out of range in '-('9223372036854775809')'
+DROP TABLE t1;
+SET @a:=999999999999999999999999999999999999999999999999999999999999999999999999999999999;
+SELECT @a + @a;
+ERROR 22003: DECIMAL value is out of range in '((@a) + (@a))'
+SELECT @a * @a;
+ERROR 22003: DECIMAL value is out of range in '((@a) * (@a))'
+SELECT -@a - @a;
+ERROR 22003: DECIMAL value is out of range in '(-((@a)) - (@a))'
+SELECT @a / 0.5;
+ERROR 22003: DECIMAL value is out of range in '((@a) / 0.5)'
+SELECT COT(1/0);
+COT(1/0)
+NULL
+SELECT -1 + 9223372036854775808;
+-1 + 9223372036854775808
+9223372036854775807
+SELECT 2 DIV -2;
+2 DIV -2
+-1
+SELECT -(1 DIV 0);
+-(1 DIV 0)
+NULL
+SELECT -9223372036854775808 MOD -1;
+-9223372036854775808 MOD -1
+0

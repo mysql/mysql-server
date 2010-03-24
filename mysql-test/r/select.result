@@ -2426,27 +2426,28 @@ city
 London
 DROP TABLE t1;
 create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
+insert into t1 values (1,0), (1,1), (18446744073709551615,0);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 3
 select a-b  from t1 order by 1;
 a-b
 0
 1
-18446744073709551615
+4294967295
 select a-b , (a-b < 0)  from t1 order by 1;
 a-b	(a-b < 0)
 0	0
 1	0
-18446744073709551615	0
+4294967295	0
 select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
 d	(a-b >= 0)	b
 1	1	0
 0	1	1
-18446744073709551615	1	2
 select cast((a - b) as unsigned) from t1 order by 1;
 cast((a - b) as unsigned)
 0
 1
-18446744073709551615
+4294967295
 drop table t1;
 create table t1 (a int(11));
 select all all * from t1;
@@ -3419,6 +3420,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	2	Using where
 DROP TABLE t1,t2;
+SET SQL_MODE='NO_UNSIGNED_SUBTRACTION';
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
 UPDATE t1 SET i = -1;
@@ -3438,8 +3440,9 @@ Warnings:
 Warning	1264	Out of range value for column 'i' at row 1
 SELECT * FROM t1;
 i
-255
+0
 DROP TABLE t1;
+SET SQL_MODE=default;
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, c int, e int, primary key(a,b,c));
