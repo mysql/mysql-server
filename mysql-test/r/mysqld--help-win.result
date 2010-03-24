@@ -530,7 +530,7 @@ The following options may be given as the first argument:
  Tells the slave thread to not replicate to the specified
  table. To specify more than one table to ignore, use the
  directive multiple times, once for each table. This will
- work for cross-datbase updates, in contrast to
+ work for cross-database updates, in contrast to
  replicate-ignore-db.
  --replicate-rewrite-db=name 
  Updates to a database with a different name than the
