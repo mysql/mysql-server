@@ -318,12 +318,7 @@ int toku_loader_close(DB_LOADER *loader)
                                                  loader->i->dbs[i]->i->brt,
                                                  db_txn_struct_i(loader->i->txn)->tokutxn);
                     toku_ydb_unlock();
-                    if ( r!=0 ) {
-                        printf("NEED TO DO CLEANUP HERE\n");
-                        assert(0);
-//                        int rr = toku_brt_loader_abort(loader->i->brt_loader, TRUE);
-                        break;
-                    }
+                    if ( r!=0 ) break;
                 }
             }
         }
