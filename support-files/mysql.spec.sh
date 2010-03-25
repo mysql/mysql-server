@@ -458,8 +458,8 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 touch $RBR%{_sysconfdir}/my.cnf
 
 %if %{WITH_TCMALLOC}
-# Even though this is a shared library, put it under /usr/lib/mysql, so it
-# doesn't conflict with possible shared lib by the same name in /usr/lib.  See
+# Even though this is a shared library, put it under /usr/lib*/mysql, so it
+# doesn't conflict with possible shared lib by the same name in /usr/lib*.  See
 # `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
 install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
@@ -727,12 +727,8 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-#%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
-#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so*
-#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
-#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -882,6 +878,20 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Mar 24 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Add "--with-perfschema" to the configure options.
+
+* Mon Mar 22 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- User "usr/lib*" to allow for both "usr/lib" and "usr/lib64",
+  mask "rmdir" return code 1.
+- Remove "ha_example.*" files from the list, they aren't built.
+
+* Wed Mar 17 2010 Joerg Bruehe <joerg.bruehe@sun.com>
+
+- Fix a wrong path name in handling the debug plugins.
+
 * Wed Mar 10 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Take the result of the debug plugin build and put it into the optimized tree,
