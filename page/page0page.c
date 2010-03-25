@@ -2414,8 +2414,13 @@ page_validate(
 		}
 
 		offs = page_offset(rec_get_start(rec, offsets));
+		i = rec_offs_size(offsets);
+		if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
+			fputs("InnoDB: record offset out of bounds\n", stderr);
+			goto func_exit;
+		}
 
-		for (i = rec_offs_size(offsets); i--; ) {
+		while (i--) {
 			if (UNIV_UNLIKELY(buf[offs + i])) {
 				/* No other record may overlap this */
 
@@ -2523,8 +2528,13 @@ n_owned_zero:
 
 		count++;
 		offs = page_offset(rec_get_start(rec, offsets));
+		i = rec_offs_size(offsets);
+		if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
+			fputs("InnoDB: record offset out of bounds\n", stderr);
+			goto func_exit;
+		}
 
-		for (i = rec_offs_size(offsets); i--; ) {
+		while (i--) {
 
 			if (UNIV_UNLIKELY(buf[offs + i])) {
 				fputs("InnoDB: Record overlaps another"
