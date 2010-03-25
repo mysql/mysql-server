@@ -8,8 +8,8 @@
 
 	* buf0buf.ic:
 	When comparing the time of the first access to a block against
-	innodb_old_blocks_time, use 32-bit arithmetics. The comparison
-	was incorrect on 64-bit systems.
+	innodb_old_blocks_time, use 32-bit arithmetics. The comparison was
+	incorrect on 64-bit systems.
 
 2010-03-11	The InnoDB Team
 
