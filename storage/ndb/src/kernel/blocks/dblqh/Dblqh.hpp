@@ -3168,6 +3168,7 @@ public:
 #endif
 
   Uint32 get_node_status(Uint32 nodeId) const;
+  bool check_ndb_versions() const;
 };
 
 inline
