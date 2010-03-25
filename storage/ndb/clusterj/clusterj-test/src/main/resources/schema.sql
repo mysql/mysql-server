@@ -619,6 +619,7 @@ create table datetimetypes (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+CREATE DATABASE IF NOT EXISTS test2;
 use test2;
 drop table if exists t_basic2;
 create table t_basic2 (
