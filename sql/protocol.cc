@@ -736,10 +736,10 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       /* Store fixed length fields */
       pos= (char*) local_packet->ptr()+local_packet->length();
       *pos++= 12;				// Length of packed fields
-      if (item->collation.collation == &my_charset_bin || thd_charset == NULL)
+      if (item->charset_for_protocol() == &my_charset_bin || thd_charset == NULL)
       {
         /* No conversion */
-        int2store(pos, field.charsetnr);
+        int2store(pos, item->charset_for_protocol()->number);
         int4store(pos+2, field.length);
       }
       else

@@ -122,23 +122,22 @@ public:
 class Item_func_month :public Item_func
 {
 public:
-  Item_func_month(Item *a) :Item_func(a) {}
+  Item_func_month(Item *a) :Item_func(a) { collation.set_numeric(); }
   longlong val_int();
   double val_real()
   { DBUG_ASSERT(fixed == 1); return (double) Item_func_month::val_int(); }
   String *val_str(String *str) 
   {
-    str->set(val_int(), &my_charset_bin);
+    str->set(val_int(), collation.collation);
     return null_value ? 0 : str;
   }
   const char *func_name() const { return "month"; }
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec() 
   { 
-    collation.set(&my_charset_bin);
-    decimals=0;
-    max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1; 
+    decimals= 0;
+    fix_char_length(2);
+    maybe_null= 1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
@@ -165,9 +164,9 @@ public:
   const char *func_name() const { return "dayofyear"; }
   void fix_length_and_dec() 
   { 
-    decimals=0;
-    max_length=3*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1; 
+    decimals= 0;
+    fix_char_length(3);
+    maybe_null= 1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
@@ -290,7 +289,7 @@ class Item_func_weekday :public Item_func
   bool odbc_type;
 public:
   Item_func_weekday(Item *a,bool type_arg)
-    :Item_func(a), odbc_type(type_arg) {}
+    :Item_func(a), odbc_type(type_arg) { collation.set_numeric(); }
   longlong val_int();
   double val_real() { DBUG_ASSERT(fixed == 1); return (double) val_int(); }
   String *val_str(String *str)
@@ -306,10 +305,9 @@ public:
   enum Item_result result_type () const { return INT_RESULT; }
   void fix_length_and_dec()
   {
-    collation.set(&my_charset_bin);
-    decimals=0;
-    max_length=1*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1;
+    decimals= 0;
+    fix_char_length(1);
+    maybe_null= 1;
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
@@ -379,15 +377,15 @@ public:
   Item_date(Item *a) :Item_func(a) {}
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
+  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
   String *val_str(String *str);
   longlong val_int();
   double val_real() { return val_real_from_decimal(); }
   const char *func_name() const { return "date"; }
   void fix_length_and_dec()
   { 
-    collation.set(&my_charset_bin);
-    decimals=0;
-    max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+    decimals= 0;
+    fix_length_and_charset_datetime(MAX_DATE_WIDTH);
   }
   Field *tmp_table_field(TABLE *table)
   {
@@ -414,6 +412,7 @@ public:
   Item_date_func(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_date_func(Item *a,Item *b, Item *c) :Item_str_func(a,b,c) {}
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
+  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
   Field *tmp_table_field(TABLE *table)
   {
     return tmp_table_field_from_field_type(table, 0);
@@ -440,10 +439,11 @@ public:
   Item_str_timefunc(Item *a,Item *b) :Item_str_func(a,b) {}
   Item_str_timefunc(Item *a, Item *b, Item *c) :Item_str_func(a, b ,c) {}
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
+  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
   void fix_length_and_dec()
   {
     decimals= DATETIME_DEC;
-    max_length=MAX_TIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+    fix_length_and_charset_datetime(MAX_TIME_WIDTH);
   }
   Field *tmp_table_field(TABLE *table)
   {
@@ -701,7 +701,6 @@ public:
   void fix_length_and_dec()
   { 
     Item_str_timefunc::fix_length_and_dec();
-    collation.set(&my_charset_bin);
     maybe_null=1;
   }
   const char *func_name() const { return "sec_to_time"; }
@@ -774,13 +773,7 @@ public:
 class Item_typecast_maybe_null :public Item_typecast
 {
 public:
-  Item_typecast_maybe_null(Item *a) :Item_typecast(a) {}
-  void fix_length_and_dec()
-  {
-    collation.set(&my_charset_bin);
-    max_length=args[0]->max_length;
-    maybe_null= 1;
-  }
+  Item_typecast_maybe_null(Item *a) :Item_typecast(a) { maybe_null= 1; }
 };
 
 
@@ -813,16 +806,12 @@ public:
   bool get_time(MYSQL_TIME *ltime);
   const char *cast_type() const { return "date"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
+  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
   Field *tmp_table_field(TABLE *table)
   {
     return tmp_table_field_from_field_type(table, 0);
-  }  
-  void fix_length_and_dec()
-  {
-    collation.set(&my_charset_bin);
-    max_length= 10;
-    maybe_null= 1;
   }
+  void fix_length_and_dec() { fix_length_and_charset_datetime(10); }
   bool result_as_longlong() { return TRUE; }
   longlong val_int();
   double val_real() { return (double) val_int(); }
@@ -847,6 +836,7 @@ public:
   bool get_time(MYSQL_TIME *ltime);
   const char *cast_type() const { return "time"; }
   enum_field_types field_type() const { return MYSQL_TYPE_TIME; }
+  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
   Field *tmp_table_field(TABLE *table)
   {
     return tmp_table_field_from_field_type(table, 0);
@@ -863,6 +853,8 @@ public:
   {
     return save_time_in_field(field);
   }
+  void fix_length_and_dec()
+  { fix_length_and_charset_datetime(args[0]->max_char_length()); }
 };
 
 
@@ -874,15 +866,14 @@ public:
   String *val_str(String *str);
   const char *cast_type() const { return "datetime"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
+  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
   Field *tmp_table_field(TABLE *table)
   {
     return tmp_table_field_from_field_type(table, 0);
   }
   void fix_length_and_dec()
   {
-    collation.set(&my_charset_bin);
-    maybe_null= 1;
-    max_length= MAX_DATETIME_FULL_WIDTH * MY_CHARSET_BIN_MB_MAXLEN;
+    fix_length_and_charset_datetime(MAX_DATETIME_FULL_WIDTH);
     decimals= DATETIME_DEC;
   }
   bool result_as_longlong() { return TRUE; }
@@ -907,10 +898,11 @@ public:
   String *val_str(String *str);
   const char *func_name() const { return "makedate"; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
+  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
   void fix_length_and_dec()
   { 
     decimals=0;
-    max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+    fix_length_and_charset_datetime(MAX_DATE_WIDTH);
     maybe_null= 1;
   }
   longlong val_int();
@@ -929,6 +921,7 @@ public:
   String *val_str(String *str);
   enum_field_types field_type() const { return cached_field_type; }
   void fix_length_and_dec();
+  CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
 
   Field *tmp_table_field(TABLE *table)
   {
@@ -1019,20 +1012,20 @@ enum date_time_format
   USA_FORMAT, JIS_FORMAT, ISO_FORMAT, EUR_FORMAT, INTERNAL_FORMAT
 };
 
-class Item_func_get_format :public Item_str_func
+class Item_func_get_format :public Item_str_ascii_func
 {
 public:
   const timestamp_type type; // keep it public
   Item_func_get_format(timestamp_type type_arg, Item *a)
-    :Item_str_func(a), type(type_arg)
+    :Item_str_ascii_func(a), type(type_arg)
   {}
-  String *val_str(String *str);
+  String *val_str_ascii(String *str);
   const char *func_name() const { return "get_format"; }
   void fix_length_and_dec()
   {
     maybe_null= 1;
     decimals=0;
-    max_length=17*MY_CHARSET_BIN_MB_MAXLEN;
+    fix_length_and_charset(17, default_charset());
   }
   virtual void print(String *str, enum_query_type query_type);
 };

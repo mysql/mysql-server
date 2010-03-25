@@ -165,69 +165,15 @@ int handle_options(int *argc, char ***argv,
       option_is_loose=   0;
 
       cur_arg++;		/* skip '-' */
-      if (*cur_arg == '-' || *cur_arg == 'O') /* check for long option, */
-      {                                       /* --set-variable, or -O  */
-	if (*cur_arg == 'O')
-	{
-	  must_be_var= 1;
-
-	  if (!(*++cur_arg))	/* If not -Ovar=# */
-	  {
-	    /* the argument must be in next argv */
-	    if (!*++pos)
-	    {
-	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(ERROR_LEVEL,
-                                         "%s: Option '-O' requires an argument",
-                                         my_progname);
-	      return EXIT_ARGUMENT_REQUIRED;
-	    }
-	    cur_arg= *pos;
-	    (*argc)--;
-	  }
-	}
-	else if (!getopt_compare_strings(cur_arg, "-set-variable", 13))
-	{
-	  must_be_var= 1;
-	  if (cur_arg[13] == '=')
-	  {
-	    cur_arg+= 14;
-	    if (!*cur_arg)
-	    {
-	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(ERROR_LEVEL,
-                                         "%s: Option '--set-variable' requires an argument",
-                                         my_progname);
-	      return EXIT_ARGUMENT_REQUIRED;
-	    }
-	  }
-	  else if (cur_arg[14]) /* garbage, or another option. break out */
-	    must_be_var= 0;
-	  else
-	  {
-	    /* the argument must be in next argv */
-	    if (!*++pos)
-	    {
-	      if (my_getopt_print_errors)
-                my_getopt_error_reporter(ERROR_LEVEL,
-                                         "%s: Option '--set-variable' requires an argument",
-                                         my_progname);
-	      return EXIT_ARGUMENT_REQUIRED;
-	    }
-	    cur_arg= *pos;
-	    (*argc)--;
-	  }
-	}
-	else if (!must_be_var)
-	{
-	  if (!*++cur_arg)	/* skip the double dash */
-	  {
-	    /* '--' means end of options, look no further */
-	    end_of_options= 1;
-	    (*argc)--;
-	    continue;
-	  }
-	}
+      if (*cur_arg == '-')      /* check for long option, */
+      {
+        if (!*++cur_arg)	/* skip the double dash */
+        {
+          /* '--' means end of options, look no further */
+          end_of_options= 1;
+          (*argc)--;
+          continue;
+        }
 	opt_str= check_struct_option(cur_arg, key_name);
 	optend= strcend(opt_str, '=');
 	length= (uint) (optend - opt_str);
@@ -307,12 +253,7 @@ int handle_options(int *argc, char ***argv,
 	  {
             if (my_getopt_skip_unknown)
             {
-              /*
-                preserve all the components of this unknown option, this may
-                occurr when the user provides options like: "-O foo" or
-                "--set-variable foo" (note that theres a space in there)
-                Generally, these kind of options are to be avoided
-              */
+              /* Preserve all the components of this unknown option. */
               do {
                 (*argv)[argvpos++]= *first++;
               } while (first <= pos);

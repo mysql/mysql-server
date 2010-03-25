@@ -1115,6 +1115,9 @@ Item_in_subselect::single_value_transformer(JOIN *join,
     }
     thd->lex->current_select= current;
 
+    /* We will refer to upper level cache array => we have to save it for SP */
+    optimizer->keep_top_level_cache();
+
     /*
       As far as  Item_ref_in_optimizer do not substitute itself on fix_fields
       we can use same item for all selects.

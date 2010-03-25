@@ -52,6 +52,11 @@ MACRO(MYSQL_ADD_PLUGIN)
     SET(WITH_${plugin} 1)
   ENDIF()
 
+  IF(WITH_MAX_NO_NDB)
+    SET(WITH_MAX 1)
+    SET(WITHOUT_NDBCLUSTER 1)
+  ENDIF()
+
   IF(WITH_${plugin}_STORAGE_ENGINE 
     OR WITH_{$plugin}
     OR WITH_ALL 

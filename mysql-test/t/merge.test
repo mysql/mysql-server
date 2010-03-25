@@ -2089,5 +2089,24 @@ execute stmt;
 execute stmt;
 drop table t4, t3, t2, t1;
 
+
+--echo #
+--echo # Bug#51240 ALTER TABLE of a locked MERGE table fails
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS m1, t1;
+--enable_warnings
+
+CREATE TABLE t1 (c1 INT);
+CREATE TABLE m1 (c1 INT) ENGINE=MRG_MyISAM UNION=(t1);
+LOCK TABLE m1 WRITE;
+# This used to cause an error.
+ALTER TABLE m1 ADD INDEX (c1);
+
+UNLOCK TABLES;
+DROP TABLE m1, t1;
+
+
 --echo End of 6.0 tests
 

@@ -432,6 +432,9 @@ inline ulonglong double2ulonglong(double d)
 #define HAVE_CHARSET_ucs2 1
 #define HAVE_CHARSET_ujis 1
 #define HAVE_CHARSET_utf8 1
+#define HAVE_CHARSET_utf8mb4 1
+#define HAVE_CHARSET_utf16 1
+#define HAVE_CHARSET_utf32 1
 
 #define HAVE_UCA_COLLATIONS 1
 #define HAVE_BOOL 1

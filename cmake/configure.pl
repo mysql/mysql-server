@@ -130,12 +130,12 @@ foreach my $option (@ARGV)
   }
   if($option =~ /with-ssl=/)
   {
-    $cmakeargs = $cmakeargs." -DWITH_SSL=bundled";
+    $cmakeargs = $cmakeargs." -DWITH_SSL=yes";
     next;
   }
   if($option =~ /with-ssl/)
   {
-    $cmakeargs = $cmakeargs." -DWITH_SSL=yes";
+    $cmakeargs = $cmakeargs." -DWITH_SSL=bundled";
     next;
   }
   if($option =~ /prefix=/)
@@ -179,6 +179,11 @@ foreach my $option (@ARGV)
     $cmakeargs = $cmakeargs." -DMYSQL_DATADIR=".substr($option,14); 
     next;
   }
+  if ($option =~ /with-debug=full/)
+  {
+    $cmakeargs = $cmakeargs." -DWITH_DEBUG_FULL=1"; 
+    next;
+  }
 
   $option = uc($option);
   $option =~ s/-/_/g;
@@ -186,5 +191,6 @@ foreach my $option (@ARGV)
 }
 
 print("configure.pl : calling cmake $srcdir $cmakeargs\n");
+unlink("CMakeCache.txt");
 my $rc = system("cmake $srcdir $cmakeargs");
 exit($rc);

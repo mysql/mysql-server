@@ -24,10 +24,10 @@ ${CMAKE_BINARY_DIR}/sql
 )
 
 SET(GEN_SOURCES
-${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
-${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
-${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-${CMAKE_BINARY_DIR}/sql/lex_hash.h 
+${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
+${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
+${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
@@ -191,7 +191,14 @@ ADD_CUSTOM_COMMAND(
   COMMAND ${CMAKE_COMMAND} -E remove -f lex_hash.h.tmp
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_lex_hash.cc)
-        
+
+MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
+SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
+TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
+  mysys dbug strings vio regex   
+  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
+  ${SSL_LIBRARIES})
+
 ADD_CUSTOM_TARGET( 
         GenServerSource
         DEPENDS ${GEN_SOURCES}
@@ -231,8 +238,12 @@ ADD_CUSTOM_TARGET(dist
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-
-
+ADD_CUSTOM_TARGET(distclean
+  COMMAND ${CMAKE_COMMAND} -E echo  WARNING: distclean target is not functional
+  COMMAND ${CMAKE_COMMAND} -E echo  Use 'bzr clean-tree' with --unknown and/or
+    --ignored parameter instead
+  VERBATIM
+  )
 
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
