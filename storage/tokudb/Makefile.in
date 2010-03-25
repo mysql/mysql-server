@@ -71,9 +71,9 @@ am__vpath_adj = case $$p in \
     *) f=$$p;; \
   esac;
 am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
-am__installdirs = "$(DESTDIR)$(pkglibdir)"
-pkglibLTLIBRARIES_INSTALL = $(INSTALL)
-LTLIBRARIES = $(pkglib_LTLIBRARIES)
+am__installdirs = "$(DESTDIR)$(pkgplugindir)"
+pkgpluginLTLIBRARIES_INSTALL = $(INSTALL)
+LTLIBRARIES = $(pkgplugin_LTLIBRARIES)
 ha_tokudb_la_DEPENDENCIES =
 am_ha_tokudb_la_OBJECTS = ha_tokudb_la-hatoku_hton.lo \
 	ha_tokudb_la-hatoku_cmp.lo ha_tokudb_la-ha_tokudb.lo
@@ -409,7 +409,7 @@ INCLUDES = -I$(top_builddir)/include \
 LDADD = 
 noinst_HEADERS = 
 EXTRA_LTLIBRARIES = ha_tokudb.la
-pkglib_LTLIBRARIES = @plugin_tokudb_shared_target@
+pkgplugin_LTLIBRARIES = @plugin_tokudb_shared_target@
 ha_tokudb_la_LIBADD = -L$(TOKUFRACTALTREE)/lib -l$(TOKUFRACTALTREE_LIBNAME) -ltokuportability
 ha_tokudb_la_LDFLAGS = -module -rpath $(pkgplugindir)
 ha_tokudb_la_CXXFLAGS = $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\" -Wall
@@ -459,28 +459,28 @@ libtokudb.a: $(libtokudb_a_OBJECTS) $(libtokudb_a_DEPENDENCIES)
 	-rm -f libtokudb.a
 	$(libtokudb_a_AR) libtokudb.a $(libtokudb_a_OBJECTS) $(libtokudb_a_LIBADD)
 	$(RANLIB) libtokudb.a
-install-pkglibLTLIBRARIES: $(pkglib_LTLIBRARIES)
+install-pkgpluginLTLIBRARIES: $(pkgplugin_LTLIBRARIES)
 	@$(NORMAL_INSTALL)
-	test -z "$(pkglibdir)" || $(MKDIR_P) "$(DESTDIR)$(pkglibdir)"
-	@list='$(pkglib_LTLIBRARIES)'; for p in $$list; do \
+	test -z "$(pkgplugindir)" || $(MKDIR_P) "$(DESTDIR)$(pkgplugindir)"
+	@list='$(pkgplugin_LTLIBRARIES)'; for p in $$list; do \
 	  if test -f $$p; then \
 	    f=$(am__strip_dir) \
-	    echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(pkglibLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) '$$p' '$(DESTDIR)$(pkglibdir)/$$f'"; \
-	    $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(pkglibLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) "$$p" "$(DESTDIR)$(pkglibdir)/$$f"; \
+	    echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(pkgpluginLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) '$$p' '$(DESTDIR)$(pkgplugindir)/$$f'"; \
+	    $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(pkgpluginLTLIBRARIES_INSTALL) $(INSTALL_STRIP_FLAG) "$$p" "$(DESTDIR)$(pkgplugindir)/$$f"; \
 	  else :; fi; \
 	done
 
-uninstall-pkglibLTLIBRARIES:
+uninstall-pkgpluginLTLIBRARIES:
 	@$(NORMAL_UNINSTALL)
-	@list='$(pkglib_LTLIBRARIES)'; for p in $$list; do \
+	@list='$(pkgplugin_LTLIBRARIES)'; for p in $$list; do \
 	  p=$(am__strip_dir) \
-	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f '$(DESTDIR)$(pkglibdir)/$$p'"; \
-	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f "$(DESTDIR)$(pkglibdir)/$$p"; \
+	  echo " $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f '$(DESTDIR)$(pkgplugindir)/$$p'"; \
+	  $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=uninstall rm -f "$(DESTDIR)$(pkgplugindir)/$$p"; \
 	done
 
-clean-pkglibLTLIBRARIES:
-	-test -z "$(pkglib_LTLIBRARIES)" || rm -f $(pkglib_LTLIBRARIES)
-	@list='$(pkglib_LTLIBRARIES)'; for p in $$list; do \
+clean-pkgpluginLTLIBRARIES:
+	-test -z "$(pkgplugin_LTLIBRARIES)" || rm -f $(pkgplugin_LTLIBRARIES)
+	@list='$(pkgplugin_LTLIBRARIES)'; for p in $$list; do \
 	  dir="`echo $$p | sed -e 's|/[^/]*$$||'`"; \
 	  test "$$dir" != "$$p" || dir=.; \
 	  echo "rm -f \"$${dir}/so_locations\""; \
@@ -669,7 +669,7 @@ check-am: all-am
 check: check-am
 all-am: Makefile $(LIBRARIES) $(LTLIBRARIES) $(HEADERS)
 installdirs:
-	for dir in "$(DESTDIR)$(pkglibdir)"; do \
+	for dir in "$(DESTDIR)$(pkgplugindir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-am
@@ -699,7 +699,7 @@ maintainer-clean-generic:
 clean: clean-am
 
 clean-am: clean-generic clean-libtool clean-noinstLIBRARIES \
-	clean-pkglibLTLIBRARIES mostlyclean-am
+	clean-pkgpluginLTLIBRARIES mostlyclean-am
 
 distclean: distclean-am
 	-rm -rf ./$(DEPDIR)
@@ -717,11 +717,11 @@ info: info-am
 
 info-am:
 
-install-data-am:
+install-data-am: install-pkgpluginLTLIBRARIES
 
 install-dvi: install-dvi-am
 
-install-exec-am: install-pkglibLTLIBRARIES
+install-exec-am:
 
 install-html: install-html-am
 
@@ -753,24 +753,24 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am: uninstall-pkglibLTLIBRARIES
+uninstall-am: uninstall-pkgpluginLTLIBRARIES
 
 .MAKE: install-am install-strip
 
 .PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
-	clean-libtool clean-noinstLIBRARIES clean-pkglibLTLIBRARIES \
+	clean-libtool clean-noinstLIBRARIES clean-pkgpluginLTLIBRARIES \
 	ctags distclean distclean-compile distclean-generic \
 	distclean-libtool distclean-tags distdir dvi dvi-am html \
 	html-am info info-am install install-am install-data \
 	install-data-am install-dvi install-dvi-am install-exec \
 	install-exec-am install-html install-html-am install-info \
 	install-info-am install-man install-pdf install-pdf-am \
-	install-pkglibLTLIBRARIES install-ps install-ps-am \
+	install-pkgpluginLTLIBRARIES install-ps install-ps-am \
 	install-strip installcheck installcheck-am installdirs \
 	maintainer-clean maintainer-clean-generic mostlyclean \
 	mostlyclean-compile mostlyclean-generic mostlyclean-libtool \
 	pdf pdf-am ps ps-am tags uninstall uninstall-am \
-	uninstall-pkglibLTLIBRARIES
+	uninstall-pkgpluginLTLIBRARIES
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
