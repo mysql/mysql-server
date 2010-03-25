@@ -20,6 +20,7 @@ package com.mysql.clusterj.jpatest.model;
 
 import java.math.BigDecimal;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
@@ -48,9 +49,13 @@ public class DecimalTypes implements IdBase {
 
     @Id
     int id;
+    @Column(precision=10,scale=5)
     BigDecimal decimal_null_hash;
+    @Column(precision=10,scale=5)
     BigDecimal decimal_null_btree;
+    @Column(precision=10,scale=5)
     BigDecimal decimal_null_both;
+    @Column(precision=10,scale=5)
     BigDecimal decimal_null_none;
 
     public int getId() {

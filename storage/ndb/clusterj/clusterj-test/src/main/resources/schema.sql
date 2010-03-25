@@ -191,6 +191,52 @@ create table doubletypes (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+drop table if exists localetypes;
+create table localetypes (
+ id int not null primary key,
+
+ locale_null_hash varchar(20),
+ locale_null_btree varchar(300),
+ locale_null_both varchar(20),
+ locale_null_none varchar(300),
+
+ locale_not_null_hash varchar(300),
+ locale_not_null_btree varchar(20),
+ locale_not_null_both varchar(300),
+ locale_not_null_none varchar(20),
+ unique key idx_locale_null_hash (locale_null_hash) using hash,
+ key idx_locale_null_btree (locale_null_btree),
+ unique key idx_locale_null_both (locale_null_both),
+
+ unique key idx_locale_not_null_hash (locale_not_null_hash) using hash,
+ key idx_locale_not_null_btree (locale_not_null_btree),
+ unique key idx_locale_not_null_both (locale_not_null_both)
+
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists stringtypes;
+create table stringtypes (
+ id int not null primary key,
+
+ string_null_hash varchar(20),
+ string_null_btree varchar(300),
+ string_null_both varchar(20),
+ string_null_none varchar(300),
+
+ string_not_null_hash varchar(300),
+ string_not_null_btree varchar(20),
+ string_not_null_both varchar(300),
+ string_not_null_none varchar(20),
+ unique key idx_string_null_hash (string_null_hash) using hash,
+ key idx_string_null_btree (string_null_btree),
+ unique key idx_string_null_both (string_null_both),
+
+ unique key idx_string_not_null_hash (string_not_null_hash) using hash,
+ key idx_string_not_null_btree (string_not_null_btree),
+ unique key idx_string_not_null_both (string_not_null_both)
+
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
 drop table if exists floattypes;
 create table floattypes (
  id int not null primary key,
@@ -573,3 +619,16 @@ create table datetimetypes (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
+use test2;
+drop table if exists t_basic2;
+create table t_basic2 (
+  id int not null,
+  name varchar(32),
+  age int,
+  magic int not null,
+  primary key(id),
+
+  unique key idx_unique_hash_magic (magic) using hash,
+  key idx_btree_age (age)
+) ENGINE=ndbcluster;
+use test;

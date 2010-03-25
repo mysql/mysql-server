@@ -20,6 +20,30 @@ package com.mysql.clusterj;
 
 /**
  * ClusterJException is the base for all ClusterJ exceptions.
+ * Applications can catch ClusterJException to be notified of
+ * all ClusterJ reported issues.
+ * <p>
+ * Exceptions are in three general categories: User exceptions,
+ * Datastore exceptions, and Internal exceptions.
+ * <ul><li>User exceptions are caused by user error, for example
+ * providing a connect string that refers to an unavailable
+ * host or port.
+ * <ul><li>If a user exception is detected during bootstrapping
+ * (acquiring a SessionFactory), it is thrown as a fatal exception.
+ * {@link ClusterJFatalUserException}
+ * </li><li>If an exception is detected during initialization of a
+ * persistent interface, for example annotating a column that
+ * doesn't exist in the mapped table, it is reported as a user
+ * exception. {@link ClusterJUserException}
+ * </li></ul>
+ * </li><li>Datastore exceptions report conditions that result
+ * from datastore operations after bootstrapping. For example,
+ * duplicate keys on insert, or record does not exist on delete.
+ * {@link ClusterJDatastoreException}
+ * </li><li>Internal exceptions report conditions that are caused
+ * by errors in implementation. These exceptions should be reported
+ * as bugs. {@link ClusterJFatalInternalException}
+ * </li></ul>
  */
 public class ClusterJException extends RuntimeException {
 

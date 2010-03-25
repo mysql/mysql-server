@@ -133,7 +133,12 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/model/TimestampAsSqlTimestampTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/TimestampAsUtilDateTypes.java \
   $(clusterj_test_src)/testsuite/clusterj/model/YearTypes.java \
-  $(clusterj_test_src)/testsuite/clusterj/model/LongIntStringPK.java
+  $(clusterj_test_src)/testsuite/clusterj/model/LongIntStringPK.java \
+  $(clusterj_test_src)/testsuite/clusterj/DefaultConnectValuesTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKey2Test.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryStringTypesTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/Employee2.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/StringTypes.java 
 
 EXTRA_DIST = \
   src/main/resources/clusterj.properties \

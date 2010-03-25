@@ -39,7 +39,6 @@ import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
 import com.mysql.ndbjtie.ndbapi.NdbRecAttr;
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
-import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.util.I18NHelper;
@@ -103,7 +102,7 @@ public class Utility {
                 case Tinyint:
                     return ndbRecAttr.int8_value() == 1;
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "boolean"));
             }
         }
@@ -116,7 +115,7 @@ public class Utility {
                 case Year:
                     return ndbRecAttr.int8_value();
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "byte"));
             }
         }
@@ -127,7 +126,7 @@ public class Utility {
                 case Smallint:
                     return ndbRecAttr.short_value();
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "short"));
             }
         }
@@ -142,7 +141,7 @@ public class Utility {
                 case Time:
                     return ndbRecAttr.medium_value();
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
             }
         }
@@ -163,7 +162,7 @@ public class Utility {
                 case Time:
                     return unpackTime(ndbRecAttr.medium_value());
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
             }
         }
@@ -303,7 +302,7 @@ public class Utility {
                 case Tinyint:
                     return ndbRecAttr.int8_value() == 1;
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "boolean"));
             }
         }
@@ -315,7 +314,7 @@ public class Utility {
                 case Year:
                     return ndbRecAttr.int8_value();
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "byte"));
             }
         }
@@ -325,7 +324,7 @@ public class Utility {
                 case Smallint:
                     return ndbRecAttr.short_value();
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "short"));
             }
         }
@@ -340,7 +339,7 @@ public class Utility {
                 case Time:
                     return ndbRecAttr.medium_value();
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "int"));
             }
         }
@@ -359,7 +358,7 @@ public class Utility {
                 case Time:
                     return unpackTime(ndbRecAttr.int32_value());
                 default:
-                    throw new ClusterJFatalUserException(
+                    throw new ClusterJUserException(
                             local.message("ERR_Unsupported_Mapping", storeColumn.getType(), "long"));
             }
         }

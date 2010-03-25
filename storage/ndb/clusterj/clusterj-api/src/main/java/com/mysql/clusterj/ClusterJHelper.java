@@ -40,6 +40,7 @@ public class ClusterJHelper {
      *
      * @param props properties of the session factory
      * @return the session factory
+     * @throws ClusterFatalUserException if the connection to the cluster cannot be made
      */
     public static SessionFactory getSessionFactory(Map props) {
         return getSessionFactory(props, Thread.currentThread().getContextClassLoader());
@@ -52,6 +53,7 @@ public class ClusterJHelper {
      * @param props the properties for the factory
      * @param loader the class loader for the factory implementation
      * @return the session factory
+     * @throws ClusterFatalUserException if the connection to the cluster cannot be made
      */
     public static SessionFactory getSessionFactory(Map props, ClassLoader loader) {
         SessionFactoryService service =
