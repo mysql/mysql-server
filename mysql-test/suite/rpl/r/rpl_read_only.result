@@ -31,15 +31,26 @@ a
 2001
 set global read_only=0;
 BEGIN;
+BEGIN;
+select @@read_only;
+@@read_only
+0
+set global read_only=1;
+*** On SUPER USER connection ***
 insert into t1 values(1002);
 insert into t2 values(2002);
-BEGIN;
+*** On regular USER connection ***
 insert into t1 values(1003);
-insert into t2 values(2003);
-set global read_only=1;
-COMMIT;
-COMMIT;
 ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+insert into t2 values(2003);
+ERROR HY000: The MySQL server is running with the --read-only option so it cannot execute this statement
+*** SUPER USER COMMIT (must succeed) *** 
+COMMIT;
+*** regular USER COMMIT (must succeed - nothing to commit) *** 
+COMMIT;
+select @@read_only;
+@@read_only
+1
 set global read_only=0;
 insert into t1 values(1004);
 insert into t2 values(2004);
@@ -52,7 +63,6 @@ select * from t2;
 a
 2001
 2002
-2003
 2004
 select * from t1;
 a
@@ -63,7 +73,6 @@ select * from t2;
 a
 2001
 2002
-2003
 2004
 set global read_only=1;
 select @@read_only;
@@ -91,7 +100,6 @@ select * from t2;
 a
 2001
 2002
-2003
 2004
 2005
 select * from t1;
@@ -104,7 +112,6 @@ select * from t2;
 a
 2001
 2002
-2003
 2004
 2005
 insert into t1 values(1006);
