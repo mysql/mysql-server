@@ -109,8 +109,7 @@ mysqlbug: ${top_builddir}/config.status mysqlbug.sh
 mysql_fix_privilege_tables.sql: mysql_system_tables.sql \
 				mysql_system_tables_fix.sql
 	@echo "Building $@";
-	@cat $(srcdir)/mysql_system_tables.sql \
-	  $(srcdir)/mysql_system_tables_fix.sql > $@
+	@cat mysql_system_tables.sql mysql_system_tables_fix.sql > $@
 
 #
 # Build mysql_fix_privilege_tables_sql.c from
@@ -123,7 +122,7 @@ mysql_fix_privilege_tables_sql.c: comp_sql.c mysql_fix_privilege_tables.sql
 	sleep 2
 	$(top_builddir)/scripts/comp_sql$(EXEEXT) \
 	  mysql_fix_privilege_tables \
-	    $(top_builddir)/scripts/mysql_fix_privilege_tables.sql $@
+	    $(top_srcdir)/scripts/mysql_fix_privilege_tables.sql $@
 
 
 SUFFIXES = .sh

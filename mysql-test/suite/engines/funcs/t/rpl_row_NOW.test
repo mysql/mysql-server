@@ -1,0 +1,74 @@
+#############################################################################
+# Original Author: JBM                                                      #
+# Original Date: Aug/18/2005                                                #
+# Updated 08/30/2005 Added dumps and diff                                   #
+#############################################################################
+#TEST: Taken and modfied from http://bugs.mysql.com/bug.php?id=12480        #
+#############################################################################
+
+# Includes
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+
+# Begin clean up test section
+connection master;
+--disable_warnings
+create database if not exists mysqltest1;
+DROP TABLE IF EXISTS mysqltest1.t1;
+--enable_warnings
+
+
+# Begin test section 1 
+CREATE TABLE mysqltest1.t1 (n MEDIUMINT NOT NULL AUTO_INCREMENT,
+                      a TIMESTAMP DEFAULT '2005-05-05 01:01:01',
+                      b TIMESTAMP DEFAULT '2005-05-05 01:01:01',
+                      PRIMARY KEY(n));
+delimiter |;
+CREATE FUNCTION mysqltest1.f1() RETURNS TIMESTAMP
+BEGIN
+  DECLARE v1 INT DEFAULT 300;
+  WHILE v1 > 0 DO
+     SET v1 = v1 - 1;
+  END WHILE;  
+  RETURN NOW();
+END|
+delimiter ;|
+
+INSERT INTO mysqltest1.t1 VALUES(NULL,NOW(),mysqltest1.f1());
+
+delimiter |;
+CREATE TRIGGER mysqltest1.trig1 BEFORE INSERT ON mysqltest1.t1
+FOR EACH ROW BEGIN
+  SET new.b = mysqltest1.f1();
+END|
+delimiter ;|
+
+INSERT INTO mysqltest1.t1 SET n = NULL, a = now();
+
+sync_slave_with_master;
+
+connection master;
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/NOW_master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info mysqltest1 > $MYSQLTEST_VARDIR/tmp/NOW_slave.sql
+
+# lets cleanup
+DROP TABLE IF EXISTS mysqltest1.t1;
+DROP FUNCTION mysqltest1.f1;
+
+# Lets compare. Note: If they match test will pass, if they do not match
+# the test will show that the diff statement failed and not reject file
+# will be created. You will need to go to the mysql-test dir and diff
+# the files your self to see what is not matching :-) The failed dump 
+# files will be located in $MYSQLTEST_VARDIR/tmp
+
+diff_files $MYSQLTEST_VARDIR/tmp/NOW_master.sql $MYSQLTEST_VARDIR/tmp/NOW_slave.sql;
+
+# If all is good, when can cleanup our dump files.
+remove_file $MYSQLTEST_VARDIR/tmp/NOW_master.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/NOW_slave.sql;
+
+DROP DATABASE mysqltest1;
+sync_slave_with_master;
+# End of 5.1 test case
