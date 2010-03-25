@@ -120,12 +120,6 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
-# Drop any old views in ndbinfo
-SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS ndbinfo.pools','SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
 SET @str=IF(@have_ndbinfo,'DROP VIEW IF EXISTS ndbinfo.transporters','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -300,12 +294,6 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @str=IF(@have_ndbinfo,'INSERT INTO `ndbinfo`.`config_params` VALUES (179, "MaxNoOfSubscriptions"), (180, "MaxNoOfSubscribers"), (181, "MaxNoOfConcurrentSubOperations"), (5, "HostName"), (3, "NodeId"), (101, "NoOfReplicas"), (103, "MaxNoOfAttributes"), (102, "MaxNoOfTables"), (149, "MaxNoOfOrderedIndexes"), (150, "MaxNoOfUniqueHashIndexes"), (110, "MaxNoOfConcurrentIndexOperations"), (105, "MaxNoOfTriggers"), (109, "MaxNoOfFiredTriggers"), (100, "MaxNoOfSavedMessages"), (177, "LockExecuteThreadToCPU"), (178, "LockMaintThreadsToCPU"), (176, "RealtimeScheduler"), (114, "LockPagesInMainMemory"), (123, "TimeBetweenWatchDogCheck"), (174, "SchedulerExecutionTimer"), (175, "SchedulerSpinTimer"), (141, "TimeBetweenWatchDogCheckInitial"), (124, "StopOnError"), (107, "MaxNoOfConcurrentOperations"), (151, "MaxNoOfLocalOperations"), (152, "MaxNoOfLocalScans"), (153, "BatchSizePerLocalScan"), (106, "MaxNoOfConcurrentTransactions"), (108, "MaxNoOfConcurrentScans"), (111, "TransactionBufferMemory"), (113, "IndexMemory"), (112, "DataMemory"), (154, "UndoIndexBuffer"), (155, "UndoDataBuffer"), (156, "RedoBuffer"), (157, "LongMessageBuffer"), (160, "DiskPageBufferMemory"), (198, "SharedGlobalMemory"), (115, "StartPartialTimeout"), (116, "StartPartitionedTimeout"), (117, "StartFailureTimeout"), (118, "HeartbeatIntervalDbDb"), (119, "HeartbeatIntervalDbApi"), (120, "TimeBetweenLocalCheckpoints"), (121, "TimeBetweenGlobalCheckpoints"), (170, "TimeBetweenEpochs"), (171, "TimeBetweenEpochsTimeout"), (182, "MaxBufferedEpochs"), (126, "NoOfFragmentLogFiles"), (140, "FragmentLogFileSize"), (189, "InitFragmentLogFiles"), (190, "DiskIOThreadPool"), (159, "MaxNoOfOpenFiles"), (162, "InitialNoOfOpenFiles"), (129, "TimeBetweenInactiveTransactionAbortCheck"), (130, "TransactionInactiveTimeout"), (131, "TransactionDeadlockDetectionTimeout"), (148, "Diskless"), (122, "ArbitrationTimeout"), (142, "Arbitration"), (7, "DataDir"), (125, "FileSystemPath"), (250, "LogLevelStartup"), (251, "LogLevelShutdown"), (252, "LogLevelStatistic"), (253, "LogLevelCheckpoint"), (254, "LogLevelNodeRestart"), (255, "LogLevelConnection"), (259, "LogLevelCongestion"), (258, "LogLevelError"), (256, "LogLevelInfo"), (158, "BackupDataDir"), (163, "DiskSyncSize"), (164, "DiskCheckpointSpeed"), (165, "DiskCheckpointSpeedInRestart"), (133, "BackupMemory"), (134, "BackupDataBufferSize"), (135, "BackupLogBufferSize"), (136, "BackupWriteSize"), (139, "BackupMaxWriteSize"), (161, "StringMemory"), (169, "MaxAllocate"), (166, "MemReportFrequency"), (167, "BackupReportFrequency"), (184, "StartupStatusReportFrequency"), (168, "ODirect"), (172, "CompressedBackup"), (173, "CompressedLCP"), (9, "TotalSendBufferMemory"), (202, "ReservedSendBufferMemory"), (185, "Nodegroup"), (186, "MaxNoOfExecutionThreads"), (188, "__ndbmt_lqh_workers"), (187, "__ndbmt_lqh_threads"), (191, "__ndbmt_classic"), (193, "FileSystemPathDD"), (194, "FileSystemPathDataFiles"), (195, "FileSystemPathUndoFiles"), (196, "InitialLogfileGroup"), (197, "InitialTablespace"), (605, "MaxLCPStartDelay"), (606, "BuildIndexThreads")','SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-# ndbinfo.pools
-SET @str=IF(@have_ndbinfo,'CREATE OR REPLACE DEFINER=`root@localhost` SQL SECURITY INVOKER VIEW `ndbinfo`.`pools` AS SELECT node_id, b.block_name, block_instance, pool_name, used, total, high, entry_size, cp1.param_name AS param_name1, cp2.param_name AS param_name2, cp3.param_name AS param_name3, cp4.param_name AS param_name4 FROM ndbinfo.ndb$pools p JOIN ndbinfo.blocks b ON p.block_number = b.block_number LEFT JOIN ndbinfo.config_params cp1 ON p.config_param1 = cp1.param_number LEFT JOIN ndbinfo.config_params cp2 ON p.config_param2 = cp2.param_number LEFT JOIN ndbinfo.config_params cp3 ON p.config_param3 = cp3.param_number LEFT JOIN ndbinfo.config_params cp4 ON p.config_param4 = cp4.param_number','SET @dummy = 0');
 PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
