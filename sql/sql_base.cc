@@ -2996,7 +2996,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->status=STATUS_NO_RECORD;
   table->insert_values= 0;
   table->fulltext_searched= 0;
-  table->file->ft_handler= 0;
+  table->file->ha_start_of_new_statement();
   table->reginfo.impossible_range= 0;
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!table->auto_increment_field_not_null);
