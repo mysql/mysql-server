@@ -31,6 +31,6 @@ CREATE_JAR(clusterj-jpatest ${JAVA_SOURCE_DIRS}
   CLASSPATH ${CLASSPATH}
   MANIFEST manifest.mf
   ENHANCE ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/META-INF/persistence.xml
-  DEPENDENCIES clusterjpa.jar)
-
+  DEPENDENCIES clusterjpa.jar
+  EXTRA_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources META-INF/persistence.xml)
 

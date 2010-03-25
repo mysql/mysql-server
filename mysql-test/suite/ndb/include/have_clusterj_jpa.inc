@@ -32,11 +32,6 @@ my $clusterj_jpa_test_jar = my_find_file($basedir,
                                      "lib/java"],                    # install windows
                                     "clusterj-jpatest-*.jar", NOT_REQUIRED);
 
-my $clusterj_test_schema = my_find_file($basedir,
-                                    ["storage/ndb/clusterj/clusterj-test/src/main/resources", 
-                                     "share/mysql/java"],
-                                    "schema.sql", NOT_REQUIRED);
-
 my $F = IO::File->new("$vardir/tmp/have_clusterj_jpa_result.inc", 'w') or die;
 if ($clusterj_jpa_jar) {
   print $F "--let \$CLUSTERJ_JPA_JAR= $clusterj_jpa_jar\n"; 
@@ -52,12 +47,6 @@ if ($clusterj_jpa_test_jar) {
   print $F "skip Could not find clusterj jpa test jar file\n";
 }
 
-if ($clusterj_test_schema) {
-  print $F "--let \$CLUSTERJ_TEST_SCHEMA= $clusterj_test_schema\n";
-  print $F "--echo Found clusterj_test schema: '\$CLUSTERJ_TEST_SCHEMA'\n"
-} else {
-  print $F "skip Could not find clusterj test schema file\n";
-}
 $F->close();
 
 EOF

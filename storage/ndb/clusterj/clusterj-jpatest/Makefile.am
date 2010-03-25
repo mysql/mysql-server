@@ -112,7 +112,8 @@ classclusterj_jpatest.stamp: $(clusterj_jpatest_java)
 
 $(clusterj_jpatest_version_JAR) : classPCEnhancer.stamp $(MANIFEST)
 	rm -f $@ ; $(JAR) cvfm $@ $(MANIFEST) \
-  	  -C $(JAVAROOT) com/mysql/clusterj/jpatest
+  	  -C $(JAVAROOT) com/mysql/clusterj/jpatest \
+	  -C $(clusterj_jpatest_res) META-INF/persistence.xml 
 
 CLEANFILES= $(clusterj_jpatest_version_JAR) \
 	classclusterj_jpatest.stamp classPCEnhancer.stamp

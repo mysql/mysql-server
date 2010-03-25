@@ -13,11 +13,18 @@
 --source suite/ndb/include/have_clusterj_jpa.inc
 --source suite/ndb/include/have_openjpa.inc
 
---disable_abort_on_error
---disable_warnings
---source $CLUSTERJ_TEST_SCHEMA
---enable_warnings
---enable_abort_on_error
+# workaround for http://issues.apache.org/jira/browse/OPENJPA-1224
+# OpenJPA MySQL BigDecimal ignoring Precision/Scale column Annotation when generating tables
+# fixed in only 1.3.0 and 2.0.0
+
+drop table if exists decimaltypes;
+create table decimaltypes (
+ id int not null primary key,
+ decimal_null_hash decimal(10,5),
+ decimal_null_btree decimal(10,5),
+ decimal_null_both decimal(10,5),
+ decimal_null_none decimal(10,5)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
 --let JAVA_CLASSPATH=$CLUSTERJ_JPA_JAR
 --let JAVA_CLASSPATH_1=$CLUSTERJ_JPA_TEST_JAR
@@ -28,39 +35,29 @@
 --let JAVA_JVM_OPTS_2= -Dopenjpa.ConnectionDriverName="com.mysql.jdbc.Driver"
 --let JAVA_JVM_OPTS_3= -Dopenjpa.ConnectionURL="jdbc:mysql://localhost:$MASTER_MYPORT/test?user=root"
 --let JAVA_JVM_OPTS_4= -Dopenjpa.ndb.connectString="$NDB_CONNECTSTRING"
+--let JAVA_JVM_OPTS_5= -Dcom.mysql.clusterj.jpa.PersistenceUnit="enhance"
+--let JAVA_JVM_OPTS_6= -Dopenjpa.jdbc.SynchronizeMappings="buildSchema(ForeignKeys=true,SchemaAction='add,deleteTableContents')"
+--let JAVA_JVM_OPTS_7= -Dopenjpa.jdbc.DBDictionary="mysql(TableType=ndbcluster)"
 --let JAVA_CLASS= testsuite.clusterj.AllTests
 --let JAVA_ARGUMENTS= $CLUSTERJ_JPA_TEST_JAR
 
 --source suite/ndb/include/run_java.inc
 
-drop table if exists t_basic;
+drop table if exists T_Basic;
 drop table if exists longlongstringpk;
-drop table if exists bittypes;
-drop table if exists binarytypes;
 drop table if exists charsetlatin1;
-drop table if exists charsetbig5;
-drop table if exists charsetutf8;
-drop table if exists charsetsjis;
 drop table if exists longintstringpk;
 drop table if exists longlongstringfk;
 drop table if exists longintstringfk;
 drop table if exists a;
 drop table if exists b0;
 drop table if exists blobtypes;
-drop table if exists bytestype;
-drop table if exists doubletypes;
-drop table if exists floattypes;
-drop table if exists t_basic;
-drop table if exists dn2id;
-drop table if exists nullvalues;
-drop table if exists allprimitives;
 drop table if exists decimaltypes;
 drop table if exists bigintegertypes;
 drop table if exists timestamptypes;
-drop table if exists stringtype;
-drop table if exists yeartypes;
 drop table if exists timetypes;
 drop table if exists datetypes;
 drop table if exists datetimetypes;
+drop table if exists OPENJPA_SEQUENCE_TABLE;
 
 exit;
