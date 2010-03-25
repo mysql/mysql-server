@@ -641,18 +641,12 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
     }
     case 1: /* root was split, grow a new root */
     { 
-      uchar *new_root_buf;
+      uchar *new_root_buf= info->buff + info->s->base.max_key_block_length;
       my_off_t new_root;
       uchar *new_key;
       uint nod_flag = info->s->base.key_reflength;
 
       DBUG_PRINT("rtree", ("root was split, grow a new root"));
-      if (!(new_root_buf = (uchar*)my_alloca((uint)keyinfo->block_length + 
-                                             MI_MAX_KEY_BUFF)))
-      {
-        my_errno = HA_ERR_OUT_OF_MEM;
-        DBUG_RETURN(-1); /* purecov: inspected */
-      }
 
       mi_putint(new_root_buf, 2, nod_flag);
       if ((new_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) ==
@@ -680,10 +674,8 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
       DBUG_PRINT("rtree", ("new root page: %lu  level: %d  nod_flag: %u",
                            (ulong) new_root, 0, mi_test_if_nod(new_root_buf)));
 
-      my_afree((uchar*)new_root_buf);
       break;
 err1:
-      my_afree((uchar*)new_root_buf);
       DBUG_RETURN(-1); /* purecov: inspected */
     }
     default:
