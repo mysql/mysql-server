@@ -193,4 +193,17 @@ show status like "Qcache_hits";
 Variable_name	Value
 Qcache_hits	2
 drop table t1;
+#
+# Bug46615 Assertion in Query_cache::invalidate in INSERT in a VIEW of a MERGE table
+#
+CREATE TABLE t1 (c1 INT, c2 INT);
+CREATE TABLE t2 LIKE t1;
+SET AUTOCOMMIT=OFF;
+CREATE VIEW t1_view AS SELECT c1 FROM t1 NATURAL JOIN t2 ;
+INSERT INTO t1_view (c1, c2) SELECT c1, c2 FROM t1;
+ERROR 42S22: Unknown column 'c2' in 'field list'
+DROP TABLE t1;
+DROP TABLE t2;
+DROP VIEW t1_view;
+SET AUTOCOMMIT=DEFAULT;
 set GLOBAL query_cache_size=default;
