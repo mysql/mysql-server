@@ -1359,7 +1359,7 @@ exit:
 }
 
 int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, KEY_AND_COL_INFO* kc_info, uint hidden_primary_key, uint primary_key) {
-    int error;
+    int error = 0;
     u_int32_t curr_blob_field_index = 0;
     u_int32_t max_var_bytes = 0;
     //
@@ -3046,7 +3046,7 @@ cleanup:
 }
 
 int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn) {
-    int error;
+    int error = 0;
     u_int32_t put_flags;
     THD *thd = ha_thd();
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
@@ -3100,7 +3100,7 @@ cleanup:
 }
 
 int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd) {
-    int error;
+    int error = 0;
     bool is_replace;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
@@ -4695,7 +4695,7 @@ void ha_tokudb::position(const uchar * record) {
 //      0, always success
 //
 int ha_tokudb::info(uint flag) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld", this, flag, share->rows);
+    TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld", this, flag, (long long) share->rows);
     int error;
     DB_TXN* txn = NULL;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
@@ -4707,7 +4707,7 @@ int ha_tokudb::info(uint flag) {
         if (!(flag & HA_STATUS_NO_LOCK)) {
             u_int64_t num_rows = 0;
             TOKU_DB_FRAGMENTATION_S frag_info = {0};
-            u_int64_t num_deleted_bytes = 0;
+
             error = db_env->txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
             if (error) { goto cleanup; }
 
@@ -6218,7 +6218,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         num_processed++; 
 
         if ((num_processed % 1000) == 0) {
-            sprintf(status_msg, "Adding indexes: Processed %llu of about %llu rows.", num_processed, share->rows);
+            sprintf(status_msg, "Adding indexes: Processed %llu of about %llu rows.", num_processed, (long long unsigned) share->rows);
             thd_proc_info(thd, status_msg);
             if (thd->killed) {
                 error = ER_ABORTING_CONNECTION;
@@ -6256,7 +6256,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             }
             num_processed++;
             if ((num_processed % 1000) == 0) {
-                sprintf(status_msg, "Adding indexes: Applied %llu of %llu rows in key-%s.", num_processed, share->rows, key_info[i].name);
+                sprintf(status_msg, "Adding indexes: Applied %llu of %llu rows in key-%s.", num_processed, (long long unsigned) share->rows, key_info[i].name);
                 thd_proc_info(thd, status_msg);
                 if (thd->killed) {
                     error = ER_ABORTING_CONNECTION;
