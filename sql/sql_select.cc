@@ -118,9 +118,17 @@ static void reset_nj_counters(List<TABLE_LIST> *join_list);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                           uint first_unused);
 
+/**
+ *  SPJ MERGE TODO Bug#48971:
+ *  BEWARE: Temp fix for Bug#48971 in SPJ branch affects signature
+ *  to optimize_cond.
+ *  Permanent fix has not been merged to this branch yet.
+ *  Needed as this was a showstopper for further SPJ testing.
+ */
 static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
-			   Item::cond_result *cond_value);
+			   Item::cond_result *cond_value,
+                           bool build_equalites);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
 static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
@@ -860,7 +868,7 @@ JOIN::optimize()
       thd->restore_active_arena(arena, &backup);
   }
 
-  conds= optimize_cond(this, conds, join_list, &cond_value);   
+  conds= optimize_cond(this, conds, join_list, &cond_value, TRUE);   
   if (thd->is_error())
   {
     error= 1;
@@ -869,7 +877,7 @@ JOIN::optimize()
   }
 
   {
-    having= optimize_cond(this, having, join_list, &having_value);
+    having= optimize_cond(this, having, join_list, &having_value, FALSE);
     if (thd->is_error())
     {
       error= 1;
@@ -6116,13 +6124,7 @@ add_found_match_trig_cond(JOIN_TAB *tab, COND *cond, JOIN_TAB *root_tab)
 {
   COND *tmp;
   DBUG_ASSERT(cond != 0);
-  /**
-   *  SPJ MERGE TODO Bug#48971:
-   *  BEWARE: Temp fix for Bug#48971 in SPJ branch as permanent 
-   *  fix has not been merged to this branch yet.
-   *  Needed as this was a showstopper for further SPJ testing.
-   */
-  if (!tab || tab == root_tab || !cond) // Fix for Bug#48971
+  if (tab == root_tab)
     return cond;
   if ((tmp= add_found_match_trig_cond(tab->first_upper, cond, root_tab)))
     tmp= new Item_func_trig_cond(tmp, &tab->found);
@@ -9177,9 +9179,16 @@ static void restore_prev_nj_state(JOIN_TAB *last)
 }
 
 
+/**
+ *  SPJ MERGE TODO Bug#48971:
+ *  BEWARE: Temp fix for Bug#48971 in SPJ branch affects signature
+ *  to optimize_cond.
+ *  Permanent fix has not been merged to this branch yet.
+ *  Needed as this was a showstopper for further SPJ testing.
+ */
 static COND *
 optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
-              Item::cond_result *cond_value)
+              Item::cond_result *cond_value, bool build_equalites)
 {
   THD *thd= join->thd;
   DBUG_ENTER("optimize_cond");
@@ -9197,9 +9206,12 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
       multiple equality contains a constant.
     */ 
     DBUG_EXECUTE("where", print_where(conds, "original", QT_ORDINARY););
-    conds= build_equal_items(join->thd, conds, NULL, join_list,
-                             &join->cond_equal);
-    DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
+    if (build_equalites)
+    {
+      conds= build_equal_items(join->thd, conds, NULL, join_list,
+                               &join->cond_equal);
+      DBUG_EXECUTE("where",print_where(conds,"after equal_items",QT_ORDINARY););
+    }
 
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
