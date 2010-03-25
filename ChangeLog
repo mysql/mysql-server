@@ -9,7 +9,7 @@
 
 	* buf0buf.ic:
 	When comparing the time of the first access to a block against
-	innodb_old_blocks_time, use 32-bit arithmetics.  The comparison
+	innodb_old_blocks_time, use 32-bit arithmetics. The comparison
 	was incorrect on 64-bit systems.
 
 2010-03-11	The InnoDB Team
@@ -48,7 +48,7 @@
 
 	* log/log0recv.c:
 	Remove a bogus assertion about page numbers exceeding 0x90000000
-	in the redo log.  Abort when encountering a corrupted redo log
+	in the redo log. Abort when encountering a corrupted redo log
 	record, unless innodb_force_recovery is set.
 
 2010-03-09	The InnoDB Team
@@ -138,7 +138,7 @@
 
 	* row/row0sel.c:
 	On the READ UNCOMMITTED isolation level, do not attempt to access
-	a clustered index record that has been marked for deletion.  The
+	a clustered index record that has been marked for deletion. The
 	built-in InnoDB in MySQL 5.1 and earlier would attempt to retrieve
 	a previous version of the record in this case.
 
@@ -167,7 +167,7 @@
 	Display the zlib version number at startup.
 	InnoDB compressed tables use zlib, and the implementation depends
 	on the zlib function compressBound(), whose definition was slightly
-	changed in zlib version 1.2.3.1 in 2006.  MySQL bundles zlib 1.2.3
+	changed in zlib version 1.2.3.1 in 2006. MySQL bundles zlib 1.2.3
 	from 2005, but some installations use a more recent zlib.
 
 2009-11-30	The InnoDB Team
