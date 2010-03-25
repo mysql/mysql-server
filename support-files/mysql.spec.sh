@@ -464,6 +464,9 @@ touch $RBR%{_sysconfdir}/my.cnf
 install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
 
+# ChangeLog file is optional, create an empty one if it doesn't exist
+[ -f $MBD/%{src_dir}/Docs/ChangeLog ] || >$MBD/%{src_dir}/Docs/ChangeLog 
+
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
@@ -654,6 +657,7 @@ fi
 
 %doc %{src_dir}/COPYING
 %doc %{src_dir}/README
+%doc %{src_dir}/Docs/ChangeLog
 %doc release/support-files/my-*.cnf
 %if %{CLUSTER_BUILD}
 %doc release/support-files/ndb-*.ini
@@ -838,6 +842,8 @@ fi
 %{_datadir}/aclocal/mysql.m4
 %if %{WITH_LIBGCC}
 %{_libdir}/mysql/libmygcc.a
+%{_libdir}/mysql/libmysqlclient.a
+%{_libdir}/mysql/libmysqlclient_r.a
 %endif
 %if %{CLUSTER_BUILD}
 %{_libdir}/mysql/libndbclient.a
