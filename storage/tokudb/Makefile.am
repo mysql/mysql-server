@@ -4,6 +4,7 @@ MYSQLDATAdir =          $(localstatedir)
 MYSQLSHAREdir =         $(pkgdatadir)
 MYSQLBASEdir =          $(prefix)
 MYSQLLIBdir =           $(pkglibdir)
+pkgplugindir =          $(pkglibdir)/plugin
 INCLUDES =              -I$(top_builddir)/include \
 			-I$(top_srcdir)/include \
 			-I$(top_srcdir)/regex \
@@ -18,8 +19,8 @@ noinst_HEADERS	  =
 EXTRA_LTLIBRARIES =	ha_tokudb.la
 pkglib_LTLIBRARIES =	@plugin_tokudb_shared_target@
 ha_tokudb_la_LIBADD =   -L$(TOKUFRACTALTREE)/lib -l$(TOKUFRACTALTREE_LIBNAME) -ltokuportability
-ha_tokudb_la_LDFLAGS =	-module -rpath $(pkglibdir)/plugin
-ha_tokudb_la_CXXFLAGS =	$(AM_CFLAGS) -DMYSQL_PLUGIN -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\" -Wall
+ha_tokudb_la_LDFLAGS =	-module -rpath $(pkgplugindir)
+ha_tokudb_la_CXXFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\" -Wall
 ha_tokudb_la_SOURCES =	hatoku_hton.cc hatoku_cmp.cc ha_tokudb.cc
 
 EXTRA_LIBRARIES =	libtokudb.a
