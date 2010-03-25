@@ -446,8 +446,8 @@ install -m 644 $MBD/debug/libmysqld/libmysqld.a \
 mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 
 # Install logrotate and autostart
-install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
-install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
+install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
+install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -652,10 +652,11 @@ fi
 %files server
 %defattr(-,root,root,0755)
 
-%doc mysql-release-%{mysql_version}/COPYING mysql-release-%{mysql_version}/README
-%doc mysql-release-%{mysql_version}/support-files/my-*.cnf
+%doc COPYING
+%doc README
+%doc support-files/my-*.cnf
 %if %{CLUSTER_BUILD}
-%doc mysql-release-%{mysql_version}/support-files/ndb-*.ini
+%doc support-files/ndb-*.ini
 %endif
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
@@ -727,12 +728,12 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
+#%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so*
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
+#%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -832,7 +833,7 @@ fi
 
 %files devel
 %defattr(-, root, root, 0755)
-%doc mysql-release-%{mysql_version}/EXCEPTIONS-CLIENT
+%doc EXCEPTIONS-CLIENT
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -840,39 +841,13 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql/*
 %{_datadir}/aclocal/mysql.m4
-%{_libdir}/mysql/libdbug.a
-%{_libdir}/mysql/libheap.a
 %if %{WITH_LIBGCC}
 %{_libdir}/mysql/libmygcc.a
 %endif
-%{_libdir}/mysql/libmyisam.a
-%{_libdir}/mysql/libmyisammrg.a
-%{_libdir}/mysql/libmysqlclient.a
-%{_libdir}/mysql/libmysqlclient.la
-%{_libdir}/mysql/libmysqlclient_r.a
-%{_libdir}/mysql/libmysqlclient_r.la
-%{_libdir}/mysql/libmysqlservices.a
-%{_libdir}/mysql/libmystrings.a
-%{_libdir}/mysql/libmysys.a
 %if %{CLUSTER_BUILD}
 %{_libdir}/mysql/libndbclient.a
 %{_libdir}/mysql/libndbclient.la
 %endif
-%{_libdir}/mysql/libvio.a
-%{_libdir}/mysql/libz.a
-%{_libdir}/mysql/libz.la
-%{_libdir}/mysql/plugin/ha_example.a
-%{_libdir}/mysql/plugin/ha_example.la
-%{_libdir}/mysql/plugin/semisync_master.a
-%{_libdir}/mysql/plugin/semisync_master.la
-%{_libdir}/mysql/plugin/semisync_slave.a
-%{_libdir}/mysql/plugin/semisync_slave.la
-%{_libdir}/mysql/plugin/debug/ha_example.a
-%{_libdir}/mysql/plugin/debug/ha_example.la
-%{_libdir}/mysql/plugin/debug/semisync_master.a
-%{_libdir}/mysql/plugin/debug/semisync_master.la
-%{_libdir}/mysql/plugin/debug/semisync_slave.a
-%{_libdir}/mysql/plugin/debug/semisync_slave.la
 
 %files shared
 %defattr(-, root, root, 0755)
