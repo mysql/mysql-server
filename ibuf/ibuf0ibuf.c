@@ -2507,6 +2507,8 @@ ibuf_is_empty:
 
 	btr_pcur_open_at_rnd_pos(ibuf->index, BTR_SEARCH_LEAF, &pcur, &mtr);
 
+	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
+
 	if (page_get_n_recs(btr_pcur_get_page(&pcur)) == 0) {
 		/* When the ibuf tree is emptied completely, the last record
 		is removed using an optimistic delete and ibuf_size_update
@@ -2840,6 +2842,7 @@ ibuf_get_volume_buffered(
 
 	rec = btr_pcur_get_rec(pcur);
 	page = page_align(rec);
+	ut_ad(page_validate(page, ibuf->index));
 
 	if (page_rec_is_supremum(rec)) {
 		rec = page_rec_get_prev(rec);
@@ -2861,6 +2864,7 @@ ibuf_get_volume_buffered(
 			rec, hash_bitmap, UT_ARR_SIZE(hash_bitmap), n_recs);
 
 		rec = page_rec_get_prev(rec);
+		ut_ad(page_align(rec) == page);
 	}
 
 	/* Look at the previous page */
@@ -2882,6 +2886,7 @@ ibuf_get_volume_buffered(
 
 
 		prev_page = buf_block_get_frame(block);
+		ut_ad(page_validate(prev_page, ibuf->index));
 	}
 
 #ifdef UNIV_BTR_DEBUG
@@ -2912,6 +2917,7 @@ ibuf_get_volume_buffered(
 			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_prev(rec);
+		ut_ad(page_align(rec) == prev_page);
 	}
 
 count_later:
@@ -2958,6 +2964,7 @@ count_later:
 
 
 		next_page = buf_block_get_frame(block);
+		ut_ad(page_validate(next_page, ibuf->index));
 	}
 
 #ifdef UNIV_BTR_DEBUG
@@ -2985,6 +2992,7 @@ count_later:
 			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
 
 		rec = page_rec_get_next(rec);
+		ut_ad(page_align(rec) == next_page);
 	}
 }
 
@@ -3011,6 +3019,8 @@ ibuf_update_max_tablespace_id(void)
 
 	btr_pcur_open_at_index_side(
 		FALSE, ibuf->index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+
+	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
 
 	btr_pcur_move_to_prev(&pcur, &mtr);
 
@@ -3125,6 +3135,7 @@ ibuf_set_entry_counter(
 	byte*		data;
 
 	/* pcur points to either a user rec or to a page's infimum record. */
+	ut_ad(page_validate(btr_pcur_get_page(pcur), ibuf->index));
 
 	if (btr_pcur_is_on_user_rec(pcur)) {
 
@@ -3364,6 +3375,7 @@ ibuf_insert_low(
 	mtr_start(&mtr);
 
 	btr_pcur_open(ibuf->index, ibuf_entry, PAGE_CUR_LE, mode, &pcur, &mtr);
+	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
 
 	/* Find out the volume of already buffered inserts for the same index
 	page */
@@ -4348,6 +4360,8 @@ loop:
 			max_trx_id = page_get_max_trx_id(page_align(rec));
 			page_update_max_trx_id(block, page_zip, max_trx_id,
 					       &mtr);
+
+			ut_ad(page_validate(page_align(rec), ibuf->index));
 
 			entry = ibuf_build_entry_from_ibuf_rec(
 				rec, heap, &dummy_index);
