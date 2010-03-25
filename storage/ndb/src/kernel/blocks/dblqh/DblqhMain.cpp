@@ -11988,19 +11988,22 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
     lcpPtr.p->firstFragmentFlag= true;
     
 #ifdef ERROR_INSERT
-    /**
-     * Only (so-far) in error insert
-     *   check that keepGci (tail of REDO) is smaller than of head of REDO
-     *
-     */
-    if (! ((cnewestCompletedGci >= lcpFragOrd->keepGci) &&
-           (cnewestGci >= lcpFragOrd->keepGci)))
+    if (check_ndb_versions())
     {
-      ndbout_c("lcpFragOrd->keepGci: %u cnewestCompletedGci: %u cnewestGci: %u",
-               lcpFragOrd->keepGci, cnewestCompletedGci, cnewestGci);
+      /**
+       * Only (so-far) in error insert
+       *   check that keepGci (tail of REDO) is smaller than of head of REDO
+       *
+       */
+      if (! ((cnewestCompletedGci >= lcpFragOrd->keepGci) &&
+             (cnewestGci >= lcpFragOrd->keepGci)))
+      {
+        ndbout_c("lcpFragOrd->keepGci: %u cnewestCompletedGci: %u cnewestGci: %u",
+                 lcpFragOrd->keepGci, cnewestCompletedGci, cnewestGci);
+      }
+      ndbrequire(cnewestCompletedGci >= lcpFragOrd->keepGci);
+      ndbrequire(cnewestGci >= lcpFragOrd->keepGci);
     }
-    ndbrequire(cnewestCompletedGci >= lcpFragOrd->keepGci);
-    ndbrequire(cnewestGci >= lcpFragOrd->keepGci);
 #endif
 
     c_lcpId = lcpFragOrd->lcpId;
@@ -15223,7 +15226,11 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   cnewestGci = req->newestGci;
   cstartRecReqData = req->senderData;
 
-  ndbrequire(crestartOldestGci <= crestartNewestGci);
+  if (check_ndb_versions())
+  {
+    ndbrequire(crestartOldestGci <= crestartNewestGci);
+  }
+
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
@@ -21505,3 +21512,21 @@ Dblqh::release(Signal* signal, RedoOpenFileCache & cache)
 }
 
 #endif
+
+bool
+Dblqh::check_ndb_versions() const
+{
+  Uint32 version = getNodeInfo(getOwnNodeId()).m_version;
+  for (Uint32 i = 0; i < cnoOfNodes; i++) 
+  {
+    Uint32 node = cnodeData[i];
+    if (cnodeStatus[i] == ZNODE_UP)
+    {
+      if(getNodeInfo(node).m_version != version)
+      {
+        return false;
+      }
+    }
+  }
+  return true;
+}
