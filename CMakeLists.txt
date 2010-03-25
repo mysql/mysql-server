@@ -275,7 +275,7 @@ ELSE()
 ENDIF() 
 INCLUDE(CPack)
 IF(UNIX)
-  INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR})
+  INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL)
 ENDIF()
 #
 # RPM installs documentation directly from the source tree
