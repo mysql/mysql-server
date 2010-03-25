@@ -80,7 +80,6 @@ class ha_innobase: public handler
 	ulong innobase_update_autoinc(ulonglong	auto_inc);
 	void innobase_initialize_autoinc();
 	dict_index_t* innobase_get_index(uint keynr);
- 	ulonglong innobase_get_int_col_max_value(const Field* field);
 
 	/* Init values for the class: */
  public:
