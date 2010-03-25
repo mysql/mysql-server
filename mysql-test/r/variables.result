@@ -523,6 +523,8 @@ select @@max_user_connections;
 100
 set global max_write_lock_count=100;
 set myisam_sort_buffer_size=100;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '100'
 set global net_buffer_length=100;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '100'
