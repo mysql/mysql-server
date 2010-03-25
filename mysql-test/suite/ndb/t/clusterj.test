@@ -51,5 +51,9 @@ DROP TABLE t_basic;
 DROP TABLE timestamptypes;
 DROP TABLE timetypes;
 DROP TABLE yeartypes;
+DROP TABLE localetypes;
+DROP TABLE stringtypes;
+DROP TABLE IF EXISTS test2.t_basic2;
+DROP DATABASE IF EXISTS test2;
 
 exit;
