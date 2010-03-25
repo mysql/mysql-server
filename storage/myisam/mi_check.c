@@ -2396,10 +2396,8 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
       /*
         fulltext indexes may have much more entries than the
         number of rows in the table. We estimate the number here.
-
-        Note, built-in parser is always nr. 0 - see ftparser_call_initializer()
       */
-      if (sort_param.keyinfo->ftkey_nr == 0)
+      if (sort_param.keyinfo->parser == &ft_default_parser)
       {
         /*
           for built-in parser the number of generated index entries
@@ -2416,8 +2414,9 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
           so, we'll use all the sort memory and start from ~10 buffpeks.
           (see _create_index_by_sort)
         */
-        sort_info.max_records=
-          10*param->sort_buffer_length/sort_param.key_length;
+        sort_info.max_records= 10 *
+                               max(param->sort_buffer_length, MIN_SORT_BUFFER) /
+                               sort_param.key_length;
       }
 
       sort_param.key_read=sort_ft_key_read;
