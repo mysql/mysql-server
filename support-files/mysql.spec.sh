@@ -652,11 +652,11 @@ fi
 %files server
 %defattr(-,root,root,0755)
 
-%doc COPYING
-%doc README
-%doc support-files/my-*.cnf
+%doc %{src_dir}/COPYING
+%doc %{src_dir}/README
+%doc release/support-files/my-*.cnf
 %if %{CLUSTER_BUILD}
-%doc support-files/ndb-*.ini
+%doc release/support-files/ndb-*.ini
 %endif
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
@@ -703,7 +703,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
-%attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
@@ -833,7 +832,7 @@ fi
 
 %files devel
 %defattr(-, root, root, 0755)
-%doc EXCEPTIONS-CLIENT
+%doc %{src_dir}/EXCEPTIONS-CLIENT
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
