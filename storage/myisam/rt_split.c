@@ -258,7 +258,7 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
   double *old_coord;
   int n_dim;
   uchar *source_cur, *cur1, *cur2;
-  uchar *new_page;
+  uchar *new_page= info->buff;
   int err_code= 0;
   uint nod_flag= mi_test_if_nod(page);
   uint full_length= key_length + (nod_flag ? nod_flag : 
@@ -304,12 +304,7 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
     goto split_err;
   }
 
-  if (!(new_page = (uchar*)my_alloca((uint)keyinfo->block_length)))
-  {
-    err_code= -1;
-    goto split_err;
-  }
-  
+  info->buff_used= 1;
   stop = task + (max_keys + 1);
   cur1 = rt_PAGE_FIRST_KEY(page, nod_flag);
   cur2 = rt_PAGE_FIRST_KEY(new_page, nod_flag);
@@ -344,8 +339,6 @@ int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
     err_code= _mi_write_keypage(info, keyinfo, *new_page_offs,
                                 DFLT_INIT_HITS, new_page);
   DBUG_PRINT("rtree", ("split new block: %lu", (ulong) *new_page_offs));
-
-  my_afree((uchar*)new_page);
 
 split_err:
   my_afree((uchar*) coord_buf);
