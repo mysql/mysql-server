@@ -4128,7 +4128,7 @@ ibuf_merge_or_delete_for_page(
 	btr_pcur_t	pcur;
 	dtuple_t*	search_tuple;
 #ifdef UNIV_IBUF_DEBUG
-	ulint		volume;
+	ulint		volume			= 0;
 #endif
 	page_zip_des_t*	page_zip		= NULL;
 	ibool		tablespace_being_deleted = FALSE;
@@ -4284,9 +4284,6 @@ ibuf_merge_or_delete_for_page(
 	memset(mops, 0, sizeof(mops));
 	memset(dops, 0, sizeof(dops));
 
-#ifdef UNIV_IBUF_DEBUG
-	volume = 0;
-#endif
 loop:
 	mtr_start(&mtr);
 
@@ -4339,7 +4336,7 @@ loop:
 			fputs("\nInnoDB: from the insert buffer!\n\n", stderr);
 		} else if (block) {
 			/* Now we have at pcur a record which should be
-			inserted to the index page; NOTE that the call below
+			applied on the index page; NOTE that the call below
 			copies pointers to fields in rec, and we must
 			keep the latch to the rec page until the
 			insertion is finished! */
@@ -4354,9 +4351,13 @@ loop:
 
 			entry = ibuf_build_entry_from_ibuf_rec(
 				rec, heap, &dummy_index);
-#ifdef UNIV_IBUF_DEBUG
-			if (op == IBUF_OP_INSERT) {
 
+			ut_ad(page_validate(block->frame, dummy_index));
+
+			switch (op) {
+				ibool	success;
+			case IBUF_OP_INSERT:
+#ifdef UNIV_IBUF_DEBUG
 				volume += rec_get_converted_size(
 					dummy_index, entry, 0);
 
@@ -4364,10 +4365,7 @@ loop:
 
 				ut_a(volume <= 4 * UNIV_PAGE_SIZE
 					/ IBUF_PAGE_SIZE_PER_FREE_SPACE);
-			}
 #endif
-			switch (op) {
-			case IBUF_OP_INSERT:
 				ibuf_insert_to_index_page(
 					entry, block, dummy_index, &mtr);
 				break;
@@ -4393,17 +4391,13 @@ loop:
 
 				mtr_start(&mtr);
 
-				if (block) {
-					ibool	success;
-					success = buf_page_get_known_nowait(
-						RW_X_LATCH, block,
-						BUF_KEEP_OLD,
-						__FILE__, __LINE__, &mtr);
-					ut_a(success);
+				success = buf_page_get_known_nowait(
+					RW_X_LATCH, block,
+					BUF_KEEP_OLD,
+					__FILE__, __LINE__, &mtr);
+				ut_a(success);
 
-					buf_block_dbg_add_level(
-						block, SYNC_TREE_NODE);
-				}
+				buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 
 				if (!ibuf_restore_pos(space, page_no,
 						      search_tuple,
