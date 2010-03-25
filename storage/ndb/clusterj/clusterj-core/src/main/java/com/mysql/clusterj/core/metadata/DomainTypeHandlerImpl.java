@@ -169,7 +169,7 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         ctor = getConstructorForInvocationHandler (proxyClass);
         persistenceCapable = cls.getAnnotation(PersistenceCapable.class);
         if (persistenceCapable == null) {
-            throw new ClusterJFatalUserException(local.message(
+            throw new ClusterJUserException(local.message(
                     "ERR_No_Persistence_Capable_Annotation", className));
         }
         tableName = persistenceCapable.table();

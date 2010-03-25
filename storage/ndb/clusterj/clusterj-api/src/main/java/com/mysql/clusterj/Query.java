@@ -59,7 +59,10 @@ public interface Query<E> {
     Results<E> execute(Map<String, ?> parameters);
 
     /**
-     * Explain this query.
+     * Explain how this query was executed, after execution.
+     * If called before executing the query, returns null.
+     * Returns a collection of key:value pairs that explain
+     * how the query was executed. 
      * @return the data about the execution of this query
      */
     Map<String, Object> explain();

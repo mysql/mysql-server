@@ -134,7 +134,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
 //            }
 //            handleError (ndbTransaction, ndb);
 //            return ndbTransaction;
-            System.out.println("DbImpl.enlist(): Multiple key parts are not supported... yet.");
+            if (logger.isDebugEnabled()) logger.debug("Multiple key parts are not supported... yet.");
             NdbTransaction result = ndb.startTransaction(null, null, 0);
             handleError (result, ndb);
             return result;

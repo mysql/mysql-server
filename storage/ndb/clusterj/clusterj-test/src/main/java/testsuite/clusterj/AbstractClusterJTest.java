@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
+   Copyright (C) 2010 Sun Microsystems Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -112,10 +112,16 @@ public abstract class AbstractClusterJTest extends TestCase {
 
     protected void createSessionFactory() {
         loadProperties();
+        Properties modifiedProperties = modifyProperties();
         if (sessionFactory == null) {
-            sessionFactory = ClusterJHelper.getSessionFactory(props);
+            sessionFactory = ClusterJHelper.getSessionFactory(modifiedProperties);
         }
         loadSchema();
+    }
+
+    protected Properties modifyProperties() {
+        // doesn't do anything but can be overridden by a subclass
+        return props;
     }
 
     protected void createSession() {
@@ -397,6 +403,8 @@ public abstract class AbstractClusterJTest extends TestCase {
                 session = null;
             }
         }
+        session = null;
+        sessionFactory = null;
     }
 
     protected void removeAll(Class<?> cls) {

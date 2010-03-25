@@ -2354,7 +2354,7 @@ public abstract class AbstractDomainFieldHandlerImpl implements DomainFieldHandl
         }
 
         public void operationEqual(AbstractDomainFieldHandlerImpl fmd, Object value, Operation op) {
-            throw new UnsupportedOperationException(local.message("ERR_NotImplemented"));
+            op.equalString(fmd.storeColumn, (String)value);
         }
 
         public boolean isValidIndexType(AbstractDomainFieldHandlerImpl fmd, boolean hashNotOrdered) {

@@ -24,6 +24,8 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
+import javax.persistence.Temporal;
+import javax.persistence.TemporalType;
 
 /** Schema
 *
@@ -62,6 +64,7 @@ public class TimeAsUtilDateTypes implements IdBase {
 
     // Date
     @Column(name="time_not_null_hash")
+    @Temporal(TemporalType.TIME)
     public Date getTime_not_null_hash() {
         return time_not_null_hash;
     }
@@ -70,6 +73,7 @@ public class TimeAsUtilDateTypes implements IdBase {
     }
 
     @Column(name="time_not_null_btree")
+    @Temporal(TemporalType.TIME)
     public Date getTime_not_null_btree() {
         return time_not_null_btree;
     }
@@ -78,6 +82,7 @@ public class TimeAsUtilDateTypes implements IdBase {
     }
 
     @Column(name="time_not_null_both")
+    @Temporal(TemporalType.TIME)
     public Date getTime_not_null_both() {
         return time_not_null_both;
     }
@@ -86,6 +91,7 @@ public class TimeAsUtilDateTypes implements IdBase {
     }
 
     @Column(name="time_not_null_none")
+    @Temporal(TemporalType.TIME)
     public Date getTime_not_null_none() {
         return time_not_null_none;
     }

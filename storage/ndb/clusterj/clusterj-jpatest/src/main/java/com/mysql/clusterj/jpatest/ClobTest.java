@@ -86,15 +86,6 @@ public class ClobTest extends AbstractJPABaseTest {
         }
     }
 
-    /**
-     * The name of the persistence unit that this test class should use
-     * by default. This defaults to "ndb".
-     */
-    @Override
-    protected String getPersistenceUnitName() {
-        return "ndb";
-    }
-
     public void test() {
         createClobInstances(NUMBER_TO_INSERT);
         remove();

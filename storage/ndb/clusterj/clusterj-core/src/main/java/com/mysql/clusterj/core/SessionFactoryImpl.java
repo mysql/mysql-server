@@ -1,5 +1,5 @@
 /*
-   Copyright (C) 2009 Sun Microsystems Inc.
+   Copyright (C) 2009, 2010 Sun Microsystems Inc.
    All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -91,18 +91,22 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             new HashMap<String, SessionFactoryImpl>();
 
     /** Get a session factory. If there is already a session factory
-     * with the same connect string, return it, regardless of whether other
+     * with the same connect string and database, return it, regardless of whether other
      * properties of the factory are the same as specified in the Map.
      * @param props properties of the session factory
      * @return the session factory
      */
     static public synchronized SessionFactoryImpl getSessionFactory(Map<String, String> props) {
         String clusterConnectString = 
-                getStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
-        SessionFactoryImpl result = sessionFactoryMap.get(clusterConnectString);
+                getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
+        String clusterDatabase = getStringProperty(props, PROPERTY_CLUSTER_DATABASE,
+                Constants.DEFAULT_PROPERTY_CLUSTER_DATABASE);
+        String sessionFactoryKey = clusterConnectString + "+" + clusterDatabase;
+        SessionFactoryImpl result = sessionFactoryMap.get(sessionFactoryKey);
         if (result == null) {
+            logger.info("SessionFactoryImpl creating new SessionFactory with key " + sessionFactoryKey);
             result = new SessionFactoryImpl(props);
-            sessionFactoryMap.put(clusterConnectString, result);
+            sessionFactoryMap.put(sessionFactoryKey, result);
         }
         return result;
     }
@@ -115,13 +119,20 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     protected SessionFactoryImpl(Map<String, String> props) {
         this.props = props;
         CLUSTER_CONNECT_STRING = getRequiredStringProperty(props, PROPERTY_CLUSTER_CONNECTSTRING);
-        CLUSTER_CONNECT_RETRIES = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_RETRIES);
-        CLUSTER_CONNECT_DELAY = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_DELAY);
-        CLUSTER_CONNECT_VERBOSE = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_VERBOSE);
-        CLUSTER_CONNECT_TIMEOUT_BEFORE = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_TIMEOUT_BEFORE);
-        CLUSTER_CONNECT_TIMEOUT_AFTER = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_TIMEOUT_AFTER);
-        CLUSTER_DATABASE = getStringProperty(props, PROPERTY_CLUSTER_DATABASE);
-        CLUSTER_MAX_TRANSACTIONS = getIntProperty(props, PROPERTY_CLUSTER_MAX_TRANSACTIONS);
+        CLUSTER_CONNECT_RETRIES = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_RETRIES,
+                Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_RETRIES);
+        CLUSTER_CONNECT_DELAY = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_DELAY,
+                Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_DELAY);
+        CLUSTER_CONNECT_VERBOSE = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_VERBOSE,
+                Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_VERBOSE);
+        CLUSTER_CONNECT_TIMEOUT_BEFORE = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_TIMEOUT_BEFORE,
+                Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_BEFORE);
+        CLUSTER_CONNECT_TIMEOUT_AFTER = getIntProperty(props, PROPERTY_CLUSTER_CONNECT_TIMEOUT_AFTER,
+                Constants.DEFAULT_PROPERTY_CLUSTER_CONNECT_TIMEOUT_AFTER);
+        CLUSTER_DATABASE = getStringProperty(props, PROPERTY_CLUSTER_DATABASE,
+                Constants.DEFAULT_PROPERTY_CLUSTER_DATABASE);
+        CLUSTER_MAX_TRANSACTIONS = getIntProperty(props, PROPERTY_CLUSTER_MAX_TRANSACTIONS,
+                Constants.DEFAULT_PROPERTY_CLUSTER_MAX_TRANSACTIONS);
         CLUSTER_CONNECTION_SERVICE = getStringProperty(props, PROPERTY_CLUSTER_CONNECTION_SERVICE);
         try {
             ClusterConnectionService service =
@@ -262,14 +273,34 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     }
 
     /** Get the property from the properties map as a String.
-     * 
+     * @param props the properties
+     * @param propertyName the name of the property
+     * @return the value from the properties (may be null)
      */
     protected static String getStringProperty(Map<String, String> props, String propertyName) {
         return (String)props.get(propertyName);
     }
 
-    /** Get the property from the properties map as a String.
-     * 
+    /** Get the property from the properties map as a String. If the user has not
+     * provided a value in the props, use the supplied default value.
+     * @param props the properties
+     * @param propertyName the name of the property
+     * @param defaultValue the value to return if there is no property by that name
+     * @return the value from the properties or the default value
+     */
+    protected static String getStringProperty(Map<String, String> props, String propertyName, String defaultValue) {
+        String result = (String)props.get(propertyName);
+        if (result == null) {
+            result = defaultValue;
+        }
+        return result;
+    }
+
+    /** Get the property from the properties map as a String. If the user has not
+     * provided a value in the props, throw an exception.
+     * @param props the properties
+     * @param propertyName the name of the property
+     * @return the value from the properties (may not be null)
      */
     protected static String getRequiredStringProperty(Map<String, String> props, String propertyName) {
         String result = (String)props.get(propertyName);
@@ -281,10 +312,34 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     }
 
     /** Get the property from the properties map as an int.
+     * @param props the properties
+     * @param propertyName the name of the property
+     * @return the value from the properties or the default value
      * 
      */
     protected static int getIntProperty(Map<String, String> props, String propertyName) {
         String property = getStringProperty(props, propertyName);
+        try {
+            int result = Integer.parseInt(property);
+            return result;
+        } catch (NumberFormatException ex) {
+            throw new ClusterJFatalUserException(
+                    local.message("ERR_NumericFormat", propertyName, property));
+        }
+    }
+
+    /** Get the property from the properties map as an int. If the user has not
+     * provided a value in the props, use the supplied default value.
+     * @param props the properties
+     * @param propertyName the name of the property
+     * @param defaultValue the value to return if there is no property by that name
+     * @return the value from the properties or the default value
+     */
+    protected static int getIntProperty(Map<String, String> props, String propertyName, int defaultValue) {
+        String property = getStringProperty(props, propertyName);
+        if (property == null) {
+            return defaultValue;
+        }
         try {
             int result = Integer.parseInt(property);
             return result;
