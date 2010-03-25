@@ -57,7 +57,7 @@ static bool make_datetime(date_time_format_types format, MYSQL_TIME *ltime,
 			  String *str)
 {
   char *buff;
-  CHARSET_INFO *cs= &my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_numeric;
   uint length= MAX_DATE_STRING_REP_LENGTH;
 
   if (str->alloc(length))
@@ -1586,9 +1586,7 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
 void Item_func_curdate::fix_length_and_dec()
 {
-  collation.set(&my_charset_bin);
-  decimals=0; 
-  max_length=MAX_DATE_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  Item_date::fix_length_and_dec();
 
   store_now_in_TIME(&ltime);
   
@@ -1649,7 +1647,7 @@ bool Item_func_curdate::get_date(MYSQL_TIME *res,
 String *Item_func_curtime::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  str_value.set(buff, buff_length, &my_charset_bin);
+  str_value.set(buff, buff_length, &my_charset_latin1);
   return &str_value;
 }
 
@@ -1659,11 +1657,10 @@ void Item_func_curtime::fix_length_and_dec()
   MYSQL_TIME ltime;
 
   decimals= DATETIME_DEC;
-  collation.set(&my_charset_bin);
   store_now_in_TIME(&ltime);
   value= TIME_to_ulonglong_time(&ltime);
   buff_length= (uint) my_time_to_str(&ltime, buff);
-  max_length= buff_length;
+  fix_length_and_charset_datetime(buff_length);
 }
 
 
@@ -1698,7 +1695,7 @@ void Item_func_curtime_utc::store_now_in_TIME(MYSQL_TIME *now_time)
 String *Item_func_now::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  str_value.set(buff,buff_length, &my_charset_bin);
+  str_value.set(buff, buff_length, &my_charset_numeric);
   return &str_value;
 }
 
@@ -1706,13 +1703,12 @@ String *Item_func_now::val_str(String *str)
 void Item_func_now::fix_length_and_dec()
 {
   decimals= DATETIME_DEC;
-  collation.set(&my_charset_bin);
 
   store_now_in_TIME(&ltime);
   value= (longlong) TIME_to_ulonglong_datetime(&ltime);
 
   buff_length= (uint) my_datetime_to_str(&ltime, buff);
-  max_length= buff_length;
+  fix_length_and_charset_datetime(buff_length);
 }
 
 
@@ -1776,7 +1772,7 @@ String *Item_func_sysdate_local::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   store_now_in_TIME(&ltime);
   buff_length= (uint) my_datetime_to_str(&ltime, buff);
-  str_value.set(buff, buff_length, &my_charset_bin);
+  str_value.set(buff, buff_length, &my_charset_numeric);
   return &str_value;
 }
 
@@ -1800,8 +1796,7 @@ double Item_func_sysdate_local::val_real()
 void Item_func_sysdate_local::fix_length_and_dec()
 {
   decimals= 0;
-  collation.set(&my_charset_bin);
-  max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  fix_length_and_charset_datetime(MAX_DATETIME_WIDTH);
 }
 
 
@@ -2005,7 +2000,8 @@ String *Item_func_date_format::val_str(String *str)
   {
     String *res;
     if (!(res=args[0]->val_str(str)) ||
-	(str_to_time_with_warn(res->ptr(), res->length(), &l_time)))
+	(str_to_time_with_warn(res->charset(), res->ptr(), res->length(),
+	                       &l_time)))
       goto null_date;
 
     l_time.year=l_time.month=l_time.day=0;
@@ -2049,9 +2045,8 @@ null_date:
 void Item_func_from_unixtime::fix_length_and_dec()
 { 
   thd= current_thd;
-  collation.set(&my_charset_bin);
   decimals= DATETIME_DEC;
-  max_length=MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  fix_length_and_charset_datetime(MAX_DATETIME_WIDTH);
   maybe_null= 1;
   thd->time_zone_used= 1;
 }
@@ -2109,9 +2104,8 @@ bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
 
 void Item_func_convert_tz::fix_length_and_dec()
 {
-  collation.set(&my_charset_bin);
   decimals= 0;
-  max_length= MAX_DATETIME_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  fix_length_and_charset_datetime(MAX_DATETIME_WIDTH);
   maybe_null= 1;
 }
 
@@ -2155,13 +2149,13 @@ bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
 
   if (!from_tz_cached)
   {
-    from_tz= my_tz_find(thd, args[1]->val_str(&str));
+    from_tz= my_tz_find(thd, args[1]->val_str_ascii(&str));
     from_tz_cached= args[1]->const_item();
   }
 
   if (!to_tz_cached)
   {
-    to_tz= my_tz_find(thd, args[2]->val_str(&str));
+    to_tz= my_tz_find(thd, args[2]->val_str_ascii(&str));
     to_tz_cached= args[2]->const_item();
   }
 
@@ -2195,9 +2189,8 @@ void Item_date_add_interval::fix_length_and_dec()
 {
   enum_field_types arg0_field_type;
 
-  collation.set(&my_charset_bin);
   maybe_null=1;
-  max_length=MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  fix_length_and_charset_datetime(MAX_DATETIME_FULL_WIDTH);
   value.alloc(max_length);
 
   /*
@@ -2375,7 +2368,9 @@ longlong Item_extract::val_int()
   else
   {
     String *res= args[0]->val_str(&value);
-    if (!res || str_to_time_with_warn(res->ptr(), res->length(), &ltime))
+    if (!res ||
+        str_to_time_with_warn(res->charset(), res->ptr(), res->length(),
+                              &ltime))
     {
       null_value=1;
       return 0;
@@ -2814,7 +2809,7 @@ void Item_func_add_time::fix_length_and_dec()
 {
   enum_field_types arg0_field_type;
   decimals=0;
-  max_length=MAX_DATETIME_FULL_WIDTH*MY_CHARSET_BIN_MB_MAXLEN;
+  fix_length_and_charset_datetime(MAX_DATETIME_FULL_WIDTH);
   maybe_null= 1;
 
   /*
@@ -3225,12 +3220,12 @@ void Item_func_timestamp_diff::print(String *str, enum_query_type query_type)
 }
 
 
-String *Item_func_get_format::val_str(String *str)
+String *Item_func_get_format::val_str_ascii(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   const char *format_name;
   KNOWN_DATE_TIME_FORMAT *format;
-  String *val= args[0]->val_str(str);
+  String *val= args[0]->val_str_ascii(str);
   ulong val_len;
 
   if ((null_value= args[0]->null_value))
@@ -3249,7 +3244,7 @@ String *Item_func_get_format::val_str(String *str)
 		      (const uchar *) format_name, val_len))
     {
       const char *format_str= get_date_time_format_str(format, type);
-      str->set(format_str, (uint) strlen(format_str), &my_charset_bin);
+      str->set(format_str, (uint) strlen(format_str), &my_charset_numeric);
       return str;
     }
   }

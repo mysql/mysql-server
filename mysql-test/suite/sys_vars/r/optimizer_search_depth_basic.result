@@ -10,6 +10,7 @@ SELECT @start_session_value;
 SET @@global.optimizer_search_depth = 100;
 Warnings:
 Warning	1292	Truncated incorrect optimizer_search_depth value: '100'
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 SET @@global.optimizer_search_depth = DEFAULT;
 SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
@@ -17,6 +18,7 @@ SELECT @@global.optimizer_search_depth;
 SET @@session.optimizer_search_depth = 200;
 Warnings:
 Warning	1292	Truncated incorrect optimizer_search_depth value: '200'
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 SET @@session.optimizer_search_depth = DEFAULT;
 SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
@@ -44,6 +46,8 @@ SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
 62
 SET @@global.optimizer_search_depth = 63;
+Warnings:
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
 63
@@ -61,6 +65,8 @@ SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
 62
 SET @@session.optimizer_search_depth = 63;
+Warnings:
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
 63
@@ -68,6 +74,7 @@ SELECT @@session.optimizer_search_depth;
 SET @@global.optimizer_search_depth = 64;
 Warnings:
 Warning	1292	Truncated incorrect optimizer_search_depth value: '64'
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
 63
@@ -80,6 +87,7 @@ SELECT @@global.optimizer_search_depth;
 SET @@global.optimizer_search_depth = 65536;
 Warnings:
 Warning	1292	Truncated incorrect optimizer_search_depth value: '65536'
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
 63
@@ -96,6 +104,7 @@ SELECT @@global.optimizer_search_depth;
 SET @@session.optimizer_search_depth = 64;
 Warnings:
 Warning	1292	Truncated incorrect optimizer_search_depth value: '64'
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
 63
@@ -110,6 +119,7 @@ ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
 SET @@session.optimizer_search_depth = 65550;
 Warnings:
 Warning	1292	Truncated incorrect optimizer_search_depth value: '65550'
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
 63

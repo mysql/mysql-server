@@ -367,9 +367,9 @@ INSERT INTO t8 (pseudo,email) VALUES ('2joce1','2test1');
 EXPLAIN EXTENDED SELECT pseudo,(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce')) FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
-4	SUBQUERY	t8	const	PRIMARY	PRIMARY	37		1	100.00	Using index
+4	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
 2	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	
-3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37		1	100.00	Using index
+3	SUBQUERY	t8	const	PRIMARY	PRIMARY	37	const	1	100.00	Using index
 Warnings:
 Note	1003	select 'joce' AS `pseudo`,(select 'test' AS `email` from `test`.`t8` where 1) AS `(SELECT email FROM t8 WHERE pseudo=(SELECT pseudo FROM t8 WHERE pseudo='joce'))` from `test`.`t8` where 1
 SELECT pseudo FROM t8 WHERE pseudo=(SELECT pseudo,email FROM
@@ -5102,6 +5102,18 @@ SELECT MAX((SELECT a FROM t1 LIMIT 1)) AS d
 FROM t1,t1 a
 );
 1
+DROP TABLE t1;
+#
+# Bug #45989 take 2 : memory leak after explain encounters an 
+# error in the query
+#
+CREATE TABLE t1(a LONGTEXT);
+INSERT INTO t1 VALUES (repeat('a',@@global.max_allowed_packet));
+INSERT INTO t1 VALUES (repeat('b',@@global.max_allowed_packet));
+EXPLAIN EXTENDED SELECT DISTINCT 1 FROM t1,
+(SELECT DISTINCTROW a AS away FROM t1 GROUP BY a WITH ROLLUP) AS d1  
+WHERE t1.a = d1.a;
+ERROR 42S22: Unknown column 'd1.a' in 'where clause'
 DROP TABLE t1;
 End of 5.1 tests.
 set optimizer_switch='';

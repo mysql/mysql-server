@@ -57,7 +57,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     THD::STMT_QUERY_TYPE :
     THD::ROW_QUERY_TYPE;
 
-  if (open_and_lock_tables(thd, table_list))
+  if (open_and_lock_tables(thd, table_list, TRUE, 0))
     DBUG_RETURN(TRUE);
   if (!(table= table_list->table))
   {

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,6 +140,7 @@ enum enum_sql_command {
 };
 
 // describe/explain types
+#define DESCRIBE_NONE		0 // Not explain query
 #define DESCRIBE_NORMAL		1
 #define DESCRIBE_EXTENDED	2
 /*
@@ -684,6 +685,8 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+  /* TRUE when GROUP BY fix field called in processing of this SELECT */
+  bool group_fix_field;
   /* List of references to fields referenced from inner selects */
   List<Item_outer_ref> inner_refs_list;
   /* Number of Item_sum-derived objects in this SELECT */

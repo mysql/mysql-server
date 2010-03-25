@@ -437,8 +437,18 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
         return 0;
     }
 
-    /* going up to the first-level tree to continue search there */
+    /*
+      Going up to the first-level tree to continue search there.
+      Only done when performing prefix search.
+
+      Key buffer data pointer as well as docid[0] may be smaller
+      than values we got while searching first-level tree. Thus
+      they must be restored to original values to avoid dead-loop,
+      when subsequent search for a bigger value eventually ends up
+      in this same second-level tree.
+    */
     _mi_dpointer(info, (uchar*) (lastkey_buf+HA_FT_WLEN), ftbw->key_root);
+    ftbw->docid[0]= ftbw->key_root;
     ftbw->key_root=info->s->state.key_root[ftb->keynr];
     ftbw->keyinfo=info->s->keyinfo+ftb->keynr;
     ftbw->off=0;

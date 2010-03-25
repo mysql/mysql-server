@@ -30,7 +30,7 @@ SET(LIBM m)
 
 # CMake defined -lthread as thread flag. This crashes in dlopen 
 # when trying to load plugins workaround with -lpthread
-SET(CMAKE_THREADS_LIBS_INIT -lpthread CACHE INTERNAL "")
+SET(CMAKE_THREADS_LIBS_INIT -lpthread CACHE INTERNAL "" FORCE)
 
 # Solaris specific large page support
 CHECK_SYMBOL_EXISTS(MHA_MAPSIZE_VA sys/mman.h  HAVE_DECL_MHA_MAPSIZE_VA)

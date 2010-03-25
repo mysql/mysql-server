@@ -648,6 +648,11 @@ public:
   {
     Item_func::print(str, query_type);
   }
+  void fix_length_and_dec()
+  {
+    Item_bool_func2::fix_length_and_dec();
+    fix_char_length(2); // returns "1" or "0" or "-1"
+  }
 };
 
 
@@ -1488,9 +1493,21 @@ public:
   Item_cond(THD *thd, Item_cond *item);
   Item_cond(List<Item> &nlist)
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
-  bool add(Item *item) { return list.push_back(item); }
-  bool add_at_head(Item *item) { return list.push_front(item); }
-  void add_at_head(List<Item> *nlist) { list.prepand(nlist); }
+  bool add(Item *item)
+  {
+    DBUG_ASSERT(item);
+    return list.push_back(item);
+  }
+  bool add_at_head(Item *item)
+  {
+    DBUG_ASSERT(item);
+    return list.push_front(item);
+  }
+  void add_at_head(List<Item> *nlist)
+  {
+    DBUG_ASSERT(nlist->elements);
+    list.prepand(nlist);
+  }
   bool fix_fields(THD *, Item **ref);
   void fix_after_pullout(st_select_lex *new_parent, Item **ref);
 

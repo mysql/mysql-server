@@ -462,3 +462,17 @@ ERROR 70100: Query execution was interrupted
 unlock tables;
 # Switching to connection 'default'
 drop table t3;
+# 
+# Test for the bug where upgradable metadata locks was acquired
+# even if the table to altered was temporary.
+# Bug found while working on the related bug #51240.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT);
+LOCK TABLE t1 WRITE;
+# Connection con1
+CREATE TEMPORARY TABLE t1 (id INT);
+ALTER TABLE t1 ADD COLUMN j INT;
+# Connection default
+UNLOCK TABLES;
+DROP TABLE t1;

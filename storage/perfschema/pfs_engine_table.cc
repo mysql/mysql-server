@@ -128,7 +128,7 @@ void PFS_engine_table_share::check_one_table(THD *thd)
   thd->lex= &dummy_lex;
   lex_start(thd);
 
-  if (! simple_open_n_lock_tables(thd, &tables))
+  if (! open_and_lock_tables(thd, &tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     PFS_check_intact checker;
 

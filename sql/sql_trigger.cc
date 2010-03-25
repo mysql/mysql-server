@@ -330,6 +330,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   String stmt_query;
   bool lock_upgrade_done= FALSE;
   MDL_ticket *mdl_ticket= NULL;
+  Query_tables_list backup;
 
   DBUG_ENTER("mysql_create_or_drop_trigger");
 
@@ -392,6 +393,12 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (!create)
   {
     bool if_exists= thd->lex->drop_if_exists;
+
+    /*
+      Protect the query table list from the temporary and potentially
+      destructive changes necessary to open the trigger's table.
+    */
+    thd->lex->reset_n_backup_query_tables_list(&backup);
 
     if (add_table_for_trigger(thd, thd->lex->spname, if_exists, & tables))
       goto end;
@@ -521,6 +528,10 @@ end:
   */
   if (thd->locked_tables_mode && tables && lock_upgrade_done)
     mdl_ticket->downgrade_exclusive_lock(MDL_SHARED_NO_READ_WRITE);
+
+  /* Restore the query table list. Used only for drop trigger. */
+  if (!create)
+    thd->lex->restore_backup_query_tables_list(&backup);
 
   if (thd->global_read_lock.has_protection())
     thd->global_read_lock.start_waiting_global_read_lock(thd);
@@ -1635,10 +1646,6 @@ bool add_table_for_trigger(THD *thd,
 
   if (load_table_name_for_trigger(thd, trg_name, &trn_path, &tbl_name))
     DBUG_RETURN(TRUE);
-
-  /* We need to reset statement table list to be PS/SP friendly. */
-  lex->query_tables= 0;
-  lex->query_tables_last= &lex->query_tables;
 
   *table= sp_add_to_query_tables(thd, lex, trg_name->m_db.str,
                                  tbl_name.str, TL_IGNORE);
