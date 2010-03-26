@@ -3992,7 +3992,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
   req->tableId = table.m_id;
   req->tableVersion = table.m_version;
   req->online = true;
-  AttributeList attributeList;
+  IndexAttributeList attributeList;
   attributeList.sz = impl.m_columns.size();
   for(i = 0; i<attributeList.sz; i++){
     const NdbColumnImpl* col = 

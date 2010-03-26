@@ -55,13 +55,13 @@ PgmanProxy::execLCP_FRAG_ORD(Signal* signal)
 }
 
 void
-PgmanProxy::sendLCP_FRAG_ORD(Signal* signal, Uint32 ssId)
+PgmanProxy::sendLCP_FRAG_ORD(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_LCP_FRAG_ORD& ss = ssFind<Ss_LCP_FRAG_ORD>(ssId);
   LcpFragOrd* req = (LcpFragOrd*)signal->getDataPtrSend();
   *req = ss.m_req;
-  sendSignal(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
-             signal, LcpFragOrd::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_LCP_FRAG_ORD,
+                      signal, LcpFragOrd::SignalLength, JBB, handle);
 }
 
 // GSN_END_LCP_REQ
@@ -105,7 +105,7 @@ PgmanProxy::execRELEASE_PAGES_CONF(Signal* signal)
 }
 
 void
-PgmanProxy::sendEND_LCP_REQ(Signal* signal, Uint32 ssId)
+PgmanProxy::sendEND_LCP_REQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_END_LCP_REQ& ss = ssFind<Ss_END_LCP_REQ>(ssId);
 
@@ -113,8 +113,8 @@ PgmanProxy::sendEND_LCP_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderData = ssId;
   req->senderRef = reference();
-  sendSignal(workerRef(ss.m_worker), GSN_END_LCP_REQ,
-             signal, EndLcpReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_END_LCP_REQ,
+                      signal, EndLcpReq::SignalLength, JBB, handle);
 }
 
 void
