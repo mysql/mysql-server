@@ -15,11 +15,11 @@
 # xtradbversion	- The XtraDB release, eg. 6
 
 %define mysql_vendor  Percona, Inc
-%{!?redhatversion:%define redhatversion 5}
-%{!?community:%define community 1}
-%{!?mysqlversion :%define mysqlversion 5.1.45}
-%{!?pluginversion:%define pluginversion 1.0.6}
-%{!?xtradbversion:%define xtradbversion 10}
+%define redhatversion 5
+%define community 1
+%define mysqlversion 5.1.45
+%define pluginversion 1.0.6
+%define xtradbversion 10
 %define distribution  rhel%{redhatversion}
 %define release       %{xtradbversion}.%{distribution}
 
