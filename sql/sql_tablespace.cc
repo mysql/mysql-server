@@ -60,11 +60,10 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   }
   else
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_ILLEGAL_HA_CREATE_OPTION,
-                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
-                        ha_resolve_storage_engine_name(hton),
-                        "TABLESPACE or LOGFILE GROUP");
+    my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+             ha_resolve_storage_engine_name(hton),
+             "TABLESPACE or LOGFILE GROUP");
+    DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
   }
   error= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
   DBUG_RETURN(error);

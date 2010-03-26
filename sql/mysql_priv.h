@@ -671,20 +671,6 @@ protected:
 
 /* Used to check GROUP BY list in the MODE_ONLY_FULL_GROUP_BY mode */
 #define UNDEF_POS (-1)
-#ifdef EXTRA_DEBUG
-/**
-  Sync points allow us to force the server to reach a certain line of code
-  and block there until the client tells the server it is ok to go on.
-  The client tells the server to block with SELECT GET_LOCK()
-  and unblocks it with SELECT RELEASE_LOCK(). Used for debugging difficult
-  concurrency problems
-*/
-#define DBUG_SYNC_POINT(lock_name,lock_timeout) \
- debug_sync_point(lock_name,lock_timeout)
-void debug_sync_point(const char* lock_name, uint lock_timeout);
-#else
-#define DBUG_SYNC_POINT(lock_name,lock_timeout)
-#endif /* EXTRA_DEBUG */
 
 /* BINLOG_DUMP options */
 
@@ -1590,8 +1576,7 @@ inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
 TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
                                 thr_lock_type lock_type, uint flags);
 bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
-bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags,
-                bool *need_reopen);
+bool lock_tables(THD *thd, TABLE_LIST *tables, uint counter, uint flags);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
 bool rm_temporary_table(handlerton *base, char *path);
@@ -2145,14 +2130,13 @@ extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
 extern struct st_VioSSLFd * ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
-MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
-                              uint flags, bool *need_reopen);
+MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count, uint flags);
 /* mysql_lock_tables() and open_table() flags bits */
-#define MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK      0x0001
-#define MYSQL_LOCK_IGNORE_FLUSH                 0x0002
+#define MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK      0x0001
+#define MYSQL_OPEN_IGNORE_FLUSH                 0x0002
 #define MYSQL_OPEN_TEMPORARY_ONLY               0x0004
 #define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0008
-#define MYSQL_LOCK_PERF_SCHEMA                  0x0010
+#define MYSQL_LOCK_LOG_TABLE                    0x0010
 #define MYSQL_OPEN_TAKE_UPGRADABLE_MDL          0x0020
 /**
   Do not try to acquire a metadata lock on the table: we
@@ -2182,8 +2166,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **table, uint count,
 #define MYSQL_LOCK_IGNORE_TIMEOUT               0x1000
 
 /** Please refer to the internals manual. */
-#define MYSQL_OPEN_REOPEN  (MYSQL_LOCK_IGNORE_FLUSH |\
-                            MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK |\
+#define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
+                            MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |\
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
                             MYSQL_LOCK_IGNORE_TIMEOUT |\
                             MYSQL_OPEN_GET_NEW_TABLE |\

@@ -699,7 +699,7 @@ fi
 
 cmd="`mysqld_ld_preload_text`$NOHUP_NICENESS"
 
-plugin_dir="${PLUGIN_DIR:-@PLUGINDIR@}${PLUGIN_VARIANT}"
+plugin_dir="${PLUGIN_DIR:-@pkgplugindir@}${PLUGIN_VARIANT}"
 
 for i in  "$ledir/$MYSQLD" "$defaults" "--basedir=$MY_BASEDIR_VERSION" \
   "--datadir=$DATADIR" "--plugin-dir=$plugin_dir" "$USER_OPTION"
