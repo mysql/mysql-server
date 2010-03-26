@@ -487,6 +487,8 @@ public:
   STATIC_CONST( NotFound = BitmaskImpl::NotFound );
   STATIC_CONST( TextLength = size * 8 );
 
+  Uint32 getSizeInWords() const { return Size;}
+
   /**
    * assign - Set all bits in <em>dst</em> to corresponding in <em>src/<em>
    */
