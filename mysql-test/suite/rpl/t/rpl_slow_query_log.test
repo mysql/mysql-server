@@ -20,10 +20,10 @@
 #         prevents logging slow queries in a connection 'extra'
 #
 # OBS: 
-#   This test only runs for statement binlogging format because on row format
-#   slow queries do not get slow query logged. 
-#   Note that due to the sleep() command the insert is written to the binary
-#   log in row format.
+#   This test only runs for statement binlogging format because on row
+#   format slow queries do not get slow query logged. Due to the
+#   sleep() command, the insert would be binlogged in row format if
+#   binlog_format=MIXED. Hence, we do not use binlog_format=MIXED.
 
 source include/master-slave.inc;
 source include/have_binlog_format_statement.inc;

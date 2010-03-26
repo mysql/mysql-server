@@ -1,0 +1,212 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+--enable_warnings
+# Create tables
+CREATE TABLE t1(c1 YEAR NOT NULL,c2 YEAR, PRIMARY KEY(c1));
+CREATE TABLE t2(c1 YEAR NOT NULL, c2 YEAR, UNIQUE INDEX idx(c1,c2));
+CREATE TABLE t3(c1 YEAR(2) NOT NULL,c2 YEAR(2), PRIMARY KEY(c1));
+CREATE TABLE t4(c1 YEAR(2), c2 YEAR(2), UNIQUE INDEX idx(c1,c2));
+#Insert as 4-digit number format in the range '1901' to '2155'
+INSERT INTO t1 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
+INSERT INTO t2 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
+INSERT INTO t3 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
+INSERT INTO t4 VALUES (1901,1901),(1970,1970),(1999,1999),(2000,2000),(2155,2155);
+#Insert as 4-digit string format in the range '1901' to '2155'
+INSERT INTO t1 VALUES ('1902','1902'),('1971','1971'),('1998','1998'),('2001','2001'),('2154','2154');
+INSERT INTO t2 VALUES ('1902','1902'),('1971','1971'),('1998','1998'),('2001','2001'),('2154','2154');
+INSERT INTO t3 VALUES ('1902','1902'),('1971','1971'),('1998','1998'),('2001','2001'),('2154','2154');
+INSERT INTO t4 VALUES ('1902','1902'),('1971','1971'),('1998','1998'),('2001','2001'),('2154','2154');
+#Insert as 2-digit number format
+INSERT INTO t1 VALUES (04,04),(64,64),(69,69),(97,97);
+INSERT INTO t2 VALUES (04,04),(64,64),(69,69),(97,97);
+INSERT INTO t3 VALUES (04,04),(64,64),(69,69),(97,97);
+INSERT INTO t4 VALUES (04,04),(64,64),(69,69),(97,97);
+#Insert as 2-digit string format
+INSERT INTO t1 VALUES ('05','05'),('65','65'),('75','75'),('95','95');
+INSERT INTO t2 VALUES ('05','05'),('65','65'),('75','75'),('95','95');
+INSERT INTO t3 VALUES ('05','05'),('65','65'),('75','75'),('95','95');
+INSERT INTO t4 VALUES ('05','05'),('65','65'),('75','75'),('95','95');
+#Insert permissible NULLs
+INSERT INTO t1 VALUES ('09',null),('61',null),('79',null),('96',null);
+INSERT INTO t2 VALUES ('09',null),('61',null),('79',null),('96',null);
+INSERT INTO t3 VALUES ('09',null),('61',null),('79',null),('96',null);
+INSERT INTO t4 VALUES ('09',null),('61',null),('79',null),('96',null);
+--sorted_result
+SELECT * FROM t1;
+--sorted_result
+SELECT * FROM t2;
+--sorted_result
+SELECT * FROM t3;
+--sorted_result
+SELECT * FROM t4;
+#Updating the tables
+--sorted_result
+SELECT c1 FROM t1 WHERE c1='2005';
+UPDATE t1 SET c1='2003' WHERE c1='2005';
+--sorted_result
+SELECT c1 FROM t1;
+
+# Update with NULL ( NULL to number & number to NULL)
+--sorted_result
+SELECT c2 FROM t2 WHERE c2=null;
+UPDATE t2 SET c2='2070' WHERE c2=null AND c1='1996';
+--sorted_result
+SELECT c2 FROM t2;
+--sorted_result
+SELECT c2 FROM t3 WHERE c2 < '64';
+UPDATE t3 SET c2=null WHERE c2 < '64' ORDER BY c2 LIMIT 3;
+--sorted_result
+SELECT c2 FROM t3;
+
+#Update order by limit
+--sorted_result
+SELECT c1 FROM t4 WHERE c1 < '55';
+UPDATE t4 SET c1='00' WHERE c1 < '65' ORDER BY c1 LIMIT 5;
+--sorted_result
+SELECT c1 FROM t4;
+
+#Update with Arithmetic operations
+#
+#Updating 'YY' values
+--sorted_result
+SELECT c1 FROM t3 WHERE c1='05';
+UPDATE t3 SET c1=c1+c2 WHERE c1='05';
+--sorted_result
+SELECT c1 FROM t3;
+--sorted_result
+SELECT c1 FROM t4 WHERE c2=4;
+UPDATE t4 SET c1=c1 + 04 WHERE c2=04;
+--sorted_result
+SELECT c1 FROM t4;
+--sorted_result
+SELECT c2 FROM t3 WHERE c2=75;
+UPDATE t3 SET c2=c2 + 1902 WHERE c2='75';
+--sorted_result
+SELECT c2 FROM t3;
+--sorted_result
+SELECT c1 FROM t4 WHERE c1=09;
+UPDATE t4 SET c1=c1 - c2 WHERE c1='09';
+--sorted_result
+SELECT c1 FROM t4;
+--sorted_result
+SELECT c1 FROM t3 WHERE c1=75;
+UPDATE t3 SET c1=c1 - 01 WHERE c1='75';
+--sorted_result
+SELECT c1 FROM t3;
+--sorted_result
+SELECT c1 FROM t4 WHERE c1=98;
+UPDATE t4 SET c1=c1 / 2 WHERE c1='98';
+--sorted_result
+SELECT c1 FROM t4;
+--sorted_result
+SELECT c2 FROM t3 WHERE c2=03;
+UPDATE t3 SET c2=c2 * 03 WHERE c2='03';
+--sorted_result
+SELECT c2 FROM t3;
+#
+#Updating 'YYYY' values
+--sorted_result
+SELECT c1 FROM t1 WHERE c1 > 2060 AND c1 < 2070;
+UPDATE t1 SET c1=c1 + 10 WHERE c1 > 2060 AND c1 < 2070;
+--sorted_result
+SELECT c1 FROM t1;
+--sorted_result
+SELECT c1 FROM t2 WHERE c1 > 1969 AND c1 < 1980;
+UPDATE t2 SET c1=c1 - 10 WHERE c1 > 1969 AND c1 < 1980 ORDER BY c1 LIMIT 2;
+--sorted_result
+SELECT c1 FROM t2;
+
+#Update range values
+UPDATE t2 SET c2=2009 WHERE c1=2009 AND c2=null;
+--sorted_result
+SELECT c2 FROM t2;
+UPDATE t1 SET c2=2155 WHERE c1=1979 OR c1=2154;
+--sorted_result
+SELECT c2 FROM t1;
+UPDATE t4 SET c1=99 WHERE c2 IN (01,54,65,69,null);
+--sorted_result
+SELECT c1 FROM t4;
+
+# Update outside range would be clipped to closest endpoints
+UPDATE t1 SET c2=-1 WHERE c1=2071;
+--sorted_result
+SELECT c2 FROM t1;
+UPDATE t1 SET c2=0 WHERE c1=2003;
+--sorted_result
+SELECT c2 FROM t1;
+UPDATE t1 SET c2=2156 WHERE c1=2001;
+--sorted_result
+SELECT c2 FROM t1;
+UPDATE t4 SET c2=-1 WHERE c1=71;
+--sorted_result
+SELECT c2 FROM t4;
+UPDATE t4 SET c2=0 WHERE c1=70;
+--sorted_result
+SELECT c2 FROM t4;
+UPDATE t4 SET c2=100 WHERE c1=79;
+--sorted_result
+SELECT c2 FROM t4;
+
+# Update ignore on bad null error
+--sorted_result
+SELECT c1 FROM t1 WHERE c2 < 1975;
+SET SQL_MODE=STRICT_ALL_TABLES;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET c1=NULL WHERE c2 < 1975;
+UPDATE IGNORE t1 SET c1=NULL WHERE c2 < 1975;
+--sorted_result
+SELECT c1 from t1 WHERE c2 < 1975;
+SET SQL_MODE=DEFAULT
+
+#Update with invalid values
+#UPDATE t2 SET c1='def' WHERE c2=2064;
+#--sorted_result
+#SELECT c1 FROM t2;
+UPDATE t4 SET c1=-70 WHERE c2=75;
+--sorted_result
+SELECT c1 FROM t4;
+
+#Update duplicate key
+--error ER_DUP_ENTRY
+UPDATE t1 SET c1=1971 WHERE c2=1995;
+
+#Multi table update
+UPDATE t1,t2,t3,t4 SET t3.c1=t4.c1+t4.c2 WHERE t3.c1=61 AND t4.c2=4;
+
+# Update using various access methods
+
+# Update using Const
+# EXPLAIN SELECT * FROM t1 WHERE c1=2074 AND c2=2064;
+UPDATE t1 SET t1.c1=2073 WHERE c1=2074 AND c2=2064;
+--sorted_result
+SELECT * FROM t1;
+
+# Update using range
+# EXPLAIN SELECT * FROM t1 WHERE c1 BETWEEN 2000 AND 2010;
+UPDATE t1 SET t1.c2=0000 WHERE c1 BETWEEN 2000 AND 2010; 
+--sorted_result
+SELECT * FROM t1;
+# EXPLAIN SELECT * FROM t1 WHERE c1 IN (2154,2009,1979);
+UPDATE t1 SET c1=c1-1,c2=c2+1 WHERE c1 IN (2154,2009,1979);
+--sorted_result
+SELECT * FROM t1;
+
+# Update using eq_ref
+# EXPLAIN SELECT * FROM t1,t2 WHERE t1.c1=t2.c1 AND t1.c2=t2.c2;
+UPDATE t1,t2 SET t1.c2='2155' WHERE t1.c1=t2.c1 AND t1.c2=t2.c2;
+
+#BUG49910
+--disable_result_log
+--sorted_result
+SELECT * FROM t1;
+--enable_result_log
+--sorted_result
+SELECT * FROM t2;
+--sorted_result
+SELECT * FROM t3;
+--sorted_result
+SELECT * FROM t4;
+
+#Drop tables
+DROP TABLE IF EXISTS t1,t2,t3,t4;
+

@@ -42,6 +42,15 @@ if ($mysql_errno)
 INSERT INTO t1 VALUES (NULL);
 SET INSERT_ID = 30;
 INSERT INTO t1 VALUES (NULL);
+SET INSERT_ID = 29;
+-- error 0, ER_DUP_ENTRY, ER_DUP_KEY
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+if (!$mysql_errno)
+{
+  echo # ERROR (only OK if Blackhole) should give ER_DUP_KEY or ER_DUP_ENTRY;
+  echo # mysql_errno: $mysql_errno;
+}
+INSERT INTO t1 VALUES (NULL);
 if (!$skip_update)
 {
 # InnoDB Does not handle this correctly, see bug#14793, bug#21641
@@ -601,6 +610,15 @@ SET INSERT_ID = 23;
 SHOW CREATE TABLE t1;
 INSERT INTO t1 (c1) VALUES (NULL);
 SHOW CREATE TABLE t1;
+SET INSERT_ID = 22;
+-- error 0, ER_DUP_ENTRY, ER_DUP_KEY
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+if (!$mysql_errno)
+{
+  echo # ERROR (only OK if Blackhole) should give ER_DUP_KEY or ER_DUP_ENTRY;
+  echo # mysql_errno: $mysql_errno;
+}
+INSERT INTO t1 VALUES (NULL);
 SELECT * FROM t1 ORDER BY c1;
 DROP TABLE t1;
 
