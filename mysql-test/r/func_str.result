@@ -2587,3 +2587,17 @@ FROM t2 WHERE t2.b = 1 GROUP BY t2.b;
 DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b LIMIT 1), t2.a)
 secret
 DROP TABLE t1, t2;
+#
+# Bug#52164 Assertion failed: param.sort_length, file .\filesort.cc, line 149
+#
+CREATE TABLE t1 (a LONGBLOB NOT NULL);
+INSERT INTO t1 VALUES (''),('');
+SELECT 1 FROM t1, t1 t2
+ORDER BY QUOTE(t1.a);
+1
+1
+1
+1
+1
+DROP TABLE t1;
+End of 5.1 tests
