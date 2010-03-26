@@ -469,8 +469,11 @@ int runTestMgmApiEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
       result= NDBT_FAILED;
     }
 
-    Uint32 theData[25];
-    EventReport *fake_event = (EventReport*)theData;
+    union {
+      Uint32 theData[25];
+      EventReport repData;
+    };
+    EventReport *fake_event = &repData;
     fake_event->setEventType(NDB_LE_NDBStopForced);
     fake_event->setNodeId(42);
     theData[2]= 0;
@@ -579,8 +582,11 @@ int runTestMgmApiStructEventTimeout(NDBT_Context* ctx, NDBT_Step* step)
     {
       if(error_ins==0 || (error_ins!=0 && i<5))
       {
-        Uint32 theData[25];
-        EventReport *fake_event = (EventReport*)theData;
+        union {
+	  Uint32 theData[25];
+	  EventReport repData;
+	};
+        EventReport *fake_event = &repData;
         fake_event->setEventType(NDB_LE_NDBStopForced);
         fake_event->setNodeId(42);
         theData[2]= 0;
