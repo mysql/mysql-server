@@ -51,6 +51,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   THD::killed_state killed_status= THD::NOT_KILLED;
   DBUG_ENTER("mysql_delete");
+  bool save_binlog_row_based;
 
   THD::enum_binlog_query_type query_type=
     thd->lex->sql_command == SQLCOM_TRUNCATE ?
@@ -148,12 +149,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       query_type= THD::STMT_QUERY_TYPE;
       error= -1;				// ok
       deleted= maybe_deleted;
+      save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
       goto cleanup;
     }
     if (error != HA_ERR_WRONG_COMMAND)
     {
       table->file->print_error(error,MYF(0));
       error=0;
+      save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
       goto cleanup;
     }
     /* Handler didn't support fast delete; Delete rows one by one */
@@ -294,6 +297,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   table->mark_columns_needed_for_delete();
 
+  save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
+  if (thd->lex->sql_command == SQLCOM_TRUNCATE &&
+      thd->is_current_stmt_binlog_format_row())
+    thd->clear_current_stmt_binlog_format_row();
+
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 ! thd->is_error())
   {
@@ -392,7 +400,10 @@ cleanup:
   /* See similar binlogging code in sql_update.cc, for comments */
   if ((error < 0) || thd->transaction.stmt.modified_non_trans_table)
   {
-    if (mysql_bin_log.is_open())
+    if (mysql_bin_log.is_open() &&
+        !(thd->lex->sql_command == SQLCOM_TRUNCATE &&
+          thd->is_current_stmt_binlog_format_row() &&
+          find_temporary_table(thd, table_list)))
     {
       bool const is_trans=
         thd->lex->sql_command == SQLCOM_TRUNCATE ?
@@ -424,6 +435,8 @@ cleanup:
       }
     }
   }
+  if (save_binlog_row_based)
+    thd->set_current_stmt_binlog_format_row();
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
   if (error < 0 || 
@@ -1049,12 +1062,11 @@ bool multi_delete::send_eof()
 
 static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
 {
-  bool error, save_binlog_row_based= thd->is_current_stmt_binlog_format_row();
+  bool error;
   DBUG_ENTER("mysql_truncate_by_delete");
   table_list->lock_type= TL_WRITE;
   table_list->mdl_request.set_type(MDL_SHARED_WRITE);
   mysql_init_select(thd->lex);
-  thd->clear_current_stmt_binlog_format_row();
   /* Delete all rows from table */
   error= mysql_delete(thd, table_list, NULL, NULL, HA_POS_ERROR, LL(0), TRUE);
   /*
@@ -1067,8 +1079,6 @@ static bool mysql_truncate_by_delete(THD *thd, TABLE_LIST *table_list)
     trans_rollback_stmt(thd);
     trans_rollback(thd);
   }
-  if (save_binlog_row_based)
-    thd->set_current_stmt_binlog_format_row();
   DBUG_RETURN(error);
 }
 

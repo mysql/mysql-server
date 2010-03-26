@@ -290,12 +290,10 @@ a	b
 2	on slave
 Heartbeat event received on master
 Heartbeat event received on slave
-Slave has received more events than master (1 means 'yes'): 1
-
 *** Clean up ***
 include/stop_slave.inc
 DROP TABLE t1;
 include/stop_slave.inc
 SET @@global.slave_net_timeout=@restore_slave_net_timeout;
 
-End of 6.0 test
+End of tests

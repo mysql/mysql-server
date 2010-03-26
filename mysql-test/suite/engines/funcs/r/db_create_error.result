@@ -1,0 +1,18 @@
+DROP DATABASE IF EXISTS d4;
+CREATE DATABASE d4;
+SHOW DATABASES;
+Database
+information_schema
+d4
+mtr
+mysql
+test
+CREATE DATABASE d4;
+ERROR HY000: Can't create database 'd4'; database exists
+DROP DATABASE d4;
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+test
