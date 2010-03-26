@@ -518,7 +518,7 @@ public:
     /**
      * Index attribute list.  Only the length is used in v21x.
      */
-    AttributeList attributeList;
+    IndexAttributeList attributeList;
 
     /**
      * Primary table id, the primary table to be indexed
