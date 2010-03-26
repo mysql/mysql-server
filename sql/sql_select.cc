@@ -1029,7 +1029,7 @@ JOIN::optimize()
     }
   }
 
-  if (conds &&!outer_join && const_table_map != found_const_table_map && 
+  if (conds && const_table_map != found_const_table_map &&
       (select_options & SELECT_DESCRIBE) &&
       select_lex->master_unit() == &thd->lex->unit) // upper level SELECT
   {
