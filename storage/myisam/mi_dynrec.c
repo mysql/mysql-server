@@ -94,6 +94,34 @@ my_bool mi_dynmap_file(MI_INFO *info, my_off_t size)
   madvise((char*) info->s->file_map, size, MADV_RANDOM);
 #endif
   info->s->mmaped_length= size;
+  info->s->file_read= mi_mmap_pread;
+  info->s->file_write= mi_mmap_pwrite;
+  DBUG_RETURN(0);
+}
+
+
+/*
+  Destroy mmaped area for MyISAM handler
+
+  SYNOPSIS
+    mi_munmap_file()
+    info                  MyISAM handler
+
+  RETURN
+    0  ok
+   !0  error.
+*/
+
+int mi_munmap_file(MI_INFO *info)
+{
+  int ret;
+  DBUG_ENTER("mi_unmap_file");
+  if ((ret= my_munmap(info->s->file_map, info->s->mmaped_length)))
+    DBUG_RETURN(ret);
+  info->s->file_read= mi_nommap_pread;
+  info->s->file_write= mi_nommap_pwrite;
+  info->s->file_map= 0;
+  info->s->mmaped_length= 0;
   DBUG_RETURN(0);
 }
 
@@ -112,8 +140,7 @@ void mi_remap_file(MI_INFO *info, my_off_t size)
 {
   if (info->s->file_map)
   {
-    VOID(my_munmap((char*) info->s->file_map,
-                   (size_t) info->s->mmaped_length));
+    mi_munmap_file(info);
     mi_dynmap_file(info, size);
   }
 }
