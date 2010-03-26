@@ -110,7 +110,7 @@ Adds the node as the last element in a two-way linked list.
 */
 #define UT_LIST_ADD_LAST(NAME, BASE, N)\
 {\
-	ut_ad(N);\
+	ut_ad(N != NULL);\
 	((BASE).count)++;\
 	((N)->NAME).prev = (BASE).end;\
 	((N)->NAME).next = NULL;\
