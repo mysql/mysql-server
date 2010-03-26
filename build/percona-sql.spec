@@ -13,10 +13,13 @@
 # pluginversion	- Version of InnoDB plugin taken as the basis, e.g. 1.0.3
 # redhatversion	- 5 or 4
 # xtradbversion	- The XtraDB release, eg. 6
-# gotrevision		- bzr revision of the sources the package is built of
 
 %define mysql_vendor  Percona, Inc
 %{!?redhatversion:%define redhatversion 5}
+%{!?community:%define community 1}
+%{!?mysqlversion :%define mysqlversion 5.1.45}
+%{!?pluginversion:%define pluginversion 1.0.6}
+%{!?xtradbversion:%define xtradbversion 10}
 %define distribution  rhel%{redhatversion}
 %define release       %{xtradbversion}.%{distribution}
 
@@ -106,8 +109,8 @@
 
 %define server_suffix  -51
 %define package_suffix -51
-%define ndbug_comment Percona SQL Server (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
-%define debug_comment Percona SQL Server - Debug (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
+%define ndbug_comment Percona SQL Server (GPL), XtraDB %{xtradbversion}
+%define debug_comment Percona SQL Server - Debug (GPL), XtraDB %{xtradbversion}
 %define commercial 0
 %define YASSL_BUILD 1
 %define EMBEDDED_BUILD 0
