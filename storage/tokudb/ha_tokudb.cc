@@ -37,8 +37,6 @@ static inline void thd_data_set(THD *thd, int slot, void *data) {
 #else
 #endif
 
-#include "tokudb_probes.h"
-
 #include "hatoku_defines.h"
 #include "ha_tokudb.h"
 #include "hatoku_hton.h"
@@ -1584,7 +1582,6 @@ exit:
 //
 int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     TOKUDB_DBUG_ENTER("ha_tokudb::open %p %s", this, name);
-    TOKUDB_OPEN();
 
     int error = 0;
     int ret_val = 0;
@@ -1908,7 +1905,6 @@ int ha_tokudb::write_auto_inc_create(DB* db, ulonglong val, DB_TXN* txn){
 //
 int ha_tokudb::close(void) {
     TOKUDB_DBUG_ENTER("ha_tokudb::close %p", this);
-    TOKUDB_CLOSE();
     TOKUDB_DBUG_RETURN(__close(0));
 }
 
