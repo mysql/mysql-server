@@ -225,11 +225,11 @@ while($i)
 
   -- let $diff_table_1=mysqld_a:$diff_table
   -- let $diff_table_2=mysqld_b:$diff_table
-  -- source include/diff_tables2.inc
+  -- source include/diff_tables.inc
 
   -- let $diff_table_1=mysqld_b:$diff_table
   -- let $diff_table_2=mysqld_c:$diff_table
-  -- source include/diff_tables2.inc
+  -- source include/diff_tables.inc
 
 
   -- connection mysqld_a
@@ -242,11 +242,11 @@ while($i)
 
   -- let $diff_table_1=mysqld_a:$diff_table
   -- let $diff_table_2=mysqld_b:$diff_table
-  -- source include/diff_tables2.inc
+  -- source include/diff_tables.inc
 
   -- let $diff_table_1=mysqld_b:$diff_table
   -- let $diff_table_2=mysqld_c:$diff_table
-  -- source include/diff_tables2.inc
+  -- source include/diff_tables.inc
 
   -- connection mysqld_a
 

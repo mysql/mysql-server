@@ -5,10 +5,7 @@
 #   In this file we will run tests that mix engines, indexes
 #   and blobs.
 #  
-#   They cover requirements (from WL#5092):
-#    R1-R6 - INDEXES
-#    R1,R2,R4 - BLOBS
-#    R1 - Logging requirements are checked in the rpl_row_img_sanity test.
+#   See WL#5096 for details.
 #
 -- source suite/rpl/include/rpl_chained_3_hosts.inc
 -- source include/have_binlog_format_row.inc
@@ -27,7 +24,7 @@
 -- echo ###################################################################
 -- echo ###################################################################
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img.test
--- source suite/rpl/include/rpl_row_img_general_loop.test
+-- source suite/rpl/include/rpl_row_img_general_loop.inc
 
 -- echo ###################################################################
 -- echo ###################################################################
@@ -35,7 +32,7 @@
 -- echo ###################################################################
 -- echo ###################################################################
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img_diff_indexes.test
--- source suite/rpl/include/rpl_row_img_general_loop.test
+-- source suite/rpl/include/rpl_row_img_general_loop.inc
 
 -- echo ###################################################################
 -- echo ###################################################################
@@ -43,4 +40,4 @@
 -- echo ###################################################################
 -- echo ###################################################################
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
--- source suite/rpl/include/rpl_row_img_general_loop.test
+-- source suite/rpl/include/rpl_row_img_general_loop.inc

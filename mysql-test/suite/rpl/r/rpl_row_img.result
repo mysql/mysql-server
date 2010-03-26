@@ -28,12 +28,14 @@ include/start_slave.inc
 # engines and binlog-row-image mixes                              #
 ###################################################################
 ###################################################################
+CON: 'mysqld_a', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_b', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -42,6 +44,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_c', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -3331,12 +3334,14 @@ DELETE FROM t;
 Comparing tables mysqld_a:test.t and mysqld_b:test.t
 Comparing tables mysqld_b:test.t and mysqld_c:test.t
 DROP TABLE t;
+CON: 'mysqld_a', IMG: 'NOBLOB', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	NOBLOB
+CON: 'mysqld_b', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 include/stop_slave.inc
@@ -3345,6 +3350,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	NOBLOB
+CON: 'mysqld_c', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 include/stop_slave.inc
@@ -6634,12 +6640,14 @@ DELETE FROM t;
 Comparing tables mysqld_a:test.t and mysqld_b:test.t
 Comparing tables mysqld_b:test.t and mysqld_c:test.t
 DROP TABLE t;
+CON: 'mysqld_a', IMG: 'MINIMAL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	MINIMAL
+CON: 'mysqld_b', IMG: 'MINIMAL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
 include/stop_slave.inc
@@ -6648,6 +6656,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	MINIMAL
+CON: 'mysqld_c', IMG: 'MINIMAL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
 include/stop_slave.inc
@@ -9937,12 +9946,14 @@ DELETE FROM t;
 Comparing tables mysqld_a:test.t and mysqld_b:test.t
 Comparing tables mysqld_b:test.t and mysqld_c:test.t
 DROP TABLE t;
+CON: 'mysqld_a', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_b', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -9951,6 +9962,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_c', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -9964,12 +9976,14 @@ binlog_row_image	FULL
 # engines and binlog-row-image mix for different index structures #
 ###################################################################
 ###################################################################
+CON: 'mysqld_a', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_b', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -9978,6 +9992,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_c', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -13203,12 +13218,14 @@ DELETE FROM t;
 Comparing tables mysqld_a:test.t and mysqld_b:test.t
 Comparing tables mysqld_b:test.t and mysqld_c:test.t
 DROP TABLE t;
+CON: 'mysqld_a', IMG: 'NOBLOB', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	NOBLOB
+CON: 'mysqld_b', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 include/stop_slave.inc
@@ -13217,6 +13234,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	NOBLOB
+CON: 'mysqld_c', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 include/stop_slave.inc
@@ -16442,12 +16460,14 @@ DELETE FROM t;
 Comparing tables mysqld_a:test.t and mysqld_b:test.t
 Comparing tables mysqld_b:test.t and mysqld_c:test.t
 DROP TABLE t;
+CON: 'mysqld_a', IMG: 'MINIMAL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	MINIMAL
+CON: 'mysqld_b', IMG: 'MINIMAL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
 include/stop_slave.inc
@@ -16456,6 +16476,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	MINIMAL
+CON: 'mysqld_c', IMG: 'MINIMAL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
 include/stop_slave.inc
@@ -19681,12 +19702,14 @@ DELETE FROM t;
 Comparing tables mysqld_a:test.t and mysqld_b:test.t
 Comparing tables mysqld_b:test.t and mysqld_c:test.t
 DROP TABLE t;
+CON: 'mysqld_a', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_b', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -19695,6 +19718,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_c', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -19708,12 +19732,14 @@ binlog_row_image	FULL
 # engines and binlog-row-image mixes for blobs                    #
 ###################################################################
 ###################################################################
+CON: 'mysqld_a', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_b', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -19722,6 +19748,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_c', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -21147,12 +21174,14 @@ DELETE FROM t;
 Comparing tables mysqld_a:test.t and mysqld_b:test.t
 Comparing tables mysqld_b:test.t and mysqld_c:test.t
 DROP TABLE t;
+CON: 'mysqld_a', IMG: 'NOBLOB', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	NOBLOB
+CON: 'mysqld_b', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 include/stop_slave.inc
@@ -21161,6 +21190,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	NOBLOB
+CON: 'mysqld_c', IMG: 'NOBLOB', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'NOBLOB';
 SET GLOBAL binlog_row_image= 'NOBLOB';
 include/stop_slave.inc
@@ -22586,12 +22616,14 @@ DELETE FROM t;
 Comparing tables mysqld_a:test.t and mysqld_b:test.t
 Comparing tables mysqld_b:test.t and mysqld_c:test.t
 DROP TABLE t;
+CON: 'mysqld_a', IMG: 'MINIMAL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	MINIMAL
+CON: 'mysqld_b', IMG: 'MINIMAL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
 include/stop_slave.inc
@@ -22600,6 +22632,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	MINIMAL
+CON: 'mysqld_c', IMG: 'MINIMAL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'MINIMAL';
 SET GLOBAL binlog_row_image= 'MINIMAL';
 include/stop_slave.inc
@@ -24025,12 +24058,14 @@ DELETE FROM t;
 Comparing tables mysqld_a:test.t and mysqld_b:test.t
 Comparing tables mysqld_b:test.t and mysqld_c:test.t
 DROP TABLE t;
+CON: 'mysqld_a', IMG: 'FULL', RESTART SLAVE: 'N'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_b', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
@@ -24039,6 +24074,7 @@ FLUSH TABLES;
 SHOW VARIABLES LIKE 'binlog_row_image';
 Variable_name	Value
 binlog_row_image	FULL
+CON: 'mysqld_c', IMG: 'FULL', RESTART SLAVE: 'Y'
 SET SESSION binlog_row_image= 'FULL';
 SET GLOBAL binlog_row_image= 'FULL';
 include/stop_slave.inc
