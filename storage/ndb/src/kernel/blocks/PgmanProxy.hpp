@@ -39,8 +39,8 @@ protected:
     static const char* name() { return "LCP_FRAG_ORD"; }
     LcpFragOrd m_req;
     Ss_LCP_FRAG_ORD() {
-      m_sendREQ = (SsFUNC)&PgmanProxy::sendLCP_FRAG_ORD;
-      m_sendCONF = (SsFUNC)0;
+      m_sendREQ = (SsFUNCREQ)&PgmanProxy::sendLCP_FRAG_ORD;
+      m_sendCONF = (SsFUNCREP)0;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_LCP_FRAG_ORD>& pool(LocalProxy* proxy) {
@@ -52,7 +52,7 @@ protected:
     return SsIdBase | (req->lcpId & 0xFFFF);
   }
   void execLCP_FRAG_ORD(Signal*);
-  void sendLCP_FRAG_ORD(Signal*, Uint32 ssId);
+  void sendLCP_FRAG_ORD(Signal*, Uint32 ssId, SectionHandle*);
 
   // GSN_END_LCP_REQ
   struct Ss_END_LCP_REQ : SsParallel {
@@ -63,8 +63,8 @@ protected:
     static const char* name() { return "END_LCP_REQ"; }
     EndLcpReq m_req;
     Ss_END_LCP_REQ() {
-      m_sendREQ = (SsFUNC)&PgmanProxy::sendEND_LCP_REQ;
-      m_sendCONF = (SsFUNC)&PgmanProxy::sendEND_LCP_CONF;
+      m_sendREQ = (SsFUNCREQ)&PgmanProxy::sendEND_LCP_REQ;
+      m_sendCONF = (SsFUNCREP)&PgmanProxy::sendEND_LCP_CONF;
       // extra worker (for extent pages) must run after others
       m_extraLast = true;
     }
@@ -84,7 +84,7 @@ protected:
     return conf->senderData;
   }
   void execEND_LCP_REQ(Signal*);
-  void sendEND_LCP_REQ(Signal*, Uint32 ssId);
+  void sendEND_LCP_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execEND_LCP_CONF(Signal*);
   void sendEND_LCP_CONF(Signal*, Uint32 ssId);
   void execRELEASE_PAGES_CONF(Signal*);
