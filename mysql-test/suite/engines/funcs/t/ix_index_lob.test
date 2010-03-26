@@ -1,0 +1,100 @@
+--disable_warnings
+DROP TABLE IF EXISTS t4;
+--enable_warnings
+CREATE TABLE t4(c1 TINYBLOB NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 BLOB NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 MEDIUMBLOB NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 LONGBLOB NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 TINYTEXT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 TEXT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 MEDIUMTEXT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 LONGTEXT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 TINYBLOB NOT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 BLOB NOT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 MEDIUMBLOB NOT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 LONGBLOB NOT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 TINYTEXT NOT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 TEXT NOT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 MEDIUMTEXT NOT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+CREATE TABLE t4(c1 LONGTEXT NOT NULL);
+CREATE INDEX i1 ON t4(c1(100));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+ SHOW CREATE TABLE t4; DROP TABLE t4; SHOW TABLES;
+

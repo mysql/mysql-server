@@ -46,6 +46,7 @@
 #ifdef HAVE_REPLICATION
 
 #include "rpl_tblmap.h"
+#include "debug_sync.h"
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -1269,7 +1270,16 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     unavailable (very old master not supporting UNIX_TIMESTAMP()?).
   */
 
-  DBUG_SYNC_POINT("debug_lock.before_get_UNIX_TIMESTAMP", 10);
+  DBUG_EXECUTE_IF("dbug.before_get_UNIX_TIMESTAMP",
+                  {
+                    const char act[]=
+                      "now "
+                      "wait_for signal.get_unix_timestamp";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
   master_res= NULL;
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
@@ -1310,7 +1320,15 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     Note: we could have put a @@SERVER_ID in the previous SELECT
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
-  DBUG_SYNC_POINT("debug_lock.before_get_SERVER_ID", 10);
+  DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID",
+                  {
+                    const char act[]=
+                      "now "
+                      "wait_for signal.get_server_id";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(current_thd, 
+                                                       STRING_WITH_LEN(act)));
+                  };);
   master_res= NULL;
   master_row= NULL;
   if (!mysql_real_query(mysql,
@@ -2762,6 +2780,16 @@ pthread_handler_t handle_slave_io(void *arg)
   }
 
 connected:
+
+    DBUG_EXECUTE_IF("dbug.before_get_running_status_yes",
+                    {
+                      const char act[]=
+                        "now "
+                        "wait_for signal.io_thread_let_running";
+                      DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                      DBUG_ASSERT(!debug_sync_set_action(thd, 
+                                                         STRING_WITH_LEN(act)));
+                    };);
 
   // TODO: the assignment below should be under mutex (5.0)
   mi->slave_running= MYSQL_SLAVE_RUN_CONNECT;

@@ -1733,26 +1733,8 @@ sub client_debug_arg($$) {
 }
 
 
-sub mysql_fix_arguments () {
-
-  return "" ;
-
-  my $exe=
-    mtr_script_exists("$basedir/scripts/mysql_fix_privilege_tables",
-		      "$path_client_bindir/mysql_fix_privilege_tables");
-  my $args;
-  mtr_init_args(\$args);
-  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
-
-  mtr_add_arg($args, "--basedir=%s", $basedir);
-  mtr_add_arg($args, "--bindir=%s", $path_client_bindir);
-  mtr_add_arg($args, "--verbose");
-  return mtr_args2str($exe, @$args);
-}
-
-
 sub client_arguments ($;$) {
-  my $client_name= shift;
+ my $client_name= shift;
   my $group_suffix= shift;
   my $client_exe= mtr_exe_exists("$path_client_bindir/$client_name");
 
@@ -2093,7 +2075,6 @@ sub environment_setup {
   $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
-  $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
 
   # ----------------------------------------------------
@@ -2656,14 +2637,6 @@ sub create_config_file_for_extern {
 [mysqlbinlog]
 character-sets-dir= $path_charsetsdir
 local-load= $opt_tmpdir
-
-# mysql_fix_privilege_tables.sh don't read from [client]
-[mysql_fix_privilege_tables]
-socket            = $opts{'socket'}
-port              = $opts{'port'}
-user              = $opts{'user'}
-password          = $opts{'password'}
-
 
 EOF
 ;
