@@ -842,9 +842,9 @@ fi
 %{_datadir}/aclocal/mysql.m4
 %if %{WITH_LIBGCC}
 %{_libdir}/mysql/libmygcc.a
+%endif
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlclient_r.a
-%endif
 %if %{CLUSTER_BUILD}
 %{_libdir}/mysql/libndbclient.a
 %{_libdir}/mysql/libndbclient.la
