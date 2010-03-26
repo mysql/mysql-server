@@ -10376,7 +10376,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
   CreateIndxImplReq* impl_req = &createIndexPtr.p->m_request;
 
   // save attribute list
-  AttributeList& attrList = createIndexPtr.p->m_attrList;
+  IndexAttributeList& attrList = createIndexPtr.p->m_attrList;
   {
     SegmentedSectionPtr ss_ptr;
     handle.getSection(ss_ptr, CreateIndxReq::ATTRIBUTE_LIST_SECTION);
@@ -10680,7 +10680,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
 
   // write index key attributes
 
-  //const AttributeList& attrList = createIndexPtr.p->m_attrList;
+  //const IndexAttributeList& attrList = createIndexPtr.p->m_attrList;
   const AttributeMap& attrMap = createIndexPtr.p->m_attrMap;
   Uint32 k;
   for (k = 0; k < createIndexPtr.p->m_attrList.sz; k++) {
@@ -17662,7 +17662,7 @@ Dbdict::getIndexAttr(TableRecordPtr indexPtr, Uint32 itAttr, Uint32* id)
 }
 
 void
-Dbdict::getIndexAttrList(TableRecordPtr indexPtr, AttributeList& list)
+Dbdict::getIndexAttrList(TableRecordPtr indexPtr, IndexAttributeList& list)
 {
   jam();
   list.sz = 0;

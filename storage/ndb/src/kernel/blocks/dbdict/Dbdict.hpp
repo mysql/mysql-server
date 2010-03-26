@@ -2450,7 +2450,7 @@ private:
   struct CreateIndexRec : public OpRec {
     CreateIndxImplReq m_request;
     char m_indexName[MAX_TAB_NAME_SIZE];
-    AttributeList m_attrList;
+    IndexAttributeList m_attrList;
     AttributeMask m_attrMask;
     AttributeMap m_attrMap;
     Uint32 m_bits;
@@ -2579,7 +2579,7 @@ private:
 
   struct AlterIndexRec : public OpRec {
     AlterIndxImplReq m_request;
-    AttributeList m_attrList;
+    IndexAttributeList m_attrList;
     AttributeMask m_attrMask;
 
     // reflection
@@ -2673,7 +2673,7 @@ private:
 
     BuildIndxImplReq m_request;
 
-    AttributeList m_indexKeyList;
+    IndexAttributeList m_indexKeyList;
     FragAttributeList m_tableKeyList;
     AttributeMask m_attrMask;
 
@@ -3685,7 +3685,7 @@ private:
   void getTableKeyList(TableRecordPtr, 
 		       Id_array<MAX_ATTRIBUTES_IN_INDEX+1>& list);
   void getIndexAttr(TableRecordPtr indexPtr, Uint32 itAttr, Uint32* id);
-  void getIndexAttrList(TableRecordPtr indexPtr, AttributeList& list);
+  void getIndexAttrList(TableRecordPtr indexPtr, IndexAttributeList& list);
   void getIndexAttrMask(TableRecordPtr indexPtr, AttributeMask& mask);
 
   /* ------------------------------------------------------------ */
