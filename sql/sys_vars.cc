@@ -1,4 +1,4 @@
-/* Copyright (C) 2002-2006 MySQL AB, 2009-2010 Sun Microsystems, Inc.
+/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   How to add new variables:
@@ -647,32 +647,40 @@ static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
 }
 static bool event_scheduler_update(sys_var *self, THD *thd, enum_var_type type)
 {
+  uint opt_event_scheduler_value= Events::opt_event_scheduler;
   mysql_mutex_unlock(&LOCK_global_system_variables);
   /*
     Events::start() is heavyweight. In particular it creates a new THD,
     which takes LOCK_global_system_variables internally.
     Thus we have to release it here.
     We need to re-take it before returning, though.
-    And we need to take it *without* holding Events::LOCK_event_metadata.
+
+    Note that since we release LOCK_global_system_variables before calling
+    start/stop, there is a possibility that the server variable
+    can become out of sync with the real event scheduler state.
+
+    This can happen with two concurrent statments if the first gets
+    interrupted after start/stop but before retaking
+    LOCK_global_system_variables. However, this problem should be quite
+    rare and it's difficult to avoid it without opening up possibilities
+    for deadlocks. See bug#51160.
   */
-  bool ret= Events::opt_event_scheduler == Events::EVENTS_ON
+  bool ret= opt_event_scheduler_value == Events::EVENTS_ON
             ? Events::start()
             : Events::stop();
-  mysql_mutex_unlock(&Events::LOCK_event_metadata);
   mysql_mutex_lock(&LOCK_global_system_variables);
-  mysql_mutex_lock(&Events::LOCK_event_metadata);
   if (ret)
     my_error(ER_EVENT_SET_VAR_ERROR, MYF(0));
   return ret;
 }
-static PolyLock_mutex PLock_event_metadata(&Events::LOCK_event_metadata);
+
 static Sys_var_enum Sys_event_scheduler(
        "event_scheduler", "Enable the event scheduler. Possible values are "
        "ON, OFF, and DISABLED (keep the event scheduler completely "
        "deactivated, it cannot be activated run-time)",
        GLOBAL_VAR(Events::opt_event_scheduler), CMD_LINE(OPT_ARG),
        event_scheduler_names, DEFAULT(Events::EVENTS_OFF),
-       &PLock_event_metadata, NOT_IN_BINLOG,
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(event_scheduler_check), ON_UPDATE(event_scheduler_update));
 #endif
 

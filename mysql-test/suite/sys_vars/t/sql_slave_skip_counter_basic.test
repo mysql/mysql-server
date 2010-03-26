@@ -56,7 +56,7 @@ SET @@global.sql_slave_skip_counter = 1024;
 SET @@global.sql_slave_skip_counter = 2147483648;
 SET @@global.sql_slave_skip_counter = 2147483648*2;
 SET @@global.sql_slave_skip_counter = 2147483648*2-1;
-SET @@global.sql_slave_skip_counter = 4294967295*4294967295;
+SET @@global.sql_slave_skip_counter = 18446744065119617025;
 
 --echo '#--------------------FN_DYNVARS_165_03-------------------------#'
 ###################################################################

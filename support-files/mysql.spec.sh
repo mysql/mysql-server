@@ -849,7 +849,6 @@ fi
 %attr(755, root, root) %{_bindir}/myisampack
 %attr(755, root, root) %{_bindir}/mysql_convert_table_format
 %attr(755, root, root) %{_bindir}/mysql_fix_extensions
-%attr(755, root, root) %{_bindir}/mysql_fix_privilege_tables
 %attr(755, root, root) %{_bindir}/mysql_install_db
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_setpermission
@@ -1104,6 +1103,10 @@ fi
 
 - Fix some problems with the directives around "tcmalloc" (experimental),
   remove erroneous traces of the InnoDB plugin (that is 5.1 only).
+
+* Fri Oct 06 2009 Magnus Blaudd <mvensson@mysql.com>
+
+- Removed mysql_fix_privilege_tables
 
 * Fri Oct 02 2009 Alexander Nozdrin <alexander.nozdrin@sun.com>
 

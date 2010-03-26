@@ -1,0 +1,33 @@
+DROP DATABASE IF EXISTS d2;
+CREATE DATABASE d2;
+CREATE DATABASE IF NOT EXISTS d2;
+Warnings:
+Note	1007	Can't create database 'd2'; database exists
+SHOW DATABASES;
+Database
+information_schema
+d2
+mtr
+mysql
+test
+USE d2;
+DROP DATABASE d2;
+DROP DATABASE IF EXISTS d2;
+Warnings:
+Note	1008	Can't drop database 'd2'; database doesn't exist
+CREATE SCHEMA d2;
+CREATE SCHEMA IF NOT EXISTS d2;
+Warnings:
+Note	1007	Can't create database 'd2'; database exists
+SHOW DATABASES;
+Database
+information_schema
+d2
+mtr
+mysql
+test
+USE d2;
+DROP SCHEMA d2;
+DROP SCHEMA IF EXISTS d2;
+Warnings:
+Note	1008	Can't drop database 'd2'; database doesn't exist
