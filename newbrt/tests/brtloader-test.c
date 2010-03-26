@@ -169,10 +169,6 @@ static void test_read_write_rows (char *template) {
     r = brtloader_open_temp_file(&bl, &file);
     CKERR(r);
 
-    FIDX idx;
-    r = brtloader_open_temp_file(&bl, &idx);
-    CKERR(r);
-
     u_int64_t dataoff=0;
 
     char *keystrings[] = {"abc", "b", "cefgh"};
@@ -181,7 +177,7 @@ static void test_read_write_rows (char *template) {
     for (int i=0; i<3; i++) {
 	DBT key = {.size=strlen(keystrings[i]), .data=keystrings[i]};
 	DBT val = {.size=strlen(valstrings[i]), .data=valstrings[i]};
-	r = loader_write_row(&key, &val, file, idx, &dataoff, &bl);
+	r = loader_write_row(&key, &val, file, &dataoff, &bl);
 	CKERR(r);
 	actual_size+=key.size + val.size + 8;
     }
@@ -212,12 +208,8 @@ static void test_read_write_rows (char *template) {
     }
     r = brtloader_fi_close(&bl.file_infos, file);
     CKERR(r);
-    r = brtloader_fi_close(&bl.file_infos, idx);
-    CKERR(r);
 
     r = brtloader_fi_unlink(&bl.file_infos, file);
-    CKERR(r);
-    r = brtloader_fi_unlink(&bl.file_infos, idx);
     CKERR(r);
 
     assert(bl.file_infos.n_files_open==0);
@@ -264,7 +256,7 @@ static void test_merge_files (char *template) {
     assert(fs.n_temp_files==2 && fs.n_temp_files_limit >= fs.n_temp_files);
     destroy_rowset(&aset);
     destroy_rowset(&bset);
-    for (int i=0; i<2; i++) assert(fs.data_fidxs[i].idx != -1 && fs.idx_fidxs[i].idx != -1);
+    for (int i=0; i<2; i++) assert(fs.data_fidxs[i].idx != -1);
 
     r = merge_files(&fs, &bl, dest_db, compare_ints, &cb, 0); CKERR(r);
 
@@ -283,8 +275,6 @@ static void test_merge_files (char *template) {
     r = brtloader_fi_close(&bl.file_infos, inf);
     CKERR(r);
     r = brtloader_fi_unlink(&bl.file_infos, fs.data_fidxs[0]);
-    CKERR(r);
-    r = brtloader_fi_unlink(&bl.file_infos, fs.idx_fidxs[0]);
     CKERR(r);
     
     destroy_merge_fileset(&fs);
