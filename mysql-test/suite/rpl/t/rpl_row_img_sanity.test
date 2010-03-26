@@ -2,30 +2,23 @@
 #  Description
 #  ===========
 #
-#  This test case checks whether binlog files contain
-#  Before and After image values as expected.
-#
-#  Configuration is done using the --binlog-row-image
-#  variable.
+#  This test case checks whether binlog files contain Before and After
+#  image values as expected. Configuration is done using the
+#  --binlog-row-image variable.
 #
 #  How it works
 #  ============
 #
-#  The test case is implemented such that master and slave
-#  create a table with different types of keys. Then, deletes
-#  and updates are performed in the master. The resulting
-#  output of mysqlbinlog -v issued on the binlogs generated 
-#  is then searched for the pattern expected wrt before and 
-#  after images.
-#
-#  Some special cases are also considered. A small description
-#  for each one is provided inline.
+#  The test case is implemented such that master and slave basically
+#  hold the same table but sometimes differ in indexes, number of
+#  columns and data types constraints (autoinc). Then some statements
+#  are executed and the output of mysqlbinlog is parsed for the given
+#  event to check if the columns in the before and after image match
+#  expectations according to the binlog-row-image value on master and
+#  on slave.
 #
 #  See also WL#5096.
 #
-#  NOTE: cases marked with S#(-#) address review comments in:
-#        http://lists.mysql.com/commits/89844        
-
 -- source include/master-slave.inc
 -- source include/have_binlog_format_row.inc
 
@@ -33,10 +26,8 @@
 call mtr.add_suppression("Slave: Can\'t find record in \'t\' Error_code: 1032");
 -- connection master
 
--- let $TMP_FILE= $MYSQLTEST_VARDIR/tmp/rpl_row_img_sanity.tmp
--- let IMG_BINLOG_FILE= $TMP_FILE
-
--- source include/master-slave-reset.inc
+## assertion: check that default value for binlog-row-image == 'FULL'
+SHOW VARIABLES LIKE 'binlog_row_image';
 
 ## save original 
 -- connection master
@@ -46,249 +37,286 @@ SET @old_binlog_row_image= @@binlog_row_image;
 -- connection master
 
 -- echo #####################################################
--- echo # (S4-7) basic assertion that binlog_row_image='FULL' is the
--- echo ######################################################
+-- echo # basic assertion that binlog_row_image='FULL' is the
+-- echo # default 
+-- echo #####################################################
 
 -- source include/master-slave-reset.inc
 -- connection master
-# global so that flush tables restarts the 
-# insert dealyed thread
-SET GLOBAL binlog_row_image='FULL';
-SET SESSION binlog_row_image='FULL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-FLUSH TABLES;
--- connection slave
-# global so that SQL thread also gets the change
-SET GLOBAL binlog_row_image='FULL';
-SET SESSION binlog_row_image='FULL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-
--- source include/stop_slave.inc
--- source include/start_slave.inc
-
--- connection master
+-- let $row_img_set=master:FULL:N,slave:FULL:Y
+-- source suite/rpl/include/rpl_row_img_set.inc
 
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
-INSERT INTO t(c1,c3) VALUES (1, 'a');
-UPDATE t SET c1=2 WHERE c1=1;
-DELETE FROM t;
 
--- sync_slave_with_master
+-- let $row_img_query= INSERT INTO t(c1,c3) VALUES (1, 'a')
+-- let $row_img_expected_master= | 1:1 2:NULL 3:'a'
+-- let $row_img_expected_slave = | 1:1 2:NULL 3:'a'
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
 
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let $row_img_query= UPDATE t SET c1=2 WHERE c1=1;
+-- let $row_img_expected_master= 1:1 2:NULL 3:'a' | 1:2 2:NULL 3:'a'
+-- let $row_img_expected_slave = 1:1 2:NULL 3:'a' | 1:2 2:NULL 3:'a'
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
 
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
+-- let $row_img_query= DELETE FROM t;
+-- let $row_img_expected_master= 1:2 2:NULL 3:'a' |
+-- let $row_img_expected_slave = 1:2 2:NULL 3:'a' |
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
 
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 2=>NULL, 3=>"\'a\'"}
--- let IMG_AI_EXPECTED={1=>2, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>2, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
-
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 2=>NULL, 3=>"\'a\'"}
--- let IMG_AI_EXPECTED={1=>2, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>2, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
 DROP TABLE t;
 -- sync_slave_with_master
 
--- remove_file $TMP_FILE
-
-# S3 - make rpl_row_img_sanity more human readable.
 #
-# I have split these runs into iterations. Each iteration acts as a
-# parameter to the create table include file and the assertions
-# include file.
+# Assertions: combines img_types with different index types. 
+#             The checks that rows are logged with expected
+#             image contents, depending on the img_type.
 #
-# For this to work I also had to patch mysql-5.1-rep+2 with patch for 
-# BUG#48671 which will be in next-mr (so that we could use perl; inside 
-# while). Since this is targetting next-mr we can later null-merge for 
-# that piece of code.
 
 -- connection master
--- let $nloops_row_img=3
-while ($nloops_row_img)
+SET @img_types= 'MINIMAL NOBLOB FULL';
+while (`SELECT HEX(@img_types) != HEX('')`)
 {
-  -- let $iteration= $nloops_row_img
-  -- source suite/rpl/include/rpl_row_img_sanity_set_img.inc
+  -- disable_query_log
+  let $img_type= `SELECT SUBSTRING_INDEX(@img_types, ' ', 1)`;
+  -- let $row_img_set=master:$img_type:N,slave:$img_type:Y
+  -- source suite/rpl/include/rpl_row_img_set.inc
 
-  -- let $nloops_indexes= 5
-  while ($nloops_indexes)
+  SET @index_types= 'UK-NOT-NULL PK UK K NONE';
+  while (`SELECT HEX(@index_types) != HEX('')`)
   {
-    -- let $iteration= $nloops_indexes
+    -- disable_query_log
+    let $index_type= `SELECT SUBSTRING_INDEX(@index_types, ' ', 1)`;
+    -- enable_query_log
 
-    -- echo ITERATIONS: row_img: $nloops_row_img, indexes: $nloops_indexes
+    -- echo ITERATIONS: row_img: $img_type, indexes: $index_type
 
     -- source include/master-slave-reset.inc
     -- connection master
 
     # create the table
-    -- source suite/rpl/include/rpl_row_img_sanity_create_table.inc
-    -- connection slave
-    -- source suite/rpl/include/rpl_row_img_sanity_create_table.inc
+    -- echo CREATING TABLE IN $CURRENT_CONNECTION WITH INDEX '$index_type'
+
+    if (`SELECT HEX('$index_type') = HEX('NONE')`)
+    {
+      CREATE TABLE t (c1 int, c2 int, c3 blob);
+    }
+
+    if (`SELECT HEX('$index_type') = HEX('K')`)
+    {
+      CREATE TABLE t (c1 int, c2 int, c3 blob, key(c1));
+    }
+
+    if (`SELECT HEX('$index_type') = HEX('UK')`)
+    {
+      CREATE TABLE t (c1 int, c2 int, c3 blob, unique key(c1));
+    }
+
+    if (`SELECT HEX('$index_type') = HEX('PK')`)
+    {
+      CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1));
+    }
+
+    if (`SELECT HEX('$index_type') = HEX('UK-NOT-NULL')`)
+    {
+      CREATE TABLE t (c1 int NOT NULL, c2 int, c3 blob, unique key(c1));
+    }
+
+    -- sync_slave_with_master
     -- connection master
 
-    # issue some statements
-    INSERT INTO t VALUES (1,2,"a");
-    INSERT INTO t(c1,c3) VALUES (10,"a");
+    # Issue some statements
+
+    -- let $row_img_query= INSERT INTO t VALUES (1,2,"a")
+    -- let $row_img_expected_master= | 1:1 2:2 3:'a'
+    -- let $row_img_expected_slave = | 1:1 2:2 3:'a'
+    -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+    -- let $row_img_query= INSERT INTO t(c1,c3) VALUES (10,"a")
+    if (`SELECT @@binlog_row_image = "FULL" or @@binlog_row_image = "NOBLOB"`)
+    {
+      -- let $row_img_expected_master= | 1:10 2:NULL 3:'a'
+    }
+    if  (`SELECT @@binlog_row_image = "MINIMAL"`)
+    {
+      -- let $row_img_expected_master= | 1:10 3:'a'
+    }
+    -- let $row_img_expected_slave= $row_img_expected_master
+    -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
     # we need to test insert delayed to check if the thread handling
     # the delayed inserts also marks the correct write set (it has its
     # own sort of table object).
-    INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
-    INSERT INTO t(c1) VALUES (1000);
-    INSERT DELAYED INTO t(c1) VALUES (10000);
-    UPDATE t SET c1=2 WHERE c1=1;
-    DELETE FROM t WHERE c2=2;
+    -- let $row_img_query= INSERT DELAYED INTO t(c1,c3) VALUES (100,"a")
+    if (`SELECT @@binlog_row_image = "FULL" or @@binlog_row_image = "NOBLOB"`)
+    {
+      -- let $row_img_expected_master= | 1:100 2:NULL 3:'a'
+    }
+    if  (`SELECT @@binlog_row_image = "MINIMAL"`)
+    { 
+      -- let $row_img_expected_master= | 1:100 3:'a'
+    }
+    -- let $row_img_expected_slave= $row_img_expected_master
+    -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+    -- let $row_img_query= INSERT INTO t(c1) VALUES (1000)
+    if (`SELECT @@binlog_row_image = "FULL"`)
+    {
+      -- let $row_img_expected_master= | 1:1000 2:NULL 3:NULL
+    } 
+    if  (`SELECT @@binlog_row_image = "NOBLOB"`)
+    { 
+      -- let $row_img_expected_master= | 1:1000 2:NULL
+    }
+    if  (`SELECT @@binlog_row_image = "MINIMAL"`)
+    { 
+      -- let $row_img_expected_master= | 1:1000
+    }
+    -- let $row_img_expected_slave= $row_img_expected_master
+    -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+    -- let $row_img_query= INSERT DELAYED INTO t(c1) VALUES (10000)
+    if (`SELECT @@binlog_row_image = "FULL"`)
+    {
+      -- let $row_img_expected_master= | 1:10000 2:NULL 3:NULL
+    } 
+    if  (`SELECT @@binlog_row_image = "NOBLOB"`)
+    { 
+      -- let $row_img_expected_master= | 1:10000 2:NULL
+    }
+    if  (`SELECT @@binlog_row_image = "MINIMAL"`)
+    { 
+      -- let $row_img_expected_master= | 1:10000
+    }
+    -- let $row_img_expected_slave= $row_img_expected_master
+    -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+    -- let $row_img_query= UPDATE t SET c1=2 WHERE c1=1
+    if (`SELECT @@binlog_row_image = "FULL" OR (SELECT '$index_type' IN ('NONE', 'K', 'UK'))`)
+    {
+      -- let $bi= 1:1 2:2 3:'a'
+    }
+
+    # noblob with pk + uk not nullable
+    if (`SELECT @@binlog_row_image = "NOBLOB" AND (SELECT '$index_type' IN ('PK', 'UK-NOT-NULL'))`)
+    {
+      -- let $bi= 1:1 2:2
+    }
+
+    if (`SELECT @@binlog_row_image = "MINIMAL" AND (SELECT '$index_type' IN ('PK', 'UK-NOT-NULL'))`)
+    {
+      -- let $bi= 1:1
+    }
+
+    if (`SELECT @@binlog_row_image = "FULL"`)
+    {
+      -- let $ai= 1:2 2:2 3:'a'
+    }
+
+    if (`SELECT @@binlog_row_image = "NOBLOB"`)
+    {
+      -- let $ai= 1:2 2:2
+    }
+
+    if (`SELECT @@binlog_row_image = "MINIMAL"`)
+    {
+      -- let $ai= 1:2
+    }
+    -- let $row_img_expected_master= $bi | $ai
+    -- let $row_img_expected_slave = $bi | $ai
+    -- let $ai=
+    -- let $bi=
+    -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+    -- let $row_img_query= DELETE FROM t WHERE c2=2
+    # no key, simple key or unique key nullable
+    if (`SELECT @@binlog_row_image = "FULL" OR (SELECT '$index_type' IN ('NONE', 'K', 'UK'))`)
+    {
+      -- let $row_img_expected_master= 1:2 2:2 3:'a' |
+    }
+
+    # noblob with pk + uk not nullable
+    if (`SELECT @@binlog_row_image = "NOBLOB" AND (SELECT '$index_type' IN ('PK', 'UK-NOT-NULL'))`)
+    {
+      -- let $row_img_expected_master= 1:2 2:2 |
+    }
+
+    if (`SELECT @@binlog_row_image = "MINIMAL" AND (SELECT '$index_type' IN ('PK', 'UK-NOT-NULL'))`)
+    {
+      -- let $row_img_expected_master= 1:2 |
+    }
+    -- let $row_img_expected_slave= $row_img_expected_master
+    -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
     DROP TABLE t;
 
     -- sync_slave_with_master
 
-    # check logged images
+    -- disable_query_log
     -- connection master
-    -- source suite/rpl/include/rpl_row_img_sanity_assertions.inc
-    -- connection slave
-    -- source suite/rpl/include/rpl_row_img_sanity_assertions.inc
+    -- eval SET @index_types= LTRIM(SUBSTRING(@index_types, LENGTH('$index_type') + 1))
+    -- enable_query_log
 
-    -- dec $nloops_indexes
   }
 
-  -- dec $nloops_row_img
+  -- disable_query_log
+  -- connection master
+  -- eval SET @img_types= LTRIM(SUBSTRING(@img_types, LENGTH('$img_type') + 1))
+  -- enable_query_log
 }
 
 -- echo ################## SPECIAL CASES #########################
--- echo # the ones marked with (S#-#) are mentioned in review:
--- echo # http://lists.mysql.com/commits/89844
 
 -- source include/master-slave-reset.inc
 -- connection master
-# global so that flush tables restarts the 
-# insert dealyed thread
-SET GLOBAL binlog_row_image='NOBLOB';
-SET SESSION binlog_row_image='NOBLOB';
-SHOW VARIABLES LIKE 'binlog_row_image';
-FLUSH TABLES;
--- connection slave
-# global so that SQL thread also gets the change
-SET GLOBAL binlog_row_image='NOBLOB';
-SET SESSION binlog_row_image='NOBLOB';
-SHOW VARIABLES LIKE 'binlog_row_image';
-
--- source include/stop_slave.inc
--- source include/start_slave.inc
--- connection master
+-- let $row_img_set=master:NOBLOB:N,slave:NOBLOB:Y
+-- source suite/rpl/include/rpl_row_img_set.inc
 
 -- echo ###################################
 -- echo # PK (contains blob)
 -- echo ###################################
 
--- source include/master-slave-reset.inc
 -- connection master
 
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c3(512)));
-INSERT INTO t VALUES (1,2,"a");
-INSERT INTO t(c1,c3) VALUES (10,"a");
-INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
-INSERT INTO t(c1) VALUES (1000);
-INSERT DELAYED INTO t(c1) VALUES (10000);
-UPDATE t SET c1=2 WHERE c1=1;
-DELETE FROM t WHERE c2=2;
+
+-- let $row_img_query= INSERT INTO t VALUES (1,2,"a")
+-- let $row_img_expected_master= | 1:1 2:2 3:'a'
+-- let $row_img_expected_slave = | 1:1 2:2 3:'a'
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= INSERT INTO t(c1,c3) VALUES (10,"a")
+-- let $row_img_expected_master= | 1:10 2:NULL 3:'a'
+-- let $row_img_expected_slave = | 1:10 2:NULL 3:'a'
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= INSERT DELAYED INTO t(c1,c3) VALUES (100,"a")
+-- let $row_img_expected_master= | 1:100 2:NULL 3:'a'
+-- let $row_img_expected_slave = | 1:100 2:NULL 3:'a'
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= INSERT INTO t(c1) VALUES (1000)
+-- let $row_img_expected_master= | 1:1000 2:NULL
+-- let $row_img_expected_slave = | 1:1000 2:NULL
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= INSERT DELAYED INTO t(c1) VALUES (10000)
+-- let $row_img_expected_master= | 1:10000 2:NULL
+-- let $row_img_expected_slave = | 1:10000 2:NULL
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= UPDATE t SET c1=2 WHERE c1=1
+-- let $row_img_expected_master= 1:1 2:2 3:'a' | 1:2 2:2
+-- let $row_img_expected_slave = 1:1 2:2 3:'a' | 1:2 2:2
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= DELETE FROM t WHERE c2=2
+-- let $row_img_expected_master= 1:2 2:2 3:'a' | 
+-- let $row_img_expected_slave = 1:2 2:2 3:'a' | 
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
 DROP TABLE t;
 
 -- sync_slave_with_master
--- connection master
-
--- echo ### checking master images
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>10, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>100, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1000, 2=>NULL}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>10000, 2=>NULL}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 2=>2, 3=>"\'a\'"}
--- let IMG_AI_EXPECTED={1=>2, 2=>2}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>2, 2=>2, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- remove_file $TMP_FILE
-
--- connection slave
--- echo ### checking slave images
-
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>10, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>100, 2=>NULL, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1000, 2=>NULL}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>10000, 2=>NULL}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 2=>2, 3=>"\'a\'"}
--- let IMG_AI_EXPECTED={1=>2, 2=>2}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>2, 2=>2, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- remove_file $TMP_FILE
 
 -- echo ###################################
 -- echo # PK (does not contain blob, but blob is updated)
@@ -298,159 +326,72 @@ DROP TABLE t;
 -- connection master
 
 CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
-INSERT INTO t VALUES (1,2,"a");
-INSERT INTO t(c1,c3) VALUES (10,"a");
-INSERT DELAYED INTO t(c1,c3) VALUES (100,"a");
-INSERT INTO t(c1) VALUES (1000);
-INSERT DELAYED INTO t(c1) VALUES (10000);
-UPDATE t SET c3='b' WHERE c1=1;
-DELETE FROM t WHERE c2=2;
+
+-- let $row_img_query= INSERT INTO t VALUES (1,2,"a")
+-- let $row_img_expected_master= | 1:1 2:2 3:'a'
+-- let $row_img_expected_slave = | 1:1 2:2 3:'a'
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= INSERT INTO t(c1,c3) VALUES (10,"a")
+-- let $row_img_expected_master= | 1:10 2:0 3:'a'
+-- let $row_img_expected_slave = | 1:10 2:0 3:'a'
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= INSERT DELAYED INTO t(c1,c3) VALUES (100,"a")
+-- let $row_img_expected_master= | 1:100 2:0 3:'a'
+-- let $row_img_expected_slave = | 1:100 2:0 3:'a'
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= INSERT INTO t(c1) VALUES (1000)
+-- let $row_img_expected_master= | 1:1000 2:0
+-- let $row_img_expected_slave = | 1:1000 2:0
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= INSERT DELAYED INTO t(c1) VALUES (10000)
+-- let $row_img_expected_master= | 1:10000 2:0
+-- let $row_img_expected_slave = | 1:10000 2:0
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= UPDATE t SET c3='b' WHERE c1=1
+-- let $row_img_expected_master= 1:1 2:2 | 1:1 2:2 3:'b'
+-- let $row_img_expected_slave = 1:1 2:2 | 1:1 2:2 3:'b'
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= DELETE FROM t WHERE c2=2
+-- let $row_img_expected_master= 1:1 2:2 | 
+-- let $row_img_expected_slave = 1:1 2:2 | 
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
 DROP TABLE t;
-
 -- sync_slave_with_master
--- connection master
-
--- echo ### checking master images
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>10, 2=>0, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>100, 2=>0, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1000, 2=>0}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>10000, 2=>0}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 2=>2}
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>"\'b\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>1, 2=>2}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- remove_file $TMP_FILE
-
--- connection slave
--- echo ### checking slave images
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>10, 2=>0, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>100, 2=>0, 3=>"\'a\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1000, 2=>0}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>10000, 2=>0}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 2=>2}
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>"\'b\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>1, 2=>2}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- remove_file $TMP_FILE
 
 -- echo ###################################
--- echo # (S4-1) AUTOINC columns
+-- echo # AUTOINC columns
 -- echo ###################################
 
 -- source include/master-slave-reset.inc
 -- connection master
-# global so that flush tables restarts the 
-# insert dealyed thread
-SET GLOBAL binlog_row_image='MINIMAL';
-SET SESSION binlog_row_image='MINIMAL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-FLUSH TABLES;
--- connection slave
-# global so that SQL thread also gets the change
-SET GLOBAL binlog_row_image='MINIMAL';
-SET SESSION binlog_row_image='MINIMAL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-
--- source include/stop_slave.inc
--- source include/start_slave.inc
--- source include/master-slave-reset.inc
--- connection master
+-- let $row_img_set=master:MINIMAL:N,slave:MINIMAL:Y
+-- source suite/rpl/include/rpl_row_img_set.inc
 
 CREATE TABLE t (c1 int NOT NULL AUTO_INCREMENT, c2 int, c3 blob, primary key(c1,c2));
-INSERT INTO t(c2) VALUES (2);
+
+-- let $row_img_query= INSERT INTO t(c2) VALUES (2)
+-- let $row_img_expected_master= | 1:1 2:2
+-- let $row_img_expected_slave = | 1:1 2:2
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
 DROP TABLE t;
 -- sync_slave_with_master
 
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
-
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- remove_file $TMP_FILE
-
 -- echo ##################################################################
--- echo # (S4-2) Test that slave does not write more columns than the ones it has 
+-- echo # Test that slave does not write more columns than the ones it has 
 -- echo ##################################################################
 
 -- source include/master-slave-reset.inc
 -- connection master
-# global so that flush tables restarts the 
-# insert dealyed thread
-SET GLOBAL binlog_row_image='MINIMAL';
-SET SESSION binlog_row_image='MINIMAL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-FLUSH TABLES;
--- connection slave
-# global so that SQL thread also gets the change
-SET GLOBAL binlog_row_image='MINIMAL';
-SET SESSION binlog_row_image='MINIMAL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-
--- source include/stop_slave.inc
--- source include/start_slave.inc
--- source include/master-slave-reset.inc
--- connection master
+-- let $row_img_set=master:MINIMAL:N,slave:MINIMAL:Y
+-- source suite/rpl/include/rpl_row_img_set.inc
 
 SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int NOT NULL AUTO_INCREMENT, c2 int, c3 blob, primary key(c1,c2));
@@ -461,63 +402,27 @@ CREATE TABLE t (c1 int, c2 int, primary key(c1));
 
 -- connection master
 
-INSERT INTO t(c2,c3) VALUES (2,'aaaaa');
-UPDATE t SET c2=3, c3='bbbbb' WHERE c2=2;
+-- let $row_img_query= INSERT INTO t(c2,c3) VALUES (2,'aaaaa')
+-- let $row_img_expected_master= | 1:1 2:2 3:'aaaaa'
+-- let $row_img_expected_slave = | 1:1 2:2
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= UPDATE t SET c2=3, c3='bbbbb' WHERE c2=2
+-- let $row_img_expected_master= 1:1 2:2 | 2:3 3:'bbbbb'
+-- let $row_img_expected_slave = 1:1 | 2:3
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
 DROP TABLE t;
 -- sync_slave_with_master
 
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1}
--- let IMG_AI_EXPECTED={2=>3}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
-
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>"\'aaaaa\'"}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 2=>2}
--- let IMG_AI_EXPECTED={2=>3, 3=>"\'bbbbb\'"}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- remove_file $TMP_FILE
-
 -- echo ##################################################################
--- echo # (S4-5) Test that slave fills default columns in its own columns
+-- echo # Test that slave fills default columns in its own columns
 -- echo ##################################################################
 
 -- source include/master-slave-reset.inc
 -- connection master
-# global so that flush tables restarts the 
-# insert dealyed thread
-SET GLOBAL binlog_row_image='FULL';
-SET SESSION binlog_row_image='FULL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-FLUSH TABLES;
--- connection slave
-# global so that SQL thread also gets the change
-SET GLOBAL binlog_row_image='FULL';
-SET SESSION binlog_row_image='FULL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-
--- source include/stop_slave.inc
--- source include/start_slave.inc
--- source include/master-slave-reset.inc
--- connection master
+-- let $row_img_set=master:FULL:N,slave:FULL:Y
+-- source suite/rpl/include/rpl_row_img_set.inc
 
 SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int, c2 int);
@@ -527,69 +432,34 @@ SET SQL_LOG_BIN=1;
 CREATE TABLE t (c1 int, c2 int, c3 int DEFAULT 2005);
 
 -- connection master
-INSERT INTO t(c1) VALUES (1);
-INSERT INTO t(c1) VALUES (2);
--- sync_slave_with_master
+
+-- let $row_img_query= INSERT INTO t(c1) VALUES (1)
+-- let $row_img_expected_master= | 1:1 2:NULL
+-- let $row_img_expected_slave = | 1:1 2:NULL 3:2005
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= INSERT INTO t(c1) VALUES (2)
+-- let $row_img_expected_master= | 1:2 2:NULL
+-- let $row_img_expected_slave = | 1:2 2:NULL 3:2005
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- connection slave
 SELECT * FROM t;
-
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>NULL, 3=>2005}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>2, 2=>NULL, 3=>2005}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
 -- connection master
 SELECT * FROM t;
 
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>NULL}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>2, 2=>NULL}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
 DROP TABLE t;
 -- sync_slave_with_master
 
-
--- remove_file $TMP_FILE
-
 -- echo ##################################################################
--- echo # (S4-6) Test that slave uses partial BI when master contains more columns
+-- echo # Test that slave uses partial BI when master contains more columns
 -- echo ##################################################################
 
 -- source include/master-slave-reset.inc
 -- connection master
-# global so that flush tables restarts the 
-# insert dealyed thread
-SET GLOBAL binlog_row_image='MINIMAL';
-SET SESSION binlog_row_image='MINIMAL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-FLUSH TABLES;
--- connection slave
-# global so that SQL thread also gets the change
-SET GLOBAL binlog_row_image='MINIMAL';
-SET SESSION binlog_row_image='MINIMAL';
-SHOW VARIABLES LIKE 'binlog_row_image';
+-- let $row_img_set=master:MINIMAL:N,slave:MINIMAL:Y
+-- source suite/rpl/include/rpl_row_img_set.inc
 
--- source include/stop_slave.inc
--- source include/start_slave.inc
--- source include/master-slave-reset.inc
--- connection master
 
 SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c1, c3), unique key(c1));
@@ -599,68 +469,34 @@ SET SQL_LOG_BIN=1;
 CREATE TABLE t (c1 int NOT NULL, c2 int, unique key(c1));
 
 -- connection master
-INSERT INTO t VALUES (1, 2, 3);
-UPDATE t SET c2= 4 WHERE c1=1;
--- sync_slave_with_master
+
+-- let $row_img_query= INSERT INTO t VALUES (1, 2, 3)
+-- let $row_img_expected_master= | 1:1 2:2 3:3
+-- let $row_img_expected_slave = | 1:1 2:2
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- let $row_img_query= UPDATE t SET c2= 4 WHERE c1=1
+-- let $row_img_expected_master= 1:1 3:3 | 2:4
+-- let $row_img_expected_slave = 1:1 | 2:4
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+
+-- connection slave
 SELECT * FROM t;
-
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1}
--- let IMG_AI_EXPECTED={2=>4}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
 -- connection master
 SELECT * FROM t;
 
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>3}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 3=>3}
--- let IMG_AI_EXPECTED={2=>4}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
 DROP TABLE t;
 -- sync_slave_with_master
--- remove_file $TMP_FILE
 
 -- echo ##################################################################
--- echo # (S4-3) Test that if master has binlog_row_image=MINIMAL and slave has 
+-- echo # Test that if master has binlog_row_image=MINIMAL and slave has 
 -- echo # NOBLOB or FULL, it will log the expected columns
 -- echo ##################################################################
 
 -- source include/master-slave-reset.inc
 -- connection master
-# global so that flush tables restarts the 
-# insert dealyed thread
-SET GLOBAL binlog_row_image='MINIMAL';
-SET SESSION binlog_row_image='MINIMAL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-FLUSH TABLES;
--- connection slave
-# global so that SQL thread also gets the change
-SET GLOBAL binlog_row_image='FULL';
-SET SESSION binlog_row_image='FULL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-
--- source include/stop_slave.inc
--- source include/start_slave.inc
--- source include/master-slave-reset.inc
--- connection master
+-- let $row_img_set=master:MINIMAL:N,slave:FULL:Y
+-- source suite/rpl/include/rpl_row_img_set.inc
 
 SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c1));
@@ -670,72 +506,28 @@ SET SQL_LOG_BIN=1;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, c4 blob, unique key(c1));
 
 -- connection master
-INSERT INTO t VALUES (1, 2, 3);
-UPDATE t SET c2= 4 WHERE c1=1;
-DELETE FROM t WHERE c2=4;
--- sync_slave_with_master
+-- let $row_img_query= INSERT INTO t VALUES (1, 2, 3)
+-- let $row_img_expected_master= | 1:1 2:2 3:3
+-- let $row_img_expected_slave = | 1:1 2:2 3:3 4:NULL
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
 
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let $row_img_query= UPDATE t SET c2= 4 WHERE c1=1
+-- let $row_img_expected_master=  1:1 | 2:4
+-- let $row_img_expected_slave = 1:1 2:2 3:3 4:NULL | 1:1 2:4 3:3 4:NULL
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
 
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>3, 4=>NULL}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
+-- let $row_img_query= DELETE FROM t WHERE c2=4
+-- let $row_img_expected_master= 1:1 |
+-- let $row_img_expected_slave = 1:1 2:4 3:3 4:NULL | 
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
 
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 2=>2, 3=>3, 4=>NULL}
--- let IMG_AI_EXPECTED={1=>1, 2=>4, 3=>3, 4=>NULL}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>1, 2=>4, 3=>3, 4=>NULL}
--- let IMG_AI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
-
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>3}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1}
--- let IMG_AI_EXPECTED={2=>4}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>1}
--- let IMG_AI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
 DROP TABLE t;
 -- sync_slave_with_master
--- remove_file $TMP_FILE
 
 -- source include/master-slave-reset.inc
 -- connection master
-# global so that flush tables restarts the 
-# insert dealyed thread
-SET GLOBAL binlog_row_image='MINIMAL';
-SET SESSION binlog_row_image='MINIMAL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-FLUSH TABLES;
--- connection slave
-# global so that SQL thread also gets the change
-SET GLOBAL binlog_row_image='NOBLOB';
-SET SESSION binlog_row_image='NOBLOB';
-SHOW VARIABLES LIKE 'binlog_row_image';
-
--- source include/stop_slave.inc
--- source include/start_slave.inc
--- source include/master-slave-reset.inc
--- connection master
+-- let $row_img_set=master:MINIMAL:N,slave:NOBLOB:Y
+-- source suite/rpl/include/rpl_row_img_set.inc
 
 SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c1));
@@ -745,77 +537,32 @@ SET SQL_LOG_BIN=1;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, c4 blob, unique key(c1));
 
 -- connection master
-INSERT INTO t VALUES (1, 2, 3);
-UPDATE t SET c2= 4 WHERE c1=1;
-DELETE FROM t WHERE c2=4;
--- sync_slave_with_master
+-- let $row_img_query= INSERT INTO t VALUES (1, 2, 3)
+-- let $row_img_expected_master= | 1:1 2:2 3:3
+-- let $row_img_expected_slave = | 1:1 2:2 3:3
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
 
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/slave-bin.000001 > $TMP_FILE
+-- let $row_img_query= UPDATE t SET c2= 4 WHERE c1=1
+-- let $row_img_expected_master= 1:1 | 2:4
+-- let $row_img_expected_slave = 1:1 2:2 3:3 | 1:1 2:4 3:3
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
 
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>3}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
+-- let $row_img_query= DELETE FROM t WHERE c2=4
+-- let $row_img_expected_master= 1:1 |
+-- let $row_img_expected_slave = 1:1 2:4 3:3 | 
+-- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
 
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1, 2=>2, 3=>3}
--- let IMG_AI_EXPECTED={1=>1, 2=>4, 3=>3}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>1, 2=>4, 3=>3}
--- let IMG_AI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
-
--- let $MYSQLD_DATADIR= `select @@datadir;`
--- exec $MYSQL_BINLOG -v $MYSQLD_DATADIR/master-bin.000001 > $TMP_FILE
-
--- let IMG_STMT_TYPE=INSERT
--- let IMG_AI_EXPECTED={1=>1, 2=>2, 3=>3}
--- let IMG_BI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=UPDATE
--- let IMG_BI_EXPECTED={1=>1}
--- let IMG_AI_EXPECTED={2=>4}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- let IMG_STMT_TYPE=DELETE
--- let IMG_BI_EXPECTED={1=>1}
--- let IMG_AI_EXPECTED={}
--- source suite/rpl/include/rpl_row_mysqbinlog_img_check.inc
-
--- connection master
 DROP TABLE t;
 -- sync_slave_with_master
--- remove_file $TMP_FILE
-
 
 -- echo ################################################################
--- echo # (S4-4) Test that the slave stop with error if no usable data is on BI
+-- echo # Test that the slave stop with error if no usable data is on BI
 -- echo ################################################################
 
 -- source include/master-slave-reset.inc
 -- connection master
-# global so that flush tables restarts the 
-# insert dealyed thread
-SET GLOBAL binlog_row_image='MINIMAL';
-SET SESSION binlog_row_image='MINIMAL';
-SHOW VARIABLES LIKE 'binlog_row_image';
-FLUSH TABLES;
--- connection slave
-# global so that SQL thread also gets the change
-SET GLOBAL binlog_row_image='NOBLOB';
-SET SESSION binlog_row_image='NOBLOB';
-SHOW VARIABLES LIKE 'binlog_row_image';
-
--- source include/stop_slave.inc
--- source include/start_slave.inc
--- source include/master-slave-reset.inc
--- connection master
+-- let $row_img_set=master:MINIMAL:N,slave:NOBLOB:Y
+-- source suite/rpl/include/rpl_row_img_set.inc
 
 SET SQL_LOG_BIN=0;
 CREATE TABLE t (c1 int NOT NULL, c2 int, c3 int, primary key(c3));
@@ -832,8 +579,13 @@ DROP TABLE t;
 
 -- connection slave
 -- source include/wait_for_slave_sql_to_stop.inc
--- let $err= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1)
--- echo $err
+-- let $err= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1)
+if (`SELECT $err <> 1032`) 
+{
+  ## if error != HA_ERR_END_OF_FILE
+  SHOW SLAVE STATUS;
+  -- die UNEXPECTED ERROR: $err
+}
 -- source include/stop_slave.inc
 
 DROP TABLE t;

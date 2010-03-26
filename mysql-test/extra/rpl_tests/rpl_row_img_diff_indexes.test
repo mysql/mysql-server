@@ -4,8 +4,7 @@
 #  ===========
 #
 #  This test case covers Requirements for different index structures
-#  on both master and slave. This covers requirements R1 and R4 from
-#  WL#5092, section "Index Structures".
+#  on both master and slave.
 #
 #  Usage
 #  =====
@@ -237,11 +236,11 @@ while($i)
 
   -- let $diff_table_1=mysqld_a:$diff_table
   -- let $diff_table_2=mysqld_b:$diff_table
-  -- source include/diff_tables2.inc
+  -- source include/diff_tables.inc
 
   -- let $diff_table_1=mysqld_b:$diff_table
   -- let $diff_table_2=mysqld_c:$diff_table
-  -- source include/diff_tables2.inc
+  -- source include/diff_tables.inc
 
   -- connection mysqld_a
   -- eval DELETE FROM t WHERE c2=$blob1
@@ -252,11 +251,11 @@ while($i)
 
   -- let $diff_table_1=mysqld_a:$diff_table
   -- let $diff_table_2=mysqld_b:$diff_table
-  -- source include/diff_tables2.inc
+  -- source include/diff_tables.inc
 
   -- let $diff_table_1=mysqld_b:$diff_table
   -- let $diff_table_2=mysqld_c:$diff_table
-  -- source include/diff_tables2.inc
+  -- source include/diff_tables.inc
 
   -- connection mysqld_a
 
