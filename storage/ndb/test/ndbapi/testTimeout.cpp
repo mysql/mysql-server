@@ -370,10 +370,16 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
       CHECK(hugoOps.execute_NoCommit(pNdb) == 0);
       
       int remain = maxSleep;
-      for (int i = 0; i < 3; i++){
-	// Perform buddy scan reads
-	CHECK((hugoOps.scanReadRecords(pNdb)) == 0);
-	CHECK(hugoOps.execute_NoCommit(pNdb) == 0); 
+      for (int i = 0; i < 3; i++)
+      {
+        NdbTransaction* pTrans = hugoOps.getTransaction();
+
+        // Perform buddy scan reads
+        NdbScanOperation* pOp = pTrans->getNdbScanOperation(ctx->getTab());
+        CHECK(pOp != 0);
+        CHECK(pOp->readTuples(NdbOperation::LM_Read, 0, 0, 1) == 0);
+        CHECK(pTrans->execute(NoCommit) == 0);
+        while(pOp->nextResult() == 0);
 	
         int sleep = myRandom48(remain);
         remain = remain - sleep + 1;

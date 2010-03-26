@@ -219,7 +219,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_type = type;
   proc.m_host = host_ptr;
   proc.m_save.m_saved = false;
-  proc.m_nodeid= cluster.m_next_nodeid++;
+  proc.m_nodeid= -1;
   proc.m_cluster = &cluster;
   proc.m_options.m_features = 0;
   proc.m_rep_src = 0;
@@ -244,6 +244,8 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   const char *groups[] = { 0, 0, 0, 0 };
   switch(type){
   case atrt_process::AP_NDB_MGMD:
+    proc.m_nodeid= cluster.m_next_nodeid++; // always specify node-id
+
     groups[0] = "cluster_config";
     buf[1].assfmt("cluster_config.ndb_mgmd.%u", idx);
     groups[1] = buf[1].c_str();
@@ -251,6 +253,9 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     argv[argc++] = buf[0].c_str();
     break;
   case atrt_process::AP_NDBD: 
+    if (g_fix_nodeid)
+      proc.m_nodeid= cluster.m_next_nodeid++;
+
     groups[0] = "cluster_config";
     buf[1].assfmt("cluster_config.ndbd.%u", idx);
     groups[1] = buf[1].c_str();
@@ -258,6 +263,9 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     argv[argc++] = buf[0].c_str();
     break;
   case atrt_process::AP_MYSQLD:
+    if (g_fix_nodeid)
+      proc.m_nodeid= cluster.m_next_nodeid++;
+
     groups[0] = "mysqld";
     groups[1] = "mysql_cluster";
     buf[0].assfmt("--defaults-group-suffix=.%u%s",idx,cluster.m_name.c_str());
@@ -268,6 +276,8 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     groups[0] = buf[0].c_str();
     break;
   case atrt_process::AP_NDB_API:
+    if (g_fix_nodeid)
+      proc.m_nodeid= cluster.m_next_nodeid++;
     break;
   default:
     g_logger.critical("Unhandled process type: %d", type);

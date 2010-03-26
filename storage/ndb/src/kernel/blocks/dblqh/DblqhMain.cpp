@@ -193,7 +193,7 @@ static int TRACENR_FLAG = 0;
 static NdbOut * traceopout = 0;
 #define TRACE_OP(regTcPtr, place) do { if (TRACE_OP_CHECK(regTcPtr)) TRACE_OP_DUMP(regTcPtr, place); } while(0)
 #else
-#define TRACE_OP(x, y) {}
+#define TRACE_OP(x, y) { (void)x;}
 #endif
 
 struct LogPosition
@@ -2932,6 +2932,7 @@ void Dblqh::execLQHKEYREF(Signal* signal)
 {
   jamEntry();
   tcConnectptr.i = signal->theData[0];
+  Uint32 tcOprec  = signal->theData[1];
   terrorCode = signal->theData[2];
   Uint32 transid1 = signal->theData[3];
   Uint32 transid2 = signal->theData[4];
@@ -2939,20 +2940,38 @@ void Dblqh::execLQHKEYREF(Signal* signal)
     errorReport(signal, 3);
     return;
   }//if
-/*------------------------------------------------------------------*/
-/*       WE HAVE TO CHECK THAT THE SIGNAL DO NOT BELONG TO SOMETHING*/
-/*       REMOVED DUE TO A TIME-OUT.                                 */
-/*------------------------------------------------------------------*/
+
   ptrAss(tcConnectptr, tcConnectionrec);
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
+
+  if (likely(! ((regTcPtr->connectState == TcConnectionrec::LOG_CONNECTED) ||
+                (regTcPtr->connectState == TcConnectionrec::COPY_CONNECTED))))
+  {
+    /**
+     * This...is unpleasant...
+     *   LOG_CONNECTED and COPY_CONNECTED will not release there tcConnectptr
+     *   before all outstanding is finished.
+     *
+     *   CONNECTED on the other hand can, (in ::execABORT)
+     *     which means that findTransaction *should* be used
+     *     to make sure that correct tcConnectptr is accessed.
+     *
+     *   However, as LOG_CONNECTED & COPY_CONNECTED only uses 1 tcConnectptr
+     *     (and fiddles) with transid and other stuff, I could
+     *     not find an easy way to modify the code so that findTransaction
+     *     is usable also for them
+     */
+    if (findTransaction(transid1, transid2, tcOprec) != ZOK)
+    {
+      jam();
+      warningReport(signal, 14);
+      return;
+    }
+  }
+
   switch (regTcPtr->connectState) {
   case TcConnectionrec::CONNECTED:
     jam();
-    if ((regTcPtr->transid[0] != transid1) ||
-        (regTcPtr->transid[1] != transid2)) {
-      warningReport(signal, 14);
-      return;
-    }//if
     if (regTcPtr->abortState != TcConnectionrec::ABORT_IDLE) {
       warningReport(signal, 15);
       return;
@@ -3343,6 +3362,7 @@ void Dblqh::execTUPKEYREF(Signal* signal)
 /* ------------------------------------------------------------------------- */
     break;
   default:
+    jamLine(tcConnectptr.p->transactionState);
     ndbrequire(false);
     break;
   }//switch
@@ -7355,7 +7375,7 @@ void Dblqh::execLQHKEYCONF(Signal* signal)
     return;
     break;
   default:
-    jam();
+    jamLine(tcConnectptr.p->connectState);
     ndbrequire(false);
     break;
   }//switch
@@ -8199,15 +8219,7 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
     return;
   case TcConnectionrec::WAIT_ACC:
     jam();
-/* ------------------------------------------------------------------------- */
-// We start the abort immediately since the operation is still in the active
-// list and the fragment cannot have been frozen yet. By sending LCP_HOLDOPCONF
-// as direct signals we avoid the problem that we might find the operation
-// in an unexpected list in ACC.
-// We cannot accept being blocked before aborting ACC here since that would
-// lead to seriously complex issues.
-/* ------------------------------------------------------------------------- */
-    abortContinueAfterBlockedLab(signal, false);
+    abortContinueAfterBlockedLab(signal);
     return;
     break;
   case TcConnectionrec::LOG_QUEUED:
@@ -8362,7 +8374,7 @@ void Dblqh::abortCommonLab(Signal* signal)
     case Fragrecord::CRASH_RECOVERING:
     case Fragrecord::ACTIVE_CREATION:
       jam();
-      abortContinueAfterBlockedLab(signal, true);
+      abortContinueAfterBlockedLab(signal);
       return;
       break;
     case Fragrecord::BLOCKED:
@@ -8387,7 +8399,7 @@ void Dblqh::abortCommonLab(Signal* signal)
   }//if
 }//Dblqh::abortCommonLab()
 
-void Dblqh::abortContinueAfterBlockedLab(Signal* signal, bool canBlock) 
+void Dblqh::abortContinueAfterBlockedLab(Signal* signal) 
 {
   /* ------------------------------------------------------------------------
    *       INPUT:          TC_CONNECTPTR           ACTIVE OPERATION RECORD
@@ -8402,10 +8414,24 @@ void Dblqh::abortContinueAfterBlockedLab(Signal* signal, bool canBlock)
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   
   TRACE_OP(regTcPtr, "ACC ABORT");
-  
+  Uint32 canBlock = 2; // 2, block if needed
+  switch(regTcPtr->transactionState){
+  case TcConnectionrec::WAIT_TUP:
+    jam();
+    /**
+     * This is when getting from execTUPKEYREF
+     *   in which case we *do* have ACC lock
+     *   and should not (need to) block
+     */
+    canBlock = 0;
+    break;
+  default:
+    break;
+  }
+
   regTcPtr->transactionState = TcConnectionrec::WAIT_ACC_ABORT;
   signal->theData[0] = regTcPtr->accConnectrec;
-  signal->theData[1] = 2; // JOB BUFFER IF NEEDED
+  signal->theData[1] = canBlock;
   EXECUTE_DIRECT(DBACC, GSN_ACC_ABORTREQ, signal, 2);
 
   if (signal->theData[1] == RNIL)
@@ -12796,6 +12822,25 @@ void Dblqh::execLCP_FRAG_ORD(Signal* signal)
 
     lcpPtr.p->firstFragmentFlag= true;
     
+#ifdef ERROR_INSERT
+    if (check_ndb_versions())
+    {
+      /**
+       * Only (so-far) in error insert
+       *   check that keepGci (tail of REDO) is smaller than of head of REDO
+       *
+       */
+      if (! ((cnewestCompletedGci >= lcpFragOrd->keepGci) &&
+             (cnewestGci >= lcpFragOrd->keepGci)))
+      {
+        ndbout_c("lcpFragOrd->keepGci: %u cnewestCompletedGci: %u cnewestGci: %u",
+                 lcpFragOrd->keepGci, cnewestCompletedGci, cnewestGci);
+      }
+      ndbrequire(cnewestCompletedGci >= lcpFragOrd->keepGci);
+      ndbrequire(cnewestGci >= lcpFragOrd->keepGci);
+    }
+#endif
+
     c_lcpId = lcpFragOrd->lcpId;
     ndbrequire(lcpPtr.p->lcpState == LcpRecord::LCP_IDLE);
     setLogTail(signal, lcpFragOrd->keepGci);
@@ -15924,7 +15969,14 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   Uint32 noOfLogNodes = startFragReq->noOfLogNodes;
   Uint32 lcpId = startFragReq->lcpId;
 
-  if (noOfLogNodes > 1)
+  bool doprint = false;
+#ifdef ERROR_INSERT
+  /**
+   * Always printSTART_FRAG_REQ (for debugging) if ERROR_INSERT is set
+   */
+  doprint = true;
+#endif
+  if (doprint || noOfLogNodes > 1)
   {
     printSTART_FRAG_REQ(stdout, signal->getDataPtr(), signal->getLength(),
                         number());
@@ -16126,6 +16178,11 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   crestartNewestGci = req->lastCompletedGci;
   cnewestGci = req->newestGci;
   cstartRecReqData = req->senderData;
+
+  if (check_ndb_versions())
+  {
+    ndbrequire(crestartOldestGci <= crestartNewestGci);
+  }
 
   ndbrequire(req->receivingNodeId == cownNodeid);
 
@@ -17437,6 +17494,14 @@ crash:
 		       crash_msg ? crash_msg : "",
 		       logPartPtr.p->logLastGci);
   
+  ndbout_c("%s", buf);
+  ndbout_c("logPartPtr.p->logExecState: %u", logPartPtr.p->logExecState);
+  ndbout_c("crestartOldestGci: %u", crestartOldestGci);
+  ndbout_c("crestartNewestGci: %u", crestartNewestGci);
+  ndbout_c("csrPhasesCompleted: %u", csrPhasesCompleted);
+  ndbout_c("logPartPtr.p->logStartGci: %u", logPartPtr.p->logStartGci);
+  ndbout_c("logPartPtr.p->logLastGci: %u", logPartPtr.p->logLastGci);
+  
   progError(__LINE__, NDBD_EXIT_SR_REDOLOG, buf);  
 }//Dblqh::execSr()
 
@@ -18169,8 +18234,20 @@ void Dblqh::readSrFourthPhaseLab(Signal* signal)
    *  INITIALISE LOG LAP TO BE THE LOG LAP AS FOUND IN THE HEAD PAGE.
    *  WE HAVE TO CALCULATE THE NUMBER OF REMAINING WORDS IN THIS MBYTE.
    * ----------------------------------------------------------------------- */
-  cnewestGci = crestartNewestGci;
-  cnewestCompletedGci = crestartNewestGci;
+  Uint32 gci = crestartNewestGci;
+  if (crestartOldestGci > gci)
+  {
+    jam();
+    /**
+     * If "keepGci" is bigger than latest-completed-gci
+     *   move cnewest/cnewestCompletedGci forward
+     */
+    ndbout_c("readSrFourthPhaseLab: gci %u => %u",
+             gci, crestartOldestGci);
+    gci = crestartOldestGci;
+  }
+  cnewestGci = gci;
+  cnewestCompletedGci = gci;
   logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
   logPartPtr.p->currentLogfile = logFilePtr.i;
   logFilePtr.p->filePosition = logPartPtr.p->headPageNo;
@@ -22642,3 +22719,21 @@ Dblqh::release(Signal* signal, RedoOpenFileCache & cache)
 }
 
 #endif
+
+bool
+Dblqh::check_ndb_versions() const
+{
+  Uint32 version = getNodeInfo(getOwnNodeId()).m_version;
+  for (Uint32 i = 0; i < cnoOfNodes; i++) 
+  {
+    Uint32 node = cnodeData[i];
+    if (cnodeStatus[i] == ZNODE_UP)
+    {
+      if(getNodeInfo(node).m_version != version)
+      {
+        return false;
+      }
+    }
+  }
+  return true;
+}
