@@ -33,8 +33,8 @@ protected:
   struct Ss_ALTER_INDX_IMPL_REQ : SsParallel {
     AlterIndxImplReq m_req;
     Ss_ALTER_INDX_IMPL_REQ() {
-      m_sendREQ = (SsFUNC)&DbtuxProxy::sendALTER_INDX_IMPL_REQ;
-      m_sendCONF = (SsFUNC)&DbtuxProxy::sendALTER_INDX_IMPL_CONF;
+      m_sendREQ = (SsFUNCREQ)&DbtuxProxy::sendALTER_INDX_IMPL_REQ;
+      m_sendCONF = (SsFUNCREP)&DbtuxProxy::sendALTER_INDX_IMPL_CONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_ALTER_INDX_IMPL_REQ>& pool(LocalProxy* proxy) {
@@ -43,7 +43,7 @@ protected:
   };
   SsPool<Ss_ALTER_INDX_IMPL_REQ> c_ss_ALTER_INDX_IMPL_REQ;
   void execALTER_INDX_IMPL_REQ(Signal*);
-  void sendALTER_INDX_IMPL_REQ(Signal*, Uint32 ssId);
+  void sendALTER_INDX_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execALTER_INDX_IMPL_CONF(Signal*);
   void execALTER_INDX_IMPL_REF(Signal*);
   void sendALTER_INDX_IMPL_CONF(Signal*, Uint32 ssId);

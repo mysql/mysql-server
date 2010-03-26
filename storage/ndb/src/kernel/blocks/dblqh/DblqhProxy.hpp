@@ -52,8 +52,8 @@ protected:
     CreateTabReq m_req;
     Uint32 m_lqhConnectPtr[MaxWorkers];
     Ss_CREATE_TAB_REQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendCREATE_TAB_REQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendCREATE_TAB_CONF;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendCREATE_TAB_REQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendCREATE_TAB_CONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_CREATE_TAB_REQ>& pool(LocalProxy* proxy) {
@@ -62,7 +62,7 @@ protected:
   };
   SsPool<Ss_CREATE_TAB_REQ> c_ss_CREATE_TAB_REQ;
   void execCREATE_TAB_REQ(Signal*);
-  void sendCREATE_TAB_REQ(Signal*, Uint32 ssId);
+  void sendCREATE_TAB_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execCREATE_TAB_CONF(Signal*);
   void execCREATE_TAB_REF(Signal*);
   void sendCREATE_TAB_CONF(Signal*, Uint32 ssId);
@@ -72,8 +72,8 @@ protected:
     LqhAddAttrReq m_req;
     Uint32 m_reqlength;
     Ss_LQHADDATTREQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendLQHADDATTREQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendLQHADDATTCONF;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendLQHADDATTREQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendLQHADDATTCONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_LQHADDATTREQ>& pool(LocalProxy* proxy) {
@@ -82,7 +82,7 @@ protected:
   };
   SsPool<Ss_LQHADDATTREQ> c_ss_LQHADDATTREQ;
   void execLQHADDATTREQ(Signal*);
-  void sendLQHADDATTREQ(Signal*, Uint32 ssId);
+  void sendLQHADDATTREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execLQHADDATTCONF(Signal*);
   void execLQHADDATTREF(Signal*);
   void sendLQHADDATTCONF(Signal*, Uint32 ssId);
@@ -94,8 +94,8 @@ protected:
   struct Ss_TAB_COMMITREQ : SsParallel {
     TabCommitReq m_req;
     Ss_TAB_COMMITREQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendTAB_COMMITREQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendTAB_COMMITCONF;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendTAB_COMMITREQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendTAB_COMMITCONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_TAB_COMMITREQ>& pool(LocalProxy* proxy) {
@@ -104,7 +104,7 @@ protected:
   };
   SsPool<Ss_TAB_COMMITREQ> c_ss_TAB_COMMITREQ;
   void execTAB_COMMITREQ(Signal*);
-  void sendTAB_COMMITREQ(Signal*, Uint32 ssId);
+  void sendTAB_COMMITREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execTAB_COMMITCONF(Signal*);
   void execTAB_COMMITREF(Signal*);
   void sendTAB_COMMITCONF(Signal*, Uint32 ssId);
@@ -114,8 +114,8 @@ protected:
     static const char* name() { return "GCP_SAVEREQ"; }
     GCPSaveReq m_req;
     Ss_GCP_SAVEREQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendGCP_SAVEREQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendGCP_SAVECONF;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendGCP_SAVEREQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendGCP_SAVECONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_GCP_SAVEREQ>& pool(LocalProxy* proxy) {
@@ -133,7 +133,7 @@ protected:
     return SsIdBase | (ref->gci & 0xFFFF);
   }
   void execGCP_SAVEREQ(Signal*);
-  void sendGCP_SAVEREQ(Signal*, Uint32 ssId);
+  void sendGCP_SAVEREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execGCP_SAVECONF(Signal*);
   void execGCP_SAVEREF(Signal*);
   void sendGCP_SAVECONF(Signal*, Uint32 ssId);
@@ -145,8 +145,8 @@ protected:
   struct Ss_PREP_DROP_TAB_REQ : SsParallel {
     PrepDropTabReq m_req;
     Ss_PREP_DROP_TAB_REQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendPREP_DROP_TAB_REQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendPREP_DROP_TAB_CONF;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendPREP_DROP_TAB_REQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendPREP_DROP_TAB_CONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_PREP_DROP_TAB_REQ>& pool(LocalProxy* proxy) {
@@ -164,7 +164,7 @@ protected:
     return SsIdBase | ref->tableId;
   }
   void execPREP_DROP_TAB_REQ(Signal*);
-  void sendPREP_DROP_TAB_REQ(Signal*, Uint32 ssId);
+  void sendPREP_DROP_TAB_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execPREP_DROP_TAB_CONF(Signal*);
   void execPREP_DROP_TAB_REF(Signal*);
   void sendPREP_DROP_TAB_CONF(Signal*, Uint32 ssId);
@@ -173,8 +173,8 @@ protected:
   struct Ss_DROP_TAB_REQ : SsParallel {
     DropTabReq m_req;
     Ss_DROP_TAB_REQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendDROP_TAB_REQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendDROP_TAB_CONF;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendDROP_TAB_REQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendDROP_TAB_CONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_DROP_TAB_REQ>& pool(LocalProxy* proxy) {
@@ -192,7 +192,7 @@ protected:
     return SsIdBase | ref->tableId;
   }
   void execDROP_TAB_REQ(Signal*);
-  void sendDROP_TAB_REQ(Signal*, Uint32 ssId);
+  void sendDROP_TAB_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execDROP_TAB_CONF(Signal*);
   void execDROP_TAB_REF(Signal*);
   void sendDROP_TAB_CONF(Signal*, Uint32 ssId);
@@ -200,16 +200,9 @@ protected:
   // GSN_ALTER_TAB_REQ
   struct Ss_ALTER_TAB_REQ : SsParallel {
     AlterTabReq m_req;
-    Uint32 m_sections;
-    // wl4391_todo check max length in various cases
-    enum { MaxSection0 = 2 * MAX_ATTRIBUTES_IN_TABLE };
-    Uint32 m_sz0;
-    Uint32 m_section0[MaxSection0];
     Ss_ALTER_TAB_REQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendALTER_TAB_REQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendALTER_TAB_CONF;
-      m_sections = 0;
-      m_sz0 = 0;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendALTER_TAB_REQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendALTER_TAB_CONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_ALTER_TAB_REQ>& pool(LocalProxy* proxy) {
@@ -227,7 +220,7 @@ protected:
     return ref->senderData;
   }
   void execALTER_TAB_REQ(Signal*);
-  void sendALTER_TAB_REQ(Signal*, Uint32 ssId);
+  void sendALTER_TAB_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execALTER_TAB_CONF(Signal*);
   void execALTER_TAB_REF(Signal*);
   void sendALTER_TAB_CONF(Signal*, Uint32 ssId);
@@ -254,8 +247,8 @@ protected:
       Uint32 m_ssId;
     } m_req2[m_req2cnt];
     Ss_START_RECREQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendSTART_RECREQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendSTART_RECCONF;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendSTART_RECREQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendSTART_RECCONF;
       m_req2[0].m_blockNo = LGMAN;
       m_req2[1].m_blockNo = TSMAN;
     }
@@ -266,7 +259,7 @@ protected:
   };
   SsPool<Ss_START_RECREQ> c_ss_START_RECREQ;
   void execSTART_RECREQ(Signal*);
-  void sendSTART_RECREQ(Signal*, Uint32 ssId);
+  void sendSTART_RECREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execSTART_RECCONF(Signal*);
   void sendSTART_RECCONF(Signal*, Uint32 ssId);
 
@@ -287,8 +280,8 @@ protected:
     Conf m_conf;
     Ss_START_RECREQ_2() {
       // reversed sendREQ/sendCONF
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendSTART_RECCONF_2;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendSTART_RECREQ_2;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendSTART_RECCONF_2;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendSTART_RECREQ_2;
     }
     enum { poolSize = 2 };
     static SsPool<Ss_START_RECREQ_2>& pool(LocalProxy* proxy) {
@@ -305,7 +298,7 @@ protected:
   void execSTART_RECREQ_2(Signal*);
   void sendSTART_RECREQ_2(Signal*, Uint32 ssId);
   void execSTART_RECCONF_2(Signal*);
-  void sendSTART_RECCONF_2(Signal*, Uint32 ssId);
+  void sendSTART_RECCONF_2(Signal*, Uint32 ssId, SectionHandle*);
 
   // GSN_LQH_TRANSREQ
   struct Ss_LQH_TRANSREQ : SsParallel {
@@ -319,8 +312,8 @@ protected:
     LqhTransConf m_conf; // latest conf
     Ss_LQH_TRANSREQ() {
       m_valid = true;
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendLQH_TRANSREQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendLQH_TRANSCONF;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendLQH_TRANSREQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendLQH_TRANSCONF;
     }
     enum { poolSize = MAX_NDB_NODES };
     static SsPool<Ss_LQH_TRANSREQ>& pool(LocalProxy* proxy) {
@@ -329,7 +322,7 @@ protected:
   };
   SsPool<Ss_LQH_TRANSREQ> c_ss_LQH_TRANSREQ;
   void execLQH_TRANSREQ(Signal*);
-  void sendLQH_TRANSREQ(Signal*, Uint32 ssId);
+  void sendLQH_TRANSREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execLQH_TRANSCONF(Signal*);
   void sendLQH_TRANSCONF(Signal*, Uint32 ssId);
 
@@ -350,8 +343,8 @@ protected:
     GlobalSignalNumber m_gsn;
     Sig m_sig;
     Ss_EXEC_SR_1() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendEXEC_SR_1;
-      m_sendCONF = (SsFUNC)0;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendEXEC_SR_1;
+      m_sendCONF = (SsFUNCREP)0;
       m_gsn = 0;
     };
     enum { poolSize = 1 };
@@ -366,7 +359,7 @@ protected:
   void execEXEC_SRREQ(Signal*);
   void execEXEC_SRCONF(Signal*);
   void execEXEC_SR_1(Signal*, GlobalSignalNumber gsn);
-  void sendEXEC_SR_1(Signal*, Uint32 ssId);
+  void sendEXEC_SR_1(Signal*, Uint32 ssId, SectionHandle*);
 
   // GSN_EXEC_SR_2 [ fictional gsn ]
   struct Ss_EXEC_SR_2 : SsParallel {
@@ -381,8 +374,8 @@ protected:
     Sig m_sig; // all signals must be identical
     Ss_EXEC_SR_2() {
       // reversed roles
-      m_sendREQ = (SsFUNC)0;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendEXEC_SR_2;
+      m_sendREQ = (SsFUNCREQ)0;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendEXEC_SR_2;
       m_gsn = 0;
       m_sigcount = 0;
     };
@@ -410,8 +403,8 @@ protected:
   struct Ss_DROP_FRAG_REQ : SsParallel {
     DropFragReq m_req;
     Ss_DROP_FRAG_REQ() {
-      m_sendREQ = (SsFUNC)&DblqhProxy::sendDROP_FRAG_REQ;
-      m_sendCONF = (SsFUNC)&DblqhProxy::sendDROP_FRAG_CONF;
+      m_sendREQ = (SsFUNCREQ)&DblqhProxy::sendDROP_FRAG_REQ;
+      m_sendCONF = (SsFUNCREP)&DblqhProxy::sendDROP_FRAG_CONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_DROP_FRAG_REQ>& pool(LocalProxy* proxy) {
@@ -429,7 +422,7 @@ protected:
     return SsIdBase | (ref->tableId ^ ref->fragId);
   }
   void execDROP_FRAG_REQ(Signal*);
-  void sendDROP_FRAG_REQ(Signal*, Uint32 ssId);
+  void sendDROP_FRAG_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execDROP_FRAG_CONF(Signal*);
   void execDROP_FRAG_REF(Signal*);
   void sendDROP_FRAG_CONF(Signal*, Uint32 ssId);

@@ -117,14 +117,17 @@ protected:
 
   // support routines and classes ("Ss" = signal state)
 
-  typedef void (LocalProxy::*SsFUNC)(Signal*, Uint32 ssId);
+  typedef void (LocalProxy::*SsFUNCREQ)(Signal*, Uint32 ssId, SectionHandle*);
+  typedef void (LocalProxy::*SsFUNCREP)(Signal*, Uint32 ssId);
 
   struct SsCommon {
     Uint32 m_ssId;      // unique id in SsPool (below)
-    SsFUNC m_sendREQ;   // from proxy to worker
-    SsFUNC m_sendCONF;  // from proxy to caller
+    SsFUNCREQ m_sendREQ;   // from proxy to worker
+    SsFUNCREP m_sendCONF;  // from proxy to caller
     Uint32 m_worker;    // current worker
     Uint32 m_error;
+    Uint32 m_sec_cnt;
+    Uint32 m_sec_ptr[3];
     static const char* name() { return "UNDEF"; }
     SsCommon() {
       m_ssId = 0;
@@ -132,6 +135,7 @@ protected:
       m_sendCONF = 0;
       m_worker = 0;
       m_error = 0;
+      m_sec_cnt = 0;
     }
   };
 
@@ -148,6 +152,9 @@ protected:
   // for use in sendCONF
   bool firstReply(const SsSequential& ss);
   bool lastReply(const SsSequential& ss);
+
+  void saveSections(SsCommon&ss, SectionHandle&);
+  void restoreHandle(SectionHandle&, SsCommon&);
 
   // run workers in parallel
   struct SsParallel : SsCommon {
@@ -322,7 +329,7 @@ protected:
   void execREAD_CONFIG_REQ(Signal*);
   virtual void callREAD_CONFIG_REQ(Signal*);
   void backREAD_CONFIG_REQ(Signal*);
-  void sendREAD_CONFIG_REQ(Signal*, Uint32 ssId);
+  void sendREAD_CONFIG_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execREAD_CONFIG_CONF(Signal*);
   void sendREAD_CONFIG_CONF(Signal*, Uint32 ssId);
 
@@ -345,7 +352,7 @@ protected:
   void execSTTOR(Signal*);
   virtual void callSTTOR(Signal*);
   void backSTTOR(Signal*);
-  void sendSTTOR(Signal*, Uint32 ssId);
+  void sendSTTOR(Signal*, Uint32 ssId, SectionHandle*);
   void execSTTORRY(Signal*);
   void sendSTTORRY(Signal*, Uint32 ssId);
 
@@ -366,7 +373,7 @@ protected:
   void execNDB_STTOR(Signal*);
   virtual void callNDB_STTOR(Signal*);
   void backNDB_STTOR(Signal*);
-  void sendNDB_STTOR(Signal*, Uint32 ssId);
+  void sendNDB_STTOR(Signal*, Uint32 ssId, SectionHandle*);
   void execNDB_STTORRY(Signal*);
   void sendNDB_STTORRY(Signal*, Uint32 ssId);
 
@@ -403,7 +410,7 @@ protected:
   };
   SsPool<Ss_NODE_FAILREP> c_ss_NODE_FAILREP;
   void execNODE_FAILREP(Signal*);
-  void sendNODE_FAILREP(Signal*, Uint32 ssId);
+  void sendNODE_FAILREP(Signal*, Uint32 ssId, SectionHandle*);
   void execNF_COMPLETEREP(Signal*);
   void sendNF_COMPLETEREP(Signal*, Uint32 ssId);
 
@@ -432,7 +439,7 @@ protected:
   };
   SsPool<Ss_INCL_NODEREQ> c_ss_INCL_NODEREQ;
   void execINCL_NODEREQ(Signal*);
-  void sendINCL_NODEREQ(Signal*, Uint32 ssId);
+  void sendINCL_NODEREQ(Signal*, Uint32 ssId, SectionHandle*);
   void execINCL_NODECONF(Signal*);
   void sendINCL_NODECONF(Signal*, Uint32 ssId);
 
@@ -449,7 +456,7 @@ protected:
   };
   SsPool<Ss_NODE_STATE_REP> c_ss_NODE_STATE_REP;
   void execNODE_STATE_REP(Signal*);
-  void sendNODE_STATE_REP(Signal*, Uint32 ssId);
+  void sendNODE_STATE_REP(Signal*, Uint32 ssId, SectionHandle*);
 
   // GSN_CHANGE_NODE_STATE_REQ
   struct Ss_CHANGE_NODE_STATE_REQ : SsParallel {
@@ -465,7 +472,7 @@ protected:
   };
   SsPool<Ss_CHANGE_NODE_STATE_REQ> c_ss_CHANGE_NODE_STATE_REQ;
   void execCHANGE_NODE_STATE_REQ(Signal*);
-  void sendCHANGE_NODE_STATE_REQ(Signal*, Uint32 ssId);
+  void sendCHANGE_NODE_STATE_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execCHANGE_NODE_STATE_CONF(Signal*);
   void sendCHANGE_NODE_STATE_CONF(Signal*, Uint32 ssId);
 
@@ -484,7 +491,7 @@ protected:
   };
   SsPool<Ss_DUMP_STATE_ORD> c_ss_DUMP_STATE_ORD;
   void execDUMP_STATE_ORD(Signal*);
-  void sendDUMP_STATE_ORD(Signal*, Uint32 ssId);
+  void sendDUMP_STATE_ORD(Signal*, Uint32 ssId, SectionHandle*);
 
   // GSN_NDB_TAMPER
   struct Ss_NDB_TAMPER : SsParallel {
@@ -500,7 +507,7 @@ protected:
   };
   SsPool<Ss_NDB_TAMPER> c_ss_NDB_TAMPER;
   void execNDB_TAMPER(Signal*);
-  void sendNDB_TAMPER(Signal*, Uint32 ssId);
+  void sendNDB_TAMPER(Signal*, Uint32 ssId, SectionHandle*);
 
   // GSN_TIME_SIGNAL
   struct Ss_TIME_SIGNAL : SsParallel {
@@ -515,7 +522,7 @@ protected:
   };
   SsPool<Ss_TIME_SIGNAL> c_ss_TIME_SIGNAL;
   void execTIME_SIGNAL(Signal*);
-  void sendTIME_SIGNAL(Signal*, Uint32 ssId);
+  void sendTIME_SIGNAL(Signal*, Uint32 ssId, SectionHandle*);
 
   // GSN_CREATE_TRIG_IMPL_REQ
   struct Ss_CREATE_TRIG_IMPL_REQ : SsParallel {
@@ -531,7 +538,7 @@ protected:
   };
   SsPool<Ss_CREATE_TRIG_IMPL_REQ> c_ss_CREATE_TRIG_IMPL_REQ;
   void execCREATE_TRIG_IMPL_REQ(Signal*);
-  void sendCREATE_TRIG_IMPL_REQ(Signal*, Uint32 ssId);
+  void sendCREATE_TRIG_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execCREATE_TRIG_IMPL_CONF(Signal*);
   void execCREATE_TRIG_IMPL_REF(Signal*);
   void sendCREATE_TRIG_IMPL_CONF(Signal*, Uint32 ssId);
@@ -550,7 +557,7 @@ protected:
   };
   SsPool<Ss_DROP_TRIG_IMPL_REQ> c_ss_DROP_TRIG_IMPL_REQ;
   void execDROP_TRIG_IMPL_REQ(Signal*);
-  void sendDROP_TRIG_IMPL_REQ(Signal*, Uint32 ssId);
+  void sendDROP_TRIG_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execDROP_TRIG_IMPL_CONF(Signal*);
   void execDROP_TRIG_IMPL_REF(Signal*);
   void sendDROP_TRIG_IMPL_CONF(Signal*, Uint32 ssId);
