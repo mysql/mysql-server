@@ -2443,7 +2443,7 @@ private:
   void srPhase3Start(Signal* signal);
   void checkStartCompletedLab(Signal* signal);
   void continueAbortLab(Signal* signal);
-  void abortContinueAfterBlockedLab(Signal* signal, bool canBlock);
+  void abortContinueAfterBlockedLab(Signal* signal);
   void abortCommonLab(Signal* signal);
   void localCommitLab(Signal* signal);
   void abortErrorLab(Signal* signal);
@@ -3170,6 +3170,7 @@ public:
 #endif
 
   Uint32 get_node_status(Uint32 nodeId) const;
+  bool check_ndb_versions() const;
 };
 
 inline

@@ -3145,11 +3145,11 @@ Backup::backupAllData(Signal* signal, BackupRecordPtr ptr)
    * Get all tables from dict
    */
   ListTablesReq * req = (ListTablesReq*)signal->getDataPtrSend();
+  req->init();
   req->senderRef = reference();
   req->senderData = ptr.i;
-  req->requestData = 0;
-  req->tableId = 0;
-  req->tableType = 0;
+  req->setTableId(0);
+  req->setTableType(0);
   sendSignal(DBDICT_REF, GSN_LIST_TABLES_REQ, signal, 
 	     ListTablesReq::SignalLength, JBB);
 }
