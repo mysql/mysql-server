@@ -154,6 +154,7 @@ class NdbTransaction
   friend class NdbBlob;
   friend class ha_ndbcluster;
   friend class NdbQueryImpl;
+  friend class NdbQueryOperationImpl;
 #endif
 
 public:

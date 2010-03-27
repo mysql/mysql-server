@@ -101,7 +101,7 @@ NdbTransaction::receiveSCAN_TABCONF(NdbApiSignal* aSignal,
   if (checkState_TransId(&conf->transId1)) {
     
     /*
-      If both EndOfData is set and number of operations is 0, close the scan.
+      If EndOfData is set, close the scan.
     */
     if (conf->requestInfo == ScanTabConf::EndOfData) {
       if (theScanningOp) {

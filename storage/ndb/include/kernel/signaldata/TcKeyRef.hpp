@@ -27,6 +27,7 @@ class TcKeyRef {
    * Receiver(s)
    */
   friend class NdbOperation;
+  friend class NdbQueryOperationImpl;
   friend class Ndbcntr;
   friend class DbUtil;
 
