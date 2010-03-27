@@ -4609,7 +4609,7 @@ Qmgr::execARBIT_CFG(Signal* signal)
   unsigned rank = sd->code;
   ndbrequire(1 <= rank && rank <= 2);
   arbitRec.apiMask[0].bitOR(sd->mask);
-  arbitRec.apiMask[rank] = sd->mask;
+  arbitRec.apiMask[rank].assign(sd->mask);
 }
 
 /**
@@ -5552,7 +5552,7 @@ Qmgr::execARBIT_STOPREP(Signal* signal)
 }
 
 void
-Qmgr::computeArbitNdbMask(NodeBitmask& aMask)
+Qmgr::computeArbitNdbMask(NodeBitmaskPOD& aMask)
 {
   NodeRecPtr aPtr;
   aMask.clear();
@@ -5567,7 +5567,7 @@ Qmgr::computeArbitNdbMask(NodeBitmask& aMask)
 }
 
 void
-Qmgr::computeArbitNdbMask(NdbNodeBitmask& aMask)
+Qmgr::computeArbitNdbMask(NdbNodeBitmaskPOD& aMask)
 {
   NodeRecPtr aPtr;
   aMask.clear();

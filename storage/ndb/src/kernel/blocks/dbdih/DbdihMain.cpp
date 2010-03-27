@@ -278,13 +278,21 @@ void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
     c_START_RECREQ_Counter.clearWaitingFor(nodeId);
     return;
   }
-  
+
+  Uint32 keepGCI = SYSFILE->keepGCI;
+  Uint32 lastCompletedGCI = SYSFILE->lastCompletedGCI[nodeId];
+  if (keepGCI > lastCompletedGCI)
+  {
+    jam();
+    keepGCI = lastCompletedGCI;
+  }
+
   StartRecReq * const req = (StartRecReq*)&signal->theData[0];
   BlockReference ref = calcLqhBlockRef(nodeId);
   req->receivingNodeId = nodeId;
   req->senderRef = reference();
-  req->keepGci = SYSFILE->keepGCI;
-  req->lastCompletedGci = SYSFILE->lastCompletedGCI[nodeId];
+  req->keepGci = keepGCI;
+  req->lastCompletedGci = lastCompletedGCI;
   req->newestGci = SYSFILE->newestRestorableGCI;
   req->senderData = extra;
   m_sr_nodes.copyto(NdbNodeBitmask::Size, req->sr_nodes);
@@ -292,8 +300,8 @@ void Dbdih::sendSTART_RECREQ(Signal* signal, Uint32 nodeId, Uint32 extra)
 
   signal->theData[0] = NDB_LE_StartREDOLog;
   signal->theData[1] = nodeId;
-  signal->theData[2] = SYSFILE->keepGCI;
-  signal->theData[3] = SYSFILE->lastCompletedGCI[nodeId];
+  signal->theData[2] = keepGCI;
+  signal->theData[3] = lastCompletedGCI;
   signal->theData[4] = SYSFILE->newestRestorableGCI;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
 }//Dbdih::sendSTART_RECREQ()
@@ -3336,6 +3344,13 @@ void Dbdih::execEND_TOREQ(Signal* signal)
       nodePtr.p->copyCompleted = 2;
       takeOverPtr.p->toMasterStatus = TakeOverRecord::TO_WAIT_LCP;
 
+      /**
+       * Make sure that node also participatened in 1 GCP
+       *   before running it's first LCP, so that GCI variables
+       *   in LQH are set properly
+       */
+      c_lcpState.lcpStopGcp = c_newest_restorable_gci;
+
       check_force_lcp(takeOverPtr);
       return;
     }
@@ -3496,6 +3511,7 @@ void Dbdih::startTakeOver(Signal* signal,
 
   TakeOverRecordPtr takeOverPtr;
   ndbrequire(c_activeTakeOverList.seize(takeOverPtr));
+  takeOverPtr.p->startGci = SYSFILE->lastCompletedGCI[startNode];
   takeOverPtr.p->restorableGci = SYSFILE->lastCompletedGCI[startNode];
   takeOverPtr.p->toStartingNode = startNode;
   takeOverPtr.p->toFailedNode = nodeTakenOver;
@@ -3701,17 +3717,43 @@ done:
     BlockReference ref = numberToRef(DBLQH, takeOverPtr.p->toStartingNode);
     sendSignal(ref, GSN_START_FRAGREQ, signal, 
 	       StartFragReq::SignalLength, JBB);
+
+    if (replicaPtr.p->maxGciCompleted[maxLcpIndex] < takeOverPtr.p->startGci)
+    {
+      jam();
+      takeOverPtr.p->startGci = replicaPtr.p->maxGciCompleted[maxLcpIndex];
+    }
   }
 }
 
 void
 Dbdih::nr_run_redo(Signal* signal, TakeOverRecordPtr takeOverPtr)
 {
+  /**
+   * sendSTART_RECREQ uses m_sr_nodes
+   *   and for TO during SR, we don't want to modify it
+   *   so save/restore it
+   */
+  NdbNodeBitmask save = m_sr_nodes;
+  m_sr_nodes.clear();
   m_sr_nodes.set(takeOverPtr.p->toStartingNode);
+
+  Uint32 save_keepGCI = SYSFILE->keepGCI;
+  if (takeOverPtr.p->startGci < SYSFILE->keepGCI)
+  {
+    jam();
+    SYSFILE->keepGCI = takeOverPtr.p->startGci;
+    ndbout_c("GSN_START_RECREQ keepGci: %u (%u)",
+             takeOverPtr.p->startGci, save_keepGCI);
+  }
+
   takeOverPtr.p->toCurrentTabref = 0;
   takeOverPtr.p->toCurrentFragid = 0;
   takeOverPtr.p->toSlaveStatus = TakeOverRecord::TO_RUN_REDO;
   sendSTART_RECREQ(signal, takeOverPtr.p->toStartingNode, takeOverPtr.i);
+
+  m_sr_nodes = save; // restore
+  SYSFILE->keepGCI = save_keepGCI;
 }
 
 void
@@ -11545,6 +11587,16 @@ void Dbdih::execSTART_RECCONF(Signal* signal)
     nodePtr.p->copyCompleted = 0;
   }
 
+  if (m_to_nodes.get(getOwnNodeId()))
+  {
+    /**
+     * We (master) needs take-over
+     *   run this directly to avoid strange confusion
+     */
+    jam();
+    c_sr_wait_to = true;
+  }
+
   if (!m_to_nodes.isclear() && c_sr_wait_to)
   {
     jam();
@@ -12994,13 +13046,20 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
               info.tableId);
     replicaPtr.p->nextLcp = 0;
   }
+
+  Uint32 keepGci = c_lcpState.keepGci;
+  if (keepGci > SYSFILE->lastCompletedGCI[replicaPtr.p->procNode])
+  {
+    jam();
+    keepGci = SYSFILE->lastCompletedGCI[replicaPtr.p->procNode];
+  }
   
   LcpFragOrd * const lcpFragOrd = (LcpFragOrd *)&signal->theData[0];
   lcpFragOrd->tableId    = info.tableId;
   lcpFragOrd->fragmentId = info.fragId;
   lcpFragOrd->lcpId      = SYSFILE->latestLCP_ID;
   lcpFragOrd->lcpNo      = replicaPtr.p->nextLcp;
-  lcpFragOrd->keepGci    = c_lcpState.keepGci;
+  lcpFragOrd->keepGci    = keepGci;
   lcpFragOrd->lastFragmentFlag = false;
   sendSignal(ref, GSN_LCP_FRAG_ORD, signal, LcpFragOrd::SignalLength, JBB);
 }

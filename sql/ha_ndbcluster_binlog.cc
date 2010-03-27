@@ -1254,7 +1254,11 @@ static int ndbcluster_find_all_databases(THD *thd)
     }
     op= trans->getNdbScanOperation(ndbtab);
     if (op == NULL)
-      abort();
+    {
+      ndb_error= trans->getNdbError();
+      goto error;
+    }
+
     op->readTuples(NdbScanOperation::LM_Read,
                    NdbScanOperation::SF_TupScan, 1);
     
@@ -1264,7 +1268,10 @@ static int ndbcluster_find_all_databases(THD *thd)
     r|= query_blob_handle->getValue(query, sizeof(query));
 
     if (r)
-      abort();
+    {
+      ndb_error= op->getNdbError();
+      goto error;
+    }
 
     if (trans->execute(NdbTransaction::NoCommit))
     {
@@ -1283,10 +1290,15 @@ static int ndbcluster_find_all_databases(THD *thd)
       if (db_len > 0 && name_len == 0)
       {
         /* database found */
+        db[db_len]= 0;
+
+	/* find query */
         Uint64 query_length= 0;
         if (query_blob_handle->getLength(query_length))
-          abort();
-        db[db_len]= 0;
+        {
+          ndb_error= query_blob_handle->getNdbError();
+          goto error;
+        }
         query[query_length]= 0;
         build_table_filename(name, sizeof(name), db, "", "", 0);
         int database_exists= !my_access(name, F_OK);
@@ -1352,10 +1364,20 @@ static int ndbcluster_find_all_databases(THD *thd)
     {
       if (retries--)
       {
+        sql_print_warning("NDB: ndbcluster_find_all_databases retry: %u - %s",
+                          ndb_error.code,
+                          ndb_error.message);
         do_retry_sleep(retry_sleep);
         continue; // retry
       }
     }
+    if (!thd->killed)
+    {
+      sql_print_error("NDB: ndbcluster_find_all_databases fail: %u - %s",
+                      ndb_error.code,
+                      ndb_error.message);
+    }
+
     DBUG_RETURN(1); // not temp error or too many retries
   }
 }
@@ -5924,7 +5946,9 @@ restart_cluster_failure:
         }
       }
     }
-    else if (res > 0)
+    else if (res > 0 ||
+             (opt_ndb_log_empty_epochs &&
+              gci > ndb_latest_handled_binlog_epoch))
     {
       DBUG_PRINT("info", ("pollEvents res: %d", res));
       thd->proc_info= "Processing events";
@@ -5968,9 +5992,29 @@ restart_cluster_failure:
       }
       NdbEventOperation *pOp= i_ndb->nextEvent();
       ndb_binlog_index_row _row;
+      ndb_binlog_index_row *rows= &_row;
+      injector::transaction trans;
+      unsigned trans_row_count= 0;
+      if (!pOp)
+      {
+        /*
+          Must be an empty epoch since the condition
+          (opt_ndb_log_empty_epochs &&
+           gci > ndb_latest_handled_binlog_epoch)
+          must be true we write empty epoch into
+          ndb_binlog_index
+        */
+        DBUG_PRINT("info", ("Writing empty epoch for gci %llu", gci));
+        DBUG_PRINT("info", ("Initializing transaction"));
+        inj->new_trans(thd, &trans);
+        rows= &_row;
+        bzero((char*)&_row, sizeof(_row));
+        thd->variables.character_set_client= &my_charset_latin1;
+        goto commit_to_binlog;
+      }
       while (pOp != NULL)
       {
-        ndb_binlog_index_row *rows= &_row;
+        rows= &_row;
 #ifdef RUN_NDB_BINLOG_TIMER
         Timer gci_timer, write_timer;
         int event_count= 0;
@@ -5993,8 +6037,9 @@ restart_cluster_failure:
 
         bzero((char*)&_row, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
-        injector::transaction trans;
-        unsigned trans_row_count= 0;
+        DBUG_PRINT("info", ("Initializing transaction"));
+        inj->new_trans(thd, &trans);
+        trans_row_count= 0;
         // pass table map before epoch
         {
           Uint32 iter= 0;
@@ -6198,6 +6243,7 @@ restart_cluster_failure:
             }
             break;
           }
+      commit_to_binlog:
           thd->proc_info= "Committing events to binlog";
           injector::transaction::binlog_pos start= trans.start_pos();
           if (int r= trans.commit())
