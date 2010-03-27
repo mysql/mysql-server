@@ -22,6 +22,7 @@
 #include "NdbQueryBuilder.hpp"
 #include "NdbQueryBuilderImpl.hpp"
 #include "signaldata/TcKeyReq.hpp"
+#include "signaldata/TcKeyRef.hpp"
 #include "signaldata/ScanTab.hpp"
 #include "signaldata/QueryTree.hpp"
 
@@ -43,6 +44,7 @@
 //#define TEST_SCANREQ
 
 /* Various error codes that are not specific to NdbQuery. */
+STATIC_CONST(Err_TupleNotFound = 626);
 STATIC_CONST(Err_MemoryAlloc = 4000);
 STATIC_CONST(Err_SendFailed = 4002);
 STATIC_CONST(Err_UnknownColumn = 4004);
@@ -1651,8 +1653,21 @@ NdbQueryImpl::release()
 }
 
 void
+NdbQueryImpl::setErrorCode(int aErrorCode)
+{
+  assert (aErrorCode!=0);
+  m_error.code = aErrorCode;
+  m_transaction.theErrorLine = 0;
+  m_transaction.theErrorOperation = NULL;
+  //if (m_abortOption != AO_IgnoreError)
+  m_transaction.setOperationErrorCode(aErrorCode);
+  m_state = Failed;
+}
+
+void
 NdbQueryImpl::setErrorCodeAbort(int aErrorCode)
 {
+  assert (aErrorCode!=0);
   m_error.code = aErrorCode;
   m_transaction.theErrorLine = 0;
   m_transaction.theErrorOperation = NULL;
@@ -2378,7 +2393,7 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
                        ndb->theNdbBlockNumber);
 
   /* Wait for outstanding scan results from current batch fetch */
-  while (!isBatchComplete() && m_error.code==0)
+  while (m_error.code==0 && !isBatchComplete())
   {
     const FetchResult waitResult = static_cast<FetchResult>
           (poll_guard.wait_scan(3*facade->m_waitfor_timeout, 
@@ -2397,8 +2412,8 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
       assert(false);
     }
   } // while
-  assert(m_pendingFrags==0 || m_error.code != 0);
 
+  assert(m_pendingFrags==0 || m_error.code != 0);
   m_error.code = 0;  // Ignore possible errorcode caused by previous fetching
 
 
@@ -2481,13 +2496,16 @@ NdbQueryImpl::sendClose(int nodeId)
 bool 
 NdbQueryImpl::isBatchComplete() const {
 #ifndef NDEBUG
-  Uint32 count = 0;
-  for(Uint32 i = 0; i < getRootFragCount(); i++){
-    if(!m_rootFrags[i].isFragBatchComplete()){
-      count++;
+  if (!m_error.code)
+  {
+    Uint32 count = 0;
+    for(Uint32 i = 0; i < getRootFragCount(); i++){
+      if(!m_rootFrags[i].isFragBatchComplete()){
+        count++;
+      }
     }
+    assert(count == m_pendingFrags);
   }
-  assert(count == m_pendingFrags);
 #endif
   return m_pendingFrags == 0;
 }
@@ -3782,6 +3800,26 @@ NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
 
   /* The SPJ block does not forward TCKEYREFs for trees with scan roots.*/
   assert(!getQueryDef().isScanQuery());
+
+  const TcKeyRef* ref = CAST_CONSTPTR(TcKeyRef, aSignal->getDataPtr());
+  if (!getQuery().m_transaction.checkState_TransId(ref->transId))
+  {
+#ifdef NDB_NO_DROPPED_SIGNAL
+    abort();
+#endif
+    return false;
+  }
+
+  // Suppress 'TupleNotFound' status for child operations.
+  if (&getRoot() == this || ref->errorCode != Err_TupleNotFound)
+  {
+    getQuery().setErrorCode(ref->errorCode);
+    if (aSignal->getLength() == TcKeyRef::SignalLength)
+    {
+      // Signal may contain additional error data
+      getQuery().m_error.details = (char *)ref->errorData;
+    }
+  }
 
   // Compensate for children results not produced.
   // (TCKEYCONF assumed all child results to be materialized)

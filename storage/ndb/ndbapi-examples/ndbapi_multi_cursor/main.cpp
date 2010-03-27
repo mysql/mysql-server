@@ -552,8 +552,11 @@ int testQueryBuilder(Ndb &myNdb)
 #endif
 
   printf("Start execute\n");
-  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
-    APIERROR(myTransaction->getNdbError());
+  if (myTransaction->execute(NdbTransaction::NoCommit) != 0 ||
+      myQuery->getNdbError().code)
+  {
+    APIERROR(myQuery->getNdbError());
+  }
   printf("Done executed\n");
 
   // All NdbQuery operations are handled as scans with cursor placed 'before'
@@ -667,8 +670,11 @@ int testQueryBuilder(Ndb &myNdb)
 #endif
 
   printf("Start execute\n");
-  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
-    APIERROR(myTransaction->getNdbError());
+  if (myTransaction->execute(NdbTransaction::NoCommit) != 0 ||
+      myQuery->getNdbError().code)
+  {
+    APIERROR(myQuery->getNdbError());
+  }
   printf("Done executed\n");
 
   // All NdbQuery operations are handled as scans with cursor placed 'before'
@@ -758,8 +764,11 @@ int testQueryBuilder(Ndb &myNdb)
 #endif
 
   printf("Start execute\n");
-  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
-    APIERROR(myTransaction->getNdbError());
+  if (myTransaction->execute(NdbTransaction::NoCommit) != 0 ||
+      myQuery->getNdbError().code)
+  {
+    APIERROR(myQuery->getNdbError());
+  }
   printf("Done executed\n");
 
   // All NdbQuery operations are handled as scans with cursor placed 'before'
@@ -870,9 +879,11 @@ int testQueryBuilder(Ndb &myNdb)
 #endif
 
   printf("Start execute\n");
-  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
-    APIERROR(myTransaction->getNdbError());
-  printf("Done executed\n");
+  if (myTransaction->execute(NdbTransaction::NoCommit) != 0 ||
+      myQuery->getNdbError().code)
+  {
+    APIERROR(myQuery->getNdbError());
+  }
 
   int cnt = 0;
   while (true) {
@@ -1003,8 +1014,11 @@ int testQueryBuilder(Ndb &myNdb)
 #endif
 
   printf("Start execute\n");
-  if (myTransaction->execute( NdbTransaction::NoCommit ) == -1)
-    APIERROR(myTransaction->getNdbError());
+  if (myTransaction->execute(NdbTransaction::NoCommit) != 0 ||
+      myQuery->getNdbError().code)
+  {
+    APIERROR(myQuery->getNdbError());
+  }
   printf("Done executed\n");
 
   int cnt = 0;

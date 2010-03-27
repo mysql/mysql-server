@@ -103,11 +103,7 @@ public:
 
   const NdbError& getNdbError() const;
 
-  void setErrorCode(int aErrorCode)
-  { if (!m_error.code)
-      m_error.code = aErrorCode;
-    m_state = Failed;
-  }
+  void setErrorCode(int aErrorCode);
 
   /** Set an error code and initiate transaction abort.*/
   void setErrorCodeAbort(int aErrorCode);
