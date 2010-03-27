@@ -93,6 +93,13 @@ enum db_err {
 	DB_PRIMARY_KEY_IS_NULL,		/* a column in the PRIMARY KEY
 					was found to be NULL */
 
+	DB_STATS_DO_NOT_EXIST,		/* an operation that requires the
+					persistent storage, used for recording
+					table and index statistics, was
+					requested but this storage does not
+					exist itself or the stats for a given
+					table do not exist */
+
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
 	DB_OVERFLOW,
