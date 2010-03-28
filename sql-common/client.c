@@ -1863,7 +1863,6 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		       uint port, const char *unix_socket,ulong client_flag)
 {
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
-  char		error_string[1024];
   char		*end,*host_info= NULL;
   my_socket	sock;
   in_addr_t	ip_addr;
@@ -2304,6 +2303,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     /* Do the SSL layering. */
     struct st_mysql_options *options= &mysql->options;
     struct st_VioSSLFd *ssl_fd;
+    char error_string[1024];
 
     /*
       Send client_flag, max_packet_size - unencrypted otherwise

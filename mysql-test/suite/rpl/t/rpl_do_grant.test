@@ -209,12 +209,18 @@ USE bug42217_db;
 DROP FUNCTION upgrade_del_func;
 DROP FUNCTION upgrade_alter_func;
 DROP DATABASE bug42217_db;
-DROP USER 'create_rout_db'@'localhost';
 
 call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+
+sync_slave_with_master;
+
+# Drop the user that was already dropped on the slave
 connection slave;
-USE mtr;
-call mtr.add_suppression("Slave: Operation DROP USER failed for 'create_rout_db'@'localhost' Error_code: 1396");
+--disable_warnings
+stop slave;
+connection master;
+DROP USER 'create_rout_db'@'localhost';
+--enable_warnings
 
 # BUG#49119: Master crashes when executing 'REVOKE ... ON
 # {PROCEDURE|FUNCTION} FROM ...'

@@ -3168,7 +3168,7 @@ skip_info:
 					mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID, id);
 
 					for (i = 0; (ulint) i < n_index; i++) {
-						if (offset / UNIV_PAGE_SIZE == root_page[i]) {
+                                          if ((ulint) (offset / UNIV_PAGE_SIZE) == root_page[i]) {
 							/* this is index root page */
 							mach_write_to_4(page + FIL_PAGE_DATA + PAGE_BTR_SEG_LEAF
 											+ FSEG_HDR_SPACE, id);

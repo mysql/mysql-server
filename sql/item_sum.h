@@ -858,7 +858,7 @@ protected:
     was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
-  void setup(Item *item, Item *value_arg);
+  void setup_item(Item *item, Item *value_arg);
   void clear();
   double val_real();
   longlong val_int();

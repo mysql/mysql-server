@@ -66,6 +66,11 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 /usr/share/aclocal/audiofile.m4 : .*
 
 #
+# Ignore strict-aliasing warnings (for now)
+#
+.*: break strict-aliasing rules
+
+#
 # Ignore all conversion warnings on windows 64
 # (Is safe as we are not yet supporting strings >= 2G)
 #

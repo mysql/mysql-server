@@ -7010,7 +7010,7 @@ bool  Item_cache_int::cache_value()
 }
 
 
-void Item_cache_int::store(Item *item, longlong val_arg)
+void Item_cache_int::store_longlong(Item *item, longlong val_arg)
 {
   /* An explicit values is given, save it. */
   value_cached= TRUE;
