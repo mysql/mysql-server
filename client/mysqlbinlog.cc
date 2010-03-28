@@ -730,9 +730,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
     switch (ev_type) {
     case QUERY_EVENT:
-      if (strncmp(((Query_log_event*)ev)->query, "BEGIN", 5) && 
-          strncmp(((Query_log_event*)ev)->query, "COMMIT", 6) && 
-          strncmp(((Query_log_event*)ev)->query, "ROLLBACK", 8) &&  
+      if (!((Query_log_event*)ev)->is_trans_keyword() &&
           shall_skip_database(((Query_log_event*)ev)->db))
         goto end;
       if (opt_base64_output_mode == BASE64_OUTPUT_ALWAYS)
