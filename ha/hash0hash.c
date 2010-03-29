@@ -124,7 +124,7 @@ hash_create(
 	table->heaps = NULL;
 #endif /* !UNIV_HOTBACKUP */
 	table->heap = NULL;
-	table->magic_n = HASH_TABLE_MAGIC_N;
+	ut_d(table->magic_n = HASH_TABLE_MAGIC_N);
 
 	/* Initialize the cell array */
 	hash_table_clear(table);
@@ -140,6 +140,8 @@ hash_table_free(
 /*============*/
 	hash_table_t*	table)	/*!< in, own: hash table */
 {
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifndef UNIV_HOTBACKUP
 	ut_a(table->mutexes == NULL);
 #endif /* !UNIV_HOTBACKUP */
@@ -165,6 +167,8 @@ hash_create_mutexes_func(
 {
 	ulint	i;
 
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_a(n_mutexes > 0);
 	ut_a(ut_is_2pow(n_mutexes));
 
