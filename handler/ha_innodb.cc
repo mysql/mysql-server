@@ -9016,7 +9016,7 @@ innodb_mutex_show_status(
 
 	for (lock = UT_LIST_GET_FIRST(rw_lock_list); lock != NULL;
 	     lock = UT_LIST_GET_NEXT(list, lock)) {
-		if (lock->count_os_wait) {
+		if (lock->count_os_wait == 0) {
 			continue;
 		}
 
@@ -10920,7 +10920,7 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
 
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,
-  "Number of pages that must be accessed sequentially for InnoDB to"
+  "Number of pages that must be accessed sequentially for InnoDB to "
   "trigger a readahead.",
   NULL, NULL, 56, 0, 64, 0);
 
