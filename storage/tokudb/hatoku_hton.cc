@@ -141,6 +141,7 @@ char *tokudb_version = (char*) TOKUDB_VERSION;
 #else
  char *tokudb_version;
 #endif
+static int tokudb_fs_reserve_percent;  // file system reserve as a percentage of total disk space
 struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 #if defined(_WIN32)
@@ -301,6 +302,12 @@ static int tokudb_init_func(void *p) {
             DBUG_PRINT("info", ("tokudb_set_max_locks %d\n", r));
             goto error;
         }
+    }
+
+    if (db_env->set_redzone) {
+        r = db_env->set_redzone(db_env, tokudb_fs_reserve_percent);
+        if (r && (tokudb_debug & TOKUDB_DEBUG_INIT))
+            TOKUDB_TRACE("%s:%d r=%d\n", __FUNCTION__, __LINE__, r);
     }
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env open:flags=%x\n", __FUNCTION__, tokudb_init_flags);
@@ -813,6 +820,18 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 	  STATPRINT("*** URGENT WARNING ***", "FILE SYSTEM IS COMPLETELY FULL");
 	  snprintf(buf, bufsiz, "FILE SYSTEM IS COMPLETELY FULL");
       }
+      else if (engstat.enospc_seal_state == 0) {
+	  snprintf(buf, bufsiz, "more than %d percent of total file system space", 2*tokudb_fs_reserve_percent);
+      }
+      else if (engstat.enospc_seal_state == 1) {
+	  snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING FULL (less than %d percent free)", 2*tokudb_fs_reserve_percent);
+      } 
+      else if (engstat.enospc_seal_state == 2){
+	  snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING VERY FULL (less than %d percent free): INSERTS ARE PROHIBITED", tokudb_fs_reserve_percent);
+      }
+      else {
+	  snprintf(buf, bufsiz, "information unavailable %" PRIu64, engstat.enospc_seal_state);
+      }
       STATPRINT ("disk free space", buf);
 
       STATPRINT("time now", engstat.now);
@@ -897,8 +916,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max);
       STATPRINT("max range locks", buf);
-      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max_per_db);
-      STATPRINT("max range locks per db", buf);
+      snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_max_per_index);
+      STATPRINT("max range locks per index", buf);
       snprintf(buf, bufsiz, "%" PRIu32, engstat.range_locks_curr);
       STATPRINT("range locks in use", buf);
 
@@ -932,6 +951,8 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("threads currently blocked by full disk", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_total);
       STATPRINT("ENOSPC blocked count", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_seal_ctr);
+      STATPRINT("ENOSPC reserve count", buf);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
@@ -1100,6 +1121,7 @@ static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 0, "
 static MYSQL_SYSVAR_BOOL(prelock_empty, tokudb_prelock_empty, 0, "Tokudb Prelock Empty Table", NULL, NULL, TRUE);
 static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0L, 0);
 static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0L, 0);
+static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
 #if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
@@ -1145,6 +1167,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(prelock_empty),
     MYSQL_SYSVAR(write_status_frequency),
     MYSQL_SYSVAR(read_status_frequency),
+    MYSQL_SYSVAR(fs_reserve_percent),
 #if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),
