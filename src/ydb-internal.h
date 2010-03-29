@@ -10,6 +10,7 @@
 #include "toku_list.h"
 #include "./lock_tree/locktree.h"
 #include "./lock_tree/idlth.h"
+#include "../newbrt/minicron.h"
 #include <limits.h>
 
 struct __toku_lock_tree;
@@ -61,9 +62,26 @@ struct __toku_db_env_internal {
     TOKULOGGER logger;
     toku_ltm* ltm;
     struct toku_list open_txns;
-    DB *directory; //Maps dnames to inames
-    DB *persistent_environment; //Stores environment settings, can be used for upgrade
-    OMT open_dbs; //Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
+    DB *directory;                                      // Maps dnames to inames
+    DB *persistent_environment;                         // Stores environment settings, can be used for upgrade
+    OMT open_dbs;                                       // Stores open db handles, sorted first by dname and then by numerical value of pointer to the db (arbitrarily assigned memory location)
+
+    char *real_data_dir;                                // data dir used when the env is opened (relative to cwd)
+    char *real_log_dir;                                 // log dir used when the env is opened  (relative to cwd)
+
+    enum { 
+        FS_GREEN = 0,                                   // green zone  (we have lots of space)
+        FS_YELLOW = 1,                                  // yellow zone (issue warning but allow operations)
+        FS_RED = 2,                                     // red zone    (prevent operations)
+    } fs_state;
+    uint64_t fs_seq;                                    // how many times has fs_poller run?
+    uint64_t last_seq_entered_red;
+    uint64_t last_seq_entered_yellow;
+    int redzone;                                        // percent of total fs space that marks boundary between yellow and red zones
+    int enospc_seal_ctr;                                // number of operations rejected by enospc seal  (red zone)
+    int fs_poll_time;                                   // Time in seconds between statfs calls
+    struct minicron fs_poller;                          // Poll the file systems
+    BOOL fs_poller_is_init;    
 };
 
 /* *********************************************************

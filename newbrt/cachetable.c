@@ -2348,6 +2348,7 @@ void toku_cachetable_get_status(CACHETABLE ct, CACHETABLE_STATUS s) {
     s->waittime     = cachetable_waittime;
     s->wait_reading = cachetable_wait_reading;
     s->wait_writing = cachetable_wait_writing;
+    s->wait_checkpoint = cachetable_wait_checkpoint;
     s->puts         = cachetable_puts;
     s->prefetches   = cachetable_prefetches;
     s->maybe_get_and_pins      = cachetable_maybe_get_and_pins;
@@ -2388,3 +2389,8 @@ toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env) {
     return toku_construct_full_name(2, ct->env_dir, fname_in_env);
 }
 
+
+// Returns the limit on the size of the cache table
+uint64_t toku_cachetable_get_size_limit(CACHETABLE ct) {
+    return ct->size_limit;
+}

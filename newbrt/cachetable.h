@@ -75,6 +75,10 @@ void toku_cachetable_get_miss_times(CACHETABLE ct, uint64_t *misscount, uint64_t
 // Open a file and bind the file to a new cachefile object. (For use by test programs only.)
 int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname_in_env*/, int flags, mode_t mode);
 
+// Returns the limit on the cachetable size
+uint64_t toku_cachetable_get_size_limit(CACHETABLE ct);
+
+
 // Bind a file to a new cachefile object.
 int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, 
 			    const char *fname_relative_to_env); /*(used for logging)*/
@@ -298,6 +302,7 @@ typedef struct cachetable_status {
     u_int64_t waittime;     /* how many usec spent waiting for another thread to release cache line */ 
     u_int64_t wait_reading;
     u_int64_t wait_writing;
+    u_int64_t wait_checkpoint; // number of times get_and_pin waits for a node to be written for a checkpoint
     u_int64_t puts;          // how many times has a newly created node been put into the cachetable?
     u_int64_t prefetches;    // how many times has a block been prefetched into the cachetable?
     u_int64_t maybe_get_and_pins;      // how many times has maybe_get_and_pin(_clean) been called?

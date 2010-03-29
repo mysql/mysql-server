@@ -84,6 +84,7 @@ typedef struct __toku_engine_status {
   u_int64_t        cachetable_waittime;     /* how many usec spent waiting for another thread to release cache line */ 
   u_int64_t        cachetable_wait_reading; /* how many times get_and_pin waits for a node to be read */ 
   u_int64_t        cachetable_wait_writing; /* how many times get_and_pin waits for a node to be written */ 
+  u_int64_t        cachetable_wait_checkpoint; /* how many times get_and_pin waits for a node to be written for a checkpoint*/ 
   u_int64_t        puts;                    /* how many times has a newly created node been put into the cachetable */ 
   u_int64_t        prefetches;              /* how many times has a block been prefetched into the cachetable */ 
   u_int64_t        maybe_get_and_pins;      /* how many times has maybe_get_and_pin(_clean) been called */ 
@@ -93,7 +94,7 @@ typedef struct __toku_engine_status {
   int64_t          cachetable_size_writing; /* the sum of the sizes of the nodes being written */ 
   int64_t          get_and_pin_footprint;   /* state of get_and_pin procedure */ 
   u_int32_t        range_locks_max;         /* max total number of range locks */ 
-  u_int32_t        range_locks_max_per_db;  /* max range locks per dictionary */ 
+  u_int32_t        range_locks_max_per_index;  /* max range locks per dictionary */ 
   u_int32_t        range_locks_curr;        /* total range locks currently in use */ 
   u_int64_t        inserts;                 /* ydb row insert operations            */ 
   u_int64_t        deletes;                 /* ydb row delete operations            */ 
@@ -109,6 +110,8 @@ typedef struct __toku_engine_status {
   char             enospc_most_recent[26];  /* time of most recent ENOSPC error return from disk write  */ 
   u_int64_t        enospc_threads_blocked;  /* how many threads are currently blocked by ENOSPC */ 
   u_int64_t        enospc_total;            /* how many times has ENOSPC been returned by disk write */ 
+  u_int64_t        enospc_seal_ctr;         /* how many times has ENOSPC been returned to user (red zone) */ 
+  u_int64_t        enospc_seal_state;       /* state of ydb-level seal (0 = green, 1 = yellow, 2 = red) */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,
@@ -233,7 +236,9 @@ struct __toku_db_env {
                                                                          DBT *dest_key,
                                                                          const DBT *src_key, const DBT *src_val,
                                                                          void *extra));
-  void* __toku_dummy0[19];
+  int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */;
+  int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */;
+  void* __toku_dummy0[17];
   char __toku_dummy1[64];
   void *api1_internal; /* 32-bit offset=212 size=4, 64=bit offset=360 size=8 */
   void* __toku_dummy2[7];
