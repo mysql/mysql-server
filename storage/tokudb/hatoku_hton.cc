@@ -809,6 +809,12 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 
     error = db_env->get_engine_status(db_env, &engstat);
     if (error == 0) {
+      if(engstat.enospc_threads_blocked) {
+	  STATPRINT("*** URGENT WARNING ***", "FILE SYSTEM IS COMPLETELY FULL");
+	  snprintf(buf, bufsiz, "FILE SYSTEM IS COMPLETELY FULL");
+      }
+      STATPRINT ("disk free space", buf);
+
       STATPRINT("time now", engstat.now);
 
       const char * lockstat = (engstat.ydb_lock_ctr & 0x01) ? "Locked" : "Unlocked";
@@ -913,6 +919,19 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("fsync count", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.fsync_time);
       STATPRINT("fsync time", buf);
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_ilock_ctr);
+      STATPRINT("logger ilock count", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_olock_ctr);
+      STATPRINT("logger olock count", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.logger_swap_ctr);
+      STATPRINT("logger swap count", buf);
+
+      STATPRINT("most recent disk full", engstat.enospc_most_recent);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_threads_blocked);
+      STATPRINT("threads currently blocked by full disk", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.enospc_total);
+      STATPRINT("ENOSPC blocked count", buf);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
