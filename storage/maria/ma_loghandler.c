@@ -8060,18 +8060,14 @@ retest:
     /* keep values for soft sync() and forced sync() actual */
     {
       uint32 fileno= LSN_FILE_NO(lsn);
-      my_atomic_rwlock_wrlock(&soft_sync_rwl);
-      my_atomic_store32(&soft_sync_min, fileno);
-      my_atomic_store32(&soft_sync_max, fileno);
-      my_atomic_rwlock_wrunlock(&soft_sync_rwl);
+      soft_sync_min= fileno;
+      soft_sync_max= fileno;
     }
   }
   else
   {
-    my_atomic_rwlock_wrlock(&soft_sync_rwl);
-    my_atomic_store32(&soft_sync_max, LSN_FILE_NO(lsn));
-    my_atomic_store32(&soft_need_sync, 1);
-    my_atomic_rwlock_wrunlock(&soft_sync_rwl);
+    soft_sync_max= lsn;
+    soft_need_sync= 1;
   }
 
   DBUG_ASSERT(flush_horizon <= log_descriptor.horizon);
@@ -8464,9 +8460,7 @@ my_bool translog_purge(TRANSLOG_ADDRESS low)
               translog_status == TRANSLOG_READONLY);
 
   soft= soft_sync;
-  my_atomic_rwlock_wrlock(&soft_sync_rwl);
-  min_unsync= my_atomic_load32(&soft_sync_min);
-  my_atomic_rwlock_wrunlock(&soft_sync_rwl);
+  min_unsync= soft_sync_min;
   DBUG_PRINT("info", ("min_unsync: %lu", (ulong) min_unsync));
   if (soft && min_unsync < last_need_file)
   {
@@ -8748,9 +8742,7 @@ void translog_sync()
   uint32 min;
   DBUG_ENTER("ma_translog_sync");
 
-  my_atomic_rwlock_rdlock(&soft_sync_rwl);
-  min= my_atomic_load32(&soft_sync_min);
-  my_atomic_rwlock_rdunlock(&soft_sync_rwl);
+  min= soft_sync_min;
   if (!min)
     min= max;
 
@@ -8796,13 +8788,11 @@ ma_soft_sync_background( void *arg __attribute__((unused)))
       ulonglong prev_loop= my_micro_time();
       ulonglong time, sleep;
       uint32 min, max, sync_request;
-      my_atomic_rwlock_rdlock(&soft_sync_rwl);
-      min= my_atomic_load32(&soft_sync_min);
-      max= my_atomic_load32(&soft_sync_max);
-      sync_request= my_atomic_load32(&soft_need_sync);
-      my_atomic_store32(&soft_sync_min, max);
-      my_atomic_store32(&soft_need_sync, 0);
-      my_atomic_rwlock_rdunlock(&soft_sync_rwl);
+      min= soft_sync_min;
+      max= soft_sync_max;
+      sync_request= soft_need_sync;
+      soft_sync_min= max;
+      soft_need_sync= 0;
 
       sleep= group_commit_wait;
       if (sync_request)
@@ -8834,15 +8824,13 @@ int translog_soft_sync_start(void)
   DBUG_ENTER("translog_soft_sync_start");
 
   /* check and init variables */
-  my_atomic_rwlock_rdlock(&soft_sync_rwl);
-  min= my_atomic_load32(&soft_sync_min);
-  max= my_atomic_load32(&soft_sync_max);
+  min= soft_sync_min;
+  max= soft_sync_max;
   if (!max)
-    my_atomic_store32(&soft_sync_max, (max= get_current_logfile()->number));
+    soft_sync_max= max= get_current_logfile()->number;
   if (!min)
-    my_atomic_store32(&soft_sync_min, max);
-  my_atomic_store32(&soft_need_sync, 1);
-  my_atomic_rwlock_rdunlock(&soft_sync_rwl);
+    soft_sync_min= max;
+  soft_need_sync= 1;
 
   if (!(res= ma_service_thread_control_init(&soft_sync_control)))
     if (!(res= pthread_create(&th, NULL, ma_soft_sync_background, NULL)))
