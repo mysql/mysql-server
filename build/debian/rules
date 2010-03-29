@@ -20,7 +20,7 @@ DEB_NOEPOCH_VERSION ?= $(shell echo $(DEB_VERSION) | cut -d: -f2-)
 DEB_UPSTREAM_VERSION ?= $(shell echo $(DEB_NOEPOCH_VERSION) | sed 's/-[^-]*$$//')
 DEB_UPSTREAM_VERSION_MAJOR_MINOR := $(shell echo $(DEB_UPSTREAM_VERSION) | sed -r -n 's/^([0-9]+\.[0-9]+).*/\1/p')
 
-DISTRIBUTION = $(shell echo "Percona SQL Server (GPL), XtraDB $(BB_PERCONA_VERSION), Revision $(BB_PERCONA_REVISION)")
+DISTRIBUTION = $(shell echo "Percona SQL Server (GPL), XtraDB 10")
 
 MAKE_J = -j$(shell if [ -f /proc/cpuinfo ] ; then grep -c processor.* /proc/cpuinfo ; else echo 1 ; fi)
 ifeq (${MAKE_J}, -j0)
