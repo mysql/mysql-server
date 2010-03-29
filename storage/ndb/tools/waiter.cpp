@@ -16,7 +16,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
+#include <time.h>
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
@@ -44,6 +44,7 @@ static int _no_contact = 0;
 static int _not_started = 0;
 static int _single_user = 0;
 static int _timeout = 120;
+static const char* _wait_nodes = 0;
 static const char* _nowait_nodes = 0;
 static NdbNodeBitmask nowait_nodes_bitmask;
 
@@ -65,8 +66,11 @@ static struct my_option my_long_options[] =
   { "timeout", 't', "Timeout to wait in seconds",
     (uchar**) &_timeout, (uchar**) &_timeout, 0,
     GET_INT, REQUIRED_ARG, 120, 0, 0, 0, 0, 0 }, 
+  { "wait-nodes", 'w', "Node ids to wait on, e.g. '1,2-4'",
+    (uchar**) &_wait_nodes, (uchar**) &_wait_nodes, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "nowait-nodes", OPT_NOWAIT_NODES, 
-    "Nodes that will not be waited for",
+    "Nodes that will not be waited for, e.g. '2,3,4-7'",
     (uchar**) &_nowait_nodes, (uchar**) &_nowait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -134,6 +138,32 @@ int main(int argc, char** argv){
                _nowait_nodes);
       exit(-1);
     }
+  }
+
+  if (_wait_nodes)
+  {
+    if (_nowait_nodes)
+    {
+      ndbout_c("Can not set both wait-nodes and nowait-nodes.");
+      exit(-1);
+    }
+
+    int res = nowait_nodes_bitmask.parseMask(_wait_nodes);
+    if (res == -2 || (res > 0 && nowait_nodes_bitmask.get(0)))
+    {
+      ndbout_c("Invalid nodeid specified in wait-nodes: %s",
+               _wait_nodes);
+      exit(-1);
+    }
+    else if (res < 0)
+    {
+      ndbout_c("Unable to parse wait-nodes argument: %s",
+               _wait_nodes);
+      exit(-1);
+    }
+
+    // Don't wait for any other nodes than the ones we have set explicitly
+    nowait_nodes_bitmask.bitNOT();
   }
 
   if (waitClusterStatus(_hostName, wait_status) != 0)
@@ -211,6 +241,28 @@ getStatus(){
   }
 
   return -1;
+}
+
+char*
+getTimeAsString(char* pStr)
+{
+  time_t now;
+  now= ::time((time_t*)NULL);
+
+  struct tm* tm_now;
+#ifdef NDB_WIN32
+  tm_now = localtime(&now);
+#else
+  tm_now = ::localtime(&now); //uses the "current" timezone
+#endif
+
+  snprintf(pStr, 9,
+	   "%02d:%02d:%02d",
+	   tm_now->tm_hour,
+	   tm_now->tm_min,
+	   tm_now->tm_sec);
+
+  return pStr;
 }
 
 static int
@@ -315,8 +367,10 @@ waitClusterStatus(const char* _addr,
     }
 
     if (!allInState) {
-      g_info << "Waiting for cluster enter state "
-             << ndb_mgm_get_node_status_string(_status)<< endl;
+      char time[9];
+      g_info << "[" << getTimeAsString(time) << "] "
+             << "Waiting for cluster enter state "
+             << ndb_mgm_get_node_status_string(_status) << endl;
     }
 
     attempts++;
