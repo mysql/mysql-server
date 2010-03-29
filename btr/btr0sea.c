@@ -50,6 +50,11 @@ UNIV_INTERN char		btr_search_enabled	= TRUE;
 /** Mutex protecting btr_search_enabled */
 static mutex_t			btr_search_enabled_mutex;
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register btr_search_enabled_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	btr_search_enabled_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /** A dummy variable to fool the compiler */
 UNIV_INTERN ulint		btr_search_this_is_zero = 0;
 
@@ -81,6 +86,11 @@ UNIV_INTERN byte		btr_sea_pad2[64];
 
 /** The adaptive hash index */
 UNIV_INTERN btr_search_sys_t*	btr_search_sys;
+
+#ifdef UNIV_PFS_RWLOCK
+/* Key to register btr_search_sys with performance schema */
+UNIV_INTERN mysql_pfs_key_t	btr_search_latch_key;
+#endif /* UNIV_PFS_RWLOCK */
 
 /** If the number of records on the page divided by this parameter
 would have been successfully accessed using a hash index, the index
@@ -167,8 +177,10 @@ btr_search_sys_create(
 
 	btr_search_latch_temp = mem_alloc(sizeof(rw_lock_t));
 
-	rw_lock_create(&btr_search_latch, SYNC_SEARCH_SYS);
-	mutex_create(&btr_search_enabled_mutex, SYNC_SEARCH_SYS_CONF);
+	rw_lock_create(btr_search_latch_key, &btr_search_latch,
+		       SYNC_SEARCH_SYS);
+	mutex_create(btr_search_enabled_mutex_key,
+		     &btr_search_enabled_mutex, SYNC_SEARCH_SYS_CONF);
 
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 

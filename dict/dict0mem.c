@@ -40,6 +40,11 @@ Created 1/8/1996 Heikki Tuuri
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register autoinc_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	autoinc_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /**********************************************************************//**
 Creates a table memory object.
 @return	own: table object */
@@ -78,7 +83,8 @@ dict_mem_table_create(
 #ifndef UNIV_HOTBACKUP
 	table->autoinc_lock = mem_heap_alloc(heap, lock_get_size());
 
-	mutex_create(&table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
+	mutex_create(autoinc_mutex_key,
+		     &table->autoinc_mutex, SYNC_DICT_AUTOINC_MUTEX);
 
 	table->autoinc = 0;
 

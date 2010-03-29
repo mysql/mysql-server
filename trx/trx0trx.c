@@ -51,6 +51,11 @@ UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 the kernel mutex */
 UNIV_INTERN ulint	trx_n_mysql_transactions = 0;
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register the mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_undo_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /*************************************************************//**
 Set detailed error message for the transaction. */
 UNIV_INTERN
@@ -129,7 +134,7 @@ trx_create(
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
 
-	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
+	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 
 	trx->rseg = NULL;
 

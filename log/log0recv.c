@@ -148,6 +148,14 @@ is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
 UNIV_INTERN ib_uint64_t	recv_max_page_lsn;
 
+#ifdef UNIV_PFS_THREAD
+UNIV_INTERN mysql_pfs_key_t	trx_rollback_clean_thread_key;
+#endif /* UNIV_PFS_THREAD */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	recv_sys_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /* prototypes */
 
 #ifndef UNIV_HOTBACKUP
@@ -175,7 +183,7 @@ recv_sys_create(void)
 	recv_sys = mem_alloc(sizeof(*recv_sys));
 	memset(recv_sys, 0x0, sizeof(*recv_sys));
 
-	mutex_create(&recv_sys->mutex, SYNC_RECV);
+	mutex_create(recv_sys_mutex_key, &recv_sys->mutex, SYNC_RECV);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
@@ -3426,8 +3434,10 @@ recv_reset_log_files_for_backup(
 		sprintf(name, "%s%s%lu", log_dir,
 			ib_logfile_basename, (ulong)i);
 
-		log_file = os_file_create_simple(name, OS_FILE_CREATE,
-						 OS_FILE_READ_WRITE, &success);
+		log_file = os_file_create_simple(innodb_file_log_key,
+						 name, OS_FILE_CREATE,
+						 OS_FILE_READ_WRITE,
+						 &success);
 		if (!success) {
 			fprintf(stderr,
 				"InnoDB: Cannot create %s. Check that"
@@ -3466,7 +3476,8 @@ recv_reset_log_files_for_backup(
 				      LOG_BLOCK_HDR_SIZE);
 	sprintf(name, "%s%s%lu", log_dir, ib_logfile_basename, (ulong)0);
 
-	log_file = os_file_create_simple(name, OS_FILE_OPEN,
+	log_file = os_file_create_simple(innodb_file_log_key,
+					 name, OS_FILE_OPEN,
 					 OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		fprintf(stderr, "InnoDB: Cannot open %s.\n", name);
@@ -3516,7 +3527,8 @@ try_open_again:
 
 	log_archived_file_name_gen(name, group->id, group->archived_file_no);
 
-	file_handle = os_file_create(name, OS_FILE_OPEN,
+	file_handle = os_file_create(innodb_file_log_key,
+				     name, OS_FILE_OPEN,
 				     OS_FILE_LOG, OS_FILE_AIO, &ret);
 
 	if (ret == FALSE) {

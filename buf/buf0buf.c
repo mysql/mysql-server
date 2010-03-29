@@ -270,6 +270,22 @@ read-ahead or flush occurs */
 UNIV_INTERN ibool		buf_debug_prints = FALSE;
 #endif /* UNIV_DEBUG */
 
+#ifdef UNIV_PFS_RWLOCK
+/* Keys to register buffer block related rwlocks and mutexes with
+performance schema */
+UNIV_INTERN mysql_pfs_key_t	buf_block_lock_key;
+# ifdef UNIV_SYNC_DEBUG
+UNIV_INTERN mysql_pfs_key_t	buf_block_debug_latch_key;
+# endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	buffer_block_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	buf_pool_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	buf_pool_zip_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	flush_list_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /** A chunk of buffers.  The buffer pool is allocated in chunks. */
 struct buf_chunk_struct{
 	ulint		mem_size;	/*!< allocated size of the chunk */
@@ -678,13 +694,15 @@ buf_block_init(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
 
-	mutex_create(&block->mutex, SYNC_BUF_BLOCK);
+	mutex_create(buffer_block_mutex_key,
+		     &block->mutex, SYNC_BUF_BLOCK);
 
-	rw_lock_create(&block->lock, SYNC_LEVEL_VARYING);
+	rw_lock_create(buf_block_lock_key, &block->lock, SYNC_LEVEL_VARYING);
 	ut_ad(rw_lock_validate(&(block->lock)));
 
 #ifdef UNIV_SYNC_DEBUG
-	rw_lock_create(&block->debug_latch, SYNC_NO_ORDER_CHECK);
+	rw_lock_create(buf_block_debug_latch_key,
+		       &block->debug_latch, SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 }
 
@@ -955,8 +973,10 @@ buf_pool_init(void)
 
 	/* 1. Initialize general fields
 	------------------------------- */
-	mutex_create(&buf_pool_mutex, SYNC_BUF_POOL);
-	mutex_create(&buf_pool_zip_mutex, SYNC_BUF_BLOCK);
+	mutex_create(buf_pool_mutex_key,
+		     &buf_pool_mutex, SYNC_BUF_POOL);
+	mutex_create(buf_pool_zip_mutex_key,
+		     &buf_pool_zip_mutex, SYNC_BUF_BLOCK);
 
 	buf_pool_mutex_enter();
 
@@ -984,7 +1004,8 @@ buf_pool_init(void)
 	/* 2. Initialize flushing fields
 	-------------------------------- */
 
-	mutex_create(&buf_pool->flush_list_mutex, SYNC_BUF_FLUSH_LIST);
+	mutex_create(flush_list_mutex_key, &buf_pool->flush_list_mutex,
+		     SYNC_BUF_FLUSH_LIST);
 	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
 		buf_pool->no_flush[i] = os_event_create(NULL);
 	}

@@ -51,6 +51,16 @@ UNIV_INTERN trx_purge_t*	purge_sys = NULL;
 which needs no purge */
 UNIV_INTERN trx_undo_rec_t	trx_purge_dummy_rec;
 
+#ifdef UNIV_PFS_RWLOCK
+/* Key to register trx_purge_latch with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register purge_sys_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	purge_sys_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /*****************************************************************//**
 Checks if trx_id is >= purge_view: then it is guaranteed that its update
 undo log still exists in the system.
@@ -227,9 +237,11 @@ trx_purge_sys_create(void)
 	purge_sys->purge_undo_no = ut_dulint_zero;
 	purge_sys->next_stored = FALSE;
 
-	rw_lock_create(&purge_sys->latch, SYNC_PURGE_LATCH);
+	rw_lock_create(trx_purge_latch_key,
+		       &purge_sys->latch, SYNC_PURGE_LATCH);
 
-	mutex_create(&purge_sys->mutex, SYNC_PURGE_SYS);
+	mutex_create(purge_sys_mutex_key,
+		     &purge_sys->mutex, SYNC_PURGE_SYS);
 
 	purge_sys->heap = mem_heap_create(256);
 

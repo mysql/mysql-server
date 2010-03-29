@@ -70,6 +70,17 @@ we need this; NOTE: a transaction which reserves this must keep book
 on the mode in trx_struct::dict_operation_lock_mode */
 UNIV_INTERN rw_lock_t	dict_operation_lock;
 
+/* Keys to register rwlocks and mutexes with performance schema */
+#ifdef UNIV_PFS_RWLOCK
+UNIV_INTERN mysql_pfs_key_t	dict_operation_lock_key;
+UNIV_INTERN mysql_pfs_key_t	index_tree_rw_lock_key;
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	dict_sys_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	dict_foreign_err_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
 #define DICT_POOL_PER_TABLE_HASH 512	/*!< buffer pool max size per table
@@ -607,7 +618,7 @@ dict_init(void)
 {
 	dict_sys = mem_alloc(sizeof(dict_sys_t));
 
-	mutex_create(&dict_sys->mutex, SYNC_DICT);
+	mutex_create(dict_sys_mutex_key, &dict_sys->mutex, SYNC_DICT);
 
 	dict_sys->table_hash = hash_create(buf_pool_get_curr_size()
 					   / (DICT_POOL_PER_TABLE_HASH
@@ -619,12 +630,14 @@ dict_init(void)
 
 	UT_LIST_INIT(dict_sys->table_LRU);
 
-	rw_lock_create(&dict_operation_lock, SYNC_DICT_OPERATION);
+	rw_lock_create(dict_operation_lock_key,
+		       &dict_operation_lock, SYNC_DICT_OPERATION);
 
 	dict_foreign_err_file = os_file_create_tmpfile();
 	ut_a(dict_foreign_err_file);
 
-	mutex_create(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
+	mutex_create(dict_foreign_err_mutex_key,
+		     &dict_foreign_err_mutex, SYNC_ANY_LATCH);
 }
 
 /**********************************************************************//**
@@ -1567,7 +1580,8 @@ undo_size_ok:
 	new_index->stat_n_leaf_pages = 1;
 
 	new_index->page = page_no;
-	rw_lock_create(&new_index->lock, SYNC_INDEX_TREE);
+	rw_lock_create(index_tree_rw_lock_key, &new_index->lock,
+		       SYNC_INDEX_TREE);
 
 	if (!UNIV_UNLIKELY(new_index->type & DICT_UNIVERSAL)) {
 

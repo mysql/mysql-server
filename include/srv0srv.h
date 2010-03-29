@@ -312,6 +312,37 @@ typedef struct srv_sys_struct	srv_sys_t;
 
 /** The server system */
 extern srv_sys_t*	srv_sys;
+
+# ifdef UNIV_PFS_THREAD
+/* Keys to register InnoDB threads with performance schema */
+extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
+extern mysql_pfs_key_t	io_handler_thread_key;
+extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
+extern mysql_pfs_key_t	srv_error_monitor_thread_key;
+extern mysql_pfs_key_t	srv_monitor_thread_key;
+extern mysql_pfs_key_t	srv_master_thread_key;
+
+/* This macro register the current thread and its key with performance
+schema */
+#  define pfs_register_thread(key)			\
+do {								\
+	if (PSI_server) {					\
+		struct PSI_thread* psi = PSI_server->new_thread(key, NULL, 0);\
+		if (psi) {					\
+			PSI_server->set_thread(psi);		\
+		}						\
+	}							\
+} while (0)
+
+/* This macro delist the current thread from performance schema */
+#  define pfs_delete_thread()				\
+do {								\
+	if (PSI_server) {					\
+		PSI_server->delete_current_thread();		\
+	}							\
+} while (0)
+# endif /* UNIV_PFS_THREAD */
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Types of raw partitions in innodb_data_file_path */

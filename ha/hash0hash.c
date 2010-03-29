@@ -31,6 +31,11 @@ Created 5/20/1997 Heikki Tuuri
 #include "mem0mem.h"
 
 #ifndef UNIV_HOTBACKUP
+
+# ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	hash_table_mutex_key;
+# endif /* UNIV_PFS_MUTEX */
+
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
 UNIV_INTERN
@@ -166,7 +171,8 @@ hash_create_mutexes_func(
 	table->mutexes = mem_alloc(n_mutexes * sizeof(mutex_t));
 
 	for (i = 0; i < n_mutexes; i++) {
-		mutex_create(table->mutexes + i, sync_level);
+		mutex_create(hash_table_mutex_key,
+			     table->mutexes + i, sync_level);
 	}
 
 	table->n_mutexes = n_mutexes;

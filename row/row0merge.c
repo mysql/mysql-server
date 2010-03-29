@@ -2145,9 +2145,22 @@ row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
+#ifdef UNIV_PFS_IO
+	/* This temp file open does not go through normal
+	file APIs, add instrumentation to register with
+	performance schema */
+	struct PSI_file_locker* locker = NULL;
+	register_pfs_file_open_begin(locker, innodb_file_temp_key,
+				     PSI_FILE_OPEN,
+				     "Innodb Merge Temp File",
+				     __FILE__, __LINE__);
+#endif
 	merge_file->fd = innobase_mysql_tmpfile();
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
+#ifdef UNIV_PFS_IO
+        register_pfs_file_open_end(locker, merge_file->fd);
+#endif
 }
 
 /*********************************************************************//**
@@ -2158,10 +2171,19 @@ row_merge_file_destroy(
 /*===================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
+#ifdef UNIV_PFS_IO
+	struct PSI_file_locker* locker = NULL;
+	register_pfs_file_io_begin(locker, merge_file->fd, 0, PSI_FILE_CLOSE,
+				   __FILE__, __LINE__);
+#endif
 	if (merge_file->fd != -1) {
 		close(merge_file->fd);
 		merge_file->fd = -1;
 	}
+
+#ifdef UNIV_PFS_IO
+	register_pfs_file_io_end(locker, 0);
+#endif
 }
 
 /*********************************************************************//**

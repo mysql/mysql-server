@@ -197,6 +197,12 @@ UNIV_INTERN ibuf_t*	ibuf			= NULL;
 /** Counter for ibuf_should_try() */
 UNIV_INTERN ulint	ibuf_flush_count	= 0;
 
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	ibuf_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	ibuf_bitmap_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 #ifdef UNIV_IBUF_COUNT_DEBUG
 /** Number of tablespaces in the ibuf_counts array */
 #define IBUF_COUNT_N_SPACES	4
@@ -508,12 +514,15 @@ ibuf_init_at_db_start(void)
 	ibuf->max_size = buf_pool_get_curr_size() / UNIV_PAGE_SIZE
 		/ IBUF_POOL_SIZE_PER_MAX_SIZE;
 
-	mutex_create(&ibuf_pessimistic_insert_mutex,
+	mutex_create(ibuf_pessimistic_insert_mutex_key,
+		     &ibuf_pessimistic_insert_mutex,
 		     SYNC_IBUF_PESS_INSERT_MUTEX);
 
-	mutex_create(&ibuf_mutex, SYNC_IBUF_MUTEX);
+	mutex_create(ibuf_mutex_key,
+		     &ibuf_mutex, SYNC_IBUF_MUTEX);
 
-	mutex_create(&ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
+	mutex_create(ibuf_bitmap_mutex_key,
+		     &ibuf_bitmap_mutex, SYNC_IBUF_BITMAP_MUTEX);
 
 	mtr_start(&mtr);
 
