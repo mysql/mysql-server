@@ -1928,7 +1928,11 @@ public:
   { m_currFragNo = 0;};
   
 private:
-  /** Size of internal receiver id buffer.*/
+  /** 
+   * Size of internal receiver id buffer. This value is arbitrary, but 
+   * a larger buffer would mean fewer calls to getNextWords(), possibly
+   * improving efficiency.
+   */
   static const Uint32 bufSize = 16;
   /** The query with the scan root operation that we list receiver ids for.*/
   const NdbQueryImpl& m_query;
@@ -1942,6 +1946,10 @@ private:
 const Uint32* InitialReceiverIdIterator::getNextWords(Uint32& sz)
 {
   sz = 0;
+  /**
+   * For the initial batch, we want to retrieve one batch for each fragment
+   * whether it is a sorted scan or not.
+   */
   if (m_currFragNo >= m_query.getRootFragCount())
   {
     return NULL;
@@ -2244,7 +2252,11 @@ public:
   }
 
 private:
-  /** Size of internal receiver id buffer.*/
+  /** 
+   * Size of internal receiver id buffer. This value is arbitrary, but 
+   * a larger buffer would mean fewer calls to getNextWords(), possibly
+   * improving efficiency.
+   */
   static const Uint32 bufSize = 16;
   /** The query with the scan root operation that we list receiver ids for.*/
   const NdbQueryImpl& m_query;
@@ -2264,6 +2276,7 @@ const Uint32* ReceiverIdIterator::getNextWords(Uint32& sz)
   sz = 0;
   if(m_query.getRoot().getOrdering() == NdbScanOrdering_unordered)
   {
+    /* For unordered scans, ask for a new batch for each fragment.*/
     while (m_currFragNo < m_query.getRootFragCount()
            && sz < bufSize)
     {
@@ -2283,6 +2296,8 @@ const Uint32* ReceiverIdIterator::getNextWords(Uint32& sz)
      * root fragment at all times, in order to find the lowest remaining 
      * record. When one root fragment is empty, we must block the scan ask 
      * for a new batch for that particular fragment.
+     * Note that getEmpty() will never return a fragment that is complete 
+     * (meaning that the last batch has been received).
      */
     const NdbRootFragment* const emptyFrag = m_query.m_applFrags.getEmpty();
     if(emptyFrag!=NULL)
@@ -2292,6 +2307,10 @@ const Uint32* ReceiverIdIterator::getNextWords(Uint32& sz)
       assert(m_receiverIds[0] != RNIL);
       m_rootFragNos[0] = emptyFrag->getFragNo();
     }
+    /**
+     * Set it to one to make sure that the next call to getNextWords() will 
+     * return NULL, since we only want one fragment at a time.
+     */
     m_currFragNo = 1;
   }
   
