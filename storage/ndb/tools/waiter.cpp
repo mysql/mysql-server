@@ -255,7 +255,7 @@ getTimeAsString(char* pStr)
   tm_now = ::localtime(&now); //uses the "current" timezone
 #endif
 
-  snprintf(pStr, 9,
+  BaseString::snprintf(pStr, 9,
 	   "%02d:%02d:%02d",
 	   tm_now->tm_hour,
 	   tm_now->tm_min,
