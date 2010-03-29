@@ -8831,7 +8831,7 @@ innodb_mutex_show_status(
 
 	for (lock = UT_LIST_GET_FIRST(rw_lock_list); lock != NULL;
 	     lock = UT_LIST_GET_NEXT(list, lock)) {
-		if (lock->count_os_wait) {
+		if (lock->count_os_wait == 0) {
 			continue;
 		}
 
