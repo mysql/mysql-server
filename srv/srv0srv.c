@@ -2425,7 +2425,7 @@ srv_master_thread(
 	ulint		n_ios_old;
 	ulint		n_ios_very_old;
 	ulint		n_pend_ios;
-	ibool		skip_sleep	= FALSE;
+	ulint		next_itr_time;
 	ulint		i;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
@@ -2473,21 +2473,28 @@ loop:
 	when there is database activity */
 
 	srv_last_log_flush_time = time(NULL);
-	skip_sleep = FALSE;
+	next_itr_time = ut_time_ms();
 
 	for (i = 0; i < 10; i++) {
+		ulint	cur_time = ut_time_ms();
 		n_ios_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
 			+ buf_pool->stat.n_pages_written;
 		srv_main_thread_op_info = "sleeping";
 		srv_main_1_second_loops++;
 
-		if (!skip_sleep) {
+		if (next_itr_time > cur_time) {
 
-			os_thread_sleep(1000000);
+			/* Get sleep interval in micro seconds. We use
+			ut_min() to avoid long sleep in case of
+			wrap around. */
+			os_thread_sleep(ut_min(1000000,
+					(next_itr_time - cur_time)
+					 * 1000));
 			srv_main_sleeps++;
 		}
 
-		skip_sleep = FALSE;
+		/* Each iteration should happen at 1 second interval. */
+		next_itr_time = ut_time_ms() + 1000;
 
 		/* ALTER TABLE in MySQL requires on Unix that the table handler
 		can drop tables lazily after there no longer are SELECT
@@ -2539,12 +2546,6 @@ loop:
 							  PCT_IO(100),
 							  IB_ULONGLONG_MAX);
 
-			/* If we had to do the flush, it may have taken
-			even more than 1 second, and also, there may be more
-			to flush. Do not sleep 1 second during the next
-			iteration of this loop. */
-
-			skip_sleep = TRUE;
 		} else if (srv_adaptive_flushing) {
 
 			/* Try to keep the rate of flushing of dirty
@@ -2561,10 +2562,6 @@ loop:
 						BUF_FLUSH_LIST,
 						n_flush,
 						IB_ULONGLONG_MAX);
-
-				if (n_flush == PCT_IO(100)) {
-					skip_sleep = TRUE;
-				}
 			}
 		}
 
