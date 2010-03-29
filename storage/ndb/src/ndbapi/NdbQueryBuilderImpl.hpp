@@ -337,8 +337,9 @@ public:
   }
 
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
-                             bool&   isPruned,
-                             Uint32& hashValue) const {
+                            Uint32  shortestBound,
+                            bool&   isPruned,
+			    Uint32& hashValue) const {
     isPruned = false;
     return 0;
   }
@@ -443,6 +444,7 @@ public:
   { return NdbQueryOperationDef::OrderedIndexScan; }
 
   virtual int checkPrunable(const Uint32Buffer& keyInfo,
+                            Uint32  shortestBound,
                             bool&   isPruned,
                             Uint32& hashValue) const;
 
@@ -475,6 +477,8 @@ private:
   NdbQueryIndexScanOperationDef m_interface;
   const NdbIndexImpl& m_index;
 
+  /** True if there is a set of bounds.*/
+  const bool m_hasBound;
   IndexBound m_bound;
 
   /** Ordering of scan results.*/

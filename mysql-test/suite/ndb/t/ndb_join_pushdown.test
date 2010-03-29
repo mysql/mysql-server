@@ -1604,7 +1604,7 @@ select * from T1 t1, T1 t2
 # This query should push a pruned scan (but pruning must be fixed for 
 # pushed scans.)
 select count(*) from T1 t1, T1 t2 
-       where t1.a >= 11 and 
+       where t1.a = 11 and 
        	     t2.a = t1.c and t2.b = t1.c; 
 
 # Get the new values;
@@ -1628,5 +1628,132 @@ let $new_pushed_reads = query_get_value(SHOW STATUS LIKE 'Ndb_pushed_reads', Val
 --enable_query_log
 
 drop table T1;
+
+# Test scan pruning 
+create table T1(
+       a int not null,
+       b int not null,
+       c int not null,
+       d int not null,
+       primary key using hash (a,b))
+engine = ndb partition by key (a);
+
+insert into T1 values (10, 10, 11, 11);
+insert into T1 values (11, 11, 12, 12);
+insert into T1 values (12, 12, 13, 13);
+
+let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+
+# Should give pruned scan.
+
+create index i1 on T1(c,a);
+
+explain select count(*) from T1 t1, T1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
+
+select count(*) from T1 t1, T1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d and t2.b = t1.d; 
+
+drop index i1 on T1;
+
+let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+--eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+
+# Should give pruned scan. There is a one sided limit for t1.b, but this is
+# after the partition key prefix.
+
+create index i2 on T1(a,b);
+
+explain select count(*) from T1 t1, T1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from T1 t1, T1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
+
+let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+--eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+
+# Should give pruned scan. Upper and lower bounds for t1.a are the sane. 
+explain select count(*) from T1 t1, T1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from T1 t1, T1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
+
+let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+--eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+
+# Should not give pruned scan. Upper and lower bounds for t1.a are different. 
+explain select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c; 
+
+let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+--eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+
+# Should not give pruned scan. There will be two sets of bounds that have
+# different distribution keys (t1.a=10 and t1.a=12). 
+
+explain select count(*) from T1 t1, T1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from T1 t1, T1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
+
+let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+--eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+
+# Should give pruned scan. There will be two sets of bounds, but they have the
+# same distribution key.
+
+explain select count(*) from T1 t1, T1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
+select count(*) from T1 t1, T1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c; 
+
+let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+--eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+
+drop table T1;
+
+create table T2(
+       a int not null,
+       b int not null,
+       c int not null,
+       d int not null,
+       e int not null,
+       f int not null,
+       primary key using hash (a,b,c))
+engine = ndb partition by key (b,a);
+
+insert into T2 values (1, 2, 3, 1, 2, 3); 
+insert into T2 values (1, 2, 4, 1, 2, 3); 
+insert into T2 values (2, 3, 4, 1, 2, 3); 
+insert into T2 values (3, 4, 5, 1, 2, 3); 
+insert into T2 values (4, 5, 6, 1, 2, 3); 
+insert into T2 values (5, 6, 7, 1, 2, 3); 
+insert into T2 values (6, 7, 8, 1, 2, 3); 
+insert into T2 values (7, 8, 9, 1, 2, 3); 
+
+create index i2_1 on T2(d, a, b, e);
+
+# Should give pruned scan. The index prefix containing the distribution key
+# has a single possible value.
+explain select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+
+select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+
+drop index i2_1 on T2;
+
+let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+--eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+
+create index i2_3 on T2(a, d, b, e);
+
+# Should give pruned scan. The index prefix containing the distribution key
+# has a single possible value.
+
+explain select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+
+select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and y.b=x.e and y.c=3;
+
+drop table T2;
+
+let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
+--eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
+
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;

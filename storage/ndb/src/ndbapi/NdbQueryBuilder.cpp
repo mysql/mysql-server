@@ -1314,6 +1314,7 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
 : NdbQueryScanOperationDefImpl(table,ident,ix),
   m_interface(*this), 
   m_index(index), 
+  m_hasBound(bound != NULL),
   m_bound(),
   m_ordering(NdbScanOrdering_void)
 {
@@ -1356,94 +1357,197 @@ NdbQueryIndexScanOperationDefImpl::NdbQueryIndexScanOperationDefImpl (
 int
 NdbQueryIndexScanOperationDefImpl::checkPrunable(
                               const Uint32Buffer& keyInfo,
+			      Uint32  shortestBound,
                               bool&   isPruned,
                               Uint32& hashValue) const  // 'hashValue' only defined if 'isPruned'
 { 
   /**
    * Determine if scan may be pruned to a single partition:
    */
-  const NdbRecord* key_record = m_index.getDefaultRecord();
-
-  const Uint32 index_distkeys = key_record->m_no_of_distribution_keys;
-  const Uint32 distkey_min = key_record->m_min_distkey_prefix_length;
-  const Uint32 table_distkeys = getTable().getDefaultRecord()->m_no_of_distribution_keys;
-
-  bool isPrunable = (                             // Initial prunable propert:
-            index_distkeys == table_distkeys &&   // Index has all base table d-keys
-            m_bound.lowKeys >= distkey_min &&     // Low bounds have all d-keys
-            m_bound.highKeys >= distkey_min);     // High bounds have all d-keys
-
   isPruned = false;
-  if (isPrunable)
+  const NdbRecord* const indexRecord = m_index.getDefaultRecord();
+  /**
+   * This is the prefix (in number of fields) of the index key that will contain
+   * all the distribution key fields.
+   */
+  const Uint32 prefixLength = indexRecord->m_min_distkey_prefix_length;
+  const Uint32 noOfDistKeyParts = 
+    getTable().getDefaultRecord()->m_no_of_distribution_keys;
+
+  if (indexRecord->m_no_of_distribution_keys == 0)
   {
-    Ndb::Key_part_ptr lowKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
-    Ndb::Key_part_ptr highKey;
+    return 0; // Index does not contain all fields in the distribution key.
+  } 
+  else if (m_hasBound && 
+           (m_bound.lowKeys < prefixLength || m_bound.highKeys < prefixLength)) 
+  {
+    // Bounds set on query definition are to short to contain full dist key.
+    return 0; 
+  }
+  else if (shortestBound < prefixLength)
+  {
+    // Bounds set on query instance are to short to contain full dist key.
+    return 0; 
+  }
+  assert(indexRecord->m_no_of_distribution_keys == noOfDistKeyParts);
 
-    // Aggregate prunable propert:
-    // All hi/low keys values within 'distkey_min' must be equal
-    Uint32 keyPos = 0;
-    Uint32 keyEnd = keyInfo.get(keyPos) >> 16;
+  /** 
+   * The scan will be prunable if all upper and lower bound pairs are equal
+   * for the prefix containing the distribution key, and if all bounds
+   * give the same hash value for the distribution key.
+   */
+  Uint32 keyPos = 0;
 
-    for (unsigned keyNo = 0; keyNo < distkey_min; keyNo++)
+  // Loop over all bounds.
+  Uint32 boundNo = 0;
+  while (keyPos < keyInfo.getSize())
+  {
+    const Uint32 keyEnd = keyPos + (keyInfo.get(keyPos) >> 16);
+    Ndb::Key_part_ptr distKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1]
+      = {{NULL, 0}};
+    
+    // Loop over the fields in each bound.
+    Uint32 keyPartNo = 0;
+    Uint32 distKeyPartNo = 0;
+    while (keyPos < keyEnd)
     {
-      Uint32 type        = keyInfo.get(keyPos) & 0xFFFF;
-      AttributeHeader ah = keyInfo.get(keyPos+1);
-      lowKey[keyNo].len = ah.getByteSize();
-      lowKey[keyNo].ptr = keyInfo.addr(keyPos+2);
+      const NdbIndexScanOperation::BoundType type = 
+        static_cast<NdbIndexScanOperation::BoundType>
+        (keyInfo.get(keyPos) & 0xF);
+      const AttributeHeader attHead1(keyInfo.get(keyPos+1));
+      const Ndb::Key_part_ptr keyPart1 = { keyInfo.addr(keyPos+2),
+                                           attHead1.getByteSize() };
   
-      keyPos += 1+1+ah.getDataSize();  // Skip data read above.
+      keyPos += 1+1+attHead1.getDataSize();  // Skip data read above.
 
-      // Only has to compare values if not known to be 'BoundEQ'
-      if (type != NdbIndexScanOperation::BoundEQ)
+      const NdbColumnImpl& column 
+        = NdbColumnImpl::getImpl(*m_index.getColumn(keyPartNo));
+
+      // Check if this field is part of the distribution key.
+      if (getTable().m_columns[column.m_keyInfoPos]->m_distributionKey)
       {
-        assert ((keyInfo.get(keyPos) & 0xFFFF) != NdbIndexScanOperation::BoundEQ);
-        AttributeHeader ah = keyInfo.get(keyPos+1);
-        highKey.len = ah.getByteSize();
-        highKey.ptr = keyInfo.addr(keyPos+2);
+        /* Find the proper place for this field in the distribution key.*/
+        Ndb::Key_part_ptr* distKeyPtr = distKey;
+        for (Uint32 i = 0; i < column.m_keyInfoPos; i++)
+        {
+          if (getTable().m_columns[i]->m_distributionKey)
+          {
+            distKeyPtr++;
+          }
+        }
+          
+        assert(distKeyPtr->len == 0 && distKeyPtr->ptr == NULL);
+        *distKeyPtr = keyPart1;
+        distKeyPartNo++;
+      }
 
-        keyPos += 1+1+ah.getDataSize();  // Skip data read above.
-
-        // Compare high and low bound value:
-        const NdbColumnImpl& column = NdbColumnImpl::getImpl(*m_index.getColumn(keyNo));
-        const NdbRecord::Attr& recAttr = key_record->columns[column.m_keyInfoPos];
-        const int res=
-          (*recAttr.compare_function)(recAttr.charset_info,
-                                       lowKey[keyNo].ptr, lowKey[keyNo].len,
-                                       highKey.ptr, highKey.len, true);
-        if (res!=0) {  // Not equal
-          assert(res != NdbSqlUtil::CmpUnknown);
-          isPrunable = false;
+      switch (type)
+      {
+      case NdbIndexScanOperation::BoundEQ:
+        break;
+      case NdbIndexScanOperation::BoundGE:
+      case NdbIndexScanOperation::BoundGT:
+        /**
+         * We have a one-sided limit for this field, which is part of
+         * the prefix containing the distribution key. We thus cannot prune. 
+         */
+        return 0;
+      case NdbIndexScanOperation::BoundLE:
+      case NdbIndexScanOperation::BoundLT:
+        /**
+         * If keyPart1 is a lower limit for this column, there may be an upper 
+         * limit also.
+         */
+        if (keyPos == keyEnd ||
+            ((keyInfo.get(keyPos) & 0xF) != NdbIndexScanOperation::BoundGE &&
+             (keyInfo.get(keyPos) & 0xF) != NdbIndexScanOperation::BoundGT))
+        {
+          /**
+           * We have a one-sided limit for this field, which is part of
+           * the prefix containing the distribution key. We thus cannot prune. 
+           */
           return 0;
         }
-      } // != BoundEQ
-    } // for()
+        else // There is an upper limit.
+        {
+          const AttributeHeader attHeadHigh(keyInfo.get(keyPos+1));
+          const Ndb::Key_part_ptr highKeyPart = { keyInfo.addr(keyPos+2),
+                                                  attHeadHigh.getByteSize() };
+  
+          keyPos += 1+1+attHeadHigh.getDataSize();  // Skip data read above.
+  
+          /**
+           * We must compare key parts in the prefix that contains the 
+           * distribution key. Even if subseqent parts should be different,
+           * all matching tuples must have the same (distribution) hash.
+           *
+           * For example, assume there is a ordered index on {a, dist_key, b}.
+           * Then any tuple in the range {a=c1, <dist key=c2>, b=c3} to 
+           * {a=c1, dist_key=c2, b=c4} will have dist_key=c2.
+           * Then consider a range where fields before the disstibution key are 
+           * different, e.g. {a=c6, <dist key=c7>, b=c8} to 
+           * {a=c9, <dist key=c7>, b=c8} then matching tuples can have any value 
+           * for the distribution key as long as c6 <= a <= c9, so there can be 
+           * no pruning.
+           */
+          const NdbRecord::Attr& recAttr 
+            = indexRecord->columns[column.m_keyInfoPos];
+          const int res=
+            (*recAttr.compare_function)(recAttr.charset_info,
+                                        keyPart1.ptr, keyPart1.len,
+                                        highKeyPart.ptr, highKeyPart.len, 
+                                        true);
+          if (res!=0)
+          {  // Not equal
+            assert(res != NdbSqlUtil::CmpUnknown);
+            return 0;
+          }
+        } // if (keyPos == keyEnd ||
+        break;
+      default:
+        assert(false);
+      } // switch (type)
 
-    // Scan is now known to be prunable, calculate hashValue
-    assert (isPrunable);
+      keyPartNo++;
 
-    // FIXME: Don't handle multiple bounds yet, assumed non-prunable
-    if (keyPos < keyEnd)
-      return 0;
-
-    isPruned = true;
-    Ndb::Key_part_ptr distKey[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
-
-    // hi/low is equal and prunable bounds, remember key for later 
-    // hashValue calculation.
-    for (unsigned i = 0; i<key_record->distkey_index_length; i++)  {
-      // Revers lookup the index column with the value of this distrubution key.
-      Uint32 pos = NdbColumnImpl::getImpl(*m_index.getColumn(key_record->distkey_indexes[i])).m_keyInfoPos;
-      distKey[i] = lowKey[pos];
-    }
-    distKey[key_record->distkey_index_length].ptr = NULL;
-
-    int error = Ndb::computeHash(&hashValue, &getTable(), distKey, NULL, 0);
+      if (keyPartNo == prefixLength)
+      {
+        /** 
+         * Skip key parts after the prefix containing the distribution key,
+         * as these do not affect prunability.
+         */
+        keyPos = keyEnd;
+      }
+    } // while (keyPos < keyEnd)
+    
+    assert(distKeyPartNo == noOfDistKeyParts);
+    
+    // hi/low are equal and prunable bounds.
+    Uint32 newHashValue = 0;
+    const int error = Ndb::computeHash(&newHashValue, &getTable(), distKey, 
+                                       NULL, 0);
     if (unlikely(error))
       return error;
-  } // if 'isPrunable'
 
+    if (boundNo == 0)
+    {
+      hashValue = newHashValue;
+    }
+    else if (hashValue != newHashValue)
+    {
+      /* This bound does not have the same hash value as the previous one. 
+       * So we make the pessimistic assumtion that it will not hash to the 
+       * same node. (See also comments in 
+       * NdbScanOperation::getPartValueFromInfo()).
+       */
+      return 0;
+    }
+
+    boundNo++;
+  } // while (keyPos < keyInfo.getSize())
+
+  isPruned = true;
   return 0;
-
 } // NdbQueryIndexScanOperationDefImpl::checkPrunable
 
 int
