@@ -166,10 +166,16 @@ toku_os_write (int fd, const void *buf, size_t len) {
     return 0;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// fsync logic:
+
 // t_fsync exists for testing purposes only
 static int (*t_fsync)(int) = 0;
 static uint64_t toku_fsync_count;
 static uint64_t toku_fsync_time;
+
+static uint64_t sched_fsync_count;
+static uint64_t sched_fsync_time;
 
 int
 toku_set_func_fsync(int (*fsync_function)(int)) {
@@ -177,8 +183,16 @@ toku_set_func_fsync(int (*fsync_function)(int)) {
     return 0;
 }
 
-int
-toku_file_fsync_without_accounting (int fd) {
+static uint64_t get_tnow(void) {
+    struct timeval tv;
+    int r = gettimeofday(&tv, NULL); assert(r == 0);
+    return tv.tv_sec * 1000000ULL + tv.tv_usec;
+}
+
+// keep trying if fsync fails because of EINTR
+static int 
+file_fsync_internal (int fd, uint64_t *duration_p) {
+    uint64_t tstart = get_tnow();
     int r = -1;
     while (r != 0) {
 	if (t_fsync)
@@ -191,6 +205,17 @@ toku_file_fsync_without_accounting (int fd) {
 	    assert(rr==EINTR);
 	}
     }
+    toku_sync_fetch_and_increment_uint64(&toku_fsync_count);
+    uint64_t duration;
+    duration = get_tnow() - tstart;
+    toku_sync_fetch_and_add_uint64(&toku_fsync_time, duration);
+    if (duration_p) *duration_p = duration;
+    return r;
+}
+
+int
+toku_file_fsync_without_accounting (int fd) {
+    int r = file_fsync_internal (fd, NULL);
     return r;
 }
 
@@ -198,34 +223,34 @@ int
 toku_fsync_dirfd_without_accounting(DIR *dirp) {
     int r;
     int fd = dirfd(dirp);
-    if (fd<0) {
+    if (fd < 0) {
         r = -1;
-    }
-    else {
+    } else {
         r = toku_file_fsync_without_accounting(fd);
     }
     return r;
 }
 
-static uint64_t get_tnow(void) {
-    struct timeval tv;
-    int r = gettimeofday(&tv, NULL); assert(r == 0);
-    return tv.tv_sec * 1000000ULL + tv.tv_usec;
-}
-
-// keep trying if fsync fails because of EINTR
+// include fsync in scheduling accounting
 int
 toku_file_fsync(int fd) {
-    uint64_t tstart = get_tnow();
-    int r = toku_file_fsync_without_accounting(fd);
-    toku_sync_fetch_and_increment_uint64(&toku_fsync_count);
-    toku_sync_fetch_and_add_uint64(&toku_fsync_time, get_tnow() - tstart);
+    uint64_t duration;
+    int r = file_fsync_internal (fd, &duration);
+    toku_sync_fetch_and_increment_uint64(&sched_fsync_count);
+    toku_sync_fetch_and_add_uint64(&sched_fsync_time, duration);
     return r;
 }
 
+// for real accounting
 void
 toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time) {
     *fsync_count = toku_fsync_count;
     *fsync_time = toku_fsync_time;
 }
 
+// for scheduling algorithm only
+void
+toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time) {
+    *fsync_count = sched_fsync_count;
+    *fsync_time  = sched_fsync_time;
+}

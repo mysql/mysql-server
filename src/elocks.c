@@ -182,7 +182,7 @@ toku_ydb_lock(void) {
     }
     status.max_requested_sleep = u64max(status.max_requested_sleep, requested_sleep);
     toku_cachetable_get_miss_times(NULL, &ydb_big_lock.start_miss_count, &ydb_big_lock.start_miss_time);
-    toku_get_fsync_times(&ydb_big_lock.start_fsync_count, &ydb_big_lock.start_fsync_time);
+    toku_get_fsync_sched(&ydb_big_lock.start_fsync_count, &ydb_big_lock.start_fsync_time);
     if (new_ydbtime)
         toku_list_push(&ydb_big_lock.all_ydbtimes, &ydbtime->all_ydbtimes);
 #endif
@@ -215,7 +215,7 @@ toku_ydb_unlock(void) {
 	disk_count = disk_count - ydb_big_lock.start_miss_count;  // number of cache misses
 	disk_time = disk_time - ydb_big_lock.start_miss_time;     // usec spent waiting for disk reads
         uint64_t fsync_count, fsync_time;
-        toku_get_fsync_times(&fsync_count, &fsync_time);          // number of fsync operations 
+        toku_get_fsync_sched(&fsync_count, &fsync_time);          // number of fsync operations 
         disk_count += fsync_count - ydb_big_lock.start_fsync_count; // time waiting for fsyncs to complete
         disk_time += fsync_time - ydb_big_lock.start_fsync_time;
 	if (disk_count == 0) {
