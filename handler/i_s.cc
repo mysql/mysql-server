@@ -767,7 +767,7 @@ i_s_innodb_buffer_pool_pages_index_fill(
   dict_index_t*	index;
   dulint		index_id;
 
-  char *p;
+  const char *p;
   char db_name_raw[NAME_LEN*5+1], db_name[NAME_LEN+1];
   char table_name_raw[NAME_LEN*5+1], table_name[NAME_LEN+1];
 
@@ -808,7 +808,7 @@ i_s_innodb_buffer_pool_pages_index_fill(
             p++;            
           } else {
             field_store_string(table->field[0], NULL);
-            p = (char *)index->table_name;
+            p = index->table_name;
           }
           strcpy(table_name_raw, (const char*)p);
           filename_to_tablename(table_name_raw, table_name, sizeof(table_name));
