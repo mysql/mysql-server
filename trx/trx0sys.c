@@ -126,6 +126,12 @@ static const char*	file_format_name_map[] = {
 static const ulint	FILE_FORMAT_NAME_N
 	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register the mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 #ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
 updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
@@ -179,7 +185,8 @@ trx_doublewrite_init(
 	os_do_not_call_flush_at_each_write = TRUE;
 #endif /* UNIV_DO_FLUSH */
 
-	mutex_create(&trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
+	mutex_create(trx_doublewrite_mutex_key,
+		     &trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
 
 	trx_doublewrite->first_free = 0;
 
@@ -1283,7 +1290,8 @@ void
 trx_sys_file_format_init(void)
 /*==========================*/
 {
-	mutex_create(&file_format_max.mutex, SYNC_FILE_FORMAT_TAG);
+	mutex_create(file_format_max_mutex_key,
+		     &file_format_max.mutex, SYNC_FILE_FORMAT_TAG);
 
 	/* We don't need a mutex here, as this function should only
 	be called once at start up. */
@@ -1376,8 +1384,9 @@ trx_sys_read_file_format_id(
 	dulint		file_format_id;
 
 	*format_id = ULINT_UNDEFINED;
-	
+
 	file = os_file_create_simple_no_error_handling(
+		innodb_file_data_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
@@ -1456,8 +1465,9 @@ trx_sys_read_pertable_file_format_id(
 	ib_uint32_t	flags;
 
 	*format_id = ULINT_UNDEFINED;
-	
+
 	file = os_file_create_simple_no_error_handling(
+		innodb_file_data_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,

@@ -48,6 +48,7 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 #include <m_ctype.h>
 #include <mysys_err.h>
 #include <mysql/plugin.h>
+#include <mysql/psi/psi.h>
 
 /** @file ha_innodb.cc */
 
@@ -101,14 +102,14 @@ bool check_global_access(THD *thd, ulong want_access);
 #endif /* MYSQL_SERVER */
 
 /** to protect innobase_open_files */
-static pthread_mutex_t innobase_share_mutex;
+static mysql_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
-static pthread_mutex_t prepare_commit_mutex;
+static mysql_mutex_t prepare_commit_mutex;
 static ulong commit_threads = 0;
-static pthread_mutex_t commit_threads_m;
-static pthread_cond_t commit_cond;
-static pthread_mutex_t commit_cond_m;
-static pthread_mutex_t analyze_mutex;
+static mysql_mutex_t commit_threads_m;
+static mysql_cond_t commit_cond;
+static mysql_mutex_t commit_cond_m;
+static mysql_mutex_t analyze_mutex;
 static bool innodb_inited = 0;
 
 #define INSIDE_HA_INNOBASE_CC
@@ -198,6 +199,126 @@ static const char* innobase_change_buffering_values[IBUF_USE_COUNT] = {
 	"purges",	/* IBUF_USE_DELETE */
 	"all"		/* IBUF_USE_ALL */
 };
+
+#ifdef HAVE_PSI_INTERFACE
+/* Keys to register pthread mutexes/cond in the current file with
+performance schema */
+static mysql_pfs_key_t	innobase_share_mutex_key;
+static mysql_pfs_key_t	prepare_commit_mutex_key;
+static mysql_pfs_key_t	commit_threads_m_key;
+static mysql_pfs_key_t	analyze_mutex_key;
+static mysql_pfs_key_t	commit_cond_mutex_key;
+static mysql_pfs_key_t	commit_cond_key;
+
+static PSI_mutex_info	all_pthread_mutexes[] = {
+        {&analyze_mutex_key, "analyze_mutex", 0},
+        {&commit_threads_m_key, "commit_threads_m", 0},
+        {&commit_cond_mutex_key, "commit_cond_mutex", 0},
+        {&innobase_share_mutex_key, "innobase_share_mutex", 0},
+        {&prepare_commit_mutex_key, "prepare_commit_mutex", 0}
+};
+
+static PSI_cond_info	all_innodb_conds[] = {
+	{&commit_cond_key, "commit_cond", 0}
+};
+
+# ifdef UNIV_PFS_MUTEX
+/* all_innodb_mutexes array contains mutexes that are
+performance schema instrumented if "UNIV_PFS_MUTEX"
+is defined */
+static PSI_mutex_info all_innodb_mutexes[] = {
+	{&autoinc_mutex_key, "autoinc_mutex", 0},
+	{&btr_search_enabled_mutex_key, "btr_search_enabled_mutex", 0},
+	{&buffer_block_mutex_key, "buffer_block_mutex", 0},
+	{&buf_pool_mutex_key, "buf_pool_mutex", 0},
+	{&buf_pool_zip_mutex_key, "buf_pool_zip_mutex", 0},
+	{&cache_last_read_mutex_key, "cache_last_read_mutex", 0},
+	{&dict_foreign_err_mutex_key, "dict_foreign_err_mutex", 0},
+	{&dict_sys_mutex_key, "dict_sys_mutex", 0},
+	{&file_format_max_mutex_key, "file_format_max_mutex", 0},
+	{&fil_system_mutex_key, "fil_system_mutex", 0},
+	{&flush_list_mutex_key, "flush_list_mutex", 0},
+	{&hash_table_mutex_key, "hash_table_mutex", 0},
+	{&ibuf_bitmap_mutex_key, "ibuf_bitmap_mutex", 0},
+	{&ibuf_mutex_key, "ibuf_mutex", 0},
+	{&ibuf_pessimistic_insert_mutex_key,
+		 "ibuf_pessimistic_insert_mutex", 0},
+	{&ios_mutex_key, "ios_mutex", 0},
+	{&kernel_mutex_key, "kernel_mutex", 0},
+	{&log_sys_mutex_key, "log_sys_mutex", 0},
+#  ifdef UNIV_MEM_DEBUG
+	{&mem_hash_mutex_key, "mem_hash_mutex", 0},
+#  endif /* UNIV_MEM_DEBUG */
+	{&mem_pool_mutex_key, "mem_pool_mutex", 0},
+	{&mutex_list_mutex_key, "mutex_list_mutex", 0},
+	{&purge_sys_mutex_key, "purge_sys_mutex", 0},
+	{&recv_sys_mutex_key, "recv_sys_mutex", 0},
+	{&rseg_mutex_key, "rseg_mutex", 0},
+#  ifdef UNIV_SYNC_DEBUG
+	{&rw_lock_debug_mutex_key, "rw_lock_debug_mutex", 0},
+#  endif /* UNIV_SYNC_DEBUG */
+	{&rw_lock_list_mutex_key, "rw_lock_list_mutex", 0},
+	{&rw_lock_mutex_key, "rw_lock_mutex", 0},
+	{&srv_dict_tmpfile_mutex_key, "srv_dict_tmpfile_mutex", 0},
+	{&srv_innodb_monitor_mutex_key, "srv_innodb_monitor_mutex", 0},
+	{&srv_misc_tmpfile_mutex_key, "srv_misc_tmpfile_mutex", 0},
+	{&srv_monitor_file_mutex_key, "srv_monitor_file_mutex", 0},
+	{&syn_arr_mutex_key, "syn_arr_mutex", 0},
+#  ifdef UNIV_SYNC_DEBUG
+	{&sync_thread_mutex_key, "sync_thread_mutex", 0},
+#  endif /* UNIV_SYNC_DEBUG */
+	{&trx_doublewrite_mutex_key, "trx_doublewrite_mutex", 0},
+	{&thr_local_mutex_key, "thr_local_mutex", 0},
+	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
+	{&wq_mutex_key, "wq_mutex", 0}
+};
+# endif /* UNIV_PFS_MUTEX */
+
+# ifdef UNIV_PFS_RWLOCK
+/* all_innodb_rwlocks array contains rwlocks that are
+performance schema instrumented if "UNIV_PFS_RWLOCK"
+is defined */
+static PSI_rwlock_info all_innodb_rwlocks[] = {
+	{&btr_search_latch_key, "btr_search_latch", 0},
+	{&buf_block_lock_key, "buf_block_lock", 0},
+#  ifdef UNIV_SYNC_DEBUG
+	{&buf_block_debug_latch_key, "buf_block_debug_latch", 0},
+#  endif /* UNIV_SYNC_DEBUG */
+	{&dict_operation_lock_key, "dict_operation_lock", 0},
+	{&fil_space_latch_key, "fil_space_latch", 0},
+	{&checkpoint_lock_key, "checkpoint_lock", 0},
+	{&archive_lock_key, "archive_lock", 0},
+	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
+	{&trx_purge_latch_key, "trx_purge_latch", 0},
+	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0}
+};
+# endif /* UNIV_PFS_RWLOCK */
+
+# ifdef UNIV_PFS_THREAD
+/* all_innodb_threads array contains threads that are
+performance schema instrumented if "UNIV_PFS_THREAD"
+is defined */
+static PSI_thread_info	all_innodb_threads[] = {
+	{&trx_rollback_clean_thread_key, "trx_rollback_clean_thread", 0},
+	{&io_handler_thread_key, "io_handler_thread", 0},
+	{&srv_lock_timeout_thread_key, "srv_lock_timeout_thread", 0},
+	{&srv_error_monitor_thread_key, "srv_error_monitor_thread", 0},
+	{&srv_monitor_thread_key, "srv_monitor_thread", 0},
+	{&srv_master_thread_key, "srv_master_thread", 0}
+};
+# endif /* UNIV_PFS_THREAD */
+
+# ifdef UNIV_PFS_IO
+/* all_innodb_files array contains the type of files that are
+performance schema instrumented if "UNIV_PFS_IO" is defined */
+static PSI_file_info	all_innodb_files[] = {
+	{&innodb_file_data_key, "innodb_data_file", 0},
+	{&innodb_file_log_key, "innodb_log_file", 0},
+	{&innodb_file_temp_key, "innodb_temp_file", 0}
+};
+# endif /* UNIV_PFS_IO */
+#endif /* HAVE_PSI_INTERFACE */
+
 
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
@@ -2225,6 +2346,45 @@ innobase_change_buffering_inited_ok:
 
 	innobase_commit_concurrency_init_default();
 
+#ifdef HAVE_PSI_INTERFACE
+	/* Register keys with MySQL performance schema */
+	if (PSI_server) {
+		int	count;
+
+                count = array_elements(all_pthread_mutexes);
+                PSI_server->register_mutex("innodb",
+                                           all_pthread_mutexes, count);
+
+# ifdef UNIV_PFS_MUTEX
+		count = array_elements(all_innodb_mutexes);
+		PSI_server->register_mutex("innodb",
+					   all_innodb_mutexes, count);
+# endif /* UNIV_PFS_MUTEX */
+
+# ifdef UNIV_PFS_RWLOCK
+		count = array_elements(all_innodb_rwlocks);
+		PSI_server->register_rwlock("innodb",
+					    all_innodb_rwlocks, count);
+# endif /* UNIV_PFS_MUTEX */
+
+# ifdef UNIV_PFS_THREAD
+		count = array_elements(all_innodb_threads);
+		PSI_server->register_thread("innodb",
+					    all_innodb_threads, count);
+# endif /* UNIV_PFS_THREAD */
+
+# ifdef UNIV_PFS_IO
+		count = array_elements(all_innodb_files);
+		PSI_server->register_file("innodb",
+					  all_innodb_files, count);
+# endif /* UNIV_PFS_IO */
+
+		count = array_elements(all_innodb_conds);
+		PSI_server->register_cond("innodb",
+					  all_innodb_conds, count);
+	}
+#endif /* HAVE_PSI_INTERFACE */
+
 	/* Since we in this module access directly the fields of a trx
 	struct, and due to different headers and flags it might happen that
 	mutex_t has a different size in this module and in InnoDB
@@ -2238,12 +2398,18 @@ innobase_change_buffering_inited_ok:
 	}
 
 	innobase_open_tables = hash_create(200);
-	pthread_mutex_init(&innobase_share_mutex, MY_MUTEX_INIT_FAST);
-	pthread_mutex_init(&prepare_commit_mutex, MY_MUTEX_INIT_FAST);
-	pthread_mutex_init(&commit_threads_m, MY_MUTEX_INIT_FAST);
-	pthread_mutex_init(&commit_cond_m, MY_MUTEX_INIT_FAST);
-	pthread_mutex_init(&analyze_mutex, MY_MUTEX_INIT_FAST);
-	pthread_cond_init(&commit_cond, NULL);
+	mysql_mutex_init(innobase_share_mutex_key,
+			 &innobase_share_mutex,
+			 MY_MUTEX_INIT_FAST);
+	mysql_mutex_init(prepare_commit_mutex_key,
+			 &prepare_commit_mutex, MY_MUTEX_INIT_FAST);
+	mysql_mutex_init(commit_threads_m_key,
+			 &commit_threads_m, MY_MUTEX_INIT_FAST);
+	mysql_mutex_init(commit_cond_mutex_key,
+			 &commit_cond_m, MY_MUTEX_INIT_FAST);
+	mysql_mutex_init(analyze_mutex_key,
+			  &analyze_mutex, MY_MUTEX_INIT_FAST);
+	mysql_cond_init(commit_cond_key, &commit_cond, NULL);
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
 	if (innobase_hton != p) {
@@ -2293,12 +2459,12 @@ innobase_end(
 		srv_free_paths_and_sizes();
 		my_free(internal_innobase_data_file_path,
 						MYF(MY_ALLOW_ZERO_PTR));
-		pthread_mutex_destroy(&innobase_share_mutex);
-		pthread_mutex_destroy(&prepare_commit_mutex);
-		pthread_mutex_destroy(&commit_threads_m);
-		pthread_mutex_destroy(&commit_cond_m);
-		pthread_mutex_destroy(&analyze_mutex);
-		pthread_cond_destroy(&commit_cond);
+		mysql_mutex_destroy(&innobase_share_mutex);
+		mysql_mutex_destroy(&prepare_commit_mutex);
+		mysql_mutex_destroy(&commit_threads_m);
+		mysql_mutex_destroy(&commit_cond_m);
+		mysql_mutex_destroy(&analyze_mutex);
+		mysql_cond_destroy(&commit_cond);
 	}
 
 	DBUG_RETURN(err);
@@ -2463,18 +2629,18 @@ innobase_commit(
 		prepare_commit_mutex */
 retry:
 		if (innobase_commit_concurrency > 0) {
-			pthread_mutex_lock(&commit_cond_m);
+			mysql_mutex_lock(&commit_cond_m);
 			commit_threads++;
 
 			if (commit_threads > innobase_commit_concurrency) {
 				commit_threads--;
-				pthread_cond_wait(&commit_cond,
+				mysql_cond_wait(&commit_cond,
 					&commit_cond_m);
-				pthread_mutex_unlock(&commit_cond_m);
+				mysql_mutex_unlock(&commit_cond_m);
 				goto retry;
 			}
 			else {
-				pthread_mutex_unlock(&commit_cond_m);
+				mysql_mutex_unlock(&commit_cond_m);
 			}
 		}
 
@@ -2502,15 +2668,15 @@ retry:
 		trx->flush_log_later = FALSE;
 
 		if (innobase_commit_concurrency > 0) {
-			pthread_mutex_lock(&commit_cond_m);
+			mysql_mutex_lock(&commit_cond_m);
 			commit_threads--;
-			pthread_cond_signal(&commit_cond);
-			pthread_mutex_unlock(&commit_cond_m);
+			mysql_cond_signal(&commit_cond);
+			mysql_mutex_unlock(&commit_cond_m);
 		}
 
 		if (trx->active_trans == 2) {
 
-			pthread_mutex_unlock(&prepare_commit_mutex);
+			mysql_mutex_unlock(&prepare_commit_mutex);
 		}
 
 		/* Now do a write + flush of logs. */
@@ -7666,12 +7832,12 @@ ha_innobase::analyze(
 {
 	/* Serialize ANALYZE TABLE inside InnoDB, see
 	Bug#38996 Race condition in ANALYZE TABLE */
-	pthread_mutex_lock(&analyze_mutex);
+	mysql_mutex_lock(&analyze_mutex);
 
 	/* Simply call ::info() with all the flags */
 	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
 
-	pthread_mutex_unlock(&analyze_mutex);
+	mysql_mutex_unlock(&analyze_mutex);
 
 	return(0);
 }
@@ -8696,8 +8862,8 @@ innodb_show_status(
 	read the contents of the temporary file */
 
 	if (!(str = (char*) my_malloc(usable_len + 1, MYF(0)))) {
-	  mutex_exit(&srv_monitor_file_mutex);
-	  DBUG_RETURN(TRUE);
+		mutex_exit(&srv_monitor_file_mutex);
+		DBUG_RETURN(TRUE);
 	}
 
 	rewind(srv_monitor_file);
@@ -8937,7 +9103,7 @@ bool innobase_show_status(handlerton *hton, THD* thd,
 static INNOBASE_SHARE* get_share(const char* table_name)
 {
 	INNOBASE_SHARE *share;
-	pthread_mutex_lock(&innobase_share_mutex);
+	mysql_mutex_lock(&innobase_share_mutex);
 
 	ulint	fold = ut_fold_string(table_name);
 
@@ -8971,14 +9137,14 @@ static INNOBASE_SHARE* get_share(const char* table_name)
 	}
 
 	share->use_count++;
-	pthread_mutex_unlock(&innobase_share_mutex);
+	mysql_mutex_unlock(&innobase_share_mutex);
 
 	return(share);
 }
 
 static void free_share(INNOBASE_SHARE* share)
 {
-	pthread_mutex_lock(&innobase_share_mutex);
+	mysql_mutex_lock(&innobase_share_mutex);
 
 #ifdef UNIV_DEBUG
 	INNOBASE_SHARE* share2;
@@ -9009,7 +9175,7 @@ static void free_share(INNOBASE_SHARE* share)
 		shrinks too much */
 	}
 
-	pthread_mutex_unlock(&innobase_share_mutex);
+	mysql_mutex_unlock(&innobase_share_mutex);
 }
 
 /*****************************************************************//**
@@ -9718,7 +9884,7 @@ innobase_xa_prepare(
 		In this case we cannot know how many minutes or hours
 		will be between XA PREPARE and XA COMMIT, and we don't want
 		to block for undefined period of time. */
-		pthread_mutex_lock(&prepare_commit_mutex);
+		mysql_mutex_lock(&prepare_commit_mutex);
 		trx->active_trans = 2;
 	}
 

@@ -114,6 +114,11 @@ struct mem_pool_struct{
 /** The common memory pool */
 UNIV_INTERN mem_pool_t*	mem_comm_pool	= NULL;
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register mutex in mem_pool_struct with performance schema */
+UNIV_INTERN mysql_pfs_key_t	mem_pool_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /* We use this counter to check that the mem pool mutex does not leak;
 this is to track a strange assertion failure reported at
 mysql@lists.mysql.com */
@@ -219,7 +224,7 @@ mem_pool_create(
 	pool->buf = ut_malloc_low(size, FALSE, TRUE);
 	pool->size = size;
 
-	mutex_create(&pool->mutex, SYNC_MEM_POOL);
+	mutex_create(mem_pool_mutex_key, &pool->mutex, SYNC_MEM_POOL);
 
 	/* Initialize the free lists */
 

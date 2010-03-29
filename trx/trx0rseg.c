@@ -34,6 +34,11 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0purge.h"
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register rseg_mutex_key with performance schema */
+UNIV_INTERN mysql_pfs_key_t	rseg_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /******************************************************************//**
 Looks for a rollback segment, based on the rollback segment id.
 @return	rollback segment */
@@ -207,7 +212,7 @@ trx_rseg_mem_create(
 	rseg->zip_size = zip_size;
 	rseg->page_no = page_no;
 
-	mutex_create(&rseg->mutex, SYNC_RSEG);
+	mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_RSEG);
 
 	UT_LIST_ADD_LAST(rseg_list, trx_sys->rseg_list, rseg);
 

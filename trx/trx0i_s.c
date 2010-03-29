@@ -186,6 +186,15 @@ INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 UNIV_INTERN trx_i_s_cache_t*	trx_i_s_cache = &trx_i_s_cache_static;
 
+/* Key to register the lock/mutex with performance schema */
+#ifdef UNIV_PFS_RWLOCK
+UNIV_INTERN mysql_pfs_key_t	trx_i_s_cache_lock_key;
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	cache_last_read_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /*******************************************************************//**
 For a record lock that is in waiting state retrieves the only bit that
 is set, for a table lock returns ULINT_UNDEFINED.
@@ -1246,11 +1255,13 @@ trx_i_s_cache_init(
 	release trx_i_s_cache_t::last_read_mutex
 	release trx_i_s_cache_t::rw_lock */
 
-	rw_lock_create(&cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
+	rw_lock_create(trx_i_s_cache_lock_key, &cache->rw_lock,
+		       SYNC_TRX_I_S_RWLOCK);
 
 	cache->last_read = 0;
 
-	mutex_create(&cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
+	mutex_create(cache_last_read_mutex_key,
+		     &cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));

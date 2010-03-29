@@ -198,6 +198,10 @@ UNIV_INTERN sync_thread_t*	sync_thread_level_arrays;
 
 /** Mutex protecting sync_thread_level_arrays */
 UNIV_INTERN mutex_t		sync_thread_mutex;
+
+# ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	sync_thread_mutex_key;
+# endif /* UNIV_PFS_MUTEX */
 #endif /* UNIV_SYNC_DEBUG */
 
 /** Global list of database mutexes (not OS mutexes) created. */
@@ -205,6 +209,10 @@ UNIV_INTERN ut_list_base_node_t  mutex_list;
 
 /** Mutex protecting the mutex_list variable */
 UNIV_INTERN mutex_t mutex_list_mutex;
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	mutex_list_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_SYNC_DEBUG
 /** Latching order checks start when this is set TRUE */
@@ -302,13 +310,14 @@ mutex_create_func(
 }
 
 /******************************************************************//**
+NOTE! Use the corresponding macro mutex_free(), not directly this function!
 Calling this function is obligatory only if the memory buffer containing
 the mutex is freed. Removes a mutex object from the mutex list. The mutex
 is checked to be in the reset state. */
 UNIV_INTERN
 void
-mutex_free(
-/*=======*/
+mutex_free_func(
+/*============*/
 	mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_ad(mutex_validate(mutex));
@@ -1399,18 +1408,22 @@ sync_init(void)
 	/* Init the mutex list and create the mutex to protect it. */
 
 	UT_LIST_INIT(mutex_list);
-	mutex_create(&mutex_list_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(mutex_list_mutex_key, &mutex_list_mutex,
+		     SYNC_NO_ORDER_CHECK);
 #ifdef UNIV_SYNC_DEBUG
-	mutex_create(&sync_thread_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(sync_thread_mutex_key, &sync_thread_mutex,
+		     SYNC_NO_ORDER_CHECK);
 #endif /* UNIV_SYNC_DEBUG */
 
 	/* Init the rw-lock list and create the mutex to protect it. */
 
 	UT_LIST_INIT(rw_lock_list);
-	mutex_create(&rw_lock_list_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(rw_lock_list_mutex_key, &rw_lock_list_mutex,
+		     SYNC_NO_ORDER_CHECK);
 
 #ifdef UNIV_SYNC_DEBUG
-	mutex_create(&rw_lock_debug_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(rw_lock_debug_mutex_key, &rw_lock_debug_mutex,
+		     SYNC_NO_ORDER_CHECK);
 
 	rw_lock_debug_event = os_event_create(NULL);
 	rw_lock_debug_waiters = FALSE;

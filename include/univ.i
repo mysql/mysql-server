@@ -144,6 +144,23 @@ Sun Studio */
 
 #endif /* #if (defined(WIN32) || ... */
 
+/* Following defines are to enable performance schema
+instrumentation in each of four InnoDB modules if
+HAVE_PSI_INTERFACE is defined. */
+#ifdef HAVE_PSI_INTERFACE
+# define UNIV_PFS_MUTEX
+# define UNIV_PFS_RWLOCK
+/* For I/O instrumentation, performance schema rely
+on a native descriptor to identify the file, this
+descriptor could conflict with our OS level descriptor.
+Disable IO instrumentation on Windows until this is
+resolved */
+# ifndef __WIN__
+#  define UNIV_PFS_IO
+# endif
+# define UNIV_PFS_THREAD
+#endif /* HAVE_PSI_INTERFACE */
+
 /*			DEBUG VERSION CONTROL
 			===================== */
 

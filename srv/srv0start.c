@@ -142,6 +142,19 @@ static char*	srv_monitor_file_name;
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
+#ifdef UNIV_PFS_THREAD
+/* Keys to register InnoDB threads with performance schema */
+UNIV_INTERN mysql_pfs_key_t	io_handler_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_lock_timeout_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_error_monitor_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
+#endif /* UNIV_PFS_THREAD */
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register ios_mutex_key with performance schema */
+UNIV_INTERN mysql_pfs_key_t	ios_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 /*********************************************************************//**
 Convert a numeric string that optionally ends in G or M, to a number
@@ -471,6 +484,11 @@ io_handler_thread(
 	fprintf(stderr, "Io handler thread %lu starts, id %lu\n", segment,
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(io_handler_thread_key);
+#endif /* UNIV_PFS_THREAD */
+
 	for (i = 0;; i++) {
 		fil_aio_wait(segment);
 
@@ -584,7 +602,8 @@ open_or_create_log_file(
 
 	sprintf(name + dirnamelen, "%s%lu", "ib_logfile", (ulong) i);
 
-	files[i] = os_file_create(name, OS_FILE_CREATE, OS_FILE_NORMAL,
+	files[i] = os_file_create(innodb_file_log_key, name,
+				  OS_FILE_CREATE, OS_FILE_NORMAL,
 				  OS_LOG_FILE, &ret);
 	if (ret == FALSE) {
 		if (os_file_get_last_error(FALSE) != OS_FILE_ALREADY_EXISTS
@@ -602,7 +621,8 @@ open_or_create_log_file(
 			return(DB_ERROR);
 		}
 
-		files[i] = os_file_create(name, OS_FILE_OPEN, OS_FILE_AIO,
+		files[i] = os_file_create(innodb_file_log_key, name,
+					  OS_FILE_OPEN, OS_FILE_AIO,
 					  OS_LOG_FILE, &ret);
 		if (!ret) {
 			fprintf(stderr,
@@ -767,7 +787,8 @@ open_or_create_data_files(
 			/* First we try to create the file: if it already
 			exists, ret will get value FALSE */
 
-			files[i] = os_file_create(name, OS_FILE_CREATE,
+			files[i] = os_file_create(innodb_file_data_key,
+						  name, OS_FILE_CREATE,
 						  OS_FILE_NORMAL,
 						  OS_DATA_FILE, &ret);
 
@@ -794,7 +815,8 @@ open_or_create_data_files(
 			srv_start_raw_disk_in_use = TRUE;
 			srv_created_new_raw = TRUE;
 
-			files[i] = os_file_create(name, OS_FILE_OPEN_RAW,
+			files[i] = os_file_create(innodb_file_data_key,
+						  name, OS_FILE_OPEN_RAW,
 						  OS_FILE_NORMAL,
 						  OS_DATA_FILE, &ret);
 			if (!ret) {
@@ -827,14 +849,17 @@ open_or_create_data_files(
 
 			if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
 				files[i] = os_file_create(
+					innodb_file_data_key,
 					name, OS_FILE_OPEN_RAW,
 					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 			} else if (i == 0) {
 				files[i] = os_file_create(
+					innodb_file_data_key,
 					name, OS_FILE_OPEN_RETRY,
 					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 			} else {
 				files[i] = os_file_create(
+					innodb_file_data_key,
 					name, OS_FILE_OPEN, OS_FILE_NORMAL,
 					OS_DATA_FILE, &ret);
 			}
@@ -977,7 +1002,7 @@ skip_size_check:
 
 	ios = 0;
 
-	mutex_create(&ios_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(ios_mutex_key, &ios_mutex, SYNC_NO_ORDER_CHECK);
 
 	return(DB_SUCCESS);
 }
@@ -1238,7 +1263,8 @@ innobase_start_or_create_for_mysql(void)
 		return((int) err);
 	}
 
-	mutex_create(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(srv_monitor_file_mutex_key,
+		     &srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
 
 	if (srv_innodb_status) {
 		srv_monitor_file_name = mem_alloc(
@@ -1260,14 +1286,16 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
-	mutex_create(&srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+	mutex_create(srv_dict_tmpfile_mutex_key,
+		     &srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
 
 	srv_dict_tmpfile = os_file_create_tmpfile();
 	if (!srv_dict_tmpfile) {
 		return(DB_ERROR);
 	}
 
-	mutex_create(&srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+	mutex_create(srv_misc_tmpfile_mutex_key,
+		     &srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
 
 	srv_misc_tmpfile = os_file_create_tmpfile();
 	if (!srv_misc_tmpfile) {

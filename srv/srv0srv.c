@@ -423,6 +423,20 @@ UNIV_INTERN mutex_t	srv_innodb_monitor_mutex;
 
 /* Mutex for locking srv_monitor_file */
 UNIV_INTERN mutex_t	srv_monitor_file_mutex;
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register kernel_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	kernel_mutex_key;
+/* Key to register srv_innodb_monitor_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
+/* Key to register srv_monitor_file_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	srv_monitor_file_mutex_key;
+/* Key to register srv_dict_tmpfile_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
+/* Key to register the mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /* Temporary file for innodb monitor output */
 UNIV_INTERN FILE*	srv_monitor_file;
 /* Mutex for locking srv_dict_tmpfile.
@@ -938,9 +952,10 @@ srv_init(void)
 	srv_sys = mem_alloc(sizeof(srv_sys_t));
 
 	kernel_mutex_temp = mem_alloc(sizeof(mutex_t));
-	mutex_create(&kernel_mutex, SYNC_KERNEL);
+	mutex_create(kernel_mutex_key, &kernel_mutex, SYNC_KERNEL);
 
-	mutex_create(&srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(srv_innodb_monitor_mutex_key,
+		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 
 	srv_sys->threads = mem_alloc(OS_THREAD_MAX_N * sizeof(srv_slot_t));
 
@@ -1979,6 +1994,11 @@ srv_monitor_thread(
 	fprintf(stderr, "Lock timeout thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(srv_monitor_thread_key);
+#endif
+
 	UT_NOT_USED(arg);
 	srv_last_monitor_time = time(NULL);
 	last_table_monitor_time = time(NULL);
@@ -2130,6 +2150,10 @@ srv_lock_timeout_thread(
 	double		wait_time;
 	ulint		i;
 
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(srv_lock_timeout_thread_key);
+#endif
+
 loop:
 	/* When someone is waiting for a lock, we wake up every second
 	and check if a timeout has passed for a lock wait */
@@ -2235,6 +2259,11 @@ srv_error_monitor_thread(
 	fprintf(stderr, "Error monitor thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
+
+#ifdef UNIV_PFS_THREAD
+        pfs_register_thread(srv_error_monitor_thread_key);
+#endif
+
 loop:
 	srv_error_monitor_active = TRUE;
 
@@ -2403,6 +2432,11 @@ srv_master_thread(
 	fprintf(stderr, "Master thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(srv_master_thread_key);
+#endif
+
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
@@ -2828,6 +2862,7 @@ suspend_thread:
 		already when the event wait ends */
 
 		os_thread_exit(NULL);
+
 	}
 
 	/* When there is user activity, InnoDB will set the event and the
