@@ -2665,6 +2665,14 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_rseg =
 */
 static ST_FIELD_INFO	i_s_innodb_table_stats_info[] =
 {
+	{STRUCT_FLD(field_name,		"table_schema"),
+	 STRUCT_FLD(field_length,	NAME_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	{STRUCT_FLD(field_name,		"table_name"),
 	 STRUCT_FLD(field_length,	NAME_LEN),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -2710,6 +2718,14 @@ static ST_FIELD_INFO	i_s_innodb_table_stats_info[] =
 
 static ST_FIELD_INFO	i_s_innodb_index_stats_info[] =
 {
+	{STRUCT_FLD(field_name,		"table_schema"),
+	 STRUCT_FLD(field_length,	NAME_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	{STRUCT_FLD(field_name,		"table_name"),
 	 STRUCT_FLD(field_length,	NAME_LEN),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -2785,16 +2801,30 @@ i_s_innodb_table_stats_fill(
 	table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 
 	while (table) {
+		char	buf[NAME_LEN * 2 + 2];
+		char*	ptr;
+
 		if (table->stat_clustered_index_size == 0) {
 			table = UT_LIST_GET_NEXT(table_LRU, table);
 			continue;
 		}
 
-		field_store_string(i_s_table->field[0], table->name);
-		i_s_table->field[1]->store(table->stat_n_rows);
-		i_s_table->field[2]->store(table->stat_clustered_index_size);
-		i_s_table->field[3]->store(table->stat_sum_of_other_index_sizes);
-		i_s_table->field[4]->store(table->stat_modified_counter);
+		buf[NAME_LEN * 2 + 1] = 0;
+		strncpy(buf, table->name, NAME_LEN * 2 + 1);
+		ptr = strchr(buf, '/');
+		if (ptr) {
+			*ptr = '\0';
+			++ptr;
+		} else {
+			ptr = buf;
+		}
+
+		field_store_string(i_s_table->field[0], buf);
+		field_store_string(i_s_table->field[1], ptr);
+		i_s_table->field[2]->store(table->stat_n_rows);
+		i_s_table->field[3]->store(table->stat_clustered_index_size);
+		i_s_table->field[4]->store(table->stat_sum_of_other_index_sizes);
+		i_s_table->field[5]->store(table->stat_modified_counter);
 
 		if (schema_table_store_record(thd, i_s_table)) {
 			status = 1;
@@ -2850,11 +2880,24 @@ i_s_innodb_index_stats_fill(
 		while (index) {
 			char	buff[256+1];
 			char	row_per_keys[256+1];
+			char	buf[NAME_LEN * 2 + 2];
+			char*	ptr;
 			ulint	i;
 
-			field_store_string(i_s_table->field[0], table->name);
-			field_store_string(i_s_table->field[1], index->name);
-			i_s_table->field[2]->store(index->n_uniq);
+			buf[NAME_LEN * 2 + 1] = 0;
+			strncpy(buf, table->name, NAME_LEN * 2 + 1);
+			ptr = strchr(buf, '/');
+			if (ptr) {
+				*ptr = '\0';
+				++ptr;
+			} else {
+				ptr = buf;
+			}
+
+			field_store_string(i_s_table->field[0], buf);
+			field_store_string(i_s_table->field[1], ptr);
+			field_store_string(i_s_table->field[2], index->name);
+			i_s_table->field[3]->store(index->n_uniq);
 
 			row_per_keys[0] = '\0';
 			if (index->stat_n_diff_key_vals) {
@@ -2870,10 +2913,10 @@ i_s_innodb_index_stats_fill(
 					strncat(row_per_keys, buff, 256 - strlen(row_per_keys));
 				}
 			}
-			field_store_string(i_s_table->field[3], row_per_keys);
+			field_store_string(i_s_table->field[4], row_per_keys);
 
-			i_s_table->field[4]->store(index->stat_index_size);
-			i_s_table->field[5]->store(index->stat_n_leaf_pages);
+			i_s_table->field[5]->store(index->stat_index_size);
+			i_s_table->field[6]->store(index->stat_n_leaf_pages);
 
 			if (schema_table_store_record(thd, i_s_table)) {
 				status = 1;
