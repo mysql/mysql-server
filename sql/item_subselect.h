@@ -433,7 +433,12 @@ public:
   /* Inform 'this' that it was computed, and contains a valid result. */
   void set_first_execution() { if (first_execution) first_execution= FALSE; }
   bool is_expensive_processor(uchar *arg);
-
+  
+  /* 
+    Return the identifier that we could use to identify the subquery for the
+    user.
+  */
+  int get_identifier();
   friend class Item_ref_null_helper;
   friend class Item_is_not_null_test;
   friend class Item_in_optimizer;
@@ -534,7 +539,7 @@ public:
   /* Check if subquery produced any rows during last query execution */
   virtual bool no_rows() = 0;
   virtual enum_engine_type engine_type() { return ABSTRACT_ENGINE; }
-
+  virtual int get_identifier() { DBUG_ASSERT(0); return 0; }
 protected:
   void set_row(List<Item> &item_list, Item_cache **row);
 };
@@ -566,6 +571,7 @@ public:
   bool is_executed() const { return executed; }
   bool no_rows();
   virtual enum_engine_type engine_type() { return SINGLE_SELECT_ENGINE; }
+  int get_identifier();
 
   friend class subselect_hash_sj_engine;
   friend class Item_in_subselect;

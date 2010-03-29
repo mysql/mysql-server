@@ -17889,8 +17889,15 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
   else
   {
     table_map used_tables=0;
-    uint last_sjm_table= MAX_TABLES;
-    for (uint i=0 ; i < join->tables ; i++)
+
+    uchar sjm_nests[MAX_TABLES];
+    uint sjm_nests_cur=0;
+    uint sjm_nests_end= 0;
+    uint end_table= join->tables;
+    bool printing_materialize_nest= FALSE;
+    uint select_id= join->select_lex->select_number;
+
+    for (uint i=0 ; i < end_table ; i++)
     {
       JOIN_TAB *tab=join->join_tab+i;
       TABLE *table=tab->table;
@@ -17898,6 +17905,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       char buff[512]; 
       char buff1[512], buff2[512], buff3[512];
       char keylen_str_buf[64];
+      my_bool key_read;
       String extra(buff, sizeof(buff),cs);
       char table_name_buffer[NAME_LEN];
       String tmp1(buff1,sizeof(buff1),cs);
@@ -17907,7 +17915,6 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       tmp1.length(0);
       tmp2.length(0);
       tmp3.length(0);
-
       quick_type= -1;
 
       /* Don't show eliminated tables */
@@ -17919,12 +17926,89 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
 
       item_list.empty();
       /* id */
-      item_list.push_back(new Item_uint((uint32)
-				       join->select_lex->select_number));
+      item_list.push_back(new Item_uint((uint32)select_id));
       /* select_type */
-      item_list.push_back(new Item_string(join->select_lex->type,
-					  strlen(join->select_lex->type),
-					  cs));
+      const char* stype= printing_materialize_nest? "SUBQUERY" : 
+                                                    join->select_lex->type;
+      item_list.push_back(new Item_string(stype, strlen(stype), cs));
+      
+      /* 
+        Special processing for SJ-Materialization nests: print the fake table
+        and delay printing of the SJM nest contents until later.
+      */
+      uint sj_strategy= join->best_positions[i].sj_strategy;
+      if (sj_is_materialize_strategy(sj_strategy) &&
+          !printing_materialize_nest)
+      {
+        /* table */
+        int len= my_snprintf(table_name_buffer, 
+                             sizeof(table_name_buffer)-1,
+                             "subselect%d", 
+                             tab->emb_sj_nest->sj_subq_pred->get_identifier());
+	item_list.push_back(new Item_string(table_name_buffer, len, cs));
+        /* partitions */
+        if (join->thd->lex->describe & DESCRIBE_PARTITIONS)
+          item_list.push_back(item_null);
+        /* type */
+        uint type= (sj_strategy == SJ_OPT_MATERIALIZE_SCAN)? JT_ALL : JT_EQ_REF;
+        item_list.push_back(new Item_string(join_type_str[type],
+                                            strlen(join_type_str[type]),
+                                            cs));
+        /* possible_keys */
+	item_list.push_back(new Item_string("unique_key", 
+                                            strlen("unique_key"), cs));
+        if (sj_strategy == SJ_OPT_MATERIALIZE_SCAN)
+        {
+          item_list.push_back(item_null); /* key */
+          item_list.push_back(item_null); /* key_len */
+          item_list.push_back(item_null); /* ref */
+        }
+        else
+        {
+          /* key */
+          item_list.push_back(new Item_string("unique_key", strlen("unique_key"), cs));
+          /* key_len */
+          uint klen= tab->emb_sj_nest->sj_mat_info->table->key_info[0].key_length;
+          uint buflen= longlong2str(klen, keylen_str_buf, 10) - keylen_str_buf;
+          item_list.push_back(new Item_string(keylen_str_buf, buflen, cs));
+          /* ref */
+          item_list.push_back(new Item_string("func", strlen("func"), cs));
+        }
+        /* rows */
+        ha_rows rows= (sj_strategy == SJ_OPT_MATERIALIZE_SCAN)?
+                       tab->emb_sj_nest->sj_mat_info->rows : 1;
+        item_list.push_back(new Item_int(rows));
+        /* filtered */
+        if (join->thd->lex->describe & DESCRIBE_EXTENDED)
+          item_list.push_back(new Item_float(1.0, 2));
+        
+        /* Extra */
+	if (need_tmp_table)
+	{
+	  need_tmp_table=0;
+	  extra.append(STRING_WITH_LEN("; Using temporary"));
+	}
+	if (need_order)
+	{
+	  need_order=0;
+	  extra.append(STRING_WITH_LEN("; Using filesort"));
+	}
+        /* Skip initial "; "*/
+        const char *str= extra.ptr();
+        uint32 extra_len= extra.length();
+        if (extra_len)
+        {
+          str += 2;
+          extra_len -= 2;
+        }
+	item_list.push_back(new Item_string(str, extra_len, cs));
+
+        /* Register the nest for further processing: */
+        sjm_nests[sjm_nests_end++]= i;
+        i += join->best_positions[i].n_sj_tables-1;
+        goto loop_end;
+      }
+
       if (tab->type == JT_ALL && tab->select && tab->select->quick)
       {
         quick_type= tab->select->quick->get_type();
@@ -17935,6 +18019,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         else
 	  tab->type = JT_RANGE;
       }
+
       /* table */
       if (table->derived_select_number)
       {
@@ -18113,7 +18198,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
       }
 
       /* Build "Extra" field and add it to item_list. */
-      my_bool key_read=table->key_read;
+      key_read=table->key_read;
       if ((tab->type == JT_NEXT || tab->type == JT_CONST) &&
           table->covering_keys.is_set(tab->index))
 	key_read=1;
@@ -18269,7 +18354,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
             extra.append(STRING_WITH_LEN(")"));
           }
         }
-        uint sj_strategy= join->best_positions[i].sj_strategy;
+
+        /*
         if (sj_is_materialize_strategy(sj_strategy))
         {
           if (join->best_positions[i].n_sj_tables == 1)
@@ -18286,6 +18372,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         {
           extra.append(STRING_WITH_LEN("; End materialize"));
         }
+        */
 
         for (uint part= 0; part < tab->ref.key_parts; part++)
         {
@@ -18309,6 +18396,15 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         }
 	item_list.push_back(new Item_string(str, len, cs));
       }
+    loop_end:
+       if (i+1 == end_table && sjm_nests_cur != sjm_nests_end)
+       {
+         printing_materialize_nest= TRUE;
+         i= sjm_nests[sjm_nests_cur++] - 1;
+         end_table= (i+1) + join->best_positions[i+1].n_sj_tables;
+         select_id= join->join_tab[i+1].emb_sj_nest->sj_subq_pred->get_identifier();
+       }
+      
       // For next iteration
       used_tables|=table->map;
       if (result->send_data(item_list))

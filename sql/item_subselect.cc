@@ -926,6 +926,11 @@ Item_in_subselect::Item_in_subselect(Item * left_exp,
   DBUG_VOID_RETURN;
 }
 
+int Item_in_subselect::get_identifier()
+{
+  return engine->get_identifier();
+}
+
 Item_allany_subselect::Item_allany_subselect(Item * left_exp,
                                              chooser_compare_func_creator fc,
 					     st_select_lex *select_lex,
@@ -2271,6 +2276,10 @@ subselect_single_select_engine(st_select_lex *select,
   select_lex->master_unit()->item= item_arg;
 }
 
+int subselect_single_select_engine::get_identifier()
+{
+  return select_lex->select_number; 
+}
 
 void subselect_single_select_engine::cleanup()
 {
