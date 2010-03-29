@@ -39,6 +39,7 @@ sync/sync0rw\.c: unused parameter
 sync/sync0sync\.c: unused parameter
 sync/sync0sync\.c: unused variable
 ut/ut0ut\.c: ignoring return value of
+srv/srv0srv\.c: value computed is not used
 
 #
 # bdb is not critical to keep up to date
@@ -128,18 +129,18 @@ include/runtime.hpp: .*pure_error.*
 #
 listener.cc : .*conversion from 'SOCKET' to 'int'.*
 net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
-set_var.cc:  right-hand operand of comma has no effect : 1000-1400
-
 
 # allow a little moving space for the warning below
-mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
-ma_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 550-650
+mi_packrec\.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
+ma_packrec\.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 550-650
 
 #
 # Wrong compiler warnings
 #
 .* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
-ctype-simple.c : .*unary minus operator applied to unsigned type, result still unsigned.*
+ctype-simple\.c : .*unary minus operator applied to unsigned type, result still unsigned.*
 
 # Wrong warning due to GCC bug: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29478
-regexec\.c : .*passing argument 3 of.*matcher.* discards qualifiers from pointer target type.*
+regexec\.c : passing argument 3 of.*matcher.* discards qualifiers from pointer target type
+libmysql\.c: passing argument 2 of .*memcpy.* discards qualifiers from pointer target type : 3000-4000
+storage/xtradb/dict/dict0dict\.c: passing argument 1 of .*strcpy.* discards qualifiers from pointer target type : 2500-3500

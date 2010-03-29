@@ -76,7 +76,7 @@ public:
     @param thd The current thread
     @return An item representing the function call
   */
-  virtual Item *create(THD *thd) = 0;
+  virtual Item *create_builder(THD *thd) = 0;
 
 protected:
   /** Constructor. */
@@ -498,7 +498,7 @@ protected:
 class Create_func_connection_id : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_connection_id s_singleton;
 
@@ -943,7 +943,7 @@ protected:
 class Create_func_found_rows : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_found_rows s_singleton;
 
@@ -1647,7 +1647,7 @@ protected:
 class Create_func_pi : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_pi s_singleton;
 
@@ -1766,7 +1766,7 @@ protected:
 class Create_func_row_count : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_row_count s_singleton;
 
@@ -2136,7 +2136,7 @@ protected:
 class Create_func_uuid : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_uuid s_singleton;
 
@@ -2149,7 +2149,7 @@ protected:
 class Create_func_uuid_short : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_uuid_short s_singleton;
 
@@ -2162,7 +2162,7 @@ protected:
 class Create_func_version : public Create_func_arg0
 {
 public:
-  virtual Item *create(THD *thd);
+  virtual Item *create_builder(THD *thd);
 
   static Create_func_version s_singleton;
 
@@ -2538,7 +2538,7 @@ Create_func_arg0::create(THD *thd, LEX_STRING name, List<Item> *item_list)
     return NULL;
   }
 
-  return create(thd);
+  return create_builder(thd);
 }
 
 
@@ -2882,7 +2882,7 @@ Create_func_compress::create_1_arg(THD *thd, Item *arg1)
 Create_func_connection_id Create_func_connection_id::s_singleton;
 
 Item*
-Create_func_connection_id::create(THD *thd)
+Create_func_connection_id::create_builder(THD *thd)
 {
   thd->lex->safe_to_cache_query= 0;
   return new (thd->mem_root) Item_func_connection_id();
@@ -3361,7 +3361,7 @@ Create_func_format::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 Create_func_found_rows Create_func_found_rows::s_singleton;
 
 Item*
-Create_func_found_rows::create(THD *thd)
+Create_func_found_rows::create_builder(THD *thd)
 {
   thd->lex->set_stmt_unsafe();
   thd->lex->safe_to_cache_query= 0;
@@ -4120,7 +4120,7 @@ Create_func_period_diff::create_2_arg(THD *thd, Item *arg1, Item *arg2)
 Create_func_pi Create_func_pi::s_singleton;
 
 Item*
-Create_func_pi::create(THD *thd)
+Create_func_pi::create_builder(THD *thd)
 {
   return new (thd->mem_root) Item_static_float_func("pi()", M_PI, 6, 8);
 }
@@ -4274,7 +4274,7 @@ Create_func_round::create_native(THD *thd, LEX_STRING name,
 Create_func_row_count Create_func_row_count::s_singleton;
 
 Item*
-Create_func_row_count::create(THD *thd)
+Create_func_row_count::create_builder(THD *thd)
 {
   thd->lex->set_stmt_unsafe();
   thd->lex->safe_to_cache_query= 0;
@@ -4584,7 +4584,7 @@ Create_func_unix_timestamp::create_native(THD *thd, LEX_STRING name,
 Create_func_uuid Create_func_uuid::s_singleton;
 
 Item*
-Create_func_uuid::create(THD *thd)
+Create_func_uuid::create_builder(THD *thd)
 {
   thd->lex->set_stmt_unsafe();
   thd->lex->safe_to_cache_query= 0;
@@ -4595,7 +4595,7 @@ Create_func_uuid::create(THD *thd)
 Create_func_uuid_short Create_func_uuid_short::s_singleton;
 
 Item*
-Create_func_uuid_short::create(THD *thd)
+Create_func_uuid_short::create_builder(THD *thd)
 {
   thd->lex->set_stmt_unsafe();
   thd->lex->safe_to_cache_query= 0;
@@ -4606,7 +4606,7 @@ Create_func_uuid_short::create(THD *thd)
 Create_func_version Create_func_version::s_singleton;
 
 Item*
-Create_func_version::create(THD *thd)
+Create_func_version::create_builder(THD *thd)
 {
   thd->lex->set_stmt_unsafe();
   return new (thd->mem_root) Item_static_string_func("version()",
