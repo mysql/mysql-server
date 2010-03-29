@@ -253,6 +253,7 @@ TAPTEST(Bitmask)
 }
 
 template struct BitmaskPOD<8>;
+template struct BitmaskPOD<1>;
 
 #endif
 
