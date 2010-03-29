@@ -108,7 +108,7 @@ ha_pbxt\.cc : variable.*might be clobbered by.*longjmp
 #
 # Yassl
 include/runtime.hpp: .*pure_error.*
-.*/extra/yassl/taocrypt/.*: comparison with string literal
+.*/extra/yassl/.*taocrypt/.*: comparison with string literal
 .*/extra/yassl/taocrypt/src/blowfish\.cpp: array subscript is above array bounds
 .*/extra/yassl/taocrypt/src/file\.cpp: ignoring return value
 .*/extra/yassl/taocrypt/src/integer\.cpp: control reaches end of non-void function

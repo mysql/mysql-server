@@ -3233,7 +3233,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		matched_bytes;
 	ib_int64_t	n_recs	= 0;
 	ib_int64_t*	n_diff;
-	ib_int64_t*	n_not_nulls;
+	ib_int64_t*	n_not_nulls= 0;
 	ullint		n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;

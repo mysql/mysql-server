@@ -27,16 +27,6 @@ class sys_var;
 
 #define INITIAL_LEX_PLUGIN_LIST_SIZE    16
 
-/*
-  the following #define adds server-only members to enum_mysql_show_type,
-  that is defined in plugin.h
-*/
-#define SHOW_FUNC    SHOW_FUNC, SHOW_KEY_CACHE_LONG, SHOW_KEY_CACHE_LONGLONG, \
-                     SHOW_LONG_STATUS, SHOW_DOUBLE_STATUS, SHOW_HAVE,   \
-                     SHOW_MY_BOOL, SHOW_HA_ROWS, SHOW_SYS, SHOW_LONG_NOFLUSH, \
-                     SHOW_LONGLONG_STATUS
-#include <mysql/plugin.h>
-#undef SHOW_FUNC
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef struct st_mysql_show_var SHOW_VAR;
 
@@ -63,7 +53,8 @@ struct st_plugin_dl
   LEX_STRING dl;
   void *handle;
   struct st_mysql_plugin *plugins;
-  int version;
+  int    version;
+  bool   allocated;
   uint ref_count;            /* number of plugins loaded from the library */
 };
 
@@ -89,6 +80,8 @@ struct st_plugin_int
 */
 #ifdef DBUG_OFF
 typedef struct st_plugin_int *plugin_ref;
+#define plugin_ref_to_int(A) A
+#define plugin_int_to_ref(A) A
 #define plugin_decl(pi) ((pi)->plugin)
 #define plugin_dlib(pi) ((pi)->plugin_dl)
 #define plugin_data(pi,cast) ((cast)((pi)->data))
@@ -97,6 +90,8 @@ typedef struct st_plugin_int *plugin_ref;
 #define plugin_equals(p1,p2) ((p1) == (p2))
 #else
 typedef struct st_plugin_int **plugin_ref;
+#define plugin_ref_to_int(A) (A ? A[0] : NULL)
+#define plugin_int_to_ref(A) &(A)
 #define plugin_decl(pi) ((pi)[0]->plugin)
 #define plugin_dlib(pi) ((pi)[0]->plugin_dl)
 #define plugin_data(pi,cast) ((cast)((pi)[0]->data))
@@ -120,7 +115,7 @@ extern bool plugin_is_ready(const LEX_STRING *name, int type);
 #define my_plugin_lock_by_name_ci(A,B,C) plugin_lock_by_name(A,B,C ORIG_CALLER_INFO)
 #define my_plugin_lock(A,B) plugin_lock(A,B CALLER_INFO)
 #define my_plugin_lock_ci(A,B) plugin_lock(A,B ORIG_CALLER_INFO)
-extern plugin_ref plugin_lock(THD *thd, plugin_ref *ptr CALLER_INFO_PROTO);
+extern plugin_ref plugin_lock(THD *thd, plugin_ref ptr CALLER_INFO_PROTO);
 extern plugin_ref plugin_lock_by_name(THD *thd, const LEX_STRING *name,
                                       int type CALLER_INFO_PROTO);
 extern void plugin_unlock(THD *thd, plugin_ref plugin);

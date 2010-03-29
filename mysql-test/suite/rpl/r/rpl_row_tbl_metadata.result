@@ -1,5 +1,11 @@
-RESET MASTER;
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
 DROP TABLE IF EXISTS `t1`;
+### TABLE with field_metadata_size == 290
 CREATE TABLE `t1` (
 `c1` int(11) NOT NULL AUTO_INCREMENT,
 `c2` varchar(30) NOT NULL,
@@ -150,7 +156,51 @@ CREATE TABLE `t1` (
 PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB;
 LOCK TABLES `t1` WRITE;
-INSERT INTO `t1` VALUES ('1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1');
-DROP TABLE `t1`;
+INSERT INTO `t1`(c2) VALUES ('1');
 FLUSH LOGS;
+### assertion: the slave replicated event successfully and tables match
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE `t1`;
 === Using mysqlbinlog to detect failure. Before the patch mysqlbinlog would find a corrupted event, thence would fail.
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+### action: generating several tables with different metadata 
+###         sizes (resorting to perl)
+### testing table with 249 field metadata size.
+### testing table with 250 field metadata size.
+### testing table with 251 field metadata size.
+### testing table with 252 field metadata size.
+### testing table with 253 field metadata size.
+### testing table with 254 field metadata size.
+### testing table with 255 field metadata size.
+### testing table with 256 field metadata size.
+### testing table with 257 field metadata size.
+### testing table with 258 field metadata size.
+FLUSH LOGS;
+### assertion: the slave replicated event successfully and tables match for t10
+Comparing tables master:test.t10 and slave:test.t10
+### assertion: the slave replicated event successfully and tables match for t9
+Comparing tables master:test.t9 and slave:test.t9
+### assertion: the slave replicated event successfully and tables match for t8
+Comparing tables master:test.t8 and slave:test.t8
+### assertion: the slave replicated event successfully and tables match for t7
+Comparing tables master:test.t7 and slave:test.t7
+### assertion: the slave replicated event successfully and tables match for t6
+Comparing tables master:test.t6 and slave:test.t6
+### assertion: the slave replicated event successfully and tables match for t5
+Comparing tables master:test.t5 and slave:test.t5
+### assertion: the slave replicated event successfully and tables match for t4
+Comparing tables master:test.t4 and slave:test.t4
+### assertion: the slave replicated event successfully and tables match for t3
+Comparing tables master:test.t3 and slave:test.t3
+### assertion: the slave replicated event successfully and tables match for t2
+Comparing tables master:test.t2 and slave:test.t2
+### assertion: the slave replicated event successfully and tables match for t1
+Comparing tables master:test.t1 and slave:test.t1
+### assertion: check that binlog is not corrupt. Using mysqlbinlog to 
+###            detect failure. Before the patch mysqlbinlog would find 
+###            a corrupted event, thence would fail.

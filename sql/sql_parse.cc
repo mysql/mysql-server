@@ -629,8 +629,10 @@ void free_items(Item *item)
   DBUG_VOID_RETURN;
 }
 
-/* This works because items are allocated with sql_alloc() */
-
+/**
+   This works because items are allocated with sql_alloc().
+   @note The function also handles null pointers (empty list).
+*/
 void cleanup_items(Item *item)
 {
   DBUG_ENTER("cleanup_items");  
@@ -1328,8 +1330,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     table_list.alias= table_list.table_name= conv_name.str;
     packet= arg_end + 1;
 
-    if (!my_strcasecmp(system_charset_info, table_list.db,
-                       INFORMATION_SCHEMA_NAME.str))
+    if (is_schema_db(table_list.db, table_list.db_length))
     {
       ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, table_list.alias);
       if (schema_table)
@@ -1391,7 +1392,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	break;
       }
       if (check_access(thd, CREATE_ACL, db.str , 0, 1, 0,
-                       is_schema_db(db.str)))
+                       is_schema_db(db.str, db.length)))
 	break;
       general_log_print(thd, command, "%.*s", db.length, db.str);
       bzero(&create_info, sizeof(create_info));
@@ -1410,7 +1411,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 	my_error(ER_WRONG_DB_NAME, MYF(0), db.str ? db.str : "NULL");
 	break;
       }
-      if (check_access(thd, DROP_ACL, db.str, 0, 1, 0, is_schema_db(db.str)))
+      if (check_access(thd, DROP_ACL, db.str, 0, 1, 0,
+                            is_schema_db(db.str, db.length)))
 	break;
       if (thd->locked_tables || thd->active_transaction())
       {
@@ -2728,6 +2730,8 @@ mysql_execute_command(THD *thd)
       {
         lex->link_first_table_back(create_table, link_to_local);
         create_table->create= TRUE;
+        /* Base table and temporary table are not in the same name space. */
+        create_table->skip_temporary= 1;
       }
 
       if (!(res= open_and_lock_tables(thd, lex->query_tables)))
@@ -3059,7 +3063,7 @@ end_with_restore_list:
       /*
         Presumably, REPAIR and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3093,7 +3097,7 @@ end_with_restore_list:
       /*
         Presumably, ANALYZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3117,7 +3121,7 @@ end_with_restore_list:
       /*
         Presumably, OPTIMIZE and binlog writing doesn't require synchronization
       */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
     }
     select_lex->table_list.first= (uchar*) first_table;
     lex->query_tables=all_tables;
@@ -3234,7 +3238,7 @@ end_with_restore_list:
       if (incident)
       {
         Incident_log_event ev(thd, incident);
-        mysql_bin_log.write(&ev);
+        (void) mysql_bin_log.write(&ev);        /* error is ignored */
         mysql_bin_log.rotate_and_purge(RP_FORCE_ROTATE);
       }
       DBUG_PRINT("debug", ("Just after generate_incident()"));
@@ -3427,9 +3431,9 @@ end_with_restore_list:
 			select_lex->where,
 			0, (ORDER *)NULL, (ORDER *)NULL, (Item *)NULL,
 			(ORDER *)NULL,
-			select_lex->options | thd->options |
+			(select_lex->options | thd->options |
 			SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                        OPTION_SETUP_TABLES_DONE,
+                        OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
 			del_result, unit, select_lex);
       res|= thd->is_error();
       if (res)
@@ -3452,17 +3456,6 @@ end_with_restore_list:
     }
     else
     {
-      /*
-	If this is a slave thread, we may sometimes execute some 
-	DROP / * 40005 TEMPORARY * / TABLE
-	that come from parts of binlogs (likely if we use RESET SLAVE or CHANGE
-	MASTER TO), while the temporary table has already been dropped.
-	To not generate such irrelevant "table does not exist errors",
-	we silently add IF EXISTS if TEMPORARY was used.
-      */
-      if (thd->slave_thread)
-        lex->drop_if_exists= 1;
-
       /* So that DROP TEMPORARY TABLE gets to binlog at commit/rollback */
       thd->options|= OPTION_KEEP_LOG;
     }
@@ -3676,7 +3669,7 @@ end_with_restore_list:
     }
 #endif
     if (check_access(thd,CREATE_ACL,lex->name.str, 0, 1, 0,
-                     is_schema_db(lex->name.str)))
+                     is_schema_db(lex->name.str, lex->name.length)))
       break;
     res= mysql_create_db(thd,(lower_case_table_names == 2 ? alias :
                               lex->name.str), &create_info, 0);
@@ -3711,7 +3704,7 @@ end_with_restore_list:
     }
 #endif
     if (check_access(thd,DROP_ACL,lex->name.str,0,1,0,
-                     is_schema_db(lex->name.str)))
+                     is_schema_db(lex->name.str, lex->name.length)))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -3745,9 +3738,12 @@ end_with_restore_list:
       my_error(ER_WRONG_DB_NAME, MYF(0), db->str);
       break;
     }
-    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
-        check_access(thd, DROP_ACL, db->str, 0, 1, 0, is_schema_db(db->str)) ||
-        check_access(thd, CREATE_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
+    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)) ||
+        check_access(thd, DROP_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)) ||
+        check_access(thd, CREATE_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)))
     {
       res= 1;
       break;
@@ -3790,7 +3786,8 @@ end_with_restore_list:
       break;
     }
 #endif
-    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0, is_schema_db(db->str)))
+    if (check_access(thd, ALTER_ACL, db->str, 0, 1, 0,
+                     is_schema_db(db->str, db->length)))
       break;
     if (thd->locked_tables || thd->active_transaction())
     {
@@ -3946,7 +3943,8 @@ end_with_restore_list:
 		     first_table ? &first_table->grant.privilege : 0,
 		     first_table ? 0 : 1, 0,
                      first_table ? (bool) first_table->schema_table :
-                     select_lex->db ? is_schema_db(select_lex->db) : 0))
+                     select_lex->db ?
+                     is_schema_db(select_lex->db) : 0))
       goto error;
 
     if (thd->security_ctx->user)              // If not replication
@@ -4069,7 +4067,8 @@ end_with_restore_list:
       */
       if (!lex->no_write_to_binlog && write_to_binlog)
       {
-        write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+        if ((res= write_bin_log(thd, FALSE, thd->query(), thd->query_length())))
+          break;
       }
       my_ok(thd);
     } 
@@ -4289,7 +4288,8 @@ end_with_restore_list:
     }
 
     if (check_access(thd, CREATE_PROC_ACL, lex->sphead->m_db.str, 0, 0, 0,
-                     is_schema_db(lex->sphead->m_db.str)))
+                     is_schema_db(lex->sphead->m_db.str,
+                                  lex->sphead->m_db.length)))
       goto create_sp_error;
 
     if (end_active_trans(thd))
@@ -4646,12 +4646,12 @@ create_sp_error:
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
 	{
-          write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+          res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
 	  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
-	  res= FALSE;
-	  my_ok(thd);
+          if (!res)
+            my_ok(thd);
 	  break;
 	}
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
@@ -4944,7 +4944,8 @@ create_sp_error:
     res= mysql_xa_recover(thd);
     break;
   case SQLCOM_ALTER_TABLESPACE:
-    if (check_access(thd, ALTER_ACL, thd->db, 0, 1, 0, thd->db ? is_schema_db(thd->db) : 0))
+    if (check_access(thd, ALTER_ACL, thd->db, 0, 1, 0,
+                     thd->db ? is_schema_db(thd->db, thd->db_length) : 0))
       break;
     if (!(res= mysql_alter_tablespace(thd, lex->alter_tablespace_info)))
       my_ok(thd);
@@ -5039,6 +5040,7 @@ create_sp_error:
     break;
   }
   thd_proc_info(thd, "query end");
+  thd->update_stats();
 
   /*
     Binlog-related cleanup:
@@ -6376,8 +6378,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->force_index= test(table_options & TL_OPTION_FORCE_INDEX);
   ptr->ignore_leaves= test(table_options & TL_OPTION_IGNORE_LEAVES);
   ptr->derived=	    table->sel;
-  if (!ptr->derived && !my_strcasecmp(system_charset_info, ptr->db,
-                                      INFORMATION_SCHEMA_NAME.str))
+  if (!ptr->derived && is_schema_db(ptr->db, ptr->db_length))
   {
     ST_SCHEMA_TABLE *schema_table= find_schema_table(thd, ptr->table_name);
     if (!schema_table ||
@@ -6905,13 +6906,13 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       thd->store_globals();
       lex_start(thd);
     }
-    
+
     if (thd)
     {
       bool reload_acl_failed= acl_reload(thd);
       bool reload_grants_failed= grant_reload(thd);
       bool reload_servers_failed= servers_reload(thd);
-      
+
       if (reload_acl_failed || reload_grants_failed || reload_servers_failed)
       {
         result= 1;
@@ -7103,7 +7104,10 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     pthread_mutex_unlock(&LOCK_global_user_client_stats);
   }
   *write_to_binlog= tmp_write_to_binlog;
-  return result;
+  /*
+    If the query was killed then this function must fail.
+  */
+  return result || (thd ? thd->killed : 0);
 }
 
 

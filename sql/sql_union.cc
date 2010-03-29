@@ -335,6 +335,35 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
       }
     }
     
+    /*
+      Disable the usage of fulltext searches in the last union branch.
+      This is a temporary 5.x limitation because of the way the fulltext
+      search functions are handled by the optimizer.
+      This is manifestation of the more general problems of "taking away"
+      parts of a SELECT statement post-fix_fields(). This is generally not
+      doable since various flags are collected in various places (e.g. 
+      SELECT_LEX) that carry information about the presence of certain 
+      expressions or constructs in the parts of the query.
+      When part of the query is taken away it's not clear how to "divide" 
+      the meaning of these accumulated flags and what to carry over to the
+      recipient query (SELECT_LEX).
+    */
+    if (global_parameters->ftfunc_list->elements && 
+        global_parameters->order_list.elements &&
+        global_parameters != fake_select_lex)
+    {
+      ORDER *ord;
+      Item_func::Functype ft=  Item_func::FT_FUNC;
+      for (ord= (ORDER*)global_parameters->order_list.first; ord; ord= ord->next)
+        if ((*ord->item)->walk (&Item::find_function_processor, FALSE, 
+                                (uchar *) &ft))
+        {
+          my_error (ER_CANT_USE_OPTION_HERE, MYF(0), "MATCH()");
+          goto err;
+        }
+    }
+
+
     create_options= (first_sl->options | thd_arg->options |
                      TMP_TABLE_ALL_COLUMNS);
     /*
@@ -669,7 +698,7 @@ bool st_select_lex_unit::cleanup()
     {
       ORDER *ord;
       for (ord= (ORDER*)global_parameters->order_list.first; ord; ord= ord->next)
-        (*ord->item)->cleanup();
+        (*ord->item)->walk (&Item::cleanup_processor, 0, 0);
     }
   }
 

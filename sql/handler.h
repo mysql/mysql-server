@@ -1134,6 +1134,7 @@ public:
   enum {NONE=0, INDEX, RND} inited;
   bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
+  bool mark_trx_done;
   const COND *pushed_cond;
   /**
     next_insert_id is the next value which should be inserted into the
@@ -1177,7 +1178,7 @@ public:
     ref(0), key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
-    locked(FALSE), implicit_emptied(0),
+    locked(FALSE), implicit_emptied(FALSE), mark_trx_done(FALSE), 
     pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0)
     {
@@ -1232,6 +1233,13 @@ public:
     DBUG_RETURN(rnd_end());
   }
   int ha_reset();
+  /* Tell handler (not storage engine) this is start of a new statement */
+  void ha_start_of_new_statement()
+  {
+    ft_handler= 0;
+    mark_trx_done= FALSE;
+  }
+
   /* this is necessary in many places, e.g. in HANDLER command */
   int ha_index_or_rnd_end()
   {
@@ -1943,8 +1951,13 @@ protected:
 
 private:
   /* Private helpers */
-  inline void mark_trx_read_write();
-private:
+  void mark_trx_read_write_part2();
+  inline void mark_trx_read_write()
+  {
+    if (!mark_trx_done)
+      mark_trx_read_write_part2();
+  }
+
   /*
     Low-level primitives for storage engines.  These should be
     overridden by the storage engine class. To call these methods, use

@@ -21,14 +21,26 @@ connection slave;
 reset master;
 connection master;
 
+# MTR is not case-sensitive.
+let $lower_stmt_head= load data;
+let $UPPER_STMT_HEAD= LOAD DATA;
+if (`SELECT '$lock_option' <> ''`)
+{
+  #if $lock_option is null, an extra blank is added into the statement,
+  #this will change the result of rpl_loaddata test case. so $lock_option
+  #is set only when it is not null.
+  let $lower_stmt_head= load data $lock_option;
+  let $UPPER_STMT_HEAD= LOAD DATA $lock_option;
+}
+
 select last_insert_id();
 create table t1(a int not null auto_increment, b int, primary key(a) );
-load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
 # verify that LAST_INSERT_ID() is set by LOAD DATA INFILE
 select last_insert_id();
 
 create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
-load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
 
 create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
 insert into t3 select * from t2;
@@ -56,7 +68,7 @@ sync_with_master;
 insert into t1 values(1,10);
 
 connection master;
-load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
 
 save_master_pos;
 connection slave;
@@ -70,9 +82,11 @@ connection slave;
 set global sql_slave_skip_counter=1;
 start slave;
 sync_with_master;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+echo Last_SQL_Errno=$last_error;
+let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
+echo Last_SQL_Error;
+echo $last_error;
 
 # Trigger error again to test CHANGE MASTER
 
@@ -80,7 +94,7 @@ connection master;
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
-load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
 save_master_pos;
 connection slave;
 # The SQL slave thread should be stopped now. 
@@ -92,9 +106,11 @@ connection slave;
 stop slave;
 change master to master_user='test';
 change master to master_user='root';
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+echo Last_SQL_Errno=$last_error;
+let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
+echo Last_SQL_Error;
+echo $last_error;
 
 # Trigger error again to test RESET SLAVE
 
@@ -105,7 +121,7 @@ connection master;
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
-load data infile '../../std_data/rpl_loaddata.dat' into table t1;
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata.dat' into table t1;
 save_master_pos;
 connection slave;
 # The SQL slave thread should be stopped now.
@@ -114,9 +130,11 @@ connection slave;
 # RESET SLAVE and see if error is cleared in SHOW SLAVE STATUS.
 stop slave;
 reset slave;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 16 # 23 # 33 #
-show slave status;
+let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1);
+echo Last_SQL_Errno=$last_error;
+let $last_error= query_get_value(SHOW SLAVE STATUS, Last_SQL_Error, 1);
+echo Last_SQL_Error;
+echo $last_error;
 
 # Finally, see if logging is done ok on master for a failing LOAD DATA INFILE
 
@@ -125,7 +143,7 @@ reset master;
 eval create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=$engine_type; # no transactions
 --error ER_DUP_ENTRY
-load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 select * from t2;
@@ -141,7 +159,7 @@ alter table t2 drop key day;
 connection master;
 delete from t2;
 --error ER_DUP_ENTRY
-load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
+eval $lower_stmt_head infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 connection slave;
@@ -154,7 +172,7 @@ drop table t1, t2;
 CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
 
 --error ER_DUP_ENTRY
-LOAD DATA INFILE "../../std_data/words.dat" INTO TABLE t1;
+eval $UPPER_STMT_HEAD INFILE "../../std_data/words.dat" INTO TABLE t1;
 
 DROP TABLE IF EXISTS t1;
 
@@ -182,17 +200,17 @@ DROP TABLE IF EXISTS t1;
 
 -- echo ### assertion: works with cross-referenced database
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+-- eval $UPPER_STMT_HEAD LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
 
 -- eval use $db1
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- echo ### assertion: works with fully qualified name on current database
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+-- eval $UPPER_STMT_HEAD LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
 
 -- echo ### assertion: works without fully qualified name on current database
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE t1
+-- eval $UPPER_STMT_HEAD LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE t1
 
 -- echo ### create connection without default database
 -- echo ### connect (conn2,localhost,root,,*NO-ONE*);
@@ -200,7 +218,7 @@ connect (conn2,localhost,root,,*NO-ONE*);
 -- connection conn2
 -- echo ### assertion: works without stating the default database
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
--- eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+-- eval $UPPER_STMT_HEAD LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
 -- echo ### disconnect and switch back to master connection
 -- disconnect conn2
 -- connection master
@@ -217,6 +235,20 @@ source include/diff_tables.inc;
 -- eval DROP DATABASE $db1
 -- eval DROP DATABASE $db2
 
+-- sync_slave_with_master
+
+# BUG#49479: LOAD DATA INFILE is binlogged without escaping field names
+-- source include/master-slave-reset.inc
+-- connection master
+use test;
+CREATE TABLE t1 (`key` TEXT, `text` TEXT);
+
+LOAD DATA INFILE '../../std_data/loaddata2.dat' REPLACE INTO TABLE `t1` FIELDS TERMINATED BY ',';
+SELECT * FROM t1;
+
+-- sync_slave_with_master
+-- connection master
+DROP TABLE t1;
 -- sync_slave_with_master
 
 # End of 4.1 tests

@@ -169,6 +169,8 @@ my_bool _ma_ck_delete(MARIA_HA *info, MARIA_KEY *key)
   MARIA_KEY org_key;
   DBUG_ENTER("_ma_ck_delete");
 
+  LINT_INIT_STRUCT(org_key);
+
   save_key_data= key->data;
   if (share->now_transactional)
   {

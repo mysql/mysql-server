@@ -2558,3 +2558,32 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	
 drop table t1;
+#
+# Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
+#
+DROP TABLE IF EXISTS t1, t2;
+CREATE TABLE t1 (a VARCHAR(20), b INT);
+CREATE TABLE t2 (a VARCHAR(20), b INT);
+INSERT INTO t1 VALUES ('ABC', 1);
+INSERT INTO t2 VALUES ('ABC', 1);
+SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
+FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
+DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
+secret
+SELECT DECODE((SELECT ENCODE('secret', 'ABC') FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
+FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
+DECODE((SELECT ENCODE('secret', 'ABC') FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), t2.a)
+secret
+SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), 'ABC')
+FROM t1,t2 WHERE t1.b = t1.b > 0 GROUP BY t2.b;
+DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b), 'ABC')
+secret
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES ('EDF', 3), ('BCD', 2), ('ABC', 1);
+INSERT INTO t2 VALUES ('EDF', 3), ('BCD', 2), ('ABC', 1);
+SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b LIMIT 1), t2.a)
+FROM t2 WHERE t2.b = 1 GROUP BY t2.b;
+DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP BY t1.b LIMIT 1), t2.a)
+secret
+DROP TABLE t1, t2;

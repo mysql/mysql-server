@@ -820,16 +820,13 @@ i
 drop table t1;
 create temporary table t1 (j int);
 create table if not exists t1 select 1;
-Warnings:
-Note	1050	Table 't1' already exists
 select * from t1;
 j
-1
 drop temporary table t1;
 select * from t1;
-ERROR 42S02: Table 'test.t1' doesn't exist
+1
+1
 drop table t1;
-ERROR 42S02: Unknown table 't1'
 create table t1 (i int);
 insert into t1 values (1), (2);
 lock tables t1 read;

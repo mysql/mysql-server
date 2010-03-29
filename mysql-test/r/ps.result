@@ -1917,6 +1917,53 @@ execute stmt using @arg;
 ?
 -12345.5432100000
 deallocate prepare stmt;
+#
+# Bug#48508: Crash on prepared statement re-execution.
+#
+create table t1(b int);
+insert into t1 values (0);
+create view v1 AS select 1 as a from t1 where b;
+prepare stmt from "select * from v1 where a";
+execute stmt;
+a
+execute stmt;
+a
+deallocate prepare stmt;
+drop table t1;
+drop view v1;
+create table t1(a bigint);
+create table t2(b tinyint);
+insert into t2 values (null);
+prepare stmt from "select 1 from t1 join  t2 on a xor b where b > 1  and a =1";
+execute stmt;
+1
+execute stmt;
+1
+deallocate prepare stmt;
+drop table t1,t2;
+#
+#
+# Bug #49570: Assertion failed: !(order->used & map)
+# on re-execution of prepared statement
+#
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(0), (1);
+PREPARE stmt FROM 
+"SELECT 1 FROM t1 JOIN t1 t2 USING(a) GROUP BY t2.a, t1.a";
+EXECUTE stmt;
+1
+1
+1
+EXECUTE stmt;
+1
+1
+1
+EXECUTE stmt;
+1
+1
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 End of 5.0 tests.
 create procedure proc_1() reset query cache;
 call proc_1();
@@ -2922,4 +2969,23 @@ execute stmt;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 drop table t1;
 deallocate prepare stmt;
+#
+# Bug#49141: Encode function is significantly slower in 5.1 compared to 5.0
+#
+prepare encode from "select encode(?, ?) into @ciphertext";
+prepare decode from "select decode(?, ?) into @plaintext";
+set @str="abc", @key="cba";
+execute encode using @str, @key;
+execute decode using @ciphertext, @key;
+select @plaintext;
+@plaintext
+abc
+set @str="bcd", @key="dcb";
+execute encode using @str, @key;
+execute decode using @ciphertext, @key;
+select @plaintext;
+@plaintext
+bcd
+deallocate prepare encode;
+deallocate prepare decode;
 End of 5.1 tests.

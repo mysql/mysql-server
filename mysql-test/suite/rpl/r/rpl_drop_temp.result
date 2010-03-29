@@ -12,3 +12,17 @@ show status like 'Slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	0
 drop database mysqltest;
+DROP TEMPORARY TABLE IF EXISTS tmp1;
+Warnings:
+Note	1051	Unknown table 'tmp1'
+CREATE TEMPORARY TABLE t1 ( a int );
+DROP TEMPORARY TABLE t1, t2;
+ERROR 42S02: Unknown table 't2'
+DROP TEMPORARY TABLE tmp2;
+ERROR 42S02: Unknown table 'tmp2'
+stop slave;
+**** On Master ****
+CREATE TEMPORARY TABLE tmp3 (a int);
+DROP TEMPORARY TABLE tmp3;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;

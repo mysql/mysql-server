@@ -984,6 +984,19 @@ GEOMFROMTEXT(
 SELECT 1 FROM t1 WHERE a <> (SELECT GEOMETRYCOLLECTIONFROMWKB(b) FROM t1);
 1
 DROP TABLE t1;
+#
+# Bug #49250 : spatial btree index corruption and crash
+# Part one : spatial syntax check
+#
+CREATE TABLE t1(col1 MULTIPOLYGON NOT NULL,
+SPATIAL INDEX USING BTREE (col1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE (col1))' at line 2
+CREATE TABLE t2(col1 MULTIPOLYGON NOT NULL);
+CREATE SPATIAL INDEX USING BTREE ON t2(col);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE ON t2(col)' at line 1
+ALTER TABLE t2 ADD SPATIAL INDEX USING BTREE (col1);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'USING BTREE (col1)' at line 1
+DROP TABLE t2;
 End of 5.0 tests
 create table t1 (f1 tinyint(1), f2 char(1), f3 varchar(1), f4 geometry, f5 datetime);
 create view v1 as select * from t1;

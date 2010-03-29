@@ -1233,9 +1233,6 @@ static int pbxt_init(void *p)
 				 * Only real problem, 2 threads try to load the same
 				 * plugin at the same time.
 				 */
-#if MYSQL_VERSION_ID < 60014
-				myxt_mutex_unlock(&LOCK_plugin);
-#endif
 #endif
 
 				/* Can't do this here yet, because I need a THD! */
@@ -1269,11 +1266,6 @@ static int pbxt_init(void *p)
 
 				if (thd)
 					myxt_destroy_thread(thd, FALSE);
-#ifndef DRIZZLED
-#if MYSQL_VERSION_ID < 60014
-				myxt_mutex_lock(&LOCK_plugin);
-#endif
-#endif
 			}
 #endif
 		}

@@ -652,22 +652,20 @@ word32 CertDecoder::GetDigest()
 }
 
 
-// memory length checked add tag to buffer
-char* CertDecoder::AddTag(char* ptr, const char* buf_end, const char* tag_name,
-                          word32 tag_name_length, word32 tag_value_length)
+char *CertDecoder::AddTag(char *ptr, const char *buf_end, 
+                          const char *tag_name, word32 tag_name_length,
+                          word32 tag_value_length)
 {
-    if (ptr + tag_name_length + tag_value_length > buf_end) {
-        source_.SetError(CONTENT_E);
-        return 0;
-    }
-
-    memcpy(ptr, tag_name, tag_name_length);
-    ptr += tag_name_length;
-
-    memcpy(ptr, source_.get_current(), tag_value_length);
-    ptr += tag_value_length;
-
-    return ptr;
+  if (ptr + tag_name_length + tag_value_length > buf_end)
+      return 0;
+    
+  memcpy(ptr, tag_name, tag_name_length);
+  ptr+= tag_name_length;
+  
+  memcpy(ptr, source_.get_current(), tag_value_length);
+  ptr+= tag_value_length;
+  
+  return ptr;
 }
 
 
@@ -680,19 +678,18 @@ void CertDecoder::GetName(NameType nt)
     word32 length = GetSequence();  // length of all distinguished names
 
     if (length >= ASN_NAME_MAX)
-        return;
+        goto err;
     length += source_.get_index();
 
-    char* ptr;
-    char* buf_end;
+    char *ptr, *buf_end;
 
     if (nt == ISSUER) {
-        ptr = issuer_;
-        buf_end = ptr + sizeof(issuer_) - 1;   // 1 byte for trailing 0
+        ptr= issuer_;
+        buf_end= ptr + sizeof(issuer_) - 1;  // 1 byte for trailing 0
     }
     else {
-        ptr = subject_;
-        buf_end = ptr + sizeof(subject_) - 1;  // 1 byte for trailing 0
+        ptr= subject_;
+        buf_end= ptr + sizeof(subject_) - 1;  // 1 byte for trailing 0
     }
 
     while (source_.get_index() < length) {
@@ -718,32 +715,32 @@ void CertDecoder::GetName(NameType nt)
 
             switch (id) {
             case COMMON_NAME:
-                if (!(ptr = AddTag(ptr, buf_end, "/CN=", 4, strLen)))
-                    return;
+                if (!(ptr= AddTag(ptr, buf_end, "/CN=", 4, strLen)))
+                  goto err;
                 break;
             case SUR_NAME:
-                if (!(ptr = AddTag(ptr, buf_end, "/SN=", 4, strLen)))
-                    return;
+                if (!(ptr= AddTag(ptr, buf_end, "/SN=", 4, strLen)))
+                  goto err;
                 break;
             case COUNTRY_NAME:
-                if (!(ptr = AddTag(ptr, buf_end, "/C=", 3, strLen)))
-                    return;
+                if (!(ptr= AddTag(ptr, buf_end, "/C=", 3, strLen)))
+                  goto err;
                 break;
             case LOCALITY_NAME:
-                if (!(ptr = AddTag(ptr, buf_end, "/L=", 3, strLen)))
-                    return;
+                if (!(ptr= AddTag(ptr, buf_end, "/L=", 3, strLen)))
+                  goto err;
                 break;
             case STATE_NAME:
-                if (!(ptr = AddTag(ptr, buf_end, "/ST=", 4, strLen)))
-                    return;
+                if (!(ptr= AddTag(ptr, buf_end, "/ST=", 4, strLen)))
+                  goto err;
                 break;
             case ORG_NAME:
-                if (!(ptr = AddTag(ptr, buf_end, "/O=", 3, strLen)))
-                    return;
+                if (!(ptr= AddTag(ptr, buf_end, "/O=", 3, strLen)))
+                  goto err;
                 break;
             case ORGUNIT_NAME:
-                if (!(ptr = AddTag(ptr, buf_end, "/OU=", 4, strLen)))
-                    return;
+                if (!(ptr= AddTag(ptr, buf_end, "/OU=", 4, strLen)))
+                  goto err;
                 break;
             }
 
@@ -758,21 +755,20 @@ void CertDecoder::GetName(NameType nt)
             source_.advance(oidSz + 1);
             word32 length = GetLength(source_);
 
-            if (email) {
-                if (!(ptr = AddTag(ptr, buf_end, "/emailAddress=", 14, length)))
-                    return; 
-            }
+            if (email && !(ptr= AddTag(ptr, buf_end, "/emailAddress=", 14, length)))
+                goto err;
 
             source_.advance(length);
         }
     }
+    *ptr= 0;
 
-    *ptr = 0;
-
-    if (nt == ISSUER)
-        sha.Final(issuerHash_);
-    else
-        sha.Final(subjectHash_);
+    sha.Final(nt == ISSUER ? issuerHash_ : subjectHash_);
+        
+    return;
+    
+err:
+    source_.SetError(CONTENT_E);
 }
 
 

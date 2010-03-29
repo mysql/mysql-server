@@ -626,9 +626,11 @@ let $wait_condition=
 --source include/wait_condition.inc
 let $tlwb= `show status like 'Table_locks_waited'`;
 unlock tables;
+connection waiter;
+--reap
+connection default;
 drop table t1;
 disconnect waiter;
-connection default;
 --disable_query_log
 eval SET @tlwa= SUBSTRING_INDEX('$tlwa', '	', -1);
 eval SET @tlwb= SUBSTRING_INDEX('$tlwb', '	', -1);

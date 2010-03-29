@@ -921,9 +921,6 @@ void THD::update_stats(void)
   /* sql_command == SQLCOM_END in case of parse errors or quit */
   if (lex->sql_command != SQLCOM_END)
   {
-    /* The replication thread has the COM_CONNECT command */
-    DBUG_ASSERT(command == COM_QUERY || command == COM_CONNECT);
-
     /* A SQL query. */
     if (lex->sql_command == SQLCOM_SELECT)
       select_commands++;
@@ -959,9 +956,8 @@ void THD::update_all_stats()
   status_var_add(status_var.cpu_time, cpu_time);
   status_var_add(status_var.busy_time, busy_time);
 
-  /* Updates THD stats and the global user stats. */
-  update_stats();
   update_global_user_stats(this, TRUE, save_time);
+  userstat_running= 0;
 }
 
 

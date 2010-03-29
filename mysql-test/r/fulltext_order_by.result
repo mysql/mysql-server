@@ -126,7 +126,7 @@ group by
 a.text, b.id, b.betreff
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42S22: Unknown column 'b.betreff' in 'order clause'
+ERROR 42000: Incorrect usage/placement of 'MATCH()'
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -142,7 +142,7 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(b.betreff) against ('+abc' in boolean mode) desc;
-ERROR 42S22: Unknown column 'b.betreff' in 'order clause'
+ERROR 42000: Incorrect usage/placement of 'MATCH()'
 select a.text, b.id, b.betreff
 from 
 t2 a inner join t3 b on a.id = b.forum inner join
@@ -158,7 +158,7 @@ where
 match(c.beitrag) against ('+abc' in boolean mode)
 order by 
 match(betreff) against ('+abc' in boolean mode) desc;
-text	id	betreff
+ERROR 42000: Incorrect usage/placement of 'MATCH()'
 (select b.id, b.betreff from t3 b) union 
 (select b.id, b.betreff from t3 b) 
 order by match(betreff) against ('+abc' in boolean mode) desc;

@@ -68,7 +68,10 @@ sub main
       # than a correct --defaults-extra-file option
 
       unshift @defaults_options, "--defaults-extra-file=$1";
+      print "WARNING: --config-file is deprecated and will be removed\n";
+      print "in MySQL 5.6.  Please use --defaults-extra-file instead\n";
     }
+   }
   }
 
   foreach (@defaults_options)

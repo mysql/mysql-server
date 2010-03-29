@@ -1843,13 +1843,15 @@ void st_select_lex_unit::exclude_tree()
 void st_select_lex::mark_as_dependent(st_select_lex *last, Item *dependency)
 {
   SELECT_LEX *next_to_last;
+
+  DBUG_ASSERT(this != last);
+
   /*
     Mark all selects from resolved to 1 before select where was
     found table as depended (of select where was found table)
   */
-  for (SELECT_LEX *s= this;
-       s && s != last;
-       s= s->outer_select())
+  SELECT_LEX *s= this;
+  do
   {
     if (!(s->uncacheable & UNCACHEABLE_DEPENDENT))
     {
@@ -1867,7 +1869,8 @@ void st_select_lex::mark_as_dependent(st_select_lex *last, Item *dependency)
       }
     }
     next_to_last= s;
-  }
+  } while ((s= s->outer_select()) != last && s != 0);
+
   is_correlated= TRUE;
   this->master_unit()->item->is_correlated= TRUE;
   if (dependency)

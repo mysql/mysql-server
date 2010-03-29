@@ -75,9 +75,11 @@ report_errors(SSL* ssl)
 
   if (ssl)
   {
+#ifndef DBUG_OFF
     int error= SSL_get_error(ssl, l);
     DBUG_PRINT("error", ("error: %s (%d)",
                          ERR_error_string(error, buf), error));
+#endif
   }
 
   DBUG_PRINT("info", ("socket_errno: %d", socket_errno));

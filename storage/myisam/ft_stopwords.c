@@ -45,7 +45,7 @@ static int ft_add_stopword(const char *w)
 {
   FT_STOPWORD sw;
   return !w ||
-         (((sw.len= (uint) strlen(sw.pos=w)) >= ft_min_word_len) &&
+    (((sw.len= (uint) strlen(sw.pos=(const uchar *)w)) >= ft_min_word_len) &&
           (tree_insert(stopwords3, &sw, 0, stopwords3->custom_arg)==NULL));
 }
 

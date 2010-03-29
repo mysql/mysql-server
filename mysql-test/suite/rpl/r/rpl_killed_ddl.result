@@ -63,7 +63,7 @@ source include/diff_master_slave.inc;
 DROP DATABASE d1;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
-DROP DATABASE d2;
+DROP DATABASE IF EXISTS d2;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
 CREATE EVENT e2
@@ -115,6 +115,7 @@ source include/diff_master_slave.inc;
 DROP INDEX i1 on t1;
 source include/kill_query.inc;
 source include/diff_master_slave.inc;
+CREATE TABLE IF NOT EXISTS t4 (a int);
 CREATE TRIGGER tr2 BEFORE INSERT ON t4
 FOR EACH ROW BEGIN
 DELETE FROM t1 WHERE a=NEW.a;

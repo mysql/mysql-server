@@ -34,7 +34,7 @@ IF(NOT SOURCE_SUBLIBS)
     #The dll is linked to the mysqld executable
     SET(dyn_libname ha_${libname})
     ADD_LIBRARY(${dyn_libname} SHARED ${${engine}_SOURCES})
-    TARGET_LINK_LIBRARIES (${dyn_libname}  mysqld)
+    TARGET_LINK_LIBRARIES (${dyn_libname} mysqlservices mysqld)
     IF(${engine}_LIBS)
       TARGET_LINK_LIBRARIES(${dyn_libname} ${${engine}_LIBS})
     ENDIF(${engine}_LIBS)

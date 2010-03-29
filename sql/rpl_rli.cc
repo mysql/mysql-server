@@ -177,10 +177,10 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-    if (rli->relay_log.open_index_file(opt_relaylog_index_name, ln) ||
+    if (rli->relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE) ||
         rli->relay_log.open(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
                             (max_relay_log_size ? max_relay_log_size :
-                            max_binlog_size), 1))
+                            max_binlog_size), 1, TRUE))
     {
       pthread_mutex_unlock(&rli->data_lock);
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
@@ -1017,7 +1017,7 @@ err:
      false - condition not met
 */
 
-bool Relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
+bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 {
   const char *log_name;
   ulonglong log_pos;
@@ -1027,8 +1027,12 @@ bool Relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
 
   if (until_condition == UNTIL_MASTER_POS)
   {
+    if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
+      DBUG_RETURN(FALSE);
     log_name= group_master_log_name;
-    log_pos= master_beg_pos;
+    log_pos= (!ev)? group_master_log_pos :
+      ((thd->options & OPTION_BEGIN || !ev->log_pos) ?
+       group_master_log_pos : ev->log_pos - ev->data_written);
   }
   else
   { /* until_condition == UNTIL_RELAY_POS */

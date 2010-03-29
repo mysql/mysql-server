@@ -1457,6 +1457,7 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
 
   {
     LOGHANDLER_FILE_INFO info;
+    LINT_INIT_STRUCT(info);
     File fd= open_logfile_by_number_no_cache(file);
     if ((fd < 0) ||
         (translog_read_file_header(&info, fd) | my_close(fd, MYF(MY_WME))))

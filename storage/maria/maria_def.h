@@ -979,6 +979,11 @@ extern ulonglong transid_get_packed(MARIA_SHARE *share, const uchar *from);
 #define page_store_info(share, page)                           \
   _ma_store_keypage_flag((share), (page)->buff, (page)->flag); \
   _ma_store_page_used((share), (page)->buff, (page)->size);
+#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
+void page_cleanup(MARIA_SHARE *share, MARIA_PAGE *page)
+#else
+#define page_cleanup(A,B) while (0)
+#endif
 
 extern MARIA_KEY *_ma_make_key(MARIA_HA *info, MARIA_KEY *int_key, uint keynr,
                                uchar *key, const uchar *record,
@@ -1197,7 +1202,7 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
                                        my_bool log_incomplete);
 my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages);
 my_bool write_log_record_for_bulk_insert(MARIA_HA *info);
-
+void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
 
 #define MARIA_NO_CRC_NORMAL_PAGE 0xffffffff
 #define MARIA_NO_CRC_BITMAP_PAGE 0xfffffffe

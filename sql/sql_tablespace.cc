@@ -67,6 +67,6 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
                         hton_name(hton)->str,
                         "TABLESPACE or LOGFILE GROUP");
   }
-  write_bin_log(thd, FALSE, thd->query(), thd->query_length());
-  DBUG_RETURN(FALSE);
+  error= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  DBUG_RETURN(error);
 }

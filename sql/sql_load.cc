@@ -122,7 +122,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   char name[FN_REFLEN];
   File file;
   TABLE *table= NULL;
-  int error;
+  int error= 0;
   String *field_term=ex->field_term,*escaped=ex->escaped;
   String *enclosed=ex->enclosed;
   bool is_fifo=0;
@@ -504,18 +504,20 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	{
           int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
           
+          /* since there is already an error, the possible error of
+             writing binary log will be ignored */
 	  if (thd->transaction.stmt.modified_non_trans_table)
-            write_execute_load_query_log_event(thd, ex,
-                                               table_list->db, 
-                                               table_list->table_name,
-                                               handle_duplicates, ignore,
-                                               transactional_table,
-                                               errcode);
+            (void) write_execute_load_query_log_event(thd, ex,
+                                                      table_list->db, 
+                                                      table_list->table_name,
+                                                      handle_duplicates, ignore,
+                                                      transactional_table,
+                                                      errcode);
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
             d.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
-	    mysql_bin_log.write(&d);
+	    (void) mysql_bin_log.write(&d);
 	  }
 	}
       }
@@ -541,7 +543,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       after this point.
      */
     if (thd->current_stmt_binlog_row_based)
-      thd->binlog_flush_pending_rows_event(true);
+      error= thd->binlog_flush_pending_rows_event(true);
     else
     {
       /*
@@ -553,13 +555,15 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       if (lf_info.wrote_create_file)
       {
         int errcode= query_error_code(thd, killed_status == THD::NOT_KILLED);
-        write_execute_load_query_log_event(thd, ex,
-                                           table_list->db, table_list->table_name,
-                                           handle_duplicates, ignore,
-                                           transactional_table,
-                                           errcode);
+        error= write_execute_load_query_log_event(thd, ex,
+                                                  table_list->db, table_list->table_name,
+                                                  handle_duplicates, ignore,
+                                                  transactional_table,
+                                                  errcode);
       }
     }
+    if (error)
+      goto err;
   }
 #endif /*!EMBEDDED_LIBRARY*/
 
@@ -640,7 +644,11 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       if (n++)
         pfields.append(", ");
       if (item->name)
+      {
+        pfields.append("`");
         pfields.append(item->name);
+        pfields.append("`");
+      }
       else
         item->print(&pfields, QT_ORDINARY);
     }
@@ -660,7 +668,9 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       val= lv++;
       if (n++)
         pfields.append(", ");
+      pfields.append("`");
       pfields.append(item->name);
+      pfields.append("`");
       pfields.append("=");
       val->print(&pfields, QT_ORDINARY);
     }

@@ -1327,7 +1327,6 @@ void clean_up(bool print_message)
   lex_free();				/* Free some memory */
   item_create_cleanup();
   set_var_free();
-  free_charsets();
   if (!opt_noacl)
   {
 #ifdef HAVE_DLOPEN
@@ -1508,20 +1507,23 @@ static void clean_up_mutexes()
    mysys/thr_mutex.c, will give a warning on first wrong mutex usage!
 */
 
+#ifdef SAFE_MUTEX
+#define always_in_that_order(A,B)               \
+  pthread_mutex_lock(A); pthread_mutex_lock(B); \
+  pthread_mutex_unlock(B); pthread_mutex_unlock(A)
+#else
+#define always_in_that_order(A,B)
+#endif
+
 static void register_mutex_order()
 {
-#ifdef SAFE_MUTEX
   /*
     We must have LOCK_open before LOCK_global_system_variables because
     LOCK_open is hold while sql_plugin.c::intern_sys_var_ptr() is called.
   */
-  pthread_mutex_lock(&LOCK_open);
-  pthread_mutex_lock(&LOCK_global_system_variables);
-
-  pthread_mutex_unlock(&LOCK_global_system_variables);
-  pthread_mutex_unlock(&LOCK_open);
-#endif
+  always_in_that_order(&LOCK_open, &LOCK_global_system_variables);
 }
+#undef always_in_that_order
 
 
 /****************************************************************************
@@ -2047,10 +2049,10 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
+  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
   (void) pthread_cond_broadcast(&COND_thread_count);
 
-  DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   pthread_exit(0);
   return 0;                                     // Avoid compiler warnings
 }
@@ -4077,7 +4079,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       my_free(opt_bin_logname, MYF(MY_ALLOW_ZERO_PTR));
       opt_bin_logname=my_strdup(buf, MYF(0));
     }
-    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln))
+    if (mysql_bin_log.open_index_file(opt_binlog_index_name, ln, TRUE))
     {
       unireg_abort(1);
     }
@@ -4252,7 +4254,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
   }
 
   if (opt_bin_log && mysql_bin_log.open(opt_bin_logname, LOG_BIN, 0,
-                                        WRITE_CACHE, 0, max_binlog_size, 0))
+                                        WRITE_CACHE, 0, max_binlog_size, 0, TRUE))
     unireg_abort(1);
 
 #ifdef HAVE_REPLICATION
@@ -5791,6 +5793,7 @@ enum options_mysqld
   OPT_DISCONNECT_SLAVE_EVENT_COUNT, OPT_TC_HEURISTIC_RECOVER,
   OPT_ABORT_SLAVE_EVENT_COUNT,
   OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
+  OPT_LOG_BIN_TRUST_FUNCTION_CREATORS_OLD,
   OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDB_CONNECTSTRING,
   OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
@@ -5841,6 +5844,7 @@ enum options_mysqld
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
   OPT_MYISAM_USE_MMAP, OPT_MYISAM_REPAIR_THREADS,
+  OPT_MYISAM_MMAP_SIZE,
   OPT_MYISAM_STATS_METHOD,
 
   OPT_PAGECACHE_BUFFER_SIZE,
@@ -5876,6 +5880,7 @@ enum options_mysqld
   OPT_EXPIRE_LOGS_DAYS,
   OPT_GROUP_CONCAT_MAX_LEN,
   OPT_DEFAULT_COLLATION,
+  OPT_DEFAULT_COLLATION_OLD,
   OPT_CHARACTER_SET_CLIENT_HANDSHAKE,
   OPT_CHARACTER_SET_FILESYSTEM,
   OPT_LC_TIME_NAMES,
@@ -5902,6 +5907,9 @@ enum options_mysqld
   OPT_TABLE_LOCK_WAIT_TIMEOUT,
   OPT_PLUGIN_LOAD,
   OPT_PLUGIN_DIR,
+  OPT_SYMBOLIC_LINKS,
+  OPT_WARNINGS,
+  OPT_RECORD_BUFFER_OLD,
   OPT_LOG_OUTPUT,
   OPT_PORT_OPEN_TIMEOUT,
   OPT_PROFILING,
@@ -5929,7 +5937,9 @@ enum options_mysqld
   OPT_USERSTAT,
   OPT_GENERAL_LOG_FILE,
   OPT_SLOW_QUERY_LOG_FILE,
-  OPT_IGNORE_BUILTIN_INNODB
+  OPT_IGNORE_BUILTIN_INNODB,
+  OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
+  OPT_DEFAULT_CHARACTER_SET_OLD
 };
 
 
@@ -6082,10 +6092,11 @@ struct my_option my_long_options[] =
   {"debug-flush", OPT_DEBUG_FLUSH, "Default debug log with flush after write",
    (uchar**) 0, (uchar**) 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"default-character-set", 'C', "Set the default character set (deprecated option, use --character-set-server instead).",
+  {"default-character-set", OPT_DEFAULT_CHARACTER_SET_OLD, 
+   "Set the default character set (deprecated option, use --character-set-server instead).",
    (uchar**) &default_character_set_name, (uchar**) &default_character_set_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  {"default-collation", OPT_DEFAULT_COLLATION, "Set the default collation (deprecated option, use --collation-server instead).",
+  {"default-collation", OPT_DEFAULT_COLLATION_OLD, "Set the default collation (deprecated option, use --collation-server instead).",
    (uchar**) &default_collation_name, (uchar**) &default_collation_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   {"default-storage-engine", OPT_STORAGE_ENGINE,
@@ -6184,7 +6195,8 @@ Disable with --skip-large-pages.",
 #endif
   {"init-rpl-role", OPT_INIT_RPL_ROLE, "Set the replication role.", 0, 0, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed when a slave connects to this master",
+  {"init-slave", OPT_INIT_SLAVE, "Command(s) that are executed by a slave server \
+each time the SQL thread starts.",
    (uchar**) &opt_init_slave, (uchar**) &opt_init_slave, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"language", 'L',
@@ -6224,7 +6236,7 @@ Disable with --skip-large-pages.",
     compatibility; the behaviour was also changed to apply only to functions
     (and triggers). In a future release this old name could be removed.
   */
-  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS,
+  {"log-bin-trust-routine-creators", OPT_LOG_BIN_TRUST_FUNCTION_CREATORS_OLD,
    "(deprecated) Use log-bin-trust-function-creators.",
    (uchar**) &trust_function_creators, (uchar**) &trust_function_creators, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -6777,7 +6789,7 @@ log and this option does nothing anymore.",
   {"transaction-isolation", OPT_TX_ISOLATION,
    "Default transaction isolation level.", 0, 0, 0, GET_STR, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
-  {"use-symbolic-links", 's', "Enable symbolic link support. Deprecated option; use --symbolic-links instead.",
+  {"use-symbolic-links", OPT_SYMBOLIC_LINKS, "Enable symbolic link support. Deprecated option; use --symbolic-links instead.",
    (uchar**) &my_use_symdir, (uchar**) &my_use_symdir, 0, GET_BOOL, NO_ARG,
    IF_VALGRIND(0,1), 0, 0, 0, 0, 0},
   {"user", 'u', "Run mysqld daemon as user.", 0, 0, 0, GET_STR, REQUIRED_ARG,
@@ -6787,7 +6799,7 @@ log and this option does nothing anymore.",
    0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"warnings", 'W', "Deprecated; use --log-warnings instead.",
+  {"warnings", OPT_WARNINGS, "Deprecated; use --log-warnings instead.",
    (uchar**) &global_system_variables.log_warnings,
    (uchar**) &max_system_variables.log_warnings, 0, GET_ULONG, OPT_ARG,
    1, 0, (longlong) ULONG_MAX, 0, 0, 0},
@@ -7071,6 +7083,10 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.myisam_max_sort_file_size, 0,
    GET_ULL, REQUIRED_ARG, (longlong) LONG_MAX, 0, (ulonglong) MAX_FILE_SIZE,
    0, 1024*1024, 0},
+  {"myisam_mmap_size", OPT_MYISAM_MMAP_SIZE,
+   "Can be used to restrict the total memory used for memory mmaping of myisam files",
+   (uchar**) &myisam_mmap_size, (uchar**) &myisam_mmap_size, 0,
+   GET_ULL, REQUIRED_ARG, SIZE_T_MAX, MEMMAP_EXTRA_MARGIN, SIZE_T_MAX, 0, 1, 0},
   {"myisam_repair_threads", OPT_MYISAM_REPAIR_THREADS,
    "Number of threads to use when repairing MyISAM tables. The value of 1 disables parallel repair.",
    (uchar**) &global_system_variables.myisam_repair_threads,
@@ -7218,8 +7234,8 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.read_rnd_buff_size, 0,
    GET_ULONG, REQUIRED_ARG, 256*1024L, IO_SIZE*2+MALLOC_OVERHEAD,
    INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
-  {"record_buffer", OPT_RECORD_BUFFER,
-   "Alias for read_buffer_size",
+  {"record_buffer", OPT_RECORD_BUFFER_OLD,
+   "Alias for read_buffer_size. This variable is deprecated and will be removed in a future release.",
    (uchar**) &global_system_variables.read_buff_size,
    (uchar**) &max_system_variables.read_buff_size,0, GET_ULONG, REQUIRED_ARG,
    128*1024L, IO_SIZE*2+MALLOC_OVERHEAD, INT_MAX32, MALLOC_OVERHEAD, IO_SIZE, 0},
@@ -7311,10 +7327,10 @@ The minimum value for this variable is 4096.",
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tmp_table_size", OPT_TMP_TABLE_SIZE,
    "If an internal in-memory temporary table exceeds this size, MySQL will"
-   " automatically convert it to an on-disk MyISAM table.",
+   " automatically convert it to an on-disk MyISAM/Maria table.",
    (uchar**) &global_system_variables.tmp_table_size,
    (uchar**) &max_system_variables.tmp_table_size, 0, GET_ULL,
-   REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
+   REQUIRED_ARG, 16*1024*1024L, 0, MAX_MEM_TABLE_SIZE, 0, 1, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
    "Allocation block size for transactions to be stored in binary log",
    (uchar**) &global_system_variables.trans_alloc_block_size,
@@ -7347,6 +7363,10 @@ The minimum value for this variable is 4096.",
    "Control USER_STATISTICS, CLIENT_STATISTICS, INDEX_STATISTICS and TABLE_STATISTICS running",
    (uchar**) &opt_userstat_running, (uchar**) &opt_userstat_running,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
+  {"binlog-direct-non-transactional-updates", OPT_BINLOG_DIRECT_NON_TRANS_UPDATE,
+   "Causes updates to non-transactional engines using statement format to be written directly to binary log. Before using this option make sure that there are no dependencies between transactional and non-transactional tables such as in the statement INSERT INTO t_myisam SELECT * FROM t_innodb; otherwise, slaves may diverge from the master.",
+   (uchar**) &global_system_variables.binlog_direct_non_trans_update, (uchar**) &max_system_variables.binlog_direct_non_trans_update, 0, GET_BOOL, NO_ARG, 0,
+    0, 0, 0, 0, 0},
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -7827,6 +7847,7 @@ SHOW_VAR status_vars[]= {
   {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
   {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
 #endif /* HAVE_OPENSSL */
+  {"Syncs",                    (char*) &my_sync_count,          SHOW_LONG_NOFLUSH},
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
 #ifdef HAVE_MMAP
@@ -8241,6 +8262,9 @@ mysqld_get_one_option(int optid,
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
 #endif
+  case '0':
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--log-long-format", "--log-short-format");
+    break;
   case 'a':
     global_system_variables.sql_mode= fix_sql_mode(MODE_ANSI);
     global_system_variables.tx_isolation= ISO_SERIALIZABLE;
@@ -8248,6 +8272,11 @@ mysqld_get_one_option(int optid,
   case 'b':
     strmake(mysql_home,argument,sizeof(mysql_home)-1);
     break;
+  case OPT_DEFAULT_CHARACTER_SET_OLD: // --default-character-set
+    WARN_DEPRECATED(NULL, VER_CELOSIA, 
+                    "--default-character-set",
+                    "--character-set-server");
+    /* Fall through */
   case 'C':
     if (default_collation_name == compiled_default_collation_name)
       default_collation_name= 0;
@@ -8271,6 +8300,9 @@ mysqld_get_one_option(int optid,
   case 'L':
     strmake(language, argument, sizeof(language)-1);
     break;
+  case 'O':
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--set-variable", "--variable-name=value");
+    break;
 #ifdef HAVE_REPLICATION
   case OPT_SLAVE_SKIP_ERRORS:
     init_slave_skip_errors(argument);
@@ -8293,6 +8325,9 @@ mysqld_get_one_option(int optid,
     print_version();
     exit(0);
 #endif /*EMBEDDED_LIBRARY*/
+  case OPT_WARNINGS:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--warnings", "--log-warnings");
+    /* Note: fall-through to 'W' */
   case 'W':
     if (!argument)
       global_system_variables.log_warnings++;
@@ -8305,6 +8340,18 @@ mysqld_get_one_option(int optid,
     test_flags= argument ? (uint) atoi(argument) : 0;
     opt_endinfo=1;
     break;
+  case (int) OPT_DEFAULT_COLLATION_OLD:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--default-collation", "--collation-server");
+    break;
+  case (int) OPT_SAFE_SHOW_DB:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--safe-show-database", "GRANT SHOW DATABASES");
+    break;
+  case (int) OPT_LOG_BIN_TRUST_FUNCTION_CREATORS_OLD:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--log-bin-trust-routine-creators", "--log-bin-trust-function-creators");
+    break;
+  case (int) OPT_ENABLE_LOCK:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--enable-locking", "--external-locking");
+    break;
   case (int) OPT_BIG_TABLES:
     thd_startup_options|=OPTION_BIG_TABLES;
     break;
@@ -8315,6 +8362,7 @@ mysqld_get_one_option(int optid,
     opt_myisam_log=1;
     break;
   case (int) OPT_UPDATE_LOG:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--log-update", "--log-bin");
     opt_update_log=1;
     break;
   case (int) OPT_BIN_LOG:
@@ -8487,7 +8535,17 @@ mysqld_get_one_option(int optid,
                       "give threads different priorities.");
     break;
   case (int) OPT_SKIP_LOCK:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--skip-locking", "--skip-external-locking");
     opt_external_locking=0;
+    break;
+  case (int) OPT_SQL_BIN_UPDATE_SAME:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--sql-bin-update-same", "the binary log");
+    break;
+  case (int) OPT_RECORD_BUFFER_OLD:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "record_buffer", "read_buffer_size");
+    break;
+  case (int) OPT_SYMBOLIC_LINKS:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--use-symbolic-links", "--symbolic-links");
     break;
   case (int) OPT_SKIP_HOST_CACHE:
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
@@ -8514,6 +8572,7 @@ mysqld_get_one_option(int optid,
     test_flags|=TEST_NO_STACKTRACE;
     break;
   case (int) OPT_SKIP_SYMLINKS:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, "--skip-symlink", "--skip-symbolic-links");
     my_use_symdir=0;
     break;
   case (int) OPT_BIND_ADDRESS:
@@ -8608,6 +8667,9 @@ mysqld_get_one_option(int optid,
     server_id_supplied = 1;
     break;
   case OPT_DELAY_KEY_WRITE_ALL:
+    WARN_DEPRECATED(NULL, VER_CELOSIA, 
+                    "--delay-key-write-for-all-tables",
+                    "--delay-key-write=ALL");
     if (argument != disabled_my_option)
       argument= (char*) "ALL";
     /* Fall through */

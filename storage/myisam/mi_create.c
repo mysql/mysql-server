@@ -192,6 +192,13 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     options|= HA_OPTION_CHECKSUM;
     min_pack_length++;
   }
+  /*
+    Don't set HA_OPTION_NULL_FIELDS if no checksums, as this flag makes
+    that file incompatible with MySQL.  This is ok, as this flag is only
+    used if one specifics table level checksums.
+  */
+  if (!(options & HA_OPTION_CHECKSUM))
+    options&= ~HA_OPTION_NULL_FIELDS;
   if (flags & HA_CREATE_DELAY_KEY_WRITE)
     options|= HA_OPTION_DELAY_KEY_WRITE;
   if (flags & HA_CREATE_RELIES_ON_SQL_LAYER)

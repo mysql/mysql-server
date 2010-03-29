@@ -22,7 +22,7 @@ set @@global.general_log=0;
 set @@global.userstat=1;
 flush status;
 
-create table t1 (a int, primary key (a), b int default 0) engine=myisam;
+create table t1 (a int, primary key (a), b int default 0) engine=innodb;
 insert into t1 (a) values (1),(2),(3),(4);
 update t1 set b=1;
 update t1 set b=5 where a=2;
@@ -66,16 +66,8 @@ select * from information_schema.index_statistics;
 select * from information_schema.table_statistics;
 show table_statistics;
 show index_statistics;
-select TOTAL_CONNECTIONS, CONCURRENT_CONNECTIONS, ROWS_READ, ROWS_SENT,
-       ROWS_DELETED, ROWS_INSERTED, ROWS_UPDATED, SELECT_COMMANDS,
-       UPDATE_COMMANDS, OTHER_COMMANDS, COMMIT_TRANSACTIONS,
-       ROLLBACK_TRANSACTIONS, DENIED_CONNECTIONS, LOST_CONNECTIONS,
-       ACCESS_DENIED, EMPTY_QUERIES from information_schema.client_statistics;
-select TOTAL_CONNECTIONS, CONCURRENT_CONNECTIONS, ROWS_READ, ROWS_SENT,
-       ROWS_DELETED, ROWS_INSERTED, ROWS_UPDATED, SELECT_COMMANDS,
-       UPDATE_COMMANDS, OTHER_COMMANDS, COMMIT_TRANSACTIONS,
-       ROLLBACK_TRANSACTIONS, DENIED_CONNECTIONS, LOST_CONNECTIONS,
-       ACCESS_DENIED, EMPTY_QUERIES from information_schema.user_statistics;
+--query_vertical select TOTAL_CONNECTIONS, CONCURRENT_CONNECTIONS, ROWS_READ, ROWS_SENT, ROWS_DELETED, ROWS_INSERTED, ROWS_UPDATED, SELECT_COMMANDS, UPDATE_COMMANDS, OTHER_COMMANDS, COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS, DENIED_CONNECTIONS, LOST_CONNECTIONS, ACCESS_DENIED, EMPTY_QUERIES from information_schema.client_statistics;
+--query_vertical select TOTAL_CONNECTIONS, CONCURRENT_CONNECTIONS, ROWS_READ, ROWS_SENT, ROWS_DELETED, ROWS_INSERTED, ROWS_UPDATED, SELECT_COMMANDS, UPDATE_COMMANDS, OTHER_COMMANDS, COMMIT_TRANSACTIONS, ROLLBACK_TRANSACTIONS, DENIED_CONNECTIONS, LOST_CONNECTIONS, ACCESS_DENIED, EMPTY_QUERIES from information_schema.user_statistics;
 flush table_statistics;
 flush index_statistics;
 select * from information_schema.index_statistics;

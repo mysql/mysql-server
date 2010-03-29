@@ -98,3 +98,102 @@ start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
 start slave sql_thread;
 start slave until master_log_file='master-bin.000001', master_log_pos=776;
 
+#
+# bug#47210  first execution of "start slave until" stops too early  
+#
+# testing that a slave rotate event that is caused by stopping the slave
+# does not intervene anymore in UNTIL condition.
+#
+
+connection slave;
+source include/stop_slave.inc;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+reset slave;
+--replace_result $MASTER_MYPORT MASTER_PORT
+eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root'; 
+
+connection master;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+reset master;
+create table t1 (a int primary key auto_increment);
+save_master_pos;
+let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+connection slave;
+start slave;
+sync_with_master;
+
+# at this point slave will close the relay log stamping it with its own
+# Rotate log event. This event won't be examined on matter of the master 
+# UNTIL pos anymore.
+source include/stop_slave.inc;
+let $slave_exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+
+--echo master and slave are in sync now
+let $diff_pos= `select $master_pos - $slave_exec_pos`;
+eval select $diff_pos as zero;
+
+connection master;
+insert into t1 set a=null;
+let $until_pos= query_get_value(SHOW MASTER STATUS, Position, 1);
+insert into t1 set a=null;
+select count(*) as two from t1;
+
+connection slave;
+--replace_result $until_pos UNTIL_POS;
+eval start slave until master_log_file='master-bin.000001', master_log_pos= $until_pos;
+source include/wait_for_slave_sql_to_stop.inc;
+let $slave_exec_pos= query_get_value(SHOW SLAVE STATUS, Exec_Master_Log_Pos, 1);
+--echo slave stopped at the prescribed position
+let $diff_pos= `select $until_pos - $slave_exec_pos`;
+eval select $diff_pos as zero;
+select count(*) as one from t1;
+
+
+connection master;
+drop table t1;
+
+connection slave;
+start slave;
+sync_with_master;
+
+ # Bug #47142  	"slave start until" stops 1 event too late in 4.1 to 5.0 replication
+#
+# testing fixes that refine the start position of prior-5.0 master's event
+# and by that provide correct execution of 
+# START SLAVE UNTIL ... master_log_pos= x;
+# Keep the test at the end of the file because it manipulates with binlog files 
+# to substitute the genuine one with a prepared on 4.1 server.
+#
+
+--source include/master-slave-reset.inc
+
+connection master;
+drop table if exists t1; # there is create table t1 in bug47142_master-bin.000001
+flush logs;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/master-bin.000001
+--copy_file $MYSQL_TEST_DIR/std_data/bug47142_master-bin.000001 $MYSQLD_DATADIR/master-bin.000001
+
+connection slave;
+stop slave;
+reset slave;
+start slave until master_log_file='master-bin.000001', master_log_pos=294 /* to stop right before DROP */;
+--source include/wait_for_slave_sql_to_stop.inc
+
+show tables /* t1 must exist */;
+
+# clean-up of Bug #47142 testing
+
+drop table t1; # drop on slave only, master does not have t1. 
+stop slave;
+reset slave;
+
+connection master;
+reset master;
+
+# End of tests
