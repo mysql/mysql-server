@@ -68,12 +68,13 @@ Created 10/16/1994 Heikki Tuuri
 #include "lock0lock.h"
 #include "zlib.h"
 
-/* Btree operation types, introduced as part of delete buffering. */
+/** Buffered B-tree operation types, introduced as part of delete buffering. */
 typedef enum btr_op_enum {
-	BTR_NO_OP = 0,
-	BTR_INSERT_OP,
-	BTR_DELETE_OP,
-	BTR_DELMARK_OP
+	BTR_NO_OP = 0,			/*!< Not buffered */
+	BTR_INSERT_OP,			/*!< Insert, do not ignore UNIQUE */
+	BTR_INSERT_IGNORE_UNIQUE_OP,	/*!< Insert, ignoring UNIQUE */
+	BTR_DELETE_OP,			/*!< Purge a delete-marked record */
+	BTR_DELMARK_OP			/*!< Mark a record for deletion */
 } btr_op_t;
 
 #ifdef UNIV_DEBUG
@@ -375,8 +376,7 @@ btr_cur_search_to_nth_level(
 	ulint		estimate;
 	ulint		zip_size;
 	page_cur_t*	page_cursor;
-	ulint		ignore_sec_unique;
-	btr_op_t	btr_op = BTR_NO_OP;
+	btr_op_t	btr_op;
 	ulint		root_height = 0; /* remove warning */
 
 #ifdef BTR_CUR_ADAPT
@@ -406,9 +406,12 @@ btr_cur_search_to_nth_level(
 			    & (BTR_INSERT | BTR_DELETE | BTR_DELETE_MARK),
 			    0)) {
 	case 0:
+		btr_op = BTR_NO_OP;
 		break;
 	case BTR_INSERT:
-		btr_op = BTR_INSERT_OP;
+		btr_op = (latch_mode & BTR_IGNORE_SEC_UNIQUE)
+			? BTR_INSERT_IGNORE_UNIQUE_OP
+			: BTR_INSERT_OP;
 		break;
 	case BTR_DELETE:
 		btr_op = BTR_DELETE_OP;
@@ -429,7 +432,6 @@ btr_cur_search_to_nth_level(
 	ut_ad(btr_op == BTR_NO_OP || !dict_index_is_clust(index));
 
 	estimate = latch_mode & BTR_ESTIMATE;
-	ignore_sec_unique = latch_mode & BTR_IGNORE_SEC_UNIQUE;
 
 	/* Turn the flags unrelated to the latch mode off. */
 	latch_mode &= ~(BTR_INSERT
@@ -573,7 +575,7 @@ search_loop:
 		rw_latch = latch_mode;
 
 		if (btr_op != BTR_NO_OP
-		    && ibuf_should_try(index, ignore_sec_unique)) {
+		    && ibuf_should_try(index, btr_op != BTR_INSERT_OP)) {
 
 			/* Try to buffer the operation if the leaf
 			page is not in the buffer pool. */
@@ -600,6 +602,7 @@ retry_page_get:
 
 		switch (btr_op) {
 		case BTR_INSERT_OP:
+		case BTR_INSERT_IGNORE_UNIQUE_OP:
 			ut_ad(buf_mode == BUF_GET_IF_IN_POOL);
 
 			if (ibuf_insert(IBUF_OP_INSERT, tuple, index,

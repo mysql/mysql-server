@@ -79,7 +79,7 @@ When the record is not in the buffer pool, try to use the insert buffer. */
 optimization */
 #define BTR_ESTIMATE		1024
 
-/** This flag ORed to btr_latch_mode says that we can ignore possible
+/** This flag ORed to BTR_INSERT says that we can ignore possible
 UNIQUE definition on secondary indexes when we decide if we can use
 the insert buffer to speed up inserts */
 #define BTR_IGNORE_SEC_UNIQUE	2048
