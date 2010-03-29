@@ -5,6 +5,13 @@
 #include <db.h>
 #include "hatoku_cmp.h"
 
+class ha_tokudb;
+
+typedef struct loader_context {
+    THD* thd;
+    char write_status_msg[200];
+    ha_tokudb* ha;
+} *LOADER_CONTEXT;
 
 //
 // This object stores table information that is to be shared
@@ -243,9 +250,13 @@ private:
     // so a buffer of 200 is good enough.
     //
     char write_status_msg[200]; //buffer of 200 should be a good upper bound.
+    struct loader_context lc;
 
     ulonglong read_lock_wait_time;
-
+    DB_LOADER* loader;
+    bool abort_loader;
+    int loader_error;
+    
     bool fix_rec_buff_for_blob(ulong length);
     void fix_mult_rec_buff();
     uchar current_ident[TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH];
@@ -298,6 +309,7 @@ private:
     int create_secondary_dictionary(const char* name, TABLE* form, KEY* key_info, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, u_int32_t keynr);
     int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info);
     void trace_create_table_info(const char *name, TABLE * form);
+    int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
     int do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd);
     int insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
@@ -463,6 +475,8 @@ public:
     }
 
     void track_progress(THD* thd);
+    void set_loader_error(int err);
+    void set_dup_value_for_pk(DBT* key);
 
 
     //
@@ -476,3 +490,4 @@ private:
     int __close(int mutex_is_locked);
     int read_last(uint keynr);
 };
+
