@@ -382,8 +382,14 @@ private:
    */
   Uint32 m_finalBatchFrags;
 
-  /* Number of IndexBounds set by API (index scans only) */
+  /** Number of IndexBounds set by API (index scans only) */
   Uint32 m_num_bounds;
+
+  /** 
+   * Number of fields in the shortest bound (for an index scan root).
+   * Will be 0xffffffff if no bound has been set. 
+   */
+  Uint32 m_shortestBound;
 
   /**
    * Signal building section:

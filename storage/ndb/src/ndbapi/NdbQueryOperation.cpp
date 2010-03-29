@@ -1015,6 +1015,7 @@ NdbQueryImpl::NdbQueryImpl(NdbTransaction& trans,
   m_fullFrags(),
   m_finalBatchFrags(0),
   m_num_bounds(0),
+  m_shortestBound(0xffffffff),
   m_attrInfo(),
   m_keyInfo(),
   m_startIndicator(false),
@@ -1201,6 +1202,10 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
   else
     common_key_count= bound->high_key_count;
 
+  if (m_shortestBound > common_key_count)
+  {
+    m_shortestBound = common_key_count;
+  }
   /* Has the user supplied an open range (no bounds)? */
   const bool openRange= ((bound->low_key == NULL || bound->low_key_count == 0) && 
                          (bound->high_key == NULL || bound->high_key_count == 0));
@@ -2516,7 +2521,7 @@ int NdbQueryImpl::isPrunable(bool& prunable)
   if (m_prunability == Prune_Unknown)
   {
     const int error = getRoot().getQueryOperationDef()
-      .checkPrunable(m_keyInfo, prunable, m_pruneHashVal);
+      .checkPrunable(m_keyInfo, m_shortestBound, prunable, m_pruneHashVal);
     if (unlikely(error != 0))
     {
       prunable = false;
