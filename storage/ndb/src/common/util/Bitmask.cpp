@@ -218,6 +218,37 @@ TAPTEST(Bitmask)
         "0,1,4,6,8,9,10,12,14,15,16,18,20,21,22,24,25,26,27,28,30,32,"
         "33,34,35,36,38,39,40,42,44,45,46,47,48,49,50,51,52,53,54,55,"
        "56,57,58,59,60");
+
+    // bitNOT Tests
+    Bitmask<8> c = b;
+    OK(c.equal(b));
+    c.bitNOT();
+    printf("getPrettyTextShort(c 1): %s\n",
+           BaseString::getPrettyTextShort(c).c_str());
+    OK(!c.equal(b));
+    c.bitNOT();
+    OK(c.count() == b.count());
+    OK(c.equal(b));
+    printf("getPrettyTextShort(c 2): %s\n",
+           BaseString::getPrettyTextShort(c).c_str());
+
+    Bitmask<1> d;
+    d.set(1);
+    d.set(3);
+    d.set(4);
+    printf("getPrettyTextShort(d 1): %s\n",
+           BaseString::getPrettyTextShort(d).c_str());
+    OK(d.count() == 3);
+    d.bitNOT();
+    printf("getPrettyTextShort(d 2): %s\n",
+           BaseString::getPrettyTextShort(d).c_str());
+    OK(d.get(2));
+    OK(!d.get(4));
+    OK(d.count() != 3);
+    d.bitNOT();
+    OK(d.count() == 3);
+    printf("getPrettyTextShort(d 3): %s\n",
+           BaseString::getPrettyTextShort(d).c_str());
     return 1; // OK
 }
 
