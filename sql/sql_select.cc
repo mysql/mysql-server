@@ -17977,7 +17977,8 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         /* rows */
         ha_rows rows= (sj_strategy == SJ_OPT_MATERIALIZE_SCAN)?
                        tab->emb_sj_nest->sj_mat_info->rows : 1;
-        item_list.push_back(new Item_int(rows));
+        item_list.push_back(new Item_int((longlong)rows, 
+                                         MY_INT64_NUM_DECIMAL_DIGITS));
         /* filtered */
         if (join->thd->lex->describe & DESCRIBE_EXTENDED)
           item_list.push_back(new Item_float(1.0, 2));
