@@ -455,9 +455,6 @@ btr_cur_search_to_nth_level(
 #ifdef UNIV_SEARCH_PERF_STAT
 	info->n_searches++;
 #endif
-
-	/* Ibuf does not use adaptive hash; this is prevented by the
-	latch_mode check below. */
 	if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_NOT_LOCKED
 	    && latch_mode <= BTR_MODIFY_LEAF
 	    && info->last_hash_succ
