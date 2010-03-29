@@ -25,10 +25,10 @@ pkgplugindir =		$(pkglibdir)/plugin
 
 EXTRA_DIST =		libmysqld.def CMakeLists.txt
 DEFS =			-DEMBEDDED_LIBRARY -DMYSQL_SERVER \
-			-DDEFAULT_MYSQL_HOME="\"$(MYSQLBASEdir)\"" \
-			-DMYSQL_DATADIR="\"$(MYSQLDATAdir)\"" \
-			-DSHAREDIR="\"$(MYSQLSHAREdir)\"" \
-			-DPLUGINDIR="\"$(pkgplugindir)\""
+			-DDEFAULT_MYSQL_HOME='"$(MYSQLBASEdir)"' \
+			-DMYSQL_DATADIR='"$(MYSQLDATAdir)"' \
+			-DSHAREDIR='"$(MYSQLSHAREdir)"' \
+			-DPLUGINDIR='"$(pkgplugindir)"'
 INCLUDES=		-I$(top_builddir)/include -I$(top_srcdir)/include \
 			-I$(top_builddir)/sql -I$(top_srcdir)/sql \
 			-I$(top_srcdir)/sql/examples \
@@ -41,7 +41,7 @@ pkglib_LIBRARIES =	libmysqld.a
 SUBDIRS =		. examples
 libmysqld_sources=	libmysqld.c lib_sql.cc emb_qcache.cc
 libmysqlsources =	errmsg.c get_password.c libmysql.c client.c pack.c \
-                        my_time.c
+                        my_time.c client_plugin.c
 
 noinst_HEADERS =	embedded_priv.h emb_qcache.h
 

@@ -9185,7 +9185,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   thd->client_capabilities = 0;
   my_net_init(&thd->net, 0);
   thd->main_security_ctx.master_access= ~0;
-  thd->main_security_ctx.priv_user = 0;
+  thd->main_security_ctx.priv_user[0] = 0;
 
   CHARSET_INFO *charset_connection;
   charset_connection= get_charset_by_csname("utf8",

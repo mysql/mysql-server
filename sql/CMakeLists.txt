@@ -54,7 +54,7 @@ SET (SQL_SOURCE
                log_event.cc rpl_record.cc rpl_reporting.cc
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
-               mysqld.cc net_serv.cc 
+               mysqld.cc net_serv.cc ../sql-common/client_plugin.c 
                nt_servc.cc nt_servc.h opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 

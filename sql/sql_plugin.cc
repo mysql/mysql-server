@@ -16,6 +16,7 @@
 #include "mysql_priv.h"
 #include <my_pthread.h>
 #include <my_getopt.h>
+#include <mysql/plugin_auth.h>
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
@@ -46,7 +47,10 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("STORAGE ENGINE") },
   { C_STRING_WITH_LEN("FTPARSER") },
   { C_STRING_WITH_LEN("DAEMON") },
-  { C_STRING_WITH_LEN("INFORMATION SCHEMA") }
+  { C_STRING_WITH_LEN("INFORMATION SCHEMA") },
+  { C_STRING_WITH_LEN("AUDIT") },
+  { C_STRING_WITH_LEN("REPLICATION") },
+  { C_STRING_WITH_LEN("AUTHENTICATION") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -59,12 +63,12 @@ extern int finalize_schema_table(st_plugin_int *plugin);
 */
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_initialize_handlerton,0,0,initialize_schema_table
+  0,ha_initialize_handlerton,0,0,initialize_schema_table, 0, 0, 0
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
-  0,ha_finalize_handlerton,0,0,finalize_schema_table
+  0,ha_finalize_handlerton,0,0,finalize_schema_table, 0, 0, 0
 };
 
 #ifdef HAVE_DLOPEN
@@ -85,7 +89,10 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
-  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  0xff00, /* audit plugins are supported in a later versions */
+  0xff00, /* replication plugins are supported in a later versions */
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -93,7 +100,10 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_HANDLERTON_INTERFACE_VERSION,
   MYSQL_FTPARSER_INTERFACE_VERSION,
   MYSQL_DAEMON_INTERFACE_VERSION,
-  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
+  0x0000, /* audit plugins are supported in a later versions */
+  0x0000, /* replication plugins are supported in a later versions */
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION
 };
 
 /* support for Services */
@@ -1013,6 +1023,9 @@ void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
 {
   LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock_list");
+  if (count == 0)
+    DBUG_VOID_RETURN;
+
   DBUG_ASSERT(list);
   pthread_mutex_lock(&LOCK_plugin);
   while (count--)

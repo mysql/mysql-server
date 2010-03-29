@@ -22,6 +22,7 @@
 #include "rpl_mi.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
+#include "client_settings.h"
 #include "repl_failsafe.h"
 #include <my_stacktrace.h>
 #include "mysqld_suffix.h"
@@ -1394,6 +1395,7 @@ void clean_up(bool print_message)
   if (print_message && errmesg && server_start_time)
     sql_print_information(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   thread_scheduler.end();
+  mysql_library_end();
   finish_client_errs();
   my_free((uchar*) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST),
           MYF(MY_WME | MY_FAE | MY_ALLOW_ZERO_PTR));
@@ -3489,6 +3491,7 @@ static int init_common_variables(const char *conf_file_name, int argc,
   if (init_errmessage())	/* Read error messages from file */
     return 1;
   init_client_errs();
+  mysql_library_init(never,never,never); /* for replication */
   lex_init();
   if (item_create_init())
     return 1;

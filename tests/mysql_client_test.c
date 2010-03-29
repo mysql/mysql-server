@@ -34,6 +34,7 @@
 #include <m_string.h>
 #include <mysqld_error.h>
 #include <my_handler.h>
+#include <sql_common.h>
 
 #define VER "2.1"
 #define MAX_TEST_QUERY_LENGTH 300 /* MAX QUERY BUFFER LENGTH */

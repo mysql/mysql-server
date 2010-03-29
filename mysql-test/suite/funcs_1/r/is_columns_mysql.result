@@ -178,6 +178,7 @@ NULL	mysql	time_zone_transition_type	Time_zone_id	1	NULL	NO	int	NULL	NULL	10	0	N
 NULL	mysql	time_zone_transition_type	Transition_type_id	2	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	int(10) unsigned	PRI		select,insert,update,references	
 NULL	mysql	user	Alter_priv	17	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 NULL	mysql	user	Alter_routine_priv	28	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
+NULL	mysql	user	auth_string	41	NULL	NO	text	65535	65535	NULL	NULL	utf8	utf8_bin	text			select,insert,update,references	
 NULL	mysql	user	Create_priv	8	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 NULL	mysql	user	Create_routine_priv	27	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 NULL	mysql	user	Create_tmp_table_priv	20	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
@@ -198,6 +199,7 @@ NULL	mysql	user	max_questions	36	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsig
 NULL	mysql	user	max_updates	37	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
 NULL	mysql	user	max_user_connections	39	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select,insert,update,references	
 NULL	mysql	user	Password	3		NO	char	41	41	NULL	NULL	latin1	latin1_bin	char(41)			select,insert,update,references	
+NULL	mysql	user	plugin	40		NO	char	60	60	NULL	NULL	latin1	latin1_swedish_ci	char(60)			select,insert,update,references	
 NULL	mysql	user	Process_priv	12	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 NULL	mysql	user	References_priv	15	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
 NULL	mysql	user	Reload_priv	10	N	NO	enum	1	3	NULL	NULL	utf8	utf8_general_ci	enum('N','Y')			select,insert,update,references	
@@ -233,6 +235,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	char	latin1	latin1_bin
 1.0000	char	latin1	latin1_swedish_ci
 1.0000	varchar	latin1	latin1_swedish_ci
+1.0000	text	utf8	utf8_bin
 1.0000	mediumtext	utf8	utf8_general_ci
 1.0000	text	utf8	utf8_general_ci
 SELECT DISTINCT
@@ -497,3 +500,5 @@ NULL	mysql	user	max_questions	int	NULL	NULL	NULL	NULL	int(11) unsigned
 NULL	mysql	user	max_updates	int	NULL	NULL	NULL	NULL	int(11) unsigned
 NULL	mysql	user	max_connections	int	NULL	NULL	NULL	NULL	int(11) unsigned
 NULL	mysql	user	max_user_connections	int	NULL	NULL	NULL	NULL	int(11) unsigned
+1.0000	mysql	user	plugin	char	60	60	latin1	latin1_swedish_ci	char(60)
+1.0000	mysql	user	auth_string	text	65535	65535	utf8	utf8_bin	text

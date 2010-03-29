@@ -571,6 +571,9 @@ ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
 
+ALTER TABLE user ADD plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL,  ADD auth_string TEXT NOT NULL;
+ALTER TABLE user MODIFY plugin char(60) CHARACTER SET latin1 DEFAULT '' NOT NULL;
+
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above
 # changes was correct

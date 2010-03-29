@@ -578,6 +578,14 @@ int	__void__;
 #define IF_VALGRIND(A,B) (B)
 #endif
 
+#ifdef _WIN32
+#define SO_EXT ".dll"
+#elif defined(__APPLE__)
+#define SO_EXT ".dylib"
+#else
+#define SO_EXT ".so"
+#endif
+
 /* 
    Suppress uninitialized variable warning without generating code.
 
@@ -1522,9 +1530,11 @@ do { doubleget_union _tmp; \
 #endif
 
 #ifndef HAVE_DLERROR
-#define dlerror() ""
+#define dlerror() "No support for dynamic loading (static build?)"
+#define dlopen(A,B) 0
+#define dlsym(A,B) 0
+#define dlclose(A) 0
 #endif
-
 
 #ifndef __NETWARE__
 /*

@@ -1067,9 +1067,6 @@ int write_bin_log(THD *thd, bool clear_error,
                   char const *query, ulong query_length);
 
 /* sql_connect.cc */
-int check_user(THD *thd, enum enum_server_command command, 
-	       const char *passwd, uint passwd_len, const char *db,
-	       bool check_count);
 pthread_handler_t handle_one_connection(void *arg);
 bool init_new_connection_handler_thread();
 void reset_mqh(LEX_USER *lu, bool get_them);
@@ -1082,6 +1079,9 @@ bool login_connection(THD *thd);
 void end_connection(THD *thd);
 void prepare_new_connection_state(THD* thd);
 void update_global_user_stats(THD* thd, bool create_user, time_t now);
+int get_or_create_user_conn(THD *thd, const char *user,
+                            const char *host, USER_RESOURCES *mqh);
+int check_for_max_user_connections(THD *thd, USER_CONN *uc);
 
 int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);

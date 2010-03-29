@@ -15,6 +15,7 @@
 
 
 #include <thr_alarm.h>
+#include <sql_common.h>
 
 #define CLIENT_CAPABILITIES (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG |	  \
                              CLIENT_SECURE_CONNECTION | CLIENT_TRANSACTIONS | \
@@ -31,7 +32,8 @@
 #undef HAVE_SMEM
 #undef _CUSTOMCONFIG_
 
-#define mysql_server_init(a,b,c) 0
+#define mysql_server_init(a,b,c) mysql_client_plugin_init()
+#define mysql_server_end()       mysql_client_plugin_deinit()
 
 #ifdef HAVE_REPLICATION
 C_MODE_START
