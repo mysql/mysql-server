@@ -2111,4 +2111,21 @@ SET @bug51650 = 1;
 INSERT IGNORE INTO t2 SET a = '777';
 DROP TRIGGER trg1;
 DROP TABLE t1, t2;
+CREATE TABLE t1 (id INT NOT NULL);
+CREATE TABLE t2 (id INT NOT NULL);
+INSERT t1 VALUES (1),(2),(3);
+UPDATE t1 SET id=NULL;
+Warnings:
+Warning	1048	Column 'id' cannot be null
+Warning	1048	Column 'id' cannot be null
+Warning	1048	Column 'id' cannot be null
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+INSERT INTO t2 VALUES (3);
+UPDATE t1 SET id=NULL;
+Warnings:
+Warning	1048	Column 'id' cannot be null
+Warning	1048	Column 'id' cannot be null
+Warning	1048	Column 'id' cannot be null
+DROP TRIGGER t1_bu;
+DROP TABLE t1,t2;
 End of 5.1 tests.
