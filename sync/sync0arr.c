@@ -138,6 +138,11 @@ struct sync_array_struct {
 					since creation of the array */
 };
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register the mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	syn_arr_mutex_key;
+#endif
+
 #ifdef UNIV_SYNC_DEBUG
 /******************************************************************//**
 This function is called only in the debug version. Detects a deadlock
@@ -247,7 +252,8 @@ sync_array_create(
 	if (protection == SYNC_ARRAY_OS_MUTEX) {
 		arr->os_mutex = os_mutex_create(NULL);
 	} else if (protection == SYNC_ARRAY_MUTEX) {
-		mutex_create(&arr->mutex, SYNC_NO_ORDER_CHECK);
+		mutex_create(syn_arr_mutex_key,
+			     &arr->mutex, SYNC_NO_ORDER_CHECK);
 	} else {
 		ut_error;
 	}

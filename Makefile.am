@@ -117,6 +117,7 @@ noinst_HEADERS=		\
 			include/mtr0types.h	\
 			include/mysql_addons.h	\
 			include/os0file.h	\
+			include/os0file.ic	\
 			include/os0proc.h	\
 			include/os0proc.ic	\
 			include/os0sync.h	\

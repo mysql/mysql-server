@@ -121,6 +121,16 @@ UNIV_INTERN ulint	fil_n_pending_tablespace_flushes	= 0;
 /** The null file address */
 UNIV_INTERN fil_addr_t	fil_addr_null = {FIL_NULL, 0};
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register fil_system_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	fil_system_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
+#ifdef UNIV_PFS_RWLOCK
+/* Key to register file space latch with performance schema */
+UNIV_INTERN mysql_pfs_key_t	fil_space_latch_key;
+#endif /* UNIV_PFS_RWLOCK */
+
 /** File node of a tablespace or the log data space */
 struct fil_node_struct {
 	fil_space_t*	space;	/*!< backpointer to the space where this node
@@ -649,7 +659,8 @@ fil_node_open_file(
 		async I/O! */
 
 		node->handle = os_file_create_simple_no_error_handling(
-			node->name, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+			innodb_file_data_key, node->name, OS_FILE_OPEN,
+			OS_FILE_READ_ONLY, &success);
 		if (!success) {
 			/* The following call prints an error message */
 			os_file_get_last_error(TRUE);
@@ -767,15 +778,21 @@ add_size:
 	os_file_create() to fall back to the normal file I/O mode. */
 
 	if (space->purpose == FIL_LOG) {
-		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					      OS_FILE_AIO, OS_LOG_FILE, &ret);
+		node->handle = os_file_create(innodb_file_log_key,
+					      node->name, OS_FILE_OPEN,
+					      OS_FILE_AIO, OS_LOG_FILE,
+					      &ret);
 	} else if (node->is_raw_disk) {
-		node->handle = os_file_create(node->name,
+		node->handle = os_file_create(innodb_file_data_key,
+					      node->name,
 					      OS_FILE_OPEN_RAW,
-					      OS_FILE_AIO, OS_DATA_FILE, &ret);
+					      OS_FILE_AIO, OS_DATA_FILE,
+						     &ret);
 	} else {
-		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					      OS_FILE_AIO, OS_DATA_FILE, &ret);
+		node->handle = os_file_create(innodb_file_data_key,
+					      node->name, OS_FILE_OPEN,
+					      OS_FILE_AIO, OS_DATA_FILE,
+					      &ret);
 	}
 
 	ut_a(ret);
@@ -1212,7 +1229,7 @@ try_again:
 	UT_LIST_INIT(space->chain);
 	space->magic_n = FIL_SPACE_MAGIC_N;
 
-	rw_lock_create(&space->latch, SYNC_FSP);
+	rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
 
 	HASH_INSERT(fil_space_t, hash, fil_system->spaces, id, space);
 
@@ -1514,7 +1531,8 @@ fil_init(
 
 	fil_system = mem_alloc(sizeof(fil_system_t));
 
-	mutex_create(&fil_system->mutex, SYNC_ANY_LATCH);
+	mutex_create(fil_system_mutex_key,
+		     &fil_system->mutex, SYNC_ANY_LATCH);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
@@ -2519,7 +2537,7 @@ retry:
 	success = fil_rename_tablespace_in_mem(space, node, path);
 
 	if (success) {
-		success = os_file_rename(old_path, path);
+		success = os_file_rename(innodb_file_data_key, old_path, path);
 
 		if (!success) {
 			/* We have to revert the changes we made
@@ -2596,7 +2614,8 @@ fil_create_new_single_table_tablespace(
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
-	file = os_file_create(path, OS_FILE_CREATE, OS_FILE_NORMAL,
+	file = os_file_create(innodb_file_data_key, path,
+			      OS_FILE_CREATE, OS_FILE_NORMAL,
 			      OS_DATA_FILE, &ret);
 	if (ret == FALSE) {
 		ut_print_timestamp(stderr);
@@ -2798,7 +2817,8 @@ fil_reset_too_high_lsns(
 	filepath = fil_make_ibd_name(name, FALSE);
 
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+		innodb_file_data_key, filepath, OS_FILE_OPEN,
+		OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -2982,7 +3002,8 @@ fil_open_single_table_tablespace(
 	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+		innodb_file_data_key, filepath, OS_FILE_OPEN,
+		OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -3138,7 +3159,8 @@ fil_load_single_table_tablespace(
 # endif /* !UNIV_HOTBACKUP */
 #endif
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+		innodb_file_data_key, filepath, OS_FILE_OPEN,
+		OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -3296,7 +3318,7 @@ fil_load_single_table_tablespace(
 		os_file_close(file);
 
 		new_path = fil_make_ibbackup_old_name(filepath);
-		ut_a(os_file_rename(filepath, new_path));
+		ut_a(os_file_rename(innodb_file_data_key, filepath, new_path));
 
 		ut_free(buf2);
 		mem_free(filepath);
@@ -3334,7 +3356,7 @@ fil_load_single_table_tablespace(
 
 		mutex_exit(&fil_system->mutex);
 
-		ut_a(os_file_rename(filepath, new_path));
+		ut_a(os_file_rename(innodb_file_data_key, filepath, new_path));
 
 		ut_free(buf2);
 		mem_free(filepath);

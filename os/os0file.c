@@ -33,6 +33,11 @@ Created 10/21/1995 Heikki Tuuri
 *******************************************************/
 
 #include "os0file.h"
+
+#ifdef UNIV_NONINL
+#include "os0file.ic"
+#endif
+
 #include "ut0mem.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -140,6 +145,13 @@ the completed IO request and calls completion routine on it.
 
 /** Flag: enable debug printout for asynchronous i/o */
 UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
+
+#ifdef UNIV_PFS_IO
+/* Keys to register InnoDB I/O with performance schema */
+UNIV_INTERN mysql_pfs_key_t  innodb_file_data_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_file_log_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_file_temp_key;
+#endif /* UNIV_PFS_IO */
 
 /** The asynchronous i/o array slot structure */
 typedef struct os_aio_slot_struct	os_aio_slot_t;
@@ -1020,13 +1032,15 @@ os_file_create_directory(
 }
 
 /****************************************************************//**
+NOTE! Use the corresponding macro os_file_create_simple(), not directly
+this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
-os_file_create_simple(
-/*==================*/
+os_file_create_simple_func(
+/*=======================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file is
@@ -1161,13 +1175,15 @@ try_again:
 }
 
 /****************************************************************//**
+NOTE! Use the corresponding macro
+os_file_create_simple_no_error_handling(), not directly this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
-os_file_create_simple_no_error_handling(
-/*====================================*/
+os_file_create_simple_no_error_handling_func(
+/*=========================================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
@@ -1316,13 +1332,15 @@ os_file_set_nocache(
 }
 
 /****************************************************************//**
+NOTE! Use the corresponding macro os_file_create(), not directly
+this function!
 Opens an existing file or creates a new.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
-os_file_create(
-/*===========*/
+os_file_create_func(
+/*================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
@@ -1707,13 +1725,14 @@ loop:
 }
 
 /***********************************************************************//**
+NOTE! Use the corresponding macro os_file_rename(), not directly this function!
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-os_file_rename(
-/*===========*/
+os_file_rename_func(
+/*================*/
 	const char*	oldpath,/*!< in: old file path as a null-terminated
 				string */
 	const char*	newpath)/*!< in: new file path */
@@ -1746,13 +1765,14 @@ os_file_rename(
 }
 
 /***********************************************************************//**
+NOTE! Use the corresponding macro os_file_close(), not directly this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-os_file_close(
-/*==========*/
+os_file_close_func(
+/*===============*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
 #ifdef __WIN__
@@ -2048,12 +2068,13 @@ os_file_fsync(
 #endif /* !__WIN__ */
 
 /***********************************************************************//**
+NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-os_file_flush(
-/*==========*/
+os_file_flush_func(
+/*===============*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
 #ifdef __WIN__
@@ -2360,12 +2381,14 @@ func_exit:
 #endif
 
 /*******************************************************************//**
+NOTE! Use the corresponding macro os_file_read(), not directly this
+function!
 Requests a synchronous positioned read operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
 ibool
-os_file_read(
-/*=========*/
+os_file_read_func(
+/*==============*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	ulint		offset,	/*!< in: least significant 32 bits of file
@@ -2483,13 +2506,15 @@ error_handling:
 }
 
 /*******************************************************************//**
+NOTE! Use the corresponding macro os_file_read_no_error_handling(),
+not directly this function!
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns FALSE.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
 ibool
-os_file_read_no_error_handling(
-/*===========================*/
+os_file_read_no_error_handling_func(
+/*================================*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	ulint		offset,	/*!< in: least significant 32 bits of file
@@ -2611,12 +2636,14 @@ os_file_read_string(
 }
 
 /*******************************************************************//**
+NOTE! Use the corresponding macro os_file_write(), not directly
+this function!
 Requests a synchronous write operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
 ibool
-os_file_write(
-/*==========*/
+os_file_write_func(
+/*===============*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
@@ -3908,12 +3935,13 @@ os_aio_linux_dispatch(
 
 
 /*******************************************************************//**
+NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @return	TRUE if request was queued successfully, FALSE if fail */
 UNIV_INTERN
 ibool
-os_aio(
-/*===*/
+os_aio_func(
+/*========*/
 	ulint		type,	/*!< in: OS_FILE_READ or OS_FILE_WRITE */
 	ulint		mode,	/*!< in: OS_AIO_NORMAL, ..., possibly ORed
 				to OS_AIO_SIMULATED_WAKE_LATER: the
@@ -4222,6 +4250,18 @@ os_aio_windows_handle(
 		/* retry failed read/write operation synchronously.
 		No need to hold array->mutex. */
 
+#ifdef UNIV_PFS_IO
+		/* This read/write does not go through os_file_read
+		and os_file_write APIs, need to register with
+		performance schema explicitly here. */
+		struct PSI_file_locker* locker = NULL;
+		register_pfs_file_io_begin(locker, slot->file, slot->len,
+					   (slot->type == OS_FILE_WRITE)
+						? PSI_FILE_WRITE
+						: PSI_FILE_READ,
+					    __FILE__, __LINE__);
+#endif
+
 		switch (slot->type) {
 		case OS_FILE_WRITE:
 			ret = WriteFile(slot->file, slot->buf,
@@ -4238,6 +4278,10 @@ os_aio_windows_handle(
 		default:
 			ut_error;
 		}
+
+#ifdef UNIV_PFS_IO
+		register_pfs_file_io_end(locker, len);
+#endif
 
 		if (!ret && GetLastError() == ERROR_IO_PENDING) {
 			/* aio was queued successfully!
