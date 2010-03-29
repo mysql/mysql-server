@@ -101,6 +101,8 @@ ha_clear(
 	ulint	i;
 	ulint	n;
 
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&btr_search_latch, RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
@@ -146,7 +148,9 @@ ha_insert_for_fold_func(
 	ha_node_t*	prev_node;
 	ulint		hash;
 
-	ut_ad(table && data);
+	ut_ad(data);
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(block->frame == page_align(data));
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
@@ -237,6 +241,8 @@ ha_delete_hash_node(
 	hash_table_t*	table,		/*!< in: hash table */
 	ha_node_t*	del_node)	/*!< in: node to be deleted */
 {
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP
 	if (table->adaptive) {
@@ -267,6 +273,8 @@ ha_search_and_update_if_found_func(
 {
 	ha_node_t*	node;
 
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ASSERT_HASH_MUTEX_OWN(table, fold);
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	ut_a(new_block->frame == page_align(new_data));
@@ -304,6 +312,8 @@ ha_remove_all_nodes_to_page(
 {
 	ha_node_t*	node;
 
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ASSERT_HASH_MUTEX_OWN(table, fold);
 
 	node = ha_chain_get_first(table, fold);
@@ -353,6 +363,8 @@ ha_validate(
 	ibool		ok	= TRUE;
 	ulint		i;
 
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_a(start_index <= end_index);
 	ut_a(start_index < hash_get_n_cells(table));
 	ut_a(end_index < hash_get_n_cells(table));
@@ -391,6 +403,8 @@ ha_print_info(
 	FILE*		file,	/*!< in: file where to print */
 	hash_table_t*	table)	/*!< in: hash table */
 {
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifdef UNIV_DEBUG
 /* Some of the code here is disabled for performance reasons in production
 builds, see http://bugs.mysql.com/36941 */
