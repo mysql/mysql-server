@@ -3248,6 +3248,9 @@ ibuf_set_entry_counter(
 				return(FALSE);
 			}
 		}
+	} else {
+		/* The cursor is not positioned at or before a user record. */
+		return(FALSE);
 	}
 
 	/* Patch counter value in already built entry. */
