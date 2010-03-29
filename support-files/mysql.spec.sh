@@ -342,13 +342,13 @@ set -eu
 # variable name, finally a default.  RPM_OPT_FLAGS is assumed to be
 # a part of the default rpm build environment.
 #
-PATH=${MYSQL_BUILD_PATH:-$PATH}
-CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
-CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
-CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
-LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
-CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
+export PATH=${MYSQL_BUILD_PATH:-$PATH}
+export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
+export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
+export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
+export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
+export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 
 # Build debug mysqld and libmysqld.a
 mkdir debug
