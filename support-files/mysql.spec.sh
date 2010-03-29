@@ -337,23 +337,18 @@ client/server version.
 # Be strict about variables, bail at earliest opportunity, etc.
 set -eu
 
-# Use specific MYSQL_BUILD_* setup if requested
-${MYSQL_BUILD_PATH:+PATH="${MYSQL_BUILD_PATH}"}
-${MYSQL_BUILD_CC:+CC="${MYSQL_BUILD_CC}"}
-${MYSQL_BUILD_CC:+CC="${MYSQL_BUILD_CC}"}
-${MYSQL_BUILD_CXX:+CXX="${MYSQL_BUILD_CXX}"}
-${MYSQL_BUILD_CFLAGS:+CFLAGS="${MYSQL_BUILD_CFLAGS}"}
-${MYSQL_BUILD_CXXFLAGS:+CXXFLAGS="${MYSQL_BUILD_CXXFLAGS}"}
-${MYSQL_BUILD_LDFLAGS:+LDFLAGS="${MYSQL_BUILD_LDFLAGS}"}
-${MYSQL_BUILD_CMAKE:+CMAKE="${MYSQL_BUILD_CMAKE}"}
-
-# Set defaults.  $RPM_OPT_FLAGS should be part of RPM environment
-: ${CC:="gcc"}
-: ${CXX:="g++"}
-: ${CFLAGS:="${RPM_OPT_FLAGS}"}
-: ${CXXFLAGS:="${RPM_OPT_FLAGS} -felide-constructors -fno-exceptions -fno-rtti"}
-: ${LDFLAGS:=""}
-: ${CMAKE:="cmake"}
+#
+# Set environment in order of preference, MYSQL_BUILD_* first, then
+# variable name, finally a default.  RPM_OPT_FLAGS is assumed to be
+# a part of the default rpm build environment.
+#
+PATH=${MYSQL_BUILD_PATH:-$PATH}
+CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
+CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
+CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
+CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
+LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
+CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 
 # Build debug mysqld and libmysqld.a
 mkdir debug
@@ -463,9 +458,6 @@ touch $RBR%{_sysconfdir}/my.cnf
 # `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
 install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
-
-# ChangeLog file is optional, create an empty one if it doesn't exist
-[ -f $MBD/%{src_dir}/Docs/ChangeLog ] || >$MBD/%{src_dir}/Docs/ChangeLog 
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
