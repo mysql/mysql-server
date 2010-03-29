@@ -2914,7 +2914,7 @@ ibuf_get_volume_buffered(
 		}
 
 		volume += ibuf_get_volume_buffered_count(
-			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
+			rec, hash_bitmap, UT_ARR_SIZE(hash_bitmap), n_recs);
 
 		rec = page_rec_get_prev(rec);
 		ut_ad(page_align(rec) == prev_page);
@@ -2940,7 +2940,7 @@ count_later:
 		}
 
 		volume += ibuf_get_volume_buffered_count(
-			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
+			rec, hash_bitmap, UT_ARR_SIZE(hash_bitmap), n_recs);
 
 		rec = page_rec_get_next(rec);
 	}
@@ -2989,7 +2989,7 @@ count_later:
 		}
 
 		volume += ibuf_get_volume_buffered_count(
-			rec, hash_bitmap, sizeof hash_bitmap, n_recs);
+			rec, hash_bitmap, UT_ARR_SIZE(hash_bitmap), n_recs);
 
 		rec = page_rec_get_next(rec);
 		ut_ad(page_align(rec) == next_page);
