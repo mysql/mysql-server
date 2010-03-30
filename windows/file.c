@@ -315,6 +315,9 @@ static int (*t_fsync)(int) = 0;
 static uint64_t toku_fsync_count;
 static uint64_t toku_fsync_time;
 
+static uint64_t sched_fsync_count;
+static uint64_t sched_fsync_time;
+
 #if !TOKU_WINDOWS_HAS_ATOMIC_64 
 static toku_pthread_mutex_t fsync_lock;
 #endif
@@ -348,28 +351,28 @@ static uint64_t get_tnow(void) {
     return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
 
+
 // keep trying if fsync fails because of EINTR
-int
-toku_file_fsync_without_accounting (int fd) {
+static int 
+toku_file_fsync_internal (int fd, uint64_t *duration_p) {
+    uint64_t tstart = get_tnow();
     int r = -1;
     while (r != 0) {
 	if (t_fsync)
 	    r = t_fsync(fd);
 	else 
 	    r = fsync(fd);
-	if (r) 
-	    assert(errno==EINTR);
+	if (r) {
+	    int rr = errno;
+	    if (rr!=EINTR) printf("rr=%d (%s)\n", rr, strerror(rr));
+	    assert(rr==EINTR);
+	}
     }
-    return r;
-}
-
-int
-toku_file_fsync(int fd) {
-    uint64_t tstart = get_tnow();
-    int r = toku_file_fsync_without_accounting(fd);
+    uint64_t duration;
+    duration = get_tnow() - tstart;
 #if TOKU_WINDOWS_HAS_ATOMIC_64 
     toku_sync_fetch_and_increment_uint64(&toku_fsync_count);
-    toku_sync_fetch_and_add_uint64(&toku_fsync_time, get_tnow() - tstart);
+    toku_sync_fetch_and_add_uint64(&toku_fsync_time, duration);
 #else
     //These two need to be fully 64 bit and atomic.
     //The windows atomic add 64 bit is not available.
@@ -381,16 +384,56 @@ toku_file_fsync(int fd) {
     int r_mutex;
     r_mutex = toku_pthread_mutex_lock(&fsync_lock);   assert(r_mutex == 0);
     toku_fsync_count++;
-    toku_fsync_time += get_tnow() - tstart;
+    toku_fsync_time += duration;
+    r_mutex = toku_pthread_mutex_unlock(&fsync_lock); assert(r_mutex == 0);
+#endif
+    if (duration_p) *duration_p = duration;
+    return r;
+}
+
+// keep trying if fsync fails because of EINTR
+int
+toku_file_fsync_without_accounting (int fd) {
+    int r = toku_file_fsync_internal(fd, NULL);
+    return r;
+}
+
+int
+toku_file_fsync(int fd) {
+    uint64_t duration;
+    int r = toku_file_fsync_internal(fd, &duration);
+#if TOKU_WINDOWS_HAS_ATOMIC_64 
+    toku_sync_fetch_and_increment_uint64(&sched_fsync_count);
+    toku_sync_fetch_and_add_uint64(&sched_fsync_time, duration);
+#else
+    //These two need to be fully 64 bit and atomic.
+    //The windows atomic add 64 bit is not available.
+    //toku_sync_fetch_and_add_uint64 (and increment) treat it as 32 bit, and
+    //would overflow.
+    //Even on 32 bit machines, aligned 64 bit writes/writes are atomic, so we just
+    //need to make sure there's only one writer for these two variables.
+    //Protect with a mutex. Fsync is rare/slow enough that this should be ok.
+    int r_mutex;
+    r_mutex = toku_pthread_mutex_lock(&fsync_lock);   assert(r_mutex == 0);
+    sched_fsync_count++;
+    sched_fsync_time += duration;
     r_mutex = toku_pthread_mutex_unlock(&fsync_lock); assert(r_mutex == 0);
 #endif
     return r;
 }
 
+// for real accounting
 void
 toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time) {
     *fsync_count = toku_fsync_count;
     *fsync_time = toku_fsync_time;
+}
+
+// for scheduling algorithm only
+void
+toku_get_fsync_sched(uint64_t *fsync_count, uint64_t *fsync_time) {
+    *fsync_count = sched_fsync_count;
+    *fsync_time  = sched_fsync_time;
 }
 
 static toku_pthread_mutex_t mkstemp_lock;
