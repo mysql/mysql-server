@@ -151,8 +151,6 @@ public:
   char *part_func_string;
   char *subpart_func_string;
 
-  const char *part_state;
-
   partition_element *curr_part_elem;
   partition_element *current_partition;
   part_elem_value *curr_list_val;
@@ -173,7 +171,6 @@ public:
   partition_type subpart_type;
 
   uint part_info_len;
-  uint part_state_len;
   uint part_func_len;
   uint subpart_func_len;
 
@@ -226,13 +223,12 @@ public:
     list_array(NULL), err_value(0),
     part_info_string(NULL),
     part_func_string(NULL), subpart_func_string(NULL),
-    part_state(NULL),
     curr_part_elem(NULL), current_partition(NULL),
     curr_list_object(0), num_columns(0),
     default_engine_type(NULL),
     part_result_type(INT_RESULT),
     part_type(NOT_A_PARTITION), subpart_type(NOT_A_PARTITION),
-    part_info_len(0), part_state_len(0),
+    part_info_len(0),
     part_func_len(0), subpart_func_len(0),
     num_parts(0), num_subparts(0),
     count_curr_subparts(0), part_error_code(0),

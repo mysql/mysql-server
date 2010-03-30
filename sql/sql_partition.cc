@@ -4165,7 +4165,6 @@ void get_partition_set(const TABLE *table, uchar *buf, const uint index,
 
 bool mysql_unpack_partition(THD *thd,
                             const char *part_buf, uint part_info_len,
-                            const char *part_state, uint part_state_len,
                             TABLE* table, bool is_create_table_ind,
                             handlerton *default_db_type,
                             bool *work_part_info_used)
@@ -4201,8 +4200,6 @@ bool mysql_unpack_partition(THD *thd,
     goto end;
   }
   part_info= lex.part_info;
-  part_info->part_state= part_state;
-  part_info->part_state_len= part_state_len;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
   if (parse_sql(thd, & parser_state, NULL) ||
       part_info->fix_parser_data(thd))

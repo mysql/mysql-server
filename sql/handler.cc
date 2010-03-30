@@ -3517,7 +3517,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
 }
 
 
-void handler::get_dynamic_partition_info(PARTITION_INFO *stat_info,
+void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
                                          uint part_id)
 {
   info(HA_STATUS_CONST | HA_STATUS_TIME | HA_STATUS_VARIABLE |
