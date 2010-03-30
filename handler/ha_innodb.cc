@@ -350,7 +350,7 @@ int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
 			/* out: 0 */
-	handlerton* hton, /* in: Innodb handlerton */ 
+	handlerton* hton, /* in: Innodb handlerton */
 	THD*	thd);	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 /********************************************************************
