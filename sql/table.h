@@ -495,13 +495,11 @@ struct TABLE_SHARE
   int cached_row_logging_check;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  /** @todo: Move into *ha_data for partitioning */
+  /* filled in when reading from frm */
   bool auto_partitioned;
-  const char *partition_info;
-  uint  partition_info_len;
+  const char *partition_info_str;
+  uint  partition_info_str_len;
   uint  partition_info_buffer_size;
-  const char *part_state;
-  uint part_state_len;
   handlerton *default_part_db_type;
 #endif
 
@@ -520,6 +518,14 @@ struct TABLE_SHARE
   /** place to store storage engine specific data */
   void *ha_data;
   void (*ha_data_destroy)(void *); /* An optional destructor for ha_data */
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /** place to store partition specific data, LOCK_ha_data hold while init. */
+  void *ha_part_data;
+  /* Destructor for ha_part_data */
+  void (*ha_part_data_destroy)(void *);
+#endif
+
 
   /** Instrumentation for this table share. */
   PSI_table_share *m_psi;

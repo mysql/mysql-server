@@ -3726,7 +3726,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
     if (share->db_type() == partition_hton &&
-        share->partition_info_len)
+        share->partition_info_str_len)
     {
       tmp_db_type= share->default_part_db_type;
       is_partitioned= TRUE;
@@ -5289,7 +5289,7 @@ static void store_schema_partitions_record(THD *thd, TABLE *schema_table,
 {
   TABLE* table= schema_table;
   CHARSET_INFO *cs= system_charset_info;
-  PARTITION_INFO stat_info;
+  PARTITION_STATS stat_info;
   MYSQL_TIME time;
   file->get_dynamic_partition_info(&stat_info, part_id);
   table->field[0]->store(STRING_WITH_LEN("def"), cs);

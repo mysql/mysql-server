@@ -273,7 +273,7 @@ class ha_ndbcluster: public handler
   ha_rows estimate_rows_upper_bound()
     { return HA_POS_ERROR; }
   int info(uint);
-  void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
+  void get_dynamic_partition_info(PARTITION_STATS *stat_info, uint part_id);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
