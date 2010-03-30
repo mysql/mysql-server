@@ -195,9 +195,40 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
    STRING(REPLACE "${CMAKE_CFG_INTDIR}" "Debug"  debug_target_location "${target_location}" )
   ENDIF()
   
+  # Define permissions
+  # For executable files
+  SET(PERMISSIONS_EXECUTABLE
+      PERMISSIONS
+      OWNER_READ OWNER_WRITE OWNER_EXECUTE
+      GROUP_READ GROUP_EXECUTE
+      WORLD_READ WORLD_EXECUTE)
+
+  # Permissions for shared library (honors CMAKE_INSTALL_NO_EXE which is 
+  # typically set on Debian)
+  IF(CMAKE_INSTALL_SO_NO_EXE)
+    SET(PERMISSIONS_SHARED_LIBRARY
+      PERMISSIONS
+      OWNER_READ OWNER_WRITE 
+      GROUP_READ
+      WORLD_READ)
+  ELSE()
+    SET(PERMISSIONS_SHARED_LIBRARY ${PERMISSIONS_EXECUTABLE})
+  ENDIF()
+
+  # Shared modules get the same permissions as shared libraries
+  SET(PERMISSIONS_MODULE_LIBRARY ${PERMISSIONS_SHARED_LIBRARY})
+
+  #  Define permissions for static library
+  SET(PERMISSIONS_STATIC_LIBRARY
+      PERMISSIONS
+      OWNER_READ OWNER_WRITE 
+      GROUP_READ
+      WORLD_READ)
+
   INSTALL(${INSTALL_TYPE} ${debug_target_location}
     DESTINATION ${ARG_DESTINATION}
     ${RENAME_PARAM}
+    ${PERMISSIONS_${target_type}}
     CONFIGURATIONS Release RelWithDebInfo
     OPTIONAL)
 
