@@ -954,28 +954,28 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     }
     if (next_chunk + 5 < buff_end)
     {
-      uint32 partition_info_len = uint4korr(next_chunk);
+      uint32 partition_info_str_len = uint4korr(next_chunk);
 #ifdef WITH_PARTITION_STORAGE_ENGINE
       if ((share->partition_info_buffer_size=
-             share->partition_info_len= partition_info_len))
+             share->partition_info_str_len= partition_info_str_len))
       {
-        if (!(share->partition_info= (char*)
+        if (!(share->partition_info_str= (char*)
               memdup_root(&share->mem_root, next_chunk + 4,
-                          partition_info_len + 1)))
+                          partition_info_str_len + 1)))
         {
           my_free(buff, MYF(0));
           goto err;
         }
       }
 #else
-      if (partition_info_len)
+      if (partition_info_str_len)
       {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
         my_free(buff, MYF(0));
         goto err;
       }
 #endif
-      next_chunk+= 5 + partition_info_len;
+      next_chunk+= 5 + partition_info_str_len;
     }
 #if MYSQL_VERSION_ID < 50200
     if (share->mysql_version >= 50106 && share->mysql_version <= 50109)
@@ -1638,6 +1638,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   my_hash_free(&share->name_hash);
   if (share->ha_data_destroy)
     share->ha_data_destroy(share->ha_data);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (share->ha_part_data_destroy)
+    share->ha_part_data_destroy(share->ha_part_data);
+#endif
 
   open_table_error(share, error, share->open_errno, errarg);
   DBUG_RETURN(error);
@@ -1829,7 +1833,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (share->partition_info_len && outparam->file)
+  if (share->partition_info_str_len && outparam->file)
   {
   /*
     In this execution we must avoid calling thd->change_item_tree since
@@ -1850,10 +1854,8 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     bool tmp;
     bool work_part_info_used;
 
-    tmp= mysql_unpack_partition(thd, share->partition_info,
-                                share->partition_info_len,
-                                share->part_state,
-                                share->part_state_len,
+    tmp= mysql_unpack_partition(thd, share->partition_info_str,
+                                share->partition_info_str_len,
                                 outparam, is_create_table,
                                 share->default_part_db_type,
                                 &work_part_info_used);
