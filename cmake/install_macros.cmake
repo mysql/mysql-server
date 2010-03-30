@@ -175,7 +175,6 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   ${ARGN}
   )
   GET_TARGET_PROPERTY(target_type ${target} TYPE)
-  GET_TARGET_PROPERTY(target_permissions ${target} PERMISSIONS)
   IF(ARG_RENAME)
     SET(RENAME_PARAM RENAME ${ARG_RENAME}${CMAKE_${target_type}_SUFFIX})
   ELSE()
@@ -184,6 +183,11 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   IF(NOT ARG_DESTINATION)
     MESSAGE(FATAL_ERROR "Need DESTINATION parameter for INSTALL_DEBUG_TARGET")
   ENDIF()
+  IF(target_type MATCHES "EXECUTABLE")
+    SET(INSTALL_TYPE TARGETS)
+  ELSE()
+    SET(INSTALL_TYPE FILES)
+  ENDIF()
   GET_TARGET_PROPERTY(target_location ${target} LOCATION)
   IF(CMAKE_GENERATOR MATCHES "Makefiles")
    STRING(REPLACE "${CMAKE_BINARY_DIR}" "${DEBUGBUILDDIR}"  debug_target_location "${target_location}")
@@ -191,10 +195,9 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
    STRING(REPLACE "${CMAKE_CFG_INTDIR}" "Debug"  debug_target_location "${target_location}" )
   ENDIF()
   
-  INSTALL(FILES ${debug_target_location}
+  INSTALL(${INSTALL_TYPE} ${debug_target_location}
     DESTINATION ${ARG_DESTINATION}
     ${RENAME_PARAM}
-    PERMISSIONS ${target_permissions}
     CONFIGURATIONS Release RelWithDebInfo
     OPTIONAL)
 
