@@ -21,17 +21,6 @@ if (!`select @have_ndb`){
   skip Need ndb engine;
 }
 
-#
-# cleanup
-#
-
-disable_warnings;
---error 0,1051
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
-flush tables;
-flush status;
-enable_warnings;
-
 enable_query_log;
 enable_result_log;
 
