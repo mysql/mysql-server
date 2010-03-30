@@ -14,7 +14,7 @@
 # Sample usage:
 #
 #  -- let $row_img_set=master:FULL:N,slave:MINIMAL:Y
-#  -- source suite/rpl/include/rpl_row_img_set.inc
+#  -- source include/rpl_row_img_set.inc
 #
 # Notes:
 #

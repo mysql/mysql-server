@@ -28,17 +28,17 @@
 #  -- let $row_img_query= INSERT INTO t VALUES (1, 2, 3)
 #  -- let $row_img_expected_master= | 1:1 2:2 3:3
 #  -- let $row_img_expected_slave = | 1:1 2:2 3:3
-#  -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+#  -- source include/rpl_row_img_parts_master_slave.inc
 #
 #  -- let $row_img_query= UPDATE t SET c2= 4 WHERE c1=1
 #  -- let $row_img_expected_master= 1:1 | 2:4
 #  -- let $row_img_expected_slave = 1:1 2:2 3:3 | 1:1 2:4 3:3
-#  -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+#  -- source include/rpl_row_img_parts_master_slave.inc
 #
 #  -- let $row_img_query= DELETE FROM t WHERE c2=4
 #  -- let $row_img_expected_master= 1:1 |
 #  -- let $row_img_expected_slave = 1:1 2:4 3:3 | 
-#  -- source suite/rpl/include/rpl_row_img_parts_master_slave.inc
+#  -- source include/rpl_row_img_parts_master_slave.inc
 #
 # NOTES:
 #
@@ -67,12 +67,12 @@
 -- connection master
 -- let $row_img_expected= $row_img_expected_master
 -- let $row_img_pos= $row_img_pos_master
--- source suite/rpl/include/rpl_row_img_parts_assertion.inc
+-- source include/rpl_row_img_parts_assertion.inc
 
 # slave assertion 
 -- connection slave
 -- let $row_img_expected= $row_img_expected_slave
 -- let $row_img_pos= $row_img_pos_slave
--- source suite/rpl/include/rpl_row_img_parts_assertion.inc
+-- source include/rpl_row_img_parts_assertion.inc
 
 -- connection $old_conn

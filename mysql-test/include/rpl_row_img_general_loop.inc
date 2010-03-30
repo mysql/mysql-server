@@ -13,10 +13,10 @@
 #
 # Sample usage:
 #   -- let $row_img_test_script= extra/rpl_tests/rpl_row_img.test
-#   -- source suite/rpl/include/rpl_row_img_general_loop.test
+#   -- source include/rpl_row_img_general_loop.test
 
 -- let $row_img_set=mysqld_a:FULL:N,mysqld_b:FULL:Y,mysqld_c:FULL:Y
--- source suite/rpl/include/rpl_row_img_set.inc
+-- source include/rpl_row_img_set.inc
 
 -- let $image_param_ctr= 3
 while($image_param_ctr)
@@ -25,13 +25,13 @@ while($image_param_ctr)
   if (`SELECT $image_param_ctr = 2`)
   {
     -- let $row_img_set=mysqld_a:NOBLOB:N,mysqld_b:NOBLOB:Y,mysqld_c:NOBLOB:Y
-    -- source suite/rpl/include/rpl_row_img_set.inc
+    -- source include/rpl_row_img_set.inc
   }
 
   if (`SELECT $image_param_ctr = 1`)
   {
     -- let $row_img_set=mysqld_a:MINIMAL:N,mysqld_b:MINIMAL:Y,mysqld_c:MINIMAL:Y
-    -- source suite/rpl/include/rpl_row_img_set.inc
+    -- source include/rpl_row_img_set.inc
   }
 
   -- let $cur_img= `SELECT @@binlog_row_image`
@@ -66,4 +66,4 @@ while($image_param_ctr)
 }
 
 -- let $row_img_set=mysqld_a:FULL:N,mysqld_b:FULL:Y,mysqld_c:FULL:Y
--- source suite/rpl/include/rpl_row_img_set.inc
+-- source include/rpl_row_img_set.inc
