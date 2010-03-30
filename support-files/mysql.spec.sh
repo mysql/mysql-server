@@ -338,13 +338,18 @@ client/server version.
 set -eu
 
 #
-# Set environment in order of preference, MYSQL_BUILD_* first, then
-# variable name, finally a default.  RPM_OPT_FLAGS is assumed to be
-# a part of the default rpm build environment.
+# Set environment in order of preference, MYSQL_BUILD_* first, then variable
+# name, finally a default.  RPM_OPT_FLAGS is assumed to be a part of the
+# default RPM build environment.
+#
+# We set CXX=gcc by default to support so-called 'generic' binaries, where we
+# do not have a dependancy on libgcc/libstdc++.  This only works while we do
+# not require C++ features such as exceptions, and may need to be removed at
+# a later date.
 #
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
 export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
