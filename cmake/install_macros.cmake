@@ -183,11 +183,6 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   IF(NOT ARG_DESTINATION)
     MESSAGE(FATAL_ERROR "Need DESTINATION parameter for INSTALL_DEBUG_TARGET")
   ENDIF()
-  IF(target_type MATCHES "EXECUTABLE")
-    SET(INSTALL_TYPE TARGETS)
-  ELSE()
-    SET(INSTALL_TYPE FILES)
-  ENDIF()
   GET_TARGET_PROPERTY(target_location ${target} LOCATION)
   IF(CMAKE_GENERATOR MATCHES "Makefiles")
    STRING(REPLACE "${CMAKE_BINARY_DIR}" "${DEBUGBUILDDIR}"  debug_target_location "${target_location}")
@@ -225,7 +220,7 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
       GROUP_READ
       WORLD_READ)
 
-  INSTALL(${INSTALL_TYPE} ${debug_target_location}
+  INSTALL(FILES ${debug_target_location}
     DESTINATION ${ARG_DESTINATION}
     ${RENAME_PARAM}
     ${PERMISSIONS_${target_type}}
