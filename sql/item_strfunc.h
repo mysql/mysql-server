@@ -41,28 +41,41 @@ public:
   bool fix_fields(THD *thd, Item **ref);
 };
 
-class Item_func_md5 :public Item_str_func
+
+
+/*
+  Functions that return values with ASCII repertoire
+*/
+class Item_str_ascii_func :public Item_str_func
+{
+  String ascii_buf;
+public:
+  Item_str_ascii_func() :Item_str_func() {}
+  Item_str_ascii_func(Item *a) :Item_str_func(a) {}
+  Item_str_ascii_func(Item *a,Item *b) :Item_str_func(a,b) {}
+  Item_str_ascii_func(Item *a,Item *b,Item *c) :Item_str_func(a,b,c) {}
+  String *val_str_convert_from_ascii(String *str, String *ascii_buf);
+  String *val_str(String *str);
+  virtual String *val_str_ascii(String *)= 0;
+};
+
+
+class Item_func_md5 :public Item_str_ascii_func
 {
   String tmp_value;
 public:
-  Item_func_md5(Item *a) :Item_str_func(a)
-  {
-    collation.set(&my_charset_bin);
-  }
-  String *val_str(String *);
+  Item_func_md5(Item *a) :Item_str_ascii_func(a) {}
+  String *val_str_ascii(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "md5"; }
 };
 
 
-class Item_func_sha :public Item_str_func
+class Item_func_sha :public Item_str_ascii_func
 {
 public:
-  Item_func_sha(Item *a) :Item_str_func(a)
-  {
-    collation.set(&my_charset_bin);
-  }
-  String *val_str(String *);    
+  Item_func_sha(Item *a) :Item_str_ascii_func(a) {}
+  String *val_str_ascii(String *);    
   void fix_length_and_dec();      
   const char *func_name() const { return "sha"; }	
 };
@@ -263,13 +276,16 @@ public:
   authentication procedure works, see comments in password.c.
 */
 
-class Item_func_password :public Item_str_func
+class Item_func_password :public Item_str_ascii_func
 {
   char tmp_value[SCRAMBLED_PASSWORD_CHAR_LENGTH+1]; 
 public:
-  Item_func_password(Item *a) :Item_str_func(a) {}
-  String *val_str(String *str);
-  void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH; }
+  Item_func_password(Item *a) :Item_str_ascii_func(a) {}
+  String *val_str_ascii(String *str);
+  void fix_length_and_dec()
+  {
+    fix_length_and_charset(SCRAMBLED_PASSWORD_CHAR_LENGTH, default_charset());
+  }
   const char *func_name() const { return "password"; }
   static char *alloc(THD *thd, const char *password, size_t pass_len);
 };
@@ -282,13 +298,16 @@ public:
   function.
 */
 
-class Item_func_old_password :public Item_str_func
+class Item_func_old_password :public Item_str_ascii_func
 {
   char tmp_value[SCRAMBLED_PASSWORD_CHAR_LENGTH_323+1];
 public:
-  Item_func_old_password(Item *a) :Item_str_func(a) {}
-  String *val_str(String *str);
-  void fix_length_and_dec() { max_length= SCRAMBLED_PASSWORD_CHAR_LENGTH_323; } 
+  Item_func_old_password(Item *a) :Item_str_ascii_func(a) {}
+  String *val_str_ascii(String *str);
+  void fix_length_and_dec()
+  {
+    fix_length_and_charset(SCRAMBLED_PASSWORD_CHAR_LENGTH_323, default_charset());
+  } 
   const char *func_name() const { return "old_password"; }
   static char *alloc(THD *thd, const char *password, size_t pass_len);
 };
@@ -688,7 +707,7 @@ public:
   void fix_length_and_dec() 
   { 
     decimals= 0; 
-    max_length= 3 * 8 + 7; 
+    fix_length_and_charset(3 * 8 + 7, default_charset()); 
     maybe_null= 1;
   }
 };
@@ -848,14 +867,11 @@ class Item_func_uuid: public Item_str_func
 {
 public:
   Item_func_uuid(): Item_str_func() {}
-  void fix_length_and_dec() {
-    collation.set(system_charset_info);
-    /*
-       NOTE! uuid() should be changed to use 'ascii'
-       charset when hex(), format(), md5(), etc, and implicit
-       number-to-string conversion will use 'ascii'
-    */
-    max_length= UUID_LENGTH * system_charset_info->mbmaxlen;
+  void fix_length_and_dec()
+  {
+    collation.set(system_charset_info,
+                  DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
+    fix_char_length(UUID_LENGTH);
   }
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);

@@ -1,21 +1,22 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
 
-binlog.binlog_tmp_table*                 # Bug#45578:2009-07-10 alik Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
 binlog.binlog_multi_engine               # joro : NDB tests marked as experimental as agreed with bochklin
 
 funcs_1.charset_collation_1              # depends on compile-time decisions
+funcs_1.myisam_views @solaris            # Bug#50595 2010-03-05 alik funcs_1.myisam_views takes longer time on 6.0 branch than 5.1 branch
 
-main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
 main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
 main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_multi_bug38691 times out sporadically on Solaris 10
 main.log_tables                          # Bug#47924 2009-10-08 alik main.log_tables times out sporadically 
+main.mysqlbinlog_row @solaris            # Bug#52202 2010-03-22 alik mysqlbinlog_row* fail in daily-trunk on Sol10 x86_64 debug_max
+main.mysqlbinlog_row_innodb @solaris     # Bug#52202 2010-03-22 alik mysqlbinlog_row* fail in daily-trunk on Sol10 x86_64 debug_max
+main.mysqlbinlog_row_myisam @solaris     # Bug#52202 2010-03-22 alik mysqlbinlog_row* fail in daily-trunk on Sol10 x86_64 debug_max
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
 main.plugin                              # Bug#47146 Linking problem with example plugin when dtrace enabled
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-main.sp-error @windows                   # Bug#43201 2010-02-22 alik sp-error.test fails on Windows debug build in embedded mode. The patch will come from -bugfixing.
 
 rpl.rpl_heartbeat_basic                  # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically

@@ -346,3 +346,17 @@ SELECT f1,f2-f3 FROM t1;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+--echo
+--echo Bug#50888 valgrind warnings in Field_timestamp::val_str
+--echo
+
+SET TIMESTAMP=0;
+CREATE TABLE t1(a timestamp);
+INSERT INTO t1 VALUES ('2008-02-23 09:23:45'), ('2010-03-05 11:08:02');
+FLUSH TABLES t1;
+SELECT MAX(a) FROM t1;
+SELECT a FROM t1;
+DROP TABLE t1;
+
+--echo End of Bug#50888

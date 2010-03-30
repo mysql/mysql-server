@@ -3202,11 +3202,9 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
       return TRUE;
   }
 
-  if (agg_item_charsets(collation, func_name(),
-                        args,
-			/* skip charset aggregation for order columns */
-			arg_count - arg_count_order,
-			MY_COLL_ALLOW_CONV, 1))
+  /* skip charset aggregation for order columns */
+  if (agg_item_charsets_for_string_result(collation, func_name(),
+                                          args, arg_count - arg_count_order))
     return 1;
 
   result.set_charset(collation.collation);
@@ -3395,6 +3393,8 @@ String* Item_func_group_concat::val_str(String* str)
 
 void Item_func_group_concat::print(String *str, enum_query_type query_type)
 {
+  /* orig_args is not filled with valid values until fix_fields() */
+  Item **pargs= fixed ? orig_args : args;
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct)
     str->append(STRING_WITH_LEN("distinct "));
@@ -3402,7 +3402,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
   {
     if (i)
       str->append(',');
-    args[i]->print(str, query_type);
+    pargs[i]->print(str, query_type);
   }
   if (arg_count_order)
   {

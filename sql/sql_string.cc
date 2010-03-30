@@ -412,11 +412,25 @@ bool String::append(const char *s)
 
 bool String::append(const char *s,uint32 arg_length, CHARSET_INFO *cs)
 {
-  uint32 dummy_offset;
+  uint32 offset;
   
-  if (needs_conversion(arg_length, cs, str_charset, &dummy_offset))
+  if (needs_conversion(arg_length, cs, str_charset, &offset))
   {
-    uint32 add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
+    uint32 add_length;
+    if ((cs == &my_charset_bin) && offset)
+    {
+      DBUG_ASSERT(str_charset->mbminlen > offset);
+      offset= str_charset->mbminlen - offset; // How many characters to pad
+      add_length= arg_length + offset;
+      if (realloc(str_length + add_length))
+        return TRUE;
+      bzero((char*) Ptr + str_length, offset);
+      memcpy(Ptr + str_length + offset, s, arg_length);
+      str_length+= add_length;
+      return FALSE;
+    }
+
+    add_length= arg_length / cs->mbminlen * str_charset->mbmaxlen;
     uint dummy_errors;
     if (realloc(str_length + add_length)) 
       return TRUE;
@@ -966,6 +980,24 @@ well_formed_copy_nchars(CHARSET_INFO *to_cs,
         uint pad_length= to_cs->mbminlen - from_offset;
         bzero(to, pad_length);
         memmove(to + pad_length, from, from_offset);
+        /*
+          In some cases left zero-padding can create an incorrect character.
+          For example:
+            INSERT INTO t1 (utf32_column) VALUES (0x110000);
+          We'll pad the value to 0x00110000, which is a wrong UTF32 sequence!
+          The valid characters range is limited to 0x00000000..0x0010FFFF.
+          
+          Make sure we didn't pad to an incorrect character.
+        */
+        if (to_cs->cset->well_formed_len(to_cs,
+                                         to, to + to_cs->mbminlen, 1,
+                                         &well_formed_error) !=
+                                         to_cs->mbminlen)
+        {
+          *from_end_pos= *well_formed_error_pos= from;
+          *cannot_convert_error_pos= NULL;
+          return 0;
+        }
         nchars--;
         from+= from_offset;
         from_length-= from_offset;

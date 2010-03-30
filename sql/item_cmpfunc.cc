@@ -483,7 +483,7 @@ void Item_bool_func2::fix_length_and_dec()
   DTCollation coll;
   if (args[0]->result_type() == STRING_RESULT &&
       args[1]->result_type() == STRING_RESULT &&
-      agg_arg_charsets(coll, args, 2, MY_COLL_CMP_CONV, 1))
+      agg_arg_charsets_for_comparison(coll, args, 2))
     return;
     
   args[0]->cmp_context= args[1]->cmp_context=
@@ -934,6 +934,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
     func= &Arg_comparator::compare_datetime;
     get_value_a_func= &get_datetime_value;
     get_value_b_func= &get_datetime_value;
+    cmp_collation.set(&my_charset_numeric);
     return 0;
   }
   else if (type == STRING_RESULT && (*a)->field_type() == MYSQL_TYPE_TIME &&
@@ -2173,7 +2174,7 @@ void Item_func_between::fix_length_and_dec()
   if ( agg_cmp_type(&cmp_type, args, 3))
     return;
   if (cmp_type == STRING_RESULT &&
-      agg_arg_charsets(cmp_collation, args, 3, MY_COLL_CMP_CONV, 1))
+      agg_arg_charsets_for_comparison(cmp_collation, args, 3))
    return;
 
   /*
@@ -2374,7 +2375,7 @@ Item_func_ifnull::fix_length_and_dec()
 
   switch (hybrid_type) {
   case STRING_RESULT:
-    agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1);
+    agg_arg_charsets_for_comparison(collation, args, arg_count);
     break;
   case DECIMAL_RESULT:
   case REAL_RESULT:
@@ -2549,12 +2550,12 @@ Item_func_if::fix_length_and_dec()
     agg_result_type(&cached_result_type, args+1, 2);
     if (cached_result_type == STRING_RESULT)
     {
-      if (agg_arg_charsets(collation, args+1, 2, MY_COLL_ALLOW_CONV, 1))
+      if (agg_arg_charsets_for_string_result(collation, args + 1, 2))
         return;
     }
     else
     {
-      collation.set(&my_charset_bin);	// Number
+      collation.set_numeric(); // Number
     }
     cached_field_type= agg_field_type(args + 1, 2);
   }
@@ -2640,7 +2641,7 @@ Item_func_nullif::fix_length_and_dec()
     unsigned_flag= args[0]->unsigned_flag;
     cached_result_type= args[0]->result_type();
     if (cached_result_type == STRING_RESULT &&
-        agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1))
+        agg_arg_charsets_for_comparison(collation, args, arg_count))
       return;
   }
 }
@@ -2865,9 +2866,7 @@ bool Item_func_case::fix_fields(THD *thd, Item **ref)
     buff should match stack usage from
     Item_func_case::val_int() -> Item_func_case::find_item()
   */
-#ifndef EMBEDDED_LIBRARY
   uchar buff[MAX_FIELD_WIDTH*2+sizeof(String)*2+sizeof(String*)*2+sizeof(double)*2+sizeof(longlong)*2];
-#endif
   bool res= Item_func::fix_fields(thd, ref);
   /*
     Call check_stack_overrun after fix_fields to be sure that stack variable
@@ -2917,9 +2916,13 @@ void Item_func_case::fix_length_and_dec()
     agg[nagg++]= args[else_expr_num];
   
   agg_result_type(&cached_result_type, agg, nagg);
-  if ((cached_result_type == STRING_RESULT) &&
-      agg_arg_charsets(collation, agg, nagg, MY_COLL_ALLOW_CONV, 1))
-    return;
+  if (cached_result_type == STRING_RESULT)
+  {
+    if (agg_arg_charsets_for_string_result(collation, agg, nagg))
+      return;
+  }
+  else
+    collation.set_numeric();
   
   cached_field_type= agg_field_type(agg, nagg);
   /*
@@ -2944,7 +2947,7 @@ void Item_func_case::fix_length_and_dec()
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
         if ((Item_result)i == STRING_RESULT &&
-            agg_arg_charsets(cmp_collation, agg, nagg, MY_COLL_CMP_CONV, 1))
+            agg_arg_charsets_for_comparison(cmp_collation, agg, nagg))
           return;
         if (!(cmp_items[i]=
             cmp_item::get_comparator((Item_result)i,
@@ -3107,7 +3110,7 @@ void Item_func_coalesce::fix_length_and_dec()
   case STRING_RESULT:
     count_only_length();
     decimals= NOT_FIXED_DEC;
-    agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV, 1);
+    agg_arg_charsets_for_string_result(collation, args, arg_count);
     break;
   case DECIMAL_RESULT:
     count_decimal_length();
@@ -3752,7 +3755,7 @@ void Item_func_in::fix_length_and_dec()
   if (type_cnt == 1)
   {
     if (cmp_type == STRING_RESULT && 
-        agg_arg_charsets(cmp_collation, args, arg_count, MY_COLL_CMP_CONV, 1))
+        agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
       return;
     arg_types_compatible= TRUE;
   }
@@ -3930,8 +3933,7 @@ void Item_func_in::fix_length_and_dec()
         if (found_types & (1 << i) && !cmp_items[i])
         {
           if ((Item_result)i == STRING_RESULT &&
-              agg_arg_charsets(cmp_collation, args, arg_count,
-                               MY_COLL_CMP_CONV, 1))
+              agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
             return;
           if (!cmp_items[i] && !(cmp_items[i]=
               cmp_item::get_comparator((Item_result)i,
@@ -4081,9 +4083,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-#ifndef EMBEDDED_LIBRARY
   uchar buff[sizeof(char*)];			// Max local vars in function
-#endif
   not_null_tables_cache= used_tables_cache= 0;
   const_item_cache= 1;
   /*
@@ -4762,7 +4762,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
   max_length= 1;
   decimals= 0;
 
-  if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1))
+  if (agg_arg_charsets_for_comparison(cmp_collation, args, 2))
     return TRUE;
 
   regex_lib_flags= (cmp_collation.collation->state &

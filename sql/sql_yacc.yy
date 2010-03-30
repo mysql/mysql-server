@@ -767,10 +767,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 169 shift/reduce conflicts.
+  Currently there are 168 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 169
+%expect 168
 
 /*
    Comments for TOKENS.
@@ -1554,6 +1554,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_column_list grant_privileges grant_ident grant_list grant_option
         object_privilege object_privilege_list user_list rename_list
         clear_privileges flush_options flush_option
+        opt_with_read_lock flush_options_list
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
         table_to_table_list table_to_table opt_table_list opt_as
@@ -3887,7 +3888,8 @@ change_ts_option:
         ;
 
 tablespace_option_list:
-        tablespace_options
+          /* empty */ 
+        | tablespace_options
         ;
 
 tablespace_options:
@@ -3908,7 +3910,8 @@ tablespace_option:
         ;
 
 alter_tablespace_option_list:
-        alter_tablespace_options
+          /* empty */
+        | alter_tablespace_options
         ;
 
 alter_tablespace_options:
@@ -3926,7 +3929,8 @@ alter_tablespace_option:
         ;
 
 logfile_group_option_list:
-        logfile_group_options
+          /* empty */ 
+        | logfile_group_options
         ;
 
 logfile_group_options:
@@ -3946,7 +3950,8 @@ logfile_group_option:
         ;
 
 alter_logfile_group_option_list:
-          alter_logfile_group_options
+          /* empty */ 
+        | alter_logfile_group_options
         ;
 
 alter_logfile_group_options:
@@ -4114,11 +4119,6 @@ opt_ts_engine:
             }
             lex->alter_tablespace_info->storage_engine= $4;
           }
-        ;
-
-opt_ts_wait:
-          /* empty */
-        | ts_wait
         ;
 
 ts_wait:
@@ -10195,12 +10195,12 @@ drop:
             lex->drop_if_exists= $3;
             lex->spname= $4;
           }
-        | DROP TABLESPACE tablespace_name opt_ts_engine opt_ts_wait
+        | DROP TABLESPACE tablespace_name drop_ts_options_list
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= DROP_TABLESPACE;
           }
-        | DROP LOGFILE_SYM GROUP_SYM logfile_group_name opt_ts_engine opt_ts_wait
+        | DROP LOGFILE_SYM GROUP_SYM logfile_group_name drop_ts_options_list
           {
             LEX *lex= Lex;
             lex->alter_tablespace_info->ts_cmd_type= DROP_LOGFILE_GROUP;
@@ -10251,6 +10251,21 @@ opt_temporary:
           /* empty */ { $$= 0; }
         | TEMPORARY { $$= 1; }
         ;
+
+drop_ts_options_list:
+          /* empty */
+        | drop_ts_options
+
+drop_ts_options:
+          drop_ts_option
+        | drop_ts_options drop_ts_option
+        | drop_ts_options_list ',' drop_ts_option
+        ;
+
+drop_ts_option:
+          opt_ts_engine
+      	| ts_wait
+
 /*
 ** Insert : add new data to table
 */
@@ -11095,17 +11110,27 @@ flush:
         ;
 
 flush_options:
-          flush_options ',' flush_option
-        | flush_option
-        ;
-
-flush_option:
           table_or_tables
           { Lex->type|= REFRESH_TABLES; }
           opt_table_list {}
-        | TABLES WITH READ_SYM LOCK_SYM
-          { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
-        | ERROR_SYM LOGS_SYM
+          opt_with_read_lock {}
+        | flush_options_list
+        ;
+
+opt_with_read_lock:
+          /* empty */ {}
+        | WITH READ_SYM LOCK_SYM
+          { Lex->type|= REFRESH_READ_LOCK; }
+        ;
+
+flush_options_list:
+          flush_options_list ',' flush_option
+        | flush_option
+          {}
+        ;
+
+flush_option:
+          ERROR_SYM LOGS_SYM
           { Lex->type|= REFRESH_ERROR_LOG; }
         | ENGINE_SYM LOGS_SYM
           { Lex->type|= REFRESH_ENGINE_LOG; } 

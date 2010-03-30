@@ -895,6 +895,7 @@ ERROR 22003: Out of range value for column 'col1' at row 1
 INSERT INTO t1 (col2) VALUES ('-1.2E-3');
 ERROR 22003: Out of range value for column 'col2' at row 1
 UPDATE t1 SET col1 =col1 * 5000 WHERE col1 > 0;
+ERROR 22003: DOUBLE value is out of range in '("test"."t1"."col1" * 5000)'
 UPDATE t1 SET col2 =col2 / 0 WHERE col2 > 0;
 ERROR 22012: Division by 0
 UPDATE t1 SET col2= MOD(col2,0) WHERE col2 > 0;
@@ -922,10 +923,10 @@ SELECT * FROM t1;
 col1	col2
 -2.2e-307	0
 1e-303	0
-NULL	1.7e308
+1.7e308	1.7e308
 -2.2e-307	0
 -2e-307	0
-NULL	1.7e308
+1.7e308	1.7e308
 0	NULL
 2	NULL
 NULL	NULL
@@ -1183,7 +1184,7 @@ drop table t1;
 create table t1 (col1 tinyint);
 drop procedure if exists t1;
 Warnings:
-Note	1305	PROCEDURE t1 does not exist
+Note	1305	PROCEDURE test.t1 does not exist
 create procedure t1 () begin declare exit handler for sqlexception
 select'a'; insert into t1 values (200); end;|
 call t1();

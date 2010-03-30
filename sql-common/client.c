@@ -1961,7 +1961,7 @@ const MY_CSET_OS_NAME charsets[]=
   {"cp10029",        "macce",    my_cs_exact},
   {"cp12001",        "utf32",    my_cs_unsupp},
   {"cp20107",        "swe7",     my_cs_exact},
-  {"cp20127",        "ascii",    my_cs_exact},
+  {"cp20127",        "latin1",   my_cs_approx},
   {"cp20866",        "koi8r",    my_cs_exact},
   {"cp20932",        "ujis",     my_cs_exact},
   {"cp20936",        "gb2312",   my_cs_approx},
@@ -1989,11 +1989,11 @@ const MY_CSET_OS_NAME charsets[]=
 #else /* not Windows */
 
   {"646",            "latin1",   my_cs_approx}, /* Default on Solaris */
-  {"ANSI_X3.4-1968", "ascii",    my_cs_exact},
+  {"ANSI_X3.4-1968", "latin1",   my_cs_approx},
   {"ansi1251",       "cp1251",   my_cs_exact},
   {"armscii8",       "armscii8", my_cs_exact},
   {"armscii-8",      "armscii8", my_cs_exact},
-  {"ASCII",          "ascii",    my_cs_exact},
+  {"ASCII",          "latin1",   my_cs_approx},
   {"Big5",           "big5",     my_cs_exact},
   {"cp1251",         "cp1251",   my_cs_exact},
   {"cp1255",         "hebrew",   my_cs_approx},
@@ -2066,7 +2066,7 @@ const MY_CSET_OS_NAME charsets[]=
 
   {"ujis",           "ujis",     my_cs_exact},
 
-  {"US-ASCII",       "ascii",    my_cs_exact},
+  {"US-ASCII",       "latin1",   my_cs_approx},
 
   {"utf8",           "utf8",     my_cs_exact},
   {"utf-8",          "utf8",     my_cs_exact},

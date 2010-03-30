@@ -80,6 +80,8 @@ IF(FEATURE_SET)
   ENDFOREACH()
 ENDIF()
 
+SET(WITHOUT_AUDIT_NULL ON CACHE BOOL "")
+SET(WITHOUT_DAEMON_EXAMPLE ON CACHE BOOL "")
 
 OPTION(ENABLE_LOCAL_INFILE "" ON)
 SET(WITH_SSL bundled CACHE STRING "")
@@ -149,7 +151,7 @@ IF(UNIX)
     ENDIF()
     IF(CMAKE_C_COMPILER_ID MATCHES "SunPro")
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "i386")
-        IF(CMAKE_SIZEOF_VOIDP EQUAL 4)
+        IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
           # Solaris x86
           SET(CMAKE_C_FLAGS_RELWITHDEBINFO
             "-g -xO2 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -xlibmil -xlibmopt -xtarget=generic")
@@ -163,7 +165,7 @@ IF(UNIX)
             "-g0 -xO3 -mt -fsimple=1 -ftrap=%none -nofstore -xbuiltin=%all -features=no%except -xlibmil -xlibmopt -xtarget=generic")
          ENDIF()
        ELSE() 
-          IF(CMAKE_SIZEOF_VOIDP EQUAL 4)
+          IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
             # Solaris sparc 32 bit
             SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "-g -xO3 -Xa -xstrconst -mt -xarch=sparc")
             SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g0 -xO3 -noex -mt -xarch=sparc")

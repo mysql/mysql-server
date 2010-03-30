@@ -348,7 +348,7 @@ void start_master()
   add_arg(&al, "--character-sets-dir=%s", char_dir);
   add_arg(&al, "--tmpdir=%s", mysql_tmp_dir);
   add_arg(&al, "--language=%s", lang_dir);
-  add_arg(&al, "--log-bin-trust-routine-creators");
+  add_arg(&al, "--log-bin-trust-function-creators");
   add_arg(&al, "--log-slow-queries");
   add_arg(&al, "--log-queries-not-using-indexes");
 #ifdef DEBUG	//only for debug builds
@@ -367,12 +367,9 @@ void start_master()
   add_arg(&al, "--init-rpl-role=master");
 
   // $SMALL_SERVER
-  add_arg(&al, "-O");
-  add_arg(&al, "key_buffer_size=1M");
-  add_arg(&al, "-O");
-  add_arg(&al, "sort_buffer=256K");
-  add_arg(&al, "-O");
-  add_arg(&al, "max_heap_table_size=1M");
+  add_arg(&al, "--key_buffer_size=1M");
+  add_arg(&al, "--sort_buffer=256K");
+  add_arg(&al, "--max_heap_table_size=1M");
 
   // $EXTRA_MASTER_OPT
   if (master_opt[0] != NULL)
@@ -522,9 +519,8 @@ void start_slave()
   add_arg(&al, "--report-port=%u", slave_port);
 
   add_arg(&al, "--master-retry-count=10");
-  add_arg(&al, "-O");
-  add_arg(&al, "slave_net_timeout=10");
-  add_arg(&al, "--log-bin-trust-routine-creators");
+  add_arg(&al, "--slave_net_timeout=10");
+  add_arg(&al, "--log-bin-trust-function-creators");
   add_arg(&al, "--log-slow-queries");
   add_arg(&al, "--log-queries-not-using-indexes");
 #ifdef DEBUG	//only for debug builds
@@ -564,12 +560,9 @@ void start_slave()
   }
   
   // small server
-  add_arg(&al, "-O");
-  add_arg(&al, "key_buffer_size=1M");
-  add_arg(&al, "-O");
-  add_arg(&al, "sort_buffer=256K");
-  add_arg(&al, "-O");
-  add_arg(&al, "max_heap_table_size=1M");
+  add_arg(&al, "--key_buffer_size=1M");
+  add_arg(&al, "--sort_buffer=256K");
+  add_arg(&al, "--max_heap_table_size=1M");
 
   // opt args
   if (slave_opt[0] != NULL)

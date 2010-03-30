@@ -2030,6 +2030,8 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
     thd_proc_info(thd, "Waiting for master update");
   thd->version=refresh_version;
   thd->set_time();
+  /* Do not use user-supplied timeout value for system threads. */
+  thd->variables.lock_wait_timeout= LONG_TIMEOUT;
   DBUG_RETURN(0);
 }
 

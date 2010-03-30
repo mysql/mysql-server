@@ -88,7 +88,7 @@
 */
 #define make_atomic_add_body64                                  \
   int64 tmp=*a;                                                 \
-  while (!my_atomic_cas64(a, &tmp, tmp+v));                     \
+  while (!my_atomic_cas64(a, &tmp, tmp+v)) ;                    \
   v=tmp;
 
 /*

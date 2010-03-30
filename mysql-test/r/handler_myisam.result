@@ -1682,6 +1682,31 @@ unlock tables;
 handler t1 close;
 drop tables t1, t2;
 #
+# Bug#51355 handler stmt cause assertion in
+#           bool MDL_context::try_acquire_lock(MDL_request*)
+#
+DROP TABLE IF EXISTS t1;
+# Connection default
+CREATE TABLE t1(id INT, KEY id(id));
+HANDLER t1 OPEN;
+# Connection con51355
+# Sending:
+DROP TABLE t1;
+# Connection default
+# This I_S query will cause the handler table to be closed and
+# the metadata lock to be released. This will allow DROP TABLE
+# to proceed. Waiting for the table to be removed.
+# Connection con51355
+# Reaping: DROP TABLE t1
+# Connection default
+HANDLER t1 READ id NEXT;
+ERROR 42S02: Table 'test.t1' doesn't exist
+HANDLER t1 READ id NEXT;
+ERROR 42S02: Table 'test.t1' doesn't exist
+HANDLER t1 CLOSE;
+# Connection con51355
+# Connection default
+#
 # BUG #46456: HANDLER OPEN + TRUNCATE + DROP (temporary) TABLE, crash 
 #
 CREATE TABLE t1 AS SELECT 1 AS f1;

@@ -733,3 +733,17 @@ SELECT HEX(DAYNAME(19700101));
 SET character_set_connection=latin1;
 
 --echo End of 5.0 tests
+
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+SET NAMES latin1;
+SET collation_connection=ucs2_general_ci;
+--source include/ctype_numconv.inc
+SET NAMES latin1;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

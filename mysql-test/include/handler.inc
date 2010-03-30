@@ -1704,3 +1704,56 @@ unlock tables;
 --echo # already released by commit.
 handler t1 close;
 drop tables t1, t2;
+
+
+--echo #
+--echo # Bug#51355 handler stmt cause assertion in
+--echo #           bool MDL_context::try_acquire_lock(MDL_request*)
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect(con51355, localhost, root);
+
+--echo # Connection default
+connection default;
+CREATE TABLE t1(id INT, KEY id(id));
+HANDLER t1 OPEN;
+
+--echo # Connection con51355
+connection con51355;
+--echo # Sending:
+--send DROP TABLE t1
+
+--echo # Connection default
+connection default;
+--echo # This I_S query will cause the handler table to be closed and
+--echo # the metadata lock to be released. This will allow DROP TABLE
+--echo # to proceed. Waiting for the table to be removed.
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM information_schema.tables WHERE table_name = "t1";
+--source include/wait_condition.inc
+
+--echo # Connection con51355
+connection con51355;
+--echo # Reaping: DROP TABLE t1
+--reap
+
+--echo # Connection default
+connection default;
+--error ER_NO_SUCH_TABLE
+HANDLER t1 READ id NEXT;
+# This caused an assertion
+--error ER_NO_SUCH_TABLE
+HANDLER t1 READ id NEXT;
+
+HANDLER t1 CLOSE;
+--echo # Connection con51355
+connection con51355;
+disconnect con51355;
+--source include/wait_until_disconnected.inc
+--echo # Connection default
+connection default;
+

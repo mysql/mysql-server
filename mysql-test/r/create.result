@@ -438,7 +438,7 @@ explain t2;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 b	bigint(11)	NO		0	
-c	bigint(11) unsigned	NO		0	
+c	bigint(10) unsigned	NO		0	
 d	date	YES		NULL	
 e	varchar(1)	NO			
 f	datetime	YES		NULL	
@@ -457,7 +457,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `ifnull(a,a)` tinyint(4) DEFAULT NULL,
   `ifnull(b,b)` smallint(6) DEFAULT NULL,
-  `ifnull(c,c)` mediumint(8) DEFAULT NULL,
+  `ifnull(c,c)` mediumint(9) DEFAULT NULL,
   `ifnull(d,d)` int(11) DEFAULT NULL,
   `ifnull(e,e)` bigint(20) DEFAULT NULL,
   `ifnull(f,f)` float(3,2) DEFAULT NULL,

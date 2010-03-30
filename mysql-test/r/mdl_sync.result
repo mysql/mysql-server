@@ -1678,14 +1678,21 @@ insert into t2 values (1);;
 # 
 # Switching to connection 'handler_con1'.
 # Wait until INSERT is blocked on table-level lock.
-# The below statement should not cause deadlock.
+# Sending 'alter table t1 drop column j'. It should not cause
+# deadlock.
 alter table t1 drop column j;
-unlock tables;
+# Switching to connection 'handler_con2'.
+# Wait until ALTER is blocked during upgrade.
 # 
 # Switching to connection 'default'.
 # Reap INSERT.
+ERROR HY000: Wait on a lock was aborted due to a pending exclusive lock
 handler t1 close;
 #
+# Switching to connection 'handler_con1'.
+# Reaping 'alter table t1 drop column j'
+unlock tables;
+# Switching to connection 'default'.
 # Then, check the scenario in which upgrade of SNRW lock to X
 # lock is blocked by HANDLER which is open in connection currently
 # waiting to get SW lock on the same table.
@@ -2248,6 +2255,8 @@ SET DEBUG_SYNC= 'RESET';
 # Bug#50786 Assertion `thd->mdl_context.trans_sentinel() == __null' 
 #           failed in open_ltable()
 #
+# Supress warnings written to the log file
+call mtr.add_suppression("Wait on a lock was aborted due to a pending exclusive lock");
 DROP TABLE IF EXISTS t1, t2;
 CREATE TABLE t1 (i INT);
 CREATE TABLE t2 (i INT);
@@ -2271,7 +2280,6 @@ SET DEBUG_SYNC= 'now WAIT_FOR parked';
 # Sending:
 SELECT 1;
 # connection: con3
-# Sending:
 ALTER TABLE t1 ADD COLUMN j INT;
 # connection: default
 SET DEBUG_SYNC= 'now SIGNAL go';
@@ -2284,8 +2292,6 @@ HANDLER t1 CLOSE;
 # Reaping SELECT 1
 1
 1
-# connection: con3
-# Reaping ALTER TABLE t1 ADD COLUMN j INT
 # connection: default
 DROP TABLE t1, t2;
 SET DEBUG_SYNC= 'RESET';
