@@ -6742,6 +6742,7 @@ int ha_tokudb::delete_all_rows() {
     if (error) { goto cleanup; }
 
     if (thd_sql_command(ha_thd()) != SQLCOM_TRUNCATE) {
+        share->try_table_lock = true;
         error = HA_ERR_WRONG_COMMAND;
         goto cleanup;
     }
@@ -6757,6 +6758,7 @@ int ha_tokudb::delete_all_rows() {
         share->rows = 0;
     }
 
+    share->try_table_lock = true;
 cleanup:
     if (txn) {
         if (error) {
