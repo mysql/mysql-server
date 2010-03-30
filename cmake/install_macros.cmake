@@ -174,7 +174,8 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   ""
   ${ARGN}
   )
-  GET_TARGET_PROPERTY(target_type  ${target} TYPE)
+  GET_TARGET_PROPERTY(target_type ${target} TYPE)
+  GET_TARGET_PROPERTY(target_permissions ${target} PERMISSIONS)
   IF(ARG_RENAME)
     SET(RENAME_PARAM RENAME ${ARG_RENAME}${CMAKE_${target_type}_SUFFIX})
   ELSE()
@@ -193,6 +194,7 @@ FUNCTION(INSTALL_DEBUG_TARGET target)
   INSTALL(FILES ${debug_target_location}
     DESTINATION ${ARG_DESTINATION}
     ${RENAME_PARAM}
+    PERMISSIONS ${target_permissions}
     CONFIGURATIONS Release RelWithDebInfo
     OPTIONAL)
 
