@@ -30,7 +30,7 @@
 #
 #   -- let $row_img_expected= 1:1 2:2 3:'a' 4:NULL | 1:2 4:10
 #   -- let $row_img_pos= 107
-#   -- source suite/rpl/include/rpl_row_img_parts_assertion.inc
+#   -- source include/rpl_row_img_parts_assertion.inc
 #  
 
 if (`SELECT LENGTH("$row_img_pos") = 0`)

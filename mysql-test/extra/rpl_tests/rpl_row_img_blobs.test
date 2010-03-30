@@ -31,7 +31,7 @@
 -- disable_warnings
 DROP TABLE IF EXISTS t;
 -- enable_warnings
--- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+-- source include/rpl_chained_3_hosts_sync.inc
 
 -- connection mysqld_a
 
@@ -58,7 +58,7 @@ while($i)
   #
 
   if (`SELECT $i=1`) {
-    -- echo ### R1: replicate blobs always because they are part of PK
+    -- echo ### Asserts that declaring a blob as part of a primary key does not break replication
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -68,7 +68,7 @@ while($i)
   }
   if (`SELECT $i=2`)
   { 
-    -- echo ### Asserts that R1 does not break replication
+    -- echo ### Asserts that declaring a blob as part of a unique (not null) key does not break replication
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -88,7 +88,8 @@ while($i)
 
   }
   if (`SELECT $i=4`) {
-    -- echo ### This asserts that R2 does not break replication
+    -- echo ### Asserts that updates without blobs in the BI (PK exists int the table)
+    -- echo ### will not break replication
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -99,7 +100,8 @@ while($i)
   }
   if (`SELECT $i=5`)
   { 
-    -- echo ### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+    -- echo ### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+    -- echo ### will not break replication
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -110,7 +112,8 @@ while($i)
   }
   if (`SELECT $i=6`)
   { 
-    -- echo ### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+    -- echo ### Asserts that updates without blobs in the AI (they are not updated) 
+    -- echo ### will not break replication (check even if there is a key in the table)
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -121,7 +124,8 @@ while($i)
   }
   if (`SELECT $i=7`)
   { 
-    -- echo ### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+    -- echo ### Asserts that updates without blobs in the AI (they are not updated) 
+    -- echo ### will not break replication (check when there is no key in the table)
     -- connection mysqld_a
     --eval CREATE TABLE t (c1 int, c2 blob, c3 int) engine= $mysqld_a_engine;
     -- connection mysqld_b
@@ -149,7 +153,7 @@ while($i)
   -- eval INSERT INTO t VALUES (2, $blob2, 20)
   -- eval INSERT INTO t VALUES (3, $blob3, 30)
   
-  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+  -- source include/rpl_chained_3_hosts_sync.inc
 
   -- connection mysqld_a
   -- eval UPDATE t SET c1=10 WHERE c2=$blob1
@@ -157,7 +161,7 @@ while($i)
   -- eval UPDATE t SET c1=30 WHERE c3=30
   -- eval UPDATE t SET c3=40 WHERE c1=30
 
-  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+  -- source include/rpl_chained_3_hosts_sync.inc
 
   -- let $diff_table_1=mysqld_a:$diff_table
   -- let $diff_table_2=mysqld_b:$diff_table
@@ -172,7 +176,7 @@ while($i)
   -- eval DELETE FROM t WHERE c1=20
   -- eval DELETE FROM t
 
-  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+  -- source include/rpl_chained_3_hosts_sync.inc
 
   -- let $diff_table_1=mysqld_a:$diff_table
   -- let $diff_table_2=mysqld_b:$diff_table
@@ -186,7 +190,7 @@ while($i)
 
   DROP TABLE t;
 
-  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+  -- source include/rpl_chained_3_hosts_sync.inc
 
   dec $i;
 }

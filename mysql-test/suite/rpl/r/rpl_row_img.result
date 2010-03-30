@@ -10157,7 +10157,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -10182,7 +10182,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -10559,7 +10559,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -10584,7 +10584,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -10961,7 +10961,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -10986,7 +10986,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -11363,7 +11363,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -11388,7 +11388,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -11765,7 +11765,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -11790,7 +11790,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -12167,7 +12167,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -12192,7 +12192,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -12569,7 +12569,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -12594,7 +12594,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -12971,7 +12971,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -12996,7 +12996,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -13399,7 +13399,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -13424,7 +13424,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -13801,7 +13801,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -13826,7 +13826,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -14203,7 +14203,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -14228,7 +14228,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -14605,7 +14605,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -14630,7 +14630,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -15007,7 +15007,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -15032,7 +15032,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -15409,7 +15409,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -15434,7 +15434,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -15811,7 +15811,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -15836,7 +15836,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -16213,7 +16213,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -16238,7 +16238,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -16641,7 +16641,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -16666,7 +16666,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -17043,7 +17043,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -17068,7 +17068,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -17445,7 +17445,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -17470,7 +17470,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -17847,7 +17847,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -17872,7 +17872,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -18249,7 +18249,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -18274,7 +18274,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -18651,7 +18651,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -18676,7 +18676,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -19053,7 +19053,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= MyISAM;;
@@ -19078,7 +19078,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -19455,7 +19455,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields (first slave has UK NOT NULL)
+### Master with Key, slaves with PKs on different fields (first slave has UK NOT NULL)
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, primary key(c1)) engine= InnoDB;;
@@ -19480,7 +19480,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Master with Key, slaves with no PKs on different fields
+### Master with Key, slaves with PKs on different fields
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -19763,7 +19763,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -19788,7 +19789,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -19813,7 +19815,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -19838,7 +19841,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -19888,7 +19892,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -19913,7 +19917,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -19940,7 +19944,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -19965,7 +19970,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -19990,7 +19996,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -20015,7 +20022,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -20065,7 +20073,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -20090,7 +20098,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -20117,7 +20125,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -20142,7 +20151,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -20167,7 +20177,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -20192,7 +20203,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -20242,7 +20254,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -20267,7 +20279,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -20294,7 +20306,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -20319,7 +20332,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -20344,7 +20358,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -20369,7 +20384,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -20419,7 +20435,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -20444,7 +20460,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -20471,7 +20487,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -20496,7 +20513,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -20521,7 +20539,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -20546,7 +20565,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -20596,7 +20616,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -20621,7 +20641,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -20648,7 +20668,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -20673,7 +20694,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -20698,7 +20720,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -20723,7 +20746,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -20773,7 +20797,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -20798,7 +20822,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -20825,7 +20849,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -20850,7 +20875,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -20875,7 +20901,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -20900,7 +20927,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -20950,7 +20978,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -20975,7 +21003,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -21002,7 +21030,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -21027,7 +21056,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -21052,7 +21082,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -21077,7 +21108,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -21127,7 +21159,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -21152,7 +21184,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -21205,7 +21237,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -21230,7 +21263,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -21255,7 +21289,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -21280,7 +21315,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -21330,7 +21366,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -21355,7 +21391,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -21382,7 +21418,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -21407,7 +21444,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -21432,7 +21470,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -21457,7 +21496,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -21507,7 +21547,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -21532,7 +21572,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -21559,7 +21599,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -21584,7 +21625,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -21609,7 +21651,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -21634,7 +21677,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -21684,7 +21728,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -21709,7 +21753,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -21736,7 +21780,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -21761,7 +21806,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -21786,7 +21832,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -21811,7 +21858,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -21861,7 +21909,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -21886,7 +21934,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -21913,7 +21961,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -21938,7 +21987,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -21963,7 +22013,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -21988,7 +22039,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -22038,7 +22090,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -22063,7 +22115,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -22090,7 +22142,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -22115,7 +22168,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -22140,7 +22194,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -22165,7 +22220,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -22215,7 +22271,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -22240,7 +22296,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -22267,7 +22323,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -22292,7 +22349,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -22317,7 +22375,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -22342,7 +22401,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -22392,7 +22452,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -22417,7 +22477,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -22444,7 +22504,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -22469,7 +22530,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -22494,7 +22556,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -22519,7 +22582,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -22569,7 +22633,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -22594,7 +22658,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -22647,7 +22711,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -22672,7 +22737,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -22697,7 +22763,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -22722,7 +22789,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -22772,7 +22840,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -22797,7 +22865,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -22824,7 +22892,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -22849,7 +22918,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -22874,7 +22944,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -22899,7 +22970,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -22949,7 +23021,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -22974,7 +23046,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -23001,7 +23073,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -23026,7 +23099,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -23051,7 +23125,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -23076,7 +23151,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -23126,7 +23202,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -23151,7 +23227,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -23178,7 +23254,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -23203,7 +23280,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -23228,7 +23306,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -23253,7 +23332,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -23303,7 +23383,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -23328,7 +23408,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -23355,7 +23435,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -23380,7 +23461,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -23405,7 +23487,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -23430,7 +23513,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -23480,7 +23564,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -23505,7 +23589,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -23532,7 +23616,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -23557,7 +23642,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -23582,7 +23668,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -23607,7 +23694,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -23657,7 +23745,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -23682,7 +23770,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
@@ -23709,7 +23797,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= MyISAM;;
@@ -23734,7 +23823,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= MyISAM;;
@@ -23759,7 +23849,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= MyISAM;;
@@ -23784,7 +23875,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= MyISAM;;
@@ -23834,7 +23926,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= MyISAM;;
@@ -23859,7 +23951,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= MyISAM;;
@@ -23886,7 +23978,8 @@ DROP TABLE IF EXISTS t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check when there is no key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int) engine= InnoDB;;
@@ -23911,7 +24004,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated/written
+### Asserts that updates without blobs in the AI (they are not updated) 
+### will not break replication (check even if there is a key in the table)
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, key(c1)) engine= InnoDB;;
@@ -23936,7 +24030,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts R4 - when using NOBLOB c2 shall not be replicated if it is not updated 
+### Asserts that updates without blobs in the BI (UK NOT NULL exists in the table) 
+### will not break replication
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int NOT NULL, c2 blob NOT NULL, c3 int, unique key(c1)) engine= InnoDB;;
@@ -23961,7 +24056,8 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### This asserts that R2 does not break replication
+### Asserts that updates without blobs in the BI (PK exists int the table)
+### will not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c1)) engine= InnoDB;;
@@ -24011,7 +24107,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### Asserts that R1 does not break replication
+### Asserts that declaring a blob as part of a unique (not null) key does not break replication
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob NOT NULL, c3 int, unique key(c2(512))) engine= InnoDB;;
@@ -24036,7 +24132,7 @@ DROP TABLE t;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
 SET SQL_LOG_BIN=0;
-### R1: replicate blobs always because they are part of PK
+### Asserts that declaring a blob as part of a primary key does not break replication
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;
 CREATE TABLE t (c1 int, c2 blob, c3 int, primary key(c2(512))) engine= InnoDB;;

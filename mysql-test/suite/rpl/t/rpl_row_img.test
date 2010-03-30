@@ -7,7 +7,7 @@
 #  
 #   See WL#5096 for details.
 #
--- source suite/rpl/include/rpl_chained_3_hosts.inc
+-- source include/rpl_chained_3_hosts.inc
 -- source include/have_binlog_format_row.inc
 
 -- connection mysqld_a
@@ -24,7 +24,7 @@
 -- echo ###################################################################
 -- echo ###################################################################
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img.test
--- source suite/rpl/include/rpl_row_img_general_loop.inc
+-- source include/rpl_row_img_general_loop.inc
 
 -- echo ###################################################################
 -- echo ###################################################################
@@ -32,7 +32,7 @@
 -- echo ###################################################################
 -- echo ###################################################################
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img_diff_indexes.test
--- source suite/rpl/include/rpl_row_img_general_loop.inc
+-- source include/rpl_row_img_general_loop.inc
 
 -- echo ###################################################################
 -- echo ###################################################################
@@ -40,4 +40,4 @@
 -- echo ###################################################################
 -- echo ###################################################################
 -- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
--- source suite/rpl/include/rpl_row_img_general_loop.inc
+-- source include/rpl_row_img_general_loop.inc

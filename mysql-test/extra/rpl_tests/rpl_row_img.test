@@ -28,7 +28,7 @@
 -- disable_warnings
 DROP TABLE IF EXISTS t;
 -- enable_warnings
--- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+-- source include/rpl_chained_3_hosts_sync.inc
 
 -- connection mysqld_a
 
@@ -203,7 +203,7 @@ while($i)
   INSERT INTO t VALUES (2, '1', '2', '2' );
   INSERT INTO t VALUES (3, '1', '3', '2' );
  
-  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+  -- source include/rpl_chained_3_hosts_sync.inc
 
   -- connection mysqld_a
   UPDATE t SET c4 = '7';
@@ -221,7 +221,7 @@ while($i)
 
   UPDATE t SET c2 = '2' WHERE c4 = '2';
 
-  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+  -- source include/rpl_chained_3_hosts_sync.inc
 
   -- let $diff_table_1=mysqld_a:$diff_table
   -- let $diff_table_2=mysqld_b:$diff_table
@@ -238,7 +238,7 @@ while($i)
   DELETE FROM t WHERE c1 = 8;
   DELETE FROM t;
 
-  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+  -- source include/rpl_chained_3_hosts_sync.inc
 
   -- let $diff_table_1=mysqld_a:$diff_table
   -- let $diff_table_2=mysqld_b:$diff_table
@@ -252,7 +252,7 @@ while($i)
 
   DROP TABLE t;
 
-  -- source suite/rpl/include/rpl_chained_3_hosts_sync.inc
+  -- source include/rpl_chained_3_hosts_sync.inc
 
   dec $i;
 }
