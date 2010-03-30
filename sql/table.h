@@ -900,6 +900,8 @@ public:
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
   my_bool m_needs_reopen;
+  bool created; /* For tmp tables. TRUE <=> tmp table was actually created.*/
+  uint max_keys; /* Size of allocated key_info array. */
 
   REGINFO reginfo;			/* field connections */
   MEM_ROOT mem_root;
@@ -927,7 +929,7 @@ public:
   {
     read_set= read_set_arg;
     write_set= write_set_arg;
-    if (file)
+    if (file && created)
       file->column_bitmaps_signal();
   }
   inline void column_bitmaps_set_no_signal(MY_BITMAP *read_set_arg,
@@ -950,6 +952,9 @@ public:
   */
   inline bool needs_reopen()
   { return !db_stat || m_needs_reopen; }
+  bool alloc_keys();
+  int add_tmp_key(ulonglong key_parts, char *key_name, bool covering);
+  void use_index(int key_to_save);
 };
 
 
@@ -1061,6 +1066,7 @@ typedef struct st_schema_table
 #define VIEW_ALGORITHM_UNDEFINED        0
 #define VIEW_ALGORITHM_TMPTABLE         1
 #define VIEW_ALGORITHM_MERGE            2
+#define DERIVED_ALGORITHM_TMPTABLE      3
 
 #define VIEW_SUID_INVOKER               0
 #define VIEW_SUID_DEFINER               1
@@ -1132,6 +1138,21 @@ enum enum_open_type
 {
   OT_TEMPORARY_OR_BASE= 0, OT_TEMPORARY_ONLY, OT_BASE_ONLY
 };
+
+/*
+  This structure is used to keep info about possible key for the result table
+  of a derived table/view.
+  The 'referenced_by' is the table map of tables to which this possible
+    key corresponds.
+  The 'used_field' is a map of fields of which this key consists of.
+  See also the comment for the TABLE_LIST::update_derived_keys function.
+*/
+
+struct st_derived_table_key_map {
+  table_map referenced_by;
+  key_map used_fields;
+};
+typedef st_derived_table_key_map DERIVED_KEY_MAP;
 
 
 /*
@@ -1484,6 +1505,7 @@ struct TABLE_LIST
   LEX_STRING view_body_utf8;
 
    /* End of view definition context. */
+  List<DERIVED_KEY_MAP> derived_keymap_list;
 
   /**
     Indicates what triggers we need to pre-load for this TABLE_LIST
@@ -1493,7 +1515,8 @@ struct TABLE_LIST
   uint8 trg_event_map;
   /* TRUE <=> this table is a const one and was optimized away. */
   bool optimized_away;
-
+  /* TRUE <=> already filled. Valid only for materialized derived tables/views.*/
+  bool filled;
   uint i_s_requested_object;
   bool has_db_lookup_value;
   bool has_table_lookup_value;
@@ -1507,6 +1530,7 @@ struct TABLE_LIST
   int view_check_option(THD *thd, bool ignore_failure);
   bool setup_underlying(THD *thd);
   void cleanup_items();
+  void cleanup();
   bool placeholder()
   {
     return derived || view || schema_table || !table;
@@ -1536,7 +1560,15 @@ struct TABLE_LIST
       return prep_where(thd, conds, no_where_clause);
     return FALSE;
   }
-
+  inline bool is_materialized_derived()
+  {
+    return (effective_algorithm == VIEW_ALGORITHM_TMPTABLE ||
+            effective_algorithm == DERIVED_ALGORITHM_TMPTABLE);
+  }
+  inline bool is_view_or_derived()
+  {
+    return (effective_algorithm);
+  }
   void register_want_access(ulong want_access);
   bool prepare_security(THD *thd);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1608,6 +1640,11 @@ struct TABLE_LIST
      respectively.
    */
   char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+  int fetch_number_of_rows();
+  bool update_derived_keys(Field*, Item**, uint);
+  bool generate_keys();
+  bool handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*));
+  st_select_lex_unit *get_unit();
 
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);

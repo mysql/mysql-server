@@ -119,8 +119,6 @@ static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
 			   Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
-static bool open_tmp_table(TABLE *table);
-static bool create_myisam_tmp_table(TABLE *,TMP_TABLE_PARAM *, ulonglong, my_bool);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -156,6 +154,7 @@ static int join_no_more_records(READ_RECORD *info);
 static int join_read_next(READ_RECORD *info);
 static int join_init_quick_read_record(JOIN_TAB *tab);
 static int test_if_quick_select(JOIN_TAB *tab);
+static int join_materialize_derived_table(JOIN_TAB *tab);
 static int join_init_read_record(JOIN_TAB *tab);
 static int join_read_first(JOIN_TAB *tab);
 static int join_read_next(READ_RECORD *info);
@@ -228,8 +227,9 @@ static bool update_sum_func(Item_sum **func);
 static void select_describe(JOIN *join, bool need_tmp_table,bool need_order,
 			    bool distinct, const char *message=NullS);
 static Item *remove_additional_cond(Item* conds);
-static void add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
+static bool add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab);
 static bool test_if_ref(Item_field *left_item,Item *right_item);
+static bool generate_derived_keys(SELECT_LEX *select_lex);
 
 
 /**
@@ -799,7 +799,19 @@ JOIN::optimize()
   if (optimized)
     DBUG_RETURN(0);
   optimized= 1;
-
+  /* Run optimize phase for all derived tables/views used in this SELECT. */
+  {
+    select_lex->handle_derived(thd->lex, &mysql_derived_optimize);
+    if (thd->lex->describe)
+    {
+      /*
+        Force join->join_tmp creation, because we will use this JOIN
+        twice for EXPLAIN and we have to have unchanged join for EXPLAINing
+      */
+      select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
+      select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
+    }
+  }
   thd_proc_info(thd, "optimizing");
   row_limit= ((select_distinct || order || group_list) ? HA_POS_ERROR :
 	      unit->select_limit_cnt);
@@ -984,6 +996,9 @@ JOIN::optimize()
   if (!tables_list)
   {
     DBUG_PRINT("info",("No tables"));
+    SELECT_LEX_UNIT *unit= select_lex->master_unit();
+    if (unit)
+      unit->increase_estimated_records(1);
     error= 0;
     DBUG_RETURN(0);
   }
@@ -998,6 +1013,8 @@ JOIN::optimize()
     DBUG_PRINT("error",("Error: make_join_statistics() failed"));
     DBUG_RETURN(1);
   }
+
+  drop_unused_derived_keys();
 
   if (rollup.state != ROLLUP::STATE_NONE)
   {
@@ -1726,6 +1743,9 @@ JOIN::exec()
 
   thd_proc_info(thd, "executing");
   error= 0;
+  /* Create result tables for materialized views. */
+  if ( select_lex->handle_derived(thd->lex, &mysql_derived_create))
+    DBUG_VOID_RETURN;
   if (procedure)
   {
     procedure_fields_list= fields_list;
@@ -2521,7 +2541,10 @@ static ha_rows get_quick_record_count(THD *thd, SQL_SELECT *select,
 #endif
   if (check_stack_overrun(thd, STACK_MIN_SIZE, buff))
     DBUG_RETURN(0);                           // Fatal error flag is set
-  if (select)
+  // Derived tables aren't filled yet, so no stats are available.
+  if (select &&
+      (!table->pos_in_table_list->is_materialized_derived() ||
+       table->pos_in_table_list->filled))
   {
     select->head=table;
     if ((error= select->test_quick_select(thd, *(key_map *)keys,(table_map) 0,
@@ -2603,7 +2626,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     s->needed_reg.init();
     table_vector[i]=s->table=table=tables->table;
     table->pos_in_table_list= tables;
-    error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+    error= tables->fetch_number_of_rows();
     if (error)
     {
       table->file->print_error(error, MYF(0));
@@ -2922,7 +2945,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       Add to stat->const_keys those indexes for which all group fields or
       all select distinct fields participate in one index.
     */
-    add_group_and_distinct_keys(join, s);
+    if (add_group_and_distinct_keys(join, s))
+      goto error;
 
     if (!s->const_keys.is_clear_all() &&
         !s->table->pos_in_table_list->embedding)
@@ -2975,18 +2999,48 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
   join->const_tables=const_count;
   join->found_const_table_map=found_const_table_map;
 
-  /* Find an optimal join order of the non-constant tables. */
-  if (join->const_tables != join->tables)
   {
-    optimize_keyuse(join, keyuse_array);
-    if (choose_plan(join, all_table_map & ~join->const_table_map))
-      goto error;
-  }
-  else
-  {
-    memcpy((uchar*) join->best_positions,(uchar*) join->positions,
-	   sizeof(POSITION)*join->const_tables);
-    join->best_read=1.0;
+    ha_rows records= 1;
+    /* Find an optimal join order of the non-constant tables. */
+    if (join->const_tables != join->tables)
+    {
+      optimize_keyuse(join, keyuse_array);
+      if (choose_plan(join, all_table_map & ~join->const_table_map))
+        goto error;
+      /*
+        Calculate estimated number of rows for materialized derived
+        table/view.
+      */
+      if (join->unit->select_limit_cnt != HA_POS_ERROR)
+      {
+        /*
+          There will be no more rows than defined in the LIMIT clause. Use it
+          as an estimate.
+        */
+        records= join->unit->select_limit_cnt;
+      }
+      else
+      {
+        for (i= 0; i < join->tables ; i++)
+          records*= join->best_positions[i].records_read ?
+                      (ha_rows)join->best_positions[i].records_read : 1;
+        /*
+          Since it's only an estimate it's inaccurate. Setting estimate to 1
+          record in some cases will make derived table a constant one.
+          Currently it's impossible to revert it to non-const. Thus we
+          adjust estimated # of records to make derived table not a const one.
+        */
+        if (records <= 1)
+          records= 2;
+      }
+    }
+    else
+    {
+      memcpy((uchar*) join->best_positions,(uchar*) join->positions,
+             sizeof(POSITION)*join->const_tables);
+      join->best_read=1.0;
+    }
+    join->select_lex->master_unit()->increase_estimated_records(records);
   }
   /* Generate an execution plan from the found optimal join order. */
   DBUG_RETURN(join->thd->killed || get_best_combination(join));
@@ -3189,6 +3243,10 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
               table_map usable_tables, SARGABLE_PARAM **sargables)
 {
   uint exists_optimize= 0;
+  if (field->table->pos_in_table_list->is_materialized_derived() &&
+      !field->table->created)
+    field->table->pos_in_table_list->update_derived_keys(field, value,
+                                                         num_values);
   if (!(field->flags & PART_KEY_FLAG))
   {
     // Don't remove column IS NULL on a LEFT JOIN table
@@ -3868,15 +3926,15 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
   {
     add_key_fields(join_tab->join, &end, &and_level, cond, normal_tables,
                    sargables);
+    KEY_FIELD *saved= field;
     for (; field != end ; field++)
     {
-      if (add_key_part(keyuse,field))
-        return TRUE;
       /* Mark that we can optimize LEFT JOIN */
       if (field->val->type() == Item::NULL_ITEM &&
 	  !field->field->real_maybe_null())
 	field->field->table->reginfo.not_exists_optimize=1;
     }
+    field= saved;
   }
   for (i=0 ; i < tables ; i++)
   {
@@ -3906,6 +3964,9 @@ update_ref_and_keys(THD *thd, DYNAMIC_ARRAY *keyuse,JOIN_TAB *join_tab,
                               sargables);
     }
   }
+
+  /* Generate keys descriptions for derived tables */
+  generate_derived_keys(select_lex);
 
   /* fill keyuse with found key parts */
   for ( ; field != end ; field++)
@@ -4116,7 +4177,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
     None
 */
 
-static void
+static bool
 add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 {
   List<Item_field> indexed_fields;
@@ -4145,11 +4206,53 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
     join->sort_and_group= 1;
   }
   else
-    return;
+    return FALSE;
 
   if (indexed_fields.elements == 0)
-    return;
+    return FALSE;
 
+  /*
+    For queries like
+      SELECT AGGFN(...) FROM (SELECT ... UNION SELECT ...) AS tt GROUP BY ...
+    or
+      SELECT AGGFN(...) FROM a_materialized_view GROUP BY ...
+    we could benefit from using loose index scan over materialized result
+    of derived table.
+    In this case we should check all prerequisites for loose index scan except
+    cost and if they're met we'll build a covering index over derived table.
+    For cost estimation here we materialize derived table.
+  */
+  if(join->tables == 1 &&
+     join_tab->table->pos_in_table_list->is_materialized_derived() &&
+     !(join_tab->type == JT_SYSTEM || join_tab->type == JT_CONST) &&
+     (join->tmp_table_param.sum_func_count || join->group ||
+      join->select_distinct))
+  {
+    TABLE_LIST *derived= join_tab->table->pos_in_table_list;
+    TABLE *table= join_tab->table;
+    // build covering index
+    ulonglong used_fields= 0;
+    while ((cur_item= indexed_fields_it++))
+      used_fields|= 1 << cur_item->field->field_index;
+    if (!table->max_keys)
+    {
+      table->max_keys++;
+      table->alloc_keys();
+    }
+    if (join_tab->table->add_tmp_key(used_fields, "auto_group_key", TRUE) > 0)
+    {
+      /* Materialize table if index was actually created. */
+      if (mysql_handle_single_derived(join->thd->lex, derived,
+                                      &mysql_derived_create) ||
+          mysql_handle_single_derived(join->thd->lex, derived,
+                                      &mysql_derived_filling))
+        return TRUE;
+      //Update # of records
+      if (table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK))
+        return FALSE;
+    }
+    indexed_fields_it.rewind();
+  }
   /* Intersect the keys of all group fields. */
   cur_item= indexed_fields_it++;
   possible_keys.merge(cur_item->field->part_of_key);
@@ -4160,6 +4263,7 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 
   if (!possible_keys.is_clear_all())
     join_tab->const_keys.merge(possible_keys);
+  return FALSE;
 }
 
 
@@ -6593,6 +6697,76 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
   DBUG_RETURN(0);
 }
 
+/**
+  @brief
+  Add keys to derived tables'/views' result tables in a list
+
+  @param tables list of tables to generate keys for
+
+  @details
+  This function generates keys for all derived tables/views in the 'tables'
+  list with help of the TABLE_LIST:generate_keys function.
+
+  @note currently this function can't fail because errors from the
+  TABLE_LIST:generate_keys function is ignored as they aren't critical to the
+  query execution.
+
+  TODO add keys for group by/order by to allow loose index scan.
+  @return FALSE all keys were successfully added.
+*/
+
+bool generate_derived_keys(SELECT_LEX *select_lex)
+{
+  TABLE_LIST *table= select_lex->leaf_tables;
+  JOIN *join= select_lex->join;
+  /*
+    Reserve space for a key for GROUP BY which could be added later.
+    see add_group_and_distinct_keys.
+  */
+  if(join->tables == 1 &&
+     table->is_materialized_derived() &&
+     table->table->file->stats.records > 1 &&
+     (join->tmp_table_param.sum_func_count || join->group ||
+      join->select_distinct))
+    table->table->max_keys++;
+  for (; table; table= table->next_leaf)
+  {
+    /* Process tables that aren't materialized yet. */
+    if (table->is_materialized_derived() && !table->table->created &&
+        table->generate_keys())
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
+/*
+  @brief
+  Drops unused keys for each materialized derived table/view
+
+  @details
+  For materialized derived tables only ref access can be used, it employs
+  only one index, thus we don't need the rest. For each materialized derived
+  table/view call TABLE::use_index to save one index chosen by the optimizer
+  and free others. No key is chosen then all keys will be dropped.
+*/
+
+void JOIN::drop_unused_derived_keys()
+{
+  for (uint i= const_tables ; i < tables ; i++)
+  {
+    JOIN_TAB *tab=join_tab+i;
+    TABLE *table=tab->table;
+    if (!table->pos_in_table_list->is_materialized_derived() ||
+        table->max_keys <= 1)
+      continue;
+    table->use_index(tab->ref.key);
+    /* Now there is only 1 index, point to it. */
+    if (tab->ref.key > 0)
+      tab->ref.key= 0;
+  }
+}
+
 
 /**
   The default implementation of unlock-row method of READ_RECORD,
@@ -6810,6 +6984,13 @@ make_join_readinfo(JOIN *join, ulonglong options)
     case JT_MAYBE_REF:
       abort();					/* purecov: deadcode */
     }
+    // Materialize derived tables prior to accessing them.
+    if (tab->table->pos_in_table_list->is_materialized_derived() &&
+        !tab->table->pos_in_table_list->filled)
+    {
+      tab->saved_read_first_record= tab->read_first_record;
+      tab->read_first_record= join_materialize_derived_table;
+    }
   }
   join->join_tab[join->tables-1].next_select=0; /* Set by do_select */
   DBUG_VOID_RETURN;
@@ -6860,7 +7041,7 @@ void JOIN_TAB::cleanup()
   x_free(cache.buff);
   cache.buff= 0;
   limit= 0;
-  if (table)
+  if (table && table->created)
   {
     if (table->key_read)
     {
@@ -10572,14 +10753,18 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   if (thd->is_fatal_error)				// If end of memory
     goto err;					 /* purecov: inspected */
   share->db_record_offset= 1;
-  if (share->db_type() == myisam_hton)
+  if (!param->skip_create_table)
   {
-    if (create_myisam_tmp_table(table, param, select_options,
-                                thd->variables.big_tables))
+    if (share->db_type() == myisam_hton)
+    {
+      if (create_myisam_tmp_table(table, param->keyinfo, &param->recinfo,
+                                  param->start_recinfo, select_options,
+                                  thd->variables.big_tables))
+        goto err;
+    }
+    if (open_tmp_table(table))
       goto err;
   }
-  if (open_tmp_table(table))
-    goto err;
 
   thd->mem_root= mem_root_save;
 
@@ -10736,7 +10921,7 @@ error:
 }
 
 
-static bool open_tmp_table(TABLE *table)
+bool open_tmp_table(TABLE *table)
 {
   int error;
   if ((error=table->file->ha_open(table, table->s->table_name.str,O_RDWR,
@@ -10747,17 +10932,18 @@ static bool open_tmp_table(TABLE *table)
     return(1);
   }
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
+  table->created= TRUE;
   return(0);
 }
 
 
-static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
-				    ulonglong options, my_bool big_tables)
+bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo, MI_COLUMNDEF **recinfo,
+                             MI_COLUMNDEF *start_recinfo,
+                             ulonglong options, my_bool big_tables)
 {
   int error;
   MI_KEYDEF keydef;
   MI_UNIQUEDEF uniquedef;
-  KEY *keyinfo=param->keyinfo;
   TABLE_SHARE *share= table->s;
   DBUG_ENTER("create_myisam_tmp_table");
 
@@ -10784,10 +10970,10 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
       uniquedef.null_are_equal=1;
 
       /* Create extra column for hash value */
-      bzero((uchar*) param->recinfo,sizeof(*param->recinfo));
-      param->recinfo->type= FIELD_CHECK;
-      param->recinfo->length=MI_UNIQUE_HASH_LENGTH;
-      param->recinfo++;
+      bzero((uchar*) *recinfo,sizeof(**recinfo));
+      (*recinfo)->type= FIELD_CHECK;
+      (*recinfo)->length=MI_UNIQUE_HASH_LENGTH;
+      (*recinfo)++;
       share->reclength+=MI_UNIQUE_HASH_LENGTH;
     }
     else
@@ -10843,8 +11029,8 @@ static bool create_myisam_tmp_table(TABLE *table,TMP_TABLE_PARAM *param,
     create_info.data_file_length= ~(ulonglong) 0;
 
   if ((error=mi_create(share->table_name.str, share->keys, &keydef,
-		       (uint) (param->recinfo-param->start_recinfo),
-		       param->start_recinfo,
+		       (uint) (*recinfo - start_recinfo),
+		       start_recinfo,
 		       share->uniques, &uniquedef,
 		       &create_info,
 		       HA_CREATE_TMP_TABLE)))
@@ -10875,7 +11061,7 @@ free_tmp_table(THD *thd, TABLE *entry)
   // Release latches since this can take a long time
   ha_release_temporary_latches(thd);
 
-  if (entry->file)
+  if (entry->file && entry->created)
   {
     if (entry->db_stat)
       entry->file->ha_drop_table(entry->s->table_name.str);
@@ -10939,7 +11125,8 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   save_proc_info=thd->proc_info;
   thd_proc_info(thd, "converting HEAP to MyISAM");
 
-  if (create_myisam_tmp_table(&new_table, param,
+  if (create_myisam_tmp_table(&new_table, param->keyinfo, &param->recinfo,
+                              param->start_recinfo,
 			      thd->lex->select_lex.options | thd->variables.option_bits,
                               thd->variables.big_tables))
     goto err2;
@@ -11672,7 +11859,7 @@ flush_cached_records(JOIN *join,JOIN_TAB *join_tab,bool skip_last)
     }
   }
  /* read through all records */
-  if ((error=join_init_read_record(join_tab)))
+  if ((error=(*join_tab->read_first_record)(join_tab)))
   {
     reset_cache_write(&join_tab->cache);
     return error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
@@ -12135,6 +12322,25 @@ test_if_quick_select(JOIN_TAB *tab)
   tab->select->quick=0;
   return tab->select->test_quick_select(tab->join->thd, tab->keys,
 					(table_map) 0, HA_POS_ERROR, 0);
+}
+
+
+/*
+  This helper function materializes derived table/view and then calls
+  read_first_record function to set up access to the materialized table.
+*/
+
+static int
+join_materialize_derived_table(JOIN_TAB *tab)
+{
+  TABLE_LIST *derived= tab->table->pos_in_table_list;
+  DBUG_ASSERT(derived->is_materialized_derived() &&
+              !derived->filled);
+  if (mysql_handle_single_derived(tab->table->in_use->lex,
+                                  derived, &mysql_derived_filling))
+    return -1;
+  tab->read_first_record= tab->saved_read_first_record;
+  return (*tab->read_first_record)(tab);
 }
 
 
@@ -13834,6 +14040,14 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   if ((join->select_lex->options & OPTION_SCHEMA_TABLE) &&
       get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
     goto err;
+
+  {
+    TABLE_LIST *derived= table->pos_in_table_list;
+    // Fill derived table prior to sorting.
+    if (derived && derived->is_materialized_derived() &&
+        mysql_handle_single_derived(thd->lex, derived, &mysql_derived_filling))
+      goto err;
+  }
 
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);	// Get record count

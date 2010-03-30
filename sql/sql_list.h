@@ -93,6 +93,7 @@ struct list_node :public Sql_alloc
 
 
 extern MYSQL_PLUGIN_IMPORT list_node end_of_list;
+typedef int (*Node_cmp_func)(void *n1, void *n2, void *arg);
 
 class base_list :public Sql_alloc
 {
@@ -212,6 +213,34 @@ public:
       elements+= list->elements;
     }
   }
+  /*
+    The function sorts list nodes by the exchange sort algorithm.
+    As this isn't an effective algorithm the list to be sorted is
+    supposed to be short.
+  */
+  inline void sort(Node_cmp_func cmp, void *arg)
+  {
+    bool swap;
+    do
+    {
+      list_node *n1= first;
+      list_node *n2= first;
+
+      swap= FALSE;
+      while ((n2= n2->next) && n2 != &end_of_list)
+      {
+        if ((*cmp)(n1->info, n2->info, arg) < 0)
+        {
+          void *tmp= n1->info;
+          n1->info= n2->info;
+          n2->info= tmp;
+          swap= TRUE;
+        }
+        else
+          n1= n2;
+      }
+    } while (swap);
+  }
   /**
     Swap two lists.
   */
@@ -289,7 +318,6 @@ protected:
       last= &new_node->next;
   }
 };
-
 
 class base_list_iterator
 {
@@ -406,6 +434,10 @@ public:
       delete (T*) element->info;
     }
     empty();
+  }
+  inline void sort(Node_cmp_func cmp, void *arg)
+  {
+    base_list::sort(cmp, arg);
   }
 };
 

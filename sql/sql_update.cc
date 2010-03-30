@@ -233,13 +233,19 @@ int mysql_update(THD *thd,
 
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
-       mysql_handle_derived(thd->lex, &mysql_derived_filling)))
+       mysql_handle_derived(thd->lex, &mysql_derived_create)))
     DBUG_RETURN(1);
 
   thd_proc_info(thd, "init");
   table= table_list->table;
 
-  /* Calculate "table->covering_keys" based on the WHERE */
+  if (!table_list->updatable)
+  {
+    my_error(ER_NON_UPDATABLE_TABLE, MYF(0), table_list->alias, "UPDATE");
+    DBUG_RETURN(1);
+  }
+
+   /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
 
@@ -1183,11 +1189,6 @@ reopen_tables:
     further check in multi_update::prepare whether to use record cache.
   */
   lex->select_lex.exclude_from_table_unique_test= FALSE;
- 
-  if (thd->fill_derived_tables() &&
-      mysql_handle_derived(lex, &mysql_derived_filling))
-    DBUG_RETURN(TRUE);
-
   DBUG_RETURN (FALSE);
 }
 

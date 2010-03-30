@@ -818,7 +818,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_VOID_RETURN;
   table= table_list->table;
-
+  mysql_handle_single_derived(thd->lex, table_list, &mysql_derived_create);
   List<Item> field_list;
 
   Field **ptr,*field;
@@ -2939,6 +2939,7 @@ fill_schema_show_cols_or_idxs(THD *thd, TABLE_LIST *tables,
                                        (can_deadlock ?
                                         MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
   lex->sql_command= save_sql_command;
+  tables->schema_select_lex->handle_derived(lex, &mysql_derived_create);
   /*
     get_all_tables() returns 1 on failure and 0 on success thus
     return only these and not the result code of ::process_table()
@@ -3520,6 +3521,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
                     (can_deadlock ? MYSQL_OPEN_FAIL_ON_MDL_CONFLICT : 0)));
             lex->sql_command= save_sql_command;
+            sel.handle_derived(lex, &mysql_derived_create);
             /*
               XXX:  show_table_list has a flag i_is_requested,
               and when it's set, open_normal_and_derived_tables()
