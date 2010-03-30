@@ -39,6 +39,12 @@ UNIV_INTERN
 void
 thr_local_init(void);
 /*================*/
+ /****************************************************************//**
+Close the thread local storage module. */
+UNIV_INTERN
+void
+thr_local_close(void);
+/*=================*/
 /*******************************************************************//**
 Creates a local storage struct for the calling new thread. */
 UNIV_INTERN

@@ -2,6 +2,9 @@
 # test of new fulltext search features
 #
 
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
+
 #
 # two-level tree
 #

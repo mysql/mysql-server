@@ -1,6 +1,11 @@
--- source include/have_binlog_format_mixed_or_statement.inc
+# Requires binlog_format=statement format since query involving
+# get_lock() is logged in row format if binlog_format=mixed or row.
+-- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
 
+CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
+
+# Load some data into t1
 create table t1 (word char(20) not null);
 load data infile '../../std_data/words.dat' into table t1;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
@@ -10,9 +15,7 @@ select * from t1 limit 10;
 #
 # Test slave with wrong password
 #
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 stop slave;
 connection master;
 set password for root@"localhost" = password('foo');
@@ -29,16 +32,12 @@ sleep 2;
 
 create table t3(n int);
 insert into t3 values(1),(2);
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select * from t3;
 select sum(length(word)) from t1;
 connection master;
 drop table t1,t3;
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # Test if the slave SQL thread can be more than 16K behind the slave
 # I/O thread (> IO_SIZE)
@@ -77,12 +76,13 @@ unlock tables;
 connection master;
 create table t2(id int);
 insert into t2 values(connection_id());
-save_master_pos;
 
 connection master1;
 # Avoid generating result
 create temporary table t3(n int);
+--disable_warnings
 insert into t3 select get_lock('crash_lock%20C', 1) from t2;
+--enable_warnings
 
 connection master;
 send update t1 set n = n + get_lock('crash_lock%20C', 2);
@@ -93,8 +93,11 @@ kill @id;
 # We don't drop t3 as this is a temporary table
 drop table t2;
 connection master;
+# The get_lock function causes warning for unsafe statement.
+--disable_warnings
 --error 1317,2013
 reap;
+--enable_warnings
 connection slave;
 # The SQL slave thread should now have stopped because the query was killed on
 # the master (so it has a non-zero error code in the binlog).
@@ -117,16 +120,12 @@ insert into mysql.user (Host, User, Password)
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 update mysql.user set Select_priv = "Y" where User= _binary"blafasel2";
 select select_priv,user from mysql.user where user = _binary'blafasel2';
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 select n from t1;
 select select_priv,user from mysql.user where user = _binary'blafasel2';
 connection master1;
 drop table t1;
 delete from mysql.user where user="blafasel2";
-save_master_pos;
-connection slave;
-sync_with_master;
+sync_slave_with_master;
 
 # End of 4.1 tests

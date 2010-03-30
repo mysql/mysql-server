@@ -1,6 +1,3 @@
-call mtr.add_suppression("Checking table:   '.\/mysqltest\/t_corrupted2'");
-call mtr.add_suppression("Recovering table: '.\/mysqltest\/t_corrupted2'");
-call mtr.add_suppression("Table '.\/mysqltest\/t_corrupted2' is marked as crashed and should be repaired");
 select @@global.maria_recover;
 @@global.maria_recover
 BACKUP

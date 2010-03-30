@@ -18,6 +18,10 @@
 #include "ma_fulltext.h"
 #include "m_ctype.h"
 
+static int _ma_search_no_save(register MARIA_HA *info, MARIA_KEY *key,
+                              uint32 nextflag, register my_off_t pos,
+                              MARIA_PINNED_PAGE **res_page_link,
+                              uchar **res_page_buff);
 static my_bool _ma_get_prev_key(MARIA_KEY *key, MARIA_PAGE *ma_page,
                                 uchar *keypos);
 
@@ -57,7 +61,51 @@ int _ma_check_index(MARIA_HA *info, int inx)
 */
 
 int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
-               register my_off_t pos)
+               my_off_t pos)
+{
+  int error;
+  MARIA_PINNED_PAGE *page_link;
+  uchar *page_buff;
+
+  info->page_changed= 1;                        /* If page not saved */
+  if (!(error= _ma_search_no_save(info, key, nextflag, pos, &page_link,
+                                  &page_buff)))
+  {
+    if (nextflag & SEARCH_SAVE_BUFF)
+    {
+      bmove512(info->keyread_buff, page_buff, info->s->block_size);
+
+      /* Save position for a possible read next / previous */
+      info->int_keypos= info->keyread_buff + info->keypos_offset;
+      info->int_maxpos= info->keyread_buff + info->maxpos_offset;
+      info->int_keytree_version= key->keyinfo->version;
+      info->last_search_keypage= info->last_keypage;
+      info->page_changed= 0;
+      info->keyread_buff_used= 0;
+    }
+  }
+  _ma_unpin_all_pages(info, LSN_IMPOSSIBLE);
+  return (error);
+}
+
+/**
+   @breif Search after row by a key
+
+   ret_page_link	Will contain pointer to page where we found key
+
+   @note
+     Position to row is stored in info->lastpos
+
+   @return
+   @retval  0   ok (key found)
+   @retval -1   Not found
+   @retval  1   If one should continue search on higher level
+*/
+
+static int _ma_search_no_save(register MARIA_HA *info, MARIA_KEY *key,
+                              uint32 nextflag, register my_off_t pos,
+                              MARIA_PINNED_PAGE **res_page_link,
+                              uchar **res_page_buff)
 {
   my_bool last_key_not_used;
   int error,flag;
@@ -66,6 +114,7 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
   uchar lastkey[MARIA_MAX_KEY_BUFF];
   MARIA_KEYDEF *keyinfo= key->keyinfo;
   MARIA_PAGE page;
+  MARIA_PINNED_PAGE *page_link;
   DBUG_ENTER("_ma_search");
   DBUG_PRINT("enter",("pos: %lu  nextflag: %u  lastpos: %lu",
                       (ulong) pos, nextflag, (ulong) info->cur_row.lastpos));
@@ -81,10 +130,11 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
   }
 
   if (_ma_fetch_keypage(&page, info, keyinfo, pos,
-                        PAGECACHE_LOCK_LEFT_UNLOCKED,
-                        DFLT_INIT_HITS, info->keyread_buff,
-                        test(!(nextflag & SEARCH_SAVE_BUFF))))
+                        PAGECACHE_LOCK_READ, DFLT_INIT_HITS, 0, 0))
     goto err;
+  page_link= dynamic_element(&info->pinned_pages,
+                             info->pinned_pages.elements-1,
+                             MARIA_PINNED_PAGE*);
   DBUG_DUMP("page", page.buff, page.size);
 
   flag= (*keyinfo->bin_search)(key, &page, nextflag, &keypos, lastkey,
@@ -98,8 +148,9 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
 
   if (flag)
   {
-    if ((error= _ma_search(info, key, nextflag,
-                          _ma_kpos(nod_flag,keypos))) <= 0)
+    if ((error= _ma_search_no_save(info, key, nextflag,
+                                   _ma_kpos(nod_flag,keypos),
+                                   res_page_link, res_page_buff)) <= 0)
       DBUG_RETURN(error);
 
     if (flag >0)
@@ -118,25 +169,14 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
 	((keyinfo->flag & (HA_NOSAME | HA_NULL_PART)) != HA_NOSAME ||
 	 (key->flag & SEARCH_PART_KEY) || info->s->base.born_transactional))
     {
-      if ((error= _ma_search(info, key, (nextflag | SEARCH_FIND) &
-                             ~(SEARCH_BIGGER | SEARCH_SMALLER | SEARCH_LAST),
-                             _ma_kpos(nod_flag,keypos))) >= 0 ||
+      if ((error= _ma_search_no_save(info, key, (nextflag | SEARCH_FIND) &
+                                     ~(SEARCH_BIGGER | SEARCH_SMALLER |
+                                       SEARCH_LAST),
+                                     _ma_kpos(nod_flag,keypos),
+                                     res_page_link, res_page_buff)) >= 0 ||
           my_errno != HA_ERR_KEY_NOT_FOUND)
         DBUG_RETURN(error);
-      info->last_keypage= HA_OFFSET_ERROR;              /* Buffer not in mem */
     }
-  }
-  if (pos != info->last_keypage)
-  {
-    uchar *old_buff= page.buff;
-    if (_ma_fetch_keypage(&page, info, keyinfo, pos,
-                          PAGECACHE_LOCK_LEFT_UNLOCKED,DFLT_INIT_HITS,
-                          info->keyread_buff,
-                          test(!(nextflag & SEARCH_SAVE_BUFF))))
-      goto err;
-    /* Restore position if page buffer moved */
-    keypos= page.buff + (keypos - old_buff);
-    maxpos= page.buff + (maxpos - old_buff);
   }
 
   info->last_key.keyinfo= keyinfo;
@@ -172,16 +212,15 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
   }
   info->cur_row.lastpos= _ma_row_pos_from_key(&info->last_key);
   info->cur_row.trid=    _ma_trid_from_key(&info->last_key);
-  /* Save position for a possible read next / previous */
-  info->int_keypos= info->keyread_buff + (keypos - page.buff);
-  info->int_maxpos= info->keyread_buff + (maxpos - page.buff);
-  info->int_nod_flag=nod_flag;
-  info->int_keytree_version=keyinfo->version;
-  info->last_search_keypage=info->last_keypage;
-  info->page_changed=0;
-  /* Set marker that buffer was used (Marker for mi_search_next()) */
-  info->keyread_buff_used= (info->keyread_buff != page.buff);
 
+  /* Store offset to key */
+  info->keypos_offset= (uint) (keypos - page.buff);
+  info->maxpos_offset= (uint) (maxpos - page.buff);
+  info->int_nod_flag= nod_flag;
+  info->last_keypage= pos;
+  *res_page_link= page_link;
+  *res_page_buff= page.buff;
+  
   DBUG_PRINT("exit",("found key at %lu",(ulong) info->cur_row.lastpos));
   DBUG_RETURN(0);
 
@@ -190,7 +229,7 @@ err:
   info->cur_row.lastpos= HA_OFFSET_ERROR;
   info->page_changed=1;
   DBUG_RETURN (-1);
-} /* _ma_search */
+}
 
 
 /*

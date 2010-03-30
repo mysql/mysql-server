@@ -731,7 +731,7 @@ UNIV_INLINE
 rec_t*
 page_rec_get_next(
 /*==============*/
-	rec_t*	rec)	/*!< in: pointer to record */
+	const rec_t*	rec)	/*!< in: pointer to record */
 {
 	return((rec_t*) page_rec_get_next_low(rec, page_rec_is_comp(rec)));
 }
@@ -907,7 +907,7 @@ page_get_data_size(
 
 /************************************************************//**
 Allocates a block of memory from the free list of an index page. */
-UNIV_INTERN
+UNIV_INLINE
 void
 page_mem_alloc_free(
 /*================*/

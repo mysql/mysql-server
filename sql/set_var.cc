@@ -58,6 +58,9 @@
 #include <my_getopt.h>
 #include <thr_alarm.h>
 #include <myisam.h>
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include <maria.h>
+#endif
 #include <my_dir.h>
 #include <waiting_threads.h>
 #include "events.h"
@@ -148,6 +151,7 @@ static void sys_default_general_log_path(THD *thd, enum_var_type type);
 static bool sys_update_slow_log_path(THD *thd, set_var * var);
 static void sys_default_slow_log_path(THD *thd, enum_var_type type);
 static void fix_sys_log_slow_filter(THD *thd, enum_var_type);
+static uchar *get_myisam_mmap_size(THD *thd);
 
 /*
   Variable definition list
@@ -181,6 +185,8 @@ static sys_var_long_ptr	sys_binlog_cache_size(&vars, "binlog_cache_size",
 					      &binlog_cache_size);
 static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
+static sys_var_thd_bool sys_binlog_direct_non_trans_update(&vars, "binlog_direct_non_transactional_updates",
+                                                           &SV::binlog_direct_non_trans_update);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
 static sys_var_const_os         sys_character_sets_dir(&vars,
@@ -936,6 +942,10 @@ sys_var_str sys_var_slow_log_path(&vars, "slow_query_log_file", sys_check_log_pa
 				  opt_slow_logname);
 static sys_var_log_output sys_var_log_output_state(&vars, "log_output", &log_output_options,
 					    &log_output_typelib, 0);
+static sys_var_readonly         sys_myisam_mmap_size(&vars, "myisam_mmap_size",
+                                                     OPT_GLOBAL,
+                                                     SHOW_LONGLONG,
+                                                     get_myisam_mmap_size);
 
 
 bool sys_var::check(THD *thd, set_var *var)
@@ -1253,16 +1263,16 @@ uchar *sys_var_set::value_ptr(THD *thd, enum_var_type type,
 
 void sys_var_set_slave_mode::set_default(THD *thd, enum_var_type type)
 {
-  slave_exec_mode_options= 0;
-  bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  slave_exec_mode_options= (ULL(1) << SLAVE_EXEC_MODE_STRICT);
 }
 
 bool sys_var_set_slave_mode::check(THD *thd, set_var *var)
 {
   bool rc=  sys_var_set::check(thd, var);
   if (!rc &&
-      bit_is_set(var->save_result.ulong_value, SLAVE_EXEC_MODE_STRICT) == 1 &&
-      bit_is_set(var->save_result.ulong_value, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+      test_all_bits(var->save_result.ulong_value,
+                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
+                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
   {
     rc= true;
     my_error(ER_SLAVE_AMBIGOUS_EXEC_MODE, MYF(0), "");
@@ -1284,15 +1294,16 @@ void fix_slave_exec_mode(enum_var_type type)
   DBUG_ENTER("fix_slave_exec_mode");
   compile_time_assert(sizeof(slave_exec_mode_options) * CHAR_BIT
                       > SLAVE_EXEC_MODE_LAST_BIT - 1);
-  if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT) == 1 &&
-      bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+  if (test_all_bits(slave_exec_mode_options,
+                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
+                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
   {
     sql_print_error("Ambiguous slave modes combination."
                     " STRICT will be used");
-    bit_do_clear(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT);
+    slave_exec_mode_options&= ~(ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT);
   }
-  if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 0)
-    bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  if (!(slave_exec_mode_options & (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT)))
+    slave_exec_mode_options|= (ULL(1)<< SLAVE_EXEC_MODE_STRICT);
   DBUG_VOID_RETURN;
 }
 
@@ -3272,6 +3283,12 @@ static uchar *get_tmpdir(THD *thd)
   return (uchar*)mysql_tmpdir;
 }
 
+static uchar *get_myisam_mmap_size(THD *thd)
+{
+  return (uchar *)&myisam_mmap_size;
+}
+
+
 /****************************************************************************
   Main handling of variables:
   - Initialisation
@@ -3842,7 +3859,7 @@ uchar *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
   LEX_STRING *engine_name;
   plugin_ref plugin= thd->variables.*offset;
   if (type == OPT_GLOBAL)
-    plugin= my_plugin_lock(thd, &(global_system_variables.*offset));
+    plugin= my_plugin_lock(thd, global_system_variables.*offset);
   hton= plugin_data(plugin, handlerton*);
   engine_name= hton_name(hton);
   result= (uchar *) thd->strmake(engine_name->str, engine_name->length);
@@ -3863,7 +3880,7 @@ void sys_var_thd_storage_engine::set_default(THD *thd, enum_var_type type)
   else
   {
     value= &(thd->variables.*offset);
-    new_value= my_plugin_lock(NULL, &(global_system_variables.*offset));
+    new_value= my_plugin_lock(NULL, global_system_variables.*offset);
   }
   DBUG_ASSERT(new_value);
   old_value= *value;
@@ -3880,7 +3897,7 @@ bool sys_var_thd_storage_engine::update(THD *thd, set_var *var)
   old_value= *value;
   if (old_value != var->save_result.plugin)
   {
-    *value= my_plugin_lock(NULL, &var->save_result.plugin);
+    *value= my_plugin_lock(NULL, var->save_result.plugin);
     plugin_unlock(NULL, old_value);
   }
   return 0;
@@ -4180,7 +4197,7 @@ bool process_key_caches(process_key_cache_t func)
 
 void sys_var_trust_routine_creators::warn_deprecated(THD *thd)
 {
-  WARN_DEPRECATED(thd, "6.0", "@@log_bin_trust_routine_creators",
+  WARN_DEPRECATED(thd, VER_CELOSIA, "@@log_bin_trust_routine_creators",
                       "'@@log_bin_trust_function_creators'");
 }
 

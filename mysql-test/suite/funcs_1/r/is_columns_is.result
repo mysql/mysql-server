@@ -127,7 +127,7 @@ NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	next_page_no	5	0	NO	bigint
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	page_no	2	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	part_len	4	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_BLOB	space_id	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
-NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	accessed	9	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	access_time	9	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	data_size	7	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	dirty	11	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	fix_count	14	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
@@ -394,6 +394,7 @@ NULL	information_schema	VIEWS	TABLE_CATALOG	1	NULL	YES	varchar	512	1536	NULL	NUL
 NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	XTRADB_ADMIN_COMMAND	result_message	1		NO	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
 NULL	information_schema	XTRADB_ENHANCEMENTS	comment	3		NO	varchar	100	300	NULL	NULL	utf8	utf8_general_ci	varchar(100)			select	
 NULL	information_schema	XTRADB_ENHANCEMENTS	description	2		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 NULL	information_schema	XTRADB_ENHANCEMENTS	link	4		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
@@ -589,7 +590,7 @@ NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	page_no	bigint	NULL	NULL	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	n_recs	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	data_size	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	hashed	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
-NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	accessed	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	access_time	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	modified	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	dirty	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	old	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
@@ -848,6 +849,7 @@ NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	VIEWS	SECURITY_TYPE	varchar	7	21	utf8	utf8_general_ci	varchar(7)
 3.0000	information_schema	VIEWS	CHARACTER_SET_CLIENT	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	VIEWS	COLLATION_CONNECTION	varchar	32	96	utf8	utf8_general_ci	varchar(32)
+3.0000	information_schema	XTRADB_ADMIN_COMMAND	result_message	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	XTRADB_ENHANCEMENTS	name	varchar	255	765	utf8	utf8_general_ci	varchar(255)
 3.0000	information_schema	XTRADB_ENHANCEMENTS	description	varchar	255	765	utf8	utf8_general_ci	varchar(255)
 3.0000	information_schema	XTRADB_ENHANCEMENTS	comment	varchar	100	300	utf8	utf8_general_ci	varchar(100)

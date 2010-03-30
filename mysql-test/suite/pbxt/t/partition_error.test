@@ -421,7 +421,7 @@ partitions 2
 #
 # Partition by range, constant partition function not allowed
 #
---error ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR
+--error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,
@@ -636,7 +636,7 @@ partition by list (a);
 #
 # Partition by list, constant partition function not allowed
 #
---error ER_CONST_EXPR_IN_PARTITION_FUNC_ERROR
+--error ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR
 CREATE TABLE t1 (
 a int not null,
 b int not null,

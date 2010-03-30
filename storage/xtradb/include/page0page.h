@@ -76,8 +76,11 @@ typedef	byte		page_header_t;
 				header which are set in a page create */
 /*----*/
 #define	PAGE_LEVEL	 26	/* level of the node in an index tree; the
-				leaf level is the level 0 */
-#define	PAGE_INDEX_ID	 28	/* index id where the page belongs */
+				leaf level is the level 0.  This field should
+				not be written to after page creation. */
+#define	PAGE_INDEX_ID	 28	/* index id where the page belongs.
+				This field should not be written to after
+				page creation. */
 #define PAGE_BTR_SEG_LEAF 36	/* file segment header for the leaf pages in
 				a B-tree: defined only on the root page of a
 				B-tree, but not in the root of an ibuf tree */
@@ -514,7 +517,7 @@ UNIV_INLINE
 rec_t*
 page_rec_get_next(
 /*==============*/
-	rec_t*	rec);	/*!< in: pointer to record */
+	const rec_t*	rec);	/*!< in: pointer to record */
 /************************************************************//**
 Gets the pointer to the next record on the page.
 @return	pointer to next record */

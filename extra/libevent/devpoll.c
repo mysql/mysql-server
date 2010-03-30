@@ -140,7 +140,7 @@ devpoll_init(struct event_base *base)
 		return (NULL);
 
 	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 &&
-	    rl.rlim_cur != RLIM_INFINITY)
+	    (unsigned long long) rl.rlim_cur != (unsigned long long) RLIM_INFINITY)
 		nfiles = rl.rlim_cur - 1;
 
 	/* Initialize the kernel queue */

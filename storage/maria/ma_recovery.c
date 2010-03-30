@@ -312,11 +312,14 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
 
   now= my_getsystime();
   in_redo_phase= TRUE;
+  trnman_init(max_trid_in_control_file);
   if (run_redo_phase(from_lsn, apply))
   {
     ma_message_no_user(0, "Redo phase failed");
+    trnman_destroy();
     goto err;
   }
+  trnman_destroy();
 
   if ((uncommitted_trans=
        end_of_redo_phase(should_run_undo_phase)) == (uint)-1)

@@ -39,7 +39,8 @@ inline Item * and_items(Item* cond, Item *item)
 Item_subselect::Item_subselect():
   Item_result_field(), value_assigned(0), thd(0), substitution(0),
   engine(0), old_engine(0), used_tables_cache(0), have_to_be_excluded(0),
-  const_item_cache(1), in_fix_fields(0), engine_changed(0), changed(0), is_correlated(FALSE)
+  const_item_cache(1), in_fix_fields(0), eliminated(FALSE), 
+  engine_changed(0), changed(0), is_correlated(FALSE)
 {
   with_subselect= 1;
   reset();
@@ -431,6 +432,7 @@ void Item_maxmin_subselect::print(String *str, enum_query_type query_type)
 
 void Item_singlerow_subselect::reset()
 {
+  eliminated= FALSE;
   null_value= 1;
   if (value)
     value->null_value= 1;
@@ -503,6 +505,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
 void Item_singlerow_subselect::store(uint i, Item *item)
 {
   row[i]->store(item);
+  row[i]->cache_value();
 }
 
 enum Item_result Item_singlerow_subselect::result_type() const
@@ -1773,6 +1776,10 @@ int subselect_single_select_engine::prepare()
 {
   if (prepared)
     return 0;
+  if (select_lex->join)
+  {
+    select_lex->cleanup();
+  }
   join= new JOIN(thd, select_lex->item_list,
 		 select_lex->options | SELECT_NO_UNLOCK, result);
   if (!join || !result)
@@ -1854,6 +1861,7 @@ void subselect_engine::set_row(List<Item> &item_list, Item_cache **row)
     if (!(row[i]= Item_cache::get_cache(sel_item)))
       return;
     row[i]->setup(sel_item);
+    row[i]->store(sel_item);
   }
   if (item_list.elements > 1)
     res_type= ROW_RESULT;

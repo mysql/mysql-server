@@ -221,6 +221,7 @@ typedef struct st_mi_isam_share
   my_bool changed,                      /* If changed since lock */
     global_changed,                     /* If changed since open */
     not_flushed, temporary, delay_key_write, concurrent_insert;
+  my_bool deleting;                     /* we are going to delete this table */
 #ifdef THREAD
   THR_LOCK lock;
   pthread_mutex_t intern_lock;          /* Locking for use with _locking */
@@ -391,7 +392,6 @@ struct st_myisam_info
 #define MI_MAX_BLOCK_LENGTH     ((((ulong) 1 << 24)-1) & (~ (ulong) (MI_DYN_ALIGN_SIZE-1)))
 #define MI_REC_BUFF_OFFSET      ALIGN_SIZE(MI_DYN_DELETE_BLOCK_HEADER+sizeof(uint32))
 
-#define MEMMAP_EXTRA_MARGIN     7       /* Write this as a suffix for file */
 
 #define PACK_TYPE_SELECTED      1       /* Bits in field->pack_type */
 #define PACK_TYPE_SPACE_FIELDS  2

@@ -1,5 +1,4 @@
 -- source include/have_innodb.inc
-set @old_innodb_file_format=@@innodb_file_format;
 
 call mtr.add_suppression("InnoDB: invalid innodb_file_format_check value");
 
@@ -29,6 +28,4 @@ set global innodb_file_format=on;
 --error ER_WRONG_ARGUMENTS
 set global innodb_file_format=off;
 select @@innodb_file_format_check;
-
-set global innodb_file_format=@old_innodb_file_format;
-set global innodb_file_format_check=Antelope;
+set global innodb_file_format_check=antelope;

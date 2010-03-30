@@ -10565,4 +10565,6 @@ mysql_declare_plugin(ndbcluster)
 }
 mysql_declare_plugin_end;
 
+#else
+int Sun_ar_require_a_symbol_here= 0;
 #endif

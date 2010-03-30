@@ -175,7 +175,7 @@ uchar ft_get_word(CHARSET_INFO *cs, const uchar **start, const uchar *end,
     if ((param->trunc=(doc<end && *doc == FTB_TRUNC)))
       doc++;
 
-    if (((length >= ft_min_word_len && !is_stopword((char*) word->pos,
+    if (((length >= ft_min_word_len && !is_stopword(word->pos,
                                                     word->len))
          || param->trunc) && length < ft_max_word_len)
     {
@@ -298,13 +298,13 @@ static int ft_parse_internal(MYSQL_FTPARSER_PARAM *param,
   DBUG_ENTER("ft_parse_internal");
 
   while (ft_simple_get_word(wtree->custom_arg, &doc, end, &w, TRUE))
-    if (param->mysql_add_word(param, (char*) w.pos, w.len, 0))
+    if (param->mysql_add_word(param, w.pos, w.len, 0))
       DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
 
 
-int ft_parse(TREE *wtree, const uchar *doc, int doclen,
+int ft_parse(TREE *wtree, const uchar *doc, mysql_ft_size_t doclen,
              struct st_mysql_ftparser *parser,
              MYSQL_FTPARSER_PARAM *param, MEM_ROOT *mem_root)
 {
@@ -319,7 +319,7 @@ int ft_parse(TREE *wtree, const uchar *doc, int doclen,
   param->mysql_add_word= ft_add_word;
   param->mysql_ftparam= &my_param;
   param->cs= wtree->custom_arg;
-  param->doc= (char*) doc;
+  param->doc= doc;
   param->length= doclen;
   param->mode= MYSQL_FTPARSER_SIMPLE_MODE;
   DBUG_RETURN(parser->parse(param));

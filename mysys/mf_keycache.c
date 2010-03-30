@@ -3924,6 +3924,12 @@ restart:
               uint                next_status;
               uint                hash_requests;
 
+              LINT_INIT(next_hash_link);
+              LINT_INIT(next_diskpos);
+              LINT_INIT(next_file);
+              LINT_INIT(next_status);
+              LINT_INIT(hash_requests);
+
               total_found++;
               found++;
               KEYCACHE_DBUG_ASSERT(found <= keycache->blocks_used);

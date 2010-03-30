@@ -807,6 +807,7 @@ public:
   uint is_equal(Create_field *new_field);
   virtual const uchar *unpack(uchar* to, const uchar *from,
                               uint param_data, bool low_byte_first);
+  static Field *create_from_item (Item *);
 };
 
 
@@ -1925,7 +1926,12 @@ public:
   uint32 max_display_length() { return field_length; }
   uint size_of() const { return sizeof(*this); }
   Item_result result_type () const { return INT_RESULT; }
-  int reset(void) { bzero(ptr, bytes_in_rec); return 0; }
+  int reset(void) { 
+    bzero(ptr, bytes_in_rec); 
+    if (bit_ptr && (bit_len > 0))  // reset odd bits among null bits
+      clr_rec_bits(bit_ptr, bit_ofs, bit_len);
+    return 0; 
+  }
   int store(const char *to, uint length, CHARSET_INFO *charset);
   int store(double nr);
   int store(longlong nr, bool unsigned_val);

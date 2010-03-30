@@ -203,7 +203,7 @@ static int my_strnncoll_ucs2(CHARSET_INFO *cs,
                              my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc),t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
@@ -317,7 +317,7 @@ static int my_strncasecmp_ucs2(CHARSET_INFO *cs,
 			       const char *s, const char *t,  size_t len)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc),t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const char *se=s+len;
   const char *te=t+len;
   MY_UNICASE_INFO **uni_plane= cs->caseinfo;
@@ -1384,7 +1384,7 @@ int my_strnncoll_ucs2_bin(CHARSET_INFO *cs,
                           my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc),t_wc;
+  my_wc_t UNINIT_VAR(s_wc), UNINIT_VAR(t_wc);
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
 
@@ -1611,16 +1611,6 @@ fill_max_and_min:
     *min_str++= *max_str++ = ptr[1];
   }
 
-  /* Temporary fix for handling w_one at end of string (key compression) */
-  {
-    char *tmp;
-    for (tmp= min_str ; tmp-1 > min_org && tmp[-1] == '\0' && tmp[-2]=='\0';)
-    {
-      *--tmp=' ';
-      *--tmp='\0';
-    }
-  }
-  
   *min_length= *max_length = (size_t) (min_str - min_org);
   while (min_str + 1 < min_end)
   {

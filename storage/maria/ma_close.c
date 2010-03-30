@@ -79,7 +79,7 @@ int maria_close(register MARIA_HA *info)
       if ((*share->once_end)(share))
         error= my_errno;
       if (flush_pagecache_blocks(share->pagecache, &share->kfile,
-                                 (share->temporary ?
+                                 ((share->temporary || share->deleting) ?
                                   FLUSH_IGNORE_CHANGED :
                                   FLUSH_RELEASE)))
         error= my_errno;
@@ -177,6 +177,7 @@ int maria_close(register MARIA_HA *info)
   {
     (void) pthread_mutex_destroy(&share->intern_lock);
     (void) pthread_mutex_destroy(&share->close_lock);
+    (void) pthread_cond_destroy(&share->key_del_cond);
     my_free((uchar *)share, MYF(0));
     /*
       If share cannot be freed, it's because checkpoint has previously

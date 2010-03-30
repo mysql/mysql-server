@@ -124,17 +124,6 @@ public:
   virtual optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   virtual bool have_rev_func() const { return 0; }
   virtual Item *key_item() const { return args[0]; }
-  /*
-    This method is used for debug purposes to print the name of an
-    item to the debug log. The second use of this method is as
-    a helper function of print(), where it is applicable.
-    To suit both goals it should return a meaningful,
-    distinguishable and sintactically correct string.  This method
-    should not be used for runtime type identification, use enum
-    {Sum}Functype and Item_func::functype()/Item_sum::sum_func()
-    instead.
-  */
-  virtual const char *func_name() const= 0;
   virtual bool const_item() const { return const_item_cache; }
   inline Item **arguments() const { return args; }
   void set_arguments(List<Item> &list);
@@ -199,6 +188,34 @@ public:
       return value;
     null_value=1;
     return 0.0;
+  }
+  bool has_timestamp_args()
+  {
+    DBUG_ASSERT(fixed == TRUE);
+    for (uint i= 0; i < arg_count; i++)
+    {
+      if (args[i]->type() == Item::FIELD_ITEM &&
+          args[i]->field_type() == MYSQL_TYPE_TIMESTAMP)
+        return TRUE;
+    }
+    return FALSE;
+  }
+  /*
+    We assume the result of any function that has a TIMESTAMP argument to be
+    timezone-dependent, since a TIMESTAMP value in both numeric and string
+    contexts is interpreted according to the current timezone.
+    The only exception is UNIX_TIMESTAMP() which returns the internal
+    representation of a TIMESTAMP argument verbatim, and thus does not depend on
+    the timezone.
+   */
+  virtual bool is_timezone_dependent_processor(uchar *bool_arg)
+  {
+    return has_timestamp_args();
+  }
+
+  virtual bool find_function_processor (uchar *arg)
+  {
+    return functype() == *(Functype *) arg;
   }
 };
 

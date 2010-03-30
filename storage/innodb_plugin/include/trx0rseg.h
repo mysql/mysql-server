@@ -125,6 +125,13 @@ trx_rseg_create(
 	ulint	max_size,	/*!< in: max size in pages */
 	ulint*	id,		/*!< out: rseg id */
 	mtr_t*	mtr);		/*!< in: mtr */
+/***************************************************************************
+Free's an instance of the rollback segment in memory. */
+UNIV_INTERN
+void
+trx_rseg_mem_free(
+/*==============*/
+	trx_rseg_t*	rseg);		/* in, own: instance to free */
 
 
 /* Number of undo log slots in a rollback segment file copy */

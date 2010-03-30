@@ -547,6 +547,18 @@ public:
      -------------------------------------------------------------------------
   */
 
+private:
+  /*
+    Helper function to get the minimum number of partitions to use for
+    the optimizer hints/cost calls.
+  */
+  void partitions_optimizer_call_preparations(uint *num_used_parts,
+                                              uint *check_min_num,
+                                              uint *first);
+  ha_rows estimate_rows(bool is_records_in_range, uint inx,
+                        key_range *min_key, key_range *max_key);
+public:
+
   /*
     keys_to_use_for_scanning can probably be implemented as the
     intersection of all underlying handlers if mixed handlers are used.

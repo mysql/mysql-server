@@ -153,7 +153,7 @@ FILE(WRITE cmake_dummy.c " ")
 # custom targets to "sql/CMakeLists.txt" and reference them here.
 ADD_LIBRARY(mysqlserver STATIC ${LIBMYSQLD_SOURCES})
 ADD_DEPENDENCIES(mysqlserver GenServerSource GenError)
-TARGET_LINK_LIBRARIES(mysqlserver)
+TARGET_LINK_LIBRARIES(mysqlserver psapi.lib)
 
 # Add any additional libraries requested by engine(s)
 FOREACH (ENGINE_LIB ${MYSQLD_STATIC_ENGINE_LIBS})

@@ -26,7 +26,7 @@ use Getopt::Long;
 use Benchmark;
 
 $opt_loop_count=10000;
-$opt_medium_loop_count=1000;
+$opt_medium_loop_count=7000;
 $opt_small_loop_count=10;
 $opt_regions=6;
 $opt_groups=100;
@@ -68,7 +68,8 @@ do_many($dbh,$server->create("bench1",
 			     ["region char(1) NOT NULL",
 			      "idn integer(6) NOT NULL",
 			      "rev_idn integer(6) NOT NULL",
-			      "grp integer(6) NOT NULL"],
+			      "grp integer(6) NOT NULL",
+			      "grp_no_key integer(6) NOT NULL"],
 			     ["primary key (region,idn)",
 			      "unique (region,rev_idn)",
 			      "unique (region,grp,idn)"]));
@@ -105,10 +106,10 @@ for ($id=0,$rev_id=$opt_loop_count-1 ; $id < $opt_loop_count ; $id++,$rev_id--)
 {
   $grp=$id*3 % $opt_groups;
   $region=chr(65+$id%$opt_regions);
-  do_query($dbh,"$query'$region',$id,$rev_id,$grp)");
+  do_query($dbh,"$query'$region',$id,$rev_id,$grp,$grp)");
   if ($id == $half_done)
   {				# Test with different insert
-    $query="insert into bench1 (region,idn,rev_idn,grp) values (";
+    $query="insert into bench1 (region,idn,rev_idn,grp,grp_no_key) values (";
   }
 }
 
@@ -322,6 +323,26 @@ if ($limits->{'group_functions'})
   }
   $end_time=new Benchmark;
   print "Time for count_group_on_key_parts ($i:$rows): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+  $loop_time=new Benchmark;
+  $rows=0;
+  for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
+  {
+    $rows+=fetch_all_rows($dbh,"select grp_no_key,count(*) from bench1 group by grp_no_key");
+  }
+  $end_time=new Benchmark;
+  print "Time for count_group ($i:$rows): " .
+    timestr(timediff($end_time, $loop_time),"all") . "\n";
+
+  $loop_time=new Benchmark;
+  $rows=0;
+  for ($i=0 ; $i < $opt_medium_loop_count ; $i++)
+  {
+    $rows+=fetch_all_rows($dbh,"select grp_no_key,count(*) as cnt from bench1 group by grp_no_key order by cnt");
+  }
+  $end_time=new Benchmark;
+  print "Time for count_group_with_order ($i:$rows): " .
     timestr(timediff($end_time, $loop_time),"all") . "\n";
 }
 

@@ -1630,3 +1630,287 @@ SELECT my_col FROM t1;
 my_col
 0.012345687012345687012345687012
 DROP TABLE t1;
+#
+# Bug#45261: Crash, stored procedure + decimal
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 SELECT
+/* 81 */ 100000000000000000000000000000000000000000000000000000000000000000000000000000001
+AS c1;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,0)	NO		0	
+SELECT * FROM t1;
+c1
+99999999999999999999999999999999999999999999999999999999999999999
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+/* 81 */ 100000000000000000000000000000000000000000000000000000000000000000000000000000001.
+AS c1;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,0)	NO		0	
+SELECT * FROM t1;
+c1
+99999999999999999999999999999999999999999999999999999999999999999
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+/* 81 */ 100000000000000000000000000000000000000000000000000000000000000000000000000000001.1 /* 1 */
+AS c1;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,0)	NO		0	
+SELECT * FROM t1;
+c1
+99999999999999999999999999999999999999999999999999999999999999999
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+/* 82 */ 1000000000000000000000000000000000000000000000000000000000000000000000000000000001
+AS c1;
+Warnings:
+Error	1292	Truncated incorrect DECIMAL value: ''
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,0)	NO		0	
+SELECT * FROM t1;
+c1
+99999999999999999999999999999999999999999999999999999999999999999
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+/* 40 */ 1000000000000000000000000000000000000001.1000000000000000000000000000000000000001 /* 40 */
+AS c1;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,30)	NO		0.000000000000000000000000000000	
+SELECT * FROM t1;
+c1
+99999999999999999999999999999999999.999999999999999999999999999999
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+/* 1 */ 1.10000000000000000000000000000000000000000000000000000000000000000000000000000001 /* 80 */
+AS c1;
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(31,30)	NO		0.000000000000000000000000000000	
+SELECT * FROM t1;
+c1
+1.100000000000000000000000000000
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+/* 1 */ 1.100000000000000000000000000000000000000000000000000000000000000000000000000000001 /* 81 */
+AS c1;
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(31,30)	NO		0.000000000000000000000000000000	
+SELECT * FROM t1;
+c1
+1.100000000000000000000000000000
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+.100000000000000000000000000000000000000000000000000000000000000000000000000000001 /* 81 */
+AS c1;
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(30,30)	NO		0.000000000000000000000000000000	
+SELECT * FROM t1;
+c1
+0.100000000000000000000000000000
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+/* 45 */ 123456789012345678901234567890123456789012345.123456789012345678901234567890123456789012345 /* 45 */
+AS c1;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,30)	NO		0.000000000000000000000000000000	
+SELECT * FROM t1;
+c1
+99999999999999999999999999999999999.999999999999999999999999999999
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+/* 65 */ 12345678901234567890123456789012345678901234567890123456789012345.1 /* 1 */
+AS c1;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,1)	NO		0.0	
+SELECT * FROM t1;
+c1
+9999999999999999999999999999999999999999999999999999999999999999.9
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+/* 66 */ 123456789012345678901234567890123456789012345678901234567890123456.1 /* 1 */
+AS c1;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,1)	NO		0.0	
+SELECT * FROM t1;
+c1
+9999999999999999999999999999999999999999999999999999999999999999.9
+DROP TABLE t1;
+CREATE TABLE t1 SELECT
+.123456789012345678901234567890123456789012345678901234567890123456 /* 66 */
+AS c1;
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(30,30)	NO		0.000000000000000000000000000000	
+SELECT * FROM t1;
+c1
+0.123456789012345678901234567890
+DROP TABLE t1;
+CREATE TABLE t1 AS SELECT 123.1234567890123456789012345678901 /* 31 */ AS c1;
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(33,30)	NO		0.000000000000000000000000000000	
+SELECT * FROM t1;
+c1
+123.123456789012345678901234567890
+DROP TABLE t1;
+CREATE TABLE t1 SELECT 1.1 + CAST(1 AS DECIMAL(65,30)) AS c1;
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,30)	NO		0.000000000000000000000000000000	
+SELECT * FROM t1;
+c1
+2.100000000000000000000000000000
+DROP TABLE t1;
+#
+# Test that the integer and decimal parts are properly calculated.
+#
+CREATE TABLE t1 (a DECIMAL(30,30));
+INSERT INTO t1 VALUES (0.1),(0.2),(0.3);
+CREATE TABLE t2 SELECT MIN(a + 0.0000000000000000000000000000001) AS c1 FROM t1;
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 3
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(32,30)	YES		NULL	
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a DECIMAL(30,30));
+INSERT INTO t1 VALUES (0.1),(0.2),(0.3);
+CREATE TABLE t2 SELECT IFNULL(a + 0.0000000000000000000000000000001, NULL) AS c1 FROM t1;
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+Note	1265	Data truncated for column 'c1' at row 2
+Note	1265	Data truncated for column 'c1' at row 3
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(34,0)	YES		NULL	
+DROP TABLE t1,t2;
+CREATE TABLE t1 (a DECIMAL(30,30));
+INSERT INTO t1 VALUES (0.1),(0.2),(0.3);
+CREATE TABLE t2 SELECT CASE a WHEN 0.1 THEN 0.0000000000000000000000000000000000000000000000000000000000000000001 END AS c1 FROM t1;
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,30)	YES		NULL	
+DROP TABLE t1,t2;
+#
+# Test that variables get maximum precision.
+#
+SET @decimal= 1.1;
+CREATE TABLE t1 SELECT @decimal AS c1;
+DESC t1;
+Field	Type	Null	Key	Default	Extra
+c1	decimal(65,30)	YES		NULL	
+SELECT * FROM t1;
+c1
+1.100000000000000000000000000000
+DROP TABLE t1;
+#
+# Bug #45261 : Crash, stored procedure + decimal
+# Original test by the reporter.
+#
+# should not crash
+CREATE TABLE t1 
+SELECT .123456789012345678901234567890123456789012345678901234567890123456 AS a;
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+DROP TABLE t1;
+CREATE PROCEDURE test_proc()
+BEGIN
+# The las non critical CUSER definition is:
+# DECLARE mycursor CURSOR FOR SELECT 1 % 
+# .12345678912345678912345678912345678912345678912345678912345678912 AS my_col;
+DECLARE mycursor CURSOR FOR 
+SELECT 1 % 
+.123456789123456789123456789123456789123456789123456789123456789123456789123456789 
+AS my_col;
+OPEN mycursor;
+CLOSE mycursor;
+END|
+# should not crash
+CALL test_proc();
+DROP PROCEDURE test_proc;
+#
+# Bug #48370  Absolutely wrong calculations with GROUP BY and 
+# decimal fields when using IF
+#
+CREATE TABLE currencies (id int, rate decimal(16,4), 
+PRIMARY KEY (id), KEY (rate));
+INSERT INTO currencies VALUES (11,0.7028);
+INSERT INTO currencies VALUES (1,1);
+CREATE TABLE payments (
+id int,
+supplier_id int,
+status int,
+currency_id int,
+vat decimal(7,4),
+PRIMARY KEY (id),
+KEY currency_id (currency_id),
+KEY supplier_id (supplier_id)
+);
+INSERT INTO payments (id,status,vat,supplier_id,currency_id) VALUES
+(3001,2,0.0000,344,11), (1,2,0.0000,1,1);
+CREATE TABLE sub_tasks (
+id int,
+currency_id int,
+price decimal(16,4),
+discount decimal(10,4),
+payment_id int,
+PRIMARY KEY (id),
+KEY currency_id (currency_id),
+KEY payment_id (payment_id)
+) ;
+INSERT INTO sub_tasks (id, price, discount, payment_id, currency_id) VALUES
+(52, 12.60, 0, 3001, 11), (56, 14.58, 0, 3001, 11);
+# should return 1 and the same values in col 2 and 3
+select STRAIGHT_JOIN
+(1 + PAY.vat) AS mult,
+SUM(ROUND((SUB.price - ROUND(ROUND(SUB.price, 2) * SUB.discount, 2)) * 
+CUR.rate / CUR.rate, 2)
+) v_net_with_discount,
+SUM(ROUND((SUB.price - ROUND(ROUND(SUB.price, 2) * SUB.discount, 1)) *
+CUR.rate / CUR.rate , 2) 
+* (1 + PAY.vat)
+) v_total
+from
+currencies CUR, payments PAY, sub_tasks SUB
+where
+SUB.payment_id = PAY.id and
+PAY.currency_id = CUR.id and
+PAY.id > 2
+group by PAY.id + 1;
+mult	v_net_with_discount	v_total
+1.0000	27.18	27.180000
+DROP TABLE currencies, payments, sub_tasks;
+End of 5.1 tests

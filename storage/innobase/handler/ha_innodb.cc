@@ -40,12 +40,6 @@ have disabled the InnoDB inlining in this file. */
 #include "ha_innodb.h"
 #include <mysql/plugin.h>
 
-#ifndef MYSQL_SERVER
-/* This is needed because of Bug #3596. Let us hope that pthread_mutex_t
-is defined the same in both builds: the MySQL server and the InnoDB plugin. */
-extern pthread_mutex_t LOCK_thread_count;
-#endif /* MYSQL_SERVER */
-
 /** to protect innobase_open_files */
 static pthread_mutex_t innobase_share_mutex;
 /** to force correct commit order in binlog */
@@ -662,6 +656,12 @@ convert_error_code_to_mysql(
 
 	} else if (error == (int) DB_DUPLICATE_KEY) {
 
+		/* Be cautious with returning this error, since
+		mysql could re-enter the storage layer to get
+		duplicated key info, the operation requires a
+		valid table handle and/or transaction information,
+		which might not always be available in the error
+		handling stage. */
 		return(HA_ERR_FOUND_DUPP_KEY);
 
 	} else if (error == (int) DB_FOREIGN_DUPLICATE_KEY) {
@@ -762,35 +762,6 @@ convert_error_code_to_mysql(
     	} else {
     		return(-1);			// Unknown error
     	}
-}
-
-/*****************************************************************
-If you want to print a thd that is not associated with the current thread,
-you must call this function before reserving the InnoDB kernel_mutex, to
-protect MySQL from setting thd->query NULL. If you print a thd of the current
-thread, we know that MySQL cannot modify thd->query, and it is not necessary
-to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
-the kernel_mutex.
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
-extern "C"
-void
-innobase_mysql_prepare_print_arbitrary_thd(void)
-/*============================================*/
-{
-	VOID(pthread_mutex_lock(&LOCK_thread_count));
-}
-
-/*****************************************************************
-Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
-NOTE that /mysql/innobase/lock/lock0lock.c must contain the prototype for this
-function! */
-extern "C"
-void
-innobase_mysql_end_print_arbitrary_thd(void)
-/*========================================*/
-{
-	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 }
 
 /*****************************************************************
@@ -1499,70 +1470,148 @@ innobase_invalidate_query_cache(
 #endif
 }
 
-/*********************************************************************
-Display an SQL identifier. */
-extern "C"
-void
-innobase_print_identifier(
-/*======================*/
-	FILE*		f,	/* in: output stream */
-	trx_t*		trx,	/* in: transaction */
-	ibool		table_id,/* in: TRUE=print a table name,
-				FALSE=print other identifier */
-	const char*	name,	/* in: name to print */
-	ulint		namelen)/* in: length of name */
+/*****************************************************************//**
+Convert an SQL identifier to the MySQL system_charset_info (UTF-8)
+and quote it if needed.
+@return	pointer to the end of buf */
+static
+char*
+innobase_convert_identifier(
+/*========================*/
+	char*		buf,	/*!< out: buffer for converted identifier */
+	ulint		buflen,	/*!< in: length of buf, in bytes */
+	const char*	id,	/*!< in: identifier to convert */
+	ulint		idlen,	/*!< in: length of id, in bytes */
+	void*		thd,	/*!< in: MySQL connection thread, or NULL */
+	ibool		file_id)/*!< in: TRUE=id is a table or database name;
+				FALSE=id is an UTF-8 string */
 {
-	const char*	s	= name;
-	char*		qname	= NULL;
+	char nz[NAME_LEN + 1];
+#if MYSQL_VERSION_ID >= 50141
+	char nz2[NAME_LEN + 1 + EXPLAIN_FILENAME_MAX_EXTRA_LENGTH];
+#else /* MYSQL_VERSION_ID >= 50141 */
+	char nz2[NAME_LEN + 1 + sizeof srv_mysql50_table_name_prefix];
+#endif /* MYSQL_VERSION_ID >= 50141 */
+
+	const char*	s	= id;
 	int		q;
 
-	if (table_id) {
-		/* Decode the table name.  The filename_to_tablename()
-		function expects a NUL-terminated string.  The input and
-		output strings buffers must not be shared.  The function
-		only produces more output when the name contains other
-		characters than [0-9A-Z_a-z]. */
-          char*	temp_name = (char*) my_malloc((uint) namelen + 1, MYF(MY_WME));
-          uint	qnamelen = (uint) (namelen
-                                   + (1 + sizeof srv_mysql50_table_name_prefix));
+	if (file_id) {
+		/* Decode the table name.  The MySQL function expects
+		a NUL-terminated string.  The input and output strings
+		buffers must not be shared. */
 
-		if (temp_name) {
-                  qname = (char*) my_malloc(qnamelen, MYF(MY_WME));
-			if (qname) {
-				memcpy(temp_name, name, namelen);
-				temp_name[namelen] = 0;
-				s = qname;
-				namelen = filename_to_tablename(temp_name,
-						qname, qnamelen);
-			}
-			my_free(temp_name, MYF(0));
+		if (UNIV_UNLIKELY(idlen > (sizeof nz) - 1)) {
+			idlen = (sizeof nz) - 1;
 		}
+
+		memcpy(nz, id, idlen);
+		nz[idlen] = 0;
+
+		s = nz2;
+#if MYSQL_VERSION_ID >= 50141
+		idlen = explain_filename((THD*) thd, nz, nz2, sizeof nz2,
+					 EXPLAIN_PARTITIONS_AS_COMMENT);
+		goto no_quote;
+#else /* MYSQL_VERSION_ID >= 50141 */
+		idlen = filename_to_tablename(nz, nz2, sizeof nz2);
+#endif /* MYSQL_VERSION_ID >= 50141 */
 	}
 
-	if (!trx || !trx->mysql_thd) {
-
+	/* See if the identifier needs to be quoted. */
+	if (UNIV_UNLIKELY(!thd)) {
 		q = '"';
 	} else {
-		q = get_quote_char_for_identifier((THD*) trx->mysql_thd,
-						s, (int) namelen);
+		q = get_quote_char_for_identifier((THD*) thd, s, (int) idlen);
 	}
 
 	if (q == EOF) {
-		fwrite(s, 1, namelen, f);
-	} else {
-		const char*	e = s + namelen;
-		putc(q, f);
-		while (s < e) {
-			int	c = *s++;
-			if (c == q) {
-				putc(c, f);
-			}
-			putc(c, f);
+#if MYSQL_VERSION_ID >= 50141
+no_quote:
+#endif /* MYSQL_VERSION_ID >= 50141 */
+		if (UNIV_UNLIKELY(idlen > buflen)) {
+			idlen = buflen;
 		}
-		putc(q, f);
+		memcpy(buf, s, idlen);
+		return(buf + idlen);
 	}
 
-	my_free(qname, MYF(MY_ALLOW_ZERO_PTR));
+	/* Quote the identifier. */
+	if (buflen < 2) {
+		return(buf);
+	}
+
+	*buf++ = q;
+	buflen--;
+
+	for (; idlen; idlen--) {
+		int	c = *s++;
+		if (UNIV_UNLIKELY(c == q)) {
+			if (UNIV_UNLIKELY(buflen < 3)) {
+				break;
+			}
+
+			*buf++ = c;
+			*buf++ = c;
+			buflen -= 2;
+		} else {
+			if (UNIV_UNLIKELY(buflen < 2)) {
+				break;
+			}
+
+			*buf++ = c;
+			buflen--;
+		}
+	}
+
+	*buf++ = q;
+	return(buf);
+}
+
+/*****************************************************************//**
+Convert a table or index name to the MySQL system_charset_info (UTF-8)
+and quote it if needed.
+@return	pointer to the end of buf */
+extern "C"
+char*
+innobase_convert_name(
+/*==================*/
+	char*		buf,	/*!< out: buffer for converted identifier */
+	ulint		buflen,	/*!< in: length of buf, in bytes */
+	const char*	id,	/*!< in: identifier to convert */
+	ulint		idlen,	/*!< in: length of id, in bytes */
+	void*		thd,	/*!< in: MySQL connection thread, or NULL */
+	ibool		table_id)/*!< in: TRUE=id is a table or database name;
+				FALSE=id is an index name */
+{
+	char*		s	= buf;
+	const char*	bufend	= buf + buflen;
+
+	if (table_id) {
+		const char*	slash = (const char*) memchr(id, '/', idlen);
+		if (!slash) {
+
+			goto no_db_name;
+		}
+
+		/* Print the database name and table name separately. */
+		s = innobase_convert_identifier(s, bufend - s, id, slash - id,
+						thd, TRUE);
+		if (UNIV_LIKELY(s < bufend)) {
+			*s++ = '.';
+			s = innobase_convert_identifier(s, bufend - s,
+							slash + 1, idlen
+							- (slash - id) - 1,
+							thd, TRUE);
+		}
+	} else {
+no_db_name:
+		s = innobase_convert_identifier(buf, buflen, id, idlen,
+						thd, table_id);
+	}
+
+	return(s);
+
 }
 
 /**************************************************************************
@@ -2537,57 +2586,150 @@ normalize_table_name(
 }
 
 /************************************************************************
+Get the upper limit of the MySQL integral and floating-point type. */
+static
+ulonglong
+innobase_get_int_col_max_value(
+/*===========================*/
+				/* out: maximum allowed value for the field */
+	const Field*	field)	/* in: MySQL field */
+{
+	ulonglong	max_value = 0;
+
+	switch(field->key_type()) {
+	/* TINY */
+	case HA_KEYTYPE_BINARY:
+		max_value = 0xFFULL;
+		break;
+	case HA_KEYTYPE_INT8:
+		max_value = 0x7FULL;
+		break;
+	/* SHORT */
+	case HA_KEYTYPE_USHORT_INT:
+		max_value = 0xFFFFULL;
+		break;
+	case HA_KEYTYPE_SHORT_INT:
+		max_value = 0x7FFFULL;
+		break;
+	/* MEDIUM */
+	case HA_KEYTYPE_UINT24:
+		max_value = 0xFFFFFFULL;
+		break;
+	case HA_KEYTYPE_INT24:
+		max_value = 0x7FFFFFULL;
+		break;
+	/* LONG */
+	case HA_KEYTYPE_ULONG_INT:
+		max_value = 0xFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_LONG_INT:
+		max_value = 0x7FFFFFFFULL;
+		break;
+	/* BIG */
+	case HA_KEYTYPE_ULONGLONG:
+		max_value = 0xFFFFFFFFFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_LONGLONG:
+		max_value = 0x7FFFFFFFFFFFFFFFULL;
+		break;
+	case HA_KEYTYPE_FLOAT:
+		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
+		max_value = 0x1000000ULL;
+		break;
+	case HA_KEYTYPE_DOUBLE:
+		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
+		max_value = 0x20000000000000ULL;
+		break;
+	default:
+		ut_error;
+	}
+
+	return(max_value);
+}
+
+/************************************************************************
 Set the autoinc column max value. This should only be called once from
 ha_innobase::open(). Therefore there's no need for a covering lock. */
 
-ulong
+void
 ha_innobase::innobase_initialize_autoinc()
 /*======================================*/
 {
-	dict_index_t*	index;
 	ulonglong	auto_inc;
-	const char*	col_name;
-	ulint		error = DB_SUCCESS;
-	dict_table_t*	innodb_table = prebuilt->table;
+	const Field*	field = table->found_next_number_field;
 
-	col_name = table->found_next_number_field->field_name;
-	index = innobase_get_index(table->s->next_number_index);
-
-	/* Execute SELECT MAX(col_name) FROM TABLE; */
-	error = row_search_max_autoinc(index, col_name, &auto_inc);
-
-	if (error == DB_SUCCESS) {
-
-		/* At the this stage we dont' know the increment
-		or the offset, so use default inrement of 1. */
-		++auto_inc;
-
-		dict_table_autoinc_initialize(innodb_table, auto_inc);
-
-	} else if (error == DB_RECORD_NOT_FOUND) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
-			"dictionaries are out of sync.\n"
-			"InnoDB: Unable to find the AUTOINC column %s in the "
-			"InnoDB table %s.\n"
-			"InnoDB: We set the next AUTOINC column value to the "
-			"maximum possible value,\n"
-			"InnoDB: in effect disabling the AUTOINC next value "
-			"generation.\n"
-			"InnoDB: You can either set the next AUTOINC value "
-			"explicitly using ALTER TABLE\n"
-			"InnoDB: or fix the data dictionary by recreating "
-			"the table.\n",
-			col_name, index->table->name);
-
+	if (field != NULL) {
+		auto_inc = innobase_get_int_col_max_value(field);
+	} else {
+		/* We have no idea what's been passed in to us as the
+		autoinc column. We set it to the MAX_INT of our table
+		autoinc type. */
 		auto_inc = 0xFFFFFFFFFFFFFFFFULL;
 
-		dict_table_autoinc_initialize(innodb_table, auto_inc);
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Unable to determine the AUTOINC "
+				"column name\n");
+	}
 
-		error = DB_SUCCESS;
-	} /* else other errors are still fatal */
+	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {
+		/* If the recovery level is set so high that writes
+		are disabled we force the AUTOINC counter to the MAX
+		value effectively disabling writes to the table.
+		Secondly, we avoid reading the table in case the read
+		results in failure due to a corrupted table/index.
 
-	return(ulong(error));
+		We will not return an error to the client, so that the
+		tables can be dumped with minimal hassle.  If an error
+		were returned in this case, the first attempt to read
+		the table would fail and subsequent SELECTs would succeed. */
+	} else if (field == NULL) {
+		my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+	} else {
+		dict_index_t*	index;
+		const char*	col_name;
+		ulonglong	read_auto_inc;
+		ulint		err;
+
+		update_thd(ha_thd());
+		col_name = field->field_name;
+		index = innobase_get_index(table->s->next_number_index);
+
+		/* Execute SELECT MAX(col_name) FROM TABLE; */
+		err = row_search_max_autoinc(index, col_name, &read_auto_inc);
+
+		switch (err) {
+		case DB_SUCCESS:
+			/* At the this stage we do not know the increment
+			or the offset, so use a default increment of 1. */
+			auto_inc = read_auto_inc + 1;
+			break;
+
+		case DB_RECORD_NOT_FOUND:
+			ut_print_timestamp(stderr);
+			fprintf(stderr, "  InnoDB: MySQL and InnoDB data "
+				"dictionaries are out of sync.\n"
+				"InnoDB: Unable to find the AUTOINC column "
+				"%s in the InnoDB table %s.\n"
+				"InnoDB: We set the next AUTOINC column "
+				"value to the maximum possible value,\n"
+				"InnoDB: in effect disabling the AUTOINC "
+				"next value generation.\n"
+				"InnoDB: You can either set the next "
+				"AUTOINC value explicitly using ALTER TABLE\n"
+				"InnoDB: or fix the data dictionary by "
+				"recreating the table.\n",
+				col_name, index->table->name);
+
+			my_error(ER_AUTOINC_READ_FAILED, MYF(0));
+			break;
+		default:
+			/* row_search_max_autoinc() should only return
+			one of DB_SUCCESS or DB_RECORD_NOT_FOUND. */
+			ut_error;
+		}
+	}
+
+	dict_table_autoinc_initialize(prebuilt->table, auto_inc);
 }
 
 /*********************************************************************
@@ -2785,8 +2927,6 @@ retry:
 
 	/* Only if the table has an AUTOINC column. */
 	if (prebuilt->table != NULL && table->found_next_number_field != NULL) {
-		ulint	error;
-
 		dict_table_autoinc_lock(prebuilt->table);
 
 		/* Since a table can already be "open" in InnoDB's internal
@@ -2795,8 +2935,7 @@ retry:
 		autoinc value from a previous MySQL open. */
 		if (dict_table_autoinc_read(prebuilt->table) == 0) {
 
-			error = innobase_initialize_autoinc();
-			ut_a(error == DB_SUCCESS);
+			innobase_initialize_autoinc();
 		}
 
 		dict_table_autoinc_unlock(prebuilt->table);
@@ -3612,67 +3751,6 @@ skip_field:
 }
 
 /************************************************************************
-Get the upper limit of the MySQL integral and floating-point type. */
-
-ulonglong
-ha_innobase::innobase_get_int_col_max_value(
-/*========================================*/
-	const Field*	field)
-{
-	ulonglong	max_value = 0;
-
-	switch(field->key_type()) {
-	/* TINY */
-	case HA_KEYTYPE_BINARY:
-		max_value = 0xFFULL;
-		break;
-	case HA_KEYTYPE_INT8:
-		max_value = 0x7FULL;
-		break;
-	/* SHORT */
-	case HA_KEYTYPE_USHORT_INT:
-		max_value = 0xFFFFULL;
-		break;
-	case HA_KEYTYPE_SHORT_INT:
-		max_value = 0x7FFFULL;
-		break;
-	/* MEDIUM */
-	case HA_KEYTYPE_UINT24:
-		max_value = 0xFFFFFFULL;
-		break;
-	case HA_KEYTYPE_INT24:
-		max_value = 0x7FFFFFULL;
-		break;
-	/* LONG */
-	case HA_KEYTYPE_ULONG_INT:
-		max_value = 0xFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_LONG_INT:
-		max_value = 0x7FFFFFFFULL;
-		break;
-	/* BIG */
-	case HA_KEYTYPE_ULONGLONG:
-		max_value = 0xFFFFFFFFFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_LONGLONG:
-		max_value = 0x7FFFFFFFFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_FLOAT:
-		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
-		max_value = 0x1000000ULL;
-		break;
-	case HA_KEYTYPE_DOUBLE:
-		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
-		max_value = 0x20000000000000ULL;
-		break;
-	default:
-		ut_error;
-	}
-
-	return(max_value);
-}
-
-/************************************************************************
 This special handling is really to overcome the limitations of MySQL's
 binlogging. We need to eliminate the non-determinism that will arise in
 INSERT ... SELECT type of statements, since MySQL binlog only stores the
@@ -3986,24 +4064,29 @@ no_commit:
 			update the table upper limit. Note: last_value
 			will be 0 if get_auto_increment() was not called.*/
 
-			if (auto_inc <= col_max_value
-			    && auto_inc >= prebuilt->autoinc_last_value) {
+			if (auto_inc >= prebuilt->autoinc_last_value) {
 set_max_autoinc:
-				ut_a(prebuilt->autoinc_increment > 0);
+				/* This should filter out the negative
+				values set explicitly by the user. */
+				if (auto_inc <= col_max_value) {
+					ut_a(prebuilt->autoinc_increment > 0);
 
-				ulonglong	need;
-				ulonglong	offset;
+					ulonglong	need;
+					ulonglong	offset;
 
-				offset = prebuilt->autoinc_offset;
-				need = prebuilt->autoinc_increment;
+					offset = prebuilt->autoinc_offset;
+					need = prebuilt->autoinc_increment;
 
-				auto_inc = innobase_next_autoinc(
-					auto_inc, need, offset, col_max_value);
+					auto_inc = innobase_next_autoinc(
+						auto_inc,
+						need, offset, col_max_value);
 
-				err = innobase_set_max_autoinc(auto_inc);
+					err = innobase_set_max_autoinc(
+						auto_inc);
 
-				if (err != DB_SUCCESS) {
-					error = err;
+					if (err != DB_SUCCESS) {
+						error = err;
+					}
 				}
 			}
 			break;
@@ -5970,6 +6053,24 @@ ha_innobase::rename_table(
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 
+	/* Add a special case to handle the Duplicated Key error
+	and return DB_ERROR instead.
+	This is to avoid a possible SIGSEGV error from mysql error
+	handling code. Currently, mysql handles the Duplicated Key
+	error by re-entering the storage layer and getting dup key
+	info by calling get_dup_key(). This operation requires a valid
+	table handle ('row_prebuilt_t' structure) which could no
+	longer be available in the error handling stage. The suggested
+	solution is to report a 'table exists' error message (since
+	the dup key error here is due to an existing table whose name
+	is the one we are trying to rename to) and return the generic
+	error code. */
+	if (error == (int) DB_DUPLICATE_KEY) {
+		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
+
+		error = DB_ERROR;
+	}
+
 	error = convert_error_code_to_mysql(error, NULL);
 
 	DBUG_RETURN(error);
@@ -7332,8 +7433,8 @@ innodb_show_status(
 
 	mutex_enter_noninline(&srv_monitor_file_mutex);
 	rewind(srv_monitor_file);
-	srv_printf_innodb_monitor(srv_monitor_file,
-				&trx_list_start, &trx_list_end);
+	srv_printf_innodb_monitor(srv_monitor_file, FALSE,
+				  &trx_list_start, &trx_list_end);
 	flen = ftell(srv_monitor_file);
 	os_file_set_eof(srv_monitor_file);
 
@@ -8204,8 +8305,7 @@ innobase_xa_prepare(
 		executing XA PREPARE and XA COMMIT commands.
 		In this case we cannot know how many minutes or hours
 		will be between XA PREPARE and XA COMMIT, and we don't want
-		to block for undefined period of time.
-		*/
+		to block for undefined period of time. */
 		pthread_mutex_lock(&prepare_commit_mutex);
 		trx->active_trans = 2;
 	}

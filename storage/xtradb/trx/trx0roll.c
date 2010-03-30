@@ -66,9 +66,9 @@ int
 trx_general_rollback_for_mysql(
 /*===========================*/
 	trx_t*		trx,	/*!< in: transaction handle */
-	ibool		partial,/*!< in: TRUE if partial rollback requested */
 	trx_savept_t*	savept)	/*!< in: pointer to savepoint undo number, if
-				partial rollback requested */
+				partial rollback requested, or NULL for
+				complete rollback */
 {
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
@@ -85,9 +85,8 @@ trx_general_rollback_for_mysql(
 
 	roll_node = roll_node_create(heap);
 
-	roll_node->partial = partial;
-
-	if (partial) {
+	if (savept) {
+		roll_node->partial = TRUE;
 		roll_node->savept = *savept;
 	}
 
@@ -145,7 +144,7 @@ trx_rollback_for_mysql(
 	the transaction object does not have an InnoDB session object, and we
 	set a dummy session that we use for all MySQL transactions. */
 
-	err = trx_general_rollback_for_mysql(trx, FALSE, NULL);
+	err = trx_general_rollback_for_mysql(trx, NULL);
 
 	trx->op_info = "";
 
@@ -170,8 +169,7 @@ trx_rollback_last_sql_stat_for_mysql(
 
 	trx->op_info = "rollback of SQL statement";
 
-	err = trx_general_rollback_for_mysql(trx, TRUE,
-					     &(trx->last_sql_stat_start));
+	err = trx_general_rollback_for_mysql(trx, &trx->last_sql_stat_start);
 	/* The following call should not be needed, but we play safe: */
 	trx_mark_sql_stat_end(trx);
 
@@ -282,7 +280,7 @@ trx_rollback_to_savepoint_for_mysql(
 
 	trx->op_info = "rollback to a savepoint";
 
-	err = trx_general_rollback_for_mysql(trx, TRUE, &(savep->savept));
+	err = trx_general_rollback_for_mysql(trx, &savep->savept);
 
 	/* Store the current undo_no of the transaction so that we know where
 	to roll back if we have to roll back the next SQL statement: */
@@ -534,28 +532,26 @@ trx_rollback_active(
 Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
 committed, then we clean up a possible insert undo log. If the
-transaction was not yet committed, then we roll it back.
-Note: this is done in a background thread.
-@return	a dummy parameter */
+transaction was not yet committed, then we roll it back. */
 UNIV_INTERN
-os_thread_ret_t
-trx_rollback_or_clean_all_recovered(
-/*================================*/
-	void*	arg __attribute__((unused)))
-			/*!< in: a dummy parameter required by
-			os_thread_create */
+void
+trx_rollback_or_clean_recovered(
+/*============================*/
+	ibool	all)	/*!< in: FALSE=roll back dictionary transactions;
+			TRUE=roll back all non-PREPARED transactions */
 {
 	trx_t*	trx;
 
 	mutex_enter(&kernel_mutex);
 
-	if (UT_LIST_GET_FIRST(trx_sys->trx_list)) {
+	if (!UT_LIST_GET_FIRST(trx_sys->trx_list)) {
+		goto leave_function;
+	}
 
+	if (all) {
 		fprintf(stderr,
 			"InnoDB: Starting in background the rollback"
 			" of uncommitted transactions\n");
-	} else {
-		goto leave_function;
 	}
 
 	mutex_exit(&kernel_mutex);
@@ -584,18 +580,42 @@ loop:
 			goto loop;
 
 		case TRX_ACTIVE:
-			mutex_exit(&kernel_mutex);
-			trx_rollback_active(trx);
-			goto loop;
+			if (all || trx_get_dict_operation(trx)
+			    != TRX_DICT_OP_NONE) {
+				mutex_exit(&kernel_mutex);
+				trx_rollback_active(trx);
+				goto loop;
+			}
 		}
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Rollback of non-prepared transactions completed\n");
+	if (all) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Rollback of non-prepared"
+			" transactions completed\n");
+	}
 
 leave_function:
 	mutex_exit(&kernel_mutex);
+}
+
+/*******************************************************************//**
+Rollback or clean up any incomplete transactions which were
+encountered in crash recovery.  If the transaction already was
+committed, then we clean up a possible insert undo log. If the
+transaction was not yet committed, then we roll it back.
+Note: this is done in a background thread.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+trx_rollback_or_clean_all_recovered(
+/*================================*/
+	void*	arg __attribute__((unused)))
+			/*!< in: a dummy parameter required by
+			os_thread_create */
+{
+	trx_rollback_or_clean_recovered(TRUE);
 
 	/* We count the number of threads in os_thread_exit(). A created
 	thread should always use that to exit and not use return() to exit. */

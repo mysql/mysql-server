@@ -110,9 +110,6 @@ extern "C" {
 # ifndef MYSQL_PLUGIN_IMPORT
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
-/* This is needed because of Bug #3596. Let us hope that pthread_mutex_t
-is defined the same in both builds: the MySQL server and the InnoDB plugin. */
-extern MYSQL_PLUGIN_IMPORT pthread_mutex_t LOCK_thread_count;
 
 #if MYSQL_VERSION_ID < 50124
 /* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
@@ -269,10 +266,10 @@ innobase_file_format_check_on_off(
 /************************************************************//**
 Validate the file format check config parameters, as a side effect it
 sets the srv_check_file_format_at_startup variable.
-@return	true if valid config value */
+@return	the format_id if valid config value, otherwise, return -1 */
 static
-bool
-innobase_file_format_check_validate(
+int
+innobase_file_format_validate_and_set(
 /*================================*/
 	const char*	format_check);		/*!< in: parameter value */
 /****************************************************************//**
@@ -785,11 +782,20 @@ convert_error_code_to_mysql(
 	case DB_SUCCESS:
 		return(0);
 
+	case DB_INTERRUPTED:
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		/* fall through */
 	case DB_ERROR:
 	default:
 		return(-1); /* unspecified error */
 
 	case DB_DUPLICATE_KEY:
+		/* Be cautious with returning this error, since
+		mysql could re-enter the storage layer to get
+		duplicated key info, the operation requires a
+		valid table handle and/or transaction information,
+		which might not always be available in the error
+		handling stage. */
 		return(HA_ERR_FOUND_DUPP_KEY);
 
 	case DB_FOREIGN_DUPLICATE_KEY:
@@ -887,36 +893,6 @@ convert_error_code_to_mysql(
 	case DB_UNSUPPORTED:
 		return(HA_ERR_UNSUPPORTED);
 	}
-}
-
-/*************************************************************//**
-If you want to print a thd that is not associated with the current thread,
-you must call this function before reserving the InnoDB kernel_mutex, to
-protect MySQL from setting thd->query NULL. If you print a thd of the current
-thread, we know that MySQL cannot modify thd->query, and it is not necessary
-to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
-the kernel_mutex. */
-extern "C" UNIV_INTERN
-void
-innobase_mysql_prepare_print_arbitrary_thd(void)
-/*============================================*/
-{
-	ut_ad(!mutex_own(&kernel_mutex));
-	VOID(pthread_mutex_lock(&LOCK_thread_count));
-}
-
-/*************************************************************//**
-Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
-In the InnoDB latching order, the mutex sits right above the
-kernel_mutex.  In debug builds, we assert that the kernel_mutex is
-released before this function is invoked. */
-extern "C" UNIV_INTERN
-void
-innobase_mysql_end_print_arbitrary_thd(void)
-/*========================================*/
-{
-	ut_ad(!mutex_own(&kernel_mutex));
-	VOID(pthread_mutex_unlock(&LOCK_thread_count));
 }
 
 /*************************************************************//**
@@ -1707,15 +1683,19 @@ innobase_convert_identifier(
 				FALSE=id is an UTF-8 string */
 {
 	char nz[NAME_LEN + 1];
+#if MYSQL_VERSION_ID >= 50141
+	char nz2[NAME_LEN + 1 + EXPLAIN_FILENAME_MAX_EXTRA_LENGTH];
+#else /* MYSQL_VERSION_ID >= 50141 */
 	char nz2[NAME_LEN + 1 + sizeof srv_mysql50_table_name_prefix];
+#endif /* MYSQL_VERSION_ID >= 50141 */
 
 	const char*	s	= id;
 	int		q;
 
 	if (file_id) {
-		/* Decode the table name.  The filename_to_tablename()
-		function expects a NUL-terminated string.  The input and
-		output strings buffers must not be shared. */
+		/* Decode the table name.  The MySQL function expects
+		a NUL-terminated string.  The input and output strings
+		buffers must not be shared. */
 
 		if (UNIV_UNLIKELY(idlen > (sizeof nz) - 1)) {
 			idlen = (sizeof nz) - 1;
@@ -1725,7 +1705,13 @@ innobase_convert_identifier(
 		nz[idlen] = 0;
 
 		s = nz2;
+#if MYSQL_VERSION_ID >= 50141
+		idlen = explain_filename((THD*) thd, nz, nz2, sizeof nz2,
+					 EXPLAIN_PARTITIONS_AS_COMMENT);
+		goto no_quote;
+#else /* MYSQL_VERSION_ID >= 50141 */
 		idlen = filename_to_tablename(nz, nz2, sizeof nz2);
+#endif /* MYSQL_VERSION_ID >= 50141 */
 	}
 
 	/* See if the identifier needs to be quoted. */
@@ -1736,6 +1722,9 @@ innobase_convert_identifier(
 	}
 
 	if (q == EOF) {
+#if MYSQL_VERSION_ID >= 50141
+no_quote:
+#endif /* MYSQL_VERSION_ID >= 50141 */
 		if (UNIV_UNLIKELY(idlen > buflen)) {
 			idlen = buflen;
 		}
@@ -2133,8 +2122,8 @@ mem_free_and_error:
 		/* Did the user specify a format name that we support ?
 		As a side effect it will update the variable
 		srv_check_file_format_at_startup */
-		if (!innobase_file_format_check_validate(
-			innobase_file_format_check)) {
+		if (innobase_file_format_validate_and_set(
+				innobase_file_format_check) < 0) {
 
 			sql_print_error("InnoDB: invalid "
 					"innodb_file_format_check value: "
@@ -5225,8 +5214,10 @@ ha_innobase::change_active_index(
 							   prebuilt->index);
 
 	if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
-		sql_print_warning("InnoDB: insufficient history for index %u",
-				  keynr);
+		push_warning_printf(user_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				    HA_ERR_TABLE_DEF_CHANGED,
+				    "InnoDB: insufficient history for index %u",
+				    keynr);
 		/* The caller seems to ignore this.  Thus, we must check
 		this again in row_search_for_mysql(). */
 		DBUG_RETURN(2);
@@ -5713,17 +5704,8 @@ create_table_def(
 		/* First check whether the column to be added has a
 		system reserved name. */
 		if (dict_col_name_is_reserved(field->field_name)){
-			push_warning_printf(
-				(THD*) trx->mysql_thd,
-				MYSQL_ERROR::WARN_LEVEL_WARN,
-				ER_CANT_CREATE_TABLE,
-				"Error creating table '%s' with "
-				"column name '%s'. '%s' is a "
-				"reserved name. Please try to "
-				"re-create the table with a "
-				"different column name.",
-				table->name, (char*) field->field_name,
-				(char*) field->field_name);
+			my_error(ER_WRONG_COLUMN_NAME, MYF(0),
+				 field->field_name);
 
 			dict_mem_table_free(table);
 			trx_commit_for_mysql(trx);
@@ -5744,6 +5726,14 @@ create_table_def(
 	}
 
 	error = row_create_table_for_mysql(table, trx);
+
+	if (error == DB_DUPLICATE_KEY) {
+		char buf[100];
+		innobase_convert_identifier(buf, sizeof buf,
+					    table_name, strlen(table_name),
+					    trx->mysql_thd, TRUE);
+		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), buf);
+	}
 
 error_ret:
 	error = convert_error_code_to_mysql(error, flags, NULL);
@@ -6798,6 +6788,24 @@ ha_innobase::rename_table(
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 
+	/* Add a special case to handle the Duplicated Key error
+	and return DB_ERROR instead.
+	This is to avoid a possible SIGSEGV error from mysql error
+	handling code. Currently, mysql handles the Duplicated Key
+	error by re-entering the storage layer and getting dup key
+	info by calling get_dup_key(). This operation requires a valid
+	table handle ('row_prebuilt_t' structure) which could no
+	longer be available in the error handling stage. The suggested
+	solution is to report a 'table exists' error message (since
+	the dup key error here is due to an existing table whose name
+	is the one we are trying to rename to) and return the generic
+	error code. */
+	if (error == (int) DB_DUPLICATE_KEY) {
+		my_error(ER_TABLE_EXISTS_ERROR, MYF(0), to);
+
+		error = DB_ERROR;
+	}
+
 	error = convert_error_code_to_mysql(error, 0, NULL);
 
 	DBUG_RETURN(error);
@@ -7348,11 +7356,15 @@ ha_innobase::check(
 
 	ret = row_check_table_for_mysql(prebuilt);
 
-	if (ret == DB_SUCCESS) {
+	switch (ret) {
+	case DB_SUCCESS:
 		return(HA_ADMIN_OK);
+	case DB_INTERRUPTED:
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		return(-1);
+	default:
+		return(HA_ADMIN_CORRUPT);
 	}
-
-	return(HA_ADMIN_CORRUPT);
 }
 
 /*************************************************************//**
@@ -7899,7 +7911,10 @@ ha_innobase::external_lock(
 		ulong const tx_isolation = thd_tx_isolation(ha_thd());
 		if (tx_isolation <= ISO_READ_COMMITTED
                    && binlog_format == BINLOG_FORMAT_STMT
-                   && thd_binlog_filter_ok(thd))
+#if MYSQL_VERSION_ID > 50140
+                   && thd_binlog_filter_ok(thd)
+#endif /* MYSQL_VERSION_ID > 50140 */
+		   )
 		{
 			char buf[256];
 			my_snprintf(buf, sizeof(buf),
@@ -9148,8 +9163,7 @@ innobase_xa_prepare(
 		executing XA PREPARE and XA COMMIT commands.
 		In this case we cannot know how many minutes or hours
 		will be between XA PREPARE and XA COMMIT, and we don't want
-		to block for undefined period of time.
-		*/
+		to block for undefined period of time. */
 		pthread_mutex_lock(&prepare_commit_mutex);
 		trx->active_trans = 2;
 	}
@@ -9491,25 +9505,24 @@ innobase_file_format_check_on_off(
 /************************************************************//**
 Validate the file format check config parameters, as a side effect it
 sets the srv_check_file_format_at_startup variable.
-@return	true if valid config value */
+@return the format_id if valid config value, otherwise, return -1 */
 static
-bool
-innobase_file_format_check_validate(
+int
+innobase_file_format_validate_and_set(
 /*================================*/
 	const char*	format_check)	/*!< in: parameter value */
 {
 	uint		format_id;
-	bool		ret = true;
 
 	format_id = innobase_file_format_name_lookup(format_check);
 
 	if (format_id < DICT_TF_FORMAT_MAX + 1) {
 		srv_check_file_format_at_startup = format_id;
-	} else {
-		ret = false;
-	}
 
-	return(ret);
+		return((int) format_id);
+	} else {
+		return(-1);
+	}
 }
 
 /*************************************************************//**
@@ -9544,7 +9557,11 @@ innodb_file_format_name_validate(
 
 		if (format_id <= DICT_TF_FORMAT_MAX) {
 
-			*static_cast<const char**>(save) = file_format_input;
+			/* Save a pointer to the name in the
+			'file_format_name_map' constant array. */
+			*static_cast<const char**>(save) =
+			    trx_sys_file_format_id_to_name(format_id);
+
 			return(0);
 		}
 	}
@@ -9607,6 +9624,7 @@ innodb_file_format_check_validate(
 	const char*	file_format_input;
 	char		buff[STRING_BUFFER_USUAL_SIZE];
 	int		len = sizeof(buff);
+	int		format_id;
 
 	ut_a(save != NULL);
 	ut_a(value != NULL);
@@ -9619,24 +9637,35 @@ innodb_file_format_check_validate(
 		message if they did so. */
 
 		if (innobase_file_format_check_on_off(file_format_input)) {
-			sql_print_warning(
+			push_warning_printf(thd,
+				MYSQL_ERROR::WARN_LEVEL_WARN,
+				ER_WRONG_ARGUMENTS,
 				"InnoDB: invalid innodb_file_format_check "
 				"value; on/off can only be set at startup or "
 				"in the configuration file");
-		} else if (innobase_file_format_check_validate(
-				file_format_input)) {
-
-			*static_cast<const char**>(save) = file_format_input;
-
-			return(0);
-
 		} else {
-			sql_print_warning(
-				"InnoDB: invalid innodb_file_format_check "
-				"value; can be any format up to %s "
-				"or its equivalent numeric id",
-				trx_sys_file_format_id_to_name(
-					DICT_TF_FORMAT_MAX));
+			format_id = innobase_file_format_validate_and_set(
+							file_format_input);
+
+			if (format_id >= 0) {
+				/* Save a pointer to the name in the
+				'file_format_name_map' constant array. */
+				*static_cast<const char**>(save) =
+				    trx_sys_file_format_id_to_name(
+							(uint)format_id);
+
+				return(0);
+
+			} else {
+				push_warning_printf(thd,
+				  MYSQL_ERROR::WARN_LEVEL_WARN,
+				  ER_WRONG_ARGUMENTS,
+				  "InnoDB: invalid innodb_file_format_check "
+				  "value; can be any format up to %s "
+				  "or its equivalent numeric id",
+				  trx_sys_file_format_id_to_name(
+						DICT_TF_FORMAT_MAX));
+			}
 		}
 	}
 
@@ -9906,12 +9935,15 @@ static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
   innodb_file_format_name_validate,
   innodb_file_format_name_update, "Antelope");
 
+/* If a new file format is introduced, the file format
+name needs to be updated accordingly. Please refer to
+file_format_name_map[] defined in trx0sys.c for the next
+file format name. */
 static MYSQL_SYSVAR_STR(file_format_check, innobase_file_format_check,
   PLUGIN_VAR_OPCMDARG,
   "The highest file format in the tablespace.",
   innodb_file_format_check_validate,
-  innodb_file_format_check_update,
-  "on");
+  innodb_file_format_check_update, "Barracuda");
 
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,

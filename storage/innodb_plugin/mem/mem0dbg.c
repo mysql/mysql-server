@@ -170,6 +170,17 @@ mem_init(
 
 	mem_comm_pool = mem_pool_create(size);
 }
+
+/******************************************************************//**
+Closes the memory system. */
+UNIV_INTERN
+void
+mem_close(void)
+/*===========*/
+{
+	mem_pool_free(mem_comm_pool);
+	mem_comm_pool = NULL;
+}
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_MEM_DEBUG

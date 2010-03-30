@@ -1,0 +1,26 @@
+# Prerequisites
+let collation=utf8_unicode_ci;
+--source include/have_collation.inc
+
+# Initial cleanup
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+#
+# Bug#21380: DEFAULT definition not always transfered by CREATE
+# TABLE/SELECT to the new table.
+#
+
+CREATE TABLE t1(
+  c1 INT DEFAULT 12 COMMENT 'column1',
+  c2 INT NULL COMMENT 'column2',
+  c3 INT NOT NULL COMMENT 'column3',
+  c4 VARCHAR(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+  c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
+  c6 VARCHAR(255))
+  COLLATE latin1_bin;
+SHOW CREATE TABLE t1;
+CREATE TABLE t2 AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+DROP TABLE t1,t2;

@@ -617,7 +617,7 @@ sp_rcontext::set_case_expr(THD *thd, int case_expr_id, Item **case_expr_item_ptr
   }
 
   m_case_expr_holders[case_expr_id]->store(case_expr_item);
-
+  m_case_expr_holders[case_expr_id]->cache_value();
   return FALSE;
 }
 

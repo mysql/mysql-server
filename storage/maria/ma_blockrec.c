@@ -430,8 +430,9 @@ my_bool _ma_once_end_block_record(MARIA_SHARE *share)
   if (share->bitmap.file.file >= 0)
   {
     if (flush_pagecache_blocks(share->pagecache, &share->bitmap.file,
-                               share->temporary ? FLUSH_IGNORE_CHANGED :
-                               FLUSH_RELEASE))
+                               ((share->temporary || share->deleting) ?
+                                FLUSH_IGNORE_CHANGED :
+                                FLUSH_RELEASE)))
       res= 1;
     /*
       File must be synced as it is going out of the maria_open_list and so
@@ -1688,7 +1689,8 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
     if (!page_link.changed)
       goto crashed;
 
-    DBUG_ASSERT((res->buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type);
+    DBUG_ASSERT((uint) (res->buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) ==
+                page_type);
     if (!(dir= find_free_position(page_type == HEAD_PAGE ? info : 0,
                                   res->buff, block_size, &res->rownr,
                                   &res->length, &res->empty_space)))
@@ -6094,7 +6096,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
       DBUG_RETURN(0);
     }
 
-    if (((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != page_type))
+    if (((uint) (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != page_type))
     {
       /*
         This is a page that has been freed before and now should be
@@ -6241,7 +6243,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
       Note that in case the page is not anymore a head or tail page
       a future redo will fix the bitmap.
     */
-    if ((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type)
+    if ((uint) (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type)
     {
       empty_space= uint2korr(buff+EMPTY_SPACE_OFFSET);
       if (_ma_bitmap_set(info, page, page_type == HEAD_PAGE,

@@ -261,6 +261,18 @@ mem_pool_create(
 }
 
 /********************************************************************//**
+Frees a memory pool. */
+UNIV_INTERN
+void
+mem_pool_free(
+/*==========*/
+	mem_pool_t*	pool)	/*!< in, own: memory pool */
+{
+	ut_free(pool->buf);
+	ut_free(pool);
+}
+
+/********************************************************************//**
 Fills the specified free list.
 @return	TRUE if we were able to insert a block to the free list */
 static

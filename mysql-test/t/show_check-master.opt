@@ -1,1 +1,1 @@
---log-output=table --slow-query-log --log-long-format --log-queries-not-using-indexes --myisam-recover="" --general-log --general-log-file="" --slow-query-log-file=""
+--log-output=file --slow-query-log --log-long-format --log-queries-not-using-indexes --myisam-recover="" --general-log --general-log-file="foo" --slow-query-log-file=""

@@ -4,6 +4,7 @@
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS p1;
 --enable_warnings
 
 CREATE TABLE t1 ( number INT NOT NULL, alpha CHAR(6) NOT NULL );
@@ -110,5 +111,17 @@ EXPLAIN SELECT CONCAT('gui_', t2.a), t1.d FROM t2
 
 DROP TABLE t1, t2;
 
+
+--echo #
+--echo # Bug #50096: CONCAT_WS inside procedure returning wrong data
+--echo #
+
+CREATE PROCEDURE p1(a varchar(255), b int, c int)
+  SET @query = CONCAT_WS(",", a, b, c);
+
+CALL p1("abcde", "0", "1234");
+SELECT @query;
+
+DROP PROCEDURE p1;
 
 --echo # End of 5.1 tests

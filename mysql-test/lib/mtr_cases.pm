@@ -524,6 +524,10 @@ sub collect_one_suite
       next if ($test->{'name'} eq 'sys_vars.innodb_thread_concurrency_basic');
       # Can't work with InnoPlug. Test framework needs to be re-designed.
       next if ($test->{'name'} eq 'main.innodb_bug46000');
+      # Fails with innodb plugin
+      next if ($test->{'name'} eq 'main.innodb-autoinc');
+      # Fails with innodb plugin: r6185 Testcases changes not included
+      next if ($test->{'name'} eq 'main.innodb_bug44369');
       # Copy test options
       my $new_test= My::Test->new();
       while (my ($key, $value) = each(%$test))
@@ -677,6 +681,8 @@ sub optimize_cases {
 	  if ( $default_engine =~ /^ndb/i );
 	$tinfo->{'innodb_test'}= 1
 	  if ( $default_engine =~ /^innodb/i );
+	$tinfo->{'pbxt_test'}= 1
+	  if ( $default_engine =~ /^pbxt/i );
       }
     }
 
@@ -773,6 +779,8 @@ sub collect_one_test_case {
   my $filename=   shift;
   my $disabled=   shift;
   my $suite_opts= shift;
+
+  my $local_default_storage_engine= $default_storage_engine;
 
   #print "collect_one_test_case\n";
   #print " suitedir: $suitedir\n";
@@ -928,15 +936,26 @@ sub collect_one_test_case {
 
   tags_from_test_file($tinfo,"$testdir/${tname}.test");
 
-  if ( defined $default_storage_engine )
+  # Get default storage engine from suite.opt file
+
+  if (defined $suite_opts &&
+      "@$suite_opts" =~ "default-storage-engine=\s*([^\s]*)")
+  {
+    $local_default_storage_engine= $1;
+  }
+
+  if ( defined $local_default_storage_engine )
   {
     # Different default engine is used
     # tag test to require that engine
     $tinfo->{'ndb_test'}= 1
-      if ( $default_storage_engine =~ /^ndb/i );
+      if ( $local_default_storage_engine =~ /^ndb/i );
 
     $tinfo->{'innodb_test'}= 1
-      if ( $default_storage_engine =~ /^innodb/i );
+      if ( $local_default_storage_engine =~ /^innodb/i );
+
+    $tinfo->{'pbxt_test'}= 1
+      if ( $local_default_storage_engine =~ /^pbxt/i );
 
   }
 
@@ -1099,6 +1118,28 @@ sub collect_one_test_case {
     $tinfo->{template_path}= $config;
   }
 
+  if ( $tinfo->{'pbxt_test'} )
+  {
+    # This is a test that needs pbxt
+    if ( $::mysqld_variables{'pbxt'} eq "OFF" ||
+         ! exists $::mysqld_variables{'pbxt'} )
+    {
+      # Engine is not supported, skip it
+      $tinfo->{'skip'}= 1;
+      return $tinfo;
+    }
+  }
+  else
+  {
+    # Only disable engine if it's on by default (to avoid warnings about
+    # not existing loose options
+    if ( $::mysqld_variables{'pbxt'} eq "ON")
+    {
+      push(@{$tinfo->{'master_opt'}}, "--loose-skip-pbxt");
+      push(@{$tinfo->{'slave_opt'}}, "--loose-skip-pbxt");
+    }
+  }
+
   if ( $tinfo->{'example_plugin_test'} )
   {
     if ( !$ENV{'EXAMPLE_PLUGIN'} )
@@ -1162,6 +1203,7 @@ my @tags=
  ["include/have_log_bin.inc", "need_binlog", 1],
 
  ["include/have_innodb.inc", "innodb_test", 1],
+ ["include/have_pbxt.inc", "pbxt_test", 1],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],

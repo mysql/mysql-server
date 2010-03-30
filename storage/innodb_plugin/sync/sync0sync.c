@@ -1377,7 +1377,12 @@ sync_close(void)
 	mutex_free(&mutex_list_mutex);
 #ifdef UNIV_SYNC_DEBUG
 	mutex_free(&sync_thread_mutex);
+
+	/* Switch latching order checks on in sync0sync.c */
+	sync_order_checks_on = FALSE;
 #endif /* UNIV_SYNC_DEBUG */
+
+	sync_initialized = FALSE;	
 }
 
 /*******************************************************************//**

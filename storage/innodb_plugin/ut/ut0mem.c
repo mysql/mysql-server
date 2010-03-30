@@ -433,6 +433,8 @@ ut_free_all_mem(void)
 			" total allocated memory is %lu\n",
 			(ulong) ut_total_allocated_memory);
 	}
+
+	ut_mem_block_list_inited = FALSE;
 }
 #endif /* !UNIV_HOTBACKUP */
 

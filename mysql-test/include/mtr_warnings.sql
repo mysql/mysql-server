@@ -175,6 +175,8 @@ INSERT INTO global_suppressions VALUES
  ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
  ("Slave: Unknown table 't1' Error_code: 1051"),
 
+ /* Maria storage engine dependent tests */
+
  /* maria-recovery.test has warning about missing log file */
  ("File '.*maria_log.000.*' not found \\(Errcode: 2\\)"),
  /* and about marked-corrupted table */
@@ -184,6 +186,14 @@ INSERT INTO global_suppressions VALUES
  ("Table '..mysqltest.t_corrupted2' is marked as crashed and should be"),
  ("Incorrect key file for table '..mysqltest.t_corrupted2.MAI'"),
 
+ /*
+   Transient network failures that cause warnings on reconnect.
+   BUG#47743 and BUG#47983.
+ */
+ ("Slave I/O: Get master SERVER_ID failed with error:.*"),
+ ("Slave I/O: Get master clock failed with error:.*"),
+ ("Slave I/O: Get master COLLATION_SERVER failed with error:.*"),
+ ("Slave I/O: Get master TIME_ZONE failed with error:.*"),
 
  ("THE_LAST_SUPPRESSION")||
 

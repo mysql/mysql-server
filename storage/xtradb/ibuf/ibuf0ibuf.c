@@ -390,6 +390,27 @@ ibuf_count_set(
 #endif
 
 /******************************************************************//**
+Closes insert buffer and frees the data structures. */
+UNIV_INTERN
+void
+ibuf_close(void)
+/*============*/
+{
+	mutex_free(&ibuf_pessimistic_insert_mutex);
+	memset(&ibuf_pessimistic_insert_mutex,
+	       0x0, sizeof(ibuf_pessimistic_insert_mutex));
+
+	mutex_free(&ibuf_mutex);
+	memset(&ibuf_mutex, 0x0, sizeof(ibuf_mutex));
+
+	mutex_free(&ibuf_bitmap_mutex);
+	memset(&ibuf_bitmap_mutex, 0x0, sizeof(ibuf_mutex));
+
+	mem_free(ibuf);
+	ibuf = NULL;
+}
+
+/******************************************************************//**
 Updates the size information of the ibuf, assuming the segment size has not
 changed. */
 static

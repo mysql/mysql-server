@@ -31,3 +31,37 @@ SHOW EVENTS in mysqltest;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 mysqltest	e	root@localhost	SYSTEM	ONE TIME	#	NULL	NULL	NULL	NULL	SLAVESIDE_DISABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP DATABASE IF EXISTS mysqltest;
+-------------BUG#47418-------------
+USE test;
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t3(c1 INTEGER);
+INSERT INTO t3 VALUES(33);
+CREATE TEMPORARY TABLE t1(c1 INTEGER);
+CREATE TEMPORARY TABLE t2(c1 INTEGER);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t2 VALUES(1);
+CREATE TABLE IF NOT EXISTS t1(c1 INTEGER) SELECT c1 FROM t3;
+CREATE TABLE t2(c1 INTEGER) SELECT c1 FROM t3;
+SELECT * FROM t1;
+c1
+1
+SELECT * FROM t2;
+c1
+1
+SELECT * FROM t1;
+c1
+33
+SELECT * FROM t2;
+c1
+33
+DROP TEMPORARY TABLE t1;
+DROP TEMPORARY TABLE t2;
+SELECT * FROM t1;
+c1
+33
+SELECT * FROM t2;
+c1
+33
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

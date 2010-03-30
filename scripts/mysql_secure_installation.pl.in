@@ -17,16 +17,41 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 use Fcntl;
+use File::Spec;
+use if $^O eq 'MSWin32', 'Term::ReadKey' => qw/ReadMode/;
 use strict;
 
 my $config  = ".my.cnf.$$";
 my $command = ".mysql.$$";
 my $hadpass = 0;
-
-# FIXME
-# trap "interrupt" 2
-
+my $mysql;  # How to call the mysql client
 my $rootpass = "";
+
+
+$SIG{QUIT} = $SIG{INT} = sub {
+  print "\nAborting!\n\n";
+  echo_on();
+  cleanup();
+  exit 1;
+};
+
+
+END {
+  # Remove temporary files, even if exiting via die(), etc.
+  cleanup();
+}
+
+
+sub read_without_echo {
+  my ($prompt) = @_;
+  print $prompt;
+  echo_off();
+  my $answer = <STDIN>;
+  echo_on();
+  print "\n";
+  chomp($answer);
+  return $answer;
+}
 
 sub echo_on {
   if ($^O eq 'MSWin32') {
@@ -55,6 +80,25 @@ sub write_file {
 }
 
 sub prepare {
+  # Locate the mysql client; look in current directory first, then
+  # in path
+  our $SAVEERR;   # Suppress Perl warning message
+  open SAVEERR, ">& STDERR";
+  close STDERR;
+  for my $m (File::Spec->catfile('bin', 'mysql'), 'mysql') {
+    # mysql --version should always work
+    qx($m --no-defaults --version);
+    next unless $? == 0;
+
+    $mysql = $m;
+    last;
+  }
+  open STDERR, ">& SAVEERR";
+
+  die "Can't find a 'mysql' client in PATH or ./bin\n"
+    unless $mysql;
+
+  # Create safe files to avoid leaking info to other users
   foreach my $file ( $config, $command ) {
     next if -f $file;                   # Already exists
     local *FILE;
@@ -64,30 +108,50 @@ sub prepare {
   }
 }
 
+# Simple escape mechanism (\-escape any ' and \), suitable for two contexts:
+# - single-quoted SQL strings
+# - single-quoted option values on the right hand side of = in my.cnf
+#
+# These two contexts don't handle escapes identically.  SQL strings allow
+# quoting any character (\C => C, for any C), but my.cnf parsing allows
+# quoting only \, ' or ".  For example, password='a\b' quotes a 3-character
+# string in my.cnf, but a 2-character string in SQL.
+#
+# This simple escape works correctly in both places.
+sub basic_single_escape {
+  my ($str) = @_;
+  # Inside a character class, \ is not special; this escapes both \ and '
+  $str =~ s/([\'])/\\$1/g;
+  return $str;
+}
+
 sub do_query {
   my $query   = shift;
   write_file($command, $query);
-  system("mysql --defaults-file=$config < $command");
-  return $?;
+  my $rv = system("$mysql --defaults-file=$config < $command");
+  # system() returns -1 if exec fails (e.g., command not found, etc.); die
+  # in this case because nothing is going to work
+  die "Failed to execute mysql client '$mysql'\n" if $rv == -1;
+  # Return true if query executed OK, or false if there was some problem
+  # (for example, SQL error or wrong password)
+  return ($rv == 0 ? 1 : undef);
 }
 
 sub make_config {
   my $password = shift;
 
+  my $esc_pass = basic_single_escape($rootpass);
   write_file($config,
              "# mysql_secure_installation config file",
              "[mysql]",
              "user=root",
-             "password=$rootpass");
+             "password='$esc_pass'");
 }
 
 sub get_root_password {
-  my $status = 1;
-  while ( $status == 1 ) {
-    echo_off();
-    print "Enter current password for root (enter for none): ";
-    my $password = <STDIN>;
-    echo_on();
+  my $attempts = 3;
+  for (;;) {
+    my $password = read_without_echo("Enter current password for root (enter for none): ");
     if ( $password ) {
       $hadpass = 1;
     } else {
@@ -95,64 +159,56 @@ sub get_root_password {
     }
     $rootpass = $password;
     make_config($rootpass);
-    do_query("");
-    $status = $?;
+    last if do_query("");
+
+    die "Unable to connect to the server as root user, giving up.\n"
+      if --$attempts == 0;
   }
   print "OK, successfully used password, moving on...\n\n";
 }
 
 sub set_root_password {
-  echo_off();
-  print "New password: ";
-  my $password1 = <STDIN>;
-  print "\nRe-enter new password: ";
-  my $password2 = <STDIN>;
-  print "\n";
-  echo_on();
+  my $password1;
+  for (;;) {
+    $password1 = read_without_echo("New password: ");
 
-  if ( $password1 eq $password2 ) {
-    print "Sorry, passwords do not match.\n\n";
-    return 1;
-  }
-
-  if ( !$password1 ) {
-    print "Sorry, you can't use an empty password here.\n\n";
-    return 1;
-  }
-
-  do_query("UPDATE mysql.user SET Password=PASSWORD('$password1') WHERE User='root';");
-  if ( $? == 0 ) {
-    print "Password updated successfully!\n";
-    print "Reloading privilege tables..\n";
-    if ( !reload_privilege_tables() ) {
-      exit 1;
+    if ( !$password1 ) {
+      print "Sorry, you can't use an empty password here.\n\n";
+      next;
     }
-    print "\n";
-    $rootpass = $password1;
-    make_config($rootpass);
-  } else {
-    print "Password update failed!\n";
-    exit 1;
+
+    my $password2 = read_without_echo("Re-enter new password: ");
+
+    if ( $password1 ne $password2 ) {
+      print "Sorry, passwords do not match.\n\n";
+      next;
+    }
+
+    last;
   }
 
-  return 0;
+  my $esc_pass = basic_single_escape($password1);
+  do_query("UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root';")
+    or die "Password update failed!\n";
+
+  print "Password updated successfully!\n";
+  print "Reloading privilege tables..\n";
+  reload_privilege_tables()
+    or die "Can not continue.\n";
+
+  print "\n";
+  $rootpass = $password1;
+  make_config($rootpass);
 }
 
 sub remove_anonymous_users {
-  do_query("DELETE FROM mysql.user WHERE User='';");
-  if ( $? == 0 ) {
-    print " ... Success!\n";
-  } else {
-    print " ... Failed!\n";
-    exit 1;
-  }
-
-  return 0;
+  do_query("DELETE FROM mysql.user WHERE User='';")
+    or die print " ... Failed!\n";
+  print " ... Success!\n";
 }
 
 sub remove_remote_root {
-  do_query("DELETE FROM mysql.user WHERE User='root' AND Host!='localhost';");
-  if ( $? == 0 ) {
+  if (do_query("DELETE FROM mysql.user WHERE User='root' AND Host!='localhost';")) {
     print " ... Success!\n";
   } else {
     print " ... Failed!\n";
@@ -161,44 +217,31 @@ sub remove_remote_root {
 
 sub remove_test_database {
   print " - Dropping test database...\n";
-  do_query("DROP DATABASE test;");
-  if ( $? == 0 ) {
+  if (do_query("DROP DATABASE test;")) {
     print " ... Success!\n";
   } else {
     print " ... Failed!  Not critical, keep moving...\n";
   }
 
   print " - Removing privileges on test database...\n";
-  do_query("DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'");
-  if ( $? == 0 ) {
+  if (do_query("DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%'")) {
     print " ... Success!\n";
   } else {
     print " ... Failed!  Not critical, keep moving...\n";
   }
-
-  return 0;
 }
 
 sub reload_privilege_tables {
-  do_query("FLUSH PRIVILEGES;");
-  if ( $? == 0 ) {
+  if (do_query("FLUSH PRIVILEGES;")) {
     print " ... Success!\n";
-    return 0;
+    return 1;
   } else {
     print " ... Failed!\n";
-    return 1;
+    return undef;
   }
 }
 
-sub interrupt {
-  print "\nAborting!\n\n";
-  cleanup();
-  echo_on();
-  exit 1;
-}
-
 sub cleanup {
-  print "Cleaning up...\n";
   unlink($config,$command);
 }
 
@@ -242,11 +285,7 @@ my $reply = <STDIN>;
 if ( $reply =~ /n/i ) {
   print " ... skipping.\n";
 } else {
-  my $status = 1;
-  while ( $status == 1 ) {
-    set_root_password();
-    $status = $?;
-  }
+  set_root_password();
 }
 print "\n";
 
@@ -333,8 +372,6 @@ if ( $reply =~ /n/i ) {
   reload_privilege_tables();
 }
 print "\n";
-
-cleanup();
 
 print <<HERE;
 

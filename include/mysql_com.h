@@ -254,7 +254,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused0; /* Please remove with the next incompatible ABI change. */
+  char net_skip_rest_factor;
   my_bool unused; /* Please remove with the next incompatible ABI change */
   my_bool compress;
   my_bool unused1; /* Please remove with the next incompatible ABI change. */

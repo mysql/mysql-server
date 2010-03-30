@@ -4447,7 +4447,7 @@ int update_state_info(HA_CHECK *param, MI_INFO *info,uint update)
   {
     if (update & UPDATE_TIME)
     {
-      share->state.check_time= (long) time((time_t*) 0);
+      share->state.check_time= time((time_t*) 0);
       if (!share->state.create_time)
 	share->state.create_time=share->state.check_time;
     }

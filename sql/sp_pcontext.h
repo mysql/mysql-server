@@ -71,7 +71,7 @@ typedef struct sp_label
 typedef struct sp_cond_type
 {
   enum { number, state, warning, notfound, exception } type;
-  char sqlstate[6];
+  char sqlstate[SQLSTATE_LENGTH+1];
   uint mysqlerr;
 } sp_cond_type_t;
 

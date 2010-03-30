@@ -34,6 +34,8 @@ typedef	struct buf_block_struct		buf_block_t;
 typedef struct buf_chunk_struct		buf_chunk_t;
 /** Buffer pool comprising buf_chunk_t */
 typedef	struct buf_pool_struct		buf_pool_t;
+/** Buffer pool statistics struct */
+typedef	struct buf_pool_stat_struct	buf_pool_stat_t;
 
 /** A buffer frame. @see page_t */
 typedef	byte	buf_frame_t;

@@ -533,10 +533,10 @@ static int setup_windows_defaults()
     return 1;
   }
 
-  strmake(base_name, base_name_ptr, FN_REFLEN);
+  strmake(base_name, base_name_ptr, FN_REFLEN - 1);
   *base_name_ptr= 0;
 
-  strmake(im_name, base_name, FN_REFLEN);
+  strmake(im_name, base_name, FN_REFLEN - 1);
   ptr= strrchr(im_name, '.');
 
   if (!ptr)

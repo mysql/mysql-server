@@ -2501,6 +2501,17 @@ SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
 a	MAX(b)
 2	1
 DROP TABLE t;
+#
+# Bug #48472: Loose index scan inappropriately chosen for some WHERE
+#             conditions
+# 
+CREATE TABLE t (a INT, b INT, INDEX (a,b));
+INSERT INTO t VALUES (2,0), (2,0), (2,1), (2,1);
+INSERT INTO t SELECT * FROM t;
+SELECT a, MAX(b) FROM t WHERE 0=b+0 GROUP BY a;
+a	MAX(b)
+2	0
+DROP TABLE t;
 End of 5.0 tests
 #
 # Bug #46607: Assertion failed: (cond_type == Item::FUNC_ITEM) results in

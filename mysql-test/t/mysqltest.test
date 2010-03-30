@@ -9,6 +9,14 @@
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 
+# Some tests below connect/disconnect rapidly in a loop. This causes a race
+# where mysqld may not have time to register the previous disconnects before
+# new connects, and eventually we run out of connections. So we need to
+# increase the maximum.
+let $saved_max_connections = `SELECT @@global.max_connections`;
+SET GLOBAL max_connections = 1000;
+
+
 # ============================================================================
 #
 # Test of mysqltest itself
@@ -2319,3 +2327,7 @@ disconnect $y;
 connection default;
 # Wait till we reached the initial number of concurrent sessions
 --source include/wait_until_count_sessions.inc
+
+--disable_query_log
+--eval SET GLOBAL max_connections = $saved_max_connections
+--enable_query_log

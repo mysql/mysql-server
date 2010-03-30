@@ -100,7 +100,8 @@ int init_relay_log_info(Relay_log_info* rli,
   rli->tables_to_lock_count= 0;
 
   char pattern[FN_REFLEN];
-  if (fn_format(pattern, PREFIX_SQL_LOAD, slave_load_tmpdir, "",
+  (void) my_realpath(pattern, slave_load_tmpdir, 0);
+  if (fn_format(pattern, PREFIX_SQL_LOAD, pattern, "",
             MY_SAFE_PATH | MY_RETURN_REAL_PATH) == NullS)
   {
     pthread_mutex_unlock(&rli->data_lock);
@@ -127,6 +128,29 @@ int init_relay_log_info(Relay_log_info* rli,
     rli->relay_log.max_size (and mysql_bin_log.max_size).
   */
   {
+    /* Reports an error and returns, if the --relay-log's path 
+       is a directory.*/
+    if (opt_relay_logname && 
+        opt_relay_logname[strlen(opt_relay_logname) - 1] == FN_LIBCHAR)
+    {
+      pthread_mutex_unlock(&rli->data_lock);
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --relay-log option", opt_relay_logname);
+      DBUG_RETURN(1);
+    }
+
+    /* Reports an error and returns, if the --relay-log-index's path 
+       is a directory.*/
+    if (opt_relaylog_index_name && 
+        opt_relaylog_index_name[strlen(opt_relaylog_index_name) - 1] 
+        == FN_LIBCHAR)
+    {
+      pthread_mutex_unlock(&rli->data_lock);
+      sql_print_error("Path '%s' is a directory name, please specify \
+a file name for --relay-log-index option", opt_relaylog_index_name);
+      DBUG_RETURN(1);
+    }
+
     char buf[FN_REFLEN];
     const char *ln;
     static bool name_warning_sent= 0;
@@ -153,10 +177,10 @@ int init_relay_log_info(Relay_log_info* rli,
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-    if (rli->relay_log.open_index_file(opt_relaylog_index_name, ln) ||
+    if (rli->relay_log.open_index_file(opt_relaylog_index_name, ln, TRUE) ||
         rli->relay_log.open(ln, LOG_BIN, 0, SEQ_READ_APPEND, 0,
                             (max_relay_log_size ? max_relay_log_size :
-                            max_binlog_size), 1))
+                            max_binlog_size), 1, TRUE))
     {
       pthread_mutex_unlock(&rli->data_lock);
       sql_print_error("Failed in open_log() called from init_relay_log_info()");
@@ -993,7 +1017,7 @@ err:
      false - condition not met
 */
 
-bool Relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
+bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
 {
   const char *log_name;
   ulonglong log_pos;
@@ -1003,8 +1027,12 @@ bool Relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
 
   if (until_condition == UNTIL_MASTER_POS)
   {
+    if (ev && ev->server_id == (uint32) ::server_id && !replicate_same_server_id)
+      DBUG_RETURN(FALSE);
     log_name= group_master_log_name;
-    log_pos= master_beg_pos;
+    log_pos= (!ev)? group_master_log_pos :
+      ((thd->options & OPTION_BEGIN || !ev->log_pos) ?
+       group_master_log_pos : ev->log_pos - ev->data_written);
   }
   else
   { /* until_condition == UNTIL_RELAY_POS */

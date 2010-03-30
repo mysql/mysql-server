@@ -111,7 +111,7 @@ enum ha_storage_media {
 enum ha_extra_function {
   HA_EXTRA_NORMAL=0,			/* Optimize for space (def) */
   HA_EXTRA_QUICK=1,			/* Optimize for speed */
-  HA_EXTRA_NOT_USED=2,
+  HA_EXTRA_NOT_USED=2,			/* Should be ignored by handler */
   HA_EXTRA_CACHE=3,			/* Cache record in HA_rrnd() */
   HA_EXTRA_NO_CACHE=4,			/* End caching of records (def) */
   HA_EXTRA_NO_READCHECK=5,		/* No readcheck on update */

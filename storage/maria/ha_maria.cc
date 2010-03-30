@@ -2255,9 +2255,12 @@ int ha_maria::extra(enum ha_extra_function operation)
     extern_lock(F_UNLOCK) (which resets file->trn) followed by maria_close()
     without calling commit/rollback in between.  If file->trn is not set
     we can't remove file->share from the transaction list in the extra() call.
+
+    table->in_use is not set in the case this is a done as part of closefrm()
+    as part of drop table.
   */
 
-  if (!file->trn &&
+  if (file->s->now_transactional && !file->trn && table->in_use && 
       (operation == HA_EXTRA_PREPARE_FOR_DROP ||
        operation == HA_EXTRA_PREPARE_FOR_RENAME))
   {
@@ -3275,11 +3278,11 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
   MYSQL_SYSVAR(force_start_after_recovery_failures),
-  MYSQL_SYSVAR(page_checksum),
   MYSQL_SYSVAR(log_dir_path),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_purge_type),
   MYSQL_SYSVAR(max_sort_file_size),
+  MYSQL_SYSVAR(page_checksum),
   MYSQL_SYSVAR(pagecache_age_threshold),
   MYSQL_SYSVAR(pagecache_buffer_size),
   MYSQL_SYSVAR(pagecache_division_limit),

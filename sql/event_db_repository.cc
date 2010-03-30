@@ -26,7 +26,7 @@
 */
 
 static
-const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
+const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] =
 {
   {
     { C_STRING_WITH_LEN("db") },
@@ -150,6 +150,24 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
     { NULL, 0 }
   }
 };
+
+static const TABLE_FIELD_DEF
+  event_table_def= {ET_FIELD_COUNT, event_table_fields};
+
+class Event_db_intact : public Table_check_intact
+{
+protected:
+  void report_error(uint, const char *fmt, ...)
+  {
+    va_list args;
+    va_start(args, fmt);
+    error_log_print(ERROR_LEVEL, fmt, args);
+    va_end(args);
+  }
+};
+
+/** In case of an error, a message is printed to the error log. */
+static Event_db_intact table_intact;
 
 
 /**
@@ -1027,6 +1045,7 @@ update_timing_fields_for_event(THD *thd,
   TABLE *table= NULL;
   Field **fields;
   int ret= 1;
+  bool save_binlog_row_based;
 
   DBUG_ENTER("Event_db_repository::update_timing_fields_for_event");
 
@@ -1034,8 +1053,8 @@ update_timing_fields_for_event(THD *thd,
     Turn off row binlogging of event timing updates. These are not used
     for RBR of events replicated to the slave.
   */
-  if (thd->current_stmt_binlog_row_based)
-    thd->clear_current_stmt_binlog_row_based();
+  save_binlog_row_based= thd->current_stmt_binlog_row_based;
+  thd->clear_current_stmt_binlog_row_based();
 
   DBUG_ASSERT(thd->security_ctx->master_access & SUPER_ACL);
 
@@ -1077,6 +1096,8 @@ update_timing_fields_for_event(THD *thd,
 end:
   if (table)
     close_thread_tables(thd);
+  /* Restore the state of binlog format */
+  thd->current_stmt_binlog_row_based= save_binlog_row_based;
 
   DBUG_RETURN(test(ret));
 }
@@ -1117,10 +1138,8 @@ Event_db_repository::check_system_tables(THD *thd)
   }
   else
   {
-    if (table_check_intact(tables.table, MYSQL_DB_FIELD_COUNT,
-                           mysql_db_table_fields))
+    if (table_intact.check(tables.table, &mysql_db_table_def))
       ret= 1;
-    /* in case of an error, the message is printed inside table_check_intact */
 
     close_thread_tables(thd);
   }
@@ -1154,9 +1173,8 @@ Event_db_repository::check_system_tables(THD *thd)
   }
   else
   {
-    if (table_check_intact(tables.table, ET_FIELD_COUNT, event_table_fields))
+    if (table_intact.check(tables.table, &event_table_def))
       ret= 1;
-    /* in case of an error, the message is printed inside table_check_intact */
     close_thread_tables(thd);
   }
 

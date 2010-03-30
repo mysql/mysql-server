@@ -126,7 +126,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,innodb,maria,parts,oqgraph";
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,maria,parts,oqgraph";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -201,10 +201,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=     15; # 15 minutes
-my $opt_suite_timeout   =    360; # 6 hours
-my $opt_shutdown_timeout=     10; # 10 seconds
-my $opt_start_timeout   =    180; # 180 seconds
+my $opt_testcase_timeout= $ENV{MTR_TESTCASE_TIMEOUT} ||  15; # minutes
+my $opt_suite_timeout   = $ENV{MTR_SUITE_TIMEOUT}    || 360; # minutes
+my $opt_shutdown_timeout= $ENV{MTR_SHUTDOWN_TIMEOUT} ||  10; # seconds
+my $opt_start_timeout   = $ENV{MTR_START_TIMEOUT}    || 180; # seconds
 
 sub testcase_timeout { return $opt_testcase_timeout * 60; };
 sub suite_timeout { return $opt_suite_timeout * 60; };
@@ -413,7 +413,6 @@ sub main {
     # Not all tests completed, failure
     mtr_report();
     mtr_report("Only ", int(@$completed), " of $num_tests completed.");
-    mtr_error("Not all tests completed");
   }
 
   mtr_print_line();
@@ -425,6 +424,10 @@ sub main {
 
   mtr_report_stats($fail, $completed, $extra_warnings);
 
+  if ( @$completed != $num_tests)
+  {
+    mtr_error("Not all tests completed");
+  }
   exit(0);
 }
 
@@ -3452,7 +3455,7 @@ sub restart_forced_by_test
 # Return timezone value of tinfo or default value
 sub timezone {
   my ($tinfo)= @_;
-  return $tinfo->{timezone} || "GMT-3";
+  return $tinfo->{timezone} || "DEFAULT";
 }
 
 
@@ -3482,7 +3485,11 @@ sub run_testcase ($$) {
   # Init variables that can change between each test case
   # -------------------------------------------------------
   my $timezone= timezone($tinfo);
-  $ENV{'TZ'}= $timezone;
+  if ($timezone ne 'DEFAULT') {
+    $ENV{'TZ'}= $timezone;
+  } else {
+    delete($ENV{'TZ'});
+  }
   mtr_verbose("Setting timezone: $timezone");
 
   if ( ! using_extern() )
@@ -4037,6 +4044,9 @@ sub extract_warning_lines ($) {
      qr/Slave I\/O: error reconnecting to master '.*' - retry-time: [1-3]  retries/,
      qr/Error reading packet/,
      qr/Slave: Can't drop database.* database doesn't exist/,
+     qr/Slave: Operation DROP USER failed for 'create_rout_db'/,
+     qr|Checking table:   '\./mtr/test_suppressions'|,
+     qr|mysqld: Table '\./mtr/test_suppressions' is marked as crashed and should be repaired|
     );
 
   my $matched_lines= [];
@@ -4119,7 +4129,7 @@ sub start_check_warnings ($$) {
      error         => $errfile,
      output        => $errfile,
      args          => \$args,
-     user_data     => $errfile,
+     user_data     => [$errfile, $mysqld],
      verbose       => $opt_verbose,
     );
   mtr_verbose("Started $proc");
@@ -4165,7 +4175,7 @@ sub check_warnings ($) {
     if ( delete $started{$proc->pid()} ) {
       # One check warning process returned
       my $res= $proc->exit_status();
-      my $err_file= $proc->user_data();
+      my ($err_file, $mysqld)= @{$proc->user_data()};
 
       if ( $res == 0 or $res == 62 ){
 
@@ -4201,7 +4211,8 @@ sub check_warnings ($) {
 	my $report= mtr_grab_file($err_file);
 	$tinfo->{comment}.=
 	  "Could not execute 'check-warnings' for ".
-	    "testcase '$tname' (res: $res):\n";
+	    "testcase '$tname' (res: $res) server: '".
+              $mysqld->name() .":\n";
 	$tinfo->{comment}.= $report;
 
 	$result= 2;
@@ -5561,6 +5572,8 @@ sub usage ($) {
   if ( $message )
   {
     print STDERR "$message\n";
+    print STDERR "For full list of options, use $0 --help\n";
+    exit;      
   }
 
   print <<HERE;

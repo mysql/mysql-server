@@ -90,6 +90,7 @@ public:
   void cleanup();
   virtual void reset()
   {
+    eliminated= FALSE;
     null_value= 1;
   }
   virtual trans_res select_transformer(JOIN *join);
@@ -142,6 +143,7 @@ public:
     @return the SELECT_LEX structure associated with this Item
   */
   st_select_lex* get_select_lex();
+  const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
 
   friend class select_subselect;
   friend class Item_in_optimizer;
@@ -234,6 +236,7 @@ public:
   subs_type substype() { return EXISTS_SUBS; }
   void reset() 
   {
+    eliminated= FALSE;
     value= 0;
   }
 
@@ -305,6 +308,7 @@ public:
   subs_type substype() { return IN_SUBS; }
   void reset() 
   {
+    eliminated= FALSE;
     value= 0;
     null_value= 0;
     was_null= 0;

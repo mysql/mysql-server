@@ -333,6 +333,13 @@ trx_undo_parse_discard_latest(
 	byte*	end_ptr,/*!< in: buffer end */
 	page_t*	page,	/*!< in: page or NULL */
 	mtr_t*	mtr);	/*!< in: mtr or NULL */
+/************************************************************************
+Frees an undo log memory copy. */
+UNIV_INTERN
+void
+trx_undo_mem_free(
+/*==============*/
+	trx_undo_t*	undo);		/* in: the undo object to be freed */
 
 /* Types of an undo log segment */
 #define	TRX_UNDO_INSERT		1	/* contains undo entries for inserts */

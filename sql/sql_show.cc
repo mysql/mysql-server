@@ -721,7 +721,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
     thd->push_internal_handler(&view_error_suppressor);
     bool error= open_normal_and_derived_tables(thd, table_list, 0);
     thd->pop_internal_handler();
-    if (error && thd->main_da.is_error())
+    if (error && (thd->killed || thd->main_da.is_error()))
       DBUG_RETURN(TRUE);
   }
 
@@ -828,8 +828,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
     DBUG_RETURN(TRUE);
   }
 #endif
-  if (!my_strcasecmp(system_charset_info, dbname,
-                     INFORMATION_SCHEMA_NAME.str))
+  if (is_schema_db(dbname))
   {
     dbname= INFORMATION_SCHEMA_NAME.str;
     create.default_table_charset= system_charset_info;
@@ -2797,8 +2796,8 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
   */
   if (lookup_field_vals->db_value.str)
   {
-    if (!my_strcasecmp(system_charset_info, INFORMATION_SCHEMA_NAME.str,
-                       lookup_field_vals->db_value.str))
+    if (is_schema_db(lookup_field_vals->db_value.str, 
+                     lookup_field_vals->db_value.length))
     {
       *with_i_schema= 1;
       if (files->push_back(i_s_name_copy))
@@ -3385,11 +3384,11 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, COND *cond)
   while ((db_name= it++))
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (!check_access(thd,SELECT_ACL, db_name->str,
-                      &thd->col_access, 0, 1, with_i_schema) ||
+    if (!(check_access(thd,SELECT_ACL, db_name->str, 
+                       &thd->col_access, 0, 1, with_i_schema) ||
+          (!thd->col_access && check_grant_db(thd, db_name->str))) ||
         sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0) ||
-	!check_grant_db(thd, db_name->str))
+        acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0))
 #endif
     {
       thd->no_warnings_for_error= 1;
@@ -5250,7 +5249,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
   */
   if (thd->lex->sql_command != SQLCOM_SHOW_EVENTS &&
       check_access(thd, EVENT_ACL, et.dbname.str, 0, 0, 1,
-                   is_schema_db(et.dbname.str)))
+                   is_schema_db(et.dbname.str, et.dbname.length)))
     DBUG_RETURN(0);
 
   /* ->field[0] is EVENT_CATALOG and is by default NULL */

@@ -80,6 +80,9 @@ at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
+/* prototypes for new functions added to ha_innodb.cc */
+ibool	innobase_get_slow_log();
+
 /* This is set to TRUE if the MySQL user has set it in MySQL */
 extern ibool	srv_lower_case_table_names;
 
@@ -133,8 +136,9 @@ extern ulint*	srv_data_file_is_raw_partition;
 extern ibool	srv_extra_undoslots;
 
 extern ibool	srv_fast_recovery;
+extern ibool	srv_recovery_stats;
 
-extern ibool	srv_use_purge_thread;
+extern ulint	srv_use_purge_thread;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
@@ -235,12 +239,14 @@ extern ulong	srv_replication_delay;
 extern long long	srv_ibuf_max_size;
 extern ulong	srv_ibuf_active_contract;
 extern ulong	srv_ibuf_accel_rate;
+extern ulint	srv_checkpoint_age_target;
 extern ulong	srv_flush_neighbor_pages;
 extern ulong	srv_enable_unsafe_group_commit;
 extern ulong	srv_read_ahead;
 extern ulong	srv_adaptive_checkpoint;
 
 extern ulong	srv_expand_import;
+extern ulint	srv_relax_table_creation;
 
 extern ulong	srv_extra_rsegments;
 extern ulong	srv_dict_size_limit;
@@ -345,10 +351,6 @@ extern ulint srv_buf_pool_flushed;
 /** Number of buffer pool reads that led to the
 reading of a disk page */
 extern ulint srv_buf_pool_reads;
-/** Number of sequential read-aheads */
-extern ulint srv_read_ahead_seq;
-/** Number of random read-aheads */
-extern ulint srv_read_ahead_rnd;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
@@ -428,6 +430,7 @@ enum srv_thread_type {
 	SRV_INSERT,	/**< thread flushing the insert buffer to disk */
 #endif
 	SRV_PURGE,	/* thread purging undo records */
+	SRV_PURGE_WORKER,	/* thread purging undo records */
 	SRV_MASTER	/**< the master thread, (whose type number must
 			be biggest) */
 };
@@ -446,7 +449,7 @@ void
 srv_init(void);
 /*==========*/
 /*********************************************************************//**
-Frees the OS fast mutex created in srv_boot(). */
+Frees the data structures created in srv_init(). */
 UNIV_INTERN
 void
 srv_free(void);
@@ -509,6 +512,13 @@ srv_purge_thread(
 /*=============*/
 	void*	arg);	/* in: a dummy parameter required by
 			os_thread_create */
+/*************************************************************************
+The undo purge thread. */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_worker_thread(
+/*====================*/
+	void*	arg);
 /*******************************************************************//**
 Tells the Innobase server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
@@ -645,13 +655,13 @@ struct export_var_struct{
 #ifdef UNIV_DEBUG
 	ulint innodb_buffer_pool_pages_latched;	/*!< Latched pages */
 #endif /* UNIV_DEBUG */
-	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->n_page_gets */
+	ulint innodb_buffer_pool_read_requests;	/*!< buf_pool->stat.n_page_gets */
 	ulint innodb_buffer_pool_reads;		/*!< srv_buf_pool_reads */
 	ulint innodb_buffer_pool_wait_free;	/*!< srv_buf_pool_wait_free */
 	ulint innodb_buffer_pool_pages_flushed;	/*!< srv_buf_pool_flushed */
 	ulint innodb_buffer_pool_write_requests;/*!< srv_buf_pool_write_requests */
-	ulint innodb_buffer_pool_read_ahead_seq;/*!< srv_read_ahead_seq */
-	ulint innodb_buffer_pool_read_ahead_rnd;/*!< srv_read_ahead_rnd */
+	ulint innodb_buffer_pool_read_ahead;	/*!< srv_read_ahead */
+	ulint innodb_buffer_pool_read_ahead_evicted;/*!< srv_read_ahead evicted*/
 	ulint innodb_dblwr_pages_written;	/*!< srv_dblwr_pages_written */
 	ulint innodb_dblwr_writes;		/*!< srv_dblwr_writes */
 	ibool innodb_have_atomic_builtins;	/*!< HAVE_ATOMIC_BUILTINS */
@@ -663,9 +673,9 @@ struct export_var_struct{
 	ulint innodb_os_log_pending_writes;	/*!< srv_os_log_pending_writes */
 	ulint innodb_os_log_pending_fsyncs;	/*!< fil_n_pending_log_flushes */
 	ulint innodb_page_size;			/*!< UNIV_PAGE_SIZE */
-	ulint innodb_pages_created;		/*!< buf_pool->n_pages_created */
-	ulint innodb_pages_read;		/*!< buf_pool->n_pages_read */
-	ulint innodb_pages_written;		/*!< buf_pool->n_pages_written */
+	ulint innodb_pages_created;		/*!< buf_pool->stat.n_pages_created */
+	ulint innodb_pages_read;		/*!< buf_pool->stat.n_pages_read */
+	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
 	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
 	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
 	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time

@@ -1333,7 +1333,7 @@ trx_undo_get_undo_rec_low(
 	ulint		rseg_id;
 	ulint		page_no;
 	ulint		offset;
-	page_t*		undo_page;
+	const page_t*	undo_page;
 	trx_rseg_t*	rseg;
 	ibool		is_insert;
 	mtr_t		mtr;
@@ -1572,7 +1572,7 @@ trx_undo_prev_version_build(
 
 		/* We have to set the appropriate extern storage bits in the
 		old version of the record: the extern bits in rec for those
-		fields that update does NOT update, as well as the the bits for
+		fields that update does NOT update, as well as the bits for
 		those fields that update updates to become externally stored
 		fields. Store the info: */
 

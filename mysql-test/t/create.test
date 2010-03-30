@@ -721,16 +721,15 @@ drop table t1;
 # Base vs temporary tables dillema (a.k.a. bug#24508 "Inconsistent
 # results of CREATE TABLE ... SELECT when temporary table exists").
 # In this situation we either have to create non-temporary table and
-# insert data in it or insert data in temporary table without creation
-# of permanent table. Since currently temporary tables always shadow
-# permanent tables we adopt second approach.
+# insert data in it or insert data in temporary table without creation of
+# permanent table. After patch for Bug#47418, we create the base table and
+# instert data into it, even though a temporary table exists with the same
+# name.
 create temporary table t1 (j int);
 create table if not exists t1 select 1;
 select * from t1;
 drop temporary table t1;
---error ER_NO_SUCH_TABLE
 select * from t1;
---error ER_BAD_TABLE_ERROR
 drop table t1;
 
 
@@ -1395,52 +1394,6 @@ drop table t1;
 create table t1 like information_schema.character_sets;
 show create table t1;
 drop table t1;
-
-###########################################################################
-
---echo
---echo # --
---echo # -- Bug#21380: DEFAULT definition not always transfered by CREATE
---echo # -- TABLE/SELECT to the new table.
---echo # --
---echo
-
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
-DROP TABLE IF EXISTS t2;
---enable_warnings
-
---echo
-
-CREATE TABLE t1(
-  c1 INT DEFAULT 12 COMMENT 'column1',
-  c2 INT NULL COMMENT 'column2',
-  c3 INT NOT NULL COMMENT 'column3',
-  c4 VARCHAR(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
-  c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
-  c6 VARCHAR(255))
-  COLLATE latin1_bin;
-
---echo
-
-SHOW CREATE TABLE t1;
-
---echo
-
-CREATE TABLE t2 AS SELECT * FROM t1;
-
---echo
-
-SHOW CREATE TABLE t2;
-
---echo
-
-DROP TABLE t2;
-DROP TABLE t1;
-
---echo
---echo # -- End of test case for Bug#21380.
 
 ###########################################################################
 

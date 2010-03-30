@@ -930,7 +930,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
       if (remove_table_from_cache(thd, table->db, table->table_name,
-                                  RTFC_OWNED_BY_THD_FLAG))
+                                  RTFC_OWNED_BY_THD_FLAG, table->deleting))
 	found=1;
     }
     if (!found)
@@ -1336,7 +1336,7 @@ void close_thread_tables(THD *thd)
       handled either before writing a query log event (inside
       binlog_query()) or when preparing a pending event.
      */
-    thd->binlog_flush_pending_rows_event(TRUE);
+    (void)thd->binlog_flush_pending_rows_event(TRUE);
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
@@ -1550,7 +1550,11 @@ void close_temporary_tables(THD *thd)
       qinfo.db= db.ptr();
       qinfo.db_len= db.length();
       thd->variables.character_set_client= cs_save;
-      mysql_bin_log.write(&qinfo);
+      if (mysql_bin_log.write(&qinfo))
+      {
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR, MYF(0),
+                     "Failed to write the DROP statement for temporary tables to binary log");
+      }
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
     }
     else
@@ -2938,7 +2942,12 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
     DBUG_PRINT("info", ("inserting table '%s'.'%s' 0x%lx into the cache",
                         table->s->db.str, table->s->table_name.str,
                         (long) table));
-    VOID(my_hash_insert(&open_cache,(uchar*) table));
+    if (my_hash_insert(&open_cache,(uchar*) table))
+    {
+      my_free(table, MYF(0));
+      VOID(pthread_mutex_unlock(&LOCK_open));
+      DBUG_RETURN(NULL);
+    }
   }
 
   check_unused();				// Debugging call
@@ -4044,9 +4053,13 @@ retry:
         end = strxmov(strmov(query, "DELETE FROM `"),
                       share->db.str,"`.`",share->table_name.str,"`", NullS);
         int errcode= query_error_code(thd, TRUE);
-        thd->binlog_query(THD::STMT_QUERY_TYPE,
-                          query, (ulong)(end-query),
-                          FALSE, FALSE, errcode);
+        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                              query, (ulong)(end-query),
+                              FALSE, FALSE, errcode))
+        {
+          my_free(query, MYF(0));
+          goto err;
+        }
         my_free(query, MYF(0));
       }
       else
@@ -5693,7 +5706,8 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
     if (!my_strcasecmp(system_charset_info, field_it.name(), name))
     {
       // in PS use own arena or data will be freed after prepare
-      if (register_tree_change && thd->stmt_arena->is_stmt_prepare_or_first_sp_execute())
+      if (register_tree_change &&
+          thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute())
         arena= thd->activate_stmt_arena_if_needed(&backup);
       /*
         create_item() may, or may not create a new Item, depending on
@@ -8399,6 +8413,11 @@ void remove_db_from_cache(const char *db)
     if (!strcmp(table->s->db.str, db))
     {
       table->s->version= 0L;			/* Free when thread is ready */
+      /*
+        This functions only called from DROP DATABASE code, so we are going
+        to drop all tables so we mark them as deleting
+      */
+      table->s->deleting= TRUE;
       if (!table->in_use)
 	relink_unused(table);
     }
@@ -8441,7 +8460,7 @@ void flush_tables()
 */
 
 bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
-                             uint flags)
+                             uint flags, my_bool deleting)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
@@ -8535,7 +8554,10 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
       }
     }
     while (unused_tables && !unused_tables->s->version)
+    {
+      unused_tables->s->deleting= deleting;
       VOID(hash_delete(&open_cache,(uchar*) unused_tables));
+    }
 
     DBUG_PRINT("info", ("Removing table from table_def_cache"));
     /* Remove table from table definition cache if it's not in use */
@@ -8729,7 +8751,8 @@ int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
   /* If MERGE child, forward lock handling to parent. */
   mysql_lock_abort(lpt->thd, lpt->table->parent ? lpt->table->parent :
                    lpt->table, TRUE);
-  VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags));
+  VOID(remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name, flags,
+                               FALSE));
   VOID(pthread_mutex_unlock(&LOCK_open));
   DBUG_RETURN(0);
 }
@@ -8754,7 +8777,7 @@ void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   VOID(pthread_mutex_lock(&LOCK_open));
   remove_table_from_cache(lpt->thd, lpt->db, lpt->table_name,
-                          RTFC_WAIT_OTHER_THREAD_FLAG);
+                          RTFC_WAIT_OTHER_THREAD_FLAG, FALSE);
   VOID(pthread_mutex_unlock(&LOCK_open));
   /* If MERGE child, forward lock handling to parent. */
   mysql_lock_downgrade_write(lpt->thd, lpt->table->parent ? lpt->table->parent :

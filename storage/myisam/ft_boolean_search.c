@@ -299,7 +299,7 @@ static int ftb_parse_query_internal(MYSQL_FTPARSER_PARAM *param,
 }
 
 
-static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
+static int _ftb_parse_query(FTB *ftb, uchar *query, mysql_ft_size_t len,
                             struct st_mysql_ftparser *parser)
 {
   MYSQL_FTPARSER_PARAM *param;
@@ -321,7 +321,7 @@ static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
   param->mysql_add_word= ftb_query_add_word;
   param->mysql_ftparam= (void *)&ftb_param;
   param->cs= ftb->charset;
-  param->doc= (char*) query;
+  param->doc= query;
   param->length= len;
   param->flags= 0;
   param->mode= MYSQL_FTPARSER_FULL_BOOLEAN_INFO;
@@ -475,8 +475,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
   int i;
   FTB_WORD   *ftbw;
 
-  if ((ftb->state != READY && ftb->state !=INDEX_DONE) ||
-      ftb->keynr == NO_SUCH_KEY)
+  if (ftb->state == UNINITIALIZED || ftb->keynr == NO_SUCH_KEY)
     return;
   ftb->state=INDEX_SEARCH;
 
@@ -541,7 +540,7 @@ static void _ftb_init_index_search(FT_INFO *ftb)
 
 
 FT_INFO * ft_init_boolean_search(MI_INFO *info, uint keynr, uchar *query,
-                                 uint query_len, CHARSET_INFO *cs)
+                                 mysql_ft_size_t query_len, CHARSET_INFO *cs)
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;
@@ -680,8 +679,9 @@ static int ftb_check_phrase_internal(MYSQL_FTPARSER_PARAM *param,
     -1 is returned if error occurs.
 */
 
-static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
-                FTB_EXPR *ftbe, struct st_mysql_ftparser *parser)
+static int _ftb_check_phrase(FTB *ftb, const uchar *document,
+                             mysql_ft_size_t len,
+                             FTB_EXPR *ftbe, struct st_mysql_ftparser *parser)
 {
   MY_FTB_PHRASE_PARAM ftb_param;
   MYSQL_FTPARSER_PARAM *param;
@@ -702,7 +702,7 @@ static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
   param->mysql_add_word= ftb_phrase_add_word;
   param->mysql_ftparam= (void *)&ftb_param;
   param->cs= ftb->charset;
-  param->doc= (char *) document;
+  param->doc= document;
   param->length= len;
   param->flags= 0;
   param->mode= MYSQL_FTPARSER_WITH_STOPWORDS;
@@ -1000,7 +1000,7 @@ float ft_boolean_find_relevance(FT_INFO *ftb, uchar *record, uint length)
   {
     if (!ftsi.pos)
       continue;
-    param->doc= (char *)ftsi.pos;
+    param->doc= ftsi.pos;
     param->length= ftsi.len;
     if (unlikely(parser->parse(param)))
       return 0;

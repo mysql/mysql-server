@@ -670,6 +670,21 @@ SELECT 1 FROM t1 WHERE a <> (SELECT GEOMETRYCOLLECTIONFROMWKB(b) FROM t1);
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #49250 : spatial btree index corruption and crash
+--echo # Part one : spatial syntax check
+--echo #
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1(col1 MULTIPOLYGON NOT NULL,
+  SPATIAL INDEX USING BTREE (col1));
+CREATE TABLE t2(col1 MULTIPOLYGON NOT NULL);
+--error ER_PARSE_ERROR
+CREATE SPATIAL INDEX USING BTREE ON t2(col);
+--error ER_PARSE_ERROR
+ALTER TABLE t2 ADD SPATIAL INDEX USING BTREE (col1);
+
+DROP TABLE t2;
 
 --echo End of 5.0 tests
 

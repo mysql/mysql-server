@@ -1,0 +1,19 @@
+#################################################################################
+# This test checks if the replication between "null" fields to either "null"
+# fields or "not null" fields works properly. In the first case, the execution
+# should work fine. In the second case, it may fail according to the sql_mode
+# being used.
+#
+# The test is devided in three main parts:
+#
+# 1 - NULL --> NULL (no failures)
+# 2 - NULL --> NOT NULL ( sql-mode  = STRICT and failures)
+# 3 - NULL --> NOT NULL ( sql-mode != STRICT and no failures)
+#
+#################################################################################
+--source include/master-slave.inc
+--source include/have_innodb.inc
+--source include/have_binlog_format_row.inc
+
+let $engine=Innodb;
+--source extra/rpl_tests/rpl_not_null.test

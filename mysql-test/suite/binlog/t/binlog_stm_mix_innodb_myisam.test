@@ -2,6 +2,9 @@
 # For both statement and row based bin logs 9/19/2005 [jbm]
 
 -- source include/have_binlog_format_statement.inc
+
+CALL mtr.add_suppression("Statement may not be safe to log in statement format.");
+
 -- source extra/binlog_tests/mix_innodb_myisam_binlog.test
 
 set @@session.binlog_format=statement;

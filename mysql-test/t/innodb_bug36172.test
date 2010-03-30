@@ -13,9 +13,10 @@ SET storage_engine=InnoDB;
 
 -- disable_query_log
 -- disable_result_log
-set @old_innodb_file_per_table=@@innodb_file_per_table;
-set @old_innodb_file_format=@@innodb_file_format;
 
+let $file_format=`select @@innodb_file_format`;
+let $file_format_check=`select @@innodb_file_format_check`;
+let $file_per_table=`select @@innodb_file_per_table`;
 SET GLOBAL innodb_file_format='Barracuda';
 SET GLOBAL innodb_file_per_table=on;
 
@@ -27,6 +28,6 @@ INSERT IGNORE INTO `table0` SET `col19` = '19940127002709', `col20` = 2383927.90
 CHECK TABLE table0 EXTENDED;
 
 DROP TABLE table0;
-set global innodb_file_per_table=@old_innodb_file_per_table;
-set global innodb_file_format=@old_innodb_file_format;
-set global innodb_file_format_check=Antelope;
+EVAL SET GLOBAL innodb_file_format=$file_format;
+EVAL SET GLOBAL innodb_file_format_check=$file_format_check;
+EVAL SET GLOBAL innodb_file_per_table=$file_per_table;

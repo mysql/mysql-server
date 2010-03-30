@@ -2465,6 +2465,34 @@ static uint query_cache_hits(MYSQL *conn)
 
 
 /*
+  Check that query cache is available in server.
+*/
+static my_bool is_query_cache_available()
+{
+  int rc;
+  MYSQL_RES *result;
+  MYSQL_ROW row;
+  int res= -1;
+
+  rc= mysql_query(mysql, "SHOW VARIABLES LIKE 'have_query_cache'");
+  myquery(rc);
+
+  result= mysql_store_result(mysql);
+  DIE_UNLESS(result);
+
+  row= mysql_fetch_row(result);
+  DIE_UNLESS(row != NULL);
+  if (strcmp(row[1], "YES") == 0)
+    res= 1;
+  else if (strcmp(row[1], "NO") == 0)
+    res= 0;
+  mysql_free_result(result);
+
+  DIE_UNLESS(res == 0 || res == 1);
+  return res;
+}
+
+/*
   Test that prepared statements make use of the query cache just as normal
   statements (BUG#735).
 */
@@ -2507,6 +2535,12 @@ static void test_ps_query_cache()
   enum enum_test_ps_query_cache iteration;
 
   myheader("test_ps_query_cache");
+
+  if (! is_query_cache_available())
+  {
+    fprintf(stdout, "Skipping test_ps_query_cache: Query cache not available.\n");
+    return;
+  }
 
   rc= mysql_query(mysql, "SET SQL_MODE=''");
   myquery(rc);
@@ -17863,14 +17897,18 @@ static void test_bug43560(void)
   Bug#36326: nested transaction and select
 */
 
-#ifdef HAVE_QUERY_CACHE
-
 static void test_bug36326()
 {
   int rc;
 
   DBUG_ENTER("test_bug36326");
   myheader("test_bug36326");
+
+  if (! is_query_cache_available())
+  {
+    fprintf(stdout, "Skipping test_bug36326: Query cache not available.\n");
+    DBUG_VOID_RETURN;
+  }
 
   rc= mysql_autocommit(mysql, TRUE);
   myquery(rc);
@@ -17910,8 +17948,6 @@ static void test_bug36326()
 
   DBUG_VOID_RETURN;
 }
-
-#endif
 
 /**
   Bug#41078: With CURSOR_TYPE_READ_ONLY mysql_stmt_fetch() returns short
@@ -18373,9 +18409,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug38486", test_bug38486 },
   { "test_bug40365", test_bug40365 },
   { "test_bug43560", test_bug43560 },
-#ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
-#endif
   { "test_bug41078", test_bug41078 },
   { "test_bug44495", test_bug44495 },
   { 0, 0 }

@@ -1560,7 +1560,7 @@ trx_undo_mem_init_for_reuse(
 
 /********************************************************************//**
 Frees an undo log memory copy. */
-static
+UNIV_INTERN
 void
 trx_undo_mem_free(
 /*==============*/

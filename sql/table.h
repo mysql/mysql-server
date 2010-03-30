@@ -285,6 +285,36 @@ typedef enum enum_table_category TABLE_CATEGORY;
 TABLE_CATEGORY get_table_category(const LEX_STRING *db,
                                   const LEX_STRING *name);
 
+
+typedef struct st_table_field_type
+{
+  LEX_STRING name;
+  LEX_STRING type;
+  LEX_STRING cset;
+} TABLE_FIELD_TYPE;
+
+
+typedef struct st_table_field_def
+{
+  uint count;
+  const TABLE_FIELD_TYPE *field;
+} TABLE_FIELD_DEF;
+
+
+class Table_check_intact
+{
+protected:
+  virtual void report_error(uint code, const char *fmt, ...)= 0;
+
+public:
+  Table_check_intact() {}
+  virtual ~Table_check_intact() {}
+
+  /** Checks whether a table is intact. */
+  bool check(TABLE *table, const TABLE_FIELD_DEF *table_def);
+};
+
+
 /*
   This structure is shared between different table objects. There is one
   instance of table share per one table in the database.
@@ -401,6 +431,7 @@ typedef struct st_table_share
   bool is_view;
   bool name_lock, replace_with_name_lock;
   bool waiting_on_cond;                 /* Protection against free */
+  bool deleting;                        /* going to delete this table */
   ulong table_map_id;                   /* for row-based replication */
   ulonglong table_map_version;
 
@@ -422,6 +453,18 @@ typedef struct st_table_share
   uint part_state_len;
   handlerton *default_part_db_type;
 #endif
+
+  /**
+    Cache the checked structure of this table.
+
+    The pointer data is used to describe the structure that
+    a instance of the table must have. Each element of the
+    array specifies a field that must exist on the table.
+
+    The pointer is cached in order to perform the check only
+    once -- when the table is loaded from the disk.
+  */
+  const TABLE_FIELD_DEF *table_field_def_cache;
 
   /** place to store storage engine specific data */
   void *ha_data;
@@ -1337,7 +1380,7 @@ struct TABLE_LIST
   */
   bool          create;
   bool          internal_tmp_table;
-
+  bool          deleting;               /* going to delete this table */
 
   /* View creation context. */
 
@@ -1674,17 +1717,6 @@ typedef struct st_open_table_list{
   uint32 in_use,locked;
 } OPEN_TABLE_LIST;
 
-typedef struct st_table_field_w_type
-{
-  LEX_STRING name;
-  LEX_STRING type;
-  LEX_STRING cset;
-} TABLE_FIELD_W_TYPE;
-
-
-my_bool
-table_check_intact(TABLE *table, const uint table_f_count,
-                   const TABLE_FIELD_W_TYPE *table_def);
 
 static inline my_bitmap_map *tmp_use_all_columns(TABLE *table,
                                                  MY_BITMAP *bitmap)

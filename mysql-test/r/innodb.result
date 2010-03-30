@@ -3090,7 +3090,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 drop table t1, t2, t3, t5, t6, t8, t9;
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
-ERROR HY000: Can't create table 'test.t1' (errno: -1)
+ERROR 42000: Incorrect column name 'DB_ROW_ID'
 CREATE TABLE t1 (
 a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)
@@ -3160,15 +3160,6 @@ ALTER TABLE t2 MODIFY a INT NOT NULL;
 ERROR HY000: Error on rename of '#sql-temporary' to './test/t2' (errno: 150)
 DELETE FROM t1;
 DROP TABLE t2,t1;
-CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
-ENGINE=InnoDB;
-INSERT INTO t1 VALUES (0xEFBCA4EFBCA4EFBCA4);
-DELETE FROM t1;
-INSERT INTO t1 VALUES ('DDD');
-SELECT * FROM t1;
-a
-DDD
-DROP TABLE t1;
 CREATE TABLE t1 (id int PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB
 AUTO_INCREMENT=42;
 INSERT INTO t1 VALUES (0),(347),(0);

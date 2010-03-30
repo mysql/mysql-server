@@ -2218,9 +2218,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       hits the UNTIL barrier.
     */
     if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-        rli->is_until_satisfied((rli->is_in_group() || !ev->log_pos) ?
-                                rli->group_master_log_pos :
-                                ev->log_pos - ev->data_written))
+        rli->is_until_satisfied(thd, ev))
     {
       char buf[22];
       sql_print_information("Slave SQL thread stopped because it reached its"
@@ -2963,7 +2961,7 @@ log '%s' at position %s, relay log '%s' position: %s", RPL_LOG_NAME,
   */
   pthread_mutex_lock(&rli->data_lock);
   if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
-      rli->is_until_satisfied(rli->group_master_log_pos))
+      rli->is_until_satisfied(thd, NULL))
   {
     char buf[22];
     sql_print_information("Slave SQL thread stopped because it reached its"
@@ -3803,10 +3801,11 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
       suppress_warnings= 0;
       mi->report(ERROR_LEVEL, last_errno,
                  "error %s to master '%s@%s:%d'"
-                 " - retry-time: %d  retries: %lu",
+                 " - retry-time: %d  retries: %lu  message: %s",
                  (reconnect ? "reconnecting" : "connecting"),
                  mi->user, mi->host, mi->port,
-                 mi->connect_retry, master_retry_count);
+                 mi->connect_retry, master_retry_count,
+                 mysql_error(mysql));
     }
     /*
       By default we try forever. The reason is that failure will trigger

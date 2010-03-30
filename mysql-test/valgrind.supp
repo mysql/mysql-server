@@ -469,6 +469,26 @@
 }
 
 {
+   dlclose memory loss from plugin variant 8
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z15free_plugin_memP12st_plugin_dl
+   fun:_Z13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
+   dlclose memory loss from plugin variant 9
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_ZL15free_plugin_memP12st_plugin_dl
+   fun:_ZL13plugin_dl_delPK19st_mysql_lex_string
+}
+
+{
    dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 32/64 bit ver 1
    Memcheck:Leak
    fun:*alloc
@@ -990,4 +1010,16 @@
    obj:*/ld-*.so
    fun:_dl_allocate_tls
    fun:pthread_create*
+}
+
+#
+# Bug in Glibc 2.9: http://sourceware.org/bugzilla/show_bug.cgi?id=10391
+# Fixed in latest Glibc, but suppressed here for running tests on hosts
+# with older Glibc version.
+#
+{
+   Glibc bug in __libc_res_nsend
+   Memcheck:Cond
+   fun:__libc_res_nsend
+   fun:__libc_res_nquery
 }

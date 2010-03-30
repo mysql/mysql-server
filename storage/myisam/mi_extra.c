@@ -256,8 +256,13 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     share->last_version= 0L;			/* Impossible version */
     pthread_mutex_unlock(&THR_LOCK_myisam);
     break;
-  case HA_EXTRA_PREPARE_FOR_RENAME:
   case HA_EXTRA_PREPARE_FOR_DROP:
+    /* Signals about intent to delete this table */
+    share->deleting= TRUE;
+    share->global_changed= FALSE;     /* force writing changed flag */
+    _mi_mark_file_changed(info);
+    /* Fall trough */
+  case HA_EXTRA_PREPARE_FOR_RENAME:
     pthread_mutex_lock(&THR_LOCK_myisam);
     share->last_version= 0L;			/* Impossible version */
     pthread_mutex_lock(&share->intern_lock);

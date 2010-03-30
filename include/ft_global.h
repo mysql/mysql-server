@@ -62,7 +62,8 @@ void ft_free_stopwords(void);
 #define FT_SORTED 2
 #define FT_EXPAND 4   /* query expansion */
 
-FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,CHARSET_INFO *, uchar *);
+FT_INFO *ft_init_search(uint,void *, uint, uchar *, size_t,
+                        CHARSET_INFO *, uchar *);
 my_bool ft_boolean_check_syntax_string(const uchar *);
 
 /* Internal symbols for fulltext between maria and MyISAM */

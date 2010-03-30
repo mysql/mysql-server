@@ -263,7 +263,8 @@ struct sql_ex_info
                                    1 + 1 + 255    /* type, length, time_zone */ + \
                                    1 + 2          /* type, lc_time_names_number */ + \
                                    1 + 2          /* type, charset_database_number */ + \
-                                   1 + 8          /* type, table_map_for_update */)
+                                   1 + 8          /* type, table_map_for_update */ + \
+                                   1 + 4          /* type, master_data_written */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
   QUERY_HEADER_LEN     + /* write_data */   \
@@ -329,6 +330,10 @@ struct sql_ex_info
 #define Q_CHARSET_DATABASE_CODE 8
 
 #define Q_TABLE_MAP_FOR_UPDATE_CODE 9
+
+#define Q_MASTER_DATA_WRITTEN_CODE 10
+
+/* Intvar event post-header */
 
 /* Intvar event data */
 #define I_TYPE_OFFSET        0
@@ -1620,6 +1625,16 @@ public:
     statement, for other query statements, this will be zero.
   */
   ulonglong table_map_for_update;
+  /*
+    Holds the original length of a Query_log_event that comes from a
+    master of version < 5.0 (i.e., binlog_version < 4). When the IO
+    thread writes the relay log, it augments the Query_log_event with a
+    Q_MASTER_DATA_WRITTEN_CODE status_var that holds the original event
+    length. This field is initialized to non-zero in the SQL thread when
+    it reads this augmented event. SQL thread does not write 
+    Q_MASTER_DATA_WRITTEN_CODE to the slave's server binlog.
+  */
+  uint32 master_data_written;
 
 #ifndef MYSQL_CLIENT
 
@@ -1766,7 +1781,7 @@ private:
 
   @verbatim
    (1)    USE db;
-   (2)    LOAD DATA [LOCAL] INFILE 'file_name'
+   (2)    LOAD DATA [CONCURRENT] [LOCAL] INFILE 'file_name'
    (3)    [REPLACE | IGNORE]
    (4)    INTO TABLE 'table_name'
    (5)    [FIELDS
@@ -3541,12 +3556,16 @@ protected:
   int write_row(const Relay_log_info *const, const bool);
 
   // Unpack the current row into m_table->record[0]
-  int unpack_current_row(const Relay_log_info *const rli)
+  int unpack_current_row(const Relay_log_info *const rli,
+                         const bool abort_on_warning= TRUE)
   { 
     DBUG_ASSERT(m_table);
+
+    bool first_row= (m_curr_row == m_rows_buf);
     ASSERT_OR_RETURN_ERROR(m_curr_row < m_rows_end, HA_ERR_CORRUPT_EVENT);
     int const result= ::unpack_row(rli, m_table, m_width, m_curr_row, &m_cols,
-                                   &m_curr_row_end, &m_master_reclength);
+                                   &m_curr_row_end, &m_master_reclength,
+                                   abort_on_warning, first_row);
     if (m_curr_row_end > m_rows_end)
       my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
     ASSERT_OR_RETURN_ERROR(m_curr_row_end <= m_rows_end, HA_ERR_CORRUPT_EVENT);

@@ -968,6 +968,7 @@ create index t1u on t1 (u(1));
 drop table t1;
 set global innodb_file_per_table=0;
 set global innodb_file_format=Antelope;
+set global innodb_file_format_check=Antelope;
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 CREATE TABLE t1(

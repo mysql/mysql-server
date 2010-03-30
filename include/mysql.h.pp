@@ -28,7 +28,7 @@ typedef struct st_net {
   unsigned int *return_status;
   unsigned char reading_or_writing;
   char save_char;
-  my_bool unused0;
+  char net_skip_rest_factor;
   my_bool unused;
   my_bool compress;
   my_bool unused1;
@@ -518,16 +518,6 @@ unsigned long mysql_real_escape_string(MYSQL *mysql,
             char *to,const char *from,
             unsigned long length);
 void mysql_debug(const char *debug);
-char * mysql_odbc_escape_string(MYSQL *mysql,
-       char *to,
-       unsigned long to_length,
-       const char *from,
-       unsigned long from_length,
-       void *param,
-       char *
-       (*extend_buffer)
-       (void *, char *to,
-        unsigned long *length));
 void myodbc_remove_escape(MYSQL *mysql,char *name);
 unsigned int mysql_thread_safe(void);
 my_bool mysql_embedded(void);

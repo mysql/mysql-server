@@ -1102,3 +1102,58 @@ DROP TABLE t1;
 
 
 --echo End of 5.0 tests
+
+
+--echo # 
+--echo # Bug #49734: Crash on EXPLAIN EXTENDED UNION ... ORDER BY 
+--echo #   <any non-const-function>
+--echo # 
+
+CREATE TABLE t1 (a VARCHAR(10), FULLTEXT KEY a (a));
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (b INT);
+INSERT INTO t2 VALUES (1),(2);
+
+--echo # Should not crash
+EXPLAIN EXTENDED
+SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
+
+--echo # Should not crash
+SELECT * FROM t1 UNION SELECT * FROM t1 ORDER BY a + 12;
+
+
+--echo # Should not crash
+--error ER_CANT_USE_OPTION_HERE
+EXPLAIN EXTENDED
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+
+--echo # Should not crash
+--error ER_CANT_USE_OPTION_HERE
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+
+--echo # Should not crash
+(SELECT * FROM t1) UNION (SELECT * FROM t1)
+  ORDER BY MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE);
+
+
+--echo # Should not crash
+EXPLAIN EXTENDED
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY (SELECT a FROM t2 WHERE b = 12);
+
+--echo # Should not crash
+--disable_result_log
+SELECT * FROM t1 UNION SELECT * FROM t1
+  ORDER BY (SELECT a FROM t2 WHERE b = 12);
+--enable_result_log
+
+--echo # Should not crash
+SELECT * FROM t2 UNION SELECT * FROM t2
+  ORDER BY (SELECT * FROM t1 WHERE MATCH(a) AGAINST ('+abc' IN BOOLEAN MODE));
+
+DROP TABLE t1,t2;
+
+
+--echo End of 5.1 tests

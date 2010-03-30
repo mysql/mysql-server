@@ -204,7 +204,8 @@ static int FT_DOC_cmp(void *unused __attribute__((unused)),
 
 
 FT_INFO *ft_init_nlq_search(MI_INFO *info, uint keynr, uchar *query,
-			    uint query_len, uint flags, uchar *record)
+			    mysql_ft_size_t query_len, uint flags,
+                            uchar *record)
 {
   TREE	      wtree;
   ALL_IN_ONE  aio;

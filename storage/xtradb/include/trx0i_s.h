@@ -141,6 +141,13 @@ void
 trx_i_s_cache_init(
 /*===============*/
 	trx_i_s_cache_t*	cache);	/*!< out: cache to init */
+/*******************************************************************//**
+Free the INFORMATION SCHEMA trx related cache. */
+UNIV_INTERN
+void
+trx_i_s_cache_free(
+/*===============*/
+	trx_i_s_cache_t*	cache);	/*!< in/out: cache to free */
 
 /*******************************************************************//**
 Issue a shared/read lock on the tables cache. */

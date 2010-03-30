@@ -6963,6 +6963,22 @@ CALL p1();
 CALL p1();
 DROP PROCEDURE p1;
 DROP TABLE t1;
+CREATE TABLE t1 ( f1 integer, primary key (f1));
+CREATE TABLE t2 LIKE t1;
+CREATE TEMPORARY TABLE t3 LIKE t1;
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t3 AS A WHERE A.f1 IN ( SELECT f1 FROM t3 ) ;
+END|
+CALL p1;
+ERROR HY000: Can't reopen table: 'A'
+CREATE VIEW t3 AS SELECT f1 FROM t2 A WHERE A.f1 IN ( SELECT f1 FROM t2 );
+DROP TABLE t3;
+CALL p1;
+f1
+CALL p1;
+f1
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
+DROP VIEW t3;
 #
 # Bug #46629: Item_in_subselect::val_int(): Assertion `0' 
 # on subquery inside a SP
@@ -6979,6 +6995,64 @@ CALL p1;
 ERROR 42S22: Unknown column 'A.b' in 'IN/ALL/ANY subquery'
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
+#
+# Bug#47627: SET @@{global.session}.local_variable in stored routine causes crash
+# Bug#48626: Crash or lost connection using SET for declared variables with @@
+#
+DROP PROCEDURE IF EXISTS p1;
+DROP PROCEDURE IF EXISTS p2;
+DROP PROCEDURE IF EXISTS p3;
+CREATE PROCEDURE p1()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SET @@SESSION.v= 10;
+END//
+ERROR HY000: Unknown system variable 'v'
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SET v= 10;
+END//
+call p2()//
+CREATE PROCEDURE p3()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SELECT @@SESSION.v;
+END//
+ERROR HY000: Unknown system variable 'v'
+CREATE PROCEDURE p4()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SET @@GLOBAL.v= 10;
+END//
+ERROR HY000: Unknown system variable 'v'
+CREATE PROCEDURE p5()
+BEGIN
+DECLARE init_connect INT DEFAULT 0;
+SET init_connect= 10;
+SET @@GLOBAL.init_connect= 'SELECT 1';
+SET @@SESSION.IDENTITY= 1;
+SELECT @@SESSION.IDENTITY;
+SELECT @@GLOBAL.init_connect;
+SELECT init_connect;
+END//
+CREATE PROCEDURE p6()
+BEGIN
+DECLARE v INT DEFAULT 0;
+SET @@v= 0;
+END//
+ERROR HY000: Unknown system variable 'v'
+SET @old_init_connect= @@GLOBAL.init_connect;
+CALL p5();
+@@SESSION.IDENTITY
+1
+@@GLOBAL.init_connect
+SELECT 1
+init_connect
+10
+SET @@GLOBAL.init_connect= @old_init_connect;
+DROP PROCEDURE p2;
+DROP PROCEDURE p5;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------

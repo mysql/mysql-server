@@ -65,7 +65,7 @@ most significant bytes and bits are written below less significant.
 				   - offset_of_this_record) mod 64Ki,
 				  where mod is the modulo as a non-negative
 				  number;
-				  we can calculate the the offset of the next
+				  we can calculate the offset of the next
 				  record with the formula:
 				  relative_offset + offset_of_this_record
 				  mod UNIV_PAGE_SIZE

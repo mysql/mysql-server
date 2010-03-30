@@ -335,8 +335,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 	  InnoDB it can fail in a FOREIGN KEY error or an
 	  out-of-tablespace error.
 	*/
- 	error= 1;
-	break;
+        if (!select_lex->no_error)
+        {
+          error= 1;
+          break;
+        }
       }
     }
     else
@@ -426,7 +429,8 @@ cleanup:
   }
   DBUG_ASSERT(transactional_table || !deleted || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
-  if (error < 0 || (thd->lex->ignore && !thd->is_fatal_error))
+  if (error < 0 || 
+      (thd->lex->ignore && !thd->is_error() && !thd->is_fatal_error))
   {
     /*
       If a TRUNCATE TABLE was issued, the number of rows should be reported as
@@ -849,9 +853,10 @@ void multi_delete::abort()
     if (mysql_bin_log.is_open())
     {
       int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-      thd->binlog_query(THD::ROW_QUERY_TYPE,
-                        thd->query(), thd->query_length(),
-                        transactional_tables, FALSE, errcode);
+      /* possible error of writing binary log is ignored deliberately */
+      (void) thd->binlog_query(THD::ROW_QUERY_TYPE,
+                              thd->query(), thd->query_length(),
+                              transactional_tables, FALSE, errcode);
     }
     thd->transaction.all.modified_non_trans_table= true;
   }
@@ -1087,8 +1092,10 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   HA_CREATE_INFO create_info;
   char path[FN_REFLEN + 1];
   TABLE *table;
+  TABLE_LIST *tbl;
   bool error;
   uint path_length;
+  bool is_temporary_table= false;
   DBUG_ENTER("mysql_truncate");
 
   bzero((char*) &create_info,sizeof(create_info));
@@ -1101,8 +1108,13 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   {
     TABLE_SHARE *share= table->s;
     handlerton *table_type= share->db_type();
+    is_temporary_table= true;
+
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
+
+    for (tbl= table_list; tbl; tbl= tbl->next_local)
+      tbl->deleting= TRUE; /* to trigger HA_PREPARE_FOR_DROP */
 
     table->file->info(HA_STATUS_AUTO | HA_STATUS_NO_LOCK);
 
@@ -1166,12 +1178,11 @@ end:
   {
     if (!error)
     {
-      /*
-        TRUNCATE must always be statement-based binlogged (not row-based) so
-        we don't test current_stmt_binlog_row_based.
-      */
-      write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-      my_ok(thd);		// This should return record count
+      /* In RBR, the statement is not binlogged if the table is temporary. */
+      if (!is_temporary_table || !thd->current_stmt_binlog_row_based)
+        error= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      if (!error)
+        my_ok(thd);		// This should return record count
     }
     VOID(pthread_mutex_lock(&LOCK_open));
     unlock_table_name(thd, table_list);

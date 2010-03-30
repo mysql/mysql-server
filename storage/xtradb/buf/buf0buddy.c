@@ -531,11 +531,10 @@ buf_buddy_relocate(
 		UNIV_MEM_ASSERT_W(src, size);
 
 		mutex = buf_page_get_mutex_enter(bpage);
-		ut_a(mutex);
 
 		mutex_enter(&zip_free_mutex);
 
-		if (buf_page_can_relocate(bpage)) {
+		if (mutex && buf_page_can_relocate(bpage)) {
 			/* Relocate the compressed page. */
 			ut_a(bpage->zip.data == src);
 			memcpy(dst, src, size);
@@ -563,7 +562,9 @@ success:
 			rw_lock_x_unlock(&page_hash_latch);
 		}
 
-		mutex_exit(mutex);
+		if (mutex) {
+			mutex_exit(mutex);
+		}
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
 		UNIV_MEM_ASSERT_RW(src, size);

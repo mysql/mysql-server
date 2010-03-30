@@ -331,6 +331,28 @@ buf_flush_write_complete(
 }
 
 /********************************************************************//**
+Flush a batch of writes to the datafiles that have already been
+written by the OS. */
+static
+void
+buf_flush_sync_datafiles(void)
+/*==========================*/
+{
+	/* Wake possible simulated aio thread to actually post the
+	writes to the operating system */
+	os_aio_simulated_wake_handler_threads();
+
+	/* Wait that all async writes to tablespaces have been posted to
+	the OS */
+	os_aio_wait_until_no_pending_writes();
+
+	/* Now we flush the data to disk (for example, with fsync) */
+	fil_flush_file_spaces(FIL_TABLESPACE);
+
+	return;
+}
+
+/********************************************************************//**
 Flushes possible buffered writes from the doublewrite memory buffer to disk,
 and also wakes up the aio thread if simulated aio is used. It is very
 important to call this function after a batch of writes has been posted,
@@ -347,8 +369,8 @@ buf_flush_buffered_writes(void)
 	ulint		i;
 
 	if (!srv_use_doublewrite_buf || trx_doublewrite == NULL) {
-		os_aio_simulated_wake_handler_threads();
-
+		/* Sync the writes to the disk. */
+		buf_flush_sync_datafiles();
 		return;
 	}
 
@@ -556,22 +578,10 @@ flush:
 		buf_LRU_stat_inc_io();
 	}
 
-	/* Wake possible simulated aio thread to actually post the
-	writes to the operating system */
-
-	os_aio_simulated_wake_handler_threads();
-
-	/* Wait that all async writes to tablespaces have been posted to
-	the OS */
-
-	os_aio_wait_until_no_pending_writes();
-
-	/* Now we flush the data to disk (for example, with fsync) */
-
-	fil_flush_file_spaces(FIL_TABLESPACE);
+	/* Sync the writes to the disk. */
+	buf_flush_sync_datafiles();
 
 	/* We can now reuse the doublewrite memory buffer: */
-
 	trx_doublewrite->first_free = 0;
 
 	mutex_exit(&(trx_doublewrite->mutex));
@@ -994,9 +1004,7 @@ buf_flush_try_neighbors(
 		    || buf_page_is_old(bpage)) {
 			mutex_t* block_mutex = buf_page_get_mutex_enter(bpage);
 
-			ut_a(block_mutex);
-
-			if (buf_flush_ready_for_flush(bpage, flush_type)
+			if (block_mutex && buf_flush_ready_for_flush(bpage, flush_type)
 			    && (i == offset || !bpage->buf_fix_count)) {
 				/* We only try to flush those
 				neighbors != offset where the buf fix count is
@@ -1012,7 +1020,7 @@ buf_flush_try_neighbors(
 
 				//buf_pool_mutex_enter();
 				rw_lock_s_lock(&page_hash_latch);
-			} else {
+			} else if (block_mutex) {
 				mutex_exit(block_mutex);
 			}
 		}
@@ -1050,6 +1058,7 @@ buf_flush_batch(
 					min_n), otherwise ignored */
 {
 	buf_page_t*	bpage;
+	buf_page_t*	prev_bpage	= NULL;
 	ulint		page_count	= 0;
 	ulint		old_page_count;
 	ulint		space;
@@ -1103,6 +1112,9 @@ flush_next:
 			mutex_enter(&flush_list_mutex);
 			remaining = UT_LIST_GET_LEN(buf_pool->flush_list);
 			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+			if (bpage) {
+				prev_bpage = UT_LIST_GET_PREV(flush_list, bpage);
+			}
 			mutex_exit(&flush_list_mutex);
 			if (!bpage
 			    || bpage->oldest_modification >= lsn_limit) {
@@ -1123,11 +1135,14 @@ flush_next:
 			mutex_t*block_mutex = buf_page_get_mutex_enter(bpage);
 			ibool	ready;
 
-			ut_a(buf_page_in_file(bpage));
+			//ut_a(buf_page_in_file(bpage));
 
-			ut_a(block_mutex);
-			ready = buf_flush_ready_for_flush(bpage, flush_type);
-			mutex_exit(block_mutex);
+			if (block_mutex) {
+				ready = buf_flush_ready_for_flush(bpage, flush_type);
+				mutex_exit(block_mutex);
+			} else {
+				ready = FALSE;
+			}
 
 			if (ready) {
 				space = buf_page_get_space(bpage);
@@ -1162,6 +1177,13 @@ flush_next:
 				mutex_enter(&flush_list_mutex);
 				bpage = UT_LIST_GET_PREV(flush_list, bpage);
 				//ut_ad(!bpage || bpage->in_flush_list); /* optimistic */
+				if (bpage != prev_bpage) {
+					/* the search may warp.. retrying */
+					bpage = NULL;
+				}
+				if (bpage) {
+					prev_bpage = UT_LIST_GET_PREV(flush_list, bpage);
+				}
 				mutex_exit(&flush_list_mutex);
 				remaining--;
 			}
@@ -1271,13 +1293,13 @@ buf_flush_LRU_recommendation(void)
 		}
 		block_mutex = buf_page_get_mutex_enter(bpage);
 
-		ut_a(block_mutex);
-
-		if (buf_flush_ready_for_replace(bpage)) {
+		if (block_mutex && buf_flush_ready_for_replace(bpage)) {
 			n_replaceable++;
 		}
 
-		mutex_exit(block_mutex);
+		if (block_mutex) {
+			mutex_exit(block_mutex);
+		}
 
 		distance++;
 

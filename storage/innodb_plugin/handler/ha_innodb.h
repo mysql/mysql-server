@@ -258,12 +258,14 @@ int thd_binlog_format(const MYSQL_THD thd);
 */
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all);
 
+#if MYSQL_VERSION_ID > 50140
 /**
   Check if binary logging is filtered for thread's current db.
   @param  thd   Thread handle
   @retval 1 the query is not filtered, 0 otherwise.
 */
 bool thd_binlog_filter_ok(const MYSQL_THD thd);
+#endif /* MYSQL_VERSION_ID > 50140 */
 }
 
 typedef struct trx_struct trx_t;

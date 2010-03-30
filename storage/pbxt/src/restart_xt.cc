@@ -3314,7 +3314,7 @@ static void *xn_xres_run_recovery_thread(XTThreadPtr self)
 	* #7	0x000c0db2 in THD::~THD at sql_class.cc:934
 	* #8	0x003b025b in myxt_destroy_thread at myxt_xt.cc:2999
 	* #9	0x003b66b5 in xn_xres_run_recovery_thread at restart_xt.cc:3196
-	* #10	0x003cbfbb in thr_main at thread_xt.cc:1020
+	* #10	0x003cbfbb in thr_main_pbxt at thread_xt.cc:1020
 	*
 	myxt_destroy_thread(mysql_thread, TRUE);
 	*/

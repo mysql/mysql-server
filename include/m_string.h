@@ -95,13 +95,7 @@ extern char NEAR _dig_vec_lower[];
 /* Defined in strtod.c */
 extern const double log_10[309];
 
-#ifdef BAD_STRING_COMPILER
-#define strmov(A,B)  (memccpy(A,B,0,INT_MAX)-1)
-#else
 extern char *strmov_overlapp(char *dest, const char *src);
-/* Warning: the following is likely not to work: */
-#define strmake_overlapp(A,B,C) strmake(A,B,C)
-#endif
 
 #ifdef BAD_MEMCPY			/* Problem with gcc on Alpha */
 #define memcpy_fixed(A,B,C) bmove((A),(B),(C))
@@ -162,9 +156,6 @@ extern	size_t strinstr(const char *str,const char *search);
 extern  size_t r_strinstr(const char *str, size_t from, const char *search);
 extern	char *strkey(char *dst,char *head,char *tail,char *flags);
 extern	char *strmake(char *dst,const char *src,size_t length);
-#ifndef strmake_overlapp
-extern	char *strmake_overlapp(char *dst,const char *src, size_t length);
-#endif
 
 #ifndef strmov
 extern	char *strmov(char *dst,const char *src);

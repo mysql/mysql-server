@@ -85,6 +85,7 @@ TABLE_PRIVILEGES
 TRIGGERS
 USER_PRIVILEGES
 VIEWS
+XTRADB_ADMIN_COMMAND
 XTRADB_ENHANCEMENTS
 columns_priv
 db
@@ -865,8 +866,8 @@ TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
 INNODB_BUFFER_POOL_PAGES_INDEX	table_name	select
-INNODB_INDEX_STATS	table_name	select
 INNODB_TABLE_STATS	table_name	select
+INNODB_INDEX_STATS	table_name	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
@@ -1385,7 +1386,7 @@ who
 other connection here
 SELECT IF(`time` > 0, 'OK', `time`) AS time_low,
 IF(`time` < 1000, 'OK', `time`) AS time_high,
-IF(time_ms > 1500, 'OK', time_ms) AS time_ms_low,
+IF(time_ms >= 1000, 'OK', time_ms) AS time_ms_low,
 IF(time_ms < 1000000, 'OK', time_ms) AS time_ms_high
 FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE ID=@tid;
@@ -1616,4 +1617,26 @@ SET TIMESTAMP=@@TIMESTAMP + 10000000;
 SELECT 'NOT_OK' AS TEST_RESULT FROM INFORMATION_SCHEMA.PROCESSLIST WHERE time < 0;
 TEST_RESULT
 SET TIMESTAMP=DEFAULT;
+#
+# Bug #50276: Security flaw in INFORMATION_SCHEMA.TABLES
+#
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE t1 (id INT);
+CREATE USER nonpriv;
+USE test;
+# connected as nonpriv
+# Should return 0
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='t1';
+COUNT(*)
+0
+USE INFORMATION_SCHEMA;
+# Should return 0
+SELECT COUNT(*) FROM TABLES WHERE TABLE_NAME='t1';
+COUNT(*)
+0
+# connected as root
+DROP USER nonpriv;
+DROP TABLE db1.t1;
+DROP DATABASE db1;
 End of 5.1 tests.

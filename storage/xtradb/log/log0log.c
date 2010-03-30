@@ -241,6 +241,7 @@ log_reserve_and_open(
 	ut_a(len < log->buf_size / 2);
 loop:
 	mutex_enter(&(log->mutex));
+	ut_ad(!recv_no_log_write);
 
 	/* Calculate an upper limit for the space the string may take in the
 	log buffer */
@@ -309,6 +310,7 @@ log_write_low(
 
 	ut_ad(mutex_own(&(log->mutex)));
 part_loop:
+	ut_ad(!recv_no_log_write);
 	/* Calculate a part length */
 
 	data_len = (log->buf_free % OS_FILE_LOG_BLOCK_SIZE) + str_len;
@@ -362,6 +364,33 @@ part_loop:
 }
 
 /************************************************************//**
+*/
+UNIV_INLINE
+ulint
+log_max_modified_age_async()
+{
+	if (srv_checkpoint_age_target) {
+		return(ut_min(log_sys->max_modified_age_async,
+				srv_checkpoint_age_target
+				- srv_checkpoint_age_target / 8));
+	} else {
+		return(log_sys->max_modified_age_async);
+	}
+}
+
+UNIV_INLINE
+ulint
+log_max_checkpoint_age_async()
+{
+	if (srv_checkpoint_age_target) {
+		return(ut_min(log_sys->max_checkpoint_age_async,
+				srv_checkpoint_age_target));
+	} else {
+		return(log_sys->max_checkpoint_age_async);
+	}
+}
+
+/************************************************************//**
 Closes the log.
 @return	lsn */
 UNIV_INTERN
@@ -377,6 +406,7 @@ log_close(void)
 	ib_uint64_t	checkpoint_age;
 
 	ut_ad(mutex_own(&(log->mutex)));
+	ut_ad(!recv_no_log_write);
 
 	lsn = log->lsn;
 
@@ -429,7 +459,7 @@ log_close(void)
 		}
 	}
 
-	if (checkpoint_age <= log->max_modified_age_async) {
+	if (checkpoint_age <= log_max_modified_age_async()) {
 
 		goto function_exit;
 	}
@@ -437,8 +467,8 @@ log_close(void)
 	oldest_lsn = buf_pool_get_oldest_modification();
 
 	if (!oldest_lsn
-	    || lsn - oldest_lsn > log->max_modified_age_async
-	    || checkpoint_age > log->max_checkpoint_age_async) {
+	    || lsn - oldest_lsn > log_max_modified_age_async()
+	    || checkpoint_age > log_max_checkpoint_age_async()) {
 
 		log->check_flush_or_checkpoint = TRUE;
 	}
@@ -668,8 +698,6 @@ log_calc_max_ages(void)
 	ulint		archive_margin;
 	ulint		smallest_archive_margin;
 
-	ut_ad(!mutex_own(&(log_sys->mutex)));
-
 	mutex_enter(&(log_sys->mutex));
 
 	group = UT_LIST_GET_FIRST(log_sys->log_groups);
@@ -770,8 +798,6 @@ void
 log_init(void)
 /*==========*/
 {
-	byte*	buf;
-
 	log_sys = mem_alloc(sizeof(log_t));
 
 	mutex_create(&log_sys->mutex, SYNC_LOG);
@@ -786,8 +812,8 @@ log_init(void)
 	ut_a(LOG_BUFFER_SIZE >= 16 * OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
-	buf = mem_alloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
-	log_sys->buf = ut_align(buf, OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->buf_ptr = mem_alloc(LOG_BUFFER_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->buf = ut_align(log_sys->buf_ptr, OS_FILE_LOG_BLOCK_SIZE);
 
 	log_sys->buf_size = LOG_BUFFER_SIZE;
 
@@ -832,9 +858,9 @@ log_init(void)
 
 	rw_lock_create(&log_sys->checkpoint_lock, SYNC_NO_ORDER_CHECK);
 
-	log_sys->checkpoint_buf
-		= ut_align(mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE),
-			   OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->checkpoint_buf_ptr = mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE);
+	log_sys->checkpoint_buf = ut_align(log_sys->checkpoint_buf_ptr,
+					   OS_FILE_LOG_BLOCK_SIZE);
 	memset(log_sys->checkpoint_buf, '\0', OS_FILE_LOG_BLOCK_SIZE);
 	/*----------------------------*/
 
@@ -917,23 +943,33 @@ log_group_init(
 	group->lsn_offset = LOG_FILE_HDR_SIZE;
 	group->n_pending_writes = 0;
 
+	group->file_header_bufs_ptr = mem_alloc(sizeof(byte*) * n_files);
 	group->file_header_bufs = mem_alloc(sizeof(byte*) * n_files);
 #ifdef UNIV_LOG_ARCHIVE
+	group->archive_file_header_bufs_ptr = mem_alloc(
+		sizeof(byte*) * n_files);
 	group->archive_file_header_bufs = mem_alloc(sizeof(byte*) * n_files);
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < n_files; i++) {
-		*(group->file_header_bufs + i) = ut_align(
-			mem_alloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE),
+		group->file_header_bufs_ptr[i] = mem_alloc(
+			LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+
+		group->file_header_bufs[i] = ut_align(
+			group->file_header_bufs_ptr[i],
 			OS_FILE_LOG_BLOCK_SIZE);
 
 		memset(*(group->file_header_bufs + i), '\0',
 		       LOG_FILE_HDR_SIZE);
 
 #ifdef UNIV_LOG_ARCHIVE
-		*(group->archive_file_header_bufs + i) = ut_align(
-			mem_alloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE),
+		group->archive_file_header_bufs_ptr[i] = mem_alloc(
+			LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+
+		group->archive_file_header_bufs[i] = ut_align(
+			group->archive_file_header_bufs_ptr[i],
 			OS_FILE_LOG_BLOCK_SIZE);
+
 		memset(*(group->archive_file_header_bufs + i), '\0',
 		       LOG_FILE_HDR_SIZE);
 #endif /* UNIV_LOG_ARCHIVE */
@@ -946,8 +982,9 @@ log_group_init(
 	group->archived_offset = 0;
 #endif /* UNIV_LOG_ARCHIVE */
 
-	group->checkpoint_buf = ut_align(
-		mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE), OS_FILE_LOG_BLOCK_SIZE);
+	group->checkpoint_buf_ptr = mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE);
+	group->checkpoint_buf = ut_align(group->checkpoint_buf_ptr,
+					 OS_FILE_LOG_BLOCK_SIZE);
 
 	memset(group->checkpoint_buf, '\0', OS_FILE_LOG_BLOCK_SIZE);
 
@@ -1117,6 +1154,7 @@ log_io_complete(
 	}
 
 	mutex_enter(&(log_sys->mutex));
+	ut_ad(!recv_no_log_write);
 
 	ut_a(group->n_pending_writes > 0);
 	ut_a(log_sys->n_pending_writes > 0);
@@ -1148,6 +1186,7 @@ log_group_file_header_flush(
 	ulint	dest_offset;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(!recv_no_log_write);
 	ut_a(nth_file < group->n_files);
 
 	buf = *(group->file_header_bufs + nth_file);
@@ -1219,6 +1258,7 @@ log_group_write_buf(
 	ulint	i;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(!recv_no_log_write);
 	ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a(((ulint) start_lsn) % OS_FILE_LOG_BLOCK_SIZE == 0);
 
@@ -1361,6 +1401,7 @@ loop:
 #endif
 
 	mutex_enter(&(log_sys->mutex));
+	ut_ad(!recv_no_log_write);
 
 	if (flush_to_disk
 	    && log_sys->flushed_to_disk_lsn >= lsn) {
@@ -1974,6 +2015,7 @@ log_checkpoint(
 
 	mutex_enter(&(log_sys->mutex));
 
+	ut_ad(!recv_no_log_write);
 	oldest_lsn = log_buf_pool_get_oldest_modification();
 
 	mutex_exit(&(log_sys->mutex));
@@ -2047,7 +2089,7 @@ log_make_checkpoint_at(
 					later lsn, if IB_ULONGLONG_MAX, makes
 					a checkpoint at the latest lsn */
 	ibool		write_always)	/*!< in: the function normally checks if
-					the the new checkpoint would have a
+					the new checkpoint would have a
 					greater lsn than the previous one: if
 					not, then no physical write is done;
 					by setting this parameter TRUE, a
@@ -2086,6 +2128,7 @@ loop:
 	do_checkpoint = FALSE;
 
 	mutex_enter(&(log->mutex));
+	ut_ad(!recv_no_log_write);
 
 	if (log->check_flush_or_checkpoint == FALSE) {
 		mutex_exit(&(log->mutex));
@@ -2103,10 +2146,10 @@ loop:
 
 		sync = TRUE;
 		advance = 2 * (age - log->max_modified_age_sync);
-	} else if (age > log->max_modified_age_async) {
+	} else if (age > log_max_modified_age_async()) {
 
 		/* A flush is not urgent: we do an asynchronous preflush */
-		advance = age - log->max_modified_age_async;
+		advance = age - log_max_modified_age_async();
 	} else {
 		advance = 0;
 	}
@@ -2120,7 +2163,7 @@ loop:
 
 		do_checkpoint = TRUE;
 
-	} else if (checkpoint_age > log->max_checkpoint_age_async) {
+	} else if (checkpoint_age > log_max_checkpoint_age_async()) {
 		/* A checkpoint is not urgent: do it asynchronously */
 
 		do_checkpoint = TRUE;
@@ -3035,6 +3078,7 @@ loop:
 #endif /* UNIV_LOG_ARCHIVE */
 
 	mutex_enter(&(log_sys->mutex));
+	ut_ad(!recv_no_log_write);
 
 	if (log_sys->check_flush_or_checkpoint) {
 
@@ -3114,6 +3158,16 @@ loop:
 	/* Check that the master thread is suspended */
 
 	if (srv_n_threads_active[SRV_MASTER] != 0) {
+
+		mutex_exit(&kernel_mutex);
+
+		goto loop;
+	}
+
+	/* Check that the purge threads ended */
+	if (srv_use_purge_thread
+	    && (srv_n_threads_active[SRV_PURGE] != 0
+		|| srv_n_threads_active[SRV_PURGE_WORKER] != 0)) {
 
 		mutex_exit(&kernel_mutex);
 
@@ -3234,6 +3288,7 @@ loop:
 	ut_a(lsn == log_sys->lsn);
 }
 
+#ifdef UNIV_LOG_DEBUG
 /******************************************************//**
 Checks by parsing that the catenated log segment for a single mtr is
 consistent. */
@@ -3241,7 +3296,7 @@ UNIV_INTERN
 ibool
 log_check_log_recs(
 /*===============*/
-	byte*		buf,		/*!< in: pointer to the start of
+	const byte*	buf,		/*!< in: pointer to the start of
 					the log segment in the
 					log_sys->buf log buffer */
 	ulint		len,		/*!< in: segment length in bytes */
@@ -3249,8 +3304,8 @@ log_check_log_recs(
 {
 	ib_uint64_t	contiguous_lsn;
 	ib_uint64_t	scanned_lsn;
-	byte*		start;
-	byte*		end;
+	const byte*	start;
+	const byte*	end;
 	byte*		buf1;
 	byte*		scan_buf;
 
@@ -3283,6 +3338,7 @@ log_check_log_recs(
 
 	return(TRUE);
 }
+#endif /* UNIV_LOG_DEBUG */
 
 /******************************************************//**
 Peeks the current lsn.
@@ -3326,10 +3382,12 @@ log_print(
 		log_sys->last_checkpoint_lsn);
 
 	fprintf(file,
-		"Max checkpoint age  %lu\n"
-		"Modified age        %lu\n"
-		"Checkpoint age      %lu\n",
+		"Max checkpoint age    %lu\n"
+		"Checkpoint age target %lu\n"
+		"Modified age          %lu\n"
+		"Checkpoint age        %lu\n",
 			(ulong) log_sys->max_checkpoint_age,
+			(ulong) log_max_checkpoint_age_async(),
 			(ulong) (log_sys->lsn -
 					log_buf_pool_get_oldest_modification()),
 			(ulong) (log_sys->lsn - log_sys->last_checkpoint_lsn));
@@ -3362,5 +3420,96 @@ log_refresh_stats(void)
 {
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
 	log_sys->last_printout_time = time(NULL);
+}
+
+/**********************************************************************
+Closes a log group. */
+static
+void
+log_group_close(
+/*===========*/
+	log_group_t*	group)		/* in,own: log group to close */
+{
+	ulint	i;
+
+	for (i = 0; i < group->n_files; i++) {
+		mem_free(group->file_header_bufs_ptr[i]);
+#ifdef UNIV_LOG_ARCHIVE
+		mem_free(group->archive_file_header_bufs_ptr[i]);
+#endif /* UNIV_LOG_ARCHIVE */
+	}
+
+	mem_free(group->file_header_bufs_ptr);
+	mem_free(group->file_header_bufs);
+
+#ifdef UNIV_LOG_ARCHIVE
+	mem_free(group->archive_file_header_bufs_ptr);
+	mem_free(group->archive_file_header_bufs);
+#endif /* UNIV_LOG_ARCHIVE */
+
+	mem_free(group->checkpoint_buf_ptr);
+
+	mem_free(group);
+}
+
+/**********************************************************
+Shutdown the log system but do not release all the memory. */
+UNIV_INTERN
+void
+log_shutdown(void)
+/*==============*/
+{
+	log_group_t*	group;
+
+	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+
+	while (UT_LIST_GET_LEN(log_sys->log_groups) > 0) {
+		log_group_t*	prev_group = group;
+
+		group = UT_LIST_GET_NEXT(log_groups, group);
+		UT_LIST_REMOVE(log_groups, log_sys->log_groups, prev_group);
+
+		log_group_close(prev_group);
+	}
+
+	mem_free(log_sys->buf_ptr);
+	log_sys->buf_ptr = NULL;
+	log_sys->buf = NULL;
+	mem_free(log_sys->checkpoint_buf_ptr);
+	log_sys->checkpoint_buf_ptr = NULL;
+	log_sys->checkpoint_buf = NULL;
+
+	os_event_free(log_sys->no_flush_event);
+	os_event_free(log_sys->one_flushed_event);
+
+	rw_lock_free(&log_sys->checkpoint_lock);
+
+	mutex_free(&log_sys->mutex);
+
+#ifdef UNIV_LOG_ARCHIVE
+	rw_lock_free(&log_sys->archive_lock);
+	os_event_create(log_sys->archiving_on);
+#endif /* UNIV_LOG_ARCHIVE */
+
+#ifdef UNIV_LOG_DEBUG
+	recv_sys_debug_free();
+#endif
+
+	recv_sys_close();
+}
+
+/**********************************************************
+Free the log system data structures. */
+UNIV_INTERN
+void
+log_mem_free(void)
+/*==============*/
+{
+	if (log_sys != NULL) {
+		recv_sys_mem_free();
+		mem_free(log_sys);
+
+		log_sys = NULL;
+	}
 }
 #endif /* !UNIV_HOTBACKUP */

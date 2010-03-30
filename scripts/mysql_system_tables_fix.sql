@@ -415,17 +415,47 @@ ALTER TABLE proc ADD character_set_client
 ALTER TABLE proc MODIFY character_set_client
                         char(32) collate utf8_bin DEFAULT NULL;
 
+SELECT CASE WHEN COUNT(*) > 0 THEN 
+CONCAT ("WARNING: NULL values of the 'character_set_client' column ('mysql.proc' table) have been updated with a default value (", @@character_set_client, "). Please verify if necessary.")
+ELSE NULL 
+END 
+AS value FROM proc WHERE character_set_client IS NULL;
+
+UPDATE proc SET character_set_client = @@character_set_client 
+                     WHERE character_set_client IS NULL;
+
 ALTER TABLE proc ADD collation_connection
                      char(32) collate utf8_bin DEFAULT NULL
                      AFTER character_set_client;
 ALTER TABLE proc MODIFY collation_connection
                         char(32) collate utf8_bin DEFAULT NULL;
 
+SELECT CASE WHEN COUNT(*) > 0 THEN 
+CONCAT ("WARNING: NULL values of the 'collation_connection' column ('mysql.proc' table) have been updated with a default value (", @@collation_connection, "). Please verify if necessary.")
+ELSE NULL 
+END 
+AS value FROM proc WHERE collation_connection IS NULL;
+
+UPDATE proc SET collation_connection = @@collation_connection
+                     WHERE collation_connection IS NULL;
+
 ALTER TABLE proc ADD db_collation
                      char(32) collate utf8_bin DEFAULT NULL
                      AFTER collation_connection;
 ALTER TABLE proc MODIFY db_collation
                         char(32) collate utf8_bin DEFAULT NULL;
+
+SELECT CASE WHEN COUNT(*) > 0 THEN 
+CONCAT ("WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been updated with default values. Please verify if necessary.")
+ELSE NULL
+END
+AS value FROM proc WHERE db_collation IS NULL;
+
+UPDATE proc AS p SET db_collation  = 
+                     ( SELECT DEFAULT_COLLATION_NAME 
+                       FROM INFORMATION_SCHEMA.SCHEMATA 
+                       WHERE SCHEMA_NAME = p.db)
+                     WHERE db_collation IS NULL;
 
 ALTER TABLE proc ADD body_utf8 longblob DEFAULT NULL
                      AFTER db_collation;

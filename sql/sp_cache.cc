@@ -36,10 +36,16 @@ public:
   sp_cache();
   ~sp_cache();
 
-  inline void insert(sp_head *sp)
+  /**
+   Inserts a sp_head object into a hash table.
+
+   @returns Success status
+     @return TRUE Failure
+     @return FALSE Success
+  */
+  inline bool insert(sp_head *sp)
   {
-    /* TODO: why don't we check return value? */
-    my_hash_insert(&m_hashtable, (const uchar *)sp);
+    return my_hash_insert(&m_hashtable, (const uchar *)sp);
   }
 
   inline sp_head *lookup(char *name, uint namelen)

@@ -510,4 +510,60 @@ DROP USER mysqltest_u1@localhost;
 DROP PROCEDURE p_suid;
 DROP FUNCTION f_suid;
 DROP TABLE t1;
+#
+# Bug #48872 : Privileges for stored functions ignored if function name 
+#  is mixed case
+#
+CREATE DATABASE B48872;
+USE B48872;
+CREATE TABLE `TestTab` (id INT);
+INSERT INTO `TestTab` VALUES (1),(2);
+CREATE FUNCTION `f_Test`() RETURNS INT RETURN 123;
+CREATE FUNCTION `f_Test_denied`() RETURNS INT RETURN 123;
+CREATE USER 'tester';
+CREATE USER 'Tester';
+GRANT SELECT ON TABLE `TestTab` TO 'tester';
+GRANT EXECUTE ON FUNCTION `f_Test` TO 'tester';
+GRANT EXECUTE ON FUNCTION `f_Test_denied` TO 'Tester';
+SELECT f_Test();
+f_Test()
+123
+SELECT * FROM TestTab;
+id
+1
+2
+SELECT * FROM TestTab;
+id
+1
+2
+SELECT `f_Test`();
+`f_Test`()
+123
+SELECT `F_TEST`();
+`F_TEST`()
+123
+SELECT f_Test();
+f_Test()
+123
+SELECT F_TEST();
+F_TEST()
+123
+SELECT * FROM TestTab;
+SELECT `f_Test`();
+SELECT `F_TEST`();
+SELECT f_Test();
+SELECT F_TEST();
+SELECT `f_Test_denied`();
+`f_Test_denied`()
+123
+SELECT `F_TEST_DENIED`();
+`F_TEST_DENIED`()
+123
+DROP TABLE `TestTab`;
+DROP FUNCTION `f_Test`;
+DROP FUNCTION `f_Test_denied`;
+USE test;
+DROP USER 'tester';
+DROP USER 'Tester';
+DROP DATABASE B48872;
 End of 5.0 tests.

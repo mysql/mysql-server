@@ -22,8 +22,8 @@
 #include "ma_ftdefs.h"
 
 FT_INFO *maria_ft_init_search(uint flags, void *info, uint keynr,
-			      uchar *query, uint query_len, CHARSET_INFO *cs,
-			      uchar *record)
+			      uchar *query, size_t query_len,
+                              CHARSET_INFO *cs, uchar *record)
 {
   FT_INFO *res;
   if (flags & FT_BOOL)

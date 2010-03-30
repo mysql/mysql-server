@@ -889,7 +889,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define FLT_MAX		((float)3.40282346638528860e+38)
 #endif
 #ifndef SIZE_T_MAX
-#define SIZE_T_MAX ~((size_t) 0)
+#define SIZE_T_MAX      (~((size_t) 0))
 #endif
 
 #ifndef isfinite
@@ -1260,9 +1260,9 @@ do { doubleget_union _tmp; \
                          } while (0)
 #define float4get(V,M)   do { *((float *) &(V)) = *((const float*) (M)); } while(0)
 #define float8get(V,M)   doubleget((V),(M))
-#define float4store(V,M) memcpy((uchar*) V,(const uchar*) (&M),sizeof(float))
-#define floatstore(T,V)  memcpy((uchar*)(T), (const uchar*)(&V),sizeof(float))
-#define floatget(V,M)    memcpy((uchar*) &V,(const uchar*) (M),sizeof(float))
+#define float4store(V,M) memcpy((uchar*) V,(uchar*) (&M),sizeof(float))
+#define floatstore(T,V)  memcpy((uchar*)(T), (uchar*)(&V),sizeof(float))
+#define floatget(V,M)    memcpy((uchar*) &V,(uchar*) (M),sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
 #else
 

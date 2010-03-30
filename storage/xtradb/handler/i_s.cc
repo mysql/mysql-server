@@ -47,6 +47,7 @@ extern "C" {
 #include "trx0rseg.h" /* for trx_rseg_struct */
 #include "trx0sys.h" /* for trx_sys */
 #include "dict0dict.h" /* for dict_sys */
+#include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
 /* from buf0buf.c */
 struct buf_chunk_struct{
 	ulint		mem_size;	/* allocated size of the chunk */
@@ -56,7 +57,6 @@ struct buf_chunk_struct{
 	buf_block_t*	blocks;		/* array of buffer control blocks */
 };
 }
-#include "handler0vars.h"
 
 static const char plugin_author[] = "Innobase Oy";
 
@@ -84,14 +84,16 @@ do {									\
 #define STRUCT_FLD(name, value)	value
 #endif
 
-static const ST_FIELD_INFO END_OF_ST_FIELD_INFO =
-	{STRUCT_FLD(field_name,		NULL),
-	 STRUCT_FLD(field_length,	0),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)};
+/* Don't use a static const variable here, as some C++ compilers (notably
+HPUX aCC: HP ANSI C++ B3910B A.03.65) can't handle it. */
+#define END_OF_ST_FIELD_INFO \
+	{STRUCT_FLD(field_name,		NULL), \
+	 STRUCT_FLD(field_length,	0), \
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_NULL), \
+	 STRUCT_FLD(value,		0), \
+	 STRUCT_FLD(field_flags,	0), \
+	 STRUCT_FLD(old_name,		""), \
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)}
 
 /*
 Use the following types mapping:
@@ -511,7 +513,7 @@ static ST_FIELD_INFO	i_s_innodb_buffer_pool_pages_index_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"accessed"),
+	{STRUCT_FLD(field_name,		"access_time"),
 	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
@@ -728,7 +730,7 @@ i_s_innodb_buffer_pool_pages_fill(
       field_store_string(table->field[0], page_type);
       table->field[1]->store(block->page.space);
       table->field[2]->store(block->page.offset);
-      table->field[3]->store(block->page.LRU_position);
+      table->field[3]->store(0);
       table->field[4]->store(block->page.buf_fix_count);
       table->field[5]->store(block->page.flush_type);
 
@@ -817,11 +819,11 @@ i_s_innodb_buffer_pool_pages_index_fill(
           table->field[5]->store(page_get_n_recs(frame));
           table->field[6]->store(page_get_data_size(frame));
           table->field[7]->store(block->is_hashed);
-          table->field[8]->store(block->page.accessed);
+          table->field[8]->store(block->page.access_time);
           table->field[9]->store(block->page.newest_modification != 0);
           table->field[10]->store(block->page.oldest_modification != 0);
           table->field[11]->store(block->page.old);
-          table->field[12]->store(block->page.LRU_position);
+          table->field[12]->store(0);
           table->field[13]->store(block->page.buf_fix_count);
           table->field[14]->store(block->page.flush_type);
           
@@ -915,7 +917,7 @@ i_s_innodb_buffer_pool_pages_blob_fill(
           table->field[4]->store(block->page.offset);
         }
 
-        table->field[5]->store(block->page.LRU_position);
+        table->field[5]->store(0);
         table->field[6]->store(block->page.buf_fix_count);
         table->field[7]->store(block->page.flush_type);
   
@@ -2947,6 +2949,173 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_index_stats =
 	STRUCT_FLD(descr, "InnoDB index statistics in memory"),
 	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
 	STRUCT_FLD(init, i_s_innodb_index_stats_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+/***********************************************************************
+*/
+static ST_FIELD_INFO	i_s_innodb_admin_command_info[] =
+{
+	{STRUCT_FLD(field_name,		"result_message"),
+	 STRUCT_FLD(field_length,	1024),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+#ifndef INNODB_COMPATIBILITY_HOOKS
+#error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
+#endif
+
+extern "C" {
+char **thd_query(MYSQL_THD thd);
+}
+
+static
+int
+i_s_innodb_admin_command_fill(
+/*==========================*/
+	THD*		thd,
+	TABLE_LIST*	tables,
+	COND*		cond)
+{
+	TABLE*	i_s_table	= (TABLE *) tables->table;
+	CHARSET_INFO *cs= system_charset_info;
+	char**	query_str;
+	char*	ptr;
+	char	quote	= '\0';
+	const char*	command_head = "XTRA_";
+
+	DBUG_ENTER("i_s_innodb_admin_command_fill");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	if(thd_sql_command(thd) != SQLCOM_SELECT) {
+		field_store_string(i_s_table->field[0],
+			"SELECT command is only accepted.");
+		goto end_func;
+	}
+
+	query_str = thd_query(thd);
+	ptr = *query_str;
+	
+	for (; *ptr; ptr++) {
+		if (*ptr == quote) {
+			quote = '\0';
+		} else if (quote) {
+		} else if (*ptr == '`' || *ptr == '"') {
+			quote = *ptr;
+		} else {
+			long	i;
+			for (i = 0; command_head[i]; i++) {
+				if (toupper((int)(unsigned char)(ptr[i]))
+				    != toupper((int)(unsigned char)
+				      (command_head[i]))) {
+					goto nomatch;
+				}
+			}
+			break;
+nomatch:
+			;
+		}
+	}
+
+	if (!*ptr) {
+		field_store_string(i_s_table->field[0],
+			"No XTRA_* command in the SQL statement."
+			" Please add /*!XTRA_xxxx*/ to the SQL.");
+		goto end_func;
+	}
+
+	if (!strncasecmp("XTRA_HELLO", ptr, 10)) {
+		/* This is example command XTRA_HELLO */
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: administration command test for XtraDB"
+				" 'XTRA_HELLO' was detected.\n");
+
+		field_store_string(i_s_table->field[0],
+			"Hello!");
+		goto end_func;
+	}
+	else if (!strncasecmp("XTRA_LRU_DUMP", ptr, 13)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_DUMP'"
+				" was detected.\n");
+
+		if (buf_LRU_file_dump()) {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_DUMP was succeeded.");
+		} else {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_DUMP was failed.");
+		}
+
+		goto end_func;
+	}
+	else if (!strncasecmp("XTRA_LRU_RESTORE", ptr, 16)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: administration command 'XTRA_LRU_RESTORE'"
+				" was detected.\n");
+
+		if (buf_LRU_file_restore()) {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_RESTORE was succeeded.");
+		} else {
+			field_store_string(i_s_table->field[0],
+				"XTRA_LRU_RESTORE was failed.");
+		}
+
+		goto end_func;
+	}
+
+	field_store_string(i_s_table->field[0],
+		"Undefined XTRA_* command.");
+	goto end_func;
+
+end_func:
+	if (schema_table_store_record(thd, i_s_table)) {
+		DBUG_RETURN(1);
+	} else {
+		DBUG_RETURN(0);
+	}
+}
+
+static
+int
+i_s_innodb_admin_command_init(
+/*==========================*/
+	void*	p)
+{
+	DBUG_ENTER("i_s_innodb_admin_command_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_admin_command_info;
+	schema->fill_table = i_s_innodb_admin_command_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_admin_command =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "XTRADB_ADMIN_COMMAND"),
+	STRUCT_FLD(author, plugin_author),
+	STRUCT_FLD(descr, "XtraDB specific command acceptor"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, i_s_innodb_admin_command_init),
 	STRUCT_FLD(deinit, i_s_common_deinit),
 	STRUCT_FLD(version, 0x0100 /* 1.0 */),
 	STRUCT_FLD(status_vars, NULL),

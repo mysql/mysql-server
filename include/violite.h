@@ -123,8 +123,8 @@ struct st_VioSSLFd
   SSL_CTX *ssl_context;
 };
 
-int sslaccept(struct st_VioSSLFd*, Vio *, long timeout);
-int sslconnect(struct st_VioSSLFd*, Vio *, long timeout);
+int sslaccept(struct st_VioSSLFd*, Vio *, long timeout, char *error_string);
+int sslconnect(struct st_VioSSLFd*, Vio *, long timeout, char *error_string);
 
 struct st_VioSSLFd
 *new_VioSSLConnectorFd(const char *key_file, const char *cert_file,
@@ -225,8 +225,8 @@ struct st_vio
 #endif /* HAVE_SMEM */
 #ifdef _WIN32
   OVERLAPPED pipe_overlapped;
-  DWORD read_timeout_millis;
-  DWORD write_timeout_millis;
+  DWORD read_timeout_ms;
+  DWORD write_timeout_ms;
 #endif
 };
 #endif /* vio_violite_h_ */

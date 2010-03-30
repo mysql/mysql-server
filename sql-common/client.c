@@ -1939,7 +1939,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 #if defined(HAVE_SMEM)
   if ((!mysql->options.protocol ||
        mysql->options.protocol == MYSQL_PROTOCOL_MEMORY) &&
-      (!host || !strcmp(host,LOCAL_HOST)))
+      (!host || !strcmp(host,LOCAL_HOST)) &&
+      mysql->options.shared_memory_base_name)
   {
     if ((create_shared_memory(mysql,net, mysql->options.connect_timeout)) ==
 	INVALID_HANDLE_VALUE)
@@ -1948,7 +1949,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		 ("host: '%s'  socket: '%s'  shared memory: %s  have_tcpip: %d",
 		  host ? host : "<null>",
 		  unix_socket ? unix_socket : "<null>",
-		  (int) mysql->options.shared_memory_base_name,
+		  mysql->options.shared_memory_base_name,
 		  (int) have_tcpip));
       if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
 	goto error;
@@ -2302,6 +2303,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     /* Do the SSL layering. */
     struct st_mysql_options *options= &mysql->options;
     struct st_VioSSLFd *ssl_fd;
+    char error_string[1024];
 
     /*
       Send client_flag, max_packet_size - unencrypted otherwise
@@ -2331,9 +2333,14 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     /* Connect to the server */
     DBUG_PRINT("info", ("IO layer change in progress..."));
     if (sslconnect(ssl_fd, mysql->net.vio,
-                   (long) (mysql->options.connect_timeout)))
+                   (long) (mysql->options.connect_timeout),
+                   error_string))
     {
-      set_mysql_error(mysql, CR_SSL_CONNECTION_ERROR, unknown_sqlstate);
+      set_mysql_extended_error(mysql, CR_SSL_CONNECTION_ERROR,
+                               unknown_sqlstate,
+                               "SSL error: %s",
+                               error_string[0] ? error_string :
+                               ER(CR_SSL_CONNECTION_ERROR));
       goto error;
     }
     DBUG_PRINT("info", ("IO layer change done!"));
@@ -2746,6 +2753,13 @@ void mysql_detach_stmt_list(LIST **stmt_list __attribute__((unused)),
 }
 
 
+/*
+  Close a MySQL connection and free all resources attached to it.
+
+  This function is coded in such that it can be called multiple times
+  (As some clients call this after mysql_real_connect() fails)
+*/
+
 void STDCALL mysql_close(MYSQL *mysql)
 {
   DBUG_ENTER("mysql_close");
@@ -2779,10 +2793,16 @@ void STDCALL mysql_close(MYSQL *mysql)
     }
 #endif
     if (mysql != mysql->master)
+    {
       mysql_close(mysql->master);
+      mysql->master= 0;
+    }
 #ifndef MYSQL_SERVER
     if (mysql->thd)
+    {
       (*mysql->methods->free_embedded_thd)(mysql);
+      mysql->thd= 0;
+    }
 #endif
     if (mysql->free_me)
       my_free((uchar*) mysql,MYF(0));
