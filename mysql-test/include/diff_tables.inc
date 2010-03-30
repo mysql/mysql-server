@@ -86,13 +86,7 @@ let $_diff_i=2;
 let $_connection_name=$conn2;
 while ($_diff_i) {
 
-  # we need to check whether the current connection name matches the
-  # one provided in the current parameter. If it does not, then we
-  # switch the connection
-  if (`SELECT STRCMP('$CURRENT_CONNECTION', '$_connection_name')=0`)
-  {
-    -- connection $_connection_name
-  }
+  -- connection $_connection_name
 
   # Sanity-check the input.
   let $_diff_error= `SELECT '$_diff_table' NOT LIKE '_%._%'`;
