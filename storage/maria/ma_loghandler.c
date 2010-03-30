@@ -1211,6 +1211,8 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
   for (file= from_file; file <= to_file; file++)
   {
     LOGHANDLER_FILE_INFO info;
+    LINT_INIT(info.max_lsn);
+
     File fd= open_logfile_by_number_no_cache(file);
     if ((fd < 0) ||
         ((translog_read_file_header(&info, fd) ||
@@ -3845,6 +3847,8 @@ my_bool translog_init_with_table(const char *directory,
     if (!old_log_was_recovered && old_flags == flags)
     {
       LOGHANDLER_FILE_INFO info;
+      LINT_INIT(info.maria_version);
+
       /*
         Accessing &log_descriptor.open_files without mutex is safe
         because it is initialization

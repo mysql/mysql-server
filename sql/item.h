@@ -1077,7 +1077,8 @@ class Field_enumerator
 {
 public:
   virtual void visit_field(Field *field)= 0;
-  virtual ~Field_enumerator() {}; /* purecov: inspected */
+  virtual ~Field_enumerator() {};             /* purecov: inspected */
+  Field_enumerator() {}                       /* Remove gcc warning */
 };
 
 

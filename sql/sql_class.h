@@ -63,6 +63,7 @@ public:
   bool report_error(THD *thd);
   bool is_invalidated() const { return m_invalidated; }
   void reset_reprepare_observer() { m_invalidated= FALSE; }
+  Reprepare_observer() {}                     /* Remove gcc warning */
 private:
   bool m_invalidated;
 };
@@ -1107,6 +1108,7 @@ public:
     /* Ignore error */
     return TRUE;
   }
+  Dummy_error_handler() {}                    /* Remove gcc warning */
 };
 
 

@@ -72,6 +72,11 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 .*: break strict-aliasing rules
 
 #
+# Ignore not important declaration warnings
+#
+.*: only defines private constructors and has no friends
+
+#
 # Ignore all conversion warnings on windows 64
 # (Is safe as we are not yet supporting strings >= 2G)
 #
@@ -106,6 +111,11 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 storage/maria/ma_pagecache.c: .*'info_check_pin' defined but not used
 
 #
+# Pbxt
+#
+xaction_xt\.cc: may be used uninitialized in this function
+
+#
 # I think these are due to mix of C and C++.
 #
 storage/pbxt/ : typedef.*was ignored in this declaration
@@ -118,6 +128,7 @@ include/runtime.hpp: .*pure_error.*
 .*/extra/yassl/taocrypt/src/blowfish\.cpp: array subscript is above array bounds
 .*/extra/yassl/taocrypt/src/file\.cpp: ignoring return value
 .*/extra/yassl/taocrypt/src/integer\.cpp: control reaches end of non-void function
+mySTL/algorithm\.hpp: is used uninitialized in this function
 
 #
 # Groff warnings on OpenSUSE.

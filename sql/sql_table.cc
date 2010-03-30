@@ -5668,6 +5668,10 @@ compare_tables(TABLE *table,
   */
   Alter_info tmp_alter_info(*alter_info, thd->mem_root);
   uint db_options= 0; /* not used */
+
+  /* Set default value for return value (to ensure it's always set) */
+  *need_copy_table= ALTER_TABLE_DATA_CHANGED;
+
   /* Create the prepared information. */
   if (mysql_prepare_create_table(thd, create_info,
                                  &tmp_alter_info,
@@ -5726,7 +5730,6 @@ compare_tables(TABLE *table,
       (table->s->frm_version < FRM_VER_TRUE_VARCHAR && varchar))
   {
     DBUG_PRINT("info", ("Basic checks -> ALTER_TABLE_DATA_CHANGED"));
-    *need_copy_table= ALTER_TABLE_DATA_CHANGED;
     DBUG_RETURN(0);
   }
 
@@ -5756,7 +5759,6 @@ compare_tables(TABLE *table,
     {
       DBUG_PRINT("info", ("NULL behaviour difference in field '%s' -> "
                           "ALTER_TABLE_DATA_CHANGED", new_field->field_name));
-      *need_copy_table= ALTER_TABLE_DATA_CHANGED;
       DBUG_RETURN(0);
     }
 
@@ -5779,7 +5781,6 @@ compare_tables(TABLE *table,
     {
       DBUG_PRINT("info", ("!field_is_equal('%s') -> ALTER_TABLE_DATA_CHANGED",
                           new_field->field_name));
-      *need_copy_table= ALTER_TABLE_DATA_CHANGED;
       DBUG_RETURN(0);
     }
     // Clear indexed marker
@@ -5914,7 +5915,6 @@ compare_tables(TABLE *table,
   {
     DBUG_PRINT("info", ("check_if_incompatible_data() -> "
                         "ALTER_TABLE_DATA_CHANGED"));
-    *need_copy_table= ALTER_TABLE_DATA_CHANGED;
     DBUG_RETURN(0);
   }
 
