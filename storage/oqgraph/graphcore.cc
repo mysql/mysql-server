@@ -33,7 +33,7 @@
 #include <set>
 #include <stack>
 
-#include <boost/property_map.hpp>
+#include <boost/property_map/property_map.hpp>
 
 #include <boost/graph/graph_concepts.hpp>
 #include <boost/graph/graph_archetypes.hpp>

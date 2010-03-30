@@ -7,26 +7,18 @@ AM_CONDITIONAL([BUILD_OQGRAPH_STANDALONE], false)
 AM_CONDITIONAL([HAVE_DTRACE], false)
 
 AC_LANG_PUSH([C++])
-AC_CHECK_HEADER([boost/graph/properties.hpp],[:],[
-  mysql_plugin_oqgraph=no
-  with_plugin_oqgraph=no
-])
 
-save_CXXFLAGS="${CXXFLAGS}"
-CXXFLAGS="-fexceptions -fimplicit-templates -O3 -fstrict-aliasing -falign-loops -fvisibility-inlines-hidden -funroll-loops -fno-trapping-math"
+AC_MSG_CHECKING([for Boost usable by OQGraph engine])
+AC_PREPROC_IFELSE(
+   [
+#include <boost/version.hpp>
+#if BOOST_VERSION >= 104000
+#else
+#error oops
+#endif
+   ],
+   [AC_MSG_RESULT([yes])],
+   [AC_MSG_RESULT([no])
+   with_plugin_oqgraph=no])
 
-AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
-  #include <boost/graph/graph_traits.hpp>
-  #include <boost/graph/adjacency_list.hpp>
-  #include <boost/graph/dijkstra_shortest_paths.hpp>
-
-  using namespace boost;
-]],[[
-  typedef adjacency_list<vecS, vecS, bidirectionalS> Graph;
-  Graph g(10);
-]])],[],[
-  mysql_plugin_oqgraph=no
-  with_plugin_oqgraph=no
-])
-CXXFLAGS="${save_CXXFLAGS}"
 AC_LANG_POP()
