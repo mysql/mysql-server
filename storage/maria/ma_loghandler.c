@@ -1275,6 +1275,7 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
   {
     LOGHANDLER_FILE_INFO info;
     File fd= open_logfile_by_number_no_cache(file);
+    LINT_INIT_STRUCT(info);
     if ((fd < 0) ||
         ((translog_read_file_header(&info, fd) ||
           (cmp_translog_addr(lsn, info.max_lsn) > 0 &&
@@ -1457,8 +1458,8 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
 
   {
     LOGHANDLER_FILE_INFO info;
-    LINT_INIT_STRUCT(info);
     File fd= open_logfile_by_number_no_cache(file);
+    LINT_INIT_STRUCT(info);
     if ((fd < 0) ||
         (translog_read_file_header(&info, fd) | my_close(fd, MYF(MY_WME))))
     {
@@ -3966,6 +3967,7 @@ my_bool translog_init_with_table(const char *directory,
     if (!old_log_was_recovered && old_flags == flags)
     {
       LOGHANDLER_FILE_INFO info;
+      LINT_INIT_STRUCT(info);
       /*
         Accessing &log_descriptor.open_files without mutex is safe
         because it is initialization
@@ -8974,6 +8976,7 @@ static void dump_header_page(uchar *buff)
 {
   LOGHANDLER_FILE_INFO desc;
   char strbuff[21];
+  LINT_INIT_STRUCT(desc);
   translog_interpret_file_header(&desc, buff);
   printf("  This can be header page:\n"
          "    Timestamp: %s\n"
