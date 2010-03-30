@@ -880,7 +880,7 @@ static int loader_do_i (BRTLOADER bl,
 	skey.data = sval.data = pkey.data = pval.data = NULL; // set to NULL so that the final cleanup won't free them again.
     }
     
-    if (rows.n_rows > 0) {
+    {
 	r = sort_and_write_rows(&rows, &fs, bl, dest_db, compare, &ec, allocation_for_read_pass);
 	if (r!=0) goto error;
     }
@@ -1014,6 +1014,13 @@ static void putbuf_int64 (struct dbuf *dbuf, unsigned long long v) {
 }
 
 static void putbuf_int32_at(struct dbuf *dbuf, int off, int v) {
+    const int nbytes = 4;
+    if (off+nbytes > dbuf->buflen) {
+	dbuf->buflen += dbuf->off + nbytes;
+	dbuf->buflen *= 2;
+	REALLOC_N(dbuf->buflen, dbuf->buf);
+	assert(dbuf->buf);
+    }
     memcpy(dbuf->buf + off, &v, 4);
 }
 static void putbuf_int64_at(struct dbuf *dbuf, int off, unsigned long long v) {
@@ -1560,35 +1567,38 @@ int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct d
     est.exact = TRUE;
     u_int64_t n_rows_remaining = bl->n_rows;
     u_int64_t old_n_rows_remaining = bl->n_rows;
-    while (0==loader_read_row(infile, &key, &val, bl)) {
-	if (bl->user_said_stop) return bl->user_said_stop; // stops all those cilk subjobs if one of them got a "quit" from the poll.
-	if (lbuf->dbuf.off >= nodesize) {
+    if (n_rows_remaining > 0) {
+	// If there were no rows then the infile may be invalid.
+	while (0==loader_read_row(infile, &key, &val, bl)) {
+	    if (bl->user_said_stop) return bl->user_said_stop; // stops all those cilk subjobs if one of them got a "quit" from the poll.
+	    if (lbuf->dbuf.off >= nodesize) {
 
-	    int progress_this_node = progress_allocation * (double)(old_n_rows_remaining - n_rows_remaining)/(double)old_n_rows_remaining;
-	    progress_allocation -= progress_this_node;
-	    old_n_rows_remaining = n_rows_remaining;
+		int progress_this_node = progress_allocation * (double)(old_n_rows_remaining - n_rows_remaining)/(double)old_n_rows_remaining;
+		progress_allocation -= progress_this_node;
+		old_n_rows_remaining = n_rows_remaining;
 
 
-	    allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
+		allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
 
-	    n_pivots++;
-	    int r;
-	    if ((r=bl_write_dbt(&key, pivots_file, NULL, bl))) return r;
+		n_pivots++;
+		int r;
+		if ((r=bl_write_dbt(&key, pivots_file, NULL, bl))) return r;
 
-	    struct leaf_buf *writeit = lbuf;
-	    /*cilk_spawn*/ finish_leafnode(&out, writeit, progress_this_node, bl);
+		struct leaf_buf *writeit = lbuf;
+		/*cilk_spawn*/ finish_leafnode(&out, writeit, progress_this_node, bl);
 
-	    lblock = allocate_block(&out);
-	    lbuf = start_leaf(&out, descriptor, lblock);
+		lblock = allocate_block(&out);
+		lbuf = start_leaf(&out, descriptor, lblock);
+	    }
+	    add_pair_to_leafnode(lbuf, key.data, key.size, val.data, val.size);
+	    est.nkeys++;
+	    est.ndata++;
+	    est.dsize+=key.size + val.size;
+	    n_rows_remaining--;
 	}
-	add_pair_to_leafnode(lbuf, key.data, key.size, val.data, val.size);
-	est.nkeys++;
-	est.ndata++;
-	est.dsize+=key.size + val.size;
-	n_rows_remaining--;
+	if (bl->user_said_stop) return bl->user_said_stop; // stops all those cilk subjobs if one of them got a "quit" from the poll.
     }
-    if (bl->user_said_stop) return bl->user_said_stop; // stops all those cilk subjobs if one of them got a "quit" from the poll.
-    
+
     allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
 
     n_pivots++;
