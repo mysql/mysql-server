@@ -131,12 +131,54 @@ copy_translation(struct translation * dst, struct translation * src, enum transl
     dst->block_translation[RESERVED_BLOCKNUM_TRANSLATION].u.diskoff = diskoff_unused;
 }
 
+static void
+maybe_optimize_translation(struct translation *t) {
+    //Reduce 'smallest_never_used_blocknum.b' (completely free blocknums instead of just
+    //on a free list.  Doing so requires us to regenerate the free list.
+    //This is O(n) work, so do it only if you're already doing that.
+
+    BLOCKNUM b;
+    assert(t->smallest_never_used_blocknum.b >= RESERVED_BLOCKNUMS);
+    //Calculate how large the free suffix is.
+    int64_t freed;
+    {
+        for (b.b = t->smallest_never_used_blocknum.b; b.b > RESERVED_BLOCKNUMS; b.b--) {
+            if (t->block_translation[b.b-1].size != size_is_free) {
+                break;
+            }
+        }
+        freed = t->smallest_never_used_blocknum.b - b.b;
+    }
+    if (freed>0) {
+        t->smallest_never_used_blocknum.b = b.b;
+        if (t->length_of_array/4 > t->smallest_never_used_blocknum.b) {
+            //We're using more memory than necessary to represent this now.  Reduce.
+            u_int64_t new_length = t->smallest_never_used_blocknum.b * 2;
+            XREALLOC_N(new_length, t->block_translation);
+            t->length_of_array = new_length;
+            //No need to zero anything out. 
+        }
+
+        //Regenerate free list.
+        t->blocknum_freelist_head.b = freelist_null.b;
+        for (b.b = RESERVED_BLOCKNUMS; b.b < t->smallest_never_used_blocknum.b; b.b++) {
+            if (t->block_translation[b.b].size == size_is_free) {
+                t->block_translation[b.b].u.next_free_blocknum = t->blocknum_freelist_head;
+                t->blocknum_freelist_head                      = b;
+            }
+        }
+    }
+}
+
 // block table must be locked by caller of this function
 void
 toku_block_translation_note_start_checkpoint_unlocked (BLOCK_TABLE bt) {
     assert(bt->is_locked);
     // Copy current translation to inprogress translation.
     assert(bt->inprogress.block_translation == NULL);
+    //We're going to do O(n) work to copy the translation, so we
+    //can afford to do O(n) work by optimizing the translation
+    maybe_optimize_translation(&bt->current);
     copy_translation(&bt->inprogress, &bt->current, TRANSLATION_INPROGRESS);
 
     bt->checkpoint_skipped = FALSE;
