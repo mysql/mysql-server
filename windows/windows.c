@@ -344,3 +344,16 @@ toku_dup2(int fd, int fd2) {
 
 }
 
+// for now, just return zeros 
+int 
+toku_get_filesystem_sizes(const char *path, uint64_t *avail_size, uint64_t *free_size, uint64_t *total_size) {
+    uint64_t a = 0, f = 0, t = 0;
+    path = path;
+    if (avail_size)
+        *avail_size = a;
+    if (free_size)
+        *free_size = f;
+    if (total_size)
+        *total_size = t;
+    return 0;
+}
