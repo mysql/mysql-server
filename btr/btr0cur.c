@@ -363,7 +363,6 @@ btr_cur_search_to_nth_level(
 	ulint		space;
 	buf_block_t*	guess;
 	ulint		height;
-	rec_t*		node_ptr;
 	ulint		page_no;
 	ulint		up_match;
 	ulint		up_bytes;
@@ -554,23 +553,6 @@ search_loop:
 
 	if (height != 0) {
 		/* We are about to fetch the root or a non-leaf page. */
-	} else if (dict_index_is_ibuf(index)) {
-		/* We're doing a search on an ibuf tree and we're one
-		level above the leaf page. */
-
-		ulint	is_min_rec;
-
-		ut_ad(level == 0);
-
-		is_min_rec = rec_get_info_bits(node_ptr, 0)
-			& REC_INFO_MIN_REC_FLAG;
-
-		if (!is_min_rec) {
-			cursor->ibuf_cnt = ibuf_rec_get_counter(node_ptr);
-
-			ut_a(cursor->ibuf_cnt <= 0xFFFF
-			     || cursor->ibuf_cnt == ULINT_UNDEFINED);
-		}
 	} else if (latch_mode <= BTR_MODIFY_LEAF) {
 		rw_latch = latch_mode;
 
@@ -729,6 +711,7 @@ retry_page_get:
 
 	if (level != height) {
 
+		const rec_t*	node_ptr;
 		ut_ad(height > 0);
 
 		height--;
@@ -741,6 +724,30 @@ retry_page_get:
 
 		/* Go to the child node */
 		page_no = btr_node_ptr_get_child_page_no(node_ptr, offsets);
+
+		if (UNIV_UNLIKELY(height == 0 && dict_index_is_ibuf(index))) {
+			/* We're doing a search on an ibuf tree and we're one
+			level above the leaf page. */
+
+			ulint	is_min_rec;
+
+			ut_ad(level == 0);
+
+			is_min_rec = rec_get_info_bits(node_ptr, 0)
+				& REC_INFO_MIN_REC_FLAG;
+
+			if (!is_min_rec) {
+				cursor->ibuf_cnt
+					= ibuf_rec_get_counter(node_ptr);
+
+				ut_a(cursor->ibuf_cnt <= 0xFFFF
+				     || cursor->ibuf_cnt == ULINT_UNDEFINED);
+			}
+
+			buf_mode = BUF_GET;
+			rw_latch = RW_NO_LATCH;
+			goto retry_page_get;
+		}
 
 		goto search_loop;
 	}
