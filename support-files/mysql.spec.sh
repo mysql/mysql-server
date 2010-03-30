@@ -368,14 +368,15 @@ mkdir debug
                   -e 's/^ //' \
                   -e 's/ $//'`
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
-              -DCMAKE_BUILD_TYPE=Debug
+           -DCMAKE_BUILD_TYPE=Debug
   make VERBOSE=1 mysqld mysqlserver
 )
 # Build full release
 mkdir release
 (
   cd release
-  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM
+  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo
   make VERBOSE=1
 )
 
