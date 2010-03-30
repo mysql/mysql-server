@@ -136,5 +136,16 @@ public:
   my_bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
   char *print(char *buf) const { longlong2str(map,buf,16); return buf; }
   ulonglong to_ulonglong() const { return map; }
+  uint bits_set()
+  {
+    //TODO: use my_count_bits()
+    uint res= 0, i= 0;
+    for (; i < 64 ; i++)
+    {
+      if (map & ((ulonglong)1<<i))
+        res++;
+    }
+    return res;
+  }
 };
 

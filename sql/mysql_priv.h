@@ -1213,7 +1213,15 @@ bool mysql_handle_derived(LEX *lex, bool (*processor)(THD *thd,
                                                       LEX *lex,
                                                       TABLE_LIST *table));
 bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *t);
+bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *t);
+bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *t);
 bool mysql_derived_filling(THD *thd, LEX *lex, TABLE_LIST *t);
+bool
+mysql_handle_single_derived(LEX *lex, TABLE_LIST *derived,
+                            bool (*processor)(THD*, LEX*, TABLE_LIST*));
+bool open_tmp_table(TABLE *table);
+bool create_myisam_tmp_table(TABLE *, KEY *keyinfo, MI_COLUMNDEF **recinfo,
+                             MI_COLUMNDEF *start_recinfo, ulonglong, my_bool);
 Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
 			Item ***copy_func, Field **from_field,
                         Field **def_field,

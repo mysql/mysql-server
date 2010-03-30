@@ -289,7 +289,7 @@ void end_read_record(READ_RECORD *info)
     my_free_lock((char*) info->cache,MYF(0));
     info->cache=0;
   }
-  if (info->table)
+  if (info->table && info->table->created)
   {
     filesort_free_buffers(info->table,0);
     (void) info->file->extra(HA_EXTRA_NO_CACHE);

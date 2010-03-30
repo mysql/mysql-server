@@ -159,12 +159,14 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
       statistics (cheap), compute the total number of rows. If there are
       no outer table dependencies, this count may be used as the real count.
       Schema tables are filled after this function is invoked, so we can't
-      get row count 
+      get row count.
+      Derived table aren't filled yet, their number of rows is an estimate.
     */
     if (!(tl->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) ||
-        tl->schema_table)
+        tl->schema_table || tl->is_materialized_derived())
     {
       maybe_exact_count&= test(!tl->schema_table &&
+                               !tl->is_materialized_derived() &&
                                (tl->table->file->ha_table_flags() &
                                 HA_HAS_RECORDS));
       is_exact_count= FALSE;
@@ -172,7 +174,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
     }
     else
     {
-      error= tl->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
+      error= tables->fetch_number_of_rows();
       if(error)
       {
         tl->table->file->print_error(error, MYF(ME_FATALERROR));

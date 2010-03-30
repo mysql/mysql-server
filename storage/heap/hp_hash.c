@@ -754,7 +754,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       continue;
     }
 
-    if (seg->flag & HA_VAR_LENGTH_PART)
+    if (seg->flag & (HA_VAR_LENGTH_PART | HA_BLOB_PART))
     {
       uchar *pos=      (uchar*) rec + seg->start;
       uint length=     seg->length;

@@ -2772,6 +2772,11 @@ protected:
   THD *thd;
   SELECT_LEX_UNIT *unit;
 public:
+  /*
+    Number of records estimated in this result.
+    Valid only for materialized derived tables/views.
+  */
+  ha_rows estimated_records;
   select_result();
   virtual ~select_result() {};
   virtual int prepare(List<Item> &list, SELECT_LEX_UNIT *u)
@@ -3047,11 +3052,18 @@ public:
   */
   bool precomputed_group_by;
   bool force_copy_fields;
-
+  /*
+    TRUE <=> don't actually create table handler when creating the result
+    table. This allows range optimizer to add indexes later.
+    Used for materialized derived tables/views.
+    See TABLE_LIST::update_derived_keys.
+  */
+  bool skip_create_table;
   TMP_TABLE_PARAM()
     :copy_field(0), group_parts(0),
      group_length(0), group_null_parts(0), convert_blob_length(0),
-     schema_table(0), precomputed_group_by(0), force_copy_fields(0)
+     schema_table(0), precomputed_group_by(0), force_copy_fields(0),
+     skip_create_table(0)
   {}
   ~TMP_TABLE_PARAM()
   {
@@ -3070,8 +3082,8 @@ public:
 
 class select_union :public select_result_interceptor
 {
-  TMP_TABLE_PARAM tmp_table_param;
 public:
+  TMP_TABLE_PARAM tmp_table_param;
   TABLE *table;
 
   select_union() :table(0) {}
@@ -3082,7 +3094,7 @@ public:
 
   bool create_result_table(THD *thd, List<Item> *column_types,
                            bool is_distinct, ulonglong options,
-                           const char *alias);
+                           const char *alias, bool create_table);
 };
 
 /* Base subselect interface class */

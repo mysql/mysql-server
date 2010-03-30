@@ -2945,6 +2945,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   table->fulltext_searched= 0;
   table->file->ft_handler= 0;
   table->reginfo.impossible_range= 0;
+  table->created= TRUE;
   /* Catch wrong handling of the auto_increment_field_not_null. */
   DBUG_ASSERT(!table->auto_increment_field_not_null);
   table->auto_increment_field_not_null= FALSE;
@@ -5137,9 +5138,7 @@ bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables,
     close_tables_for_reopen(thd, &tables, start_of_statement_svp);
   }
   if (derived &&
-      (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
-       (thd->fill_derived_tables() &&
-        mysql_handle_derived(thd->lex, &mysql_derived_filling))))
+      (mysql_handle_derived(thd->lex, &mysql_derived_prepare)))
     DBUG_RETURN(TRUE); /* purecov: inspected */
   DBUG_RETURN(FALSE);
 }
@@ -5425,6 +5424,7 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
   sp_remove_not_own_routines(thd->lex);
   for (tmp= *tables; tmp; tmp= tmp->next_global)
   {
+    tmp->cleanup();
     tmp->table= 0;
     tmp->mdl_request.ticket= NULL;
     /* We have to cleanup translation tables of views. */

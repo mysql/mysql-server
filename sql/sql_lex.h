@@ -514,15 +514,16 @@ protected:
   select_union *union_result;
   TABLE *table; /* temporary table using for appending UNION results */
 
-  select_result *result;
   ulonglong found_rows_for_union;
   bool saved_error;
 
 public:
+  select_result *result;
   // Ensures that at least all members used during cleanup() are initialized.
   st_select_lex_unit()
     : union_result(NULL), table(NULL), result(NULL),
       cleaned(false),
+      derived(NULL),
       fake_select_lex(NULL)
   {
   }
@@ -553,6 +554,11 @@ public:
   ha_rows select_limit_cnt, offset_limit_cnt;
   /* not NULL if unit used in subselect, point to subselect item */
   Item_subselect *item;
+  /*
+    TABLE_LIST representing this union in the embedding select. Used for
+    derived tables/views handling.
+  */
+  TABLE_LIST *derived;
   /* thread handler */
   THD *thd;
   /*
@@ -582,6 +588,7 @@ public:
 
   /* UNION methods */
   bool prepare(THD *thd, select_result *result, ulong additional_options);
+  bool optimize();
   bool exec();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
@@ -601,6 +608,7 @@ public:
   friend int subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
+  void increase_estimated_records(ha_rows estimate);
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -857,6 +865,7 @@ public:
   }
 
   void clear_index_hints(void) { index_hints= NULL; }
+  bool handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*));
 
 private:  
   /* current index hint kind. used in filling up index_hints */

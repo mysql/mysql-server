@@ -172,6 +172,8 @@ typedef struct st_join_table {
   uint          packed_info;
 
   READ_RECORD::Setup_func read_first_record;
+  //TODO try to unify with save_read_first_record below
+  READ_RECORD::Setup_func saved_read_first_record;
   Next_select_func next_select;
   READ_RECORD	read_record;
   /* 
@@ -556,6 +558,7 @@ public:
                                         select_lex == unit->fake_select_lex));
   }
   void cache_const_exprs();
+  void drop_unused_derived_keys();
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP
