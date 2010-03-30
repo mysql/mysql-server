@@ -3769,14 +3769,13 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   if (state == Query_arena::PREPARED)
     state= Query_arena::EXECUTED;
 
-  if (this->lex->sql_command == SQLCOM_CALL)
+  if (error == 0 && this->lex->sql_command == SQLCOM_CALL)
   {
     if (is_sql_prepare())
       thd->protocol_text.send_out_parameters(&this->lex->param_list);
     else
       thd->protocol->send_out_parameters(&this->lex->param_list);
   }
-
 
   /*
     Log COM_EXECUTE to the general log. Note, that in case of SQL

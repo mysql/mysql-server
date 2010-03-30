@@ -1,8 +1,8 @@
 The following options may be given as the first argument:
---print-defaults	Print the program argument list and exit
---no-defaults		Don't read default options from any options file
---defaults-file=#	Only read default options from the given file #
---defaults-extra-file=# Read this file after the global files are read
+--print-defaults Print the program argument list and exit.
+--no-defaults Don't read default options from any option file.
+--defaults-file=# Only read default options from the given file #.
+--defaults-extra-file=# Read this file after the global files are read.
 
  --abort-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
@@ -60,7 +60,7 @@ The following options may be given as the first argument:
  NDBCLUSTER table
  --binlog-ignore-db=name 
  Tells the master that updates to the given database
- should not be logged tothe binary log.
+ should not be logged to the binary log.
  --binlog-row-event-max-size=# 
  The maximum size of a row-based binary log event in
  bytes. Rows will be grouped into events smaller than this
@@ -90,7 +90,7 @@ The following options may be given as the first argument:
  NEVER, AUTO, ALWAYS
  --connect-timeout=# The number of seconds the mysqld server is waiting for a
  connect packet before responding with 'Bad handshake'
- --console           Write error output on screen; Don't remove the console
+ --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
  -h, --datadir=name  Path to the database root directory
@@ -132,7 +132,7 @@ The following options may be given as the first argument:
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
- -T, --exit-info[=#] Used for debugging;  Use at your own risk!
+ -T, --exit-info[=#] Used for debugging. Use at your own risk.
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
  expire_logs_days days; possible purges happen at startup
@@ -157,7 +157,7 @@ The following options may be given as the first argument:
  Number of best matches to use for query expansion
  --ft-stopword-file=name 
  Use stopwords from this file instead of built-in list
- --gdb               Set up signals usable for debugging
+ --gdb               Set up signals usable for debugging.
  --general-log       Log connections and queries to a table or log file.
  Defaults logging to a file hostname.log or a table
  mysql.general_logif --log-output=TABLE is used
@@ -254,7 +254,7 @@ The following options may be given as the first argument:
  log if it is open.
  --log-tc=name       Path to transaction coordinator log (used for
  transactions that affect more than one storage engine,
- when binary log is disabled)
+ when binary log is disabled).
  --log-tc-size=#     Size of transaction coordinator log.
  -W, --log-warnings[=#] 
  Log some not critical warnings to the log file
@@ -372,10 +372,11 @@ The following options may be given as the first argument:
  --old-passwords     Use old password encryption method (needed for 4.0 and
  older clients)
  --old-style-user-limits 
- Enable old-style user limits (before 5.0.3 user resources
- were counted per each user+host vs. per account)
- --one-thread        (deprecated): Only use one thread (for debugging under
- Linux). Use thread-handling=no-threads instead
+ Enable old-style user limits (before 5.0.3, user
+ resources were counted per each user+host vs. per
+ account).
+ --one-thread        (Deprecated): Only use one thread (for debugging under
+ Linux). Use thread-handling=no-threads instead.
  --open-files-limit=# 
  If this is not 0, then mysqld will use this value to
  reserve file descriptors to use with setrlimit(). If this
@@ -396,8 +397,9 @@ The following options may be given as the first argument:
  relation result in faster optimization, but may produce
  very bad query plans. If set to 0, the system will
  automatically pick a reasonable value; if set to 63, the
- optimizer will switch to the original find_best
- search(used for testing/comparison)
+ optimizer will switch to the original find_best search.
+ NOTE: The value 63 and its associated behaviour is
+ deprecated
  --optimizer-switch=name 
  optimizer_switch=option=val[,option=val...], where option
  is one of {index_merge, index_merge_union,
@@ -447,7 +449,7 @@ The following options may be given as the first argument:
  (3306), whatever comes first
  --port-open-timeout=# 
  Maximum time in seconds to wait for the port to become
- free. (Default: no wait)
+ free. (Default: No wait).
  --preload-buffer-size=# 
  The size of the buffer that is allocated when preloading
  indexes
@@ -482,8 +484,7 @@ The following options may be given as the first argument:
  the SUPER privilege
  --read-rnd-buffer-size=# 
  When reading rows in sorted order after a sort, the rows
- are read through this buffer to avoid a disk seeks. If
- not set, then it's set to the value of record_buffer
+ are read through this buffer to avoid a disk seeks
  --relay-log=name    The location and name to use for relay logs
  --relay-log-index=name 
  The location and name to use for the file that keeps a
@@ -590,14 +591,15 @@ The following options may be given as the first argument:
  --server-id=#       Uniquely identifies the server instance in the community
  of replication partners
  --show-slave-auth-info 
- Show user and password in SHOW SLAVE HOSTS on this master
+ Show user and password in SHOW SLAVE HOSTS on this
+ master.
  --skip-grant-tables Start without grant tables. This gives all users FULL
- ACCESS to all tables!
+ ACCESS to all tables.
  --skip-host-cache   Don't cache host names.
  --skip-name-resolve Don't resolve hostnames. All hostnames are IP's or
  'localhost'.
  --skip-networking   Don't allow connection with TCP/IP
- --skip-new          Don't use new, possible wrong routines.
+ --skip-new          Don't use new, possibly wrong routines.
  --skip-show-database 
  Don't allow 'SHOW DATABASE' commands
  --skip-slave-start  If set, slave is not autostarted.
@@ -712,11 +714,8 @@ The following options may be given as the first argument:
  Prohibit update of a VIEW, which does not contain a key
  of the underlying table and the query uses a LIMIT clause
  (usually get from GUI tools)
- -s, --use-symbolic-links 
- Enable symbolic link support. Deprecated option; use
- --symbolic-links instead.
  -u, --user=name     Run mysqld daemon as user.
- -v, --verbose       Used with --help option for detailed help
+ -v, --verbose       Used with --help option for detailed help.
  -V, --version       Output version information and exit.
  --wait-timeout=#    The number of seconds the server waits for activity on a
  connection before closing it
@@ -938,7 +937,6 @@ transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
 transaction-prealloc-size 4096
 updatable-views-with-limit YES
-use-symbolic-links FALSE
 verbose TRUE
 wait-timeout 28800
 

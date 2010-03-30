@@ -252,9 +252,6 @@ static struct my_option my_long_options[] =
   {"set-collation", OPT_SET_COLLATION,
    "Change the collation used by the index",
    (uchar**) &set_collation_name, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"silent", 's',
    "Only print errors. One can use two -s to make myisamchk very silent.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -365,10 +362,6 @@ static void usage(void)
   printf("\
   -H, --HELP          Display this help and exit.\n\
   -?, --help          Display this help and exit.\n\
-  -O, --set-variable var=option.\n\
-                      Change the value of a variable. Please note that\n\
-                      this option is deprecated; you can set variables\n\
-                      directly with '--variable-name=value'.\n\
   -t, --tmpdir=path   Path for temporary files. Multiple paths can be\n\
                       specified, separated by ");
 #if defined( __WIN__) || defined(__NETWARE__)

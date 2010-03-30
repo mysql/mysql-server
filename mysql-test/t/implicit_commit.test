@@ -697,6 +697,10 @@ source include/implicit_commit_helper.inc;
 --echo # SQLCOM_RESET
 --echo #
 
+let $statement=
+  reset query cache;
+source include/implicit_commit_helper.inc;
+
 --echo #
 --echo # SQLCOM_PURGE
 --echo #

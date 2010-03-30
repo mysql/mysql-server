@@ -1,1 +1,1 @@
--O max_allowed_packet=1024 -O net_buffer_length=1024
+--max_allowed_packet=1024 --net_buffer_length=1024

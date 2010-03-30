@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ ulong events_waits_history_per_thread;
 /** Number of instruments class per thread. */
 ulong instr_class_per_thread;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
-ulong locker_lost;
+ulong locker_lost= 0;
 
 /**
   Mutex instrumentation instances array.
@@ -746,8 +746,82 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
     }
   }
 
-  if (len >= sizeof(pfs->m_filename))
-    len= sizeof(pfs->m_filename) - 1;
+  char safe_buffer[FN_REFLEN];
+  const char *safe_filename;
+
+  if (len >= FN_REFLEN)
+  {
+    /*
+      The instrumented code uses file names that exceeds FN_REFLEN.
+      This could be legal for instrumentation on non mysys APIs,
+      so we support it.
+      Truncate the file name so that:
+      - it fits into pfs->m_filename
+      - it is safe to use mysys apis to normalize the file name.
+    */
+    memcpy(safe_buffer, filename, FN_REFLEN - 2);
+    safe_buffer[FN_REFLEN - 1]= 0;
+    safe_filename= safe_buffer;
+  }
+  else
+    safe_filename= filename;
+
+  /*
+    Normalize the file name to avoid duplicates when using aliases:
+    - absolute or relative paths
+    - symbolic links
+    Names are resolved as follows:
+    - /real/path/to/real_file ==> same
+    - /path/with/link/to/real_file ==> /real/path/to/real_file
+    - real_file ==> /real/path/to/real_file
+    - ./real_file ==> /real/path/to/real_file
+    - /real/path/to/sym_link ==> same
+    - /path/with/link/to/sym_link ==> /real/path/to/sym_link
+    - sym_link ==> /real/path/to/sym_link
+    - ./sym_link ==> /real/path/to/sym_link
+    When the last component of a file is a symbolic link,
+    the last component is *not* resolved, so that all file io
+    operations on a link (create, read, write, delete) are counted
+    against the link itself, not the target file.
+    Resolving the name would lead to create counted against the link,
+    and read/write/delete counted against the target, leading to
+    incoherent results and instrumentation leaks.
+    Also note that, when creating files, this name resolution
+    works properly for files that do not exist (yet) on the file system.
+  */
+  char buffer[FN_REFLEN];
+  char dirbuffer[FN_REFLEN];
+  size_t dirlen;
+  const char *normalized_filename;
+  int normalized_length;
+
+  dirlen= dirname_length(safe_filename);
+  if (dirlen == 0)
+  {
+    dirbuffer[0]= FN_CURLIB;
+    dirbuffer[1]= FN_LIBCHAR;
+    dirbuffer[2]= '\0';
+  }
+  else
+  {
+    memcpy(dirbuffer, safe_filename, dirlen);
+    dirbuffer[dirlen]= '\0';
+  }
+
+  if (my_realpath(buffer, dirbuffer, MYF(0)) != 0)
+  {
+    file_lost++;
+    return NULL;
+  }
+
+  /* Append the unresolved file name to the resolved path */
+  char *ptr= buffer + strlen(buffer);
+  *ptr++= FN_LIBCHAR;
+  ptr= strmov(ptr, safe_filename + dirlen);
+  *ptr= '\0';
+
+  normalized_filename= buffer;
+  normalized_length= strlen(normalized_filename);
 
   PFS_file **entry;
   uint retry_count= 0;
@@ -755,7 +829,7 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
 search:
   entry= reinterpret_cast<PFS_file**>
     (lf_hash_search(&filename_hash, thread->m_filename_hash_pins,
-                    filename, len));
+                    normalized_filename, normalized_length));
   if (entry && (entry != MY_ERRPTR))
   {
     pfs= *entry;
@@ -783,9 +857,9 @@ search:
         if (pfs->m_lock.free_to_dirty())
         {
           pfs->m_class= klass;
-          strncpy(pfs->m_filename, filename, len);
-          pfs->m_filename[len]= '\0';
-          pfs->m_filename_length= len;
+          strncpy(pfs->m_filename, normalized_filename, normalized_length);
+          pfs->m_filename[normalized_length]= '\0';
+          pfs->m_filename_length= normalized_length;
           pfs->m_file_stat.m_open_count= 1;
           pfs->m_wait_stat.m_control_flag=
             &flag_events_waits_summary_by_instance;

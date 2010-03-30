@@ -955,6 +955,21 @@ public:
   bool alloc_keys();
   int add_tmp_key(ulonglong key_parts, char *key_name, bool covering);
   void use_index(int key_to_save);
+
+  inline void set_keyread(bool flag)
+  {
+    DBUG_ASSERT(file);
+    if (flag && !key_read)
+    {
+      key_read= 1;
+      file->extra(HA_EXTRA_KEYREAD);
+    }
+    else if (!flag && key_read)
+    {
+      key_read= 0;
+      file->extra(HA_EXTRA_NO_KEYREAD);
+    }
+  }
 };
 
 

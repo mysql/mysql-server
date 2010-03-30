@@ -107,6 +107,22 @@ struct st_mysql_rwlock
 };
 
 /**
+  An instrumented prlock structure.
+  @sa mysql_prlock_t
+*/
+struct st_mysql_prlock
+{
+  /** The real prlock */
+  rw_pr_lock_t m_prlock;
+  /**
+    The instrumentation hook.
+    Note that this hook is not conditionally defined,
+    for binary compatibility of the @c mysql_rwlock_t interface.
+  */
+  struct PSI_rwlock *m_psi;
+};
+
+/**
   Type of an instrumented rwlock.
   @c mysql_rwlock_t is a drop-in replacement for @c pthread_rwlock_t.
   @sa mysql_rwlock_init
@@ -118,6 +134,20 @@ struct st_mysql_rwlock
   @sa mysql_rwlock_destroy
 */
 typedef struct st_mysql_rwlock mysql_rwlock_t;
+
+/**
+  Type of an instrumented prlock.
+  A prlock is a read write lock that 'prefers readers' (pr).
+  @c mysql_prlock_t is a drop-in replacement for @c rw_pr_lock_t.
+  @sa mysql_prlock_init
+  @sa mysql_prlock_rdlock
+  @sa mysql_prlock_tryrdlock
+  @sa mysql_prlock_wrlock
+  @sa mysql_prlock_trywrlock
+  @sa mysql_prlock_unlock
+  @sa mysql_prlock_destroy
+*/
+typedef struct st_mysql_prlock mysql_prlock_t;
 
 /**
   An instrumented cond structure.
@@ -162,6 +192,8 @@ typedef struct st_mysql_cond mysql_cond_t;
   on some platforms.
   The proper fix would be to cut these extra dependencies in the calling code.
   DISABLE_MYSQL_THREAD_H is a work around to limit dependencies.
+  DISABLE_MYSQL_PRLOCK_H is similar, and is used to disable specifically
+  the prlock wrappers.
 */
 #ifndef DISABLE_MYSQL_THREAD_H
 
@@ -282,12 +314,33 @@ typedef struct st_mysql_cond mysql_cond_t;
 #endif
 
 /**
+  @def mysql_prlock_init(K, RW)
+  Instrumented rw_pr_init.
+  @c mysql_prlock_init is a replacement for @c rw_pr_init.
+  @param K The PSI_rwlock_key for this instrumented prlock
+  @param RW The prlock to initialize
+*/
+#ifdef HAVE_PSI_INTERFACE
+  #define mysql_prlock_init(K, RW) inline_mysql_prlock_init(K, RW)
+#else
+  #define mysql_prlock_init(K, RW) inline_mysql_prlock_init(RW)
+#endif
+
+/**
   @def mysql_rwlock_destroy(RW)
   Instrumented rwlock_destroy.
   @c mysql_rwlock_destroy is a drop-in replacement
   for @c pthread_rwlock_destroy.
 */
 #define mysql_rwlock_destroy(RW) inline_mysql_rwlock_destroy(RW)
+
+/**
+  @def mysql_prlock_destroy(RW)
+  Instrumented rw_pr_destroy.
+  @c mysql_prlock_destroy is a drop-in replacement
+  for @c rw_pr_destroy.
+*/
+#define mysql_prlock_destroy(RW) inline_mysql_prlock_destroy(RW)
 
 /**
   @def mysql_rwlock_rdlock(RW)
@@ -301,6 +354,20 @@ typedef struct st_mysql_cond mysql_cond_t;
 #else
   #define mysql_rwlock_rdlock(RW) \
     inline_mysql_rwlock_rdlock(RW)
+#endif
+
+/**
+  @def mysql_prlock_rdlock(RW)
+  Instrumented rw_pr_rdlock.
+  @c mysql_prlock_rdlock is a drop-in replacement
+  for @c rw_pr_rdlock.
+*/
+#ifdef HAVE_PSI_INTERFACE
+  #define mysql_prlock_rdlock(RW) \
+    inline_mysql_prlock_rdlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_prlock_rdlock(RW) \
+    inline_mysql_prlock_rdlock(RW)
 #endif
 
 /**
@@ -318,6 +385,20 @@ typedef struct st_mysql_cond mysql_cond_t;
 #endif
 
 /**
+  @def mysql_prlock_wrlock(RW)
+  Instrumented rw_pr_wrlock.
+  @c mysql_prlock_wrlock is a drop-in replacement
+  for @c rw_pr_wrlock.
+*/
+#ifdef HAVE_PSI_INTERFACE
+  #define mysql_prlock_wrlock(RW) \
+    inline_mysql_prlock_wrlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_prlock_wrlock(RW) \
+    inline_mysql_prlock_wrlock(RW)
+#endif
+
+/**
   @def mysql_rwlock_tryrdlock(RW)
   Instrumented rwlock_tryrdlock.
   @c mysql_rwlock_tryrdlock is a drop-in replacement
@@ -329,6 +410,20 @@ typedef struct st_mysql_cond mysql_cond_t;
 #else
   #define mysql_rwlock_tryrdlock(RW) \
     inline_mysql_rwlock_tryrdlock(RW)
+#endif
+
+/**
+  @def mysql_prlock_tryrdlock(RW)
+  Instrumented rw_pr_tryrdlock.
+  @c mysql_prlock_tryrdlock is a drop-in replacement
+  for @c rw_pr_tryrdlock.
+*/
+#ifdef HAVE_PSI_INTERFACE
+  #define mysql_prlock_tryrdlock(RW) \
+    inline_mysql_prlock_tryrdlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_prlock_tryrdlock(RW) \
+    inline_mysql_prlock_tryrdlock(RW)
 #endif
 
 /**
@@ -346,6 +441,20 @@ typedef struct st_mysql_cond mysql_cond_t;
 #endif
 
 /**
+  @def mysql_prlock_trywrlock(RW)
+  Instrumented rw_pr_trywrlock.
+  @c mysql_prlock_trywrlock is a drop-in replacement
+  for @c rw_pr_trywrlock.
+*/
+#ifdef HAVE_PSI_INTERFACE
+  #define mysql_prlock_trywrlock(RW) \
+    inline_mysql_prlock_trywrlock(RW, __FILE__, __LINE__)
+#else
+  #define mysql_prlock_trywrlock(RW) \
+    inline_mysql_prlock_trywrlock(RW)
+#endif
+
+/**
   @def mysql_rwlock_unlock(RW)
   Instrumented rwlock_unlock.
   @c mysql_rwlock_unlock is a drop-in replacement
@@ -354,8 +463,16 @@ typedef struct st_mysql_cond mysql_cond_t;
 #define mysql_rwlock_unlock(RW) inline_mysql_rwlock_unlock(RW)
 
 /**
+  @def mysql_prlock_unlock(RW)
+  Instrumented rw_pr_unlock.
+  @c mysql_prlock_unlock is a drop-in replacement
+  for @c rw_pr_unlock.
+*/
+#define mysql_prlock_unlock(RW) inline_mysql_prlock_unlock(RW)
+
+/**
   @def mysql_cond_init(K, C, A)
-  Instrumented rwlock_init.
+  Instrumented cond_init.
   @c mysql_cond_init is a replacement for @c pthread_cond_init.
   @param C The cond to initialize
   @param K The PSI_cond_key for this instrumented cond
@@ -599,6 +716,23 @@ static inline int inline_mysql_rwlock_init(
   return my_rwlock_init(&that->m_rwlock, NULL);
 }
 
+#ifndef DISABLE_MYSQL_PRLOCK_H
+static inline int inline_mysql_prlock_init(
+#ifdef HAVE_PSI_INTERFACE
+  PSI_rwlock_key key,
+#endif
+  mysql_prlock_t *that)
+{
+#ifdef HAVE_PSI_INTERFACE
+  that->m_psi= (PSI_server ? PSI_server->init_rwlock(key, &that->m_prlock)
+                           : NULL);
+#else
+  that->m_psi= NULL;
+#endif
+  return rw_pr_init(&that->m_prlock);
+}
+#endif
+
 static inline int inline_mysql_rwlock_destroy(
   mysql_rwlock_t *that)
 {
@@ -611,6 +745,21 @@ static inline int inline_mysql_rwlock_destroy(
 #endif
   return rwlock_destroy(&that->m_rwlock);
 }
+
+#ifndef DISABLE_MYSQL_PRLOCK_H
+static inline int inline_mysql_prlock_destroy(
+  mysql_prlock_t *that)
+{
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server && that->m_psi))
+  {
+    PSI_server->destroy_rwlock(that->m_psi);
+    that->m_psi= NULL;
+  }
+#endif
+  return rw_pr_destroy(&that->m_prlock);
+}
+#endif
 
 static inline int inline_mysql_rwlock_rdlock(
   mysql_rwlock_t *that
@@ -638,6 +787,34 @@ static inline int inline_mysql_rwlock_rdlock(
   return result;
 }
 
+#ifndef DISABLE_MYSQL_PRLOCK_H
+static inline int inline_mysql_prlock_rdlock(
+  mysql_prlock_t *that
+#ifdef HAVE_PSI_INTERFACE
+  , const char *src_file, uint src_line
+#endif
+  )
+{
+  int result;
+#ifdef HAVE_PSI_INTERFACE
+  struct PSI_rwlock_locker *locker= NULL;
+  if (likely(PSI_server && that->m_psi))
+  {
+    locker= PSI_server->get_thread_rwlock_locker(that->m_psi,
+                                                 PSI_RWLOCK_READLOCK);
+    if (likely(locker != NULL))
+      PSI_server->start_rwlock_rdwait(locker, src_file, src_line);
+  }
+#endif
+  result= rw_pr_rdlock(&that->m_prlock);
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(locker != NULL))
+    PSI_server->end_rwlock_rdwait(locker, result);
+#endif
+  return result;
+}
+#endif
+
 static inline int inline_mysql_rwlock_wrlock(
   mysql_rwlock_t *that
 #ifdef HAVE_PSI_INTERFACE
@@ -663,6 +840,34 @@ static inline int inline_mysql_rwlock_wrlock(
 #endif
   return result;
 }
+
+#ifndef DISABLE_MYSQL_PRLOCK_H
+static inline int inline_mysql_prlock_wrlock(
+  mysql_prlock_t *that
+#ifdef HAVE_PSI_INTERFACE
+  , const char *src_file, uint src_line
+#endif
+  )
+{
+  int result;
+#ifdef HAVE_PSI_INTERFACE
+  struct PSI_rwlock_locker *locker= NULL;
+  if (likely(PSI_server && that->m_psi))
+  {
+    locker= PSI_server->get_thread_rwlock_locker(that->m_psi,
+                                                 PSI_RWLOCK_WRITELOCK);
+    if (likely(locker != NULL))
+      PSI_server->start_rwlock_wrwait(locker, src_file, src_line);
+  }
+#endif
+  result= rw_pr_wrlock(&that->m_prlock);
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(locker != NULL))
+    PSI_server->end_rwlock_wrwait(locker, result);
+#endif
+  return result;
+}
+#endif
 
 static inline int inline_mysql_rwlock_tryrdlock(
   mysql_rwlock_t *that
@@ -690,6 +895,34 @@ static inline int inline_mysql_rwlock_tryrdlock(
   return result;
 }
 
+#ifndef DISABLE_MYSQL_PRLOCK_H
+static inline int inline_mysql_prlock_tryrdlock(
+  mysql_prlock_t *that
+#ifdef HAVE_PSI_INTERFACE
+  , const char *src_file, uint src_line
+#endif
+  )
+{
+  int result;
+#ifdef HAVE_PSI_INTERFACE
+  struct PSI_rwlock_locker *locker= NULL;
+  if (likely(PSI_server && that->m_psi))
+  {
+    locker= PSI_server->get_thread_rwlock_locker(that->m_psi,
+                                                 PSI_RWLOCK_TRYREADLOCK);
+    if (likely(locker != NULL))
+      PSI_server->start_rwlock_rdwait(locker, src_file, src_line);
+  }
+#endif
+  result= rw_pr_tryrdlock(&that->m_prlock);
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(locker != NULL))
+    PSI_server->end_rwlock_rdwait(locker, result);
+#endif
+  return result;
+}
+#endif
+
 static inline int inline_mysql_rwlock_trywrlock(
   mysql_rwlock_t *that
 #ifdef HAVE_PSI_INTERFACE
@@ -716,6 +949,34 @@ static inline int inline_mysql_rwlock_trywrlock(
   return result;
 }
 
+#ifndef DISABLE_MYSQL_PRLOCK_H
+static inline int inline_mysql_prlock_trywrlock(
+  mysql_prlock_t *that
+#ifdef HAVE_PSI_INTERFACE
+  , const char *src_file, uint src_line
+#endif
+  )
+{
+  int result;
+#ifdef HAVE_PSI_INTERFACE
+  struct PSI_rwlock_locker *locker= NULL;
+  if (likely(PSI_server && that->m_psi))
+  {
+    locker= PSI_server->get_thread_rwlock_locker(that->m_psi,
+                                                 PSI_RWLOCK_TRYWRITELOCK);
+    if (likely(locker != NULL))
+      PSI_server->start_rwlock_wrwait(locker, src_file, src_line);
+  }
+#endif
+  result= rw_pr_trywrlock(&that->m_prlock);
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(locker != NULL))
+    PSI_server->end_rwlock_wrwait(locker, result);
+#endif
+  return result;
+}
+#endif
+
 static inline int inline_mysql_rwlock_unlock(
   mysql_rwlock_t *that)
 {
@@ -732,6 +993,25 @@ static inline int inline_mysql_rwlock_unlock(
   result= rw_unlock(&that->m_rwlock);
   return result;
 }
+
+#ifndef DISABLE_MYSQL_PRLOCK_H
+static inline int inline_mysql_prlock_unlock(
+  mysql_prlock_t *that)
+{
+  int result;
+#ifdef HAVE_PSI_INTERFACE
+  struct PSI_thread *thread;
+  if (likely(PSI_server && that->m_psi))
+  {
+    thread= PSI_server->get_thread();
+    if (likely(thread != NULL))
+      PSI_server->unlock_rwlock(thread, that->m_psi);
+  }
+#endif
+  result= rw_pr_unlock(&that->m_prlock);
+  return result;
+}
+#endif
 
 static inline int inline_mysql_cond_init(
 #ifdef HAVE_PSI_INTERFACE

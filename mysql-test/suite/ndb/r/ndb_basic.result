@@ -787,6 +787,7 @@ f1	f2	f3
 222222	bbbbbb	2
 drop table t1;
 Illegal ndb error code: 1186
+MySQL error code 1186 (ER_FLUSH_MASTER_BINLOG_CLOSED): Binlog closed, cannot RESET MASTER
 CREATE TABLE t1 (
 a VARBINARY(40) NOT NULL,
 b VARCHAR (256) CHARACTER SET UTF8 NOT NULL,

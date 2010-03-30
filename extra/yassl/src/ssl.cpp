@@ -991,7 +991,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
   static char* msg = (char*)"Please supply a buffer for error string";
 
     if (buffer) {
-        SetErrorString(YasslError(errNumber), buffer);
+        SetErrorString(errNumber, buffer);
         return buffer;
     }
 

@@ -2086,7 +2086,7 @@ CREATE TABLE t1 ( bug_table_seq   INTEGER NOT NULL);
 CREATE OR REPLACE VIEW v1 AS SELECT * from t1;
 DROP PROCEDURE IF EXISTS p1;
 Warnings:
-Note	1305	PROCEDURE p1 does not exist
+Note	1305	PROCEDURE test.p1 does not exist
 CREATE PROCEDURE p1 ( )
 BEGIN
 DO (SELECT  @next := IFNULL(max(bug_table_seq),0) + 1 FROM v1);
@@ -3956,6 +3956,36 @@ CREATE VIEW v1 AS SELECT a FROM t1;
 ALTER TABLE v1;
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#48449: hang on show create view after upgrading when
+#            view contains function of view
+#
+DROP VIEW IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2;
+DROP FUNCTION IF EXISTS f1;
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+SELECT a FROM v2 INTO @a;
+RETURN @a;
+END//
+# Trigger pre-locking when opening v2.
+CREATE VIEW v1 AS SELECT f1() FROM t1;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `f1`() AS `f1()` from `t1`	latin1	latin1_swedish_ci
+Warnings:
+Note	1599	View `test`.`v2` has no creation context
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
+DROP FUNCTION f1;
+CREATE TABLE t1(f1 INT);
+INSERT INTO t1 VALUES ();
+CREATE VIEW v1 AS SELECT 1 FROM t1 WHERE
+ROW(1,1) >= ROW(1, (SELECT 1 FROM t1 WHERE  f1 >= ANY ( SELECT '1' )));
+DROP VIEW v1;
+DROP TABLE t1;
 # -----------------------------------------------------------------
 # -- End of 5.1 tests.
 # -----------------------------------------------------------------
@@ -4004,3 +4034,36 @@ CREATE VIEW t2 AS SELECT * FROM t1;
 ERROR HY000: Can't execute the query because you have a conflicting read lock
 UNLOCK TABLES;
 DROP TABLE t1, t2;
+#
+# Bug#48315 Metadata lock is not taken for merged views that
+#           use an INFORMATION_SCHEMA table
+#
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+# Connection default
+CREATE VIEW v1 AS SELECT schema_name FROM information_schema.schemata;
+CREATE TABLE t1 (str VARCHAR(50));
+CREATE PROCEDURE p1() INSERT INTO t1 SELECT * FROM v1;
+# CALL p1() so the view is merged.
+CALL p1();
+# Connection 3
+LOCK TABLE t1 READ;
+# Connection default
+# Try to CALL p1() again, this time it should block for t1.
+# Sending:
+CALL p1();
+# Connection 2
+# ... then try to drop the view. This should block.
+# Sending:
+DROP VIEW v1;
+# Connection 3
+# Now allow CALL p1() to complete
+UNLOCK TABLES;
+# Connection default
+# Reaping: CALL p1()
+# Connection 2
+# Reaping: DROP VIEW v1
+# Connection default
+DROP PROCEDURE p1;
+DROP TABLE t1;

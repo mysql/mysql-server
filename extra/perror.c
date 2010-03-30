@@ -184,6 +184,45 @@ static const char *get_ha_error_msg(int code)
   return NullS;
 }
 
+typedef struct
+{
+  const char *name;
+  uint        code;
+  const char *text;
+} st_error;
+
+static st_error global_error_names[] =
+{
+#include <mysqld_ername.h>
+  { 0, 0, 0 }
+};
+
+/**
+  Lookup an error by code in the global_error_names array.
+  @param code the code to lookup
+  @param [out] name_ptr the error name, when found
+  @param [out] msg_ptr the error text, when found
+  @return 1 when found, otherwise 0
+*/
+int get_ER_error_msg(uint code, const char **name_ptr, const char **msg_ptr)
+{
+  st_error *tmp_error;
+
+  tmp_error= & global_error_names[0];
+
+  while (tmp_error->name != NULL)
+  {
+    if (tmp_error->code == code)
+    {
+      *name_ptr= tmp_error->name;
+      *msg_ptr= tmp_error->text;
+      return 1;
+    }
+    tmp_error++;
+  }
+
+  return 0;
+}
 
 #if defined(__WIN__)
 static my_bool print_win_error_msg(DWORD error, my_bool verbose)
@@ -211,6 +250,7 @@ int main(int argc,char *argv[])
 {
   int error,code,found;
   const char *msg;
+  const char *name;
   char *unknown_error = 0;
 #if defined(__WIN__)
   my_bool skip_win_message= 0;
@@ -313,6 +353,14 @@ int main(int argc,char *argv[])
         found= 1;
         if (verbose)
           printf("MySQL error code %3d: %s\n", code, msg);
+        else
+          puts(msg);
+      }
+      if (get_ER_error_msg(code, & name, & msg))
+      {
+        found= 1;
+        if (verbose)
+          printf("MySQL error code %3d (%s): %s\n", code, name, msg);
         else
           puts(msg);
       }

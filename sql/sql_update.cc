@@ -203,33 +203,26 @@ int mysql_update(THD *thd,
   SQL_SELECT	*select;
   READ_RECORD	info;
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
-  bool          need_reopen;
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
   MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_update");
 
-  for ( ; ; )
-  {
-    if (open_tables(thd, &table_list, &table_count, 0))
-      DBUG_RETURN(1);
+  if (open_tables(thd, &table_list, &table_count, 0))
+    DBUG_RETURN(1);
 
-    if (table_list->multitable_view)
-    {
-      DBUG_ASSERT(table_list->view != 0);
-      DBUG_PRINT("info", ("Switch to multi-update"));
-      /* pass counter value */
-      thd->lex->table_count= table_count;
-      /* convert to multiupdate */
-      DBUG_RETURN(2);
-    }
-    if (!lock_tables(thd, table_list, table_count, 0, &need_reopen))
-      break;
-    if (!need_reopen)
-      DBUG_RETURN(1);
-    close_tables_for_reopen(thd, &table_list, start_of_statement_svp);
+  if (table_list->multitable_view)
+  {
+    DBUG_ASSERT(table_list->view != 0);
+    DBUG_PRINT("info", ("Switch to multi-update"));
+    /* pass counter value */
+    thd->lex->table_count= table_count;
+    /* convert to multiupdate */
+    DBUG_RETURN(2);
   }
+  if (lock_tables(thd, table_list, table_count, 0))
+    DBUG_RETURN(1);
 
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
@@ -406,10 +399,7 @@ int mysql_update(THD *thd,
       matching rows before updating the table!
     */
     if (used_index < MAX_KEY && old_covering_keys.is_set(used_index))
-    {
-      table->key_read=1;
       table->mark_columns_used_by_index(used_index);
-    }
     else
     {
       table->use_all_columns();
@@ -858,11 +848,7 @@ int mysql_update(THD *thd,
 err:
   delete select;
   free_underlaid_joins(thd, select_lex);
-  if (table->key_read)
-  {
-    table->key_read=0;
-    table->file->extra(HA_EXTRA_NO_KEYREAD);
-  }
+  table->set_keyread(FALSE);
   thd->abort_on_warning= 0;
   DBUG_RETURN(1);
 }
@@ -976,17 +962,14 @@ int mysql_multi_update_prepare(THD *thd)
   uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
-  bool need_reopen= FALSE;
   MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
-reopen_tables:
-
   /* open tables and create derived ones, but do not lock and fill them */
-  if (((original_multiupdate || need_reopen) &&
+  if ((original_multiupdate &&
        open_tables(thd, &table_list, &table_count, 0)) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE);
@@ -1102,58 +1085,11 @@ reopen_tables:
 
   /* now lock and fill tables */
   if (!thd->stmt_arena->is_stmt_prepare() &&
-      lock_tables(thd, table_list, table_count, 0, &need_reopen))
+      lock_tables(thd, table_list, table_count, 0))
   {
-    if (!need_reopen)
-      DBUG_RETURN(TRUE);
-
-    DBUG_PRINT("info", ("lock_tables failed, reopening"));
-
-    /*
-      We have to reopen tables since some of them were altered or dropped
-      during lock_tables() or something was done with their triggers.
-      Let us do some cleanups to be able do setup_table() and setup_fields()
-      once again.
-    */
-    List_iterator_fast<Item> it(*fields);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-
-    /*
-      To not to hog memory (as a result of the 
-      unit->reinit_exec_mechanism() call below):
-    */
-    lex->unit.cleanup();
-
-    for (SELECT_LEX *sl= lex->all_selects_list;
-        sl;
-        sl= sl->next_select_in_list())
-    {
-      SELECT_LEX_UNIT *unit= sl->master_unit();
-      unit->reinit_exec_mechanism(); // reset unit->prepared flags
-      /*
-        Reset 'clean' flag back to force normal execution of
-        unit->cleanup() in Prepared_statement::cleanup_stmt()
-        (call to lex->unit.cleanup() above sets this flag to TRUE).
-      */
-      unit->unclean();
-    }
-
-    /*
-      Also we need to cleanup Natural_join_column::table_field items.
-      To not to traverse a join tree we will cleanup whole
-      thd->free_list (in PS execution mode that list may not contain
-      items from 'fields' list, so the cleanup above is necessary to.
-    */
-    cleanup_items(thd->free_list);
-    cleanup_items(thd->stmt_arena->free_list);
-    close_tables_for_reopen(thd, &table_list, start_of_statement_svp);
-
-    DEBUG_SYNC(thd, "multi_update_reopen_tables");
-
-    goto reopen_tables;
+    DBUG_RETURN(TRUE);
   }
+  /* @todo: downgrade the metadata locks here. */
 
   /*
     Check that we are not using table that we are updating, but we should
@@ -1193,6 +1129,57 @@ reopen_tables:
 }
 
 
+/**
+   Implementation of the safe update options during UPDATE IGNORE. This syntax
+   causes an UPDATE statement to ignore all errors. In safe update mode,
+   however, we must never ignore the ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE. There
+   is a special hook in my_message_sql that will otherwise delete all errors
+   when the IGNORE option is specified. 
+
+   In the future, all IGNORE handling should be used with this class and all
+   traces of the hack outlined below should be removed.
+
+   - The parser detects IGNORE option and sets thd->lex->ignore= 1
+   
+   - In JOIN::optimize, if this is set, then 
+     thd->lex->current_select->no_error gets set.
+
+   - In my_message_sql(), if the flag above is set then any error is
+     unconditionally converted to a warning.
+
+   We are moving in the direction of using Internal_error_handler subclasses
+   to do all such error tweaking, please continue this effort if new bugs
+   appear.
+ */
+class Safe_dml_handler : public Internal_error_handler {
+
+private:
+  bool m_handled_error;
+
+public:
+  explicit Safe_dml_handler() : m_handled_error(FALSE) {}
+
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        MYSQL_ERROR::enum_warning_level level,
+                        const char* msg,
+                        MYSQL_ERROR ** cond_hdl)
+  {
+    if (level == MYSQL_ERROR::WARN_LEVEL_ERROR &&
+        sql_errno == ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE)
+    {
+      thd->stmt_da->set_error_status(thd, sql_errno, msg, sqlstate);
+      m_handled_error= TRUE;
+      return TRUE;
+    }
+    return FALSE;
+  }
+
+  bool handled_error() { return m_handled_error; }
+
+};
+
 /*
   Setup multi-update handling and call SELECT to do the join
 */
@@ -1225,18 +1212,36 @@ bool mysql_multi_update(THD *thd,
                                MODE_STRICT_ALL_TABLES));
 
   List<Item> total_list;
+
+  Safe_dml_handler handler;
+  bool using_handler= thd->variables.option_bits & OPTION_SAFE_UPDATES;
+  if (using_handler)
+    thd->push_internal_handler(&handler);
+
   res= mysql_select(thd, &select_lex->ref_pointer_array,
-                      table_list, select_lex->with_wild,
-                      total_list,
-                      conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
-                      (ORDER *)NULL,
-                      options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
-                      OPTION_SETUP_TABLES_DONE,
-                      *result, unit, select_lex);
-  DBUG_PRINT("info",("res: %d  report_error: %d", res,
-                     (int) thd->is_error()));
+                    table_list, select_lex->with_wild,
+                    total_list,
+                    conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
+                    (ORDER *)NULL,
+                    options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
+                    OPTION_SETUP_TABLES_DONE,
+                    *result, unit, select_lex);
+
+  if (using_handler)
+  {
+    Internal_error_handler *top_handler;
+    top_handler= thd->pop_internal_handler();
+    DBUG_ASSERT(&handler == top_handler);
+  }
+
+  DBUG_PRINT("info",("res: %d  report_error: %d", res, (int) thd->is_error()));
   res|= thd->is_error();
-  if (unlikely(res))
+  /*
+    Todo: remove below code and make Safe_dml_handler do error processing
+    instead. That way we can return the actual error instead of
+    ER_UNKNOWN_ERROR.
+  */
+  if (unlikely(res) && (!using_handler || !handler.handled_error()))
   {
     /* If we had a another error reported earlier then this will be ignored */
     (*result)->send_error(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR));
