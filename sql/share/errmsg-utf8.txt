@@ -6327,3 +6327,9 @@ ER_LOCK_ABORTED
 
 ER_DATA_OUT_OF_RANGE 22003 
   eng "%s value is out of range in '%s'"
+
+ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
+  eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
+
+ER_BINLOG_UNSAFE_MIXED_STATEMENT
+  eng "Statements that read from both transactional and non-transactional tables and write to any of them are unsafe."
