@@ -54,6 +54,12 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 # readline is not maintained by us
 #
 .*/cmd-line-utils/readline/.* : .*
+readline\.c : unused parameter
+term\.c : unused parameter
+vi\.c : unused parameter
+common\.c : unused parameter
+term\.c : *.*
+
 
 #
 # Ignore some warnings in libevent, which is not maintained by us.
