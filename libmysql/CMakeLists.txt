@@ -153,13 +153,24 @@ SET(LIBS clientlib dbug strings vio mysys ${ZLIB_LIBRARY} ${SSL_LIBRARIES})
 # Merge several convenience libraries into one big mysqlclient
 # and link them together into shared library.
 MERGE_LIBRARIES(mysqlclient STATIC ${LIBS})
-IF(UNIX)
-  INSTALL_SYMLINK(${CMAKE_STATIC_LIBRARY_PREFIX}mysqlclient_r mysqlclient ${INSTALL_LIBDIR})
-ENDIF()
 
 # Visual Studio users need debug  static library for debug projects
 IF(MSVC)
  INSTALL_DEBUG_TARGET(mysqlclient DESTINATION ${INSTALL_LIBDIR}/debug)
+ENDIF()
+
+IF(UNIX)
+  MACRO(GET_VERSIONED_LIBNAME LIBNAME EXTENSION VERSION OUTNAME)
+    SET(DOT_VERSION ".${VERSION}")
+    IF(DOT_VERSION STREQUAL ".") 
+      SET(DOT_VERSION "")
+    ENDIF()
+    IF(APPLE)
+      SET(${OUTNAME} ${LIBNAME}${DOT_VERSION}${EXTENSION})
+    ELSE()
+      SET(${OUTNAME} ${LIBNAME}${EXTENSION}${DOT_VERSION})
+    ENDIF() 
+  ENDMACRO()
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
@@ -182,6 +193,16 @@ IF(NOT DISABLE_SHARED)
     #(mysqlclient in this case)
     SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
     SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-    INSTALL_SYMLINK(${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r libmysql ${INSTALL_LIBDIR})
+
+    # Install 3 links to libmysqlclient.so (client_r)
+    FOREACH(ver "" "${SHARED_LIB_MAJOR_VERSION}"
+                "${SHARED_LIB_MAJOR_VERSION}.0.0")
+       GET_VERSIONED_LIBNAME(
+         "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
+         "${CMAKE_SHARED_LIBRARY_SUFFIX}"
+         "${ver}"
+         linkname)
+      INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR})
+    ENDFOREACH()
   ENDIF()
 ENDIF()
