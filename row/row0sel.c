@@ -4613,12 +4613,12 @@ row_search_autoinc_read_column(
 
 	case DATA_FLOAT:
 		ut_a(len == sizeof(float));
-		value = mach_float_read(data);
+		value = (ib_uint64_t) mach_float_read(data);
 		break;
 
 	case DATA_DOUBLE:
 		ut_a(len == sizeof(double));
-		value = mach_double_read(data);
+		value = (ib_uint64_t) mach_double_read(data);
 		break;
 
 	default:
