@@ -1177,9 +1177,6 @@ innobase_start_or_create_for_mysql(void)
 	/* Currently native AIO is supported only on windows and linux
 	and that also when the support is compiled in. In all other
 	cases, we ignore the setting of innodb_use_native_aio. */
-
-	/* TODO: comment this out after internal testing. */
-	fprintf(stderr, "Ignoring innodb_use_native_aio\n");
 	srv_use_native_aio = FALSE;
 
 #endif
