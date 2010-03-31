@@ -24,9 +24,18 @@
   doesn't resemble an IP address.
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "hostname.h"
+#include "my_global.h"
+#ifndef __WIN__
+#include <netdb.h>        // getservbyname, servent
+#endif
 #include "hash_filo.h"
 #include <m_ctype.h>
+#include "log.h"                                // sql_print_warning,
+                                                // sql_print_information
+#include "violite.h"                            // vio_getnameinfo,
+                                                // vio_get_normalized_ip_string
 #ifdef	__cplusplus
 extern "C" {					// Because of SCO 3.2V4.2
 #endif

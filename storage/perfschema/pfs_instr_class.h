@@ -16,6 +16,8 @@
 #ifndef PFS_INSTR_CLASS_H
 #define PFS_INSTR_CLASS_H
 
+#include "mysql_com.h"                          /* NAME_LEN */
+
 /**
   @file storage/perfschema/pfs_instr_class.h
   Performance schema instruments meta data (declarations).
@@ -36,7 +38,7 @@
 */
 #define PFS_MAX_FULL_PREFIX_NAME_LENGTH 32
 
-#include <mysql_priv.h>
+#include <sql_priv.h>
 #include <mysql/psi/psi.h>
 #include "pfs_lock.h"
 #include "pfs_stat.h"

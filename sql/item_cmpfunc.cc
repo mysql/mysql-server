@@ -25,9 +25,11 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include <m_ctype.h>
 #include "sql_select.h"
+#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_time.h"                  // make_truncated_value_warning
 
 static bool convert_constant_item(THD *, Item_field *, Item **);
 static longlong

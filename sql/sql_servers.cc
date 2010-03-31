@@ -33,13 +33,18 @@
   currently running transactions etc will not be disrupted.
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_servers.h"
+#include "unireg.h"
+#include "sql_base.h"                           // close_thread_tables
+#include "records.h"          // init_read_record, end_read_record
 #include "hash_filo.h"
 #include <m_ctype.h>
 #include <stdarg.h>
 #include "sp_head.h"
 #include "sp.h"
 #include "transaction.h"
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.

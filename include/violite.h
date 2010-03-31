@@ -30,6 +30,10 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#ifdef __cplusplus
+typedef struct st_vio Vio;
+#endif /* __cplusplus */
+
 enum enum_vio_type
 {
   VIO_CLOSED, VIO_TYPE_TCPIP, VIO_TYPE_SOCKET, VIO_TYPE_NAMEDPIPE,

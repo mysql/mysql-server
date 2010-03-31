@@ -1,7 +1,9 @@
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                      // REQUIRED by other includes
 #include "rpl_rli.h"
 #include "rpl_record_old.h"
+#include "log_event.h"                          // Log_event_type
 
 size_t
 pack_row_old(TABLE *table, MY_BITMAP const* cols,

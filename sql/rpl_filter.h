@@ -17,6 +17,12 @@
 #define RPL_FILTER_H
 
 #include "mysql.h"
+#include "sql_list.h"                           /* I_List */
+#include "hash.h"                               /* HASH */
+
+class String;
+class TABLE_LIST;
+typedef struct st_dynamic_array DYNAMIC_ARRAY;
 
 typedef struct st_table_rule_ent
 {

@@ -14,11 +14,22 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_parse.h"                          // parse_sql
+#include "strfunc.h"                           // find_string_in_array
+#include "sql_db.h"                        // get_default_db_collation
+#include "sql_time.h"                      // interval_type_to_name,
+                                           // date_add_interval,
+                                           // calc_time_diff
+#include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
+#include "sql_acl.h"    // EVENT_ACL, SUPER_ACL
+#include "sp.h"         // load_charset, load_collation
 #include "events.h"
 #include "event_data_objects.h"
 #include "event_db_repository.h"
 #include "sp_head.h"
+#include "sql_show.h"                // append_definer, append_identifier
 
 /**
   @addtogroup Event_Scheduler

@@ -16,7 +16,19 @@
 
 /* create and drop of databases */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_db.h"
+#include "sql_cache.h"                   // query_cache_*
+#include "lock.h"                        // wait_if_global_read_lock,
+                                         // start_waiting_global_read_lock
+#include "sql_table.h"                   // build_table_filename,
+                                         // filename_to_tablename
+#include "sql_rename.h"                  // mysql_rename_tables
+#include "sql_acl.h"                     // SELECT_ACL, DB_ACLS,
+                                         // acl_get, check_grant_db
+#include "sql_base.h"                    // wait_for_condition
+#include "log_event.h"                   // Query_log_event
 #include <mysys_err.h>
 #include "sp.h"
 #include "events.h"

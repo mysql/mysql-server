@@ -45,8 +45,10 @@ TODO:
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_class.h"                          // SSV
 #include <mysql/plugin.h>
+#include <mysql/psi/mysql_file.h>
 #include "ha_tina.h"
 #include "probes_mysql.h"
 
