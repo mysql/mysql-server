@@ -103,7 +103,7 @@ trx_rseg_header_create(
 	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
 	ulint	max_size,	/*!< in: max size in pages */
-	ulint*	slot_no,	/*!< out: rseg id == slot number in trx sys */
+	ulint	rseg_slot_no,	/*!< in: rseg id == slot number in trx sys */
 	mtr_t*	mtr);		/*!< in: mtr */
 /*********************************************************************//**
 Creates the memory copies for rollback segments and initializes the
@@ -122,6 +122,12 @@ trx_rseg_mem_free(
 /*==============*/
 	trx_rseg_t*	rseg);		/* in, own: instance to free */
 
+/*********************************************************************
+Creates a rollback segment. */
+UNIV_INTERN
+trx_rseg_t*
+trx_rseg_create(void);
+/*==================*/
 
 /* Number of undo log slots in a rollback segment file copy */
 #define TRX_RSEG_N_SLOTS	(UNIV_PAGE_SIZE / 16)
