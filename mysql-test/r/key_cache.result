@@ -388,7 +388,7 @@ i int, a char(10), key k1(i), key k2(a));
 select @@key_cache_partitions;
 @@key_cache_partitions
 0
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
 default	NULL	NULL	2097152	1024	0	#	0	0	0	0	0
 small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
@@ -416,18 +416,18 @@ Key_read_requests	22
 Key_reads	0
 Key_write_requests	26
 Key_writes	6
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
 default	NULL	NULL	2097152	1024	4	#	0	22	0	26	6
 small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
 delete from t2 where a='zzzz';
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
 default	NULL	NULL	2097152	1024	4	#	0	29	0	32	9
 small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
 delete from t1;
 delete from t2;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
 default	NULL	NULL	2097152	1024	4	#	0	29	0	32	9
 small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
@@ -435,10 +435,8 @@ set global key_cache_partitions=2;
 select @@key_cache_partitions;
 @@key_cache_partitions
 2
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	1048576	1024	0	#	0	0	0	0	0
-default	2	2	1048576	1024	0	#	0	0	0	0	0
 default	2	NULL	2097152	1024	0	#	0	0	0	0	0
 small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
 insert into t1 values (1, 'qqqq'), (2, 'yyyy');
@@ -465,27 +463,22 @@ Key_read_requests	22
 Key_reads	0
 Key_write_requests	26
 Key_writes	6
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	1048576	1024	#	#	0	10	0	13	4
-default	2	2	1048576	1024	#	#	0	12	0	13	2
-default	2	NULL	2097152	1024	#	#	0	22	0	26	6
-small	NULL	NULL	1048576	1024	#	#	0	1	0	2	1
+default	2	NULL	2097152	1024	4	#	0	22	0	26	6
+small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
 delete from t1;
 delete from t2;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	1048576	1024	#	#	0	10	0	13	4
-default	2	2	1048576	1024	#	#	0	12	0	13	2
-default	2	NULL	2097152	1024	#	#	0	22	0	26	6
-small	NULL	NULL	1048576	1024	#	#	0	1	0	2	1
+default	2	NULL	2097152	1024	4	#	0	22	0	26	6
+small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
 set global key_cache_partitions=1;
 select @@key_cache_partitions;
 @@key_cache_partitions
 1
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	1	1	2097152	1024	0	#	0	0	0	0	0
 default	1	NULL	2097152	1024	0	#	0	0	0	0	0
 small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
 insert into t1 values (1, 'qqqq'), (2, 'yyyy');
@@ -512,23 +505,20 @@ Key_read_requests	22
 Key_reads	0
 Key_write_requests	26
 Key_writes	6
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	1	1	2097152	1024	4	#	0	22	0	26	6
 default	1	NULL	2097152	1024	4	#	0	22	0	26	6
 small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
 delete from t1;
 delete from t2;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	1	1	2097152	1024	4	#	0	22	0	26	6
 default	1	NULL	2097152	1024	4	#	0	22	0	26	6
 small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
 flush tables;
 flush status;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	1	1	2097152	1024	4	#	0	0	0	0	0
 default	1	NULL	2097152	1024	4	#	0	0	0	0	0
 small	NULL	NULL	1048576	1024	1	#	0	0	0	0	0
 set global key_buffer_size=32*1024;
@@ -539,10 +529,8 @@ set global key_cache_partitions=2;
 select @@key_cache_partitions;
 @@key_cache_partitions
 2
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	0	#	0	0	0	0	0
-default	2	2	16384	1024	0	#	0	0	0	0	0
 default	2	NULL	32768	1024	0	#	0	0	0	0	0
 small	NULL	NULL	1048576	1024	1	#	0	0	0	0	0
 insert into t1 values (1, 'qqqq'), (2, 'yyyy');
@@ -560,10 +548,8 @@ p	i	a
 4	3	zzzz
 update t1 set p=3 where p=1;
 update t2 set i=2 where i=1;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	1	#	0	12	0	13	2
-default	2	2	16384	1024	3	#	0	10	0	13	4
 default	2	NULL	32768	1024	4	#	0	22	0	26	6
 small	NULL	NULL	1048576	1024	1	#	0	0	0	0	0
 insert into t1(a) select a from t1;
@@ -582,10 +568,8 @@ insert into t2(i,a) select i,a from t2;
 insert into t2(i,a) select i,a from t2;
 insert into t2(i,a) select i,a from t2;
 insert into t2(i,a) select i,a from t2;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	1951	#	1976	43
-default	2	2	16384	1024	#	#	0	4782	#	1708	60
 default	2	NULL	32768	1024	#	#	0	6733	#	3684	103
 small	NULL	NULL	1048576	1024	#	#	0	0	#	0	0
 select * from t1 where p between 1010 and 1020 ;
@@ -603,20 +587,16 @@ p	i	a
 1018	2	pppp
 1019	2	yyyy
 1020	3	zzzz
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	1954	#	1976	43
-default	2	2	16384	1024	#	#	0	4796	#	1708	60
 default	2	NULL	32768	1024	#	#	0	6750	#	3684	103
 small	NULL	NULL	1048576	1024	#	#	0	0	#	0	0
 flush tables;
 flush status;
 update t1 set a='zzzz' where a='qqqq';
 update t2 set i=1 where i=2;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	940	10	939	10
-default	2	2	16384	1024	#	#	0	2136	8	613	8
 default	2	NULL	32768	1024	#	#	0	3076	18	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_buffer_size=256*1024;
@@ -627,29 +607,14 @@ set global keycache1.key_cache_partitions=7;
 select @@keycache1.key_cache_partitions;
 @@keycache1.key_cache_partitions
 7
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	940	10	939	10
-default	2	2	16384	1024	#	#	0	2136	8	613	8
 default	2	NULL	32768	1024	#	#	0	3076	18	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
-keycache1	7	1	37449	2048	#	#	0	0	0	0	0
-keycache1	7	2	37449	2048	#	#	0	0	0	0	0
-keycache1	7	3	37449	2048	#	#	0	0	0	0	0
-keycache1	7	4	37449	2048	#	#	0	0	0	0	0
-keycache1	7	5	37449	2048	#	#	0	0	0	0	0
-keycache1	7	6	37449	2048	#	#	0	0	0	0	0
-keycache1	7	7	37449	2048	#	#	0	0	0	0	0
 keycache1	7	NULL	262143	2048	#	#	0	0	0	0	0
-select * from information_schema.key_caches where key_cache_name like "key%";
+select * from information_schema.key_caches where key_cache_name like "key%"
+                                                  and partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-keycache1	7	1	37449	2048	0	#	0	0	0	0	0
-keycache1	7	2	37449	2048	0	#	0	0	0	0	0
-keycache1	7	3	37449	2048	0	#	0	0	0	0	0
-keycache1	7	4	37449	2048	0	#	0	0	0	0	0
-keycache1	7	5	37449	2048	0	#	0	0	0	0	0
-keycache1	7	6	37449	2048	0	#	0	0	0	0	0
-keycache1	7	7	37449	2048	0	#	0	0	0	0	0
 keycache1	7	NULL	262143	2048	0	#	0	0	0	0	0
 cache index t1 key (`primary`) in keycache1;
 Table	Op	Msg_type	Msg_text
@@ -682,61 +647,35 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select count(*) from t1, t2 where t1.p = t2.i;
 count(*)
 256
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
-keycache1	7	1	37449	2048	#	#	0	2	1	0	0
-keycache1	7	2	37449	2048	#	#	0	7	1	0	0
-keycache1	7	3	37449	2048	#	#	0	0	0	0	0
-keycache1	7	4	37449	2048	#	#	0	5	1	0	0
-keycache1	7	5	37449	2048	#	#	0	0	0	0	0
-keycache1	7	6	37449	2048	#	#	0	0	0	0	0
-keycache1	7	7	37449	2048	#	#	0	0	0	0	0
 keycache1	7	NULL	262143	2048	#	#	0	14	3	0	0
-select * from information_schema.key_caches where key_cache_name like "key%";
+select * from information_schema.key_caches where key_cache_name like "key%"
+                                                  and partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-keycache1	7	1	37449	2048	1	#	0	2	1	0	0
-keycache1	7	2	37449	2048	1	#	0	7	1	0	0
-keycache1	7	3	37449	2048	0	#	0	0	0	0	0
-keycache1	7	4	37449	2048	1	#	0	5	1	0	0
-keycache1	7	5	37449	2048	0	#	0	0	0	0	0
-keycache1	7	6	37449	2048	0	#	0	0	0	0	0
-keycache1	7	7	37449	2048	0	#	0	0	0	0	0
 keycache1	7	NULL	262143	2048	3	#	0	14	3	0	0
 cache index t2 in keycache1;
 Table	Op	Msg_type	Msg_text
 test.t2	assign_to_keycache	status	OK
 update t2 set p=p+3000, i=2 where a='qqqq';
-select * from information_schema.key_caches where key_cache_name like "key%";
+select * from information_schema.key_caches where key_cache_name like "key%"
+                                                  and partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-keycache1	7	1	37449	2048	3	#	0	44	3	43	2
-keycache1	7	2	37449	2048	4	#	0	61	4	51	1
-keycache1	7	3	37449	2048	4	#	0	177	4	176	3
-keycache1	7	4	37449	2048	4	#	0	122	4	119	3
-keycache1	7	5	37449	2048	4	#	0	840	4	335	4
-keycache1	7	6	37449	2048	3	#	0	627	3	133	3
-keycache1	7	7	37449	2048	3	#	0	211	3	214	3
 keycache1	7	NULL	262143	2048	25	#	0	2082	25	1071	19
 set global keycache2.key_buffer_size=1024*1024;
 cache index t2 in keycache2;
 Table	Op	Msg_type	Msg_text
 test.t2	assign_to_keycache	status	OK
 insert into t2 values (2000, 3, 'yyyy');
-select * from information_schema.key_caches where key_cache_name like "keycache2";
+select * from information_schema.key_caches where key_cache_name like "keycache2"
+                                                  and partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
 keycache2	NULL	NULL	1048576	1024	0	#	0	0	0	0	0
-select * from information_schema.key_caches where key_cache_name like "key%";
+select * from information_schema.key_caches where key_cache_name like "key%" 
+and partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-keycache1	7	1	37449	2048	3	#	0	44	3	43	2
-keycache1	7	2	37449	2048	4	#	0	61	4	51	1
-keycache1	7	3	37449	2048	4	#	0	177	4	176	3
-keycache1	7	4	37449	2048	4	#	0	122	4	119	3
-keycache1	7	5	37449	2048	4	#	0	840	4	335	4
-keycache1	7	6	37449	2048	3	#	0	627	3	133	3
-keycache1	7	7	37449	2048	3	#	0	211	3	214	3
 keycache1	7	NULL	262143	2048	25	#	0	2082	25	1071	19
 keycache2	NULL	NULL	1048576	1024	0	#	0	0	0	0	0
 cache index t2 in keycache1;
@@ -774,127 +713,77 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select a from t2 where a='yyyy' and i=3 ;
 a
 yyyy
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
-keycache1	7	1	37449	2048	#	#	0	85	6	68	3
-keycache1	7	2	37449	2048	#	#	0	122	6	102	2
-keycache1	7	3	37449	2048	#	#	0	271	8	254	6
-keycache1	7	4	37449	2048	#	#	0	179	6	170	4
-keycache1	7	5	37449	2048	#	#	0	1445	7	416	6
-keycache1	7	6	37449	2048	#	#	0	863	6	345	5
-keycache1	7	7	37449	2048	#	#	0	236	4	239	4
 keycache1	7	NULL	262143	2048	#	#	0	3201	43	1594	30
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_cache_block_size=2*1024;
 insert into t2 values (7000, 3, 'yyyy');
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
-keycache1	7	1	37449	2048	#	#	0	1	1	1	1
-keycache1	7	2	37449	2048	#	#	0	1	1	0	0
-keycache1	7	3	37449	2048	#	#	0	0	0	0	0
-keycache1	7	4	37449	2048	#	#	0	1	1	1	1
-keycache1	7	5	37449	2048	#	#	0	1	1	0	0
-keycache1	7	6	37449	2048	#	#	0	2	2	1	1
-keycache1	7	7	37449	2048	#	#	0	0	0	0	0
 keycache1	7	NULL	262143	2048	#	#	0	6	6	3	3
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_cache_block_size=8*1024;
 insert into t2 values (8000, 3, 'yyyy');
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
-keycache1	3	1	87381	8192	#	#	0	1	1	1	1
-keycache1	3	2	87381	8192	#	#	0	3	2	1	1
-keycache1	3	3	87381	8192	#	#	0	2	2	1	1
 keycache1	3	NULL	262143	8192	#	#	0	6	5	3	3
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_buffer_size=64*1024;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_cache_block_size=2*1024;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
-keycache1	3	1	21845	2048	#	#	0	0	0	0	0
-keycache1	3	2	21845	2048	#	#	0	0	0	0	0
-keycache1	3	3	21845	2048	#	#	0	0	0	0	0
 keycache1	3	NULL	65535	2048	#	#	0	0	0	0	0
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_cache_block_size=8*1024;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_buffer_size=0;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_cache_block_size=8*1024;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_buffer_size=0;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_buffer_size=128*1024;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
-keycache1	1	1	131072	8192	#	#	0	0	0	0	0
 keycache1	1	NULL	131072	8192	#	#	0	0	0	0	0
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 set global keycache1.key_cache_block_size=1024;
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	16384	1024	#	#	0	966	12	939	10
-default	2	2	16384	1024	#	#	0	2206	12	613	8
 default	2	NULL	32768	1024	#	#	0	3172	24	1552	18
 small	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
-keycache1	7	1	18724	1024	#	#	0	0	0	0	0
-keycache1	7	2	18724	1024	#	#	0	0	0	0	0
-keycache1	7	3	18724	1024	#	#	0	0	0	0	0
-keycache1	7	4	18724	1024	#	#	0	0	0	0	0
-keycache1	7	5	18724	1024	#	#	0	0	0	0	0
-keycache1	7	6	18724	1024	#	#	0	0	0	0	0
-keycache1	7	7	18724	1024	#	#	0	0	0	0	0
 keycache1	7	NULL	131068	1024	#	#	0	0	0	0	0
 keycache2	NULL	NULL	1048576	1024	#	#	0	0	0	0	0
 drop table t1,t2;

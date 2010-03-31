@@ -272,7 +272,7 @@ create table t2 (
 
 select @@key_cache_partitions;
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 insert into t1 values (1, 'qqqq'), (2, 'yyyy');
 insert into t2 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
@@ -285,16 +285,16 @@ update t2 set i=2 where i=1;
 --replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 
 show status like 'key_%';
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 delete from t2 where a='zzzz';
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 delete from t1;
 delete from t2;
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 # For the key cache with 2 partitions execute the same sequence of
 # statements as for the simple cache above.
@@ -304,7 +304,7 @@ select * from information_schema.key_caches;
 set global key_cache_partitions=2;
 select @@key_cache_partitions;
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 insert into t1 values (1, 'qqqq'), (2, 'yyyy');
 insert into t2 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
@@ -316,20 +316,20 @@ update t2 set i=2 where i=1;
 
 --replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 
 show status like 'key_%';
---replace_column 6 # 7 #
-select * from information_schema.key_caches;
+--replace_column 7 #
+select * from information_schema.key_caches where partition_number is null;
 
 delete from t1;
 delete from t2;
---replace_column 6 # 7 # 
-select * from information_schema.key_caches;
+--replace_column 7 # 
+select * from information_schema.key_caches where partition_number is null;
 
 # Check that we can work with one partition with the same results
 
 set global key_cache_partitions=1;
 select @@key_cache_partitions;
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 insert into t1 values (1, 'qqqq'), (2, 'yyyy');
 insert into t2 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
@@ -342,16 +342,16 @@ update t2 set i=2 where i=1;
 --replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 
 show status like 'key_%';
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 delete from t1;
 delete from t2;
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 flush tables; flush status;
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 # Switch back to 2 partitions
 
@@ -360,7 +360,7 @@ select @@key_buffer_size;
 set global key_cache_partitions=2;
 select @@key_cache_partitions;
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 insert into t1 values (1, 'qqqq'), (2, 'yyyy');
 insert into t2 values (1, 1, 'qqqq'), (2, 1, 'pppp'),
@@ -371,7 +371,7 @@ update t1 set p=3 where p=1;
 update t2 set i=2 where i=1;
 
 --replace_column 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 # Add more rows to tables t1 and t2 
 
@@ -394,18 +394,18 @@ insert into t2(i,a) select i,a from t2;
 insert into t2(i,a) select i,a from t2;
 
 --replace_column 6 # 7 # 10 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 select * from t1 where p between 1010 and 1020 ;
 select * from t2 where p between 1010 and 1020 ;
 --replace_column 6 # 7 # 10 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 flush tables; flush status;
 update t1 set a='zzzz' where a='qqqq';
 update t2 set i=1 where i=2;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 # Now test how we can work with 7 partitions 
 
@@ -415,9 +415,10 @@ set global keycache1.key_cache_partitions=7;
 select @@keycache1.key_cache_partitions;
 
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 --replace_column 7 #
-select * from information_schema.key_caches where key_cache_name like "key%";
+select * from information_schema.key_caches where key_cache_name like "key%"
+                                                  and partition_number is null;
 
 cache index t1 key (`primary`) in keycache1;
 
@@ -429,22 +430,26 @@ explain select count(*) from t1, t2 where t1.p = t2.i;
 select count(*) from t1, t2 where t1.p = t2.i;
 
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 --replace_column 7 #
-select * from information_schema.key_caches where key_cache_name like "key%";
+select * from information_schema.key_caches where key_cache_name like "key%"
+                                                  and partition_number is null;
 
 cache index t2 in keycache1;
 update t2 set p=p+3000, i=2 where a='qqqq';
 --replace_column 7 #
-select * from information_schema.key_caches where key_cache_name like "key%";
+select * from information_schema.key_caches where key_cache_name like "key%"
+                                                  and partition_number is null;
 
 set global keycache2.key_buffer_size=1024*1024;
 cache index t2 in keycache2;
 insert into t2 values (2000, 3, 'yyyy');
 --replace_column 7 #
-select * from information_schema.key_caches where key_cache_name like "keycache2";
+select * from information_schema.key_caches where key_cache_name like "keycache2"
+                                                  and partition_number is null;
 --replace_column 7 #
-select * from information_schema.key_caches where key_cache_name like "key%";
+select * from information_schema.key_caches where key_cache_name like "key%" 
+                                                  and partition_number is null;
 
 cache index t2 in keycache1;
 update t2 set p=p+5000 where a='zzzz';
@@ -456,49 +461,49 @@ select i from t2 where a='yyyy' and i=3;
 explain select a from t2 where a='yyyy' and i=3;
 select a from t2 where a='yyyy' and i=3 ;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_cache_block_size=2*1024;
 insert into t2 values (7000, 3, 'yyyy');
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_cache_block_size=8*1024;
 insert into t2 values (8000, 3, 'yyyy');
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_buffer_size=64*1024;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_cache_block_size=2*1024;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_cache_block_size=8*1024;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_buffer_size=0;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_cache_block_size=8*1024;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_buffer_size=0;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_buffer_size=128*1024;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_cache_block_size=1024;
 --replace_column 6 # 7 #
-select * from information_schema.key_caches;
+select * from information_schema.key_caches where partition_number is null;
 
 drop table t1,t2;
 
