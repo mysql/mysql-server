@@ -440,11 +440,6 @@ install -d $RBR%{_sbindir}
   make DESTDIR=$RBR install
 )
 
-# FIXME: kent attempted to have debug libmysqld.a installed automatically but
-# FIXME: could not get it working, so do it manually for now
-install -m 644 $MBD/debug/libmysqld/libmysqld.a \
-               $RBR%{_libdir}/mysql/libmysqld-debug.a
-
 # FIXME: at some point we should stop doing this and just install everything
 # FIXME: directly into %{_libdir}/mysql - perhaps at the same time as renaming
 # FIXME: the shared libraries to use libmysql*-$major.$minor.so syntax
