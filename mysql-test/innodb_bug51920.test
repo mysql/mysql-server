@@ -22,8 +22,9 @@ WHERE INFO="UPDATE bug51920 SET i=2"
 INTO @thread_id;
 
 KILL @thread_id;
-SELECT sleep(2);
-SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID=@thread_id;
+let $wait_condition =
+  SELECT COUNT(*)=0 FROM information_schema.processlist WHERE ID=@thread_id;
+-- source include/wait_condition.inc
 
 connection con1;
 -- error ER_QUERY_INTERRUPTED
