@@ -805,7 +805,8 @@ public:
     priv_user - The user privilege we are using. May be "" for anonymous user.
     ip - client IP
   */
-  char   *host, *user, *priv_user, *ip;
+  char   *host, *user, *ip;
+  char   priv_user[USERNAME_LENGTH];
   /* The host privilege we are using */
   char   priv_host[MAX_HOSTNAME];
   /* points to host if host is available, otherwise points to ip */

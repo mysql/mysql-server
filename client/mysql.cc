@@ -167,6 +167,7 @@ static int wait_time = 5;
 static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
+static char *opt_plugin_dir= 0, *opt_default_auth;
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -1542,6 +1543,13 @@ static struct my_option my_long_options[] =
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     (uchar**) &show_warnings, (uchar**) &show_warnings, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
+  {"plugin_dir", OPT_PLUGIN_DIR, "Directory for client-side plugins.",
+   (uchar**) &opt_plugin_dir, (uchar**) &opt_plugin_dir, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"default_auth", OPT_PLUGIN_DIR,
+    "Default authentication client-side plugin to use.",
+   (uchar**) &opt_default_auth, (uchar**) &opt_default_auth, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -4238,6 +4246,56 @@ char *get_arg(char *line, my_bool get_next_arg)
 }
 
 
+/**
+  An example of mysql_authentication_dialog_ask callback.
+
+  The C function with the name "mysql_authentication_dialog_ask", if exists,
+  will be used by the "dialog" client authentication plugin when user
+  input is needed. This function should be of mysql_authentication_dialog_ask_t
+  type. If the function does not exists, a built-in implementation will be
+  used.
+
+  @param mysql          mysql
+  @param type           type of the input
+                        1 - normal string input
+                        2 - password string
+  @param prompt         prompt
+  @param buf            a buffer to store the use input
+  @param buf_len        the length of the buffer
+
+  @retval               a pointer to the user input string.
+                        It may be equal to 'buf' or to 'mysql->password'.
+                        In all other cases it is assumed to be an allocated
+                        string, and the "dialog" plugin will free() it.
+*/
+
+extern "C" char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
+                                                 const char *prompt,
+                                                 char *buf, int buf_len)
+{
+  char *s=buf;
+
+  fputs("[mariadb] ", stdout);
+  fputs(prompt, stdout);
+  fputs(" ", stdout);
+
+  if (type == 2) /* password */
+  {
+    s= get_tty_password("");
+    strnmov(buf, s, buf_len);
+    buf[buf_len-1]= 0;
+    my_free(s, MYF(0));
+  }
+  else
+  {
+    fgets(buf, buf_len-1, stdin);
+    if (buf[0] && (s= strend(buf))[-1] == '\n')
+      s[-1]= 0;
+  }
+
+  return buf;
+}
+
 static int
 sql_real_connect(char *host,char *database,char *user,char *password,
 		 uint silent)
@@ -4283,6 +4341,13 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   }
   if (default_charset_used)
     mysql_options(&mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
   if (!mysql_real_connect(&mysql, host, user, password,
 			  database, opt_mysql_port, opt_mysql_unix_port,
 			  connect_flag | CLIENT_MULTI_STATEMENTS))

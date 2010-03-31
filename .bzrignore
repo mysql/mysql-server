@@ -1931,3 +1931,6 @@ client/rpl_filter.cc
 client/rpl_filter.h
 client/sql_list.cc
 client/sql_list.h
+libmysqld/client_plugin.c
+sql/client_plugin.c
+*.dgcov

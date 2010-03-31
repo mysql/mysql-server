@@ -1,0 +1,15 @@
+MYSQL_PLUGIN(auth, [Collection of Authentication Plugins],
+                   [Collection of Authentication Plugins])
+MYSQL_PLUGIN_DYNAMIC(auth, [dialog.la])
+MYSQL_PLUGIN_ACTIONS(auth,[
+AC_COMPILE_IFELSE([
+  AC_LANG_PROGRAM([[
+#define _GNU_SOURCE
+#include <sys/socket.h>
+]],[[
+  struct ucred cred;
+  getsockopt(0, SOL_SOCKET, SO_PEERCRED, &cred, 0);
+]])],have_peercred=yes)
+AM_CONDITIONAL(HAVE_PEERCRED, test x$have_peercred = xyes)
+])
+AM_CONDITIONAL(HAVE_PEERCRED, false)

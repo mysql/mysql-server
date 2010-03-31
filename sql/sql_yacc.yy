@@ -56,6 +56,7 @@
 int yylex(void *yylval, void *yythd);
 
 const LEX_STRING null_lex_str= {0,0};
+const LEX_STRING empty_lex_str= { (char*) "", 0 };
 
 #define yyoverflow(A,B,C,D,E,F)               \
   {                                           \
@@ -1260,8 +1261,9 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  VARIANCE_SYM
 %token  VARYING                       /* SQL-2003-R */
 %token  VAR_SAMP_SYM
-%token  VIRTUAL_SYM
+%token  VIA_SYM
 %token  VIEW_SYM                      /* SQL-2003-N */
+%token  VIRTUAL_SYM
 %token  WAIT_SYM
 %token  WARNINGS
 %token  WEEK_SYM
@@ -11673,6 +11675,9 @@ user:
             $$->user = $1;
             $$->host.str= (char *) "%";
             $$->host.length= 1;
+            $$->password= null_lex_str; 
+            $$->plugin= empty_lex_str;
+            $$->auth= empty_lex_str;
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
@@ -11685,6 +11690,9 @@ user:
             if (!($$=(LEX_USER*) thd->alloc(sizeof(st_lex_user))))
               MYSQL_YYABORT;
             $$->user = $1; $$->host=$3;
+            $$->password= null_lex_str; 
+            $$->plugin= empty_lex_str;
+            $$->auth= empty_lex_str;
 
             if (check_string_char_length(&$$->user, ER(ER_USERNAME),
                                          USERNAME_CHAR_LENGTH,
@@ -12941,6 +12949,18 @@ grant_user:
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           { $$= $1; $1->password= $5; }
+        | user IDENTIFIED_SYM VIA_SYM ident_or_text
+          {
+            $$= $1;
+            $1->plugin= $4;
+            $1->auth= empty_lex_str;
+          }
+        | user IDENTIFIED_SYM VIA_SYM ident_or_text USING TEXT_STRING_sys
+          {
+            $$= $1;
+            $1->plugin= $4;
+            $1->auth= $6;
+          }
         | user
           { $$= $1; $1->password= null_lex_str; }
         ;

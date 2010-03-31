@@ -1215,8 +1215,6 @@ static int pbxt_init(void *p)
 				THD *thd = NULL;
 
 #ifndef DRIZZLED
-				extern myxt_mutex_t LOCK_plugin;
-
 				/* {MYSQL QUIRK}
 				 * I have to release this lock for PBXT recovery to
 				 * work, because it needs to open .frm files.

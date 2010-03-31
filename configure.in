@@ -1605,9 +1605,8 @@ case "$with_mysqld_ldflags " in
     ;;
 
   *)
-    # Check for dlopen, needed for user definable functions
+    # Check for dlopen, needed for user definable functions and plugins
     # This must be checked after threads on AIX
-    # We only need this for mysqld, not for the clients.
 
     my_save_LIBS="$LIBS"
     LIBS=""

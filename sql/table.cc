@@ -4163,11 +4163,8 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
   {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     DBUG_ASSERT(view && view_sctx);
-    if (acl_getroot_no_password(view_sctx,
-                                definer.user.str,
-                                definer.host.str,
-                                definer.host.str,
-                                thd->db))
+    if (acl_getroot(view_sctx, definer.user.str, definer.host.str,
+                                definer.host.str, thd->db))
     {
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))

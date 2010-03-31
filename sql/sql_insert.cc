@@ -1778,8 +1778,10 @@ public:
      table(0),tables_in_use(0),stacked_inserts(0), status(0), dead(0),
      group_count(0)
   {
-    thd.security_ctx->user=thd.security_ctx->priv_user=(char*) delayed_user;
+    thd.security_ctx->user=(char*) delayed_user;
     thd.security_ctx->host=(char*) my_localhost;
+    strmake(thd.security_ctx->priv_user, thd.security_ctx->user,
+            USERNAME_LENGTH);
     thd.current_tablenr=0;
     thd.version=refresh_version;
     thd.command=COM_DELAYED_INSERT;

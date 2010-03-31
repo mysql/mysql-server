@@ -46,6 +46,7 @@
 #define rw_wrlock(A)
 #define rw_unlock(A)
 #define rwlock_destroy(A)
+#define safe_mutex_assert_owner(mp)
 
 typedef int my_pthread_once_t;
 #define MY_PTHREAD_ONCE_INIT 0

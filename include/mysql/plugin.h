@@ -67,7 +67,10 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_FTPARSER_PLUGIN        2  /* Full-text parser plugin      */
 #define MYSQL_DAEMON_PLUGIN          3  /* The daemon/raw plugin type */
 #define MYSQL_INFORMATION_SCHEMA_PLUGIN  4  /* The I_S plugin type */
-#define MYSQL_MAX_PLUGIN_TYPE_NUM    5  /* The number of plugin types   */
+#define MYSQL_AUDIT_PLUGIN           5  /* The Audit plugin type        */
+#define MYSQL_REPLICATION_PLUGIN     6	/* The replication plugin type */
+#define MYSQL_AUTHENTICATION_PLUGIN  7  /* The authentication plugin type */
+#define MYSQL_MAX_PLUGIN_TYPE_NUM    8  /* The number of plugin types   */
 
 /* We use the following strings to define licenses for plugins */
 #define PLUGIN_LICENSE_PROPRIETARY 0

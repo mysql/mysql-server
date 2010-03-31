@@ -24,6 +24,8 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_xml.h mysql_embed.h mysql/services.h \
 			mysql/service_my_snprintf.h mysql/service_thd_alloc.h \
 		  	my_pthread.h my_no_pthread.h \
+			mysql/plugin_auth.h mysql/client_plugin.h \
+			mysql/plugin_auth_common.h \
 			decimal.h errmsg.h my_global.h my_net.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
@@ -42,7 +44,7 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
                         atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
                         wqueue.h waiting_threads.h
-EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp
+EXTRA_DIST =        mysql.h.pp mysql/plugin_auth.h.pp mysql/client_plugin.h.pp
 
 # Remove built files and the symlinked directories
 CLEANFILES =            $(BUILT_SOURCES) readline openssl

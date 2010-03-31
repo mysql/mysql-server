@@ -590,6 +590,7 @@ static SYMBOL symbols[] = {
   { "VARCHARACTER",	SYM(VARCHAR)},
   { "VARIABLES",	SYM(VARIABLES)},
   { "VARYING",		SYM(VARYING)},
+  { "VIA",              SYM(VIA_SYM)},
   { "VIEW",		SYM(VIEW_SYM)},
   { "VIRTUAL",          SYM(VIRTUAL_SYM)},
   { "WAIT",		SYM(WAIT_SYM)},

@@ -341,24 +341,6 @@ static bool write_eof_packet(THD *thd, NET *net,
 }
 
 /**
-  Please client to send scrambled_password in old format.
-     
-  @param thd thread handle
-
-  @retval
-    0  ok
-  @retval
-   !0  error
-*/
-
-bool send_old_password_request(THD *thd)
-{
-  NET *net= &thd->net;
-  return my_net_write(net, eof_buff, 1) || net_flush(net);
-}
-
-
-/**
   @param thd Thread handler
   @param sql_errno The error code to send
   @param err A pointer to the error message

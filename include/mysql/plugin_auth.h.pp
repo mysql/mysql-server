@@ -1,3 +1,4 @@
+#include <mysql/plugin.h>
 #include <mysql/services.h>
 #include <mysql/service_my_snprintf.h>
 #include <stdarg.h>
@@ -161,3 +162,32 @@ void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void mysql_query_cache_invalidate4(void* thd,
                                    const char *key, unsigned int key_length,
                                    int using_trx);
+#include <mysql/plugin_auth_common.h>
+typedef struct st_plugin_vio_info
+{
+  enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
+         MYSQL_VIO_PIPE, MYSQL_VIO_MEMORY } protocol;
+  int socket;
+} MYSQL_PLUGIN_VIO_INFO;
+typedef struct st_plugin_vio
+{
+  int (*read_packet)(struct st_plugin_vio *vio,
+                     unsigned char **buf);
+  int (*write_packet)(struct st_plugin_vio *vio,
+                      const unsigned char *packet,
+                      int packet_len);
+  void (*info)(struct st_plugin_vio *vio, struct st_plugin_vio_info *info);
+} MYSQL_PLUGIN_VIO;
+typedef struct st_mysql_server_auth_info
+{
+  const char *user_name;
+  const char *auth_string;
+  char authenticated_as[48 +1];
+  int password_used;
+} MYSQL_SERVER_AUTH_INFO;
+struct st_mysql_auth
+{
+  int interface_version;
+  const char *client_auth_plugin;
+  int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info);
+};

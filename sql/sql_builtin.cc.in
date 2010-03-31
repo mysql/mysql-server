@@ -19,10 +19,10 @@
 typedef struct st_mysql_plugin builtin_plugin[];
 
 extern builtin_plugin 
-  builtin_binlog_plugin@mysql_plugin_defs@;
+  builtin_binlog_plugin, builtin_mysql_password_plugin@mysql_plugin_defs@;
 
 struct st_mysql_plugin *mysqld_builtins[]=
 {
-  builtin_binlog_plugin@mysql_plugin_defs@,(struct st_mysql_plugin *)0
+  builtin_binlog_plugin, builtin_mysql_password_plugin@mysql_plugin_defs@,(struct st_mysql_plugin *)0
 };
 

@@ -291,7 +291,7 @@ struct charset_info_st
   const uint16 *const *sort_order_big;
   const uint16 *tab_to_uni;
   MY_UNI_IDX   *tab_from_uni;
-  const MY_UNICASE_INFO *const *caseinfo;
+  MY_UNICASE_INFO *const *caseinfo;
   const uchar  *state_map;
   const uchar  *ident_map;
   uint      strxfrm_multiply;

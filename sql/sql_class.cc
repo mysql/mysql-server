@@ -2984,9 +2984,9 @@ void THD::set_status_var_init()
 
 void Security_context::init()
 {
-  host= user= priv_user= ip= 0;
+  host= user= ip= 0;
   host_or_ip= "connecting host";
-  priv_host[0]= '\0';
+  priv_user[0]= priv_host[0]= '\0';
   master_access= 0;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
@@ -3010,8 +3010,7 @@ void Security_context::skip_grants()
   /* privileges for the user are unknown everything is allowed */
   host_or_ip= (char *)"";
   master_access= ~NO_ACCESS;
-  priv_user= (char *)"";
-  *priv_host= '\0';
+  *priv_user= *priv_host= '\0';
 }
 
 
@@ -3053,7 +3052,7 @@ bool Security_context::set_user(char *user_arg)
   of a statement under credentials of a different user, e.g.
   definer of a procedure, we authenticate this user in a local
   instance of Security_context by means of this method (and
-  ultimately by means of acl_getroot_no_password), and make the
+  ultimately by means of acl_getroot), and make the
   local instance active in the thread by re-setting
   thd->security_ctx pointer.
 
@@ -3087,19 +3086,12 @@ change_security_context(THD *thd,
   DBUG_ASSERT(definer_user->str && definer_host->str);
 
   *backup= NULL;
-  /*
-    The current security context may have NULL members
-    if we have just started the thread and not authenticated
-    any user. This use case is currently in events worker thread.
-  */
-  needs_change= (thd->security_ctx->priv_user == NULL ||
-                 strcmp(definer_user->str, thd->security_ctx->priv_user) ||
-                 thd->security_ctx->priv_host == NULL ||
+  needs_change= (strcmp(definer_user->str, thd->security_ctx->priv_user) ||
                  my_strcasecmp(system_charset_info, definer_host->str,
                                thd->security_ctx->priv_host));
   if (needs_change)
   {
-    if (acl_getroot_no_password(this, definer_user->str, definer_host->str,
+    if (acl_getroot(this, definer_user->str, definer_host->str,
                                 definer_host->str, db->str))
     {
       my_error(ER_NO_SUCH_USER, MYF(0), definer_user->str,
