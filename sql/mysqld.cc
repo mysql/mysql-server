@@ -410,6 +410,7 @@ ulong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 bool opt_error_log= IF_WIN(1,0);
 bool opt_disable_networking=0, opt_skip_show_db=0;
+bool opt_skip_name_resolve=0;
 my_bool opt_character_set_client_handshake= 1;
 bool server_id_supplied = 0;
 bool opt_endinfo, using_udf_functions;
@@ -7715,6 +7716,7 @@ static int mysql_init_variables(void)
   log_output_options= find_bit_type(log_output_str, &log_output_typelib);
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
+  opt_skip_name_resolve= 0;
   opt_ignore_builtin_innodb= 0;
   opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
@@ -8241,6 +8243,7 @@ mysqld_get_one_option(int optid,
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
     break;
   case (int) OPT_SKIP_RESOLVE:
+    opt_skip_name_resolve= 1;
     opt_specialflag|=SPECIAL_NO_RESOLVE;
     break;
   case (int) OPT_SKIP_NETWORKING:
