@@ -284,6 +284,7 @@ UNIV_INTERN mysql_pfs_key_t	buffer_block_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	buf_pool_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	buf_pool_zip_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	flush_list_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	flush_order_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /** A chunk of buffers.  The buffer pool is allocated in chunks. */
@@ -1006,6 +1007,9 @@ buf_pool_init(void)
 
 	mutex_create(flush_list_mutex_key, &buf_pool->flush_list_mutex,
 		     SYNC_BUF_FLUSH_LIST);
+	mutex_create(flush_order_mutex_key, &buf_pool->flush_order_mutex,
+		     SYNC_BUF_FLUSH_ORDER);
+
 	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
 		buf_pool->no_flush[i] = os_event_create(NULL);
 	}

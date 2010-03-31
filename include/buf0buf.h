@@ -1432,6 +1432,14 @@ struct buf_pool_struct{
 					the bpage is on flush_list. It
 					also protects writes to
 					bpage::oldest_modification */
+	mutex_t		flush_order_mutex;/*!< mutex to serialize access to
+					the flush list when we are putting
+					dirty blocks in the list. The idea
+					behind this mutex is to be able
+					to release log_sys->mutex during
+					mtr_commit and still ensure that
+					insertions in the flush_list happen
+					in the LSN order. */
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
 					/*!< base node of the modified block
 					list */
@@ -1550,6 +1558,19 @@ Use these instead of accessing buf_pool_mutex directly. */
 # define buf_flush_list_mutex_exit() do {	\
 	mutex_exit(&buf_pool->flush_list_mutex);	\
 } while (0)
+
+/** Test if flush order mutex is owned. */
+#define buf_flush_order_mutex_own() mutex_own(&buf_pool->flush_order_mutex)
+
+/** Acquire the flush order mutex. */
+#define buf_flush_order_mutex_enter() do {	\
+	mutex_enter(&buf_pool->flush_order_mutex);	\
+} while (0)
+/** Release the flush order mutex. */
+# define buf_flush_order_mutex_exit() do {	\
+	mutex_exit(&buf_pool->flush_order_mutex);	\
+} while (0)
+
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Flag to forbid the release of the buffer pool mutex.
