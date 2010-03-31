@@ -20,7 +20,11 @@
 #error "Don't include this C++ header file from a non-C++ file!"
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "m_string.h"                           /* bzero, memcpy */
+#ifdef MYSQL_SERVER
+#include "table.h"                              /* TABLE_LIST */
+#endif
 #include "mysql_com.h"
 
 class Relay_log_info;

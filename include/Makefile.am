@@ -34,7 +34,7 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			$(HEADERS_GEN_MAKE) probes_mysql.h probes_mysql_nodtrace.h
 
 noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
-			heap.h my_bitmap.h my_uctype.h \
+			heap.h my_bitmap.h my_uctype.h password.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
 			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \

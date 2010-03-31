@@ -23,6 +23,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+class MY_LOCALE;
+
 enum date_time_format_types 
 { 
   TIME_ONLY= 0, TIME_MICROSECOND, DATE_ONLY, DATE_TIME, DATE_TIME_MICROSECOND
@@ -1065,5 +1067,11 @@ public:
     maybe_null= 1;
   }
 };
+
+
+/* Function prototypes */
+
+bool make_date_time(DATE_TIME_FORMAT *format, MYSQL_TIME *l_time,
+                    timestamp_type type, String *str);
 
 #endif /* ITEM_TIMEFUNC_INCLUDED */

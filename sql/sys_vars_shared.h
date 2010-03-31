@@ -1,3 +1,6 @@
+#ifndef SYS_VARS_SHARED_INCLUDED
+#define SYS_VARS_SHARED_INCLUDED
+
 /* Copyright (C) 2002-2006 MySQL AB, 2009-2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -22,7 +25,7 @@
   classes in the sys_var hierarchy (sql_plugin.cc)
 */
 
-#include <mysql_priv.h>
+#include <sql_priv.h>
 #include "set_var.h"
 
 extern bool throw_bounds_warning(THD *thd, const char *name,
@@ -79,3 +82,5 @@ public:
   ~AutoRLock() { if (lock) lock->unlock(); }
 };
 
+
+#endif /* SYS_VARS_SHARED_INCLUDED */

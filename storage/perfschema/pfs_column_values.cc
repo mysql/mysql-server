@@ -19,7 +19,7 @@
   schema tables (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "pfs_column_values.h"
 
 LEX_STRING PERFORMANCE_SCHEMA_str=

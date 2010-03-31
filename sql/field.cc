@@ -25,10 +25,19 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "sql_select.h"
 #include "rpl_rli.h"                            // Pull in Relay_log_info
 #include "slave.h"                              // Pull in rpl_master_has_bug()
+#include "strfunc.h"                            // find_type2, find_set
+#include "sql_time.h"                    // str_to_datetime_with_warn,
+                                         // str_to_time_with_warn,
+                                         // TIME_to_timestamp,
+                                         // make_time, make_date,
+                                         // make_truncated_value_warning
+#include "tztime.h"                      // struct Time_zone
+#include "filesort.h"                    // change_double_for_sort
+#include "log_event.h"                   // class Table_map_log_event
 #include <m_ctype.h>
 #include <errno.h>
 

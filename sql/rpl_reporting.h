@@ -1,7 +1,4 @@
-#ifndef RPL_REPORTING_H
-#define RPL_REPORTING_H
-
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright 2006-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +11,12 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
+
+#ifndef RPL_REPORTING_H
+#define RPL_REPORTING_H
+
+#include "my_sys.h"                             /* loglevel */
 
 /**
    Maximum size of an error message from a slave thread.

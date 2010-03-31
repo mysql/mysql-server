@@ -13,10 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_binlog.h"
+#include "sql_parse.h"                          // check_global_access
+#include "sql_acl.h"                            // *_ACL
 #include "rpl_rli.h"
 #include "base64.h"
-
+#include "slave.h"                              // apply_event_and_update_pos
+#include "log_event.h"                          // Format_description_log_event,
+                                                // EVENT_LEN_OFFSET,
+                                                // EVENT_TYPE_OFFSET,
+                                                // FORMAT_DESCRIPTION_LOG_EVENT,
+                                                // START_EVENT_V3,
+                                                // Log_event_type,
+                                                // Log_event
 /**
   Execute a BINLOG statement.
 

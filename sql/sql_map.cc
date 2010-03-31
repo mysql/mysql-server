@@ -18,7 +18,11 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_map.h"                            // mapped_files
+#include "sql_class.h"                          // THD
+
 #include <sys/stat.h>
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>

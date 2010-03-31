@@ -13,10 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "sp.h"
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_parse.h"                          // parse_sql
+#include "key.h"                                // key_copy
+#include "sql_show.h"             // append_definer, append_identifier
+#include "sql_db.h" // get_default_db_collation, mysql_opt_change_db,
+                    // mysql_change_db, check_db_dir_existence,
+                    // load_db_opt_by_name
+#include "sql_table.h"                          // write_bin_log
+#include "sql_acl.h"                       // SUPER_ACL
 #include "sp_head.h"
 #include "sp_cache.h"
+#include "lock.h"                               // lock_routine_name
 
 #include <my_user.h>
 

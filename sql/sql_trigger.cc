@@ -15,11 +15,22 @@
 
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
+#include "sql_parse.h"                          // parse_sql
 #include "parse_file.h"
 #include "sp.h"
+#include "sql_base.h"                          // find_temporary_table
+#include "lock.h"                    // wait_if_global_read_lock,
+                                     // start_waiting_global_read_lock
+#include "sql_show.h"                // append_definer, append_identifier
+#include "sql_table.h"                        // build_table_filename,
+                                              // check_n_cut_mysql50_prefix
+#include "sql_db.h"                        // get_default_db_collation
+#include "sql_acl.h"                       // *_ACL, is_acl_user
+#include "sql_handler.h"                        // mysql_ha_rm_tables
 
 /*************************************************************************/
 

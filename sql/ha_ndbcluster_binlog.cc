@@ -14,7 +14,8 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"         // REQUIRED: for other includes
 #include "sql_show.h"
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
@@ -27,6 +28,14 @@
 #include "NdbDictionary.hpp"
 #include "ndb_cluster_connection.hpp"
 #include <util/NdbAutoPtr.hpp>
+
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_table.h"                         // build_table_filename
+#include "table.h"                             // open_table_from_share
+#include "discover.h"                          // readfrm, writefrm
+#include "lock.h"                              // MYSQL_LOCK_IGNORE_FLUSH,
+                                               // mysql_unlock_tables
+#include "sql_parse.h"                         // mysql_parse
 
 #ifdef ndb_dynamite
 #undef assert
