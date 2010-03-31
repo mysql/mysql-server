@@ -1533,12 +1533,19 @@ innobase_start_or_create_for_mysql(void)
 
 	if (create_new_db) {
 		mtr_start(&mtr);
+
 		fsp_header_init(0, sum_of_new_sizes, &mtr);
 
 		mtr_commit(&mtr);
 
+		/* To maintain backward compatibility we create only
+		the first rollback segment before the double write buffer.
+		All the remaining rollback segments will be created later,
+		after the double write buffer has been created. */
 		trx_sys_create();
+
 		dict_create();
+
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -1557,7 +1564,9 @@ innobase_start_or_create_for_mysql(void)
 		in any disk i/o, first call dict_boot */
 
 		dict_boot();
+
 		trx_sys_init_at_db_start();
+
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
 		/* Initialize the fsp free limit global variable in the log
@@ -1713,6 +1722,14 @@ innobase_start_or_create_for_mysql(void)
 
 		trx_sys_create_doublewrite_buf();
 	}
+
+	/* Here the double write buffer has already been created and so
+	any new rollback segments will be allocated after the double
+	write buffer. The default segment should already exist.
+	We create the new segments only if it's a new database or
+	the database was shutdown cleanly. */
+
+	trx_sys_create_rsegs(TRX_SYS_N_RSEGS - 1);
 
 	err = dict_create_or_check_foreign_constraint_tables();
 

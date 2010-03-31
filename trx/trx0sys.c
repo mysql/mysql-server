@@ -39,6 +39,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0purge.h"
 #include "log0log.h"
+#include "log0recv.h"
 #include "os0file.h"
 #include "read0read.h"
 
@@ -877,7 +878,8 @@ trx_sysf_create(
 	buf_block_t*	block;
 	page_t*		page;
 	ulint		page_no;
-	ulint		i;
+	byte*		ptr;
+	ulint		len;
 
 	ut_ad(mtr);
 
@@ -910,32 +912,31 @@ trx_sysf_create(
 	sys_header = trx_sysf_get(mtr);
 
 	/* Start counting transaction ids from number 1 up */
-	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
-			  ut_dulint_create(0, 1), mtr);
+	mach_write_to_8(sys_header + TRX_SYS_TRX_ID_STORE,
+			ut_dulint_create(0, 1));
 
-	/* Reset the rollback segment slots */
-	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+	/* Reset the rollback segment slots.  Old versions of InnoDB
+	define TRX_SYS_N_RSEGS as 256 (TRX_SYS_OLD_N_RSEGS) and expect
+	that the whole array is initialized. */
+	ptr = TRX_SYS_RSEGS + sys_header;
+	len = ut_max(TRX_SYS_OLD_N_RSEGS, TRX_SYS_N_RSEGS)
+		* TRX_SYS_RSEG_SLOT_SIZE;
+	memset(ptr, 0xff, len);
+	ptr += len;
+	ut_a(ptr <= page + (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END));
 
-		trx_sysf_rseg_set_space(sys_header, i, ULINT_UNDEFINED, mtr);
-		trx_sysf_rseg_set_page_no(sys_header, i, FIL_NULL, mtr);
-	}
+	/* Initialize all of the page.  This part used to be uninitialized. */
+	memset(ptr, 0, UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + page - ptr);
 
-	/* The remaining area (up to the page trailer) is uninitialized.
-	Silence Valgrind warnings about it. */
-	UNIV_MEM_VALID(sys_header + (TRX_SYS_RSEGS
-				     + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
-				     + TRX_SYS_RSEG_SPACE),
-		       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
-			- (TRX_SYS_RSEGS
-			   + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
-			   + TRX_SYS_RSEG_SPACE))
-		       + page - sys_header);
+	mlog_log_string(sys_header, UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
+			+ page - sys_header, mtr);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
-	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, &slot_no,
+	slot_no = trx_sysf_rseg_find_free(mtr);
+	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
 					 mtr);
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
-	ut_a(page_no != FIL_NULL);
+	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
 
 	mutex_exit(&kernel_mutex);
 }
@@ -1310,6 +1311,40 @@ trx_sys_file_format_close(void)
 {
 	/* Does nothing at the moment */
 }
+
+/*********************************************************************
+Creates the rollback segments */
+UNIV_INTERN
+void
+trx_sys_create_rsegs(
+/*=================*/
+	ulint	n_rsegs)	/*!< number of rollback segments to create */
+{
+	ulint	new_rsegs = 0;
+
+	/* Do not create additional rollback segments if
+	innodb_force_recovery has been set and the database
+	was not shutdown cleanly. */
+	if (!srv_force_recovery && !recv_needed_recovery) {
+		ulint	i;
+
+		for (i = 0;  i < n_rsegs; ++i) {
+
+			if (trx_rseg_create() != NULL) {
+				++new_rsegs;
+			} else {
+				break;
+			}
+		}
+	}
+
+	if (new_rsegs > 0) {
+		fprintf(stderr,
+			"InnoDB: %lu rollback segment(s) active.\n",
+		       	new_rsegs);
+	}
+}
+
 #else /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
