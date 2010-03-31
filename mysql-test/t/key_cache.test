@@ -316,12 +316,12 @@ update t2 set i=2 where i=1;
 
 --replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 
 show status like 'key_%';
---replace_column 7 #
+--replace_column 6 # 7 #
 select * from information_schema.key_caches;
 
 delete from t1;
 delete from t2;
---replace_column 7 #
+--replace_column 6 # 7 # 
 select * from information_schema.key_caches;
 
 # Check that we can work with one partition with the same results

@@ -467,18 +467,18 @@ Key_write_requests	26
 Key_writes	6
 select * from information_schema.key_caches;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	1048576	1024	3	#	0	10	0	13	4
-default	2	2	1048576	1024	1	#	0	12	0	13	2
-default	2	NULL	2097152	1024	4	#	0	22	0	26	6
-small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
+default	2	1	1048576	1024	#	#	0	10	0	13	4
+default	2	2	1048576	1024	#	#	0	12	0	13	2
+default	2	NULL	2097152	1024	#	#	0	22	0	26	6
+small	NULL	NULL	1048576	1024	#	#	0	1	0	2	1
 delete from t1;
 delete from t2;
 select * from information_schema.key_caches;
 KEY_CACHE_NAME	PARTITIONS	PARTITION_NUMBER	FULL_SIZE	BLOCK_SIZE	USED_BLOCKS	UNUSED_BLOCKS	DIRTY_BLOCKS	READ_REQUESTS	READS	WRITE_REQUESTS	WRITES
-default	2	1	1048576	1024	3	#	0	10	0	13	4
-default	2	2	1048576	1024	1	#	0	12	0	13	2
-default	2	NULL	2097152	1024	4	#	0	22	0	26	6
-small	NULL	NULL	1048576	1024	1	#	0	1	0	2	1
+default	2	1	1048576	1024	#	#	0	10	0	13	4
+default	2	2	1048576	1024	#	#	0	12	0	13	2
+default	2	NULL	2097152	1024	#	#	0	22	0	26	6
+small	NULL	NULL	1048576	1024	#	#	0	1	0	2	1
 set global key_cache_partitions=1;
 select @@key_cache_partitions;
 @@key_cache_partitions
