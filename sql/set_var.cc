@@ -533,6 +533,10 @@ static sys_var_const    sys_skip_show_database(&vars, "skip_show_database",
                                             OPT_GLOBAL, SHOW_BOOL,
                                             (uchar*) &opt_skip_show_db);
 
+static sys_var_const    sys_skip_name_resolve(&vars, "skip_name_resolve",
+                                            OPT_GLOBAL, SHOW_BOOL,
+                                            (uchar*) &opt_skip_name_resolve);
+
 static sys_var_const    sys_socket(&vars, "socket",
                                    OPT_GLOBAL, SHOW_CHAR_PTR,
                                    (uchar*) &mysqld_unix_port);
