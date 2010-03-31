@@ -14,12 +14,6 @@ db-scan-bdb: db-scan.c
 
 default: db-insert
 
-setup:
-	cp ../../include/db.h ../include/tokudb.h
-	cp ../../include/tdb-internal.h ../include/tdb-internal.h
-	cp ../../toku_include/toku_list.h ../include/toku_list.h
-	if [ ! -f ../lib/lib$(LIBTOKUDB).so ] ; then cp ../../lib/lib$(LIBTOKUDB).so ../lib; fi
-
 check: $(TARGETS)
 	./db-insert && ./db-scan --nox --lwc --prelock --prelockflag
 
