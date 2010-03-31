@@ -1742,6 +1742,16 @@ innobase_start_or_create_for_mysql(void)
 
 	os_thread_create(&srv_master_thread, NULL, thread_ids
 			 + (1 + SRV_MAX_N_IO_THREADS));
+
+	/* Currently we allow only a single purge thread. */
+	ut_a(srv_n_purge_threads == 0 || srv_n_purge_threads == 1);
+
+	/* If the user has requested a separate purge thread then
+	start the purge thread. */
+	if (srv_n_purge_threads == 1) {
+		os_thread_create(&srv_purge_thread, NULL, NULL);
+	}
+
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */
@@ -1995,7 +2005,10 @@ innobase_shutdown_for_mysql(void)
 		/* c. We wake the master thread so that it exits */
 		srv_wake_master_thread();
 
-		/* d. Exit the i/o threads */
+		/* d. We wake the purge thread so that it exits */
+		srv_wake_purge_thread();
+
+		/* e. Exit the i/o threads */
 
 		os_aio_wake_all_threads_at_shutdown();
 
