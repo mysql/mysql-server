@@ -3592,10 +3592,28 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     handler::Table_flags flags_write_all_set=
       HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 
+    /* 
+       If different types of engines are about to be updated.
+       For example: Innodb and Falcon; Innodb and MyIsam.
+    */
     my_bool multi_write_engine= FALSE;
-    my_bool multi_engine= FALSE;
-    my_bool trans_non_trans_multi_engine= FALSE;
-    my_bool all_trans_engines= TRUE;
+    /*
+       If different types of engines are about to be accessed 
+       and any of them is about to be updated. For example:
+       Innodb and Falcon; Innodb and MyIsam.
+    */
+    my_bool multi_access_engine= FALSE;
+    /*
+       If non-transactional and transactional engines are about
+       to be accessed and any of them is about to be updated.
+       For example: Innodb and MyIsam.
+    */
+    my_bool trans_non_trans_access_engines= FALSE;
+    /*
+       If all engines that are about to be updated are
+       transactional.
+    */
+    my_bool all_trans_write_engines= TRUE;
     TABLE* prev_write_table= NULL;
     TABLE* prev_access_table= NULL;
 
@@ -3629,8 +3647,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         if (prev_write_table && prev_write_table->file->ht !=
             table->table->file->ht)
           multi_write_engine= TRUE;
-        all_trans_engines= all_trans_engines &&
-                           table->table->file->has_transactions();
+        all_trans_write_engines= all_trans_write_engines &&
+                                 table->table->file->has_transactions();
         prev_write_table= table->table;
         flags_write_all_set &= flags;
         flags_write_some_set |= flags;
@@ -3638,8 +3656,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       flags_some_set |= flags;
       if (prev_access_table && prev_access_table->file->ht != table->table->file->ht)
       {
-        multi_engine= TRUE;
-        trans_non_trans_multi_engine= trans_non_trans_multi_engine ||
+        multi_access_engine= TRUE;
+        trans_non_trans_access_engines= trans_non_trans_access_engines ||
           (prev_access_table->file->has_transactions() !=
            table->table->file->has_transactions());
       }
@@ -3650,9 +3668,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     DBUG_PRINT("info", ("flags_write_some_set: 0x%llx", flags_write_some_set));
     DBUG_PRINT("info", ("flags_some_set: 0x%llx", flags_some_set));
     DBUG_PRINT("info", ("multi_write_engine: %d", multi_write_engine));
-    DBUG_PRINT("info", ("multi_engine: %d", multi_engine));
-    DBUG_PRINT("info", ("trans_non_trans_multi_engine: %d",
-                        trans_non_trans_multi_engine));
+    DBUG_PRINT("info", ("multi_access_engine: %d", multi_access_engine));
+    DBUG_PRINT("info", ("trans_non_trans_access_engines: %d",
+                        trans_non_trans_access_engines));
 
     int error= 0;
     int unsafe_flags;
@@ -3661,8 +3679,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       Set the statement as unsafe if:
 
       . it is a mixed statement, i.e. access transactional and non-transactional
-      tables, and updates at least one;
-      or
+      tables, and update any of them;
+
+      or:
+
       . an early statement updated a transactional table;
       . and, the current statement updates a non-transactional table.
 
@@ -3726,8 +3746,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       isolation level but if we have pure repeatable read or serializable the
       lock history on the slave will be different from the master.
     */
-    if (trans_non_trans_multi_engine ||
-        (trans_has_updated_trans_table(this) && !all_trans_engines))
+    if (!trans_non_trans_access_engines)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MIXED_STATEMENT);
+    else if (trans_has_updated_trans_table(this) && !all_trans_write_engines)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
 
     /*
@@ -3740,7 +3761,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         (flags_write_some_set & HA_HAS_OWN_BINLOGGING))
       my_error((error= ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE),
                MYF(0));
-    else if (multi_engine && flags_some_set & HA_HAS_OWN_BINLOGGING)
+    else if (multi_access_engine && flags_some_set & HA_HAS_OWN_BINLOGGING)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE);
 
     /* both statement-only and row-only engines involved */
