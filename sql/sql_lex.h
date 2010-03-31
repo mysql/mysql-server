@@ -1143,6 +1143,18 @@ public:
     */
     BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS,
 
+    /**
+      Mixing self-logging and non-self-logging engines in a statement
+      is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
+
+    /**
+      Statements that read from both transactional and non-transactional
+      tables and write to any of them are unsafe.
+    */
+    BINLOG_STMT_UNSAFE_MIXED_STATEMENT,
+
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };
