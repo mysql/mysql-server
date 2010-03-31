@@ -3748,7 +3748,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       isolation level but if we have pure repeatable read or serializable the
       lock history on the slave will be different from the master.
     */
-    if (!trans_non_trans_access_engines)
+    if (trans_non_trans_access_engines)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MIXED_STATEMENT);
     else if (trans_has_updated_trans_table(this) && !all_trans_write_engines)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
