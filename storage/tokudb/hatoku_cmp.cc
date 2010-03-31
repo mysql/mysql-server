@@ -2437,7 +2437,10 @@ u_int32_t max_key_size_from_desc(
     uchar* desc_pos = (uchar *)row_desc;
     u_int32_t num_blobs;
     u_int32_t num_pk_columns;
-    u_int32_t max_size = 0;
+    //
+    // start at 1 for the infinity byte
+    //
+    u_int32_t max_size = 1;
 
     // skip byte that states if main dictionary
     bool is_main_dictionary = desc_pos[0];
