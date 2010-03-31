@@ -160,3 +160,68 @@ ut_2_exp(
 {
 	return((ulint) 1 << n);
 }
+
+/*************************************************************//**
+@return the number of 1s in a 32 bit uint. */
+UNIV_INLINE
+int
+ut_popcount(
+/*========*/
+	ib_uint32_t	n)
+{
+	n = n - ((n >> 1) & 0x55555555);
+	n = (n & 0x33333333) + ((n >> 2) & 0x33333333);
+	n = (n + (n >> 4)) & 0x0F0F0F0F;
+	n = n + (n << 8);
+	n = n + (n << 16);
+
+	return(n >> 24);
+}
+
+/*************************************************************//**
+Calculates the leading zeros in a 32 bint unsigned integer
+@return	number of leading zeros or ULINT_UNDEFINED if n == 0 */
+UNIV_INLINE
+ulint
+ut_nlz(
+/*===*/
+	ib_uint32_t	n)	/*!< in: number */
+{
+#ifdef HAVE_GCC_CLZ
+	return(__builtin_clz(n));
+#else
+	n |= n >> 1;
+	n |= n >> 2;
+	n |= n >> 4;
+	n |= n >> 8;
+	n |= n >>16;
+
+	return(ut_popcount(~n));
+#endif /* HAVE_GCC_CLZ */
+}
+
+/*************************************************************//**
+Calculates the trailing zeros in a 32 bint unsigned integer
+@return	number of trailing zeros or ULINT_UNDEFINED if n == 0 */
+UNIV_INLINE
+ulint
+ut_ntz(
+/*===*/
+	ib_uint32_t	n)	/*!< in: number */
+{
+#ifdef HAVE_GCC_CTZ
+	return(__builtin_ctzl(n));
+#else
+	ib_uint32_t	y, bz, b4, b3, b2, b1, b0;
+
+	y = n & -n;			/* Isolate rightmost 1-bit. */
+	bz = y ? 0 : 1;			/* 1 if y = 0. */
+	b4 = (y & 0x0000FFFF) ? 0 : 16;
+	b3 = (y & 0x00FF00FF) ? 0 : 8;
+	b2 = (y & 0x0F0F0F0F) ? 0 : 4;
+	b1 = (y & 0x33333333) ? 0 : 2;
+	b0 = (y & 0x55555555) ? 0 : 1;
+
+	return(bz + b4 + b3 + b2 + b1 + b0);
+#endif /* HAVE_GCC_CTZ */
+}
