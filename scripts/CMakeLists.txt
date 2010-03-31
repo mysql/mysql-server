@@ -298,14 +298,13 @@ ELSE()
     mysql_secure_installation
     mysql_zap
     mysqlaccess
+    mysqlaccess.conf
     mysqlbug
     mysql_convert_table_format
     mysql_find_rows
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi
-    mysqlaccess
-    mysqlaccess.conf
     mysqld_safe
   )
   FOREACH(file ${BIN_SCRIPTS})
