@@ -4245,7 +4245,7 @@ bool use_trans_cache(const THD* thd, bool is_transactional)
   return
     ((thd->variables.binlog_format != BINLOG_FORMAT_STMT ||
      thd->variables.binlog_direct_non_trans_update) ? is_transactional :
-     (is_transactional || cache_mngr->trx_cache.empty()));
+     (is_transactional || !cache_mngr->trx_cache.empty()));
 }
 
 /*
