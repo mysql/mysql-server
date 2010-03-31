@@ -51,11 +51,9 @@ trx_rseg_get_on_id(
 	trx_rseg_t*	rseg;
 
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
-	ut_ad(rseg);
 
-	while (rseg->id != id) {
+	while (rseg && rseg->id != id) {
 		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
-		ut_ad(rseg);
 	}
 
 	return(rseg);
@@ -73,7 +71,7 @@ trx_rseg_header_create(
 	ulint	zip_size,	/*!< in: compressed page size in bytes
 				or 0 for uncompressed pages */
 	ulint	max_size,	/*!< in: max size in pages */
-	ulint*	slot_no,	/*!< out: rseg id == slot number in trx sys */
+	ulint	rseg_slot_no,	/*!< in: rseg id == slot number in trx sys */
 	mtr_t*	mtr)		/*!< in: mtr */
 {
 	ulint		page_no;
@@ -86,14 +84,6 @@ trx_rseg_header_create(
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
 				MTR_MEMO_X_LOCK));
-	sys_header = trx_sysf_get(mtr);
-
-	*slot_no = trx_sysf_rseg_find_free(mtr);
-
-	if (*slot_no == ULINT_UNDEFINED) {
-
-		return(FIL_NULL);
-	}
 
 	/* Allocate a new file segment for the rollback segment */
 	block = fseg_create(space, 0,
@@ -127,11 +117,13 @@ trx_rseg_header_create(
 		trx_rsegf_set_nth_undo(rsegf, i, FIL_NULL, mtr);
 	}
 
-	/* Add the rollback segment info to the free slot in the trx system
-	header */
+	/* Add the rollback segment info to the free slot in
+	the trx system header */
 
-	trx_sysf_rseg_set_space(sys_header, *slot_no, space, mtr);
-	trx_sysf_rseg_set_page_no(sys_header, *slot_no, page_no, mtr);
+	sys_header = trx_sysf_get(mtr);
+
+	trx_sysf_rseg_set_space(sys_header, rseg_slot_no, space, mtr);
+	trx_sysf_rseg_set_page_no(sys_header, rseg_slot_no, page_no, mtr);
 
 	return(page_no);
 }
@@ -196,16 +188,16 @@ trx_rseg_mem_create(
 	ulint	page_no,	/*!< in: page number of the segment header */
 	mtr_t*	mtr)		/*!< in: mtr */
 {
-	trx_rsegf_t*	rseg_header;
-	trx_rseg_t*	rseg;
-	trx_ulogf_t*	undo_log_hdr;
-	fil_addr_t	node_addr;
-	ulint		sum_of_undo_sizes;
 	ulint		len;
+	trx_rseg_t*	rseg;
+	fil_addr_t	node_addr;
+	trx_rsegf_t*	rseg_header;
+	trx_ulogf_t*	undo_log_hdr;
+	ulint		sum_of_undo_sizes;
 
 	ut_ad(mutex_own(&kernel_mutex));
 
-	rseg = mem_alloc(sizeof(trx_rseg_t));
+	rseg = mem_zalloc(sizeof(trx_rseg_t));
 
 	rseg->id = id;
 	rseg->space = space;
@@ -255,39 +247,108 @@ trx_rseg_mem_create(
 	return(rseg);
 }
 
-/*********************************************************************//**
-Creates the memory copies for rollback segments and initializes the
+/********************************************************************
+Creates the memory copies for the rollback segments and initializes the
 rseg list and array in trx_sys at a database startup. */
-UNIV_INTERN
+static
 void
-trx_rseg_list_and_array_init(
-/*=========================*/
+trx_rseg_create_instance(
+/*=====================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx system header */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ulint	i;
-	ulint	page_no;
-	ulint	space;
-
-	UT_LIST_INIT(trx_sys->rseg_list);
-
-	trx_sys->rseg_history_len = 0;
+	ulint		i;
 
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+		ulint	page_no;
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
 
 		if (page_no == FIL_NULL) {
-
 			trx_sys_set_nth_rseg(trx_sys, i, NULL);
 		} else {
-			ulint	zip_size;
+			ulint		space;
+			ulint		zip_size;
+			trx_rseg_t*	rseg = NULL;
+
+			ut_a(!trx_rseg_get_on_id(i));
 
 			space = trx_sysf_rseg_get_space(sys_header, i, mtr);
 
 			zip_size = space ? fil_space_get_zip_size(space) : 0;
 
-			trx_rseg_mem_create(i, space, zip_size, page_no, mtr);
+			rseg = trx_rseg_mem_create(
+				i, space, zip_size, page_no, mtr);
+
+			ut_a(rseg->id == i);
 		}
 	}
 }
+
+/*********************************************************************
+Creates a rollback segment.
+@return pointer to new rollback segment if create successful */
+UNIV_INTERN
+trx_rseg_t*
+trx_rseg_create(void)
+/*=================*/
+{
+	mtr_t		mtr;
+	ulint		slot_no;
+	trx_rseg_t*	rseg = NULL;
+
+	mtr_start(&mtr);
+
+	/* To obey the latching order, acquire the file space
+	x-latch before the kernel mutex. */
+	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE, NULL), &mtr);
+
+	mutex_enter(&kernel_mutex);
+
+	slot_no = trx_sysf_rseg_find_free(&mtr);
+
+	if (slot_no != ULINT_UNDEFINED) {
+		ulint		space;
+		ulint		page_no;
+		ulint		zip_size;
+		trx_sysf_t*	sys_header;
+
+		page_no = trx_rseg_header_create(
+			TRX_SYS_SPACE, 0, ULINT_MAX, slot_no, &mtr);
+
+		ut_a(page_no != FIL_NULL);
+
+		ut_ad(!trx_rseg_get_on_id(slot_no));
+
+		sys_header = trx_sysf_get(&mtr);
+
+		space = trx_sysf_rseg_get_space(sys_header, slot_no, &mtr);
+
+		zip_size = space ? fil_space_get_zip_size(space) : 0;
+
+		rseg = trx_rseg_mem_create(
+			slot_no, space, zip_size, page_no, &mtr);
+	}
+
+	mutex_exit(&kernel_mutex);
+	mtr_commit(&mtr);
+
+	return(rseg);
+}
+
+/********************************************************************
+Initialize the rollback instance list. */
+UNIV_INTERN
+void
+trx_rseg_list_and_array_init(
+/*=========================*/
+	trx_sysf_t*	sys_header,	/* in: trx system header */
+	mtr_t*		mtr)		/* in: mtr */
+{
+	UT_LIST_INIT(trx_sys->rseg_list);
+
+	trx_sys->rseg_history_len = 0;
+
+	trx_rseg_create_instance(sys_header, mtr);
+}
+
