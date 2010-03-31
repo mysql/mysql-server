@@ -228,6 +228,7 @@ buf_flush_insert_into_flush_list(
 	ib_uint64_t	lsn)	/*!< in: oldest modification */
 {
 	ut_ad(!buf_pool_mutex_own());
+	ut_ad(buf_flush_order_mutex_own());
 	ut_ad(mutex_own(&block->mutex));
 
 	buf_flush_list_mutex_enter();
@@ -273,6 +274,7 @@ buf_flush_insert_sorted_into_flush_list(
 	buf_page_t*	b;
 
 	ut_ad(!buf_pool_mutex_own());
+	ut_ad(buf_flush_order_mutex_own());
 	ut_ad(mutex_own(&block->mutex));
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 

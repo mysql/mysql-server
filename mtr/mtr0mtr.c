@@ -120,6 +120,7 @@ mtr_memo_slot_note_modification(
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->modifications);
+	ut_ad(buf_flush_order_mutex_own());
 
 	if (slot->object != NULL && slot->type == MTR_MEMO_PAGE_X_FIX) {
 		buf_flush_note_modification((buf_block_t*) slot->object, mtr);
@@ -220,11 +221,16 @@ mtr_log_reserve_and_write(
 	mtr->end_lsn = log_close();
 
 func_exit:
+	buf_flush_order_mutex_enter();
+
+	/* It is now safe to release the log mutex because the
+	flush_order mutex will ensure that we are the first one
+	to insert into the flush list. */
+	log_release();
 	if (mtr->modifications) {
 		mtr_memo_note_modifications(mtr);
 	}
-
-	log_release();
+	buf_flush_order_mutex_exit();
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -318,6 +324,7 @@ mtr_memo_release(
 
 	offset = dyn_array_get_data_size(memo);
 
+	buf_flush_order_mutex_enter();
 	while (offset > 0) {
 		offset -= sizeof(mtr_memo_slot_t);
 
@@ -333,6 +340,7 @@ mtr_memo_release(
 			break;
 		}
 	}
+	buf_flush_order_mutex_exit();
 }
 #endif /* !UNIV_HOTBACKUP */
 

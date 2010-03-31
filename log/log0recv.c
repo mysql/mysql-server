@@ -1661,7 +1661,9 @@ recv_recover_page_func(
 	if (modification_to_page) {
 		ut_a(block);
 
+		buf_flush_order_mutex_enter();
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
+		buf_flush_order_mutex_exit();
 	}
 #endif /* !UNIV_HOTBACKUP */
 
