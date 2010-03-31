@@ -2988,7 +2988,6 @@ i_s_innodb_admin_command_fill(
 	COND*		cond)
 {
 	TABLE*	i_s_table	= (TABLE *) tables->table;
-	CHARSET_INFO *cs= system_charset_info;
 	char**	query_str;
 	char*	ptr;
 	char	quote	= '\0';
