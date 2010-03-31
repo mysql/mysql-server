@@ -1021,7 +1021,8 @@ int vertices_cursor::fetch_row(const row &row_info, row &result)
   vertex_iterator it, end;
   reference ref;
   size_t count= position;
-  for (tie(it, end)= vertices(share->g); count && it != end; ++it, --count);
+  for (tie(it, end)= vertices(share->g); count && it != end; ++it, --count)
+    ;
   if (it != end)
     ref= reference(position+1, *it);
   if (int res= fetch_row(row_info, result, ref))
@@ -1066,7 +1067,8 @@ int edges_cursor::fetch_row(const row &row_info, row &result)
   edge_iterator it, end;
   reference ref;
   size_t count= position;
-  for (tie(it, end)= edges(share->g); count && it != end; ++it, --count);
+  for (tie(it, end)= edges(share->g); count && it != end; ++it, --count)
+    ;
   if (it != end)
     ref= reference(position+1, *it);
   if (int res= fetch_row(row_info, result, ref))
