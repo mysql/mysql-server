@@ -372,16 +372,20 @@ mkdir debug
                   -e 's/ -ip / /' \
                   -e 's/^ //' \
                   -e 's/ $//'`
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
+  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
-           -DCMAKE_BUILD_TYPE=Debug
+           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" -DCMAKE_BUILD_TYPE=Debug
   make VERBOSE=1 mysqld mysqlserver
 )
 # Build full release
 mkdir release
 (
   cd release
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
+  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
-           -DCMAKE_BUILD_TYPE=RelWithDebInfo
+           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" -DCMAKE_BUILD_TYPE=RelWithDebInfo
   make VERBOSE=1
 )
 
