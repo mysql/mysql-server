@@ -558,7 +558,7 @@ decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf 
     // verify the sizes of the compressed sub blocks
     if (0 && n_sub_blocks != 1) printf("%s:%d %d\n", __FUNCTION__, __LINE__, n_sub_blocks);
 
-    struct sub_block_sizes sub_block_sizes[n_sub_blocks];
+    struct sub_block sub_block[n_sub_blocks];
     for (i=0; i<n_sub_blocks; i++) {
         u_int32_t compressed_size = toku_dtoh32(*(u_int32_t*)(&raw_block[compression_header_offset+8*i]));
         if (compressed_size<=0   || compressed_size>(1<<30)) { r = toku_db_badformat(); return r; }
@@ -566,13 +566,13 @@ decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf 
         if (0) printf("Block %" PRId64 " Compressed size = %u, uncompressed size=%u\n", blocknum.b, compressed_size, uncompressed_size);
         if (uncompressed_size<=0 || uncompressed_size>(1<<30)) { r = toku_db_badformat(); return r; }
 
-        sub_block_sizes[i].compressed_size = compressed_size;
-        sub_block_sizes[i].uncompressed_size = uncompressed_size;
+        sub_block[i].compressed_size = compressed_size;
+        sub_block[i].uncompressed_size = uncompressed_size;
     }
 
-    unsigned char *compressed_data = raw_block + uncompressed_magic_len_10 + get_compression_header_size(BRT_LAYOUT_VERSION, n_sub_blocks);
+    unsigned char *compressed_data = raw_block + uncompressed_magic_len_10 + sub_block_header_size(n_sub_blocks);
 
-    size_t uncompressed_size = get_sum_uncompressed_size(n_sub_blocks, sub_block_sizes);
+    size_t uncompressed_size = get_sum_uncompressed_size(n_sub_blocks, sub_block);
     rb->size= uncompressed_magic_len_10 + uncompressed_size;
     assert(rb->size>0);
 
@@ -586,7 +586,7 @@ decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf 
     struct decompress_work_10 decompress_work[n_sub_blocks];
 
     for (i=0; i<n_sub_blocks; i++) {
-        init_decompress_work_10(&decompress_work[i], compressed_data, sub_block_sizes[i].compressed_size, uncompressed_data, sub_block_sizes[i].uncompressed_size);
+        init_decompress_work_10(&decompress_work[i], compressed_data, sub_block[i].compressed_size, uncompressed_data, sub_block[i].uncompressed_size);
         if (i>0) {
 #if DO_DECOMPRESS_WORKER
             start_decompress_work_10(&decompress_work[i]);
@@ -594,8 +594,8 @@ decompress_brtnode_from_raw_block_into_rbuf_10(u_int8_t *raw_block, struct rbuf 
             do_decompress_work_10(&decompress_work[i]);
 #endif
         }
-        uncompressed_data += sub_block_sizes[i].uncompressed_size;
-        compressed_data += sub_block_sizes[i].compressed_size;
+        uncompressed_data += sub_block[i].uncompressed_size;
+        compressed_data += sub_block[i].compressed_size;
     }
     do_decompress_work_10(&decompress_work[0]);
 #if DO_DECOMPRESS_WORKER
