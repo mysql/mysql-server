@@ -43,27 +43,26 @@ ENDMACRO()
 # Install symbolic link to CMake target. 
 # the link is created in the same directory as target
 # and extension will be the same as for target file.
-MACRO(INSTALL_SYMLINK linkbasename target destination)
+MACRO(INSTALL_SYMLINK linkname target destination)
 IF(UNIX)
   GET_TARGET_PROPERTY(location ${target} LOCATION)
   GET_FILENAME_COMPONENT(path ${location} PATH)
-  GET_FILENAME_COMPONENT(name_we ${location} NAME_WE)
-  GET_FILENAME_COMPONENT(ext ${location} EXT)
-  SET(output ${path}/${linkbasename}${ext})
+  GET_FILENAME_COMPONENT(name ${location} NAME)
+  SET(output ${path}/${linkname})
   ADD_CUSTOM_COMMAND(
     OUTPUT ${output}
     COMMAND ${CMAKE_COMMAND} ARGS -E remove -f ${output}
     COMMAND ${CMAKE_COMMAND} ARGS -E create_symlink 
-      ${name_we}${ext} 
-      ${linkbasename}${ext}
+      ${name} 
+      ${linkname}
     WORKING_DIRECTORY ${path}
     DEPENDS ${target}
     )
   
-  ADD_CUSTOM_TARGET(symlink_${linkbasename}${ext}
+  ADD_CUSTOM_TARGET(symlink_${linkname}
     ALL
     DEPENDS ${output})
-  SET_TARGET_PROPERTIES(symlink_${linkbasename}${ext} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+  SET_TARGET_PROPERTIES(symlink_${linkname} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
   IF(CMAKE_GENERATOR MATCHES "Xcode")
     # For Xcode, replace project config with install config
     STRING(REPLACE "${CMAKE_CFG_INTDIR}" 
