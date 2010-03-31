@@ -1,9 +1,0 @@
-#! /bin/sh
-
-path=`dirname $0`
-. "$path/SETUP.sh"
-
-extra_flags="$pentium_cflags $fast_cflags -g"
-extra_configs="$pentium_configs $static_link --with-plugins=innobase"
-
-. "$path/FINISH.sh"
