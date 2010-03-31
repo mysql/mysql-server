@@ -2266,7 +2266,6 @@ select count(*) from T1 t1, T1 t2 where t1.c = 12 and t1.a = 11 and t2.a = t1.d 
 count(*)
 1
 drop index i1 on T1;
-SELECT 2 - 1 AS pruned_scan_count;
 pruned_scan_count
 1
 create index i2 on T1(a,b);
@@ -2277,7 +2276,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select count(*) from T1 t1, T1 t2 where t1.a = 11 and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 count(*)
 1
-SELECT 3 - 2 AS pruned_scan_count;
 pruned_scan_count
 1
 explain select count(*) from T1 t1, T1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
@@ -2287,7 +2285,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select count(*) from T1 t1, T1 t2 where t1.a >= 12 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 count(*)
 0
-SELECT 4 - 3 AS pruned_scan_count;
 pruned_scan_count
 1
 explain select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
@@ -2297,7 +2294,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select count(*) from T1 t1, T1 t2 where t1.a >= 11 and t1.a<=12 and t2.a = t1.c and t2.b = t1.c;
 count(*)
 1
-SELECT 4 - 4 AS pruned_scan_count;
 pruned_scan_count
 0
 explain select count(*) from T1 t1, T1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
@@ -2307,7 +2303,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select count(*) from T1 t1, T1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c;
 count(*)
 1
-SELECT 4 - 4 AS pruned_scan_count;
 pruned_scan_count
 0
 explain select count(*) from T1 t1, T1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c;
@@ -2317,7 +2312,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select count(*) from T1 t1, T1 t2 where t1.a = 10 and (t1.b<11 or t1.b>11) and t2.a = t1.c and t2.b = t1.c;
 count(*)
 1
-SELECT 5 - 4 AS pruned_scan_count;
 pruned_scan_count
 1
 drop table T1;
@@ -2347,7 +2341,6 @@ select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and 
 count(*)
 2
 drop index i2_1 on T2;
-SELECT 6 - 5 AS pruned_scan_count;
 pruned_scan_count
 1
 create index i2_3 on T2(a, d, b, e);
@@ -2359,7 +2352,6 @@ select count(*) from T2 x, T2 y where x.d=1 and x.a=1 and x.b=2 and y.a=x.d and 
 count(*)
 2
 drop table T2;
-SELECT 7 - 6 AS pruned_scan_count;
 pruned_scan_count
 1
 set ndb_join_pushdown = @save_ndb_join_pushdown;
