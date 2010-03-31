@@ -1177,9 +1177,8 @@ NdbQueryImpl::setBound(const NdbRecord *key_record,
   if (unlikely(bound==NULL))
     return QRY_REQ_ARG_IS_NULL;
 
-  const NdbQueryOperationDefImpl& rootDef = getRoot().getQueryOperationDef();
-
-  assert (rootDef.getType() == NdbQueryOperationDef::OrderedIndexScan);
+  assert (getRoot().getQueryOperationDef().getType() 
+          == NdbQueryOperationDef::OrderedIndexScan);
   int startPos = m_keyInfo.getSize();
 //assert (startPos == 0);  // Assumed by ::checkPrunable
 
@@ -2334,8 +2333,7 @@ int
 NdbQueryImpl::sendFetchMore(int nodeId)
 {
   Uint32 sent = 0;
-  NdbQueryOperationImpl& root = getRoot();
-  assert (root.m_resultStreams!=NULL);
+  assert(getRoot().m_resultStreams!=NULL);
   assert(m_pendingFrags==0);
 
   ReceiverIdIterator receiverIdIter(*this);

@@ -1371,8 +1371,6 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
    * all the distribution key fields.
    */
   const Uint32 prefixLength = indexRecord->m_min_distkey_prefix_length;
-  const Uint32 noOfDistKeyParts = 
-    getTable().getDefaultRecord()->m_no_of_distribution_keys;
 
   if (indexRecord->m_no_of_distribution_keys == 0)
   {
@@ -1389,7 +1387,8 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
     // Bounds set on query instance are to short to contain full dist key.
     return 0; 
   }
-  assert(indexRecord->m_no_of_distribution_keys == noOfDistKeyParts);
+  assert(indexRecord->m_no_of_distribution_keys == 
+         getTable().getDefaultRecord()->m_no_of_distribution_keys);
 
   /** 
    * The scan will be prunable if all upper and lower bound pairs are equal
@@ -1520,7 +1519,8 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
       }
     } // while (keyPos < keyEnd)
     
-    assert(distKeyPartNo == noOfDistKeyParts);
+    assert(distKeyPartNo == 
+           getTable().getDefaultRecord()->m_no_of_distribution_keys);
     
     // hi/low are equal and prunable bounds.
     Uint32 newHashValue = 0;
