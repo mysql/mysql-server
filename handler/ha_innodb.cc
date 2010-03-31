@@ -10669,6 +10669,23 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   "Number of IOPs the server can do. Tunes the background IO rate",
   NULL, NULL, 200, 100, ~0L, 0);
 
+static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
+  PLUGIN_VAR_OPCMDARG,
+  "Number of UNDO logs to purge in one batch from the history list. "
+  "Default is 20",
+  NULL, NULL,
+  20,			/* Default setting */
+  1,			/* Minimum value */
+  5000, 0);		/* Maximum value */
+
+static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
+  "Purge threads can be either 0 or 1. Default is 0.",
+  NULL, NULL,
+  0,			/* Default setting */
+  0,			/* Minimum value */
+  1, 0);		/* Maximum value */
+
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,
   "Speeds up the shutdown process of the InnoDB storage engine. Possible "
@@ -10982,6 +10999,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(change_buffering),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
+  MYSQL_SYSVAR(purge_threads),
+  MYSQL_SYSVAR(purge_batch_size),
   NULL
 };
 

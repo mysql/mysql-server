@@ -246,6 +246,12 @@ that during a time of heavy update/insert activity. */
 
 UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
 
+/* the number of purge threads to use from the worker pool (currently 0 or 1).*/
+UNIV_INTERN ulint srv_n_purge_threads = 0;
+
+/* the number of records to purge in one batch */
+UNIV_INTERN ulint srv_purge_batch_size = 20;
+
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
 
@@ -703,6 +709,16 @@ are indexed by the type of the thread. */
 
 UNIV_INTERN ulint	srv_n_threads_active[SRV_MASTER + 1];
 UNIV_INTERN ulint	srv_n_threads[SRV_MASTER + 1];
+
+/*********************************************************************//**
+Asynchronous purge thread.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_thread(
+/*=============*/
+	void*	arg __attribute__((unused))); /*!< in: a dummy parameter
+					      required by os_thread_create */
 
 /***********************************************************************
 Prints counters for work done by srv_master_thread. */
@@ -2370,6 +2386,30 @@ srv_active_wake_master_thread(void)
 }
 
 /*******************************************************************//**
+Tells the purge thread that there has been activity in the database
+and wakes up the purge thread if it is suspended (not sleeping).  Note
+that there is a small chance that the purge thread stays suspended
+(we do not protect our operation with the kernel mutex, for
+performace reasons). */
+UNIV_INTERN
+void
+srv_wake_purge_thread_if_not_active(void)
+/*=====================================*/
+{
+	ut_ad(!mutex_own(&kernel_mutex));
+
+	if (srv_n_purge_threads > 0
+	    && srv_n_threads_active[SRV_WORKER] == 0) {
+
+		mutex_enter(&kernel_mutex);
+
+		srv_release_threads(SRV_WORKER, 1);
+
+		mutex_exit(&kernel_mutex);
+	}
+}
+
+/*******************************************************************//**
 Wakes up the master thread if it is suspended or being suspended. */
 UNIV_INTERN
 void
@@ -2383,6 +2423,25 @@ srv_wake_master_thread(void)
 	srv_release_threads(SRV_MASTER, 1);
 
 	mutex_exit(&kernel_mutex);
+}
+
+/*******************************************************************//**
+Wakes up the purge thread if it's not already awake. */
+UNIV_INTERN
+void
+srv_wake_purge_thread(void)
+/*=======================*/
+{
+	ut_ad(!mutex_own(&kernel_mutex));
+
+	if (srv_n_purge_threads > 0) {
+
+		mutex_enter(&kernel_mutex);
+
+		srv_release_threads(SRV_WORKER, 1);
+
+		mutex_exit(&kernel_mutex);
+	}
 }
 
 /**********************************************************************
@@ -2403,6 +2462,34 @@ srv_sync_log_buffer_in_background(void)
 		srv_last_log_flush_time = current_time;
 		srv_log_writes_and_flush++;
 	}
+}
+
+/********************************************************************//**
+Do a full purge, reconfigure the purge sub-system if a dynamic
+change is detected. */
+static
+void
+srv_master_do_purge(void)
+/*=====================*/
+{
+	ulint	n_pages_purged;
+
+	ut_ad(!mutex_own(&kernel_mutex));
+
+	ut_a(srv_n_purge_threads == 0);
+
+	do {
+		/* Check for shutdown and change in purge config. */
+		if (srv_fast_shutdown && srv_shutdown_state > 0) {
+			/* Nothing to purge. */
+			n_pages_purged = 0;
+		} else {
+			n_pages_purged = trx_purge(srv_purge_batch_size);
+		}
+
+		srv_sync_log_buffer_in_background();
+
+	} while (n_pages_purged > 0);
 }
 
 /*********************************************************************//**
@@ -2620,20 +2707,16 @@ loop:
 
 	/* We run a full purge every 10 seconds, even if the server
 	were active */
-	do {
+	if (srv_n_purge_threads == 0) {
+		srv_main_thread_op_info = "master purging";
+
+		srv_master_do_purge();
 
 		if (srv_fast_shutdown && srv_shutdown_state > 0) {
 
 			goto background_loop;
 		}
-
-		srv_main_thread_op_info = "purging";
-		n_pages_purged = trx_purge();
-
-		/* Flush logs if needed */
-		srv_sync_log_buffer_in_background();
-
-	} while (n_pages_purged);
+	}
 
 	srv_main_thread_op_info = "flushing buffer pool pages";
 
@@ -2702,22 +2785,11 @@ background_loop:
 		os_thread_sleep(100000);
 	}
 
-	srv_main_thread_op_info = "purging";
+	if (srv_n_purge_threads == 0) {
+		srv_main_thread_op_info = "master purging";
 
-	/* Run a full purge */
-	do {
-		if (srv_fast_shutdown && srv_shutdown_state > 0) {
-
-			break;
-		}
-
-		srv_main_thread_op_info = "purging";
-		n_pages_purged = trx_purge();
-
-		/* Flush logs if needed */
-		srv_sync_log_buffer_in_background();
-
-	} while (n_pages_purged);
+		srv_master_do_purge();
+	}
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
@@ -2868,6 +2940,103 @@ suspend_thread:
 	main thread goes back to loop. */
 
 	goto loop;
+
+	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
+}
+
+/*********************************************************************//**
+Asynchronous purge thread.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_thread(
+/*=============*/
+	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+						required by os_thread_create */
+{
+	srv_slot_t*	slot;
+	ulint		slot_no = ULINT_UNDEFINED;
+	ulint		n_total_purged = ULINT_UNDEFINED;
+
+	ut_a(srv_n_purge_threads == 1);
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "InnoDB: Purge thread running, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif /* UNIV_DEBUG_THREAD_CREATION */
+
+	mutex_enter(&kernel_mutex);
+
+	slot_no = srv_table_reserve_slot(SRV_WORKER);
+
+	++srv_n_threads_active[SRV_WORKER];
+
+	mutex_exit(&kernel_mutex);
+
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+
+		ulint	n_pages_purged;
+
+		/* If there are very few records to purge or the last
+		purge didn't purge any records then wait for activity.
+	        We peek at the history len without holding any mutex
+		because in the worst case we will end up waiting for
+		the next purge event. */
+		if (trx_sys->rseg_history_len < srv_purge_batch_size
+		    || n_total_purged == 0) {
+
+			os_event_t	event;
+
+			mutex_enter(&kernel_mutex);
+
+			event = srv_suspend_thread();
+
+			mutex_exit(&kernel_mutex);
+
+			os_event_wait(event);
+		}
+
+		/* Check for shutdown and whether we should do purge at all. */
+		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND
+		    || srv_shutdown_state != 0
+		    || srv_fast_shutdown) {
+
+			break;
+		}
+
+		n_total_purged = 0;
+
+		/* Purge until there are no more records to purge and there is
+		no change in configuration or server state. */
+		do {
+			n_pages_purged = trx_purge(srv_purge_batch_size);
+
+			n_total_purged += n_pages_purged;
+
+		} while (n_pages_purged > 0 && !srv_fast_shutdown);
+
+		srv_sync_log_buffer_in_background();
+	}
+
+	/* Free the thread local memory. */
+	thr_local_free(os_thread_get_curr_id());
+
+	mutex_enter(&kernel_mutex);
+
+	/* Free the slot for reuse. */
+	slot = srv_table_get_nth_slot(slot_no);
+	slot->in_use = FALSE;
+
+	mutex_exit(&kernel_mutex);
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "InnoDB: Purge thread exiting, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif /* UNIV_DEBUG_THREAD_CREATION */
+
+	/* We count the number of threads in os_thread_exit(). A created
+	thread should always use that to exit and not use return() to exit. */
+	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
