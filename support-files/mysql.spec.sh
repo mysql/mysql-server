@@ -401,21 +401,21 @@ mkdir -p $RBR%{_libdir}/mysql
 # check for "icc". (If we don't check, the "--print-libgcc-file" call will fail.)
 if expr "$CC" : ".*icc.*" > /dev/null ;
 then
-  %define WITH_LIBGCC 0
+  %global WITH_LIBGCC 0
   :
 elif expr "$CC" : ".*gcc.*" > /dev/null ;
 then
   libgcc=`$CC $CFLAGS --print-libgcc-file`
   if [ -f $libgcc ]
   then
-    %define WITH_LIBGCC 1
+    %global WITH_LIBGCC 1
     install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
   else
-    %define WITH_LIBGCC 0
+    %global WITH_LIBGCC 0
     :
   fi
 else
-  %define WITH_LIBGCC 0
+  %global WITH_LIBGCC 0
   :
 fi
 
@@ -728,6 +728,7 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
+%attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
 
@@ -747,6 +748,8 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
+# XXX: Silly place to put this script
+%attr(644, root, root) %{_bindir}/mysqlaccess.conf
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
 %attr(755, root, root) %{_bindir}/mysqlcheck
@@ -842,6 +845,7 @@ fi
 %endif
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlclient_r.a
+%{_libdir}/mysql/libmysqlservices.a
 %if %{CLUSTER_BUILD}
 %{_libdir}/mysql/libndbclient.a
 %{_libdir}/mysql/libndbclient.la
@@ -872,7 +876,9 @@ fi
 %if %{EMBEDDED_BUILD}
 %files embedded
 %defattr(-, root, root, 0755)
+%attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
+%attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %endif
 
 ##############################################################################
