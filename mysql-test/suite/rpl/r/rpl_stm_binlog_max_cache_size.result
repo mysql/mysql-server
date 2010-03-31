@@ -40,7 +40,7 @@ Got one of the listed errors
 Warnings:
 Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional and non-transactional tables and write to any of them are unsafe.
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
