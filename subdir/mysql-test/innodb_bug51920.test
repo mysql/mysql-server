@@ -17,6 +17,11 @@ connection con1;
 UPDATE bug51920 SET i=2;
 
 connection default;
+let $wait_condition =
+  SELECT COUNT(*)=1 FROM information_schema.processlist
+  WHERE INFO="UPDATE bug51920 SET i=2";
+-- source include/wait_condition.inc
+
 SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE INFO="UPDATE bug51920 SET i=2"
 INTO @thread_id;
