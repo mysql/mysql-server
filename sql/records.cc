@@ -25,7 +25,11 @@
 */
 
 #include "records.h"
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "records.h"
+#include "filesort.h"            // filesort_free_buffers
+#include "opt_range.h"                          // SQL_SELECT
+#include "sql_class.h"                          // THD
 
 
 static int rr_quick(READ_RECORD *info);

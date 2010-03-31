@@ -16,10 +16,12 @@
 #pragma implementation                         /* gcc class implementation */
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "sql_cursor.h"
 #include "sql_select.h"
 #include "probes_mysql.h"
+#include "sql_parse.h"                        // mysql_execute_command
 
 /****************************************************************************
   Declarations.

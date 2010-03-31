@@ -1,6 +1,16 @@
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #ifndef MYSQL_CLIENT
+#include "unireg.h"
+#endif
+#include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
+#include "log_event.h"
+#ifndef MYSQL_CLIENT
+#include "sql_cache.h"                       // QUERY_CACHE_FLAGS_SIZE
+#include "sql_base.h"                       // close_tables_for_reopen
+#include "key.h"                            // key_copy
+#include "lock.h"                           // mysql_unlock_tables
+#include "sql_parse.h"             // mysql_reset_thd_for_next_command
 #include "rpl_rli.h"
 #include "rpl_utility.h"
 #endif

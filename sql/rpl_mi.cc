@@ -14,10 +14,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <my_global.h> // For HAVE_REPLICATION
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include <my_dir.h>
-
+#include "unireg.h"                             // REQUIRED by other includes
 #include "rpl_mi.h"
+#include "slave.h"                              // SLAVE_MAX_HEARTBEAT_PERIOD
 
 #ifdef HAVE_REPLICATION
 
