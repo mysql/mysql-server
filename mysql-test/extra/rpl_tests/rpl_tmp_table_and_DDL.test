@@ -157,3 +157,4 @@ INSERT INTO t1 VALUES (1);
 
 DROP TEMPORARY TABLE t1;
 
+--sync_slave_with_master

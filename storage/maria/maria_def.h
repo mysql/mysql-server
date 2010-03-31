@@ -506,8 +506,10 @@ struct st_maria_handler
   uchar *first_mbr_key;			/* Searhed spatial key */
   uchar *rec_buff;			/* Temp buffer for recordpack */
   uchar *blob_buff;                     /* Temp buffer for blobs */
-  uchar *int_keypos,			/* Save position for next/previous */
-   *int_maxpos;				/* -""- */
+  uchar *int_keypos;			/* Save position for next/previous */
+  uchar *int_maxpos;			/* -""- */
+  uint keypos_offset;                   /* Tmp storage for offset int_keypos */
+  uint maxpos_offset;          		/* Tmp storage for offset int_maxpos */
   uchar *update_field_data;		/* Used by update in rows-in-block */
   uint int_nod_flag;			/* -""- */
   uint32 int_keytree_version;		/* -""- */

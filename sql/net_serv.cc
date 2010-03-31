@@ -279,7 +279,7 @@ static int net_data_is_ready(my_socket sd)
   @param clear_buffer           if <> 0, then clear all data from comm buff
 */
 
-void net_clear(NET *net, my_bool clear_buffer)
+void net_clear(NET *net, my_bool clear_buffer __attribute__((unused)))
 {
 #if !defined(EMBEDDED_LIBRARY) && defined(DBUG_OFF)
   size_t count;

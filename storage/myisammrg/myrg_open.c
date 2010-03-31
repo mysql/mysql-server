@@ -239,6 +239,7 @@ MYRG_INFO *myrg_parent_open(const char *parent_name,
   rc= 1;
   errpos= 0;
   bzero((char*) &file_cache, sizeof(file_cache));
+  LINT_INIT(m_info);
 
   /* Open MERGE meta file. */
   if ((fd= my_open(fn_format(parent_name_buff, parent_name, "", MYRG_NAME_EXT,

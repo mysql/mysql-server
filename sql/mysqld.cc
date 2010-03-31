@@ -8371,6 +8371,8 @@ mysqld_get_one_option(int optid,
   case (int) OPT_INIT_RPL_ROLE:
   {
     int role;
+    LINT_INIT(role);
+
     if (!find_opt_type(argument, &rpl_role_typelib, opt->name, &role))
     {
       rpl_status = (role == 1) ?  RPL_AUTH_MASTER : RPL_IDLE_SLAVE;
@@ -8427,6 +8429,8 @@ mysqld_get_one_option(int optid,
   case OPT_BINLOG_FORMAT:
   {
     int id;
+    LINT_INIT(id);
+
     if (!find_opt_type(argument, &binlog_format_typelib, opt->name, &id))
     {
       global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
@@ -8677,6 +8681,8 @@ mysqld_get_one_option(int optid,
     else
     {
       int type;
+      LINT_INIT(type);
+
       if (!find_opt_type(argument, &delay_key_write_typelib, opt->name, &type))
         delay_key_write_options= (uint) type-1;
     }
@@ -8688,6 +8694,8 @@ mysqld_get_one_option(int optid,
   case OPT_TX_ISOLATION:
   {
     int type;
+    LINT_INIT(type);
+
     if (!find_opt_type(argument, &tx_isolation_typelib, opt->name, &type))
       global_system_variables.tx_isolation= (type-1);
     break;
@@ -8775,6 +8783,7 @@ mysqld_get_one_option(int optid,
     ulong method_conv;
     int method;
     LINT_INIT(method_conv);
+    LINT_INIT(method);
 
     myisam_stats_method_str= argument;
     if (!find_opt_type(argument, &myisam_stats_method_typelib,
@@ -8837,6 +8846,7 @@ mysqld_get_one_option(int optid,
   case OPT_THREAD_HANDLING:
   {
     int id;
+    LINT_INIT(id);
     if (!find_opt_type(argument, &thread_handling_typelib, opt->name, &id))
       global_system_variables.thread_handling= id - 1;
     opt_thread_handling= thread_handling_typelib.type_names[global_system_variables.thread_handling];

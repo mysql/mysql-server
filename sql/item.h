@@ -1132,7 +1132,8 @@ class Field_enumerator
 {
 public:
   virtual void visit_field(Field *field)= 0;
-  virtual ~Field_enumerator() {}; /* purecov: inspected */
+  virtual ~Field_enumerator() {};             /* purecov: inspected */
+  Field_enumerator() {}                       /* Remove gcc warning */
 };
 
 
@@ -3148,7 +3149,7 @@ public:
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
 
-  void store(Item *item, longlong val_arg);
+  void store_longlong(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();
   String* val_str(String *str);
