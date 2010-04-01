@@ -2062,15 +2062,6 @@ row_merge_drop_temp_indexes(void)
 	trx->op_info = "dropping partially created indexes";
 	row_mysql_lock_data_dictionary(trx);
 
-	/* Incomplete transactions may be holding some locks on the
-	data dictionary tables.  However, they should never have been
-	able to lock the records corresponding to the partially
-	created indexes that we are attempting to delete, because the
-	table was locked when the indexes were being created.  We will
-	drop the partially created indexes before the rollback of
-	incomplete transactions is initiated.  Thus, this should not
-	interfere with the incomplete transactions. */
-	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
 	err = que_eval_sql(NULL, drop_temp_indexes, FALSE, trx);
 	ut_a(err == DB_SUCCESS);
 
