@@ -239,6 +239,7 @@ recv_sys_mem_free(void)
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Reset the state of the recovery system variables. */
 UNIV_INTERN
@@ -278,6 +279,7 @@ recv_sys_var_init(void)
 
 	recv_max_page_lsn = 0;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Inits the recovery system for a recovery operation. */
