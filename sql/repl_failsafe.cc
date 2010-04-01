@@ -680,6 +680,7 @@ bool show_slave_hosts(THD* thd)
 					   MYSQL_TYPE_LONG));
   field_list.push_back(new Item_return_int("Master_id", 10,
 					   MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_empty_string("Slave_UUID", UUID_LENGTH));
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -701,6 +702,11 @@ bool show_slave_hosts(THD* thd)
     protocol->store((uint32) si->port);
     protocol->store((uint32) si->rpl_recovery_rank);
     protocol->store((uint32) si->master_id);
+
+    /* get slave's UUID */
+    String slave_uuid;
+    if (get_slave_uuid(si->thd, &slave_uuid));
+      protocol->store(slave_uuid.c_ptr_safe(), &my_charset_bin);
     if (protocol->write())
     {
       pthread_mutex_unlock(&LOCK_slave_list);

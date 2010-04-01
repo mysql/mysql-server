@@ -13,8 +13,7 @@ insert into t1 values (NULL),(NULL),(NULL);
 sync_slave_with_master;
 select * from t1;
 connection master;
---replace_result $SLAVE_MYPORT 9999
-show slave hosts;
+--source include/show_slave_hosts.inc
 drop table t1;
 sync_slave_with_master;
 stop slave;

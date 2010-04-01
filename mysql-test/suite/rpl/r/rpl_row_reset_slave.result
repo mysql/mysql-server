@@ -43,6 +43,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_UUID	#
 stop slave;
 change master to master_user='test';
 SHOW SLAVE STATUS;
@@ -84,6 +85,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_UUID	#
 reset slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -124,6 +126,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_UUID	#
 start slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -164,6 +167,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_UUID	#
 stop slave;
 reset slave;
 start slave;
