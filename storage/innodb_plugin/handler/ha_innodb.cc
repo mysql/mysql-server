@@ -9833,33 +9833,60 @@ innobase_set_cursor_view(
 				  (cursor_view_t*) curview);
 }
 
+/*******************************************************************//**
+If col_name is not NULL, check whether the named column is being
+renamed in the table. If col_name is not provided, check
+whether any one of columns in the table is being renamed.
+@return true if the column is being renamed */
+static
+bool
+check_column_being_renamed(
+/*=======================*/
+	const TABLE*	table,		/*!< in: MySQL table */
+	const char*	col_name)	/*!< in: name of the column */
+{
+	uint		k;
+	Field*		field;
 
-/***********************************************************************
-Check whether any of the given columns is being renamed in the table. */
+	for (k = 0; k < table->s->fields; k++) {
+		field = table->field[k];
+
+		if (field->flags & FIELD_IS_RENAMED) {
+
+			/* If col_name is not provided, return
+			if the field is marked as being renamed. */
+			if (!col_name) {
+				return(true);
+			}
+
+			/* If col_name is provided, return only
+			if names match */
+			if (innobase_strcasecmp(field->field_name,
+						col_name) == 0) {
+				return(true);
+			}
+		}
+	}
+
+	return(false);
+}
+
+/*******************************************************************//**
+Check whether any of the given columns is being renamed in the table.
+@return true if any of col_names is being renamed in table */
 static
 bool
 column_is_being_renamed(
 /*====================*/
-					/* out: true if any of col_names is
-					being renamed in table */
-	TABLE*		table,		/* in: MySQL table */
-	uint		n_cols,		/* in: number of columns */
-	const char**	col_names)	/* in: names of the columns */
+	TABLE*		table,		/*!< in: MySQL table */
+	uint		n_cols,		/*!< in: number of columns */
+	const char**	col_names)	/*!< in: names of the columns */
 {
 	uint		j;
-	uint		k;
-	Field*		field;
-	const char*	col_name;
 
 	for (j = 0; j < n_cols; j++) {
-		col_name = col_names[j];
-		for (k = 0; k < table->s->fields; k++) {
-			field = table->field[k];
-			if ((field->flags & FIELD_IS_RENAMED)
-			    && innobase_strcasecmp(field->field_name,
-						   col_name) == 0) {
-				return(true);
-			}
+		if (check_column_being_renamed(table, col_names[j])) {
+			return(true);
 		}
 	}
 
@@ -9941,6 +9968,15 @@ ha_innobase::check_if_incompatible_data(
 		info->auto_increment_value != 0) {
 
 		return(COMPATIBLE_DATA_NO);
+	}
+
+	/* For column rename operation, MySQL does not supply enough
+	information (new column name etc.) for InnoDB to make appropriate
+	system metadata change. To avoid system metadata inconsistency,
+	currently we can just request a table rebuild/copy by returning
+	COMPATIBLE_DATA_NO */
+	if (check_column_being_renamed(table, NULL)) {
+		return COMPATIBLE_DATA_NO;
 	}
 
 	/* Check if a column participating in a foreign key is being renamed.
