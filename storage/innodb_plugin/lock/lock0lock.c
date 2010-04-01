@@ -4309,28 +4309,29 @@ lock_rec_print(
 
 	block = buf_page_try_get(space, page_no, &mtr);
 
-	if (block) {
-		for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
+	for (i = 0; i < lock_rec_get_n_bits(lock); ++i) {
 
-			if (lock_rec_get_nth_bit(lock, i)) {
-
-				const rec_t*	rec
-					= page_find_rec_with_heap_no(
-						buf_block_get_frame(block), i);
-				offsets = rec_get_offsets(
-					rec, lock->index, offsets,
-					ULINT_UNDEFINED, &heap);
-
-				fprintf(file, "Record lock, heap no %lu ",
-					(ulong) i);
-				rec_print_new(file, rec, offsets);
-				putc('\n', file);
-			}
+		if (!lock_rec_get_nth_bit(lock, i)) {
+			continue;
 		}
-	} else {
-		for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
-			fprintf(file, "Record lock, heap no %lu\n", (ulong) i);
+
+		fprintf(file, "Record lock, heap no %lu", (ulong) i);
+
+		if (block) {
+			const rec_t*	rec;
+
+			rec = page_find_rec_with_heap_no(
+				buf_block_get_frame(block), i);
+
+			offsets = rec_get_offsets(
+				rec, lock->index, offsets,
+				ULINT_UNDEFINED, &heap);
+
+			putc(' ', file);
+			rec_print_new(file, rec, offsets);
 		}
+
+		putc('\n', file);
 	}
 
 	mtr_commit(&mtr);
