@@ -8930,6 +8930,23 @@ mysql_declare_plugin(innobase)
   NULL /* reserved */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(innobase)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &innobase_storage_engine,
+  innobase_hton_name,
+  "Innobase OY",
+  "Supports transactions, row-level locking, and foreign keys",
+  PLUGIN_LICENSE_GPL,
+  innobase_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  innodb_status_variables_export, /* status variables */
+  innobase_system_variables,      /* system variables */
+  "1.0",                          /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE, /* maturity */
+}
+maria_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
 

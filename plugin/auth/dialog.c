@@ -171,6 +171,38 @@ mysql_declare_plugin(dialog)
   NULL
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(dialog)
+{
+  MYSQL_AUTHENTICATION_PLUGIN,
+  &two_handler,
+  "two_questions",
+  "Sergei Golubchik",
+  "Dialog plugin demo 1",
+  PLUGIN_LICENSE_GPL,
+  NULL,
+  NULL,
+  0x0100,
+  NULL,
+  NULL,
+  "1.0",
+  MariaDB_PLUGIN_MATURITY_BETA
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,
+  &three_handler,
+  "three_attempts",
+  "Sergei Golubchik",
+  "Dialog plugin demo 2",
+  PLUGIN_LICENSE_GPL,
+  NULL,
+  NULL,
+  0x0100,
+  NULL,
+  NULL,
+  "1.0",
+  MariaDB_PLUGIN_MATURITY_BETA
+}
+maria_declare_plugin_end;
 
 /********************* CLIENT SIDE ***************************************/
 /*

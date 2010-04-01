@@ -8260,3 +8260,35 @@ mysql_declare_plugin(mysql_password)
 }
 mysql_declare_plugin_end;
 
+maria_declare_plugin(mysql_password)
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &native_password_handler,                     /* type descriptor  */
+  native_password_plugin_name.str,              /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Native MySQL authentication",                /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "1.0",                                        /* String version   */
+  MariaDB_PLUGIN_MATURITY_BETA                  /* Maturity         */
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &old_password_handler,                        /* type descriptor  */
+  old_password_plugin_name.str,                 /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Old MySQL-4.0 authentication",               /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "1.0",                                        /* String version   */
+  MariaDB_PLUGIN_MATURITY_BETA                  /* Maturity         */
+}
+maria_declare_plugin_end;

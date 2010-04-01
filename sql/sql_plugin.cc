@@ -20,7 +20,7 @@
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
-extern struct st_mysql_plugin *mysqld_builtins[];
+extern struct st_maria_plugin *mariadb_builtins[];
 
 /**
   @note The order of the enumeration is critical.
@@ -78,6 +78,14 @@ static const char *sizeof_st_plugin_sym=
                    "_mysql_sizeof_struct_st_plugin_";
 static const char *plugin_declarations_sym= "_mysql_plugin_declarations_";
 static int min_plugin_interface_version= MYSQL_PLUGIN_INTERFACE_VERSION & ~0xFF;
+static const char *maria_plugin_interface_version_sym=
+                   "_maria_plugin_interface_version_";
+static const char *maria_sizeof_st_plugin_sym=
+                   "_maria_sizeof_struct_st_plugin_";
+static const char *maria_plugin_declarations_sym=
+                   "_maria_plugin_declarations_";
+static int min_maria_plugin_interface_version=
+                   MARIA_PLUGIN_INTERFACE_VERSION & ~0xFF;
 #endif
 
 /* Note that 'int version' must be the first field of every plugin
@@ -211,7 +219,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
                              const char *list);
 static int test_plugin_options(MEM_ROOT *, struct st_plugin_int *,
                                int *, char **);
-static bool register_builtin(struct st_mysql_plugin *, struct st_plugin_int *,
+static bool register_builtin(struct st_maria_plugin *, struct st_plugin_int *,
                              struct st_plugin_int **);
 static void unlock_variables(THD *thd, struct system_variables *vars);
 static void cleanup_variables(THD *thd, struct system_variables *vars);
@@ -368,6 +376,223 @@ static inline void free_plugin_mem(struct st_plugin_dl *p)
 }
 
 
+/**
+  Reads data from mysql plugin interface
+
+  @param plugin_dl       Structure where the data should be put
+  @param sym             Reverence on version info
+  @param dlpath          Path to the module
+  @param report          What errors should be reported
+
+  @retval FALSE OK
+  @retval TRUE  ERROR
+*/
+
+static my_bool read_mysql_plugin_info(struct st_plugin_dl *plugin_dl,
+                                      void *sym, char *dlpath,
+                                      int report)
+{
+  DBUG_ENTER("read_maria_plugin_info");
+  /* Determine interface version */
+  if (!sym)
+  {
+    free_plugin_mem(plugin_dl);
+    report_error(report, ER_CANT_FIND_DL_ENTRY, plugin_interface_version_sym);
+    DBUG_RETURN(TRUE);
+  }
+  plugin_dl->mariaversion= 0;
+  plugin_dl->mysqlversion= *(int *)sym;
+  /* Versioning */
+  if (plugin_dl->mysqlversion < min_plugin_interface_version ||
+      (plugin_dl->mysqlversion >> 8) > (MYSQL_PLUGIN_INTERFACE_VERSION >> 8))
+  {
+    free_plugin_mem(plugin_dl);
+    report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, 0,
+                 "plugin interface version mismatch");
+    DBUG_RETURN(TRUE);
+  }
+  /* Find plugin declarations */
+  if (!(sym= dlsym(plugin_dl->handle, plugin_declarations_sym)))
+  {
+    free_plugin_mem(plugin_dl);
+    report_error(report, ER_CANT_FIND_DL_ENTRY, plugin_declarations_sym);
+    DBUG_RETURN(TRUE);
+  }
+
+  /* convert mysql declaration to maria one */
+  {
+    int i;
+    uint sizeof_st_plugin;
+    struct st_mysql_plugin *old;
+    struct st_maria_plugin *cur;
+    char *ptr= (char *)sym;
+
+    if ((sym= dlsym(plugin_dl->handle, sizeof_st_plugin_sym)))
+      sizeof_st_plugin= *(int *)sym;
+    else
+    {
+      DBUG_ASSERT(min_plugin_interface_version == 0);
+      sizeof_st_plugin= (int)offsetof(struct st_mysql_plugin, version);
+    }
+
+    for (i= 0;
+         ((struct st_mysql_plugin *)(ptr + i * sizeof_st_plugin))->info;
+         i++)
+      /* no op */;
+
+    cur= (struct st_maria_plugin*)
+          my_malloc((i + 1) * sizeof(struct st_maria_plugin),
+                    MYF(MY_ZEROFILL|MY_WME));
+    if (!cur)
+    {
+      free_plugin_mem(plugin_dl);
+      report_error(report, ER_OUTOFMEMORY, plugin_dl->dl.length);
+      DBUG_RETURN(TRUE);
+    }
+    /*
+      All st_plugin fields not initialized in the plugin explicitly, are
+      set to 0. It matches C standard behaviour for struct initializers that
+      have less values than the struct definition.
+    */
+    for (i=0;
+         (old= (struct st_mysql_plugin *)(ptr + i * sizeof_st_plugin))->info;
+         i++)
+    {
+
+      cur->type= old->type;
+      cur->info= old->info;
+      cur->name= old->name;
+      cur->author= old->author;
+      cur->descr= old->descr;
+      cur->license= old->license;
+      cur->init= old->init;
+      cur->deinit= old->deinit;
+      cur->version= old->version;
+      cur->status_vars= old->status_vars;
+      cur->system_vars= old->system_vars;
+      /*
+        Something like this should be added to process
+        new mysql plugin versions:
+        if (plugin_dl->mysqlversion > 0x0101)
+        {
+           cur->newfield= CONSTANT_MEANS_UNKNOWN;
+        }
+        else
+        {
+           cur->newfield= old->newfield;
+        }
+      */
+      /* Maria only fields */
+      cur->version_info= "Unknown";
+      cur->maturity= MariaDB_PLUGIN_MATURITY_UNKNOWN;
+    }
+    plugin_dl->allocated= true;
+    plugin_dl->plugins= (struct st_maria_plugin *)cur;
+  }
+
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+  Reads data from maria plugin interface
+
+  @param plugin_dl       Structure where the data should be put
+  @param sym             Reverence on version info
+  @param dlpath          Path to the module
+  @param report          what errors should be reported
+
+  @retval FALSE OK
+  @retval TRUE  ERROR
+*/
+
+static my_bool read_maria_plugin_info(struct st_plugin_dl *plugin_dl,
+                                      void *sym, char *dlpath,
+                                      int report)
+{
+  DBUG_ENTER("read_maria_plugin_info");
+
+  /* Determine interface version */
+  if (!(sym))
+  {
+    /*
+      Actually this branch impossible because in case of absence of maria
+      version we try mysql version.
+    */
+    free_plugin_mem(plugin_dl);
+    report_error(report, ER_CANT_FIND_DL_ENTRY,
+                 maria_plugin_interface_version_sym);
+    DBUG_RETURN(TRUE);
+  }
+  plugin_dl->mariaversion= *(int *)sym;
+  plugin_dl->mysqlversion= 0;
+  /* Versioning */
+  if (plugin_dl->mariaversion < min_maria_plugin_interface_version ||
+      (plugin_dl->mariaversion >> 8) > (MARIA_PLUGIN_INTERFACE_VERSION >> 8))
+  {
+    free_plugin_mem(plugin_dl);
+    report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, 0,
+                 "plugin interface version mismatch");
+    DBUG_RETURN(TRUE);
+  }
+  /* Find plugin declarations */
+  if (!(sym= dlsym(plugin_dl->handle, maria_plugin_declarations_sym)))
+  {
+    free_plugin_mem(plugin_dl);
+    report_error(report, ER_CANT_FIND_DL_ENTRY, maria_plugin_declarations_sym);
+    DBUG_RETURN(TRUE);
+  }
+  if (plugin_dl->mariaversion != MARIA_PLUGIN_INTERFACE_VERSION)
+  {
+    uint sizeof_st_plugin;
+    struct st_maria_plugin *old, *cur;
+    char *ptr= (char *)sym;
+
+    if ((sym= dlsym(plugin_dl->handle, maria_sizeof_st_plugin_sym)))
+      sizeof_st_plugin= *(int *)sym;
+    else
+    {
+      free_plugin_mem(plugin_dl);
+      report_error(report, ER_CANT_FIND_DL_ENTRY, maria_sizeof_st_plugin_sym);
+      DBUG_RETURN(TRUE);
+    }
+
+    if (sizeof_st_plugin != sizeof(st_mysql_plugin))
+    {
+      int i;
+      for (i= 0;
+           ((struct st_maria_plugin *)(ptr + i * sizeof_st_plugin))->info;
+           i++)
+        /* no op */;
+
+      cur= (struct st_maria_plugin*)
+        my_malloc((i + 1) * sizeof(struct st_maria_plugin),
+                  MYF(MY_ZEROFILL|MY_WME));
+      if (!cur)
+      {
+        free_plugin_mem(plugin_dl);
+        report_error(report, ER_OUTOFMEMORY, plugin_dl->dl.length);
+        DBUG_RETURN(TRUE);
+      }
+      /*
+        All st_plugin fields not initialized in the plugin explicitly, are
+        set to 0. It matches C standard behaviour for struct initializers that
+        have less values than the struct definition.
+      */
+      for (i=0;
+           (old= (struct st_maria_plugin *)(ptr + i * sizeof_st_plugin))->info;
+           i++)
+        memcpy(cur + i, old, min(sizeof(cur[i]), sizeof_st_plugin));
+
+      sym= cur;
+      plugin_dl->allocated= true;
+    }
+  }
+  plugin_dl->plugins= (struct st_maria_plugin *)sym;
+
+  DBUG_RETURN(FALSE);
+}
+
 static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 {
 #ifdef HAVE_DLOPEN
@@ -415,22 +640,21 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
     report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, errno, errmsg);
     DBUG_RETURN(0);
   }
-  /* Determine interface version */
-  if (!(sym= dlsym(plugin_dl.handle, plugin_interface_version_sym)))
+
+  /* Checks which plugin interface present and reads info */
+  if (!(sym= dlsym(plugin_dl.handle, maria_plugin_interface_version_sym)))
   {
-    free_plugin_mem(&plugin_dl);
-    report_error(report, ER_CANT_FIND_DL_ENTRY, plugin_interface_version_sym);
-    DBUG_RETURN(0);
+    if (read_mysql_plugin_info(&plugin_dl,
+                               dlsym(plugin_dl.handle,
+                                     plugin_interface_version_sym),
+                               dlpath,
+                               report))
+      DBUG_RETURN(0);
   }
-  plugin_dl.version= *(int *)sym;
-  /* Versioning */
-  if (plugin_dl.version < min_plugin_interface_version ||
-      (plugin_dl.version >> 8) > (MYSQL_PLUGIN_INTERFACE_VERSION >> 8))
+  else
   {
-    free_plugin_mem(&plugin_dl);
-    report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, 0,
-                 "plugin interface version mismatch");
-    DBUG_RETURN(0);
+    if (read_maria_plugin_info(&plugin_dl, sym, dlpath, report))
+      DBUG_RETURN(0);
   }
 
   /* link the services in */
@@ -438,7 +662,7 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
   {
     if ((sym= dlsym(plugin_dl.handle, list_of_services[i].name)))
     {
-      uint ver= (uint)(intptr)*(void**)sym;
+      uint ver= (uint)(intptr) *(void **)sym;
       if (ver > list_of_services[i].version ||
         (ver >> 8) < (list_of_services[i].version >> 8))
       {
@@ -449,72 +673,9 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
         report_error(report, ER_CANT_OPEN_LIBRARY, dlpath, 0, buf);
         DBUG_RETURN(0);
       }
-      *(void**)sym= list_of_services[i].service;
+      *(void **)sym= list_of_services[i].service;
     }
   }
-
-  /* Find plugin declarations */
-  if (!(sym= dlsym(plugin_dl.handle, plugin_declarations_sym)))
-  {
-    free_plugin_mem(&plugin_dl);
-    report_error(report, ER_CANT_FIND_DL_ENTRY, plugin_declarations_sym);
-    DBUG_RETURN(0);
-  }
-
-  if (plugin_dl.version != MYSQL_PLUGIN_INTERFACE_VERSION)
-  {
-    uint sizeof_st_plugin;
-    struct st_mysql_plugin *old, *cur;
-    char *ptr= (char *)sym;
-
-    if ((sym= dlsym(plugin_dl.handle, sizeof_st_plugin_sym)))
-      sizeof_st_plugin= *(int *)sym;
-    else
-    {
-#ifdef ERROR_ON_NO_SIZEOF_PLUGIN_SYMBOL
-      free_plugin_mem(&plugin_dl);
-      report_error(report, ER_CANT_FIND_DL_ENTRY, sizeof_st_plugin_sym);
-      DBUG_RETURN(0);
-#else
-      /*
-        When the following assert starts failing, we'll have to switch
-        to the upper branch of the #ifdef
-      */
-      DBUG_ASSERT(min_plugin_interface_version == 0);
-      sizeof_st_plugin= (int)offsetof(struct st_mysql_plugin, version);
-#endif
-    }
-
-    if (sizeof_st_plugin != sizeof(st_mysql_plugin))
-    {
-      for (i= 0;
-           ((struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
-           i++)
-        /* no op */;
-
-      cur= (struct st_mysql_plugin*)
-            my_malloc((i+1)*sizeof(struct st_mysql_plugin), MYF(MY_ZEROFILL|MY_WME));
-      if (!cur)
-      {
-        free_plugin_mem(&plugin_dl);
-        report_error(report, ER_OUTOFMEMORY, plugin_dl.dl.length);
-        DBUG_RETURN(0);
-      }
-      /*
-        All st_plugin fields not initialized in the plugin explicitly, are
-        set to 0. It matches C standard behaviour for struct initializers that
-        have less values than the struct definition.
-      */
-      for (i=0;
-           (old=(struct st_mysql_plugin *)(ptr+i*sizeof_st_plugin))->info;
-           i++)
-        memcpy(cur+i, old, min(sizeof(cur[i]), sizeof_st_plugin));
-
-      sym= cur;
-      plugin_dl.allocated= true;
-    }
-  }
-  plugin_dl.plugins= (struct st_mysql_plugin *)sym;
 
   /* Duplicate and convert dll name */
   plugin_dl.dl.length= dl->length * files_charset_info->mbmaxlen + 1;
@@ -756,7 +917,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
                        int *argc, char **argv, int report)
 {
   struct st_plugin_int tmp;
-  struct st_mysql_plugin *plugin;
+  struct st_maria_plugin *plugin;
   DBUG_ENTER("plugin_add");
   if (plugin_find_internal(name, MYSQL_ANY_PLUGIN))
   {
@@ -1161,8 +1322,8 @@ int plugin_init(int *argc, char **argv, int flags)
 {
   uint i;
   bool is_myisam;
-  struct st_mysql_plugin **builtins;
-  struct st_mysql_plugin *plugin;
+  struct st_maria_plugin **builtins;
+  struct st_maria_plugin *plugin;
   struct st_plugin_int tmp, *plugin_ptr, **reap;
   MEM_ROOT tmp_root;
   bool reaped_mandatory_plugin= FALSE;
@@ -1201,7 +1362,7 @@ int plugin_init(int *argc, char **argv, int flags)
   /*
     First we register builtin plugins
   */
-  for (builtins= mysqld_builtins; *builtins; builtins++)
+  for (builtins= mariadb_builtins; *builtins; builtins++)
   {
     for (plugin= *builtins; plugin->info; plugin++)
     {
@@ -1316,7 +1477,7 @@ err:
 }
 
 
-static bool register_builtin(struct st_mysql_plugin *plugin,
+static bool register_builtin(struct st_maria_plugin *plugin,
                              struct st_plugin_int *tmp,
                              struct st_plugin_int **ptr)
 {
@@ -1352,7 +1513,7 @@ static bool register_builtin(struct st_mysql_plugin *plugin,
   RETURN
     false - plugin registered successfully
 */
-bool plugin_register_builtin(THD *thd, struct st_mysql_plugin *plugin)
+bool plugin_register_builtin(THD *thd, struct st_maria_plugin *plugin)
 {
   struct st_plugin_int tmp, *ptr;
   bool result= true;
@@ -1481,7 +1642,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
   char buffer[FN_REFLEN];
   LEX_STRING name= {buffer, 0}, dl= {NULL, 0}, *str= &name;
   struct st_plugin_dl *plugin_dl;
-  struct st_mysql_plugin *plugin;
+  struct st_maria_plugin *plugin;
   char *p= buffer;
   DBUG_ENTER("plugin_load_list");
   while (list)

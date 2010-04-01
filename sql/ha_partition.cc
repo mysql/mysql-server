@@ -6715,5 +6715,22 @@ mysql_declare_plugin(partition)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(partition)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &partition_storage_engine,
+  "partition",
+  "Mikael Ronstrom, MySQL AB",
+  "Partition Storage Engine Helper",
+  PLUGIN_LICENSE_GPL,
+  partition_initialize, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100, /* 1.0 */
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version                  */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity                     */
+}
+maria_declare_plugin_end;
 
 #endif

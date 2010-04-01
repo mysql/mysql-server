@@ -2872,7 +2872,7 @@ AC_SUBST(server_scripts)
 
 AC_SUBST(mysql_plugin_dirs)
 AC_SUBST(mysql_plugin_libs)
-AC_SUBST(mysql_plugin_defs)
+AC_SUBST(maria_plugin_defs)
 
 
 # Now that sql_client_dirs and sql_server_dirs are stable, determine the union.

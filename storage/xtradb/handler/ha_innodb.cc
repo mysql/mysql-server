@@ -10818,6 +10818,39 @@ i_s_innodb_index_stats,
 i_s_innodb_admin_command,
 i_s_innodb_patches
 mysql_declare_plugin_end;
+maria_declare_plugin(innobase)
+{ /* InnoDB */
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &innobase_storage_engine,
+  innobase_hton_name,
+  "Innobase Oy",
+  "Supports transactions, row-level locking, and foreign keys",
+  PLUGIN_LICENSE_GPL,
+  innobase_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  INNODB_VERSION_SHORT,
+  innodb_status_variables_export,/* status variables             */
+  innobase_system_variables, /* system variables */
+  INNODB_VERSION_STR,         /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+i_s_innodb_rseg_maria,
+i_s_innodb_buffer_pool_pages_maria,
+i_s_innodb_buffer_pool_pages_index_maria,
+i_s_innodb_buffer_pool_pages_blob_maria,
+i_s_innodb_trx_maria,
+i_s_innodb_locks_maria,
+i_s_innodb_lock_waits_maria,
+i_s_innodb_cmp_maria,
+i_s_innodb_cmp_reset_maria,
+i_s_innodb_cmpmem_maria,
+i_s_innodb_cmpmem_reset_maria,
+i_s_innodb_table_stats_maria,
+i_s_innodb_index_stats_maria,
+i_s_innodb_admin_command_maria,
+i_s_innodb_patches_maria
+maria_declare_plugin_end;
+
 
 /** @brief Initialize the default value of innodb_commit_concurrency.
 

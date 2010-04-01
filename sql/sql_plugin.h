@@ -52,8 +52,9 @@ struct st_plugin_dl
 {
   LEX_STRING dl;
   void *handle;
-  struct st_mysql_plugin *plugins;
-  int    version;
+  struct st_maria_plugin *plugins;
+  int mysqlversion;
+  int mariaversion;
   bool   allocated;
   uint ref_count;            /* number of plugins loaded from the library */
 };
@@ -63,7 +64,7 @@ struct st_plugin_dl
 struct st_plugin_int
 {
   LEX_STRING name;
-  struct st_mysql_plugin *plugin;
+  struct st_maria_plugin *plugin;
   struct st_plugin_dl *plugin_dl;
   uint state;
   uint ref_count;               /* number of threads using the plugin */
