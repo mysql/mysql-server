@@ -273,7 +273,7 @@ static void
 dump_block(int f, BLOCKNUM blocknum, struct brt_header *h) {
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
-    printf("%"PRIu64" at %"PRIu64" size %"PRIu64"\n", blocknum.b, offset, size);
+    printf("%"PRId64" at %"PRId64" size %"PRId64"\n", blocknum.b, offset, size);
 
     unsigned char *vp = toku_malloc(size);
     u_int64_t r = pread(f, vp, size, offset);
