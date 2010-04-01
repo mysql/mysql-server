@@ -3363,6 +3363,99 @@ funct_exit:
 	return((int) err);
 }
 
+/*********************************************************************//**
+Drop all temporary tables during crash recovery. */
+UNIV_INTERN
+void
+row_mysql_drop_temp_tables(void)
+/*============================*/
+{
+	trx_t*	trx;
+	ulint	err;
+
+	trx = trx_allocate_for_background();
+	trx->op_info = "dropping temporary tables";
+	row_mysql_lock_data_dictionary(trx);
+
+	err = que_eval_sql(
+		NULL,
+		"PROCEDURE DROP_TEMP_TABLES_PROC () IS\n"
+		"table_name CHAR;\n"
+		"table_id CHAR;\n"
+		"foreign_id CHAR;\n"
+		"index_id CHAR;\n"
+		"DECLARE CURSOR c IS SELECT NAME,ID FROM SYS_TABLES\n"
+		"WHERE N_COLS > 2147483647\n"
+		/* N_COLS>>31 is set unless ROW_FORMAT=REDUNDANT,
+		and MIX_LEN may be garbage for those tables */
+		"AND MIX_LEN=(MIX_LEN/2*2+1);\n"
+		/* MIX_LEN & 1 is set for temporary tables */
+#if DICT_TF2_TEMPORARY != 1
+# error "DICT_TF2_TEMPORARY != 1"
+#endif
+		"BEGIN\n"
+		"OPEN c;\n"
+		"WHILE 1=1 LOOP\n"
+		"	FETCH c INTO table_name, table_id;\n"
+		"	IF (SQL % NOTFOUND) THEN\n"
+		"		EXIT;\n"
+		"	END IF;\n"
+		"	WHILE 1=1 LOOP\n"
+		"		SELECT ID INTO index_id\n"
+		"		FROM SYS_INDEXES\n"
+		"		WHERE TABLE_ID = table_id\n"
+		"		LOCK IN SHARE MODE;\n"
+		"		IF (SQL % NOTFOUND) THEN\n"
+		"			EXIT;\n"
+		"		END IF;\n"
+
+		/* Do not drop tables for which there exist
+		foreign key constraints. */
+		"		SELECT ID INTO foreign_id\n"
+		"		FROM SYS_FOREIGN\n"
+		"		WHERE FOR_NAME = table_name\n"
+		"		AND TO_BINARY(FOR_NAME)\n"
+		"		  = TO_BINARY(table_name)\n;"
+		"		IF NOT (SQL % NOTFOUND) THEN\n"
+		"			EXIT;\n"
+		"		END IF;\n"
+
+		"		SELECT ID INTO foreign_id\n"
+		"		FROM SYS_FOREIGN\n"
+		"		WHERE REF_NAME = table_name\n"
+		"		AND TO_BINARY(REF_NAME)\n"
+		"		  = TO_BINARY(table_name)\n;"
+		"		IF NOT (SQL % NOTFOUND) THEN\n"
+		"			EXIT;\n"
+		"		END IF;\n"
+
+		"		DELETE FROM SYS_FIELDS\n"
+		"		WHERE INDEX_ID = index_id;\n"
+		"		DELETE FROM SYS_INDEXES\n"
+		"		WHERE ID = index_id\n"
+		"		AND TABLE_ID = table_id;\n"
+		"	END LOOP;\n"
+		"	DELETE FROM SYS_COLUMNS\n"
+		"	WHERE TABLE_ID = table_id;\n"
+		"	DELETE FROM SYS_TABLES\n"
+		"	WHERE ID = table_id;\n"
+		"END LOOP;\n"
+		"COMMIT WORK;\n"
+		"END;\n"
+		, FALSE, trx);
+
+	if (err != DB_SUCCESS) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Failed to drop temporary tables:"
+			" error %lu occurred\n",
+			(ulong) err);
+	}
+
+	row_mysql_unlock_data_dictionary(trx);
+	trx_free_for_background(trx);
+}
+
 /*******************************************************************//**
 Drop all foreign keys in a database, see Bug#18942.
 Called at the end of row_drop_database_for_mysql().
