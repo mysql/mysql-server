@@ -431,10 +431,6 @@ row_sel_fetch_columns(
 				data = rec_get_nth_field(rec, offsets,
 							 field_no, &len);
 
-				if (len == UNIV_SQL_NULL) {
-					len = UNIV_SQL_NULL;
-				}
-
 				needs_copy = column->copy_val;
 			}
 
