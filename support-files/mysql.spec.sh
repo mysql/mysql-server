@@ -68,7 +68,7 @@
 %undefine __perl_provides
 %undefine __perl_requires
 
-# Set default
+# Variables which need to be global so they can be changed during phases.
 %global WITH_LIBGCC 0
 
 ##############################################################################
@@ -397,7 +397,6 @@ RBR=$RPM_BUILD_ROOT
 
 # Clean up the BuildRoot first
 [ "$RBR" != "/" ] && [ -d "$RBR" ] && rm -rf "$RBR";
-mkdir -p $RBR%{_libdir}/mysql
 
 # For gcc builds, include libgcc.a in the devel subpackage (BUG 4921)
 if "$CC" --version | grep '(GCC)' >/dev/null 2>&1
@@ -406,7 +405,7 @@ then
   if [ -f $libgcc ]
   then
     %define WITH_LIBGCC 1
-    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+    install -m 644 $libgcc $RBR%{_libdir}/libmygcc.a
   fi
 fi
 
@@ -430,11 +429,6 @@ install -d $RBR%{_sbindir}
   cd $MBD/release
   make DESTDIR=$RBR install
 )
-
-# FIXME: at some point we should stop doing this and just install everything
-# FIXME: directly into %{_libdir}/mysql - perhaps at the same time as renaming
-# FIXME: the shared libraries to use libmysql*-$major.$minor.so syntax
-mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 
 # Install logrotate and autostart
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
@@ -716,10 +710,6 @@ fi
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 
-%if %{WITH_TCMALLOC}
-%attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
-%endif
-
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
@@ -743,7 +733,7 @@ fi
 %attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
-# XXX: Silly place to put this script
+# XXX: This should be moved to %{_sysconfdir}
 %attr(644, root, root) %{_bindir}/mysqlaccess.conf
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
@@ -836,14 +826,14 @@ fi
 %{_includedir}/mysql/*
 %{_datadir}/aclocal/mysql.m4
 %if %{WITH_LIBGCC}
-%{_libdir}/mysql/libmygcc.a
+%{_libdir}/libmygcc.a
 %endif
-%{_libdir}/mysql/libmysqlclient.a
-%{_libdir}/mysql/libmysqlclient_r.a
-%{_libdir}/mysql/libmysqlservices.a
+%{_libdir}/libmysqlclient.a
+%{_libdir}/libmysqlclient_r.a
+%{_libdir}/libmysqlservices.a
 %if %{CLUSTER_BUILD}
-%{_libdir}/mysql/libndbclient.a
-%{_libdir}/mysql/libndbclient.la
+%{_libdir}/libndbclient.a
+%{_libdir}/libndbclient.la
 %endif
 
 %files shared
@@ -872,8 +862,8 @@ fi
 %files embedded
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/mysql_embedded
-%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
-%attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
+%attr(644, root, root) %{_libdir}/libmysqld.a
+%attr(644, root, root) %{_libdir}/libmysqld-debug.a
 %endif
 
 ##############################################################################
