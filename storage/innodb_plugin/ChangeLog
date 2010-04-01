@@ -535,6 +535,12 @@
 	Fix Bug#44320 InnoDB: missing DB_ROLL_PTR in Table Monitor COLUMNS
 	output
 
+2009-04-29	The InnoDB Team
+
+	* fil/fil0fil.c, include/fil0fil.h, include/mtr0mtr.h,
+	log/log0recv.c:
+	Fix Bug#41609 Crash recovery does not work for InnoDB temporary tables
+
 2009-04-23	The InnoDB Team
 
 	* row/row0mysql.c:
