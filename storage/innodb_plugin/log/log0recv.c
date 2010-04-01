@@ -2052,15 +2052,6 @@ recv_parse_log_rec(
 	}
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	/* Check that page_no is sensible */
-
-	if (UNIV_UNLIKELY(*page_no > 0x8FFFFFFFUL)) {
-
-		recv_sys->found_corrupt_log = TRUE;
-
-		return(0);
-	}
-
 	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
 						   NULL, NULL);
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
@@ -2168,6 +2159,14 @@ recv_report_corrupt_log(
 			     - recv_previous_parsed_rec_offset);
 		putc('\n', stderr);
 	}
+
+#ifndef UNIV_HOTBACKUP
+	if (!srv_force_recovery) {
+		fputs("InnoDB: Set innodb_force_recovery"
+		      " to ignore this error.\n", stderr);
+		ut_error;
+	}
+#endif /* !UNIV_HOTBACKUP */
 
 	fputs("InnoDB: WARNING: the log file may have been corrupt and it\n"
 	      "InnoDB: is possible that the log scan did not proceed\n"
@@ -2682,6 +2681,16 @@ recv_scan_log_recs(
 					" Recovery may have failed!\n");
 
 				recv_sys->found_corrupt_log = TRUE;
+
+#ifndef UNIV_HOTBACKUP
+				if (!srv_force_recovery) {
+					fputs("InnoDB: Set"
+					      " innodb_force_recovery"
+					      " to ignore this error.\n",
+					      stderr);
+					ut_error;
+				}
+#endif /* !UNIV_HOTBACKUP */
 
 			} else if (!recv_sys->found_corrupt_log) {
 				more_data = recv_sys_add_to_parsing_buf(
