@@ -1,3 +1,10 @@
+2010-01-13	The InnoDB Team
+
+	* buf/buf0buf.c:
+	When disabling the adaptive hash index, check the block state
+	before checking block->is_hashed, because the latter may be
+	uninitialized right after server startup.
+
 2010-01-12	The InnoDB Team
 
 	* handler/ha_innodb.cc, handler/ha_innodb.h:

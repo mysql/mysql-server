@@ -1058,7 +1058,9 @@ buf_pool_drop_hash_index(void)
 				when we have an x-latch on btr_search_latch;
 				see the comment in buf0buf.h */
 
-				if (!block->is_hashed) {
+				if (buf_block_get_state(block)
+				    != BUF_BLOCK_FILE_PAGE
+				    || !block->is_hashed) {
 					continue;
 				}
 
