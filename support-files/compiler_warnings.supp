@@ -27,7 +27,7 @@ pars0grm.tab.c: .*'yyerrorlab' : unreferenced label.*
 _flex_tmp.c: .*not enough actual parameters for macro 'yywrap'.*
 pars0lex.l: .*conversion from 'ulint' to 'int', possible loss of data.*
 btr/btr0cur\.c: .*value computed is not used.*: 3175-3375
-include/buf0buf\.ic: unused parameter ‘mtr’
+include/buf0buf\.ic: unused parameter .*mtr.*
 fil/fil0fil\.c: pointer targets in passing argument.*differ in signedness
 fil/fil0fil\.c: comparison between signed and unsigned : 3100-3199
 fil/fil0fil\.c: unused parameter
@@ -58,7 +58,7 @@ readline\.c : unused parameter
 term\.c : unused parameter
 vi\.c : unused parameter
 common\.c : unused parameter
-term\.c : *.*
+term\.c : .*
 
 
 #
