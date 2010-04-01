@@ -705,6 +705,12 @@ buf_block_get_lock_hash_val(
 /*========================*/
 	const buf_block_t*	block)	/*!< in: block */
 {
+	ut_ad(block);
+	ut_ad(buf_page_in_file(&block->page));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_EXCLUSIVE)
+	      || rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	return(block->lock_hash_val);
 }
 
