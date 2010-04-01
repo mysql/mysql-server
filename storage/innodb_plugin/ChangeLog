@@ -1,5 +1,18 @@
 2010-03-10	The InnoDB Team
 
+	* handler/ha_innodb.cc:
+	Fix Bug #51356 Many Valgrind errors in error messages
+	with concurrent DDL
+
+2010-03-10	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/handler0alter.cc,
+	mysql-test/innodb_bug51378.result, mysql-test/innodb_bug51378.test:
+	Fix Bug #51378 Init 'ref_length' to correct value, in case an out
+	of bound MySQL primary_key
+
+2010-03-10	The InnoDB Team
+
 	* log/log0recv.c:
 	Remove a bogus assertion about page numbers exceeding 0x90000000
 	in the redo log.  Abort when encountering a corrupted redo log
