@@ -315,6 +315,15 @@ mutex_free(
 	ut_a(mutex_get_lock_word(mutex) == 0);
 	ut_a(mutex_get_waiters(mutex) == 0);
 
+#ifdef UNIV_MEM_DEBUG
+	if (mutex == &mem_hash_mutex) {
+		ut_ad(UT_LIST_GET_LEN(mutex_list) == 1);
+		ut_ad(UT_LIST_GET_FIRST(mutex_list) == &mem_hash_mutex);
+		UT_LIST_REMOVE(list, mutex_list, mutex);
+		goto func_exit;
+	}
+#endif /* UNIV_MEM_DEBUG */
+
 	if (mutex != &mutex_list_mutex
 #ifdef UNIV_SYNC_DEBUG
 	    && mutex != &sync_thread_mutex
@@ -336,7 +345,9 @@ mutex_free(
 	}
 
 	os_event_free(mutex->event);
-
+#ifdef UNIV_MEM_DEBUG
+func_exit:
+#endif /* UNIV_MEM_DEBUG */
 #if !defined(HAVE_ATOMIC_BUILTINS)
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
 #endif
@@ -1370,6 +1381,12 @@ sync_close(void)
 	mutex = UT_LIST_GET_FIRST(mutex_list);
 
 	while (mutex) {
+#ifdef UNIV_MEM_DEBUG
+		if (mutex == &mem_hash_mutex) {
+			mutex = UT_LIST_GET_NEXT(list, mutex);
+			continue;
+		}
+#endif /* UNIV_MEM_DEBUG */
 		mutex_free(mutex);
 		mutex = UT_LIST_GET_FIRST(mutex_list);
 	}

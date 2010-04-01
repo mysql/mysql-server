@@ -180,6 +180,10 @@ mem_close(void)
 {
 	mem_pool_free(mem_comm_pool);
 	mem_comm_pool = NULL;
+#ifdef UNIV_MEM_DEBUG
+	mutex_free(&mem_hash_mutex);
+	mem_hash_initialized = FALSE;
+#endif /* UNIV_MEM_DEBUG */
 }
 #endif /* !UNIV_HOTBACKUP */
 

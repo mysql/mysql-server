@@ -28,6 +28,13 @@ Created 6/9/1994 Heikki Tuuri
 check fields whose sizes are given below */
 
 #ifdef UNIV_MEM_DEBUG
+# ifndef UNIV_HOTBACKUP
+/* The mutex which protects in the debug version the hash table
+containing the list of live memory heaps, and also the global
+variables in mem0dbg.c. */
+extern mutex_t	mem_hash_mutex;
+# endif /* !UNIV_HOTBACKUP */
+
 #define MEM_FIELD_HEADER_SIZE	ut_calc_align(2 * sizeof(ulint),\
 						UNIV_MEM_ALIGNMENT)
 #define MEM_FIELD_TRAILER_SIZE	sizeof(ulint)
