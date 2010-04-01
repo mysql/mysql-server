@@ -977,6 +977,7 @@ trx_undo_update_rec_get_update(
 			fprintf(stderr, "\n"
 				"InnoDB: n_fields = %lu, i = %lu, ptr %p\n",
 				(ulong) n_fields, (ulong) i, ptr);
+			*upd = NULL;
 			return(NULL);
 		}
 
