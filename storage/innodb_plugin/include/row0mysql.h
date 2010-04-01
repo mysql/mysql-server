@@ -500,14 +500,19 @@ row_rename_table_for_mysql(
 	trx_t*		trx,		/*!< in: transaction handle */
 	ibool		commit);	/*!< in: if TRUE then commit trx */
 /*********************************************************************//**
-Checks a table for corruption.
-@return	DB_ERROR or DB_SUCCESS */
+Checks that the index contains entries in an ascending order, unique
+constraint is not broken, and calculates the number of index entries
+in the read view of the current transaction.
+@return	DB_SUCCESS if ok */
 UNIV_INTERN
 ulint
-row_check_table_for_mysql(
+row_check_index_for_mysql(
 /*======================*/
-	row_prebuilt_t*	prebuilt);	/*!< in: prebuilt struct in MySQL
-					handle */
+	row_prebuilt_t*		prebuilt,	/*!< in: prebuilt struct
+						in MySQL handle */
+	const dict_index_t*	index,		/*!< in: index */
+	ulint*			n_rows);	/*!< out: number of entries
+						seen in the consistent read */
 
 /*********************************************************************//**
 Determines if a table is a magic monitor table.
