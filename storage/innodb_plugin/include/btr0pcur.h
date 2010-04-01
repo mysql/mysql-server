@@ -281,18 +281,11 @@ btr_pcur_get_mtr(
 /*=============*/
 	btr_pcur_t*	cursor);	/*!< in: persistent cursor */
 /**************************************************************//**
-Commits the pcur mtr and sets the pcur latch mode to BTR_NO_LATCHES,
+Commits the mtr and sets the pcur latch mode to BTR_NO_LATCHES,
 that is, the cursor becomes detached. If there have been modifications
 to the page where pcur is positioned, this can be used instead of
 btr_pcur_release_leaf. Function btr_pcur_store_position should be used
 before calling this, if restoration of cursor is wanted later. */
-UNIV_INLINE
-void
-btr_pcur_commit(
-/*============*/
-	btr_pcur_t*	pcur);	/*!< in: persistent cursor */
-/**************************************************************//**
-Differs from btr_pcur_commit in that we can specify the mtr to commit. */
 UNIV_INLINE
 void
 btr_pcur_commit_specify_mtr(
