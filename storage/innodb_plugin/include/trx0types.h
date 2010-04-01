@@ -70,6 +70,13 @@ typedef struct trx_named_savept_struct trx_named_savept_t;
 enum trx_rb_ctx {
 	RB_NONE = 0,	/*!< no rollback */
 	RB_NORMAL,	/*!< normal rollback */
+	RB_RECOVERY_PURGE_REC,
+			/*!< rolling back an incomplete transaction,
+			in crash recovery, rolling back an
+			INSERT that was performed by updating a
+			delete-marked record; if the delete-marked record
+			no longer exists in an active read view, it will
+			be purged */
 	RB_RECOVERY	/*!< rolling back an incomplete transaction,
 			in crash recovery */
 };
