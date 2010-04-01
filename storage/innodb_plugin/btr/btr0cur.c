@@ -4260,7 +4260,7 @@ btr_free_externally_stored_field(
 		/* In the rollback of uncommitted transactions, we may
 		encounter a clustered index record whose BLOBs have
 		not been written.  There is nothing to free then. */
-		ut_a(rb_ctx == RB_RECOVERY);
+		ut_a(rb_ctx == RB_RECOVERY || rb_ctx == RB_RECOVERY_PURGE_REC);
 		return;
 	}
 
@@ -4306,7 +4306,7 @@ btr_free_externally_stored_field(
 		    || (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			& BTR_EXTERN_OWNER_FLAG)
 		    /* Rollback and inherited field */
-		    || (rb_ctx != RB_NONE
+		    || ((rb_ctx == RB_NORMAL || rb_ctx == RB_RECOVERY)
 			&& (mach_read_from_1(field_ref + BTR_EXTERN_LEN)
 			    & BTR_EXTERN_INHERITED_FLAG))) {
 
