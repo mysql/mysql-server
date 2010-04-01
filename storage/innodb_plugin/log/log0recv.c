@@ -3212,8 +3212,6 @@ void
 recv_recovery_from_checkpoint_finish(void)
 /*======================================*/
 {
-	int		i;
-
 	/* Apply the hashed log records to the respective file pages */
 
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
@@ -3261,6 +3259,16 @@ recv_recovery_from_checkpoint_finish(void)
 	The data dictionary latch should guarantee that there is at
 	most one data dictionary transaction active at a time. */
 	trx_rollback_or_clean_recovered(FALSE);
+}
+
+/********************************************************//**
+Initiates the rollback of active transactions. */
+UNIV_INTERN
+void
+recv_recovery_rollback_active(void)
+/*===============================*/
+{
+	int		i;
 
 	/* Drop partially created indexes. */
 	row_merge_drop_temp_indexes();

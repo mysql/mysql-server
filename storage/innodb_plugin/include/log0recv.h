@@ -176,6 +176,12 @@ UNIV_INTERN
 void
 recv_recovery_from_checkpoint_finish(void);
 /*======================================*/
+/********************************************************//**
+Initiates the rollback of active transactions. */
+UNIV_INTERN
+void
+recv_recovery_rollback_active(void);
+/*===============================*/
 /*******************************************************//**
 Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless
