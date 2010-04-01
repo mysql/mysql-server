@@ -1,3 +1,12 @@
+2010-02-04	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, btr/btr0pcur.c, buf/buf0buf.c,
+	include/btr0btr.h, include/btr0cur.h, include/btr0pcur.h,
+	include/btr0pcur.ic, include/buf0buf.h, row/row0ins.c, row/row0sel.c:
+	Pass the file name and line number of the caller of the
+	b-tree cursor functions to the buffer pool requests, in order
+	to make the latch diagnostics more accurate.
+
 2010-02-03	The InnoDB Team
 
 	* buf/buf0lru.c:
