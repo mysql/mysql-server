@@ -49,6 +49,7 @@
 
   One cache can handle many files.
   It must contain buffers of the same blocksize.
+
   init_key_cache() should be used to init cache handler.
 
   The free list (free_block_list) is a stack like structure.
@@ -151,7 +152,7 @@ typedef struct st_keycache_wqueue
 
 /* Control block for a simple (non-partitioned) key cache */
 
-typedef struct st_s_key_cache_cb
+typedef struct st_simple_key_cache_cb
 {
   my_bool key_cache_inited;      /* <=> control block is allocated           */            
   my_bool in_resize;             /* true during resize operation             */
@@ -202,7 +203,7 @@ typedef struct st_s_key_cache_cb
   int blocks;                   /* max number of blocks in the cache        */
   uint hash_factor;             /* factor used to calculate hash function   */
   my_bool in_init;		/* Set to 1 in MySQL during init/resize     */
-} S_KEY_CACHE_CB;
+} SIMPLE_KEY_CACHE_CB;
 
 /*
   Some compilation flags have been added specifically for this module
@@ -314,12 +315,8 @@ KEY_CACHE *dflt_key_cache= &dflt_key_cache_var;
 
 #define FLUSH_CACHE         2000            /* sort this many blocks at once */
 
-static int flush_all_key_blocks(S_KEY_CACHE_CB *keycache);
-/*
-static void s_change_key_cache_param(void *keycache_cb, uint division_limit,
-			             uint age_threshold);
-*/
-static void s_end_key_cache(void *keycache_cb, my_bool cleanup);
+static int flush_all_key_blocks(SIMPLE_KEY_CACHE_CB *keycache);
+static void end_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache, my_bool cleanup);
 #ifdef THREAD
 static void wait_on_queue(KEYCACHE_WQUEUE *wqueue,
                           pthread_mutex_t *mutex);
@@ -328,9 +325,9 @@ static void release_whole_queue(KEYCACHE_WQUEUE *wqueue);
 #define wait_on_queue(wqueue, mutex)    do {} while (0)
 #define release_whole_queue(wqueue)     do {} while (0)
 #endif
-static void free_block(S_KEY_CACHE_CB *keycache, BLOCK_LINK *block);
+static void free_block(SIMPLE_KEY_CACHE_CB *keycache, BLOCK_LINK *block);
 #if !defined(DBUG_OFF)
-static void test_key_cache(S_KEY_CACHE_CB *keycache,
+static void test_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
                            const char *where, my_bool lock);
 #endif
 #define KEYCACHE_BASE_EXPR(f, pos)                                            \
@@ -433,7 +430,7 @@ static int keycache_pthread_cond_signal(pthread_cond_t *cond);
 #define inline  /* disabled inline for easier debugging */
 static int fail_block(BLOCK_LINK *block);
 static int fail_hlink(HASH_LINK *hlink);
-static int cache_empty(S_KEY_CACHE_CB *keycache);
+static int cache_empty(SIMPLE_KEY_CACHE_CB *keycache);
 #endif
 
 
@@ -447,8 +444,8 @@ static inline uint next_power(uint value)
   Initialize a simple key cache
 
   SYNOPSIS
-    s_init_key_cache()
-    keycache_cb             pointer to the control block of a simple key cache 
+    init_simple_key_cache()
+    keycache                pointer to the control block of a simple key cache 
     key_cache_block_size    size of blocks to keep cached data
     use_mem                 memory to use for the key cache buferrs/structures
     division_limit          division limit (may be zero)
@@ -458,8 +455,8 @@ static inline uint next_power(uint value)
     This function is the implementation of the init_key_cache interface
     function that is employed by simple (non-partitioned) key caches.
     The function builds a simple key cache and initializes the control block
-    structure of the type S_KEY_CACHE_CB that is used for this key cache. 
-    The parameter keycache_cb is supposed to point to this structure. 
+    structure of the type SIMPLE_KEY_CACHE_CB that is used for this key cache. 
+    The parameter keycache is supposed to point to this structure. 
     The parameter key_cache_block_size specifies the size of the blocks in
     the key cache to be built. The parameters division_limit and age_threshhold
     determine the initial values of those characteristics of the key cache
@@ -478,19 +475,17 @@ static inline uint next_power(uint value)
 
     It's assumed that no two threads call this function simultaneously
     referring to the same key cache handle.
-
 */
 
 static
-int s_init_key_cache(void *keycache_cb, uint key_cache_block_size,
-		     size_t use_mem, uint division_limit,
-		     uint age_threshold)
+int init_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache, uint key_cache_block_size,
+		          size_t use_mem, uint division_limit,
+		          uint age_threshold)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
   ulong blocks, hash_links;
   size_t length;
   int error;
-  DBUG_ENTER("init_key_cache");
+  DBUG_ENTER("init_simple_key_cache");
   DBUG_ASSERT(key_cache_block_size >= 512);
 
   KEYCACHE_DEBUG_OPEN;
@@ -653,16 +648,16 @@ err:
   Prepare for resizing a simple key cache
 
   SYNOPSIS
-    s_prepare_resize_key_cache()
-    keycache_cb             pointer to the control block of a simple key cache
+    prepare_resize_simple_key_cache()
+    keycache                pointer to the control block of a simple key cache
     with_resize_queue       <=> resize queue is used		
     release_lock            <=> release the key cache lock before return
 
   DESCRIPTION
     This function flushes all dirty pages from a simple key cache and after
-    this it destroys the key cache calling s_end_key_cache. The function 
-    considers the parameter keycache_cb as a pointer to the control block 
-    structure of the type S_KEY_CACHE_CB for this key cache.
+    this it destroys the key cache calling end_simple_key_cache. The function 
+    takes the parameter keycache as a pointer to the control block 
+    structure of the type SIMPLE_KEY_CACHE_CB for this key cache.
     The parameter with_resize_queue determines weather the resize queue is
     involved (MySQL server never uses this queue). The parameter release_lock
     says weather the key cache lock must be released before return from 
@@ -673,19 +668,18 @@ err:
     1 - otherwise.
 
   NOTES
-    This function is the called by s_resize_key_cache and p_resize_key_cache
-    that resize simple and partitioned key caches respectively. 
-
+    This function is the called by resize_simple_key_cache and
+    resize_partitioned_key_cache that resize simple and partitioned key caches
+    respectively. 
 */
 
 static 
-int s_prepare_resize_key_cache(void *keycache_cb,
-                               my_bool with_resize_queue,
-                               my_bool release_lock)
+int prepare_resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
+                                    my_bool with_resize_queue,
+                                    my_bool release_lock)
 {
   int res= 0;
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
-  DBUG_ENTER("s_prepare_resize_key_cache"); 
+  DBUG_ENTER("prepare_resize_simple_key_cache"); 
  
   keycache_pthread_mutex_lock(&keycache->cache_lock);
 
@@ -749,7 +743,7 @@ int s_prepare_resize_key_cache(void *keycache_cb,
   KEYCACHE_DBUG_ASSERT(keycache->cnt_for_resize_op == 0);
 #endif
   
-  s_end_key_cache(keycache_cb, 0);
+  end_simple_key_cache(keycache, 0);
 
 finish:
   if (release_lock)
@@ -762,16 +756,16 @@ finish:
   Finalize resizing a simple key cache
 
   SYNOPSIS
-    s_finish_resize_key_cache()
-    keycache_cb             pointer to the control block of a simple key cache
+    finish_resize_simple_key_cache()
+    keycache                pointer to the control block of a simple key cache
     with_resize_queue       <=> resize queue is used		
     acquire_lock            <=> acquire the key cache lock at start
 
   DESCRIPTION
     This function performs finalizing actions for the operation of 
-    resizing a simple key cache. The function considers the parameter
-    keycache_cb as a pointer to the control block structure of the type
-    S_KEY_CACHE_CB for this key cache. The function sets the flag
+    resizing a simple key cache. The function takes the parameter
+    keycache as a pointer to the control block structure of the type
+    SIMPLE_KEY_CACHE_CB for this key cache. The function sets the flag
     in_resize in this structure to FALSE.
     The parameter with_resize_queue determines weather the resize queue
     is involved (MySQL server never uses this queue).
@@ -782,22 +776,23 @@ finish:
     none
 
   NOTES
-    This function is the called by s_resize_key_cache and p_resize_key_cache
-    that resize simple and partitioned key caches respectively. 
-
+    This function is the called by resize_simple_key_cache and
+    resize_partitioned_key_cache that resize simple and partitioned key caches
+    respectively. 
 */
 
 static 
-void s_finish_resize_key_cache(void *keycache_cb,
-                               my_bool with_resize_queue,
-                               my_bool acquire_lock)
+void finish_resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache,
+                                    my_bool with_resize_queue,
+                                    my_bool acquire_lock)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
-  DBUG_ENTER("s_finish_resize_key_cache");
+  DBUG_ENTER("finish_resize_simple_key_cache");
 
   if (acquire_lock)
     keycache_pthread_mutex_lock(&keycache->cache_lock); 
-   
+  
+  safe_mutex_assert_owner(&keycache->cache_lock);
+			   
   /*
     Mark the resize finished. This allows other threads to start a
     resize or to request new cache blocks.
@@ -820,8 +815,8 @@ void s_finish_resize_key_cache(void *keycache_cb,
   Resize a simple key cache
 
   SYNOPSIS
-    s_resize_key_cache()
-    keycache_cb             pointer to the control block of a simple key cache
+    resize_simple_key_cache()
+    keycache                pointer to the control block of a simple key cache
     key_cache_block_size    size of blocks to keep cached data
     use_mem                 memory to use for the key cache buffers/structures
     division_limit          new division limit (if not zero)
@@ -830,8 +825,8 @@ void s_finish_resize_key_cache(void *keycache_cb,
   DESCRIPTION
     This function is the implementation of the resize_key_cache interface
     function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type S_KEY_CACHE_CB for the simple key
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type SIMPLE_KEY_CACHE_CB for the simple key
     cache to be resized. 
     The parameter key_cache_block_size specifies the new size of the blocks in
     the key cache. The parameters division_limit and age_threshold
@@ -845,47 +840,45 @@ void s_finish_resize_key_cache(void *keycache_cb,
     0 - otherwise.
 
   NOTES.
-    The function first calls the function s_prepare_resize_key_cache
+    The function first calls the function prepare_resize_simple_key_cache
     to flush all dirty blocks from key cache, to free memory used
     for key cache blocks and auxiliary structures. After this the
     function builds a new key cache with new parameters.
 
     This implementation doesn't block the calls and executions of other
     functions from the key cache interface. However it assumes that the
-    calls of s_resize_key_cache itself are serialized.
+    calls of resize_simple_key_cache itself are serialized.
 
     The function starts the operation only when all other threads
     performing operations with the key cache let her to proceed
     (when cnt_for_resize=0).
-
 */
 
 static
-int s_resize_key_cache(void *keycache_cb, uint key_cache_block_size,
-		       size_t use_mem, uint division_limit,
-		       uint age_threshold)
+int resize_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache, uint key_cache_block_size,
+		            size_t use_mem, uint division_limit,
+		            uint age_threshold)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
   int blocks= 0;
-  DBUG_ENTER("s_resize_key_cache");
+  DBUG_ENTER("resize_simple_key_cache");
 
   if (!keycache->key_cache_inited)
-    DBUG_RETURN(keycache->disk_blocks);
+    DBUG_RETURN(blocks);
 
   /*
     Note that the cache_lock mutex and the resize_queue are left untouched.
     We do not lose the cache_lock and will release it only at the end of 
     this function.
   */
-  if (s_prepare_resize_key_cache(keycache_cb, 1, 0))
+  if (prepare_resize_simple_key_cache(keycache, 1, 0))
     goto finish;
 
   /* The following will work even if use_mem is 0 */ 
-  blocks= s_init_key_cache(keycache, key_cache_block_size, use_mem,
-			     division_limit, age_threshold);
+  blocks= init_simple_key_cache(keycache, key_cache_block_size, use_mem,
+			        division_limit, age_threshold);
 
 finish:
-  s_finish_resize_key_cache(keycache_cb, 1, 0);
+  finish_resize_simple_key_cache(keycache, 1, 0);
 
   DBUG_RETURN(blocks);
 }
@@ -894,7 +887,7 @@ finish:
 /*
   Increment counter blocking resize key cache operation
 */
-static inline void inc_counter_for_resize_op(S_KEY_CACHE_CB *keycache)
+static inline void inc_counter_for_resize_op(SIMPLE_KEY_CACHE_CB *keycache)
 {
   keycache->cnt_for_resize_op++;
 }
@@ -904,7 +897,7 @@ static inline void inc_counter_for_resize_op(S_KEY_CACHE_CB *keycache)
   Decrement counter blocking resize key cache operation;
   Signal the operation to proceed when counter becomes equal zero
 */
-static inline void dec_counter_for_resize_op(S_KEY_CACHE_CB *keycache)
+static inline void dec_counter_for_resize_op(SIMPLE_KEY_CACHE_CB *keycache)
 {
   if (!--keycache->cnt_for_resize_op)
     release_whole_queue(&keycache->waiting_for_resize_cnt);
@@ -915,16 +908,16 @@ static inline void dec_counter_for_resize_op(S_KEY_CACHE_CB *keycache)
   Change key cache parameters of a simple key cache
 
   SYNOPSIS
-    s_change_key_cache_param()
-    keycache_cb             pointer to the control block of a simple key cache	
+    change_simple_key_cache_param()
+    keycache                pointer to the control block of a simple key cache	
     division_limit          new division limit (if not zero)
     age_threshold           new age threshold (if not zero)
 
   DESCRIPTION
     This function is the implementation of the change_key_cache_param interface
     function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type S_KEY_CACHE_CB for the simple key
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type SIMPLE_KEY_CACHE_CB for the simple key
     cache where new values of the division limit and the age threshold used
     for midpoint insertion strategy are to be set.  The parameters
     division_limit and age_threshold provide these new values.
@@ -938,15 +931,13 @@ static inline void dec_counter_for_resize_op(S_KEY_CACHE_CB *keycache)
     This function changes some parameters of a given key cache without
     reformatting it. The function does not touch the contents the key 
     cache blocks.    
-
 */
 
 static
-void s_change_key_cache_param(void *keycache_cb, uint division_limit,
-			      uint age_threshold)
+void change_simple_key_cache_param(SIMPLE_KEY_CACHE_CB *keycache, uint division_limit,
+			           uint age_threshold)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
-  DBUG_ENTER("s_change_key_cache_param");
+  DBUG_ENTER("change_simple_key_cache_param");
   keycache_pthread_mutex_lock(&keycache->cache_lock);
   if (division_limit)
     keycache->min_warm_blocks= (keycache->disk_blocks *
@@ -963,15 +954,15 @@ void s_change_key_cache_param(void *keycache_cb, uint division_limit,
   Destroy a simple key cache 
 
   SYNOPSIS
-    s_end_key_cache()
-    keycache_cb             pointer to the control block of a simple key cache
+    end_simple_key_cache()
+    keycache                pointer to the control block of a simple key cache
     cleanup                 <=> complete free (free also mutex for key cache)
 
   DESCRIPTION
     This function is the implementation of the end_key_cache interface
     function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type S_KEY_CACHE_CB for the simple key
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type SIMPLE_KEY_CACHE_CB for the simple key
     cache to be destroyed.
     The function frees the memory allocated for the key cache blocks and
     auxiliary structures. If the value of the parameter cleanup is TRUE 
@@ -982,10 +973,9 @@ void s_change_key_cache_param(void *keycache_cb, uint division_limit,
 */
 
 static
-void s_end_key_cache(void *keycache_cb, my_bool cleanup)
+void end_simple_key_cache(SIMPLE_KEY_CACHE_CB *keycache, my_bool cleanup)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
-  DBUG_ENTER("s_end_key_cache");
+  DBUG_ENTER("end_simple_key_cache");
   DBUG_PRINT("enter", ("key_cache: 0x%lx", (long) keycache));
 
   if (!keycache->key_cache_inited)
@@ -1276,7 +1266,7 @@ static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead)
     void
 */
 
-static void link_to_file_list(S_KEY_CACHE_CB *keycache,
+static void link_to_file_list(SIMPLE_KEY_CACHE_CB *keycache,
                               BLOCK_LINK *block, int file,
                               my_bool unlink_block)
 {
@@ -1317,7 +1307,7 @@ static void link_to_file_list(S_KEY_CACHE_CB *keycache,
     void
 */
 
-static void link_to_changed_list(S_KEY_CACHE_CB *keycache,
+static void link_to_changed_list(SIMPLE_KEY_CACHE_CB *keycache,
                                  BLOCK_LINK *block)
 {
   DBUG_ASSERT(block->status & BLOCK_IN_USE);
@@ -1372,8 +1362,8 @@ static void link_to_changed_list(S_KEY_CACHE_CB *keycache,
     not linked in the LRU ring.
 */
 
-static void link_block(S_KEY_CACHE_CB *keycache, BLOCK_LINK *block, my_bool hot,
-                       my_bool at_end)
+static void link_block(SIMPLE_KEY_CACHE_CB *keycache, BLOCK_LINK *block,
+                       my_bool hot, my_bool at_end)
 {
   BLOCK_LINK *ins;
   BLOCK_LINK **pins;
@@ -1493,7 +1483,7 @@ static void link_block(S_KEY_CACHE_CB *keycache, BLOCK_LINK *block, my_bool hot,
     See NOTES for link_block
 */
 
-static void unlink_block(S_KEY_CACHE_CB *keycache, BLOCK_LINK *block)
+static void unlink_block(SIMPLE_KEY_CACHE_CB *keycache, BLOCK_LINK *block)
 {
   DBUG_ASSERT((block->status & ~BLOCK_CHANGED) == (BLOCK_READ | BLOCK_IN_USE));
   DBUG_ASSERT(block->hash_link); /*backptr to block NULL from free_block()*/
@@ -1551,7 +1541,8 @@ static void unlink_block(S_KEY_CACHE_CB *keycache, BLOCK_LINK *block)
   RETURN
     void
 */
-static void reg_requests(S_KEY_CACHE_CB *keycache, BLOCK_LINK *block, int count)
+static void reg_requests(SIMPLE_KEY_CACHE_CB *keycache,
+                         BLOCK_LINK *block, int count)
 {
   DBUG_ASSERT(block->status & BLOCK_IN_USE);
   DBUG_ASSERT(block->hash_link);
@@ -1594,7 +1585,7 @@ static void reg_requests(S_KEY_CACHE_CB *keycache, BLOCK_LINK *block, int count)
     not linked in the LRU ring.
 */
 
-static void unreg_request(S_KEY_CACHE_CB *keycache,
+static void unreg_request(SIMPLE_KEY_CACHE_CB *keycache,
                           BLOCK_LINK *block, int at_end)
 {
   DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
@@ -1683,7 +1674,7 @@ static void remove_reader(BLOCK_LINK *block)
   signals on its termination
 */
 
-static void wait_for_readers(S_KEY_CACHE_CB *keycache,
+static void wait_for_readers(SIMPLE_KEY_CACHE_CB *keycache,
                              BLOCK_LINK *block)
 {
 #ifdef THREAD
@@ -1732,7 +1723,7 @@ static inline void link_hash(HASH_LINK **start, HASH_LINK *hash_link)
   Remove a hash link from the hash table
 */
 
-static void unlink_hash(S_KEY_CACHE_CB *keycache, HASH_LINK *hash_link)
+static void unlink_hash(SIMPLE_KEY_CACHE_CB *keycache, HASH_LINK *hash_link)
 {
   KEYCACHE_DBUG_PRINT("unlink_hash", ("fd: %u  pos_ %lu  #requests=%u",
       (uint) hash_link->file,(ulong) hash_link->diskpos, hash_link->requests));
@@ -1788,7 +1779,7 @@ static void unlink_hash(S_KEY_CACHE_CB *keycache, HASH_LINK *hash_link)
   Get the hash link for a page
 */
 
-static HASH_LINK *get_hash_link(S_KEY_CACHE_CB *keycache,
+static HASH_LINK *get_hash_link(SIMPLE_KEY_CACHE_CB *keycache,
                                 int file, my_off_t filepos)
 {
   reg1 HASH_LINK *hash_link, **start;
@@ -1909,7 +1900,7 @@ restart:
     waits until first of this operations links any block back.
 */
 
-static BLOCK_LINK *find_key_block(S_KEY_CACHE_CB *keycache,
+static BLOCK_LINK *find_key_block(SIMPLE_KEY_CACHE_CB *keycache,
                                   File file, my_off_t filepos,
                                   int init_hits_left,
                                   int wrmode, int *page_st)
@@ -2669,7 +2660,7 @@ restart:
     portion is less than read_length, but not less than min_length.
 */
 
-static void read_block(S_KEY_CACHE_CB *keycache,
+static void read_block(SIMPLE_KEY_CACHE_CB *keycache,
                        BLOCK_LINK *block, uint read_length,
                        uint min_length, my_bool primary)
 {
@@ -2761,8 +2752,8 @@ static void read_block(S_KEY_CACHE_CB *keycache,
 
   SYNOPSIS
 
-    s_key_cache_read()
-    keycache_cb         pointer to the control block of a simple key cache
+    simple_key_cache_read()
+    keycache            pointer to the control block of a simple key cache
     file                handler for the file for the block of data to be read
     filepos             position of the block of data in the file
     level               determines the weight of the data
@@ -2774,8 +2765,8 @@ static void read_block(S_KEY_CACHE_CB *keycache,
   DESCRIPTION
     This function is the implementation of the key_cache_read interface
     function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type S_KEY_CACHE_CB for a simple key
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type SIMPLE_KEY_CACHE_CB for a simple key
     cache.
     In a general case the function reads a block of data from the key cache
     into the buffer buff of the size specified by the parameter length. The
@@ -2799,20 +2790,18 @@ static void read_block(S_KEY_CACHE_CB *keycache,
   NOTES
     Filepos must be a multiple of 'block_length', but it doesn't
     have to be a multiple of key_cache_block_size;
-
 */
 
-uchar *s_key_cache_read(void *keycache_cb,
-                        File file, my_off_t filepos, int level,
-                        uchar *buff, uint length,
-                        uint block_length __attribute__((unused)),
-                        int return_buffer __attribute__((unused)))
+uchar *simple_key_cache_read(SIMPLE_KEY_CACHE_CB *keycache,
+                             File file, my_off_t filepos, int level,
+                             uchar *buff, uint length,
+                             uint block_length __attribute__((unused)),
+                             int return_buffer __attribute__((unused)))
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
   my_bool locked_and_incremented= FALSE;
   int error=0;
   uchar *start= buff;
-  DBUG_ENTER("s_key_cache_read");
+  DBUG_ENTER("simple_key_cache_read");
   DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
                (uint) file, (ulong) filepos, length));
 
@@ -3010,8 +2999,8 @@ end:
   Insert a block of file data from a buffer into a simple key cache
 
   SYNOPSIS
-    s_key_cache_insert()
-    keycache_cb         pointer to the control block of a simple key cache 
+    simple_key_cache_insert()
+    keycache            pointer to the control block of a simple key cache 
     file                handler for the file to insert data from
     filepos             position of the block of data in the file to insert
     level               determines the weight of the data
@@ -3021,8 +3010,8 @@ end:
   DESCRIPTION
     This function is the implementation of the key_cache_insert interface
     function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type S_KEY_CACHE_CB for a simple key
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type SIMPLE_KEY_CACHE_CB for a simple key
     cache.
     The function writes a block of file data from a buffer into the key cache.
     The buffer is specified with the parameters buff and length - the pointer
@@ -3045,11 +3034,10 @@ end:
 */
 
 static
-int s_key_cache_insert(void *keycache_cb,
-                       File file, my_off_t filepos, int level,
-                       uchar *buff, uint length)
+int simple_key_cache_insert(SIMPLE_KEY_CACHE_CB *keycache,
+                            File file, my_off_t filepos, int level,
+                            uchar *buff, uint length)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
   int error= 0;
   DBUG_ENTER("key_cache_insert");
   DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
@@ -3272,8 +3260,8 @@ int s_key_cache_insert(void *keycache_cb,
 
   SYNOPSIS
 
-    s_key_cache_write()
-    keycache_cb         pointer to the control block of a simple key cache
+    simple_key_cache_write()
+    keycache            pointer to the control block of a simple key cache
     file                handler for the file to write data to
     file_extra          maps of key cache partitions containing 
                         dirty pages from file 
@@ -3287,8 +3275,8 @@ int s_key_cache_insert(void *keycache_cb,
   DESCRIPTION
     This function is the implementation of the key_cache_write interface
     function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type S_KEY_CACHE_CB for a simple key
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type SIMPLE_KEY_CACHE_CB for a simple key
     cache.
     In a general case the function copies data from a buffer into the key
     cache. The buffer is specified with the parameters buff and length -
@@ -3304,7 +3292,8 @@ int s_key_cache_insert(void *keycache_cb,
     The parameter file_extra currently makes sense only for simple key caches
     that are elements of a partitioned key cache. It provides a pointer to the
     shared bitmap of the partitions that may contains dirty pages for the file.
-    This bitmap is used to optimize the function p_flush_key_blocks. 
+    This bitmap is used to optimize the function 
+    flush_partitioned_key_cache_blocks. 
       
   RETURN VALUE
     0 if a success, 1 - otherwise.
@@ -3312,21 +3301,19 @@ int s_key_cache_insert(void *keycache_cb,
   NOTES
     This implementation exploits the fact that the function is called only
     when a thread has got an exclusive lock for the key file.
-
 */
 
 static
-int s_key_cache_write(void *keycache_cb,
-                      File file, void *file_extra __attribute__((unused)),                       
-                      my_off_t filepos, int level,
-                      uchar *buff, uint length,
-                      uint block_length  __attribute__((unused)),
-                      int dont_write)
+int simple_key_cache_write(SIMPLE_KEY_CACHE_CB *keycache,
+                           File file, void *file_extra __attribute__((unused)),                       
+                           my_off_t filepos, int level,
+                           uchar *buff, uint length,
+                           uint block_length  __attribute__((unused)),
+                           int dont_write)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
   my_bool locked_and_incremented= FALSE;
   int error=0;
-  DBUG_ENTER("s_key_cache_write");
+  DBUG_ENTER("simple_key_cache_write");
   DBUG_PRINT("enter",
              ("fd: %u  pos: %lu  length: %u  block_length: %u"
               "  key_block_length: %u",
@@ -3641,7 +3628,7 @@ end:
     Block must have a request registered on it.
 */
 
-static void free_block(S_KEY_CACHE_CB *keycache, BLOCK_LINK *block)
+static void free_block(SIMPLE_KEY_CACHE_CB *keycache, BLOCK_LINK *block)
 {
   KEYCACHE_THREAD_TRACE("free block");
   KEYCACHE_DBUG_PRINT("free_block",
@@ -3781,7 +3768,7 @@ static int cmp_sec_link(BLOCK_LINK **a, BLOCK_LINK **b)
   free used blocks if requested
 */
 
-static int flush_cached_blocks(S_KEY_CACHE_CB *keycache,
+static int flush_cached_blocks(SIMPLE_KEY_CACHE_CB *keycache,
                                File file, BLOCK_LINK **cache,
                                BLOCK_LINK **end,
                                enum flush_type type)
@@ -3909,7 +3896,7 @@ static int flush_cached_blocks(S_KEY_CACHE_CB *keycache,
     1  error
 */
 
-static int flush_key_blocks_int(S_KEY_CACHE_CB *keycache,
+static int flush_key_blocks_int(SIMPLE_KEY_CACHE_CB *keycache,
 				File file, enum flush_type type)
 {
   BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
@@ -4349,8 +4336,8 @@ err:
 
   SYNOPSIS
 
-    s_flush_key_blocks()
-    keycache_cb         pointer to the control block of a simple key cache
+    flush_simple_key_blocks()
+    keycache            pointer to the control block of a simple key cache
     file                handler for the file to flush to
     file_extra          maps of key cache partitions containing 
                         dirty pages from file (not used)         
@@ -4359,7 +4346,7 @@ err:
   DESCRIPTION
     This function is the implementation of the flush_key_blocks interface
     function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
+    The function takes the parameter keycache as a pointer to the
     control block structure of the type S_KEY_CACHE_CB for a simple key
     cache.
     In a general case the function flushes the data from all dirty key
@@ -4378,16 +4365,14 @@ err:
   NOTES
     This implementation exploits the fact that the function is called only
     when a thread has got an exclusive lock for the key file.
-
 */
 
 static
-int s_flush_key_blocks(void *keycache_cb,
-                       File file,
-                       void *file_extra __attribute__((unused)),
-                       enum flush_type type)
+int flush_simple_key_cache_blocks(SIMPLE_KEY_CACHE_CB *keycache,
+                                  File file,
+                                  void *file_extra __attribute__((unused)),
+                                  enum flush_type type)
 {
-   S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
   int res= 0;
   DBUG_ENTER("flush_key_blocks");
   DBUG_PRINT("enter", ("keycache: 0x%lx", (long) keycache));
@@ -4440,7 +4425,7 @@ int s_flush_key_blocks(void *keycache_cb,
     != 0        Error
 */
 
-static int flush_all_key_blocks(S_KEY_CACHE_CB *keycache)
+static int flush_all_key_blocks(SIMPLE_KEY_CACHE_CB *keycache)
 {
   BLOCK_LINK    *block;
   uint          total_found;
@@ -4546,14 +4531,14 @@ static int flush_all_key_blocks(S_KEY_CACHE_CB *keycache)
   Reset the counters of a simple key cache
 
   SYNOPSIS
-    s_reset_key_cache_counters()
+    reset_simple_key_cache_counters()
     name                the name of a key cache
-    keycache_cb         pointer to the control block of a simple key cache
+    keycache            pointer to the control block of a simple key cache
 
   DESCRIPTION
     This function is the implementation of the reset_key_cache_counters
     interface function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
+    The function takes the parameter keycache as a pointer to the
     control block structure of the type S_KEY_CACHE_CB for a simple key cache.
     This function resets the values of all statistical counters for the key
     cache to 0.
@@ -4561,15 +4546,13 @@ static int flush_all_key_blocks(S_KEY_CACHE_CB *keycache)
 
   RETURN
     0 on success (always because it can't fail)
-
 */
 
 static
-int s_reset_key_cache_counters(const char *name __attribute__((unused)),
-                               void *keycache_cb)
+int reset_simple_key_cache_counters(const char *name __attribute__((unused)),
+                                    SIMPLE_KEY_CACHE_CB *keycache)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
-  DBUG_ENTER("s_reset_key_cache_counters");
+  DBUG_ENTER("reset_simple_key_cache_counters");
   if (!keycache->key_cache_inited)
   {
     DBUG_PRINT("info", ("Key cache %s not initialized.", name));
@@ -4590,9 +4573,10 @@ int s_reset_key_cache_counters(const char *name __attribute__((unused)),
 /*
   Test if disk-cache is ok
 */
-static void test_key_cache(S_KEY_CACHE_CB *keycache __attribute__((unused)),
-                           const char *where __attribute__((unused)),
-                           my_bool lock __attribute__((unused)))
+static
+void test_key_cache(SIMPLE_KEY_CACHE_CB *keycache __attribute__((unused)),
+                    const char *where __attribute__((unused)),
+                    my_bool lock __attribute__((unused)))
 {
   /* TODO */
 }
@@ -4604,7 +4588,7 @@ static void test_key_cache(S_KEY_CACHE_CB *keycache __attribute__((unused)),
 #define MAX_QUEUE_LEN  100
 
 
-static void keycache_dump(S_KEY_CACHE_CB *keycache)
+static void keycache_dump(SIMPLE_KEY_CACHE_CB *keycache)
 {
   FILE *keycache_dump_file=fopen(KEYCACHE_DUMP_FILE, "w");
   struct st_my_thread_var *last;
@@ -4844,7 +4828,7 @@ static int fail_hlink(HASH_LINK *hlink)
   return 0; /* Let the assert fail. */
 }
 
-static int cache_empty(S_KEY_CACHE_CB *keycache)
+static int cache_empty(SIMPLE_KEY_CACHE_CB *keycache)
 {
   int errcnt= 0;
   int idx;
@@ -4887,54 +4871,57 @@ static int cache_empty(S_KEY_CACHE_CB *keycache)
   Get statistics for a simple key cache
 
   SYNOPSIS
-    get_key_cache_statistics()
-    keycache_cb         pointer to the control block of a simple key cache
+    get_simple_key_cache_statistics()
+    keycache            pointer to the control block of a simple key cache
     partition_no        partition number (not used)
     key_cache_stats OUT pointer to the structure for the returned statistics
 
   DESCRIPTION
     This function is the implementation of the get_key_cache_statistics
     interface function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type S_KEY_CACHE_CB for a simple key cache.
-    This function returns the statistical data for the key cache.
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type SIMPLE_KEY_CACHE_CB for a simple key
+    cache. This function returns the statistical data for the key cache.
     The parameter partition_no is not used by this function.
 
   RETURN
     none
-
 */
 
 static
-void s_get_key_cache_statistics(void *keycache_cb, 
-                                uint partition_no __attribute__((unused)), 
-                                KEY_CACHE_STATISTICS *key_cache_stats)
+void get_simple_key_cache_statistics(SIMPLE_KEY_CACHE_CB *keycache, 
+                                     uint partition_no __attribute__((unused)), 
+                                     KEY_CACHE_STATISTICS *keycache_stats)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
-  DBUG_ENTER("s_get_key_cache_statistics");
+  DBUG_ENTER("simple_get_key_cache_statistics");
 
-  key_cache_stats->mem_size= (longlong) keycache->key_cache_mem_size;
-  key_cache_stats->block_size= (longlong) keycache->key_cache_block_size;
-  key_cache_stats->blocks_used= keycache->blocks_used;
-  key_cache_stats->blocks_unused= keycache->blocks_unused;
-  key_cache_stats->blocks_changed= keycache->global_blocks_changed;
-  key_cache_stats->read_requests= keycache->global_cache_r_requests;
-  key_cache_stats->reads= keycache->global_cache_read;
-  key_cache_stats->write_requests= keycache->global_cache_w_requests;
-  key_cache_stats->writes= keycache->global_cache_write;
+  keycache_stats->mem_size= (longlong) keycache->key_cache_mem_size;
+  keycache_stats->block_size= (longlong) keycache->key_cache_block_size;
+  keycache_stats->blocks_used= keycache->blocks_used;
+  keycache_stats->blocks_unused= keycache->blocks_unused;
+  keycache_stats->blocks_changed= keycache->global_blocks_changed;
+  keycache_stats->read_requests= keycache->global_cache_r_requests;
+  keycache_stats->reads= keycache->global_cache_read;
+  keycache_stats->write_requests= keycache->global_cache_w_requests;
+  keycache_stats->writes= keycache->global_cache_write;
   DBUG_VOID_RETURN;  
 }
 
 
-static size_t s_key_cache_stat_var_offsets[]=
+/* 
+  Offsets of the statistical values in the control block for a simple key cache
+  The first NO_LONG_KEY_CACHE_STAT_VARIABLES=3 are of the ulong type  while the
+  remaining are of the ulonglong type.
+ */
+static size_t simple_key_cache_stat_var_offsets[]=
 {
-  offsetof(S_KEY_CACHE_CB, blocks_used),
-  offsetof(S_KEY_CACHE_CB, blocks_unused),
-  offsetof(S_KEY_CACHE_CB, global_blocks_changed),
-  offsetof(S_KEY_CACHE_CB, global_cache_w_requests),
-  offsetof(S_KEY_CACHE_CB, global_cache_write),
-  offsetof(S_KEY_CACHE_CB, global_cache_r_requests),
-  offsetof(S_KEY_CACHE_CB, global_cache_read)
+  offsetof(SIMPLE_KEY_CACHE_CB, blocks_used),
+  offsetof(SIMPLE_KEY_CACHE_CB, blocks_unused),
+  offsetof(SIMPLE_KEY_CACHE_CB, global_blocks_changed),
+  offsetof(SIMPLE_KEY_CACHE_CB, global_cache_w_requests),
+  offsetof(SIMPLE_KEY_CACHE_CB, global_cache_write),
+  offsetof(SIMPLE_KEY_CACHE_CB, global_cache_r_requests),
+  offsetof(SIMPLE_KEY_CACHE_CB, global_cache_read)
 };
 
 
@@ -4942,16 +4929,16 @@ static size_t s_key_cache_stat_var_offsets[]=
   Get the value of a statistical variable for a simple key cache
 
   SYNOPSIS
-    s_get_key_cache_stat_value()
-    keycache_cb         pointer to the control block of a simple key cache
+    get_simple_key_cache_stat_value()
+    keycache            pointer to the control block of a simple key cache
     var_no              the ordered number of a statistical variable 
 
   DESCRIPTION
-    This function is the implementation of the s_get_key_cache_stat_value
+    This function is the implementation of the get_simple_key_cache_stat_value
     interface function that is employed by simple (non-partitioned) key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type S_KEY_CACHE_CB for a simple key cache.
-    This function returns the value of the statistical variable var_no
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type SIMPLE_KEY_CACHE_CB for a simple key
+    cache. This function returns the value of the statistical variable var_no
     for this key cache. The variables are numbered starting from 0 to 6.
 
   RETURN
@@ -4960,12 +4947,12 @@ static size_t s_key_cache_stat_var_offsets[]=
 */
 
 static
-ulonglong s_get_key_cache_stat_value(void *keycache_cb, uint var_no)
+ulonglong get_simple_key_cache_stat_value(SIMPLE_KEY_CACHE_CB *keycache,
+                                          uint var_no)
 {
-  S_KEY_CACHE_CB *keycache= (S_KEY_CACHE_CB *) keycache_cb;
-  size_t var_ofs= s_key_cache_stat_var_offsets[var_no];
+  size_t var_ofs= simple_key_cache_stat_var_offsets[var_no];
   ulonglong res= 0;
-  DBUG_ENTER("s_get_key_cache_stat_value");
+  DBUG_ENTER("get_simple_key_cache_stat_value");
 
   if (var_no < 3)
     res= (ulonglong) (*(long *) ((char *) keycache + var_ofs));
@@ -4985,19 +4972,19 @@ ulonglong s_get_key_cache_stat_value(void *keycache_cb, uint var_no)
   the MySQL server code directly. We don't do it though. 
 */
    
-static KEY_CACHE_FUNCS s_key_cache_funcs =
+static KEY_CACHE_FUNCS simple_key_cache_funcs =
 {
-  s_init_key_cache,
-  s_resize_key_cache,
-  s_change_key_cache_param,      
-  s_key_cache_read,
-  s_key_cache_insert,
-  s_key_cache_write,
-  s_flush_key_blocks, 
-  s_reset_key_cache_counters, 
-  s_end_key_cache, 
-  s_get_key_cache_statistics,
-  s_get_key_cache_stat_value 
+  (INIT_KEY_CACHE) init_simple_key_cache,
+  (RESIZE_KEY_CACHE) resize_simple_key_cache,
+  (CHANGE_KEY_CACHE_PARAM) change_simple_key_cache_param,      
+  (KEY_CACHE_READ) simple_key_cache_read,
+  (KEY_CACHE_INSERT) simple_key_cache_insert,
+  (KEY_CACHE_WRITE) simple_key_cache_write,
+  (FLUSH_KEY_BLOCKS) flush_simple_key_cache_blocks, 
+  (RESET_KEY_CACHE_COUNTERS) reset_simple_key_cache_counters, 
+  (END_KEY_CACHE) end_simple_key_cache, 
+  (GET_KEY_CACHE_STATISTICS) get_simple_key_cache_statistics,
+  (GET_KEY_CACHE_STAT_VALUE) get_simple_key_cache_stat_value
 };
 
 
@@ -5038,17 +5025,22 @@ static KEY_CACHE_FUNCS s_key_cache_funcs =
 
 /* Control block for a partitioned key cache */
 
-typedef struct st_p_key_cache_cb
+typedef struct st_partitioned_key_cache_cb
 {
   my_bool key_cache_inited;     /*<=> control block is allocated            */ 
-  S_KEY_CACHE_CB **partition_array; /* array of the key cache partitions    */  
-  uint partitions;              /* number of partitions in the key cache    */
+  SIMPLE_KEY_CACHE_CB **partition_array; /* the key cache partitions        */  
   size_t key_cache_mem_size;    /* specified size of the cache memory       */
   uint key_cache_block_size;    /* size of the page buffer of a cache block */ 
-} P_KEY_CACHE_CB;
+  uint partitions;              /* number of partitions in the key cache    */
+} PARTITIONED_KEY_CACHE_CB;
 
 static
-void p_end_key_cache(void *keycache_cb, my_bool cleanup);
+void end_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
+                               my_bool cleanup);
+
+static int
+reset_partitioned_key_cache_counters(const char *name,
+                                     PARTITIONED_KEY_CACHE_CB *keycache);
 
 /*
   Determine the partition to which the index block to read is ascribed
@@ -5070,11 +5062,12 @@ void p_end_key_cache(void *keycache_cb, my_bool cleanup);
     file block is ascribed.
 */
 
-static
-S_KEY_CACHE_CB *get_key_cache_partition(P_KEY_CACHE_CB *keycache, 
-                                        File file, my_off_t filepos)
+static 
+SIMPLE_KEY_CACHE_CB *
+get_key_cache_partition(PARTITIONED_KEY_CACHE_CB *keycache, 
+                        File file, my_off_t filepos)
 {
-  uint i= KEYCACHE_BASE_EXPR( file, filepos) % keycache->partitions;
+  uint i= KEYCACHE_BASE_EXPR(file, filepos) % keycache->partitions;
   return keycache->partition_array[i];
 }
 
@@ -5101,10 +5094,10 @@ S_KEY_CACHE_CB *get_key_cache_partition(P_KEY_CACHE_CB *keycache,
     file block is ascribed.
 */
 
-static
-S_KEY_CACHE_CB *get_key_cache_partition_for_write(P_KEY_CACHE_CB *keycache, 
-                                                  File file, my_off_t filepos,
-                                                  ulonglong* dirty_part_map)
+static SIMPLE_KEY_CACHE_CB 
+*get_key_cache_partition_for_write(PARTITIONED_KEY_CACHE_CB *keycache, 
+                                   File file, my_off_t filepos,
+                                   ulonglong* dirty_part_map)
 {
   uint i= KEYCACHE_BASE_EXPR( file, filepos) % keycache->partitions;
   *dirty_part_map|= 1<<i; 
@@ -5116,8 +5109,8 @@ S_KEY_CACHE_CB *get_key_cache_partition_for_write(P_KEY_CACHE_CB *keycache,
   Initialize a partitioned key cache
 
   SYNOPSIS
-    p_init_key_cache()
-    keycache_cb         pointer to the control block of a partitioned key cache
+    init_partitioned_key_cache()
+    keycache            pointer to the control block of a partitioned key cache
     key_cache_block_size    size of blocks to keep cached data
     use_mem             total memory to use for all key cache partitions 
     division_limit      division limit (may be zero)
@@ -5127,17 +5120,17 @@ S_KEY_CACHE_CB *get_key_cache_partition_for_write(P_KEY_CACHE_CB *keycache,
     This function is the implementation of the init_key_cache interface function
     that is employed by partitioned key caches.
     The function builds and initializes an array of simple key caches, and then
-    initializes the control block structure of the type P_KEY_CACHE_CB that is
-    used for a partitioned key cache. The parameter keycache_cb is supposed to 
-    point to this structure. The number of partitions in the partitioned key
-    cache to be built must be passed through the field 'partitions' of this
-    structure. The parameter key_cache_block_size specifies the size of the 
-    blocks in the the simple key caches to be built. The parameters
-    division_limit and  age_threshold determine the initial values of those
-    characteristics of the simple key caches that are used for midpoint
-    insertion strategy. The parameter use_mem specifies the total amount of
-    memory to be allocated for the key cache blocks in all simple key caches
-    and for all auxiliary structures.       
+    initializes the control block structure of the type PARTITIONED_KEY_CACHE_CB
+    that is used for a partitioned key cache. The parameter keycache is
+    supposed to point to this structure. The number of partitions in the
+    partitioned key cache to be built must be passed through the field
+    'partitions' of this structure. The parameter key_cache_block_size specifies
+    the size of the  blocks in the the simple key caches to be built.
+    The parameters division_limit and  age_threshold determine the initial
+    values of those characteristics of the simple key caches that are used for
+    midpoint insertion strategy. The parameter use_mem specifies the total
+    amount of memory to be allocated for the key cache blocks in all simple key
+    caches and for all auxiliary structures.       
 
   RETURN VALUE
     total number of blocks in key cache partitions, if successful,
@@ -5152,19 +5145,19 @@ S_KEY_CACHE_CB *get_key_cache_partition_for_write(P_KEY_CACHE_CB *keycache,
 */
 
 static
-int p_init_key_cache(void *keycache_cb, uint key_cache_block_size,
-                     size_t use_mem, uint division_limit,
-                     uint age_threshold)
+int init_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
+                               uint key_cache_block_size,
+                               size_t use_mem, uint division_limit,
+                               uint age_threshold)
 {
   int i;
   size_t mem_per_cache;
   int cnt;
-  S_KEY_CACHE_CB *partition;
-  S_KEY_CACHE_CB **partition_ptr;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
+  SIMPLE_KEY_CACHE_CB *partition;
+  SIMPLE_KEY_CACHE_CB **partition_ptr;
   uint partitions= keycache->partitions;
-  int blocks= -1;
-  DBUG_ENTER("p_init_key_cache");
+  int blocks= 0;
+  DBUG_ENTER("partitioned_init_key_cache");
 
   keycache->key_cache_block_size = key_cache_block_size;
 
@@ -5173,9 +5166,9 @@ int p_init_key_cache(void *keycache_cb, uint key_cache_block_size,
   else
   {
     if(!(partition_ptr=
-       (S_KEY_CACHE_CB **) my_malloc(sizeof(S_KEY_CACHE_CB *) * partitions,
-                                     MYF(0))))
-      DBUG_RETURN(blocks);
+       (SIMPLE_KEY_CACHE_CB **) my_malloc(sizeof(SIMPLE_KEY_CACHE_CB *) *
+                                          partitions, MYF(MY_WME))))
+      DBUG_RETURN(-1);
     keycache->partition_array= partition_ptr;
   }
 
@@ -5188,36 +5181,35 @@ int p_init_key_cache(void *keycache_cb, uint key_cache_block_size,
       partition= *partition_ptr;
     else
     {
-      if (!(partition= (S_KEY_CACHE_CB *)  my_malloc(sizeof(S_KEY_CACHE_CB),
-						     MYF(0))))
+      if (!(partition=
+              (SIMPLE_KEY_CACHE_CB *)  my_malloc(sizeof(SIMPLE_KEY_CACHE_CB),
+						 MYF(MY_WME))))
         continue;
       partition->key_cache_inited= 0;
     }
 
-    if ((cnt= s_init_key_cache(partition, 
-                                key_cache_block_size, mem_per_cache, 
-                                division_limit, age_threshold)) <= 0)
+    if ((cnt= init_simple_key_cache(partition, 
+                                    key_cache_block_size, mem_per_cache, 
+                                    division_limit, age_threshold)) <= 0)
     {
-      s_end_key_cache(partition, 1);
-      my_free((uchar *) partition,  MYF(0));
+      end_simple_key_cache(partition, 1);
+      my_free(partition,  MYF(0));
       partition= 0;
       if (key_cache_inited)
       {
         memmove(partition_ptr, partition_ptr+1,
                 sizeof(partition_ptr)*(partitions-i-1));
       }
+      if (!--partitions)
+        break;
       if (i == 0)
       {
         i--;
-        partitions--;
-        if (partitions)
-          mem_per_cache = use_mem / partitions;
+        mem_per_cache = use_mem / partitions;
+        continue;
       }
-      continue;
     }
 
-    if (blocks < 0)
-      blocks= 0;
     blocks+= cnt;
     *partition_ptr++= partition;
   } 
@@ -5229,6 +5221,9 @@ int p_init_key_cache(void *keycache_cb, uint key_cache_block_size,
   
   keycache->key_cache_inited= 1;
 
+  if (!partitions)
+    blocks= -1;
+
   DBUG_RETURN(blocks);
 } 
 
@@ -5237,8 +5232,8 @@ int p_init_key_cache(void *keycache_cb, uint key_cache_block_size,
   Resize a partitioned key cache
 
   SYNOPSIS
-    p_resize_key_cache()
-    keycache_cb         pointer to the control block of a partitioned key cache
+    resize_partitioned_key_cache()
+    keycache            pointer to the control block of a partitioned key cache
     key_cache_block_size    size of blocks to keep cached data
     use_mem             total memory to use for the new key cache
     division_limit      new division limit (if not zero)
@@ -5247,9 +5242,9 @@ int p_init_key_cache(void *keycache_cb, uint key_cache_block_size,
   DESCRIPTION
     This function is the implementation of the resize_key_cache interface
     function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for the partitioned
-    key cache to be resized. 
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for the
+    partitioned key cache to be resized. 
     The parameter key_cache_block_size specifies the new size of the blocks in
     the simple key caches that comprise the partitioned key cache.
     The parameters division_limit and age_threshold determine the new initial
@@ -5263,48 +5258,47 @@ int p_init_key_cache(void *keycache_cb, uint key_cache_block_size,
     0 - otherwise.
 
   NOTES.
-    The function first calls s_prepare_resize_key_cache for each simple
+    The function first calls prepare_resize_simple_key_cache for each simple
     key cache effectively flushing all dirty pages from it and destroying
-    the key cache. Then p_init_key cache is called. This call builds all
-    the new array of simple key caches containing the same number of
-    elements as the old one. After this the function calls the function
-    s_finish_resize_key_cache for each simple key cache from this array. 
+    the key cache. Then init_partitioned_key_cache is called. This call builds
+    a new array of simple key caches containing the same number of elements
+    as the old one. After this the function calls the function
+    finish_resize_simple_key_cache for each simple key cache from this array. 
 
     This implementation doesn't block the calls and executions of other
     functions from the key cache interface. However it assumes that the
-    calls of s_resize_key_cache itself are serialized.
-
+    calls of resize_partitioned_key_cache itself are serialized.
 */
 
 static
-int p_resize_key_cache(void *keycache_cb, uint key_cache_block_size,
-		       size_t use_mem, uint division_limit,
-		       uint age_threshold)
+int resize_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache, 
+                                 uint key_cache_block_size,
+		                 size_t use_mem, uint division_limit,
+		                 uint age_threshold)
 {
   uint i;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
   uint partitions= keycache->partitions;
   my_bool cleanup= use_mem == 0;
   int blocks= -1;
   int err= 0;
-  DBUG_ENTER("p_resize_key_cache");
-  if (use_mem == 0)
+  DBUG_ENTER("partitioned_resize_key_cache");
+  if (cleanup)
   {
-    p_end_key_cache(keycache_cb, 0);
-    DBUG_RETURN(blocks);
+    end_partitioned_key_cache(keycache, 0);
+    DBUG_RETURN(-1);
   }
   for (i= 0; i < partitions; i++)
   {
-    err|= s_prepare_resize_key_cache(keycache->partition_array[i], 0, 1);
+    err|= prepare_resize_simple_key_cache(keycache->partition_array[i], 0, 1);
   }
-  if (!err && use_mem)  
-    blocks= p_init_key_cache(keycache_cb, key_cache_block_size, use_mem,
-                             division_limit, age_threshold); 
-  if (blocks > 0 && !cleanup)
+  if (!err) 
+    blocks= init_partitioned_key_cache(keycache, key_cache_block_size,
+                                       use_mem, division_limit, age_threshold);
+  if (blocks > 0)
   {
     for (i= 0; i < partitions; i++)
     {
-      s_finish_resize_key_cache(keycache->partition_array[i], 0, 1);
+      finish_resize_simple_key_cache(keycache->partition_array[i], 0, 1);
     }
   }
   DBUG_RETURN(blocks);
@@ -5315,17 +5309,17 @@ int p_resize_key_cache(void *keycache_cb, uint key_cache_block_size,
   Change key cache parameters of a partitioned key cache
 
   SYNOPSIS
-    p_change_key_cache_param()
-    keycache_cb         pointer to the control block of a partitioned key cache
+    partitioned_change_key_cache_param()
+    keycache            pointer to the control block of a partitioned key cache
     division_limit      new division limit (if not zero)
     age_threshold       new age threshold (if not zero)
 
   DESCRIPTION
     This function is the implementation of the change_key_cache_param interface
     function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for the simple key
-    cache where new values of the division limit and the age threshold used
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for the simple
+    key cache where new values of the division limit and the age threshold used
     for midpoint insertion strategy are to be set.  The parameters
     division_limit and age_threshold provide these new values.
 
@@ -5333,23 +5327,22 @@ int p_resize_key_cache(void *keycache_cb, uint key_cache_block_size,
     none
 
   NOTES
-    The function just calls s_change_key_cache_param for each element from the
-    array of simple caches that comprise the partitioned key cache. 
-
+    The function just calls change_simple_key_cache_param for each element from
+    the array of simple caches that comprise the partitioned key cache. 
 */
 
 static
-void p_change_key_cache_param(void *keycache_cb, uint division_limit,
-                              uint age_threshold)
+void change_partitioned_key_cache_param(PARTITIONED_KEY_CACHE_CB *keycache,
+                                        uint division_limit,
+                                        uint age_threshold)
 {
   uint i;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
   uint partitions= keycache->partitions;
-  DBUG_ENTER("p_change_key_cache_param");
+  DBUG_ENTER("partitioned_change_key_cache_param");
   for (i= 0; i < partitions; i++)
   {
-    s_change_key_cache_param(keycache->partition_array[i], division_limit,
-                             age_threshold);
+    change_simple_key_cache_param(keycache->partition_array[i], division_limit,
+                                  age_threshold);
   }
   DBUG_VOID_RETURN;
 }
@@ -5359,17 +5352,17 @@ void p_change_key_cache_param(void *keycache_cb, uint division_limit,
   Destroy a partitioned key cache 
 
   SYNOPSIS
-    p_end_key_cache()
-    keycache_cb         pointer to the control block of a partitioned key cache
+    end_partitioned_key_cache()
+    keycache            pointer to the control block of a partitioned key cache
     cleanup             <=> complete free (free also control block structures
                             for all simple key caches)
 
   DESCRIPTION
     This function is the implementation of the end_key_cache interface
     function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for the partitioned
-    key cache to be destroyed.
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for the
+    partitioned key cache to be destroyed.
     The function frees the memory allocated for the cache blocks and
     auxiliary structures used by simple key caches that comprise the
     partitioned key cache. If the value of the parameter cleanup is TRUE 
@@ -5378,23 +5371,23 @@ void p_change_key_cache_param(void *keycache_cb, uint division_limit,
 
   RETURN VALUE
     none
-
 */
 
 static
-void p_end_key_cache(void *keycache_cb, my_bool cleanup)
+void end_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
+                               my_bool cleanup)
 {
   uint i;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
   uint partitions= keycache->partitions;
-  DBUG_ENTER("p_end_key_cache");
+  DBUG_ENTER("partitioned_end_key_cache");
   DBUG_PRINT("enter", ("key_cache: 0x%lx", (long) keycache));
 
   for (i= 0; i < partitions; i++)
   {
-    s_end_key_cache(keycache->partition_array[i], cleanup);
+    end_simple_key_cache(keycache->partition_array[i], cleanup);
   }
-  if (cleanup) {
+  if (cleanup)
+  {
     for (i= 0; i < partitions; i++)
       my_free((uchar*) keycache->partition_array[i], MYF(0));
     my_free((uchar*) keycache->partition_array, MYF(0));
@@ -5409,8 +5402,8 @@ void p_end_key_cache(void *keycache_cb, my_bool cleanup)
 
   SYNOPSIS
 
-    p_key_cache_read()
-    keycache_cb         pointer to the control block of a partitioned key cache  
+    partitioned_key_cache_read()
+    keycache            pointer to the control block of a partitioned key cache  
     file                handler for the file for the block of data to be read
     filepos             position of the block of data in the file
     level               determines the weight of the data
@@ -5422,9 +5415,9 @@ void p_end_key_cache(void *keycache_cb, my_bool cleanup)
   DESCRIPTION
     This function is the implementation of the key_cache_read interface
     function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for a partitioned
-    key cache.
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for a
+    partitioned key cache.
     In a general case the function reads a block of data from the key cache
     into the buffer buff of the size specified by the parameter length. The
     beginning of the  block of data to be read is  specified by the parameters
@@ -5432,7 +5425,7 @@ void p_end_key_cache(void *keycache_cb, my_bool cleanup)
     of the buffer. The data is read into the buffer in key_cache_block_size
     increments. To read each portion the function first finds out in what
     partition of the key cache this portion(page) is to be saved, and calls
-    s_key_cache_read with the pointer to the corresponding simple key as
+    simple_key_cache_read with the pointer to the corresponding simple key as
     its first parameter. 
     If the parameter return_buffer is not ignored and its value is TRUE, and 
     the data to be read of the specified size block_length can be read from one
@@ -5445,21 +5438,19 @@ void p_end_key_cache(void *keycache_cb, my_bool cleanup)
    
   RETURN VALUE
     Returns address from where the data is placed if successful, 0 - otherwise.
-
 */
 
 static
-uchar *p_key_cache_read(void *keycache_cb,
-                        File file, my_off_t filepos, int level,
-                        uchar *buff, uint length,
-                        uint block_length __attribute__((unused)),
-                        int return_buffer __attribute__((unused)))
+uchar *partitioned_key_cache_read(PARTITIONED_KEY_CACHE_CB *keycache,
+                                  File file, my_off_t filepos, int level,
+                                  uchar *buff, uint length,
+                                  uint block_length __attribute__((unused)),
+                                  int return_buffer __attribute__((unused)))
 {
   uint r_length;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
   uint offset= (uint) (filepos % keycache->key_cache_block_size);
   uchar *start= buff;
-  DBUG_ENTER("p_key_cache_read");
+  DBUG_ENTER("partitioned_key_cache_read");
   DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
                (uint) file, (ulong) filepos, length));
 
@@ -5471,15 +5462,15 @@ uchar *p_key_cache_read(void *keycache_cb,
   /* Read data in key_cache_block_size increments */
   do
   {
-    S_KEY_CACHE_CB *partition= get_key_cache_partition(keycache, 
-                                                       file, filepos);
+    SIMPLE_KEY_CACHE_CB *partition= get_key_cache_partition(keycache, 
+                                                            file, filepos);
     uchar *ret_buff= 0;
     r_length= length;
     set_if_smaller(r_length, keycache->key_cache_block_size - offset);
-    ret_buff= s_key_cache_read((void *) partition, 
-                                file, filepos, level,
-                                buff, r_length,
-                                block_length, return_buffer);
+    ret_buff= simple_key_cache_read((void *) partition, 
+                                    file, filepos, level,
+                                    buff, r_length,
+                                    block_length, return_buffer);
     if (ret_buff == 0) 
       DBUG_RETURN(0);
 #ifndef THREAD
@@ -5500,8 +5491,8 @@ uchar *p_key_cache_read(void *keycache_cb,
   Insert a block of file data from a buffer into a partitioned key cache
 
   SYNOPSIS
-    p_key_cache_insert()
-    keycache_cb         pointer to the control block of a partitioned key cache 
+    partitioned_key_cache_insert()
+    keycache            pointer to the control block of a partitioned key cache 
     file                handler for the file to insert data from
     filepos             position of the block of data in the file to insert
     level               determines the weight of the data
@@ -5511,9 +5502,9 @@ uchar *p_key_cache_read(void *keycache_cb,
   DESCRIPTION
     This function is the implementation of the key_cache_insert interface
     function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for a partitioned key
-    cache.
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for a
+    partitioned key cache.
     The function writes a block of file data from a buffer into the key cache.
     The buffer is specified with the parameters buff and length - the pointer
     to the beginning of the buffer and its size respectively. It's assumed
@@ -5521,8 +5512,8 @@ uchar *p_key_cache_read(void *keycache_cb,
     filepos. The data is copied from the buffer in key_cache_block_size 
     increments. For every portion of data the function finds out in what simple
     key cache from the array of partitions the data must be stored, and after
-    this calls s_key_cache_insert to copy the data into a key buffer of this
-    simple key cache.
+    this calls simple_key_cache_insert to copy the data into a key buffer of
+    this simple key cache.
     The parameter level is used to set one characteristic for the key buffers
     loaded with the data from buff. The characteristic is used only by the
     midpoint insertion strategy. 
@@ -5534,18 +5525,16 @@ uchar *p_key_cache_read(void *keycache_cb,
     The function is used by MyISAM to move all blocks from a index file to 
     the key cache. It can be performed in parallel with reading the file data
     from the key buffers by other threads.
-
 */
 
 static
-int p_key_cache_insert(void *keycache_cb,
-                       File file, my_off_t filepos, int level,
-                       uchar *buff, uint length)
+int partitioned_key_cache_insert(PARTITIONED_KEY_CACHE_CB *keycache,
+                                 File file, my_off_t filepos, int level,
+                                 uchar *buff, uint length)
 {
   uint w_length;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
   uint offset= (uint) (filepos % keycache->key_cache_block_size);
-  DBUG_ENTER("p_key_cache_insert");
+  DBUG_ENTER("partitioned_key_cache_insert");
   DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
                (uint) file,(ulong) filepos, length));
 
@@ -5553,13 +5542,13 @@ int p_key_cache_insert(void *keycache_cb,
   /* Write data in key_cache_block_size increments */
   do
   {
-    S_KEY_CACHE_CB *partition= get_key_cache_partition(keycache, 
-                                                       file, filepos);
+    SIMPLE_KEY_CACHE_CB *partition= get_key_cache_partition(keycache, 
+                                                            file, filepos);
     w_length= length;
-    set_if_smaller(w_length, keycache->key_cache_block_size);
-    if (s_key_cache_insert((void *) partition,
-                             file, filepos, level,
-                             buff, w_length)) 
+    set_if_smaller(w_length, keycache->key_cache_block_size - offset);
+    if (simple_key_cache_insert((void *) partition,
+                                file, filepos, level,
+                                buff, w_length)) 
       DBUG_RETURN(1);
 
     filepos+= w_length;
@@ -5576,8 +5565,8 @@ int p_key_cache_insert(void *keycache_cb,
 
   SYNOPSIS
 
-    p_key_cache_write()
-    keycache_cb         pointer to the control block of a partitioned key cache
+    partitioned_key_cache_write()
+    keycache            pointer to the control block of a partitioned key cache
     file                handler for the file to write data to
     filepos             position in the file to write data to
     level               determines the weight of the data
@@ -5591,9 +5580,9 @@ int p_key_cache_insert(void *keycache_cb,
   DESCRIPTION
     This function is the implementation of the key_cache_write interface
     function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for a partitioned
-    key cache.
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for a
+    partitioned key cache.
     In a general case the function copies data from a buffer into the key
     cache. The buffer is specified with the parameters buff and length -
     the pointer to the beginning of the buffer and its size respectively.
@@ -5601,8 +5590,8 @@ int p_key_cache_insert(void *keycache_cb,
     starting from the position filepos. The data is copied from the buffer
     in key_cache_block_size increments. For every portion of data the
     function finds out in what simple key cache from the array of partitions
-    the data must be stored, and after this calls s_key_cache_write to copy
-    the data into a key buffer of this simple key cache.
+    the data must be stored, and after this calls simple_key_cache_write to
+    copy the data into a key buffer of this simple key cache.
     If the value of the parameter dont_write is FALSE then the function
     also writes the data into file.
     The parameter level is used to set one characteristic for the key buffers
@@ -5610,7 +5599,7 @@ int p_key_cache_insert(void *keycache_cb,
     the midpoint insertion strategy.
     The parameter file_expra provides a pointer to the shared bitmap of
     the partitions that may contains dirty pages for the file. This bitmap
-    is used to optimize the function p_flush_key_blocks. 
+    is used to optimize the function flush_partitioned_key_cache_blocks. 
 
   RETURN VALUE
     0 if a success, 1 - otherwise.
@@ -5618,22 +5607,20 @@ int p_key_cache_insert(void *keycache_cb,
   NOTES
     This implementation exploits the fact that the function is called only
     when a thread has got an exclusive lock for the key file.
-
 */
 
 static
-int p_key_cache_write(void *keycache_cb,
-                      File file, void *file_extra,
-                      my_off_t filepos, int level,
-                      uchar *buff, uint length,
-                      uint block_length  __attribute__((unused)),
-                      int dont_write)
+int partitioned_key_cache_write(PARTITIONED_KEY_CACHE_CB *keycache,
+                                File file, void *file_extra,
+                                my_off_t filepos, int level,
+                                uchar *buff, uint length,
+                                uint block_length  __attribute__((unused)),
+                                int dont_write)
 {
   uint w_length;
   ulonglong *part_map= (ulonglong *) file_extra;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
   uint offset= (uint) (filepos % keycache->key_cache_block_size);
-  DBUG_ENTER("p_key_cache_write");
+  DBUG_ENTER("partitioned_key_cache_write");
   DBUG_PRINT("enter",
              ("fd: %u  pos: %lu  length: %u  block_length: %u"
               "  key_block_length: %u",
@@ -5644,15 +5631,16 @@ int p_key_cache_write(void *keycache_cb,
   /* Write data in key_cache_block_size increments */
   do
   {
-    S_KEY_CACHE_CB *partition= get_key_cache_partition_for_write(keycache, 
-                                                                 file, filepos,
-                                                                 part_map);
+    SIMPLE_KEY_CACHE_CB *partition= get_key_cache_partition_for_write(keycache, 
+                                                                      file,
+                                                                      filepos,
+                                                                      part_map);
     w_length = length;
-    set_if_smaller(w_length, keycache->key_cache_block_size );
-    if (s_key_cache_write(partition,
-                          file, 0, filepos, level,
-                          buff, w_length, block_length,
-                          dont_write))
+    set_if_smaller(w_length, keycache->key_cache_block_size - offset );
+    if (simple_key_cache_write(partition,
+                               file, 0, filepos, level,
+                               buff, w_length, block_length,
+                               dont_write))
       DBUG_RETURN(1);
 
     filepos+= w_length;
@@ -5669,8 +5657,8 @@ int p_key_cache_write(void *keycache_cb,
 
   SYNOPSIS
 
-    p_flush_key_blocks()
-    keycache_cb         pointer to the control block of a partitioned key cache
+    flush_partitioned_key_cache_blocks()
+    keycache            pointer to the control block of a partitioned key cache
     file                handler for the file to flush to
     file_extra          maps of key cache partitions containing 
                         dirty pages from file (not used)         
@@ -5679,9 +5667,9 @@ int p_key_cache_write(void *keycache_cb,
   DESCRIPTION
     This function is the implementation of the flush_key_blocks interface
     function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for a partitioned
-    key cache.
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for a
+    partitioned key cache.
     In a general case the function flushes the data from all dirty key
     buffers related to the file 'file' into this file. The function does
     exactly this if the value of the parameter type is FLUSH_KEEP. If the
@@ -5689,12 +5677,12 @@ int p_key_cache_write(void *keycache_cb,
     releases the key buffers containing data from 'file' for new usage.
     If the value of the parameter type is FLUSH_IGNORE_CHANGED the function
     just releases the key buffers containing data from 'file'.
-    The function performs the operation by calling s_flush_key_blocks
-    for the elements of the array of the simple key caches that comprise
-    the partitioned key_cache. If the value of the parameter type is 
-    FLUSH_KEEP s_flush_key_blocks is called only for the partitions with
-    possibly dirty pages marked in the bitmap pointed to by the parameter
-    file_extra.    
+    The function performs the operation by calling the function 
+    flush_simple_key_cache_blocks for the elements of the array of the
+    simple key caches that comprise the partitioned key_cache. If the value
+    of the parameter type is FLUSH_KEEP s_flush_key_blocks is called only
+    for the partitions with possibly dirty pages marked in the bitmap
+    pointed to by the parameter file_extra.    
       
   RETURN
     0   ok
@@ -5703,34 +5691,29 @@ int p_key_cache_write(void *keycache_cb,
   NOTES
     This implementation exploits the fact that the function is called only
     when a thread has got an exclusive lock for the key file.
-
 */
 
 static
-int p_flush_key_blocks(void *keycache_cb,
-                       File file, void *file_extra,
-                       enum flush_type type)
+int flush_partitioned_key_cache_blocks(PARTITIONED_KEY_CACHE_CB *keycache,
+                                       File file, void *file_extra,
+                                       enum flush_type type)
 {
   uint i;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
   uint partitions= keycache->partitions;
   int err= 0;
   ulonglong *dirty_part_map= (ulonglong *) file_extra;
-  DBUG_ENTER("p_flush_key_blocks");
+  DBUG_ENTER("partitioned_flush_key_blocks");
   DBUG_PRINT("enter", ("keycache: 0x%lx", (long) keycache));
 
   for (i= 0; i < partitions; i++)
   {
-    S_KEY_CACHE_CB *partition= keycache->partition_array[i];
+    SIMPLE_KEY_CACHE_CB *partition= keycache->partition_array[i];
     if ((type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE) &&
-        !((*dirty_part_map) & (1<<i)))
+        !((*dirty_part_map) & ((ulonglong) 1 << i)))
       continue;
-    err+= test(s_flush_key_blocks(partition, file, 0, type));
+    err|= test(flush_simple_key_cache_blocks(partition, file, 0, type));
   }
   *dirty_part_map= 0;
-
-  if (err > 0)
-    err= 1;
 
   DBUG_RETURN(err);
 }
@@ -5740,38 +5723,36 @@ int p_flush_key_blocks(void *keycache_cb,
   Reset the counters of a partitioned key cache
 
   SYNOPSIS
-    p_reset_key_cache_counters()
+    reset_partitioned_key_cache_counters()
     name                the name of a key cache
-    keycache_cb         pointer to the control block of a partitioned key cache
+    keycache            pointer to the control block of a partitioned key cache
 
   DESCRIPTION
     This function is the implementation of the reset_key_cache_counters
     interface function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for a partitioned
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for a partitioned
     key cache.
     This function resets the values of the statistical counters of the simple
     key caches comprising partitioned key cache to 0. It does it by calling 
-    s_reset_key_cache_counters for each key  cache partition. 
+    reset_simple_key_cache_counters for each key  cache partition. 
     The parameter name is currently not used.
 
   RETURN
     0 on success (always because it can't fail)
-
 */
 
-static
-int p_reset_key_cache_counters(const char *name __attribute__((unused)),
-                               void *keycache_cb)
+static int
+reset_partitioned_key_cache_counters(const char *name __attribute__((unused)),
+                                     PARTITIONED_KEY_CACHE_CB *keycache)
 {
   uint i;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
   uint partitions= keycache->partitions;
-  DBUG_ENTER("p_reset_key_cache_counters");
+  DBUG_ENTER("partitioned_reset_key_cache_counters");
 
   for (i = 0; i < partitions; i++)
   {
-    s_reset_key_cache_counters(name,  keycache->partition_array[i]);
+    reset_simple_key_cache_counters(name,  keycache->partition_array[i]);
   }
   DBUG_RETURN(0);
 }
@@ -5781,17 +5762,17 @@ int p_reset_key_cache_counters(const char *name __attribute__((unused)),
   Get statistics for a partition key cache 
 
   SYNOPSIS
-    p_get_key_cache_statistics()
-    keycache_cb         pointer to the control block of a partitioned key cache
+    get_partitioned_key_cache_statistics()
+    keycache            pointer to the control block of a partitioned key cache
     partition_no        partition number to get statistics for
     key_cache_stats OUT pointer to the structure for the returned statistics
 
   DESCRIPTION
     This function is the implementation of the get_key_cache_statistics
     interface function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for a partitioned
-    key cache.
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for
+    a partitioned key cache.
     If the value of the parameter partition_no is equal to 0 then aggregated
     statistics for all partitions is returned in the fields of the
     structure key_cache_stat of the type KEY_CACHE_STATISTICS . Otherwise
@@ -5801,37 +5782,38 @@ int p_reset_key_cache_counters(const char *name __attribute__((unused)),
 
   RETURN
     none
-
 */
 
 static
-void p_get_key_cache_statistics(void *keycache_cb, uint partition_no, 
-                                KEY_CACHE_STATISTICS *key_cache_stats)
+void
+get_partitioned_key_cache_statistics(PARTITIONED_KEY_CACHE_CB *keycache,
+                                     uint partition_no, 
+                                     KEY_CACHE_STATISTICS *keycache_stats)
 {
   uint i;
-  S_KEY_CACHE_CB *partition;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
+  SIMPLE_KEY_CACHE_CB *partition;
   uint partitions= keycache->partitions;
-  DBUG_ENTER("p_get_key_cache_statistics_");
+  DBUG_ENTER("get_partitioned_key_cache_statistics");
 
   if (partition_no != 0)
   { 
     partition= keycache->partition_array[partition_no-1];
-    s_get_key_cache_statistics((void *) partition, 0, key_cache_stats);
+    get_simple_key_cache_statistics((void *) partition, 0, keycache_stats);
     DBUG_VOID_RETURN;
   }
-  key_cache_stats->mem_size= (longlong) keycache->key_cache_mem_size;
-  key_cache_stats->block_size= (longlong) keycache->key_cache_block_size;
+  bzero(keycache_stats, sizeof(KEY_CACHE_STATISTICS));  
+  keycache_stats->mem_size= (longlong) keycache->key_cache_mem_size;
+  keycache_stats->block_size= (longlong) keycache->key_cache_block_size;
   for (i = 0; i < partitions; i++)
   {
     partition= keycache->partition_array[i];
-    key_cache_stats->blocks_used+= partition->blocks_used;
-    key_cache_stats->blocks_unused+= partition->blocks_unused;
-    key_cache_stats->blocks_changed+= partition->global_blocks_changed;
-    key_cache_stats->read_requests+= partition->global_cache_r_requests;
-    key_cache_stats->reads+= partition->global_cache_read;
-    key_cache_stats->write_requests+= partition->global_cache_w_requests;
-    key_cache_stats->writes+= partition->global_cache_write;
+    keycache_stats->blocks_used+= partition->blocks_used;
+    keycache_stats->blocks_unused+= partition->blocks_unused;
+    keycache_stats->blocks_changed+= partition->global_blocks_changed;
+    keycache_stats->read_requests+= partition->global_cache_r_requests;
+    keycache_stats->reads+= partition->global_cache_read;
+    keycache_stats->write_requests+= partition->global_cache_w_requests;
+    keycache_stats->writes+= partition->global_cache_write;
   }
   DBUG_VOID_RETURN;  
 }
@@ -5840,16 +5822,16 @@ void p_get_key_cache_statistics(void *keycache_cb, uint partition_no,
   Get the value of a statistical variable for a partitioned key cache
 
   SYNOPSIS
-    p_get_key_cache_stat_value()
-    keycache_cb         pointer to the control block of a partitioned key cache
+    get_partitioned_key_cache_stat_value()
+    keycache            pointer to the control block of a partitioned key cache
     var_no              the ordered number of a statistical variable 
 
   DESCRIPTION
     This function is the implementation of the get_key_cache_stat_value
     interface function that is employed by partitioned key caches.
-    The function considers the parameter keycache_cb as a pointer to the
-    control block structure of the type P_KEY_CACHE_CB for a partitioned
-    key cache.
+    The function takes the parameter keycache as a pointer to the
+    control block structure of the type PARTITIONED_KEY_CACHE_CB for a
+    partitioned key cache.
     This function returns the value of the statistical variable var_no
     for this key cache. The variables are numbered starting from 0 to 6.
     The returned value is calculated as the sum of the values of the
@@ -5858,24 +5840,24 @@ void p_get_key_cache_statistics(void *keycache_cb, uint partition_no,
 
   RETURN
     The value of the specified statistical variable 
-
 */
 
 static
-ulonglong p_get_key_cache_stat_value(void *keycache_cb, uint var_no)
+ulonglong
+get_partitioned_key_cache_stat_value(PARTITIONED_KEY_CACHE_CB *keycache,
+                                     uint var_no)
 {
   uint i;
-  P_KEY_CACHE_CB *keycache= (P_KEY_CACHE_CB *) keycache_cb;
   uint partitions= keycache->partitions;
-  size_t var_ofs= s_key_cache_stat_var_offsets[var_no];
+  size_t var_ofs= simple_key_cache_stat_var_offsets[var_no];
   ulonglong res= 0;
-  DBUG_ENTER("p_get_key_cache_stat_value");
+  DBUG_ENTER("get_partitioned_key_cache_stat_value");
 
-  if (var_no < 3)
+  if (var_no < NO_LONG_KEY_CACHE_STAT_VARIABLES)
   {
     for (i = 0; i < partitions; i++)
     {
-      S_KEY_CACHE_CB *partition= keycache->partition_array[i];
+      SIMPLE_KEY_CACHE_CB *partition= keycache->partition_array[i];
       res+= (ulonglong) (*(long *) ((char *) partition + var_ofs));
     }
   }
@@ -5883,7 +5865,7 @@ ulonglong p_get_key_cache_stat_value(void *keycache_cb, uint var_no)
   {
     for (i = 0; i < partitions; i++)
     {
-      S_KEY_CACHE_CB *partition= keycache->partition_array[i];
+      SIMPLE_KEY_CACHE_CB *partition= keycache->partition_array[i];
       res+= *(ulonglong *) ((char *) partition + var_ofs);
     }
   }
@@ -5901,19 +5883,19 @@ ulonglong p_get_key_cache_stat_value(void *keycache_cb, uint var_no)
   wrappers must be used for this purpose. 
 */
 
-static KEY_CACHE_FUNCS p_key_cache_funcs =
+static KEY_CACHE_FUNCS partitioned_key_cache_funcs =
 {
-  p_init_key_cache,
-  p_resize_key_cache,
-  p_change_key_cache_param,      
-  p_key_cache_read,
-  p_key_cache_insert,
-  p_key_cache_write,
-  p_flush_key_blocks, 
-  p_reset_key_cache_counters, 
-  p_end_key_cache, 
-  p_get_key_cache_statistics,
-  p_get_key_cache_stat_value
+  (INIT_KEY_CACHE) init_partitioned_key_cache,
+  (RESIZE_KEY_CACHE) resize_partitioned_key_cache,
+  (CHANGE_KEY_CACHE_PARAM) change_partitioned_key_cache_param,      
+  (KEY_CACHE_READ) partitioned_key_cache_read,
+  (KEY_CACHE_INSERT) partitioned_key_cache_insert,
+  (KEY_CACHE_WRITE) partitioned_key_cache_write,
+  (FLUSH_KEY_BLOCKS) flush_partitioned_key_cache_blocks, 
+  (RESET_KEY_CACHE_COUNTERS) reset_partitioned_key_cache_counters, 
+  (END_KEY_CACHE) end_partitioned_key_cache, 
+  (GET_KEY_CACHE_STATISTICS) get_partitioned_key_cache_statistics,
+  (GET_KEY_CACHE_STAT_VALUE) get_partitioned_key_cache_stat_value
 };
 
 
@@ -5926,12 +5908,12 @@ static KEY_CACHE_FUNCS p_key_cache_funcs =
   partitioned key caches. Each type (class) has its own implementation of the
   basic key cache operations used the MyISAM storage engine. The pointers
   to the implementation functions are stored in two static structures of the
-  type KEY_CACHE_FUNC: s_key_cache_funcs - for simple key caches, and
-  p_key_cache_funcs - for partitioned key caches. When a key cache object is
-  created the constructor procedure init_key_cache places a pointer to the
-  corresponding table into one of its fields. The procedure also initializes
-  a control block for the key cache oject and saves the pointer to this
-  block in another field of the key cache object.
+  type KEY_CACHE_FUNC: simple_key_cache_funcs - for simple key caches, and
+  partitioned_key_cache_funcs - for partitioned key caches. When a key cache
+  object is created the constructor procedure init_key_cache places a pointer
+  to the corresponding table into one of its fields. The procedure also
+  initializes a control block for the key cache oject and saves the pointer
+  to this block in another field of the key cache object.
   When a key cache wrapper function is invoked for a key cache object to
   perform a basic key cache operation it looks into the interface table
   associated with the key cache oject and calls the corresponding
@@ -5982,7 +5964,6 @@ static KEY_CACHE_FUNCS p_key_cache_funcs =
 
     It's assumed that no two threads call this function simultaneously
     referring to the same key cache handle.
-
 */
 
 int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
@@ -5997,19 +5978,21 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   {
     if (partitions == 0)
     {
-      if (!(keycache_cb= (void *)  my_malloc(sizeof(S_KEY_CACHE_CB), MYF(0)))) 
+      if (!(keycache_cb= (void *)  my_malloc(sizeof(SIMPLE_KEY_CACHE_CB),
+                                             MYF(0)))) 
         return 0;
-      ((S_KEY_CACHE_CB *) keycache_cb)->key_cache_inited= 0;
+      ((SIMPLE_KEY_CACHE_CB *) keycache_cb)->key_cache_inited= 0;
       keycache->key_cache_type= SIMPLE_KEY_CACHE;
-      keycache->interface_funcs= &s_key_cache_funcs;
+      keycache->interface_funcs= &simple_key_cache_funcs;
     }
     else
     {
-      if (!(keycache_cb= (void *)  my_malloc(sizeof(P_KEY_CACHE_CB), MYF(0)))) 
+      if (!(keycache_cb= (void *)  my_malloc(sizeof(PARTITIONED_KEY_CACHE_CB),
+                                             MYF(0)))) 
         return 0;
-      ((P_KEY_CACHE_CB *) keycache_cb)->key_cache_inited= 0;
+      ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->key_cache_inited= 0;
       keycache->key_cache_type= PARTITIONED_KEY_CACHE;
-      keycache->interface_funcs= &p_key_cache_funcs;
+      keycache->interface_funcs= &partitioned_key_cache_funcs;
     }
     keycache->keycache_cb= keycache_cb;
     keycache->key_cache_inited= 1;
@@ -6017,14 +6000,15 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 
   if (partitions != 0)
   {
-    ((P_KEY_CACHE_CB *) keycache_cb)->partitions= partitions;
+    ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->partitions= partitions;
   }
   keycache->can_be_used= 0;
   blocks= keycache->interface_funcs->init(keycache_cb, key_cache_block_size,
                                           use_mem, division_limit,
                                           age_threshold);
   keycache->partitions= partitions ? 
-                          ((P_KEY_CACHE_CB *) keycache_cb)->partitions : 0;
+                        ((PARTITIONED_KEY_CACHE_CB *) keycache_cb)->partitions :
+                        0;
   DBUG_ASSERT(partitions <= MAX_KEY_CACHE_PARTITIONS);
   if (blocks > 0)
     keycache->can_be_used= 1;
@@ -6037,7 +6021,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 
   SYNOPSIS
     resize_key_cache()
-    keycache           pointer to the key cache to be resized
+    keycache            pointer to the key cache to be resized
     key_cache_block_size    size of blocks to keep cached data
     use_mem             total memory to use for the new key cache
     division_limit      new division limit (if not zero)
@@ -6064,7 +6048,6 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     Currently the function is called when the values of the variables
     key_buffer_size and/or key_cache_block_size are being reset for
     the key cache keycache.
-
 */
 
 int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
@@ -6074,10 +6057,10 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
   if (keycache->key_cache_inited)
   {
     if ((uint) keycache->param_partitions != keycache->partitions && use_mem)
-      blocks= repartition_key_cache (keycache,
-                                     key_cache_block_size, use_mem,
-                                     division_limit, age_threshold, 
-                                     (uint) keycache->param_partitions);
+      blocks= repartition_key_cache(keycache,
+                                    key_cache_block_size, use_mem,
+                                    division_limit, age_threshold, 
+                                    (uint) keycache->param_partitions);
     else
     {
       blocks= keycache->interface_funcs->resize(keycache->keycache_cb,
@@ -6087,10 +6070,10 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
 
       if (keycache->partitions)
         keycache->partitions=
-          ((P_KEY_CACHE_CB *)(keycache->keycache_cb))->partitions;
+          ((PARTITIONED_KEY_CACHE_CB *)(keycache->keycache_cb))->partitions;
     }
-    if (blocks <= 0)
-      keycache->can_be_used= 0;
+
+    keycache->can_be_used= (blocks >= 0);
   } 
   return blocks;
 }
@@ -6117,7 +6100,6 @@ int resize_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
     Currently the function is called when the values of the variables
     key_cache_division_limit and/or key_cache_age_threshold are being reset
     for the key cache keycache.
-
 */
 
 void change_key_cache_param(KEY_CACHE *keycache, uint division_limit,
@@ -6262,7 +6244,6 @@ uchar *key_cache_read(KEY_CACHE *keycache,
     the key cache. 
     It is assumed that it may be performed in parallel with reading the file
     data from the key buffers by other threads.
-
 */
 
 int key_cache_insert(KEY_CACHE *keycache,
@@ -6316,7 +6297,6 @@ int key_cache_insert(KEY_CACHE *keycache,
   NOTES
     This implementation may exploit the fact that the function is called only
     when a thread has got an exclusive lock for the key file.
-
 */
 
 int key_cache_write(KEY_CACHE *keycache,
@@ -6373,7 +6353,6 @@ int key_cache_write(KEY_CACHE *keycache,
   NOTES
     Any implementation of the function may exploit the fact that the function
     is called only when a thread has got an exclusive lock for the key file.
-
 */
 
 int flush_key_blocks(KEY_CACHE *keycache,
@@ -6406,7 +6385,6 @@ int flush_key_blocks(KEY_CACHE *keycache,
   NOTES
    This procedure is used by process_key_caches() to reset the counters of all
    currently used key caches, both the default one and the named ones.
-
 */
 
 int reset_key_cache_counters(const char *name __attribute__((unused)),
@@ -6441,13 +6419,11 @@ int reset_key_cache_counters(const char *name __attribute__((unused)),
   
   RETURN
     none
-
 */
 
 void get_key_cache_statistics(KEY_CACHE *keycache, uint partition_no, 
                               KEY_CACHE_STATISTICS *key_cache_stats)
 {
-  bzero(key_cache_stats, sizeof(KEY_CACHE_STATISTICS));  
   if (keycache->key_cache_inited)
   {    
     keycache->interface_funcs->get_stats(keycache->keycache_cb,
@@ -6484,7 +6460,6 @@ void get_key_cache_statistics(KEY_CACHE *keycache, uint partition_no,
     reads              4
     write_requests     5
     writes             6
-
 */
 
 ulonglong get_key_cache_stat_value(KEY_CACHE *keycache, uint var_no)
@@ -6534,7 +6509,6 @@ ulonglong get_key_cache_stat_value(KEY_CACHE *keycache, uint var_no)
 
     Currently the function is called when the value of the variable
     key_cache_partitions is being reset for the key cache keycache.
-
 */
 
 int repartition_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,

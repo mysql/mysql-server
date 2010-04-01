@@ -469,6 +469,8 @@ insert into t2 values (7000, 3, 'yyyy');
 select * from information_schema.key_caches where partition_number is null;
 
 set global keycache1.key_cache_block_size=8*1024;
+--replace_column 6 # 7 #
+select * from information_schema.key_caches where partition_number is null;
 insert into t2 values (8000, 3, 'yyyy');
 --replace_column 6 # 7 #
 select * from information_schema.key_caches where partition_number is null;

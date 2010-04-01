@@ -2235,8 +2235,9 @@ static void update_key_cache_stat_var(KEY_CACHE *key_cache, size_t ofs)
   case offsetof(KEY_CACHE, global_cache_read):
   case offsetof(KEY_CACHE, global_cache_w_requests):
   case offsetof(KEY_CACHE, global_cache_write):
-    var_no= 3+(ofs-offsetof(KEY_CACHE, global_cache_w_requests))/
-              sizeof(ulonglong);
+    var_no= NO_LONG_KEY_CACHE_STAT_VARIABLES +
+            (ofs-offsetof(KEY_CACHE, global_cache_w_requests))/
+             sizeof(ulonglong);
     *(ulonglong *)((char *) key_cache + ofs)=
       get_key_cache_stat_value(key_cache, var_no);
     break;
@@ -6643,13 +6644,13 @@ int store_key_cache_table_record(THD *thd, TABLE *table,
                                  KEY_CACHE *key_cache,
                                  uint partitions, uint partition_no)
 {
-  KEY_CACHE_STATISTICS key_cache_stats;
+  KEY_CACHE_STATISTICS keycache_stats;
   uint err;
   DBUG_ENTER("store_key_cache_table_record");
 
-  get_key_cache_statistics(key_cache, partition_no, &key_cache_stats);
+  get_key_cache_statistics(key_cache, partition_no, &keycache_stats);
 
-  if (key_cache_stats.mem_size == 0)
+  if (!key_cache->key_cache_inited || keycache_stats.mem_size == 0)
     DBUG_RETURN(0);
 
   restore_record(table, s->default_values);
@@ -6669,15 +6670,15 @@ int store_key_cache_table_record(THD *thd, TABLE *table,
     table->field[2]->set_notnull();
     table->field[2]->store((long) partition_no, TRUE);
   }
-  table->field[3]->store(key_cache_stats.mem_size, TRUE);
-  table->field[4]->store(key_cache_stats.block_size, TRUE);
-  table->field[5]->store(key_cache_stats.blocks_used, TRUE);
-  table->field[6]->store(key_cache_stats.blocks_unused, TRUE);
-  table->field[7]->store(key_cache_stats.blocks_changed, TRUE);
-  table->field[8]->store(key_cache_stats.read_requests, TRUE);
-  table->field[9]->store(key_cache_stats.reads, TRUE);
-  table->field[10]->store(key_cache_stats.write_requests, TRUE);
-  table->field[11]->store(key_cache_stats.writes, TRUE);
+  table->field[3]->store(keycache_stats.mem_size, TRUE);
+  table->field[4]->store(keycache_stats.block_size, TRUE);
+  table->field[5]->store(keycache_stats.blocks_used, TRUE);
+  table->field[6]->store(keycache_stats.blocks_unused, TRUE);
+  table->field[7]->store(keycache_stats.blocks_changed, TRUE);
+  table->field[8]->store(keycache_stats.read_requests, TRUE);
+  table->field[9]->store(keycache_stats.reads, TRUE);
+  table->field[10]->store(keycache_stats.write_requests, TRUE);
+  table->field[11]->store(keycache_stats.writes, TRUE);
 
   err= schema_table_store_record(thd, table);
   DBUG_RETURN(err);

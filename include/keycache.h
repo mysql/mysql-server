@@ -37,7 +37,6 @@ C_MODE_START
 
 #define MAX_KEY_CACHE_PARTITIONS    64
 
-
 /* The structure to get statistical data about a key cache */
 
 typedef struct st_key_cache_statistics
@@ -53,6 +52,8 @@ typedef struct st_key_cache_statistics
   ulonglong writes;       /* number of actual writes from buffers into files */
 } KEY_CACHE_STATISTICS;
 
+#define NO_LONG_KEY_CACHE_STAT_VARIABLES 3
+
 /* The type of a key cache object */
 typedef enum key_cache_type
 {
@@ -60,6 +61,55 @@ typedef enum key_cache_type
   PARTITIONED_KEY_CACHE
 } KEY_CACHE_TYPE;
 
+
+typedef
+  int    (*INIT_KEY_CACHE)  
+           (void *, uint key_cache_block_size,
+            size_t use_mem, uint division_limit, uint age_threshold);
+typedef
+  int    (*RESIZE_KEY_CACHE)
+           (void *, uint key_cache_block_size,
+            size_t use_mem, uint division_limit, uint age_threshold);
+typedef
+  void   (*CHANGE_KEY_CACHE_PARAM)
+           (void *keycache_cb,
+            uint division_limit, uint age_threshold);
+typedef
+  uchar* (*KEY_CACHE_READ)
+           (void *keycache_cb,
+            File file, my_off_t filepos, int level,
+            uchar *buff, uint length,
+            uint block_length, int return_buffer);
+typedef
+  int    (*KEY_CACHE_INSERT)
+           (void *keycache_cb,
+            File file, my_off_t filepos, int level,
+            uchar *buff, uint length);
+typedef
+  int    (*KEY_CACHE_WRITE)
+           (void *keycache_cb,
+            File file, void *file_extra,
+            my_off_t filepos, int level,
+            uchar *buff, uint length, 
+            uint block_length, int force_write);
+typedef
+  int    (*FLUSH_KEY_BLOCKS)
+           (void *keycache_cb,
+            int file, void *file_extra,
+            enum flush_type type); 
+typedef
+  int    (*RESET_KEY_CACHE_COUNTERS)
+           (const char *name, void *keycache_cb); 
+typedef
+  void   (*END_KEY_CACHE)
+           (void *keycache_cb, my_bool cleanup);
+typedef
+  void   (*GET_KEY_CACHE_STATISTICS)
+           (void *keycache_cb, uint partition_no, 
+            KEY_CACHE_STATISTICS *key_cache_stats); 
+typedef
+  ulonglong (*GET_KEY_CACHE_STAT_VALUE)
+              (void *keycache_cb, uint var_no); 
 
 /*
   An object of the type KEY_CACHE_FUNCS contains pointers to all functions
@@ -74,32 +124,17 @@ typedef enum key_cache_type
 
 typedef struct st_key_cache_funcs 
 {
-  int    (*init)    (void *, uint key_cache_block_size,
-                     size_t use_mem, uint division_limit, uint age_threshold);
-  int    (*resize)  (void *, uint key_cache_block_size,
-                     size_t use_mem, uint division_limit, uint age_threshold);
-  void   (*change_param) (void *keycache_cb,
-                          uint division_limit, uint age_threshold);      
-  uchar* (*read)    (void *keycache_cb,
-                     File file, my_off_t filepos, int level,
-                     uchar *buff, uint length,
-                     uint block_length, int return_buffer);
-  int   (*insert)   (void *keycache_cb,
-                     File file, my_off_t filepos, int level,
-                     uchar *buff, uint length);
-  int   (*write)    (void *keycache_cb,
-                     File file, void *file_extra,
-                     my_off_t filepos, int level,
-                     uchar *buff, uint length, 
-                     uint block_length, int force_write);
-  int   (*flush)    (void *keycache_cb,
-                     int file, void *file_extra,
-                     enum flush_type type); 
-  int (*reset_counters) (const char *name, void *keycache_cb); 
-  void (*end)    (void *keycache_cb, my_bool cleanup);
-  void (*get_stats) (void *keycache_cb, uint partition_no, 
-                     KEY_CACHE_STATISTICS *key_cache_stats); 
-  ulonglong (*get_stat_val) (void *keycache_cb, uint var_no);
+  INIT_KEY_CACHE init;
+  RESIZE_KEY_CACHE         resize;
+  CHANGE_KEY_CACHE_PARAM   change_param;     
+  KEY_CACHE_READ           read;
+  KEY_CACHE_INSERT         insert;
+  KEY_CACHE_WRITE          write;
+  FLUSH_KEY_BLOCKS         flush;
+  RESET_KEY_CACHE_COUNTERS reset_counters; 
+  END_KEY_CACHE            end;
+  GET_KEY_CACHE_STATISTICS get_stats; 
+  GET_KEY_CACHE_STAT_VALUE get_stat_val;
 } KEY_CACHE_FUNCS;
 
 
