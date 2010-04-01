@@ -68,6 +68,9 @@
 %undefine __perl_provides
 %undefine __perl_requires
 
+# Set default
+%global WITH_LIBGCC 0
+
 ##############################################################################
 # Command line handling
 ##############################################################################
@@ -397,26 +400,14 @@ RBR=$RPM_BUILD_ROOT
 mkdir -p $RBR%{_libdir}/mysql
 
 # For gcc builds, include libgcc.a in the devel subpackage (BUG 4921)
-# Some "icc" calls may have "gcc" in the argument string, so we should first
-# check for "icc". (If we don't check, the "--print-libgcc-file" call will fail.)
-if expr "$CC" : ".*icc.*" > /dev/null ;
-then
-  %global WITH_LIBGCC 0
-  :
-elif expr "$CC" : ".*gcc.*" > /dev/null ;
+if "$CC" --version | grep '(GCC)' >/dev/null 2>&1
 then
   libgcc=`$CC $CFLAGS --print-libgcc-file`
   if [ -f $libgcc ]
   then
-    %global WITH_LIBGCC 1
+    %define WITH_LIBGCC 1
     install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-  else
-    %global WITH_LIBGCC 0
-    :
   fi
-else
-  %global WITH_LIBGCC 0
-  :
 fi
 
 ##############################################################################
@@ -463,6 +454,10 @@ touch $RBR%{_sysconfdir}/my.cnf
 # `mysql_config --variable=pkglibdir` and mysqld_safe for how this is used.
 install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
+
+# Remove man pages we explicitly do not want to package, avoids 'unpackaged
+# files' warning.
+rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
