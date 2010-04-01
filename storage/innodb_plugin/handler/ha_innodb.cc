@@ -3148,10 +3148,16 @@ innobase_build_index_translation(
 	mysql_num_index = table->s->keys;
 	ib_num_index = UT_LIST_GET_LEN(ib_table->indexes);
 
-	/* Innodb could have own system indexes. */
-	ut_a(ib_num_index >= mysql_num_index);
-
 	index_mapping = share->idx_trans_tbl.index_mapping;
+
+	/* If there exists inconsistency between MySQL and InnoDB dictionary
+	(metadata) information, the number of index defined in MySQL
+	could exceed that in InnoDB, do not build index translation
+	table in such case */
+	if (UNIV_UNLIKELY(ib_num_index < mysql_num_index)) {
+		ret = FALSE;
+		goto func_exit;
+	}
 
 	/* If index entry count is non-zero, nothing has
 	changed since last update, directly return TRUE */
@@ -5407,11 +5413,18 @@ ha_innobase::innobase_get_index(
 		if (index) {
 			ut_a(ut_strcmp(index->name, key->name) == 0);
 		} else {
-			sql_print_error("InnoDB could not find index %s "
-					"key no %u for table %s through "
-					" its index translation table",
-					key ? key->name : "NULL", keynr,
-					prebuilt->table->name);
+			/* Can't find index with keynr in the translation
+			table. Only print message if the index translation
+			table exists */
+			if (share->idx_trans_tbl.index_mapping) {
+				sql_print_error("InnoDB could not find "
+						"index %s key no %u for "
+						"table %s through its "
+						"index translation table",
+						key ? key->name : "NULL",
+						keynr,
+						prebuilt->table->name);
+			}
 
 			index = dict_table_get_index_on_name(prebuilt->table,
 							     key->name);
@@ -7108,10 +7121,13 @@ ha_innobase::records_in_range(
 
 	index = innobase_get_index(keynr);
 
-	ut_a(ut_strcmp(index->name, key->name) == 0);
-
-	/* MySQL knows about this index and so we must be able to find it.*/
-	ut_a(index);
+	/* There exists possibility of not being able to find requested
+	index due to inconsistency between MySQL and InoDB dictionary info.
+	Necessary message should have been printed in innobase_get_index() */
+	if (UNIV_UNLIKELY(!index)) {
+		n_rows = HA_POS_ERROR;
+		goto func_exit;
+	}
 
 	heap = mem_heap_create(2 * (key->key_parts * sizeof(dfield_t)
 				    + sizeof(dtuple_t)));
@@ -7156,6 +7172,7 @@ ha_innobase::records_in_range(
 
 	mem_heap_free(heap);
 
+func_exit:
 	my_free(key_val_buff2, MYF(0));
 
 	prebuilt->trx->op_info = (char*)"";
