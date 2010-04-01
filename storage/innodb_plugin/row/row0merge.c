@@ -1977,14 +1977,12 @@ row_merge_drop_index(
 		/* Drop the field definitions of the index. */
 		"DELETE FROM SYS_FIELDS WHERE INDEX_ID = :indexid;\n"
 		/* Drop the index definition and the B-tree. */
-		"DELETE FROM SYS_INDEXES WHERE ID = :indexid\n"
-		"		AND TABLE_ID = :tableid;\n"
+		"DELETE FROM SYS_INDEXES WHERE ID = :indexid;\n"
 		"END;\n";
 
 	ut_ad(index && table && trx);
 
 	pars_info_add_dulint_literal(info, "indexid", index->id);
-	pars_info_add_dulint_literal(info, "tableid", table->id);
 
 	trx_start_if_not_started(trx);
 	trx->op_info = "dropping index";
