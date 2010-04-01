@@ -134,10 +134,9 @@ ELSE()
   SET(CHECK_PID "kill -s SIGCONT $PID  > /dev/null 2> /dev/null")
 ENDIF()
 
+SET(HOSTNAME "hostname")
+
 ENDIF(UNIX)
-
-
-
 
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
 # i.e. makes access relative the current directory. This matches
