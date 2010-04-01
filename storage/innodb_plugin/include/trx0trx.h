@@ -519,10 +519,10 @@ struct trx_struct{
 					srv_conc_enter_innodb to be inside the
 					InnoDB engine */
 
-	/* Fields protected by dict_operation_lock(). The very latch
+	/* Fields protected by dict_operation_lock. The very latch
 	it is used to track. */
 	ulint		dict_operation_lock_mode;
-					/* 0, RW_S_LATCH, or RW_X_LATCH:
+					/*!< 0, RW_S_LATCH, or RW_X_LATCH:
 					the latch mode trx currently holds
 					on dict_operation_lock */
 
