@@ -3270,11 +3270,6 @@ recv_recovery_rollback_active(void)
 {
 	int		i;
 
-	/* Drop partially created indexes. */
-	row_merge_drop_temp_indexes();
-	/* Drop temporary tables. */
-	row_mysql_drop_temp_tables();
-
 #ifdef UNIV_SYNC_DEBUG
 	/* Wait for a while so that created threads have time to suspend
 	themselves before we switch the latching order checks on */
@@ -3283,6 +3278,11 @@ recv_recovery_rollback_active(void)
 	/* Switch latching order checks on in sync0sync.c */
 	sync_order_checks_on = TRUE;
 #endif
+	/* Drop partially created indexes. */
+	row_merge_drop_temp_indexes();
+	/* Drop temporary tables. */
+	row_mysql_drop_temp_tables();
+
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
 		/* Rollback the uncommitted transactions which have no user
 		session */
