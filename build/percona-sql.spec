@@ -167,7 +167,7 @@ URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} MySQL Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
 Provides:	msqlormysql MySQL-server mysql Percona-XtraDB-server
-BuildRequires:  gperf perl readline-devel gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache
+BuildRequires:  gperf perl readline-devel gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache bison
 
 # Think about what you use here since the first step is to
 # run a rm -rf
