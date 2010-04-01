@@ -424,14 +424,13 @@ row_merge_dup_report(
 	row_merge_dup_t*	dup,	/*!< in/out: for reporting duplicates */
 	const dfield_t*		entry)	/*!< in: duplicate index entry */
 {
-	mrec_buf_t 		buf;
+	mrec_buf_t* 		buf;
 	const dtuple_t*		tuple;
 	dtuple_t		tuple_store;
 	const rec_t*		rec;
 	const dict_index_t*	index	= dup->index;
 	ulint			n_fields= dict_index_get_n_fields(index);
-	mem_heap_t*		heap	= NULL;
-	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
+	mem_heap_t*		heap;
 	ulint*			offsets;
 	ulint			n_ext;
 
@@ -441,22 +440,22 @@ row_merge_dup_report(
 		return;
 	}
 
-	rec_offs_init(offsets_);
-
 	/* Convert the tuple to a record and then to MySQL format. */
+	heap = mem_heap_create((1 + REC_OFFS_HEADER_SIZE + n_fields)
+			       * sizeof *offsets
+			       + sizeof *buf);
+
+	buf = mem_heap_alloc(heap, sizeof *buf);
 
 	tuple = dtuple_from_fields(&tuple_store, entry, n_fields);
 	n_ext = dict_index_is_clust(index) ? dtuple_get_n_ext(tuple) : 0;
 
-	rec = rec_convert_dtuple_to_rec(buf, index, tuple, n_ext);
-	offsets = rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED,
-				  &heap);
+	rec = rec_convert_dtuple_to_rec(*buf, index, tuple, n_ext);
+	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
 
 	innobase_rec_to_mysql(dup->table, rec, index, offsets);
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
+	mem_heap_free(heap);
 }
 
 /*************************************************************//**
@@ -627,22 +626,26 @@ row_merge_buf_write(
 }
 
 /******************************************************//**
-Create a memory heap and allocate space for row_merge_rec_offsets().
+Create a memory heap and allocate space for row_merge_rec_offsets()
+and mrec_buf_t[3].
 @return	memory heap */
 static
 mem_heap_t*
 row_merge_heap_create(
 /*==================*/
 	const dict_index_t*	index,		/*!< in: record descriptor */
+	mrec_buf_t**		buf,		/*!< out: 3 buffers */
 	ulint**			offsets1,	/*!< out: offsets */
 	ulint**			offsets2)	/*!< out: offsets */
 {
 	ulint		i	= 1 + REC_OFFS_HEADER_SIZE
 		+ dict_index_get_n_fields(index);
-	mem_heap_t*	heap	= mem_heap_create(2 * i * sizeof *offsets1);
+	mem_heap_t*	heap	= mem_heap_create(2 * i * sizeof **offsets1
+						  + 3 * sizeof **buf);
 
-	*offsets1 = mem_heap_alloc(heap, i * sizeof *offsets1);
-	*offsets2 = mem_heap_alloc(heap, i * sizeof *offsets2);
+	*buf = mem_heap_alloc(heap, 3 * sizeof **buf);
+	*offsets1 = mem_heap_alloc(heap, i * sizeof **offsets1);
+	*offsets2 = mem_heap_alloc(heap, i * sizeof **offsets2);
 
 	(*offsets1)[0] = (*offsets2)[0] = i;
 	(*offsets1)[1] = (*offsets2)[1] = dict_index_get_n_fields(index);
@@ -1394,7 +1397,8 @@ row_merge_blocks(
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
-	mrec_buf_t	buf[3];	/*!< buffer for handling split mrec in block[] */
+	mrec_buf_t*	buf;	/*!< buffer for handling
+				split mrec in block[] */
 	const byte*	b0;	/*!< pointer to block[0] */
 	const byte*	b1;	/*!< pointer to block[1] */
 	byte*		b2;	/*!< pointer to block[2] */
@@ -1414,7 +1418,7 @@ row_merge_blocks(
 	}
 #endif /* UNIV_DEBUG */
 
-	heap = row_merge_heap_create(index, &offsets0, &offsets1);
+	heap = row_merge_heap_create(index, &buf, &offsets0, &offsets1);
 
 	/* Write a record and read the next record.  Split the output
 	file in two halves, which can be merged on the following pass. */
@@ -1500,7 +1504,7 @@ row_merge_blocks_copy(
 {
 	mem_heap_t*	heap;	/*!< memory heap for offsets0, offsets1 */
 
-	mrec_buf_t	buf[3];	/*!< buffer for handling
+	mrec_buf_t*	buf;	/*!< buffer for handling
 				split mrec in block[] */
 	const byte*	b0;	/*!< pointer to block[0] */
 	byte*		b2;	/*!< pointer to block[2] */
@@ -1518,7 +1522,7 @@ row_merge_blocks_copy(
 	}
 #endif /* UNIV_DEBUG */
 
-	heap = row_merge_heap_create(index, &offsets0, &offsets1);
+	heap = row_merge_heap_create(index, &buf, &offsets0, &offsets1);
 
 	/* Write a record and read the next record.  Split the output
 	file in two halves, which can be merged on the following pass. */
@@ -1760,7 +1764,6 @@ row_merge_insert_index_tuples(
 	int			fd,	/*!< in: file descriptor */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
-	mrec_buf_t		buf;
 	const byte*		b;
 	que_thr_t*		thr;
 	ins_node_t*		node;
@@ -1779,7 +1782,7 @@ row_merge_insert_index_tuples(
 
 	trx->op_info = "inserting index entries";
 
-	graph_heap = mem_heap_create(500);
+	graph_heap = mem_heap_create(500 + sizeof(mrec_buf_t));
 	node = ins_node_create(INS_DIRECT, table, graph_heap);
 
 	thr = pars_complete_graph_for_exec(node, trx, graph_heap);
@@ -1801,12 +1804,14 @@ row_merge_insert_index_tuples(
 	if (!row_merge_read(fd, foffs, block)) {
 		error = DB_CORRUPTION;
 	} else {
+		mrec_buf_t*	buf = mem_heap_alloc(graph_heap, sizeof *buf);
+
 		for (;;) {
 			const mrec_t*	mrec;
 			dtuple_t*	dtuple;
 			ulint		n_ext;
 
-			b = row_merge_read_rec(block, &buf, b, index,
+			b = row_merge_read_rec(block, buf, b, index,
 					       fd, &foffs, &mrec, offsets);
 			if (UNIV_UNLIKELY(!b)) {
 				/* End of list, or I/O error */
