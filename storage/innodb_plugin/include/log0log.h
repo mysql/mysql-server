@@ -825,7 +825,17 @@ struct log_struct{
 					written to some log group; for this to
 					be advanced, it is enough that the
 					write i/o has been completed for all
-					log groups */
+					log groups.
+					Note that since InnoDB currently
+					has only one log group therefore
+					this value is redundant. Also it
+					is possible that this value
+					falls behind the
+					flushed_to_disk_lsn transiently.
+					It is appropriate to use either
+					flushed_to_disk_lsn or
+					write_lsn which are always
+					up-to-date and accurate. */
 	ib_uint64_t	write_lsn;	/*!< end lsn for the current running
 					write */
 	ulint		write_end_offset;/*!< the data in buffer has
