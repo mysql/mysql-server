@@ -438,7 +438,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 				BTR_MODIFY_TREE */
 	que_thr_t*	thr,	/*!< in: query thread */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry)	/*!< in: index entry */
+	const dtuple_t*	entry)	/*!< in: index entry */
 {
 	mem_heap_t*	heap;
 	btr_pcur_t	pcur;
