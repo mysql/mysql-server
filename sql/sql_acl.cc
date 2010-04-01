@@ -536,6 +536,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_USER user;
+    char *password;
+    uint password_len;
+
     bzero(&user, sizeof(user));
     update_hostname(&user.host, get_field(&mem, table->field[0]));
     user.user= get_field(&mem, table->field[1]);
@@ -548,8 +551,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       continue;
     }
 
-    char *password= get_field(thd->mem_root, table->field[2]);
-    uint password_len= password ? strlen(password) : 0;
+    password= get_field(&mem, table->field[2]);
+    password_len= password ? strlen(password) : 0;
     user.auth_string.str= password ? password : const_cast<char*>("");
     user.auth_string.length= password_len;
     set_user_salt(&user, password, password_len);
@@ -7826,15 +7829,15 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
   bool unlock_plugin= false;
   plugin_ref plugin;
 
+#ifdef EMBEDDED_LIBRARY
+  plugin= native_password_plugin;
+#else
   if (auth_plugin_name->str == native_password_plugin_name.str)
     plugin= native_password_plugin;
-  else
-#ifndef EMBEDDED_LIBRARY
-  if (auth_plugin_name->str == old_password_plugin_name.str)
+  else if (auth_plugin_name->str == old_password_plugin_name.str)
     plugin= old_password_plugin;
-  else
-  if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
-                                      MYSQL_AUTHENTICATION_PLUGIN)))
+  else if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
+                                           MYSQL_AUTHENTICATION_PLUGIN)))
     unlock_plugin= true;
 #endif
 

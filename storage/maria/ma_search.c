@@ -76,8 +76,8 @@ int _ma_search(register MARIA_HA *info, MARIA_KEY *key, uint32 nextflag,
       bmove512(info->keyread_buff, page_buff, info->s->block_size);
 
       /* Save position for a possible read next / previous */
-      info->int_keypos= info->keyread_buff + (ulonglong) info->int_keypos;
-      info->int_maxpos= info->keyread_buff + (ulonglong) info->int_maxpos;
+      info->int_keypos= info->keyread_buff + info->keypos_offset;
+      info->int_maxpos= info->keyread_buff + info->maxpos_offset;
       info->int_keytree_version= key->keyinfo->version;
       info->last_search_keypage= info->last_keypage;
       info->page_changed= 0;
@@ -214,8 +214,8 @@ static int _ma_search_no_save(register MARIA_HA *info, MARIA_KEY *key,
   info->cur_row.trid=    _ma_trid_from_key(&info->last_key);
 
   /* Store offset to key */
-  info->int_keypos= (uchar*) (keypos - page.buff);
-  info->int_maxpos= (uchar*) (maxpos - page.buff);
+  info->keypos_offset= (uint) (keypos - page.buff);
+  info->maxpos_offset= (uint) (maxpos - page.buff);
   info->int_nod_flag= nod_flag;
   info->last_keypage= pos;
   *res_page_link= page_link;

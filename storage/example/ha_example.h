@@ -155,7 +155,8 @@ public:
   /** @brief
     This method will never be called if you do not implement indexes.
   */
-  virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
+  virtual double read_time(uint index, uint ranges, ha_rows rows)
+    { return (double) rows /  20.0+1; }
 
   /*
     Everything below are methods that we implement in ha_example.cc.

@@ -96,7 +96,7 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode, const char *sqlstate,
 struct st_plugin_vio_info;
 void mpvio_info(Vio *vio, struct st_plugin_vio_info *info);
 int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
-                    char *data_plugin, const char *db);
+                    const char *data_plugin, const char *db);
 int mysql_client_plugin_init();
 void mysql_client_plugin_deinit();
 struct st_mysql_client_plugin;
