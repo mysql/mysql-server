@@ -1535,6 +1535,7 @@ trx_sys_file_format_id_to_name(
 
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Shutdown/Close the transaction system. */
 UNIV_INTERN
@@ -1611,3 +1612,4 @@ trx_sys_close(void)
 	trx_sys = NULL;
 	mutex_exit(&kernel_mutex);
 }
+#endif /* !UNIV_HOTBACKUP */
