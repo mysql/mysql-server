@@ -19,7 +19,6 @@
 
 #include <ndb_global.h>
 #include <my_pthread.h>
-#include <my_times.h>
 
 #include "WatchDog.hpp"
 #include "GlobalData.hpp"
@@ -164,6 +163,58 @@ const char *get_action(Uint32 IPValue)
   }//switch
   return action;
 }
+
+
+#ifdef _WIN32
+struct tms {
+  clock_t tms_utime;  /* user time */
+  clock_t tms_stime;  /* system time */
+  clock_t tms_cutime; /* user time of children */
+  clock_t tms_cstime; /* system time of children */
+};
+
+static clock_t
+times(struct tms *buf)
+{
+  if (!buf)
+  {
+    errno = EINVAL;
+    return -1;
+  }
+
+  FILETIME create, exit, kernel, user;
+  if (GetProcessTimes(GetCurrentProcess(),
+                      &create, &exit, &kernel, &user) == 0)
+  {
+    errno = GetLastError();
+    return -1;
+  }
+
+  ULARGE_INTEGER ulint;
+  ulint.LowPart = kernel.dwLowDateTime;
+  ulint.HighPart = kernel.dwHighDateTime;
+  buf->tms_stime = (clock_t)ulint.QuadPart;
+  buf->tms_cstime = (clock_t)ulint.QuadPart;
+
+  ulint.LowPart = user.dwLowDateTime;
+  ulint.HighPart = user.dwHighDateTime;
+  buf->tms_utime = (clock_t)ulint.QuadPart;
+  buf->tms_cutime = (clock_t)ulint.QuadPart;
+
+  LARGE_INTEGER ticks;
+  if (QueryPerformanceCounter(&ticks) == 0)
+  {
+    errno = GetLastError();
+    return -1;
+  }
+
+  return (clock_t)ticks.QuadPart;
+}
+
+
+#else
+#include <sys/times.h>
+#endif
 
 void 
 WatchDog::run()
