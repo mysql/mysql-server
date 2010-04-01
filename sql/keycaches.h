@@ -1,3 +1,6 @@
+#ifndef KEYCACHES_INCLUDED
+#define KEYCACHES_INCLUDED
+
 /* Copyright (C) 2002-2006 MySQL AB, 2009 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
@@ -39,3 +42,4 @@ KEY_CACHE *get_or_create_key_cache(const char *name, uint length);
 void free_key_cache(const char *name, KEY_CACHE *key_cache);
 bool process_key_caches(process_key_cache_t func);
 
+#endif /* KEYCACHES_INCLUDED */

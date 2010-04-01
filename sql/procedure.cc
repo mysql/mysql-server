@@ -20,7 +20,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "procedure.h"
 #include "sql_analyse.h"			// Includes procedure
 #ifdef USE_PROC_RANGE

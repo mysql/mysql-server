@@ -22,6 +22,8 @@ extern "C" {
 #ifndef MY_DIR_H
 #define MY_DIR_H
 
+#include "my_global.h"
+
 #include <sys/stat.h>
 
 	/* Defines for my_dir and my_stat */

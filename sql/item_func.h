@@ -1797,4 +1797,14 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
+Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
+                     LEX_STRING component);
+extern bool check_reserved_words(LEX_STRING *name);
+extern enum_field_types agg_field_type(Item **items, uint nitems);
+double my_double_round(double value, longlong dec, bool dec_unsigned,
+                       bool truncate);
+bool eval_const_cond(COND *cond);
+
+extern bool volatile  mqh_used;
+
 #endif /* ITEM_FUNC_INCLUDED */

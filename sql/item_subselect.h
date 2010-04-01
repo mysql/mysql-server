@@ -28,6 +28,15 @@ class JOIN;
 class select_subselect;
 class subselect_engine;
 class Item_bool_func2;
+class Comp_creator;
+
+typedef class st_select_lex SELECT_LEX;
+
+/**
+  Convenience typedef used in this file, and further used by any files
+  including this file.
+*/
+typedef Comp_creator* (*chooser_compare_func_creator)(bool invert);
 
 /* base class for subselects */
 
@@ -571,6 +580,15 @@ public:
   int exec();
   virtual void print (String *str, enum_query_type query_type);
 };
+
+/*
+  This function is actually defined in sql_parse.cc, but it depends on
+  chooser_compare_func_creator defined in this file.
+ */
+Item * all_any_subquery_creator(Item *left_expr,
+                                chooser_compare_func_creator cmp,
+                                bool all,
+                                SELECT_LEX *select_lex);
 
 
 inline bool Item_subselect::is_evaluated() const

@@ -13,7 +13,43 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "my_global.h"
+#include <signal.h>
+#ifndef __WIN__
+#include <netdb.h>        // getservbyname, servent
+#endif
+#include "sql_parse.h"    // test_if_data_home_dir
+#include "sql_cache.h"    // query_cache, query_cache_*
+#include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
+#include "sql_show.h"     // free_status_vars, add_status_vars,
+                          // reset_status_vars
+#include "strfunc.h"      // find_set_from_flags
+#include "parse_file.h"   // File_parser_dummy_hook
+#include "sql_db.h"       // my_database_names_free,
+                          // my_database_names_init
+#include "sql_table.h"    // release_ddl_log, execute_ddl_log_recovery
+#include "sql_connect.h"  // free_max_user_conn, init_max_user_conn,
+                          // handle_one_connection
+#include "sql_time.h"     // known_date_time_formats,
+                          // get_date_time_format_str,
+                          // date_time_format_make
+#include "tztime.h"       // my_tz_free, my_tz_init, my_tz_SYSTEM
+#include "hostname.h"     // hostname_cache_free, hostname_cache_init
+#include "sql_acl.h"      // acl_free, grant_free, acl_init,
+                          // grant_init
+#include "sql_base.h"     // table_def_free, table_def_init,
+                          // cached_open_tables,
+                          // cached_table_definitions
+#include "sql_test.h"     // mysql_print_status
+#include "item_create.h"  // item_create_cleanup, item_create_init
+#include "sql_servers.h"  // servers_free, servers_init
+#include "init.h"         // unireg_init
+#include "derror.h"       // init_errmessage
+#include "derror.h"       // init_errmessage
+#include "des_key_file.h" // load_des_key_file
+#include "sql_manager.h"  // stop_handle_manager, start_handle_manager
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
@@ -7653,7 +7689,7 @@ static char *get_relative_path(const char *path)
     1 if len(path) > FN_REFLEN
 */
 
-bool
+static bool
 fn_format_relative_to_data_home(char * to, const char *name,
 				const char *dir, const char *extension)
 {

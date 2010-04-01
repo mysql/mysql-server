@@ -17,7 +17,8 @@
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -25,6 +26,19 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_select.h"
+#include "sql_show.h"                           // append_identifier
+#include "sql_view.h"                           // VIEW_ANY_SQL
+#include "sql_time.h"                  // str_to_datetime_with_warn,
+                                       // make_truncated_value_warning
+#include "sql_acl.h"                   // get_column_grant,
+                                       // SELECT_ACL, UPDATE_ACL,
+                                       // INSERT_ACL,
+                                       // check_grant_column
+#include "sql_base.h"                  // enum_resolution_type,
+                                       // REPORT_EXCEPT_NOT_FOUND,
+                                       // find_item_in_list,
+                                       // RESOLVED_AGAINST_ALIAS, ...
+#include "log_event.h"                 // append_query_string
 
 const String my_null_string("NULL", 4, default_charset_info);
 

@@ -20,11 +20,50 @@
 #pragma interface				/* gcc class implementation */
 #endif
 
+#include "sql_list.h"                           /* List */
+#include "table.h"                              /* TABLE_LIST */
+
+class Alter_info;
+class Field;
+class String;
+class handler;
+class partition_info;
+struct TABLE;
+struct TABLE_LIST;
+typedef struct st_bitmap MY_BITMAP;
+typedef struct st_ha_create_information HA_CREATE_INFO;
+typedef struct st_key KEY;
+typedef struct st_key_range key_range;
+
 /* Flags for partition handlers */
 #define HA_CAN_PARTITION       (1 << 0) /* Partition support */
 #define HA_CAN_UPDATE_PARTITION_KEY (1 << 1)
 #define HA_CAN_PARTITION_UNIQUE (1 << 2)
 #define HA_USE_AUTO_PARTITION (1 << 3)
+
+#define NORMAL_PART_NAME 0
+#define TEMP_PART_NAME 1
+#define RENAMED_PART_NAME 2
+
+typedef struct st_lock_param_type
+{
+  TABLE_LIST *table_list;
+  ulonglong copied;
+  ulonglong deleted;
+  THD *thd;
+  HA_CREATE_INFO *create_info;
+  Alter_info *alter_info;
+  TABLE *table;
+  KEY *key_info_buffer;
+  const char *db;
+  const char *table_name;
+  uchar *pack_frm_data;
+  uint key_count;
+  uint db_options;
+  size_t pack_frm_len;
+  partition_info *part_info;
+} ALTER_PARTITION_PARAM_TYPE;
+
 
 /*typedef struct {
   ulonglong data_file_length;
@@ -101,6 +140,7 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
 bool check_part_func_fields(Field **ptr, bool ok_with_charsets);
 bool field_is_partition_charset(Field *field);
 Item* convert_charset_partition_constant(Item *item, CHARSET_INFO *cs);
+void mem_alloc_error(size_t size);
 
 /*
   A "Get next" function for partition iterator.
@@ -219,5 +259,40 @@ typedef int (*get_partitions_in_range_iter)(partition_info *part_info,
                                             PARTITION_ITERATOR *part_iter);
 
 #include "partition_info.h"
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+uint fast_alter_partition_table(THD *thd, TABLE *table,
+                                Alter_info *alter_info,
+                                HA_CREATE_INFO *create_info,
+                                TABLE_LIST *table_list,
+                                char *db,
+                                const char *table_name,
+                                uint fast_alter_partition);
+uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
+                    enum partition_state part_state);
+uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
+                           HA_CREATE_INFO *create_info,
+                           handlerton *old_db_type,
+                           bool *partition_changed,
+                           uint *fast_alter_partition);
+char *generate_partition_syntax(partition_info *part_info,
+                                uint *buf_length, bool use_sql_alloc,
+                                bool show_partition_options,
+                                HA_CREATE_INFO *create_info,
+                                Alter_info *alter_info);
+#endif
+
+void create_partition_name(char *out, const char *in1,
+                           const char *in2, uint name_variant,
+                           bool translate);
+void create_subpartition_name(char *out, const char *in1,
+                              const char *in2, const char *in3,
+                              uint name_variant);
+
+void set_field_ptr(Field **ptr, const uchar *new_buf, const uchar *old_buf);
+void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
+                       const uchar *old_buf);
+
+extern const LEX_STRING partition_keywords[];
 
 #endif /* SQL_PARTITION_INCLUDED */

@@ -20,6 +20,8 @@
 #include <string.h>
 /* For MY_STAT */
 #include <my_dir.h>
+/* For my_chsize */
+#include <my_sys.h>
 
 /**
   @file mysql/psi/mysql_file.h

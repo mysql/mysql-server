@@ -54,12 +54,23 @@
 
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_insert.h"
+#include "sql_update.h"                         // compare_record
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_cache.h"                          // query_cache_*
+#include "key.h"                                // key_copy
+#include "lock.h"                               // mysql_unlock_tables
 #include "sp_head.h"
+#include "sql_view.h"         // check_key_in_view, insert_view_fields
+#include "sql_table.h"        // mysql_create_table_no_lock
+#include "sql_acl.h"          // *_ACL, check_grant_all_columns
 #include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"
 #include "slave.h"
+#include "sql_parse.h"                          // end_active_trans
 #include "rpl_mi.h"
 #include "transaction.h"
 #include "sql_audit.h"

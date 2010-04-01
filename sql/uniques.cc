@@ -30,9 +30,12 @@
   deletes in disk order.
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "sql_sort.h"
-
+#include "queues.h"                             // QUEUE
+#include "my_tree.h"                            // element_count
+#include "sql_class.h"                          // Unique
 
 int unique_write_to_file(uchar* key, element_count count, Unique *unique)
 {
