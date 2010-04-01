@@ -323,7 +323,6 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	mtr_t		mtr;
 	mtr_t		mtr_vers;
 
-	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 	log_free_check();
 	mtr_start(&mtr);
 
@@ -420,8 +419,6 @@ row_undo_mod_del_mark_or_remove_sec(
 	dtuple_t*	entry)	/*!< in: index entry */
 {
 	ulint	err;
-
-	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 
 	err = row_undo_mod_del_mark_or_remove_sec_low(node, thr, index,
 						      entry, BTR_MODIFY_LEAF);
