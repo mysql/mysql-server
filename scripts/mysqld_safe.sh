@@ -306,7 +306,7 @@ set_malloc_lib() {
     malloc_lib=
     # This list is kept intentionally simple.  Simply set --malloc-lib
     # to a full path if another location is desired.
-    for libdir in /usr/lib "$pkglibdir"; do
+    for libdir in /usr/lib "$pkglibdir" "$pkglibdir/mysql"; do
       for flavor in _minimal '' _and_profiler _debug; do
         tmp="$libdir/libtcmalloc$flavor.so"
         #log_notice "DEBUG: Checking for malloc lib '$tmp'"
