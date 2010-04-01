@@ -1530,26 +1530,8 @@ alloc:
 			if (b->state == BUF_BLOCK_ZIP_PAGE) {
 				buf_LRU_insert_zip_clean(b);
 			} else {
-				buf_page_t* prev;
-
-				ut_ad(b->in_flush_list);
-				ut_d(bpage->in_flush_list = FALSE);
-
-				prev = UT_LIST_GET_PREV(list, b);
-				UT_LIST_REMOVE(list, buf_pool->flush_list, b);
-
-				if (prev) {
-					ut_ad(prev->in_flush_list);
-					UT_LIST_INSERT_AFTER(
-						list,
-						buf_pool->flush_list,
-						prev, b);
-				} else {
-					UT_LIST_ADD_FIRST(
-						list,
-						buf_pool->flush_list,
-						b);
-				}
+				/* Relocate on buf_pool->flush_list. */
+				buf_flush_relocate_on_flush_list(bpage, b);
 			}
 
 			bpage->zip.data = NULL;
