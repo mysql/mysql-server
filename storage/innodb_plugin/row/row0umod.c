@@ -559,7 +559,7 @@ row_undo_mod_upd_del_sec(
 			does not exist.  However, this situation may
 			only occur during the rollback of incomplete
 			transactions. */
-			ut_a(trx_is_recv(thr_get_trx(thr)));
+			ut_a(thr_is_recv(thr));
 		} else {
 			err = row_undo_mod_del_mark_or_remove_sec(
 				node, thr, index, entry);
