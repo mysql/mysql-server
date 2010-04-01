@@ -1,9 +1,8 @@
 2010-03-18	The InnoDB Team
 
 	* CMakeLists.txt:
-	Fix Bug #52102 InnoDB Plugin shows performance drop comparing to
-	builtin InnoDB (Windows only).
-	Disable Windows atomics by default.
+	Fix Bug #52102 InnoDB Plugin shows performance drop compared to
+	InnoDB (Windows)
 
 2010-03-18	The InnoDB Team
 
