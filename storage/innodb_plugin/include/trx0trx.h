@@ -464,9 +464,16 @@ rolling back after a database recovery */
 struct trx_struct{
 	ulint		magic_n;
 
-	/* These fields are not protected by any mute. */
+	/* These fields are not protected by any mutex. */
+	const char*	op_info;	/*!< English text describing the
+					current operation, or an empty
+					string */
+	ulint		conc_state;	/*!< state of the trx from the point
+					of view of concurrency control:
+					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
+					... */
 	ulint		isolation_level;/* TRX_ISO_REPEATABLE_READ, ... */
-	ulint		check_foreigns;/* normally TRUE, but if the user
+	ulint		check_foreigns;	/* normally TRUE, but if the user
 					wants to suppress foreign key checks,
 					(in table imports, for example) we
 					set this FALSE */
@@ -503,6 +510,7 @@ struct trx_struct{
 					search system latch in S-mode */
 	ulint		deadlock_mark;	/*!< a mark field used in deadlock
 					checking algorithm.  */
+	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op */
 
 	/* Fields protected by the srv_conc_mutex. */
 	ulint		declared_to_be_inside_innodb;
@@ -511,11 +519,8 @@ struct trx_struct{
 					srv_conc_enter_innodb to be inside the
 					InnoDB engine */
 
-	/* Fields set when we are holding the kernel mutex, undo log mutex
-	and when not holding the mutex. */
-	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op */
-
-	/* Fields covered by the dictionary mutex. */
+	/* Fields protected by dict_operation_loco(). The very latch
+	it is used to track. */
 	ulint		dict_operation_lock_mode;
 					/* 0, RW_S_LATCH, or RW_X_LATCH:
 					the latch mode trx currently holds
@@ -523,19 +528,12 @@ struct trx_struct{
 
 	/* All the next fields are protected by the kernel mutex, except the
 	undo logs which are protected by undo_mutex */
-	const char*	op_info;	/*!< English text describing the
-					current operation, or an empty
-					string */
 	ulint		is_purge;	/*!< 0=user transaction, 1=purge */
 	ulint		is_recovered;	/*!< 0=normal transaction,
 					1=recovered, must be rolled back */
-	ulint		conc_state;	/*!< state of the trx from the point
-					of view of concurrency control:
-					TRX_ACTIVE, TRX_COMMITTED_IN_MEMORY,
-					... */
 	ulint		que_state;	/*!< valid when conc_state
 					== TRX_ACTIVE: TRX_QUE_RUNNING,
-				       	TRX_QUE_LOCK_WAIT, ... */
+					TRX_QUE_LOCK_WAIT, ... */
 	ulint		handling_signals;/* this is TRUE as long as the trx
 					is handling signals */
 	time_t		start_time;	/*!< time the trx object was created
