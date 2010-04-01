@@ -4918,7 +4918,7 @@ lock_rec_insert_check_and_lock(
 	}
 
 	trx = thr_get_trx(thr);
-	next_rec = page_rec_get_next((rec_t*) rec);
+	next_rec = page_rec_get_next_const(rec);
 	next_rec_heap_no = page_rec_get_heap_no(next_rec);
 
 	lock_mutex_enter_kernel();
