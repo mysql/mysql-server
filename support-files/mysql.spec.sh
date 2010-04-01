@@ -399,7 +399,7 @@ RBR=$RPM_BUILD_ROOT
 [ "$RBR" != "/" ] && [ -d "$RBR" ] && rm -rf "$RBR";
 
 # For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
-# needs to be in %build as $CC is not set in %install.
+# needs to be during build phase as $CC is not set during install.
 if "$CC" --version | grep '(GCC)' >/dev/null 2>&1
 then
   libgcc=`$CC $CFLAGS --print-libgcc-file`
