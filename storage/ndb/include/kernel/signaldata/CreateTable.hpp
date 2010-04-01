@@ -75,7 +75,8 @@ struct CreateTableRef {
     InvalidTablespaceVersion = 759,
     OutOfStringBuffer = 773,
     NoLoggingTemporaryTable = 778,
-    InvalidHashMap = 790
+    InvalidHashMap = 790,
+    TableDefinitionTooBig = 793
   };
 
   Uint32 senderRef;
