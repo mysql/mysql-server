@@ -1,3 +1,11 @@
+2009-12-02	The InnoDB Team
+
+	* srv/srv0start.c: Display the zlib version number at startup.
+	InnoDB compressed tables use zlib, and the implementation depends
+	on the zlib function compressBound(), whose definition was slightly
+	changed in zlib version 1.2.3.1 in 2006.  MySQL bundles zlib 1.2.3
+	from 2005, but some installations use a more recent zlib.
+
 2009-11-30	The InnoDB Team
 
 	* dict/dict0crea.c, dict/dict0mem.c, dict/dict0load.c,
