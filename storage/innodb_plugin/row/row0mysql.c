@@ -4007,14 +4007,15 @@ Checks that the index contains entries in an ascending order, unique
 constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.
 @return	TRUE if ok */
-static
+UNIV_INTERN
 ibool
-row_scan_and_check_index(
-/*=====================*/
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct in MySQL */
-	dict_index_t*	index,		/*!< in: index */
-	ulint*		n_rows)		/*!< out: number of entries seen in the
-					current consistent read */
+row_check_index_for_mysql(
+/*======================*/
+	row_prebuilt_t*		prebuilt,	/*!< in: prebuilt struct
+						in MySQL handle */
+	const dict_index_t*	index,		/*!< in: index */
+	ulint*			n_rows)		/*!< out: number of entries
+						seen in the consistent read */
 {
 	dtuple_t*	prev_entry	= NULL;
 	ulint		matched_fields;
@@ -4035,31 +4036,9 @@ row_scan_and_check_index(
 
 	*n_rows = 0;
 
-	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
-		/* A newly created index may lack some delete-marked
-		records that may exist in the read view of
-		prebuilt->trx.  Thus, such indexes must not be
-		accessed by consistent read. */
-		return(is_ok);
-	}
-
 	buf = mem_alloc(UNIV_PAGE_SIZE);
 	heap = mem_heap_create(100);
 
-	/* Make a dummy template in prebuilt, which we will use
-	in scanning the index entries */
-
-	prebuilt->index = index;
-	/* row_merge_is_index_usable() was already checked above. */
-	prebuilt->index_usable = TRUE;
-	prebuilt->sql_stat_start = TRUE;
-	prebuilt->template_type = ROW_MYSQL_DUMMY_TEMPLATE;
-	prebuilt->n_template = 0;
-	prebuilt->need_to_access_clustered = FALSE;
-
-	dtuple_set_n_fields(prebuilt->search_tuple, 0);
-
-	prebuilt->select_lock_type = LOCK_NONE;
 	cnt = 1000;
 
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
@@ -4175,119 +4154,6 @@ not_ok:
 	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
 
 	goto loop;
-}
-
-/*********************************************************************//**
-Checks a table for corruption.
-@return	DB_ERROR or DB_SUCCESS */
-UNIV_INTERN
-ulint
-row_check_table_for_mysql(
-/*======================*/
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
-{
-	dict_table_t*	table		= prebuilt->table;
-	dict_index_t*	index;
-	ulint		n_rows;
-	ulint		n_rows_in_table	= ULINT_UNDEFINED;
-	ulint		ret		= DB_SUCCESS;
-	ulint		old_isolation_level;
-
-	if (table->ibd_file_missing) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error:\n"
-			"InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir, or have you"
-			" used DISCARD TABLESPACE?\n"
-			"InnoDB: Look from\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
-			table->name);
-		return(DB_ERROR);
-	}
-
-	prebuilt->trx->op_info = "checking table";
-
-	old_isolation_level = prebuilt->trx->isolation_level;
-
-	/* We must run the index record counts at an isolation level
-	>= READ COMMITTED, because a dirty read can see a wrong number
-	of records in some index; to play safe, we use always
-	REPEATABLE READ here */
-
-	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
-
-	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
-
-	index = dict_table_get_first_index(table);
-
-	while (index != NULL) {
-		/* fputs("Validating index ", stderr);
-		ut_print_name(stderr, trx, FALSE, index->name);
-		putc('\n', stderr); */
-
-		if (!btr_validate_index(index, prebuilt->trx)) {
-			ret = DB_ERROR;
-		} else {
-			if (!row_scan_and_check_index(prebuilt,index, &n_rows)){
-				ret = DB_ERROR;
-			}
-
-			if (trx_is_interrupted(prebuilt->trx)) {
-				ret = DB_INTERRUPTED;
-				break;
-			}
-
-			/* fprintf(stderr, "%lu entries in index %s\n", n_rows,
-			index->name); */
-
-			if (index == dict_table_get_first_index(table)) {
-				n_rows_in_table = n_rows;
-			} else if (n_rows != n_rows_in_table) {
-
-				ret = DB_ERROR;
-
-				fputs("Error: ", stderr);
-				dict_index_name_print(stderr,
-						      prebuilt->trx, index);
-				fprintf(stderr,
-					" contains %lu entries,"
-					" should be %lu\n",
-					(ulong) n_rows,
-					(ulong) n_rows_in_table);
-			}
-		}
-
-		index = dict_table_get_next_index(index);
-	}
-
-	/* Restore the original isolation level */
-	prebuilt->trx->isolation_level = old_isolation_level;
-
-	/* We validate also the whole adaptive hash index for all tables
-	at every CHECK TABLE */
-
-	if (!btr_search_validate()) {
-
-		ret = DB_ERROR;
-	}
-
-	/* Restore the fatal lock wait timeout after CHECK TABLE. */
-	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
-	mutex_exit(&kernel_mutex);
-
-	prebuilt->trx->op_info = "";
-
-	return(ret);
 }
 
 /*********************************************************************//**

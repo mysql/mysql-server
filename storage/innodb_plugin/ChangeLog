@@ -1,3 +1,8 @@
+2010-02-03	The InnoDB Team
+
+	* handler/ha_innodb.cc, include/row0mysql.h, row/row0mysql.c:
+	Clean up CHECK TABLE error handling.
+
 2010-02-01	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb-autoinc.test,
