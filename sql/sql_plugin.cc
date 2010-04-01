@@ -388,6 +388,7 @@ static inline void free_plugin_mem(struct st_plugin_dl *p)
   @retval TRUE  ERROR
 */
 
+#ifdef HAVE_DLOPEN
 static my_bool read_mysql_plugin_info(struct st_plugin_dl *plugin_dl,
                                       void *sym, char *dlpath,
                                       int report)
@@ -592,6 +593,7 @@ static my_bool read_maria_plugin_info(struct st_plugin_dl *plugin_dl,
 
   DBUG_RETURN(FALSE);
 }
+#endif HAVE_DLOPEN
 
 static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 {
