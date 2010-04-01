@@ -100,6 +100,7 @@ class Master_info : public Slave_reporting_capability
 
   */
   long clock_diff_with_master;
+  char master_uuid[UUID_LENGTH+1];
 };
 
 void init_master_info_with_options(Master_info* mi);

@@ -149,8 +149,7 @@ SELECT * FROM t1 ORDER BY f3 LIMIT 20;
 --echo
 --echo * Show Slave Status *
 --echo
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical show slave status;
+source include/show_slave_status2.inc;
 --echo
 
 ### Altering table def scenario
@@ -438,9 +437,7 @@ connection master;
    sync_slave_with_master;
    select * from t31;
 
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical show slave status;
+source include/show_slave_status2.inc;
 
 #### Clean Up ####
 
@@ -498,9 +495,7 @@ INSERT INTO t10 () VALUES(1,@b1,DEFAULT,'Kyle',DEFAULT),
 --echo
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+source include/show_slave_status2.inc;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -555,9 +550,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Testing is fun','Kyle',DEFAULT),
 --echo
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+source include/show_slave_status2.inc;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -698,9 +691,7 @@ SELECT c1,c3,hex(c4),c5,c6 FROM t14 ORDER BY c1;
 #***************************
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+source include/show_slave_status2.inc;
 #***************************
 
 STOP SLAVE;
@@ -764,9 +755,7 @@ SELECT c1,hex(c4),c5,c6,c7,c2 FROM t15 ORDER BY c1;
 --echo
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+source include/show_slave_status2.inc;
 STOP SLAVE;
 RESET SLAVE;
 
@@ -841,9 +830,7 @@ SELECT c1,hex(c4),c5,c6,c7 FROM t16 ORDER BY c1;
 --echo
 connection slave;
 source include/wait_for_slave_sql_to_stop.inc;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+source include/show_slave_status2.inc;
 STOP SLAVE;
 RESET SLAVE;
 

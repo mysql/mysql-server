@@ -42,7 +42,7 @@ Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	test.t1
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
@@ -65,6 +65,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_UUID	#
 create table t1 (ts timestamp);
 set one_shot time_zone='met';
 insert into t1 values('2005-08-12 00:00:00');

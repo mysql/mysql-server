@@ -7,6 +7,7 @@ start slave;
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
 call mtr.add_suppression("Slave I/O thread .* register on master");
+call mtr.add_suppression("Slave I/O: Get master SERVER_UUID failed with error");
 SELECT IS_FREE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP");
 IS_FREE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP")
 1
@@ -32,6 +33,20 @@ stop slave;
 start slave;
 SELECT RELEASE_LOCK("debug_lock.before_get_SERVER_ID");
 RELEASE_LOCK("debug_lock.before_get_SERVER_ID")
+1
+Check network error happened here
+NETWORK ERROR
+SELECT IS_FREE_LOCK("debug_lock.before_get_MASTER_UUID");
+IS_FREE_LOCK("debug_lock.before_get_MASTER_UUID")
+1
+SELECT GET_LOCK("debug_lock.before_get_MASTER_UUID", 1000);
+GET_LOCK("debug_lock.before_get_MASTER_UUID", 1000)
+1
+set global debug= 'd,debug_lock.before_get_MASTER_UUID';
+stop slave;
+start slave;
+SELECT RELEASE_LOCK("debug_lock.before_get_MASTER_UUID");
+RELEASE_LOCK("debug_lock.before_get_MASTER_UUID")
 1
 Check network error happened here
 NETWORK ERROR

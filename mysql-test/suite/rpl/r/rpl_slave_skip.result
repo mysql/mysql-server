@@ -59,7 +59,7 @@ Slave_SQL_Running	No
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
@@ -82,6 +82,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_UUID	#
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 SELECT * FROM t1;
@@ -123,7 +124,7 @@ Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
 Replicate_Do_Table	
-Replicate_Ignore_Table	
+Replicate_Ignore_Table	#
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
@@ -146,6 +147,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_UUID	#
 **** On Master ****
 DROP TABLE t1, t2;
 SET SESSION BINLOG_FORMAT=ROW;

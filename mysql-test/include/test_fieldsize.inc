@@ -23,9 +23,7 @@ eval $test_insert;
 connection slave;
 START SLAVE;
 wait_for_slave_to_stop;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
---query_vertical SHOW SLAVE STATUS
+source include/show_slave_status2.inc;
 
 # The following should be 0
 SELECT COUNT(*) FROM t1;

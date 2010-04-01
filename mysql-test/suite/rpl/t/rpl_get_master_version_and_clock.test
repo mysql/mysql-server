@@ -21,6 +21,7 @@ connection slave;
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
 call mtr.add_suppression("Slave I/O thread .* register on master");
+call mtr.add_suppression("Slave I/O: Get master SERVER_UUID failed with error");
 
 #Test case 1: Try to get the value of the UNIX_TIMESTAMP from master under network disconnection
 let $debug_saved= `select @@global.debug`;
@@ -41,9 +42,18 @@ eval SELECT GET_LOCK($debug_lock, 1000);
 set global debug= 'd,debug_lock.before_get_SERVER_ID';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 
+#Test case 3: Try to get the value of the MASTER_UUID from master under network disconnection
+connection slave;
+let $debug_lock= "debug_lock.before_get_MASTER_UUID";
+eval SELECT IS_FREE_LOCK($debug_lock);
+eval SELECT GET_LOCK($debug_lock, 1000);
+
+set global debug= 'd,debug_lock.before_get_MASTER_UUID';
+source extra/rpl_tests/rpl_get_master_version_and_clock.test;
+
 eval set global debug= '$debug_saved';
 
-#Test case 3: This test checks that the slave I/O thread refuses to start
+#Test case 4: This test checks that the slave I/O thread refuses to start
 #if slave and master have the same server id.
 connection slave;
 reset master;

@@ -36,6 +36,7 @@ Master_info::Master_info()
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
   ssl_cipher[0]= 0; ssl_key[0]= 0;
+  master_uuid[0]=0;
 
   bzero((char*) &file, sizeof(file));
   pthread_mutex_init(&run_lock, MY_MUTEX_INIT_FAST);
@@ -94,8 +95,9 @@ enum {
   /* 5.1.16 added value of master_ssl_verify_server_cert */
   LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT= 15,
 
+  LINE_FOR_MASTER_UUID= 16,
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_SSL_VERIFY_SERVER_CERT
+  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_UUID
 };
 
 int init_master_info(Master_info* mi, const char* master_info_fname,
@@ -282,6 +284,9 @@ file '%s')", fname);
           init_intvar_from_file(&ssl_verify_server_cert, &mi->file, 0))
         goto errwithmsg;
 
+      if (lines >= LINE_FOR_MASTER_UUID &&
+          init_strvar_from_file(mi->master_uuid, sizeof(mi->master_uuid), &mi->file, 0))
+        goto errwithmsg;
     }
 
 #ifndef HAVE_OPENSSL
