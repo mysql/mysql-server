@@ -45,6 +45,7 @@ TODO:
 #pragma implementation        // gcc: Class implementation
 #endif
 
+#include "my_global.h"
 #include "sql_priv.h"
 #include "sql_class.h"                          // SSV
 #include <mysql/plugin.h>
