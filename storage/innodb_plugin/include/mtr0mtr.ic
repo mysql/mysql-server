@@ -70,6 +70,7 @@ mtr_memo_push(
 	ut_ad(type <= MTR_MEMO_X_LOCK);
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+	ut_ad(mtr->state == MTR_ACTIVE);
 
 	memo = &(mtr->memo);
 
@@ -92,6 +93,7 @@ mtr_set_savepoint(
 
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+	ut_ad(mtr->state == MTR_ACTIVE);
 
 	memo = &(mtr->memo);
 
@@ -149,6 +151,7 @@ mtr_memo_contains(
 
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+	ut_ad(mtr->state == MTR_ACTIVE);
 
 	memo = &(mtr->memo);
 

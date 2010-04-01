@@ -219,6 +219,9 @@ btr_pcur_restore_position_func(
 	ulint		old_mode;
 	mem_heap_t*	heap;
 
+	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
+
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
 
 	if (UNIV_UNLIKELY(cursor->old_stored != BTR_PCUR_OLD_STORED)
