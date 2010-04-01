@@ -95,7 +95,7 @@ struct hostent *
 my_gethostbyname_r(const char *name,
                    struct hostent *result __attribute__((unused)),
                    char *buffer __attribute__((unused)),
-                   int buflen__attribute__((unused)),
+                   int buflen __attribute__((unused)),
                    int *h_errnop)
 {
   struct hostent *hp;
