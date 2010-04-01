@@ -2013,7 +2013,7 @@ log_checkpoint(
 		return(TRUE);
 	}
 
-	ut_ad(log_sys->written_to_all_lsn >= oldest_lsn);
+	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
 
 	if (log_sys->n_pending_checkpoint_writes > 0) {
 		/* A checkpoint write is running */
