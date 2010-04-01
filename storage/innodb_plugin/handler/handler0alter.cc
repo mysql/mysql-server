@@ -528,12 +528,14 @@ innobase_create_key_def(
 				     key_info->name, "PRIMARY");
 
 	/* If there is a UNIQUE INDEX consisting entirely of NOT NULL
-	columns, MySQL will treat it as a PRIMARY KEY unless the
-	table already has one. */
+	columns and if the index does not contain column prefix(es)
+	(only prefix/part of the column is indexed), MySQL will treat the
+	index as a PRIMARY KEY unless the table already has one. */
 
 	if (!new_primary && (key_info->flags & HA_NOSAME)
+	    && (!(key_info->flags & HA_KEY_HAS_PART_KEY_SEG))
 	    && row_table_got_default_clust_index(table)) {
-		uint	key_part = key_info->key_parts;
+		uint    key_part = key_info->key_parts;
 
 		new_primary = TRUE;
 
