@@ -6333,6 +6333,10 @@ ha_innobase::create(
 		goto cleanup;
 	}
 
+	if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
+		flags |= DICT_TF2_TEMPORARY << DICT_TF2_SHIFT;
+	}
+
 	error = create_table_def(trx, form, norm_name,
 		create_info->options & HA_LEX_CREATE_TMP_TABLE ? name2 : NULL,
 		flags);
