@@ -358,7 +358,7 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "PAGE_NO", DATA_INT, 0, 4);
 
-	/* The '+ 2' below comes from the 2 system fields */
+	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
 #if DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2
 #error "DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2"
 #endif
@@ -367,6 +367,9 @@ dict_boot(void)
 #endif
 #if DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2
 #error "DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2"
+#endif
+#if DICT_SYS_INDEXES_NAME_FIELD != 1 + 2
+#error "DICT_SYS_INDEXES_NAME_FIELD != 1 + 2"
 #endif
 
 	table->id = DICT_INDEXES_ID;
