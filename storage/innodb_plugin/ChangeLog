@@ -1,3 +1,9 @@
+2010-03-09	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Make SHOW ENGINE INNODB MUTEX STATUS display SUM(os_waits)
+	for the buffer pool block mutexes and locks.
+
 2010-03-08	The InnoDB Team
 
 	* fil/fil0fil.c:
