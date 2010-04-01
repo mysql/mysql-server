@@ -144,6 +144,10 @@ row_undo_mod_clust_low(
 
 /***********************************************************//**
 Removes a clustered index record after undo if possible.
+This is attempted when the record was inserted by updating a
+delete-marked record and there no longer exist transactions
+that would see the delete-marked record.  In other words, we
+roll back the insert by purging the record.
 @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static
 ulint
@@ -159,6 +163,7 @@ row_undo_mod_remove_clust_low(
 	ulint		err;
 	ibool		success;
 
+	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 	pcur = &(node->pcur);
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
@@ -316,6 +321,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	mtr_t		mtr;
 	mtr_t		mtr_vers;
 
+	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 	log_free_check();
 	mtr_start(&mtr);
 
@@ -411,6 +417,8 @@ row_undo_mod_del_mark_or_remove_sec(
 	dtuple_t*	entry)	/*!< in: index entry */
 {
 	ulint	err;
+
+	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 
 	err = row_undo_mod_del_mark_or_remove_sec_low(node, thr, index,
 						      entry, BTR_MODIFY_LEAF);
@@ -533,6 +541,7 @@ row_undo_mod_upd_del_sec(
 	dict_index_t*	index;
 	ulint		err	= DB_SUCCESS;
 
+	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
