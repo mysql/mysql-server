@@ -152,6 +152,7 @@ ut_hash_ulint(
 	ulint	 key,		/*!< in: value to be hashed */
 	ulint	 table_size)	/*!< in: hash table size */
 {
+	ut_ad(table_size);
 	key = key ^ UT_HASH_RANDOM_MASK2;
 
 	return(key % table_size);
