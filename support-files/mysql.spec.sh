@@ -398,18 +398,6 @@ RBR=$RPM_BUILD_ROOT
 # Clean up the BuildRoot first
 [ "$RBR" != "/" ] && [ -d "$RBR" ] && rm -rf "$RBR";
 
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921)
-if "$CC" --version | grep '(GCC)' >/dev/null 2>&1
-then
-  libgcc=`$CC $CFLAGS --print-libgcc-file`
-  if [ -f $libgcc ]
-  then
-    %define WITH_LIBGCC 1
-    mkdir -p $RBR%{_libdir}
-    install -m 644 $libgcc $RBR%{_libdir}/libmygcc.a
-  fi
-fi
-
 ##############################################################################
 %install
 
@@ -430,6 +418,17 @@ install -d $RBR%{_sbindir}
   cd $MBD/release
   make DESTDIR=$RBR install
 )
+
+# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921)
+if "$CC" --version | grep '(GCC)' >/dev/null 2>&1
+then
+  libgcc=`$CC $CFLAGS --print-libgcc-file`
+  if [ -f $libgcc ]
+  then
+    %define WITH_LIBGCC 1
+    install -m 644 $libgcc $RBR%{_libdir}/libmygcc.a
+  fi
+fi
 
 # Install logrotate and autostart
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
