@@ -286,39 +286,3 @@ trx_rseg_list_and_array_init(
 		}
 	}
 }
-
-/****************************************************************//**
-Creates a new rollback segment to the database.
-@return	the created segment object, NULL if fail */
-UNIV_INTERN
-trx_rseg_t*
-trx_rseg_create(
-/*============*/
-	ulint	space,		/*!< in: space id */
-	ulint	max_size,	/*!< in: max size in pages */
-	ulint*	id,		/*!< out: rseg id */
-	mtr_t*	mtr)		/*!< in: mtr */
-{
-	ulint		flags;
-	ulint		zip_size;
-	ulint		page_no;
-	trx_rseg_t*	rseg;
-
-	mtr_x_lock(fil_space_get_latch(space, &flags), mtr);
-	zip_size = dict_table_flags_to_zip_size(flags);
-	mutex_enter(&kernel_mutex);
-
-	page_no = trx_rseg_header_create(space, zip_size, max_size, id, mtr);
-
-	if (page_no == FIL_NULL) {
-
-		mutex_exit(&kernel_mutex);
-		return(NULL);
-	}
-
-	rseg = trx_rseg_mem_create(*id, space, zip_size, page_no, mtr);
-
-	mutex_exit(&kernel_mutex);
-
-	return(rseg);
-}
