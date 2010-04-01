@@ -405,6 +405,7 @@ then
   if [ -f $libgcc ]
   then
     %define WITH_LIBGCC 1
+    mkdir -p $RBR%{_libdir}
     install -m 644 $libgcc $RBR%{_libdir}/libmygcc.a
   fi
 fi
