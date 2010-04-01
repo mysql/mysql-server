@@ -209,6 +209,14 @@ void wbuf_xids(struct wbuf *wb, XIDS xids) {
     }
 }
 
+void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids) {
+    wbuf_nocrc_char(wb, (unsigned char)xids->num_stored_xids);
+    u_int8_t index;
+    for (index = 0; index < xids->num_stored_xids; index++) {
+        wbuf_nocrc_TXNID(wb, xids->ids[index]);
+    }
+}
+
 void
 xids_fprintf(FILE* fp, XIDS xids) {
     u_int8_t index;

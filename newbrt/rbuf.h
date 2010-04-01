@@ -18,6 +18,12 @@ struct rbuf {
     unsigned int  ndone;
 };
 
+static inline void rbuf_init(struct rbuf *r, unsigned char *buf, unsigned int size) {
+    r->buf = buf;
+    r->size = size;
+    r->ndone = 0;
+}
+
 static inline unsigned int rbuf_char (struct rbuf *r) {
     assert(r->ndone<r->size);
     return r->buf[r->ndone++];

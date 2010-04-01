@@ -201,7 +201,7 @@ get_unaligned_uint32(unsigned char *p) {
     return *(u_int32_t *)p;
 }
 
-#define SUB_BLOCK_XSUM 0
+#define SUB_BLOCK_XSUM 1
 
 struct sub_block {
   u_int32_t compressed_size;
@@ -277,8 +277,10 @@ dump_block(int f, BLOCKNUM blocknum, struct brt_header *h) {
 
     unsigned char *vp = toku_malloc(size);
     u_int64_t r = pread(f, vp, size, offset);
-    if (r == (u_int64_t)size)
+    if (r == (u_int64_t)size) {
+        printf("%.8s layout_version=%u %u\n", vp, get_unaligned_uint32(vp+8), get_unaligned_uint32(vp+12));
         verify_block(vp, size);
+    }
     toku_free(vp);
 }
 

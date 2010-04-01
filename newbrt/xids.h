@@ -50,6 +50,7 @@ void toku_calc_more_murmur_xids (struct x1764 *mm, XIDS xids);
 unsigned char *xids_get_end_of_array(XIDS xids);
 
 void wbuf_xids(struct wbuf *wb, XIDS xids);
+void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids);
 
 void xids_fprintf(FILE* fp, XIDS xids);
 

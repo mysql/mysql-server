@@ -21,7 +21,7 @@ struct wbuf {
     unsigned char *buf;
     unsigned int  size;
     unsigned int  ndone;
-    struct x1764  checksum;    // The checksumx state
+    struct x1764  checksum;    // The checksum state
 };
 
 static inline void wbuf_nocrc_init (struct wbuf *w, void *buf, DISKOFF size) {
@@ -115,7 +115,6 @@ static void wbuf_nocrc_bytes (struct wbuf *w, bytevec bytes_bv, u_int32_t nbytes
     wbuf_nocrc_literal_bytes(w, bytes_bv, nbytes);
 }
 
-
 static void wbuf_bytes (struct wbuf *w, bytevec bytes_bv, u_int32_t nbytes) {
     wbuf_uint(w, nbytes);
     wbuf_literal_bytes(w, bytes_bv, nbytes);
@@ -125,7 +124,6 @@ static void wbuf_nocrc_ulonglong (struct wbuf *w, u_int64_t ull) {
     wbuf_nocrc_uint(w, (u_int32_t)(ull>>32));
     wbuf_nocrc_uint(w, (u_int32_t)(ull&0xFFFFFFFF));
 }
-
 
 static void wbuf_ulonglong (struct wbuf *w, u_int64_t ull) {
     wbuf_uint(w, (u_int32_t)(ull>>32));
@@ -164,10 +162,14 @@ static inline void wbuf_u_int32_t (struct wbuf *w, u_int32_t v) {
 static inline void wbuf_DISKOFF (struct wbuf *w, DISKOFF off) {
     wbuf_ulonglong(w, (u_int64_t)off);
 }
+
 static inline void wbuf_BLOCKNUM (struct wbuf *w, BLOCKNUM b) {
     wbuf_ulonglong(w, b.b);
 }
 
+static inline void wbuf_nocrc_BLOCKNUM (struct wbuf *w, BLOCKNUM b) {
+    wbuf_nocrc_ulonglong(w, b.b);
+}
 
 static inline void wbuf_nocrc_TXNID (struct wbuf *w, TXNID tid) {
     wbuf_nocrc_ulonglong(w, tid);
