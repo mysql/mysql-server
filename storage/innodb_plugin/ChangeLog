@@ -1,6 +1,19 @@
+2010-01-12	The InnoDB Team
+
+	* handler/ha_innodb.cc, handler/ha_innodb.h:
+	Fix Bug #46193 crash when accessing tables after enabling
+	innodb_force_recovery option
+
+2010-01-12	The InnoDB Team
+
+	* row/row0mysql.c:
+	Fix Bug#49238 Creating/Dropping a temporary table while at 1023
+	transactions will cause assert.
+
 2009-12-02	The InnoDB Team
 
-	* srv/srv0start.c: Display the zlib version number at startup.
+	* srv/srv0start.c:
+	Display the zlib version number at startup.
 	InnoDB compressed tables use zlib, and the implementation depends
 	on the zlib function compressBound(), whose definition was slightly
 	changed in zlib version 1.2.3.1 in 2006.  MySQL bundles zlib 1.2.3

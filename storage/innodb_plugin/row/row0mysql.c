@@ -3255,18 +3255,12 @@ check_next_foreign:
 			   "END;\n"
 			   , FALSE, trx);
 
-	if (err != DB_SUCCESS) {
-		ut_a(err == DB_OUT_OF_FILE_SPACE);
-
-		err = DB_MUST_GET_MORE_FILE_SPACE;
-
-		row_mysql_handle_errors(&err, trx, NULL, NULL);
-
-		ut_error;
-	} else {
+	switch (err) {
 		ibool		is_temp;
 		const char*	name_or_path;
 		mem_heap_t*	heap;
+
+	case DB_SUCCESS:
 
 		heap = mem_heap_create(200);
 
@@ -3333,7 +3327,27 @@ check_next_foreign:
 		}
 
 		mem_heap_free(heap);
+		break;
+
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		/* Cannot even find a free slot for the
+		the undo log. We can directly exit here
+		and return the DB_TOO_MANY_CONCURRENT_TRXS
+		error. */
+		break;
+
+	case DB_OUT_OF_FILE_SPACE:
+		err = DB_MUST_GET_MORE_FILE_SPACE;
+
+		row_mysql_handle_errors(&err, trx, NULL, NULL);
+
+		/* Fall through to raise error */
+
+	default:
+		/* No other possible error returns */
+		ut_error;
 	}
+
 funct_exit:
 
 	if (locked_dictionary) {
