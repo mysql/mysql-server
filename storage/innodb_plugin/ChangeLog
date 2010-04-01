@@ -1,7 +1,13 @@
+2010-03-03	The InnoDB Team
+
+	* handler/handler0alter.cc, innodb-index.result, innodb-index.test,
+	innodb.result, innodb.test:
+	Disallow a duplicate index name when creating an index.
+
 2010-02-11	The InnoDB Team
 
 	* include/mem0mem.h, include/mem0mem.ic, mem/mem0mem.c:
-	Fix bug #49535 Available memory check slows down crash
+	Fix Bug #49535 Available memory check slows down crash
 	recovery tens of times
 
 2010-02-09	The InnoDB Team
