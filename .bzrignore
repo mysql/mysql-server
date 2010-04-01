@@ -394,6 +394,7 @@ client/rpl_tblmap.cc
 client/rpl_utility.h
 client/rpl_utility.cc
 client/select_test
+client/sql_const.h
 client/sql_string.cpp
 client/ssl_test
 client/thimble
@@ -1209,7 +1210,7 @@ libmysqld/stacktrace.c
 libmysqld/strfunc.cc
 libmysqld/table.cc
 libmysqld/thr_malloc.cc
-libmysqld/time.cc
+libmysqld/sql_time.cc
 libmysqld/tztime.cc
 libmysqld/uniques.cc
 libmysqld/unireg.cc
@@ -1414,7 +1415,7 @@ mysql-test/var/*
 mysql-test/windows_sys_vars.inc
 mysql.kdevprj
 mysql.proj
-mysql_priv.h
+sql_priv.h
 mysqlbinlog/*.ds?
 mysqlbinlog/*.vcproj
 mysqlcheck/*.ds?

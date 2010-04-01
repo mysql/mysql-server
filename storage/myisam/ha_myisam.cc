@@ -19,9 +19,10 @@
 #endif
 
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "probes_mysql.h"
-#include <mysql/plugin.h>
+#include "key.h"                                // key_copy
+#include "sql_plugin.h"
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <myisampack.h>
@@ -29,6 +30,8 @@
 #include <stdarg.h>
 #include "myisamdef.h"
 #include "rt_index.h"
+#include "sql_table.h"                          // tablename_to_filename
+#include "sql_class.h"                          // THD
 
 ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;

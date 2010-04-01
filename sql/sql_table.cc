@@ -15,14 +15,40 @@
 
 /* drop and alter of tables */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "debug_sync.h"
+#include "sql_table.h"
+#include "sql_rename.h" // do_rename
+#include "sql_parse.h"                        // test_if_data_home_dir
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_base.h"                          // open_temporary_table
+#include "lock.h"       // wait_if_global_read_lock, lock_table_names,
+                        // start_waiting_global_read_lock,
+                        // unlock_table_names, mysql_unlock_tables
+#include "strfunc.h"    // find_type2, find_set
+#include "sql_view.h" // mysql_frm_type, view_checksum, mysql_frm_type
+#include "sql_delete.h"                         // mysql_truncate
+#include "sql_partition.h"                      // mem_alloc_error,
+                                                // generate_partition_syntax,
+                                                // partition_info
+#include "sql_db.h" // load_db_opt_by_name, lock_db_cache, creating_database
+#include "sql_time.h"                  // make_truncated_value_warning
+#include "records.h"             // init_read_record, end_read_record
+#include "filesort.h"            // filesort_free_buffers
+#include "sql_select.h"                // setup_order,
+                                       // make_unireg_sortorder
+#include "sql_handler.h"               // mysql_ha_rm_tables
+#include "discover.h"                  // readfrm
+#include "my_pthread.h"                // pthread_mutex_t
+#include "log_event.h"                 // Query_log_event
 #include <hash.h>
 #include <myisam.h>
 #include <my_dir.h>
 #include "sp_head.h"
 #include "sp.h"
 #include "sql_trigger.h"
+#include "sql_parse.h"
 #include "sql_show.h"
 #include "transaction.h"
 #include "keycaches.h"

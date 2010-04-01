@@ -372,7 +372,10 @@
 
 
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
+#include "sql_class.h"           // SSV
+#include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -383,6 +386,7 @@
 #include "probes_mysql.h"
 
 #include "m_string.h"
+#include "key.h"                                // key_copy
 
 #include <mysql/plugin.h>
 

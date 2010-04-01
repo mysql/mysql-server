@@ -14,7 +14,9 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include <mysql_priv.h>
+#include <my_global.h>
 #include <pfs_timer.h>
+#include "my_sys.h"
 #include <tap.h>
 
 void test_timers()

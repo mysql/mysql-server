@@ -31,8 +31,14 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_parse.h"                        // check_identifier_name
+#include "sql_table.h"                        // write_bin_log
+#include "records.h"          // init_read_record, end_read_record
 #include <my_pthread.h>
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
 #ifdef HAVE_DLOPEN
 extern "C"
