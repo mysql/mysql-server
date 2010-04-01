@@ -485,7 +485,7 @@ next_column:
 /****************************************************************//**
 Handles user errors and lock waits detected by the database engine.
 @return TRUE if it was a lock wait and we should continue running the
-query thread */
+query thread and in that case the thr is ALREADY in the running state. */
 UNIV_INTERN
 ibool
 row_mysql_handle_errors(
