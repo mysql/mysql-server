@@ -1,7 +1,7 @@
 2010-03-18	The InnoDB Team
 
 	* CMakeLists.txt:
-	Fix Bug #52102 InnoDB Plugin shows performance drop compared to
+	Fix Bug#52102 InnoDB Plugin shows performance drop compared to
 	InnoDB (Windows)
 
 2010-03-18	The InnoDB Team
@@ -21,26 +21,26 @@
 2010-03-10	The InnoDB Team
 
 	* trx/trx0sys.c:
-	Fix Bug #51653 outdated reference to set-variable
+	Fix Bug#51653 outdated reference to set-variable
 
 2010-03-10	The InnoDB Team
 
 	* handler/ha_innodb.cc, mysql-test/innodb_bug21704.result,
 	mysql-test/innodb_bug47621.result, mysql-test/innodb_bug47621.test:
-	Fix Bug #47621 MySQL and InnoDB data dictionaries will become
+	Fix Bug#47621 MySQL and InnoDB data dictionaries will become
 	out of sync when renaming columns
 
 2010-03-10	The InnoDB Team
 
 	* handler/ha_innodb.cc:
-	Fix Bug #51356 Many Valgrind errors in error messages
+	Fix Bug#51356 Many Valgrind errors in error messages
 	with concurrent DDL
 
 2010-03-10	The InnoDB Team
 
 	* handler/ha_innodb.cc, handler/handler0alter.cc,
 	mysql-test/innodb_bug51378.result, mysql-test/innodb_bug51378.test:
-	Fix Bug #51378 Init 'ref_length' to correct value, in case an out
+	Fix Bug#51378 Init 'ref_length' to correct value, in case an out
 	of bound MySQL primary_key
 
 2010-03-10	The InnoDB Team
@@ -70,13 +70,13 @@
 2010-02-11	The InnoDB Team
 
 	* include/mem0mem.h, include/mem0mem.ic, mem/mem0mem.c:
-	Fix Bug #49535 Available memory check slows down crash
+	Fix Bug#49535 Available memory check slows down crash
 	recovery tens of times
 
 2010-02-09	The InnoDB Team
 
 	* buf/buf0buf.c:
-	Fix Bug #38901 InnoDB logs error repeatedly when trying to load
+	Fix Bug#38901 InnoDB logs error repeatedly when trying to load
 	page into buffer pool
 
 2010-02-09	The InnoDB Team
@@ -151,7 +151,7 @@
 2010-01-12	The InnoDB Team
 
 	* handler/ha_innodb.cc, handler/ha_innodb.h:
-	Fix Bug #46193 crash when accessing tables after enabling
+	Fix Bug#46193 crash when accessing tables after enabling
 	innodb_force_recovery option
 
 2010-01-12	The InnoDB Team
@@ -264,8 +264,8 @@
 	sync/sync0arr.c, sync/sync0sync.c, thr/thr0loc.c, trx/trx0i_s.c,
 	trx/trx0purge.c, trx/trx0rseg.c, trx/trx0sys.c, trx/trx0undo.c,
 	usr/usr0sess.c, ut/ut0mem.c:
-	Fix Bug #45992 innodb memory not freed after shutdown
-	Fix Bug #46656 InnoDB plugin: memory leaks (Valgrind)
+	Fix Bug#45992 innodb memory not freed after shutdown
+	Fix Bug#46656 InnoDB plugin: memory leaks (Valgrind)
 
 2009-10-29	The InnoDB Team
 
@@ -607,7 +607,7 @@
 	* dict/dict0dict.c:
 	When an index column cannot be found in the table during index
 	creation, display additional diagnostic before an assertion failure.
-	This does NOT fix Bug #44571 InnoDB Plugin crashes on ADD INDEX,
+	This does NOT fix Bug#44571 InnoDB Plugin crashes on ADD INDEX,
 	but it helps understand the reason of the crash.
 
 2009-06-17	The InnoDB Team
