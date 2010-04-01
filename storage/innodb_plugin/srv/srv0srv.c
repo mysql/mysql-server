@@ -1717,9 +1717,9 @@ srv_printf_innodb_monitor(
 		"Per second averages calculated from the last %lu seconds\n",
 		(ulong)time_elapsed);
 
-	fputs("----------\n"
-		"BACKGROUND THREAD\n"
-		"----------\n", file);
+	fputs("-----------------\n"
+	      "BACKGROUND THREAD\n"
+	      "-----------------\n", file);
 	srv_print_master_thread_info(file);
 
 	fputs("----------\n"
