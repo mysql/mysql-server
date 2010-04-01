@@ -3312,64 +3312,6 @@ retry:
 }
 
 /********************************************************************//**
-Check that no other transaction is waiting on this transaction's locks.
-@return TRUE if some other transaction is waiting for this lock. */
-static
-ulint
-lock_trx_has_no_waiters(
-/*====================*/
-	const trx_t*	trx)		/*!< in: the transaction to check */
-{
-	const lock_t*	lock;
-
-	ut_ad(mutex_own(&kernel_mutex));
-
-	for (lock = UT_LIST_GET_FIRST(trx->trx_locks);
-	     lock != NULL;
-	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
-
-		const lock_t*	wait_lock = lock;
-
-		/* Look for all transactions that could be waiting on this
-		transaction's locks. For that we need to search forward. */
-		if (lock_get_type_low(lock) == LOCK_REC) {
-
-			ulint	heap_no;
-
-			/* It's possible for heap_no to be undefined here.
-			This can happen during lock move from one page to
-			another when we split. */
-
-			heap_no = lock_rec_find_set_bit(lock);
-
-			do {
-				wait_lock = lock_rec_get_next(
-					heap_no, (lock_t*) wait_lock);
-
-				if (wait_lock != NULL
-				    && lock_has_to_wait(wait_lock, lock)) {
-
-					return(FALSE);
-				}
-			} while (wait_lock != NULL);
-		} else {
-			do {
-				wait_lock = UT_LIST_GET_NEXT(
-					un_member.tab_lock.locks, wait_lock);
-
-				if (wait_lock != NULL
-				    && lock_has_to_wait(wait_lock, lock) ) {
-
-					return(FALSE);
-				}
-			} while (wait_lock != NULL);
-		}
-	}
-
-	return(TRUE);
-}
-
-/********************************************************************//**
 Looks recursively for a deadlock.
 @return 0 if no deadlock found, LOCK_VICTIM_IS_START if there was a
 deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a
@@ -3405,14 +3347,9 @@ lock_deadlock_recursive(
 		from this trx */
 
 		return(0);
-	} else if (lock_trx_has_no_waiters(trx)) {
-		/* If no other transaction is waiting for this transaction
-		to release its locks then no deadlock can occur. */
-		return(0);
 	}
 
 	*cost = *cost + 1;
-
 
 	if (lock_get_type_low(wait_lock) == LOCK_REC) {
 		ulint		space;
