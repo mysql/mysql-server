@@ -3264,7 +3264,7 @@ check_next_foreign:
 
 		ut_error;
 	} else {
-		ibool		is_path;
+		ibool		is_temp;
 		const char*	name_or_path;
 		mem_heap_t*	heap;
 
@@ -3277,12 +3277,13 @@ check_next_foreign:
 		space_id = table->space;
 
 		if (table->dir_path_of_temp_table != NULL) {
-			is_path = TRUE;
 			name_or_path = mem_heap_strdup(
 				heap, table->dir_path_of_temp_table);
+			is_temp = TRUE;
 		} else {
-			is_path = FALSE;
 			name_or_path = name;
+			is_temp = (table->flags >> DICT_TF2_SHIFT)
+				& DICT_TF2_TEMPORARY;
 		}
 
 		dict_table_remove_from_cache(table);
@@ -3302,8 +3303,8 @@ check_next_foreign:
 		if (err == DB_SUCCESS && space_id > 0) {
 			if (!fil_space_for_table_exists_in_mem(space_id,
 							       name_or_path,
-							       is_path,
-							       FALSE, TRUE)) {
+							       is_temp, FALSE,
+							       !is_temp)) {
 				err = DB_SUCCESS;
 
 				fprintf(stderr,
