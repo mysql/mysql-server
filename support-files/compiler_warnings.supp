@@ -160,4 +160,4 @@ ctype-simple\.c : .*unary minus operator applied to unsigned type, result still 
 # Wrong warning due to GCC bug: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29478
 regexec\.c : passing argument 3 of.*matcher.* discards qualifiers from pointer target type
 libmysql\.c: passing argument 2 of .*memcpy.* discards qualifiers from pointer target type : 3000-4000
-storage/xtradb/dict/dict0dict\.c: passing argument 1 of .*strcpy.* discards qualifiers from pointer target type : 2500-3500
+storage/xtradb/dict/dict0dict\.c : passing argument 1 of .*strcpy.* discards qualifiers from pointer target type : 2500-3500
