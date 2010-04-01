@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Sun Microsystems, Inc.
 
