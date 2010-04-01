@@ -138,7 +138,9 @@ UNIV_INTERN ulint	recv_max_parsed_page_no;
 /** This many frames must be left free in the buffer pool when we scan
 the log and store the scanned log records in the buffer pool: we will
 use these free frames to read in pages when we start applying the
-log records to the database. */
+log records to the database.
+This is the default value. If the actual size of the buffer pool is
+larger than 10 MB we'll set this value to 512. */
 UNIV_INTERN ulint	recv_n_pool_free_frames;
 
 /** The maximum lsn we see for a page during the recovery process. If this
@@ -294,6 +296,12 @@ recv_sys_init(
 		return;
 	}
 
+	/* Initialize red-black tree for fast insertions into the
+	flush_list during recovery process.
+	As this initialization is done while holding the buffer pool
+	mutex we perform it before acquiring recv_sys->mutex. */
+	buf_flush_init_flush_rbt();
+
 	mutex_enter(&(recv_sys->mutex));
 
 #ifndef UNIV_HOTBACKUP
@@ -302,6 +310,12 @@ recv_sys_init(
 	recv_sys->heap = mem_heap_create(256);
 	recv_is_from_backup = TRUE;
 #endif /* !UNIV_HOTBACKUP */
+
+	/* Set appropriate value of recv_n_pool_free_frames. */
+	if (buf_pool_get_curr_size() >= (10 * 1024 * 1024)) {
+		/* Buffer pool of size greater than 10 MB. */
+		recv_n_pool_free_frames = 512;
+	}
 
 	recv_sys->buf = ut_malloc(RECV_PARSING_BUF_SIZE);
 	recv_sys->len = 0;
@@ -372,6 +386,9 @@ recv_sys_debug_free(void)
 	recv_sys->last_block_buf_start = NULL;
 
 	mutex_exit(&(recv_sys->mutex));
+
+	/* Free up the flush_rbt. */
+	buf_flush_free_flush_rbt();
 }
 # endif /* UNIV_LOG_DEBUG */
 
