@@ -602,7 +602,11 @@ source include/stop_slave.inc;
 UNINSTALL PLUGIN rpl_semi_sync_slave;
 
 connection master;
+# The dump thread may still be running on the master, and so the following
+# UNINSTALL could generate a warning about the plugin is busy.
+disable_warnings;
 UNINSTALL PLUGIN rpl_semi_sync_master;
+enable_warnings;
 
 connection slave;
 source include/start_slave.inc;
