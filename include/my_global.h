@@ -1522,6 +1522,9 @@ do { doubleget_union _tmp; \
 #elif defined(HAVE_DLFCN_H)
 #include <dlfcn.h>
 #endif
+#ifndef HAVE_DLERROR
+#define dlerror() ""
+#endif
 #endif
 
 /* FreeBSD 2.2.2 does not define RTLD_NOW) */
@@ -1529,7 +1532,7 @@ do { doubleget_union _tmp; \
 #define RTLD_NOW 1
 #endif
 
-#ifndef HAVE_DLERROR
+#ifndef HAVE_DLOPEN
 #define dlerror() "No support for dynamic loading (static build?)"
 #define dlopen(A,B) 0
 #define dlsym(A,B) 0

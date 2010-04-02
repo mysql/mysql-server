@@ -2345,7 +2345,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
   case VIO_TYPE_SSL:
     {
       struct sockaddr addr;
-      socklen_t addrlen= sizeof(addr);
+      SOCKET_SIZE_TYPE addrlen= sizeof(addr);
       if (getsockname(vio->sd, &addr, &addrlen))
         return;
       info->protocol= addr.sa_family == AF_UNIX ?
@@ -2360,7 +2360,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
     return;
   case VIO_TYPE_SHARED_MEMORY:
     info->protocol= MYSQL_VIO_MEMORY;
-    info->handle= vio->handle_client_file_map; /* or what ? */
+    info->handle= vio->handle_file_map; /* or what ? */
     return;
 #endif
   default: DBUG_ASSERT(0);

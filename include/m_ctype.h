@@ -311,7 +311,9 @@ struct charset_info_st
 #define ILLEGAL_CHARSET_INFO_NUMBER (~0U)
 
 extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_bin;
-extern struct charset_info_st my_charset_bin;
+extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_latin1;
+extern MYSQL_PLUGIN_IMPORT struct charset_info_st my_charset_filename;
+
 extern struct charset_info_st my_charset_big5_chinese_ci;
 extern struct charset_info_st my_charset_big5_bin;
 extern struct charset_info_st my_charset_cp932_japanese_ci;
@@ -324,7 +326,6 @@ extern struct charset_info_st my_charset_gb2312_chinese_ci;
 extern struct charset_info_st my_charset_gb2312_bin;
 extern struct charset_info_st my_charset_gbk_chinese_ci;
 extern struct charset_info_st my_charset_gbk_bin;
-extern struct charset_info_st my_charset_latin1;
 extern struct charset_info_st my_charset_latin1_german2_ci;
 extern struct charset_info_st my_charset_latin1_bin;
 extern struct charset_info_st my_charset_latin2_czech_ci;
@@ -341,7 +342,6 @@ extern struct charset_info_st my_charset_utf8_general_ci;
 extern struct charset_info_st my_charset_utf8_unicode_ci;
 extern struct charset_info_st my_charset_utf8_bin;
 extern struct charset_info_st my_charset_cp1250_czech_ci;
-extern struct charset_info_st my_charset_filename;
 
 /* declarations for simple charsets */
 extern size_t my_strnxfrm_simple(CHARSET_INFO *, uchar *, size_t,

@@ -924,7 +924,7 @@ void THD::update_stats(void)
     /* A SQL query. */
     if (lex->sql_command == SQLCOM_SELECT)
       select_commands++;
-    else if (! sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
+    else if (! (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND))
     {
       /* Ignore 'SHOW ' commands */
     }

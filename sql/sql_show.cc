@@ -2529,8 +2529,8 @@ int send_user_stats(THD* thd, HASH *all_user_stats, TABLE *table)
     table->field[j++]->store(user_stats->user, user_stats->user_name_length,
                              system_charset_info);
     table->field[j++]->store((longlong)user_stats->total_connections,TRUE);
-    table->field[j++]->store((longlong)user_stats->concurrent_connections);
-    table->field[j++]->store((longlong)user_stats->connected_time);
+    table->field[j++]->store((longlong)user_stats->concurrent_connections, TRUE);
+    table->field[j++]->store((longlong)user_stats->connected_time, TRUE);
     table->field[j++]->store((double)user_stats->busy_time);
     table->field[j++]->store((double)user_stats->cpu_time);
     table->field[j++]->store((longlong)user_stats->bytes_received, TRUE);

@@ -6645,8 +6645,6 @@ Can't be set to 1 if --log-slave-updates is used.",
   {"shared-memory", OPT_ENABLE_SHARED_MEMORY,
    "Enable the shared memory.",(uchar**) &opt_enable_shared_memory, (uchar**) &opt_enable_shared_memory,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-#ifdef HAVE_SMEM
   {"shared-memory-base-name",OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
