@@ -65,7 +65,7 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     result->rollentry_fd = -1;
     result->rollentry_filesize = 0;
     result->force_fsync_on_commit = FALSE;
-    result->has_done_work = 0;
+    result->has_done_work = FALSE;
     *tokutxn = result;
     return 0;
 
