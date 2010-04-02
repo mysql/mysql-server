@@ -20,6 +20,7 @@
 
 #include "brtloader-internal.h"
 #include "brt-internal.h"
+#include "sub_block.h"
 
 static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
@@ -1178,48 +1179,52 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
 					     +4 // layout version
 					     +4 // layout version original
 					     );
-    int n_extra_bytes_for_compression = (+4 // n_sub blocks
-					 +4 // compressed size
-					 +4 // compressed size
-                                         +4 // sub block checksum
-                                         +4 // header checksum
-					 );
-    int header_len = n_uncompressed_bytes_at_beginning + n_extra_bytes_for_compression;
-    int compression_level = 5;
     int uncompressed_len = lbuf->dbuf.off - n_uncompressed_bytes_at_beginning;
-    int bound = compressBound(uncompressed_len);
-    unsigned char *MALLOC_N(header_len + bound, compressed_buf);
-    uLongf real_compressed_len = bound;
-    {
-	int r = compress2((Bytef*)(compressed_buf + header_len), &real_compressed_len,
-			  (Bytef*)(lbuf->dbuf.buf + n_uncompressed_bytes_at_beginning), uncompressed_len,
-			  compression_level);
-	assert(r==Z_OK);
-    }
-    
-    // checksum the sub block
-    u_int32_t xsum0 = x1764_memory(compressed_buf + header_len, real_compressed_len);
 
+    // choose sub block size and number
+    int sub_block_size, n_sub_blocks;
+    choose_sub_block_size(uncompressed_len, max_sub_blocks, &sub_block_size, &n_sub_blocks);
+
+    int header_len = n_uncompressed_bytes_at_beginning + sub_block_header_size(n_sub_blocks) + sizeof (uint32_t);
+
+    // initialize the sub blocks
+    struct sub_block sub_block[n_sub_blocks];
+    for (int i = 0; i < n_sub_blocks; i++) 
+        sub_block_init(&sub_block[i]);
+    set_all_sub_block_sizes(uncompressed_len, sub_block_size, n_sub_blocks, sub_block);
+
+    // allocate space for the compressed bufer
+    int bound = get_sum_compressed_size_bound(n_sub_blocks, sub_block);
+    unsigned char *MALLOC_N(header_len + bound, compressed_buf);
+
+    // compress and checksum the sub blocks
+    int compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, 
+                                                 (char *) (lbuf->dbuf.buf + n_uncompressed_bytes_at_beginning),
+                                                 (char *) (compressed_buf + header_len), 2);
+
+    // cppy the uncompressed header to the compressed buffer
     memcpy(compressed_buf, lbuf->dbuf.buf, n_uncompressed_bytes_at_beginning);
-    int compressed_len = real_compressed_len;
-    int n_compressed_blocks = 1;
-    memcpy(compressed_buf+16, &n_compressed_blocks, 4);
-    memcpy(compressed_buf+20, &compressed_len, 4);
-    memcpy(compressed_buf+24, &uncompressed_len, 4);
-    memcpy(compressed_buf+28, &xsum0, 4);
+
+    // serialize the sub block header
+    memcpy(compressed_buf+16, &n_sub_blocks, 4);
+    for (int i = 0; i < n_sub_blocks; i++) {
+        memcpy(compressed_buf+20+12*i+0, &sub_block[i].compressed_size, 4);
+        memcpy(compressed_buf+20+12*i+4, &sub_block[i].uncompressed_size, 4);
+        memcpy(compressed_buf+20+12*i+8, &sub_block[i].xsum, 4);
+    }
 
     // compute the header checksum and serialize it
     u_int32_t header_xsum = x1764_memory(compressed_buf, header_len - sizeof (u_int32_t));
-    memcpy(compressed_buf+32, &header_xsum, 4);
+    memcpy(compressed_buf + header_len - sizeof (u_int32_t), &header_xsum, 4);
 
 //#ifndef CILK_STUB
 //    ttable_and_write_lock->lock();
 //#endif
     long long off_of_leaf = out->current_off;
-    int size = real_compressed_len + header_len;
+    int size = header_len + compressed_len;
     if (0) {
 	fprintf(stderr, "uncompressed buf size=%d (amount of data compressed)\n", uncompressed_len);
-	fprintf(stderr, "compressed buf size=%lu, off=%lld\n", real_compressed_len, off_of_leaf);
+	fprintf(stderr, "compressed buf size=%u, off=%lld\n", compressed_len, off_of_leaf);
 	fprintf(stderr, "compressed bytes are:");
 	//for (int i=0; i<compressed_len; i++) {
 	//    unsigned char c = compressed_buf[28+i];

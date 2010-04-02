@@ -67,6 +67,7 @@ BRT_SOURCES = \
   recover \
   roll \
   rollback \
+  sub_block \
   ule \
   threadpool \
   toku_worker \
