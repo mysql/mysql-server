@@ -258,7 +258,7 @@ toku_get_processor_frequency_cpuinfo(uint64_t *hzret) {
             unsigned int cpu;
             sscanf(buf, "processor : %u", &cpu);
             unsigned int ma, mb;
-            if (sscanf(buf, "cpu MHz : %d.%d", &ma, &mb) == 2) {
+            if (sscanf(buf, "cpu MHz : %u.%u", &ma, &mb) == 2) {
                 uint64_t hz = ma * 1000000ULL + mb * 1000ULL;
                 if (hz > maxhz)
                     maxhz = hz;
