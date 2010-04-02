@@ -4069,9 +4069,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   {
     DBUG_RETURN(field);
   }
-  Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
-                                       field_ref, view->alias,
-                                       name);
+  Item *item= new Item_direct_view_ref(view, field_ref, name);
   DBUG_RETURN(item);
 }
 

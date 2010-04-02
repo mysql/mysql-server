@@ -1817,6 +1817,9 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
 
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
 
+  if (check_table_access(thd, DELETE_ACL, &tables, FALSE, 1, FALSE))
+    DBUG_RETURN(TRUE);
+
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     DBUG_RETURN(TRUE);

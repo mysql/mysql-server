@@ -1,0 +1,1 @@
+--replicate-do-db=mysqltest_sisyfos --replicate-do-db=mysqltest_prometheus

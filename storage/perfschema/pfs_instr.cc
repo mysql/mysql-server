@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -770,16 +770,55 @@ find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
     Normalize the file name to avoid duplicates when using aliases:
     - absolute or relative paths
     - symbolic links
+    Names are resolved as follows:
+    - /real/path/to/real_file ==> same
+    - /path/with/link/to/real_file ==> /real/path/to/real_file
+    - real_file ==> /real/path/to/real_file
+    - ./real_file ==> /real/path/to/real_file
+    - /real/path/to/sym_link ==> same
+    - /path/with/link/to/sym_link ==> /real/path/to/sym_link
+    - sym_link ==> /real/path/to/sym_link
+    - ./sym_link ==> /real/path/to/sym_link
+    When the last component of a file is a symbolic link,
+    the last component is *not* resolved, so that all file io
+    operations on a link (create, read, write, delete) are counted
+    against the link itself, not the target file.
+    Resolving the name would lead to create counted against the link,
+    and read/write/delete counted against the target, leading to
+    incoherent results and instrumentation leaks.
+    Also note that, when creating files, this name resolution
+    works properly for files that do not exist (yet) on the file system.
   */
   char buffer[FN_REFLEN];
+  char dirbuffer[FN_REFLEN];
+  size_t dirlen;
   const char *normalized_filename;
   int normalized_length;
 
-  /*
-    Ignore errors, the file may not exist.
-    my_realpath always provide a best effort result in buffer.
-  */
-  (void) my_realpath(buffer, safe_filename, MYF(0));
+  dirlen= dirname_length(safe_filename);
+  if (dirlen == 0)
+  {
+    dirbuffer[0]= FN_CURLIB;
+    dirbuffer[1]= FN_LIBCHAR;
+    dirbuffer[2]= '\0';
+  }
+  else
+  {
+    memcpy(dirbuffer, safe_filename, dirlen);
+    dirbuffer[dirlen]= '\0';
+  }
+
+  if (my_realpath(buffer, dirbuffer, MYF(0)) != 0)
+  {
+    file_lost++;
+    return NULL;
+  }
+
+  /* Append the unresolved file name to the resolved path */
+  char *ptr= buffer + strlen(buffer);
+  *ptr++= FN_LIBCHAR;
+  ptr= strmov(ptr, safe_filename + dirlen);
+  *ptr= '\0';
 
   normalized_filename= buffer;
   normalized_length= strlen(normalized_filename);

@@ -62,3 +62,21 @@ FROM t3 WHERE 1 = 0 GROUP BY 1;
 DROP TABLE t1,t2,t3;
 
 --echo End of 5.0 tests.
+ 
+--echo #
+--echo # BUG#50257: Missing info in REF column of the EXPLAIN 
+--echo #            lines for subselects
+--echo #
+
+CREATE TABLE t1 (a INT, b INT, INDEX (a));
+INSERT INTO t1 VALUES (3, 10), (2, 20), (7, 10), (5, 20);
+
+--echo
+EXPLAIN SELECT * FROM (SELECT * FROM t1 WHERE a=7) t;
+--echo
+EXPLAIN SELECT * FROM t1 WHERE EXISTS (SELECT * FROM t1 WHERE a=7);
+
+--echo
+DROP TABLE t1;
+
+--echo End of 5.5 tests.
