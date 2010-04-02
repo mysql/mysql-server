@@ -3882,8 +3882,9 @@ subselect_hash_sj_engine::make_unique_engine()
                                     cur_ref_buff + test(maybe_null), we could
                                     use that information instead.
                                  */
+
                                  cur_ref_buff + null_count,
-                                 null_count ? tab->ref.key_buff : 0,
+                                 null_count ? cur_ref_buff : 0,
                                  cur_key_part->length, tab->ref.items[i]);
     cur_ref_buff+= cur_key_part->store_length;
   }
@@ -4908,6 +4909,8 @@ bool subselect_rowid_merge_engine::partial_match()
 
   /* If there is a non-NULL key, it must be the first key in the keys array. */
   DBUG_ASSERT(!non_null_key || (non_null_key && merge_keys[0] == non_null_key));
+  /* The prioryty queue for keys must be empty. */
+  DBUG_ASSERT(!pq.elements);
 
   /* All data accesses during execution are via handler::ha_rnd_pos() */
   tmp_table->file->ha_rnd_init(0);
@@ -5031,6 +5034,7 @@ bool subselect_rowid_merge_engine::partial_match()
   DBUG_ASSERT(FALSE);
 
 end:
+  queue_remove_all(&pq);
   tmp_table->file->ha_rnd_end();
   return res;
 }
