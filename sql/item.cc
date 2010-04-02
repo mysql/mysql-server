@@ -5295,14 +5295,22 @@ int Item_field::save_in_field(Field *to, bool no_conversions)
   if (result_field->is_null())
   {
     null_value=1;
-    res= set_field_to_null_with_conversions(to, no_conversions);
+    return set_field_to_null_with_conversions(to, no_conversions);
   }
-  else
+  to->set_notnull();
+
+  /*
+    If we're setting the same field as the one we're reading from there's 
+    nothing to do. This can happen in 'SET x = x' type of scenarios.
+  */  
+  if (to == result_field)
   {
-    to->set_notnull();
-    res= field_conv(to,result_field);
     null_value=0;
+    return 0;
   }
+
+  res= field_conv(to,result_field);
+  null_value=0;
   return res;
 }
 
