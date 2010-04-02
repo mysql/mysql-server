@@ -1,0 +1,19 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+stop slave;
+create table t1 (a int);
+drop table t1;
+create table t1 (a int);
+drop table t1;
+reset slave;
+start slave io_thread;
+stop slave io_thread;
+reset slave;
+start slave;
+select master_pos_wait('master-bin.001',200,6)=-1;
+master_pos_wait('master-bin.001',200,6)=-1
+0
