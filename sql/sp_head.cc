@@ -3026,6 +3026,7 @@ int
 sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_set_trigger_field::execute");
+  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
 }
 
