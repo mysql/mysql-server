@@ -2111,4 +2111,15 @@ COUNT(*)
 0
 DROP TABLE t1;
 SET SESSION SQL_MODE=DEFAULT;
+#
+# BUG#51868 - crash with myisam_use_mmap and partitioned myisam tables
+#
+SET GLOBAL myisam_use_mmap=1;
+CREATE TABLE t1(a INT) PARTITION BY HASH(a) PARTITIONS 1;
+INSERT INTO t1 VALUES(0);
+FLUSH TABLE t1;
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES(0);
+DROP TABLE t1;
+SET GLOBAL myisam_use_mmap=default;
 End of 5.1 tests
