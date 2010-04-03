@@ -1880,12 +1880,14 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   binlog_trans_log_savepos(thd, (my_off_t*) sv);
   /* Write it to the binary log */
 
+  String log_query;
+  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
+      log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+    DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-  int const error=
-    thd->binlog_query(THD::STMT_QUERY_TYPE,
-                      thd->query(), thd->query_length(), TRUE, FALSE, FALSE,
-                      errcode);
-  DBUG_RETURN(error);
+  Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
+                        TRUE, FALSE, TRUE, errcode);
+  DBUG_RETURN(mysql_bin_log.write(&qinfo));
 }
 
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
@@ -1900,12 +1902,14 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (unlikely(thd->transaction.all.modified_non_trans_table ||
                (thd->variables.option_bits & OPTION_KEEP_LOG)))
   {
+    String log_query;
+    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
+        log_query.append(thd->lex->ident.str, thd->lex->ident.length))
+      DBUG_RETURN(1);
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
-    int error=
-      thd->binlog_query(THD::STMT_QUERY_TYPE,
-                        thd->query(), thd->query_length(), TRUE, FALSE, FALSE,
-                        errcode);
-    DBUG_RETURN(error);
+    Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
+                          TRUE, FALSE, TRUE, errcode);
+    DBUG_RETURN(mysql_bin_log.write(&qinfo));
   }
   binlog_trans_log_truncate(thd, *(my_off_t*)sv);
   DBUG_RETURN(0);
@@ -4599,7 +4603,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     */
     const char *local_db= event_info->get_db();
     if ((thd && !(thd->variables.option_bits & OPTION_BIN_LOG)) ||
-	!binlog_filter->db_ok(local_db))
+	(thd->lex->sql_command != SQLCOM_ROLLBACK_TO_SAVEPOINT &&
+         thd->lex->sql_command != SQLCOM_SAVEPOINT &&
+         !binlog_filter->db_ok(local_db)))
       DBUG_RETURN(0);
 #endif /* HAVE_REPLICATION */
 
