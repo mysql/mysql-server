@@ -4282,7 +4282,7 @@ int handler::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 */
 int handler::read_multi_range_next(KEY_MULTI_RANGE **found_range_p)
 {
-  int result;
+  int result= 0;
   DBUG_ENTER("handler::read_multi_range_next");
 
   /* We should not be called after the last call returned EOF. */

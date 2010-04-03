@@ -382,7 +382,7 @@ static MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     my_errno= HA_ERR_WRONG_MRG_TABLE_DEF;
   }
   DBUG_PRINT("myrg", ("MyISAM handle: 0x%lx  my_errno: %d",
-                      my_errno ? NULL : (long) myisam, my_errno));
+                      my_errno ? 0L : (long) myisam, my_errno));
 
  err:
   DBUG_RETURN(my_errno ? NULL : myisam);
@@ -1289,3 +1289,20 @@ mysql_declare_plugin(myisammrg)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(myisammrg)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &myisammrg_storage_engine,
+  "MRG_MYISAM",
+  "MySQL AB",
+  "Collection of identical MyISAM tables",
+  PLUGIN_LICENSE_GPL,
+  myisammrg_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100, /* 1.0 */
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

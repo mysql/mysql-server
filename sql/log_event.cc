@@ -1716,8 +1716,7 @@ beg:
 
   case MYSQL_TYPE_DATETIME:
     {
-      size_t d, t;
-      uint64 i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
+      uint64 d, t, i64= uint8korr(ptr); /* YYYYMMDDhhmmss */
       d= i64 / 1000000;
       t= i64 % 1000000;
       my_b_printf(file, "%04d-%02d-%02d %02d:%02d:%02d",

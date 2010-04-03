@@ -455,6 +455,59 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
+UNIV_INTERN struct st_maria_plugin      i_s_innodb_trx_maria =
+{
+        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+        /* int */
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+        /* pointer to type-specific plugin descriptor */
+        /* void* */
+        STRUCT_FLD(info, &i_s_info),
+
+        /* plugin name */
+        /* const char* */
+        STRUCT_FLD(name, "INNODB_TRX"),
+
+        /* plugin author (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(author, plugin_author),
+
+        /* general descriptive text (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(descr, "InnoDB transactions"),
+
+        /* the plugin license (PLUGIN_LICENSE_XXX) */
+        /* int */
+        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+        /* the function to invoke when plugin is loaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(init, innodb_trx_init),
+
+        /* the function to invoke when plugin is unloaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(deinit, i_s_common_deinit),
+
+        /* plugin version (for SHOW PLUGINS) */
+        /* unsigned int */
+        STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+        /* struct st_mysql_show_var* */
+        STRUCT_FLD(status_vars, NULL),
+
+        /* struct st_mysql_sys_var** */
+        STRUCT_FLD(system_vars, NULL),
+
+        /* string version */
+        /* const char * */
+        STRUCT_FLD(version_info, "1.0"),
+
+        /* Maturity */
+        /* int */
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
+};
+
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_locks */
 static ST_FIELD_INFO	innodb_locks_fields_info[] =
 {
@@ -730,6 +783,59 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_locks =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
+UNIV_INTERN struct st_maria_plugin      i_s_innodb_locks_maria =
+{
+        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+        /* int */
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+        /* pointer to type-specific plugin descriptor */
+        /* void* */
+        STRUCT_FLD(info, &i_s_info),
+
+        /* plugin name */
+        /* const char* */
+        STRUCT_FLD(name, "INNODB_LOCKS"),
+
+        /* plugin author (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(author, plugin_author),
+
+        /* general descriptive text (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(descr, "InnoDB conflicting locks"),
+
+        /* the plugin license (PLUGIN_LICENSE_XXX) */
+        /* int */
+        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+        /* the function to invoke when plugin is loaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(init, innodb_locks_init),
+
+        /* the function to invoke when plugin is unloaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(deinit, i_s_common_deinit),
+
+        /* plugin version (for SHOW PLUGINS) */
+        /* unsigned int */
+        STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+        /* struct st_mysql_show_var* */
+        STRUCT_FLD(status_vars, NULL),
+
+        /* struct st_mysql_sys_var** */
+        STRUCT_FLD(system_vars, NULL),
+
+        /* string version */
+        /* const char * */
+        STRUCT_FLD(version_info, "1.0"),
+
+        /* Maturity */
+        /* int */
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
+};
+
 /* Fields of the dynamic table INFORMATION_SCHEMA.innodb_lock_waits */
 static ST_FIELD_INFO	innodb_lock_waits_fields_info[] =
 {
@@ -911,6 +1017,59 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 	/* reserved for dependency checking */
 	/* void* */
 	STRUCT_FLD(__reserved1, NULL)
+};
+
+UNIV_INTERN struct st_maria_plugin      i_s_innodb_lock_waits_maria =
+{
+        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+        /* int */
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+        /* pointer to type-specific plugin descriptor */
+        /* void* */
+        STRUCT_FLD(info, &i_s_info),
+
+        /* plugin name */
+        /* const char* */
+        STRUCT_FLD(name, "INNODB_LOCK_WAITS"),
+
+        /* plugin author (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(author, "Innobase Oy"),
+
+        /* general descriptive text (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(descr, "InnoDB which lock is blocking which"),
+
+        /* the plugin license (PLUGIN_LICENSE_XXX) */
+        /* int */
+        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+        /* the function to invoke when plugin is loaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(init, innodb_lock_waits_init),
+
+        /* the function to invoke when plugin is unloaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(deinit, i_s_common_deinit),
+
+        /* plugin version (for SHOW PLUGINS) */
+        /* unsigned int */
+        STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+        /* struct st_mysql_show_var* */
+        STRUCT_FLD(status_vars, NULL),
+
+        /* struct st_mysql_sys_var** */
+        STRUCT_FLD(system_vars, NULL),
+
+        /* string version */
+        /* const char * */
+        STRUCT_FLD(version_info, "1.0"),
+
+        /* Maturity */
+        /* int */
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
 };
 
 /*******************************************************************//**
@@ -1245,6 +1404,59 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
+UNIV_INTERN struct st_mysql_plugin      i_s_innodb_cmp_maria =
+{
+        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+        /* int */
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+        /* pointer to type-specific plugin descriptor */
+        /* void* */
+        STRUCT_FLD(info, &i_s_info),
+
+        /* plugin name */
+        /* const char* */
+        STRUCT_FLD(name, "INNODB_CMP"),
+
+        /* plugin author (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(author, plugin_author),
+
+        /* general descriptive text (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(descr, "Statistics for the InnoDB compression"),
+
+        /* the plugin license (PLUGIN_LICENSE_XXX) */
+        /* int */
+        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+        /* the function to invoke when plugin is loaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(init, i_s_cmp_init),
+
+        /* the function to invoke when plugin is unloaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(deinit, i_s_common_deinit),
+
+        /* plugin version (for SHOW PLUGINS) */
+        /* unsigned int */
+        STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+        /* struct st_mysql_show_var* */
+        STRUCT_FLD(status_vars, NULL),
+
+        /* struct st_mysql_sys_var** */
+        STRUCT_FLD(system_vars, NULL),
+
+        /* string version */
+        /* const char * */
+        STRUCT_FLD(version_info, "1.0"),
+
+        /* Maturity */
+        /* int */
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
+};
+
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
@@ -1293,6 +1505,60 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
 	/* reserved for dependency checking */
 	/* void* */
 	STRUCT_FLD(__reserved1, NULL)
+};
+
+UNIV_INTERN struct st_maria_plugin      i_s_innodb_cmp_reset_maria =
+{
+        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+        /* int */
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+        /* pointer to type-specific plugin descriptor */
+        /* void* */
+        STRUCT_FLD(info, &i_s_info),
+
+        /* plugin name */
+        /* const char* */
+        STRUCT_FLD(name, "INNODB_CMP_RESET"),
+
+        /* plugin author (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(author, plugin_author),
+
+        /* general descriptive text (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(descr, "Statistics for the InnoDB compression;"
+                   " reset cumulated counts"),
+
+        /* the plugin license (PLUGIN_LICENSE_XXX) */
+        /* int */
+        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+        /* the function to invoke when plugin is loaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(init, i_s_cmp_reset_init),
+
+        /* the function to invoke when plugin is unloaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(deinit, i_s_common_deinit),
+
+        /* plugin version (for SHOW PLUGINS) */
+        /* unsigned int */
+        STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+        /* struct st_mysql_show_var* */
+        STRUCT_FLD(status_vars, NULL),
+
+        /* struct st_mysql_sys_var** */
+        STRUCT_FLD(system_vars, NULL),
+
+        /* string version */
+        /* const char * */
+        STRUCT_FLD(version_info, "1.0"),
+
+        /* Maturity */
+        /* int */
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
 };
 
 /* Fields of the dynamic table information_schema.innodb_cmpmem. */
@@ -1511,6 +1777,59 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
+UNIV_INTERN struct st_maria_plugin      i_s_innodb_cmpmem_maria =
+{
+        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+        /* int */
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+        /* pointer to type-specific plugin descriptor */
+        /* void* */
+        STRUCT_FLD(info, &i_s_info),
+
+        /* plugin name */
+        /* const char* */
+        STRUCT_FLD(name, "INNODB_CMPMEM"),
+
+        /* plugin author (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(author, plugin_author),
+
+        /* general descriptive text (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(descr, "Statistics for the InnoDB compressed buffer pool"),
+
+        /* the plugin license (PLUGIN_LICENSE_XXX) */
+        /* int */
+        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+        /* the function to invoke when plugin is loaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(init, i_s_cmpmem_init),
+
+        /* the function to invoke when plugin is unloaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(deinit, i_s_common_deinit),
+
+        /* plugin version (for SHOW PLUGINS) */
+        /* unsigned int */
+        STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+        /* struct st_mysql_show_var* */
+        STRUCT_FLD(status_vars, NULL),
+
+        /* struct st_mysql_sys_var** */
+        STRUCT_FLD(system_vars, NULL),
+
+        /* string version */
+        /* const char * */
+        STRUCT_FLD(version_info, "1.0"),
+
+        /* Maturity */
+        /* int */
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
+};
+
 UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
@@ -1559,6 +1878,60 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 	/* reserved for dependency checking */
 	/* void* */
 	STRUCT_FLD(__reserved1, NULL)
+};
+
+UNIV_INTERN struct st_maria_plugin      i_s_innodb_cmpmem_reset_maria =
+{
+        /* the plugin type (a MYSQL_XXX_PLUGIN value) */
+        /* int */
+        STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+        /* pointer to type-specific plugin descriptor */
+        /* void* */
+        STRUCT_FLD(info, &i_s_info),
+
+        /* plugin name */
+        /* const char* */
+        STRUCT_FLD(name, "INNODB_CMPMEM_RESET"),
+
+        /* plugin author (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(author, plugin_author),
+
+        /* general descriptive text (for SHOW PLUGINS) */
+        /* const char* */
+        STRUCT_FLD(descr, "Statistics for the InnoDB compressed buffer pool;"
+                   " reset cumulated counts"),
+
+        /* the plugin license (PLUGIN_LICENSE_XXX) */
+        /* int */
+        STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+        /* the function to invoke when plugin is loaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(init, i_s_cmpmem_reset_init),
+
+        /* the function to invoke when plugin is unloaded */
+        /* int (*)(void*); */
+        STRUCT_FLD(deinit, i_s_common_deinit),
+
+        /* plugin version (for SHOW PLUGINS) */
+        /* unsigned int */
+        STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+        /* struct st_mysql_show_var* */
+        STRUCT_FLD(status_vars, NULL),
+
+        /* struct st_mysql_sys_var** */
+        STRUCT_FLD(system_vars, NULL),
+
+        /* string version */
+        /* const char * */
+        STRUCT_FLD(version_info, "1.0"),
+
+        /* Maturity */
+        /* int */
+        STRUCT_FLD(maturity, MariaDB_PLUGIN_MATURITY_STABLE)
 };
 
 /*******************************************************************//**

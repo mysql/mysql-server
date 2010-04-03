@@ -1269,16 +1269,16 @@ uchar *sys_var_set::value_ptr(THD *thd, enum_var_type type,
 
 void sys_var_set_slave_mode::set_default(THD *thd, enum_var_type type)
 {
-  slave_exec_mode_options= 0;
-  bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  slave_exec_mode_options= (ULL(1) << SLAVE_EXEC_MODE_STRICT);
 }
 
 bool sys_var_set_slave_mode::check(THD *thd, set_var *var)
 {
   bool rc=  sys_var_set::check(thd, var);
   if (!rc &&
-      bit_is_set(var->save_result.ulong_value, SLAVE_EXEC_MODE_STRICT) == 1 &&
-      bit_is_set(var->save_result.ulong_value, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+      test_all_bits(var->save_result.ulong_value,
+                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
+                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
   {
     rc= true;
     my_error(ER_SLAVE_AMBIGOUS_EXEC_MODE, MYF(0), "");
@@ -1300,15 +1300,16 @@ void fix_slave_exec_mode(enum_var_type type)
   DBUG_ENTER("fix_slave_exec_mode");
   compile_time_assert(sizeof(slave_exec_mode_options) * CHAR_BIT
                       > SLAVE_EXEC_MODE_LAST_BIT - 1);
-  if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT) == 1 &&
-      bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 1)
+  if (test_all_bits(slave_exec_mode_options,
+                    ((ULL(1) << SLAVE_EXEC_MODE_STRICT) |
+                     (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT))))
   {
     sql_print_error("Ambiguous slave modes combination."
                     " STRICT will be used");
-    bit_do_clear(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT);
+    slave_exec_mode_options&= ~(ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT);
   }
-  if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 0)
-    bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  if (!(slave_exec_mode_options & (ULL(1) << SLAVE_EXEC_MODE_IDEMPOTENT)))
+    slave_exec_mode_options|= (ULL(1)<< SLAVE_EXEC_MODE_STRICT);
   DBUG_VOID_RETURN;
 }
 

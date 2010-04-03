@@ -29,7 +29,6 @@
 #define mysql_master_send_query(A, B, C) 1
 #define mysql_slave_send_query(A, B, C) 1
 #define mysql_rpl_probe(mysql) 0
-#undef HAVE_SMEM
 #undef _CUSTOMCONFIG_
 
 #define mysql_server_init(a,b,c) mysql_client_plugin_init()

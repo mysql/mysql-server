@@ -400,16 +400,18 @@ start:
       case 's':
       {
         char *par= args_arr[print_arr[i].arg_idx].str_arg;
-        width= (print_arr[i].flags & WIDTH_ARG) ?
-          args_arr[print_arr[i].width].longlong_arg : print_arr[i].width;
+        width= ((print_arr[i].flags & WIDTH_ARG) ?
+                (uint) args_arr[print_arr[i].width].longlong_arg :
+                (uint) print_arr[i].width);
         to= process_str_arg(cs, to, end, width, par, print_arr[i].flags);
         break;
       }
       case 'b':
       {
         char *par = args_arr[print_arr[i].arg_idx].str_arg;
-        width= (print_arr[i].flags & WIDTH_ARG) ?
-          args_arr[print_arr[i].width].longlong_arg : print_arr[i].width;
+        width= ((print_arr[i].flags & WIDTH_ARG) ?
+                (uint) args_arr[print_arr[i].width].longlong_arg :
+                (uint) print_arr[i].width);
         to= process_bin_arg(to, end, width, par);
         break;
       }
@@ -428,8 +430,9 @@ start:
       {
         /* Integer parameter */
         longlong larg;
-        length= (print_arr[i].flags & LENGTH_ARG) ?
-          args_arr[print_arr[i].length].longlong_arg : print_arr[i].length;
+        length= ((print_arr[i].flags & LENGTH_ARG) ?
+                 args_arr[print_arr[i].length].longlong_arg :
+                 (longlong) print_arr[i].length);
 
         if (args_arr[print_arr[i].arg_idx].have_longlong)
           larg = args_arr[print_arr[i].arg_idx].longlong_arg;

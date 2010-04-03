@@ -271,10 +271,12 @@ NULL	information_schema	PBXT_STATISTICS	ID	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	i
 NULL	information_schema	PBXT_STATISTICS	Name	2		NO	varchar	40	120	NULL	NULL	utf8	utf8_general_ci	varchar(40)			select	
 NULL	information_schema	PBXT_STATISTICS	Value	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(8)			select	
 NULL	information_schema	PLUGINS	PLUGIN_AUTHOR	8	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	PLUGINS	PLUGIN_AUTH_VERSION	12	NULL	YES	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	PLUGINS	PLUGIN_DESCRIPTION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	PLUGINS	PLUGIN_LIBRARY	6	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PLUGINS	PLUGIN_LIBRARY_VERSION	7	NULL	YES	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
 NULL	information_schema	PLUGINS	PLUGIN_LICENSE	10	NULL	YES	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
+NULL	information_schema	PLUGINS	PLUGIN_MATURITY	11	NULL	YES	varchar	12	36	NULL	NULL	utf8	utf8_general_ci	varchar(12)			select	
 NULL	information_schema	PLUGINS	PLUGIN_NAME	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PLUGINS	PLUGIN_STATUS	3		NO	varchar	10	30	NULL	NULL	utf8	utf8_general_ci	varchar(10)			select	
 NULL	information_schema	PLUGINS	PLUGIN_TYPE	4		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
@@ -791,6 +793,8 @@ NULL	information_schema	PBXT_STATISTICS	Value	bigint	NULL	NULL	NULL	NULL	bigint(
 3.0000	information_schema	PLUGINS	PLUGIN_AUTHOR	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	PLUGINS	PLUGIN_DESCRIPTION	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 3.0000	information_schema	PLUGINS	PLUGIN_LICENSE	varchar	80	240	utf8	utf8_general_ci	varchar(80)
+3.0000	information_schema	PLUGINS	PLUGIN_MATURITY	varchar	12	36	utf8	utf8_general_ci	varchar(12)
+3.0000	information_schema	PLUGINS	PLUGIN_AUTH_VERSION	varchar	80	240	utf8	utf8_general_ci	varchar(80)
 NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint(4)
 3.0000	information_schema	PROCESSLIST	USER	varchar	16	48	utf8	utf8_general_ci	varchar(16)
 3.0000	information_schema	PROCESSLIST	HOST	varchar	64	192	utf8	utf8_general_ci	varchar(64)

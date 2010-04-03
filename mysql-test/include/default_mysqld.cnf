@@ -2,7 +2,7 @@
 [mysqld]
 open-files-limit=           1024
 local-infile
-default-character-set=      latin1
+character-set-server=      latin1
 
 # Increase default connect_timeout to avoid intermittent
 # disconnects when test servers are put under load see BUG#28359

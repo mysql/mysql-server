@@ -5919,6 +5919,40 @@ mysql_declare_plugin(pbxt)
 drizzle_declare_plugin_end;
 #else
 mysql_declare_plugin_end;
+#ifdef MARIADB_BASE_VERSION
+maria_declare_plugin(pbxt)
+{ /* PBXT */
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &pbxt_storage_engine,
+  "PBXT",
+  "Paul McCullagh, PrimeBase Technologies GmbH",
+  "High performance, multi-versioning transactional engine",
+  PLUGIN_LICENSE_GPL,
+  pbxt_init, /* Plugin Init */
+  pbxt_end, /* Plugin Deinit */
+  0x0001 /* 0.1 */,
+  NULL,                       /* status variables */
+  pbxt_system_variables,      /* system variables */
+  "1.0.09g RC3",              /* string version */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+},
+{ /* PBXT_STATISTICS */
+  MYSQL_INFORMATION_SCHEMA_PLUGIN,
+  &pbxt_statitics,
+  "PBXT_STATISTICS",
+  "Paul McCullagh, PrimeBase Technologies GmbH",
+  "PBXT internal system statitics",
+  PLUGIN_LICENSE_GPL,
+  pbxt_init_statistics,       /* plugin init */
+  pbxt_exit_statistics,       /* plugin deinit */
+  0x0005,
+  NULL,                       /* status variables */
+  NULL,                       /* system variables */
+  "1.0.09g RC3",              /* string version */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+}
+maria_declare_plugin_end;
+#endif
 #endif
 
 #if defined(XT_WIN) && defined(XT_COREDUMP)

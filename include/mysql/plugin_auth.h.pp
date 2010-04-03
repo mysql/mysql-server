@@ -77,6 +77,22 @@ struct st_mysql_plugin
   struct st_mysql_sys_var **system_vars;
   void * __reserved1;
 };
+struct st_maria_plugin
+{
+  int type;
+  void *info;
+  const char *name;
+  const char *author;
+  const char *descr;
+  int license;
+  int (*init)(void *);
+  int (*deinit)(void *);
+  unsigned int version;
+  struct st_mysql_show_var *status_vars;
+  struct st_mysql_sys_var **system_vars;
+  const char *version_info;
+  int maturity;
+};
 enum enum_ftparser_mode
 {
   MYSQL_FTPARSER_SIMPLE_MODE= 0,

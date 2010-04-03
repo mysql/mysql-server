@@ -924,3 +924,20 @@ mysql_declare_plugin(example)
   NULL                                          /* config options */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(example)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &example_storage_engine,
+  "EXAMPLE",
+  "Brian Aker, MySQL AB",
+  "Example storage engine",
+  PLUGIN_LICENSE_GPL,
+  example_init_func,                            /* Plugin Init */
+  example_done_func,                            /* Plugin Deinit */
+  0x0001 /* 0.1 */,
+  func_status,                                  /* status variables */
+  example_system_variables,                     /* system variables */
+  "0.1",                                        /* string version */
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL          /* maturity */
+}
+maria_declare_plugin_end;

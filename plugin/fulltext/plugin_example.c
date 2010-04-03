@@ -270,4 +270,21 @@ mysql_declare_plugin(ftexample)
   NULL
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(ftexample)
+{
+  MYSQL_FTPARSER_PLUGIN,      /* type                            */
+  &simple_parser_descriptor,  /* descriptor                      */
+  "simple_parser",            /* name                            */
+  "MySQL AB",                 /* author                          */
+  "Simple Full-Text Parser",  /* description                     */
+  PLUGIN_LICENSE_GPL,
+  simple_parser_plugin_init,  /* init function (when loaded)     */
+  simple_parser_plugin_deinit,/* deinit function (when unloaded) */
+  0x0001,                     /* version                         */
+  simple_status,              /* status variables                */
+  simple_system_variables,    /* system variables                */
+  "0.01",                     /* string version */
+  MariaDB_PLUGIN_MATURITY_EXPERIMENTAL /* maturity */
+}
+maria_declare_plugin_end;
 

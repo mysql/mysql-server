@@ -5424,7 +5424,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
     pg->state=POOL;
     pthread_mutex_init(&pg->lock, MY_MUTEX_INIT_FAST);
     pthread_cond_init (&pg->cond, 0);
-    pg->start=(my_xid *)(data + i*tc_log_page_size);
+    pg->ptr= pg->start=(my_xid *)(data + i*tc_log_page_size);
     pg->size=pg->free=tc_log_page_size/sizeof(my_xid);
     pg->end=pg->start + pg->size;
   }
@@ -5659,7 +5659,15 @@ int TC_LOG_MMAP::sync()
   /* marking 'syncing' slot free */
   pthread_mutex_lock(&LOCK_sync);
   syncing=0;
-  pthread_cond_signal(&active->cond);        // wake up a new syncer
+  /*
+    we check the "active" pointer without LOCK_active. Still, it's safe -
+    "active" can change from NULL to not NULL any time, but it
+    will take LOCK_sync before waiting on active->cond. That is, it can never
+    miss a signal.
+    And "active" can change to NULL only after LOCK_sync, so this is safe too.
+  */
+  if (active)
+    pthread_cond_signal(&active->cond);      // wake up a new syncer
   pthread_mutex_unlock(&LOCK_sync);
   return err;
 }
@@ -6028,3 +6036,20 @@ mysql_declare_plugin(binlog)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(binlog)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &binlog_storage_engine,
+  "binlog",
+  "MySQL AB",
+  "This is a pseudo storage engine to represent the binlog in a transaction",
+  PLUGIN_LICENSE_GPL,
+  binlog_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

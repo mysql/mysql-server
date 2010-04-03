@@ -536,6 +536,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_USER user;
+    char *password;
+    uint password_len;
+
     bzero(&user, sizeof(user));
     update_hostname(&user.host, get_field(&mem, table->field[0]));
     user.user= get_field(&mem, table->field[1]);
@@ -548,8 +551,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       continue;
     }
 
-    char *password= get_field(thd->mem_root, table->field[2]);
-    uint password_len= password ? strlen(password) : 0;
+    password= get_field(&mem, table->field[2]);
+    password_len= password ? strlen(password) : 0;
     user.auth_string.str= password ? password : const_cast<char*>("");
     user.auth_string.length= password_len;
     set_user_salt(&user, password, password_len);
@@ -6846,6 +6849,7 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 #define initialized 0
 #define decrease_user_connections(X)        /* nothing */
 #define check_for_max_user_connections(X,Y)   0
+#define get_or_create_user_conn(A,B,C,D) 0
 #endif
 #endif
 #ifndef HAVE_OPENSSL
@@ -7826,15 +7830,15 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
   bool unlock_plugin= false;
   plugin_ref plugin;
 
+#ifdef EMBEDDED_LIBRARY
+  plugin= native_password_plugin;
+#else
   if (auth_plugin_name->str == native_password_plugin_name.str)
     plugin= native_password_plugin;
-  else
-#ifndef EMBEDDED_LIBRARY
-  if (auth_plugin_name->str == old_password_plugin_name.str)
+  else if (auth_plugin_name->str == old_password_plugin_name.str)
     plugin= old_password_plugin;
-  else
-  if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
-                                      MYSQL_AUTHENTICATION_PLUGIN)))
+  else if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
+                                           MYSQL_AUTHENTICATION_PLUGIN)))
     unlock_plugin= true;
 #endif
 
@@ -8257,3 +8261,35 @@ mysql_declare_plugin(mysql_password)
 }
 mysql_declare_plugin_end;
 
+maria_declare_plugin(mysql_password)
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &native_password_handler,                     /* type descriptor  */
+  native_password_plugin_name.str,              /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Native MySQL authentication",                /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "1.0",                                        /* String version   */
+  MariaDB_PLUGIN_MATURITY_BETA                  /* Maturity         */
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &old_password_handler,                        /* type descriptor  */
+  old_password_plugin_name.str,                 /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Old MySQL-4.0 authentication",               /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "1.0",                                        /* String version   */
+  MariaDB_PLUGIN_MATURITY_BETA                  /* Maturity         */
+}
+maria_declare_plugin_end;

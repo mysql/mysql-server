@@ -10564,6 +10564,23 @@ mysql_declare_plugin(ndbcluster)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(ndbcluster)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ndbcluster_storage_engine,
+  ndbcluster_hton_name,
+  "MySQL AB",
+  "Clustered, fault-tolerant tables",
+  PLUGIN_LICENSE_GPL,
+  ndbcluster_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  ndb_status_variables_export,/* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+}
+maria_declare_plugin_end;
 
 #else
 int Sun_ar_require_a_symbol_here= 0;

@@ -94,11 +94,21 @@ static int make_version_string(char *buf, int buf_length, uint version)
   return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
 
+
+static const LEX_STRING maturity_name[]={
+  { C_STRING_WITH_LEN("Unknown") },
+  { C_STRING_WITH_LEN("Experimental") },
+  { C_STRING_WITH_LEN("Alpha") },
+  { C_STRING_WITH_LEN("Beta") },
+  { C_STRING_WITH_LEN("Gamma") },
+  { C_STRING_WITH_LEN("Stable") }};
+
+
 static my_bool show_plugins(THD *thd, plugin_ref plugin,
                             void *arg)
 {
   TABLE *table= (TABLE*) arg;
-  struct st_mysql_plugin *plug= plugin_decl(plugin);
+  struct st_maria_plugin *plug= plugin_decl(plugin);
   struct st_plugin_dl *plugin_dl= plugin_dlib(plugin);
   CHARSET_INFO *cs= system_charset_info;
   char version_buf[20];
@@ -143,7 +153,7 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
     table->field[5]->set_notnull();
     table->field[6]->store(version_buf,
           make_version_string(version_buf, sizeof(version_buf),
-                              plugin_dl->version),
+                              plugin_dl->mariaversion),
           cs);
     table->field[6]->set_notnull();
   }
@@ -185,6 +195,26 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
     break;
   }
   table->field[9]->set_notnull();
+
+  if ((uint) plug->maturity <= MariaDB_PLUGIN_MATURITY_STABLE)
+     table->field[10]->store(maturity_name[plug->maturity].str,
+                             maturity_name[plug->maturity].length,
+                             cs);
+   else
+   {
+     DBUG_ASSERT(0);
+     table->field[10]->store("Unknown", 7, cs);
+   }
+   table->field[10]->set_notnull();
+
+  if (plug->version_info)
+  {
+    table->field[11]->store(plug->version_info,
+                            strlen(plug->version_info), cs);
+    table->field[11]->set_notnull();
+  }
+  else
+    table->field[11]->set_null();
 
   return schema_table_store_record(thd, table);
 }
@@ -2527,8 +2557,8 @@ int send_user_stats(THD* thd, HASH *all_user_stats, TABLE *table)
     table->field[j++]->store(user_stats->user, user_stats->user_name_length,
                              system_charset_info);
     table->field[j++]->store((longlong)user_stats->total_connections,TRUE);
-    table->field[j++]->store((longlong)user_stats->concurrent_connections);
-    table->field[j++]->store((longlong)user_stats->connected_time);
+    table->field[j++]->store((longlong)user_stats->concurrent_connections, TRUE);
+    table->field[j++]->store((longlong)user_stats->connected_time, TRUE);
     table->field[j++]->store((double)user_stats->busy_time);
     table->field[j++]->store((double)user_stats->cpu_time);
     table->field[j++]->store((longlong)user_stats->bytes_received, TRUE);
@@ -4426,7 +4456,7 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   if (plugin_state(plugin) != PLUGIN_IS_READY)
   {
 
-    struct st_mysql_plugin *plug= plugin_decl(plugin);
+    struct st_maria_plugin *plug= plugin_decl(plugin);
     if (!(wild && wild[0] &&
           wild_case_compare(scs, plug->name,wild)))
     {
@@ -7207,6 +7237,8 @@ ST_FIELD_INFO plugin_fields_info[]=
   {"PLUGIN_AUTHOR", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"PLUGIN_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"PLUGIN_LICENSE", 80, MYSQL_TYPE_STRING, 0, 1, "License", SKIP_OPEN_TABLE},
+  {"PLUGIN_MATURITY", 12, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
+  {"PLUGIN_AUTH_VERSION", 80, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 

@@ -3280,7 +3280,6 @@ recv_recovery_from_checkpoint_finish(void)
 #endif /* UNIV_DEBUG */
 
 	if (recv_needed_recovery && srv_recovery_stats) {
-		FILE*	file = stderr;
 		ulint	i;
 
 		fprintf(stderr,

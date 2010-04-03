@@ -38,6 +38,7 @@ ADD_DEFINITIONS(-DMYSQL_DATADIR="c:/Program Files/MySQL/MySQL Server ${MYSQL_BAS
 ADD_DEFINITIONS(-DDEFAULT_CHARSET_HOME="c:/Program Files/MySQL/MySQL Server ${MYSQL_BASE_VERSION}/")
 ADD_DEFINITIONS(-DPACKAGE=mysql)
 ADD_DEFINITIONS(-DSHAREDIR="share")
+ADD_DEFINITIONS(-DPLUGINDIR="lib/plugin")
 
 # Set debug options
 SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DFORCE_INIT_OF_VARS")
@@ -260,7 +261,7 @@ FOREACH(SUBDIR ${STORAGE_SUBDIRS})
         ENDIF(WITH_${ENGINE}_STORAGE_ENGINE AND MYSQL_PLUGIN_STATIC)
 
         IF (ENGINE_BUILD_TYPE STREQUAL "STATIC") 
-          SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_${PLUGIN_NAME}_plugin")
+          SET (maria_plugin_defs  "${maria_plugin_defs},builtin_maria_${PLUGIN_NAME}_plugin")
           SET (MYSQLD_STATIC_ENGINE_LIBS ${MYSQLD_STATIC_ENGINE_LIBS} ${PLUGIN_NAME})
           SET (STORAGE_ENGINE_DEFS "${STORAGE_ENGINE_DEFS} -DWITH_${ENGINE}_STORAGE_ENGINE")
           SET (WITH_${ENGINE}_STORAGE_ENGINE TRUE)
@@ -279,7 +280,7 @@ ENDFOREACH(SUBDIR ${STORAGE_SUBDIRS})
 # Special handling for partition(not really pluggable)
 IF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
   SET (STORAGE_ENGINE_DEFS "${STORAGE_ENGINE_DEFS} -DWITH_PARTITION_STORAGE_ENGINE")
-  SET (mysql_plugin_defs  "${mysql_plugin_defs},builtin_partition_plugin")
+  SET (maria_plugin_defs  "${maria_plugin_defs},builtin_maria_partition_plugin")
 ENDIF(NOT WITHOUT_PARTITION_STORAGE_ENGINE)
 
 # Special handling for tmp tables with the maria engine
