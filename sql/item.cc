@@ -3750,7 +3750,7 @@ void Item_copy_decimal::copy()
 {
   my_decimal *nr= item->val_decimal(&cached_value);
   if (nr && nr != &cached_value)
-    memcpy (&cached_value, nr, sizeof (my_decimal)); 
+    my_decimal2decimal (nr, &cached_value);
   null_value= item->null_value;
 }
 

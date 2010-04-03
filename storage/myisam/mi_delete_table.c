@@ -19,6 +19,41 @@
 
 #include "fulltext.h"
 
+
+/**
+  Remove MyISAM data/index file safely
+
+  @details
+    If name is a symlink and file it is pointing to is not in
+    data directory, file is also removed.
+
+  @param name    file to remove
+  
+  @returns
+    0 on success or my_errno on failure
+*/
+
+static int _mi_safe_delete_file(const char *name)
+{
+  DBUG_ENTER("_mi_safe_delete_file");
+  if (my_is_symlink(name) && (*myisam_test_invalid_symlink)(name))
+  {
+    /*
+      Symlink is pointing to file in data directory.
+      Remove symlink, keep file.
+    */
+    if (my_delete(name, MYF(MY_WME)))
+      DBUG_RETURN(my_errno);
+  }
+  else
+  {
+    if (my_delete_with_symlink(name, MYF(MY_WME)))
+      DBUG_RETURN(my_errno);
+  }
+  DBUG_RETURN(0);
+}
+
+
 int mi_delete_table(const char *name)
 {
   char from[FN_REFLEN];
@@ -58,13 +93,39 @@ int mi_delete_table(const char *name)
 #endif /* USE_RAID */
 
   fn_format(from,name,"",MI_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  if (mysql_file_delete_with_symlink(mi_key_file_kfile, from, MYF(MY_WME)))
+  if (my_is_symlink(from) && (*myisam_test_invalid_symlink)(from))
+  {
+    /*
+      Symlink is pointing to file in data directory.
+      Remove symlink, keep file.
+    */
+    if (mysql_file_delete(mi_key_file_kfile, from, MYF(MY_WME)))
+      DBUG_RETURN(my_errno);
+  }
+  else
+  {
+    if (mysql_file_delete_with_symlink(mi_key_file_kfile, from, MYF(MY_WME)))
+      DBUG_RETURN(my_errno);
+  }
     DBUG_RETURN(my_errno);
   fn_format(from,name,"",MI_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
 #ifdef USE_RAID
   if (raid_type)
     DBUG_RETURN(my_raid_delete(from, raid_chunks, MYF(MY_WME)) ? my_errno : 0);
 #endif
-  DBUG_RETURN(mysql_file_delete_with_symlink(mi_key_file_dfile,
-                                             from, MYF(MY_WME)) ? my_errno : 0);
+  if (my_is_symlink(from) && (*myisam_test_invalid_symlink)(from))
+    {
+      /*
+        Symlink is pointing to file in data directory.
+        Remove symlink, keep file.
+      */
+      if (mysql_file_delete(mi_key_file_dfile, from, MYF(MY_WME)))
+        DBUG_RETURN(my_errno);
+    }
+  else
+    {
+      if (mysql_file_delete_with_symlink(mi_key_file_dfile, from, MYF(MY_WME)))
+        DBUG_RETURN(my_errno);
+    }
+  DBUG_RETURN(0);
 }
