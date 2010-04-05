@@ -905,3 +905,19 @@ select * from t1 where t1.i in (select t2.i from t2 join t3 where t2.i + t3.i = 
 set session optimizer_switch=@save_optimizer_switch;
 drop table t1, t2, t3;
 
+#
+# Test that the contentes of the temp table of a materialized subquery is
+# cleanup up between PS reexecutions.
+#
+
+create table t0 (a int);
+insert into t0 values (0),(1),(2);
+create table t1 (a int);
+insert into t1 values (0),(1),(2);
+explain select a, a in (select a from t1) from t0;
+select a, a in (select a from t1) from t0;
+prepare s from 'select a, a in (select a from t1) from t0';
+execute s;
+update t1 set a=123;
+execute s;
+drop table t0, t1;

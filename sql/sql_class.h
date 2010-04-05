@@ -2820,7 +2820,7 @@ public:
   bool send_data(List<Item> &items);
   bool send_eof();
   bool flush();
-
+  void cleanup();
   virtual bool create_result_table(THD *thd, List<Item> *column_types,
                                    bool is_distinct, ulonglong options,
                                    const char *alias, bool bit_fields_as_long);
@@ -2883,6 +2883,9 @@ protected:
   */
   ha_rows count_rows;
 
+protected:
+  void reset();
+
 public:
   select_materialize_with_stats() {}
   virtual bool create_result_table(THD *thd, List<Item> *column_types,
@@ -2890,12 +2893,7 @@ public:
                                    const char *alias, bool bit_fields_as_long);
   bool init_result_table(ulonglong select_options);
   bool send_data(List<Item> &items);
-  void cleanup()
-  {
-    memset(col_stat, 0, table->s->fields * sizeof(Column_statistics));
-    max_nulls_in_row= 0;
-    count_rows= 0;
-  }
+  void cleanup();
   ha_rows get_null_count_of_col(uint idx)
   {
     DBUG_ASSERT(idx < table->s->fields);

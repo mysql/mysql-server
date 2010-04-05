@@ -2942,8 +2942,7 @@ bool select_dumpvar::send_eof()
 }
 
 
-bool
-select_materialize_with_stats::
+bool select_materialize_with_stats::
 create_result_table(THD *thd_arg, List<Item> *column_types,
                     bool is_union_distinct, ulonglong options,
                     const char *table_alias, bool bit_fields_as_long)
@@ -2962,12 +2961,27 @@ create_result_table(THD *thd_arg, List<Item> *column_types,
   if (!stat)
     return TRUE;
 
-  cleanup();
-
+  reset();
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   return FALSE;
 }
+
+
+void select_materialize_with_stats::reset()
+{
+  memset(col_stat, 0, table->s->fields * sizeof(Column_statistics));
+  max_nulls_in_row= 0;
+  count_rows= 0;
+}
+
+
+void select_materialize_with_stats::cleanup()
+{
+  reset();
+  select_union::cleanup();
+}
+
 
 
 /**
