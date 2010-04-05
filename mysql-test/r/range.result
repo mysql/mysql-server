@@ -1665,3 +1665,11 @@ Warnings:
 Warning	1366	Incorrect decimal value: 'A' for column 'c1' at row 1
 Warning	1292	Truncated incorrect DOUBLE value: 'A'
 DROP TABLE t1;
+create table t1 (a int,b int,key (b),key (a),key (b,a));
+insert into t1(a,b) values (1,2),(3,4),(5,6),(7,8);
+create table t2 (c int);
+insert into t2(c) values (1),(5),(6),(7),(8);
+select 1 from (select c from t1,t2 where b >= 1 and a <=> c group by 1 limit 1) as d1;
+1
+1
+drop table t1, t2;
