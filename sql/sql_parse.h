@@ -199,10 +199,6 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
 
-#ifdef EMBEDDED_LIBRARY
-#define check_stack_overrun(A, B, C) 0
-#endif /* EMBEDDED_LIBRARY */
-
 /* These were under the INNODB_COMPATIBILITY_HOOKS */
 
 bool check_global_access(THD *thd, ulong want_access);
