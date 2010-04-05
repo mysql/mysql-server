@@ -8737,7 +8737,15 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
     if (table->file->ha_table_flags() & HA_DUPLICATE_POS)
     {
       DBUG_PRINT("info",("Locating offending record using rnd_pos()"));
+
+      if (table->file->inited && (error= table->file->ha_index_end()))
+        DBUG_RETURN(error);
+      if ((error= table->file->ha_rnd_init(FALSE)))
+        DBUG_RETURN(error);
+
       error= table->file->rnd_pos(table->record[1], table->file->dup_ref);
+
+      table->file->ha_rnd_end();
       if (error)
       {
         DBUG_PRINT("info",("rnd_pos() returns error %d",error));
@@ -9044,7 +9052,15 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
     */
     DBUG_PRINT("info",("locating record using primary key (position)"));
-    int error= table->file->rnd_pos_by_record(table->record[0]);
+    int error;
+    if (table->file->inited && (error= table->file->ha_index_end()))
+      DBUG_RETURN(error);
+    if ((error= table->file->ha_rnd_init(FALSE)))
+      DBUG_RETURN(error);
+
+    error= table->file->rnd_pos_by_record(table->record[0]);
+
+    table->file->ha_rnd_end();
     if (error)
     {
       DBUG_PRINT("info",("rnd_pos returns error %d",error));

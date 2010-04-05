@@ -13,7 +13,7 @@ id	str
 3	foo
 explain select * from t1 where str is null;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	str	str	11	const	1	Using where
+1	SIMPLE	t1	ref	str	str	11	const	1	Using index condition
 explain select * from t1 where str="foo";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	const	str	str	11	const	1	
@@ -50,7 +50,7 @@ insert into таб (кол0) values (1);
 insert into таб (кол0) values (2);
 explain select кол0 from таб where кол0=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	таб	ref	инд0,инд01	инд0	5	const	1	Using where; Using index
+1	SIMPLE	таб	ref	инд0,инд01	инд0	5	const	1	Using index
 drop table таб;
 set names latin1;
 select 3 into @v1;

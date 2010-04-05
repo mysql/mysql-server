@@ -452,7 +452,7 @@ protected:
   The cost of average seek 
     DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*BLOCKS_IN_AVG_SEEK =1.0.
 */
-#define DISK_SEEK_BASE_COST ((double)0.5)
+#define DISK_SEEK_BASE_COST ((double)0.9)
 
 #define BLOCKS_IN_AVG_SEEK  128
 
@@ -1862,6 +1862,7 @@ int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
 void key_copy(uchar *to_key, uchar *from_record, KEY *key_info, uint key_length);
 void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
                  uint key_length);
+void key_zero_nulls(uchar *tuple, KEY *key_info);
 bool key_cmp_if_same(TABLE *form,const uchar *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);

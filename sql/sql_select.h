@@ -209,6 +209,14 @@ typedef struct st_join_table
   st_join_table *last_inner;    /**< last table table for embedding outer join */
   st_join_table *first_upper;  /**< first inner table for embedding outer join */
   st_join_table *first_unmatched; /**< used for optimization purposes only     */
+  /* 
+    The value of select_cond before we've attempted to do Index Condition
+    Pushdown. We may need to restore everything back if we first choose one
+    index but then reconsider (see test_if_skip_sort_order() for such
+    scenarios).
+    NULL means no index condition pushdown was performed.
+  */
+  Item          *pre_idx_push_select_cond;
   
   /* Special content for EXPLAIN 'Extra' column or NULL if none */
   const char	*info;

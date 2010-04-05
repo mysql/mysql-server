@@ -743,6 +743,8 @@ public:
   */
   key_map covering_keys;
   key_map quick_keys, merge_keys;
+  key_map used_keys;  /* Indexes that cover all fields used by the query */
+
   /*
     A set of keys that can be used in the query that references this
     table.

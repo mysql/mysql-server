@@ -1114,11 +1114,11 @@ count(*)
 29267
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	#	Using where
+1	SIMPLE	t1	range	c	c	5	NULL	#	Using index condition; Using MRR
 update t1 set c=a;
 explain select * from t1 where c between 1 and 2500;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	c	c	5	NULL	#	Using where
+1	SIMPLE	t1	range	c	c	5	NULL	#	Using index condition; Using MRR
 drop table t1,t2;
 create table t1 (id int primary key auto_increment, fk int, index index_fk (fk)) engine=MyISAM;
 insert into t1 (id) values (null),(null),(null),(null),(null);
@@ -1559,7 +1559,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using where
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1735,7 +1735,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using where
+1	SIMPLE	t1	ref	v	v	303	const	#	Using index condition
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1

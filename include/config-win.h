@@ -243,6 +243,8 @@ typedef SSIZE_T ssize_t;
 #define inline __inline
 #endif /* __cplusplus */
 
+#define log2(x) (_logb(x))
+
 #ifdef _WIN64
 #define ulonglong2double(A) ((double) (ulonglong) (A))
 #define my_off_t2double(A)  ((double) (my_off_t) (A))
