@@ -2452,7 +2452,9 @@ bool subselect_uniquesubquery_engine::copy_ref_key()
 
   for (store_key **copy= tab->ref.key_copy ; *copy ; copy++)
   {
-    tab->ref.key_err= (*copy)->copy();
+    enum store_key::store_key_result store_res;
+    store_res= (*copy)->copy();
+    tab->ref.key_err= store_res;
 
     /*
       When there is a NULL part in the key we don't need to make index
@@ -2486,7 +2488,7 @@ bool subselect_uniquesubquery_engine::copy_ref_key()
       store_key::store_key_result.  
       TODO: fix the variable an return types.
     */
-    if (tab->ref.key_err & 1)
+    if (store_res == store_key::STORE_KEY_FATAL)
     {
       /*
        Error converting the left IN operand to the column type of the right

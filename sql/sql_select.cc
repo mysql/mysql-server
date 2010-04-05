@@ -8251,6 +8251,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
   j->ref.has_record= FALSE;
   j->ref.null_rejecting= 0;
   j->ref.use_count= 0;
+  j->ref.disable_cache= FALSE;
   keyuse=org_keyuse;
 
   store_key **ref_key= j->ref.key_copy;
@@ -9444,10 +9445,22 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
       tab->pre_idx_push_select_cond= tab->select_cond;
       Item *idx_remainder_cond= 
         tab->table->file->idx_cond_push(keyno, idx_cond);
+
+      /*
+        Disable eq_ref's "lookup cache" if we've pushed down an index
+        condition. 
+        TODO: This check happens to work on current ICP implementations, but
+        there may exist a compliant implementation that will not work 
+        correctly with it. Sort this out when we stabilize the condition
+        pushdown APIs.
+      */
+      if (idx_remainder_cond != idx_cond)
+        tab->ref.disable_cache= TRUE;
+
       Item *row_cond= make_cond_remainder(tab->select_cond, TRUE);
       DBUG_EXECUTE("where", print_where(row_cond, "remainder cond"););
       
-      if (row_cond) 
+      if (row_cond)
       {
         if (!idx_remainder_cond)
           tab->select_cond= row_cond;
@@ -16620,7 +16633,7 @@ join_read_system(JOIN_TAB *tab)
 
 
 /**
-  Read a table when there is at most one matching row.
+  Read a [constant] table when there is at most one matching row.
 
   @param tab			Table to read
 
@@ -16784,6 +16797,22 @@ join_read_key_unlock_row(st_join_table *tab)
     1  - Error
 */
 
+/*
+  ref access method implementation: "read_first" function
+
+  SYNOPSIS
+    join_read_always_key()
+      tab  JOIN_TAB of the accessed table
+
+  DESCRIPTION
+    This is "read_fist" function for the "ref" access method.
+
+  RETURN
+    0  - Ok
+   -1  - Row not found 
+    1  - Error
+*/
+
 static int
 join_read_always_key(JOIN_TAB *tab)
 {
@@ -16793,7 +16822,7 @@ join_read_always_key(JOIN_TAB *tab)
   /* Initialize the index first */
   if (!table->file->inited)
     table->file->ha_index_init(tab->ref.key, tab->sorted);
- 
+
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   for (uint i= 0 ; i < tab->ref.key_parts ; i++)
   {
