@@ -56,7 +56,7 @@ the kernel mutex for a moment to give also others access to it */
 can be inserted to the page without need to create a lock with a bigger
 bitmap */
 
-#define LOCK_PAGE_BITMAP_MARGIN		32
+#define LOCK_PAGE_BITMAP_MARGIN		64
 
 /* An explicit record lock affects both the record and the gap before it.
 An implicit x-lock does not affect the gap, it only locks the index
@@ -388,7 +388,6 @@ ibool
 lock_deadlock_occurs(
 /*=================*/
 	lock_t*	lock,	/*!< in: lock the transaction is requesting */
-	ulint	heap_no,/*!< in: heap no if record lock */
 	trx_t*	trx);	/*!< in: transaction */
 /********************************************************************//**
 Looks recursively for a deadlock.
@@ -408,24 +407,9 @@ lock_deadlock_recursive(
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_EXCEED_MAX_DEPTH */
-	ulint	depth,		/*!< in: recursion depth: if this exceeds
+	ulint	depth);		/*!< in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_EXCEED_MAX_DEPTH */
-	ulint	heap_no);	/*!< in: heap_no if record lock */
-
-static const ulint N_BITS = sizeof(ib_uint32_t) * 8;
-
-/*********************************************************************//**
-Gets the number of bits in a record lock bitmap.
-@return	number of bits */
-UNIV_INLINE
-ulint
-lock_rec_get_n_bits(
-/*================*/
-	const lock_t*	lock)	/*!< in: record lock */
-{
-	return(lock->un_member.rec_lock.n_bits);
-}
 
 /*********************************************************************//**
 Gets the nth bit of a record lock.
@@ -437,8 +421,10 @@ lock_rec_get_nth_bit(
 	const lock_t*	lock,	/*!< in: record lock */
 	ulint		i)	/*!< in: index of the bit */
 {
-	const ib_uint32_t*	p = (const ib_uint32_t*) &lock[1];
+	ulint	byte_index;
+	ulint	bit_index;
 
+	ut_ad(lock);
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
 	if (i >= lock->un_member.rec_lock.n_bits) {
@@ -446,297 +432,10 @@ lock_rec_get_nth_bit(
 		return(FALSE);
 	}
 
-	return(1 & (p[i / N_BITS] >> ((ulint) i % N_BITS)));
-}
+	byte_index = i / 8;
+	bit_index = i % 8;
 
-/**********************************************************************//**
-Sets the nth bit of a record lock to TRUE. */
-UNIV_INLINE
-void
-lock_rec_set_nth_bit(
-/*=================*/
-	lock_t*	lock,	/*!< in: record lock */
-	ulint	i)	/*!< in: index of the bit */
-{
-	ib_uint32_t*	p = (ib_uint32_t*) &lock[1];
-
-	ut_ad(lock_get_type_low(lock) == LOCK_REC);
-	ut_ad(i < lock->un_member.rec_lock.n_bits);
-
-	p[i / N_BITS] |= (ib_uint32_t) 1 << (i % N_BITS);
-}
-
-/**********************************************************************//**
-Resets the nth bit of a record lock. */
-UNIV_INLINE
-void
-lock_rec_reset_nth_bit(
-/*===================*/
-	lock_t*	lock,	/*!< in: record lock */
-	ulint	i)	/*!< in: index of the bit which must be set to TRUE
-			when this function is called */
-{
-	ib_uint32_t*	p = (ib_uint32_t*) &lock[1];
-
-	ut_ad(lock_get_type_low(lock) == LOCK_REC);
-	ut_ad(i < lock->un_member.rec_lock.n_bits);
-
-	p[i / N_BITS] &= ~((ib_uint32_t) 1 << (i % N_BITS));
-}
-
-/*********************************************************************//**
-Resets the record lock bitmap to zero. NOTE: does not touch the wait_lock
-pointer in the transaction! This function is used in lock object creation
-and resetting. */
-static
-void
-lock_rec_bitmap_reset(
-/*==================*/
-	lock_t*	lock)	/*!< in: record lock */
-{
-	ulint	n_bytes;
-
-	ut_ad(lock_get_type_low(lock) == LOCK_REC);
-
-	/* Reset to zero the bitmap which resides immediately after the lock
-	struct */
-
-	n_bytes = lock_rec_get_n_bits(lock) / 8;
-
-	ut_ad((lock_rec_get_n_bits(lock) % 8) == 0);
-
-	memset(&lock[1], 0, n_bytes);
-}
-
-/** The lock bit set iterator */
-typedef struct lock_bitset_iter_struct {
-	const ib_uint32_t*	bgn;		/*!< Begin pointer */
-	const ib_uint32_t*	cur;		/*!< Current word */
-	const ib_uint32_t*	end;		/*!< End pointer */
-	ulint			lwr;		/*!< Lower limit within word */
-	ulint			upr;		/*!< Upper limit within word */
-	ulint			idx;		/*!< Index of word */
-} lock_bitset_iter_t;
-
-#define BIT_0	1
-#define BIT_1	2
-#define BIT_2	4
-#define BIT_3	8
-#define BIT_4	0x10
-#define BIT_5	0x20
-#define BIT_6	0x40
-#define BIT_7	0x80
-#define BIT_8	0x100
-#define BIT_9   0x200
-#define BIT_10	0x400
-#define BIT_11	0x800
-#define BIT_12	0x1000
-#define BIT_13	0x2000
-#define BIT_14	0x4000
-#define BIT_15	0x8000
-#define BIT_16	0x10000
-#define BIT_17	0x20000
-#define BIT_18	0x40000
-#define BIT_19	0x80000
-#define BIT_20	0x100000
-#define BIT_21	0x200000
-#define BIT_22	0x400000
-#define BIT_23	0x800000
-#define BIT_24	0x1000000
-#define BIT_25	0x2000000
-#define BIT_26	0x4000000
-#define BIT_27	0x8000000
-#define BIT_28	0x10000000
-#define BIT_29	0x20000000
-#define BIT_30	0x40000000
-#define BIT_31	0x80000000
-
-/**********************************************************************//**
-Get the next heap_no in the lock bit set.
-@return heap_no or ULINT_UNDEFINED */
-UNIV_INLINE
-void
-lock_bitset_iter_init(
-/*==================*/
-	const lock_t*		lock,		/*!< in: record lock */
-	lock_bitset_iter_t*	iter)		/*!< in/out: bit set iterator*/
-{
-	iter->bgn = (const ib_uint32_t*) &lock[1];
-	iter->cur = iter->bgn;
-	iter->end = iter->bgn + lock_rec_get_n_bits(lock) / N_BITS;
-	iter->lwr = ULINT_UNDEFINED;
-	iter->upr = ULINT_UNDEFINED;
-	iter->idx = 0;
-}
-
-/**********************************************************************//**
-Get the next heap_no in the lock bit set word.
-@return heap_no or ULINT_UNDEFINED */
-UNIV_INLINE
-ulint
-lock_rec_get_next_set_bit(
-/*======================*/
-	lock_bitset_iter_t*	iter)		/*!< in: bit set iterator*/
-{
-	ulint			heap_no;
-
-	/* Do it the slow way. */
-	for (heap_no = ULINT_UNDEFINED;
-	     iter->lwr < iter->upr && heap_no == ULINT_UNDEFINED;
-	     ++iter->lwr) {
-
-		if (1 & (*iter->cur >> iter->lwr)) {
-
-			heap_no = iter->lwr;
-		}
-	}
-
-	return(heap_no);
-}
-
-/**********************************************************************//**
-Get the next heap_no in the lock bit set.
-@return heap_no or ULINT_UNDEFINED */
-UNIV_INLINE
-ulint
-lock_bitset_get_next_heapno(
-/*========================*/
-	lock_bitset_iter_t*	iter)		/*!< in: bit set iterator*/
-{
-	while (iter->cur < iter->end) {
-
-		if (*iter->cur > 0) {
-			ulint	heap_no;
-
-			/* First time ? */
-			if (iter->lwr == ULINT_UNDEFINED) {
-				switch (*iter->cur) {
-				case BIT_0:
-					iter->lwr = iter->upr = 0;
-					break;
-				case BIT_1:
-					iter->lwr = iter->upr = 1;
-					break;
-				case BIT_2:
-					iter->lwr = iter->upr = 2;
-					break;
-				case BIT_3:
-					iter->lwr = iter->upr = 3;
-					break;
-				case BIT_4:
-					iter->lwr = iter->upr = 4;
-					break;
-				case BIT_5:
-					iter->lwr = iter->upr = 5;
-					break;
-				case BIT_6:
-					iter->lwr = iter->upr = 6;
-					break;
-				case BIT_7:
-					iter->lwr = iter->upr = 7;
-					break;
-				case BIT_8:
-					iter->lwr = iter->upr = 8;
-					break;
-				case BIT_9:
-					iter->lwr = iter->upr = 9;
-					break;
-				case BIT_10:
-					iter->lwr = iter->upr = 10;
-					break;
-				case BIT_11:
-					iter->lwr = iter->upr = 11;
-					break;
-				case BIT_12:
-					iter->lwr = iter->upr = 12;
-					break;
-				case BIT_13:
-					iter->lwr = iter->upr = 13;
-					break;
-				case BIT_14:
-					iter->lwr = iter->upr = 14;
-					break;
-				case BIT_15:
-					iter->lwr = iter->upr = 15;
-					break;
-				case BIT_16:
-					iter->lwr = iter->upr = 16;
-					break;
-				case BIT_17:
-					iter->lwr = iter->upr = 17;
-					break;
-				case BIT_18:
-					iter->lwr = iter->upr = 18;
-					break;
-				case BIT_19:
-					iter->lwr = iter->upr = 19;
-					break;
-				case BIT_20:
-					iter->lwr = iter->upr = 20;
-					break;
-				case BIT_21:
-					iter->lwr = iter->upr = 21;
-					break;
-				case BIT_22:
-					iter->lwr = iter->upr = 22;
-					break;
-				case BIT_23:
-					iter->lwr = iter->upr = 23;
-					break;
-				case BIT_24:
-					iter->lwr = iter->upr = 24;
-					break;
-				case BIT_25:
-					iter->lwr = iter->upr = 25;
-					break;
-				case BIT_26:
-					iter->lwr = iter->upr = 26;
-					break;
-				case BIT_27:
-					iter->lwr = iter->upr = 27;
-					break;
-				case BIT_28:
-					iter->lwr = iter->upr = 28;
-					break;
-				case BIT_29:
-					iter->lwr = iter->upr = 29;
-					break;
-				case BIT_30:
-					iter->lwr = iter->upr = 30;
-					break;
-				case BIT_31:
-					iter->lwr = iter->upr = 31;
-					break;
-				default:
-
-					iter->upr = ut_nlz(*iter->cur);
-					iter->lwr = ut_ntz(*iter->cur);
-				}
-
-				heap_no = iter->idx + iter->lwr;
-				++iter->lwr;
-
-				return(heap_no);
-
-			} else if (iter->lwr < iter->upr) {
-
-				heap_no = lock_rec_get_next_set_bit(iter);
-
-				if (heap_no != ULINT_UNDEFINED) {
-
-					return(heap_no + iter->idx);
-				}
-			}
-
-			iter->upr = 0;
-			iter->lwr = ULINT_UNDEFINED;
-		}
-
-		++iter->cur;
-		iter->idx = (iter->cur - iter->bgn) * N_BITS;
-	}
-
-	return(ULINT_UNDEFINED);
+	return(1 & ((const byte*) &lock[1])[byte_index] >> bit_index);
 }
 
 /*************************************************************************/
@@ -1317,22 +1016,38 @@ lock_has_to_wait(
 
 /*============== RECORD LOCK BASIC FUNCTIONS ============================*/
 
-/**********************************************************************//**
-Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
-if none found.
-@return bit index == heap number of the record, or ULINT_UNDEFINED if
-none found */
+/*********************************************************************//**
+Gets the number of bits in a record lock bitmap.
+@return	number of bits */
 UNIV_INLINE
 ulint
-lock_rec_find_set_bit_low(
-/*======================*/
-	const lock_t*	lock)		/*!< in: record lock with at least
-					 one bit set */
+lock_rec_get_n_bits(
+/*================*/
+	const lock_t*	lock)	/*!< in: record lock */
 {
-	lock_bitset_iter_t	iter;
+	return(lock->un_member.rec_lock.n_bits);
+}
 
-	lock_bitset_iter_init(lock, &iter);
-	return(lock_bitset_get_next_heapno(&iter));
+/**********************************************************************//**
+Sets the nth bit of a record lock to TRUE. */
+UNIV_INLINE
+void
+lock_rec_set_nth_bit(
+/*=================*/
+	lock_t*	lock,	/*!< in: record lock */
+	ulint	i)	/*!< in: index of the bit */
+{
+	ulint	byte_index;
+	ulint	bit_index;
+
+	ut_ad(lock);
+	ut_ad(lock_get_type_low(lock) == LOCK_REC);
+	ut_ad(i < lock->un_member.rec_lock.n_bits);
+
+	byte_index = i / 8;
+	bit_index = i % 8;
+
+	((byte*) &lock[1])[byte_index] |= 1 << bit_index;
 }
 
 /**********************************************************************//**
@@ -1344,10 +1059,42 @@ UNIV_INTERN
 ulint
 lock_rec_find_set_bit(
 /*==================*/
-	const lock_t*	lock)	/*!< in: record lock with at least
-				one bit set */
+	const lock_t*	lock)	/*!< in: record lock with at least one bit set */
 {
-	return(lock_rec_find_set_bit_low(lock));
+	ulint	i;
+
+	for (i = 0; i < lock_rec_get_n_bits(lock); i++) {
+
+		if (lock_rec_get_nth_bit(lock, i)) {
+
+			return(i);
+		}
+	}
+
+	return(ULINT_UNDEFINED);
+}
+
+/**********************************************************************//**
+Resets the nth bit of a record lock. */
+UNIV_INLINE
+void
+lock_rec_reset_nth_bit(
+/*===================*/
+	lock_t*	lock,	/*!< in: record lock */
+	ulint	i)	/*!< in: index of the bit which must be set to TRUE
+			when this function is called */
+{
+	ulint	byte_index;
+	ulint	bit_index;
+
+	ut_ad(lock);
+	ut_ad(lock_get_type_low(lock) == LOCK_REC);
+	ut_ad(i < lock->un_member.rec_lock.n_bits);
+
+	byte_index = i / 8;
+	bit_index = i % 8;
+
+	((byte*) &lock[1])[byte_index] &= ~(1 << bit_index);
 }
 
 /*********************************************************************//**
@@ -1517,6 +1264,30 @@ lock_rec_get_first(
 	}
 
 	return(lock);
+}
+
+/*********************************************************************//**
+Resets the record lock bitmap to zero. NOTE: does not touch the wait_lock
+pointer in the transaction! This function is used in lock object creation
+and resetting. */
+static
+void
+lock_rec_bitmap_reset(
+/*==================*/
+	lock_t*	lock)	/*!< in: record lock */
+{
+	ulint	n_bytes;
+
+	ut_ad(lock_get_type_low(lock) == LOCK_REC);
+
+	/* Reset to zero the bitmap which resides immediately after the lock
+	struct */
+
+	n_bytes = lock_rec_get_n_bits(lock) / 8;
+
+	ut_ad((lock_rec_get_n_bits(lock) % 8) == 0);
+
+	memset(&lock[1], 0, n_bytes);
 }
 
 /*********************************************************************//**
@@ -1857,19 +1628,19 @@ lock_number_of_rows_locked(
 {
 	lock_t*	lock;
 	ulint   n_records = 0;
+	ulint	n_bits;
+	ulint	n_bit;
 
 	lock = UT_LIST_GET_FIRST(trx->trx_locks);
 
 	while (lock) {
 		if (lock_get_type_low(lock) == LOCK_REC) {
-			lock_bitset_iter_t	iter;
+			n_bits = lock_rec_get_n_bits(lock);
 
-			lock_bitset_iter_init(lock, &iter);
-
-			while (lock_bitset_get_next_heapno(&iter)
-			       != ULINT_UNDEFINED) {
-
-				++n_records;
+			for (n_bit = 0; n_bit < n_bits; n_bit++) {
+				if (lock_rec_get_nth_bit(lock, n_bit)) {
+					n_records++;
+				}
 			}
 		}
 
@@ -1925,7 +1696,7 @@ lock_rec_create(
 
 	/* Make lock bitmap bigger by a safety margin */
 	n_bits = page_dir_get_n_heap(page) + LOCK_PAGE_BITMAP_MARGIN;
-	n_bytes = sizeof(ib_uint32_t) + n_bits / 8;
+	n_bytes = 1 + n_bits / 8;
 
 	lock = mem_heap_alloc(trx->lock_heap, sizeof(lock_t) + n_bytes);
 
@@ -2025,7 +1796,7 @@ lock_rec_enqueue_waiting(
 	/* Check if a deadlock occurs: if yes, remove the lock request and
 	return an error code */
 
-	if (UNIV_UNLIKELY(lock_deadlock_occurs(lock, heap_no, trx))) {
+	if (UNIV_UNLIKELY(lock_deadlock_occurs(lock, trx))) {
 
 		lock_reset_lock_and_trx_wait(lock);
 		lock_rec_reset_nth_bit(lock, heap_no);
@@ -2366,7 +2137,7 @@ lock_rec_has_to_wait_in_queue(
 
 	space = wait_lock->un_member.rec_lock.space;
 	page_no = wait_lock->un_member.rec_lock.page_no;
-	heap_no = lock_rec_find_set_bit_low(wait_lock);
+	heap_no = lock_rec_find_set_bit(wait_lock);
 
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
 
@@ -2443,7 +2214,7 @@ lock_rec_cancel(
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
 	/* Reset the bit (there can be only one set bit) in the lock bitmap */
-	lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit_low(lock));
+	lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit(lock));
 
 	/* Reset the wait flag and the back pointer to lock in trx */
 
@@ -2552,7 +2323,7 @@ lock_rec_free_all_from_discard_page(
 	lock = lock_rec_get_first_on_page_addr(space, page_no);
 
 	while (lock != NULL) {
-		ut_ad(lock_rec_find_set_bit_low(lock) == ULINT_UNDEFINED);
+		ut_ad(lock_rec_find_set_bit(lock) == ULINT_UNDEFINED);
 		ut_ad(!lock_get_wait(lock));
 
 		next_lock = lock_rec_get_next_on_page(lock);
@@ -2849,7 +2620,7 @@ lock_move_reorganize_page(
 
 #ifdef UNIV_DEBUG
 		{
-			ulint	i = lock_rec_find_set_bit_low(lock);
+			ulint	i = lock_rec_find_set_bit(lock);
 
 			/* Check that all locks were moved. */
 			if (UNIV_UNLIKELY(i != ULINT_UNDEFINED)) {
@@ -3490,7 +3261,6 @@ ibool
 lock_deadlock_occurs(
 /*=================*/
 	lock_t*	lock,	/*!< in: lock the transaction is requesting */
-	ulint	heap_no,/*!< in: heap no. if record lock */
 	trx_t*	trx)	/*!< in: transaction */
 {
 	trx_t*		mark_trx;
@@ -3512,7 +3282,7 @@ retry:
 		mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx);
 	}
 
-	ret = lock_deadlock_recursive(trx, trx, lock, &cost, 0, heap_no);
+	ret = lock_deadlock_recursive(trx, trx, lock, &cost, 0);
 
 	switch (ret) {
 	case LOCK_VICTIM_IS_OTHER:
@@ -3561,75 +3331,6 @@ retry:
 }
 
 /********************************************************************//**
-Check that no other transaction is waiting on this transaction's locks.
-@return TRUE lock if no other transaction is waiting for this transaction's
-locks. */
-static
-ibool
-lock_trx_has_no_waiters(
-/*====================*/
-	const trx_t*	trx)		/*!< in: the transaction to check */
-{
-	const lock_t*	lock;
-
-	ut_ad(mutex_own(&kernel_mutex));
-
-	for (lock = UT_LIST_GET_FIRST(trx->trx_locks);
-	     lock != NULL;
-	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
-
-		const lock_t*	wait_lock;
-
-		/* Look for all transactions that could be waiting on this
-		transaction's locks. For that we need to search forward. */
-		if (lock_get_type_low(lock) == LOCK_REC) {
-
-			lock_bitset_iter_t	iter;
-			ulint			heap_no;
-
-			lock_bitset_iter_init(lock, &iter);
-
-			/* We need to check for all the records that
-			are set in this lock. */
-			for (heap_no = lock_bitset_get_next_heapno(&iter);
-			     heap_no != ULINT_UNDEFINED;
-			     heap_no = lock_bitset_get_next_heapno(&iter)) {
-
-				wait_lock = lock;
-
-				do {
-					wait_lock = lock_rec_get_next(
-						heap_no, (lock_t*) wait_lock);
-
-					if (wait_lock != NULL
-					    && lock_has_to_wait(wait_lock,
-								lock)) {
-
-						return(FALSE);
-					}
-				} while (wait_lock != NULL);
-			}
-		} else {
-
-			wait_lock = lock;
-
-			do {
-				wait_lock = UT_LIST_GET_NEXT(
-					un_member.tab_lock.locks, wait_lock);
-
-				if (wait_lock != NULL
-				    && lock_has_to_wait(wait_lock, lock) ) {
-
-					return(FALSE);
-				}
-			} while (wait_lock != NULL);
-		}
-	}
-
-	return(TRUE);
-}
-
-/********************************************************************//**
 Looks recursively for a deadlock.
 @return 0 if no deadlock found, LOCK_VICTIM_IS_START if there was a
 deadlock and we chose 'start' as the victim, LOCK_VICTIM_IS_OTHER if a
@@ -3647,14 +3348,14 @@ lock_deadlock_recursive(
 	ulint*	cost,		/*!< in/out: number of calculation steps thus
 				far: if this exceeds LOCK_MAX_N_STEPS_...
 				we return LOCK_EXCEED_MAX_DEPTH */
-	ulint	depth,		/*!< in: recursion depth: if this exceeds
+	ulint	depth)		/*!< in: recursion depth: if this exceeds
 				LOCK_MAX_DEPTH_IN_DEADLOCK_CHECK, we
 				return LOCK_EXCEED_MAX_DEPTH */
-	ulint	heap_no)	/*!< in: heap no. if record lock */
 {
 	ulint	ret;
 	lock_t*	lock;
 	trx_t*	lock_trx;
+	ulint	heap_no		= ULINT_UNDEFINED;
 
 	ut_a(trx);
 	ut_a(start);
@@ -3668,18 +3369,13 @@ lock_deadlock_recursive(
 		return(0);
 	}
 
-	/* If there are no other transactions waiting on the joining
-	transaction's locks, then there cannot be a deadlock. */
-	if (lock_trx_has_no_waiters(trx)) {
-		return(0);
-	}
-
 	*cost = *cost + 1;
 
 	if (lock_get_type_low(wait_lock) == LOCK_REC) {
-		ulint	space;
-		ulint	page_no;
+		ulint		space;
+		ulint		page_no;
 
+		heap_no = lock_rec_find_set_bit(wait_lock);
 		ut_a(heap_no != ULINT_UNDEFINED);
 
 		space = wait_lock->un_member.rec_lock.space;
@@ -3687,12 +3383,22 @@ lock_deadlock_recursive(
 
 		lock = lock_rec_get_first_on_page_addr(space, page_no);
 
-		/* Must find at least one lock. */
-		ut_a(lock != NULL);
+		/* Position the iterator on the first matching record lock. */
+		while (lock != NULL
+		       && lock != wait_lock
+		       && !lock_rec_get_nth_bit(lock, heap_no)) {
+
+			lock = lock_rec_get_next_on_page(lock);
+		}
+
+		if (lock == wait_lock) {
+			lock = NULL;
+		}
+
+		ut_ad(lock == NULL || lock_rec_get_nth_bit(lock, heap_no));
 
 	} else {
 		lock = wait_lock;
-		ut_a(heap_no == ULINT_UNDEFINED);
 	}
 
 	/* Look at the locks ahead of wait_lock in the lock queue */
@@ -3705,7 +3411,7 @@ lock_deadlock_recursive(
 				un_member.tab_lock.locks, lock);
 		}
 
-		if (lock == NULL || lock == wait_lock) {
+		if (lock == NULL) {
 			/* We can mark this subtree as searched */
 			trx->deadlock_mark = 1;
 
@@ -3829,9 +3535,7 @@ lock_deadlock_recursive(
 
 				ret = lock_deadlock_recursive(
 					start, lock_trx,
-					lock_trx->wait_lock, cost, depth + 1,
-					lock_rec_find_set_bit_low(
-						lock_trx->wait_lock));
+					lock_trx->wait_lock, cost, depth + 1);
 
 				if (ret != 0) {
 
@@ -3844,7 +3548,15 @@ lock_deadlock_recursive(
 
 			ut_a(lock != NULL);
 
-			lock = lock_rec_get_next(heap_no, lock);
+			do {
+				lock = lock_rec_get_next_on_page(lock);
+			} while (lock != NULL
+				&& lock != wait_lock
+				&& !lock_rec_get_nth_bit(lock, heap_no));
+
+			if (lock == wait_lock) {
+				lock = NULL;
+			}
 		}
 	}/* end of the 'for (;;)'-loop */
 }
@@ -4013,7 +3725,7 @@ lock_table_enqueue_waiting(
 	/* Check if a deadlock occurs: if yes, remove the lock request and
 	return an error code */
 
-	if (lock_deadlock_occurs(lock, ULINT_UNDEFINED, trx)) {
+	if (lock_deadlock_occurs(lock, trx)) {
 
 		/* The order here is important, we don't want to
 		lose the state of the lock before calling remove. */
@@ -4547,10 +4259,9 @@ lock_rec_print(
 	const buf_block_t*	block;
 	ulint			space;
 	ulint			page_no;
+	ulint			i;
 	mtr_t			mtr;
-	lock_bitset_iter_t	iter;
 	mem_heap_t*		heap		= NULL;
-	ulint			heap_no;
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*			offsets		= offsets_;
 	rec_offs_init(offsets_);
@@ -4598,18 +4309,19 @@ lock_rec_print(
 
 	block = buf_page_try_get(space, page_no, &mtr);
 
-	lock_bitset_iter_init(lock, &iter);
-	for (heap_no = lock_bitset_get_next_heapno(&iter);
-	     heap_no != ULINT_UNDEFINED;
-	     heap_no = lock_bitset_get_next_heapno(&iter)) {
+	for (i = 0; i < lock_rec_get_n_bits(lock); ++i) {
 
-		fprintf(file, "Record lock, heap no %lu", (ulong) heap_no);
+		if (!lock_rec_get_nth_bit(lock, i)) {
+			continue;
+		}
+
+		fprintf(file, "Record lock, heap no %lu", (ulong) i);
 
 		if (block) {
 			const rec_t*	rec;
 
 			rec = page_find_rec_with_heap_no(
-				buf_block_get_frame(block), heap_no);
+				buf_block_get_frame(block), i);
 
 			offsets = rec_get_offsets(
 				rec, lock->index, offsets,
