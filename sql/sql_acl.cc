@@ -319,6 +319,35 @@ set_user_salt(ACL_USER *acl_user, const char *password, uint password_len)
     acl_user->salt_len= 0;
 }
 
+/**
+  Fix ACL::plugin pointer to point to a hard-coded string, if appropriate
+
+  Make sure that if ACL_USER's plugin is a built-in, then it points
+  to a hard coded string, not to an allocated copy. Run-time, for
+  authentication, we want to be able to detect built-ins by comparing
+  pointers, not strings.
+
+  Additionally - update the salt if the plugin is built-in.
+
+  @retval 0 the pointers were fixed
+  @retval 1 this ACL_USER uses a not built-in plugin
+*/
+static bool fix_user_plugin_ptr(ACL_USER *user)
+{
+  if (my_strcasecmp(system_charset_info, user->plugin.str,
+                    native_password_plugin_name.str) == 0)
+    user->plugin= native_password_plugin_name;
+  else
+  if (my_strcasecmp(system_charset_info, user->plugin.str,
+                    old_password_plugin_name.str) == 0)
+    user->plugin= old_password_plugin_name;
+  else
+    return true;
+  
+  set_user_salt(user, user->auth_string.str, user->auth_string.length);
+  return false;
+}
+
 /*
   This after_update function is used when user.password is less than
   SCRAMBLE_LENGTH bytes.
@@ -662,6 +691,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           char *tmpstr= get_field(&mem, table->field[next_field++]);
           if (tmpstr)
           {
+            user.plugin.str= tmpstr;
+            user.plugin.length= strlen(user.plugin.str);
             if (user.auth_string.length)
             {
               sql_print_warning("'user' entry '%s@%s' has both a password "
@@ -670,22 +701,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                 user.user ? user.user : "",
                                 user.host.hostname ? user.host.hostname : "");
             }
-            if (my_strcasecmp(system_charset_info, tmpstr,
-                              native_password_plugin_name.str) == 0)
-              user.plugin= native_password_plugin_name;
-            else
-            if (my_strcasecmp(system_charset_info, tmpstr,
-                              old_password_plugin_name.str) == 0)
-              user.plugin= old_password_plugin_name;
-            else
-            {
-              user.plugin.str= tmpstr;
-              user.plugin.length= strlen(tmpstr);
-            }
             user.auth_string.str= get_field(&mem, table->field[next_field++]);
             if (!user.auth_string.str)
               user.auth_string.str= const_cast<char*>("");
             user.auth_string.length= strlen(user.auth_string.str);
+
+            fix_user_plugin_ptr(&user);
           }
         }
       }
@@ -1132,12 +1153,15 @@ static void acl_update_user(const char *user, const char *host,
       {
         if (plugin->str[0])
         {
-          acl_user->plugin.str= strmake_root(&mem, plugin->str, plugin->length);
-          acl_user->plugin.length= plugin->length;
+          acl_user->plugin= *plugin;
           acl_user->auth_string.str= auth->str ?
             strmake_root(&mem, auth->str, auth->length) : const_cast<char*>("");
           acl_user->auth_string.length= auth->length;
+          if (fix_user_plugin_ptr(acl_user))
+            acl_user->plugin.str= strmake_root(&mem, plugin->str, plugin->length);
         }
+        else
+          set_user_salt(acl_user, password, password_len);
 	acl_user->access=privileges;
 	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
 	  acl_user->user_resource.questions=mqh->questions;
@@ -1157,8 +1181,6 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->x509_subject= (x509_subject ?
 				   strdup_root(&mem,x509_subject) : 0);
 	}
-	if (password)
-	  set_user_salt(acl_user, password, password_len);
         /* search complete: */
 	break;
       }
@@ -1186,11 +1208,12 @@ static void acl_insert_user(const char *user, const char *host,
   update_hostname(&acl_user.host, *host ? strdup_root(&mem, host): 0);
   if (plugin->str[0])
   {
-    acl_user.plugin.str= strmake_root(&mem, plugin->str, plugin->length);
-    acl_user.plugin.length= plugin->length;
+    acl_user.plugin= *plugin;
     acl_user.auth_string.str= auth->str ?
       strmake_root(&mem, auth->str, auth->length) : const_cast<char*>("");
     acl_user.auth_string.length= auth->length;
+    if (fix_user_plugin_ptr(&acl_user))
+      acl_user.plugin.str= strmake_root(&mem, plugin->str, plugin->length);
   }
   else
   {
@@ -1198,6 +1221,7 @@ static void acl_insert_user(const char *user, const char *host,
       old_password_plugin_name : native_password_plugin_name;
     acl_user.auth_string.str= strmake_root(&mem, password, password_len);
     acl_user.auth_string.length= password_len;
+    set_user_salt(&acl_user, password, password_len);
   }
 
   acl_user.access=privileges;
@@ -1209,8 +1233,6 @@ static void acl_insert_user(const char *user, const char *host,
   acl_user.ssl_cipher=	ssl_cipher   ? strdup_root(&mem,ssl_cipher) : 0;
   acl_user.x509_issuer= x509_issuer  ? strdup_root(&mem,x509_issuer) : 0;
   acl_user.x509_subject=x509_subject ? strdup_root(&mem,x509_subject) : 0;
-
-  set_user_salt(&acl_user, password, password_len);
 
   VOID(push_dynamic(&acl_users,(uchar*) &acl_user));
   if (!acl_user.host.hostname ||
