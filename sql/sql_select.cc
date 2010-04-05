@@ -1125,13 +1125,13 @@ JOIN::optimize()
     elements may be lost during further having
     condition transformation in JOIN::exec.
   */
-  if (having && !having->with_sum_func)
+  if (having && const_table_map)
   {
-    COND *const_cond= make_cond_for_table(having, const_table_map, 0);
-    DBUG_EXECUTE("where", print_where(const_cond, "const_having_cond",
-                                      QT_ORDINARY););
-    if (const_cond && !const_cond->val_int())
+    having->update_used_tables();
+    having= remove_eq_conds(thd, having, &having_value);
+    if (having_value == Item::COND_FALSE)
     {
+      having= new Item_int((longlong) 0,1);
       zero_result_cause= "Impossible HAVING noticed after reading const tables";
       DBUG_RETURN(0);
     }
