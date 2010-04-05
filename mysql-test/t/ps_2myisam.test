@@ -11,15 +11,6 @@
 use test;
 
 let $type= 'MYISAM' ;
-# sergefp/psergey: TODO:
-#  index condition pushdown doesnt work because it conflicts
-#  with 1-element cache in eq_ref access. The cache thinks it 
-#  remembers (key->result-row) while with ICP it happens to 
-#  record ((key, icp-func-result) -> result-row).
-# This needs to be resolved by disabling either ICP or the cache,
-# most likely the cache.
-set @optimizer_switch= @@optimizer_switch;
-set @@optimizer_switch= "engine_condition_pushdown=off";
 -- source include/ps_create.inc
 -- source include/ps_renew.inc
 
@@ -49,7 +40,5 @@ drop table t2 ;
 -- source include/ps_conv.inc
 
 drop table t1, t9;
-set @@optimizer_switch= @optimizer_switch;
-
 
 # End of 4.1 tests

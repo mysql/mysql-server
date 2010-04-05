@@ -1,6 +1,4 @@
 use test;
-set @optimizer_switch= @@optimizer_switch;
-set @@optimizer_switch= "engine_condition_pushdown=off";
 drop table if exists t1, t9 ;
 create table t1
 (
@@ -3145,4 +3143,3 @@ execute stmt1 using @arg00 ;
 found
 true
 drop table t1, t9;
-set @@optimizer_switch= @optimizer_switch;
