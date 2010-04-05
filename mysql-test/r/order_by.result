@@ -514,7 +514,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 EXPLAIN SELECT t1.gid, t3.uid from t1, t3 where t1.skr = t3.uid order by t1.gid,t3.skr;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	2	test.t1.skr	1	Using where
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	2	test.t1.skr	1	Using index condition
 drop table t1,t2,t3;
 CREATE TABLE t1 (
 `titre` char(80) NOT NULL default '',
@@ -601,7 +601,7 @@ KEY StringField (FieldKey,StringVal(32))
 INSERT INTO t1 VALUES ('0',3,'0'),('0',2,'1'),('0',1,'2'),('1',2,'1'),('1',1,'3'), ('1',0,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('2',3,'0'),('2',2,'1'),('2',1,'2'),('3',2,'1'),('3',1,'2'),('3','3','3');
 EXPLAIN SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	FieldKey,LongField,StringField	LongField	38	const	3	Using where
+1	SIMPLE	t1	ref	FieldKey,LongField,StringField	LongField	38	const	3	Using index condition; Using where
 SELECT * FROM t1 WHERE FieldKey = '1' ORDER BY LongVal;
 FieldKey	LongVal	StringVal
 1	0	2
@@ -609,7 +609,7 @@ FieldKey	LongVal	StringVal
 1	2	1
 EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	FieldKey,LongField,StringField	FieldKey	38	NULL	4	Using where; Using filesort
+1	SIMPLE	t1	range	FieldKey,LongField,StringField	FieldKey	38	NULL	4	Using index condition; Using MRR; Using filesort
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
 FieldKey	LongVal	StringVal
 3	1	2
@@ -638,7 +638,7 @@ create table t1(a int, b int, index(b));
 insert into t1 values (2, 1), (1, 1), (4, NULL), (3, NULL), (6, 2), (5, 2);
 explain select * from t1 where b=1 or b is null order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	b	b	5	const	3	Using where; Using filesort
+1	SIMPLE	t1	ref_or_null	b	b	5	const	3	Using filesort
 select * from t1 where b=1 or b is null order by a;
 a	b
 1	1
@@ -647,7 +647,7 @@ a	b
 4	NULL
 explain select * from t1 where b=2 or b is null order by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref_or_null	b	b	5	const	4	Using where; Using filesort
+1	SIMPLE	t1	ref_or_null	b	b	5	const	4	Using filesort
 select * from t1 where b=2 or b is null order by a;
 a	b
 3	NULL

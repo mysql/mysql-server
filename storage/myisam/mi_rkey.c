@@ -29,6 +29,9 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   MI_KEYDEF *keyinfo;
   HA_KEYSEG *last_used_keyseg;
   uint pack_key_length, use_key_length, nextflag;
+  uint myisam_search_flag;
+  my_bool key_tuple_has_rowid= FALSE;
+  int res= 0;
   DBUG_ENTER("mi_rkey");
   DBUG_PRINT("enter", ("base: 0x%lx  buf: 0x%lx  inx: %d  search_flag: %d",
                        (long) info, (long) buf, inx, search_flag));
@@ -59,11 +62,17 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length=_mi_pack_key(info,(uint) inx, key_buff, (uchar*) key,
 				 keypart_map, &last_used_keyseg);
+    if (last_used_keyseg > (info->s->keyinfo[inx].seg +
+                           info->s->keyinfo[inx].keysegs))
+    {
+      key_tuple_has_rowid= TRUE;
+      last_used_keyseg--;
+    }
     /* Save packed_key_length for use by the MERGE engine. */
     info->pack_key_length= pack_key_length;
     info->last_used_keyseg= (uint16) (last_used_keyseg -
                                       info->s->keyinfo[inx].seg);
-    DBUG_EXECUTE("key",_mi_print_key(DBUG_FILE, keyinfo->seg,
+    DBUG_EXECUTE("info",_mi_print_key(DBUG_FILE, keyinfo->seg,
 				     key_buff, pack_key_length););
   }
 
@@ -91,8 +100,14 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
 #endif
   case HA_KEY_ALG_BTREE:
   default:
+    myisam_search_flag= myisam_read_vec[search_flag];
+    if (key_tuple_has_rowid)
+    {
+      /* Fiddle with flags so ha_key_cmp compares the rowid, too */
+      myisam_search_flag &= ~(SEARCH_FIND | SEARCH_NO_FIND);
+    }
     if (!_mi_search(info, keyinfo, key_buff, use_key_length,
-                    myisam_read_vec[search_flag], info->s->state.key_root[inx]))
+                    myisam_search_flag, info->s->state.key_root[inx]))
     {
       /*
         Found a key, but it might not be usable. We cannot use rows that
@@ -104,7 +119,11 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
         to the end of the file. So we can test if the found key
         references a new record.
       */
-      if (info->lastpos >= info->state->data_file_length)
+      while ((info->lastpos >= info->state->data_file_length &&
+              (search_flag != HA_READ_KEY_EXACT ||
+              last_used_keyseg != keyinfo->seg + keyinfo->keysegs)) ||
+             (info->index_cond_func && 
+             !(res= mi_check_index_cond(info, inx, buf))))
       {
         /* The key references a concurrently inserted record. */
         if (search_flag == HA_READ_KEY_EXACT &&
@@ -121,7 +140,26 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
             the data is outside of the data file, we need to continue
             searching for the first key inside the data file.
           */
-          do
+          uint not_used[2];
+          /*
+            Skip rows that are inserted by other threads since we got a lock
+            Note that this can only happen if we are not searching after an
+            full length exact key, because the keys are sorted
+            according to position
+          */
+          if  (_mi_search_next(info, keyinfo, info->lastkey,
+                               info->lastkey_length,
+                               myisam_readnext_vec[search_flag],
+                               info->s->state.key_root[inx]))
+            break;
+          /*
+            Check that the found key does still match the search.
+            _mi_search_next() delivers the next key regardless of its
+            value.
+          */
+          if (search_flag == HA_READ_KEY_EXACT &&
+              ha_key_cmp(keyinfo->seg, key_buff, info->lastkey, use_key_length,
+                         SEARCH_FIND, not_used))
           {
             uint not_used[2];
             /*
@@ -150,8 +188,15 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
               break;
               /* purecov: end */
             }
-          } while (info->lastpos >= info->state->data_file_length);
+          }
         }
+      }
+      if (res == 2)
+      {
+        info->lastpos= HA_OFFSET_ERROR;
+        if (share->concurrent_insert)
+          rw_unlock(&share->key_root_lock[inx]);
+        DBUG_RETURN((my_errno= HA_ERR_KEY_NOT_FOUND));
       }
     }
   }
