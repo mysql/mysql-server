@@ -328,6 +328,34 @@ if ($error)
 --disconnect extracon2
 --connection default
 
+#
+# A couple of plugin tests - for builtin plugins only
+#
+CREATE USER mysqltest_up1 IDENTIFIED VIA mysql_native_password using '*E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB';
+CREATE USER mysqltest_up2 IDENTIFIED VIA mysql_old_password using '09301740536db389';
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(pcon1,localhost,mysqltest_up1,foo,,$MASTER_EXTRA_PORT,);
+
+connect(pcon2,localhost,mysqltest_up1,bar,,$MASTER_EXTRA_PORT,);
+connection pcon2;
+select user(), current_user();
+disconnect pcon2;
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+--error ER_ACCESS_DENIED_ERROR
+connect(pcon3,localhost,mysqltest_up2,newpw,,$MASTER_EXTRA_PORT,);
+
+connect(pcon4,localhost,mysqltest_up2,oldpw,,$MASTER_EXTRA_PORT,);
+connection pcon4;
+select user(), current_user();
+disconnect pcon4;
+
+connection default;
+DROP USER mysqltest_up1@'%';
+DROP USER mysqltest_up2@'%';
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

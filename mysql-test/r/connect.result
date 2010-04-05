@@ -225,3 +225,17 @@ Connection on extra port 2 ok
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
+CREATE USER mysqltest_up1 IDENTIFIED VIA mysql_native_password using '*E8D46CE25265E545D225A8A6F1BAF642FEBEE5CB';
+CREATE USER mysqltest_up2 IDENTIFIED VIA mysql_old_password using '09301740536db389';
+connect(localhost,mysqltest_up1,foo,test,13001,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'mysqltest_up1'@'localhost' (using password: YES)
+select user(), current_user();
+user()	current_user()
+mysqltest_up1@localhost	mysqltest_up1@%
+connect(localhost,mysqltest_up2,newpw,test,13001,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'mysqltest_up2'@'localhost' (using password: YES)
+select user(), current_user();
+user()	current_user()
+mysqltest_up2@localhost	mysqltest_up2@%
+DROP USER mysqltest_up1@'%';
+DROP USER mysqltest_up2@'%';
