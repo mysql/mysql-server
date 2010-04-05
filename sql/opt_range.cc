@@ -7696,7 +7696,8 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
   */
 walk_right_up:
   while (key_tree->next_key_part && key_tree->next_key_part != &null_element && 
-         key_tree->next_key_part->part == key_tree->part + 1)
+         key_tree->next_key_part->part == key_tree->part + 1 &&
+         key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)
   {
     {
       uint min_key_length= seq->stack[seq->i].min_key - seq->param->min_key;

@@ -1323,3 +1323,14 @@ CREATE TABLE t1 (c1 DECIMAL(10,0),INDEX(c1));
 INSERT INTO t1 VALUES (1),(2),(3);
 SELECT c1 FROM t1 WHERE c1 >= 'A' GROUP BY 1;
 DROP TABLE t1;
+
+#
+# BUG#32229: Range optimizer crashes for 'range checked for each record' query
+#
+create table t1 (a int,b int,key (b),key (a),key (b,a));
+insert into t1(a,b) values (1,2),(3,4),(5,6),(7,8);
+create table t2 (c int);
+insert into t2(c) values (1),(5),(6),(7),(8);
+select 1 from (select c from t1,t2 where b >= 1 and a <=> c group by 1 limit 1) as d1;
+drop table t1, t2;
+
