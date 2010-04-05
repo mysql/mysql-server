@@ -217,22 +217,6 @@ store the given number of bits.
 @return		number of bytes (octets) needed to represent b */
 #define UT_BITS_IN_BYTES(b) (((b) + 7) / 8)
 
-/*************************************************************//**
-Calculates the leading zeros in a 32 bint unsigned integer
-@return	number of leading zeros or ULINT_UNDEFINED if n == 0 */
-UNIV_INLINE
-ulint
-ut_nlz(
-/*===*/
-	ib_uint32_t	n);	/*!< in: number */
-/*************************************************************//**
-Calculates the trailing zeros in a 32 bint unsigned integer
-@return	number of trailing zeros or ULINT_UNDEFINED if n == 0 */
-UNIV_INLINE
-ulint
-ut_ntz(
-/*===*/
-	ib_uint32_t	n);	/*!< in: number */
 /**********************************************************//**
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime.
