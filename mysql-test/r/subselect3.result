@@ -1212,24 +1212,28 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
 explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	5	test.A.a	1	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	10	
 explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	5	test.t2.a	1	
 2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	
 2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
 explain select * from t2 where a in (select straight_join A.a from t1 A, t1 B);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	5	test.t2.a	1	
 2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	
 2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
 explain select straight_join * from t2 X, t2 Y 
 where X.a in (select straight_join A.a from t1 A, t1 B);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	10	Using where
+1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	10	
 1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	5	test.X.a	1	
 2	SUBQUERY	A	ALL	NULL	NULL	NULL	NULL	10	
 2	SUBQUERY	B	ALL	NULL	NULL	NULL	NULL	10	Using join buffer
 create table t0 (a int, b int);

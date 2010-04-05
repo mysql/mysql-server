@@ -468,6 +468,12 @@ bool Item_subselect::exec()
   return (res);
 }
 
+int Item_subselect::optimize()
+{
+  int res;
+  res= engine->optimize();
+  return res;
+}
 
 /*
   Compute the IN predicate if the left operand's cache changed.
@@ -2088,7 +2094,7 @@ void Item_in_subselect::update_used_tables()
     @retval FALSE an execution method was chosen successfully
 */
 
-bool Item_in_subselect::setup_engine()
+bool Item_in_subselect::setup_engine(bool dont_switch_arena)
 {
   subselect_hash_sj_engine *new_engine= NULL;
   bool res= FALSE;
@@ -2103,7 +2109,7 @@ bool Item_in_subselect::setup_engine()
 
     old_engine= (subselect_single_select_engine*) engine;
 
-    if (arena->is_conventional())
+    if (arena->is_conventional() || dont_switch_arena)
       arena= 0;
     else
       thd->set_n_backup_active_arena(arena, &backup);
@@ -3457,7 +3463,7 @@ subselect_hash_sj_engine::get_strategy_using_schema()
         bitmap_set_bit(&partial_match_key_parts, i);
         ++count_partial_match_columns;
       }
-    }
+    };
   }
 
   /* If no column contains NULLs use regular hash index lookups. */
@@ -3969,6 +3975,17 @@ void subselect_hash_sj_engine::cleanup()
   result->cleanup(); /* Resets the temp table as well. */
 }
 
+
+int subselect_hash_sj_engine::optimize()
+{
+  int res= 0;
+  SELECT_LEX *save_select= thd->lex->current_select;
+  thd->lex->current_select= materialize_join->select_lex;
+  res= materialize_join->optimize();
+  thd->lex->current_select= save_select;
+
+  return res;
+}
 
 /**
   Execute a subquery IN predicate via materialization.

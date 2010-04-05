@@ -2285,7 +2285,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   quick=0;
   needed_reg.clear_all();
   quick_keys.clear_all();
-  if (keys_to_use.is_clear_all())
+  if (keys_to_use.is_clear_all() || head->pos_in_table_list->jtbm_subselect)
     DBUG_RETURN(0);
   records= head->file->stats.records;
   if (!records)

@@ -38,10 +38,11 @@ set @@optimizer_switch='semijoin=off';
 explain extended
 select * from t1 where a1 in (select b1 from t2 where b1 > '0');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	9	test.t1.a1	1	100.00	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (select `test`.`t2`.`b1` AS `b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`)))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t2`.`b1` AS `b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0')) join `test`.`t1` where (`materialized subselect`.`b1` = `test`.`t1`.`a1`)
 select * from t1 where a1 in (select b1 from t2 where b1 > '0');
 a1	a2
 1 - 01	2 - 01
@@ -49,10 +50,11 @@ a1	a2
 explain extended
 select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	9	test.t1.a1	1	100.00	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a1`,`test`.`t1`.`a1` in ( <materialize> (select `test`.`t2`.`b1` AS `b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`)))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t2`.`b1` AS `b1` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1`) join `test`.`t1` where (`materialized subselect`.`b1` = `test`.`t1`.`a1`)
 select * from t1 where a1 in (select b1 from t2 where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -60,10 +62,11 @@ a1	a2
 explain extended
 select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	18	test.t1.a1,test.t1.a2	1	100.00	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1`,`test`.`t2`.`b2` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`)))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1`,`test`.`t2`.`b2`) join `test`.`t1` where ((`materialized subselect`.`b2` = `test`.`t1`.`a2`) and (`materialized subselect`.`b1` = `test`.`t1`.`a1`))
 select * from t1 where (a1, a2) in (select b1, b2 from t2 where b1 > '0' group by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -71,10 +74,11 @@ a1	a2
 explain extended
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	18	test.t1.a1,test.t1.a2	1	100.00	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1` AS `b1`,min(`test`.`t2`.`b2`) AS `min(b2)` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`min(b2)`)))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t2`.`b1` AS `b1`,min(`test`.`t2`.`b2`) AS `min(b2)` from `test`.`t2` where (`test`.`t2`.`b1` > '0') group by `test`.`t2`.`b1`) join `test`.`t1` where ((`materialized subselect`.`min(b2)` = `test`.`t1`.`a2`) and (`materialized subselect`.`b1` = `test`.`t1`.`a1`))
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2 where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -82,10 +86,11 @@ a1	a2
 explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
+1	PRIMARY	t1i	index	it1i1,it1i3	it1i3	18	NULL	3	100.00	Using index
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	9	test.t1i.a1	1	100.00	
 2	SUBQUERY	t2i	index	it2i1,it2i3	it2i1	9	NULL	5	100.00	Using where; Using index
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>(`test`.`t1i`.`a1`,`test`.`t1i`.`a1` in ( <materialize> (select `test`.`t2i`.`b1` AS `b1` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`b1`)))))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0')) join `test`.`t1i` where (`materialized subselect`.`b1` = `test`.`t1i`.`a1`)
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 a1	a2
 1 - 01	2 - 01
@@ -93,10 +98,11 @@ a1	a2
 explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
+1	PRIMARY	SUBQUERY#2	ALL	distinct_key	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1i	ref	it1i1,it1i3	it1i3	9	materialized subselect.b1	1	100.00	Using index
 2	SUBQUERY	t2i	range	it2i1,it2i3	it2i1	9	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>(`test`.`t1i`.`a1`,`test`.`t1i`.`a1` in ( <materialize> (select `test`.`t2i`.`b1` AS `b1` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`b1`)))))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1`) join `test`.`t1i` where (`test`.`t1i`.`a1` = `materialized subselect`.`b1`)
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -104,10 +110,11 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
+1	PRIMARY	t1i	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	100.00	Using index
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	18	test.t1i.a1,test.t1i.a2	1	100.00	
 2	SUBQUERY	t2i	index	it2i1,it2i3	it2i3	18	NULL	5	100.00	Using where; Using index
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`b2`)))))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0')) join `test`.`t1i` where ((`materialized subselect`.`b2` = `test`.`t1i`.`a2`) and (`materialized subselect`.`b1` = `test`.`t1i`.`a1`))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 a1	a2
 1 - 01	2 - 01
@@ -115,10 +122,11 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
+1	PRIMARY	SUBQUERY#2	ALL	distinct_key	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1i	ref	it1i1,it1i2,it1i3	it1i3	18	materialized subselect.b1,materialized subselect.b2	1	100.00	Using index
 2	SUBQUERY	t2i	range	it2i1,it2i3	it2i3	18	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1`,`test`.`t2i`.`b2` ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`b2`)))))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1`,`test`.`t2i`.`b2`) join `test`.`t1i` where ((`test`.`t1i`.`a2` = `materialized subselect`.`b2`) and (`test`.`t1i`.`a1` = `materialized subselect`.`b1`))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -126,10 +134,11 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
+1	PRIMARY	SUBQUERY#2	ALL	distinct_key	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1i	ref	it1i1,it1i2,it1i3	it1i3	18	materialized subselect.b1,materialized subselect.min(b2)	1	100.00	Using index
 2	SUBQUERY	t2i	range	it2i1,it2i3	it2i3	18	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,min(`test`.`t2i`.`b2`) AS `min(b2)` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`min(b2)`)))))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,min(`test`.`t2i`.`b2`) AS `min(b2)` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1`) join `test`.`t1i` where ((`test`.`t1i`.`a2` = `materialized subselect`.`min(b2)`) and (`test`.`t1i`.`a1` = `materialized subselect`.`b1`))
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -137,10 +146,11 @@ a1	a2
 explain extended
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	18	test.t1.a1,test.t1.a2	1	100.00	
 2	SUBQUERY	t2i	range	NULL	it2i3	9	NULL	3	100.00	Using index for group-by
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,max(`test`.`t2i`.`b2`) AS `max(b2)` from `test`.`t2i` group by `test`.`t2i`.`b1` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`max(b2)`)))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,max(`test`.`t2i`.`b2`) AS `max(b2)` from `test`.`t2i` group by `test`.`t2i`.`b1`) join `test`.`t1` where ((`materialized subselect`.`max(b2)` = `test`.`t1`.`a2`) and (`materialized subselect`.`b1` = `test`.`t1`.`a1`))
 select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -148,11 +158,13 @@ a1	a2
 prepare st1 from "explain select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
 execute st1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	18	test.t1.a1,test.t1.a2	1	
 2	SUBQUERY	t2i	range	NULL	it2i3	9	NULL	3	Using index for group-by
 execute st1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	18	test.t1.a1,test.t1.a2	1	
 2	SUBQUERY	t2i	range	NULL	it2i3	9	NULL	3	Using index for group-by
 prepare st2 from "select * from t1 where (a1, a2) in (select b1, max(b2) from t2i group by b1)";
 execute st2;
@@ -166,10 +178,11 @@ a1	a2
 explain extended
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	18	test.t1.a1,test.t1.a2	1	100.00	
 2	SUBQUERY	t2i	range	it2i1,it2i3	it2i3	18	NULL	3	100.00	Using where; Using index for group-by
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,min(`test`.`t2i`.`b2`) AS `min(b2)` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`min(b2)`)))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,min(`test`.`t2i`.`b2`) AS `min(b2)` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') group by `test`.`t2i`.`b1`) join `test`.`t1` where ((`materialized subselect`.`min(b2)` = `test`.`t1`.`a2`) and (`materialized subselect`.`b1` = `test`.`t1`.`a1`))
 select * from t1 where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 a1	a2
 1 - 01	2 - 01
@@ -206,10 +219,11 @@ set @@optimizer_switch='default,semijoin=off';
 explain extended
 select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	18	test.t1.a1,test.t1.a2	1	100.00	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` order by `test`.`t2`.`b1`,`test`.`t2`.`b2` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`)))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` order by `test`.`t2`.`b1`,`test`.`t2`.`b2`) join `test`.`t1` where ((`materialized subselect`.`b2` = `test`.`t1`.`a2`) and (`materialized subselect`.`b1` = `test`.`t1`.`a1`))
 select * from t1 where (a1, a2) in (select b1, b2 from t2 order by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -217,10 +231,11 @@ a1	a2
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
+1	PRIMARY	t1i	index	it1i1,it1i2,it1i3	it1i3	18	NULL	3	100.00	Using index
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	18	test.t1i.a1,test.t1i.a2	1	100.00	
 2	SUBQUERY	t2i	index	NULL	it2i3	18	NULL	5	100.00	Using index
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` order by `test`.`t2i`.`b1`,`test`.`t2i`.`b2` ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`b2`)))))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` order by `test`.`t2i`.`b1`,`test`.`t2i`.`b2`) join `test`.`t1i` where ((`materialized subselect`.`b2` = `test`.`t1i`.`a2`) and (`materialized subselect`.`b1` = `test`.`t1i`.`a1`))
 select * from t1i where (a1, a2) in (select b1, b2 from t2i order by b1, b2);
 a1	a2
 1 - 01	2 - 01
@@ -270,12 +285,15 @@ where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	PRIMARY	SUBQUERY#2	ALL	distinct_key	NULL	NULL	NULL	5	0.00	
+1	PRIMARY	SUBQUERY#3	eq_ref	distinct_key	distinct_key	18	materialized subselect.b1,materialized subselect.b2	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
+3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	
+3	SUBQUERY	SUBQUERY#4	eq_ref	distinct_key	distinct_key	18	test.t3.c1,test.t3.c2	1	100.00	
 4	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1`.`a2` = `materialized subselect`.`c2`))))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0')) join `test`.`t3` where ((`materialized subselect`.`b2` = `test`.`t3`.`c2`) and (`materialized subselect`.`b1` = `test`.`t3`.`c1`))) join  <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (`test`.`t2`.`b1` > '0')) join `test`.`t1` where ((`materialized subselect`.`c2` = `materialized subselect`.`b2`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`) and (`materialized subselect`.`c1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a1` = `materialized subselect`.`b1`))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3
@@ -289,12 +307,15 @@ where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1i	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-3	SUBQUERY	t3i	index	NULL	it3i3	18	NULL	4	100.00	Using where; Using index
+1	PRIMARY	SUBQUERY#2	ALL	distinct_key	NULL	NULL	NULL	5	0.00	
+1	PRIMARY	SUBQUERY#3	eq_ref	distinct_key	distinct_key	18	materialized subselect.b1,materialized subselect.b2	1	100.00	
+1	PRIMARY	t1i	ref	it1i1,it1i2,it1i3	it1i3	18	materialized subselect.b1,materialized subselect.c2	1	100.00	Using where; Using index
+3	SUBQUERY	t3i	index	it3i1,it3i2,it3i3	it3i3	18	NULL	4	100.00	Using index
+3	SUBQUERY	SUBQUERY#4	eq_ref	distinct_key	distinct_key	18	test.t3i.c1,test.t3i.c2	1	100.00	
 4	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 2	SUBQUERY	t2i	index	it2i1,it2i3	it2i3	18	NULL	5	100.00	Using where; Using index
 Warnings:
-Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where (<in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`b2`))))) and <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (select `test`.`t3i`.`c1` AS `c1`,`test`.`t3i`.`c2` AS `c2` from `test`.`t3i` where <in_optimizer>((`test`.`t3i`.`c1`,`test`.`t3i`.`c2`),(`test`.`t3i`.`c1`,`test`.`t3i`.`c2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3i`.`c1` in <temporary table> on distinct_key where ((`test`.`t3i`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3i`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`c2`))))))
+Note	1003	select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t3i`.`c1` AS `c1`,`test`.`t3i`.`c2` AS `c2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0')) join `test`.`t3i` where ((`materialized subselect`.`b2` = `test`.`t3i`.`c2`) and (`materialized subselect`.`b1` = `test`.`t3i`.`c1`))) join  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0')) join `test`.`t1i` where ((`materialized subselect`.`c2` = `materialized subselect`.`b2`) and (`test`.`t1i`.`a2` = `materialized subselect`.`b2`) and (`materialized subselect`.`c1` = `materialized subselect`.`b1`) and (`test`.`t1i`.`a1` = `materialized subselect`.`b1`))
 select * from t1i
 where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
@@ -310,14 +331,17 @@ b2 in (select c2 from t3 where c2 LIKE '%03')) and
 (a1, a2) in (select c1, c2 from t3
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-5	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	PRIMARY	SUBQUERY#2	ALL	distinct_key	NULL	NULL	NULL	5	0.00	
+1	PRIMARY	SUBQUERY#5	eq_ref	distinct_key	distinct_key	18	materialized subselect.b1,materialized subselect.b2	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
+5	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	
+5	SUBQUERY	SUBQUERY#6	eq_ref	distinct_key	distinct_key	18	test.t3.c1,test.t3.c2	1	100.00	
 6	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` AS `c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` AS `c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`)))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1`.`a2` = `materialized subselect`.`c2`))))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0')) join `test`.`t3` where ((`materialized subselect`.`b2` = `test`.`t3`.`c2`) and (`materialized subselect`.`b1` = `test`.`t3`.`c1`))) join  <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` AS `c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` AS `c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`))))))) join `test`.`t1` where ((`materialized subselect`.`c2` = `materialized subselect`.`b2`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`) and (`materialized subselect`.`c1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a1` = `materialized subselect`.`b1`))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -335,14 +359,16 @@ b2 in (select c2 from t3 t3b where c2 LIKE '%03')) and
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-5	SUBQUERY	t3c	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	PRIMARY	SUBQUERY#5	eq_ref	distinct_key	distinct_key	18	test.t1.a1,test.t1.a2	1	100.00	
+5	SUBQUERY	t3c	ALL	NULL	NULL	NULL	NULL	4	100.00	
+5	SUBQUERY	SUBQUERY#6	eq_ref	distinct_key	distinct_key	18	test.t3c.c1,test.t3c.c2	1	100.00	
 6	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 4	SUBQUERY	t3b	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 3	DEPENDENT SUBQUERY	t3a	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.a1' of SELECT #3 was resolved in SELECT #1
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where ((<in_optimizer>(`test`.`t2`.`b2`,<exists>(select 1 AS `Not_used` from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3b`.`c2` AS `c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`)))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t3c`.`c1` AS `c1`,`test`.`t3c`.`c2` AS `c2` from `test`.`t3` `t3c` where <in_optimizer>((`test`.`t3c`.`c1`,`test`.`t3c`.`c2`),(`test`.`t3c`.`c1`,`test`.`t3c`.`c2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3c`.`c1` in <temporary table> on distinct_key where ((`test`.`t3c`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3c`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1`.`a2` = `materialized subselect`.`c2`))))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t3c`.`c1` AS `c1`,`test`.`t3c`.`c2` AS `c2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0')) join `test`.`t3` `t3c` where ((`materialized subselect`.`b2` = `test`.`t3c`.`c2`) and (`materialized subselect`.`b1` = `test`.`t3c`.`c1`))) join `test`.`t1` where ((`materialized subselect`.`c2` = `test`.`t1`.`a2`) and (`materialized subselect`.`c1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where ((<in_optimizer>(`test`.`t2`.`b2`,<exists>(select 1 AS `Not_used` from `test`.`t3` `t3a` where ((`test`.`t3a`.`c1` = `test`.`t1`.`a1`) and (<cache>(`test`.`t2`.`b2`) = `test`.`t3a`.`c2`)))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3b`.`c2` AS `c2` from `test`.`t3` `t3b` where (`test`.`t3b`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`)))))) and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))))
 select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 t3a where c1 = a1) or
@@ -366,19 +392,25 @@ where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
 (a1, a2) in (select c1, c2 from t3i
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0')));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-5	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	PRIMARY	SUBQUERY#2	ALL	distinct_key	NULL	NULL	NULL	5	0.00	
+1	PRIMARY	SUBQUERY#5	eq_ref	distinct_key	distinct_key	18	materialized subselect.b1,materialized subselect.b2	1	100.00	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer
+5	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	
+5	SUBQUERY	SUBQUERY#6	eq_ref	distinct_key	distinct_key	18	test.t3.c1,test.t3.c2	1	100.00	
 6	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using temporary; Using filesort
 4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-7	UNION	t1i	index	NULL	it1i3	18	NULL	3	100.00	Using where; Using index
-9	SUBQUERY	t3i	index	NULL	it3i3	18	NULL	4	100.00	Using where; Using index
+7	UNION	SUBQUERY#8	ALL	distinct_key	NULL	NULL	NULL	5	0.00	
+7	UNION	SUBQUERY#9	eq_ref	distinct_key	distinct_key	18	materialized subselect.b1,materialized subselect.b2	1	100.00	
+7	UNION	t1i	ref	it1i1,it1i2,it1i3	it1i3	18	materialized subselect.b1,materialized subselect.c2	1	100.00	Using where; Using index
+9	SUBQUERY	t3i	index	it3i1,it3i2,it3i3	it3i3	18	NULL	4	100.00	Using index
+9	SUBQUERY	SUBQUERY#10	eq_ref	distinct_key	distinct_key	18	test.t3i.c1,test.t3i.c2	1	100.00	
 10	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 8	SUBQUERY	t2i	index	it2i1,it2i3	it2i3	18	NULL	5	100.00	Using where; Using index
 NULL	UNION RESULT	<union1,7>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	(select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` AS `c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` AS `c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`)))))) group by `test`.`t2`.`b1`,`test`.`t2`.`b2` ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`))))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1`.`a2` = `materialized subselect`.`c2`))))))) union (select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from `test`.`t1i` where (<in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`b2`))))) and <in_optimizer>((`test`.`t1i`.`a1`,`test`.`t1i`.`a2`),(`test`.`t1i`.`a1`,`test`.`t1i`.`a2`) in ( <materialize> (select `test`.`t3i`.`c1` AS `c1`,`test`.`t3i`.`c2` AS `c2` from `test`.`t3i` where <in_optimizer>((`test`.`t3i`.`c1`,`test`.`t3i`.`c2`),(`test`.`t3i`.`c1`,`test`.`t3i`.`c2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3i`.`c1` in <temporary table> on distinct_key where ((`test`.`t3i`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3i`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1i`.`a1` in <temporary table> on distinct_key where ((`test`.`t1i`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1i`.`a2` = `materialized subselect`.`c2`)))))))
+Note	1003	(select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0')) join `test`.`t3` where ((`materialized subselect`.`b2` = `test`.`t3`.`c2`) and (`materialized subselect`.`b1` = `test`.`t3`.`c1`))) join  <materialize> (select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` AS `c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%02') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`))))) or <in_optimizer>(`test`.`t2`.`b2`,`test`.`t2`.`b2` in ( <materialize> (select `test`.`t3`.`c2` AS `c2` from `test`.`t3` where (`test`.`t3`.`c2` like '%03') ), <primary_index_lookup>(`test`.`t2`.`b2` in <temporary table> on distinct_key where ((`test`.`t2`.`b2` = `materialized subselect`.`c2`)))))) group by `test`.`t2`.`b1`,`test`.`t2`.`b2`) join `test`.`t1` where ((`materialized subselect`.`c2` = `materialized subselect`.`b2`) and (`test`.`t1`.`a2` = `materialized subselect`.`b2`) and (`materialized subselect`.`c1` = `materialized subselect`.`b1`) and (`test`.`t1`.`a1` = `materialized subselect`.`b1`))) union (select `test`.`t1i`.`a1` AS `a1`,`test`.`t1i`.`a2` AS `a2` from  <materialize> (select `test`.`t3i`.`c1` AS `c1`,`test`.`t3i`.`c2` AS `c2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0')) join `test`.`t3i` where ((`materialized subselect`.`b2` = `test`.`t3i`.`c2`) and (`materialized subselect`.`b1` = `test`.`t3i`.`c1`))) join  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b1` > '0')) join `test`.`t1i` where ((`materialized subselect`.`c2` = `materialized subselect`.`b2`) and (`test`.`t1i`.`a2` = `materialized subselect`.`b2`) and (`materialized subselect`.`c1` = `materialized subselect`.`b1`) and (`test`.`t1i`.`a1` = `materialized subselect`.`b1`)))
 (select * from t1
 where (a1, a2) in (select b1, b2 from t2
 where b2 in (select c2 from t3 where c2 LIKE '%02') or
@@ -401,13 +433,15 @@ where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where 
 where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+1	PRIMARY	SUBQUERY#4	eq_ref	distinct_key	distinct_key	18	test.t1.a1,test.t1.a2	1	100.00	
+4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	
+4	SUBQUERY	SUBQUERY#5	eq_ref	distinct_key	distinct_key	18	test.t3.c1,test.t3.c2	1	100.00	
 5	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT UNION	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where (<in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),(`test`.`t1`.`a1`,`test`.`t1`.`a2`) in ( <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t1`.`a1` in <temporary table> on distinct_key where ((`test`.`t1`.`a1` = `materialized subselect`.`c1`) and (`test`.`t1`.`a2` = `materialized subselect`.`c2`))))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from  <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0')) join `test`.`t3` where ((`materialized subselect`.`b2` = `test`.`t3`.`c2`) and (`materialized subselect`.`b1` = `test`.`t3`.`c1`))) join `test`.`t1` where ((`materialized subselect`.`c2` = `test`.`t1`.`a2`) and (`materialized subselect`.`c1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))))
 select * from t1
 where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
 (a1, a2) in (select c1, c2 from t3
@@ -423,14 +457,16 @@ where (c1, c2) in (select b1, b2 from t2i where b2 > '0')) and
 a1 = c1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	SUBQUERY#4	ALL	distinct_key	NULL	NULL	NULL	4	75.00	Using where; Using join buffer
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer
-4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	
+4	SUBQUERY	SUBQUERY#5	eq_ref	distinct_key	distinct_key	18	test.t3.c1,test.t3.c2	1	100.00	
 5	SUBQUERY	t2i	index	it2i2	it2i3	18	NULL	5	100.00	Using where; Using index
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT UNION	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
 NULL	UNION RESULT	<union2,3>	ALL	NULL	NULL	NULL	NULL	NULL	NULL	
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`c1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))) and <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from `test`.`t3` where <in_optimizer>((`test`.`t3`.`c1`,`test`.`t3`.`c2`),(`test`.`t3`.`c1`,`test`.`t3`.`c2`) in ( <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0') ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`b1`) and (`test`.`t3`.`c2` = `materialized subselect`.`b2`))))) ), <primary_index_lookup>(`test`.`t3`.`c1` in <temporary table> on distinct_key where ((`test`.`t3`.`c1` = `materialized subselect`.`c1`) and (`test`.`t3`.`c2` = `materialized subselect`.`c2`))))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2`,`test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from  <materialize> (select `test`.`t3`.`c1` AS `c1`,`test`.`t3`.`c2` AS `c2` from  <materialize> (select `test`.`t2i`.`b1` AS `b1`,`test`.`t2i`.`b2` AS `b2` from `test`.`t2i` where (`test`.`t2i`.`b2` > '0')) join `test`.`t3` where ((`materialized subselect`.`b2` = `test`.`t3`.`c2`) and (`materialized subselect`.`b1` = `test`.`t3`.`c1`))) join `test`.`t1` join `test`.`t3` where ((`test`.`t3`.`c2` = `materialized subselect`.`c2`) and (`materialized subselect`.`c1` = `test`.`t1`.`a1`) and (`test`.`t3`.`c1` = `test`.`t1`.`a1`) and <in_optimizer>((`test`.`t1`.`a1`,`test`.`t1`.`a2`),<exists>(select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where ((`test`.`t1`.`a1` > '0') and (<cache>(`test`.`t1`.`a1`) = `test`.`t1`.`a1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t1`.`a2`)) union select `test`.`t2`.`b1` AS `b1`,`test`.`t2`.`b2` AS `b2` from `test`.`t2` where ((`test`.`t2`.`b1` < '9') and (<cache>(`test`.`t1`.`a1`) = `test`.`t2`.`b1`) and (<cache>(`test`.`t1`.`a2`) = `test`.`t2`.`b2`)))))
 select * from t1, t3
 where (a1, a2) in (select * from t1 where a1 > '0' UNION select * from t2 where b1 < '9') and
 (c1, c2) in (select c1, c2 from t3
@@ -608,10 +644,11 @@ explain extended select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	20	test.t1_16.a1	1	100.00	Using where
 2	SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,`test`.`t1_16`.`a1` in ( <materialize> (select substr(`test`.`t2_16`.`b1`,1,16) AS `substring(b1,1,16)` from `test`.`t2_16` where (`test`.`t2_16`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1_16`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_16`.`a1` = `materialized subselect`.`substring(b1,1,16)`)))))
+Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from  <materialize> (select substr(`test`.`t2_16`.`b1`,1,16) AS `substring(b1,1,16)` from `test`.`t2_16` where (`test`.`t2_16`.`b1` > '0')) join `test`.`t1_16` where (`test`.`t1_16`.`a1` = `materialized subselect`.`substring(b1,1,16)`)
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
@@ -637,10 +674,11 @@ explain extended select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	261	test.t1_16.a1	1	100.00	Using where
 2	SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,`test`.`t1_16`.`a1` in ( <materialize> (select group_concat(`test`.`t2_16`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_16` group by `test`.`t2_16`.`b2` ), <primary_index_lookup>(`test`.`t1_16`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_16`.`a1` = `materialized subselect`.`group_concat(b1)`)))))
+Note	1003	select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from  <materialize> (select group_concat(`test`.`t2_16`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_16` group by `test`.`t2_16`.`b2`) join `test`.`t1_16` where (`test`.`t1_16`.`a1` = `materialized subselect`.`group_concat(b1)`)
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
@@ -660,9 +698,10 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer
+3	DEPENDENT SUBQUERY	SUBQUERY#4	eq_ref	distinct_key	distinct_key	9	test.t2.b1	1	100.00	Using where
 4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(concat(`test`.`t1`.`a1`,'x'),<exists>(select 1 AS `Not_used` from `test`.`t1_16` where (<in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(select `test`.`t2_16`.`b1` AS `b1`,`test`.`t2_16`.`b2` AS `b2` from `test`.`t2_16` join `test`.`t2` where ((`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and <in_optimizer>(`test`.`t2`.`b1`,`test`.`t2`.`b1` in ( <materialize> (select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where (`test`.`t3`.`c2` > '0') ), <primary_index_lookup>(`test`.`t2`.`b1` in <temporary table> on distinct_key where ((`test`.`t2`.`b1` = `materialized subselect`.`c1`))))) and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`)))) and (<cache>(concat(`test`.`t1`.`a1`,'x')) = left(`test`.`t1_16`.`a1`,8)))))
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(concat(`test`.`t1`.`a1`,'x'),<exists>(select 1 AS `Not_used` from `test`.`t1_16` where (<in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(select `test`.`t2_16`.`b1` AS `b1`,`test`.`t2_16`.`b2` AS `b2` from  <materialize> (select `test`.`t3`.`c1` AS `c1` from `test`.`t3` where (`test`.`t3`.`c2` > '0')) join `test`.`t2_16` join `test`.`t2` where ((`materialized subselect`.`c1` = `test`.`t2`.`b1`) and (`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`)))) and (<cache>(concat(`test`.`t1`.`a1`,'x')) = left(`test`.`t1_16`.`a1`,8)))))
 drop table t1_16, t2_16, t3_16;
 set @blob_len = 512;
 set @suffix_len = @blob_len - @prefix_len;
@@ -721,10 +760,11 @@ explain extended select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	517	test.t1_512.a1	1	100.00	Using where
 2	SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (select substr(`test`.`t2_512`.`b1`,1,512) AS `substring(b1,1,512)` from `test`.`t2_512` where (`test`.`t2_512`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_512`.`a1` = `materialized subselect`.`substring(b1,1,512)`)))))
+Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from  <materialize> (select substr(`test`.`t2_512`.`b1`,1,512) AS `substring(b1,1,512)` from `test`.`t2_512` where (`test`.`t2_512`.`b1` > '0')) join `test`.`t1_512` where (`test`.`t1_512`.`a1` = `materialized subselect`.`substring(b1,1,512)`)
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
@@ -735,10 +775,11 @@ explain extended select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	261	test.t1_512.a1	1	100.00	Using where
 2	SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (select group_concat(`test`.`t2_512`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_512` group by `test`.`t2_512`.`b2` ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_512`.`a1` = `materialized subselect`.`group_concat(b1)`)))))
+Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from  <materialize> (select group_concat(`test`.`t2_512`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_512` group by `test`.`t2_512`.`b2`) join `test`.`t1_512` where (`test`.`t1_512`.`a1` = `materialized subselect`.`group_concat(b1)`)
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -748,10 +789,11 @@ explain extended select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	261	test.t1_512.a1	1	100.00	Using where
 2	SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (select group_concat(`test`.`t2_512`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_512` group by `test`.`t2_512`.`b2` ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_512`.`a1` = `materialized subselect`.`group_concat(b1)`)))))
+Note	1003	select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from  <materialize> (select group_concat(`test`.`t2_512`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_512` group by `test`.`t2_512`.`b2`) join `test`.`t1_512` where (`test`.`t1_512`.`a1` = `materialized subselect`.`group_concat(b1)`)
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -817,7 +859,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in (select 1 AS `Not_used` from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = substr(`test`.`t2_1024`.`b1`,1,1024)))))
+Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(select 1 AS `Not_used` from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = substr(`test`.`t2_1024`.`b1`,1,1024)) and (<cache>(`test`.`t1_1024`.`a1`) = 1))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select substring(b1,1,1024) from t2_1024 where b1 > '0');
@@ -828,10 +870,11 @@ explain extended select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	261	test.t1_1024.a1	1	100.00	Using where
 2	SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (select group_concat(`test`.`t2_1024`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_1024`.`a1` = `materialized subselect`.`group_concat(b1)`)))))
+Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from  <materialize> (select group_concat(`test`.`t2_1024`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_1024` group by `test`.`t2_1024`.`b2`) join `test`.`t1_1024` where (`test`.`t1_1024`.`a1` = `materialized subselect`.`group_concat(b1)`)
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -841,10 +884,11 @@ explain extended select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	261	test.t1_1024.a1	1	100.00	Using where
 2	SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (select group_concat(`test`.`t2_1024`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_1024`.`a1` = `materialized subselect`.`group_concat(b1)`)))))
+Note	1003	select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from  <materialize> (select group_concat(`test`.`t2_1024`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_1024` group by `test`.`t2_1024`.`b2`) join `test`.`t1_1024` where (`test`.`t1_1024`.`a1` = `materialized subselect`.`group_concat(b1)`)
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -910,7 +954,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in (select 1 AS `Not_used` from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = substr(`test`.`t2_1025`.`b1`,1,1025)))))
+Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(select 1 AS `Not_used` from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = substr(`test`.`t2_1025`.`b1`,1,1025)) and (<cache>(`test`.`t1_1025`.`a1`) = 1))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select substring(b1,1,1025) from t2_1025 where b1 > '0');
@@ -921,10 +965,11 @@ explain extended select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	261	test.t1_1025.a1	1	100.00	Using where
 2	SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (select group_concat(`test`.`t2_1025`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_1025`.`a1` = `materialized subselect`.`group_concat(b1)`)))))
+Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from  <materialize> (select group_concat(`test`.`t2_1025`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_1025` group by `test`.`t2_1025`.`b2`) join `test`.`t1_1025` where (`test`.`t1_1025`.`a1` = `materialized subselect`.`group_concat(b1)`)
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -934,10 +979,11 @@ explain extended select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	261	test.t1_1025.a1	1	100.00	Using where
 2	SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (select group_concat(`test`.`t2_1025`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_1025`.`a1` = `materialized subselect`.`group_concat(b1)`)))))
+Note	1003	select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from  <materialize> (select group_concat(`test`.`t2_1025`.`b1` separator ',') AS `group_concat(b1)` from `test`.`t2_1025` group by `test`.`t2_1025`.`b2`) join `test`.`t1_1025` where (`test`.`t1_1025`.`a1` = `materialized subselect`.`group_concat(b1)`)
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -956,10 +1002,11 @@ explain extended select bin(a1), bin(a2)
 from t1bit
 where (a1, a2) in (select b1, b2 from t2bit);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1bit	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	PRIMARY	t1bit	ALL	NULL	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	10	test.t1bit.a1,test.t1bit.a2	1	100.00	Using where
 2	SUBQUERY	t2bit	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1003	select conv(`test`.`t1bit`.`a1`,10,2) AS `bin(a1)`,conv(`test`.`t1bit`.`a2`,10,2) AS `bin(a2)` from `test`.`t1bit` where <in_optimizer>((`test`.`t1bit`.`a1`,`test`.`t1bit`.`a2`),(`test`.`t1bit`.`a1`,`test`.`t1bit`.`a2`) in ( <materialize> (select `test`.`t2bit`.`b1` AS `b1`,`test`.`t2bit`.`b2` AS `b2` from `test`.`t2bit` ), <primary_index_lookup>(`test`.`t1bit`.`a1` in <temporary table> on distinct_key where ((`test`.`t1bit`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1bit`.`a2` = `materialized subselect`.`b2`)))))
+Note	1003	select conv(`test`.`t1bit`.`a1`,10,2) AS `bin(a1)`,conv(`test`.`t1bit`.`a2`,10,2) AS `bin(a2)` from  <materialize> (select `test`.`t2bit`.`b1` AS `b1`,`test`.`t2bit`.`b2` AS `b2` from `test`.`t2bit`) join `test`.`t1bit` where ((`test`.`t1bit`.`a1` = `materialized subselect`.`b1`) and (`test`.`t1bit`.`a2` = `materialized subselect`.`b2`))
 select bin(a1), bin(a2)
 from t1bit
 where (a1, a2) in (select b1, b2 from t2bit);
@@ -1027,10 +1074,11 @@ insert into t3 values (30);
 explain extended
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	100.00	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	4	test.t1.a	1	100.00	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (select `test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized subselect`.`c`)))))
+Note	1003	select `test`.`t1`.`a` AS `a` from  <materialize> (select `test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`d` >= 20)) join `test`.`t1` where (`materialized subselect`.`c` = `test`.`t1`.`a`)
 select a from t1 where a in (select c from t2 where d >= 20);
 a
 2
@@ -1041,10 +1089,11 @@ create index it1a on t1(a);
 explain extended
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	index	NULL	it1a	4	NULL	7	100.00	Using where; Using index
+1	PRIMARY	t1	index	it1a	it1a	4	NULL	7	100.00	Using index
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	4	test.t1.a	1	100.00	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (select `test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized subselect`.`c`)))))
+Note	1003	select `test`.`t1`.`a` AS `a` from  <materialize> (select `test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`d` >= 20)) join `test`.`t1` where (`materialized subselect`.`c` = `test`.`t1`.`a`)
 select a from t1 where a in (select c from t2 where d >= 20);
 a
 2
@@ -1055,10 +1104,11 @@ insert into t2 values (1,10);
 explain extended
 select a from t1 where a in (select c from t2 where d >= 20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	index	NULL	it1a	4	NULL	7	100.00	Using where; Using index
+1	PRIMARY	t1	index	it1a	it1a	4	NULL	7	100.00	Using index
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	4	test.t1.a	1	100.00	
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (select `test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`d` >= 20) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized subselect`.`c`)))))
+Note	1003	select `test`.`t1`.`a` AS `a` from  <materialize> (select `test`.`t2`.`c` AS `c` from `test`.`t2` where (`test`.`t2`.`d` >= 20)) join `test`.`t1` where (`materialized subselect`.`c` = `test`.`t1`.`a`)
 select a from t1 where a in (select c from t2 where d >= 20);
 a
 2
@@ -1138,10 +1188,12 @@ create table t2 (b1 int);
 insert into t1 values (5);
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	SUBQUERY#2	const	distinct_key	distinct_key	5	const	1	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 min(a1)
+NULL
 set @@optimizer_switch='default,materialization=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2 group by b1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1152,17 +1204,27 @@ min(a1)
 set @@optimizer_switch='default,semijoin=off';
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	SUBQUERY#2	const	distinct_key	distinct_key	5	const	1	
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
+NULL
 set @@optimizer_switch='default,materialization=off';
+# with MariaDB and MWL#90, this particular case is solved:
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 select min(a1) from t1 where 7 in (select b1 from t2);
 min(a1)
 NULL
+# but when we go around MWL#90 code, the problem still shows up:
+explain select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
+min(a1)
 drop table t1,t2;
 create table t1 (a char(2), b varchar(10));
 insert into t1 values ('a',  'aaa');
@@ -1170,7 +1232,8 @@ insert into t1 values ('aa', 'aaaa');
 set @@optimizer_switch='default,semijoin=off';
 explain select a,b from t1 where b in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	SUBQUERY#2	eq_ref	distinct_key	distinct_key	3	test.t1.b	1	Using where
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	
 select a,b from t1 where b in (select a from t1);
 a	b

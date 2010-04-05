@@ -829,8 +829,12 @@ select min(a1) from t1 where 7 in (select b1 from t2);
 # This is the only correct result of all four queries. This difference is
 # filed as BUG#40037.
 set @@optimizer_switch='default,materialization=off';
+-- echo # with MariaDB and MWL#90, this particular case is solved:
 explain select min(a1) from t1 where 7 in (select b1 from t2);
 select min(a1) from t1 where 7 in (select b1 from t2);
+-- echo # but when we go around MWL#90 code, the problem still shows up:
+explain select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
+select min(a1) from t1 where 7 in (select b1 from t2) or 2> 4;
 drop table t1,t2;
 
 #

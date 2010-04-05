@@ -1194,6 +1194,7 @@ struct TABLE_LIST
   /* Number of IN-compared expressions */
   uint          sj_in_exprs; 
   Item_in_subselect  *sj_subq_pred;
+  Item_in_subselect  *jtbm_subselect;
   SJ_MATERIALIZATION_INFO *sj_mat_info;
 
   /*
