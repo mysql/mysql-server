@@ -7689,7 +7689,7 @@ static char *get_relative_path(const char *path)
     1 if len(path) > FN_REFLEN
 */
 
-static bool
+bool
 fn_format_relative_to_data_home(char * to, const char *name,
 				const char *dir, const char *extension)
 {
