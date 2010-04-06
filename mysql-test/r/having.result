@@ -249,10 +249,10 @@ where t1.col2 in
 group by t2.col1, t2.col2 having t2.col1 <= 10);
 col1
 10
-10
-10
 20
 30
+10
+10
 10
 select t1.col1 from t1
 where t1.col2 in 
@@ -262,10 +262,10 @@ having t2.col1 <=
 (select min(t3.col1) from t3));
 col1
 10
-10
-10
 20
 30
+10
+10
 10
 select t1.col1 from t1
 where t1.col2 in
