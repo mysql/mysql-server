@@ -226,3 +226,43 @@ HAVING X > '2012-12-12';
 drop table t1, t2;
 
 
+--echo
+--echo Bug#46797 "Crash in fix_semijoin_strategies_for_picked_join_order 
+--echo with semijoin=on"
+--echo
+CREATE TABLE t1 (
+  varchar_key varchar(1) DEFAULT NULL,
+  KEY varchar_key (varchar_key)
+);
+
+CREATE TABLE t2 (
+  varchar_key varchar(1) DEFAULT NULL,
+  KEY varchar_key (varchar_key)
+);
+INSERT INTO t2 VALUES
+  (NULL),(NULL),(NULL),(NULL),('a'),('a'),('a'),('b'),('b'),('b'),('b'),('c'),
+  ('c'),('c'),('c'),('c'),('c'),('c'),('d'),('d'),('d'),('d'),('d'),('d'),('e'),
+  ('e'),('e'),('e'),('e'),('e'),('f'),('f'),('f'),('g'),('g'),('h'),('h'),('h'),
+  ('h'),('i'),('j'),('j'),('j'),('k'),('k'),('l'),('l'),('m'),('m'),('m'),('m'),
+  ('n'),('n'),('n'),('o'),('o'),('o'),('p'),('p'),('p'),('q'),('q'),('q'),('r'),
+  ('r'),('r'),('r'),('s'),('s'),('s'),('s'),('t'),('t'),('t'),('t'),('u'),('u'),
+  ('u'),('u'),('v'),('v'),('v'),('v'),('w'),('w'),('w'),('w'),('w'),('w'),('x'),
+  ('x'),('x'),('y'),('y'),('y'),('y'),('z'),('z'),('z'),('z');
+
+CREATE TABLE t3 (
+  varchar_key varchar(1) DEFAULT NULL,
+  KEY varchar_key (varchar_key)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES
+  (NULL),('c'),('d'),('e'),('f'),('h'),('j'),('k'),('k'),('m'),('m'),('m'),
+  ('n'),('o'),('r'),('t'),('t'),('u'),('w'),('y');
+ 
+SELECT varchar_key FROM t3 
+WHERE (SELECT varchar_key FROM t3 
+       WHERE (varchar_key,varchar_key) 
+         IN (SELECT t1.varchar_key, t2 .varchar_key 
+             FROM t1 RIGHT JOIN t2 ON t1.varchar_key  
+            )  
+      );
+
+DROP TABLE t1, t2, t3;
