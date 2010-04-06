@@ -2590,7 +2590,7 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
   char path[FN_REFLEN], buff[FN_REFLEN];
   MY_STAT f_stat;
   String str(buff, sizeof(buff), system_charset_info), *res;
-  const char *log_file_str;
+  const char *log_file_str= 0;
   size_t path_length;
 
   if (!(res= var->value->val_str(&str)))
@@ -2640,7 +2640,7 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
 
 err:
   my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), var->var->name, 
-           res ? log_file_str : "NULL");
+           log_file_str ? log_file_str : "NULL");
   return 1;
 }
 
@@ -2649,7 +2649,7 @@ bool update_sys_var_str_path(THD *thd, sys_var_str *var_str,
 			     set_var *var, const char *log_ext,
 			     bool log_state, uint log_type)
 {
-  MYSQL_QUERY_LOG *file_log;
+  MYSQL_QUERY_LOG *file_log= 0;
   char buff[FN_REFLEN];
   char *res= 0, *old_value=(char *)(var ? var->value->str_value.ptr() : 0);
   bool result= 0;

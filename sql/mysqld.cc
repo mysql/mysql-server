@@ -1,4 +1,5 @@
 /* Copyright (C) 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+   2009-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -382,7 +383,7 @@ static bool volatile select_thread_in_use, signal_thread_in_use;
 static bool volatile ready_to_exit;
 static my_bool opt_debugging= 0, opt_external_locking= 0, opt_console= 0;
 static my_bool opt_short_log_format= 0;
-static my_bool opt_ignore_wrong_options= 0;
+static my_bool opt_ignore_wrong_options= 0, opt_expect_abort= 0;
 static uint kill_cached_threads, wake_thread;
 ulong thread_created;
 static ulong max_used_connections;
@@ -2530,13 +2531,19 @@ extern "C" sig_handler handle_segfault(int sig)
   curr_time= my_time(0);
   localtime_r(&curr_time, &tm);
 
-  fprintf(stderr,"\
-%02d%02d%02d %2d:%02d:%02d - mysqld got " SIGNAL_FMT " ;\n\
+  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d ",
+          tm.tm_year % 100, tm.tm_mon+1, tm.tm_mday,
+          tm.tm_hour, tm.tm_min, tm.tm_sec);
+  if (opt_expect_abort && sig == SIGABRT)
+  {
+    fprintf(stderr,"[Note] mysqld did an expected abort\n");
+    goto end;
+  }
+
+  fprintf(stderr,"[ERROR] mysqld got " SIGNAL_FMT " ;\n\
 This could be because you hit a bug. It is also possible that this binary\n\
 or one of the libraries it was linked against is corrupt, improperly built,\n\
 or misconfigured. This error can also be caused by malfunctioning hardware.\n",
-          tm.tm_year % 100, tm.tm_mon+1, tm.tm_mday,
-          tm.tm_hour, tm.tm_min, tm.tm_sec,
 	  sig);
   fprintf(stderr, "\
 We will try our best to scrape up some info that will hopefully help diagnose\n\
@@ -2655,6 +2662,7 @@ bugs.\n");
   }
 #endif
 
+end:
 #ifndef __WIN__
   /* On Windows, do not terminate, but pass control to exception filter */
   exit(1);
@@ -5888,7 +5896,7 @@ enum options_mysqld
   OPT_MIN_EXAMINED_ROW_LIMIT,
   OPT_LOG_SLOW_SLAVE_STATEMENTS,
   OPT_DEBUG_CRC, OPT_DEBUG_ON, OPT_OLD_MODE,
-  OPT_TEST_IGNORE_WRONG_OPTIONS, 
+  OPT_TEST_IGNORE_WRONG_OPTIONS, OPT_TEST_RESTART,
 #if defined(ENABLED_DEBUG_SYNC)
   OPT_DEBUG_SYNC_TIMEOUT,
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -6736,6 +6744,10 @@ log and this option does nothing anymore.",
   {"test-ignore-wrong-options", OPT_TEST_IGNORE_WRONG_OPTIONS,
    "Ignore wrong enums values in command line arguments. Useful only for test scripts",
    (uchar**) &opt_ignore_wrong_options, (uchar**) &opt_ignore_wrong_options,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"test-expect-abort", OPT_TEST_RESTART,
+   "Expect that server aborts with 'abort'; Don't write out server variables on 'abort'. Useful only for test scripts",
+   (uchar**) &opt_expect_abort, (uchar**) &opt_expect_abort,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"timed_mutexes", OPT_TIMED_MUTEXES,
    "Specify whether to time mutexes (only InnoDB mutexes are currently supported)",
