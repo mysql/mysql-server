@@ -27,8 +27,8 @@ BRANCH=$(basename $(svn info .|grep ^URL: |cut -f 2 -d ' '))
 
 rm -rf to-mysql
 mkdir to-mysql{,/storage,/patches,/mysql-test{,/t,/r,/include}}
-svn log -v -r "$START_REV:BASE" > to-mysql/log
-svn export -q . to-mysql/storage/innobase
+svn log -v -r "$START_REV:$END_REV" > to-mysql/log
+svn export -q -r $END_REV . to-mysql/storage/innobase
 
 for REV in $(svn log -q -r$START_REV:$END_REV |grep ^r |cut -f 1 -d ' ' |cut -b 2-)
 do
@@ -50,7 +50,7 @@ cd ../..
 $EDITOR log
 cd ..
 
-fname="innodb-$BRANCH-ss$2.tar.gz"
+fname="innodb-$BRANCH-ss$END_REV.tar.gz"
 
 rm -f $fname
 tar czf $fname to-mysql
