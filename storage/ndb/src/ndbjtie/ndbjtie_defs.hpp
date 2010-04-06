@@ -76,6 +76,9 @@ JTIE_DEFINE_BASIC_TYPE_MAPPING_SET( jlong, Uint64, Uint64 )
 
 #endif
 
+// XXX: document why clearing cdelegate in wrapper object upon delete
+#define JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE 1
+
 // ---------------------------------------------------------------------------
 
 #endif // ndbjtie_defs_hpp

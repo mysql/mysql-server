@@ -51,6 +51,7 @@ JTIE_JAR = $(srcdir)/jtie/jtie-@JAVA_NDB_VERSION@.jar
 CLASSPATH_ENV = CLASSPATH=.:$(JTIE_JAR)
 
 JAVAROOT=$(srcdir)/target/classes
+JAVAHROOT=$(srcdir)/target
 
 ## jar file to be created
 NDBJTIE_JAR = ndbjtie-@JAVA_NDB_VERSION@.jar
@@ -113,19 +114,13 @@ $(NDBJTIE_JAR): classndbjtie.stamp
 	  -C $(JAVAROOT) com/mysql/ndbjtie
 
 ## generate JNI header files (for development only)
-javah_mysql: $(MYSQL_CLASSES)
-	$(COMPILE.JAVAH) \
+javah: $(NDBJTIE_JAR)
+	$(JAVAH) -classpath $(NDBJTIE_JAR) \
+		$(AM_JAVAHFLAGS) $(JAVAHFLAGS) \
+		-d $(JAVAHROOT) \
 		com.mysql.ndbjtie.mysql.Utils \
-		com.mysql.ndbjtie.mysql.CharsetMap
-
-## generate JNI header files (for development only)
-javah_mgmapi: $(MGMAPI_CLASSES)
-	$(COMPILE.JAVAH) \
-		com.mysql.ndbjtie.mgmapi.MGMAPI
-
-## generate JNI header files (for development only)
-javah_ndbapi: $(NDBAPI_CLASSES)
-	$(COMPILE.JAVAH) \
+		com.mysql.ndbjtie.mysql.CharsetMap \
+		com.mysql.ndbjtie.mgmapi.MGMAPI \
 		com.mysql.ndbjtie.ndbapi.NDBAPI \
 		com.mysql.ndbjtie.ndbapi.Ndb \
 		com.mysql.ndbjtie.ndbapi.NdbBlob \
@@ -153,13 +148,7 @@ AM_CPPFLAGS = \
 		-I$(top_srcdir)/storage/ndb/include \
 		-I$(top_srcdir)/storage/ndb/include/mgmapi \
 		-I$(top_srcdir)/storage/ndb/include/ndbapi \
-		@JNI_INCLUDE_DIRS@ \
-		-DJTIE_VERBOSE \
-		-DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
-
-# XXX remove mandated: -DJTIE_VERBOSE
-# XXX remove mandated: -DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
-# XXX for Sun Studio 12.1 compilers: -DNDBJTIE_USE_WRAPPER_VARIANT
+		@JNI_INCLUDE_DIRS@
 
 ## build a shared library
 noinst_LTLIBRARIES = libndbjtie.la
@@ -191,14 +180,10 @@ libndbjtie_la_SOURCES = ndbjtie_lib.cpp
 ## ----------------------------------------------------------------------
 
 ## cleanup
-MOSTLYCLEANFILES = \
-		$(MYSQL_DIR)/*.class \
-		$(MGMAPI_DIR)/*.class \
-		$(NDBAPI_DIR)/*.class
+MOSTLYCLEANFILES = 
 CLEANFILES = classndbjtie.stamp $(NDBJTIE_JAR)
 
 mostlyclean-local: 
 	rm -rf $(top_srcdir)/storage/ndb/src/ndbjtie/target
-
 
 ## ----------------------------------------------------------------------
