@@ -1229,7 +1229,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 724 "/home/bzr/mkindahl/w4877-trunk-20100323/sql/sql_yacc.yy"
+#line 724 "/home/bzr/mkindahl/merge-next-mr-wl4877/sql/sql_yacc.yy"
 
   int  num;
   ulong ulong_num;
@@ -1279,7 +1279,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 1283 "/home/bzr/mkindahl/w4877-trunk-20100323/sql/sql_yacc.h"
+#line 1283 "/home/bzr/mkindahl/merge-next-mr-wl4877/sql/sql_yacc.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

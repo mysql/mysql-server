@@ -26,6 +26,7 @@
 #include "pfs_stat.h"
 #include "pfs_instr.h"
 #include "pfs_global.h"
+#include "m_string.h"                           // strmov
 
 /**
   @addtogroup Performance_schema_buffers
