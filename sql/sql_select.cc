@@ -1444,6 +1444,10 @@ static int clear_sj_tmp_tables(JOIN *join)
 int
 JOIN::optimize()
 {
+  bool need_distinct;
+  ulonglong select_opts_for_readinfo;
+  uint no_jbuf_after;
+
   DBUG_ENTER("JOIN::optimize");
   // to prevent double initialization on EXPLAIN
   if (optimized)
@@ -1545,8 +1549,7 @@ JOIN::optimize()
       zero_result_cause=  having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
       tables= 0;
-      error= 0;
-      DBUG_RETURN(0);
+      goto setup_subq_exit;
     }
   }
 
@@ -1595,8 +1598,7 @@ JOIN::optimize()
         DBUG_PRINT("info",("No matching min/max row"));
 	zero_result_cause= "No matching min/max row";
         tables= 0;
-	error=0;
-	DBUG_RETURN(0);
+        goto setup_subq_exit;
       }
       if (res > 1)
       {
@@ -1609,8 +1611,7 @@ JOIN::optimize()
         DBUG_PRINT("info",("No matching min/max row"));
         zero_result_cause= "No matching min/max row";
         tables= 0;
-        error=0;
-        DBUG_RETURN(0);
+        goto setup_subq_exit;
       }
       DBUG_PRINT("info",("Select tables optimized away"));
       zero_result_cause= "Select tables optimized away";
@@ -1636,9 +1637,7 @@ JOIN::optimize()
                                  QT_ORDINARY););
         conds= table_independent_conds;
       }
-      /* Create all structures needed for materialized subquery execution. */
-      if (setup_subquery_materialization())
-        DBUG_RETURN(1);
+      goto setup_subq_exit;
     }
   }
   if (!tables_list)
@@ -1687,8 +1686,7 @@ JOIN::optimize()
   {
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
-    error= 0;
-    DBUG_RETURN(0);
+    goto setup_subq_exit;
   }
   if (!(thd->variables.option_bits & OPTION_BIG_SELECTS) &&
       best_read > (double) thd->variables.max_join_size &&
@@ -1756,7 +1754,7 @@ JOIN::optimize()
   {
     zero_result_cause=
       "Impossible WHERE noticed after reading const tables";
-    DBUG_RETURN(0);				// error == 0
+    goto setup_subq_exit;
   }
 
   error= -1;					/* if goto err */
@@ -1981,8 +1979,8 @@ JOIN::optimize()
 	      test(select_options & OPTION_BUFFER_RESULT))) ||
              (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
-  uint no_jbuf_after= make_join_orderinfo(this);
-  ulonglong select_opts_for_readinfo= 
+  no_jbuf_after= 1 ? tables : make_join_orderinfo(this);
+  select_opts_for_readinfo= 
     (select_options & (SELECT_DESCRIBE | SELECT_NO_JOIN_CACHE)) |
     (select_lex->ftfunc_list->elements ?  SELECT_NO_JOIN_CACHE : 0);
 
@@ -2140,7 +2138,7 @@ JOIN::optimize()
     single table queries, thus it is sufficient to test only the first
     join_tab element of the plan for its access method.
   */
-  bool need_distinct= TRUE;
+  need_distinct= TRUE;
   if (join_tab->is_using_loose_index_scan())
   {
     tmp_table_param.precomputed_group_by= TRUE;
@@ -2266,6 +2264,18 @@ JOIN::optimize()
       DBUG_RETURN(-1);                         /* purecov: inspected */
   }
 
+  error= 0;
+  DBUG_RETURN(0);
+
+setup_subq_exit:
+  /*
+    Even with zero matching rows, subqueries in the HAVING clause may
+    need to be evaluated if there are aggregate functions in the
+    query. If we have planned to materialize the subquery, we need to
+    set it up properly before prematurely leaving optimize().
+  */
+  if (setup_subquery_materialization())
+    DBUG_RETURN(1);
   error= 0;
   DBUG_RETURN(0);
 }
