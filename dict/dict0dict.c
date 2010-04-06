@@ -4781,8 +4781,10 @@ UNIV_INTERN
 void
 dict_table_check_for_dup_indexes(
 /*=============================*/
-	const dict_table_t*	table)	/*!< in: Check for dup indexes
+	const dict_table_t*	table,	/*!< in: Check for dup indexes
 					in this table */
+	ibool			tmp_ok)	/*!< in: TRUE=allow temporary
+					index names */
 {
 	/* Check for duplicates, ignoring indexes that are marked
 	as to be dropped */
@@ -4796,9 +4798,11 @@ dict_table_check_for_dup_indexes(
 	ut_a(UT_LIST_GET_LEN(table->indexes) > 0);
 
 	index1 = UT_LIST_GET_FIRST(table->indexes);
-	index2 = UT_LIST_GET_NEXT(indexes, index1);
 
-	while (index1 && index2) {
+	do {
+		ut_ad(tmp_ok || *index1->name != TEMP_INDEX_PREFIX);
+
+		index2 = UT_LIST_GET_NEXT(indexes, index1);
 
 		while (index2) {
 
@@ -4810,8 +4814,7 @@ dict_table_check_for_dup_indexes(
 		}
 
 		index1 = UT_LIST_GET_NEXT(indexes, index1);
-		index2 = UT_LIST_GET_NEXT(indexes, index1);
-	}
+	} while (index1);
 }
 #endif /* UNIV_DEBUG */
 
