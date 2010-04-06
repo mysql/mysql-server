@@ -24,6 +24,7 @@
 #define HAVE_PSI_1
 
 #include <sql_priv.h>
+#include <my_global.h>
 #include <unireg.h>
 #include <mysql/psi/psi.h>
 
