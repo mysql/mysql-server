@@ -2249,6 +2249,32 @@ void remove_status_vars(SHOW_VAR *list)
 }
 
 
+
+static void update_key_cache_stat_var(KEY_CACHE *key_cache, size_t ofs)
+{
+  uint var_no;
+  switch (ofs) {
+  case offsetof(KEY_CACHE, blocks_used):
+  case offsetof(KEY_CACHE, blocks_unused): 
+  case offsetof(KEY_CACHE, global_blocks_changed):
+    var_no= (ofs-offsetof(KEY_CACHE, blocks_used))/sizeof(ulong);
+    *(ulong *)((char *) key_cache + ofs)=
+      (ulong) get_key_cache_stat_value(key_cache, var_no);
+    break; 
+  case offsetof(KEY_CACHE, global_cache_r_requests):
+  case offsetof(KEY_CACHE, global_cache_read):
+  case offsetof(KEY_CACHE, global_cache_w_requests):
+  case offsetof(KEY_CACHE, global_cache_write):
+    var_no= NUM_LONG_KEY_CACHE_STAT_VARIABLES +
+            (ofs-offsetof(KEY_CACHE, global_cache_w_requests))/
+             sizeof(ulonglong);
+    *(ulonglong *)((char *) key_cache + ofs)=
+      get_key_cache_stat_value(key_cache, var_no);
+    break;
+  } 
+}
+
+
 static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
                               enum enum_var_type value_type,
@@ -2381,10 +2407,12 @@ static bool show_status_array(THD *thd, const char *wild,
           break;
         }
         case SHOW_KEY_CACHE_LONG:
+          update_key_cache_stat_var(dflt_key_cache, (size_t) value);
           value= (char*) dflt_key_cache + (ulong)value;
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_KEY_CACHE_LONGLONG:
+          update_key_cache_stat_var(dflt_key_cache, (size_t) value);
           value= (char*) dflt_key_cache + (ulong)value;
 	  end= longlong10_to_str(*(longlong*) value, buff, 10);
 	  break;
@@ -6640,6 +6668,90 @@ int fill_schema_files(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
+static
+int store_key_cache_table_record(THD *thd, TABLE *table,
+                                 const char *name, uint name_length,
+                                 KEY_CACHE *key_cache,
+                                 uint partitions, uint partition_no)
+{
+  KEY_CACHE_STATISTICS keycache_stats;
+  uint err;
+  DBUG_ENTER("store_key_cache_table_record");
+
+  get_key_cache_statistics(key_cache, partition_no, &keycache_stats);
+
+  if (!key_cache->key_cache_inited || keycache_stats.mem_size == 0)
+    DBUG_RETURN(0);
+
+  restore_record(table, s->default_values);
+  table->field[0]->store(name, name_length, system_charset_info);
+  if (partitions == 0)
+    table->field[1]->set_null();
+  else
+  {
+    table->field[1]->set_notnull(); 
+    table->field[1]->store((long) partitions, TRUE);
+  }
+
+  if (partition_no == 0)
+    table->field[2]->set_null();
+  else
+  {
+    table->field[2]->set_notnull();
+    table->field[2]->store((long) partition_no, TRUE);
+  }
+  table->field[3]->store(keycache_stats.mem_size, TRUE);
+  table->field[4]->store(keycache_stats.block_size, TRUE);
+  table->field[5]->store(keycache_stats.blocks_used, TRUE);
+  table->field[6]->store(keycache_stats.blocks_unused, TRUE);
+  table->field[7]->store(keycache_stats.blocks_changed, TRUE);
+  table->field[8]->store(keycache_stats.read_requests, TRUE);
+  table->field[9]->store(keycache_stats.reads, TRUE);
+  table->field[10]->store(keycache_stats.write_requests, TRUE);
+  table->field[11]->store(keycache_stats.writes, TRUE);
+
+  err= schema_table_store_record(thd, table);
+  DBUG_RETURN(err);
+}
+
+
+int fill_key_cache_tables(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  TABLE *table= tables->table;
+  I_List_iterator<NAMED_LIST> it(key_caches);
+  NAMED_LIST *element;
+  DBUG_ENTER("fill_key_cache_tables");
+
+  while ((element= it++))
+  {
+    KEY_CACHE *key_cache= (KEY_CACHE *) element->data;
+
+    if (!key_cache->key_cache_inited)
+      continue;
+
+    uint partitions= key_cache->partitions;    
+    DBUG_ASSERT(partitions <= MAX_KEY_CACHE_PARTITIONS);
+
+    if (partitions)
+    {
+      for (uint i= 0; i < partitions; i++)
+      {
+        if (store_key_cache_table_record(thd, table,
+                                         element->name, element->name_length, 
+                                         key_cache, partitions, i+1))
+	  DBUG_RETURN(1);
+      }
+    }
+
+    if (store_key_cache_table_record(thd, table, 
+                                     element->name, element->name_length,
+                                     key_cache, partitions, 0))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+
 ST_FIELD_INFO schema_fields_info[]=
 {
   {"CATALOG_NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
@@ -7219,6 +7331,35 @@ ST_FIELD_INFO referential_constraints_fields_info[]=
 };
 
 
+ST_FIELD_INFO keycache_fields_info[]=
+{
+  {"KEY_CACHE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"PARTITIONS", 3, MYSQL_TYPE_LONG, 0, 
+   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED) , 0, SKIP_OPEN_TABLE},
+  {"PARTITION_NUMBER", 3, MYSQL_TYPE_LONG, 0,
+   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
+  {"FULL_SIZE", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
+  {"BLOCK_SIZE", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE },
+  {"USED_BLOCKS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+    (MY_I_S_UNSIGNED), "Key_blocks_used", SKIP_OPEN_TABLE},
+  {"UNUSED_BLOCKS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_blocks_unused", SKIP_OPEN_TABLE},
+  {"DIRTY_BLOCKS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_blocks_not_flushed", SKIP_OPEN_TABLE},
+  {"READ_REQUESTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_read_requests", SKIP_OPEN_TABLE},
+  {"READS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_reads", SKIP_OPEN_TABLE},
+  {"WRITE_REQUESTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_write_requests", SKIP_OPEN_TABLE},
+  {"WRITES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_writes", SKIP_OPEN_TABLE},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
+};
+
+
 /*
   Description of ST_FIELD_INFO in table.h
 
@@ -7258,6 +7399,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_variables, make_old_format, 0, 0, -1, 0, 0},
   {"INDEX_STATISTICS", index_stats_fields_info, create_schema_table,
    fill_schema_index_stats, make_old_format, 0, -1, -1, 0, 0},
+  {"KEY_CACHES", keycache_fields_info, create_schema_table,
+   fill_key_cache_tables, make_old_format, 0, -1,-1, 0, 0}, 
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
    get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0,
    OPEN_TABLE_ONLY},

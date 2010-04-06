@@ -320,15 +320,18 @@ static sys_var_thd_ulong	sys_interactive_timeout(&vars, "interactive_timeout",
 static sys_var_thd_ulong	sys_join_buffer_size(&vars, "join_buffer_size",
 					     &SV::join_buff_size);
 static sys_var_key_buffer_size	sys_key_buffer_size(&vars, "key_buffer_size");
-static sys_var_key_cache_long  sys_key_cache_block_size(&vars, "key_cache_block_size",
-						 offsetof(KEY_CACHE,
-							  param_block_size));
-static sys_var_key_cache_long	sys_key_cache_division_limit(&vars, "key_cache_division_limit",
-						     offsetof(KEY_CACHE,
-							      param_division_limit));
-static sys_var_key_cache_long  sys_key_cache_age_threshold(&vars, "key_cache_age_threshold",
-						     offsetof(KEY_CACHE,
-							      param_age_threshold));
+static sys_var_key_cache_long  sys_key_cache_block_size(&vars,
+                                   "key_cache_block_size",
+                                   offsetof(KEY_CACHE,param_block_size));
+static sys_var_key_cache_long  sys_key_cache_division_limit(&vars,
+                                   "key_cache_division_limit",
+                                   offsetof(KEY_CACHE, param_division_limit));
+static sys_var_key_cache_long  sys_key_cache_age_threshold(&vars,
+                                   "key_cache_age_threshold",
+                                   offsetof(KEY_CACHE, param_age_threshold));
+static sys_var_key_cache_long  sys_key_cache_partitions(&vars,
+                                   "key_cache_partitions",
+                                   offsetof(KEY_CACHE, param_partitions));
 static sys_var_const    sys_language(&vars, "language",
                                      OPT_GLOBAL, SHOW_CHAR,
                                      (uchar*) language);
@@ -2548,7 +2551,21 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 
   pthread_mutex_unlock(&LOCK_global_system_variables);
 
-  error= (bool) (ha_resize_key_cache(key_cache));
+  switch (offset) {
+
+  case  offsetof(KEY_CACHE, param_block_size):
+    error= (bool) (ha_resize_key_cache(key_cache));
+    break;
+
+  case offsetof(KEY_CACHE, param_division_limit):
+  case offsetof(KEY_CACHE, param_age_threshold):
+    error= (bool) (ha_change_key_cache_param(key_cache));
+    break;
+
+  case offsetof(KEY_CACHE, param_partitions):
+    error= (bool) (ha_repartition_key_cache(key_cache));
+    break;
+  }
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   key_cache->in_init= 0;  
@@ -4156,6 +4173,7 @@ static KEY_CACHE *create_key_cache(const char *name, uint length)
       key_cache->param_block_size=     dflt_key_cache_var.param_block_size;
       key_cache->param_division_limit= dflt_key_cache_var.param_division_limit;
       key_cache->param_age_threshold=  dflt_key_cache_var.param_age_threshold;
+      key_cache->param_partitions=     dflt_key_cache_var.param_partitions;
     }
   }
   DBUG_RETURN(key_cache);

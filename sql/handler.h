@@ -2201,6 +2201,7 @@ int ha_table_exists_in_engine(THD* thd, const char* db, const char* name);
 extern "C" int ha_init_key_cache(const char *name, KEY_CACHE *key_cache);
 int ha_resize_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache_param(KEY_CACHE *key_cache);
+int ha_repartition_key_cache(KEY_CACHE *key_cache);
 int ha_change_key_cache(KEY_CACHE *old_key_cache, KEY_CACHE *new_key_cache);
 int ha_end_key_cache(KEY_CACHE *key_cache);
 

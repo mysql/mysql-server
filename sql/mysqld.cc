@@ -5831,6 +5831,7 @@ enum options_mysqld
   OPT_INTERACTIVE_TIMEOUT, OPT_JOIN_BUFF_SIZE,
   OPT_KEY_BUFFER_SIZE, OPT_KEY_CACHE_BLOCK_SIZE,
   OPT_KEY_CACHE_DIVISION_LIMIT, OPT_KEY_CACHE_AGE_THRESHOLD,
+  OPT_KEY_CACHE_PARTITIONS,
   OPT_LONG_QUERY_TIME,
   OPT_LOWER_CASE_TABLE_NAMES, OPT_MAX_ALLOWED_PACKET,
   OPT_MAX_BINLOG_CACHE_SIZE, OPT_MAX_BINLOG_SIZE,
@@ -6928,6 +6929,12 @@ log and this option does nothing anymore.",
    (uchar**) 0,
    0, (GET_ULONG | GET_ASK_ADDR) , REQUIRED_ARG, 100,
    1, 100, 0, 1, 0},
+  {"key_cache_partitions", OPT_KEY_CACHE_PARTITIONS,
+   "The number of partitions in key cache",
+   (uchar**) &dflt_key_cache_var.param_partitions,
+   (uchar**) 0,
+   0, (GET_ULONG | GET_ASK_ADDR), REQUIRED_ARG, DEFAULT_KEY_CACHE_PARTITIONS,
+   0, MAX_KEY_CACHE_PARTITIONS, 0, 1, 0},  
   {"log-slow-filter", OPT_LOG_SLOW_FILTER,
    "Log only the queries that followed certain execution plan. Multiple flags allowed in a comma-separated string. [admin, filesort, filesort_on_disk, full_join, full_scan, query_cache, query_cache_miss, tmp_table, tmp_table_on_disk]. Sets log-slow-admin-command to ON",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, QPLAN_ALWAYS_SET, 0, 0},
@@ -8910,6 +8917,7 @@ mysql_getopt_value(const char *keyname, uint key_length,
   case OPT_KEY_CACHE_BLOCK_SIZE:
   case OPT_KEY_CACHE_DIVISION_LIMIT:
   case OPT_KEY_CACHE_AGE_THRESHOLD:
+  case OPT_KEY_CACHE_PARTITIONS:
   {
     KEY_CACHE *key_cache;
     if (!(key_cache= get_or_create_key_cache(keyname, key_length)))
@@ -8927,6 +8935,8 @@ mysql_getopt_value(const char *keyname, uint key_length,
       return (uchar**) &key_cache->param_division_limit;
     case OPT_KEY_CACHE_AGE_THRESHOLD:
       return (uchar**) &key_cache->param_age_threshold;
+    case OPT_KEY_CACHE_PARTITIONS:
+      return (uchar**) &key_cache->param_partitions;
     }
   }
   }
