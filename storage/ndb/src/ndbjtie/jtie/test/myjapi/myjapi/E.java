@@ -16,14 +16,18 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 /*
- * D0.java
+ * E.java
  */
 
 package myjapi;
 
-public class D0 extends com.mysql.jtie.Wrapper {
-    public native final int f_d0();
-    public native static int f_nv(D0 d);
-    public native int f_v();
-    public native static D1 sub();
+import com.mysql.jtie.Wrapper;
+
+public class E extends Wrapper {
+    static public final int EE0 = 0;
+    static public final int EE1 = 1;
+    static public native int/*_EE_*/ deliver_EE1();
+    static public native void take_EE1(int/*_EE_*/ e);
+    static public native int/*_const EE_*/ deliver_EE1c();
+    static public native void take_EE1c(int/*_const EE_*/ e);
 }

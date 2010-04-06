@@ -22,6 +22,7 @@
 #ifndef jtie_gcalls_hpp
 #define jtie_gcalls_hpp
 
+#include "jtie_stdint.h"
 #include "jtie_tconv_impl.hpp"
 #include "jtie_tconv_object_impl.hpp"
 #include "helpers.hpp"
@@ -468,8 +469,8 @@
 // status flag declaration
 #define SFD int s = 1; (void)s;
 
-#define PARAM_CONV_BEGIN(n)                                             \
-    JAPT(n) jap##n = cast< JAPT(n), JFPT(n) >(jfp##n);                  \
+#define PARAM_CONV_BEGIN(n)                                              \
+    JAPT(n) jap##n = cast< JAPT(n), JFPT(n) >(jfp##n);                   \
     CAPT(n) cap##n = Param< JAPT(n), CAPT(n) >::convert(s, jap##n, env); \
     if (s == 0) {
 
@@ -754,7 +755,57 @@ TFD_MFR(18)
 TFD_MFR(19)
 
 // ---------------------------------------------------------------------------
-// Internal C++ Constructor/Destructor Wrappers
+// Internal C++ Constructor/Destructor/Index Access Wrappers
+// ---------------------------------------------------------------------------
+
+// parameters: n = n-ary
+
+// class template calling the array destructor
+template< typename C > struct ArrayHelper;
+
+template< typename C >
+struct ArrayHelper< C * > {
+    static void
+    cdelete(C * p0) {
+        TRACE("void ArrayHelper::cdelete(C *)");
+        delete[] p0;
+    }
+
+    static C *
+    ccreate(int32_t p0) {
+        TRACE("C * ArrayHelper::ccreate(int32_t)");
+        // ISO C++: 'new' throws std::bad_alloc if unsuccessful
+        return new C[p0];
+    }
+
+    static C *
+    cat(C * p0, int32_t i) {
+        TRACE("C * ArrayHelper::cat(C *)");
+        return (p0 + i);
+    }
+};
+
+template< typename C >
+struct ArrayHelper< C & > {
+    static void
+    cdelete(C & p0) {
+        TRACE("void ArrayHelper::cdelete(C &)");
+        ArrayHelper< C * >::cdelete(&p0);
+    }
+
+    static C &
+    ccreate(int32_t p0) {
+        TRACE("C & ArrayHelper::ccreate(int32_t)");
+        return *ArrayHelper< C * >::ccreate(p0);
+    }
+
+    static C &
+    cat(C & p0, int32_t i) {
+        TRACE("C & ArrayHelper::cat(C &)");
+        return *ArrayHelper< C * >::cat(&p0, i);
+    }
+};
+
 // ---------------------------------------------------------------------------
 
 // class template calling the destructor
@@ -765,9 +816,8 @@ struct Destructor< C * > {
     static void
     cdelete(C * p0) {
         TRACE("void Destructor::cdelete(C *)");
-        //printf("    p0 = %p\n", p0);
         delete p0;
-    };
+    }
 };
 
 template< typename C >
@@ -776,7 +826,7 @@ struct Destructor< C & > {
     cdelete(C & p0) {
         TRACE("void Destructor::cdelete(C &)");
         Destructor< C * >::cdelete(&p0);
-    };
+    }
 };
 
 // Template formal parameter type (redefine)
@@ -840,7 +890,51 @@ TFD_CC(18)
 TFD_CC(19)
 
 // ---------------------------------------------------------------------------
-// Constructor and Destructor Calls
+// Constructor, Destructor, and Index Access Calls
+// ---------------------------------------------------------------------------
+
+// array delete template function definition
+template< TFPTD(1) >
+inline
+void
+gdeleteArray(JEPD, JCPD, JFPD(1))
+{
+    TRACE("void gdeleteArray(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
+    (void)cls;
+    // not using gcall_fv<...>(...) due to call to detachWrapper()
+    SFD;
+    PARAM_CONV_BEGIN(1);
+#ifdef JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
+    detachWrapper(jap1, env);
+#endif // JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
+    ArrayHelper< CFPT(1) >::cdelete(CAP(1));
+    PARAM_CONV_END(1);
+}
+
+// array create template function definition
+template< TFRTD, TFPTD(1) >
+inline
+JFRT
+gcreateArray(JEPD, JCPD, JFPD(1))
+{
+    TRACE(SJFRT " gcreateArray(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
+    return gcall_fr< RT, TFPT(1),
+        &ArrayHelper< CFRT >::ccreate
+        >(env, cls, JFP(1));
+}
+
+// array index access template function definition
+template< TFRTD, TFPTD(1), TFPTD(2) >
+inline
+JFRT
+gat(JEPD, JCPD, JFPD(1), JFPD(2))
+{
+    TRACE(SJFRT " gat(" SJET ", " SJCT ", " STRING(SJFPT(1)) ", " STRING(SJFPT(2)) ")");
+    return gcall_fr< RT, TFPT(1), TFPT(2),
+        &ArrayHelper< CFRT >::cat
+        >(env, cls, JFP(1), JFP(2));
+}
+
 // ---------------------------------------------------------------------------
 
 // destructor template function definition
@@ -851,12 +945,13 @@ gdelete(JEPD, JCPD, JFPD(1))
 {
     TRACE("void gdelete(" SJET ", " SJCT ", " STRING(SJFPT(1)) ")");
     (void)cls;
+    // not using gcall_fv<...>(...) due to call to detachWrapper()
     SFD;
     PARAM_CONV_BEGIN(1);
 #ifdef JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
     detachWrapper(jap1, env);
 #endif // JTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
-    Destructor< CAPT(1) >::cdelete(CAP(1));
+    Destructor< CFPT(1) >::cdelete(CAP(1));
     PARAM_CONV_END(1);
 }
 
@@ -868,9 +963,9 @@ gdelete(JEPD, JCPD, JFPD(1))
     {                                                                   \
         TRACE(SJFRT " gcreate(" SJET ", " SJCT SCSL##n(SJFPT) ")");     \
         return gcall_fr< RT, CTL##n(TFPT)                               \
-                      &Constructor##n< CFRT CPL##n(CFPT) >::ccreate     \
-                      >(env, cls CPL##n(JFP));                          \
-        }
+            &Constructor##n< CFRT CPL##n(CFPT) >::ccreate               \
+            >(env, cls CPL##n(JFP));                                    \
+    }
 
 // generate the function templates (separate lines help error messages)
 TFD_C(0)
@@ -893,5 +988,7 @@ TFD_C(16)
 TFD_C(17)
 TFD_C(18)
 TFD_C(19)
+
+// ---------------------------------------------------------------------------
 
 #endif // jtie_gcalls_hpp

@@ -22,7 +22,6 @@
 package myjapi;
 
 public class D1 extends D0 {
-
     public native final int f_d1();
     public native static int f_nv(D1 d);
     public native int f_v();

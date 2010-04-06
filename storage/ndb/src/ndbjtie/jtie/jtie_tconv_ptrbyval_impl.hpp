@@ -39,19 +39,26 @@
 template< jlong N >
 inline cstatus
 ensureMinArraySize(jarray ja, JNIEnv * env) {
+    assert(ja != NULL);
+    
     // init return value to error
     cstatus s = -1;
 
     // check the array's length
     jsize n = env->GetArrayLength(ja);
-    if (n < N) {
-        const char * c = "java/lang/IllegalArgumentException";
-        const char * m = ("NDB Jtie: the Java array's length is too small for"
-                          "  the mapped parameter (file: " __FILE__ ")");
-        registerException(env, c, m);
+    if (env->ExceptionCheck() != JNI_OK) {
+        // exception pending
+        assert(false); // coding error: argument not valid
     } else {
-        // ok
-        s = 0;
+        if (n < N) {
+            const char * c = "java/lang/IllegalArgumentException";
+            const char * m = ("JTie: the Java array's length is too small for"
+                              "  the mapped parameter (file: " __FILE__ ")");
+            registerException(env, c, m);
+        } else {
+            // ok
+            s = 0;
+        }
     }
     return s;
 }
@@ -59,7 +66,6 @@ ensureMinArraySize(jarray ja, JNIEnv * env) {
 // Implements the mapping of arrays to pointer parameters.
 template< typename J, typename C >
 struct ArrayPtrParam {
-
     static C *
     convert(cstatus & s, typename J::JA_t * j, JNIEnv * env) {
         TRACE("C * ArrayPtrParam.convert(cstatus &, typename J::JA_t *, JNIEnv *)");
@@ -76,10 +82,10 @@ struct ArrayPtrParam {
             } else {
                 assert(env->GetArrayLength(j) >= J::length);
 
-                // get a C array, to be released by ReleaseArrayElements()
+                // get a C array, to be released by releaseArrayElements()
                 // ignore whether C array is pinned or a copy of Java array
                 c = (ArrayConv< typename J::JA_t *, C * >
-                     ::GetArrayElements(env, j, NULL));
+                     ::getArrayElements(env, j, NULL));
                 if (c == NULL) {
                     // exception pending
                 } else {
@@ -116,13 +122,13 @@ struct ArrayPtrParam {
                : JNI_ABORT);	// free the buffer without copying back
 
         if (c == NULL) {
-            assert(j == NULL); // corresponding convert() succeeded
+            assert(j == NULL); // corresponding convert() succeeded (!)
             // ok
         } else {
             assert(j != NULL);
-            // release the C array allocated by GetArrayElements()
+            // release the C array allocated by getArrayElements()
             (ArrayConv< typename J::JA_t *, C * >
-             ::ReleaseArrayElements(env, j, c, copyBackMode));
+             ::releaseArrayElements(env, j, c, copyBackMode));
         }
     }
 };
@@ -141,7 +147,7 @@ struct ArrayPtrResult {
             // ok
         } else {
             jarray jja = (ArrayConv< typename J::JA_t *, C * >
-                          ::NewArray(env, J::length, c));
+                          ::newArray(env, J::length, c));
             J * ja = static_cast< J * >(jja);
             if (ja == NULL) {
                 // exception pending
