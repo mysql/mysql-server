@@ -86,7 +86,9 @@ BitKeeper/post-commit-manual
 BitKeeper/tmp/*
 BitKeeper/tmp/bkr3sAHD
 BitKeeper/tmp/gone
+CMakeFiles
 CMakeFiles/*
+CTestTestfile.cmake
 COPYING
 COPYING.LIB
 Docs/#manual.texi#
