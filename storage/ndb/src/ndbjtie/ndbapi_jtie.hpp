@@ -2566,7 +2566,8 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary_createRecord__Lcom_mysql_
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
     return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_c_m_n_n_NdbRecord_p, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_cp, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbDictionary::Dictionary::createRecord >(env, obj, p0, p1, p2, p3, p4);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbRecord_p, ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_cp, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbDictionary__Dictionary__createRecord >(env, NULL, obj, p0, p1, p2, p3, p4);
+	return 0;
+    // XXX!return gcall_fr< ttrait_c_m_n_n_NdbRecord_p, ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_cp, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbDictionary__Dictionary__createRecord >(env, NULL, obj, p0, p1, p2, p3, p4);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
@@ -2582,7 +2583,8 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary_createRecord__Lcom_mysql_
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
     return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_c_m_n_n_NdbRecord_p, ttrait_c_m_n_n_NdbDictionary_Index_cp, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_cp, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbDictionary::Dictionary::createRecord >(env, obj, p0, p1, p2, p3, p4, p5);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbRecord_p, ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_c_m_n_n_NdbDictionary_Index_cp, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_cp, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbDictionary__Dictionary__createRecord >(env, NULL, obj, p0, p1, p2, p3, p4, p5);
+	return 0;
+    // XXX! return gcall_fr< ttrait_c_m_n_n_NdbRecord_p, ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_c_m_n_n_NdbDictionary_Index_cp, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_cp, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbDictionary__Dictionary__createRecord >(env, NULL, obj, p0, p1, p2, p3, p4, p5);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
@@ -2598,7 +2600,8 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_Dictionary_createRecord__Lcom_mysql_
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
     return gcall_mfr< ttrait_c_m_n_n_NdbDictionary_Dictionary_t, ttrait_c_m_n_n_NdbRecord_p, ttrait_c_m_n_n_NdbDictionary_Index_cp, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_cp, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbDictionary::Dictionary::createRecord >(env, obj, p0, p1, p2, p3, p4);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbRecord_p, ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_c_m_n_n_NdbDictionary_Index_cp, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_cp, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbDictionary__Dictionary__createRecord >(env, NULL, obj, p0, p1, p2, p3, p4);
+	return 0;
+    // XXX! return gcall_fr< ttrait_c_m_n_n_NdbRecord_p, ttrait_c_m_n_n_NdbDictionary_Dictionary_r, ttrait_c_m_n_n_NdbDictionary_Index_cp, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_cp, ttrait_Uint32, ttrait_Uint32, ttrait_Uint32, &NdbApiWrapper::NdbDictionary__Dictionary__createRecord >(env, NULL, obj, p0, p1, p2, p3, p4);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
@@ -9791,7 +9794,8 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndb
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
     return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_utf8cstring, ttrait_c_m_n_n_NdbRecord_cp, ttrait_utf8cstring, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbTransaction::insertTuple >(env, obj, p0, p1, p2, p3, p4, p5, p6);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_utf8cstring, ttrait_c_m_n_n_NdbRecord_cp, ttrait_utf8cstring, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__insertTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
+	return 0;
+    // XXX! return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_utf8cstring, ttrait_c_m_n_n_NdbRecord_cp, ttrait_utf8cstring, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__insertTuple >(env, NULL, obj, p0, p1, p2, p3, p4, p5, p6);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
@@ -9807,7 +9811,8 @@ Java_com_mysql_ndbjtie_ndbapi_NdbTransaction_insertTuple__Lcom_mysql_ndbjtie_ndb
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
     return gcall_mfr< ttrait_c_m_n_n_NdbTransaction_t, ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbRecord_cp, ttrait_utf8cstring, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbTransaction::insertTuple >(env, obj, p0, p1, p2, p3, p4);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_utf8cstring, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__insertTuple >(env, NULL, obj, p0, p1, p2, p3, p4);
+	return 0;
+    // XXX! return gcall_fr< ttrait_c_m_n_n_NdbOperation_cp, ttrait_c_m_n_n_NdbTransaction_r, ttrait_c_m_n_n_NdbRecord_cp, ttrait_utf8cstring, ttrait_Uint8_0cp_a, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_cp/*_const NdbOperation.OperationOptions *_*/, ttrait_Uint32, &NdbApiWrapper::NdbTransaction__insertTuple >(env, NULL, obj, p0, p1, p2, p3, p4);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
