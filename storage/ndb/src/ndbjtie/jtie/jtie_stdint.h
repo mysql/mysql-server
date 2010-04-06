@@ -24,20 +24,21 @@
 
 /*
  * JTie pre-defines type mappings for the C99 exact-width type aliases
- * int8_t, uint8_t, ... int64_t, uint64_t as defined in <stdint.h> as
- * well as uses these types internally.
+ *   int8_t, uint8_t, int16_t, uint16_t, int32_t, uint32_t, int64_t, uint64_t
+ * as defined in <stdint.h> as well as uses these types internally.
  *
  * Unfortunately, some C/C++ compiler still lack a stdint.h header file.
  * (For instance, MS Visual Studio until VS2010.)  We delegate to a helper
  * file that handles the absence of the <stdint.h>.
  *
- * While JTie applications (like NDB JTie) may have their own type aliases
- * for exact-width types, it is preferrable not use these as the basis for
- * JTie's implementation and tests itself -- for platform testing has proven
- * much easier with self-contained, standalone-compilable and -testable
- * JTie unit tests, where problematic patterns can be readily identified.
- * Hence, applications with their own, non-stdint-based exact-width type
- * definitions should add and use corresponding JTie type mapping aliases.
+ * Applications of JTie (like NDB JTie) may define their own type aliases
+ * for exact-width types (like Uint8, Int8 etc), for which type mappings can
+ * be easily provided with just a few (NDB) JTie (_trait alias) definitions.
+ *
+ * Here, we do NOT want to introduce artificial dependencies by referring to
+ * application-specific aliases for JTie's generic implementation and tests:
+ * compiler/platform testing has proven (!) much easier when the JTie core
+ * code is self-contained and the JTie unit tests compile & run standalone.
  */
 #include "mystdint.h"
 
