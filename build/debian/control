@@ -47,9 +47,9 @@ Package: percona-xtradb-common
 Section: database
 Architecture: all
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Conflicts: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1
-Provides: mysql-common-4.1, percona-xtradb-common
-Replaces: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1
+Conflicts: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common
+Provides: mysql-common
+Replaces: mysql-common-4.1, mysql-common-5.0, mysql-common-5.1, mysql-common
 Description: Percona SQL database common files (e.g. /etc/mysql/my.cnf)
  Percona SQL is a fast, stable and true multi-user, multi-threaded SQL database
  server. SQL (Structured Query Language) is the most popular database query
