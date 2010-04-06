@@ -2551,21 +2551,15 @@ bool sys_var_key_cache_long::update(THD *thd, set_var *var)
 
   pthread_mutex_unlock(&LOCK_global_system_variables);
 
-  switch (offset) {
-
-  case  offsetof(KEY_CACHE, param_block_size):
+  if (offset == offsetof(KEY_CACHE, param_block_size))
     error= (bool) (ha_resize_key_cache(key_cache));
-    break;
-
-  case offsetof(KEY_CACHE, param_division_limit):
-  case offsetof(KEY_CACHE, param_age_threshold):
+  else
+  if (offset == offsetof(KEY_CACHE, param_division_limit) ||
+      offset == offsetof(KEY_CACHE, param_age_threshold))
     error= (bool) (ha_change_key_cache_param(key_cache));
-    break;
-
-  case offsetof(KEY_CACHE, param_partitions):
+  else
+  if (offset == offsetof(KEY_CACHE, param_partitions))
     error= (bool) (ha_repartition_key_cache(key_cache));
-    break;
-  }
 
   pthread_mutex_lock(&LOCK_global_system_variables);
   key_cache->in_init= 0;  

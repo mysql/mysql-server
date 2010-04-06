@@ -336,18 +336,18 @@ CREATE USER mysqltest_up2 IDENTIFIED VIA mysql_old_password using '09301740536db
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(pcon1,localhost,mysqltest_up1,foo,,$MASTER_EXTRA_PORT,);
-
-connect(pcon2,localhost,mysqltest_up1,bar,,$MASTER_EXTRA_PORT,);
+connect(pcon1,localhost,mysqltest_up1,foo,,$MASTER_MYPORT,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+connect(pcon2,localhost,mysqltest_up1,bar,,$MASTER_MYPORT,);
 connection pcon2;
 select user(), current_user();
 disconnect pcon2;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect(pcon3,localhost,mysqltest_up2,newpw,,$MASTER_EXTRA_PORT,);
-
-connect(pcon4,localhost,mysqltest_up2,oldpw,,$MASTER_EXTRA_PORT,);
+connect(pcon3,localhost,mysqltest_up2,newpw,,$MASTER_MYPORT,);
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
+connect(pcon4,localhost,mysqltest_up2,oldpw,,$MASTER_MYPORT,);
 connection pcon4;
 select user(), current_user();
 disconnect pcon4;
