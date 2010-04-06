@@ -189,6 +189,7 @@ typedef enum {
 #define DB_TXN_NOWAIT 8192
 #define DB_TXN_SYNC 16384
 #define DB_READ_UNCOMMITTED 67108864
+#define DB_READ_COMMITTED 33554432
 #define DB_INHERIT_ISOLATION 1
 #endif
 /* TOKUDB specific error codes */

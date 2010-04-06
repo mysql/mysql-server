@@ -255,7 +255,7 @@ static void test_cursor_last_empty(void) {
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_open_brt(fname, 1, &brt, 1<<12, ct, null_txn, toku_builtin_compare_fun, null_db);  assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
-    r = toku_brt_cursor(brt, &cursor, NULL);            assert(r==0);
+    r = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE);            assert(r==0);
     {
 	struct check_pair pair = {0,0,0,0,0};
 	r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_LAST);
@@ -291,7 +291,7 @@ static void test_cursor_next (void) {
     r = toku_brt_insert(brt, toku_fill_dbt(&kbt, "hello", 6), toku_fill_dbt(&vbt, "there", 6), null_txn);
     r = toku_brt_insert(brt, toku_fill_dbt(&kbt, "byebye", 7), toku_fill_dbt(&vbt, "byenow", 7), null_txn);
     if (verbose) printf("%s:%d calling toku_brt_cursor(...)\n", __FILE__, __LINE__);
-    r = toku_brt_cursor(brt, &cursor, NULL);            assert(r==0);
+    r = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE);            assert(r==0);
     toku_init_dbt(&kbt);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     toku_init_dbt(&vbt);
@@ -383,7 +383,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     }
     {
 	BRT_CURSOR cursor=0;
-	r = toku_brt_cursor(brt, &cursor, NULL);            assert(r==0);
+	r = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE);            assert(r==0);
 
 	for (i=0; i<2; i++) {
 	    unsigned char a[4],b[4];
@@ -423,7 +423,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	    toku_cachetable_verify(ct);
 	}
 	BRT_CURSOR cursor=0;
-	r = toku_brt_cursor(brt, &cursor, NULL);            assert(r==0);
+	r = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE);            assert(r==0);
 	
 	for (i=0; i<N; i++) {
 	    unsigned char a[4],b[4];
@@ -567,7 +567,7 @@ static void test_brt_delete_present(int n) {
     /* cursor should not find anything */
     BRT_CURSOR cursor=0;
 
-    r = toku_brt_cursor(t, &cursor, NULL);
+    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE);
     assert(r == 0);
 
     {
@@ -698,7 +698,7 @@ static void test_brt_delete_cursor_first(int n) {
     /* cursor should find the last key: n-1 */
     BRT_CURSOR cursor=0;
 
-    r = toku_brt_cursor(t, &cursor, NULL);
+    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE);
     assert(r == 0);
 
     {
@@ -820,7 +820,7 @@ static void test_brt_delete_both(int n) {
     /* cursor should find only odd pairs */
     BRT_CURSOR cursor=0;
 
-    r = toku_brt_cursor(t, &cursor, NULL); assert(r == 0);
+    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE); assert(r == 0);
 
     for (i=1; ; i += 2) {
 	int kv = toku_htonl(0);
@@ -866,7 +866,7 @@ static void test_new_brt_cursor_create_close (void) {
 
     int i;
     for (i=0; i<n; i++) {
-        r = toku_brt_cursor(brt, &cursors[i], NULL); assert(r == 0);
+        r = toku_brt_cursor(brt, &cursors[i], NULL, TXNID_NONE, FALSE); assert(r == 0);
     }
 
     for (i=0; i<n; i++) {
@@ -901,7 +901,7 @@ static void test_new_brt_cursor_first(int n, int dup_mode) {
 
     BRT_CURSOR cursor=0;
 
-    r = toku_brt_cursor(t, &cursor, NULL); assert(r == 0);
+    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE); assert(r == 0);
 
     toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
     toku_init_dbt(&val); val.flags = DB_DBT_REALLOC;
@@ -954,7 +954,7 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
 
     BRT_CURSOR cursor=0;
 
-    r = toku_brt_cursor(t, &cursor, NULL); assert(r == 0);
+    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE); assert(r == 0);
 
     toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
     toku_init_dbt(&val); val.flags = DB_DBT_REALLOC;
@@ -1007,7 +1007,7 @@ static void test_new_brt_cursor_next(int n, int dup_mode) {
 
     BRT_CURSOR cursor=0;
 
-    r = toku_brt_cursor(t, &cursor, NULL); assert(r == 0);
+    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE); assert(r == 0);
 
     for (i=0; ; i++) {
 	int kk = toku_htonl(i);
@@ -1051,7 +1051,7 @@ static void test_new_brt_cursor_prev(int n, int dup_mode) {
 
     BRT_CURSOR cursor=0;
 
-    r = toku_brt_cursor(t, &cursor, NULL); assert(r == 0);
+    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE); assert(r == 0);
 
     for (i=n-1; ; i--) {
 	int kk = toku_htonl(i);
@@ -1095,7 +1095,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
 
     BRT_CURSOR cursor=0;
 
-    r = toku_brt_cursor(t, &cursor, NULL); assert(r == 0);
+    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE); assert(r == 0);
 
     for (i=0; ; i++) {
 	{
@@ -1180,7 +1180,7 @@ static void test_new_brt_cursor_set_range(int n, int dup_mode) {
         r = toku_brt_insert(brt, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
-    r = toku_brt_cursor(brt, &cursor, NULL); assert(r==0);
+    r = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE); assert(r==0);
 
     /* pick random keys v in 0 <= v < 10*n, the cursor should point
        to the smallest key in the tree that is >= v */
@@ -1238,7 +1238,7 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
         r = toku_brt_insert(brt, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
-    r = toku_brt_cursor(brt, &cursor, NULL); assert(r==0);
+    r = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE); assert(r==0);
 
     /* set cursor to random keys in set { 0, 10, 20, .. 10*(n-1) } */
     for (i=0; i<n; i++) {

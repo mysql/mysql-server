@@ -71,6 +71,7 @@ LSN toku_txn_get_last_lsn (TOKUTXN txn);
 LSN toku_logger_last_lsn(TOKULOGGER logger);
 TOKULOGGER toku_txn_logger (TOKUTXN txn);
 
+BOOL is_txnid_live(TOKULOGGER logger, TXNID txnid);
 int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
 //int toku_logger_log_checkpoint (TOKULOGGER);
 //int toku_set_func_fsync (int (*fsync_function)(int));

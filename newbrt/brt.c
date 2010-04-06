@@ -4034,15 +4034,61 @@ brt_cursor_cleanup_dbts(BRT_CURSOR c) {
     }
 }
 
+static inline void brt_cursor_extract_key_and_val(
+    LEAFENTRY le, 
+    BRT_CURSOR cursor, 
+    u_int32_t* keylen,
+    bytevec*   key,
+    u_int32_t* vallen,
+    bytevec*   val
+    )
+{
+    if (cursor->is_read_committed) {
+        TXNID le_anc_id = le_outermost_uncommitted_xid(le);
+        if (le_anc_id < cursor->logger->oldest_living_xid || //current transaction has inserted this element
+            le_anc_id == 0 || // le is a committed value with no provisional data
+            le_anc_id == cursor->ancestor_id || //quick check to avoid more expensive is_txnid_live check
+            !is_txnid_live(cursor->logger,le_anc_id)) 
+        {
+            *key = le_latest_key_and_len(le, keylen);
+            *val = le_latest_val_and_len(le, vallen);
+        }
+        else {
+            *key = le_outermost_key_and_len(le, keylen);
+            *val = le_outermost_val_and_len(le, vallen);
+        }
+    }
+    else {
+        *key = le_latest_key_and_len(le, keylen);
+        *val = le_latest_val_and_len(le, vallen);
+    }
+}
+
+
 static inline void load_dbts_from_omt(BRT_CURSOR c, DBT *key, DBT *val) {
     OMTVALUE le = 0;
     int r = toku_omt_cursor_current(c->omtcursor, &le);
     assert(r==0);
+    u_int32_t keylen;
+    bytevec   key_vec    = NULL;
+    u_int32_t vallen;
+    bytevec   val_vec    = NULL;
+    
+    brt_cursor_extract_key_and_val(
+        le,
+        c,
+        &keylen,
+        &key_vec,
+        &vallen,
+        &val_vec
+        );
     if (key) {
-        key->data = le_latest_key_and_len(le, &key->size);
+        key->data = (void *)key_vec;
+        key->size = keylen;
     }
     if (val) {
-        val->data = le_latest_val_and_len(le, &val->size);
+        val->data = (void *)val_vec;
+        val->size = vallen;
     }
 }
 
@@ -4083,8 +4129,13 @@ brt_cursor_invalidate(BRT_CURSOR brtcursor) {
     }
 }
 
-int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, TOKULOGGER logger) {
+int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, TOKULOGGER logger, TXNID txnid, BOOL is_read_committed) {
     BRT_CURSOR cursor = toku_malloc(sizeof *cursor);
+    // if this cursor is to do read_committed fetches, then the txn objects must be valid.
+    if (is_read_committed) {
+        assert(logger != NULL);
+        assert(txnid != TXNID_NONE);
+    }
     if (cursor == 0)
         return ENOMEM;
     memset(cursor, 0, sizeof(*cursor));
@@ -4092,6 +4143,9 @@ int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, TOKULOGGER logger) {
     cursor->current_in_omt = FALSE;
     cursor->prefetching = FALSE;
     cursor->oldest_living_xid = toku_logger_get_oldest_living_xid(logger);
+    cursor->logger = logger;
+    cursor->ancestor_id = txnid;
+    cursor->is_read_committed = is_read_committed;
     toku_list_push(&brt->cursors, &cursor->cursors_link);
     int r = toku_omt_cursor_create(&cursor->omtcursor);
     assert(r==0);
@@ -4199,6 +4253,37 @@ brt_cursor_update(BRT_CURSOR brtcursor) {
     toku_omt_cursor_set_index(omtcursor, brtcursor->leaf_info.to_be.index);
 }
 
+//
+// Returns true if the value that is to be read is empty.
+// If is_read_committed is false, then it checks the innermost value
+// (and is the equivalent of le_is_provdel)
+// If is_read_committed is true, then for live transactions, it checks the committed
+// value in le. For committed transactions, it checks the innermost value
+//
+static inline int 
+is_le_val_empty(LEAFENTRY le, BRT_CURSOR brtcursor) {
+    if (brtcursor->is_read_committed) {
+        TXNID le_anc_id = le_outermost_uncommitted_xid(le);
+        if (le_anc_id < brtcursor->oldest_living_xid || //current transaction has inserted this element
+            le_anc_id == 0 || // le is a committed value with no provisional data
+            le_anc_id == brtcursor->ancestor_id|| //quick check to avoid more expensive is_txnid_live check
+            !is_txnid_live(brtcursor->logger,le_anc_id)) 
+        {
+            return le_is_provdel(le);
+        }
+        // le_anc_id is an active transaction,
+        else {
+            //
+            // need to check the committed val, which requires unpack of le
+            //
+            return le_outermost_is_del(le);
+        }
+    }
+    else {
+        return le_is_provdel(le);
+    }
+}
+
 // This is a bottom layer of the search functions.
 static int
 brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBACK_FUNCTION getf, void *getf_v, enum reactivity *re, BOOL *doprefetch, BRT_CURSOR brtcursor)
@@ -4224,7 +4309,7 @@ brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBA
     if (r!=0) return r;
 
     LEAFENTRY le = datav;
-    if (le_is_provdel(le)) {
+    if (is_le_val_empty(le,brtcursor)) {
         // Provisionally deleted stuff is gone.
         // So we need to scan in the direction to see if we can find something
         while (1) {
@@ -4249,7 +4334,7 @@ brt_search_leaf_node(BRTNODE node, brt_search_t *search, BRT_GET_STRADDLE_CALLBA
             r = toku_omt_fetch(node->u.l.buffer, idx, &datav, NULL);
             assert(r==0); // we just validated the index
             le = datav;
-            if (!le_is_provdel(le)) goto got_a_good_value;
+            if (!is_le_val_empty(le,brtcursor)) goto got_a_good_value;
         }
     }
 got_a_good_value:
@@ -4258,9 +4343,18 @@ got_a_good_value:
     maybe_do_implicit_promotion_on_query(brtcursor, le);
     {
         u_int32_t keylen;
-        bytevec   key    = le_latest_key_and_len(le, &keylen);
+        bytevec   key    = NULL;
         u_int32_t vallen;
-        bytevec   val    = le_latest_val_and_len(le, &vallen);
+        bytevec   val    = NULL;
+
+        brt_cursor_extract_key_and_val(
+            le,
+            brtcursor,
+            &keylen,
+            &key,
+            &vallen,
+            &val
+            );
 
         assert(brtcursor->current_in_omt == FALSE);
         r = getf(keylen, key,
@@ -4636,7 +4730,7 @@ int
 toku_brt_flatten(BRT brt, TOKULOGGER logger)
 {
     BRT_CURSOR tmp_cursor;
-    int r = toku_brt_cursor(brt, &tmp_cursor, logger);
+    int r = toku_brt_cursor(brt, &tmp_cursor, logger, TXNID_NONE, FALSE);
     if (r!=0) return r;
     brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_LEFT, 0, 0, tmp_cursor->brt);
     r = brt_cursor_search(tmp_cursor, &search, brt_flatten_getf, NULL);
@@ -4693,12 +4787,21 @@ brt_cursor_shortcut (BRT_CURSOR cursor, int direction, u_int32_t limit, BRT_GET_
             r = toku_omt_fetch(omt, index, &le, NULL);
             assert(r==0);
 
-            if (!le_is_provdel(le)) {
+            if (!is_le_val_empty(le,cursor)) {
                 maybe_do_implicit_promotion_on_query(cursor, le);
                 u_int32_t keylen;
-                bytevec   key    = le_latest_key_and_len(le, &keylen);
+                bytevec   key    = NULL;
                 u_int32_t vallen;
-                bytevec   val    = le_latest_val_and_len(le, &vallen);
+                bytevec   val    = NULL;
+
+                brt_cursor_extract_key_and_val(
+                    le,
+                    cursor,
+                    &keylen,
+                    &key,
+                    &vallen,
+                    &val
+                    );
 
                 r = getf(keylen, key, vallen, val, getf_v);
                 if (r==0) {
@@ -5190,7 +5293,7 @@ toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *
     int r, rr;
     BRT_CURSOR cursor;
 
-    rr = toku_brt_cursor(brt, &cursor, NULL);
+    rr = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE);
     if (rr != 0) return rr;
 
     int op = brt->flags & TOKU_DB_DUPSORT ? DB_GET_BOTH : DB_SET;
@@ -5573,7 +5676,7 @@ brt_is_empty (BRT brt) {
     BRT_CURSOR cursor;
     int r, r2;
     BOOL is_empty;
-    r = toku_brt_cursor(brt, &cursor, NULL);
+    r = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE);
     if (r == 0) {
         r = toku_brt_cursor_first(cursor, getf_nothing, NULL);
         r2 = toku_brt_cursor_close(cursor);

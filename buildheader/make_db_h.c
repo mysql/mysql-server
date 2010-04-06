@@ -178,6 +178,9 @@ static void print_defines (void) {
 #ifdef DB_READ_UNCOMMITTED
         dodefine_track(txn_flags, DB_READ_UNCOMMITTED);
 #endif
+#ifdef DB_READ_COMMITTED
+        dodefine_track(txn_flags, DB_READ_COMMITTED);
+#endif
         dodefine_from_track(txn_flags, DB_INHERIT_ISOLATION);
     }
     

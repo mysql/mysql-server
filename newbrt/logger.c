@@ -1005,6 +1005,14 @@ find_by_xid (OMTVALUE v, void *txnidv) {
     return 0;
 }
 
+BOOL is_txnid_live(TOKULOGGER logger, TXNID txnid) {
+    assert(logger);
+    TOKUTXN result = NULL;
+    int rval = toku_txnid2txn(logger, txnid, &result);
+    assert(rval == 0);
+    return (result != NULL);
+}
+
 int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
     if (logger==NULL) return -1;
 
