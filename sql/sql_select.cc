@@ -18004,7 +18004,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         /* table */
         int len= my_snprintf(table_name_buffer, 
                              sizeof(table_name_buffer)-1,
-                             "subselect%d", 
+                             "SUBQUERY#%d", 
                              tab->emb_sj_nest->sj_subq_pred->get_identifier());
 	item_list.push_back(new Item_string(table_name_buffer, len, cs));
         /* partitions */

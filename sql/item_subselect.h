@@ -814,7 +814,7 @@ public:
   }
   ~subselect_hash_sj_engine();
 
-  bool init_permanent(List<Item> *tmp_columns);
+  bool init_permanent(List<Item> *tmp_columns, uint subquery_id);
   bool init_runtime();
   void cleanup();
   int prepare() { return 0; } /* Override virtual function in base class. */

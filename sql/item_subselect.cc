@@ -2116,7 +2116,8 @@ bool Item_in_subselect::setup_engine(bool dont_switch_arena)
 
     if (!(new_engine= new subselect_hash_sj_engine(thd, this,
                                                    old_engine)) ||
-        new_engine->init_permanent(unit->get_unit_column_types()))
+        new_engine->init_permanent(unit->get_unit_column_types(),
+                                   old_engine->get_identifier()))
     {
       Item_subselect::trans_res trans_res;
       /*
@@ -3662,6 +3663,7 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
   reexecution.
 
   @param tmp_columns the items that produce the data for the temp table
+  @param subquery_id subquery's identifier (for temptable name)
 
   @details
   - Create a temporary table to store the result of the IN subquery. The
@@ -3677,7 +3679,8 @@ bitmap_init_memroot(MY_BITMAP *map, uint n_bits, MEM_ROOT *mem_root)
   @retval FALSE otherwise
 */
 
-bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
+bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns, 
+                                              uint subquery_id)
 {
   /* Options to create_tmp_table. */
   ulonglong tmp_create_options= thd->options | TMP_TABLE_ALL_COLUMNS;
@@ -3712,12 +3715,19 @@ bool subselect_hash_sj_engine::init_permanent(List<Item> *tmp_columns)
     DBUG_RETURN(TRUE);
   }
 */
+  char buf[32];
+  uint len= my_snprintf(buf, sizeof(buf), "SUBQUERY#%d", subquery_id);
+  char *name;
+  if (!(name= (char*)thd->alloc(len + 1)))
+    DBUG_RETURN(TRUE);
+  memcpy(name, buf, len+1);
+
   if (!(result= new select_materialize_with_stats))
     DBUG_RETURN(TRUE);
 
   if (((select_union*) result)->create_result_table(
                          thd, tmp_columns, TRUE, tmp_create_options,
-                         "materialized subselect", TRUE))
+                         name, TRUE))
     DBUG_RETURN(TRUE);
 
   tmp_table= ((select_union*) result)->table;
@@ -3798,7 +3808,7 @@ bool subselect_hash_sj_engine::make_semi_join_conds()
   if (!(tmp_table_ref= (TABLE_LIST*) thd->alloc(sizeof(TABLE_LIST))))
     DBUG_RETURN(TRUE);
 
-  tmp_table_ref->init_one_table("", "materialized subselect", TL_READ);
+  tmp_table_ref->init_one_table("", tmp_table->alias, TL_READ);
   tmp_table_ref->table= tmp_table;
 
   context= new Name_resolution_context;
