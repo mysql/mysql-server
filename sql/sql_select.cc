@@ -9554,9 +9554,10 @@ bool setup_sj_materialization(JOIN_TAB *tab)
   else
   {
     /*
-      We'll be doing full scan of the temptable.
-      Setup copying of temptable columns back to their source tables. We
-      need this because IN-equalities refer to the original tables.
+      We'll be doing full scan of the temptable.  
+      Setup copying of temptable columns back to the record buffers
+      for their source tables. We need this because IN-equalities
+      refer to the original tables.
 
       EXAMPLE
 
@@ -9577,7 +9578,7 @@ bool setup_sj_materialization(JOIN_TAB *tab)
 
       At the moment, our solution is to copy back: when we get the next
       temptable record, we copy its columns to their corresponding columns
-      in the source tables. 
+      in the record buffers for the source tables. 
     */
     sjm->copy_field= new Copy_field[sjm->sjm_table_cols.elements];
     it.rewind();
@@ -9627,6 +9628,8 @@ bool setup_sj_materialization(JOIN_TAB *tab)
         }
       }
       sjm->copy_field[i].set(copy_to, sjm->table->field[i], FALSE);
+      /* The write_set for source tables must be set up to allow the copying */
+      bitmap_set_bit(copy_to->table->write_set, copy_to->field_index);
     }
   }
 
