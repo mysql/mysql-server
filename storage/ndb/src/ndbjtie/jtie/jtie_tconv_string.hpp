@@ -35,6 +35,17 @@ typedef ttrait< jstring, const char * > ttrait_utf8cstring;
 typedef ttrait< jstring, const char * const > ttrait_utf8cstring_c;
 
 // ---------------------------------------------------------------------------
+// Java String[] <-> const char * * type conversions
+// ---------------------------------------------------------------------------
+
+#if 0 // XXX implement and test mapping String[] <-> char * *
+// XXX aliases for: <const-char>_<[const-]pointer>_<[const-]pointer>_<String[]>
+typedef ttrait< jobjectArray, const char * * > ttrait_utf8cstring_a;
+typedef ttrait< jobjectArray, const char * const * > ttrait_utf8cstring_ca;
+typedef ttrait< jobjectArray, const char * const * const > ttrait_utf8cstring_cac;
+#endif // XXX implement and test mapping String[] <-> char * *
+
+// ---------------------------------------------------------------------------
 // Java String <-> char * type conversions
 // ---------------------------------------------------------------------------
 

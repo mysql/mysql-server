@@ -39,11 +39,14 @@ JTIE_DEFINE_PEER_CLASS_MAPPING(B0, myjapi_B0)
 JTIE_DEFINE_PEER_CLASS_MAPPING(B1, myjapi_B1)
 JTIE_DEFINE_PEER_CLASS_MAPPING(C0, myjapi_CI_C0)
 JTIE_DEFINE_PEER_CLASS_MAPPING(C1, myjapi_CI_C1)
+JTIE_DEFINE_PEER_CLASS_MAPPING(C0, myjapi_CI_C0Array)
+JTIE_DEFINE_PEER_CLASS_MAPPING(C1, myjapi_CI_C1Array)
 JTIE_DEFINE_PEER_CLASS_MAPPING(D0, myjapi_D0)
 JTIE_DEFINE_PEER_CLASS_MAPPING(D1, myjapi_D1)
 JTIE_DEFINE_PEER_CLASS_MAPPING(D2, myjapi_D2)
+JTIE_DEFINE_PEER_CLASS_MAPPING(E, myjapi_E)
 
-JTIE_DEFINE_JINT_ENUM_TYPE_MAPPING(C0::C0E, C0_C0E)
+JTIE_DEFINE_JINT_ENUM_TYPE_MAPPING(E::EE, E_EE)
 
 // ---------------------------------------------------------------------------
 // API JNI function stubs
@@ -113,7 +116,7 @@ Java_myjapi_A_delete_1p(JNIEnv * env, jclass cls, jobject p0)
 }
 
 JNIEXPORT jint JNICALL
-Java_myjapi_A_f0s(JNIEnv * env, jclass cls) 
+Java_myjapi_A_f0s(JNIEnv * env, jclass cls)
 {
     TRACE("jint Java_myjapi_A_f0s(JNIEnv *, jclass)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -604,7 +607,7 @@ Java_myjapi_A_g3r(JNIEnv * env, jobject obj, jbyte p0, jshort p1, jint p2)
 //#include "myjapi_B1.h"
 
 JNIEXPORT jint JNICALL
-Java_myjapi_B0_f0s(JNIEnv * env, jclass cls) 
+Java_myjapi_B0_f0s(JNIEnv * env, jclass cls)
 {
     TRACE("jint Java_myjapi_B0_f0s(JNIEnv *, jclass)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -637,7 +640,7 @@ Java_myjapi_B0_f0v(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT jint JNICALL
-Java_myjapi_B1_f0s(JNIEnv * env, jclass cls) 
+Java_myjapi_B1_f0s(JNIEnv * env, jclass cls)
 {
     TRACE("jint Java_myjapi_B1_f0s(JNIEnv *, jclass)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -755,11 +758,8 @@ Java_myjapi_B1_d0__Lmyjapi_B1_2I(JNIEnv * env, jclass cls, jobject obj, jint p0)
 
 // ---------------------------------------------------------------------------
 
-//#include "myjapi_CI.h"
 //#include "myjapi_CI_C0.h"
 //#include "myjapi_CI_C0C.h"
-//#include "myjapi_CI_C1.h"
-//#include "myjapi_CI_C1C.h"
 
 JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C0_cc(JNIEnv * env, jclass cls)
@@ -775,10 +775,75 @@ Java_myjapi_CI_00024C0_c(JNIEnv * env, jclass cls)
     return gget< ttrait_myjapi_CI_C0_pc, C0::c >(env, cls);
 }
 
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C0_create(JNIEnv * env, jclass cls)
+{
+    TRACE("Java_myjapi_CI_00024C0_create(JNIEnv *, jclass)");
+    return gcreate< ttrait_myjapi_CI_C0_r >(env, cls);
+}
+
+JNIEXPORT void JNICALL
+Java_myjapi_CI_00024C0_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_myjapi_CI_00024C0_delete(JNIEnv *, jclass, jobject)");
+    gdelete< ttrait_myjapi_CI_C0_r >(env, cls, p0);
+}
+
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C0_pass__Lmyjapi_CI_00024C0Array_2(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_myjapi_CI_00024C0_pass__Lmyjapi_CI_00024C0Array_2(JNIEnv *, jclass, jobject)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_myjapi_CI_C0Array_p, ttrait_myjapi_CI_C0Array_p, &C0::pass >(env, cls, p0);
+#else
+    return gcall_fr< ttrait_myjapi_CI_C0Array_p, ttrait_myjapi_CI_C0Array_p, &MyApiWrapper::C0__pass__0 >(env, cls, p0);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C0_pass__Lmyjapi_CI_00024C0CArray_2(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_myjapi_CI_00024C0_pass__Lmyjapi_CI_00024C0CArray_2(JNIEnv *, jclass, jobject)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_myjapi_CI_C0Array_cp, ttrait_myjapi_CI_C0Array_cp, &C0::pass >(env, cls, p0);
+#else
+    return gcall_fr< ttrait_myjapi_CI_C0Array_cp, ttrait_myjapi_CI_C0Array_cp, &MyApiWrapper::C0__pass__1 >(env, cls, p0);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+JNIEXPORT jlong JNICALL
+Java_myjapi_CI_00024C0_hash(JNIEnv * env, jclass cls, jobject p0, jint p1)
+{
+    TRACE("Java_myjapi_CI_00024C0_hash(JNIEnv *, jclass, jobject, jint)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_int64, ttrait_myjapi_CI_C0Array_cp, ttrait_int32, &C0::hash >(env, cls, p0, p1);
+#else
+    return gcall_fr< ttrait_int64, ttrait_myjapi_CI_C0Array_cp, ttrait_int32, &MyApiWrapper::C0__hash >(env, cls, p0, p1);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+JNIEXPORT jlong JNICALL
+Java_myjapi_CI_00024C0_id(JNIEnv * env, jobject obj)
+{
+    TRACE("Java_myjapi_CI_00024C0_id(JNIEnv *, jobject)");
+    return gget< ttrait_myjapi_CI_C0_t, ttrait_int64_c, &C0::id >(env, obj);
+}
+
+JNIEXPORT void JNICALL
+Java_myjapi_CI_00024C0_check(JNIEnv * env, jobject obj, jlong p0)
+{
+    TRACE("Java_myjapi_CI_00024C0_check(JNIEnv *, jobject, jlong)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_mfv< ttrait_myjapi_CI_C0_ct, ttrait_int64, &C0::check >(env, obj);
+#else
+    gcall_fv< ttrait_myjapi_CI_C0_cr, ttrait_int64, &MyApiWrapper::C0__check >(env, NULL, obj, p0);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
 JNIEXPORT void JNICALL
 Java_myjapi_CI_00024C0_print(JNIEnv * env, jobject obj)
 {
-    TRACE("void Java_myjapi_CI_00024C0_print(JNIEnv *, jobject)");
+    TRACE("Java_myjapi_CI_00024C0_print(JNIEnv *, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
     gcall_mfv< ttrait_myjapi_CI_C0_ct, &C0::print >(env, obj);
 #else
@@ -787,7 +852,7 @@ Java_myjapi_CI_00024C0_print(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT jobject JNICALL
-Java_myjapi_CI_00024C0_deliver_1C0Cp(JNIEnv * env, jobject obj) 
+Java_myjapi_CI_00024C0_deliver_1C0Cp(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_myjapi_CI_00024C0_deliver_1C0Cp(JNIEnv *, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -798,7 +863,7 @@ Java_myjapi_CI_00024C0_deliver_1C0Cp(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT jobject JNICALL
-Java_myjapi_CI_00024C0_deliver_1C0Cr(JNIEnv * env, jobject obj) 
+Java_myjapi_CI_00024C0_deliver_1C0Cr(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_myjapi_CI_00024C0_deliver_1C0Cr(JNIEnv *, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -809,7 +874,7 @@ Java_myjapi_CI_00024C0_deliver_1C0Cr(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C0_take_1C0Cp(JNIEnv * env, jobject obj, jobject p0) 
+Java_myjapi_CI_00024C0_take_1C0Cp(JNIEnv * env, jobject obj, jobject p0)
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0Cp(JNIEnv *, jobject, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -820,7 +885,7 @@ Java_myjapi_CI_00024C0_take_1C0Cp(JNIEnv * env, jobject obj, jobject p0)
 }
 
 JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C0_take_1C0Cr(JNIEnv * env, jobject obj, jobject p0) 
+Java_myjapi_CI_00024C0_take_1C0Cr(JNIEnv * env, jobject obj, jobject p0)
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0Cr(JNIEnv *, jobject, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -831,7 +896,7 @@ Java_myjapi_CI_00024C0_take_1C0Cr(JNIEnv * env, jobject obj, jobject p0)
 }
 
 JNIEXPORT jobject JNICALL
-Java_myjapi_CI_00024C0_deliver_1C0p(JNIEnv * env, jobject obj) 
+Java_myjapi_CI_00024C0_deliver_1C0p(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_myjapi_CI_00024C0_deliver_1C0p(JNIEnv *, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -842,7 +907,7 @@ Java_myjapi_CI_00024C0_deliver_1C0p(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT jobject JNICALL
-Java_myjapi_CI_00024C0_deliver_1C0r(JNIEnv * env, jobject obj) 
+Java_myjapi_CI_00024C0_deliver_1C0r(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_myjapi_CI_00024C0_deliver_1C0r(JNIEnv *, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -853,7 +918,7 @@ Java_myjapi_CI_00024C0_deliver_1C0r(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C0_take_1C0p(JNIEnv * env, jobject obj, jobject p0) 
+Java_myjapi_CI_00024C0_take_1C0p(JNIEnv * env, jobject obj, jobject p0)
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0p(JNIEnv *, jobject, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -864,7 +929,7 @@ Java_myjapi_CI_00024C0_take_1C0p(JNIEnv * env, jobject obj, jobject p0)
 }
 
 JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C0_take_1C0r(JNIEnv * env, jobject obj, jobject p0) 
+Java_myjapi_CI_00024C0_take_1C0r(JNIEnv * env, jobject obj, jobject p0)
 {
     TRACE("void Java_myjapi_CI_00024C0_take_1C0r(JNIEnv *, jobject, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -874,51 +939,10 @@ Java_myjapi_CI_00024C0_take_1C0r(JNIEnv * env, jobject obj, jobject p0)
 #endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-JNIEXPORT jint JNICALL
-Java_myjapi_CI_00024C0_deliver_1C0E1(JNIEnv * env, jclass cls)
-{
-    TRACE("jint Java_myjapi_CI_00024C0_deliver_1C0E1(JNIEnv *, jclass)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_fr< ttrait_C0_C0E_iv, &C0::deliver_C0E1 >(env, cls);
-#else
-    return gcall_fr< ttrait_C0_C0E_iv, &MyApiWrapper::C0__deliver_C0E1 >(env, cls);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
-JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C0_take_1C0E1(JNIEnv * env, jclass cls, jint p0)
-{
-    TRACE("void Java_myjapi_CI_00024C0_take_1C0E1(JNIEnv *, jclass, jint)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    gcall_fv< ttrait_C0_C0E_iv, &C0::take_C0E1 >(env, cls, p0);
-#else
-    gcall_fv< ttrait_C0_C0E_iv, &MyApiWrapper::C0__take_C0E1 >(env, cls, p0);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
-JNIEXPORT jint JNICALL
-Java_myjapi_CI_00024C0_deliver_1C0E1c(JNIEnv * env, jclass cls)
-{
-    TRACE("jint Java_myjapi_CI_00024C0_deliver_1C0E1c(JNIEnv *, jclass)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_fr< ttrait_C0_C0E_c_iv, C0::deliver_C0E1c >(env, cls);
-#else
-    return gcall_fr< ttrait_C0_C0E_c_iv, &MyApiWrapper::C0__deliver_C0E1c >(env, cls);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
-JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C0_take_1C0E1c(JNIEnv * env, jclass cls, jint p0)
-{
-    TRACE("void Java_myjapi_CI_00024C0_take_1C0E1c(JNIEnv *, jclass, jint)");
-#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    gcall_fv< ttrait_C0_C0E_c_iv, C0::take_C0E1c >(env, cls, p0);
-#else
-    gcall_fv< ttrait_C0_C0E_c_iv, &MyApiWrapper::C0__take_C0E1c >(env, cls, p0);
-#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-}
-
 // ---------------------------------------------------------------------------
+
+//#include "myjapi_CI_C1.h"
+//#include "myjapi_CI_C1C.h"
 
 JNIEXPORT jobject JNICALL
 Java_myjapi_CI_00024C1_cc(JNIEnv * env, jclass cls)
@@ -935,7 +959,54 @@ Java_myjapi_CI_00024C1_c(JNIEnv * env, jclass cls)
 }
 
 JNIEXPORT jobject JNICALL
-Java_myjapi_CI_00024C1_deliver_1C1Cp(JNIEnv * env, jobject obj) 
+Java_myjapi_CI_00024C1_create(JNIEnv * env, jclass cls)
+{
+    TRACE("Java_myjapi_CI_00024C1_create(JNIEnv *, jclass)");
+    return gcreate< ttrait_myjapi_CI_C0_r >(env, cls);
+}
+
+JNIEXPORT void JNICALL
+Java_myjapi_CI_00024C1_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_myjapi_CI_00024C1_delete(JNIEnv *, jclass, jobject)");
+    gdelete< ttrait_myjapi_CI_C0_r >(env, cls, p0);
+}
+
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C1_pass__Lmyjapi_CI_00024C1Array_2(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_myjapi_CI_00024C1_pass__Lmyjapi_CI_00024C1Array_2(JNIEnv *, jclass, jobject)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_myjapi_CI_C1Array_p, ttrait_myjapi_CI_C1Array_p, &C1::pass >(env, cls, p0);
+#else
+    return gcall_fr< ttrait_myjapi_CI_C1Array_p, ttrait_myjapi_CI_C1Array_p, &MyApiWrapper::C1__pass >(env, cls, p0);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C1_pass__Lmyjapi_CI_00024C1CArray_2(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_myjapi_CI_00024C1_pass__Lmyjapi_CI_00024C1CArray_2(JNIEnv *, jclass, jobject)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_myjapi_CI_C1Array_cp, ttrait_myjapi_CI_C1Array_cp, &C1::pass >(env, cls, p0);
+#else
+    return gcall_fr< ttrait_myjapi_CI_C1Array_cp, ttrait_myjapi_CI_C1Array_cp, &MyApiWrapper::C1__pass >(env, cls, p0);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+JNIEXPORT jlong JNICALL
+Java_myjapi_CI_00024C1_hash(JNIEnv * env, jclass cls, jobject p0, jint p1)
+{
+    TRACE("Java_myjapi_CI_00024C1_hash(JNIEnv *, jclass, jobject, jint)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_int64, ttrait_myjapi_CI_C1Array_cp, ttrait_int32, &C1::hash >(env, cls, p0, p1);
+#else
+    return gcall_fr< ttrait_int64, ttrait_myjapi_CI_C1Array_cp, ttrait_int32, &MyApiWrapper::C1__hash >(env, cls, p0, p1);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C1_deliver_1C1Cp(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_myjapi_CI_00024C1_deliver_1C1Cp(JNIEnv *, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -946,7 +1017,7 @@ Java_myjapi_CI_00024C1_deliver_1C1Cp(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT jobject JNICALL
-Java_myjapi_CI_00024C1_deliver_1C1Cr(JNIEnv * env, jobject obj) 
+Java_myjapi_CI_00024C1_deliver_1C1Cr(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_myjapi_CI_00024C1_deliver_1C1Cr(JNIEnv *, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -957,7 +1028,7 @@ Java_myjapi_CI_00024C1_deliver_1C1Cr(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C1_take_1C1Cp(JNIEnv * env, jobject obj, jobject p0) 
+Java_myjapi_CI_00024C1_take_1C1Cp(JNIEnv * env, jobject obj, jobject p0)
 {
     TRACE("void Java_myjapi_CI_00024C1_take_1C1Cp(JNIEnv *, jobject, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -968,7 +1039,7 @@ Java_myjapi_CI_00024C1_take_1C1Cp(JNIEnv * env, jobject obj, jobject p0)
 }
 
 JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C1_take_1C1Cr(JNIEnv * env, jobject obj, jobject p0) 
+Java_myjapi_CI_00024C1_take_1C1Cr(JNIEnv * env, jobject obj, jobject p0)
 {
     TRACE("void Java_myjapi_CI_00024C1_take_1C1Cr(JNIEnv *, jobject, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -979,7 +1050,7 @@ Java_myjapi_CI_00024C1_take_1C1Cr(JNIEnv * env, jobject obj, jobject p0)
 }
 
 JNIEXPORT jobject JNICALL
-Java_myjapi_CI_00024C1_deliver_1C1p(JNIEnv * env, jobject obj) 
+Java_myjapi_CI_00024C1_deliver_1C1p(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_myjapi_CI_00024C1_deliver_1C1p(JNIEnv *, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -990,7 +1061,7 @@ Java_myjapi_CI_00024C1_deliver_1C1p(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT jobject JNICALL
-Java_myjapi_CI_00024C1_deliver_1C1r(JNIEnv * env, jobject obj) 
+Java_myjapi_CI_00024C1_deliver_1C1r(JNIEnv * env, jobject obj)
 {
     TRACE("jobject Java_myjapi_CI_00024C1_deliver_1C1r(JNIEnv *, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -1001,7 +1072,7 @@ Java_myjapi_CI_00024C1_deliver_1C1r(JNIEnv * env, jobject obj)
 }
 
 JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C1_take_1C1p(JNIEnv * env, jobject obj, jobject p0) 
+Java_myjapi_CI_00024C1_take_1C1p(JNIEnv * env, jobject obj, jobject p0)
 {
     TRACE("void Java_myjapi_CI_00024C1_take_1C1p(JNIEnv *, jobject, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -1012,7 +1083,7 @@ Java_myjapi_CI_00024C1_take_1C1p(JNIEnv * env, jobject obj, jobject p0)
 }
 
 JNIEXPORT void JNICALL
-Java_myjapi_CI_00024C1_take_1C1r(JNIEnv * env, jobject obj, jobject p0) 
+Java_myjapi_CI_00024C1_take_1C1r(JNIEnv * env, jobject obj, jobject p0)
 {
     TRACE("void Java_myjapi_CI_00024C1_take_1C1r(JNIEnv *, jobject, jobject)");
 #ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
@@ -1020,6 +1091,58 @@ Java_myjapi_CI_00024C1_take_1C1r(JNIEnv * env, jobject obj, jobject p0)
 #else
     gcall_fv< ttrait_myjapi_CI_C1_r, ttrait_myjapi_CI_C1_r, &MyApiWrapper::C1__take_C1r >(env, NULL, obj, p0);
 #endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+// ---------------------------------------------------------------------------
+
+//#include "myjapi_CI_C0Array.h"
+//#include "myjapi_CI_C0CArray.h"
+
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C0Array_create(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("Java_myjapi_CI_00024C0Array_create(JNIEnv *, jclass, jint)");
+    return gcreateArray< ttrait_myjapi_CI_C0Array_r, ttrait_int32 >(env, cls, p0);
+}
+
+JNIEXPORT void JNICALL
+Java_myjapi_CI_00024C0Array_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_myjapi_CI_00024C0Array_delete(JNIEnv *, jclass, jobject)");
+    gdeleteArray< ttrait_myjapi_CI_C0Array_r >(env, cls, p0);
+}
+
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C0Array_at(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("Java_myjapi_CI_00024C0Array_at(JNIEnv *, jobject, jint)");
+    return gat< ttrait_myjapi_CI_C0_r, ttrait_myjapi_CI_C0Array_r, ttrait_int32 >(env, NULL, obj, p0);
+}
+
+// ---------------------------------------------------------------------------
+
+//#include "myjapi_CI_C1Array.h"
+//#include "myjapi_CI_C1CArray.h"
+
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C1Array_create(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("Java_myjapi_CI_00024C1Array_create(JNIEnv *, jclass, jint)");
+    return gcreateArray< ttrait_myjapi_CI_C1Array_r, ttrait_int32 >(env, cls, p0);
+}
+
+JNIEXPORT void JNICALL
+Java_myjapi_CI_00024C1Array_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_myjapi_CI_00024C1Array_delete(JNIEnv *, jclass, jobject)");
+    gdeleteArray< ttrait_myjapi_CI_C1Array_r >(env, cls, p0);
+}
+
+JNIEXPORT jobject JNICALL
+Java_myjapi_CI_00024C1Array_at(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("Java_myjapi_CI_00024C1Array_at(JNIEnv *, jobject, jint)");
+    return gat< ttrait_myjapi_CI_C1_r, ttrait_myjapi_CI_C1Array_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -1157,6 +1280,52 @@ Java_myjapi_D2_sub(JNIEnv * env, jclass cls)
     return gcall_fr< ttrait_myjapi_D1_p, &D2::sub >(env, cls);
 #else
     return gcall_fr< ttrait_myjapi_D1_p, &MyApiWrapper::D2__sub >(env, cls);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+// ---------------------------------------------------------------------------
+
+JNIEXPORT jint JNICALL
+Java_myjapi_E_deliver_1EE1(JNIEnv * env, jclass cls)
+{
+    TRACE("jint Java_myjapi_E_deliver_1EE1(JNIEnv *, jclass)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_E_EE_iv, &E::deliver_EE1 >(env, cls);
+#else
+    return gcall_fr< ttrait_E_EE_iv, &MyApiWrapper::E__deliver_EE1 >(env, cls);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+JNIEXPORT void JNICALL
+Java_myjapi_E_take_1EE1(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("void Java_myjapi_E_take_1EE1(JNIEnv *, jclass, jint)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_fv< ttrait_E_EE_iv, &E::take_EE1 >(env, cls, p0);
+#else
+    gcall_fv< ttrait_E_EE_iv, &MyApiWrapper::E__take_EE1 >(env, cls, p0);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+JNIEXPORT jint JNICALL
+Java_myjapi_E_deliver_1EE1c(JNIEnv * env, jclass cls)
+{
+    TRACE("jint Java_myjapi_E_deliver_1EE1c(JNIEnv *, jclass)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_fr< ttrait_E_EE_c_iv, E::deliver_EE1c >(env, cls);
+#else
+    return gcall_fr< ttrait_E_EE_c_iv, &MyApiWrapper::E__deliver_EE1c >(env, cls);
+#endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+JNIEXPORT void JNICALL
+Java_myjapi_E_take_1EE1c(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("void Java_myjapi_E_take_1EE1c(JNIEnv *, jclass, jint)");
+#ifndef JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    gcall_fv< ttrait_E_EE_c_iv, E::take_EE1c >(env, cls, p0);
+#else
+    gcall_fv< ttrait_E_EE_c_iv, &MyApiWrapper::E__take_EE1c >(env, cls, p0);
 #endif // JTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 

@@ -41,12 +41,15 @@ JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_B0, "myjapi/B0")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_B1, "myjapi/B1")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_CI_C0, "myjapi/CI$C0")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_CI_C1, "myjapi/CI$C1")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_CI_C0Array, "myjapi/CI$C0Array")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_CI_C1Array, "myjapi/CI$C1Array")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_D0, "myjapi/D0")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_D1, "myjapi/D1")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_D2, "myjapi/D2")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(myjapi_E, "myjapi/E")
 
 // template instantiations for enums
-JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(C0::C0E)
+JTIE_INSTANTIATE_JINT_ENUM_TYPE_MAPPING(E::EE)
 
 // ---------------------------------------------------------------------------
 // Library Load and Unload Handlers
@@ -65,7 +68,7 @@ JNI_OnLoad(JavaVM * jvm, void * reserved)
         PRINT_ERROR("JTie_OnLoad() returned: JNI_ERR");
         return JNI_ERR;
     }
-    
+
     VERBOSE("... loaded the MyJAPI JTie library");
     return required_jni_version;
 }

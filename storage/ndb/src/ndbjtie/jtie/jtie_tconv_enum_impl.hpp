@@ -112,42 +112,6 @@ template< typename C >
 struct Result< _jtie_jint_Enum, C >
     : ResultEnumT< _jtie_jint_Enum, C > {};
 
-#if 0 // XXX HACK -- tmp support for enums
-// non-const enum parameter types
-//template< typename C > struct Param< jint, C > : ParamEnumT< jint, C > {};
-template< typename J, typename C >
-C
-Param< J, C >::convert(cstatus & s, J j, JNIEnv * env)
-{
-    TRACE("C Param.convert(cstatus &, J, JNIEnv *)");
-    (void)env;
-    s = 0;
-    // XXX assert(static_cast< J >(static_cast< C >(j)) == j);
-    return static_cast< C >(j); // XXX check why necessary when fixed enums
-}
-
-template< typename J, typename C >
-void
-Param< J, C >::release(C c, J j, JNIEnv * env)
-{
-    TRACE("void Param.release(C, J, JNIEnv *)");
-    (void)c; (void)j; (void)env;
-}
-    
-// non-const enum result types
-//template< typename C > struct Result< jint, C > : ResultEnumT< jint, C > {};
-template< typename J, typename C >
-J
-Result< J, C >::convert(C c, JNIEnv * env)
-{
-    TRACE("J Result.convert(C, JNIEnv *)");
-    (void)env;
-    return static_cast< J >(c);
-    // XXX assert(static_cast< C >(static_cast< J >(c)) == c);
-    return static_cast< J >(c); // XXX check why necessary when fixed enums
-}
-#endif // XXX HACK -- tmp support for enums
-
 // ---------------------------------------------------------------------------
 
 #endif // jtie_tconv_enum_impl_hpp

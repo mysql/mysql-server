@@ -96,31 +96,31 @@ struct MyApiWrapper {
     static void
     A__take_ptr( A * o )
     {
-        return A::take_ptr(o);
+        A::take_ptr(o);
     }
 
     static void
     A__take_null_ptr( A * o )
     {
-        return A::take_null_ptr(o);
+        A::take_null_ptr(o);
     }
 
     static void
     A__take_ref( A & o )
     {
-        return A::take_ref(o);
+        A::take_ref(o);
     }
 
     static void
     A__take_null_ref( A & o )
     {
-        return A::take_null_ref(o);
+        A::take_null_ref(o);
     }
 
     static void
     A__print( A * p0 )
     {
-        return A::print(p0);
+        A::print(p0);
     }
 
     static B0 *
@@ -156,61 +156,61 @@ struct MyApiWrapper {
     static void
     A__del( A & obj, B0 & b )
     {
-        return obj.del(b);
+        obj.del(b);
     }
 
     static void
     A__del( A & obj, B1 & b )
     {
-        return obj.del(b);
+        obj.del(b);
     }
 
     static void
     A__g0c( const A & obj )
     {
-        return obj.g0c();
+        obj.g0c();
     }
 
     static void
     A__g1c( const A & obj, int8_t p0 )
     {
-        return obj.g1c(p0);
+        obj.g1c(p0);
     }
 
     static void
     A__g2c( const A & obj, int8_t p0, int16_t p1 )
     {
-        return obj.g2c(p0, p1);
+        obj.g2c(p0, p1);
     }
 
     static void
     A__g3c( const A & obj, int8_t p0, int16_t p1, int32_t p2 )
     {
-        return obj.g3c(p0, p1, p2);
+        obj.g3c(p0, p1, p2);
     }
 
     static void
     A__g0( A & obj )
     {
-        return obj.g0();
+        obj.g0();
     }
 
     static void
     A__g1( A & obj, int8_t p0 )
     {
-        return obj.g1(p0);
+        obj.g1(p0);
     }
 
     static void
     A__g2( A & obj, int8_t p0, int16_t p1 )
     {
-        return obj.g2(p0, p1);
+        obj.g2(p0, p1);
     }
 
     static void
     A__g3( A & obj, int8_t p0, int16_t p1, int32_t p2 )
     {
-        return obj.g3(p0, p1, p2);
+        obj.g3(p0, p1, p2);
     }
 
     static int32_t
@@ -313,10 +313,34 @@ struct MyApiWrapper {
 
 // ---------------------------------------------------------------------------
 
+    static C0 *
+    C0__pass__0( C0 * c0 ) // disambiguate overloaded function for MSVC
+    {
+        return C0::pass(c0);
+    }
+
+    static const C0 *
+    C0__pass__1( const C0 * c0 ) // disambiguate overloaded function for MSVC
+    {
+        return C0::pass(c0);
+    }
+
+    static int64_t
+    C0__hash( const C0 * c0, int32_t n )
+    {
+        return C0::hash(c0, n);
+    }
+
+    static void
+    C0__check( const C0 & obj, int64_t p0 )
+    {
+        obj.check(p0);
+    }
+
     static void
     C0__print( const C0 & obj )
     {
-        return obj.print();
+        obj.print();
     }
 
     static const C0 *
@@ -334,13 +358,13 @@ struct MyApiWrapper {
     static void
     C0__take_C0Cp( const C0 & obj, const C0 * cp )
     {
-        return obj.take_C0Cp(cp);
+        obj.take_C0Cp(cp);
     }
 
     static void
     C0__take_C0Cr( const C0 & obj, const C0 & cp )
     {
-        return obj.take_C0Cr(cp);
+        obj.take_C0Cr(cp);
     }
 
     static C0 *
@@ -358,40 +382,34 @@ struct MyApiWrapper {
     static void
     C0__take_C0p( C0 & obj, C0 * p )
     {
-        return obj.take_C0p(p);
+        obj.take_C0p(p);
     }
 
     static void
     C0__take_C0r( C0 & obj, C0 & p )
     {
-        return obj.take_C0r(p);
-    }
-
-    static C0::C0E
-    C0__deliver_C0E1( )
-    {
-        return C0::deliver_C0E1();
-    }
-
-    static void
-    C0__take_C0E1( C0::C0E e )
-    {
-        return C0::take_C0E1(e);
-    }
-
-    static const C0::C0E
-    C0__deliver_C0E1c( )
-    {
-        return C0::deliver_C0E1c();
-    }
-
-    static void
-    C0__take_C0E1c( const C0::C0E e )
-    {
-        return C0::take_C0E1c(e);
+        obj.take_C0r(p);
     }
 
 // ---------------------------------------------------------------------------
+
+    static C1 *
+    C1__pass( C1 * c1 )
+    {
+        return C1::pass(c1);
+    }
+
+    static const C1 *
+    C1__pass( const C1 * c1 )
+    {
+        return C1::pass(c1);
+    }
+
+    static int64_t
+    C1__hash( const C1 * c1, int32_t n )
+    {
+        return C1::hash(c1, n);
+    }
 
     static const C1 *
     C1__deliver_C1Cp( const C1 & obj )
@@ -408,13 +426,13 @@ struct MyApiWrapper {
     static void
     C1__take_C1Cp( const C1 & obj, const C1 * cp )
     {
-        return obj.take_C1Cp(cp);
+        obj.take_C1Cp(cp);
     }
 
     static void
     C1__take_C1Cr( const C1 & obj, const C1 & cp )
     {
-        return obj.take_C1Cr(cp);
+        obj.take_C1Cr(cp);
     }
 
     static C1 *
@@ -432,13 +450,13 @@ struct MyApiWrapper {
     static void
     C1__take_C1p( C1 & obj, C1 * p )
     {
-        return obj.take_C1p(p);
+        obj.take_C1p(p);
     }
 
     static void
     C1__take_C1r( C1 & obj, C1 & p )
     {
-        return obj.take_C1r(p);
+        obj.take_C1r(p);
     }
 
 // ---------------------------------------------------------------------------
@@ -521,6 +539,29 @@ struct MyApiWrapper {
 
 // ---------------------------------------------------------------------------
 
+    static E::EE
+    E__deliver_EE1( )
+    {
+        return E::deliver_EE1();
+    }
+
+    static void
+    E__take_EE1( E::EE e )
+    {
+        E::take_EE1(e);
+    }
+
+    static const E::EE
+    E__deliver_EE1c( )
+    {
+        return E::deliver_EE1c();
+    }
+
+    static void
+    E__take_EE1c( const E::EE e )
+    {
+        E::take_EE1c(e);
+    }
 };
 
 #endif // myapi_wrapper_hpp

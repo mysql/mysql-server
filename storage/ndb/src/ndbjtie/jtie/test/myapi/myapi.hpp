@@ -823,15 +823,17 @@ inline int32_t h3r(int8_t p0, int16_t p1, int32_t p2) {
 }
 
 // ----------------------------------------------------------------------
-// const/non-const member functions and object result/parameter types
+// [non-]const member functions and object[-array] result/parameter types
 // ----------------------------------------------------------------------
 
 struct C0 {
-    C0() {
+    const int64_t id;
+
+    C0() : id((int64_t)this) {
         TRACE("C0()");
     }
 
-    C0(const C0 & o) {
+    C0(const C0 & o) : id(o.id) {
         TRACE("C0(const C0 &)");
         (void)o;
         ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
@@ -849,34 +851,69 @@ struct C0 {
     }
 
     // ----------------------------------------------------------------------
+    // static (on purpose) array functions
+    // ----------------------------------------------------------------------
+
+    static C0 * pass(C0 * c0) {
+        return c0;
+    }
+
+    static const C0 * pass(const C0 * c0) {
+        return c0;
+    }
+
+    static int64_t hash(const C0 * c0, int32_t n) {
+        TRACE("int64_t C0::hash(const C0 *, int32_t)");
+        if (c0 == NULL)
+            ABORT_ERROR("c0 == NULL");
+        if (n < 0)
+            ABORT_ERROR("n < 0");
+
+        int64_t r = 0;
+        for (int i = 0; i < n; i++) {
+            r ^= c0[i].id;
+        }
+        return r;
+    }
+
+    // ----------------------------------------------------------------------
+    // (non-virtual) instance (on purpose) array functions
+    // ----------------------------------------------------------------------
 
     static C0 * const c;
     static const C0 * const cc;
     //printf("    cp = %p, c = %p, cc = %p\n", cp, C0::c, C0::cc);
 
+    void check(int64_t id) const {
+        TRACE("void check(int64_t) const");
+        if (id != this->id) ABORT_ERROR("id != this->id");
+    }
+
     void print() const {
-        TRACE("void C0::print()");
-        printf("    p0 = %p\n", this);
+        TRACE("void C0::print() const");
+        printf("    this->id = %lx\n", id);
     }
 
     const C0 * deliver_C0Cp() const {
-        TRACE("const C0 * C0::deliver_C0Cp()");
+        TRACE("const C0 * C0::deliver_C0Cp() const");
         return cc;
     }
 
     const C0 & deliver_C0Cr() const {
-        TRACE("const C0 & C0::deliver_C0Cr()");
+        TRACE("const C0 & C0::deliver_C0Cr() const");
         return *cc;
     }
 
     void take_C0Cp(const C0 * cp) const {
-        TRACE("void C0::take_C0Cp(const C0 *)");
-        if (cp != C0::c && cp != C0::cc) ABORT_ERROR("cp != C0::c && cp != C0::cc");
+        TRACE("void C0::take_C0Cp(const C0 *) const");
+        if (cp != C0::c && cp != C0::cc)
+            ABORT_ERROR("cp != C0::c && cp != C0::cc");
     }
 
     void take_C0Cr(const C0 & cp) const {
-        TRACE("void C0::take_C0Cr(const C0 &)");
-        if (&cp != C0::c && &cp != C0::cc) ABORT_ERROR("&cp != C0::c && &cp != C0::cc");
+        TRACE("void C0::take_C0Cr(const C0 &) const");
+        if (&cp != C0::c && &cp != C0::cc)
+            ABORT_ERROR("&cp != C0::c && &cp != C0::cc");
     }
 
     C0 * deliver_C0p() {
@@ -891,37 +928,15 @@ struct C0 {
 
     void take_C0p(C0 * p) {
         TRACE("void C0::take_C0p(C0 *)");
-        if (p != C0::c) ABORT_ERROR("p != C0::c");
+        if (p != C0::c)
+            ABORT_ERROR("p != C0::c");
     }
 
     void take_C0r(C0 & p) {
         TRACE("void C0::take_C0r(C0 &)");
-        if (&p != C0::c) ABORT_ERROR("&p != C0::c");
+        if (&p != C0::c)
+            ABORT_ERROR("&p != C0::c");
     }
-
-    // ----------------------------------------------------------------------
-
-    enum C0E { C0E0, C0E1 };
-
-    static C0E deliver_C0E1() {
-        TRACE("C0::C0E C0::deliver_C0E1()");
-        return C0E1;
-    };
-
-    static void take_C0E1(C0E e) {
-        TRACE("void C0::take_C0E1(C0::C0E)");
-        if (e != C0E1) ABORT_ERROR("e != C0E1");
-    };
-
-    static const C0E deliver_C0E1c() {
-        TRACE("const C0::C0E C0::deliver_C0E1c()");
-        return C0E1;
-    };
-
-    static void take_C0E1c(const C0E e) {
-        TRACE("void C0::take_C0E1c(const C0::C0E)");
-        if (e != C0E1) ABORT_ERROR("e != C0E1");
-    };
 };
 
 struct C1 : public C0 {
@@ -947,29 +962,59 @@ struct C1 : public C0 {
     }
 
     // ----------------------------------------------------------------------
+    // static (on purpose) array functions
+    // ----------------------------------------------------------------------
+
+    static C1 * pass(C1 * c1) {
+        return c1;
+    }
+
+    static const C1 * pass(const C1 * c1) {
+        return c1;
+    }
+
+    static int64_t hash(const C1 * c1, int32_t n) {
+        TRACE("int64_t C1::hash(const C1 *, int32_t)");
+        if (c1 == NULL)
+            ABORT_ERROR("c1 == NULL");
+        if (n < 0)
+            ABORT_ERROR("n < 0");
+
+        int64_t r = 0;
+        for (int i = 0; i < n; i++) {
+            r ^= c1[i].id;
+        }
+        return r;
+    }
+
+    // ----------------------------------------------------------------------
+    // (non-virtual) instance (on purpose) array functions
+    // ----------------------------------------------------------------------
 
     static C1 * const c;
     static const C1 * const cc;
     //printf("    cp = %p, c = %p, cc = %p\n", cp, C1::c, C1::cc);
 
     const C1 * deliver_C1Cp() const {
-        TRACE("const C1 * C1::deliver_C1Cp()");
+        TRACE("const C1 * C1::deliver_C1Cp() const");
         return cc;
     };
 
     const C1 & deliver_C1Cr() const {
-        TRACE("const C1 & C1::deliver_C1Cr()");
+        TRACE("const C1 & C1::deliver_C1Cr() const");
         return *cc;
     };
 
     void take_C1Cp(const C1 * cp) const {
-        TRACE("void C1::take_C1Cp(const C1 *)");
-        if (cp != C1::c && cp != C1::cc) ABORT_ERROR("cp != C1::c && cp != C1::cc");
+        TRACE("void C1::take_C1Cp(const C1 *) const");
+        if (cp != C1::c && cp != C1::cc)
+            ABORT_ERROR("cp != C1::c && cp != C1::cc");
     };
 
     void take_C1Cr(const C1 & cp) const {
-        TRACE("void C1::take_C1Cr(const C1 &)");
-        if (&cp != C1::c && &cp != C1::cc) ABORT_ERROR("&cp != C1::c && &cp != C1::cc");
+        TRACE("void C1::take_C1Cr(const C1 &) const");
+        if (&cp != C1::c && &cp != C1::cc)
+            ABORT_ERROR("&cp != C1::c && &cp != C1::cc");
     };
 
     C1 * deliver_C1p() {
@@ -984,12 +1029,14 @@ struct C1 : public C0 {
 
     void take_C1p(C1 * p) {
         TRACE("void C1::take_C1p(C1 *)");
-        if (p != C1::c) ABORT_ERROR("p != C1::c");
+        if (p != C1::c)
+            ABORT_ERROR("p != C1::c");
     };
 
     void take_C1r(C1 & p) {
         TRACE("void C1::take_C1r(C1 &)");
-        if (&p != C1::c) ABORT_ERROR("&p != C1::c");
+        if (&p != C1::c)
+            ABORT_ERROR("&p != C1::c");
     };
 };
 
@@ -1030,6 +1077,57 @@ struct D2 : D1 {
 inline D1 * D0::sub() { TRACE("D1 * D0::sub()"); return ((D1*)&D1::d); }
 inline D1 * D1::sub() { TRACE("D1 * D1::sub()"); return ((D1*)&D2::d); }
 inline D1 * D2::sub() { TRACE("D1 * D2::sub()"); return NULL; }
+
+// ----------------------------------------------------------------------
+// enums
+// ----------------------------------------------------------------------
+
+struct E {
+    enum EE { EE0, EE1 };
+
+    static EE deliver_EE1() {
+        TRACE("E::EE E::deliver_EE1()");
+        return EE1;
+    };
+
+    static void take_EE1(EE e) {
+        TRACE("void E::take_EE1(E::EE)");
+        if (e != EE1) ABORT_ERROR("e != EE1");
+    };
+
+    static const EE deliver_EE1c() {
+        TRACE("const E::EE E::deliver_EE1c()");
+        return EE1;
+    };
+
+    static void take_EE1c(const EE e) {
+        TRACE("void E::take_EE1c(const E::EE)");
+        if (e != EE1) ABORT_ERROR("e != EE1");
+    };
+
+private:
+    // no need to instantiate
+    E() {
+        TRACE("E()");
+    }
+
+    E(const E & o) {
+        TRACE("E(const E &)");
+        (void)o;
+        ABORT_ERROR("!USE OF COPY CONSTRUCTOR!");
+    }
+
+    virtual ~E() {
+        TRACE("~E()");
+    }
+
+    E & operator=(const E & o) {
+        TRACE("E & operator=(const E &)");
+        (void)o;
+        ABORT_ERROR("!USE OF ASSIGNMENT OPERATOR!");
+        return *this;
+    }
+};
 
 // ----------------------------------------------------------------------
 
