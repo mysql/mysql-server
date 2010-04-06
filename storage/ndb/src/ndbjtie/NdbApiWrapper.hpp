@@ -964,21 +964,21 @@ struct NdbApiWrapper {
     }
 
     static NdbRecord *
-    NdbDictionary__Dictionary__createRecord
+    NdbDictionary__Dictionary__createRecord__0
     ( NdbDictionary::Dictionary & obj, const NdbDictionary::Table * p0, const NdbDictionary::RecordSpecification * p1, Uint32 p2, Uint32 p3, Uint32 p4 )
     {
         return obj.createRecord(p0, p1, p2, p3, p4);
     }
 
     static NdbRecord *
-    NdbDictionary__Dictionary__createRecord
+    NdbDictionary__Dictionary__createRecord__1
     ( NdbDictionary::Dictionary & obj, const NdbDictionary::Index * p0, const NdbDictionary::Table * p1, const NdbDictionary::RecordSpecification * p2, Uint32 p3, Uint32 p4, Uint32 p5 )
     {
         return obj.createRecord(p0, p1, p2, p3, p4, p5);
     }
 
     static NdbRecord *
-    NdbDictionary__Dictionary__createRecord
+    NdbDictionary__Dictionary__createRecord__2
     ( NdbDictionary::Dictionary & obj, const NdbDictionary::Index * p0, const NdbDictionary::RecordSpecification * p1, Uint32 p2, Uint32 p3, Uint32 p4 )
     {
         return obj.createRecord(p0, p1, p2, p3, p4);
@@ -3349,14 +3349,14 @@ struct NdbApiWrapper {
     }
 
     static const NdbOperation *
-    NdbTransaction__insertTuple
+    NdbTransaction__insertTuple__0
     ( NdbTransaction & obj, const NdbRecord * p0, const char * p1, const NdbRecord * p2, const char * p3, const Uint8 * p4, const NdbOperation::OperationOptions * p5, Uint32 p6 )
     {
         return obj.insertTuple(p0, p1, p2, p3, p4, p5, p6);
     }
 
     static const NdbOperation *
-    NdbTransaction__insertTuple
+    NdbTransaction__insertTuple__1
     ( NdbTransaction & obj, const NdbRecord * p0, const char * p1, const Uint8 * p2, const NdbOperation::OperationOptions * p3, Uint32 p4 )
     {
         return obj.insertTuple(p0, p1, p2, p3, p4);
