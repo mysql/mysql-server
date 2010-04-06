@@ -24,6 +24,7 @@ package com.mysql.ndbjtie.ndbapi;
 import java.nio.ByteBuffer;
 
 import com.mysql.jtie.Wrapper;
+import com.mysql.jtie.ArrayWrapper;
 
 public class NdbOperation extends Wrapper implements NdbOperationConst
 {
@@ -72,6 +73,15 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
         // MMM! support <out:BB> or check if needed: ByteBuffer/*_void *_*/ appStorage();
         NdbRecAttr/*_NdbRecAttr *_*/ recAttr();
     }
+    static public interface GetValueSpecConstArray extends ArrayWrapper< GetValueSpecConst >
+    {
+    }
+    static public class GetValueSpecArray extends Wrapper implements GetValueSpecConstArray 
+    {
+        static public native GetValueSpecArray create(int length);
+        static public native void delete(GetValueSpecArray e);
+        public native GetValueSpec at(int i);
+    }
     static public class /*_struct_*/ GetValueSpec extends Wrapper implements GetValueSpecConst
     {
         public final native NdbDictionary.ColumnConst/*_const NdbDictionary.Column *_*/ column();
@@ -82,6 +92,15 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
         public final native void recAttr(NdbRecAttr/*_NdbRecAttr *_*/ p0);
         static public final native GetValueSpec create();
         static public final native void delete(GetValueSpec p0);
+    }
+    static public interface SetValueSpecConstArray extends ArrayWrapper< SetValueSpecConst >
+    {
+    }
+    static public class SetValueSpecArray extends Wrapper implements SetValueSpecConstArray 
+    {
+        static public native SetValueSpecArray create(int length);
+        static public native void delete(SetValueSpecArray e);
+        public native SetValueSpec at(int i);
     }
     public interface /*_struct_*/ SetValueSpecConst
     {
@@ -97,6 +116,15 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
         static public final native SetValueSpec create();
         static public final native void delete(SetValueSpec p0);
     }
+    static public interface OperationOptionsConstArray extends ArrayWrapper< OperationOptionsConst >
+    {
+    }
+    static public class OperationOptionsArray extends Wrapper implements OperationOptionsConstArray 
+    {
+        static public native OperationOptionsArray create(int length);
+        static public native void delete(OperationOptionsArray e);
+        public native OperationOptions at(int i);
+    }
     public interface /*_struct_*/ OperationOptionsConst
     {
         long/*_Uint64_*/ optionsPresent();
@@ -111,9 +139,9 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
                 OO_CUSTOMDATA = 0x40;
         }
         int/*_AbortOption_*/ abortOption();
-        // MMM! support <out:Object[]> or check if needed: GetValueSpec[]/*_GetValueSpec *_*/ extraGetValues();
+        GetValueSpecArray/*_GetValueSpec *_*/ extraGetValues();
         int/*_Uint32_*/ numExtraGetValues();
-        // MMM! support <out:Object[]> or check if needed: SetValueSpecConst[]/*_const SetValueSpec *_*/ extraSetValues();
+        SetValueSpecConstArray/*_const SetValueSpec *_*/ extraSetValues();
         int/*_Uint32_*/ numExtraSetValues();
         int/*_Uint32_*/ partitionId();
         NdbInterpretedCodeConst/*_const NdbInterpretedCode *_*/ interpretedCode();
@@ -124,9 +152,9 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
     {
         public final native long/*_Uint64_*/ optionsPresent();
         public final native int/*_AbortOption_*/ abortOption();
-        // MMM! support <out:Object[]> or check if needed: public final native GetValueSpec[]/*_GetValueSpec *_*/ extraGetValues();
+        public final native GetValueSpecArray/*_GetValueSpec *_*/ extraGetValues();
         public final native int/*_Uint32_*/ numExtraGetValues();
-        // MMM! support <out:Object[]> or check if needed: public final native SetValueSpecConst[]/*_const SetValueSpec *_*/ extraSetValues();
+        public final native SetValueSpecConstArray/*_const SetValueSpec *_*/ extraSetValues();
         public final native int/*_Uint32_*/ numExtraSetValues();
         public final native int/*_Uint32_*/ partitionId();
         public final native NdbInterpretedCodeConst/*_const NdbInterpretedCode *_*/ interpretedCode();
@@ -134,9 +162,9 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
         // MMM! support <out:BB> or check if needed: public final native ByteBuffer/*_void *_*/ customData();
         public final native void optionsPresent(long/*_Uint64_*/ p0);
         public final native void abortOption(int/*_AbortOption_*/ p0);
-        // MMM! support <out:Object[]> or check if needed: public final native public final native void extraGetValues(GetValueSpec[]/*_GetValueSpec *_*/ p0);
+        public final native void extraGetValues(GetValueSpecArray/*_GetValueSpec *_*/ p0);
         public final native void numExtraGetValues(int/*_Uint32_*/ p0);
-        // MMM! support <out:Object[]> or check if needed: public final native public final native void extraSetValues(SetValueSpecConst[]/*_const SetValueSpec *_*/ p0);
+        public final native void extraSetValues(SetValueSpecConstArray/*_const SetValueSpec *_*/ p0);
         public final native void numExtraSetValues(int/*_Uint32_*/ p0);
         public final native void partitionId(int/*_Uint32_*/ p0);
         public final native void interpretedCode(NdbInterpretedCodeConst/*_const NdbInterpretedCode *_*/ p0);
