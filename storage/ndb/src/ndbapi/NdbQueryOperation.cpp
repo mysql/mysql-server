@@ -323,7 +323,7 @@ private:
     TupleIdMap& operator=(const TupleIdMap&);
   }; // class TupleIdMap
 
-  /** This stream handles results derived from the from the m_rootFragNo'th 
+  /** This stream handles results derived from the m_rootFragNo'th 
    * fragment of the root operation.*/
   const Uint32 m_rootFragNo;
 
@@ -341,6 +341,8 @@ private:
 
   /** One-dimensional array. For each tuple, this array holds the tuple id of 
    * the parent tuple.
+   *
+   * Only present if 'isScanQuery' and m_operation not 'root' of linked operations.
    */
   Uint16* m_parentTupleId;
 
@@ -352,6 +354,8 @@ private:
    * 
    * This table is populated by buildChildTupleLinks(). It is used when calling
    * nextResult(), to fetch the right result tuples for descendant operations.
+   *
+   * Only present if 'isScanQuery' and m_operation not a leaf operation.
    */
   Uint16* m_childTupleIdx;
 
@@ -1400,9 +1404,7 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
       case FetchResult_ok:
         break;
       case FetchResult_scanComplete:
-        for (unsigned i = 0; i<getNoOfOperations(); i++) {
-          m_operations[i].m_isRowNull = true;
-        }
+        getRoot().nullifyResult();
         return NdbQuery::NextResult_scanComplete;
       default:
         assert(false);
@@ -1413,74 +1415,23 @@ NdbQueryImpl::nextResult(bool fetchAllowed, bool forceSend)
     }
   }
 
-  /* Make results from root operation available to the user.*/
   NdbQueryOperationImpl& root = getRoot();
-  NdbResultStream* resultStream = &m_applFrags.getCurrent()->getResultStream(0);
-  const Uint32 rowNo = resultStream->getReceiver().getCurrentRow();
-  const char* const rootBuff = resultStream->getReceiver().get_row();
-  assert(rootBuff!=NULL || 
-         (root.m_firstRecAttr==NULL && root.m_ndbRecord==NULL));
-  root.m_isRowNull = false;
-  if (root.m_firstRecAttr != NULL) {
-    root.fetchRecAttrResults(resultStream->getRootFragNo());
-  }
-  if (root.m_ndbRecord != NULL) {
-    if (root.m_resultRef!=NULL) {
-      // Set application pointer to point into internal buffer.
-      *root.m_resultRef = rootBuff;
-    } else { 
-      // Copy result to buffer supplied by application.
-      memcpy(root.m_resultBuffer, rootBuff, 
-             resultStream->getReceiver().m_record.m_ndb_record
-             ->m_row_size);
-    }
-  }
+  NdbResultStream& rootStream = m_applFrags.getCurrent()->getResultStream(0);
+
+  /* Make results from root operation available to the user.*/
   if (m_queryDef.isScanQuery()) {
-    for (Uint32 i = 0; i<root.getNoOfChildOperations(); i++) {
-      /* For each child, fetch the right row.*/
-      root.getChildOperation(i)
-        .updateChildResult(resultStream->getRootFragNo(), 
-                           resultStream->getChildTupleNo(i,rowNo));
-    }
+    const Uint32 rowNo = rootStream.getReceiver().getCurrentRow();
+    assert(rowNo != tupleNotFound);
+    root.fetchScanResults(rootStream.getRootFragNo(), rowNo);
+
     /* In case we are doing an ordered index scan, reorder the root fragments
-     * such that we get the next record from the right fragment.*/
+     * such that we get the next record from the right fragment.
+     */
     m_applFrags.reorder();
-  } else { // Lookup query
-    /* Fetch results for all non-root lookups also.*/
-    for (Uint32 i = 1; i<getNoOfOperations(); i++) {
-      NdbQueryOperationImpl& operation = getQueryOperation(i);
-      NdbResultStream* resultStream = operation.m_resultStreams[0];
-
-      assert(resultStream->getRowCount()<=1);
-      operation.m_isRowNull = (resultStream->getRowCount()==0);
-
-      // Check if there was a result for this operation.
-      if (operation.m_isRowNull==false) {
-        const char* buff = resultStream->getReceiver().get_row();
-
-        if (operation.m_firstRecAttr != NULL) {
-          operation.fetchRecAttrResults(0);
-        }
-        if (operation.m_ndbRecord != NULL) {
-          if(operation.m_resultRef!=NULL){
-            // Set application pointer to point into internal buffer.
-            *operation.m_resultRef = buff;
-          }else{
-            // Copy result to buffer supplied by application.
-            memcpy(operation.m_resultBuffer, buff, 
-                   resultStream
-                    ->getReceiver().m_record.m_ndb_record
-                    ->m_row_size);
-          }
-        }
-      } else {
-        // This operation gave no results.
-        if (operation.m_resultRef!=NULL) {
-          // Set application pointer to NULL.
-          *operation.m_resultRef = NULL;
-        }
-      }
-    }
+  }
+  else // Lookup query
+  {
+    root.fetchLookupResults();
   }
 
   return NdbQuery::NextResult_gotRow;
@@ -3085,73 +3036,121 @@ NdbQueryOperationImpl::setResultRowRef (
   return setResultRowBuf(rec, NULL, result_mask);
 }
 
-void
-NdbQueryOperationImpl::fetchRecAttrResults(Uint32 rootFragNo)
+void 
+NdbQueryOperationImpl::fetchRow(NdbResultStream& resultStream)
 {
-  NdbRecAttr* recAttr = m_firstRecAttr;
-  Uint32 posInRow = 0;
-  while(recAttr != NULL){
-    const char *attrData = NULL;
-    Uint32 attrSize = 0;
-    const int retVal1 = m_resultStreams[rootFragNo]->getReceiver()
-      .getScanAttrData(attrData, attrSize, posInRow);
-    assert(retVal1==0);
-    assert(attrData!=NULL);
-    const bool retVal2 = recAttr
-      ->receive_data(reinterpret_cast<const Uint32*>(attrData), attrSize);
-    assert(retVal2);
-    recAttr = recAttr->next();
+  const char* buff = resultStream.getReceiver().get_row();
+  assert(buff!=NULL || (m_firstRecAttr==NULL && m_ndbRecord==NULL));
+
+  m_isRowNull = false;
+  if (m_firstRecAttr != NULL)
+  {
+    NdbRecAttr* recAttr = m_firstRecAttr;
+    Uint32 posInRow = 0;
+    while (recAttr != NULL)
+    {
+      const char *attrData = NULL;
+      Uint32 attrSize = 0;
+      const int retVal1 = resultStream.getReceiver()
+        .getScanAttrData(attrData, attrSize, posInRow);
+      assert(retVal1==0);
+      assert(attrData!=NULL);
+      const bool retVal2 = recAttr
+        ->receive_data(reinterpret_cast<const Uint32*>(attrData), attrSize);
+      assert(retVal2);
+      recAttr = recAttr->next();
+    }
   }
-}
+  if (m_ndbRecord != NULL)
+  {
+    if (m_resultRef!=NULL)
+    {
+      // Set application pointer to point into internal buffer.
+      *m_resultRef = buff;
+    }
+    else
+    {
+      assert(m_resultBuffer!=NULL);
+      // Copy result to buffer supplied by application.
+      memcpy(m_resultBuffer, buff, 
+             resultStream.getReceiver().m_record.m_ndb_record->m_row_size);
+    }
+  }
+} // NdbQueryOperationImpl::fetchRow
 
 void 
-NdbQueryOperationImpl::updateChildResult(Uint32 rootFragNo, Uint32 rowNo)
+NdbQueryOperationImpl::fetchScanResults(Uint32 fragNo, Uint32 rowNo)
 {
-  if (rowNo==tupleNotFound) {
-    /* This operation gave no result for the current parent tuple.*/ 
+  if (rowNo==tupleNotFound)
+  {
+    /* This operation gave no result for the current parent tuple.*/
+    nullifyResult();
+  }
+  else
+  {
+    NdbResultStream& resultStream = *m_resultStreams[fragNo];
+
+    /* Pick the proper row for a lookup that is a descentdant of the scan.
+     * We iterate linearly over the results of the root scan operation, but
+     * for the descendant in a scan we must use the getChildTupleNo() 
+     * method to pick the tuple that corresponds to the current parent tuple.
+     */
+
+    /* Use random rather than sequential access on receiver, since we
+     * iterate over results using an indexed structure.
+     */
+    resultStream.getReceiver().setCurrentRow(rowNo);
+
+    /* Call recursively for the children of this operation.*/
+    for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
+    {
+      Uint16 childTuple = resultStream.getChildTupleNo(i,rowNo);
+      getChildOperation(i).fetchScanResults(fragNo, childTuple);
+    }
+    fetchRow(resultStream);
+  }
+} //NdbQueryOperationImpl::fetchScanResults
+
+void 
+NdbQueryOperationImpl::fetchLookupResults()
+{
+  NdbResultStream& resultStream = *m_resultStreams[0];
+
+  if (resultStream.getRowCount() == 0)
+  {
+    /* This operation gave no result for the current parent tuple.*/
+    nullifyResult();
+  }
+  else
+  {
+    /* Call recursively for the children of this operation.*/
+    for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
+    {
+      getChildOperation(i).fetchLookupResults();
+    }
+    fetchRow(resultStream);
+  }
+} //NdbQueryOperationImpl::fetchLookupResults
+
+void 
+NdbQueryOperationImpl::nullifyResult()
+{
+  if (!m_isRowNull)
+  {
+    /* This operation gave no result for the current row.*/ 
     m_isRowNull = true;
-    if(m_resultRef!=NULL){
+    if (m_resultRef!=NULL)
+    {
       // Set the pointer supplied by the application to NULL.
       *m_resultRef = NULL;
     }
     /* We should not give any results for the descendants either.*/
-    for(Uint32 i = 0; i<getNoOfChildOperations(); i++){
-      getChildOperation(i).updateChildResult(0, tupleNotFound);
-    }
-  }else{
-    /* Pick the proper row for a lookup that is a descentdant of the scan.
-     * We iterate linearly over the results of the root scan operation, but
-     * for the descendant we must use the m_childTupleIdx index to pick the
-     * tuple that corresponds to the current parent tuple.*/
-    m_isRowNull = false;
-    NdbResultStream& resultStream = *m_resultStreams[rootFragNo];
-    assert(rowNo < resultStream.getReceiver().m_result_rows);
-    /* Use random rather than sequential access on receiver, since we
-    * iterate over results using an indexed structure.*/
-    resultStream.getReceiver().setCurrentRow(rowNo);
-    const char* buff = resultStream.getReceiver().get_row();
-    if (m_firstRecAttr != NULL) {
-      fetchRecAttrResults(rootFragNo);
-    }
-    if (m_ndbRecord != NULL) {
-      if(m_resultRef!=NULL){
-        // Set application pointer to point into internal buffer.
-        *m_resultRef = buff;
-      }else{
-        assert(m_resultBuffer!=NULL);
-        // Copy result to buffer supplied by application.
-        memcpy(m_resultBuffer, buff, 
-               resultStream.getReceiver().m_record.m_ndb_record->m_row_size);
-      }
-    }
-    /* Call recursively for the children of this operation.*/
-    for(Uint32 i = 0; i<getNoOfChildOperations(); i++){
-      getChildOperation(i).updateChildResult(rootFragNo, 
-                                             resultStream
-                                               .getChildTupleNo(i, rowNo));
-    }
+    for (Uint32 i = 0; i<getNoOfChildOperations(); i++)
+    {
+      getChildOperation(i).nullifyResult();
+   }
   }
-}
+} // NdbQueryOperationImpl::nullifyResult
 
 bool
 NdbQueryOperationImpl::isRowNULL() const

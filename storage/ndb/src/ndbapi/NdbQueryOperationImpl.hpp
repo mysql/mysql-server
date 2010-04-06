@@ -630,14 +630,23 @@ private:
   /** Release resources after scan has returned last available result */
   void postFetchRelease();
 
-  /** Fetch result for non-root operation.*/
-  void updateChildResult(Uint32 rootFragNo, Uint32 rowNo);
+  /** Fetch results for scan or lookup operation.
+   *  Recursively fetchRow() for 'this' operation and all its
+   *  descendant child operations. 
+   */
+  void fetchScanResults(Uint32 rootFragNo, Uint32 rowNo);
+  void fetchLookupResults();
+
+  /** Set result for this operation and all its descendand child 
+   *  operations to NULL.
+   */
+  void nullifyResult();
+
+  /** Copy NdbRecAttr and/or NdbRecord results into appl. buffers */
+  void fetchRow(NdbResultStream& src);
 
   /** Count number of descendant operations (excluding the operation itself) */
   Int32 getNoOfDescendantOperations() const;
-
-  /** Copy any NdbRecAttr results into application buffers.*/
-  void fetchRecAttrResults(Uint32 rootFragNo);
 
   /** Serialize parameter values.
    *  @return possible error code.*/
