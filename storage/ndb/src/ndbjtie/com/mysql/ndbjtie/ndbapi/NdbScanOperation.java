@@ -24,6 +24,7 @@ package com.mysql.ndbjtie.ndbapi;
 import java.nio.ByteBuffer;
 
 import com.mysql.jtie.Wrapper;
+import com.mysql.jtie.ArrayWrapper;
 
 public class NdbScanOperation extends NdbOperation implements NdbScanOperationConst
 {
@@ -37,6 +38,15 @@ public class NdbScanOperation extends NdbOperation implements NdbScanOperationCo
             SF_ReadRangeNo = 4<<24,
             SF_MultiRange = 8<<24,
             SF_KeyInfo = 1;
+    }
+    static public interface ScanOptionsConstArray extends ArrayWrapper< ScanOptionsConst >
+    {
+    }
+    static public class ScanOptionsArray extends Wrapper implements ScanOptionsConstArray 
+    {
+        static public native ScanOptionsArray create(int length);
+        static public native void delete(ScanOptionsArray e);
+        public native ScanOptions at(int i);
     }
     public interface /*_struct_*/ ScanOptionsConst
     {
@@ -54,7 +64,7 @@ public class NdbScanOperation extends NdbOperation implements NdbScanOperationCo
         int/*_Uint32_*/ scan_flags();
         int/*_Uint32_*/ parallel();
         int/*_Uint32_*/ batch();
-        // MMM! support <out:Object[]> or check if needed: NdbOperation.GetValueSpec[]/*_NdbOperation.GetValueSpec *_*/ extraGetValues();
+        NdbOperation.GetValueSpecArray/*_NdbOperation.GetValueSpec *_*/ extraGetValues();
         int/*_Uint32_*/ numExtraGetValues();
         int/*_Uint32_*/ partitionId();
         NdbInterpretedCodeConst/*_const NdbInterpretedCode *_*/ interpretedCode();
@@ -66,7 +76,7 @@ public class NdbScanOperation extends NdbOperation implements NdbScanOperationCo
         public final native int/*_Uint32_*/ scan_flags();
         public final native int/*_Uint32_*/ parallel();
         public final native int/*_Uint32_*/ batch();
-        // MMM! support <out:Object[]> or check if needed: public final native NdbOperation.GetValueSpec[]/*_NdbOperation.GetValueSpec *_*/ extraGetValues();
+        public final native NdbOperation.GetValueSpecArray/*_NdbOperation.GetValueSpec *_*/ extraGetValues();
         public final native int/*_Uint32_*/ numExtraGetValues();
         public final native int/*_Uint32_*/ partitionId();
         public final native NdbInterpretedCodeConst/*_const NdbInterpretedCode *_*/ interpretedCode();
@@ -75,7 +85,7 @@ public class NdbScanOperation extends NdbOperation implements NdbScanOperationCo
         public final native void scan_flags(int/*_Uint32_*/ p0);
         public final native void parallel(int/*_Uint32_*/ p0);
         public final native void batch(int/*_Uint32_*/ p0);
-        // MMM! support <out:Object[]> or check if needed: public final native public final native void extraGetValues(NdbOperation.GetValueSpec/*_NdbOperation.GetValueSpec *_*/ p0);
+        public final native void extraGetValues(NdbOperation.GetValueSpecArray/*_NdbOperation.GetValueSpec *_*/ p0);
         public final native void numExtraGetValues(int/*_Uint32_*/ p0);
         public final native void partitionId(int/*_Uint32_*/ p0);
         public final native void interpretedCode(NdbInterpretedCodeConst/*_const NdbInterpretedCode *_*/ p0);
@@ -93,7 +103,7 @@ public class NdbScanOperation extends NdbOperation implements NdbScanOperationCo
     public final native NdbOperation/*_NdbOperation *_*/ updateCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ updateTrans);
     public final native int deleteCurrentTuple();
     public final native int deleteCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTransaction);
-    public final native NdbOperationConst/*_const NdbOperation *_*/ lockCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ result_rec, ByteBuffer/*_char *_*/ result_row /*_= 0_*/, byte[]/*_const unsigned char *_*/ result_mask /*_= 0_*/, NdbOperation.OperationOptionsConst[]/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
-    public final native NdbOperationConst/*_const NdbOperation *_*/ updateCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ attr_rec, String/*_const char *_*/ attr_row, byte[]/*_const unsigned char *_*/ mask /*_= 0_*/, NdbOperation.OperationOptionsConst[]/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
-    public final native NdbOperationConst/*_const NdbOperation *_*/ deleteCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ result_rec, ByteBuffer/*_char *_*/ result_row /*_= 0_*/, byte[]/*_const unsigned char *_*/ result_mask /*_= 0_*/, NdbOperation.OperationOptions[]/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
+    public final native NdbOperationConst/*_const NdbOperation *_*/ lockCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ result_rec, ByteBuffer/*_char *_*/ result_row /*_= 0_*/, byte[]/*_const unsigned char *_*/ result_mask /*_= 0_*/, NdbOperation.OperationOptionsConstArray/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
+    public final native NdbOperationConst/*_const NdbOperation *_*/ updateCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ attr_rec, String/*_const char *_*/ attr_row, byte[]/*_const unsigned char *_*/ mask /*_= 0_*/, NdbOperation.OperationOptionsConstArray/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
+    public final native NdbOperationConst/*_const NdbOperation *_*/ deleteCurrentTuple(NdbTransaction/*_NdbTransaction *_*/ takeOverTrans, NdbRecordConst/*_const NdbRecord *_*/ result_rec, ByteBuffer/*_char *_*/ result_row /*_= 0_*/, byte[]/*_const unsigned char *_*/ result_mask /*_= 0_*/, NdbOperation.OperationOptionsArray/*_const NdbOperation.OperationOptions *_*/ opts /*_= 0_*/, int/*_Uint32_*/ sizeOfOptions /*_= 0_*/);
 }

@@ -54,6 +54,8 @@ JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::Dictionary::List,
                                c_m_n_n_NdbDictionary_DictionaryConst_List)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::Dictionary::List::Element,
                                c_m_n_n_NdbDictionary_DictionaryConst_ListConst_Element)
+JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::Dictionary::List::Element,
+                               c_m_n_n_NdbDictionary_DictionaryConst_ListConst_ElementArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::Event,
                                c_m_n_n_NdbDictionary_Event)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::Index,
@@ -70,6 +72,8 @@ JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::OptimizeTableHandle,
                                c_m_n_n_NdbDictionary_OptimizeTableHandle)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::RecordSpecification,
                                c_m_n_n_NdbDictionary_RecordSpecification)
+JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::RecordSpecification,
+                               c_m_n_n_NdbDictionary_RecordSpecificationArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::Table,
                                c_m_n_n_NdbDictionary_Table)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbDictionary::Tablespace,
@@ -94,10 +98,16 @@ JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation,
                                c_m_n_n_NdbOperation)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::GetValueSpec,
                                c_m_n_n_NdbOperation_GetValueSpec)
+JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::GetValueSpec,
+                               c_m_n_n_NdbOperation_GetValueSpecArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::OperationOptions,
                                c_m_n_n_NdbOperation_OperationOptions)
+JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::OperationOptions,
+                               c_m_n_n_NdbOperation_OperationOptionsArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::SetValueSpec,
                                c_m_n_n_NdbOperation_SetValueSpec)
+JTIE_DEFINE_PEER_CLASS_MAPPING(NdbOperation::SetValueSpec,
+                               c_m_n_n_NdbOperation_SetValueSpecArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbRecAttr,
                                c_m_n_n_NdbRecAttr)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbRecord,
@@ -108,10 +118,14 @@ JTIE_DEFINE_PEER_CLASS_MAPPING(NdbScanOperation,
                                c_m_n_n_NdbScanOperation)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbScanOperation::ScanOptions,
                                c_m_n_n_NdbScanOperation_ScanOptions)
+JTIE_DEFINE_PEER_CLASS_MAPPING(NdbScanOperation::ScanOptions,
+                               c_m_n_n_NdbScanOperation_ScanOptionsArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(NdbTransaction,
                                c_m_n_n_NdbTransaction)
 JTIE_DEFINE_PEER_CLASS_MAPPING(Ndb::Key_part_ptr,
                                c_m_n_n_Ndb_Key_part_ptr)
+JTIE_DEFINE_PEER_CLASS_MAPPING(Ndb::Key_part_ptr,
+                               c_m_n_n_Ndb_Key_part_ptrArray)
 JTIE_DEFINE_PEER_CLASS_MAPPING(Ndb_cluster_connection,
                                c_m_n_n_Ndb_cluster_connection)
 
@@ -563,9 +577,9 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_Nd
 {
     TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2_3Lcom_mysql_ndbjtie_ndbapi_Ndb_Key_1part_1ptrConst_2Ljava_nio_ByteBuffer_2I(JNIEnv *, jobject, jobject, jobjectArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_Ndb_t, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptr_ca, ttrait_void_1p_bb, ttrait_Uint32, &Ndb::startTransaction >(env, obj, p0, p1, p2, p3); // MMM! not supported yet: array of objects Key_part_ptr[]
+    return gcall_mfr< ttrait_c_m_n_n_Ndb_t, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptr_ca, ttrait_void_1p_bb, ttrait_Uint32, &Ndb::startTransaction >(env, obj, p0, p1, p2, p3);
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_Ndb_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptr_ca, ttrait_void_1p_bb, ttrait_Uint32, &NdbApiWrapper::Ndb__startTransaction__1 >(env, NULL, obj, p0, p1, p2, p3); // MMM! not supported yet: array of objects Key_part_ptr[]
+    return gcall_fr< ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_Ndb_r, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptr_ca, ttrait_void_1p_bb, ttrait_Uint32, &NdbApiWrapper::Ndb__startTransaction__1 >(env, NULL, obj, p0, p1, p2, p3);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 #endif // MMM! not supported yet: array of objects Key_part_ptr[]
@@ -597,9 +611,9 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_computeHash(JNIEnv * env, jclass cls, jintArra
 {
     TRACE("jint Java_com_mysql_ndbjtie_ndbapi_Ndb_computeHash(JNIEnv *, jclass, jintArray, jobject, jobjectArray, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_fr< ttrait_int, ttrait_Uint32_0p_a, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptr_ca, ttrait_void_1p_bb, ttrait_Uint32, &Ndb::computeHash >(env, cls, p0, p1, p2, p3, p4); // MMM! not supported yet: array of objects Key_part_ptr[]
+    return gcall_fr< ttrait_int, ttrait_Uint32_0p_a, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptr_ca, ttrait_void_1p_bb, ttrait_Uint32, &Ndb::computeHash >(env, cls, p0, p1, p2, p3, p4);
 #else
-    return gcall_fr< ttrait_int, ttrait_Uint32_0p_a, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptr_ca, ttrait_void_1p_bb, ttrait_Uint32, &NdbApiWrapper::Ndb__computeHash >(env, cls, p0, p1, p2, p3, p4); // MMM! not supported yet: array of objects Key_part_ptr[]
+    return gcall_fr< ttrait_int, ttrait_Uint32_0p_a, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptr_ca, ttrait_void_1p_bb, ttrait_Uint32, &NdbApiWrapper::Ndb__computeHash >(env, cls, p0, p1, p2, p3, p4);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 #endif // MMM! not supported yet: array of objects Key_part_ptr[]
@@ -2900,6 +2914,46 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_
 
 // ---------------------------------------------------------------------------
 
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_ElementArray.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_ElementArray
+ * Method:    create
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/DictionaryConst/ListConst/ElementArray;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024ElementArray_create(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024ElementArray_create(JNIEnv *, jclass, jint)");
+    return gcreateArray< ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_ElementArray_r, ttrait_int32 >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_ElementArray
+ * Method:    delete
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/DictionaryConst/ListConst/ElementArray;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024ElementArray_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024ElementArray_delete(JNIEnv *, jclass, jobject)");
+    gdeleteArray< ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_ElementArray_r >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_ElementArray
+ * Method:    at
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/DictionaryConst/ListConst/Element;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024ElementArray_at(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024ElementArray_at(JNIEnv *, jobject, jint)");
+    return gat< ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_ElementArray_r, ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_ElementArray_r, ttrait_int32 >(env, NULL, obj, p0);
+}
+
+// ---------------------------------------------------------------------------
+
 //#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_Event.h"
 
 /*
@@ -4112,6 +4166,46 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecification_delete(JNIE
 {
     TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecification_delete(JNIEnv *, jclass, jobject)");
     gdelete< ttrait_c_m_n_n_NdbDictionary_RecordSpecification_r >(env, cls, p0);
+}
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecificationArray.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecificationArray
+ * Method:    create
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/RecordSpecificationArray;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecificationArray_create(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecificationArray_create(JNIEnv *, jclass, jint)");
+    return gcreateArray< ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_r, ttrait_int32 >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecificationArray
+ * Method:    delete
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/RecordSpecificationArray;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecificationArray_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecificationArray_delete(JNIEnv *, jclass, jobject)");
+    gdeleteArray< ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_r >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_RecordSpecificationArray
+ * Method:    at
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/RecordSpecification;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecificationArray_at(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecificationArray_at(JNIEnv *, jobject, jint)");
+    return gat< ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_r, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -7845,6 +7939,46 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpec_delete(JNIEnv * env
 
 // ---------------------------------------------------------------------------
 
+//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpecArray.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpecArray
+ * Method:    create
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbOperation/GetValueSpecArray;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_create(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_create(JNIEnv *, jclass, jint)");
+    return gcreateArray< ttrait_c_m_n_n_NdbOperation_GetValueSpecArray_r, ttrait_int32 >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpecArray
+ * Method:    delete
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbOperation/GetValueSpecArray;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_delete(JNIEnv *, jclass, jobject)");
+    gdeleteArray< ttrait_c_m_n_n_NdbOperation_GetValueSpecArray_r >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_GetValueSpecArray
+ * Method:    at
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbOperation/GetValueSpec;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_at(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_at(JNIEnv *, jobject, jint)");
+    return gat< ttrait_c_m_n_n_NdbOperation_GetValueSpecArray_r, ttrait_c_m_n_n_NdbOperation_GetValueSpecArray_r, ttrait_int32 >(env, NULL, obj, p0);
+}
+
+// ---------------------------------------------------------------------------
+
 //#include "com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptions.h"
 
 /*
@@ -8041,6 +8175,46 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptions_delete(JNIEnv *
 
 // ---------------------------------------------------------------------------
 
+//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsArray.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsArray
+ * Method:    create
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsArray;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_create(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_create(JNIEnv *, jclass, jint)");
+    return gcreateArray< ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r, ttrait_int32 >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsArray
+ * Method:    delete
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptionsArray;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_delete(JNIEnv *, jclass, jobject)");
+    gdeleteArray< ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_OperationOptionsArray
+ * Method:    at
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbOperation/OperationOptions;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_at(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_at(JNIEnv *, jobject, jint)");
+    return gat< ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r, ttrait_int32 >(env, NULL, obj, p0);
+}
+
+// ---------------------------------------------------------------------------
+
 //#include "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpec.h"
 
 /*
@@ -8089,6 +8263,46 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpec_delete(JNIEnv * env
 {
     TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpec_delete(JNIEnv *, jclass, jobject)");
     gdelete< ttrait_c_m_n_n_NdbOperation_SetValueSpec_r >(env, cls, p0);
+}
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpecArray.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpecArray
+ * Method:    create
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbOperation/SetValueSpecArray;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpecArray_create(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpecArray_create(JNIEnv *, jclass, jint)");
+    return gcreateArray< ttrait_c_m_n_n_NdbOperation_SetValueSpecArray_r, ttrait_int32 >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpecArray
+ * Method:    delete
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbOperation/SetValueSpecArray;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpecArray_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpecArray_delete(JNIEnv *, jclass, jobject)");
+    gdeleteArray< ttrait_c_m_n_n_NdbOperation_SetValueSpecArray_r >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation_SetValueSpecArray
+ * Method:    at
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbOperation/SetValueSpec;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpecArray_at(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpecArray_at(JNIEnv *, jobject, jint)");
+    return gat< ttrait_c_m_n_n_NdbOperation_SetValueSpecArray_r, ttrait_c_m_n_n_NdbOperation_SetValueSpecArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -9203,6 +9417,46 @@ Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptions_delete(JNIEnv * 
 
 // ---------------------------------------------------------------------------
 
+//#include "com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptionsArray.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptionsArray
+ * Method:    create
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptionsArray;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_create(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_create(JNIEnv *, jclass, jint)");
+    return gcreateArray< ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r, ttrait_int32 >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptionsArray
+ * Method:    delete
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptionsArray;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_delete(JNIEnv *, jclass, jobject)");
+    gdeleteArray< ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbScanOperation_ScanOptionsArray
+ * Method:    at
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/NdbScanOperation/ScanOptions;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_at(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_at(JNIEnv *, jobject, jint)");
+    return gat< ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r, ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r, ttrait_int32 >(env, NULL, obj, p0);
+}
+
+// ---------------------------------------------------------------------------
+
 //#include "com_mysql_ndbjtie_ndbapi_NdbTransaction.h"
 
 /*
@@ -9667,6 +9921,46 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptr_delete(JNIEnv * env, jclas
 {
     TRACE("void Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptr_delete(JNIEnv *, jclass, jobject)");
     gdelete< ttrait_c_m_n_n_Ndb_Key_part_ptr_r >(env, cls, p0);
+}
+
+// ---------------------------------------------------------------------------
+
+//#include "com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptrArray.h"
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptrArray
+ * Method:    create
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/Ndb/Key_part_ptrArray;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_create(JNIEnv * env, jclass cls, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_create(JNIEnv *, jclass, jint)");
+    return gcreateArray< ttrait_c_m_n_n_Ndb_Key_part_ptrArray_r, ttrait_int32 >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptrArray
+ * Method:    delete
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/Ndb/Key_part_ptrArray;)V
+ */
+JNIEXPORT void JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_delete(JNIEnv * env, jclass cls, jobject p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_delete(JNIEnv *, jclass, jobject)");
+    gdeleteArray< ttrait_c_m_n_n_Ndb_Key_part_ptrArray_r >(env, cls, p0);
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_Ndb_Key_part_ptrArray
+ * Method:    at
+ * Signature: (I)Lcom/mysql/ndbjtie/ndbapi/Ndb/Key_part_ptr;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_at(JNIEnv * env, jobject obj, jint p0)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_at(JNIEnv *, jobject, jint)");
+    return gat< ttrait_c_m_n_n_Ndb_Key_part_ptrArray_r, ttrait_c_m_n_n_Ndb_Key_part_ptrArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------

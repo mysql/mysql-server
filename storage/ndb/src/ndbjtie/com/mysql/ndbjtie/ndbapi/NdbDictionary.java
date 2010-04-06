@@ -24,6 +24,7 @@ package com.mysql.ndbjtie.ndbapi;
 import java.nio.ByteBuffer;
 
 import com.mysql.jtie.Wrapper;
+import com.mysql.jtie.ArrayWrapper;
 
 public class NdbDictionary extends Wrapper
 {
@@ -368,7 +369,7 @@ public class NdbDictionary extends Wrapper
         public final native int setTable(String/*_const char *_*/ name);
         public final native int addColumn(ColumnConst/*_const Column &_*/ c);
         public final native int addColumnName(String/*_const char *_*/ name);
-        public final native int addColumnNames(int/*_unsigned_*/ noOfNames, String[]/*_const char * *_*/ names);
+        // MMM! support <in:String[]>: public final native int addColumnNames(int/*_unsigned_*/ noOfNames, String[]/*_const char * *_*/ names);
         public final native void setType(int/*_Type_*/ type); // MMM type nameclash, meant Index.Type
         public final native void setLogging(boolean enable);
     }
@@ -451,13 +452,22 @@ public class NdbDictionary extends Wrapper
         public final native void setReport(int/*_EventReport_*/ p0);
         public final native void addEventColumn(int/*_unsigned_*/ attrId);
         public final native void addEventColumn(String/*_const char *_*/ columnName);
-        public final native void addEventColumns(int n, String[]/*_const char * *_*/ columnNames);
+        // MMM! support <in:String[]>: public final native void addEventColumns(int n, String[]/*_const char * *_*/ columnNames);
         public final native void mergeEvents(boolean flag);
     }
     public interface /*_enum_*/ NdbRecordFlags
     {
         int RecMysqldShrinkVarchar = 0x1,
             RecMysqldBitfield = 0x2;
+    }
+    static public interface RecordSpecificationConstArray extends ArrayWrapper< RecordSpecificationConst >
+    {
+    }
+    static public class RecordSpecificationArray extends Wrapper implements RecordSpecificationConstArray 
+    {
+        static public native RecordSpecificationArray create(int length);
+        static public native void delete(RecordSpecificationArray e);
+        public native RecordSpecification at(int i);
     }
     public interface /*_struct_*/ RecordSpecificationConst
     {
@@ -643,6 +653,15 @@ public class NdbDictionary extends Wrapper
     {
         public interface /*_struct_*/ ListConst
         {
+            static public interface ElementConstArray extends ArrayWrapper< ElementConst >
+            {
+            }
+            static public class ElementArray extends Wrapper implements ElementConstArray 
+            {
+                static public native ElementArray create(int length);
+                static public native void delete(ElementArray e);
+                public native Element at(int i);
+            }
             public interface /*_struct_*/ ElementConst
             {
                 int/*_unsigned_*/ id();
@@ -676,14 +695,14 @@ public class NdbDictionary extends Wrapper
                 static public final native void delete(Element p0);
             }
             int/*_unsigned_*/ count();
-            // MMM! support <out:Object[]> or design replacement: Element[]/*_Element *_*/elements();
+            ElementArray/*_Element *_*/ elements();
         }
         static public class /*_struct_*/ List extends Wrapper implements ListConst
         {
             public final native int/*_unsigned_*/ count();
-            // MMM! support <out:Object[]> or design replacement: public final native Element[]/*_Element *_*/elements();
+            public final native ElementArray/*_Element *_*/ elements();
             public final native void count(int/*_unsigned_*/ p0);
-            // MMM! support <out:Object[]> or design replacement: public final native elements(Element[]/*_Element *_*/ p0);
+            public final native void elements(ElementArray/*_Element *_*/ p0);
             static public final native List create();
             static public final native void delete(List p0);
         }
@@ -729,9 +748,9 @@ public class NdbDictionary extends Wrapper
         public final native int createUndofile(UndofileConst/*_const Undofile &_*/ p0, boolean overwrite_existing /*_= false_*/, ObjectId/*_ObjectId *_*/ p1 /*_= 0_*/);
         public final native int dropUndofile(UndofileConst/*_const Undofile &_*/ p0);
         // MMM object-copy returns not supported: public final native Undofile getUndofile(int/*_Uint32_*/ node, String/*_const char *_*/ path);
-        // MMM! support <in:Object[]> or design replacement: public final native NdbRecord/*_NdbRecord *_*/ createRecord(TableConst/*_const Table *_*/ table, RecordSpecificationConst[]/*_const RecordSpecification *_*/ recSpec, int/*_Uint32_*/ length, int/*_Uint32_*/ elemSize, int/*_Uint32_*/ flags /*_= 0_*/);
-        // MMM! support <in:Object[]> or design replacement: public final native NdbRecord/*_NdbRecord *_*/ createRecord(IndexConst/*_const Index *_*/ index, TableConst/*_const Table *_*/ table, RecordSpecificationConst[]/*_const RecordSpecification *_*/ recSpec, int/*_Uint32_*/ length, int/*_Uint32_*/ elemSize, int/*_Uint32_*/ flags /*_= 0_*/);
-        // MMM! support <in:Object[]> or design replacement: public final native NdbRecord/*_NdbRecord *_*/ createRecord(IndexConst/*_const Index *_*/ index, RecordSpecificationConst[]/*_const RecordSpecification *_*/ recSpec, int/*_Uint32_*/ length, int/*_Uint32_*/ elemSize, int/*_Uint32_*/ flags /*_= 0_*/);
+        public final native NdbRecord/*_NdbRecord *_*/ createRecord(TableConst/*_const Table *_*/ table, RecordSpecificationConstArray/*_const RecordSpecification *_*/ recSpec, int/*_Uint32_*/ length, int/*_Uint32_*/ elemSize, int/*_Uint32_*/ flags /*_= 0_*/);
+        public final native NdbRecord/*_NdbRecord *_*/ createRecord(IndexConst/*_const Index *_*/ index, TableConst/*_const Table *_*/ table, RecordSpecificationConstArray/*_const RecordSpecification *_*/ recSpec, int/*_Uint32_*/ length, int/*_Uint32_*/ elemSize, int/*_Uint32_*/ flags /*_= 0_*/);
+        public final native NdbRecord/*_NdbRecord *_*/ createRecord(IndexConst/*_const Index *_*/ index, RecordSpecificationConstArray/*_const RecordSpecification *_*/ recSpec, int/*_Uint32_*/ length, int/*_Uint32_*/ elemSize, int/*_Uint32_*/ flags /*_= 0_*/);
         public final native void releaseRecord(NdbRecord/*_NdbRecord *_*/ rec);
     }
 }
