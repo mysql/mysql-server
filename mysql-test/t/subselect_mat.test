@@ -75,6 +75,7 @@ explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 select * from t1i where a1 in (select b1 from t2i where b1 > '0');
 
+--replace_column 6 # 8 # 11 #
 explain extended
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
 select * from t1i where a1 in (select b1 from t2i where b1 > '0' group by b1);
@@ -83,10 +84,12 @@ explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0');
 
+--replace_column 6 # 7 # 8 # 11 #
 explain extended
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 select * from t1i where (a1, a2) in (select b1, b2 from t2i where b1 > '0' group by b1, b2);
 
+--replace_column 6 # 7 # 8 # 11 #
 explain extended
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
 select * from t1i where (a1, a2) in (select b1, min(b2) from t2i where b1 > '0' group by b1);
@@ -174,6 +177,7 @@ where (a1, a2) in (select b1, b2 from t2 where b1 >  '0') and
       (a1, a2) in (select c1, c2 from t3
                    where (c1, c2) in (select b1, b2 from t2i where b2 > '0'));
 
+--replace_column 6 # 7 # 8 # 11 #
 explain extended
 select * from t1i
 where (a1, a2) in (select b1, b2 from t2i where b1 >  '0') and
@@ -215,6 +219,7 @@ where (a1, a2) in (select b1, b2 from t2
 
 
 # multiple levels of nesting subqueries, unions
+--replace_column 6 # 7 # 8 # 11 #
 explain extended
 (select * from t1
 where (a1, a2) in (select b1, b2 from t2
