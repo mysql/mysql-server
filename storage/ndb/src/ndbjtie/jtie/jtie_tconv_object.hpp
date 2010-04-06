@@ -109,12 +109,12 @@ const char * const _jtie_ObjectMapper< J >::member_descriptor
  *   type alias:                specifies a mapping:
  *   ttrait_<T>_t               J <->       C
  *   ttrait_<T>_ct              J <-> const C
+ *   ttrait_<T>_r               J <->       C &
+ *   ttrait_<T>_cr              J <-> const C &
  *   ttrait_<T>_p               J <->       C *
  *   ttrait_<T>_cp              J <-> const C *
  *   ttrait_<T>_pc              J <->       C * const
  *   ttrait_<T>_cpc             J <-> const C * const
- *   ttrait_<T>_r               J <->       C &
- *   ttrait_<T>_cr              J <-> const C &
  *
  * Implementation note: Using a macro instead of a class template with
  * type members (via typedefs) has the benefit of allowing for direct
@@ -129,6 +129,10 @@ const char * const _jtie_ObjectMapper< J >::member_descriptor
                     > ttrait_##T##_t;                                   \
     typedef ttrait< jobject, const C, _jtie_ObjectMapper< T > *         \
                     > ttrait_##T##_ct;                                  \
+    typedef ttrait< jobject, C &, _jtie_ObjectMapper< T > *             \
+                    > ttrait_##T##_r;                                   \
+    typedef ttrait< jobject, const C &, _jtie_ObjectMapper< T > *       \
+                    > ttrait_##T##_cr;                                  \
     typedef ttrait< jobject, C *, _jtie_ObjectMapper< T > *             \
                     > ttrait_##T##_p;                                   \
     typedef ttrait< jobject, const C *, _jtie_ObjectMapper< T > *       \
@@ -136,11 +140,79 @@ const char * const _jtie_ObjectMapper< J >::member_descriptor
     typedef ttrait< jobject, C * const, _jtie_ObjectMapper< T > *       \
                     > ttrait_##T##_pc;                                  \
     typedef ttrait< jobject, const C * const, _jtie_ObjectMapper< T > * \
-                    > ttrait_##T##_cpc;                                 \
-    typedef ttrait< jobject, C &, _jtie_ObjectMapper< T > *             \
-                    > ttrait_##T##_r;                                   \
-    typedef ttrait< jobject, const C &, _jtie_ObjectMapper< T > *       \
-                    > ttrait_##T##_cr;
+                    > ttrait_##T##_cpc;
+
+#if 0 // XXX cleanup this unsupported mapping
+
+ * Naming convention:
+ *   type alias:                specifies a mapping:
+ *   ttrait_<T>_a               J <->       C *
+ *   ttrait_<T>_ca              J <-> const C *
+ *   ttrait_<T>_ac              J <->       C * const
+ *   ttrait_<T>_cac             J <-> const C * const
+
+/**
+ * Defines the trait type aliases for the mapping of a
+ * Java array to a C++ pointer.
+ *
+ * The macro takes these arguments:
+ *   J: A JNI array type name (representing a basic Java array type).
+ *   C: A basic C++ type name.
+ *   T: A name tag for this mapping.
+ *
+ * Naming convention:
+ *   type alias:                specifies a mapping:
+ *   ttrait_<T>_0p_a            J <->       C *       (of unspecified length)
+ *   ttrait_<T>_0cp_a           J <-> const C *       (of unspecified length)
+ *   ttrait_<T>_0pc_a           J <->       C * const (of unspecified length)
+ *   ttrait_<T>_0cpc_a          J <-> const C * const (of unspecified length)
+ */
+#define JTIE_DEFINE_ARRAY_PTR_TYPE_MAPPING( J, C, T )                   \
+    typedef ttrait< J *, C *                                            \
+                    > ttrait_##T##_0p_a;                                \
+    typedef ttrait< J *, const C *                                      \
+                    > ttrait_##T##_0cp_a;                               \
+    typedef ttrait< J *, C * const                                      \
+                    > ttrait_##T##_0pc_a;                               \
+    typedef ttrait< J *, const C * const                                \
+                    > ttrait_##T##_0cpc_a;
+
+/**
+ * Defines the trait type aliases for the mapping of a
+ * Java array to a C++ array.
+ *
+ * The macro takes these arguments:
+ *   J: A JNI array type name (representing a basic Java array type).
+ *   C: A basic C++ type name.
+ *   T: A name tag for this mapping.
+ *
+ * Naming convention:
+ *   type alias:                specifies a mapping:
+ *   ttrait_<T>_1p_a            J <->       C *       (of array length 1)
+ *   ttrait_<T>_1cp_a           J <-> const C *       (of array length 1)
+ *   ttrait_<T>_1pc_a           J <->       C * const (of array length 1)
+ *   ttrait_<T>_1cpc_a          J <-> const C * const (of array length 1)
+ */
+#define JTIE_DEFINE_ARRAY_PTR_LENGTH1_TYPE_MAPPING( J, C, T )           \
+    typedef ttrait< J *, C *, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< J, 1 > > * \
+                    > ttrait_##T##_1p_a;                                \
+    typedef ttrait< J *, const C *, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< J, 1 > > * \
+                    > ttrait_##T##_1cp_a;                               \
+    typedef ttrait< J *, C * const, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< J, 1 > > * \
+                    > ttrait_##T##_1pc_a;                               \
+    typedef ttrait< J *, const C * const, _jtie_j_ArrayMapper< _jtie_j_BoundedArray< J, 1 > > * \
+                    > ttrait_##T##_1cpc_a;
+
+// XXX and this is how it's done
+    typedef ttrait< jobjectArray, C *,                                  \
+                    _jtie_j_ArrayMapper<                                \
+                      _jtie_j_BoundedArray<                             \
+                        _jtie_ObjectMapper< J >,                        \
+                        1 >                                             \
+                      > *                                               \
+                    > ttrait_##J##_1a;                                  \
+
+#endif // XXX cleanup this unsupported mapping
 
 // XXX to document
 #define JTIE_INSTANTIATE_PEER_CLASS_MAPPING( T, JCN )           \

@@ -62,6 +62,8 @@ JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_DictionaryConst_List,
                                     "com/mysql/ndbjtie/ndbapi/NdbDictionary$DictionaryConst$List")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_DictionaryConst_ListConst_Element,
                                     "com/mysql/ndbjtie/ndbapi/NdbDictionary$DictionaryConst$ListConst$Element")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_DictionaryConst_ListConst_ElementArray,
+                                    "com/mysql/ndbjtie/ndbapi/NdbDictionary$DictionaryConst$ListConst$ElementArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_Event,
                                     "com/mysql/ndbjtie/ndbapi/NdbDictionary$Event")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_Index,
@@ -78,6 +80,8 @@ JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_OptimizeTableHandle,
                                     "com/mysql/ndbjtie/ndbapi/NdbDictionary$OptimizeTableHandle")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_RecordSpecification,
                                     "com/mysql/ndbjtie/ndbapi/NdbDictionary$RecordSpecification")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_RecordSpecificationArray,
+                                    "com/mysql/ndbjtie/ndbapi/NdbDictionary$RecordSpecificationArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_Table,
                                     "com/mysql/ndbjtie/ndbapi/NdbDictionary$Table")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbDictionary_Tablespace,
@@ -102,10 +106,16 @@ JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation,
                                     "com/mysql/ndbjtie/ndbapi/NdbOperation")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_GetValueSpec,
                                     "com/mysql/ndbjtie/ndbapi/NdbOperation$GetValueSpec")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_GetValueSpecArray,
+                                    "com/mysql/ndbjtie/ndbapi/NdbOperation$GetValueSpecArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_OperationOptions,
                                     "com/mysql/ndbjtie/ndbapi/NdbOperation$OperationOptions")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_OperationOptionsArray,
+                                    "com/mysql/ndbjtie/ndbapi/NdbOperation$OperationOptionsArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_SetValueSpec,
                                     "com/mysql/ndbjtie/ndbapi/NdbOperation$SetValueSpec")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbOperation_SetValueSpecArray,
+                                    "com/mysql/ndbjtie/ndbapi/NdbOperation$SetValueSpecArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbRecAttr,
                                     "com/mysql/ndbjtie/ndbapi/NdbRecAttr")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbRecord,
@@ -116,10 +126,14 @@ JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbScanOperation,
                                     "com/mysql/ndbjtie/ndbapi/NdbScanOperation")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbScanOperation_ScanOptions,
                                     "com/mysql/ndbjtie/ndbapi/NdbScanOperation$ScanOptions")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbScanOperation_ScanOptionsArray,
+                                    "com/mysql/ndbjtie/ndbapi/NdbScanOperation$ScanOptionsArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_NdbTransaction,
                                     "com/mysql/ndbjtie/ndbapi/NdbTransaction")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_Ndb_Key_part_ptr,
                                     "com/mysql/ndbjtie/ndbapi/Ndb$Key_part_ptr")
+JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_Ndb_Key_part_ptrArray,
+                                    "com/mysql/ndbjtie/ndbapi/Ndb$Key_part_ptrArray")
 JTIE_INSTANTIATE_PEER_CLASS_MAPPING(c_m_n_n_Ndb_cluster_connection,
                                     "com/mysql/ndbjtie/ndbapi/Ndb_cluster_connection")
 

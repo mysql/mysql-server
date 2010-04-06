@@ -22,17 +22,30 @@
 package com.mysql.jtie;
 
 /**
- * The JTIE base class which all application classes must extend that map
- * to an underlying C/C++ type.
+ * A base class for Java peer classes representing a C/C++ object type.
+ *
+ * This class declares only non-public members, which enable the JTie
+ * runtime to map a Java </code>Wrapper</code> instance to a C/C++ object.
  * 
- * The other requirement for subclasses are
+ * A Java peer class extending </code>Wrapper</code>
  * <ol>
- * <li> to provide a no-arg constructor (of any access modifier, since
- * JNI can access even private members).
- * <li> to declare the native methods to be mapped to C/C++ functions.
+ * <li> must provide a no-arg constructor (may be of any access modifier,
+ *      but preferred private),
+ * <li> will declare a native method for each C/C++ (member and non-member)
+ *      function to be mapped to Java, and
+ * <li> ought not to have any non-static fields (i.e., state by its own).
  * </ol>
- * It is not useful for subclasses of </code>Wrapper</code> to have state
- * of their own (that is, beyond the field of this class).
+ *
+ * Please, note that JTie provides no guarantees on the association between
+ * </code>Wrapper</code> instances and their underlying C/C++ objects.
+ * In particular,
+ * <ol>
+ * <li> multiple </code>Wrapper</code> instances may exist for the same
+ *      C/C++ object at any time and
+ * <li> a C/C++ object may have been deleted by the application while
+ *      corresponding Java </code>Wrapper</code> instances still exist
+ *      (i.e., referential integrity cannot be assumed).
+ * </ol>
  */
 public class Wrapper {
 
@@ -66,21 +79,28 @@ public class Wrapper {
     // - XXX consider (and benchmark) declaring this field volatile
     //   - a write then happens-before every subsequent read of that field
     //   - writes and reads of volatile longs and doubles are always atomic
-    private /*volatile*/ long cdelegate;
+    private volatile long cdelegate;
 
     /**
-     * Creates an unattached Wrapper instance.
+     * Creates an unattached wrapper instance.
      */
     // comments:
     // - field access from JNI is fast, hence no initialization of this
     //   cdelegate field in a c'tor;
-    // - the constructor needs to be protected for subclasses.
     protected Wrapper() {
         //System.out.println("<-> jtie.Wrapper()");
     };
 
     /**
-     * Indicates whether some other object is a Wrapper that refers to the
+     * Copies a wrapper instance.
+     */
+    protected Wrapper(Wrapper o) {
+        //System.out.println("<-> jtie.Wrapper(Wrapper)");
+        cdelegate = o.cdelegate;
+    };
+
+    /**
+     * Indicates whether some other object is a wrapper that refers to the
      * same native delegate instance.
      * @see Object#equals(Object)
      */

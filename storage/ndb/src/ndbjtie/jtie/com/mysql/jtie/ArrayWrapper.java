@@ -1,5 +1,5 @@
 /*
- Copyright (C) 2009 Sun Microsystems, Inc.
+ Copyright (C) 2010 Sun Microsystems, Inc.
  All rights reserved. Use is subject to license terms.
 
  This program is free software; you can redistribute it and/or modify
@@ -16,14 +16,26 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 /*
- * D0.java
+ * ArrayWrapper.java
  */
 
-package myjapi;
+package com.mysql.jtie;
 
-public class D0 extends com.mysql.jtie.Wrapper {
-    public native final int f_d0();
-    public native static int f_nv(D0 d);
-    public native int f_v();
-    public native static D1 sub();
+/**
+ * An interface to Java peer classes representing a C/C++ object array type.
+ * 
+ * Please, note that
+ * <ol>
+ * <li> no length information is associated with this wrapper class for
+ *      arrays and, hence,
+ * <li> no bound-checking whatsoever is performed at index access.
+ * </ol>
+ */
+// add warning: access to all memory possible
+public interface ArrayWrapper< T > {
+    /**
+     * Returns the element of this array at a given index.
+     * Index may be negative (rendering a true, 1-1 mapping of C/C++ pointers).
+     */
+    T at(int i);
 }

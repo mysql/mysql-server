@@ -47,7 +47,8 @@ JTIE_JAR = jtie-@JAVA_NDB_VERSION@.jar
 
 ## java top-level class files
 JTIE_DIR = $(srcdir)/com/mysql/jtie
-JTIE_java = $(JTIE_DIR)/Wrapper.java
+JTIE_java = $(JTIE_DIR)/Wrapper.java \
+	$(JTIE_DIR)/ArrayWrapper.java
 
 classjtie.stamp: $(JTIE_java)
 	mkdir -p $(JAVAROOT)
@@ -64,7 +65,9 @@ $(JTIE_JAR): classjtie.stamp $(MANIFEST)
 
 ## generate JNI header files (for development only)
 javah: $(MYJAPI_CLASSES)
-	$(COMPILE.JAVAH) com.mysql.jtie.Wrapper
+	$(COMPILE.JAVAH) \
+		com.mysql.jtie.Wrapper
+		com.mysql.jtie.ArrayWrapper
 
 ## ----------------------------------------------------------------------
 

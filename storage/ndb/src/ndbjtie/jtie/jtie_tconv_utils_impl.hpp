@@ -75,8 +75,8 @@ big_endian(C c)
 
     // little-endian, reverse byte order (better: use optimized swap macros)
     const size_t n = sizeof(C);
-    char *s = (char *)&c;
-    char *t = (char *)&r;
+    char * s = (char *)&c;
+    char * t = (char *)&r;
     for (int i = n-1, j = 0; i >= 0; i--, j++)
         t[j] = s[i];
     return r;

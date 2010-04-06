@@ -24,6 +24,7 @@ package com.mysql.ndbjtie.ndbapi;
 import java.nio.ByteBuffer;
 
 import com.mysql.jtie.Wrapper;
+import com.mysql.jtie.ArrayWrapper;
 
 public class Ndb extends Wrapper implements NdbConst
 {
@@ -45,6 +46,15 @@ public class Ndb extends Wrapper implements NdbConst
     public final native boolean isConsistentGCI(long/*_Uint64_*/ gci);
     public final native NdbEventOperationConst/*_const NdbEventOperation *_*/ getGCIEventOperations(int[]/*_Uint32 *_*/ iter, int[]/*_Uint32 *_*/ event_types);
     public final native NdbTransaction/*_NdbTransaction *_*/ startTransaction(NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ table /*_= 0_*/, ByteBuffer/*_const char *_*/ keyData /*_= 0_*/, int/*_Uint32_*/ keyLen /*_= 0_*/);
+    static public interface Key_part_ptrConstArray extends ArrayWrapper< Key_part_ptrConst >
+    {
+    }
+    static public class Key_part_ptrArray extends Wrapper implements Key_part_ptrConstArray 
+    {
+        static public native Key_part_ptrArray create(int length);
+        static public native void delete(Key_part_ptrArray e);
+        public native Key_part_ptr at(int i);
+    }
     public interface /*_struct_*/ Key_part_ptrConst
     {
         // MMM! support <out:BB> or check if needed: ByteBuffer/*_const void *_*/ ptr();
@@ -59,9 +69,9 @@ public class Ndb extends Wrapper implements NdbConst
         static public final native Key_part_ptr create();
         static public final native void delete(Key_part_ptr p0);
     }
-    public final native NdbTransaction/*_NdbTransaction *_*/ startTransaction(NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ table, Key_part_ptrConst[]/*_const Key_part_ptr *_*/ keyData, ByteBuffer/*_void *_*/ xfrmbuf /*_= 0_*/, int/*_Uint32_*/ xfrmbuflen /*_= 0_*/);
+    public final native NdbTransaction/*_NdbTransaction *_*/ startTransaction(NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ table, Key_part_ptrConstArray/*_const Key_part_ptr *_*/ keyData, ByteBuffer/*_void *_*/ xfrmbuf /*_= 0_*/, int/*_Uint32_*/ xfrmbuflen /*_= 0_*/);
     public final native NdbTransaction/*_NdbTransaction *_*/ startTransaction(NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ table, int/*_Uint32_*/ partitionId);
-    static public final native int computeHash(int[]/*_Uint32 *_*/ hashvalueptr, NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ p0, Key_part_ptrConst[]/*_const Key_part_ptr *_*/ keyData, ByteBuffer/*_void *_*/ xfrmbuf /*_= 0_*/, int/*_Uint32_*/ xfrmbuflen /*_= 0_*/);
+    static public final native int computeHash(int[]/*_Uint32 *_*/ hashvalueptr, NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ p0, Key_part_ptrConstArray/*_const Key_part_ptr *_*/ keyData, ByteBuffer/*_void *_*/ xfrmbuf /*_= 0_*/, int/*_Uint32_*/ xfrmbuflen /*_= 0_*/);
     public final native void closeTransaction(NdbTransaction/*_NdbTransaction *_*/ p0);
     public final native NdbErrorConst/*_const NdbError &_*/ getNdbError(int errorCode);
 }
