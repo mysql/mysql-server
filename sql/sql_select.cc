@@ -14279,7 +14279,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     table->key_info=keyinfo;
     keyinfo->key_part=key_part_info;
     keyinfo->flags=HA_NOSAME | HA_NULL_ARE_EQUAL;
-    keyinfo->key_length=(uint16) reclength;
+    keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "distinct_key";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->rec_per_key=0;
@@ -14331,6 +14331,8 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       if ((*reg_field)->type() == MYSQL_TYPE_BLOB || 
           (*reg_field)->real_type() == MYSQL_TYPE_VARCHAR)
         key_part_info->store_length+= HA_KEY_BLOB_LENGTH;
+
+      keyinfo->key_length+= key_part_info->store_length;
 
       key_part_info->type=     (uint8) (*reg_field)->key_type();
       key_part_info->key_type =
