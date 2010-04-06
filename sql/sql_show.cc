@@ -2253,25 +2253,28 @@ void remove_status_vars(SHOW_VAR *list)
 static void update_key_cache_stat_var(KEY_CACHE *key_cache, size_t ofs)
 {
   uint var_no;
-  switch (ofs) {
-  case offsetof(KEY_CACHE, blocks_used):
-  case offsetof(KEY_CACHE, blocks_unused): 
-  case offsetof(KEY_CACHE, global_blocks_changed):
+  if (ofs == offsetof(KEY_CACHE, blocks_used) ||
+      ofs == offsetof(KEY_CACHE, blocks_unused) ||
+      ofs == offsetof(KEY_CACHE, global_blocks_changed))
+  {
     var_no= (ofs-offsetof(KEY_CACHE, blocks_used))/sizeof(ulong);
     *(ulong *)((char *) key_cache + ofs)=
       (ulong) get_key_cache_stat_value(key_cache, var_no);
-    break; 
-  case offsetof(KEY_CACHE, global_cache_r_requests):
-  case offsetof(KEY_CACHE, global_cache_read):
-  case offsetof(KEY_CACHE, global_cache_w_requests):
-  case offsetof(KEY_CACHE, global_cache_write):
+    return;
+  }
+
+  if (ofs == offsetof(KEY_CACHE, global_cache_r_requests) ||
+      ofs == offsetof(KEY_CACHE, global_cache_read) ||
+      ofs == offsetof(KEY_CACHE, global_cache_w_requests) ||
+      ofs == offsetof(KEY_CACHE, global_cache_write))
+  {
     var_no= NUM_LONG_KEY_CACHE_STAT_VARIABLES +
             (ofs-offsetof(KEY_CACHE, global_cache_w_requests))/
              sizeof(ulonglong);
     *(ulonglong *)((char *) key_cache + ofs)=
       get_key_cache_stat_value(key_cache, var_no);
-    break;
-  } 
+    return;
+  }
 }
 
 
