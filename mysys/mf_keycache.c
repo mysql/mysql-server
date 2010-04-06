@@ -5207,7 +5207,7 @@ int init_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
         my_free(partition,  MYF(0));
         partition= 0;
       }
-      if (i == 0 && cnt < 0 || i > 0)
+      if ((i == 0 && cnt < 0) || i > 0)
       {
         /* 
           Here we have two cases: 
