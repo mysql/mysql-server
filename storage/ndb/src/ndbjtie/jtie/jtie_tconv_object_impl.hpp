@@ -75,7 +75,8 @@ struct ObjectParam< _jtie_Object *, C * > {
     static C *
     convert(cstatus & s, _jtie_Object * j, JNIEnv * env) {
         TRACE("C * ObjectParam.convert(cstatus &, _jtie_Object *, JNIEnv *)");        
-        s = -1; // init to error
+        // init status to error
+        s = -1;
         C * c = NULL;
 
         if (j == NULL) {
@@ -134,7 +135,9 @@ struct ObjectParam< _jtie_Object *, C & > {
     static C &
     convert(cstatus & s, _jtie_Object * j, JNIEnv * env) {
         TRACE("C & ObjectParam.convert(cstatus &, _jtie_Object *, JNIEnv *)");
-        s = -1; // init to error
+
+        // init return value and status to error
+        s = -1;
         C * c = NULL;
 
         if (j == NULL) {
@@ -146,6 +149,8 @@ struct ObjectParam< _jtie_Object *, C & > {
             c = ObjectParam< _jtie_Object *, C * >::convert(s, j, env);
             assert(s != 0 || c != NULL);
         }
+
+        // never actually dereferenced if status indicates an error
         return *c;
     };
 
@@ -162,7 +167,9 @@ struct Target< _jtie_Object *, C > {
     static C &
     convert(cstatus & s, _jtie_Object * j, JNIEnv * env) {
         TRACE("C & Target.convert(cstatus &, _jtie_Object *, JNIEnv *)");
-        s = -1; // init to error
+
+        // init return value and status to error
+        s = -1;
         C * c = NULL;
 
         if (j == NULL) {
@@ -176,6 +183,8 @@ struct Target< _jtie_Object *, C > {
             c = ObjectParam< _jtie_Object *, C * >::convert(s, j, env);
             assert(s != 0 || c != NULL);
         }
+
+        // never actually dereferenced if status indicates an error
         return *c;
     };
 
@@ -213,7 +222,6 @@ struct ObjectResult< J *, C * > {
                 if (cid == NULL) {
                     // exception pending
                 } else {
-
                     J * jo = wrapAsJavaObject(cls, cid, c, env);
                     if (jo == NULL) {
                         // exception pending

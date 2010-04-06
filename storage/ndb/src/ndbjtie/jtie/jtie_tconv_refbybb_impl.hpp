@@ -50,7 +50,7 @@ ensureNonNullBuffer(jtie_j_n_ByteBuffer jbb, JNIEnv * env) {
     
     if (jbb == NULL) {
         const char * c = "java/lang/IllegalArgumentException";
-        const char * m = ("NDB Jtie: java.nio.ByteBuffer cannot be null"
+        const char * m = ("JTie: java.nio.ByteBuffer cannot be null"
                           " when mapped to an object reference type"
                           " (file: " __FILE__ ")");
         registerException(env, c, m);

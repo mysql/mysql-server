@@ -33,6 +33,7 @@ JTIE_JAR = $(top_srcdir)/storage/ndb/src/ndbjtie/jtie/jtie-@JAVA_NDB_VERSION@.ja
 CLASSPATH_ENV = CLASSPATH=.:$(JTIE_JAR)
 
 JAVAROOT=$(srcdir)/target/classes
+JAVAHROOT=$(srcdir)/target
 
 ## jar file to be created
 MYJAPI_JAR = jtie-test-myjapi-@JAVA_NDB_VERSION@.jar
@@ -47,6 +48,7 @@ MYJAPI_java = \
 		$(MYJAPI_DIR)/D0.java \
 		$(MYJAPI_DIR)/D1.java \
 		$(MYJAPI_DIR)/D2.java \
+		$(MYJAPI_DIR)/E.java \
 		$(MYJAPI_DIR)/MyJapi.java \
 		$(MYJAPI_DIR)/MyJapiCtypes.java
 
@@ -56,12 +58,12 @@ TEST_java = \
 
 ## files to be distributed and not covered in the automatic rules
 EXTRA_DIST = $(MYJAPI_DIR)/*.java  \
-	$(TEST_DIR)/*.java \
-	MyApiWrapper.hpp \
-	myjapi_MyJapi.hpp \
-	myjapi_MyJapiCtypes.hpp \
-	myjapi_classes.hpp \
-	CMakeLists.txt
+		$(TEST_DIR)/*.java \
+		MyApiWrapper.hpp \
+		myjapi_MyJapi.hpp \
+		myjapi_MyJapiCtypes.hpp \
+		myjapi_classes.hpp \
+		CMakeLists.txt
 
 classmyjapi.stamp: $(MYJAPI_java) $(TEST_java)
 	mkdir -p $(JAVAROOT)
@@ -79,29 +81,30 @@ $(MYJAPI_JAR): classmyjapi.stamp
           -C $(JAVAROOT) test
 
 ## generate JNI header files (for development only)
-javah: $(MYJAPI_CLASSES)
-	$(COMPILE.JAVAH) \
-	myjapi.A \
-	myjapi.B0 \
-	myjapi.B1 \
-	myjapi.CI \
-	myjapi.D0 \
-	myjapi.D1 \
-	myjapi.D2 \
-	myjapi.MyJapi \
-	myjapi.MyJapiCtypes
+javah: $(MYJAPI_JAR)
+	$(JAVAH) -classpath $(MYJAPI_JAR) \
+		$(AM_JAVAHFLAGS) $(JAVAHFLAGS) \
+		-d $(JAVAHROOT) \
+		myjapi.A \
+		myjapi.B0 \
+		myjapi.B1 \
+		myjapi.CI \
+		myjapi.D0 \
+		myjapi.D1 \
+		myjapi.E \
+		myjapi.MyJapi \
+		myjapi.MyJapiCtypes
 
 ## ----------------------------------------------------------------------
 
 ## automake flags (overridden by per-target flags, added before user flags)
 AM_CPPFLAGS = \
-	-I$(top_srcdir)/storage/ndb/include \
-	-I../../../utils \
-	-I../.. \
-	-I../myapi \
-	@JNI_INCLUDE_DIRS@ \
-	-DJTIE_VERBOSE \
-	-DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
+		-I$(top_srcdir)/storage/ndb/include \
+		-I../../../utils \
+		-I../.. \
+		-I../myapi \
+		@JNI_INCLUDE_DIRS@ \
+		-DJTIE_OBJECT_CLEAR_ADDRESS_UPON_DELETE
 
 ## build a shared library for testing
 ##   ideally, this library is not installed suggesting the use of prefixes
@@ -171,8 +174,8 @@ test_myjapi.sh: Makefile
 ## ----------------------------------------------------------------------
 
 ## cleanup
-MOSTLYCLEANFILES = $(MYJAPI_DIR)/*.class $(TEST_DIR)/*.class *.log
-CLEANFILES = classmyjapi.stamp *.jar $(MYJAPI_JAR) $(TESTS)
+MOSTLYCLEANFILES = *.log
+CLEANFILES = classmyjapi.stamp $(MYJAPI_JAR) $(TESTS)
 
 mostlyclean-local: 
 	rm -rf $(top_srcdir)/storage/ndb/src/ndbjtie/jtie/test/myjapi/target

@@ -42,6 +42,7 @@ import myjapi.CI;
 import myjapi.D0;
 import myjapi.D1;
 import myjapi.D2;
+import myjapi.E;
 
 /**
  * A comprehensive test of the mappings of primitive and user-defined types.
@@ -87,7 +88,7 @@ public class MyJapiTest {
             throw new RuntimeException("Asserts must be enabled for this test to be effective!");
         }
     }
-    
+
     /**
      * Loads a dynamically linked system library and reports any failures.
      */
@@ -125,21 +126,18 @@ public class MyJapiTest {
     static public void test0() {
         out.println("--> MyJapiTest.test0()");
 
-        out.println();
-        out.println("calling most basic function: f0() ...");
+        out.println("\ncalling most basic function: f0() ...");
         MyJapi.f0();
 
         out.println();
         out.println("<-- MyJapiTest.test0()");
     }
-    
+
     static public void test1() {
         out.println("--> MyJapiTest.test1()");
 
-        out.println();
-        out.println("testing platform-dependent mappings of all primitive types");
-        out.println("calling MyJapiCtypes functions: fxx(0) ...");
-        out.println();
+        out.println("\ntesting platform-dependent mappings of all primitive types");
+        out.println("\ncalling MyJapiCtypes functions: fxx(0) ...");
 
         for (int i = 0; i < 2; i++) {
             out.println("\ncalling f11()");
@@ -242,10 +240,8 @@ public class MyJapiTest {
     static public void test2() {
         out.println("--> MyJapiTest.test2()");
 
-        out.println();
-        out.println("testing default mappings of primitive types");
-        out.println("calling MyJapi functions: f1xx(f0xx()) ...");
-        out.println();
+        out.println("\ntesting default mappings of primitive types");
+        out.println("\ncalling MyJapi functions: f1xx(f0xx()) ...");
 
         out.println("\ncalling f0()");
         MyJapi.f0();
@@ -305,14 +301,12 @@ public class MyJapiTest {
         out.println();
         out.println("<-- MyJapiTest.test2()");
     }
-    
+
     static public void test3bb() {
         out.println("--> MyJapiTest.test3bb()");
 
-        out.println();
-        out.println("testing ByteBuffer mappings of references of primitive types");
-        out.println("calling MyJapi functions: f3xxbb(f2xxbb()) ...");
-        out.println();
+        out.println("\ntesting ByteBuffer mappings of references of primitive types");
+        out.println("\ncalling MyJapi functions: f3xxbb(f2xxbb()) ...");
 
         // XXX todo: test for
         //   java/lang/IllegalArgumentException
@@ -504,14 +498,12 @@ public class MyJapiTest {
         out.println();
         out.println("<-- MyJapiTest.test3bb()");
     }
-    
+
     static public void test3v() {
         out.println("--> MyJapiTest.test3v()");
 
-        out.println();
-        out.println("testing value-copy mappings of references of primitive types");
-        out.println("calling MyJapi functions: f3xxv(f2xxv()) ...");
-        out.println();
+        out.println("\ntesting value-copy mappings of references of primitive types");
+        out.println("\ncalling MyJapi functions: f3xxv(f2xxv()) ...");
 
         // XXX to do: check NULL argument, array length != 1 arg
 
@@ -611,7 +603,7 @@ public class MyJapiTest {
             MyJapi.f324v(nf224v1);
             assert (nf224v0 + 1 == nf224v1);
         }
-        
+
         for (int i = 0; i < 2; i++) {
             out.println("\ncalling f331v(f231v()); f231v()");
             final boolean nf231v0 = MyJapi.f231v();
@@ -709,7 +701,7 @@ public class MyJapiTest {
             final double nf244v1 = MyJapi.f244v();
             assert (nf244v1 == nf344v[0]);
         }
-        
+
         out.println();
         out.println("<-- MyJapiTest.test3v()");
     }
@@ -717,10 +709,8 @@ public class MyJapiTest {
     static public void test4bb0() {
         out.println("--> MyJapiTest.test4bb0()");
 
-        out.println();
-        out.println("testing ByteBuffer<size=0> mappings of pointers to primitive types");
-        out.println("calling MyJapi functions: f5xxbb0(f4xxbb0()) ...");
-        out.println();
+        out.println("\ntesting ByteBuffer<size=0> mappings of pointers to primitive types");
+        out.println("\ncalling MyJapi functions: f5xxbb0(f4xxbb0()) ...");
 
         // XXX todo: test for
         //   java/lang/IllegalArgumentException
@@ -888,10 +878,8 @@ public class MyJapiTest {
     static public void test4bb1() {
         out.println("--> MyJapiTest.test4bb1()");
 
-        out.println();
-        out.println("testing ByteBuffer<sizeof(C)> mappings of pointers to primitive types");
-        out.println("calling MyJapi functions: f5xxbb1(f4xxbb1()) ...");
-        out.println();
+        out.println("\ntesting ByteBuffer<sizeof(C)> mappings of pointers to primitive types");
+        out.println("\ncalling MyJapi functions: f5xxbb1(f4xxbb1()) ...");
 
         // XXX todo: test for
         //   java/lang/IllegalArgumentException
@@ -1251,14 +1239,12 @@ public class MyJapiTest {
         out.println();
         out.println("<-- MyJapiTest.test4bb1()");
     }
-    
+
     static public void test4v1() {
         out.println("--> MyJapiTest.test4v1()");
 
-        out.println();
-        out.println("testing array<size=1> mappings of pointers to primitive types");
-        out.println("calling MyJapi functions: f5xxv1(f4xxv1()) ...");
-        out.println();
+        out.println("\ntesting array<size=1> mappings of pointers to primitive types");
+        out.println("\ncalling MyJapi functions: f5xxv1(f4xxv1()) ...");
 
         // XXX todo: test for
         //   java/lang/IllegalArgumentException
@@ -1292,7 +1278,7 @@ public class MyJapiTest {
             out.println("a[0] = " + a[0]);
             assert (nf437v1 + 1 == a[0]);
         }
-        
+
         for (int i = 0; i < 2; i++) {
             out.println("\ncalling f511v1(f411v1()); f511v1(f411v1())");
             final boolean[] nf411v0 = MyJapi.f411v1();
@@ -1378,7 +1364,7 @@ public class MyJapiTest {
             MyJapi.f524v1(nf424v1);
             assert (nf424v0[0] + 1 == nf424v1[0]);
         }
-        
+
         for (int i = 0; i < 2; i++) {
             out.println("\ncalling f531v1(f431v1()); f431v1()");
             final boolean[] nf431v0 = MyJapi.f431v1();
@@ -1538,7 +1524,7 @@ public class MyJapiTest {
             MyJapi.f564v1(nf464v1);
             assert (nf464v0[0] + 1 == nf464v1[0]);
         }
-        
+
         for (int i = 0; i < 2; i++) {
             out.println("\ncalling f571v1(f471v1()); f471v1()");
             final boolean[] nf471v0 = MyJapi.f471v1();
@@ -1620,10 +1606,8 @@ public class MyJapiTest {
     static public void test5bb0() {
         out.println("--> MyJapiTest.test5bb0()");
 
-        out.println();
-        out.println("testing nullable ByteBuffer<size=0> mappings of pointers to primitive types");
-        out.println("calling MyJapi functions: f7xxbb0(f6xxbb0()) ...");
-        out.println();
+        out.println("\ntesting nullable ByteBuffer<size=0> mappings of pointers to primitive types");
+        out.println("\ncalling MyJapi functions: f7xxbb0(f6xxbb0()) ...");
 
         // XXX todo: test for
         //   java/lang/IllegalArgumentException
@@ -1791,10 +1775,8 @@ public class MyJapiTest {
     static public void test5bb1() {
         out.println("--> MyJapiTest.test5bb1()");
 
-        out.println();
-        out.println("testing nullable ByteBuffer<sizeof(C)> mappings of pointers to primitive types");
-        out.println("calling MyJapi functions: f7xxbb1(f6xxbb1()) ...");
-        out.println();
+        out.println("\ntesting nullable ByteBuffer<sizeof(C)> mappings of pointers to primitive types");
+        out.println("\ncalling MyJapi functions: f7xxbb1(f6xxbb1()) ...");
 
         // XXX todo: test for
         //   java/lang/IllegalArgumentException
@@ -1963,10 +1945,8 @@ public class MyJapiTest {
     static public void test5v0() {
         out.println("--> MyJapiTest.test5v0()");
 
-        out.println();
-        out.println("testing nullable array<size=0> mappings of pointers to primitive types");
-        out.println("calling MyJapi functions: f7xxv0(f6xxv0()) ...");
-        out.println();
+        out.println("\ntesting nullable array<size=0> mappings of pointers to primitive types");
+        out.println("\ncalling MyJapi functions: f7xxv0(f6xxv0()) ...");
 
         // XXX todo: test for
         //   java/lang/IllegalArgumentException
@@ -2133,10 +2113,8 @@ public class MyJapiTest {
     static public void test5v1() {
         out.println("--> MyJapiTest.test5v1()");
 
-        out.println();
-        out.println("testing nullable array<size=1> mappings of pointers to primitive types");
-        out.println("calling MyJapi functions: f7xxv1(f6xxv1()) ...");
-        out.println();
+        out.println("\ntesting nullable array<size=1> mappings of pointers to primitive types");
+        out.println("\ncalling MyJapi functions: f7xxv1(f6xxv1()) ...");
 
         // XXX todo: test for
         //   java/lang/IllegalArgumentException
@@ -2303,10 +2281,9 @@ public class MyJapiTest {
     static public void test6() {
         out.println("--> MyJapiTest.test6()");
 
-        out.println();
-        out.println("testing object mappings: ...");
+        out.println("\ntesting object mappings: ...");
         int n = -1;
-    
+
         out.println("\ncalling A.create_r()...");
         A a = A.create_r();
         out.println("... a = " + a);
@@ -2343,14 +2320,14 @@ public class MyJapiTest {
         assert (n == -10);
 
         out.println("\ncalling A.d0s(A.d0s() + 1)...");
-        A.d0s(A.d0s() + 1);        
+        A.d0s(A.d0s() + 1);
         out.println("\n... calling A.d0s()...");
         n = A.d0s();
         out.println("... A.d0s() = " + n);
         assert (n == 11);
 
         out.println("\ncalling a.d0s(a.d0s() + 1)...");
-        a.d0s(a.d0s() + 1);        
+        a.d0s(a.d0s() + 1);
         out.println("\n... calling a.d0s()...");
         n = a.d0s();
         out.println("... a.d0s() = " + n);
@@ -2362,14 +2339,14 @@ public class MyJapiTest {
         assert (n == -11);
 
         out.println("\ncalling a.d0(a.d0() + 1)...");
-        a.d0(a.d0() + 1);        
+        a.d0(a.d0() + 1);
         out.println("\n... calling a.d0()...");
         n = a.d0();
         out.println("... a.d0() = " + n);
         assert (n == 12);
 
         out.println("\ncalling B0...");
-        n = B0.f0s();    
+        n = B0.f0s();
         out.println("... B0.f0s() = " + n);
         assert (n == 20);
 
@@ -2379,7 +2356,7 @@ public class MyJapiTest {
         assert (b0b0 != null);
 
         out.println("\ncalling b0b0.f0s()...");
-        n = b0b0.f0s();    
+        n = b0b0.f0s();
         out.println("... b0b0.f0s() = " + n);
         assert (n == 20);
 
@@ -2404,14 +2381,14 @@ public class MyJapiTest {
         assert (n == -20);
 
         out.println("\ncalling B0.d0s(B0.d0s() + 1)...");
-        B0.d0s(B0.d0s() + 1);        
+        B0.d0s(B0.d0s() + 1);
         out.println("\n... calling B0.d0s()...");
         n = B0.d0s();
         out.println("... B0.d0s() = " + n);
         assert (n == 21);
 
         out.println("\ncalling b0b0.d0s(b0b0.d0s() + 1)...");
-        b0b0.d0s(b0b0.d0s() + 1);        
+        b0b0.d0s(b0b0.d0s() + 1);
         out.println("\n... calling b0b0.d0s()...");
         n = b0b0.d0s();
         out.println("... b0b0.d0s() = " + n);
@@ -2423,7 +2400,7 @@ public class MyJapiTest {
         assert (n == -21);
 
         out.println("\ncalling B0.d0(b0b0, B0.d0(b0b0) + 1)...");
-        B0.d0(b0b0, B0.d0(b0b0) + 1);        
+        B0.d0(b0b0, B0.d0(b0b0) + 1);
         out.println("\n... calling B0.d0(b0b0)...");
         n = B0.d0(b0b0);
         out.println("... B0.d0(b0b0) = " + n);
@@ -2433,7 +2410,7 @@ public class MyJapiTest {
         a.del(b0b0);
 
         out.println("\ncalling B1.f0s()...");
-        n = B1.f0s();    
+        n = B1.f0s();
         out.println("... B1.f0s() = " + n);
         assert (n == 30);
 
@@ -2444,7 +2421,7 @@ public class MyJapiTest {
         assert (b0b1 != null);
 
         out.println("\ncalling b0b1.f0s()...");
-        n = b0b1.f0s();    
+        n = b0b1.f0s();
         out.println("... b0b1.f0s() = " + n);
         assert (n == 20);
 
@@ -2469,14 +2446,14 @@ public class MyJapiTest {
         assert (n == -30);
 
         out.println("\ncalling B1.d0s(B1.d0s() + 1)...");
-        B1.d0s(B1.d0s() + 1);        
+        B1.d0s(B1.d0s() + 1);
         out.println("\n... calling B1.d0s()...");
         n = B1.d0s();
         out.println("... B1.d0s() = " + n);
         assert (n == 31);
 
         out.println("\ncalling b1b1.d0s(b1b1.d0s() + 1)...");
-        b1b1.d0s(b1b1.d0s() + 1);        
+        b1b1.d0s(b1b1.d0s() + 1);
         out.println("\n... calling b1b1.d0s()...");
         n = b1b1.d0s();
         out.println("... b1b1.d0s() = " + n);
@@ -2488,7 +2465,7 @@ public class MyJapiTest {
         assert (n == -31);
 
         out.println("\ncalling B1.d0(b1b1, B1.d0(b1b1) + 1)...");
-        B1.d0(b1b1, B1.d0(b1b1) + 1);        
+        B1.d0(b1b1, B1.d0(b1b1) + 1);
         out.println("\n... calling B1.d0(b1b1)...");
         n = B1.d0(b1b1);
         out.println("... B1.d0(b1b1) = " + n);
@@ -2519,24 +2496,24 @@ public class MyJapiTest {
         out.println("\ncalling A.deliver_ptr()...");
         A pa = A.deliver_ptr();
         assert (pa != null);
-        
+
         out.println("\ncalling A.take_ptr()...");
         A.take_ptr(pa);
-        
+
         out.println("\ncalling A.deliver_null_ptr()...");
         A p0 = A.deliver_null_ptr();
         assert (p0 == null);
-        
+
         out.println("\ncalling A.take_null_ptr()...");
         A.take_null_ptr(p0);
-        
+
         out.println("\ncalling A.deliver_ref()...");
         A ra = A.deliver_ref();
         assert (ra != null);
-        
+
         out.println("\ncalling A.take_ref()...");
         A.take_ref(ra);
-        
+
         out.println("\ncalling A.deliver_null_ref()...");
         try {
             A.deliver_null_ref();
@@ -2544,7 +2521,7 @@ public class MyJapiTest {
         } catch (AssertionError e) {
             out.println("... successfully caught: " + e);
         }
-        
+
         out.println("\ncalling A.take_null_ref()...");
         try {
             A.take_null_ref(null);
@@ -2552,7 +2529,7 @@ public class MyJapiTest {
         } catch (IllegalArgumentException e) {
             out.println("... successfully caught: " + e);
         }
-        
+
         out.println();
         out.println("<-- MyJapiTest.test6()");
     };
@@ -2560,9 +2537,8 @@ public class MyJapiTest {
     static public void test7s() {
         out.println("--> MyJapiTest.test7s()");
 
-        out.println();
-        out.println("testing String mappings");
-        out.println("calling MyJapi functions: s1x2(s0x2()) ...");
+        out.println("\ntesting String mappings");
+        out.println("\ncalling MyJapi functions: s1x2(s0x2()) ...");
 
         out.println("\ncalling s112s(s012s())");
         MyJapi.s112s(MyJapi.s012s());
@@ -2596,9 +2572,8 @@ void s172sb(StringBuilder p0);
     static public void test7bb0() {
         out.println("--> MyJapiTest.test7bb0()");
 
-        out.println();
-        out.println("testing ByteBuffer<size=0> mappings of void/char pointers");
-        out.println("calling MyJapi functions: s1xxbb0(s0xxbb0()) ...");
+        out.println("\ntesting ByteBuffer<size=0> mappings of void/char pointers");
+        out.println("\ncalling MyJapi functions: s1xxbb0(s0xxbb0()) ...");
 
         out.println("\ncalling s110bb0(s010bb0())");
         MyJapi.s110bb0(MyJapi.s010bb0());
@@ -2895,9 +2870,8 @@ void s172sb(StringBuilder p0);
     static public void test7bb1() {
         out.println("--> MyJapiTest.test7bb1()");
 
-        out.println();
-        out.println("testing ByteBuffer<size=1> mappings of void/char pointers");
-        out.println("calling MyJapi functions: s1xxbb1(s0xxbb1()) ...");
+        out.println("\ntesting ByteBuffer<size=1> mappings of void/char pointers");
+        out.println("\ncalling MyJapi functions: s1xxbb1(s0xxbb1()) ...");
 
         out.println("\ncalling s110bb1(s010bb1())");
         MyJapi.s110bb1(MyJapi.s010bb1());
@@ -3194,9 +3168,8 @@ void s172sb(StringBuilder p0);
     static public void test7bb() {
         out.println("--> MyJapiTest.test7bb()");
 
-        out.println();
-        out.println("testing ByteBuffer<size=0> mappings of null-allowed void/char pointers");
-        out.println("calling MyJapi functions: s3xxbb(s2xxbb()) ...");
+        out.println("\ntesting ByteBuffer<size=0> mappings of null-allowed void/char pointers");
+        out.println("\ncalling MyJapi functions: s3xxbb(s2xxbb()) ...");
 
         // ------------------------------------------------------------
 
@@ -3226,8 +3199,6 @@ void s172sb(StringBuilder p0);
 
         // ------------------------------------------------------------
 
-// XXX Exception in thread "main" java.lang.IllegalArgumentException: JTie: cannot get the java.nio.ByteBuffer's internal address (perhaps, not a direct buffer or its memory region is undefined)
-
         final ByteBuffer bbd0 = ByteBuffer.allocateDirect(0);
         out.println("\ncalling s310bb(ByteBuffer.allocateDirect(0))");
         MyJapi.s310bb(bbd0);
@@ -3254,8 +3225,6 @@ void s172sb(StringBuilder p0);
         MyJapi.s372bb(bbd0);
 
         // ------------------------------------------------------------
-
-// XXX Exception in thread "main" java.lang.IllegalArgumentException: JTie: cannot get the java.nio.ByteBuffer's internal address (perhaps, not a direct buffer or its memory region is undefined)
 
         final ByteBuffer bbd0ro = bbd0.asReadOnlyBuffer();
         out.println("\ncalling s310bb(ByteBuffer.allocateDirect(0))");
@@ -3311,8 +3280,7 @@ void s172sb(StringBuilder p0);
     static public void test8() {
         out.println("--> MyJapiTest.test8()");
 
-        out.println();
-        out.println("testing n-ary functions: g(), h() ...");
+        out.println("\ntesting n-ary functions: g(), h() ...");
         int n = -1;
 
         out.println("\ncalling A.create_r(int)...");
@@ -3340,19 +3308,19 @@ void s172sb(StringBuilder p0);
         out.println();
         n = A.h0r();
         assert (n == 0);
-    
+
         out.println();
         n = A.h1r((byte)1);
         assert (n == 1);
-    
+
         out.println();
         n = A.h2r((byte)1, (short)2);
         assert (n == 3);
-    
+
         out.println();
         n = A.h3r((byte)1, (short)2, 3);
         assert (n == 6);
-    
+
         out.println();
         a.g0c();
 
@@ -3380,31 +3348,31 @@ void s172sb(StringBuilder p0);
         out.println();
         n = a.g0rc();
         assert (n == 0);
-    
+
         out.println();
         n = a.g1rc((byte)1);
         assert (n == 1);
-    
+
         out.println();
         n = a.g2rc((byte)1, (short)2);
         assert (n == 3);
-    
+
         out.println();
         n = a.g3rc((byte)1, (short)2, 3);
         assert (n == 6);
-    
+
         out.println();
         n = a.g0r();
         assert (n == 0);
-    
+
         out.println();
         n = a.g1r((byte)1);
         assert (n == 1);
-    
+
         out.println();
         n = a.g2r((byte)1, (short)2);
         assert (n == 3);
-    
+
         out.println();
         n = a.g3r((byte)1, (short)2, 3);
         assert (n == 6);
@@ -3420,25 +3388,39 @@ void s172sb(StringBuilder p0);
         out.println();
         out.println("<-- MyJapiTest.test8()");
     };
-    
+
     static public void test9() {
         out.println("--> MyJapiTest.test9()");
 
-        out.println();
-        out.println("testing const/inheritance mapping ...");
+        out.println("\ntesting const/inheritance mapping ...");
 
-        // get C0
+        // get C0, C1
         out.println("\ncalling C0.c() ...");
-        CI.C0 c0 = CI.C0.c();
+        final CI.C0 c0 = CI.C0.c();
 
         out.println("\ncalling C0.cc() ...");
-        CI.C0C c0c = CI.C0.cc();
-        
-        out.println("\nc0.print()...");
-        c0.print();
+        final CI.C0C c0c = CI.C0.cc();
 
-        out.println("\nc0c.print()...");
-        c0c.print();
+        out.println("\ncalling C1.c() ...");
+        final CI.C1 c1 = CI.C1.c();
+
+        out.println("\ncalling C1.cc() ...");
+        final CI.C1C c1c = CI.C1.cc();
+
+        // for debugging
+        if (false) {
+            out.println("\nc0.print()...");
+            c0.print();
+
+            out.println("\nc0c.print()...");
+            c0c.print();
+
+            out.println("\nc1.print()...");
+            c1.print();
+
+            out.println("\nc1c.print()...");
+            c1c.print();
+        }
 
         // C0 -> C0
         out.println("\nc0c.take_C0Cp(c0c.deliver_C0Cp())...");
@@ -3458,19 +3440,6 @@ void s172sb(StringBuilder p0);
 
         out.println("\nc0.take_C0r(c0.deliver_C0r())...");
         c0.take_C0r(c0.deliver_C0r());
-
-        // get C1
-        out.println("\ncalling C1.c() ...");
-        CI.C1 c1 = CI.C1.c();
-
-        out.println("\ncalling C1.cc() ...");
-        CI.C1C c1c = CI.C1.cc();
-        
-        out.println("\nc1.print()...");
-        c1.print();
-
-        out.println("\nc1c.print()...");
-        c1c.print();
 
         // C1 -> C0
         out.println("\nc0c.take_C0Cp(c1c.deliver_C1Cp())...");
@@ -3514,31 +3483,256 @@ void s172sb(StringBuilder p0);
         out.println("<-- MyJapiTest.test9()");
     };
 
+    static public long hash0(CI.C0CArray c0a, int n) {
+        long r = 0;
+        for (int i = 0; i < n; i++) {
+            out.println("\ncalling CI.C0Array.at(" + i + ")...");
+            final CI.C0C c0c = c0a.at(i);
+            assert (c0c != null);
+
+            out.println("\ncalling CI.C0C.id()...");
+            r ^= c0c.id();
+        }
+        return r;
+    }
+
+    static public long hash1(CI.C1CArray c1a, int n) {
+        long r = 0;
+        for (int i = 0; i < n; i++) {
+            out.println("\ncalling CI.C1Array.at(" + i + ")...");
+            final CI.C1C c1c = c1a.at(i);
+            assert (c1c != null);
+            out.println("\ncalling CI.C1C.id()...");
+            r ^= c1c.id();
+        }
+        return r;
+    }
+
     static public void test10() {
         out.println("--> MyJapiTest.test10()");
 
-        out.println();
-        out.println("testing enum-int mapping ...");
+        out.println("\ntesting object array functions ...");
+        long r0, r1, r2;
 
-        out.println("\nCI.C0.take_C0E1(CI.C0.deliver_C0E1())...");
-        CI.C0.take_C0E1(CI.C0.deliver_C0E1());
+        out.println("\ntesting object array of size 0...");
+        {
+            out.println("\ncalling CI.C0Array.create(0)...");
+            final CI.C0Array c0a0 = CI.C0Array.create(0);
+            assert (c0a0 != null);
 
-        out.println("\nCI.C0.deliver_C0E1()...");
-        final int e = CI.C0.deliver_C0E1();
-        assert (e == CI.C0.C0E1);
+            final CI.C0CArray c0a0c = c0a0;
 
-        out.println("\nCI.C0.take_C0E1(e)...");
-        CI.C0.take_C0E1(e);
+            out.println("\ncalling CI.C0Array.delete(c0a0)...");
+            CI.C0Array.delete(c0a0);
+        }
 
-        out.println("\nCI.C0.take_C0E1c(CI.C0.deliver_C0E1c())...");
-        CI.C0.take_C0E1c(CI.C0.deliver_C0E1c());
+        out.println("\ntesting non-const object array of size 1...");
+        {
+            final int n = 1;
 
-        out.println("\nCI.C0.deliver_C0E1c()...");
-        final int ec = CI.C0.deliver_C0E1c();
-        assert (ec == CI.C0.C0E1);
+            out.println("\ncalling CI.C0Array.create(" + n + ")...");
+            final CI.C0Array c0a1 = CI.C0Array.create(n);
+            assert (c0a1 != null);
 
-        out.println("\nCI.C0.take_C0E1c(ec)...");
-        CI.C0.take_C0E1c(ec);
+            out.println("\ncalling CI.C0Array.at(0)...");
+            final CI.C0 c01 = c0a1.at(0);
+            assert (c01 != null);
+
+            if (false) { // for debugging
+                out.println("\ncalling CI.C0.print()...");
+                c01.print();
+            }
+
+            out.println("\ncalling CI.C0.check(CI.C0.id())...");
+            c01.check(c01.id());
+
+            out.println("\ncalling hash(CI.C0Array, " + n + ")...");
+            r0 = hash0(c0a1, n);
+
+            out.println("\ncalling CI.C0.hash(CI.C0Array, " + n + ")...");
+            r1 = CI.C0.hash(c0a1, n);
+            assert (r1 == r0);
+
+            out.println("\ncalling CI.C0.hash(CI.C0.pass(CI.C0Array), " + n + ")...");
+            r2 = CI.C0.hash(CI.C0.pass(c0a1), n);
+            assert (r2 == r0);
+
+            out.println("\ntesting const object array of size " + n + "...");
+            final CI.C0CArray c0ca1 = c0a1;
+
+            out.println("\ncalling CI.C0Array.at(0)...");
+            final CI.C0C c0c1 = c0ca1.at(0);
+            assert (c0c1 != null);
+
+            if (false) { // for debugging
+                out.println("\ncalling CI.C0.print()...");
+                c0c1.print();
+            }
+
+            out.println("\ncalling CI.C0C.check(CI.C0C.id())...");
+            c0c1.check(c0c1.id());
+
+            out.println("\ncalling hash(CI.C0CArray, " + n + ")...");
+            r0 = hash0(c0ca1, n);
+
+            out.println("\ncalling CI.C0.hash(CI.C0CArray, " + n + ")...");
+            r1 = CI.C0.hash(c0ca1, n);
+            assert (r1 == r0);
+
+            out.println("\ncalling CI.C0.hash(CI.C0.pass(CI.C0CArray), " + n + ")...");
+            r2 = CI.C0.hash(CI.C0.pass(c0ca1), n);
+            assert (r2 == r0);
+
+            out.println("\ncalling CI.C0Array.delete(c0a1)...");
+            CI.C0Array.delete(c0a1);
+        }
+
+        out.println("\ntesting non-const object array of size >1...");
+        {
+            final int m = 3;
+
+            out.println("\ncalling CI.C0Array.create(" + m + ")...");
+            CI.C0Array c0a = CI.C0Array.create(m);
+            assert (c0a != null);
+
+            out.println("\ncalling hash(CI.C0Array, " + m + ")...");
+            r0 = hash0(c0a, m);
+
+            out.println("\ncalling CI.C0.hash(CI.C0Array, " + m + ")...");
+            r1 = CI.C0.hash(c0a, m);
+            assert (r1 == r0);
+
+            out.println("\ncalling CI.C0.hash(CI.C0.pass(CI.C0Array), " + m + ")...");
+            r2 = CI.C0.hash(CI.C0.pass(c0a), m);
+            assert (r2 == r0);
+
+            out.println("\ntesting const object array of size " + m + "...");
+            final CI.C0CArray c0ca = c0a;
+
+            out.println("\ncalling hash(CI.C0CArray, " + m + ")...");
+            r0 = hash0(c0ca, m);
+
+            out.println("\ncalling CI.C0.hash(CI.C0CArray, " + m + ")...");
+            r1 = CI.C0.hash(c0ca, m);
+            assert (r1 == r0);
+
+            out.println("\ncalling CI.C0.hash(CI.C0.pass(CI.C0CArray), " + m + ")...");
+            r2 = CI.C0.hash(CI.C0.pass(c0ca), m);
+            assert (r2 == r0);
+
+            out.println("\ncalling CI.C0Array.delete(c0a)...");
+            CI.C0Array.delete(c0a);
+        }
+
+        out.println("\ntesting subclass object array of size 0...");
+        {
+            out.println("\ncalling CI.C1Array.create(0)...");
+            final CI.C1Array c1a0 = CI.C1Array.create(0);
+            assert (c1a0 != null);
+
+            final CI.C1CArray c1a0c = c1a0;
+
+            out.println("\ncalling CI.C1Array.delete(c1a0)...");
+            CI.C1Array.delete(c1a0);
+        }
+
+        out.println("\ntesting subclass non-const object array of size 1...");
+        {
+            final int n = 1;
+
+            out.println("\ncalling CI.C1Array.create(" + n + ")...");
+            final CI.C1Array c1a1 = CI.C1Array.create(n);
+            assert (c1a1 != null);
+
+            out.println("\ncalling CI.C1Array.at(0)...");
+            final CI.C1 c11 = c1a1.at(0);
+            assert (c11 != null);
+
+            if (false) { // for debugging
+                out.println("\ncalling CI.C1.print()...");
+                c11.print();
+            }
+
+            out.println("\ncalling CI.C1.check(CI.C1.id())...");
+            c11.check(c11.id());
+
+            out.println("\ncalling hash(CI.C1Array, " + n + ")...");
+            r0 = hash1(c1a1, n);
+
+            out.println("\ncalling CI.C1.hash(CI.C1Array, " + n + ")...");
+            r1 = CI.C1.hash(c1a1, n);
+            assert (r1 == r0);
+
+            out.println("\ncalling CI.C1.hash(CI.C1.pass(CI.C1Array), " + n + ")...");
+            r2 = CI.C1.hash(CI.C1.pass(c1a1), n);
+            assert (r2 == r0);
+
+            out.println("\ntesting subclass const object array of size " + n + "...");
+            final CI.C1CArray c1ca1 = c1a1;
+
+            out.println("\ncalling CI.C1Array.at(0)...");
+            final CI.C1C c1c1 = c1ca1.at(0);
+            assert (c1c1 != null);
+
+            if (false) { // for debugging
+                out.println("\ncalling CI.C1.print()...");
+                c1c1.print();
+            }
+
+            out.println("\ncalling CI.C1C.check(CI.C1C.id())...");
+            c1c1.check(c1c1.id());
+
+            out.println("\ncalling hash(CI.C1CArray, " + n + ")...");
+            r0 = hash1(c1ca1, n);
+
+            out.println("\ncalling CI.C1.hash(CI.C1CArray, " + n + ")...");
+            r1 = CI.C1.hash(c1ca1, n);
+            assert (r1 == r0);
+
+            out.println("\ncalling CI.C1.hash(CI.C1.pass(CI.C1CArray), " + n + ")...");
+            r2 = CI.C1.hash(CI.C1.pass(c1ca1), n);
+            assert (r2 == r0);
+
+            out.println("\ncalling CI.C1Array.delete(c1a1)...");
+            CI.C1Array.delete(c1a1);
+        }
+
+        out.println("\ntesting subclass non-const object array of size >1...");
+        {
+            final int m = 3;
+
+            out.println("\ncalling CI.C1Array.create(" + m + ")...");
+            CI.C1Array c1a = CI.C1Array.create(m);
+            assert (c1a != null);
+
+            out.println("\ncalling hash(CI.C1Array, " + m + ")...");
+            r0 = hash1(c1a, m);
+
+            out.println("\ncalling CI.C1.hash(CI.C1Array, " + m + ")...");
+            r1 = CI.C1.hash(c1a, m);
+            assert (r1 == r0);
+
+            out.println("\ncalling CI.C1.hash(CI.C1.pass(CI.C1Array), " + m + ")...");
+            r2 = CI.C1.hash(CI.C1.pass(c1a), m);
+            assert (r2 == r0);
+
+            out.println("\ntesting subclass const object array of size " + m + "...");
+            final CI.C1CArray c1ca = c1a;
+
+            out.println("\ncalling hash(CI.C1CArray, " + m + ")...");
+            r0 = hash1(c1ca, m);
+
+            out.println("\ncalling CI.C1.hash(CI.C1CArray, " + m + ")...");
+            r1 = CI.C1.hash(c1ca, m);
+            assert (r1 == r0);
+
+            out.println("\ncalling CI.C1.hash(CI.C1.pass(CI.C1CArray), " + m + ")...");
+            r2 = CI.C1.hash(CI.C1.pass(c1ca), m);
+            assert (r2 == r0);
+
+            out.println("\ncalling CI.C1Array.delete(c1a)...");
+            CI.C1Array.delete(c1a);
+        }
 
         out.println();
         out.println("<-- MyJapiTest.test10()");
@@ -3547,38 +3741,66 @@ void s172sb(StringBuilder p0);
     static public void test11() {
         out.println("--> MyJapiTest.test11()");
 
-        out.println();
-        out.println("testing function dispatch ...");
+        out.println("\ntesting function dispatch ...");
 
-        out.println("calling D0.sub().f_d0()...");
+        out.println("\ncalling D0.sub().f_d0()...");
         assert (D0.sub().f_d0() == 20);
 
-        out.println("calling D1.f_nv(D0.sub())...");
+        out.println("\ncalling D1.f_nv(D0.sub())...");
         assert (D1.f_nv(D0.sub()) == 31);
 
-        out.println("calling D0.sub().f_v()...");
+        out.println("\ncalling D0.sub().f_v()...");
         assert (D0.sub().f_v() == 32);
-        
-        out.println("calling D1.sub().f_d0()...");
+
+        out.println("\ncalling D1.sub().f_d0()...");
         assert (D1.sub().f_d0() == 20);
 
-        out.println("calling D1.sub().f_d1()...");
+        out.println("\ncalling D1.sub().f_d1()...");
         assert (D1.sub().f_d1() == 30);
 
-        out.println("calling D1.f_nv(D1.sub())...");
+        out.println("\ncalling D1.f_nv(D1.sub())...");
         assert (D1.f_nv(D1.sub()) == 31);
 
-        out.println("calling D1.sub().f_v()...");
+        out.println("\ncalling D1.sub().f_v()...");
         assert (D1.sub().f_v() == 42);
 
-        out.println("calling D2.sub()...");
+        out.println("\ncalling D2.sub()...");
         assert (D2.sub() == null);
 
         out.println();
         out.println("<-- MyJapiTest.test11()");
     };
-    
-    static public void test() 
+
+    static public void test12() {
+        out.println("--> MyJapiTest.test12()");
+
+        out.println("\ntesting enum-int mapping ...");
+
+        out.println("\nE.take_EE1(E.deliver_EE1())...");
+        E.take_EE1(E.deliver_EE1());
+
+        out.println("\nE.deliver_EE1()...");
+        final int e = E.deliver_EE1();
+        assert (e == E.EE1);
+
+        out.println("\nE.take_EE1(e)...");
+        E.take_EE1(e);
+
+        out.println("\nE.take_EE1c(E.deliver_EE1c())...");
+        E.take_EE1c(E.deliver_EE1c());
+
+        out.println("\nE.deliver_EE1c()...");
+        final int ec = E.deliver_EE1c();
+        assert (ec == E.EE1);
+
+        out.println("\nE.take_EE1c(ec)...");
+        E.take_EE1c(ec);
+
+        out.println();
+        out.println("<-- MyJapiTest.test12()");
+    };
+
+    static public void test()
     {
         out.println("--> MyJapiTest.test()");
 
@@ -3632,9 +3854,13 @@ void s172sb(StringBuilder p0);
             test10();
             out.println();
             test11();
+            out.println();
+            test12();
         } else {
             out.println();
-            test0();
+            test10();
+            out.println();
+            test12();
         }
 
         out.println();
@@ -3642,13 +3868,13 @@ void s172sb(StringBuilder p0);
     }
 
 
-    static public void main(String[] args) 
+    static public void main(String[] args)
     {
         out.println("--> MyJapiTest.main()");
 
         out.println();
         test();
-        
+
         out.println();
         out.println("<-- MyJapiTest.main()");
     }

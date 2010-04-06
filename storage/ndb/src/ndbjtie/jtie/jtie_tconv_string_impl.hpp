@@ -57,7 +57,9 @@ struct ParamStringT< jstring, const char * > {
     static const char *
     convert(cstatus & s, jstring j, JNIEnv * env) {
         TRACE("const char * ParamStringT.convert(cstatus &, jstring, JNIEnv *)");
-        s = -1; // init to error
+
+        // init return value and status to error
+        s = -1;
         const char * c = NULL;
         
         // return a C string from a Java String

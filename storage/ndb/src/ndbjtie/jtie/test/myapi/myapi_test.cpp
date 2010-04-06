@@ -546,13 +546,28 @@ test9()
     C1 & c1 = *C1::c;
     const C1 & c1c = *C1::cc;
 
-    printf("\nc0.print()... c1.print()...\n");
-    c0.print();
-    c1.print();
+    // for debugging
+    if (false) {
+        printf("\nc0.print()... c0c.print()...\n");
+        c0.print();
+        c1.print();
 
-    printf("\nc0c.print()... c1c.print()...\n");
-    c0c.print();
-    c1c.print();
+        printf("\nc1.print()... c1c.print()...\n");
+        c0c.print();
+        c1c.print();
+    }
+
+    printf("\nc0.check(c0.id);\n");
+    c0.check(c0.id);
+
+    printf("\nc0c.check(c0c.id);\n");
+    c0c.check(c0c.id);
+
+    printf("\nc1.check(c1.id);\n");
+    c1.check(c1.id);
+
+    printf("\nc1c.check(c1c.id);\n");
+    c1c.check(c1c.id);
 
     // C0 -> C0
     printf("\nc0c.take_C0Cp(c0c.deliver_C0Cp())...\n");
@@ -612,52 +627,66 @@ test9()
     c1.take_C1r(c1.deliver_C1r());
 }
 
-template< typename E, void (F)(E) >
-inline void call(E e) 
-{
-    (F)(e);
-}
-
-template< typename E, E (F)() >
-inline E call() 
-{
-    return (F)();
-}
-
-#if 0
-// explicit function template instantiations if not declared inline
-// (for gcc 3.4.3)
-template C0::C0E call< C0::C0E, C0::deliver_C0E1 >();
-template const C0::C0E call< const C0::C0E, C0::deliver_C0E1c >();
-template void call< C0::C0E, C0::take_C0E1 >(C0::C0E);
-template void call< const C0::C0E, C0::take_C0E1c >(const C0::C0E);
-#endif
-
 void
 test10()
 {
-    printf("\ntesting enums: ...\n");
+    printf("\ntesting object array functions ...\n\n");
 
-    // C0E enums
-    printf("\nC0::take_C0E1(C0::deliver_C0E1())...\n");
-    C0::take_C0E1(C0::deliver_C0E1());
+    printf("\ndelete[] (new C0[0])\n");
+    C0 * c0a0 = new C0[0];
+    assert(c0a0 != NULL);
+    delete[] c0a0;
 
-    printf("\ncall< C0::C0E, C0::deliver_C0E1 >()...\n");
-    C0::C0E e = call< C0::C0E, C0::deliver_C0E1 >();
-    assert(e == C0::C0E1);
-    
-    printf("\ncall< C0::C0E, C0::take_C0E1 >(e)...\n");
-    call< C0::C0E, C0::take_C0E1 >(e);
+    const int n = 3;
+    C0 * c0a = new C0[n];
+    const C0 * c0ca = c0a;
+    C1 * c1a = new C1[n];
+    const C1 * c1ca = c1a;
 
-    printf("\nC0::take_C0E1c(C0::deliver_C0E1c())...\n");
-    C0::take_C0E1c(C0::deliver_C0E1c());
+    // for debugging
+    //for (int i = 0; i < n; i++) {
+    for (int i = 0; i < 0; i++) {
+        printf("\nc0a[i].print()\n");
+        c0a[i].print();
 
-    printf("\ncall< C0::C0E, C0::deliver_C0E1c >()...\n");
-    const C0::C0E ec = call< const C0::C0E, C0::deliver_C0E1c >();
-    assert(ec == C0::C0E1);
-    
-    printf("\ncall< C0::C0E, C0::take_C0E1c >(e)...\n");
-    call< const C0::C0E, C0::take_C0E1c >(ec);
+        printf("\nc0ca[i].print()\n");
+        c0ca[i].print();
+
+        printf("\nc1a[i].print()\n");
+        c1a[i].print();
+
+        printf("\nc1ca[i].print()\n");
+        c1ca[i].print();
+    }
+
+    for (int i = 0; i < n; i++) {
+        printf("\nc0a[i].check(c0a[i].id)\n");
+        c0a[i].check(c0a[i].id);
+
+        printf("\nc0ca[i].check(c0ca[i].id)\n");
+        c0ca[i].check(c0ca[i].id);
+
+        printf("\nc1a[i].check(c1a[i].id)\n");
+        c1a[i].check(c1a[i].id);
+
+        printf("\nc1ca[i].check(c1ca[i].id)\n");
+        c1ca[i].check(c1ca[i].id);
+    }
+
+    printf("\nC0::hash(c0a, n) == C0::hash(C0::pass(c0a), n)...\n");
+    assert(C0::hash(c0a, n) == C0::hash(C0::pass(c0a), n));
+
+    printf("\nC0::hash(c0ca, n) == C0::hash(C0::pass(c0ca), n)...\n");
+    assert(C0::hash(c0ca, n) == C0::hash(C0::pass(c0ca), n));
+
+    printf("\nC1::hash(c1a, n) == C1::hash(C1::pass(c1a), n)...\n");
+    assert(C1::hash(c1a, n) == C1::hash(C1::pass(c1a), n));
+
+    printf("\nC1::hash(c1ca, n) == C1::hash(C1::pass(c1ca), n)...\n");
+    assert(C1::hash(c1ca, n) == C1::hash(C1::pass(c1ca), n));
+
+    delete[] c1a;
+    delete[] c0a;
 }
 
 void
@@ -677,12 +706,51 @@ test11()
     assert(D2::sub() == NULL);
 }
 
+template< typename E, void (F)(E) >
+inline void call(E e)
+{
+    (F)(e);
+}
+
+template< typename E, E (F)() >
+inline E call()
+{
+    return (F)();
+}
+
+void
+test12()
+{
+    printf("\ntesting enums: ...\n");
+
+    // EE enums
+    printf("\nE::take_EE1(E::deliver_EE1())...\n");
+    E::take_EE1(E::deliver_EE1());
+
+    printf("\ncall< E::EE, E::deliver_EE1 >()...\n");
+    E::EE e = call< E::EE, E::deliver_EE1 >();
+    assert(e == E::EE1);
+
+    printf("\ncall< E::EE, E::take_EE1 >(e)...\n");
+    call< E::EE, E::take_EE1 >(e);
+
+    printf("\nE::take_EE1c(E::deliver_EE1c())...\n");
+    E::take_EE1c(E::deliver_EE1c());
+
+    printf("\ncall< E::EE, E::deliver_EE1c >()...\n");
+    const E::EE ec = call< const E::EE, E::deliver_EE1c >();
+    assert(ec == E::EE1);
+
+    printf("\ncall< E::EE, E::take_EE1c >(e)...\n");
+    call< const E::EE, E::take_EE1c >(ec);
+}
+
 int
 main(int argc, const char* argv[])
 {
     printf("\n--> main()\n");
     (void)argc; (void)argv;
-    
+
     if (true) {
         test0();
         test1();
@@ -696,8 +764,9 @@ main(int argc, const char* argv[])
         test9();
         test10();
         test11();
+        test12();
     } else {
-        test7();
+        test12();
     }
 
     printf("\n<-- main()\n");
