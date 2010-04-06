@@ -52,7 +52,7 @@ typedef struct st_key_cache_statistics
   ulonglong writes;       /* number of actual writes from buffers into files */
 } KEY_CACHE_STATISTICS;
 
-#define NO_LONG_KEY_CACHE_STAT_VARIABLES 3
+#define NUM_LONG_KEY_CACHE_STAT_VARIABLES 3
 
 /* The type of a key cache object */
 typedef enum key_cache_type

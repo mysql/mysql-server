@@ -5158,6 +5158,7 @@ int init_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
 {
   int i;
   size_t mem_per_cache;
+  size_t mem_decr;
   int cnt;
   SIMPLE_KEY_CACHE_CB *partition;
   SIMPLE_KEY_CACHE_CB **partition_ptr;
@@ -5175,9 +5176,11 @@ int init_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
        (SIMPLE_KEY_CACHE_CB **) my_malloc(sizeof(SIMPLE_KEY_CACHE_CB *) *
                                           partitions, MYF(MY_WME))))
       DBUG_RETURN(-1);
+    bzero(partition_ptr, sizeof(SIMPLE_KEY_CACHE_CB *) * partitions);
     keycache->partition_array= partition_ptr;
   }
 
+  mem_decr= mem_per_cache / 5;
   mem_per_cache = use_mem / partitions;
 
   for (i= 0; i < (int) partitions; i++)
@@ -5194,30 +5197,64 @@ int init_partitioned_key_cache(PARTITIONED_KEY_CACHE_CB *keycache,
       partition->key_cache_inited= 0;
     }
 
-    if ((cnt= init_simple_key_cache(partition, 
-                                    key_cache_block_size, mem_per_cache, 
-                                    division_limit, age_threshold)) <= 0)
+    cnt= init_simple_key_cache(partition, key_cache_block_size, mem_per_cache, 
+			       division_limit, age_threshold);
+    if (cnt <= 0)
     {
       end_simple_key_cache(partition, 1);
-      my_free(partition,  MYF(0));
-      partition= 0;
-      if (key_cache_inited)
+      if (!key_cache_inited)
       {
-        memmove(partition_ptr, partition_ptr+1,
-                sizeof(partition_ptr)*(partitions-i-1));
+        my_free(partition,  MYF(0));
+        partition= 0;
       }
-      if (!--partitions)
-        break;
-      if (i == 0)
+      if (i == 0 && cnt < 0 || i > 0)
       {
-        i--;
-        mem_per_cache = use_mem / partitions;
-        continue;
+        /* 
+          Here we have two cases: 
+            1. i == 0 and cnt < 0
+            cnt < 0 => mem_per_cache is not big enough to allocate minimal
+            number of key blocks in the key cache of the partition.
+            Decrease the the number of the partitions by 1 and start again.
+            2. i > 0 
+            There is not enough memory for one of the succeeding partitions.
+            Just skip this partition decreasing the number of partitions in
+            the key cache by one.
+          Do not change the value of mem_per_cache in both cases.
+	*/
+        if (key_cache_inited)
+	{
+          my_free(partition,  MYF(0));
+          partition= 0;
+          if(key_cache_inited) 
+            memmove(partition_ptr, partition_ptr+1, 
+                    sizeof(partition_ptr)*(partitions-i-1));
+	}
+        if (!--partitions)
+          break;
       }
+      else
+      {
+        /*
+          We come here when i == 0 && cnt == 0.
+          cnt == 0 => the memory allocator fails to allocate a block of
+          memory of the size mem_per_cache. Decrease the value of
+          mem_per_cache  without changing the current number of partitions
+          and start again. Make sure that such a decrease may happen not
+          more than 5 times in total.
+	*/
+        if (use_mem <= mem_decr)
+          break;
+        use_mem-= mem_decr;
+      }
+      i--;
+      mem_per_cache= use_mem/partitions;
+      continue;
     }
-
-    blocks+= cnt;
-    *partition_ptr++= partition;
+    else
+    {
+      blocks+= cnt;
+      *partition_ptr++= partition;
+    }
   } 
 
   keycache->partitions= partitions= partition_ptr-keycache->partition_array;
@@ -5859,7 +5896,7 @@ get_partitioned_key_cache_stat_value(PARTITIONED_KEY_CACHE_CB *keycache,
   ulonglong res= 0;
   DBUG_ENTER("get_partitioned_key_cache_stat_value");
 
-  if (var_no < NO_LONG_KEY_CACHE_STAT_VARIABLES)
+  if (var_no < NUM_LONG_KEY_CACHE_STAT_VARIABLES)
   {
     for (i = 0; i < partitions; i++)
     {

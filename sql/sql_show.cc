@@ -2265,7 +2265,7 @@ static void update_key_cache_stat_var(KEY_CACHE *key_cache, size_t ofs)
   case offsetof(KEY_CACHE, global_cache_read):
   case offsetof(KEY_CACHE, global_cache_w_requests):
   case offsetof(KEY_CACHE, global_cache_write):
-    var_no= NO_LONG_KEY_CACHE_STAT_VARIABLES +
+    var_no= NUM_LONG_KEY_CACHE_STAT_VARIABLES +
             (ofs-offsetof(KEY_CACHE, global_cache_w_requests))/
              sizeof(ulonglong);
     *(ulonglong *)((char *) key_cache + ofs)=
