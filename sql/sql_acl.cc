@@ -287,9 +287,8 @@ static void init_check_host(void);
 static void rebuild_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
-static bool update_user_table(THD *thd, TABLE *table,
-                              const char *host, const char *user,
-			      const char *new_password, uint new_password_len);
+static bool update_user_table(THD *, TABLE *, const char *, const char *,
+                              const char *, uint);
 static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
@@ -1161,7 +1160,12 @@ static void acl_update_user(const char *user, const char *host,
             acl_user->plugin.str= strmake_root(&mem, plugin->str, plugin->length);
         }
         else
-          set_user_salt(acl_user, password, password_len);
+          if (password)
+          {
+            acl_user->auth_string.str= strmake_root(&mem, password, password_len);
+            acl_user->auth_string.length= password_len;
+            set_user_salt(acl_user, password, password_len);
+          }
 	acl_user->access=privileges;
 	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
 	  acl_user->user_resource.questions=mqh->questions;
@@ -1611,7 +1615,13 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
   /* update loaded acl entry: */
-  set_user_salt(acl_user, new_password, new_password_len);
+  if (acl_user->plugin.str == native_password_plugin_name.str || 
+      acl_user->plugin.str == old_password_plugin_name.str)
+  {
+    acl_user->auth_string.str= strmake_root(&mem, new_password, new_password_len);
+    acl_user->auth_string.length= new_password_len;
+    set_user_salt(acl_user, new_password, new_password_len);
+  }
 
   if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
@@ -4642,16 +4652,27 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append(lex_user->host.str,lex_user->host.length,
 		  system_charset_info);
     global.append ('\'');
-    if (acl_user->salt_len)
+    if (acl_user->plugin.str == native_password_plugin_name.str ||
+        acl_user->plugin.str == old_password_plugin_name.str)
     {
-      char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
-      if (acl_user->salt_len == SCRAMBLE_LENGTH)
-        make_password_from_salt(passwd_buff, acl_user->salt);
-      else
-        make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append(passwd_buff);
-      global.append('\'');
+      if (acl_user->auth_string.length)
+      {
+        DBUG_ASSERT(acl_user->salt_len);
+        global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
+        global.append(acl_user->auth_string.str, acl_user->auth_string.length);
+        global.append('\'');
+      }
+    }
+    else
+    {
+        global.append(STRING_WITH_LEN(" IDENTIFIED VIA "));
+        global.append(acl_user->plugin.str, acl_user->plugin.length);
+        if (acl_user->auth_string.length)
+        {
+          global.append(STRING_WITH_LEN(" USING '"));
+          global.append(acl_user->auth_string.str, acl_user->auth_string.length);
+          global.append('\'');
+        }
     }
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
