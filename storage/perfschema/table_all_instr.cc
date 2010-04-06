@@ -20,6 +20,7 @@
 
 #include "sql_priv.h"
 #include "my_global.h"
+#include "my_pthread.h"
 #include "table_all_instr.h"
 #include "pfs_global.h"
 
