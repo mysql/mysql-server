@@ -25,6 +25,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 /*
   It is necessary to include set_var.h instead of item.h because there
