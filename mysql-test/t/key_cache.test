@@ -282,7 +282,7 @@ select * from t2;
 update t1 set p=3 where p=1;
 update t2 set i=2 where i=1;
 
---replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 
+--replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 1789 KEY_BLOCKS_UNUSED
 show status like 'key_%';
 --replace_column 7 #
 select * from information_schema.key_caches where partition_number is null;
@@ -314,7 +314,7 @@ select * from t2;
 update t1 set p=3 where p=1;
 update t2 set i=2 where i=1;
 
---replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 
+--replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 1788 KEY_BLOCKS_UNUSED
 show status like 'key_%';
 --replace_column 7 #
 select * from information_schema.key_caches where partition_number is null;
@@ -339,7 +339,7 @@ select * from t2;
 update t1 set p=3 where p=1;
 update t2 set i=2 where i=1;
 
---replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 
+--replace_result 1808 KEY_BLOCKS_UNUSED 1670 KEY_BLOCKS_UNUSED 1789 KEY_BLOCKS_UNUSED
 show status like 'key_%';
 --replace_column 7 #
 select * from information_schema.key_caches where partition_number is null;
