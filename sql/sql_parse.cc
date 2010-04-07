@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define MYSQL_LEX 1
+#include "my_global.h"
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_parse.h"        // sql_kill, *_precheck, *_prepare
@@ -93,6 +94,8 @@
 #include "sql_prepare.h"
 #include "probes_mysql.h"
 #include "set_var.h"
+
+#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
   @defgroup Runtime_Environment Runtime Environment
@@ -2908,15 +2911,20 @@ end_with_restore_list:
         NOTE: SHOW_VIEW ACL is checked when the view is created.
       */
 
+      DBUG_PRINT("debug", ("lex->only_view: %d, table: %s.%s",
+                           lex->only_view,
+                           first_table->db, first_table->table_name));
       if (lex->only_view)
       {
         if (check_table_access(thd, SELECT_ACL, first_table, FALSE, 1, FALSE))
         {
+          DBUG_PRINT("debug", ("check_table_access failed"));
           my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                   "SHOW", thd->security_ctx->priv_user,
                   thd->security_ctx->host_or_ip, first_table->alias);
           goto error;
         }
+        DBUG_PRINT("debug", ("check_table_access succeeded"));
 
         /* Ignore temporary tables if this is "SHOW CREATE VIEW" */
         first_table->open_type= OT_BASE_ONLY;
@@ -2929,6 +2937,8 @@ end_with_restore_list:
           access is granted. We need to check if first_table->grant.privilege
           contains any table-specific privilege.
         */
+        DBUG_PRINT("debug", ("first_table->grant.privilege: %x",
+                             first_table->grant.privilege));
         if (check_some_access(thd, SHOW_CREATE_TABLE_ACLS, first_table) ||
             (first_table->grant.privilege & SHOW_CREATE_TABLE_ACLS) == 0)
         {

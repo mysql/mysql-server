@@ -27,6 +27,7 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars.h"

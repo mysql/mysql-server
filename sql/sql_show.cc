@@ -16,6 +16,7 @@
 
 /* Function with list databases, tables or fields */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_acl.h"                        // fill_schema_*_privileges

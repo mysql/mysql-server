@@ -16,6 +16,7 @@
 #ifndef SQL_PARSE_INCLUDED
 #define SQL_PARSE_INCLUDED
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_acl.h"                            /* GLOBAL_ACLS */
 
 class Comp_creator;
@@ -177,7 +178,10 @@ inline bool check_routine_access(THD *thd,ulong want_access,char *db,
                                  char *name, bool is_proc, bool no_errors)
 { return false; }
 inline bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
-{ return false; }
+{
+  table->grant.privilege= want_access;
+  return false;
+}
 inline bool check_merge_table_access(THD *thd, char *db, TABLE_LIST *table_list)
 { return false; }
 inline bool check_some_routine_access(THD *thd, const char *db,
