@@ -903,7 +903,13 @@ my_real_read(NET *net, size_t *complen)
 		       ("Packets out of order (Found: %d, expected %u)",
 			(int) net->buff[net->where_b + 3],
 			net->pkt_nr));
-#ifdef EXTRA_DEBUG
+            /* 
+              We don't make noise server side, since the client is expected
+              to break the protocol for e.g. --send LOAD DATA .. LOCAL where
+              the server expects the client to send a file, but the client
+              may reply with a new command instead.
+            */
+#if defined (EXTRA_DEBUG) && !defined (MYSQL_SERVER)
             fflush(stdout);
 	    fprintf(stderr,"Error: Packets out of order (Found: %d, expected %d)\n",
 		    (int) net->buff[net->where_b + 3],

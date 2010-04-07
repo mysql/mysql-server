@@ -554,4 +554,24 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/test/t1.txt;
 
 
+--echo #
+--echo # Bug #52512 : Assertion `! is_set()' in 
+--echo #  Diagnostics_area::set_ok_status on LOAD DATA
+--echo #
+
+connect (con1,localhost,root,,test);
+
+CREATE TABLE t1 (id INT NOT NULL);
+--send LOAD DATA LOCAL INFILE 'tb.txt' INTO TABLE t1
+# please keep this is a spearate test file : it's important to have no
+# commands after this one
+
+connection default;
+dirty_close con1;
+
+connect (con1,localhost,root,,test);
+DROP TABLE t1;
+connection default;
+disconnect con1;
+
 --echo End of 5.1 tests
