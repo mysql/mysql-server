@@ -10794,7 +10794,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   NULL
 };
 
-mysql_declare_plugin(innobase)
+mysql_declare_plugin(innodb_plugin)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
