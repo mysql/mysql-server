@@ -321,7 +321,7 @@ UNIV_INLINE
 void
 pfs_mutex_create_func(
 /*==================*/
-	PSI_mutex_key	key,		/*!< in: Performance Schema key */
+	mysql_pfs_key_t	key,		/*!< in: Performance Schema key */
 	mutex_t*	mutex,		/*!< in: pointer to memory */
 # ifdef UNIV_DEBUG
 	const char*	cmutex_name,	/*!< in: mutex name */
@@ -332,9 +332,9 @@ pfs_mutex_create_func(
 	const char*	cfile_name,	/*!< in: file name where created */
 	ulint		cline)		/*!< in: file line where created */
 {
-	mutex->pfs_psi = PSI_server
-			? PSI_server->init_mutex(key, mutex)
-			: NULL;
+	mutex->pfs_psi = (PSI_server && PFS_IS_INSTRUMENTED(key))
+				? PSI_server->init_mutex(key, mutex)
+				: NULL;
 
 	mutex_create_func(mutex,
 # ifdef UNIV_DEBUG

@@ -287,6 +287,24 @@ UNIV_INTERN mysql_pfs_key_t	flush_list_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	flush_order_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+#if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
+# ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
+
+/* Buffer block mutexes and rwlocks can be registered
+in one group rather than individually. If PFS_GROUP_BUFFER_SYNC
+is defined, register buffer block mutex and rwlock
+in one group after their initialization. */
+#  define PFS_GROUP_BUFFER_SYNC
+
+/* This define caps the number of mutexes/rwlocks can
+be registered with performance schema. Developers can
+modify this define if necessary. Please note, this would
+be effective only if PFS_GROUP_BUFFER_SYNC is defined. */
+#  define PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER	ULINT_MAX
+
+# endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
+#endif /* UNIV_PFS_MUTEX || UNIV_PFS_RWLOCK */
+
 /** A chunk of buffers.  The buffer pool is allocated in chunks. */
 struct buf_chunk_struct{
 	ulint		mem_size;	/*!< allocated size of the chunk */
@@ -656,6 +674,53 @@ buf_page_print(
 }
 
 #ifndef UNIV_HOTBACKUP
+
+# ifdef PFS_GROUP_BUFFER_SYNC
+/********************************************************************//**
+This function registers mutexes and rwlocks in buffer blocks with
+performance schema. If PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER is
+defined to be a value less than chunk->size, then only mutexes
+and rwlocks in the first PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER
+blocks are registered. */
+static
+void
+pfs_register_buffer_block(
+/*======================*/
+	buf_chunk_t*	chunk)		/*!< in/out: chunk of buffers */
+{
+	ulint		i;
+	ulint		num_to_register;
+	buf_block_t*    block;
+
+	block = chunk->blocks;
+
+	num_to_register = ut_min(chunk->size,
+				 PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER);
+
+	for (i = 0; i < num_to_register; i++) {
+		mutex_t*	mutex;
+		rw_lock_t*	rwlock;
+
+#  ifdef UNIV_PFS_MUTEX
+		mutex = &block->mutex;
+		ut_a(!mutex->pfs_psi);
+		mutex->pfs_psi = (PSI_server)
+			? PSI_server->init_mutex(buffer_block_mutex_key, mutex)
+			: NULL;
+#  endif /* UNIV_PFS_MUTEX */
+
+#  ifdef UNIV_PFS_RWLOCK
+		rwlock = &block->lock;
+		ut_a(!rwlock->pfs_psi);
+		rwlock->pfs_psi = (PSI_server)
+			? PSI_server->init_rwlock(buf_block_lock_key, rwlock)
+			: NULL;
+#  endif /* UNIV_PFS_RWLOCK */
+		block++;
+	}
+}
+# endif /* PFS_GROUP_BUFFER_SYNC */
+
 /********************************************************************//**
 Initializes a buffer control block when the buf_pool is created. */
 static
@@ -695,10 +760,20 @@ buf_block_init(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
 
-	mutex_create(buffer_block_mutex_key,
-		     &block->mutex, SYNC_BUF_BLOCK);
+#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
+	/* If PFS_SKIP_BUFFER_MUTEX_RWLOCK is defined, skip registration
+	of buffer block mutex/rwlock with performance schema. If
+	PFS_GROUP_BUFFER_SYNC is defined, skip the registration
+	since buffer block mutex/rwlock will be registered later in
+	pfs_register_buffer_block() */
 
+	mutex_create(PFS_NOT_INSTRUMENTED, &block->mutex, SYNC_BUF_BLOCK);
+	rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, SYNC_LEVEL_VARYING);
+#else /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
+	mutex_create(buffer_block_mutex_key, &block->mutex, SYNC_BUF_BLOCK);
 	rw_lock_create(buf_block_lock_key, &block->lock, SYNC_LEVEL_VARYING);
+#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
+
 	ut_ad(rw_lock_validate(&(block->lock)));
 
 #ifdef UNIV_SYNC_DEBUG
@@ -783,6 +858,9 @@ buf_chunk_init(
 		frame += UNIV_PAGE_SIZE;
 	}
 
+#ifdef PFS_GROUP_BUFFER_SYNC
+	pfs_register_buffer_block(chunk);
+#endif
 	return(chunk);
 }
 
