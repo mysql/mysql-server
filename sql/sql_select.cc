@@ -12318,19 +12318,19 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
                                 double *reopt_rec_count, double *reopt_cost,
                                 double *sj_inner_fanout)
 {
-  double cost, rec_count, inner_fanout= 1.0;
+  double cost, outer_fanout, inner_fanout= 1.0;
   table_map reopt_remaining_tables= last_remaining_tables;
   uint i;
 
   if (first_tab > join->const_tables)
   {
     cost=      join->positions[first_tab - 1].prefix_cost.total_cost();
-    rec_count= join->positions[first_tab - 1].prefix_record_count;
+    outer_fanout= join->positions[first_tab - 1].prefix_record_count;
   }
   else
   {
     cost= 0.0;
-    rec_count= 1;
+    outer_fanout= 1;
   }
 
   for (i= first_tab; i <= last_tab; i++)
@@ -12345,7 +12345,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
     {
       /* Find the best access method that would not use join buffering */
       best_access_path(join, rs, reopt_remaining_tables, i, 
-                       test(i < no_jbuf_before), rec_count,
+                       test(i < no_jbuf_before), inner_fanout*outer_fanout,
                        &pos, &loose_scan_pos);
     }
     else 
@@ -12355,14 +12355,16 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
       pos= loose_scan_pos;
 
     reopt_remaining_tables &= ~rs->table->map;
-    rec_count *= pos.records_read;
     cost += pos.read_time;
 
     if (rs->emb_sj_nest)
       inner_fanout *= pos.records_read;
+    else 
+      outer_fanout *= pos.records_read;
+
   }
 
-  *reopt_rec_count= rec_count;
+  *reopt_rec_count= outer_fanout;
   *reopt_cost= cost;
   *sj_inner_fanout= inner_fanout;
 }
@@ -12525,7 +12527,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
         */
         pos->sj_strategy= SJ_OPT_FIRST_MATCH;
         *current_read_time=    reopt_cost;
-        *current_record_count= reopt_rec_count / sj_inner_fanout;
+        *current_record_count= reopt_rec_count;
         handled_by_fm_or_ls=  pos->firstmatch_need_tables;
       }
     }
@@ -12594,7 +12596,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       */
       pos->sj_strategy= SJ_OPT_LOOSE_SCAN;
       *current_read_time=    reopt_cost;
-      *current_record_count= reopt_rec_count / sj_inner_fanout;
+      *current_record_count= reopt_rec_count;
       handled_by_fm_or_ls= first->table->emb_sj_nest->sj_inner_tables;
     }
   }
@@ -12846,7 +12848,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       {
         pos->sj_strategy= SJ_OPT_DUPS_WEEDOUT;
         *current_read_time= dups_cost;
-        *current_record_count= *current_record_count / sj_inner_fanout;
+        *current_record_count= prefix_rec_count * sj_outer_fanout;
         join->cur_dups_producing_tables &= ~dups_removed_fanout;
       }
     }
