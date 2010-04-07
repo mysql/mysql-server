@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -521,6 +521,7 @@ public:
   bool is_executed() const { return executed; }
   bool no_rows();
   virtual enum_engine_type engine_type() { return SINGLE_SELECT_ENGINE; }
+  bool save_join_if_explain(); 
 
   friend class subselect_hash_sj_engine;
   friend class Item_in_subselect;
