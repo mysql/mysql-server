@@ -940,6 +940,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         DBUG_RETURN(1);
       }
     }
+
+    if (thd->is_error())
+      read_info.error= 1;
+
     if (read_info.error)
       break;
     if (skip_lines)

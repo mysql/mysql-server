@@ -502,4 +502,11 @@ SELECT * FROM t1;
 col0
 test
 DROP TABLE t1;
+#
+# Bug #52512 : Assertion `! is_set()' in 
+#  Diagnostics_area::set_ok_status on LOAD DATA
+#
+CREATE TABLE t1 (id INT NOT NULL);
+LOAD DATA LOCAL INFILE 'tb.txt' INTO TABLE t1;
+DROP TABLE t1;
 End of 5.1 tests
