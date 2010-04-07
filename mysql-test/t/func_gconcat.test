@@ -708,4 +708,16 @@ SELECT 1 FROM
 
 DROP TABLE t1;
 
+
+--echo #
+--echo # Bug #52397: another crash with explain extended and group_concat
+--echo #
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (0);
+EXPLAIN EXTENDED SELECT 1 FROM
+  (SELECT GROUP_CONCAT(t1.a ORDER BY t1.a ASC) FROM 
+    t1 t2, t1 GROUP BY t1.a) AS d;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests

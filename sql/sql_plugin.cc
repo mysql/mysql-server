@@ -1736,6 +1736,8 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
+  if (check_table_access(thd, DELETE_ACL, &tables, 1, FALSE))
+    DBUG_RETURN(TRUE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))

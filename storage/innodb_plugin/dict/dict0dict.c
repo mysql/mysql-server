@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -140,7 +140,7 @@ static
 void
 dict_field_print_low(
 /*=================*/
-	dict_field_t*	field);	/*!< in: field */
+	const dict_field_t*	field);	/*!< in: field */
 /*********************************************************************//**
 Frees a foreign key struct. */
 static
@@ -1460,6 +1460,7 @@ dict_index_add_to_cache(
 
 	if (!dict_index_find_cols(table, index)) {
 
+		dict_mem_index_free(index);
 		return(DB_CORRUPTION);
 	}
 
@@ -4402,7 +4403,7 @@ static
 void
 dict_field_print_low(
 /*=================*/
-	dict_field_t*	field)	/*!< in: field */
+	const dict_field_t*	field)	/*!< in: field */
 {
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -4774,6 +4775,8 @@ dict_table_check_for_dup_indexes(
 
 	const dict_index_t*	index1;
 	const dict_index_t*	index2;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* The primary index _must_ exist */
 	ut_a(UT_LIST_GET_LEN(table->indexes) > 0);
