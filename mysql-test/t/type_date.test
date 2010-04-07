@@ -246,4 +246,24 @@ insert into t1 values ('0000-01-01'), ('0000-00-01'), ('0001-01-01');
 select * from t1 where a between '0000-00-01' and '0000-00-02';
 drop table t1;
 
+--echo #
+--echo # Bug#50918: Date columns treated differently in Views than in Base
+--echo # Tables
+--echo #
+CREATE TABLE t1 ( the_date DATE, the_time TIME );
+INSERT INTO t1 VALUES ( '2010-01-01', '01:01:01' );
+
+SELECT * FROM t1 t11 JOIN t1 t12 ON addtime( t11.the_date, t11.the_time ) = 
+                                    addtime( t12.the_date, t12.the_time );
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT * FROM t1 JOIN v1 ON addtime( t1.the_date, t1.the_time ) = 
+                            addtime( v1.the_date, v1.the_time );
+
+SELECT * FROM t1 JOIN v1 ON addtime( t1.the_date, t1.the_time ) = 
+                            addtime( cast(v1.the_date AS DATETIME), v1.the_time );
+
+DROP TABLE t1;
+DROP VIEW v1;
+
 --echo End of 5.1 tests

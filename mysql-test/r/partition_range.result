@@ -1,4 +1,18 @@
 drop table if exists t1, t2;
+#
+# Bug#48229: group by performance issue of partitioned table
+#
+CREATE TABLE t1 (
+a INT,
+b INT,
+KEY a (a,b)
+)
+PARTITION BY HASH (a) PARTITIONS 1;
+INSERT INTO t1 VALUES (0, 580092), (3, 894076), (4, 805483), (4, 913540), (6, 611137), (8, 171602), (9, 599495), (9, 746305), (10, 272829), (10, 847519), (12, 258869), (12, 929028), (13, 288970), (15, 20971), (15, 105839), (16, 788272), (17, 76914), (18, 827274), (19, 802258), (20, 123677), (20, 587729), (22, 701449), (25, 31565), (25, 230782), (25, 442887), (25, 733139), (25, 851020);
+EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10, 100, 3) GROUP BY a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	5	NULL	4	Using where; Using index
+DROP TABLE t1;
 create table t1 (a int)
 partition by range (a)
 ( partition p0 values less than (maxvalue));

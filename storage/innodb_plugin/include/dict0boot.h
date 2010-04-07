@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -137,6 +137,7 @@ clustered index */
 #define DICT_SYS_INDEXES_PAGE_NO_FIELD	 8
 #define DICT_SYS_INDEXES_SPACE_NO_FIELD	 7
 #define DICT_SYS_INDEXES_TYPE_FIELD	 6
+#define DICT_SYS_INDEXES_NAME_FIELD	 3
 
 /* When a row id which is zero modulo this number (which must be a power of
 two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is

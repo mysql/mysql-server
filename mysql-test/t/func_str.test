@@ -1352,3 +1352,14 @@ SELECT DECODE((SELECT ENCODE('secret', t1.a) FROM t1,t2 WHERE t1.a = t2.a GROUP 
   FROM t2 WHERE t2.b = 1 GROUP BY t2.b;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#52164 Assertion failed: param.sort_length, file .\filesort.cc, line 149
+--echo #
+CREATE TABLE t1 (a LONGBLOB NOT NULL);
+INSERT INTO t1 VALUES (''),('');
+SELECT 1 FROM t1, t1 t2
+ORDER BY QUOTE(t1.a);
+DROP TABLE t1;
+
+--echo End of 5.1 tests

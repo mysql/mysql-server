@@ -69,10 +69,16 @@ CREATE DEFINER=CURRENT_USER() EVENT event44331_3
   ON COMPLETION PRESERVE DISABLE
   DO INSERT INTO test.t1 VALUES('event event44331_3 fired - DEFINER=CURRENT_USER() function');
 
+DELIMITER |;
 CREATE /*!50000 DEFINER='user44331' */ EVENT event44331_4
   ON SCHEDULE AT CURRENT_TIMESTAMP
   ON COMPLETION PRESERVE DISABLE
   DO INSERT INTO test.t1 VALUES('event event44331_4 fired - DEFINER=user1');
+# Test for bug#50095 Multi-statement including CREATE EVENT causes rotten
+# binlog entry
+  SELECT 'ABC';
+  SELECT '123'|
+DELIMITER ;|
 
 --echo #on master 
 select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events

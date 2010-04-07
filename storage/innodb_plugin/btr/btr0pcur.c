@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -205,10 +205,12 @@ record and it can be restored on a user record whose ordering fields
 are identical to the ones of the original user record */
 UNIV_INTERN
 ibool
-btr_pcur_restore_position(
-/*======================*/
+btr_pcur_restore_position_func(
+/*===========================*/
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_pcur_t*	cursor,		/*!< in: detached persistent cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	dict_index_t*	index;
@@ -216,6 +218,9 @@ btr_pcur_restore_position(
 	ulint		mode;
 	ulint		old_mode;
 	mem_heap_t*	heap;
+
+	ut_ad(mtr);
+	ut_ad(mtr->state == MTR_ACTIVE);
 
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
 
@@ -257,7 +262,8 @@ btr_pcur_restore_position(
 		if (UNIV_LIKELY(buf_page_optimistic_get(
 					latch_mode,
 					cursor->block_when_stored,
-					cursor->modify_clock, mtr))) {
+					cursor->modify_clock,
+					file, line, mtr))) {
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 			buf_block_dbg_add_level(btr_pcur_get_block(cursor),
@@ -312,8 +318,8 @@ btr_pcur_restore_position(
 		mode = PAGE_CUR_L;
 	}
 
-	btr_pcur_open_with_no_init(index, tuple, mode, latch_mode,
-				   cursor, 0, mtr);
+	btr_pcur_open_with_no_init_func(index, tuple, mode, latch_mode,
+					cursor, 0, file, line, mtr);
 
 	/* Restore the old search mode */
 	cursor->search_mode = old_mode;
@@ -553,8 +559,8 @@ before first in tree. The latching mode must be BTR_SEARCH_LEAF or
 BTR_MODIFY_LEAF. */
 UNIV_INTERN
 void
-btr_pcur_open_on_user_rec(
-/*======================*/
+btr_pcur_open_on_user_rec_func(
+/*===========================*/
 	dict_index_t*	index,		/*!< in: index */
 	const dtuple_t*	tuple,		/*!< in: tuple on which search done */
 	ulint		mode,		/*!< in: PAGE_CUR_L, ... */
@@ -562,9 +568,12 @@ btr_pcur_open_on_user_rec(
 					BTR_MODIFY_LEAF */
 	btr_pcur_t*	cursor,		/*!< in: memory buffer for persistent
 					cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	btr_pcur_open(index, tuple, mode, latch_mode, cursor, mtr);
+	btr_pcur_open_func(index, tuple, mode, latch_mode, cursor,
+			   file, line, mtr);
 
 	if ((mode == PAGE_CUR_GE) || (mode == PAGE_CUR_G)) {
 

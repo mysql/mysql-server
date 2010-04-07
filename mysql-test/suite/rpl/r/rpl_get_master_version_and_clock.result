@@ -7,34 +7,24 @@ start slave;
 call mtr.add_suppression("Slave I/O: Master command COM_REGISTER_SLAVE failed: .*");
 call mtr.add_suppression("Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; .*");
 call mtr.add_suppression("Slave I/O thread .* register on master");
-SELECT IS_FREE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP");
-IS_FREE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP")
-1
-SELECT GET_LOCK("debug_lock.before_get_UNIX_TIMESTAMP", 1000);
-GET_LOCK("debug_lock.before_get_UNIX_TIMESTAMP", 1000)
-1
-set global debug= 'd,debug_lock.before_get_UNIX_TIMESTAMP';
 stop slave;
+SET @@global.debug= "+d,'debug_lock.before_get_UNIX_TIMESTAMP'";
 start slave;
-SELECT RELEASE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP");
-RELEASE_LOCK("debug_lock.before_get_UNIX_TIMESTAMP")
-1
+slave is going to hang in get_master_version_and_clock
+slave is unblocked
+SET DEBUG_SYNC='now SIGNAL signal.get_unix_timestamp';
 Check network error happened here
 NETWORK ERROR
-SELECT IS_FREE_LOCK("debug_lock.before_get_SERVER_ID");
-IS_FREE_LOCK("debug_lock.before_get_SERVER_ID")
-1
-SELECT GET_LOCK("debug_lock.before_get_SERVER_ID", 1000);
-GET_LOCK("debug_lock.before_get_SERVER_ID", 1000)
-1
-set global debug= 'd,debug_lock.before_get_SERVER_ID';
+set @@global.debug = "-d,'debug_lock.before_get_UNIX_TIMESTAMP'";
 stop slave;
+SET @@global.debug= "+d,'debug_lock.before_get_SERVER_ID'";
 start slave;
-SELECT RELEASE_LOCK("debug_lock.before_get_SERVER_ID");
-RELEASE_LOCK("debug_lock.before_get_SERVER_ID")
-1
+slave is going to hang in get_master_version_and_clock
+slave is unblocked
+SET DEBUG_SYNC='now SIGNAL signal.get_server_id';
 Check network error happened here
 NETWORK ERROR
+set @@global.debug = "-d,'debug_lock.before_get_SERVER_ID'";
 set global debug= '';
 reset master;
 include/stop_slave.inc
@@ -43,3 +33,4 @@ start slave;
 *** must be having the replicate-same-server-id IO thread error ***
 Slave_IO_Errno= 1593
 Slave_IO_Error= Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).
+SET DEBUG_SYNC= 'RESET';

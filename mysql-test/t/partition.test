@@ -2081,4 +2081,17 @@ INSERT INTO t1 VALUES (6,8,10);
 SELECT  1 FROM t1 JOIN t1 AS t2 USING (a) FOR UPDATE;
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#51868 - crash with myisam_use_mmap and partitioned myisam tables
+--echo #
+SET GLOBAL myisam_use_mmap=1;
+CREATE TABLE t1(a INT) PARTITION BY HASH(a) PARTITIONS 1;
+INSERT INTO t1 VALUES(0);
+FLUSH TABLE t1;
+TRUNCATE TABLE t1;
+INSERT INTO t1 VALUES(0);
+DROP TABLE t1;
+SET GLOBAL myisam_use_mmap=default;
+
 --echo End of 5.1 tests

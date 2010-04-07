@@ -1,0 +1,24 @@
+-- source include/master-slave.inc
+-- source include/have_binlog_format_statement.inc
+
+#
+# Bug #51055    Replication failure on duplicate key + traditional SQL mode
+#
+
+CREATE TABLE t1 (pk integer auto_increment , primary key (pk));
+
+SET SESSION SQL_MODE='traditional';
+
+-- echo # **** [MASTER] *****
+-- echo # action: raise DUP KEY error (error code should be set in the 
+-- echo #                              query log event)
+-- error ER_DUP_ENTRY
+INSERT INTO t1 (`pk`) VALUES (1), (1);
+
+DROP TABLE t1;
+
+-- echo # **** [ sync slave with master ] ****
+-- echo # assertion: sync slave with master makes slave not to stop with
+-- echo #            duplicate key error (because it has received event
+-- echo #            with expected error code).
+-- sync_slave_with_master

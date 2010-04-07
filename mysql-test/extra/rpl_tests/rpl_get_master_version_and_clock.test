@@ -3,26 +3,53 @@
 # The common part of the "rpl_get_master_version_and_clock" test. 
 # Restart slave under network disconnection between slave and master
 # following the steps:
-#    1 - Got DBUG_SYNC_POINT lock
-#    2 - Set DBUG_SYNC_POINT before call mysql_real_query(...) function in get_master_version_and_clock(...) function and hang here
-#    3 - shutdown master server for simulating network disconnection
-#    4 - Release DBUG_SYNC_POINT lock
-#    5 - Check if the slave I/O thread tries to reconnect to master. 
+#    0 - Set DEBUG_SYNC_ACTION to wait 
+#        before call mysql_real_query(...) function in get_master_version_and_clock(...)
+#        function and hang here
+#    1 - activate a sync-point through the $dbug_sync_point argument of the test
+#    2 - shutdown master server for simulating network disconnection
+#    3 - signal to the IO thread through $debug_sync_action to unhold from the sync-point
+#    4 - check if the slave I/O thread tries to reconnect to master. 
 #
-# Note: Please make sure initialize the $debug_lock when call the test script.
+# Note: make sure to initialize the $debug_sync_action and $dbug_sync_point
+#       before calling the test script.
 #
+# Pattern of usage:
+#
+# The caller test supplies the DBUG_EXECUTE_IF name
+#
+#    let $dbug_sync_point = 'dbug_execute_if_name';
+#
+# as well as the action list for DEBUG_SYNC
+#    
+#    let $debug_sync_action= 'now signal signal_name';
+#
+# The $dbug_sync_point becomes the value of @@global.debug generating
+# a newly started IO-slave thread's session value.
+# Notice incremental operations to add and remove dbug_execute_if_name
+# from the global variable allows propagation more dbug arguments
+# out of mtr.
+# The action list is to fire at proper time according to test logics
+# (see pp 0-4 above).
+#
+
 connection slave;
-if (`SELECT '$debug_lock' = ''`)
+if (`SELECT $debug_sync_action = ''`)
 {
-    --die Cannot continue. Please set value for $debug_lock.
+    --die Cannot continue. Please set value for debug_sync_action.
 }
 
 # Restart slave
 --disable_warnings
 stop slave;
 source include/wait_for_slave_to_stop.inc;
+
+eval SET @@global.debug= "+d,$dbug_sync_point";
+
 start slave;
 source include/wait_for_slave_to_start.inc;
+--echo slave is going to hang in get_master_version_and_clock
+
 connection master;
 # Write file to make mysql-test-run.pl expect the "crash", but don't start
 # it until it's told to
@@ -35,7 +62,9 @@ EOF
 shutdown_server 10;
 
 connection slave;
-eval SELECT RELEASE_LOCK($debug_lock);
+--echo slave is unblocked
+
+eval SET DEBUG_SYNC=$debug_sync_action;
 
 # Show slave last IO errno
 connection slave;
@@ -52,6 +81,12 @@ if (`SELECT '$last_io_errno' = '2013' || # CR_SERVER_LOST
 {
   --echo NETWORK ERROR
 }
+
+# deactivate the sync point of get_master_version_and_clock()
+# now to avoid restarting IO-thread to re-enter it.
+# There will be a new IO thread forked out with its @@session.debug
+# unset.
+eval set @@global.debug = "-d,$dbug_sync_point";
 
 # Write file to make mysql-test-run.pl start up the server again
 --append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
