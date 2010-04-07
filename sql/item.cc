@@ -17,6 +17,7 @@
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include <mysql.h>

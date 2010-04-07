@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define MYSQL_LEX 1
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_parse.h"                          // parse_sql

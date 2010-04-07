@@ -19,6 +19,7 @@
   Multi-table updates were introduced by Sinisa & Monty
 */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_update.h"
