@@ -14,16 +14,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-EXTRA_DIST = CMakeLists.txt
+EXTRA_DIST = CMakeLists.txt \
+  message.mc message.h message.rc MSG00001.bin
 
 noinst_LTLIBRARIES = liblogger.la
 
-SOURCE_WIN = Logger.cpp LogHandlerList.cpp LogHandler.cpp \
-           ConsoleLogHandler.cpp FileLogHandler.cpp
-liblogger_la_SOURCES = $(SOURCE_WIN) SysLogHandler.cpp
+liblogger_la_SOURCES = Logger.cpp \
+  LogHandlerList.cpp LogHandler.cpp \
+  ConsoleLogHandler.cpp FileLogHandler.cpp \
+  SysLogHandler.cpp EventLogHandler.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
