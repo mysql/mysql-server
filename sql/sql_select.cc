@@ -3927,6 +3927,8 @@ int pull_out_semijoin_tables(JOIN *join)
               makes it correlated. See the NOTE to this funtion. 
             */
             sj_nest->sj_subq_pred->is_correlated= TRUE;
+            sj_nest->nested_join->sj_corr_tables|= tbl->table->map;
+            sj_nest->nested_join->sj_depends_on|= tbl->table->map;
           }
         }
       }

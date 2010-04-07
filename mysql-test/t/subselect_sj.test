@@ -267,6 +267,33 @@ WHERE (SELECT varchar_key FROM t3
 
 DROP TABLE t1, t2, t3;
 
+
+--echo #
+--echo # Bug#46556 Returning incorrect, empty results for some IN subqueries 
+--echo #           w/semijoin=on
+--echo #
+
+CREATE TABLE t0 (
+  pk INTEGER,
+  vkey VARCHAR(1),
+  vnokey VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY vkey(vkey)
+);
+
+INSERT INTO t0 
+VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
+
+EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN 
+  (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
+
+SELECT vkey FROM t0 WHERE pk IN 
+  (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
+
+DROP TABLE t0;
+
+--echo # End of bug#46556
+
 --echo
 --echo Bug#48834: Procedure with view + subquery + semijoin=on 
 --echo            crashes on second call.
