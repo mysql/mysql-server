@@ -40,7 +40,7 @@ sync/sync0sync\.c: unused parameter
 sync/sync0sync\.c: unused variable
 ut/ut0ut\.c: ignoring return value of
 srv/srv0srv\.c: value computed is not used
-buf/buf0buf\.c: warning: .*block_mutex.* might be used uninitialized
+buf/buf0buf\.c: .*block_mutex.* might be used uninitialized
 
 #
 # bdb is not critical to keep up to date
