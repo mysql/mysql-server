@@ -26,6 +26,7 @@
   are dependencies on include order for set_var.h and item.h. This
   will be resolved later.
 */
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_class.h"                          // THD, set_var.h: THD
 #include "set_var.h"                            // Item
 

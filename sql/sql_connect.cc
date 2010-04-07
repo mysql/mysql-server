@@ -18,8 +18,8 @@
   Functions to autenticate and handle reqests for a connection
 */
 
-#include "sql_priv.h"
 #include "my_global.h"
+#include "sql_priv.h"
 #ifndef __WIN__
 #include <netdb.h>        // getservbyname, servent
 #endif

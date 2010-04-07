@@ -83,6 +83,7 @@ When one supplies long data for a placeholder:
     at statement execute.
 */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_class.h"                          // set_var.h: THD
