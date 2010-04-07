@@ -52,6 +52,22 @@ typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates
 typedef byte lock_word_t;
 #endif
 
+#if defined UNIV_PFS_MUTEX || defined UNIV_PFS_RWLOCK
+/* There are mutexes/rwlocks that we want to exclude from
+instrumentation even if their corresponding performance schema
+define is set. And this PFS_NOT_INSTRUMENTED is used
+as the key value to dentify those objects that would
+be excluded from instrumentation. */
+# define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
+
+# define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
+
+/* By default, buffer mutexes and rwlocks will be excluded from
+instrumentation due to their large number of instances. */
+# define PFS_SKIP_BUFFER_MUTEX_RWLOCK
+
+#endif /* UNIV_PFS_MUTEX || UNIV_PFS_RWLOCK */
+
 #ifdef UNIV_PFS_MUTEX
 /* Key defines to register InnoDB mutexes with performance schema */
 extern mysql_pfs_key_t	autoinc_mutex_key;
@@ -65,6 +81,7 @@ extern mysql_pfs_key_t	dict_sys_mutex_key;
 extern mysql_pfs_key_t	file_format_max_mutex_key;
 extern mysql_pfs_key_t	fil_system_mutex_key;
 extern mysql_pfs_key_t	flush_list_mutex_key;
+extern mysql_pfs_key_t	flush_order_mutex_key;
 extern mysql_pfs_key_t	hash_table_mutex_key;
 extern mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 extern mysql_pfs_key_t	ibuf_mutex_key;
@@ -96,7 +113,6 @@ extern mysql_pfs_key_t	sync_thread_mutex_key;
 extern mysql_pfs_key_t	trx_doublewrite_mutex_key;
 extern mysql_pfs_key_t	thr_local_mutex_key;
 extern mysql_pfs_key_t	trx_undo_mutex_key;
-extern mysql_pfs_key_t	wq_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /******************************************************************//**

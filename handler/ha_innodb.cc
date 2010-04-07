@@ -229,7 +229,9 @@ is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
 	{&autoinc_mutex_key, "autoinc_mutex", 0},
 	{&btr_search_enabled_mutex_key, "btr_search_enabled_mutex", 0},
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	{&buffer_block_mutex_key, "buffer_block_mutex", 0},
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 	{&buf_pool_mutex_key, "buf_pool_mutex", 0},
 	{&buf_pool_zip_mutex_key, "buf_pool_zip_mutex", 0},
 	{&cache_last_read_mutex_key, "cache_last_read_mutex", 0},
@@ -238,6 +240,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&file_format_max_mutex_key, "file_format_max_mutex", 0},
 	{&fil_system_mutex_key, "fil_system_mutex", 0},
 	{&flush_list_mutex_key, "flush_list_mutex", 0},
+	{&flush_order_mutex_key, "flush_order_mutex", 0},
 	{&hash_table_mutex_key, "hash_table_mutex", 0},
 	{&ibuf_bitmap_mutex_key, "ibuf_bitmap_mutex", 0},
 	{&ibuf_mutex_key, "ibuf_mutex", 0},
@@ -269,8 +272,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  endif /* UNIV_SYNC_DEBUG */
 	{&trx_doublewrite_mutex_key, "trx_doublewrite_mutex", 0},
 	{&thr_local_mutex_key, "thr_local_mutex", 0},
-	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
-	{&wq_mutex_key, "wq_mutex", 0}
+	{&trx_undo_mutex_key, "trx_undo_mutex", 0}
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -279,15 +281,19 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 performance schema instrumented if "UNIV_PFS_RWLOCK"
 is defined */
 static PSI_rwlock_info all_innodb_rwlocks[] = {
+#  ifdef UNIV_LOG_ARCHIVE
+	{&archive_lock_key, "archive_lock", 0},
+#  endif /* UNIV_LOG_ARCHIVE */
 	{&btr_search_latch_key, "btr_search_latch", 0},
+#  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
 	{&buf_block_lock_key, "buf_block_lock", 0},
+#  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 #  ifdef UNIV_SYNC_DEBUG
 	{&buf_block_debug_latch_key, "buf_block_debug_latch", 0},
 #  endif /* UNIV_SYNC_DEBUG */
 	{&dict_operation_lock_key, "dict_operation_lock", 0},
 	{&fil_space_latch_key, "fil_space_latch", 0},
 	{&checkpoint_lock_key, "checkpoint_lock", 0},
-	{&archive_lock_key, "archive_lock", 0},
 	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
 	{&trx_purge_latch_key, "trx_purge_latch", 0},
 	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0}
@@ -318,7 +324,6 @@ static PSI_file_info	all_innodb_files[] = {
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
-
 
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);

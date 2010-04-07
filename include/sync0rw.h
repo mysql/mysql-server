@@ -108,15 +108,17 @@ extern	ib_int64_t	rw_x_exit_count;
 #ifdef UNIV_PFS_RWLOCK
 /* Following are rwlock keys used to register with MySQL
 performance schema */
+# ifdef UNIV_LOG_ARCHIVE
+extern	mysql_pfs_key_t	archive_lock_key;
+# endif /* UNIV_LOG_ARCHIVE */
 extern	mysql_pfs_key_t btr_search_latch_key;
 extern	mysql_pfs_key_t	buf_block_lock_key;
 # ifdef UNIV_SYNC_DEBUG
 extern	mysql_pfs_key_t	buf_block_debug_latch_key;
-# endif
+# endif /* UNIV_SYNC_DEBUG */
 extern	mysql_pfs_key_t	dict_operation_lock_key;
 extern	mysql_pfs_key_t	fil_space_latch_key;
 extern	mysql_pfs_key_t	checkpoint_lock_key;
-extern	mysql_pfs_key_t	archive_lock_key;
 extern	mysql_pfs_key_t	trx_i_s_cache_lock_key;
 extern	mysql_pfs_key_t	trx_purge_latch_key;
 extern	mysql_pfs_key_t	index_tree_rw_lock_key;

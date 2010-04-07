@@ -633,7 +633,7 @@ UNIV_INLINE
 void
 pfs_rw_lock_create_func(
 /*====================*/
-	PSI_rwlock_key	key,		/*!< in: key registered with
+	mysql_pfs_key_t	key,		/*!< in: key registered with
 					performance schema */
 	rw_lock_t*	lock,		/*!< in: pointer to memory */
 # ifdef UNIV_DEBUG
@@ -646,7 +646,7 @@ pfs_rw_lock_create_func(
 	ulint		cline)		/*!< in: file line where created */
 {
 	/* Initialize the rwlock for performance schema */
-	lock->pfs_psi = PSI_server
+	lock->pfs_psi = (PSI_server && PFS_IS_INSTRUMENTED(key))
 				? PSI_server->init_rwlock(key, lock)
 				: NULL;
 
