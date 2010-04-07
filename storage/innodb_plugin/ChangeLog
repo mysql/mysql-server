@@ -1,3 +1,15 @@
+2010-03-31	The InnoDB Team
+
+	* mysql-test/innodb_bug51920.test, mysql-test/innodb_bug51920.result,
+	srv/srv0srv.c:
+	Fix Bug#51920 InnoDB connections in row lock wait ignore KILL
+	until lock wait timeout
+
+2010-03-31	The InnoDB Team
+
+	* mysql-test/innodb_bug38231.test:
+	Remove non-determinism in the test case.
+
 2010-03-18	The InnoDB Team
 
 	* CMakeLists.txt:

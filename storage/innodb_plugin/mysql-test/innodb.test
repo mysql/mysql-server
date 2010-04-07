@@ -15,6 +15,8 @@
 
 -- source include/have_innodb.inc
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
 # test assumed that e.g. rows_deleted is 0 here and after deleting 23
@@ -425,11 +427,19 @@ INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca
 select count(*) from t1 where sca_code = 'PD';
 select count(*) from t1 where sca_code <= 'PD';
 select count(*) from t1 where sca_pic is null;
+# this should be fixed by MySQL (see Bug #51451)
+--error ER_WRONG_NAME_FOR_INDEX
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+alter table t1 drop index sca_pic;
+alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
 
+# this should be fixed by MySQL (see Bug #51451)
+--error ER_WRONG_NAME_FOR_INDEX
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where sca_pic >= 'n';
 select sca_pic from t1 where sca_pic is null;
@@ -1375,7 +1385,10 @@ show variables like "innodb_thread_sleep_delay";
 
 let $default=`select @@storage_engine`;
 set storage_engine=INNODB;
+# this should be fixed by MySQL (see Bug #51451)
+set session old_alter_table=1;
 source include/varchar.inc;
+set session old_alter_table=0;
 
 #
 # Some errors/warnings on create
@@ -1700,7 +1713,7 @@ set foreign_key_checks=0;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
 create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 -- error 1025
 rename table t3 to t1;
 set foreign_key_checks=1;
@@ -2264,7 +2277,7 @@ disconnect j;
 drop table t1, t2, t3, t5, t6, t8, t9;
 
 # bug 18934, "InnoDB crashes when table uses column names like DB_ROW_ID"
---error 1005
+--error ER_WRONG_COLUMN_NAME
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
 
 #
@@ -2340,7 +2353,7 @@ ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error 1025
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 DELETE FROM t1;
