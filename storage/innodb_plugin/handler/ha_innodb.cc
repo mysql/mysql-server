@@ -316,7 +316,7 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
 
 
 static handler *innobase_create_handler(handlerton *hton,
-                                        TABLE_SHARE *table, 
+                                        TABLE_SHARE *table,
                                         MEM_ROOT *mem_root)
 {
   return new (mem_root) ha_innobase(hton, table);
@@ -429,8 +429,9 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-	handlerton* hton, /*!< in: Innodb handlerton */ 
-	THD*	thd);	/*!< in: MySQL thread handle of the user for whom
+			/* out: 0 */
+	handlerton* hton, /* in: Innodb handlerton */
+	THD*	thd);	/* in: MySQL thread handle of the user for whom
 			the transaction should be committed */
 /****************************************************************//**
 Flushes InnoDB logs to disk and makes a checkpoint. Really, a commit flushes
@@ -10793,7 +10794,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   NULL
 };
 
-mysql_declare_plugin(innodb_plugin)
+mysql_declare_plugin(innobase)
 {
   MYSQL_STORAGE_ENGINE_PLUGIN,
   &innobase_storage_engine,
