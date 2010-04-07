@@ -16,6 +16,7 @@
 
 /* Basic functions needed by many modules */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
 #include "debug_sync.h"
