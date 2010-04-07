@@ -115,6 +115,8 @@ while ($i)
 #        SELECT * FROM t1 WHERE (11) IN 
 #          (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          SELECT * FROM t1 WHERE (11) IN 
+          (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+         SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
          SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 	 dec $k;
