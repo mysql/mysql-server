@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+*/
 
 /**
   @file storage/perfschema/pfs_engine_table.cc
@@ -463,7 +464,22 @@ PFS_unknown_acl pfs_unknown_acl;
 ACL_internal_access_result
 PFS_unknown_acl::check(ulong want_access, ulong *save_priv) const
 {
-  return ACL_INTERNAL_ACCESS_DENIED;
+  const ulong always_forbidden= INSERT_ACL | UPDATE_ACL | DELETE_ACL
+    | CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL
+    | CREATE_VIEW_ACL | TRIGGER_ACL | LOCK_TABLES_ACL;
+
+  if (unlikely(want_access & always_forbidden))
+    return ACL_INTERNAL_ACCESS_DENIED;
+
+  /*
+    There is no point in hidding (by enforcing ACCESS_DENIED for SELECT_ACL
+    on performance_schema.*) tables that do not exist anyway.
+    When SELECT_ACL is granted on performance_schema.* or *.*,
+    SELECT * from performance_schema.wrong_table
+    will fail with a more understandable ER_NO_SUCH_TABLE error,
+    instead of ER_TABLEACCESS_DENIED_ERROR.
+  */
+  return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
 /**
