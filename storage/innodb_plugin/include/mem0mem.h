@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -359,6 +359,9 @@ struct mem_block_info_struct {
 			to the heap is also the first block in this list,
 			though it also contains the base node of the list. */
 	ulint	len;	/*!< physical length of this block in bytes */
+	ulint	total_size; /* physical length in bytes of all blocks
+			in the heap. This is defined only in the base
+			node and is set to ULINT_UNDEFINED in others. */
 	ulint	type;	/*!< type of heap: MEM_HEAP_DYNAMIC, or
 			MEM_HEAP_BUF possibly ORed to MEM_HEAP_BTR_SEARCH */
 	ulint	free;	/*!< offset in bytes of the first free position for

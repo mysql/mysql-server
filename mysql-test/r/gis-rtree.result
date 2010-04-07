@@ -1526,4 +1526,26 @@ SELECT 1 FROM t1 WHERE a >= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1
 1
 1
 DROP TABLE t1;
+#
+# Bug #51357: crash when using handler commands on spatial indexes
+#
+CREATE TABLE t1(a GEOMETRY NOT NULL,SPATIAL INDEX a(a));
+HANDLER t1 OPEN;
+HANDLER t1 READ a FIRST;
+a
+HANDLER t1 READ a NEXT;
+a
+HANDLER t1 READ a PREV;
+a
+HANDLER t1 READ a LAST;
+a
+HANDLER t1 CLOSE;
+HANDLER t1 OPEN;
+HANDLER t1 READ a FIRST;
+a
+INSERT INTO t1 VALUES (GeomFromText('Polygon((40 40,60 40,60 60,40 60,40 40))'));
+# should not crash
+HANDLER t1 READ a NEXT;
+HANDLER t1 CLOSE;
+DROP TABLE t1;
 End of 5.0 tests.
