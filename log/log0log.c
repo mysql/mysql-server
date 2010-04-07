@@ -84,7 +84,9 @@ UNIV_INTERN log_t*	log_sys	= NULL;
 
 #ifdef UNIV_PFS_RWLOCK
 UNIV_INTERN mysql_pfs_key_t	checkpoint_lock_key;
+# ifdef UNIV_LOG_ARCHIVE
 UNIV_INTERN mysql_pfs_key_t	archive_lock_key;
+# endif
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
