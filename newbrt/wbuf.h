@@ -35,6 +35,10 @@ static inline void wbuf_init (struct wbuf *w, void *buf, DISKOFF size) {
     x1764_init(&w->checksum);
 }
 
+static inline size_t wbuf_get_woffset(struct wbuf *w) {
+    return w->ndone;
+}
+
 /* Write a character. */
 static inline void wbuf_nocrc_char (struct wbuf *w, unsigned char ch) {
     assert(w->ndone<w->size);

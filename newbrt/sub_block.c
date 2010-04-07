@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include <zlib.h>
 
 #include "toku_portability.h"
@@ -53,14 +54,19 @@ alignup32(int a, int b) {
 
 // Choose n_sub_blocks and sub_block_size such that the product is >= total_size and the sub_block_size is at
 // least >= the target_sub_block_size.
-void
+int
 choose_sub_block_size(int total_size, int n_sub_blocks_limit, int *sub_block_size_ret, int *n_sub_blocks_ret) {
+    if (total_size < 0 || n_sub_blocks_limit < 1)
+        return EINVAL;
+
     const int alignment = 32;
 
     int n_sub_blocks, sub_block_size;
     n_sub_blocks = total_size / target_sub_block_size;
     if (n_sub_blocks <= 1) {
-	n_sub_blocks = 1;
+	n_sub_blocks = n_sub_blocks;
+        if (total_size > 0 && n_sub_blocks_limit > 0)
+            n_sub_blocks = 1;
         sub_block_size = total_size;
     } else {
         if (n_sub_blocks > n_sub_blocks_limit) // limit the number of sub-blocks
@@ -72,6 +78,8 @@ choose_sub_block_size(int total_size, int n_sub_blocks_limit, int *sub_block_siz
 
     *sub_block_size_ret = sub_block_size;
     *n_sub_blocks_ret = n_sub_blocks;
+
+    return 0;
 }
 
 void
@@ -85,6 +93,20 @@ set_all_sub_block_sizes(int total_size, int sub_block_size, int n_sub_blocks, st
     if (i == 0 || size_left > 0) 
         sub_block[i].uncompressed_size = size_left;
 }
+
+// find the index of the first sub block that contains offset
+// Returns the sub block index, else returns -1
+int
+get_sub_block_index(int n_sub_blocks, struct sub_block sub_block[], size_t offset) {
+    size_t start_offset = 0;
+    for (int i = 0; i < n_sub_blocks; i++) {
+        size_t size = sub_block[i].uncompressed_size;
+        if (offset < start_offset + size)
+            return i;
+        start_offset += size;
+    }
+    return -1;
+}       
 
 #include "workset.h"
 
@@ -198,13 +220,14 @@ int
 decompress_sub_block(void *compress_ptr, u_int32_t compress_size, void *uncompress_ptr, u_int32_t uncompress_size, u_int32_t expected_xsum) {
     // verify checksum
     u_int32_t xsum = x1764_memory(compress_ptr, compress_size);
-    assert(xsum == expected_xsum);
+    if (xsum != expected_xsum)
+        return EINVAL;
 
     // decompress
     uLongf destlen = uncompress_size;
     int r = uncompress(uncompress_ptr, &destlen, compress_ptr, compress_size);
-    assert(destlen == uncompress_size);
-    assert(r==Z_OK);
+    if (r != Z_OK || destlen != uncompress_size)
+        return EINVAL;
 
     return 0;
 }
@@ -222,10 +245,12 @@ decompress_worker(void *arg) {
     return arg;
 }
 
-void
+int
 decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsigned char *compressed_data, unsigned char *uncompressed_data, int num_cores) {
+    int r;
+
     if (n_sub_blocks == 1) {
-        decompress_sub_block(compressed_data, sub_block[0].compressed_size, uncompressed_data, sub_block[0].uncompressed_size, sub_block[0].xsum);
+        r = decompress_sub_block(compressed_data, sub_block[0].compressed_size, uncompressed_data, sub_block[0].uncompressed_size, sub_block[0].xsum);
     } else {
         // compute the number of additional threads needed for decompressing this node
         int T = num_cores; // T = min(#cores, #blocks) - 1
@@ -259,5 +284,14 @@ decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsign
         // cleanup
         threadset_join(tids, T);
         workset_destroy(&ws);
+
+        r = 0;
+        for (int i = 0; i < n_sub_blocks; i++) {
+            r = decompress_work[i].error;
+            if (r != 0)
+                break;
+        }
     }
+
+    return r;
 }

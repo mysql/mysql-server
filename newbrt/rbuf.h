@@ -24,6 +24,10 @@ static inline void rbuf_init(struct rbuf *r, unsigned char *buf, unsigned int si
     r->ndone = 0;
 }
 
+static inline unsigned int rbuf_get_roffset(struct rbuf *r) {
+    return r->ndone;
+}
+
 static inline unsigned int rbuf_char (struct rbuf *r) {
     assert(r->ndone<r->size);
     return r->buf[r->ndone++];
