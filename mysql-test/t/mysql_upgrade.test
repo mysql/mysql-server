@@ -32,7 +32,7 @@ if (`SELECT $VALGRIND_TEST`)
 # expected binaries it uses.
 #
 --echo Run mysql_upgrade once
---exec $MYSQL_UPGRADE --skip-verbose 2>&1
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir
 let $MYSQLD_DATADIR= `select @@datadir`;

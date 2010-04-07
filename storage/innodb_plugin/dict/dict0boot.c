@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -274,6 +274,9 @@ dict_boot(void)
 	and (TYPE & DICT_TF_FORMAT_MASK) are nonzero and TYPE = table->flags */
 	dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0);
+	/* MIX_LEN may contain additional table flags when
+	ROW_FORMAT!=REDUNDANT.  Currently, these flags include
+	DICT_TF2_TEMPORARY. */
 	dict_mem_table_add_col(table, heap, "MIX_LEN", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "CLUSTER_NAME", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4);
@@ -355,7 +358,7 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "SPACE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "PAGE_NO", DATA_INT, 0, 4);
 
-	/* The '+ 2' below comes from the 2 system fields */
+	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
 #if DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2
 #error "DICT_SYS_INDEXES_PAGE_NO_FIELD != 6 + 2"
 #endif
@@ -364,6 +367,9 @@ dict_boot(void)
 #endif
 #if DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2
 #error "DICT_SYS_INDEXES_TYPE_FIELD != 4 + 2"
+#endif
+#if DICT_SYS_INDEXES_NAME_FIELD != 1 + 2
+#error "DICT_SYS_INDEXES_NAME_FIELD != 1 + 2"
 #endif
 
 	table->id = DICT_INDEXES_ID;

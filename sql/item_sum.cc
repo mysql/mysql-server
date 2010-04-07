@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -647,7 +647,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   default:
     DBUG_ASSERT(0);
   };
-  setup(args[0], NULL);
+  setup_hybrid(args[0], NULL);
   /* MIN/MAX can return NULL for empty set indepedent of the used column */
   maybe_null= 1;
   unsigned_flag=item->unsigned_flag;
@@ -681,7 +681,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     of the original MIN/MAX object and it is saved in this object's cache.
 */
 
-void Item_sum_hybrid::setup(Item *item, Item *value_arg)
+void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
@@ -1651,7 +1651,7 @@ void Item_sum_hybrid::no_rows_in_result()
 Item *Item_sum_min::copy_or_same(THD* thd)
 {
   Item_sum_min *item= new (thd->mem_root) Item_sum_min(thd, this);
-  item->setup(args[0], value);
+  item->setup_hybrid(args[0], value);
   return item;
 }
 
@@ -1674,7 +1674,7 @@ bool Item_sum_min::add()
 Item *Item_sum_max::copy_or_same(THD* thd)
 {
   Item_sum_max *item= new (thd->mem_root) Item_sum_max(thd, this);
-  item->setup(args[0], value);
+  item->setup_hybrid(args[0], value);
   return item;
 }
 
@@ -3420,7 +3420,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     {
       if (i)
         str->append(',');
-      (*order[i]->item)->print(str, query_type);
+      pargs[i + arg_count_field]->print(str, query_type);
       if (order[i]->asc)
         str->append(STRING_WITH_LEN(" ASC"));
       else

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1616,7 +1616,7 @@ public:
   longlong val_int(); 
   const char *func_name() const { return "multiple equal"; }
   optimize_type select_optimize() const { return OPTIMIZE_EQUAL; }
-  void sort(Item_field_cmpfunc cmp, void *arg);
+  void sort(Item_field_cmpfunc compare, void *arg);
   friend class Item_equal_iterator;
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);

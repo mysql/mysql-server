@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -350,17 +350,31 @@ scan_again:
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (bpage != NULL) {
-		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 		buf_page_t*	prev_bpage;
+		ibool		prev_bpage_buf_fix = FALSE;
 
 		ut_a(buf_page_in_file(bpage));
 
-		mutex_enter(block_mutex);
 		prev_bpage = UT_LIST_GET_PREV(LRU, bpage);
 
-		if (buf_page_get_space(bpage) == id) {
-			if (bpage->buf_fix_count > 0
-			    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+		/* bpage->space and bpage->io_fix are protected by
+		buf_pool_mutex and block_mutex.  It is safe to check
+		them while holding buf_pool_mutex only. */
+
+		if (buf_page_get_space(bpage) != id) {
+			/* Skip this block, as it does not belong to
+			the space that is being invalidated. */
+		} else if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+			/* We cannot remove this page during this scan
+			yet; maybe the system is currently reading it
+			in, or flushing the modifications to the file */
+
+			all_freed = FALSE;
+		} else {
+			mutex_t* block_mutex = buf_page_get_mutex(bpage);
+			mutex_enter(block_mutex);
+
+			if (bpage->buf_fix_count > 0) {
 
 				/* We cannot remove this page during
 				this scan yet; maybe the system is
@@ -380,8 +394,40 @@ scan_again:
 					(ulong) buf_page_get_page_no(bpage));
 			}
 #endif
-			if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE
-			    && ((buf_block_t*) bpage)->is_hashed) {
+			if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
+				/* This is a compressed-only block
+				descriptor.  Ensure that prev_bpage
+				cannot be relocated when bpage is freed. */
+				if (UNIV_LIKELY(prev_bpage != NULL)) {
+					switch (buf_page_get_state(
+							prev_bpage)) {
+					case BUF_BLOCK_FILE_PAGE:
+						/* Descriptors of uncompressed
+						blocks will not be relocated,
+						because we are holding the
+						buf_pool_mutex. */
+						break;
+					case BUF_BLOCK_ZIP_PAGE:
+					case BUF_BLOCK_ZIP_DIRTY:
+						/* Descriptors of compressed-
+						only blocks can be relocated,
+						unless they are buffer-fixed.
+						Because both bpage and
+						prev_bpage are protected by
+						buf_pool_zip_mutex, it is
+						not necessary to acquire
+						further mutexes. */
+						ut_ad(&buf_pool_zip_mutex
+						      == block_mutex);
+						ut_ad(mutex_own(block_mutex));
+						prev_bpage_buf_fix = TRUE;
+						prev_bpage->buf_fix_count++;
+						break;
+					default:
+						ut_error;
+					}
+				}
+			} else if (((buf_block_t*) bpage)->is_hashed) {
 				ulint	page_no;
 				ulint	zip_size;
 
@@ -405,7 +451,8 @@ scan_again:
 				buf_flush_remove(bpage);
 			}
 
-			/* Remove from the LRU list */
+			/* Remove from the LRU list. */
+
 			if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
 			    != BUF_BLOCK_ZIP_FREE) {
 				buf_LRU_block_free_hashed_page((buf_block_t*)
@@ -417,18 +464,27 @@ scan_again:
 				ut_ad(block_mutex == &buf_pool_zip_mutex);
 				ut_ad(!mutex_own(block_mutex));
 
-				/* The compressed block descriptor
-				(bpage) has been deallocated and
-				block_mutex released.  Also,
-				buf_buddy_free() may have relocated
-				prev_bpage.  Rescan the LRU list. */
+				if (prev_bpage_buf_fix) {
+					/* We temporarily buffer-fixed
+					prev_bpage, so that
+					buf_buddy_free() could not
+					relocate it, in case it was a
+					compressed-only block
+					descriptor. */
 
-				bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-				continue;
+					mutex_enter(block_mutex);
+					ut_ad(prev_bpage->buf_fix_count > 0);
+					prev_bpage->buf_fix_count--;
+					mutex_exit(block_mutex);
+				}
+
+				goto next_page_no_mutex;
 			}
-		}
 next_page:
-		mutex_exit(block_mutex);
+			mutex_exit(block_mutex);
+		}
+
+next_page_no_mutex:
 		bpage = prev_bpage;
 	}
 
@@ -1474,26 +1530,8 @@ alloc:
 			if (b->state == BUF_BLOCK_ZIP_PAGE) {
 				buf_LRU_insert_zip_clean(b);
 			} else {
-				buf_page_t* prev;
-
-				ut_ad(b->in_flush_list);
-				ut_d(bpage->in_flush_list = FALSE);
-
-				prev = UT_LIST_GET_PREV(list, b);
-				UT_LIST_REMOVE(list, buf_pool->flush_list, b);
-
-				if (prev) {
-					ut_ad(prev->in_flush_list);
-					UT_LIST_INSERT_AFTER(
-						list,
-						buf_pool->flush_list,
-						prev, b);
-				} else {
-					UT_LIST_ADD_FIRST(
-						list,
-						buf_pool->flush_list,
-						b);
-				}
+				/* Relocate on buf_pool->flush_list. */
+				buf_flush_relocate_on_flush_list(bpage, b);
 			}
 
 			bpage->zip.data = NULL;

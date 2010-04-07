@@ -995,4 +995,19 @@ SELECT 1 FROM
 1
 1
 DROP TABLE t1;
+#
+# Bug #52397: another crash with explain extended and group_concat
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (0), (0);
+EXPLAIN EXTENDED SELECT 1 FROM
+(SELECT GROUP_CONCAT(t1.a ORDER BY t1.a ASC) FROM 
+t1 t2, t1 GROUP BY t1.a) AS d;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using join buffer
+Warnings:
+Note	1003	select 1 AS `1` from (select group_concat(`test`.`t1`.`a` order by `test`.`t1`.`a` ASC separator ',') AS `GROUP_CONCAT(t1.a ORDER BY t1.a ASC)` from `test`.`t1` `t2` join `test`.`t1` group by `test`.`t1`.`a`) `d`
+DROP TABLE t1;
 End of 5.0 tests

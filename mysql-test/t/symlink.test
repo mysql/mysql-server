@@ -249,4 +249,26 @@ eval CREATE TABLE t1(a INT) DATA DIRECTORY='$MYSQLTEST_VARDIR/tmp' INDEX DIRECTO
 DROP TABLE t1;
 SET @@SQL_MODE=@OLD_SQL_MODE;
 
+--echo #
+--echo # BUG#40980 - Drop table can remove another MyISAM table's
+--echo #             data and index files
+--echo #
+--mkdir $MYSQL_TMP_DIR/mysql 
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE user(a INT) DATA DIRECTORY='$MYSQL_TMP_DIR/mysql'
+                             INDEX DIRECTORY='$MYSQL_TMP_DIR/mysql';
+FLUSH TABLE user;
+--echo # Symlinking mysql database to tmpdir
+--remove_file $MYSQL_TMP_DIR/mysql/user.MYD
+--remove_file $MYSQL_TMP_DIR/mysql/user.MYI
+--rmdir $MYSQL_TMP_DIR/mysql
+--exec ln -s $MYSQLD_DATADIR/mysql $MYSQL_TMP_DIR/mysql
+FLUSH TABLE mysql.user;
+DROP TABLE user;
+FLUSH TABLE mysql.user;
+--disable_result_log
+SELECT * FROM mysql.user;
+--enable_result_log
+--remove_file $MYSQL_TMP_DIR/mysql
+
 --echo End of 5.1 tests

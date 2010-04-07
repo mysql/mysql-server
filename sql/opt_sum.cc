@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /**
@@ -96,7 +96,7 @@ static ulonglong get_exact_record_count(TABLE_LIST *tables)
   @param conds                 WHERE clause
 
   @note
-    This function is only called for queries with sum functions and no
+    This function is only called for queries with aggregate functions and no
     GROUP BY part. This means that the result set shall contain a single
     row only
 
@@ -559,31 +559,57 @@ bool simple_pred(Item_func *func_item, Item **args, bool *inv_order)
 /**
   Check whether a condition matches a key to get {MAX|MIN}(field):.
 
-     For the index specified by the keyinfo parameter, index that
-     contains field as its component (field_part), the function
-     checks whether the condition cond is a conjunction and all its
-     conjuncts referring to the columns of the same table as column
-     field are one of the following forms:
-     - f_i= const_i or const_i= f_i or f_i is null,
-     where f_i is part of the index
-     - field {<|<=|>=|>|=} const or const {<|<=|>=|>|=} field
-     - field between const1 and const2
+   For the index specified by the keyinfo parameter and an index that
+   contains the field as its component (field_part), the function
+   checks whether 
 
-  @param[in]     max_fl         Set to 1 if we are optimising MAX()
-  @param[in,out] ref            Reference to the structure we store the key
-    value
-  @param[in]     keyinfo        Reference to the key info
-  @param[in]     field_part     Pointer to the key part for the field
-  @param[in]     cond           WHERE condition
-  @param[in,out] key_part_used  Map of matchings parts
-  @param[in,out] range_fl       Says whether including key will be used
-  @param[out]    prefix_len     Length of common key part for the range
-    where MAX/MIN is searched for
+   - the condition cond is a conjunction, 
+   - all of its conjuncts refer to columns of the same table, and
+   - each conjunct is on one of the following forms:
+     - f_i = const_i or const_i = f_i or f_i IS NULL,
+       where f_i is part of the index
+     - field {<|<=|>=|>|=} const
+     - const {<|<=|>=|>|=} field
+     - field BETWEEN const_1 AND const_2
+
+   As a side-effect, the key value to be used for looking up the MIN/MAX value
+   is actually stored inside the Field object. An interesting feature is that
+   the function will find the most restrictive endpoint by over-eager
+   evaluation of the @c WHERE condition. It continually stores the current
+   endpoint inside the Field object. For a query such as
+
+   @code
+   SELECT MIN(a) FROM t1 WHERE a > 3 AND a > 5;
+   @endcode
+
+   the algorithm will recurse over the conjuction, storing first a 3 in the
+   field. In the next recursive invocation the expression a > 5 is evaluated
+   as 3 > 5 (Due to the dual nature of Field objects as value carriers and
+   field identifiers), which will obviously fail, leading to 5 being stored in
+   the Field object.
+   
+   @param[in]     max_fl         Set to true if we are optimizing MAX(),
+                                 false means we are optimizing %MIN()
+   @param[in, out] ref           Reference to the structure where the function 
+                                 stores the key value
+   @param[in]     keyinfo        Reference to the key info
+   @param[in]     field_part     Pointer to the key part for the field
+   @param[in]     cond           WHERE condition
+   @param[in,out] key_part_used  Map of matchings parts. The function will output
+                                 the set of key parts actually being matched in 
+                                 this set, yet it relies on the caller to 
+                                 initialize the value to zero. This is due 
+                                 to the fact that this value is passed 
+                                 recursively.
+   @param[in,out] range_fl       Says whether endpoints use strict greater/less 
+                                 than.
+   @param[out]    prefix_len     Length of common key part for the range
+                                 where MAX/MIN is searched for
 
   @retval
-    0        Index can't be used.
+    false    Index can't be used.
   @retval
-    1        We can use index to get MIN/MAX value
+    true     We can use the index to get MIN/MAX value
 */
 
 static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo, 
@@ -620,17 +646,20 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
     return 0;                                 // Not operator, can't optimize
 
   bool eq_type= 0;                            // =, <=> or IS NULL
+  bool is_null_safe_eq= FALSE;                // The operator is NULL safe, e.g. <=> 
   bool noeq_type= 0;                          // < or >  
   bool less_fl= 0;                            // < or <= 
-  bool is_null= 0;
-  bool between= 0;
+  bool is_null= 0;                            // IS NULL
+  bool between= 0;                            // BETWEEN ... AND ... 
 
   switch (((Item_func*) cond)->functype()) {
   case Item_func::ISNULL_FUNC:
     is_null= 1;     /* fall through */
   case Item_func::EQ_FUNC:
+    eq_type= TRUE;
+    break;
   case Item_func::EQUAL_FUNC:
-    eq_type= 1;
+    eq_type= is_null_safe_eq= TRUE;
     break;
   case Item_func::LT_FUNC:
     noeq_type= 1;   /* fall through */
@@ -657,6 +686,10 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   /* Test if this is a comparison of a field and constant */
   if (!simple_pred((Item_func*) cond, args, &inv))
     return 0;
+
+  if (!is_null_safe_eq && !is_null &&
+      (args[1]->is_null() || (between && args[2]->is_null())))
+    return FALSE;
 
   if (inv && !eq_type)
     less_fl= 1-less_fl;                         // Convert '<' -> '>' (etc)
@@ -708,15 +741,16 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       - field {>|>=} const, when searching for MIN
     */
 
-    if (is_null)
+    if (is_null || (is_null_safe_eq && args[1]->is_null()))
     {
       part->field->set_null();
       *key_ptr= (uchar) 1;
     }
     else
     {
-      store_val_in_field(part->field, args[between && max_fl ? 2 : 1],
-                         CHECK_FIELD_IGNORE);
+      /* Update endpoints for MAX/MIN, see function comment. */
+      Item *value= args[between && max_fl ? 2 : 1];
+      store_val_in_field(part->field, value, CHECK_FIELD_IGNORE);
       if (part->null_bit) 
         *key_ptr++= (uchar) test(part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);

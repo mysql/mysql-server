@@ -523,6 +523,8 @@ select @@max_user_connections;
 100
 set global max_write_lock_count=100;
 set myisam_sort_buffer_size=100;
+Warnings:
+Warning	1292	Truncated incorrect myisam_sort_buffer_size value: '100'
 set global net_buffer_length=100;
 Warnings:
 Warning	1292	Truncated incorrect net_buffer_length value: '100'
@@ -1493,4 +1495,13 @@ SELECT @@GLOBAL.max_binlog_cache_size;
 @@GLOBAL.max_binlog_cache_size
 5368709120
 SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
+#
+# Bug #37168 : Missing variable - skip_name_resolve
+#
+SELECT @@skip_name_resolve;
+@@skip_name_resolve
+0
+SHOW VARIABLES LIKE 'skip_name_resolve';
+Variable_name	Value
+skip_name_resolve	OFF
 End of 5.1 tests
