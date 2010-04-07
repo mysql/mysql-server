@@ -372,6 +372,37 @@ FROM t1 RIGHT JOIN t2 ON t1.varchar_key
 );
 varchar_key
 DROP TABLE t1, t2, t3;
+#
+# Bug#46556 Returning incorrect, empty results for some IN subqueries 
+#           w/semijoin=on
+#
+CREATE TABLE t0 (
+pk INTEGER,
+vkey VARCHAR(1),
+vnokey VARCHAR(1),
+PRIMARY KEY (pk),
+KEY vkey(vkey)
+);
+INSERT INTO t0 
+VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
+EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN 
+(SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t0	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	
+1	PRIMARY	t1	eq_ref	PRIMARY	PRIMARY	4	test.t0.pk	1	100.00	
+1	PRIMARY	t2	ref	vkey	vkey	4	test.t1.vnokey	2	100.00	Using where; Using index; FirstMatch(t1)
+Warnings:
+Note	1003	select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` `t1` semi join (`test`.`t0` `t2`) join `test`.`t0` where ((`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) and (`test`.`t1`.`pk` = `test`.`t0`.`pk`))
+SELECT vkey FROM t0 WHERE pk IN 
+(SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
+vkey
+g
+v
+t
+u
+n
+DROP TABLE t0;
+# End of bug#46556
 
 Bug#48834: Procedure with view + subquery + semijoin=on 
 crashes on second call.
