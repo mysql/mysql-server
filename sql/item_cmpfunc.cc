@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1022,12 +1022,12 @@ bool Arg_comparator::try_year_cmp_func(Item_result type)
   @return cache item or original value.
 */
 
-Item** Arg_comparator::cache_converted_constant(THD *thd, Item **value,
+Item** Arg_comparator::cache_converted_constant(THD *thd_arg, Item **value,
                                                 Item **cache_item,
                                                 Item_result type)
 {
   /* Don't need cache if doing context analysis only. */
-  if (!thd->is_context_analysis_only() &&
+  if (!thd_arg->is_context_analysis_only() &&
       (*value)->const_item() && type != (*value)->result_type())
   {
     Item_cache *cache= Item_cache::get_cache(*value, type);
@@ -1190,12 +1190,21 @@ get_year_value(THD *thd, Item ***item_arg, Item **cache_arg,
   /*
     Coerce value to the 19XX form in order to correctly compare
     YEAR(2) & YEAR(4) types.
+    Here we are converting all item values but YEAR(4) fields since
+      1) YEAR(4) already has a regular YYYY form and
+      2) we don't want to convert zero/bad YEAR(4) values to the
+         value of 2000.
   */
-  if (value < 70)
-    value+= 100;
-  if (value <= 1900)
-    value+= 1900;
-
+  Item *real_item= item->real_item();
+  if (!(real_item->type() == Item::FIELD_ITEM &&
+        ((Item_field *)real_item)->field->type() == MYSQL_TYPE_YEAR &&
+        ((Item_field *)real_item)->field->field_length == 4))
+  {
+    if (value < 70)
+      value+= 100;
+    if (value <= 1900)
+      value+= 1900;
+  }
   /* Convert year to DATETIME of form YYYY-00-00 00:00:00 (YYYY0000000000). */
   value*= 10000000000LL;
 
@@ -1368,12 +1377,12 @@ int Arg_comparator::compare_real()
 
 int Arg_comparator::compare_decimal()
 {
-  my_decimal value1;
-  my_decimal *val1= (*a)->val_decimal(&value1);
+  my_decimal decimal1;
+  my_decimal *val1= (*a)->val_decimal(&decimal1);
   if (!(*a)->null_value)
   {
-    my_decimal value2;
-    my_decimal *val2= (*b)->val_decimal(&value2);
+    my_decimal decimal2;
+    my_decimal *val2= (*b)->val_decimal(&decimal2);
     if (!(*b)->null_value)
     {
       if (set_null)
@@ -1397,9 +1406,9 @@ int Arg_comparator::compare_e_real()
 
 int Arg_comparator::compare_e_decimal()
 {
-  my_decimal value1, value2;
-  my_decimal *val1= (*a)->val_decimal(&value1);
-  my_decimal *val2= (*b)->val_decimal(&value2);
+  my_decimal decimal1, decimal2;
+  my_decimal *val1= (*a)->val_decimal(&decimal1);
+  my_decimal *val2= (*b)->val_decimal(&decimal2);
   if ((*a)->null_value || (*b)->null_value)
     return test((*a)->null_value && (*b)->null_value);
   return test(my_decimal_cmp(val1, val2) == 0);
@@ -5402,11 +5411,11 @@ void Item_equal::merge(Item_equal *item)
   members follow in a wrong order they are swapped. This is performed
   again and again until we get all members in a right order.
 
-  @param cmp          function to compare field item
+  @param compare      function to compare field item
   @param arg          context extra parameter for the cmp function
 */
 
-void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
+void Item_equal::sort(Item_field_cmpfunc compare, void *arg)
 {
   bool swap;
   List_iterator<Item_field> it(fields);
@@ -5420,7 +5429,7 @@ void Item_equal::sort(Item_field_cmpfunc cmp, void *arg)
     while ((item2= it++))
     {
       Item_field **ref2= it.ref();
-      if (cmp(item1, item2, arg) < 0)
+      if (compare(item1, item2, arg) < 0)
       {
         Item_field *item= *ref1;
         *ref1= *ref2;

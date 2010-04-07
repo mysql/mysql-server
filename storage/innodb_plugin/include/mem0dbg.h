@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,6 +28,13 @@ Created 6/9/1994 Heikki Tuuri
 check fields whose sizes are given below */
 
 #ifdef UNIV_MEM_DEBUG
+# ifndef UNIV_HOTBACKUP
+/* The mutex which protects in the debug version the hash table
+containing the list of live memory heaps, and also the global
+variables in mem0dbg.c. */
+extern mutex_t	mem_hash_mutex;
+# endif /* !UNIV_HOTBACKUP */
+
 #define MEM_FIELD_HEADER_SIZE	ut_calc_align(2 * sizeof(ulint),\
 						UNIV_MEM_ALIGNMENT)
 #define MEM_FIELD_TRAILER_SIZE	sizeof(ulint)

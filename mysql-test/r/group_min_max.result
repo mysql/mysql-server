@@ -2537,4 +2537,234 @@ a
 1
 2
 DROP TABLE t1;
+# 
+# Bug#47762: Incorrect result from MIN() when WHERE tests NOT NULL column
+#            for NULL
+#
+## Test for NULLs allowed
+CREATE TABLE t1 ( a INT, KEY (a) );
+INSERT INTO t1 VALUES (1), (2), (3);
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a = NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a = NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a <> NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a <> NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a > NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a > NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a < NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a < NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a <=> NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	No matching min/max row
+SELECT MIN( a ) FROM t1 WHERE a <=> NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND 10;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN 10 AND NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN 10 AND NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+x	x	x	x	x	x	x	x	x	Using where; Using index
+SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	No matching min/max row
+SELECT MIN( a ) FROM t1 WHERE a IS NULL;
+MIN( a )
+NULL
+INSERT INTO t1 VALUES (NULL), (NULL);
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a = NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a = NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a <> NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a <> NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a > NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a > NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a < NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a < NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a <=> NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Select tables optimized away
+SELECT MIN( a ) FROM t1 WHERE a <=> NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND 10;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN 10 AND NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN 10 AND NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+x	x	x	x	x	x	x	x	x	Using where; Using index
+SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Select tables optimized away
+SELECT MIN( a ) FROM t1 WHERE a IS NULL;
+MIN( a )
+NULL
+DROP TABLE t1;
+## Test for NOT NULLs
+CREATE TABLE t1 ( a INT NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+#
+# NULL-safe operator test disabled for non-NULL indexed columns.
+#
+# See bugs
+#
+# - Bug#52173: Reading NULL value from non-NULL index gives
+#   wrong result in embedded server 
+#
+# - Bug#52174: Sometimes wrong plan when reading a MAX value from 
+#   non-NULL index
+#
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a = NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a = NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a <> NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a <> NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a > NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a > NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a < NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a < NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND 10;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN NULL AND NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN 10 AND NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+SELECT MIN( a ) FROM t1 WHERE a BETWEEN 10 AND NULL;
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE noticed after reading const tables
+x	x	x	x	x	x	x	x	x	Using where; Using index
+SELECT MIN( a ) FROM t1 WHERE a = (SELECT a FROM t1 WHERE a < 0);
+MIN( a )
+NULL
+EXPLAIN
+SELECT MIN( a ) FROM t1 WHERE a IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+x	x	x	x	x	x	x	x	x	Impossible WHERE
+SELECT MIN( a ) FROM t1 WHERE a IS NULL;
+MIN( a )
+NULL
+DROP TABLE t1;
 End of 5.1 tests

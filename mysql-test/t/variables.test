@@ -1232,4 +1232,12 @@ SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
 SET GLOBAL max_binlog_cache_size = 5 * 1024 * 1024 * 1024;
 SELECT @@GLOBAL.max_binlog_cache_size;
 SET GLOBAL max_binlog_cache_size = @old_max_binlog_cache_size;
+
+--echo #
+--echo # Bug #37168 : Missing variable - skip_name_resolve
+--echo #
+
+SELECT @@skip_name_resolve;
+SHOW VARIABLES LIKE 'skip_name_resolve';
+
 --echo End of 5.1 tests

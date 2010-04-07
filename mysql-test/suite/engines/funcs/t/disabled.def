@@ -1,0 +1,3 @@
+# List of disabled tests
+# test name : comment
+#rpl_redirect : Fails due to bug#49978

@@ -44,10 +44,10 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(3)
-master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Query	#	#	SAVEPOINT my_savepoint
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(4)
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
-master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	#	Query	#	#	ROLLBACK TO my_savepoint
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 delete from t1;
 delete from t2;
@@ -70,10 +70,10 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(5)
-master-bin.000001	#	Query	#	#	use `test`; savepoint my_savepoint
+master-bin.000001	#	Query	#	#	SAVEPOINT my_savepoint
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(6)
 master-bin.000001	#	Query	#	#	use `test`; insert into t2 select * from t1
-master-bin.000001	#	Query	#	#	use `test`; rollback to savepoint my_savepoint
+master-bin.000001	#	Query	#	#	ROLLBACK TO my_savepoint
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(7)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 delete from t1;

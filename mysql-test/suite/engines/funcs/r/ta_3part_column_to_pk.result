@@ -1,0 +1,417 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 BIT NOT NULL, c2 BIT NOT NULL, c3 BIT NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bit(1) NOT NULL,
+  `c2` bit(1) NOT NULL,
+  `c3` bit(1) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bit(1) NOT NULL,
+  `c2` bit(1) NOT NULL,
+  `c3` bit(1) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 TINYINT NOT NULL, c2 TINYINT NOT NULL, c3 TINYINT NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` tinyint(4) NOT NULL,
+  `c3` tinyint(4) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) NOT NULL,
+  `c2` tinyint(4) NOT NULL,
+  `c3` tinyint(4) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 SMALLINT NOT NULL, c2 SMALLINT NOT NULL, c3 SMALLINT NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` smallint(6) NOT NULL,
+  `c3` smallint(6) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) NOT NULL,
+  `c2` smallint(6) NOT NULL,
+  `c3` smallint(6) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 MEDIUMINT NOT NULL, c2 MEDIUMINT NOT NULL, c3 MEDIUMINT NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` mediumint(9) NOT NULL,
+  `c3` mediumint(9) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) NOT NULL,
+  `c2` mediumint(9) NOT NULL,
+  `c3` mediumint(9) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 INT NOT NULL, c2 INT NOT NULL, c3 INT NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 INTEGER NOT NULL, c2 INTEGER NOT NULL, c3 INTEGER NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 BIGINT NOT NULL, c2 BIGINT NOT NULL, c3 BIGINT NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` bigint(20) NOT NULL,
+  `c3` bigint(20) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) NOT NULL,
+  `c2` bigint(20) NOT NULL,
+  `c3` bigint(20) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 REAL NOT NULL, c2 REAL NOT NULL, c3 REAL NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` double NOT NULL,
+  `c2` double NOT NULL,
+  `c3` double NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` double NOT NULL,
+  `c2` double NOT NULL,
+  `c3` double NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 DOUBLE NOT NULL, c2 DOUBLE NOT NULL, c3 DOUBLE NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` double NOT NULL,
+  `c2` double NOT NULL,
+  `c3` double NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` double NOT NULL,
+  `c2` double NOT NULL,
+  `c3` double NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 FLOAT NOT NULL, c2 FLOAT NOT NULL, c3 FLOAT NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` float NOT NULL,
+  `c2` float NOT NULL,
+  `c3` float NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` float NOT NULL,
+  `c2` float NOT NULL,
+  `c3` float NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 DECIMAL NOT NULL, c2 DECIMAL NOT NULL, c3 DECIMAL NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` decimal(10,0) NOT NULL,
+  `c2` decimal(10,0) NOT NULL,
+  `c3` decimal(10,0) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` decimal(10,0) NOT NULL,
+  `c2` decimal(10,0) NOT NULL,
+  `c3` decimal(10,0) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 NUMERIC NOT NULL, c2 NUMERIC NOT NULL, c3 NUMERIC NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` decimal(10,0) NOT NULL,
+  `c2` decimal(10,0) NOT NULL,
+  `c3` decimal(10,0) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` decimal(10,0) NOT NULL,
+  `c2` decimal(10,0) NOT NULL,
+  `c3` decimal(10,0) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 DATE NOT NULL, c2 DATE NOT NULL, c3 DATE NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` date NOT NULL,
+  `c2` date NOT NULL,
+  `c3` date NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` date NOT NULL,
+  `c2` date NOT NULL,
+  `c3` date NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 TIME NOT NULL, c2 TIME NOT NULL, c3 TIME NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` time NOT NULL,
+  `c2` time NOT NULL,
+  `c3` time NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` time NOT NULL,
+  `c2` time NOT NULL,
+  `c3` time NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 TIMESTAMP NOT NULL, c2 TIMESTAMP NOT NULL, c3 TIMESTAMP NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c2` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `c2` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `c3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 YEAR NOT NULL, c2 YEAR NOT NULL, c3 YEAR NOT NULL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` year(4) NOT NULL,
+  `c2` year(4) NOT NULL,
+  `c3` year(4) NOT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+ALTER TABLE t1 ADD PRIMARY KEY (c1,c2,c3);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` year(4) NOT NULL,
+  `c2` year(4) NOT NULL,
+  `c3` year(4) NOT NULL,
+  PRIMARY KEY (`c1`,`c2`,`c3`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
