@@ -153,12 +153,14 @@ buf_flush_block_cmp(
 	const void*	p2)		/*!< in: block2 */
 {
 	int		ret;
+	const buf_page_t* b1;
+	const buf_page_t* b2;
 
 	ut_ad(p1 != NULL);
 	ut_ad(p2 != NULL);
 
-	const buf_page_t* b1 = *(const buf_page_t**) p1;
-	const buf_page_t* b2 = *(const buf_page_t**) p2;
+	b1 = *(const buf_page_t**) p1;
+	b2 = *(const buf_page_t**) p2;
 
 	ut_ad(b1 != NULL);
 	ut_ad(b2 != NULL);
