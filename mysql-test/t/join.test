@@ -784,6 +784,29 @@ FROM
 
 DROP TABLE t1,t2,t3,t4,t5,t6;
 
+--echo #
+--echo # Bug#48483: crash in get_best_combination()
+--echo #
+
+CREATE TABLE t1(f1 INT);
+INSERT INTO t1 VALUES (1),(2);
+CREATE VIEW v1 AS SELECT 1 FROM t1 LEFT JOIN t1 AS t2 on 1=1;
+EXPLAIN EXTENDED
+SELECT 1 FROM v1 right join v1 AS v2 ON RAND();
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#52177 crash with explain, row comparison, join, text field
+--echo #
+CREATE TABLE t1 (a TINYINT, b TEXT, KEY (a));
+INSERT INTO t1 VALUES (0,''),(0,'');
+FLUSH TABLES;
+EXPLAIN SELECT 1 FROM t1 LEFT JOIN t1 a ON 1
+WHERE ROW(t1.a, 1111.11) = ROW(1111.11, 1111.11) AND
+ROW(t1.b, 1111.11) <=> ROW('','');
+DROP TABLE t1;
+
 --echo End of 5.0 tests.
 
 

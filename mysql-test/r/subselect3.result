@@ -30,7 +30,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having trigcond((<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))) AS `Z` from `test`.`t2`
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having trigcond((<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))) AS `Z` from `test`.`t2`
 explain extended
 select a, oref from t2 
 where a in (select max(ie) from t1 where oref=t2.oref group by grp);
@@ -39,7 +39,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(select max(`test`.`t1`.`ie`) from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))
 select a, oref, a in (
 select max(ie) from t1 where oref=t2.oref group by grp union
 select max(ie) from t1 where oref=t2.oref group by grp
@@ -68,7 +68,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	select <in_optimizer>(`test`.`t3`.`a`,<exists>(select max(`test`.`t1`.`ie`) AS `max(ie)` from `test`.`t1` where (`test`.`t1`.`oref` = 4) group by `test`.`t1`.`grp` having trigcond((<cache>(`test`.`t3`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))) AS `a in (select max(ie) from t1 where oref=4 group by grp)` from `test`.`t3`
+Note	1003	select <in_optimizer>(`test`.`t3`.`a`,<exists>(select max(`test`.`t1`.`ie`) from `test`.`t1` where (`test`.`t1`.`oref` = 4) group by `test`.`t1`.`grp` having trigcond((<cache>(`test`.`t3`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))) AS `a in (select max(ie) from t1 where oref=4 group by grp)` from `test`.`t3`
 drop table t1, t2, t3;
 create table t1 (a int, oref int, key(a));
 insert into t1 values 
@@ -157,7 +157,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t2	ref	a	a	5	test.t1.b	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond(((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)))) having trigcond(<is_not_null_test>(`test`.`t1`.`a`)))) AS `Z` from `test`.`t3`
+Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond(((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)))) having trigcond(<is_not_null_test>(`test`.`t1`.`a`)))) AS `Z` from `test`.`t3`
 drop table t1, t2, t3;
 create table t1 (a int NOT NULL, b int NOT NULL, key(a));
 insert into t1 values 
@@ -185,7 +185,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t2	ref	a	a	4	test.t1.b	1	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t3.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`))))) AS `Z` from `test`.`t3`
+Note	1003	select `test`.`t3`.`a` AS `a`,`test`.`t3`.`oref` AS `oref`,<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t2`.`b` = `test`.`t3`.`oref`) and trigcond((<cache>(`test`.`t3`.`a`) = `test`.`t1`.`a`))))) AS `Z` from `test`.`t3`
 drop table t1,t2,t3;
 create table t1 (oref int, grp int);
 insert into t1 (oref, grp) values
@@ -209,7 +209,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(select count(0) AS `count(*)` from `test`.`t1` group by `test`.`t1`.`grp` having ((`test`.`t1`.`grp` = `test`.`t2`.`oref`) and trigcond((<cache>(`test`.`t2`.`a`) = <ref_null_helper>(count(0))))))) AS `Z` from `test`.`t2`
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(select count(0) from `test`.`t1` group by `test`.`t1`.`grp` having ((`test`.`t1`.`grp` = `test`.`t2`.`oref`) and trigcond((<cache>(`test`.`t2`.`a`) = <ref_null_helper>(count(0))))))) AS `Z` from `test`.`t2`
 drop table t1, t2;
 create table t1 (a int, b int, primary key (a));
 insert into t1 values (1,1), (3,1),(100,1);
@@ -258,7 +258,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	100.00	Using where; Using join buffer
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`))))) AS `Z` from `test`.`t2`
+Note	1003	select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(select `test`.`t1`.`a`,`test`.`t1`.`b` from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and trigcond(((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`))) and trigcond(((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)))) having (trigcond(<is_not_null_test>(`test`.`t1`.`a`)) and trigcond(<is_not_null_test>(`test`.`t1`.`b`))))) AS `Z` from `test`.`t2`
 select a,b, oref, 
 (a,b) in (select a,b from t1,t4 where c=t2.oref) Z 
 from t2;
@@ -703,7 +703,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using index
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 AS `Not_used` from `test`.`t1` where ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)) having <is_not_null_test>(`test`.`t1`.`a`))))))
+Note	1003	select `test`.`t1`.`a` AS `a` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`b` = `test`.`t1`.`a`) and (not(<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t1` where ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)) having <is_not_null_test>(`test`.`t1`.`a`))))))
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1));
 a
 SELECT a FROM t1, t2 WHERE a=b AND (b NOT IN (SELECT a FROM t1 WHERE a > 4));
@@ -864,7 +864,7 @@ Level	Code	Message
 Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
 Note	1276	Field or reference 'test.t1.c' of SELECT #3 was resolved in SELECT #2
 Error	1054	Unknown column 'c' in 'field list'
-Note	1003	select `c` AS `c` from (select (select count(`test`.`t1`.`a`) AS `COUNT(a)` from (select count(`test`.`t1`.`b`) AS `COUNT(b)` from `test`.`t1`) `x` group by `c`) AS `(SELECT COUNT(a) FROM 
+Note	1003	select `c` AS `c` from (select (select count(`test`.`t1`.`a`) from (select count(`test`.`t1`.`b`) AS `COUNT(b)` from `test`.`t1`) `x` group by `c`) AS `(SELECT COUNT(a) FROM 
 (SELECT COUNT(b) FROM t1) AS x GROUP BY c
 )` from `test`.`t1` group by `test`.`t1`.`b`) `y`
 DROP TABLE t1;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -144,13 +144,17 @@ row_undo_mod_clust_low(
 
 /***********************************************************//**
 Removes a clustered index record after undo if possible.
+This is attempted when the record was inserted by updating a
+delete-marked record and there no longer exist transactions
+that would see the delete-marked record.  In other words, we
+roll back the insert by purging the record.
 @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static
 ulint
 row_undo_mod_remove_clust_low(
 /*==========================*/
 	undo_node_t*	node,	/*!< in: row undo node */
-	que_thr_t*	thr __attribute__((unused)), /*!< in: query thread */
+	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr */
 	ulint		mode)	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE */
 {
@@ -159,6 +163,7 @@ row_undo_mod_remove_clust_low(
 	ulint		err;
 	ibool		success;
 
+	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 	pcur = &(node->pcur);
 	btr_cur = btr_pcur_get_btr_cur(pcur);
 
@@ -190,11 +195,13 @@ row_undo_mod_remove_clust_low(
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
-		/* Note that since this operation is analogous to purge,
-		we can free also inherited externally stored fields:
-		hence the RB_NONE in the call below */
+		/* This operation is analogous to purge, we can free also
+		inherited externally stored fields */
 
-		btr_cur_pessimistic_delete(&err, FALSE, btr_cur, RB_NONE, mtr);
+		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
+					   thr_is_recv(thr)
+					   ? RB_RECOVERY_PURGE_REC
+					   : RB_NONE, mtr);
 
 		/* The delete operation may fail if we have little
 		file space left: TODO: easiest to crash the database
@@ -370,10 +377,11 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 
-			/* No need to distinguish RB_RECOVERY here, because we
-			are deleting a secondary index record: the distinction
-			between RB_NORMAL and RB_RECOVERY only matters when
-			deleting a record that contains externally stored
+			/* No need to distinguish RB_RECOVERY_PURGE here,
+			because we are deleting a secondary index record:
+			the distinction between RB_NORMAL and
+			RB_RECOVERY_PURGE only matters when deleting a
+			record that contains externally stored
 			columns. */
 			ut_ad(!dict_index_is_clust(index));
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
@@ -438,7 +446,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 				BTR_MODIFY_TREE */
 	que_thr_t*	thr,	/*!< in: query thread */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry)	/*!< in: index entry */
+	const dtuple_t*	entry)	/*!< in: index entry */
 {
 	mem_heap_t*	heap;
 	btr_pcur_t	pcur;
@@ -533,6 +541,7 @@ row_undo_mod_upd_del_sec(
 	dict_index_t*	index;
 	ulint		err	= DB_SUCCESS;
 
+	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
@@ -550,7 +559,7 @@ row_undo_mod_upd_del_sec(
 			does not exist.  However, this situation may
 			only occur during the rollback of incomplete
 			transactions. */
-			ut_a(trx_is_recv(thr_get_trx(thr)));
+			ut_a(thr_is_recv(thr));
 		} else {
 			err = row_undo_mod_del_mark_or_remove_sec(
 				node, thr, index, entry);

@@ -1786,7 +1786,7 @@ prepare stmt from "create view v1 (c,d,e,f) as select a,b,a in (select a+2 from 
 execute stmt;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) AS `a+2` from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` AS `a` from `t1`) AS `f` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` from `t1`) AS `f` from `t1`	latin1	latin1_swedish_ci
 select * from v1;
 c	d	e	f
 drop view v1;
@@ -1794,7 +1794,7 @@ execute stmt;
 deallocate prepare stmt;
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) AS `a+2` from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` AS `a` from `t1`) AS `f` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `c`,`t1`.`b` AS `d`,`t1`.`a` in (select (`t1`.`a` + 2) from `t1`) AS `e`,`t1`.`a` = all (select `t1`.`a` from `t1`) AS `f` from `t1`	latin1	latin1_swedish_ci
 select * from v1;
 c	d	e	f
 drop view v1;

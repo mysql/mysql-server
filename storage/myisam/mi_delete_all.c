@@ -55,7 +55,7 @@ int mi_delete_all_rows(MI_INFO *info)
   flush_key_blocks(share->key_cache, share->kfile, FLUSH_IGNORE_CHANGED);
 #ifdef HAVE_MMAP
   if (share->file_map)
-    _mi_unmap_file(info);
+    mi_munmap_file(info);
 #endif
   if (my_chsize(info->dfile, 0, 0, MYF(MY_WME)) ||
       my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )

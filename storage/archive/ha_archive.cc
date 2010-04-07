@@ -1269,13 +1269,12 @@ int ha_archive::rnd_pos(uchar * buf, uchar *pos)
 
 /*
   This method repairs the meta file. It does this by walking the datafile and 
-  rewriting the meta file. Currently it does this by calling optimize with
-  the extended flag.
+  rewriting the meta file. If EXTENDED repair is requested, we attempt to
+  recover as much data as possible.
 */
 int ha_archive::repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   DBUG_ENTER("ha_archive::repair");
-  check_opt->flags= T_EXTEND;
   int rc= optimize(thd, check_opt);
 
   if (rc)
@@ -1369,7 +1368,14 @@ int ha_archive::optimize(THD* thd, HA_CHECK_OPT* check_opt)
     DBUG_PRINT("ha_archive", ("recovered %llu archive rows", 
                         (unsigned long long)share->rows_recorded));
 
-    if (rc && rc != HA_ERR_END_OF_FILE)
+    /*
+      If REPAIR ... EXTENDED is requested, try to recover as much data
+      from data file as possible. In this case if we failed to read a
+      record, we assume EOF. This allows massive data loss, but we can
+      hardly do more with broken zlib stream. And this is the only way
+      to restore at least what is still recoverable.
+    */
+    if (rc && rc != HA_ERR_END_OF_FILE && !(check_opt->flags & T_EXTEND))
       goto error;
   } 
 

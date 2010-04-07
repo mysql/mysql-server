@@ -825,7 +825,7 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
 	     (size_t) (length=new_left_length - left_length - k_length));
       pos=buff+2+length;
       memcpy((uchar*) father_key_pos,(uchar*) pos,(size_t) k_length);
-      bmove((uchar*) buff+2,(uchar*) pos+k_length,new_right_length);
+      bmove((uchar*) buff + 2, (uchar*) pos + k_length, new_right_length - 2);
     }
     else
     {						/* Move keys -> buff */

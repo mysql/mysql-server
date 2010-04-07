@@ -3618,3 +3618,86 @@ DROP TABLE t1;
 
 
 --echo End of 5.1 tests.
+
+#
+# Bug #47904 Incorrect results w/ table subquery, derived SQs, and LEFT JOIN on index
+#
+
+--echo Set up test tables.
+CREATE TABLE t1 (
+	t1_id INT UNSIGNED,
+
+	PRIMARY KEY(t1_id)
+) Engine=MyISAM;
+
+INSERT INTO t1 (t1_id) VALUES (1), (2), (3), (4), (5);
+
+CREATE TABLE t2 SELECT * FROM t1;
+	
+CREATE TABLE t3 (
+	t3_id INT UNSIGNED AUTO_INCREMENT,
+	t1_id INT UNSIGNED,
+	amount DECIMAL(16,2),
+
+	PRIMARY KEY(t3_id),
+	KEY(t1_id)
+) Engine=MyISAM;
+
+INSERT INTO t3 (t1_id, t3_id, amount) 
+        VALUES (1, 1, 100.00), (2, 2, 200.00), (4, 4, 400.00);
+
+--echo This is the 'inner query' running by itself.
+--echo Produces correct results.
+SELECT
+	t1.t1_id,
+	IFNULL((SELECT SUM(amount) FROM t3 WHERE t3.t1_id=t1.t1_id), 0) AS total_amount
+FROM
+	t1
+	LEFT JOIN t2 ON t2.t1_id=t1.t1_id
+GROUP BY
+	t1.t1_id
+;
+
+--echo SELECT * FROM (the same inner query)
+--echo Produces correct results.
+SELECT * FROM (
+SELECT
+	t1.t1_id,
+	IFNULL((SELECT SUM(amount) FROM t3 WHERE t3.t1_id=t1.t1_id), 0) AS total_amount
+FROM
+	t1
+	LEFT JOIN t2 ON t2.t1_id=t1.t1_id
+GROUP BY
+	t1.t1_id
+) AS t;
+
+--echo Now make t2.t1_id part of a key.
+ALTER TABLE t2 ADD PRIMARY KEY(t1_id);
+
+--echo Same inner query by itself.
+--echo Still correct results.
+SELECT
+	t1.t1_id,
+	IFNULL((SELECT SUM(amount) FROM t3 WHERE t3.t1_id=t1.t1_id), 0) AS total_amount
+FROM
+	t1
+	LEFT JOIN t2 ON t2.t1_id=t1.t1_id
+GROUP BY
+	t1.t1_id;
+
+--echo SELECT * FROM (the same inner query), now with indexes on the LEFT JOIN
+SELECT * FROM (
+SELECT
+	t1.t1_id,
+	IFNULL((SELECT SUM(amount) FROM t3 WHERE t3.t1_id=t1.t1_id), 0) AS total_amount
+FROM
+	t1
+	LEFT JOIN t2 ON t2.t1_id=t1.t1_id
+GROUP BY
+	t1.t1_id
+) AS t;
+
+
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
