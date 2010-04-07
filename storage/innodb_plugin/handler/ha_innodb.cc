@@ -2135,7 +2135,7 @@ mem_free_and_error:
 		}
 
 		sql_print_error("InnoDB: invalid value "
-				"innodb_file_format_check=%s",
+				"innodb_change_buffering=%s",
 				innobase_change_buffering);
 		goto mem_free_and_error;
 	}
