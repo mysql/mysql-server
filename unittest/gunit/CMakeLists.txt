@@ -28,14 +28,19 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
   # Remove -fno-implicit-templates, gunit sources cannot be compiled with it.
   STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS
     ${CMAKE_CXX_FLAGS})
-  # If we are building with gcc, we might want to do this:
-  # CMAKE_FORCE_CXX_COMPILER(g++ Gnu CC)
-  # If we are building with ccache, we need to change arg1 instead.
+
+  # MySQL is often compiled/linked with gcc rather than g++
+  # (to avoid dependencies on libstdc++.so)
+  # This does not work for googletest binaries.
+  # If we are building with ccache, we need to change arg1.
   IF(CMAKE_CXX_COMPILER_ARG1)
-    STRING(REGEX MATCH "gcc" GCC_AS_CXX ${CMAKE_CXX_COMPILER_ARG1})
-    IF(GCC_AS_CXX)
+    IF(${CMAKE_CXX_COMPILER_ARG1} MATCHES "gcc")
       SET(CMAKE_CXX_COMPILER_ARG1 "g++")
     ENDIF()
+  # If we are building with gcc, substitute gcc with g++
+  ELSEIF(${CMAKE_CXX_COMPILER} MATCHES ".*/gcc")
+    STRING(REGEX REPLACE "/gcc$" "/g++" PATH_TO_GCC ${CMAKE_CXX_COMPILER})
+    CMAKE_FORCE_CXX_COMPILER(${PATH_TO_GCC} "GNU g++")
   ENDIF()
 ENDIF()
 
