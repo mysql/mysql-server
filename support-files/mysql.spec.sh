@@ -50,12 +50,6 @@
 %define __os_install_post /usr/lib/rpm/brp-compress
 
 # ------------------------------------------------------------------------------
-# We don't package all files installed into the build root by intention -
-# See BUG#998 for details.
-# ------------------------------------------------------------------------------
-%define _unpackaged_files_terminate_build 0
-
-# ------------------------------------------------------------------------------
 # RPM build tools now automatically detects Perl module dependencies. This
 # detection gives problems as it is broken in some versions, and it also
 # give unwanted dependencies from mandatory scripts in our package.
