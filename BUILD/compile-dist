@@ -41,10 +41,10 @@ if [ -z "$gmake" ]; then
   exit 2
 fi
 
-# Default to gcc/g++ for CC and CXX
+# Default to gcc for CC and CXX
 if test -z "$CXX" ; then
   export CXX
-  CXX=g++
+  CXX=gcc
   # Set some required compile options
   if test -z "$CXXFLAGS" ; then
     export CXXFLAGS

@@ -13,6 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+# In case we need to override the choice of compiler, see below.
+INCLUDE(CMakeForceCompiler)
 
 # Builtin GTest support is only available with CMake 2.8. For 2.6, we use 
 # own copy of the FindGTest.cmake module, located in current source directory.
@@ -22,12 +24,21 @@ ELSE()
   SET(HAVE_CMAKE_2_8 1)
 ENDIF() 
 
-# Fix compiler flags, if they are screwed and C++ programs do not compile.
-IF(CMAKE_COMPILER_IS_GNUXX)
-  # Remove -fno-implicit-templates
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  # Remove -fno-implicit-templates, gunit sources cannot be compiled with it.
   STRING(REPLACE "-fno-implicit-templates" "" CMAKE_CXX_FLAGS
     ${CMAKE_CXX_FLAGS})
+  # If we are building with gcc, we might want to do this:
+  # CMAKE_FORCE_CXX_COMPILER(g++ Gnu CC)
+  # If we are building with ccache, we need to change arg1 instead.
+  IF(CMAKE_CXX_COMPILER_ARG1)
+    STRING(REGEX MATCH "gcc" GCC_AS_CXX ${CMAKE_CXX_COMPILER_ARG1})
+    IF(GCC_AS_CXX)
+      SET(CMAKE_CXX_COMPILER_ARG1 "g++")
+    ENDIF()
+  ENDIF()
 ENDIF()
+
 IF(MSVC)
   # Restore exception handling flags to avoid tons of warnings when using STL.
   ADD_DEFINITIONS(/EHcs)
@@ -154,12 +165,6 @@ TARGET_LINK_LIBRARIES(gunit mysys mytap dbug strings ${GTEST_LIBRARIES})
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 # We use -fno-rtti with gcc, so disable RTTI in gtest as well.
 ADD_DEFINITIONS(-DGTEST_HAS_RTTI=0)
-
-# Remove -fno-implicit-templates, gunit sources cannot be compiled with it.
-IF(CMAKE_CXX_FLAGS)
-  STRING(REPLACE "-fno-implicit-templates" ""
-    CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-ENDIF()
 
 # Add tests (link them with sql library) 
 SET(TESTS sql_list mdl mdl_mytap thread_utils)
