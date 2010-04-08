@@ -226,10 +226,16 @@ static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
                          const char *prompt,
                          char *buf, int buf_len)
 {
+  int len;
+
   fputs(prompt, stdout);
   fputc(' ', stdout);
   if (fgets(buf, buf_len, stdin) == 0)
     return 0;
+
+  len= strlen(buf);
+  if (len && buf[len-1]=='\n')
+    buf[len-1]=0;
 
   return buf;
 }
