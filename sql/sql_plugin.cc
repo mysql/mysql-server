@@ -828,7 +828,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc CALLER_INFO_PROTO)
     *plugin= pi;
 #endif
     pi->ref_count++;
-    DBUG_PRINT("info",("thd: 0x%lx  plugin: \"%s\"  ref_count: %d",
+    DBUG_PRINT("lock",("thd: 0x%lx  plugin: \"%s\" LOCK ref_count: %d",
                        (long) current_thd, pi->name.str, pi->ref_count));
 
     if (lex)
@@ -1135,8 +1135,6 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
   my_free((uchar*) plugin, MYF(MY_WME));
 #endif
 
-  DBUG_PRINT("info",("unlocking plugin, name= %s, ref_count= %d",
-                     pi->name.str, pi->ref_count));
   if (lex)
   {
     /*
@@ -1155,6 +1153,9 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
 
   DBUG_ASSERT(pi->ref_count);
   pi->ref_count--;
+
+  DBUG_PRINT("lock",("thd: 0x%lx  plugin: \"%s\" UNLOCK ref_count: %d",
+                     (long) current_thd, pi->name.str, pi->ref_count));
 
   if (pi->state == PLUGIN_IS_DELETED && !pi->ref_count)
     reap_needed= true;

@@ -106,13 +106,18 @@ alter table t1 change a a int complex='c,c,c';
 show create table t1;
 drop table t1;
 
-
 --echo #illegal value error
 SET SQL_MODE='';
 --error ER_BAD_OPTION_VALUE
 CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
-
 SET @@SQL_MODE=@OLD_SQL_MODE;
 
-
+#
+# The only preparable statement above was CREATE TABLE. 
+# We need to prepare another statement here to force the
+# previous one to be deallocated (mysqltest reuses the same handle)
+# and to unlock all thread-local plugin locks. Otherwise it won't
+# uninstall.
+#
+select 1;
 UNINSTALL PLUGIN example;
