@@ -68,9 +68,6 @@
 %undefine __perl_provides
 %undefine __perl_requires
 
-# Variables which need to be global so they can be changed during phases.
-%global WITH_LIBGCC 0
-
 ##############################################################################
 # Command line handling
 ##############################################################################
@@ -340,6 +337,9 @@ client/server version.
 # Be strict about variables, bail at earliest opportunity, etc.
 set -eu
 
+# Optional files to include
+touch optional-server-files
+
 #
 # Set environment in order of preference, MYSQL_BUILD_* first, then variable
 # name, finally a default.  RPM_OPT_FLAGS is assumed to be a part of the
@@ -400,14 +400,14 @@ RBR=$RPM_BUILD_ROOT
 
 # For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
 # needs to be during build phase as $CC is not set during install.
-if "$CC" --version | grep '(GCC)' >/dev/null 2>&1
+if "$CC" -v | grep '^gcc.version' >/dev/null 2>&1
 then
   libgcc=`$CC $CFLAGS --print-libgcc-file`
   if [ -f $libgcc ]
   then
-    %define WITH_LIBGCC 1
     mkdir -p $RBR%{_libdir}/mysql
     install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+    echo "%{_libdir}/mysql/libmygcc.a" >>optional-server-files
   fi
 fi
 
@@ -645,7 +645,7 @@ fi
 #  Files section
 ##############################################################################
 
-%files server
+%files server -f optional-server-files
 %defattr(-,root,root,0755)
 
 %doc %{src_dir}/COPYING
@@ -832,9 +832,6 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql/*
 %{_datadir}/aclocal/mysql.m4
-%if %{WITH_LIBGCC}
-%{_libdir}/mysql/libmygcc.a
-%endif
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
