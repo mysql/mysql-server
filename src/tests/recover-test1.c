@@ -46,7 +46,7 @@ do_x1_shutdown (void) {
 static void
 do_x1_recover (BOOL UU(did_commit)) {
     int r;
-    r=system("rm " ENVDIR "/foo_db*"); CKERR(r);
+    r=system("rm " ENVDIR "/*.tokudb"); CKERR(r);
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
     r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
