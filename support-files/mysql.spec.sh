@@ -406,8 +406,8 @@ then
   if [ -f $libgcc ]
   then
     %define WITH_LIBGCC 1
-    mkdir -p $RBR%{_libdir}
-    install -m 644 $libgcc $RBR%{_libdir}/libmygcc.a
+    mkdir -p $RBR%{_libdir}/mysql
+    install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
   fi
 fi
 
@@ -431,6 +431,11 @@ install -d $RBR%{_sbindir}
   cd $MBD/release
   make DESTDIR=$RBR install
 )
+
+# FIXME: at some point we should stop doing this and just install everything
+# FIXME: directly into %{_libdir}/mysql - perhaps at the same time as renaming
+# FIXME: the shared libraries to use libmysql*-$major.$minor.so syntax
+mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 
 # Install logrotate and autostart
 install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
@@ -828,14 +833,14 @@ fi
 %{_includedir}/mysql/*
 %{_datadir}/aclocal/mysql.m4
 %if %{WITH_LIBGCC}
-%{_libdir}/libmygcc.a
+%{_libdir}/mysql/libmygcc.a
 %endif
-%{_libdir}/libmysqlclient.a
-%{_libdir}/libmysqlclient_r.a
-%{_libdir}/libmysqlservices.a
+%{_libdir}/mysql/libmysqlclient.a
+%{_libdir}/mysql/libmysqlclient_r.a
+%{_libdir}/mysql/libmysqlservices.a
 %if %{CLUSTER_BUILD}
-%{_libdir}/libndbclient.a
-%{_libdir}/libndbclient.la
+%{_libdir}/mysql/libndbclient.a
+%{_libdir}/mysql/libndbclient.la
 %endif
 
 %files shared
@@ -864,8 +869,8 @@ fi
 %files embedded
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/mysql_embedded
-%attr(644, root, root) %{_libdir}/libmysqld.a
-%attr(644, root, root) %{_libdir}/libmysqld-debug.a
+%attr(644, root, root) %{_libdir}/mysql/libmysqld.a
+%attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %endif
 
 ##############################################################################
