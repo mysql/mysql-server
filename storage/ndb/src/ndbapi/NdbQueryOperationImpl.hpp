@@ -25,7 +25,6 @@
 #include <NdbError.hpp>
 #include <ndb_limits.h>
 #include <Vector.hpp>
-#include <Bitmask.hpp>
 
 // Forward declarations
 class NdbTableImpl;
@@ -451,11 +450,6 @@ private:
    */
   void closeSingletonScans();
 
-  /** Fix parent-child references when a complete batch has been received
-   * for a given root fragment.
-   */
-  void buildChildTupleLinks(Uint32 rootFragNo);
-
   const NdbQuery& getInterface() const
   { return m_interface; }
 
@@ -471,6 +465,10 @@ private:
   /** Check if batch is complete (no outstanding messages).*/
   bool isBatchComplete() const;
 
+  /** A complete batch has been received for a given root fragment
+   *  Update whatever required before the appl. is allowed to navigate the result.
+   */ 
+  void handleBatchComplete(Uint32 rootFragNo);
 }; // class NdbQueryImpl
 
 
@@ -634,7 +632,7 @@ private:
    *  Recursively fetchRow() for 'this' operation and all its
    *  descendant child operations. 
    */
-  void fetchScanResults(Uint32 rootFragNo, Uint32 rowNo);
+  void fetchScanResults(Uint32 rootFragNo, Uint16 parentId);
   void fetchLookupResults();
 
   /** Set result for this operation and all its descendand child 
