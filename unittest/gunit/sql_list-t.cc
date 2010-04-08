@@ -126,7 +126,7 @@ TEST_F(Sql_list_test, basic_operations)
   EXPECT_FALSE(m_int_list.push_front(&i1));
   EXPECT_FALSE(m_int_list.push_back(&i2));
   EXPECT_FALSE(m_int_list.is_empty());
-  EXPECT_EQ(2, m_int_list.elements);
+  EXPECT_EQ(2U, m_int_list.elements);
 
   EXPECT_EQ(&i1, m_int_list.head());
   EXPECT_EQ(&i1, m_int_list.pop());
