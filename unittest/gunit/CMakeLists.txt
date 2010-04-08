@@ -52,11 +52,14 @@ ENDIF()
 # Hint for FindGTest: With MSVC, we compile with static CRT (compile flags
 # /MT or /MTd) and need compatible gtest.lib
 SET(GTEST_MSVC_SEARCH MT) 
+IF (DEFINED ENV{GTEST_PREFIX} AND NOT DEFINED ENV{GTEST_ROOT})
+  SET(ENV{GTEST_ROOT} $ENV{GTEST_PREFIX})
+ENDIF()
 FIND_PACKAGE(GTest)
 
 OPTION(ENABLE_DOWNLOADS
   "Download and build 3rd party source code components, e.g google test"
-  ON)
+  OFF)
 
 # Download and build gtest if not found
 IF(NOT DOWNLOAD_ROOT)
