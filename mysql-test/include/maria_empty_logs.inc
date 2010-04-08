@@ -11,9 +11,10 @@
 connection default;
 let $default_db=`select database()`;
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
-# it will used at end of test for wait_for_status_var.inc primitive
-let $status_var= Threads_connected;
-let $status_var_value= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
+
+#it will used at end of test for wait_for_status_var.inc primitive
+#let $status_var= Threads_connected;
+#let $status_var_value= query_get_value(SHOW STATUS LIKE 'Threads_connected', Value, 1);
 
 connection admin;
 -- echo * shut down mysqld, removed logs, restarted it
@@ -77,12 +78,15 @@ append_file $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 restart-maria_empty_logs.inc
 EOF
 
+connection default;
 --source include/wait_until_connected_again.inc
 
-connection default;
 # Make sure that all connections are restored
---source include/wait_for_status_var.inc
+# This is disabled as 'Threads_connected' can't be trusted'
+# (It may be affected by 'check_testcase()')
+# --source include/wait_for_status_var.inc
 # Restore current database as the effect of "use" was lost after restart
+
 --disable_query_log
 eval use $default_db;
 --enable_query_log

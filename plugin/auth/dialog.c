@@ -224,11 +224,11 @@ static mysql_authentication_dialog_ask_t ask;
 static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
                          int type __attribute__((unused)),
                          const char *prompt,
-                         char *buf, int buf_len __attribute__((unused)))
+                         char *buf, int buf_len)
 {
   fputs(prompt, stdout);
   fputc(' ', stdout);
-  if (gets(buf) == 0)
+  if (fgets(buf, buf_len, stdin) == 0)
     return 0;
 
   return buf;
