@@ -593,7 +593,7 @@ static my_bool read_maria_plugin_info(struct st_plugin_dl *plugin_dl,
 
   DBUG_RETURN(FALSE);
 }
-#endif HAVE_DLOPEN
+#endif /* HAVE_DLOPEN */
 
 static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 {
