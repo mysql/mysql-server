@@ -4288,8 +4288,9 @@ extern "C" char *mysql_authentication_dialog_ask(MYSQL *mysql, int type,
   }
   else
   {
-    fgets(buf, buf_len-1, stdin);
-    if (buf[0] && (s= strend(buf))[-1] == '\n')
+    if (!fgets(buf, buf_len-1, stdin))
+      buf[0]= 0;
+    else if (buf[0] && (s= strend(buf))[-1] == '\n')
       s[-1]= 0;
   }
 
