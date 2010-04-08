@@ -18,6 +18,7 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
+#include "create_options.h"
 #include "sql_show.h"
 #include "repl_failsafe.h"
 #include "sp.h"
@@ -1043,7 +1044,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 
   /*
     The identifier must be quoted as it includes a quote character or
-   it's a keyword
+    it's a keyword
   */
 
   VOID(packet->reserve(length*2 + 2));
@@ -1201,6 +1202,31 @@ static bool get_field_default_value(THD *thd, TABLE *table,
 
   }
   return has_default;
+}
+
+
+/**
+  Appends list of options to string
+
+  @param thd             thread handler
+  @param packet          string to append
+  @param opt             list of options
+*/
+
+static void append_create_options(THD *thd, String *packet,
+				  engine_option_value *opt)
+{
+  for(; opt; opt= opt->next)
+  {
+    DBUG_ASSERT(opt->value.str);
+    packet->append(' ');
+    append_identifier(thd, packet, opt->name.str, opt->name.length);
+    packet->append('=');
+    if (opt->quoted_value)
+      append_unescaped(packet, opt->value.str, opt->value.length);
+    else
+      packet->append(opt->value.str, opt->value.length);
+  }
 }
 
 /*
@@ -1385,6 +1411,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" COMMENT "));
       append_unescaped(packet, field->comment.str, field->comment.length);
     }
+    append_create_options(thd, packet, field->option_list);
   }
 
   key_info= table->key_info;
@@ -1456,6 +1483,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       append_identifier(thd, packet, parser_name->str, parser_name->length);
       packet->append(STRING_WITH_LEN(" */ "));
     }
+    append_create_options(thd, packet, key_info->option_list);
   }
 
   /*
@@ -1615,6 +1643,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" CONNECTION="));
       append_unescaped(packet, share->connect_string.str, share->connect_string.length);
     }
+    append_create_options(thd, packet, share->option_list);
     append_directory(thd, packet, "DATA",  create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }

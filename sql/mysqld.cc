@@ -244,7 +244,7 @@ const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 static const char *sql_mode_names[]=
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
-  "?", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
+  "IGNORE_BAD_TABLE_OPTIONS", "ONLY_FULL_GROUP_BY", "NO_UNSIGNED_SUBTRACTION",
   "NO_DIR_IN_CREATE",
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
@@ -264,7 +264,7 @@ static const unsigned int sql_mode_names_len[]=
   /*PIPES_AS_CONCAT*/             15,
   /*ANSI_QUOTES*/                 11,
   /*IGNORE_SPACE*/                12,
-  /*?*/                           1,
+  /*IGNORE_BAD_TABLE_OPTIONS*/    24,
   /*ONLY_FULL_GROUP_BY*/          18,
   /*NO_UNSIGNED_SUBTRACTION*/     23,
   /*NO_DIR_IN_CREATE*/            16,

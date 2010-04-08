@@ -2218,7 +2218,7 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
                       lex->charset ? lex->charset :
                                      thd->variables.collation_database,
                       lex->uint_geom_type,
-		      lex->vcol_info))
+		      lex->vcol_info, NULL))
     return TRUE;
 
   if (field_def->interval_list.elements)

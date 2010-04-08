@@ -520,7 +520,7 @@ protected:
 #define MODE_PIPES_AS_CONCAT            2
 #define MODE_ANSI_QUOTES                4
 #define MODE_IGNORE_SPACE		8
-#define MODE_NOT_USED			16
+#define MODE_IGNORE_BAD_TABLE_OPTIONS   16
 #define MODE_ONLY_FULL_GROUP_BY		32
 #define MODE_NO_UNSIGNED_SUBTRACTION	64
 #define MODE_NO_DIR_IN_CREATE		128
@@ -1508,7 +1508,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types t
 		       char *change, List<String> *interval_list,
 		       CHARSET_INFO *cs,
 		       uint uint_geom_type,
-                       Virtual_column_info *vcol_info);
+                       Virtual_column_info *vcol_info,
+                       engine_option_value *create_options);
 Create_field * new_create_field(THD *thd, char *field_name, enum_field_types type,
 				char *length, char *decimals,
 				uint type_modifier, 

@@ -205,13 +205,15 @@ public:
   KEY_CREATE_INFO key_create_info;
   List<Key_part_spec> columns;
   const char *name;
+  engine_option_value *option_list;
   bool generated;
 
   Key(enum Keytype type_par, const char *name_arg,
       KEY_CREATE_INFO *key_info_arg,
-      bool generated_arg, List<Key_part_spec> &cols)
+      bool generated_arg, List<Key_part_spec> &cols,
+      engine_option_value *create_opt)
     :type(type_par), key_create_info(*key_info_arg), columns(cols),
-    name(name_arg), generated(generated_arg)
+    name(name_arg), option_list(create_opt), generated(generated_arg)
   {}
   Key(const Key &rhs, MEM_ROOT *mem_root);
   virtual ~Key() {}
@@ -240,7 +242,7 @@ public:
   Foreign_key(const char *name_arg, List<Key_part_spec> &cols,
 	      Table_ident *table,   List<Key_part_spec> &ref_cols,
 	      uint delete_opt_arg, uint update_opt_arg, uint match_opt_arg)
-    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols),
+    :Key(FOREIGN_KEY, name_arg, &default_key_create_info, 0, cols, NULL),
     ref_table(table), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)

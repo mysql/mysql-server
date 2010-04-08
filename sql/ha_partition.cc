@@ -52,6 +52,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "create_options.h"
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -1218,7 +1219,9 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
   DBUG_ENTER("prepare_new_partition");
 
   if ((error= set_up_table_before_create(tbl, part_name, create_info,
-                                         0, p_elem)))
+                                         0, p_elem)) ||
+      parse_engine_table_options(ha_thd(), file->ht,
+                                 file->table_share))
     goto error_create;
   if ((error= file->ha_create(part_name, tbl, create_info)))
   {
@@ -1869,6 +1872,8 @@ uint ha_partition::del_ren_cre_table(const char *from,
     {
       if ((error= set_up_table_before_create(table_arg, from_buff,
                                              create_info, i, NULL)) ||
+          parse_engine_table_options(ha_thd(), (*file)->ht,
+                                     (*file)->table_share) ||
           ((error= (*file)->ha_create(from_buff, table_arg, create_info))))
         goto create_error;
     }

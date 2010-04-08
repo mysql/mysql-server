@@ -208,10 +208,14 @@ extern void my_large_free(uchar * ptr, myf my_flags);
 #define alloca __builtin_alloca
 #endif /* GNUC */
 #define my_alloca(SZ) alloca((size_t) (SZ))
-#define my_afree(PTR) {}
+#define my_afree(PTR) ((void)0)
+#define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(MY_FAE)))
+#define my_safe_afree(ptr, size, min_length) ((size <= min_length) ? (void)0 : my_free(ptr,MYF(MY_WME)))
 #else
 #define my_alloca(SZ) my_malloc(SZ,MYF(MY_FAE))
 #define my_afree(PTR) my_free(PTR,MYF(MY_WME))
+#define my_safe_alloca(size, min_length) my_alloca(size)
+#define my_safe_afree(ptr, size, min_length) my_afree(ptr)
 #endif /* HAVE_ALLOCA */
 
 #ifndef errno				/* did we already get it? */

@@ -1306,14 +1306,13 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
 	     utype unireg_check_arg, const char *field_name_arg)
-  :ptr(ptr_arg), null_ptr(null_ptr_arg),
-   table(0), orig_table(0), table_name(0),
-   field_name(field_name_arg),
-   key_start(0), part_of_key(0), part_of_key_not_clustered(0),
-   part_of_sortkey(0), unireg_check(unireg_check_arg),
-   field_length(length_arg), null_bit(null_bit_arg), 
-   is_created_from_null_item(FALSE),
-   vcol_info(0), stored_in_db(TRUE)
+  :ptr(ptr_arg), null_ptr(null_ptr_arg), table(0), orig_table(0),
+  table_name(0), field_name(field_name_arg), option_list(0),
+  option_struct(0), key_start(0), part_of_key(0),
+  part_of_key_not_clustered(0), part_of_sortkey(0),
+  unireg_check(unireg_check_arg), field_length(length_arg),
+  null_bit(null_bit_arg), is_created_from_null_item(FALSE), vcol_info(0),
+  stored_in_db(TRUE)
 {
   flags=null_ptr ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
@@ -9567,7 +9566,8 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
                         Item *fld_on_update_value, LEX_STRING *fld_comment,
                         char *fld_change, List<String> *fld_interval_list,
                         CHARSET_INFO *fld_charset, uint fld_geom_type,
-			Virtual_column_info *fld_vcol_info)
+			Virtual_column_info *fld_vcol_info,
+                        engine_option_value *create_opt)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -9578,6 +9578,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   field_name= fld_name;
   def= fld_default_value;
   flags= fld_type_modifier;
+  option_list= create_opt;
   unireg_check= (fld_type_modifier & AUTO_INCREMENT_FLAG ?
                  Field::NEXT_NUMBER : Field::NONE);
   decimals= fld_decimals ? (uint)atoi(fld_decimals) : 0;
@@ -10217,6 +10218,8 @@ Create_field::Create_field(Field *old_field,Field *orig_field)
   decimals=   old_field->decimals();
   vcol_info=  old_field->vcol_info;
   stored_in_db= old_field->stored_in_db;
+  option_list= old_field->option_list;
+  option_struct= old_field->option_struct;
 
   /* Fix if the original table had 4 byte pointer blobs */
   if (flags & BLOB_FLAG)
@@ -10287,6 +10290,19 @@ Create_field::Create_field(Field *old_field,Field *orig_field)
     }
     orig_field->move_field_offset(-diff);	// Back to record[0]
   }
+}
+
+
+/**
+  Makes a clone of this object for ALTER/CREATE TABLE
+
+  @param mem_root        MEM_ROOT where to clone the field
+*/
+
+Create_field *Create_field::clone(MEM_ROOT *mem_root) const
+{
+  Create_field *res= new (mem_root) Create_field(*this);
+  return res;
 }
 
 

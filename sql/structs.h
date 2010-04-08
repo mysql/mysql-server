@@ -68,6 +68,7 @@ typedef struct st_key_part_info {	/* Info about a key part */
   uint8 null_bit;			/* Position to null_bit */
 } KEY_PART_INFO ;
 
+class engine_option_value;
 
 typedef struct st_key {
   uint	key_length;			/* Tot length of key */
@@ -101,6 +102,9 @@ typedef struct st_key {
     int  bdb_return_if_eq;
   } handler;
   struct st_table *table;
+  /** reference to the list of options or NULL */
+  engine_option_value *option_list;
+  void *option_struct;                  /* structure with parsed options */
 } KEY;
 
 

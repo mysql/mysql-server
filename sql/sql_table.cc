@@ -19,6 +19,7 @@
 #include <hash.h>
 #include <myisam.h>
 #include <my_dir.h>
+#include "create_options.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_show.h"
@@ -42,17 +43,10 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
-static int
-mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
-                           Alter_info *alter_info,
-                           bool tmp_table,
-                           uint *db_options,
-                           handler *file, KEY **key_info_buffer,
-                           uint *key_count, int select_field_count);
-static bool
-mysql_prepare_alter_table(THD *thd, TABLE *table,
-                          HA_CREATE_INFO *create_info,
-                          Alter_info *alter_info);
+static int mysql_prepare_create_table(THD *, HA_CREATE_INFO *, Alter_info *,
+                              bool, uint *, handler *, KEY **, uint *, int);
+static bool mysql_prepare_alter_table(THD *, TABLE *, HA_CREATE_INFO *,
+                                      Alter_info *);
 
 #ifndef DBUG_OFF
 
@@ -2863,6 +2857,11 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     sql_field->offset= record_offset;
     if (MTYP_TYPENR(sql_field->unireg_check) == Field::NEXT_NUMBER)
       auto_increment++;
+    if (parse_option_list(thd, &sql_field->option_struct,
+                          sql_field->option_list,
+                          create_info->db_type->field_options, FALSE,
+                          thd->mem_root))
+      DBUG_RETURN(TRUE);
     /*
       For now skip fields that are not physically stored in the database
       (virtual fields) and update their offset later 
@@ -3061,6 +3060,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
     key_info->algorithm= key->key_create_info.algorithm;
+    key_info->option_list= key->option_list;
+    if (parse_option_list(thd, &key_info->option_struct,
+                          key_info->option_list,
+                          create_info->db_type->index_options, FALSE,
+                          thd->mem_root))
+      DBUG_RETURN(TRUE);
 
     if (key->type == Key::FULLTEXT)
     {
@@ -3437,6 +3442,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       DBUG_RETURN(TRUE);
     }
   }
+
+  if (parse_option_list(thd, &create_info->option_struct,
+                          create_info->option_list,
+                          create_info->db_type->table_options, FALSE,
+                          thd->mem_root))
+      DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);
 }
@@ -5679,6 +5690,7 @@ compare_tables(TABLE *table,
   KEY_PART_INFO *key_part;
   KEY_PART_INFO *end;
   THD *thd= table->in_use;
+  uint i;
   /*
     Remember if the new definition has new VARCHAR column;
     create_info->varchar will be reset in mysql_prepare_create_table.
@@ -5769,6 +5781,12 @@ compare_tables(TABLE *table,
     DBUG_RETURN(0);
   }
 
+  if ((create_info->fileds_option_struct=
+       (void**)thd->calloc(sizeof(void*) * table->s->fields)) == NULL ||
+      (create_info->keys_option_struct=
+       (void**)thd->calloc(sizeof(void*) * table->s->keys)) == NULL)
+    DBUG_RETURN(1);
+
   /*
     Use transformed info to evaluate possibility of fast ALTER TABLE
     but use the preserved field to persist modifications.
@@ -5776,15 +5794,19 @@ compare_tables(TABLE *table,
   new_field_it.init(alter_info->create_list);
   tmp_new_field_it.init(tmp_alter_info.create_list);
 
-  /*   Go through fields and check if the original ones are compatible
+  /*
+    Go through fields and check if the original ones are compatible
     with new table.
   */
-  for (f_ptr= table->field, new_field= new_field_it++,
+  for (i= 0, f_ptr= table->field, new_field= new_field_it++,
        tmp_new_field= tmp_new_field_it++;
        (field= *f_ptr);
-       f_ptr++, new_field= new_field_it++,
+       i++, f_ptr++, new_field= new_field_it++,
        tmp_new_field= tmp_new_field_it++)
   {
+    DBUG_ASSERT(i < table->s->fields);
+    create_info->fileds_option_struct[i]= tmp_new_field->option_struct;
+
     /* Make sure we have at least the default charset in use. */
     if (!new_field->charset)
       new_field->charset= create_info->default_table_charset;
@@ -5938,7 +5960,9 @@ compare_tables(TABLE *table,
   for (new_key= *key_info_buffer; new_key < new_key_end; new_key++)
   {
     /* Search an old key with the same name. */
-    for (table_key= table->key_info; table_key < table_key_end; table_key++)
+    for (i= 0, table_key= table->key_info;
+         table_key < table_key_end;
+         i++, table_key++)
     {
       if (! strcmp(table_key->name, new_key->name))
         break;
@@ -5956,6 +5980,11 @@ compare_tables(TABLE *table,
         field->flags|= FIELD_IN_ADD_INDEX;
       }
       DBUG_PRINT("info", ("index added: '%s'", new_key->name));
+    }
+    else
+    {
+      DBUG_ASSERT(i < table->s->keys);
+      create_info->keys_option_struct[i]= new_key->option_struct;
     }
   }
 
@@ -6132,6 +6161,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   }
   restore_record(table, s->default_values);     // Empty record for DEFAULT
 
+  create_info->option_list= merge_engine_table_options(table->s->option_list,
+                                        create_info->option_list, thd->mem_root);
   /*
     First collect all fields from table which isn't in drop_list
   */
@@ -6384,7 +6415,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       key= new Key(key_type, key_name,
                    &key_create_info,
                    test(key_info->flags & HA_GENERATED_KEY),
-                   key_parts);
+                   key_parts, key_info->option_list);
       new_key_list.push_back(key);
     }
   }

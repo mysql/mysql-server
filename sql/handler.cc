@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "create_options.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include "myisam.h"
@@ -3719,7 +3720,11 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
+  if (parse_engine_table_options(thd, table.file->ht, &share))
+    goto err;
+
   error= table.file->ha_create(name, &table, create_info);
+
   VOID(closefrm(&table, 0));
   if (error)
   {

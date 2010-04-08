@@ -44,6 +44,7 @@
 #include "sp_rcontext.h"
 #include "sp.h"
 #include "event_parse_data.h"
+#include "create_options.h"
 #include <myisam.h>
 #include <myisammrg.h>
 
@@ -608,6 +609,7 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
   lex->alter_info.flags= ALTER_ADD_INDEX;
   lex->col_list.empty();
   lex->change= NullS;
+  lex->option_list= NULL;
   return FALSE;
 }
 
@@ -617,7 +619,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type, const char *name,
 {
   Key *key;
   key= new Key(type, name, info ? info : &lex->key_create_info, generated, 
-               lex->col_list);
+               lex->col_list, lex->option_list);
   if (key == NULL)
     return TRUE;
 
@@ -3898,7 +3900,11 @@ create2:
         ;
 
 create2a:
-          field_list ')' opt_create_table_options
+          field_list ')'
+          {
+            Lex->create_info.option_list= NULL;
+          }
+          opt_create_table_options
           opt_partitioning
           create3 {}
         |  opt_partitioning
@@ -4751,6 +4757,30 @@ create_table_option:
 	    Lex->create_info.used_fields|= HA_CREATE_USED_TRANSACTIONAL;
             Lex->create_info.transactional= $3;
           }
+        | IDENT_sys equal TEXT_STRING_sys
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, $3, true, &Lex->create_info.option_list,
+                                  &Lex->option_list_last);
+          }
+        | IDENT_sys equal ident
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, $3, false, &Lex->create_info.option_list,
+                                  &Lex->option_list_last);
+          }
+        | IDENT_sys equal ulonglong_num
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, $3, &Lex->create_info.option_list,
+                                  &Lex->option_list_last, YYTHD->mem_root);
+          }
+        | IDENT_sys equal DEFAULT
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, &Lex->create_info.option_list,
+                                  &Lex->option_list_last);
+          }
         ;
 
 default_charset:
@@ -4872,25 +4902,33 @@ column_def:
         ;
 
 key_def:
-          normal_key_type opt_ident key_alg '(' key_list ')' normal_key_options
+          normal_key_type opt_ident key_alg '(' key_list ')'
+          { Lex->option_list= NULL; }
+          normal_key_options
           {
             if (add_create_index (Lex, $1, $2))
               MYSQL_YYABORT;
           }
         | fulltext opt_key_or_index opt_ident init_key_options 
-            '(' key_list ')' fulltext_key_options
+            '(' key_list ')'
+          { Lex->option_list= NULL; }
+            fulltext_key_options
           {
             if (add_create_index (Lex, $1, $3))
               MYSQL_YYABORT;
           }
         | spatial opt_key_or_index opt_ident init_key_options 
-            '(' key_list ')' spatial_key_options
+            '(' key_list ')'
+          { Lex->option_list= NULL; }
+            spatial_key_options
           {
             if (add_create_index (Lex, $1, $3))
               MYSQL_YYABORT;
           }
         | opt_constraint constraint_key_type opt_ident key_alg
-          '(' key_list ')' normal_key_options
+          '(' key_list ')'
+          { Lex->option_list= NULL; }
+          normal_key_options
           {
             if (add_create_index (Lex, $2, $3 ? $3 : $1))
               MYSQL_YYABORT;
@@ -4953,6 +4991,7 @@ field_spec:
             lex->comment=null_lex_str;
             lex->charset=NULL;
 	    lex->vcol_info= 0;
+            lex->option_list= NULL;
           }
           field_def
           {
@@ -4963,7 +5002,7 @@ field_spec:
                                   &lex->comment,
                                   lex->change,&lex->interval_list,lex->charset,
                                   lex->uint_geom_type,
-                                  lex->vcol_info))
+                                  lex->vcol_info, lex->option_list))
               MYSQL_YYABORT;
           }
         ;
@@ -5383,6 +5422,29 @@ attribute:
               Lex->charset=$2;
             }
           }
+        | IDENT_sys equal TEXT_STRING_sys
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, $3, true, &Lex->option_list,
+                                  &Lex->option_list_last);
+          }
+        | IDENT_sys equal ident
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, $3, false, &Lex->option_list,
+                                  &Lex->option_list_last);
+          }
+        | IDENT_sys equal ulonglong_num
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, $3, &Lex->option_list,
+                                  &Lex->option_list_last, YYTHD->mem_root);
+          }
+        | IDENT_sys equal DEFAULT
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, &Lex->option_list, &Lex->option_list_last);
+          }
         ;
 
 now_or_signed_literal:
@@ -5672,6 +5734,29 @@ key_using_alg:
 all_key_opt:
           KEY_BLOCK_SIZE opt_equal ulong_num
           { Lex->key_create_info.block_size= $3; }
+        | IDENT_sys equal TEXT_STRING_sys
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, $3, true, &Lex->option_list,
+                                  &Lex->option_list_last);
+          }
+        | IDENT_sys equal ident
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, $3, false, &Lex->option_list,
+                                  &Lex->option_list_last);
+          }
+        | IDENT_sys equal ulonglong_num
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, $3, &Lex->option_list,
+                                  &Lex->option_list_last, YYTHD->mem_root);
+          }
+        | IDENT_sys equal DEFAULT
+          {
+            new (YYTHD->mem_root)
+              engine_option_value($1, &Lex->option_list, &Lex->option_list_last);
+          }
         ;
 
 normal_key_opt:
@@ -6161,6 +6246,7 @@ alter_list_item:
             LEX *lex=Lex;
             lex->change= $3.str;
             lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
+            lex->option_list= NULL;
           }
           field_spec opt_place
         | MODIFY_SYM opt_column field_ident
@@ -6172,6 +6258,7 @@ alter_list_item:
             lex->charset= NULL;
             lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
 	    lex->vcol_info= 0;
+            lex->option_list= NULL;
           }
           field_def
           {
@@ -6183,7 +6270,7 @@ alter_list_item:
                                   &lex->comment,
                                   $3.str, &lex->interval_list, lex->charset,
                                   lex->uint_geom_type,
-                                  lex->vcol_info))
+                                  lex->vcol_info, lex->option_list))
               MYSQL_YYABORT;
           }
           opt_place
@@ -6290,8 +6377,7 @@ alter_list_item:
           }
         | create_table_options_space_separated
           {
-            LEX *lex=Lex;
-            lex->alter_info.flags|= ALTER_OPTIONS;
+            Lex->alter_info.flags|= ALTER_OPTIONS;
           }
         | FORCE_SYM
           {

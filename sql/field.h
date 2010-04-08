@@ -137,6 +137,9 @@ public:
   struct st_table *table;		// Pointer for table
   struct st_table *orig_table;		// Pointer to original table
   const char	**table_name, *field_name;
+  /** reference to the list of options or NULL */
+  engine_option_value *option_list;
+  void *option_struct;                  /* structure with parsed options */
   LEX_STRING	comment;
   /* Field is part of the following keys */
   key_map	key_start, part_of_key, part_of_key_not_clustered;
@@ -2145,6 +2148,9 @@ public:
   CHARSET_INFO *charset;
   Field::geometry_type geom_type;
   Field *field;				// For alter table
+  engine_option_value *option_list;
+  /** structure with parsed options (for comparing fields in ALTER TABLE) */
+  void *option_struct;
 
   uint8 row,col,sc_length,interval_id;	// For rea_create_table
   uint	offset,pack_flag;
@@ -2162,11 +2168,11 @@ public:
   */
   bool stored_in_db;
 
-  Create_field() :after(0) {}
+  Create_field() :after(0), option_list(NULL), option_struct(NULL)
+  {}
   Create_field(Field *field, Field *orig_field);
   /* Used to make a clone of this object for ALTER/CREATE TABLE */
-  Create_field *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Create_field(*this); }
+  Create_field *clone(MEM_ROOT *mem_root) const;
   void create_length_to_internal_length(void);
 
   /* Init for a tmp table field. To be extended if need be. */
@@ -2178,8 +2184,8 @@ public:
             char *decimals, uint type_modifier, Item *default_value,
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, CHARSET_INFO *cs,
-            uint uint_geom_type,
-	    Virtual_column_info *vcol_info);
+            uint uint_geom_type, Virtual_column_info *vcol_info,
+            engine_option_value *option_list);
 
   bool field_flags_are_binary()
   {

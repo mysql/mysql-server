@@ -6086,7 +6086,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
 		       char *change,
                        List<String> *interval_list, CHARSET_INFO *cs,
 		       uint uint_geom_type,
-		       Virtual_column_info *vcol_info)
+		       Virtual_column_info *vcol_info,
+                       engine_option_value *create_options)
 {
   register Create_field *new_field;
   LEX  *lex= thd->lex;
@@ -6104,7 +6105,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     lex->col_list.push_back(new Key_part_spec(field_name->str, 0));
     key= new Key(Key::PRIMARY, NullS,
                       &default_key_create_info,
-                      0, lex->col_list);
+                      0, lex->col_list, NULL);
     lex->alter_info.key_list.push_back(key);
     lex->col_list.empty();
   }
@@ -6114,7 +6115,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
     lex->col_list.push_back(new Key_part_spec(field_name->str, 0));
     key= new Key(Key::UNIQUE, NullS,
                  &default_key_create_info, 0,
-                 lex->col_list);
+                 lex->col_list, NULL);
     lex->alter_info.key_list.push_back(key);
     lex->col_list.empty();
   }
@@ -6172,7 +6173,8 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
   if (!(new_field= new Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals, type_modifier,
                       default_value, on_update_value, comment, change,
-                      interval_list, cs, uint_geom_type, vcol_info))
+                      interval_list, cs, uint_geom_type, vcol_info,
+                      create_options))
     DBUG_RETURN(1);
 
   lex->alter_info.create_list.push_back(new_field);
