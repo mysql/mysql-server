@@ -2335,7 +2335,13 @@ JOIN::destroy()
 	tab->cleanup();
     }
     tmp_join->tmp_join= 0;
+    /*
+      We need to clean up tmp_table_param for reusable JOINs (having non-zero
+      and different from self tmp_join) because it's not being cleaned up
+      anywhere else (as we need to keep the join is reusable).
+    */
     tmp_table_param.cleanup();
+    tmp_join->tmp_table_param.copy_field= 0;
     DBUG_RETURN(tmp_join->destroy());
   }
   cond_equal= 0;
