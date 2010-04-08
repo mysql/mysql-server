@@ -1274,11 +1274,10 @@ static my_bool translog_set_lsn_for_files(uint32 from_file, uint32 to_file,
   for (file= from_file; file <= to_file; file++)
   {
     LOGHANDLER_FILE_INFO info;
-    File fd= open_logfile_by_number_no_cache(file);
-
-    LINT_INIT_STRUCT(info);
+    File fd;
     LINT_INIT(info.max_lsn);
 
+    fd= open_logfile_by_number_no_cache(file);
     if ((fd < 0) ||
         ((translog_read_file_header(&info, fd) ||
           (cmp_translog_addr(lsn, info.max_lsn) > 0 &&

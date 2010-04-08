@@ -1238,6 +1238,7 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
 {
   my_bool *tmp_opt= 0;
   MYSQL_LOG *file_log;
+  LINT_INIT(file_log);
 
   switch (log_type) {
   case QUERY_LOG_SLOW:

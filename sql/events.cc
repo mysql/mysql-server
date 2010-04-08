@@ -1263,8 +1263,9 @@ Events::load_events_from_db(THD *thd)
       }
     }
   }
-  sql_print_information("Event Scheduler: Loaded %d event%s",
-                        count, (count == 1) ? "" : "s");
+  if (global_system_variables.log_warnings)
+    sql_print_information("Event Scheduler: Loaded %d event%s",
+                          count, (count == 1) ? "" : "s");
   ret= FALSE;
 
 end:

@@ -1886,9 +1886,10 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
 
   if (tmp->state == PLUGIN_IS_DISABLED)
   {
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_CANT_INITIALIZE_UDF, ER(ER_CANT_INITIALIZE_UDF),
-                        name->str, "Plugin is disabled");
+    if (global_system_variables.log_warnings)
+      push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_CANT_INITIALIZE_UDF, ER(ER_CANT_INITIALIZE_UDF),
+                          name->str, "Plugin is disabled");
   }
   else
   {
