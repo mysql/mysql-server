@@ -1851,17 +1851,6 @@ Dbspj::scanFrag_build(Build_context& ctx,
     ScanFragReq::setNoDiskFlag(requestInfo, 
                                (treeBits & DABits::NI_LINKED_DISK) == 0 &&
                                (paramBits & DABits::PI_DISK_ATTR) == 0);
-
-#if 0
-    static void setDescendingFlag(Uint32 & requestInfo, Uint32 descending);
-    static void setTupScanFlag(Uint32 & requestInfo, Uint32 tupScan);
-    static void setAttrLen(Uint32 & requestInfo, Uint32 attrLen);
-    static void setScanPrio(Uint32& requestInfo, Uint32 prio);
-    static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
-
-    static void setReorgFlag(Uint32 & requestInfo, Uint32 val);
-    static Uint32 getReorgFlag(const Uint32 & requestInfo);
-#endif
     dst->requestInfo = requestInfo;
 
     err = DbspjErr::InvalidTreeNodeSpecification;
@@ -1945,15 +1934,8 @@ Dbspj::scanFrag_start(Signal* signal,
   ndbassert(ScanFragReq::getReadCommittedFlag(requestInfo) == 1);
   ndbassert(ScanFragReq::getLcpScanFlag(requestInfo) == 0);
   //ScanFragReq::getAttrLen(requestInfo); // ignore
-
-#if TODO
   ndbassert(ScanFragReq::getReorgFlag(requestInfo) == 0);
-  ndbassert(ScanFragReq::getDescendingFlag(requestInfo) == 0);
-  ndbassert(ScanFragReq::getTupScanFlag(requestInfo) == 0);
-  ndbassert(ScanFragReq::getScanPrio(requestInfo) == 1);
-#endif
 
-  ndbassert(ScanFragReq::getReorgFlag(requestInfo) == 0);
   Uint32 tupScanFlag = ScanFragReq::getTupScanFlag(requestInfo);
   Uint32 rangeScanFlag = ScanFragReq::getRangeScanFlag(requestInfo);
   Uint32 descendingFlag = ScanFragReq::getDescendingFlag(requestInfo);
