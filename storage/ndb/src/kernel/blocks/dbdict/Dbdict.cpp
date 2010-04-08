@@ -15619,7 +15619,7 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
     ref->setMasterNode(c_masterNodeId);
     sendSignal(senderRef, GSN_DROP_EVNT_REF, signal,
 	       DropEvntRef::SignalLength2, JBB);
-    return;
+    DBUG_VOID_RETURN;
   }
 
   // Seize a Create Event record
