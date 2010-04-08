@@ -191,7 +191,7 @@ if test -z "$CC" ; then
 fi
 
 if test -z "$CXX" ; then
-  CXX=g++
+  CXX=gcc
 fi
 
 # If ccache (a compiler cache which reduces build time)
