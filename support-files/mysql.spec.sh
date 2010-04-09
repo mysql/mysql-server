@@ -156,22 +156,17 @@
 %{?malloc_lib_target:%define WITH_TCMALLOC 1}
 %{!?malloc_lib_target:%define WITH_TCMALLOC 0}
 
-# ----------------------------------------------------------------------------
-# Build with cluster support (off by default)
-# ----------------------------------------------------------------------------
-%{?_with_cluster:%define CLUSTER_BUILD 1}
-%{!?_with_cluster:%define CLUSTER_BUILD 0}
-
 ##############################################################################
 # Configuration based upon above user input, not to be set directly
 ##############################################################################
 
 %if %{commercial}
-%define license_files   %{src_dir}/LICENSE.mysql
-%define license_type    Commercial
+%define license_files_server    %{src_dir}/LICENSE.mysql
+%define license_type            Commercial
 %else
-%define license_files   %{src_dir}/COPYING %{src_dir}/README
-%define license_type    %{mysql_license}
+%define license_files_client    %{src_dir}/EXCEPTIONS-CLIENT
+%define license_files_server    %{src_dir}/COPYING %{src_dir}/README
+%define license_type            %{mysql_license}
 %endif
 
 ##############################################################################
@@ -263,53 +258,7 @@ This package contains the standard MySQL clients and administration tools.
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%if %{CLUSTER_BUILD}
-%package ndb-storage
-Summary:        MySQL - ndbcluster storage engine
-Group:          Applications/Databases
-Obsoletes:      ndb-storage
-Provides:       ndb-storage
-
-%description ndb-storage
-This package contains the ndbcluster storage engine.
-It is necessary to have this package installed on all
-computers that should store ndbcluster table data.
-
-For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
-
-%package ndb-management
-Summary:        MySQL - ndbcluster storage engine management
-Group:          Applications/Databases
-
-%description ndb-management
-This package contains ndbcluster storage engine management.
-It is necessary to have this package installed on at least
-one computer in the cluster.
-
-For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
-
-%package ndb-tools
-Summary:        MySQL - ndbcluster storage engine basic tools
-Group:          Applications/Databases
-
-%description ndb-tools
-This package contains ndbcluster storage engine basic tools.
-
-For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
-
-%package ndb-extra
-Summary:        MySQL - ndbcluster storage engine extra tools
-Group:          Applications/Databases
-
-%description ndb-extra
-This package contains some extra ndbcluster storage engine tools for the
-advanced user. They should be used with caution.
-
-For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
-%endif
-
-# ----------------------------------------------------------------------------
-%package test
+%package -n MySQL-test%{server_suffix}
 Requires:       %{name}-client perl
 Summary:        MySQL - Test suite
 Group:          Applications/Databases
@@ -317,41 +266,41 @@ Provides:       mysql-test
 Obsoletes:      mysql-bench mysql-test
 AutoReqProv:    no
 
-%description test
+%description -n MySQL-test%{server_suffix}
 This package contains the MySQL regression test suite.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package devel
+%package -n MySQL-devel%{server_suffix}
 Summary:        MySQL - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
 Obsoletes:      mysql-devel
 
-%description devel
+%description -n MySQL-devel%{server_suffix}
 This package contains the development header files and libraries necessary
 to develop MySQL client applications.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package shared
+%package -n MySQL-shared%{server_suffix}
 Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
 
-%description shared
+%description -n MySQL-shared%{server_suffix}
 This package contains the shared libraries (*.so*) which certain languages
 and applications need to dynamically load and use MySQL.
 
 # ----------------------------------------------------------------------------
-%package embedded
+%package -n MySQL-embedded%{server_suffix}
 Summary:        MySQL - embedded library
 Group:          Applications/Databases
 Requires:       %{name}-devel
 Obsoletes:      mysql-embedded
 
-%description embedded
+%description -n MySQL-embedded%{server_suffix}
 This package contains the MySQL server as an embedded library.
 
 The embedded MySQL server library makes it possible to run a full-featured
@@ -511,7 +460,7 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 #  Post processing actions, i.e. when installed
 ##############################################################################
 
-%pre server
+%pre -n MySQL-server%{server_suffix}
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -587,7 +536,7 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
         sleep 5
 fi
 
-%post server
+%post -n MySQL-server%{server_suffix}
 mysql_datadir=%{mysqldatadir}
 
 # ----------------------------------------------------------------------
@@ -655,15 +604,7 @@ sleep 2
 #scheduled service packs and more.  Visit www.mysql.com/enterprise for more
 #information."
 
-%if %{CLUSTER_BUILD}
-%post ndb-storage
-mysql_clusterdir=/var/lib/mysql-cluster
-
-# Create cluster directory if needed
-if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
-%endif
-
-%preun server
+%preun -n MySQL-server%{server_suffix}
 if [ $1 = 0 ] ; then
         # Stop MySQL before uninstalling it
         if [ -x %{_sysconfdir}/init.d/mysql ] ; then
@@ -692,15 +633,14 @@ fi
 #  Files section
 ##############################################################################
 
-%files server -f optional-server-files
+%files -n MySQL-server%{server_suffix} -f optional-server-files
 %defattr(-,root,root,0755)
 
-%doc %{license_files}
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
 %doc %{src_dir}/Docs/ChangeLog
 %doc release/support-files/my-*.cnf
-%if %{CLUSTER_BUILD}
-%doc release/support-files/ndb-*.ini
-%endif
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
@@ -779,7 +719,13 @@ fi
 
 %attr(755, root, root) %{_datadir}/mysql/
 
-%files client
+# ----------------------------------------------------------------------------
+%files -n MySQL-client%{server_suffix}
+
+%if %{defined license_files_server}
+%doc %{license_files_server}
+%endif
+
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
@@ -809,66 +755,8 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlshow.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
 
-%post shared
-/sbin/ldconfig
-
-%postun shared
-/sbin/ldconfig
-
-%if %{CLUSTER_BUILD}
-%files ndb-storage
-%defattr(-,root,root,0755)
-%attr(755, root, root) %{_sbindir}/ndbd
-%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
-
-%files ndb-management
-%defattr(-,root,root,0755)
-%attr(755, root, root) %{_sbindir}/ndb_mgmd
-%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
-
-%files ndb-tools
-%defattr(-,root,root,0755)
-%attr(755, root, root) %{_bindir}/ndb_config
-%attr(755, root, root) %{_bindir}/ndb_desc
-%attr(755, root, root) %{_bindir}/ndb_error_reporter
-%attr(755, root, root) %{_bindir}/ndb_mgm
-%attr(755, root, root) %{_bindir}/ndb_print_backup_file
-%attr(755, root, root) %{_bindir}/ndb_print_schema_file
-%attr(755, root, root) %{_bindir}/ndb_print_sys_file
-%attr(755, root, root) %{_bindir}/ndb_restore
-%attr(755, root, root) %{_bindir}/ndb_select_all
-%attr(755, root, root) %{_bindir}/ndb_select_count
-%attr(755, root, root) %{_bindir}/ndb_show_tables
-%attr(755, root, root) %{_bindir}/ndb_size.pl
-%attr(755, root, root) %{_bindir}/ndb_test_platform
-%attr(755, root, root) %{_bindir}/ndb_waiter
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
-
-%files ndb-extra
-%defattr(-,root,root,0755)
-%attr(755, root, root) %{_bindir}/ndb_delete_all
-%attr(755, root, root) %{_bindir}/ndb_drop_index
-%attr(755, root, root) %{_bindir}/ndb_drop_table
-%attr(755, root, root) %{_sbindir}/ndb_cpcd
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
-%endif
-
-%files devel
+# ----------------------------------------------------------------------------
+%files -n MySQL-devel%{server_suffix}
 %defattr(-, root, root, 0755)
 %doc %{src_dir}/EXCEPTIONS-CLIENT
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
@@ -881,20 +769,21 @@ fi
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
-%if %{CLUSTER_BUILD}
-%{_libdir}/mysql/libndbclient.a
-%{_libdir}/mysql/libndbclient.la
-%endif
 
-%files shared
+# ----------------------------------------------------------------------------
+%files -n MySQL-shared%{server_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
-%if %{CLUSTER_BUILD}
-%{_libdir}/libndb*.so*
-%endif
 
-%files test
+%post -n MySQL-shared%{server_suffix}
+/sbin/ldconfig
+
+%postun -n MySQL-shared%{server_suffix}
+/sbin/ldconfig
+
+# ----------------------------------------------------------------------------
+%files -n MySQL-test%{server_suffix}
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
@@ -906,7 +795,8 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test_embedded.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
-%files embedded
+# ----------------------------------------------------------------------------
+%files -n MySQL-embedded%{server_suffix}
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
