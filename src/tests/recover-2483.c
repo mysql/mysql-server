@@ -5,7 +5,6 @@
 
 
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
-char *namea="a.db";
 
 DB_ENV *env;
 DB_TXN *tid;
@@ -36,11 +35,8 @@ do_x1_shutdown (void) {
     r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);               CKERR(r);
     r=tid->commit(tid, 0);                                                     assert(r==0);
 
-    r = env->txn_checkpoint(env, 0, 0, 0);
-    CKERR(r);
+    
     r=env->txn_begin(env, 0, &tid, 0);                                         assert(r==0);
-    /*
-     * Disable loader until rest of test passes successfully.
     {
         DB_LOADER *loader;
         DB *dbs[1] = {db};
@@ -58,7 +54,6 @@ do_x1_shutdown (void) {
         r = loader->close(loader);
         CKERR(r);
     }
-    */
     for (i=0; i<N; i++) {
 	r=db->put(db, tid, dbt_init(&key, keys[i], strlen(keys[i])+1), dbt_init(&data, vals[i], strlen(vals[i])+1), 0);    assert(r==0);
 	if (i%500==499) {
@@ -77,8 +72,6 @@ do_x1_shutdown (void) {
 static void
 do_x1_recover (BOOL UU(did_commit)) {
     int r;
-    r=system("rm " ENVDIR "/*.tokudb"); CKERR(r);
-
     r=db_env_create(&env, 0);                                                  assert(r==0);
     env->set_errfile(env, stderr);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_THREAD|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
