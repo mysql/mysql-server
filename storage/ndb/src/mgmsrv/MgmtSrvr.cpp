@@ -2711,11 +2711,6 @@ match_hostname(const struct sockaddr *clnt_addr,
           || memcmp(&tmp_addr, clnt_in_addr, sizeof(config_addr)) != 0)
       {
         // not localhost
-#if 0
-        ndbout << "MgmtSrvr::getFreeNodeId compare failed for \""
-               << config_hostname
-               << "\" id=" << tmp << endl;
-#endif
         return -1;
       }
 
