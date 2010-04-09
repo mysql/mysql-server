@@ -166,7 +166,7 @@ Source:		%{src_dir}.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} MySQL Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
-Provides:	msqlormysql MySQL-server mysql Percona-XtraDB-server
+Provides:	msqlormysql MySQL-server Percona-XtraDB-server
 BuildRequires:  gperf perl readline-devel gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache bison
 
 # Think about what you use here since the first step is to
@@ -191,7 +191,7 @@ For more information visist our web site http://www.percona.com/
 Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
 Requires:	 chkconfig coreutils shadow-utils grep procps
-Provides:	msqlormysql mysql-server mysql MySQL MySQL-server Percona-XtraDB-server
+Provides:	msqlormysql mysql-server MySQL-server Percona-XtraDB-server
 Obsoletes:	MySQL mysql mysql-server MySQL-server MySQL-server-community MySQL-server-percona
 
 %description -n Percona-XtraDB-server%{package_suffix}
@@ -218,7 +218,7 @@ package "Percona-XtraDB-client%{package_suffix}" as well!
 Summary: Percona-XtraDB - Client
 Group: Applications/Databases
 Obsoletes: mysql-client MySQL-client MySQL-client-community MySQL-client-percona
-Provides: mysql-client MySQL-client Percona-XtraDB-client
+Provides: mysql-client MySQL-client Percona-XtraDB-client mysql MySQL
 
 %description -n Percona-XtraDB-client%{package_suffix}
 This package contains the standard Percona-XtraDB clients and administration tools. 
