@@ -1421,24 +1421,6 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
       const NdbColumnImpl& column 
         = NdbColumnImpl::getImpl(*m_index.getColumn(keyPartNo));
 
-      // Check if this field is part of the distribution key.
-      if (getTable().m_columns[column.m_keyInfoPos]->m_distributionKey)
-      {
-        /* Find the proper place for this field in the distribution key.*/
-        Ndb::Key_part_ptr* distKeyPtr = distKey;
-        for (Uint32 i = 0; i < column.m_keyInfoPos; i++)
-        {
-          if (getTable().m_columns[i]->m_distributionKey)
-          {
-            distKeyPtr++;
-          }
-        }
-          
-        assert(distKeyPtr->len == 0 && distKeyPtr->ptr == NULL);
-        *distKeyPtr = keyPart1;
-        distKeyPartNo++;
-      }
-
       switch (type)
       {
       case NdbIndexScanOperation::BoundEQ:
@@ -1506,8 +1488,26 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
         assert(false);
       } // switch (type)
 
-      keyPartNo++;
+      // If this field is part of the distribution key:
+      // Keep the key value for later use by Ndb::computeHash.
+      if (getTable().m_columns[column.m_keyInfoPos]->m_distributionKey)
+      {
+        /* Find the proper place for this field in the distribution key.*/
+        Ndb::Key_part_ptr* distKeyPtr = distKey;
+        for (Uint32 i = 0; i < column.m_keyInfoPos; i++)
+        {
+          if (getTable().m_columns[i]->m_distributionKey)
+          {
+            distKeyPtr++;
+          }
+        }
+          
+        assert(distKeyPtr->len == 0 && distKeyPtr->ptr == NULL);
+        *distKeyPtr = keyPart1;
+        distKeyPartNo++;
+      }
 
+      keyPartNo++;
       if (keyPartNo == prefixLength)
       {
         /** 
