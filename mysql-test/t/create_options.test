@@ -1,0 +1,68 @@
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+SET @OLD_SQL_MODE=@@SQL_MODE;
+SET SQL_MODE='IGNORE_BAD_TABLE_OPTIONS';
+
+create table t1 (a int fkey=vvv, key akey (a) dff=vvv) tkey1='1v1';
+show create table t1;
+drop table t1;
+
+--echo #reassiginig options in the same line
+create table t1 (a int fkey=vvv, key akey (a) dff=vvv) tkey1=1v1 TKEY1=DEFAULT tkey1=1v2 tkey2=2v1;
+show create table t1;
+
+-- echo #add option
+alter table t1 tkey4=4v1;
+show create table t1;
+
+--echo #remove options 
+alter table t1 tkey3=DEFAULT tkey4=DEFAULT;
+show create table t1;
+
+drop table t1;
+
+create table t1 (a int fkey1=v1, key akey (a) kkey1=v1) tkey1=1v1 tkey1=1v2 TKEY1=DEFAULT tkey2=2v1 tkey3=3v1;
+show create table t1;
+
+--echo #change field with option with the same value
+alter table t1 change a a int `FKEY1`='v1';
+show create table t1;
+--echo #change field with option with a different value
+alter table t1 change a a int fkey1=v2;
+show create table t1;
+--echo #new column no options
+alter table t1 add column b int;
+show create table t1;
+--echo #new key with options
+alter table t1 add key bkey (b) kkey2=v1;
+show create table t1;
+--echo #new column with options
+alter table t1 add column c int fkey1=v1 fkey2=v2;
+show create table t1;
+--echo #new key no options
+alter table t1 add key ckey (c);
+show create table t1;
+--echo #drop column
+alter table t1 drop b;
+show create table t1;
+--echo #add column with options after delete
+alter table t1 add column b int fkey2=v1;
+show create table t1;
+--echo #add key 
+alter table t1 add key bkey (b) kkey2=v2;
+show create table t1;
+drop table t1;
+
+#numeric (unquoted) value
+create table t1 (a int) tkey1=100;
+show create table t1;
+drop table t1;
+
+--echo #error on unknown option
+SET SQL_MODE='';
+--error ER_UNKNOWN_OPTION
+create table t1 (a int fkey=vvv, key akey (a) dff=vvv) tkey1=1v1;
+
+SET @@SQL_MODE=@OLD_SQL_MODE;

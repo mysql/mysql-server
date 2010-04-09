@@ -18,6 +18,7 @@
 
 #include "mysql_priv.h"
 #include "sql_select.h"                         // For select_describe
+#include "create_options.h"
 #include "sql_show.h"
 #include "repl_failsafe.h"
 #include "sp.h"
@@ -94,11 +95,21 @@ static int make_version_string(char *buf, int buf_length, uint version)
   return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
 
+
+static const LEX_STRING maturity_name[]={
+  { C_STRING_WITH_LEN("Unknown") },
+  { C_STRING_WITH_LEN("Experimental") },
+  { C_STRING_WITH_LEN("Alpha") },
+  { C_STRING_WITH_LEN("Beta") },
+  { C_STRING_WITH_LEN("Gamma") },
+  { C_STRING_WITH_LEN("Stable") }};
+
+
 static my_bool show_plugins(THD *thd, plugin_ref plugin,
                             void *arg)
 {
   TABLE *table= (TABLE*) arg;
-  struct st_mysql_plugin *plug= plugin_decl(plugin);
+  struct st_maria_plugin *plug= plugin_decl(plugin);
   struct st_plugin_dl *plugin_dl= plugin_dlib(plugin);
   CHARSET_INFO *cs= system_charset_info;
   char version_buf[20];
@@ -143,7 +154,7 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
     table->field[5]->set_notnull();
     table->field[6]->store(version_buf,
           make_version_string(version_buf, sizeof(version_buf),
-                              plugin_dl->version),
+                              plugin_dl->mariaversion),
           cs);
     table->field[6]->set_notnull();
   }
@@ -185,6 +196,26 @@ static my_bool show_plugins(THD *thd, plugin_ref plugin,
     break;
   }
   table->field[9]->set_notnull();
+
+  if ((uint) plug->maturity <= MariaDB_PLUGIN_MATURITY_STABLE)
+     table->field[10]->store(maturity_name[plug->maturity].str,
+                             maturity_name[plug->maturity].length,
+                             cs);
+   else
+   {
+     DBUG_ASSERT(0);
+     table->field[10]->store("Unknown", 7, cs);
+   }
+   table->field[10]->set_notnull();
+
+  if (plug->version_info)
+  {
+    table->field[11]->store(plug->version_info,
+                            strlen(plug->version_info), cs);
+    table->field[11]->set_notnull();
+  }
+  else
+    table->field[11]->set_null();
 
   return schema_table_store_record(thd, table);
 }
@@ -1013,7 +1044,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 
   /*
     The identifier must be quoted as it includes a quote character or
-   it's a keyword
+    it's a keyword
   */
 
   VOID(packet->reserve(length*2 + 2));
@@ -1171,6 +1202,31 @@ static bool get_field_default_value(THD *thd, TABLE *table,
 
   }
   return has_default;
+}
+
+
+/**
+  Appends list of options to string
+
+  @param thd             thread handler
+  @param packet          string to append
+  @param opt             list of options
+*/
+
+static void append_create_options(THD *thd, String *packet,
+				  engine_option_value *opt)
+{
+  for(; opt; opt= opt->next)
+  {
+    DBUG_ASSERT(opt->value.str);
+    packet->append(' ');
+    append_identifier(thd, packet, opt->name.str, opt->name.length);
+    packet->append('=');
+    if (opt->quoted_value)
+      append_unescaped(packet, opt->value.str, opt->value.length);
+    else
+      packet->append(opt->value.str, opt->value.length);
+  }
 }
 
 /*
@@ -1355,6 +1411,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" COMMENT "));
       append_unescaped(packet, field->comment.str, field->comment.length);
     }
+    append_create_options(thd, packet, field->option_list);
   }
 
   key_info= table->key_info;
@@ -1426,6 +1483,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       append_identifier(thd, packet, parser_name->str, parser_name->length);
       packet->append(STRING_WITH_LEN(" */ "));
     }
+    append_create_options(thd, packet, key_info->option_list);
   }
 
   /*
@@ -1585,6 +1643,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" CONNECTION="));
       append_unescaped(packet, share->connect_string.str, share->connect_string.length);
     }
+    append_create_options(thd, packet, share->option_list);
     append_directory(thd, packet, "DATA",  create_info.data_file_name);
     append_directory(thd, packet, "INDEX", create_info.index_file_name);
   }
@@ -2219,6 +2278,35 @@ void remove_status_vars(SHOW_VAR *list)
 }
 
 
+
+static void update_key_cache_stat_var(KEY_CACHE *key_cache, size_t ofs)
+{
+  uint var_no;
+  if (ofs == offsetof(KEY_CACHE, blocks_used) ||
+      ofs == offsetof(KEY_CACHE, blocks_unused) ||
+      ofs == offsetof(KEY_CACHE, global_blocks_changed))
+  {
+    var_no= (ofs-offsetof(KEY_CACHE, blocks_used))/sizeof(ulong);
+    *(ulong *)((char *) key_cache + ofs)=
+      (ulong) get_key_cache_stat_value(key_cache, var_no);
+    return;
+  }
+
+  if (ofs == offsetof(KEY_CACHE, global_cache_r_requests) ||
+      ofs == offsetof(KEY_CACHE, global_cache_read) ||
+      ofs == offsetof(KEY_CACHE, global_cache_w_requests) ||
+      ofs == offsetof(KEY_CACHE, global_cache_write))
+  {
+    var_no= NUM_LONG_KEY_CACHE_STAT_VARIABLES +
+            (ofs-offsetof(KEY_CACHE, global_cache_w_requests))/
+             sizeof(ulonglong);
+    *(ulonglong *)((char *) key_cache + ofs)=
+      get_key_cache_stat_value(key_cache, var_no);
+    return;
+  }
+}
+
+
 static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
                               enum enum_var_type value_type,
@@ -2351,10 +2439,12 @@ static bool show_status_array(THD *thd, const char *wild,
           break;
         }
         case SHOW_KEY_CACHE_LONG:
+          update_key_cache_stat_var(dflt_key_cache, (size_t) value);
           value= (char*) dflt_key_cache + (ulong)value;
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_KEY_CACHE_LONGLONG:
+          update_key_cache_stat_var(dflt_key_cache, (size_t) value);
           value= (char*) dflt_key_cache + (ulong)value;
 	  end= longlong10_to_str(*(longlong*) value, buff, 10);
 	  break;
@@ -2499,8 +2589,8 @@ int send_user_stats(THD* thd, HASH *all_user_stats, TABLE *table)
     table->field[j++]->store(user_stats->user, user_stats->user_name_length,
                              system_charset_info);
     table->field[j++]->store((longlong)user_stats->total_connections,TRUE);
-    table->field[j++]->store((longlong)user_stats->concurrent_connections);
-    table->field[j++]->store((longlong)user_stats->connected_time);
+    table->field[j++]->store((longlong)user_stats->concurrent_connections, TRUE);
+    table->field[j++]->store((longlong)user_stats->connected_time, TRUE);
     table->field[j++]->store((double)user_stats->busy_time);
     table->field[j++]->store((double)user_stats->cpu_time);
     table->field[j++]->store((longlong)user_stats->bytes_received, TRUE);
@@ -4398,7 +4488,7 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
   if (plugin_state(plugin) != PLUGIN_IS_READY)
   {
 
-    struct st_mysql_plugin *plug= plugin_decl(plugin);
+    struct st_maria_plugin *plug= plugin_decl(plugin);
     if (!(wild && wild[0] &&
           wild_case_compare(scs, plug->name,wild)))
     {
@@ -6610,6 +6700,90 @@ int fill_schema_files(THD *thd, TABLE_LIST *tables, COND *cond)
 }
 
 
+static
+int store_key_cache_table_record(THD *thd, TABLE *table,
+                                 const char *name, uint name_length,
+                                 KEY_CACHE *key_cache,
+                                 uint partitions, uint partition_no)
+{
+  KEY_CACHE_STATISTICS keycache_stats;
+  uint err;
+  DBUG_ENTER("store_key_cache_table_record");
+
+  get_key_cache_statistics(key_cache, partition_no, &keycache_stats);
+
+  if (!key_cache->key_cache_inited || keycache_stats.mem_size == 0)
+    DBUG_RETURN(0);
+
+  restore_record(table, s->default_values);
+  table->field[0]->store(name, name_length, system_charset_info);
+  if (partitions == 0)
+    table->field[1]->set_null();
+  else
+  {
+    table->field[1]->set_notnull(); 
+    table->field[1]->store((long) partitions, TRUE);
+  }
+
+  if (partition_no == 0)
+    table->field[2]->set_null();
+  else
+  {
+    table->field[2]->set_notnull();
+    table->field[2]->store((long) partition_no, TRUE);
+  }
+  table->field[3]->store(keycache_stats.mem_size, TRUE);
+  table->field[4]->store(keycache_stats.block_size, TRUE);
+  table->field[5]->store(keycache_stats.blocks_used, TRUE);
+  table->field[6]->store(keycache_stats.blocks_unused, TRUE);
+  table->field[7]->store(keycache_stats.blocks_changed, TRUE);
+  table->field[8]->store(keycache_stats.read_requests, TRUE);
+  table->field[9]->store(keycache_stats.reads, TRUE);
+  table->field[10]->store(keycache_stats.write_requests, TRUE);
+  table->field[11]->store(keycache_stats.writes, TRUE);
+
+  err= schema_table_store_record(thd, table);
+  DBUG_RETURN(err);
+}
+
+
+int fill_key_cache_tables(THD *thd, TABLE_LIST *tables, COND *cond)
+{
+  TABLE *table= tables->table;
+  I_List_iterator<NAMED_LIST> it(key_caches);
+  NAMED_LIST *element;
+  DBUG_ENTER("fill_key_cache_tables");
+
+  while ((element= it++))
+  {
+    KEY_CACHE *key_cache= (KEY_CACHE *) element->data;
+
+    if (!key_cache->key_cache_inited)
+      continue;
+
+    uint partitions= key_cache->partitions;    
+    DBUG_ASSERT(partitions <= MAX_KEY_CACHE_PARTITIONS);
+
+    if (partitions)
+    {
+      for (uint i= 0; i < partitions; i++)
+      {
+        if (store_key_cache_table_record(thd, table,
+                                         element->name, element->name_length, 
+                                         key_cache, partitions, i+1))
+	  DBUG_RETURN(1);
+      }
+    }
+
+    if (store_key_cache_table_record(thd, table, 
+                                     element->name, element->name_length,
+                                     key_cache, partitions, 0))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+
 ST_FIELD_INFO schema_fields_info[]=
 {
   {"CATALOG_NAME", FN_REFLEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
@@ -7095,6 +7269,8 @@ ST_FIELD_INFO plugin_fields_info[]=
   {"PLUGIN_AUTHOR", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"PLUGIN_DESCRIPTION", 65535, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {"PLUGIN_LICENSE", 80, MYSQL_TYPE_STRING, 0, 1, "License", SKIP_OPEN_TABLE},
+  {"PLUGIN_MATURITY", 12, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
+  {"PLUGIN_AUTH_VERSION", 80, MYSQL_TYPE_STRING, 0, 1, 0, SKIP_OPEN_TABLE},
   {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
 };
 
@@ -7187,6 +7363,35 @@ ST_FIELD_INFO referential_constraints_fields_info[]=
 };
 
 
+ST_FIELD_INFO keycache_fields_info[]=
+{
+  {"KEY_CACHE_NAME", NAME_LEN, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE},
+  {"PARTITIONS", 3, MYSQL_TYPE_LONG, 0, 
+   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED) , 0, SKIP_OPEN_TABLE},
+  {"PARTITION_NUMBER", 3, MYSQL_TYPE_LONG, 0,
+   (MY_I_S_MAYBE_NULL | MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
+  {"FULL_SIZE", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE},
+  {"BLOCK_SIZE", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), 0, SKIP_OPEN_TABLE },
+  {"USED_BLOCKS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+    (MY_I_S_UNSIGNED), "Key_blocks_used", SKIP_OPEN_TABLE},
+  {"UNUSED_BLOCKS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_blocks_unused", SKIP_OPEN_TABLE},
+  {"DIRTY_BLOCKS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_blocks_not_flushed", SKIP_OPEN_TABLE},
+  {"READ_REQUESTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_read_requests", SKIP_OPEN_TABLE},
+  {"READS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_reads", SKIP_OPEN_TABLE},
+  {"WRITE_REQUESTS", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_write_requests", SKIP_OPEN_TABLE},
+  {"WRITES", MY_INT64_NUM_DECIMAL_DIGITS, MYSQL_TYPE_LONGLONG, 0,
+   (MY_I_S_UNSIGNED), "Key_writes", SKIP_OPEN_TABLE},
+  {0, 0, MYSQL_TYPE_STRING, 0, 0, 0, SKIP_OPEN_TABLE}
+};
+
+
 /*
   Description of ST_FIELD_INFO in table.h
 
@@ -7226,6 +7431,8 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_variables, make_old_format, 0, 0, -1, 0, 0},
   {"INDEX_STATISTICS", index_stats_fields_info, create_schema_table,
    fill_schema_index_stats, make_old_format, 0, -1, -1, 0, 0},
+  {"KEY_CACHES", keycache_fields_info, create_schema_table,
+   fill_key_cache_tables, make_old_format, 0, -1,-1, 0, 0}, 
   {"KEY_COLUMN_USAGE", key_column_usage_fields_info, create_schema_table,
    get_all_tables, 0, get_schema_key_column_usage_record, 4, 5, 0,
    OPEN_TABLE_ONLY},

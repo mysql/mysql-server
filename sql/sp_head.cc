@@ -2089,6 +2089,8 @@ sp_head::reset_lex(THD *thd)
   sublex->dec= NULL;
   sublex->interval_list.empty();
   sublex->type= 0;
+  sublex->uint_geom_type= 0;
+  sublex->vcol_info= 0;
 
   DBUG_RETURN(FALSE);
 }
@@ -2216,7 +2218,7 @@ sp_head::fill_field_definition(THD *thd, LEX *lex,
                       lex->charset ? lex->charset :
                                      thd->variables.collation_database,
                       lex->uint_geom_type,
-		      lex->vcol_info))
+		      lex->vcol_info, NULL))
     return TRUE;
 
   if (field_def->interval_list.elements)

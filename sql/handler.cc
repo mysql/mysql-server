@@ -24,6 +24,7 @@
 #endif
 
 #include "mysql_priv.h"
+#include "create_options.h"
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include "myisam.h"
@@ -3719,7 +3720,11 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
+  if (parse_engine_table_options(thd, table.file->ht, &share))
+    goto err;
+
   error= table.file->ha_create(name, &table, create_info);
+
   VOID(closefrm(&table, 0));
   if (error)
   {
@@ -3826,11 +3831,13 @@ int ha_init_key_cache(const char *name, KEY_CACHE *key_cache)
     uint tmp_block_size= (uint) key_cache->param_block_size;
     uint division_limit= key_cache->param_division_limit;
     uint age_threshold=  key_cache->param_age_threshold;
+    uint partitions= key_cache->param_partitions;
     pthread_mutex_unlock(&LOCK_global_system_variables);
     DBUG_RETURN(!init_key_cache(key_cache,
 				tmp_block_size,
 				tmp_buff_size,
-				division_limit, age_threshold));
+				division_limit, age_threshold,
+                                partitions));
   }
   DBUG_RETURN(0);
 }
@@ -3860,10 +3867,12 @@ int ha_resize_key_cache(KEY_CACHE *key_cache)
 
 
 /**
-  Change parameters for key cache (like size)
+  Change parameters for key cache (like division_limit)
 */
 int ha_change_key_cache_param(KEY_CACHE *key_cache)
 {
+  DBUG_ENTER("ha_change_key_cache_param");
+
   if (key_cache->key_cache_inited)
   {
     pthread_mutex_lock(&LOCK_global_system_variables);
@@ -3872,8 +3881,34 @@ int ha_change_key_cache_param(KEY_CACHE *key_cache)
     pthread_mutex_unlock(&LOCK_global_system_variables);
     change_key_cache_param(key_cache, division_limit, age_threshold);
   }
-  return 0;
+  DBUG_RETURN(0);
 }
+
+
+/**
+  Repartition key cache 
+*/
+int ha_repartition_key_cache(KEY_CACHE *key_cache)
+{
+  DBUG_ENTER("ha_repartition_key_cache");
+
+  if (key_cache->key_cache_inited)
+  {
+    pthread_mutex_lock(&LOCK_global_system_variables);
+    size_t tmp_buff_size= (size_t) key_cache->param_buff_size;
+    long tmp_block_size= (long) key_cache->param_block_size;
+    uint division_limit= key_cache->param_division_limit;
+    uint age_threshold=  key_cache->param_age_threshold;
+    uint partitions= key_cache->param_partitions;
+    pthread_mutex_unlock(&LOCK_global_system_variables);
+    DBUG_RETURN(!repartition_key_cache(key_cache, tmp_block_size,
+				       tmp_buff_size,
+				       division_limit, age_threshold,
+                                       partitions));
+  }
+  DBUG_RETURN(0);
+}
+
 
 /**
   Free memory allocated by a key cache.
@@ -4420,6 +4455,8 @@ int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 enum ha_rkey_function find_flag)
 {
   int error, error1;
+  LINT_INIT(error1);
+
   error= index_init(index, 0);
   if (!error)
   {

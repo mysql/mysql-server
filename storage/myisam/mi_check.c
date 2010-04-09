@@ -332,7 +332,8 @@ int chk_size(HA_CHECK *param, register MI_INFO *info)
 
   /* The following is needed if called externally (not from myisamchk) */
   flush_key_blocks(info->s->key_cache,
-		   info->s->kfile, FLUSH_FORCE_WRITE);
+		   info->s->kfile, &info->s->dirty_part_map,
+                   FLUSH_FORCE_WRITE);
 
   size= my_seek(info->s->kfile, 0L, MY_SEEK_END, MYF(MY_THREADSAFE));
   if ((skr=(my_off_t) info->state->key_file_length) != size)
@@ -1474,6 +1475,7 @@ static int mi_drop_all_indexes(HA_CHECK *param, MI_INFO *info, my_bool force)
       */
       DBUG_PRINT("repair", ("all disabled are empty: create missing"));
       error= flush_key_blocks(share->key_cache, share->kfile,
+                              &share->dirty_part_map,
                               FLUSH_FORCE_WRITE);
       goto end;
     }
@@ -1488,6 +1490,7 @@ static int mi_drop_all_indexes(HA_CHECK *param, MI_INFO *info, my_bool force)
 
   /* Remove all key blocks of this index file from key cache. */
   if ((error= flush_key_blocks(share->key_cache, share->kfile,
+                               &share->dirty_part_map,
                                FLUSH_IGNORE_CHANGED)))
     goto end; /* purecov: inspected */
 
@@ -1549,7 +1552,7 @@ int mi_repair(HA_CHECK *param, register MI_INFO *info,
 
   if (!param->using_global_keycache)
     VOID(init_key_cache(dflt_key_cache, param->key_cache_block_size,
-                        (size_t) param->use_buffers, 0, 0));
+                        (size_t) param->use_buffers, 0, 0, 0));
 
   if (init_io_cache(&param->read_cache,info->dfile,
 		    (uint) param->read_buffer_length,
@@ -1762,7 +1765,8 @@ err:
   VOID(end_io_cache(&param->read_cache));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   VOID(end_io_cache(&info->rec_cache));
-  got_error|=flush_blocks(param, share->key_cache, share->kfile);
+  got_error|=flush_blocks(param, share->key_cache, share->kfile,
+                          &share->dirty_part_map);
   if (!got_error && param->testflag & T_UNPACK)
   {
     share->state.header.options[0]&= (uchar) ~HA_OPTION_COMPRESS_RECORD;
@@ -1908,9 +1912,10 @@ void lock_memory(HA_CHECK *param __attribute__((unused)))
 
 	/* Flush all changed blocks to disk */
 
-int flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file)
+int flush_blocks(HA_CHECK *param, KEY_CACHE *key_cache, File file,
+                 ulonglong *dirty_part_map)
 {
-  if (flush_key_blocks(key_cache, file, FLUSH_RELEASE))
+  if (flush_key_blocks(key_cache, file, dirty_part_map, FLUSH_RELEASE))
   {
     mi_check_print_error(param,"%d when trying to write bufferts",my_errno);
     return(1);
@@ -1977,7 +1982,8 @@ int mi_sort_index(HA_CHECK *param, register MI_INFO *info, char * name)
   }
 
   /* Flush key cache for this file if we are calling this outside myisamchk */
-  flush_key_blocks(share->key_cache,share->kfile, FLUSH_IGNORE_CHANGED);
+  flush_key_blocks(share->key_cache, share->kfile, &share->dirty_part_map,
+                   FLUSH_IGNORE_CHANGED);
 
   share->state.version=(ulong) time((time_t*) 0);
   old_state= share->state;			/* save state if not stored */
@@ -2535,7 +2541,8 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
     memcpy( &share->state.state, info->state, sizeof(*info->state));
 
 err:
-  got_error|= flush_blocks(param, share->key_cache, share->kfile);
+  got_error|= flush_blocks(param, share->key_cache, share->kfile,
+                           &share->dirty_part_map);
   VOID(end_io_cache(&info->rec_cache));
   if (!got_error)
   {
@@ -3059,7 +3066,8 @@ int mi_repair_parallel(HA_CHECK *param, register MI_INFO *info,
     memcpy(&share->state.state, info->state, sizeof(*info->state));
 
 err:
-  got_error|= flush_blocks(param, share->key_cache, share->kfile);
+  got_error|= flush_blocks(param, share->key_cache, share->kfile,
+                           &share->dirty_part_map);
   /*
     Destroy the write cache. The master thread did already detach from
     the share by remove_io_thread() or it was not yet started (if the

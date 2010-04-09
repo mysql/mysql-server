@@ -30,7 +30,7 @@ connection con1;
 --send
 update t1 set n = 3;
 connection con2;
-sleep 0.5;
+sleep 5;
 unlock tables;
 connection con1;
 reap;

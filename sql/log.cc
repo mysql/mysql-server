@@ -1238,6 +1238,7 @@ void LOGGER::deactivate_log_handler(THD *thd, uint log_type)
 {
   my_bool *tmp_opt= 0;
   MYSQL_LOG *file_log;
+  LINT_INIT(file_log);
 
   switch (log_type) {
   case QUERY_LOG_SLOW:
@@ -6036,3 +6037,20 @@ mysql_declare_plugin(binlog)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(binlog)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &binlog_storage_engine,
+  "binlog",
+  "MySQL AB",
+  "This is a pseudo storage engine to represent the binlog in a transaction",
+  PLUGIN_LICENSE_GPL,
+  binlog_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

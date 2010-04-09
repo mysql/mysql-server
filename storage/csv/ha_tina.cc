@@ -1636,4 +1636,20 @@ mysql_declare_plugin(csv)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
-
+maria_declare_plugin(csv)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &csv_storage_engine,
+  "CSV",
+  "Brian Aker, MySQL AB",
+  "CSV storage engine",
+  PLUGIN_LICENSE_GPL,
+  tina_init_func, /* Plugin Init */
+  tina_done_func, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;

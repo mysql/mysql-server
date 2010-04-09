@@ -340,6 +340,8 @@ typedef struct st_table_share
 #ifdef NOT_YET
   struct st_table *open_tables;		/* link to open tables */
 #endif
+  engine_option_value *option_list;     /* text options for table */
+  void *option_struct;                  /* structure with parsed options */
 
   /* The following is copied to each TABLE on OPEN */
   Field **field;
@@ -953,6 +955,7 @@ enum enum_schema_tables
   SCH_GLOBAL_STATUS,
   SCH_GLOBAL_VARIABLES,
   SCH_INDEX_STATS,
+  SCH_KEY_CACHES,
   SCH_KEY_COLUMN_USAGE,
   SCH_OPEN_TABLES,
   SCH_PARTITIONS,

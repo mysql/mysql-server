@@ -24,10 +24,14 @@
 */
 
 #include "mysql_priv.h"
+#include "create_options.h"
 #include <m_ctype.h>
 #include <assert.h>
 
 #define FCOMP			17		/* Bytes for a packed field */
+
+/* threshold for safe_alloca */
+#define ALLOCA_THRESHOLD       2048
 
 static uchar * pack_screens(List<Create_field> &create_fields,
 			    uint *info_length, uint *screens, bool small_file);
@@ -107,6 +111,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   ulong key_buff_length;
   File file;
   ulong filepos, data_offset;
+  uint options_len;
   uchar fileinfo[64],forminfo[288],*keybuff;
   TYPELIB formnames;
   uchar *screen_buff;
@@ -181,6 +186,16 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   {
     if (key_info[i].parser_name)
       create_info->extra_size+= key_info[i].parser_name->length + 1;
+  }
+
+  options_len= engine_table_options_frm_length(create_info->option_list,
+                                               create_fields,
+                                               keys, key_info);
+  DBUG_PRINT("info", ("Options length: %u", options_len));
+  if (options_len)
+  {
+    create_info->table_options|= HA_OPTION_TEXT_CREATE_OPTIONS;
+    create_info->extra_size+= (options_len + 4);
   }
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
@@ -294,6 +309,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     if (my_write(file, (uchar*) buff, 6, MYF_RW))
       goto err;
   }
+
   for (i= 0; i < keys; i++)
   {
     if (key_info[i].parser_name)
@@ -302,6 +318,24 @@ bool mysql_create_frm(THD *thd, const char *file_name,
                    key_info[i].parser_name->length + 1, MYF(MY_NABP)))
         goto err;
     }
+  }
+
+  if (options_len)
+  {
+    uchar *optbuff= (uchar *)my_safe_alloca(options_len + 4, ALLOCA_THRESHOLD);
+    my_bool error;
+    DBUG_PRINT("info", ("Create options length: %u", options_len));
+    if (!optbuff)
+      goto err;
+    int4store(optbuff, options_len);
+    engine_table_options_frm_image(optbuff + 4,
+                                   create_info->option_list,
+                                   create_fields,
+                                   keys, key_info);
+    error= my_write(file, optbuff, options_len + 4, MYF_RW);
+    my_safe_afree(optbuff, options_len + 4, ALLOCA_THRESHOLD);
+    if (error)
+      goto err;
   }
 
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));

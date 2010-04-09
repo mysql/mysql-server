@@ -3379,3 +3379,20 @@ mysql_declare_plugin(federated)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(federated)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &federated_storage_engine,
+  "FEDERATED",
+  "Patrick Galbraith and Brian Aker, MySQL AB",
+  "Federated MySQL storage engine",
+  PLUGIN_LICENSE_GPL,
+  federated_db_init, /* Plugin Init */
+  federated_done, /* Plugin Deinit */
+  0x0100 /* 1.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_BETA /* maturity */
+}
+maria_declare_plugin_end;

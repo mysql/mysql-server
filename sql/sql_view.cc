@@ -1185,7 +1185,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
       + MODE_PIPES_AS_CONCAT          affect expression parsing
       + MODE_ANSI_QUOTES              affect expression parsing
       + MODE_IGNORE_SPACE             affect expression parsing
-      - MODE_NOT_USED                 not used :)
+      - MODE_IGNORE_BAD_TABLE_OPTIONS affect only CREATE/ALTER TABLE parsing
       * MODE_ONLY_FULL_GROUP_BY       affect execution
       * MODE_NO_UNSIGNED_SUBTRACTION  affect execution
       - MODE_NO_DIR_IN_CREATE         affect table creation only

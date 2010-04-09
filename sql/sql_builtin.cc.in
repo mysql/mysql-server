@@ -16,13 +16,12 @@
 #include <my_global.h>
 #include <mysql/plugin.h>
 
-typedef struct st_mysql_plugin builtin_plugin[];
+typedef struct st_maria_plugin builtin_maria_plugin[];
 
-extern builtin_plugin 
-  builtin_binlog_plugin, builtin_mysql_password_plugin@mysql_plugin_defs@;
+extern builtin_maria_plugin
+  builtin_maria_binlog_plugin, builtin_maria_mysql_password_plugin@maria_plugin_defs@;
 
-struct st_mysql_plugin *mysqld_builtins[]=
+struct st_maria_plugin *mariadb_builtins[]=
 {
-  builtin_binlog_plugin, builtin_mysql_password_plugin@mysql_plugin_defs@,(struct st_mysql_plugin *)0
+  builtin_maria_binlog_plugin, builtin_maria_mysql_password_plugin@maria_plugin_defs@,(struct st_maria_plugin *)0
 };
-

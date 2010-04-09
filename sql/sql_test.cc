@@ -445,7 +445,8 @@ static int print_key_cache_status(const char *name, KEY_CACHE *key_cache)
 Buffer_size:    %10lu\n\
 Block_size:     %10lu\n\
 Division_limit: %10lu\n\
-Age_limit:      %10lu\n\
+Age_threshold:  %10lu\n\
+Partitions:     %10lu\n\
 blocks used:    %10lu\n\
 not flushed:    %10lu\n\
 w_requests:     %10s\n\
@@ -455,6 +456,7 @@ reads:          %10s\n\n",
 	   name,
 	   (ulong) key_cache->param_buff_size, key_cache->param_block_size,
 	   key_cache->param_division_limit, key_cache->param_age_threshold,
+           key_cache->param_partitions,
 	   key_cache->blocks_used,key_cache->global_blocks_changed,
 	   llstr(key_cache->global_cache_w_requests,llbuff1),
            llstr(key_cache->global_cache_write,llbuff2),

@@ -6240,3 +6240,8 @@ ER_DEBUG_SYNC_TIMEOUT
 ER_DEBUG_SYNC_HIT_LIMIT
   eng "debug sync point hit limit reached"
   ger "Debug Sync Point Hit Limit erreicht"
+
+ER_UNKNOWN_OPTION
+        eng "Unknown option '%-.64s'"
+ER_BAD_OPTION_VALUE
+        eng "Incorrect value '%-.64s' for option '%-.64s'"

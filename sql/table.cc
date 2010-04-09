@@ -18,6 +18,7 @@
 
 #include "mysql_priv.h"
 #include "sql_trigger.h"
+#include "create_options.h"
 #include <m_ctype.h>
 #include "my_md5.h"
 
@@ -667,12 +668,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint db_create_options, keys, key_parts, n_length;
   uint key_info_length, com_length, null_bit_pos;
   uint vcol_screen_length;
-  uint extra_rec_buf_length;
+  uint extra_rec_buf_length, options_len;
   uint i,j;
   bool use_hash;
   char *keynames, *names, *comment_pos, *vcol_screen_pos;
   uchar *record;
-  uchar *disk_buff, *strpos, *null_flags, *null_pos;
+  uchar *disk_buff, *strpos, *null_flags, *null_pos, *options;
+  uchar *buff= 0;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
   handler *handler_file= 0;
   KEY	*keyinfo;
@@ -788,7 +790,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   for (i=0 ; i < keys ; i++, keyinfo++)
   {
-    keyinfo->table= 0;                           // Updated in open_frm
     if (new_frm_ver >= 3)
     {
       keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
@@ -858,15 +859,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if ((n_length= uint4korr(head+55)))
   {
     /* Read extra data segment */
-    uchar *buff, *next_chunk, *buff_end;
+    uchar *next_chunk, *buff_end;
     DBUG_PRINT("info", ("extra segment size is %u bytes", n_length));
     if (!(next_chunk= buff= (uchar*) my_malloc(n_length, MYF(MY_WME))))
       goto err;
     if (my_pread(file, buff, n_length, record_offset + share->reclength,
                  MYF(MY_NABP)))
     {
-      my_free(buff, MYF(0));
-      goto err;
+      goto free_and_err;
     }
     share->connect_string.length= uint2korr(buff);
     if (!(share->connect_string.str= strmake_root(&share->mem_root,
@@ -874,8 +874,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                                   share->connect_string.
                                                   length)))
     {
-      my_free(buff, MYF(0));
-      goto err;
+      goto free_and_err;
     }
     next_chunk+= share->connect_string.length + 2;
     buff_end= buff + n_length;
@@ -895,8 +894,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                 plugin_data(tmp_plugin, handlerton *)))
         {
           /* bad file, legacy_db_type did not match the name */
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
         /*
           tmp_plugin is locked with a local lock.
@@ -925,8 +923,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           error= 8;
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
                    "--skip-partition");
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
         plugin_unlock(NULL, share->db_plugin);
         share->db_plugin= ha_lock_engine(NULL, partition_hton);
@@ -940,8 +937,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         /* purecov: begin inspected */
         error= 8;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
-        my_free(buff, MYF(0));
-        goto err;
+        goto free_and_err;
         /* purecov: end */
       }
       next_chunk+= str_db_type_length + 2;
@@ -957,16 +953,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               memdup_root(&share->mem_root, next_chunk + 4,
                           partition_info_len + 1)))
         {
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
       }
 #else
       if (partition_info_len)
       {
         DBUG_PRINT("info", ("WITH_PARTITION_STORAGE_ENGINE is not defined"));
-        my_free(buff, MYF(0));
-        goto err;
+        goto free_and_err;
       }
 #endif
       next_chunk+= 5 + partition_info_len;
@@ -1002,8 +996,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
         parser_name.str= (char*) next_chunk;
         parser_name.length= strlen((char*) next_chunk);
@@ -1013,12 +1006,20 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if (! keyinfo->parser)
         {
           my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), parser_name.str);
-          my_free(buff, MYF(0));
-          goto err;
+          goto free_and_err;
         }
       }
     }
-    my_free(buff, MYF(0));
+    if (share->db_create_options & HA_OPTION_TEXT_CREATE_OPTIONS)
+    {
+      /*
+        store options position, but skip till the time we will
+        know number of fields
+      */
+      options_len= uint4korr(next_chunk);
+      options= next_chunk + 4;
+      next_chunk+= options_len + 4;
+    }
   }
   share->key_block_size= uint2korr(head+62);
 
@@ -1028,21 +1029,21 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->rec_buff_length= rec_buff_length;
   if (!(record= (uchar *) alloc_root(&share->mem_root,
                                      rec_buff_length)))
-    goto err;                                   /* purecov: inspected */
+    goto free_and_err;                          /* purecov: inspected */
   share->default_values= record;
   if (my_pread(file, record, (size_t) share->reclength,
                record_offset, MYF(MY_NABP)))
-    goto err;                                   /* purecov: inspected */
+    goto free_and_err;                          /* purecov: inspected */
 
   VOID(my_seek(file,pos,MY_SEEK_SET,MYF(0)));
   if (my_read(file, head,288,MYF(MY_NABP)))
-    goto err;
+    goto free_and_err;
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
     crypted->decode((char*) head+256,288-256);
     if (sint2korr(head+284) != 0)		// Should be 0
-      goto err;                                 // Wrong password
+      goto free_and_err;                        // Wrong password
   }
 #endif
 
@@ -1062,6 +1063,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                                    share->comment.length);
 
   DBUG_PRINT("info",("i_count: %d  i_parts: %d  index: %d  n_length: %d  int_length: %d  com_length: %d  vcol_screen_length: %d", interval_count,interval_parts, share->keys,n_length,int_length, com_length, vcol_screen_length));
+
+
   if (!(field_ptr = (Field **)
 	alloc_root(&share->mem_root,
 		   (uint) ((share->fields+1)*sizeof(Field*)+
@@ -1070,14 +1073,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 			    keys+3)*sizeof(char *)+
 			   (n_length+int_length+com_length+
 			       vcol_screen_length)))))
-    goto err;                                   /* purecov: inspected */
+    goto free_and_err;                           /* purecov: inspected */
 
   share->field= field_ptr;
   read_length=(uint) (share->fields * field_pack_length +
 		      pos+ (uint) (n_length+int_length+com_length+
 		                   vcol_screen_length));
   if (read_string(file,(uchar**) &disk_buff,read_length))
-    goto err;                                   /* purecov: inspected */
+    goto free_and_err;                           /* purecov: inspected */
 #ifdef HAVE_CRYPTED_FRM
   if (crypted)
   {
@@ -1104,7 +1107,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 
   fix_type_pointers(&interval_array, &share->fieldnames, 1, &names);
   if (share->fieldnames.count != share->fields)
-    goto err;
+    goto free_and_err;
   fix_type_pointers(&interval_array, share->intervals, interval_count,
 		    &names);
 
@@ -1118,7 +1121,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       uint count= (uint) (interval->count + 1) * sizeof(uint);
       if (!(interval->type_lengths= (uint *) alloc_root(&share->mem_root,
                                                         count)))
-        goto err;
+        goto free_and_err;
       for (count= 0; count < interval->count; count++)
       {
         char *val= (char*) interval->type_names[count];
@@ -1134,7 +1137,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
  /* Allocate handler */
   if (!(handler_file= get_new_handler(share, thd->mem_root,
                                       share->db_type())))
-    goto err;
+    goto free_and_err;
 
   record= share->default_values-1;              /* Fieldstart = 1 */
   if (share->null_field_first)
@@ -1196,7 +1199,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	charset= &my_charset_bin;
 #else
 	error= 4;  // unsupported field type
-	goto err;
+	goto free_and_err;
 #endif
       }
       else
@@ -1207,7 +1210,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         {
           error= 5; // Unknown or unavailable charset
           errarg= (int) strpos[14];
-          goto err;
+          goto free_and_err;
         }
       }
 
@@ -1247,7 +1250,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         if ((uint)vcol_screen_pos[0] != 1)
         {
           error= 4;
-          goto err;
+          goto free_and_err;
         }
         field_type= (enum_field_types) (uchar) vcol_screen_pos[1];
         fld_stored_in_db= (bool) (uint) vcol_screen_pos[2];
@@ -1256,7 +1259,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               (char *)memdup_root(&share->mem_root,
                                   vcol_screen_pos+(uint)FRM_VCOL_HEADER_SIZE,
                                   vcol_expr_length)))
-          goto err;        
+          goto free_and_err;
         vcol_info->expr_str.length= vcol_expr_length;
         vcol_screen_pos+= vcol_info_length;
         share->vfields++;
@@ -1346,7 +1349,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (!reg_field)				// Not supported field type
     {
       error= 4;
-      goto err;			/* purecov: inspected */
+      goto free_and_err;			/* purecov: inspected */
     }
 
     reg_field->field_index= i;
@@ -1385,7 +1388,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           sent (OOM).
         */
         error= 8; 
-        goto err;
+        goto free_and_err;
       }
     }
     if (!reg_field->stored_in_db)
@@ -1462,7 +1465,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	if (!key_part->fieldnr)
         {
           error= 4;                             // Wrong file
-          goto err;
+          goto free_and_err;
         }
         field= key_part->field= share->field[key_part->fieldnr-1];
         key_part->type= field->key_type();
@@ -1627,6 +1630,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           null_length, 255);
   }
 
+  if (share->db_create_options & HA_OPTION_TEXT_CREATE_OPTIONS)
+  {
+    DBUG_ASSERT(options_len);
+    if (engine_table_options_frm_read(options, options_len, share) ||
+        parse_engine_table_options(thd, handler_file->ht, share))
+      goto free_and_err;
+  }
+  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
+
   if (share->found_next_number_field)
   {
     reg_field= *share->found_next_number_field;
@@ -1685,6 +1697,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 #endif
   DBUG_RETURN (0);
 
+ free_and_err:
+  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
  err:
   share->error= error;
   share->open_errno= my_errno;
@@ -2883,6 +2897,7 @@ File create_frm(THD *thd, const char *name, const char *db,
   ulong length;
   uchar fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
+  DBUG_ENTER("create_frm");
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
     create_flags|= O_EXCL | O_NOFOLLOW;
@@ -2964,7 +2979,7 @@ File create_frm(THD *thd, const char *name, const char *db,
       {
 	VOID(my_close(file,MYF(0)));
 	VOID(my_delete(name,MYF(0)));
-	return(-1);
+	DBUG_RETURN(-1);
       }
     }
   }
@@ -2975,7 +2990,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     else
       my_error(ER_CANT_CREATE_TABLE,MYF(0),table,my_errno);
   }
-  return (file);
+  DBUG_RETURN(file);
 } /* create_frm */
 
 
@@ -2994,6 +3009,7 @@ void update_create_info_from_table(HA_CREATE_INFO *create_info, TABLE *table)
   create_info->comment= share->comment;
   create_info->transactional= share->transactional;
   create_info->page_checksum= share->page_checksum;
+  create_info->option_list= share->option_list;
 
   DBUG_VOID_RETURN;
 }

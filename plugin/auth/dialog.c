@@ -51,6 +51,8 @@
 #define PASSWORD_QUESTION       "\4"
 #define LAST_PASSWORD           "\5"
 
+typedef unsigned char uchar;
+
 /********************* SERVER SIDE ****************************************/
 
 /**
@@ -63,7 +65,9 @@ static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   int pkt_len;
 
   /* send a password question */
-  if (vio->write_packet(vio, PASSWORD_QUESTION "Password, please:", 18))
+  if (vio->write_packet(vio,
+                        (const uchar*) (PASSWORD_QUESTION "Password, please:"),
+                        18))
     return CR_ERROR;
 
   /* read the answer */
@@ -73,11 +77,12 @@ static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   info->password_used = 1;
 
   /* fail if the password is wrong */
-  if (strcmp(pkt, info->auth_string))
+  if (strcmp((char*) pkt, info->auth_string))
     return CR_ERROR;
 
   /* send the last, ordinary, question */
-  if (vio->write_packet(vio, LAST_QUESTION "Are you sure ?", 15))
+  if (vio->write_packet(vio,
+                        (const uchar*) (LAST_QUESTION "Are you sure ?"), 15))
     return CR_ERROR;
 
   /* read the answer */
@@ -85,7 +90,7 @@ static int two_questions(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
     return CR_ERROR;
 
   /* check the reply */
-  return strcmp(pkt, "yes, of course") ? CR_ERROR : CR_OK;
+  return strcmp((char*) pkt, "yes, of course") ? CR_ERROR : CR_OK;
 }
 
 static struct st_mysql_auth two_handler=
@@ -108,7 +113,8 @@ static int three_attempts(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
   for (i= 0; i < 3; i++)
   {
     /* send the prompt */
-    if (vio->write_packet(vio, PASSWORD_QUESTION "Password, please:", 18))
+    if (vio->write_packet(vio,
+                          (const uchar*) (PASSWORD_QUESTION "Password, please:"), 18))
       return CR_ERROR;
 
     /* read the password */
@@ -121,7 +127,7 @@ static int three_attempts(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info)
       finish, if the password is correct.
       note, that we did not mark the prompt packet as "last"
     */
-    if (strcmp(pkt, info->auth_string) == 0)
+    if (strcmp((char*) pkt, info->auth_string) == 0)
       return CR_OK;
   }
 
@@ -165,6 +171,38 @@ mysql_declare_plugin(dialog)
   NULL
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(dialog)
+{
+  MYSQL_AUTHENTICATION_PLUGIN,
+  &two_handler,
+  "two_questions",
+  "Sergei Golubchik",
+  "Dialog plugin demo 1",
+  PLUGIN_LICENSE_GPL,
+  NULL,
+  NULL,
+  0x0100,
+  NULL,
+  NULL,
+  "1.0",
+  MariaDB_PLUGIN_MATURITY_BETA
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,
+  &three_handler,
+  "three_attempts",
+  "Sergei Golubchik",
+  "Dialog plugin demo 2",
+  PLUGIN_LICENSE_GPL,
+  NULL,
+  NULL,
+  0x0100,
+  NULL,
+  NULL,
+  "1.0",
+  MariaDB_PLUGIN_MATURITY_BETA
+}
+maria_declare_plugin_end;
 
 /********************* CLIENT SIDE ***************************************/
 /*
@@ -186,12 +224,18 @@ static mysql_authentication_dialog_ask_t ask;
 static char *builtin_ask(MYSQL *mysql __attribute__((unused)),
                          int type __attribute__((unused)),
                          const char *prompt,
-                         char *buf, int buf_len __attribute__((unused)))
+                         char *buf, int buf_len)
 {
+  int len;
+
   fputs(prompt, stdout);
   fputc(' ', stdout);
-  if (gets(buf) == 0)
+  if (fgets(buf, buf_len, stdin) == 0)
     return 0;
+
+  len= strlen(buf);
+  if (len && buf[len-1]=='\n')
+    buf[len-1]=0;
 
   return buf;
 }
@@ -255,12 +299,12 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       if ((cmd >> 1) == 2 && *pkt == 0)
         reply= mysql->passwd;
       else
-        reply= ask(mysql, cmd >> 1, pkt, reply_buf, sizeof(reply_buf));
+        reply= ask(mysql, cmd >> 1, (char*) pkt, reply_buf, sizeof(reply_buf));
       if (!reply)
         return CR_ERROR;
     }
     /* send the reply to the server */
-    res= vio->write_packet(vio, reply, strlen(reply)+1);
+    res= vio->write_packet(vio, (uchar*) reply, strlen(reply)+1);
 
     if (reply != mysql->passwd && reply != reply_buf)
       free(reply);

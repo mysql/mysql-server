@@ -91,6 +91,7 @@ Database: information_schema
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | INDEX_STATISTICS                      |
+| KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |
@@ -144,6 +145,7 @@ Database: INFORMATION_SCHEMA
 | GLOBAL_STATUS                         |
 | GLOBAL_VARIABLES                      |
 | INDEX_STATISTICS                      |
+| KEY_CACHES                            |
 | KEY_COLUMN_USAGE                      |
 | PARTITIONS                            |
 | PLUGINS                               |

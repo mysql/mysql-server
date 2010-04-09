@@ -1655,4 +1655,21 @@ mysql_declare_plugin(archive)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(archive)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &archive_storage_engine,
+  "ARCHIVE",
+  "Brian Aker, MySQL AB",
+  "Archive storage engine",
+  PLUGIN_LICENSE_GPL,
+  archive_db_init, /* Plugin Init */
+  archive_db_done, /* Plugin Deinit */
+  0x0300 /* 3.0 */,
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;
 

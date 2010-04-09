@@ -27,7 +27,7 @@ pars0grm.tab.c: .*'yyerrorlab' : unreferenced label.*
 _flex_tmp.c: .*not enough actual parameters for macro 'yywrap'.*
 pars0lex.l: .*conversion from 'ulint' to 'int', possible loss of data.*
 btr/btr0cur\.c: .*value computed is not used.*: 3175-3375
-include/buf0buf\.ic: unused parameter ‘mtr’
+include/buf0buf\.ic: unused parameter .*mtr.*
 fil/fil0fil\.c: pointer targets in passing argument.*differ in signedness
 fil/fil0fil\.c: comparison between signed and unsigned : 3100-3199
 fil/fil0fil\.c: unused parameter
@@ -40,6 +40,7 @@ sync/sync0sync\.c: unused parameter
 sync/sync0sync\.c: unused variable
 ut/ut0ut\.c: ignoring return value of
 srv/srv0srv\.c: value computed is not used
+buf/buf0buf\.c: .*block_mutex.* might be used uninitialized
 
 #
 # bdb is not critical to keep up to date
@@ -54,6 +55,12 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 # readline is not maintained by us
 #
 .*/cmd-line-utils/readline/.* : .*
+readline\.c : unused parameter
+term\.c : unused parameter
+vi\.c : unused parameter
+common\.c : unused parameter
+term\.c : .*
+
 
 #
 # Ignore some warnings in libevent, which is not maintained by us.
@@ -154,4 +161,4 @@ ctype-simple\.c : .*unary minus operator applied to unsigned type, result still 
 # Wrong warning due to GCC bug: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29478
 regexec\.c : passing argument 3 of.*matcher.* discards qualifiers from pointer target type
 libmysql\.c: passing argument 2 of .*memcpy.* discards qualifiers from pointer target type : 3000-4000
-storage/xtradb/dict/dict0dict\.c: passing argument 1 of .*strcpy.* discards qualifiers from pointer target type : 2500-3500
+storage/xtradb/dict/dict0dict\.c : passing argument 1 of .*strcpy.* discards qualifiers from pointer target type : 2500-3500

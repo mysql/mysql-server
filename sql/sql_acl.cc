@@ -161,7 +161,10 @@ static LEX_STRING old_password_plugin_name= {
 /// @todo make it configurable
 LEX_STRING *default_auth_plugin_name= &native_password_plugin_name;
 
-static plugin_ref native_password_plugin, old_password_plugin;
+static plugin_ref native_password_plugin;
+#ifndef EMBEDDED_LIBRARY
+static plugin_ref old_password_plugin;
+#endif
 
 /* Classes */
 
@@ -284,9 +287,8 @@ static void init_check_host(void);
 static void rebuild_check_host(void);
 static ACL_USER *find_acl_user(const char *host, const char *user,
                                my_bool exact);
-static bool update_user_table(THD *thd, TABLE *table,
-                              const char *host, const char *user,
-			      const char *new_password, uint new_password_len);
+static bool update_user_table(THD *, TABLE *, const char *, const char *,
+                              const char *, uint);
 static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
@@ -314,6 +316,35 @@ set_user_salt(ACL_USER *acl_user, const char *password, uint password_len)
   }
   else
     acl_user->salt_len= 0;
+}
+
+/**
+  Fix ACL::plugin pointer to point to a hard-coded string, if appropriate
+
+  Make sure that if ACL_USER's plugin is a built-in, then it points
+  to a hard coded string, not to an allocated copy. Run-time, for
+  authentication, we want to be able to detect built-ins by comparing
+  pointers, not strings.
+
+  Additionally - update the salt if the plugin is built-in.
+
+  @retval 0 the pointers were fixed
+  @retval 1 this ACL_USER uses a not built-in plugin
+*/
+static bool fix_user_plugin_ptr(ACL_USER *user)
+{
+  if (my_strcasecmp(system_charset_info, user->plugin.str,
+                    native_password_plugin_name.str) == 0)
+    user->plugin= native_password_plugin_name;
+  else
+  if (my_strcasecmp(system_charset_info, user->plugin.str,
+                    old_password_plugin_name.str) == 0)
+    user->plugin= old_password_plugin_name;
+  else
+    return true;
+  
+  set_user_salt(user, user->auth_string.str, user->auth_string.length);
+  return false;
 }
 
 /*
@@ -533,6 +564,9 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   while (!(read_record_info.read_record(&read_record_info)))
   {
     ACL_USER user;
+    char *password;
+    uint password_len;
+
     bzero(&user, sizeof(user));
     update_hostname(&user.host, get_field(&mem, table->field[0]));
     user.user= get_field(&mem, table->field[1]);
@@ -545,8 +579,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       continue;
     }
 
-    char *password= get_field(thd->mem_root, table->field[2]);
-    uint password_len= password ? strlen(password) : 0;
+    password= get_field(&mem, table->field[2]);
+    password_len= password ? strlen(password) : 0;
     user.auth_string.str= password ? password : const_cast<char*>("");
     user.auth_string.length= password_len;
     set_user_salt(&user, password, password_len);
@@ -656,6 +690,8 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           char *tmpstr= get_field(&mem, table->field[next_field++]);
           if (tmpstr)
           {
+            user.plugin.str= tmpstr;
+            user.plugin.length= strlen(user.plugin.str);
             if (user.auth_string.length)
             {
               sql_print_warning("'user' entry '%s@%s' has both a password "
@@ -664,22 +700,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                 user.user ? user.user : "",
                                 user.host.hostname ? user.host.hostname : "");
             }
-            if (my_strcasecmp(system_charset_info, tmpstr,
-                              native_password_plugin_name.str) == 0)
-              user.plugin= native_password_plugin_name;
-            else
-            if (my_strcasecmp(system_charset_info, tmpstr,
-                              old_password_plugin_name.str) == 0)
-              user.plugin= old_password_plugin_name;
-            else
-            {
-              user.plugin.str= tmpstr;
-              user.plugin.length= strlen(tmpstr);
-            }
             user.auth_string.str= get_field(&mem, table->field[next_field++]);
             if (!user.auth_string.str)
               user.auth_string.str= const_cast<char*>("");
             user.auth_string.length= strlen(user.auth_string.str);
+
+            fix_user_plugin_ptr(&user);
           }
         }
       }
@@ -1126,12 +1152,20 @@ static void acl_update_user(const char *user, const char *host,
       {
         if (plugin->str[0])
         {
-          acl_user->plugin.str= strmake_root(&mem, plugin->str, plugin->length);
-          acl_user->plugin.length= plugin->length;
+          acl_user->plugin= *plugin;
           acl_user->auth_string.str= auth->str ?
             strmake_root(&mem, auth->str, auth->length) : const_cast<char*>("");
           acl_user->auth_string.length= auth->length;
+          if (fix_user_plugin_ptr(acl_user))
+            acl_user->plugin.str= strmake_root(&mem, plugin->str, plugin->length);
         }
+        else
+          if (password)
+          {
+            acl_user->auth_string.str= strmake_root(&mem, password, password_len);
+            acl_user->auth_string.length= password_len;
+            set_user_salt(acl_user, password, password_len);
+          }
 	acl_user->access=privileges;
 	if (mqh->specified_limits & USER_RESOURCES::QUERIES_PER_HOUR)
 	  acl_user->user_resource.questions=mqh->questions;
@@ -1151,8 +1185,6 @@ static void acl_update_user(const char *user, const char *host,
 	  acl_user->x509_subject= (x509_subject ?
 				   strdup_root(&mem,x509_subject) : 0);
 	}
-	if (password)
-	  set_user_salt(acl_user, password, password_len);
         /* search complete: */
 	break;
       }
@@ -1180,11 +1212,12 @@ static void acl_insert_user(const char *user, const char *host,
   update_hostname(&acl_user.host, *host ? strdup_root(&mem, host): 0);
   if (plugin->str[0])
   {
-    acl_user.plugin.str= strmake_root(&mem, plugin->str, plugin->length);
-    acl_user.plugin.length= plugin->length;
+    acl_user.plugin= *plugin;
     acl_user.auth_string.str= auth->str ?
       strmake_root(&mem, auth->str, auth->length) : const_cast<char*>("");
     acl_user.auth_string.length= auth->length;
+    if (fix_user_plugin_ptr(&acl_user))
+      acl_user.plugin.str= strmake_root(&mem, plugin->str, plugin->length);
   }
   else
   {
@@ -1192,6 +1225,7 @@ static void acl_insert_user(const char *user, const char *host,
       old_password_plugin_name : native_password_plugin_name;
     acl_user.auth_string.str= strmake_root(&mem, password, password_len);
     acl_user.auth_string.length= password_len;
+    set_user_salt(&acl_user, password, password_len);
   }
 
   acl_user.access=privileges;
@@ -1203,8 +1237,6 @@ static void acl_insert_user(const char *user, const char *host,
   acl_user.ssl_cipher=	ssl_cipher   ? strdup_root(&mem,ssl_cipher) : 0;
   acl_user.x509_issuer= x509_issuer  ? strdup_root(&mem,x509_issuer) : 0;
   acl_user.x509_subject=x509_subject ? strdup_root(&mem,x509_subject) : 0;
-
-  set_user_salt(&acl_user, password, password_len);
 
   VOID(push_dynamic(&acl_users,(uchar*) &acl_user));
   if (!acl_user.host.hostname ||
@@ -1583,7 +1615,13 @@ bool change_password(THD *thd, const char *host, const char *user,
     goto end;
   }
   /* update loaded acl entry: */
-  set_user_salt(acl_user, new_password, new_password_len);
+  if (acl_user->plugin.str == native_password_plugin_name.str || 
+      acl_user->plugin.str == old_password_plugin_name.str)
+  {
+    acl_user->auth_string.str= strmake_root(&mem, new_password, new_password_len);
+    acl_user->auth_string.length= new_password_len;
+    set_user_salt(acl_user, new_password, new_password_len);
+  }
 
   if (update_user_table(thd, table,
 			acl_user->host.hostname ? acl_user->host.hostname : "",
@@ -4614,16 +4652,27 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append(lex_user->host.str,lex_user->host.length,
 		  system_charset_info);
     global.append ('\'');
-    if (acl_user->salt_len)
+    if (acl_user->plugin.str == native_password_plugin_name.str ||
+        acl_user->plugin.str == old_password_plugin_name.str)
     {
-      char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
-      if (acl_user->salt_len == SCRAMBLE_LENGTH)
-        make_password_from_salt(passwd_buff, acl_user->salt);
-      else
-        make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append(passwd_buff);
-      global.append('\'');
+      if (acl_user->auth_string.length)
+      {
+        DBUG_ASSERT(acl_user->salt_len);
+        global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
+        global.append(acl_user->auth_string.str, acl_user->auth_string.length);
+        global.append('\'');
+      }
+    }
+    else
+    {
+        global.append(STRING_WITH_LEN(" IDENTIFIED VIA "));
+        global.append(acl_user->plugin.str, acl_user->plugin.length);
+        if (acl_user->auth_string.length)
+        {
+          global.append(STRING_WITH_LEN(" USING '"));
+          global.append(acl_user->auth_string.str, acl_user->auth_string.length);
+          global.append('\'');
+        }
     }
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
@@ -6843,6 +6892,7 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 #define initialized 0
 #define decrease_user_connections(X)        /* nothing */
 #define check_for_max_user_connections(X,Y)   0
+#define get_or_create_user_conn(A,B,C,D) 0
 #endif
 #endif
 #ifndef HAVE_OPENSSL
@@ -7823,15 +7873,15 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
   bool unlock_plugin= false;
   plugin_ref plugin;
 
+#ifdef EMBEDDED_LIBRARY
+  plugin= native_password_plugin;
+#else
   if (auth_plugin_name->str == native_password_plugin_name.str)
     plugin= native_password_plugin;
-  else
-#ifndef EMBEDDED_LIBRARY
-  if (auth_plugin_name->str == old_password_plugin_name.str)
+  else if (auth_plugin_name->str == old_password_plugin_name.str)
     plugin= old_password_plugin;
-  else
-  if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
-                                      MYSQL_AUTHENTICATION_PLUGIN)))
+  else if ((plugin= my_plugin_lock_by_name(thd, auth_plugin_name,
+                                           MYSQL_AUTHENTICATION_PLUGIN)))
     unlock_plugin= true;
 #endif
 
@@ -8254,3 +8304,35 @@ mysql_declare_plugin(mysql_password)
 }
 mysql_declare_plugin_end;
 
+maria_declare_plugin(mysql_password)
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &native_password_handler,                     /* type descriptor  */
+  native_password_plugin_name.str,              /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Native MySQL authentication",                /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "1.0",                                        /* String version   */
+  MariaDB_PLUGIN_MATURITY_BETA                  /* Maturity         */
+},
+{
+  MYSQL_AUTHENTICATION_PLUGIN,                  /* type constant    */
+  &old_password_handler,                        /* type descriptor  */
+  old_password_plugin_name.str,                 /* Name             */
+  "R.J.Silk, Sergei Golubchik",                 /* Author           */
+  "Old MySQL-4.0 authentication",               /* Description      */
+  PLUGIN_LICENSE_GPL,                           /* License          */
+  NULL,                                         /* Init function    */
+  NULL,                                         /* Deinit function  */
+  0x0100,                                       /* Version (1.0)    */
+  NULL,                                         /* status variables */
+  NULL,                                         /* system variables */
+  "1.0",                                        /* String version   */
+  MariaDB_PLUGIN_MATURITY_BETA                  /* Maturity         */
+}
+maria_declare_plugin_end;

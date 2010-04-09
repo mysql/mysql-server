@@ -1623,7 +1623,7 @@ int xt_create_table_frm(handlerton *hton, THD* thd, const char *db, const char *
 #endif
 		       NULL /*default_value*/, NULL /*on_update_value*/, &comment, NULL /*change*/, 
 		       NULL /*interval_list*/, info->field_charset, 0 /*uint_geom_type*/, 
-		       NULL /*vcol_info*/)) 
+		       NULL /*vcol_info*/, NULL /* create options */))
 #endif
 			goto error;
 

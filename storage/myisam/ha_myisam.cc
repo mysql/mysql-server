@@ -2174,6 +2174,23 @@ mysql_declare_plugin(myisam)
   NULL                        /* config options                  */
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(myisam)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &myisam_storage_engine,
+  "MyISAM",
+  "MySQL AB",
+  "Default engine as of MySQL 3.23 with great performance",
+  PLUGIN_LICENSE_GPL,
+  myisam_init, /* Plugin Init */
+  NULL, /* Plugin Deinit */
+  0x0100, /* 1.0 */
+  NULL,                       /* status variables                */
+  NULL,                       /* system variables                */
+  "1.0",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+}
+maria_declare_plugin_end;
 
 
 #ifdef HAVE_QUERY_CACHE

@@ -57,7 +57,10 @@ typedef struct st_mysql_xid MYSQL_XID;
   Plugin API. Common for all plugin types.
 */
 
+/* MySQL plugin interface version */
 #define MYSQL_PLUGIN_INTERFACE_VERSION 0x0101
+/* MariaDB plugin interface version */
+#define MARIA_PLUGIN_INTERFACE_VERSION 0x0100
 
 /*
   The allowable types of plugins
@@ -81,6 +84,14 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define PLUGIN_LICENSE_GPL_STRING "GPL"
 #define PLUGIN_LICENSE_BSD_STRING "BSD"
 
+/* definitions of code maturity for plugins */
+#define MariaDB_PLUGIN_MATURITY_UNKNOWN 0
+#define MariaDB_PLUGIN_MATURITY_EXPERIMENTAL 1
+#define MariaDB_PLUGIN_MATURITY_ALPHA 2
+#define MariaDB_PLUGIN_MATURITY_BETA 3
+#define MariaDB_PLUGIN_MATURITY_GAMMA 4
+#define MariaDB_PLUGIN_MATURITY_STABLE 5
+
 /*
   Macros for beginning and ending plugin declarations.  Between
   mysql_declare_plugin and mysql_declare_plugin_end there should
@@ -93,11 +104,24 @@ typedef struct st_mysql_xid MYSQL_XID;
 int VERSION= MYSQL_PLUGIN_INTERFACE_VERSION;                                  \
 int PSIZE= sizeof(struct st_mysql_plugin);                                    \
 struct st_mysql_plugin DECLS[]= {
+
+#define MARIA_DECLARE_PLUGIN__(NAME, VERSION, PSIZE, DECLS)                    \
+int VERSION= MARIA_PLUGIN_INTERFACE_VERSION;                                   \
+int PSIZE= sizeof(struct st_maria_plugin);                                     \
+struct st_maria_plugin DECLS[]= {
+
 #else
+
 #define __MYSQL_DECLARE_PLUGIN(NAME, VERSION, PSIZE, DECLS)                   \
 MYSQL_PLUGIN_EXPORT int _mysql_plugin_interface_version_= MYSQL_PLUGIN_INTERFACE_VERSION;         \
 MYSQL_PLUGIN_EXPORT int _mysql_sizeof_struct_st_plugin_= sizeof(struct st_mysql_plugin);          \
 MYSQL_PLUGIN_EXPORT struct st_mysql_plugin _mysql_plugin_declarations_[]= {
+
+#define MARIA_DECLARE_PLUGIN__(NAME, VERSION, PSIZE, DECLS)                \
+MYSQL_PLUGIN_EXPORT int _maria_plugin_interface_version_= MARIA_PLUGIN_INTERFACE_VERSION;   \
+MYSQL_PLUGIN_EXPORT int _maria_sizeof_struct_st_plugin_= sizeof(struct st_maria_plugin);    \
+MYSQL_PLUGIN_EXPORT struct st_maria_plugin _maria_plugin_declarations_[]= {
+
 #endif
 
 #define mysql_declare_plugin(NAME) \
@@ -106,7 +130,14 @@ __MYSQL_DECLARE_PLUGIN(NAME, \
                  builtin_ ## NAME ## _sizeof_struct_st_plugin, \
                  builtin_ ## NAME ## _plugin)
 
+#define maria_declare_plugin(NAME) \
+MARIA_DECLARE_PLUGIN__(NAME, \
+                 builtin_maria_ ## NAME ## _plugin_interface_version, \
+                 builtin_maria_ ## NAME ## _sizeof_struct_st_plugin, \
+                 builtin_maria_ ## NAME ## _plugin)
+
 #define mysql_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0}}
+#define maria_declare_plugin_end ,{0,0,0,0,0,0,0,0,0,0,0,0,0}}
 
 /*
   declarations for SHOW STATUS support in plugins
@@ -401,6 +432,30 @@ struct st_mysql_plugin
   struct st_mysql_show_var *status_vars;
   struct st_mysql_sys_var **system_vars;
   void * __reserved1;   /* reserved for dependency checking             */
+};
+
+/*
+  MariaDB extension for plugins declaration structure.
+
+  It also copy current MySQL plugin fields to have more independency
+  in plugins extension
+*/
+
+struct st_maria_plugin
+{
+  int type;             /* the plugin type (a MYSQL_XXX_PLUGIN value)   */
+  void *info;           /* pointer to type-specific plugin descriptor   */
+  const char *name;     /* plugin name                                  */
+  const char *author;   /* plugin author (for SHOW PLUGINS)             */
+  const char *descr;    /* general descriptive text (for SHOW PLUGINS ) */
+  int license;          /* the plugin license (PLUGIN_LICENSE_XXX)      */
+  int (*init)(void *);  /* the function to invoke when plugin is loaded */
+  int (*deinit)(void *);/* the function to invoke when plugin is unloaded */
+  unsigned int version; /* plugin version (for SHOW PLUGINS)            */
+  struct st_mysql_show_var *status_vars;
+  struct st_mysql_sys_var **system_vars;
+  const char *version_info;  /* plugin version string */
+  int maturity;              /* MariaDB_PLUGIN_MATURITY_XXX */
 };
 
 /*************************************************************************

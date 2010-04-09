@@ -1749,6 +1749,11 @@ typedef struct st_lex : public Query_tables_list
   const char *stmt_definition_end;
 
   /**
+    Collects create options for Field and KEY
+  */
+  engine_option_value *option_list, *option_list_last;
+
+  /**
     During name resolution search only in the table list given by 
     Name_resolution_context::first_name_resolution_table and
     Name_resolution_context::last_name_resolution_table

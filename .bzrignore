@@ -1934,3 +1934,4 @@ client/sql_list.h
 libmysqld/client_plugin.c
 sql/client_plugin.c
 *.dgcov
+libmysqld/create_options.cc

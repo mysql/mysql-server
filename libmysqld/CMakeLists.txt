@@ -104,7 +104,7 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql-common/client.c ../sql-common/my_time.c 
            ../sql-common/my_user.c ../sql-common/pack.c
            ../sql/password.c ../sql/discover.cc ../sql/derror.cc 
-           ../sql/field.cc ../sql/field_conv.cc
+           ../sql/field.cc ../sql/field_conv.cc ../sql-common/client_plugin.c
            ../sql/filesort.cc ../sql/gstream.cc ../sql/ha_partition.cc 
            ../sql/handler.cc ../sql/hash_filo.cc ../sql/hostname.cc 
            ../sql/init.cc ../sql/item_buff.cc ../sql/item_cmpfunc.cc 
@@ -139,7 +139,8 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/strfunc.cc ../sql/table.cc ../sql/thr_malloc.cc
            ../sql/time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
-           ../sql/scheduler.cc ../sql/event_parse_data.cc
+           ../sql/scheduler.cc ../sql/event_parse_data.cc 
+	   ../sql/create_options.cc
            ${GEN_SOURCES}
            ${LIB_SOURCES})
 

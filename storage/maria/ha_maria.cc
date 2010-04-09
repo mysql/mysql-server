@@ -3471,9 +3471,26 @@ mysql_declare_plugin(maria)
   PLUGIN_LICENSE_GPL,
   ha_maria_init,              /* Plugin Init                     */
   NULL,                       /* Plugin Deinit                   */
-  0x0100,                     /* 1.0                             */
+  0x0105,                     /* 1.5                             */
   status_variables,           /* status variables                */
   system_variables,           /* system variables                */
   NULL
 }
 mysql_declare_plugin_end;
+maria_declare_plugin(maria)
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &maria_storage_engine,
+  "MARIA",
+  "MySQL AB",
+  "Crash-safe tables with MyISAM heritage",
+  PLUGIN_LICENSE_GPL,
+  ha_maria_init,              /* Plugin Init                     */
+  NULL,                       /* Plugin Deinit                   */
+  0x0105,                     /* 1.5                             */
+  status_variables,           /* status variables                */
+  system_variables,           /* system variables                */
+  "1.5",                      /* string version */
+  MariaDB_PLUGIN_MATURITY_GAMMA /* maturity */
+}
+maria_declare_plugin_end;

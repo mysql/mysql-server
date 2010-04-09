@@ -106,6 +106,7 @@ Key::Key(const Key &rhs, MEM_ROOT *mem_root)
   key_create_info(rhs.key_create_info),
   columns(rhs.columns, mem_root),
   name(rhs.name),
+  option_list(rhs.option_list),
   generated(rhs.generated)
 {
   list_copy_and_replace_each_value(columns, mem_root);
@@ -775,6 +776,7 @@ THD::THD()
 
 void THD::push_internal_handler(Internal_error_handler *handler)
 {
+  DBUG_ENTER("THD::push_internal_handler");
   if (m_internal_handler)
   {
     handler->m_prev_internal_handler= m_internal_handler;
@@ -784,6 +786,7 @@ void THD::push_internal_handler(Internal_error_handler *handler)
   {
     m_internal_handler= handler;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -803,8 +806,10 @@ bool THD::handle_error(uint sql_errno, const char *message,
 
 void THD::pop_internal_handler()
 {
+  DBUG_ENTER("THD::pop_internal_handler");
   DBUG_ASSERT(m_internal_handler != NULL);
   m_internal_handler= m_internal_handler->m_prev_internal_handler;
+  DBUG_VOID_RETURN;
 }
 
 extern "C"
@@ -924,7 +929,7 @@ void THD::update_stats(void)
     /* A SQL query. */
     if (lex->sql_command == SQLCOM_SELECT)
       select_commands++;
-    else if (! sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
+    else if (sql_command_flags[lex->sql_command] & CF_STATUS_COMMAND)
     {
       /* Ignore 'SHOW ' commands */
     }

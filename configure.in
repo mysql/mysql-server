@@ -12,7 +12,7 @@ AC_PREREQ(2.59)
 # MySQL version number.
 #
 # Note: the following line must be parseable by win/configure.js:GetVersion()
-AC_INIT([MariaDB Server], [5.2.0-MariaDB-alpha], [], [mysql])
+AC_INIT([MariaDB Server], [5.2.0-MariaDB-beta], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 # USTAR format gives us the possibility to store longer path names in
@@ -2872,7 +2872,7 @@ AC_SUBST(server_scripts)
 
 AC_SUBST(mysql_plugin_dirs)
 AC_SUBST(mysql_plugin_libs)
-AC_SUBST(mysql_plugin_defs)
+AC_SUBST(maria_plugin_defs)
 
 
 # Now that sql_client_dirs and sql_server_dirs are stable, determine the union.

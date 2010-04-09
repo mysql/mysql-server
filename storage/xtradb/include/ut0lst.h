@@ -158,7 +158,7 @@ Inserts a NODE2 after NODE1 in a list.
 /** Invalidate the pointers in a list node.
 @param NAME	list name
 @param N	pointer to the node that was removed */
-# define UT_LIST_REMOVE_CLEAR(NAME, N) {} while (0)
+# define UT_LIST_REMOVE_CLEAR(NAME, N) do {} while (0)
 #endif
 
 /*******************************************************************//**

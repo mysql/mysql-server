@@ -2345,7 +2345,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
   case VIO_TYPE_SSL:
     {
       struct sockaddr addr;
-      socklen_t addrlen= sizeof(addr);
+      SOCKET_SIZE_TYPE addrlen= sizeof(addr);
       if (getsockname(vio->sd, &addr, &addrlen))
         return;
       info->protocol= addr.sa_family == AF_UNIX ?
@@ -2360,7 +2360,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
     return;
   case VIO_TYPE_SHARED_MEMORY:
     info->protocol= MYSQL_VIO_MEMORY;
-    info->handle= vio->handle_client_file_map; /* or what ? */
+    info->handle= vio->handle_file_map; /* or what ? */
     return;
 #endif
   default: DBUG_ASSERT(0);
@@ -2394,7 +2394,7 @@ static void client_mpvio_info(MYSQL_PLUGIN_VIO *vio,
 */
 
 int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
-                    char *data_plugin, const char *db)
+                    const char *data_plugin, const char *db)
 {
   const char    *auth_plugin_name;
   auth_plugin_t *auth_plugin;
@@ -2540,7 +2540,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   char		buff[NAME_LEN+USERNAME_LENGTH+100];
   int           scramble_data_len, pkt_scramble_len;
   char          *end, *host_info=0, *server_version_end, *pkt_end;
-  char          *scramble_data, *scramble_plugin;
+  char          *scramble_data;
+  const char    *scramble_plugin;
   my_socket	sock;
   in_addr_t	ip_addr;
   struct	sockaddr_in sock_addr;

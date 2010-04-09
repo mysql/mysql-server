@@ -1102,7 +1102,7 @@ static int myisamchk(HA_CHECK *param, char * filename)
       {
 	if (param->testflag & (T_EXTEND | T_MEDIUM))
 	  VOID(init_key_cache(dflt_key_cache,opt_key_cache_block_size,
-                              (size_t) param->use_buffers, 0, 0));
+                              (size_t) param->use_buffers, 0, 0, 0));
 	VOID(init_io_cache(&param->read_cache,datafile,
 			   (uint) param->read_buffer_length,
 			   READ_CACHE,
@@ -1116,7 +1116,8 @@ static int myisamchk(HA_CHECK *param, char * filename)
 				 HA_OPTION_COMPRESS_RECORD)) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
 	  error|=chk_data_link(param, info, test(param->testflag & T_EXTEND));
-	error|=flush_blocks(param, share->key_cache, share->kfile);
+	error|=flush_blocks(param, share->key_cache, share->kfile,
+                            &share->dirty_part_map);
 	VOID(end_io_cache(&param->read_cache));
       }
       if (!error)
@@ -1526,7 +1527,7 @@ static int mi_sort_records(HA_CHECK *param,
     DBUG_RETURN(0);				/* Nothing to do */
 
   init_key_cache(dflt_key_cache, opt_key_cache_block_size,
-                 (size_t) param->use_buffers, 0, 0);
+                 (size_t) param->use_buffers, 0, 0, 0);
   if (init_io_cache(&info->rec_cache,-1,(uint) param->write_buffer_length,
 		   WRITE_CACHE,share->pack.header_length,1,
 		   MYF(MY_WME | MY_WAIT_IF_FULL)))
@@ -1641,8 +1642,8 @@ err:
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   sort_info.buff=0;
   share->state.sortkey=sort_key;
-  DBUG_RETURN(flush_blocks(param, share->key_cache, share->kfile) |
-	      got_error);
+  DBUG_RETURN(flush_blocks(param, share->key_cache, share->kfile,
+                           &share->dirty_part_map) | got_error);
 } /* sort_records */
 
 

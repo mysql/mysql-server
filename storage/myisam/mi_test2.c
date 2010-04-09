@@ -215,7 +215,8 @@ int main(int argc, char *argv[])
   if (!silent)
     printf("- Writing key:s\n");
   if (key_cacheing)
-    init_key_cache(dflt_key_cache,key_cache_block_size,key_cache_size,0,0);
+    init_key_cache(dflt_key_cache,key_cache_block_size,key_cache_size,0,0,
+                   DEFAULT_KEY_CACHE_PARTITIONS);
   if (do_locking)
     mi_lock_database(file,F_WRLCK);
   if (write_cacheing)
