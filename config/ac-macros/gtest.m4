@@ -108,7 +108,9 @@ AC_DEFUN([MYSQL_CHECK_GTEST_CONFIG], [
   else
     dnl If a path is supplied, it must exist.
     if test "x$with_gtest" != xcheck; then
-      GTEST_CONFIG_PATH="${with_gtest}/bin/"
+      GTEST_CONFIG_PATH="${with_gtest}/bin"
+    elif test "x$GTEST_PREFIX" != x; then
+      GTEST_CONFIG_PATH="${GTEST_PREFIX}/bin"
     else
       GTEST_CONFIG_PATH=$PATH
     fi
