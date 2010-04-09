@@ -188,15 +188,21 @@ SUPPRESSIONS=no
 
 #Tools
 VALGRIND=valgrind
-VGRIND=$(VALGRIND) --quiet --error-exitcode=1 --leak-check=full --show-reachable=yes \
+VGRIND_BASE=$(VALGRIND) --quiet --error-exitcode=1 \
        --suppressions=$(TOKUROOT)newbrt/valgrind.suppressions \
        --suppressions=$(TOKUROOT)src/tests/bdb.suppressions \
        --gen-suppressions=$(SUPPRESSIONS) --num-callers=20
 ifeq ($(DB_ATTACH),1)
-	VGRIND+=--db-attach=yes
+	VGRIND_BASE+=--db-attach=yes
 endif
 ifeq ($(TRACK_ORIGINS),1)
-	VGRIND+=--track-origins=yes
+	VGRIND_BASE+=--track-origins=yes
+endif
+VGRIND=$(VGRIND_BASE) --leak-check=full --show-reachable=yes 
+ifeq ($(VGRIND),)
+VGRIND_NOMEM=
+else
+VGRIND_NOMEM=$(VGRIND_BASE)
 endif
 
 HGRIND=valgrind --quiet --tool=helgrind --error-exitcode=1
