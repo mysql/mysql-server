@@ -2,7 +2,7 @@
 # It is reproducible with InnoDB plugin 1.0.4 + MySQL 5.1.37.
 # But no longer reproducible after MySQL 5.1.38 (with plugin 1.0.5).
 
---source include/have_innodb.inc
+-- source include/have_innodb_plugin.inc
 
 SET foreign_key_checks=0;
 CREATE TABLE t1 (id int, foreign key (id) references t2(id)) ENGINE=INNODB;

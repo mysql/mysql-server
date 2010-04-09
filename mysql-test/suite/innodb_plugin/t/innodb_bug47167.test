@@ -3,7 +3,7 @@
 # "innodb_file_format_check" with a
 # user-Defined Variable.
 
---source include/have_innodb.inc
+-- source include/have_innodb_plugin.inc
 
 # Save the value (Antelope) in 'innodb_file_format_check' to
 # 'old_innodb_file_format_check'
