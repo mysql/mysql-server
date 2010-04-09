@@ -614,6 +614,7 @@ THD::THD()
 #if defined(ENABLED_DEBUG_SYNC)
    , debug_sync_control(0)
 #endif /* defined(ENABLED_DEBUG_SYNC) */
+   , teardown_done(false)
 {
   ulong tmp;
 
@@ -978,6 +979,18 @@ void THD::cleanup(void)
 }
 
 
+void THD::teardown(void)
+{
+  DBUG_ENTER("THD::teardown");
+  DBUG_ASSERT(cleanup_done);
+
+  ha_close_connection(this);
+
+  teardown_done= true;
+  DBUG_VOID_RETURN;
+}
+
+
 THD::~THD()
 {
   THD_CHECK_SENTRY(this);
@@ -1000,7 +1013,9 @@ THD::~THD()
   if (!cleanup_done)
     cleanup();
 
-  ha_close_connection(this);
+  if (!teardown_done)
+    teardown();
+
   plugin_thdvar_cleanup(this);
 
   DBUG_PRINT("info", ("freeing security context"));
