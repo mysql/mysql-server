@@ -10,7 +10,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with this program; see the file COPYING. If not, write to the
+# along with this program; see the file COPYING.  If not, write to the
 # Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston
 # MA  02110-1301  USA.
 
@@ -20,119 +20,177 @@
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
-%define mysql_old_vendor	MySQL AB
-%define mysql_vendor_2		Sun Microsystems, Inc.
-%define mysql_vendor		Oracle and/or its affiliates
+%define mysql_old_vendor  MySQL AB
+%define mysql_vendor_2    Sun Microsystems, Inc.
+%define mysql_vendor      Oracle and/or its affiliates
 
-%define mysql_version @VERSION@
+%define mysql_license     GPL
+%define mysql_version     @VERSION@
 
-%define mysqld_user    mysql
-%define mysqld_group   mysql
-%define mysqldatadir   /var/lib/mysql
-%define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
+%define mysqld_user       mysql
+%define mysqld_group      mysql
+%define mysqldatadir      /var/lib/mysql
 
-# ------------------------------------------------------------------------------
-# On SuSE 9 no separate "debuginfo" package is built. To enable basic
-# debugging on that platform, we don't strip binaries on SuSE 9. We
-# disable the strip of binaries by redefining the RPM macro
-# "__os_install_post" leaving out the script calls that normally does
-# this. We do this in all cases, as on platforms where "debuginfo" is
-# created, a script "find-debuginfo.sh" will be called that will do
-# the strip anyway, part of separating the executable and debug
-# information into separate files put into separate packages.
-#
-# Some references (shows more advanced conditional usage):
-# http://www.redhat.com/archives/rpm-list/2001-November/msg00257.html
-# http://www.redhat.com/archives/rpm-list/2003-February/msg00275.html
-# http://www.redhat.com/archives/rhl-devel-list/2004-January/msg01546.html
-# http://lists.opensuse.org/archive/opensuse-commit/2006-May/1171.html
-# ------------------------------------------------------------------------------
-%define __os_install_post /usr/lib/rpm/brp-compress
+%define release           1
 
-# ------------------------------------------------------------------------------
-# RPM build tools now automatically detects Perl module dependencies. This
-# detection gives problems as it is broken in some versions, and it also
-# give unwanted dependencies from mandatory scripts in our package.
-# Might not be possible to disable in all RPM tool versions, but here we
-# try. We keep the "AutoReqProv: no" for the "test" sub package, as disabling
-# here might fail, and that package has the most problems.
-# See http://fedoraproject.org/wiki/Packaging/Perl#Filtering_Requires:_and_Provides
-#     http://www.wideopen.com/archives/rpm-list/2002-October/msg00343.html
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# RPM build tools now automatically detect Perl module dependencies.  This
+# detection causes problems as it is broken in some versions, and it also
+# provides unwanted dependencies from mandatory scripts in our package.
+# It might not be possible to disable this in all versions of RPM, but here we
+# try anyway.  We keep the "AutoReqProv: no" for the "test" sub package, as
+# disabling here might fail, and that package has the most problems.
+# See:
+#  http://fedoraproject.org/wiki/Packaging/Perl#Filtering_Requires:_and_Provides
+#  http://www.wideopen.com/archives/rpm-list/2002-October/msg00343.html
+# ----------------------------------------------------------------------------
 %undefine __perl_provides
 %undefine __perl_requires
 
 ##############################################################################
 # Command line handling
 ##############################################################################
+#
+# To enable the following options:
+#
+#   $ rpmbuild --with <option>                  # RPM 4.x+
+#   $ rpmbuild --define '_with_<option> 1'      # RPM 3.x
+#
+# To disable:
+#
+#   $ rpmbuild --without <option>               # RPM 4.x+
+#   $ rpmbuild --define '_without_<option> 1'   # RPM 3.x
 
-# ----------------------------------------------------------------------
-# use "rpmbuild --with yassl" or "rpm --define '_with_yassl 1'" (for RPM 3.x)
-# to build with yaSSL support (off by default)
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# Commercial builds
+# ----------------------------------------------------------------------------
+%if %{undefined commercial}
+%define commercial 0
+%endif
+
+# ----------------------------------------------------------------------------
+# Source name
+# ----------------------------------------------------------------------------
+%if %{undefined src_base}
+%define src_base mysql
+%endif
+%define src_dir  %{src_base}-%{mysql_version}
+
+# ----------------------------------------------------------------------------
+# Feature set (storage engines, options).  Default to community (everything)
+# ----------------------------------------------------------------------------
+%if %{undefined feature_set}
+%define feature_set community
+%endif
+
+# ----------------------------------------------------------------------------
+# Server comment strings
+# ----------------------------------------------------------------------------
+%if %{undefined server_comment_debug}
+%define server_comment_debug    MySQL Community Server - Debug (GPL)
+%endif
+%if %{undefined server_comment_release}
+%define server_comment_release  MySQL Community Server (GPL)
+%endif
+
+# ----------------------------------------------------------------------------
+# Distribution support
+# ----------------------------------------------------------------------------
+#
+%if "%{distribution}" == "rhel4"
+%define distro_description      Red Hat Enterprise Linux 4
+%define distro_releasetag       rhel4
+%define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+%define distro_requires         chkconfig coreutils grep procps shadow-utils
+%endif
+%if "%{distribution}" == "rhel5"
+%define distro_description      Red Hat Enterprise Linux 5
+%define distro_releasetag       rhel5
+%define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+%define distro_requires         chkconfig coreutils grep procps shadow-utils
+%endif
+%if "%{distribution}" == "sles10"
+%define distro_description      SUSE Linux Enterprise Server 10
+%define distro_releasetag       sles10
+%define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+%define distro_requires         aaa_base coreutils grep procps pwdutils
+%endif
+%if "%{distribution}" == "sles11"
+%define distro_description      SUSE Linux Enterprise Server 11
+%define distro_releasetag       sles11
+%define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+%define distro_requires         aaa_base coreutils grep procps pwdutils
+%endif
+%if "%{distribution}" == "glibc23"
+%define distro_description      Generic Linux (glibc version 2.3)
+%define distro_releasetag       glibc23
+%define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+%define distro_requires         coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
+%endif
+#
+# Untested default if distribution is unspecified or not supported
+#
+%if %{undefined distro_description}
+%define distro_description      Generic Linux
+# leave distro_releasetag empty
+%define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+%define distro_requires         coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
+%endif
+
+# ----------------------------------------------------------------------------
+# Build with yaSSL support (off by default)
+# ----------------------------------------------------------------------------
 %{?_with_yassl:%define YASSL_BUILD 1}
 %{!?_with_yassl:%define YASSL_BUILD 0}
 
+# ----------------------------------------------------------------------------
+# Build using the bundled zlib (on by default)
 # ----------------------------------------------------------------------
-# use "rpmbuild --without bundled_zlib" or "rpm --define '_without_bundled_zlib 1'"
-# (for RPM 3.x) to not build using the bundled zlib (on by default)
-# ----------------------------------------------------------------------
-%{!?_with_bundled_zlib: %{!?_without_bundled_zlib: %define WITH_BUNDLED_ZLIB 1}}
+%{!?_with_bundled_zlib:%{!?_without_bundled_zlib:%define WITH_BUNDLED_ZLIB 1}}
 %{?_with_bundled_zlib:%define WITH_BUNDLED_ZLIB 1}
 %{?_without_bundled_zlib:%define WITH_BUNDLED_ZLIB 0}
 
-# ----------------------------------------------------------------------
-# support optional "tcmalloc" stuff (experimental)
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# Support optional "tcmalloc" library (experimental)
+# ----------------------------------------------------------------------------
 %{?malloc_lib_target:%define WITH_TCMALLOC 1}
 %{!?malloc_lib_target:%define WITH_TCMALLOC 0}
 
-# ----------------------------------------------------------------------
-# use "rpmbuild --with cluster" or "rpm --define '_with_cluster 1'" (for RPM 3.x)
-# to build with cluster support (off by default)
-# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# Build with cluster support (off by default)
+# ----------------------------------------------------------------------------
 %{?_with_cluster:%define CLUSTER_BUILD 1}
 %{!?_with_cluster:%define CLUSTER_BUILD 0}
 
 ##############################################################################
-# Product definitions - set for a "community" package
+# Configuration based upon above user input, not to be set directly
 ##############################################################################
 
-%define server_suffix  -community
-%define package_suffix -community
-%define ndbug_comment MySQL Community Server (GPL)
-%define debug_comment MySQL Community Server - Debug (GPL)
-%define commercial 0
-%define EMBEDDED_BUILD 1
-%define PARTITION_BUILD 1
-# Default for CLUSTER_BUILD is "0", but command line option may override it
-%define COMMUNITY_BUILD 1
-%define INNODB_BUILD 1
-%define NORMAL_TEST_MODE test-bt
-%define DEBUG_TEST_MODE test-bt-debug
-
-%define release 1.glibc23
-
-%define mysql_license GPL
-%define src_dir mysql-%{mysql_version}
+%if %{commercial}
+%define license_files   %{src_dir}/LICENSE.mysql
+%define license_type    Commercial
+%else
+%define license_files   %{src_dir}/COPYING %{src_dir}/README
+%define license_type    %{mysql_license}
+%endif
 
 ##############################################################################
 # Main spec file section
 ##############################################################################
 
-Name:		MySQL
-Summary:	MySQL: a very fast and reliable SQL database server
-Group:		Applications/Databases
-Version:	@MYSQL_U_SCORE_VERSION@
-Release:	%{release}
-License:	Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
-Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
-URL:		http://www.mysql.com/
-Packager:	MySQL Build Team <build@mysql.com>
-Vendor:		%{mysql_vendor}
-Provides:	msqlormysql MySQL-server mysql
-BuildRequires: ncurses-devel
-Obsoletes:	mysql
+Name:           MySQL%{server_suffix}
+Summary:        MySQL: a very fast and reliable SQL database server
+Group:          Applications/Databases
+Version:        @MYSQL_U_SCORE_VERSION@
+Release:        %{release}%{?distro_releasetag:.%{distro_releasetag}}
+Distribution:   %{distro_description}
+License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
+Source:         http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
+URL:            http://www.mysql.com/
+Packager:       MySQL Build Team <build@mysql.com>
+Vendor:         %{mysql_vendor}
+Provides:       msqlormysql MySQL-server mysql
+BuildRequires:  %{distro_buildreq}
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -146,11 +204,12 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 %{mysql_vendor}
 
-Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved.
-Use is subject to license terms.
-
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,
-and you are welcome to modify and redistribute it under the GPL license.
+The MySQL software has Dual Licensing, which means you can use the MySQL
+software free of charge under the GNU General Public License
+(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
+the GPL. See the chapter "Licensing and Support" in the manual for
+further info.
 
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
@@ -160,166 +219,149 @@ documentation and the manual for more information.
 # Sub package definition
 ##############################################################################
 
-%package server
-Summary:	MySQL: a very fast and reliable SQL database server
-Group:		Applications/Databases
-Requires: coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
-Provides:	msqlormysql mysql-server mysql MySQL
-Obsoletes:	MySQL mysql mysql-server
+%package -n MySQL-server%{server_suffix}
+Summary:        MySQL: a very fast and reliable SQL database server
+Group:          Applications/Databases
+Requires:       %{distro_requires}
+Provides:       msqlormysql mysql-server mysql MySQL MySQL-server
+Obsoletes:      MySQL mysql mysql-server MySQL-server
 
-%description server
+%description -n MySQL-server%{server_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 %{mysql_vendor}
 
-Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved.
-Use is subject to license terms.
+The MySQL software has Dual Licensing, which means you can use the MySQL
+software free of charge under the GNU General Public License
+(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
+the GPL. See the chapter "Licensing and Support" in the manual for
+further info.
 
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,
-and you are welcome to modify and redistribute it under the GPL license.
+The MySQL web site (http://www.mysql.com/) provides the latest news and 
+information about the MySQL software.  Also please see the documentation
+and the manual for more information.
 
-The MySQL web site (http://www.mysql.com/) provides the latest
-news and information about the MySQL software. Also please see the
-documentation and the manual for more information.
-
-This package includes the MySQL server binary
-%if %{INNODB_BUILD}
-(configured including InnoDB)
-%endif
-as well as related utilities to run and administer a MySQL server.
+This package includes the MySQL server binary as well as related utilities
+to run and administer a MySQL server.
 
 If you want to access and work with the database, you have to install
-package "MySQL-client" as well!
+package "MySQL-client%{server_suffix}" as well!
 
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+%package -n MySQL-client%{server_suffix}
+Summary:        MySQL - Client
+Group:          Applications/Databases
+Obsoletes:      mysql-client MySQL-client
+Provides:       mysql-client MySQL-client
 
-%package client
-Summary: MySQL - Client
-Group: Applications/Databases
-Obsoletes: mysql-client
-Provides: mysql-client
-
-%description client
+%description -n MySQL-client%{server_suffix}
 This package contains the standard MySQL clients and administration tools.
 
-%{see_base}
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
-# ------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------
 %if %{CLUSTER_BUILD}
 %package ndb-storage
-Summary:	MySQL - ndbcluster storage engine
-Group:		Applications/Databases
+Summary:        MySQL - ndbcluster storage engine
+Group:          Applications/Databases
+Obsoletes:      ndb-storage
+Provides:       ndb-storage
 
 %description ndb-storage
 This package contains the ndbcluster storage engine.
 It is necessary to have this package installed on all
 computers that should store ndbcluster table data.
 
-%{see_base}
-
-# ------------------------------------------------------------------------------
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 %package ndb-management
-Summary:	MySQL - ndbcluster storage engine management
-Group:		Applications/Databases
+Summary:        MySQL - ndbcluster storage engine management
+Group:          Applications/Databases
 
 %description ndb-management
 This package contains ndbcluster storage engine management.
 It is necessary to have this package installed on at least
 one computer in the cluster.
 
-%{see_base}
-
-# ------------------------------------------------------------------------------
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 %package ndb-tools
-Summary:	MySQL - ndbcluster storage engine basic tools
-Group:		Applications/Databases
+Summary:        MySQL - ndbcluster storage engine basic tools
+Group:          Applications/Databases
 
 %description ndb-tools
 This package contains ndbcluster storage engine basic tools.
 
-%{see_base}
-
-# ------------------------------------------------------------------------------
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 %package ndb-extra
-Summary:	MySQL - ndbcluster storage engine extra tools
-Group:		Applications/Databases
+Summary:        MySQL - ndbcluster storage engine extra tools
+Group:          Applications/Databases
 
 %description ndb-extra
-This package contains some extra ndbcluster storage engine tools for the advanced user.
-They should be used with caution.
+This package contains some extra ndbcluster storage engine tools for the
+advanced user. They should be used with caution.
 
-%{see_base}
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 %endif
 
-# ------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------
 %package test
-Requires: %{name}-client perl
-Summary: MySQL - Test suite
-Group: Applications/Databases
-Provides: mysql-test
-Obsoletes: mysql-bench mysql-test
-AutoReqProv: no
+Requires:       %{name}-client perl
+Summary:        MySQL - Test suite
+Group:          Applications/Databases
+Provides:       mysql-test
+Obsoletes:      mysql-bench mysql-test
+AutoReqProv:    no
 
 %description test
 This package contains the MySQL regression test suite.
 
-%{see_base}
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
-# ------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------
 %package devel
-Summary: MySQL - Development header files and libraries
-Group: Applications/Databases
-Provides: mysql-devel
-Obsoletes: mysql-devel
+Summary:        MySQL - Development header files and libraries
+Group:          Applications/Databases
+Provides:       mysql-devel
+Obsoletes:      mysql-devel
 
 %description devel
-This package contains the development header files and libraries
-necessary to develop MySQL client applications.
+This package contains the development header files and libraries necessary
+to develop MySQL client applications.
 
-%{see_base}
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
-# ------------------------------------------------------------------------------
-
+# ----------------------------------------------------------------------------
 %package shared
-Summary: MySQL - Shared libraries
-Group: Applications/Databases
+Summary:        MySQL - Shared libraries
+Group:          Applications/Databases
 
 %description shared
-This package contains the shared libraries (*.so*) which certain
-languages and applications need to dynamically load and use MySQL.
+This package contains the shared libraries (*.so*) which certain languages
+and applications need to dynamically load and use MySQL.
 
-# ------------------------------------------------------------------------------
-
-%if %{EMBEDDED_BUILD}
-
+# ----------------------------------------------------------------------------
 %package embedded
-Requires: %{name}-devel
-Summary: MySQL - embedded library
-Group: Applications/Databases
-Obsoletes: mysql-embedded
+Summary:        MySQL - embedded library
+Group:          Applications/Databases
+Requires:       %{name}-devel
+Obsoletes:      mysql-embedded
 
 %description embedded
 This package contains the MySQL server as an embedded library.
 
-The embedded MySQL server library makes it possible to run a
-full-featured MySQL server inside the client application.
-The main benefits are increased speed and more simple management
-for embedded applications.
+The embedded MySQL server library makes it possible to run a full-featured
+MySQL server inside the client application. The main benefits are increased
+speed and more simple management for embedded applications.
 
 The API is identical for the embedded MySQL version and the
 client/server version.
 
-%{see_base}
-
-%endif
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 ##############################################################################
 %prep
@@ -372,7 +414,11 @@ mkdir debug
   # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
-           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" -DCMAKE_BUILD_TYPE=Debug
+           -DCMAKE_BUILD_TYPE=Debug \
+           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
+           -DFEATURE_SET=%{feature_set} \
+           -DCOMPILATION_COMMENT=%{compilation_comment_debug} \
+           -DMYSQL_SERVER_SUFFIX=%{server_suffix}
   make VERBOSE=1 mysqld mysqlserver
 )
 # Build full release
@@ -382,7 +428,11 @@ mkdir release
   # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
   # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
-           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" -DCMAKE_BUILD_TYPE=RelWithDebInfo
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
+           -DFEATURE_SET=%{feature_set} \
+           -DCOMPILATION_COMMENT=%{compilation_comment_release} \
+           -DMYSQL_SERVER_SUFFIX=%{server_suffix}
   make VERBOSE=1
 )
 
@@ -453,6 +503,9 @@ install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+
+# Auto-detect whether innodb was included
+%define WITH_INNODB %([ -x "$RBR%{_bindir}/innochecksum" ] && echo 1 || echo 0)
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -529,9 +582,9 @@ fi
 
 # Shut down a previously installed server first
 if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-	%{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
-	echo "Giving mysqld 5 seconds to exit nicely"
-	sleep 5
+        %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
+        echo "Giving mysqld 5 seconds to exit nicely"
+        sleep 5
 fi
 
 %post server
@@ -549,10 +602,10 @@ if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 # ----------------------------------------------------------------------
 # use insserv for older SuSE Linux versions
 if [ -x /sbin/insserv ] ; then
-	/sbin/insserv %{_sysconfdir}/init.d/mysql
+        /sbin/insserv %{_sysconfdir}/init.d/mysql
 # use chkconfig on Red Hat and newer SuSE releases
 elif [ -x /sbin/chkconfig ] ; then
-	/sbin/chkconfig --add mysql
+        /sbin/chkconfig --add mysql
 fi
 
 # ----------------------------------------------------------------------
@@ -612,18 +665,18 @@ if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
 
 %preun server
 if [ $1 = 0 ] ; then
-	# Stop MySQL before uninstalling it
-	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-		%{_sysconfdir}/init.d/mysql stop > /dev/null
-		# Remove autostart of MySQL
-		# For older SuSE Linux versions
-		if [ -x /sbin/insserv ] ; then
-			/sbin/insserv -r %{_sysconfdir}/init.d/mysql
-		# use chkconfig on Red Hat and newer SuSE releases
-		elif [ -x /sbin/chkconfig ] ; then
-			/sbin/chkconfig --del mysql
-		fi
-	fi
+        # Stop MySQL before uninstalling it
+        if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+                %{_sysconfdir}/init.d/mysql stop > /dev/null
+                # Remove autostart of MySQL
+                # For older SuSE Linux versions
+                if [ -x /sbin/insserv ] ; then
+                        /sbin/insserv -r %{_sysconfdir}/init.d/mysql
+                # use chkconfig on Red Hat and newer SuSE releases
+                elif [ -x /sbin/chkconfig ] ; then
+                        /sbin/chkconfig --del mysql
+                fi
+        fi
 fi
 
 # We do not remove the mysql user since it may still own a lot of
@@ -642,8 +695,7 @@ fi
 %files server -f optional-server-files
 %defattr(-,root,root,0755)
 
-%doc %{src_dir}/COPYING
-%doc %{src_dir}/README
+%doc %{license_files}
 %doc %{src_dir}/Docs/ChangeLog
 %doc release/support-files/my-*.cnf
 %if %{CLUSTER_BUILD}
@@ -652,7 +704,7 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
-%if %{INNODB_BUILD}
+%if %{WITH_INNODB}
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %endif
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
@@ -684,7 +736,7 @@ fi
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
-%if %{INNODB_BUILD}
+%if %{WITH_INNODB}
 %attr(755, root, root) %{_bindir}/innochecksum
 %endif
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -846,23 +898,19 @@ fi
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
+%attr(755, root, root) %{_bindir}/mysql_client_test_embedded
+%attr(755, root, root) %{_bindir}/mysqltest_embedded
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
-%if %{EMBEDDED_BUILD}
-%attr(755, root, root) %{_bindir}/mysql_client_test_embedded
-%attr(755, root, root) %{_bindir}/mysqltest_embedded
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test_embedded.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
-%endif
 
-%if %{EMBEDDED_BUILD}
 %files embedded
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
-%endif
 
 ##############################################################################
 # The spec file changelog only includes changes made to the spec file
@@ -1475,7 +1523,7 @@ fi
 
 - Reworked the build steps a little bit: the Max binary is supposed
   to include OpenSSL, which cannot be linked statically, thus trying
-	to statically link against a special glibc is futile anyway
+  to statically link against a special glibc is futile anyway
 - because of this, it is not required to make yet another build run
   just to compile the shared libs (saves a lot of time)
 - updated package description of the Max subpackage
@@ -1486,7 +1534,7 @@ fi
 - Updated Packager information
 - Fixed the build options: the regular package is supposed to
   include InnoDB and linked statically, while the Max package
-	should include BDB and SSL support
+  should include BDB and SSL support
 
 * Fri May 03 2002 Lenz Grimmer <lenz@mysql.com>
 
