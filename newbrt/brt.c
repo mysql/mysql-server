@@ -2658,7 +2658,7 @@ txn_note_doing_work(TOKUTXN txn) {
 
 
 int
-toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log) {
+toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn) {
     int r = 0;
     assert(txn);
     toku_txn_force_fsync_on_commit(txn);  //If the txn commits, the commit MUST be in the log
@@ -2673,18 +2673,18 @@ toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_ina
     r = toku_logger_save_rollback_load(txn, old_iname_bs, new_iname_bs);
     if (r==0 && do_log && logger) {
         TXNID xid = toku_txn_get_txnid(txn);
-        r = toku_log_load(logger, (LSN*)NULL, do_fsync, xid, old_iname_bs, new_iname_bs);
+        r = toku_log_load(logger, load_lsn, do_fsync, xid, old_iname_bs, new_iname_bs);
     }
     return r;
 }
 
 
 int
-toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync) {
+toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *load_lsn) {
     int r = 0;
     char const * old_iname = toku_cachefile_fname_in_env(brt->cf);
     int do_log = 1;
-    r = toku_brt_load_recovery(txn, old_iname, new_iname, do_fsync, do_log);
+    r = toku_brt_load_recovery(txn, old_iname, new_iname, do_fsync, do_log, load_lsn);
     return r;
 }
 

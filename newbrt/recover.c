@@ -1000,7 +1000,7 @@ static int toku_recover_load(struct logtype_load *UU(l), RECOVER_ENV UU(renv)) {
     char *old_iname = fixup_fname(&l->old_iname);
     char *new_iname = fixup_fname(&l->new_iname);
 
-    r = toku_brt_load_recovery(txn, old_iname, new_iname, 0, 0);
+    r = toku_brt_load_recovery(txn, old_iname, new_iname, 0, 0, (LSN*)NULL);
     assert(r==0);
 
     toku_free(old_iname);

@@ -55,6 +55,7 @@ struct brtloader_s {
     void *poll_extra;
 
     int user_said_stop; // 0 if the poll_function always returned zero.  If it ever returns nonzero, then store that value here.
+    LSN load_lsn; //LSN of the fsynced 'load' log entry.  Write this LSN (as checkpoint_lsn) in brt headers made by this loader.
 };
 
 /* These data structures are used for manipulating a collection of rows in main memory. */

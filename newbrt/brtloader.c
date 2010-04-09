@@ -172,7 +172,8 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 			  const struct descriptor *descriptors[/*N*/],
 			  const char *new_fnames_in_env[/*N*/],
 			  brt_compare_func bt_compare_functions[/*N*/],
-			  const char *temp_file_template)
+			  const char *temp_file_template,
+                          LSN load_lsn)
 /* Effect: called by DB_ENV->create_loader to create a brt loader.
  * Arguments:
  *   blp                  Return the brt loader here.
@@ -218,6 +219,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 
     bl->n_rows   = 0; 
     bl->progress = 0;
+    bl->load_lsn = load_lsn;
 
     *blp = bl;
     return 0;
@@ -1275,10 +1277,10 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 }
 
 
-static void write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk) {
+static void write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn) {
     struct brt_header h = {.layout_version   = BRT_LAYOUT_VERSION,
 			   .checkpoint_count = 1,
-			   .checkpoint_lsn   = (LSN){0xFFFFFFFFFFFFFFFF}, // (max_uint_long means that this doesn't need any kind of recovery
+			   .checkpoint_lsn   = load_lsn, // Nothing is logged after the load.
 			   .nodesize         = nodesize,
 			   .root             = root_blocknum_on_disk,
 			   .flags            = 0,
@@ -1658,7 +1660,7 @@ int write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct d
     long long off_of_translation;
     int r = write_translation_table(&out, &off_of_translation);
     assert(r==0);
-    write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block);
+    write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn);
     if (key.data) toku_free(key.data);
     if (val.data) toku_free(val.data);
     if (out.translation) toku_free(out.translation);

@@ -14,7 +14,8 @@ int toku_brt_loader_open (BRTLOADER *bl,
 			  const struct descriptor *descriptors[/*N*/],
 			  const char * new_fnames_in_env[/*N*/],
 			  brt_compare_func bt_compare_functions[/*N*/],
-			  const char *temp_file_template);
+			  const char *temp_file_template,
+                          LSN load_lsn);
 int toku_brt_loader_put (BRTLOADER bl, DBT *key, DBT *val);
 int toku_brt_loader_close (BRTLOADER bl,
 			   void (*error_callback)(DB *, int which_db, int err, DBT *key, DBT *val, void *extra), void *error_callback_extra,

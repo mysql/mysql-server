@@ -66,8 +66,8 @@ int toku_brt_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn);
 // Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
 int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging, enum brt_msg_type type);
-int toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log);
-int toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync);
+int toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn);
+int toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *get_lsn);
 int toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val);
 int toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val);
 
