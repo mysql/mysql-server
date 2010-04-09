@@ -25,7 +25,7 @@ SELECT * FROM t1;
 # longer results in the two data dictionaries being out of sync. If they
 # revert their changes then this check for ER_AUTOINC_READ_FAILED will need
 # to be enabled. Also, see http://bugs.mysql.com/bug.php?id=47621.
--- error ER_AUTOINC_READ_FAILED,1467
+# -- error ER_AUTOINC_READ_FAILED,1467
 INSERT INTO t1 VALUES(null);
 ALTER TABLE t1 AUTO_INCREMENT = 3;
 SHOW CREATE TABLE t1;
