@@ -428,7 +428,9 @@ select count(*) from t1 where sca_code = 'PD';
 select count(*) from t1 where sca_code <= 'PD';
 select count(*) from t1 where sca_pic is null;
 # this should be fixed by MySQL (see Bug #51451)
---error ER_WRONG_NAME_FOR_INDEX
+# now that http://bugs.mysql.com/49838 is fixed the following ALTER does
+# copy the table instead of failing
+# --error ER_WRONG_NAME_FOR_INDEX
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
 alter table t1 drop index sca_pic;
 alter table t1 add index sca_pic (cat_code, sca_pic);
