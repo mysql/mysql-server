@@ -161,7 +161,7 @@ public:
    *  - Is a lookup query which has been executed. (single row fetched)
    */
   bool hasCompleted() const
-  { return (m_state >= Closed); 
+  { return (m_state == Closed); 
   }
   
   /** 
