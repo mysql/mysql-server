@@ -1631,16 +1631,16 @@ drop table T1;
 
 # Test scan pruning 
 create table T1(
+       d int not null,
+       c int not null,
        a int not null,
        b int not null,
-       c int not null,
-       d int not null,
        primary key using hash (a,b))
 engine = ndb partition by key (a);
 
-insert into T1 values (10, 10, 11, 11);
-insert into T1 values (11, 11, 12, 12);
-insert into T1 values (12, 12, 13, 13);
+insert into T1(a,b,c,d) values (10, 10, 11, 11);
+insert into T1(a,b,c,d) values (11, 11, 12, 12);
+insert into T1(a,b,c,d) values (12, 12, 13, 13);
 
 let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_count', Value, 1);
 
@@ -1721,23 +1721,23 @@ let $old_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_c
 drop table T1;
 
 create table T2(
-       a int not null,
-       b int not null,
-       c int not null,
        d int not null,
        e int not null,
        f int not null,
+       a int not null,
+       b int not null,
+       c int not null,
        primary key using hash (a,b,c))
 engine = ndb partition by key (b,a);
 
-insert into T2 values (1, 2, 3, 1, 2, 3); 
-insert into T2 values (1, 2, 4, 1, 2, 3); 
-insert into T2 values (2, 3, 4, 1, 2, 3); 
-insert into T2 values (3, 4, 5, 1, 2, 3); 
-insert into T2 values (4, 5, 6, 1, 2, 3); 
-insert into T2 values (5, 6, 7, 1, 2, 3); 
-insert into T2 values (6, 7, 8, 1, 2, 3); 
-insert into T2 values (7, 8, 9, 1, 2, 3); 
+insert into T2(a,b,c,d,e,f) values (1, 2, 3, 1, 2, 3); 
+insert into T2(a,b,c,d,e,f) values (1, 2, 4, 1, 2, 3); 
+insert into T2(a,b,c,d,e,f) values (2, 3, 4, 1, 2, 3); 
+insert into T2(a,b,c,d,e,f) values (3, 4, 5, 1, 2, 3); 
+insert into T2(a,b,c,d,e,f) values (4, 5, 6, 1, 2, 3); 
+insert into T2(a,b,c,d,e,f) values (5, 6, 7, 1, 2, 3); 
+insert into T2(a,b,c,d,e,f) values (6, 7, 8, 1, 2, 3); 
+insert into T2(a,b,c,d,e,f) values (7, 8, 9, 1, 2, 3); 
 
 create index i2_1 on T2(d, a, b, e);
 
