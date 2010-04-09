@@ -1,4 +1,4 @@
---source include/have_innodb.inc
+-- source include/have_innodb_plugin.inc
 
 #display current value of innodb_use_sys_malloc
 SELECT @@GLOBAL.innodb_use_sys_malloc;
@@ -22,7 +22,7 @@ create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
 insert into t1 values (1),(2),(3),(4),(5),(6),(7);
 select * from t1;
 drop table t1;
---source include/have_innodb.inc
+-- source include/have_innodb_plugin.inc
 
 #display current value of innodb_use_sys_malloc
 SELECT @@GLOBAL.innodb_use_sys_malloc;

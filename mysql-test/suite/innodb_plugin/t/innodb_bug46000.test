@@ -3,7 +3,7 @@
 # "GEN_CLUST_INDEX", which is the reserved
 # name for innodb default primary index.
 
---source include/have_innodb.inc
+-- source include/have_innodb_plugin.inc
 
 # This 'create table' operation should fail because of
 # using the reserve name as its index name.

@@ -9,7 +9,7 @@
 # will be created as primary index
 # Following queries test various scenario, no mismatch
 # error message should be printed.
---source include/have_innodb.inc
+-- source include/have_innodb_plugin.inc
 
 # Create a table contains a BLOB column
 create table bug51378 (
