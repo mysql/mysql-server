@@ -2417,7 +2417,7 @@ int NdbQueryImpl::isPrunable(bool& prunable)
     }
     m_prunability = prunable ? Prune_Yes : Prune_No;
   }
-  prunable = m_prunability == Prune_Yes;
+  prunable = (m_prunability == Prune_Yes);
   return 0;
 }
 

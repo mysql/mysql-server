@@ -1365,6 +1365,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
    * Determine if scan may be pruned to a single partition:
    */
   isPruned = false;
+  const NdbRecord* const tableRecord = getTable().getDefaultRecord();
   const NdbRecord* const indexRecord = m_index.getDefaultRecord();
   /**
    * This is the prefix (in number of fields) of the index key that will contain
@@ -1372,7 +1373,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
    */
   const Uint32 prefixLength = indexRecord->m_min_distkey_prefix_length;
 
-  if (indexRecord->m_no_of_distribution_keys == 0)
+  if (indexRecord->m_no_of_distribution_keys != tableRecord->m_no_of_distribution_keys)
   {
     return 0; // Index does not contain all fields in the distribution key.
   } 
@@ -1387,8 +1388,6 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
     // Bounds set on query instance are to short to contain full dist key.
     return 0; 
   }
-  assert(indexRecord->m_no_of_distribution_keys == 
-         getTable().getDefaultRecord()->m_no_of_distribution_keys);
 
   /** 
    * The scan will be prunable if all upper and lower bound pairs are equal
@@ -1483,14 +1482,14 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
            * For example, assume there is a ordered index on {a, dist_key, b}.
            * Then any tuple in the range {a=c1, <dist key=c2>, b=c3} to 
            * {a=c1, dist_key=c2, b=c4} will have dist_key=c2.
-           * Then consider a range where fields before the disstibution key are 
+           * Then consider a range where fields before the distribution key are 
            * different, e.g. {a=c6, <dist key=c7>, b=c8} to 
            * {a=c9, <dist key=c7>, b=c8} then matching tuples can have any value 
            * for the distribution key as long as c6 <= a <= c9, so there can be 
            * no pruning.
            */
-          const NdbRecord::Attr& recAttr 
-            = indexRecord->columns[column.m_keyInfoPos];
+          assert(column.m_keyInfoPos < tableRecord->noOfColumns);
+          const NdbRecord::Attr& recAttr = tableRecord->columns[column.m_keyInfoPos];
           const int res=
             (*recAttr.compare_function)(recAttr.charset_info,
                                         keyPart1.ptr, keyPart1.len,
@@ -1519,8 +1518,7 @@ NdbQueryIndexScanOperationDefImpl::checkPrunable(
       }
     } // while (keyPos < keyEnd)
     
-    assert(distKeyPartNo == 
-           getTable().getDefaultRecord()->m_no_of_distribution_keys);
+    assert(distKeyPartNo == tableRecord->m_no_of_distribution_keys);
     
     // hi/low are equal and prunable bounds.
     Uint32 newHashValue = 0;
