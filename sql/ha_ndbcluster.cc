@@ -963,6 +963,16 @@ is_shrinked_varchar(const Field *field)
 NdbQuery*
 ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs)
 {
+  DBUG_ENTER("create_pushed_join");
+  DBUG_PRINT("info", 
+             ("executing chain of %d pushed joins."
+              " First table is %s, accessed as %s.", 
+              m_pushed_join->get_operation_count(),
+              m_pushed_join->get_table(0)->alias,
+              NdbQueryOperationDef::getTypeName(
+                m_pushed_join->get_query_def().getQueryOperation(0U)->getType()))
+             );
+
   // There may be referrences to Field values from tables outside the scope of
   // our pushed join: These are expected to be supplied as paramValues()
   for (uint i= 0; i < m_pushed_join->get_field_referrences_count(); i++)
@@ -981,8 +991,7 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
     m_thd_ndb->m_pushed_queries_executed++;
   }
 
-  return m_active_query;
-
+  DBUG_RETURN(m_active_query);
 } // ha_ndbcluster::create_pushed_join
 
 
@@ -4053,12 +4062,6 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
                                                Uint32 *ppartition_id)
 {
   DBUG_ENTER("pk_unique_index_read_key_pushed");
-  DBUG_PRINT("info", 
-             ("executing chain of %d unique key lookups."
-              " First table is %s.", 
-              m_pushed_join->get_operation_count(),
-              m_pushed_join->get_table(0)->alias)
-             );
   NdbOperation::OperationOptions options;
   NdbOperation::OperationOptions *poptions = NULL;
   options.optionsPresent= 0;
@@ -4267,13 +4270,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
   if (check_if_pushable(NdbQueryOperationDef::OrderedIndexScan, active_index))
   {
-    DBUG_PRINT("info", 
-               ("executing chain of a index scan + %d primary key joins."
-                " First table is %s.", 
-                m_pushed_join->get_operation_count() - 1,
-                m_pushed_join->get_table(0)->alias)
-              );
-
     NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
     NdbQuery* const query= create_pushed_join(paramValues);
     if (unlikely(!query))
@@ -4503,13 +4499,6 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
   if (check_if_pushable(NdbQueryOperationDef::TableScan))
   {
-    DBUG_PRINT("info", 
-               ("executing chain of a table scan + %d primary key joins."
-                " First table is %s.", 
-                m_pushed_join->get_operation_count() - 1,
-                m_pushed_join->get_table(0)->alias)
-               );
-
     NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
     NdbQuery* const query= create_pushed_join(paramValues);
     if (unlikely(!query))
@@ -12726,12 +12715,6 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       {
         if (!m_active_query)
         {
-          DBUG_PRINT("info", 
-            ("executing chain of a index scan + %d primary key joins."
-             " First table is %s.", 
-             m_pushed_join->get_operation_count() - 1,
-             m_pushed_join->get_table(0)->alias));
-
           NdbQueryParamValue paramValues[ndb_pushed_join::MAX_REFERRED_FIELDS];
           NdbQuery* const query= create_pushed_join(paramValues);
           if (unlikely(!query))
