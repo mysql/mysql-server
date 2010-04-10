@@ -16,7 +16,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "slave.h" // for tables_ok(), rpl_filter
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "violite.h"                            /* SSL_type */
+#include "sql_class.h"                          /* LEX_COLUMN */
 
 #define SELECT_ACL	(1L << 0)
 #define INSERT_ACL	(1L << 1)
@@ -278,6 +280,11 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 bool check_routine_level_acl(THD *thd, const char *db, const char *name,
                              bool is_proc);
 bool is_acl_user(const char *host, const char *user);
+int fill_schema_user_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_schema_schema_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_schema_table_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, COND *cond);
+int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0

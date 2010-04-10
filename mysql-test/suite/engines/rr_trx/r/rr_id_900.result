@@ -1,0 +1,33 @@
+SET autocommit = 0;
+START TRANSACTION;
+
+*** Delete a row and re-insert with same `pk`:
+
+*** Disabling result log
+SELECT @pk:=`pk`,
+@unique1:=`int1_unique`,
+@unique2:=`int2_unique`
+    FROM t1 WHERE `pk` MOD 5 = 4 AND `pk` > 900 AND `is_consistent` = 1 LIMIT 1 FOR UPDATE;
+*** Enabling result log
+DELETE FROM t1 WHERE `pk` = @pk;
+*** Doing insert of row with pk = @pk if above statement succeeded (query log disabled)...
+COMMIT;
+START TRANSACTION;
+
+*** Delete a row and re-insert with `pk` = NULL:
+
+*** Disabling result log
+SELECT @pk:=`pk`,
+@unique1:=`int1_unique`,
+@unique2:=`int2_unique`
+    FROM t1 WHERE `pk` MOD 5 = 4 AND `pk` > 901 AND `is_consistent` = 1 LIMIT 1 FOR UPDATE;
+*** Enabling result log
+DELETE FROM t1 WHERE `pk` = @pk;
+*** Doing insert of row with pk = NULL if above statement succeeded (query log disabled)...
+COMMIT;
+START TRANSACTION;
+
+*** Delete up to two (2) "consistent" rows (zero-sum; table sum unchanged)
+
+DELETE FROM t1 WHERE `pk` > 902 AND `pk` MOD 5 = 3 AND `is_consistent` = 1 LIMIT 2;
+COMMIT;

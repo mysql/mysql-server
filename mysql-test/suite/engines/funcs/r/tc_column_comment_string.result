@@ -1,0 +1,49 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 CHAR(10) NULL COMMENT 'This is a CHAR column');
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` char(10) DEFAULT NULL COMMENT 'This is a CHAR column'
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 VARCHAR(10) NULL COMMENT 'This is a VARCHAR column');
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varchar(10) DEFAULT NULL COMMENT 'This is a VARCHAR column'
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 BINARY(10) NULL COMMENT 'This is a BINARY column');
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` binary(10) DEFAULT NULL COMMENT 'This is a BINARY column'
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 VARBINARY(10) NULL COMMENT 'This is a VARBINARY column');
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` varbinary(10) DEFAULT NULL COMMENT 'This is a VARBINARY column'
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test

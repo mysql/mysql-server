@@ -16,6 +16,8 @@
 #ifndef _my_getopt_h
 #define _my_getopt_h
 
+#include "my_sys.h"                             /* loglevel */
+
 C_MODE_START
 
 #define GET_NO_ARG     1
