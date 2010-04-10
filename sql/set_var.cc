@@ -19,9 +19,31 @@
 
 /* variable declarations are in sys_vars.cc now !!! */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_class.h"                   // set_var.h: session_var_ptr
+#include "set_var.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "mysqld.h"                             // lc_messages_dir
 #include "sys_vars_shared.h"
 #include "transaction.h"
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_locale.h"                         // my_locale_by_number,
+                                                // my_locale_by_name
+#include "strfunc.h"      // find_set_from_flags, find_set
+#include "sql_parse.h"    // check_global_access
+#include "sql_table.h"  // reassign_keycache_tables
+#include "sql_time.h"   // date_time_format_copy,
+                        // date_time_format_make
+#include "derror.h"
+#include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
+#include "sql_acl.h"    // SUPER_ACL
+#include "sql_select.h" // free_underlaid_joins
+#include "sql_show.h"   // make_default_log_name
+#include "sql_view.h"   // updatable_views_with_limit_typelib
+#include "lock.h"                               // lock_global_read_lock,
+                                                // make_global_read_lock_block_commit,
+                                                // unlock_global_read_lock
 
 static HASH system_variable_hash;
 static PolyLock_mutex PLock_global_system_variables(&LOCK_global_system_variables);

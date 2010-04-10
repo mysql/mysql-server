@@ -23,6 +23,8 @@
 #pragma interface				/* gcc class implementation */
 #endif
 
+#include "procedure.h"                          /* Procedure */
+
 #define my_thd_charset	default_charset_info
 
 #define DEC_IN_AVG 4
@@ -358,5 +360,7 @@ public:
 				      select_result *result,
 				      List<Item> &field_list);
 };
+
+bool append_escaped(String *to_str, String *from_str);
 
 #endif /* SQL_ANALYSE_INCLUDED */

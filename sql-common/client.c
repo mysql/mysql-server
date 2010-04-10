@@ -2435,7 +2435,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     int gai_errno;
     char port_buf[NI_MAXSERV];
     my_socket sock= SOCKET_ERROR;
-    int UNINIT_VAR(saved_error), status= -1;
+    int saved_error= 0, status= -1;
 
     unix_socket=0;				/* This is not used */
 
