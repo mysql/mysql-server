@@ -13,12 +13,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "event_scheduler.h"
 #include "events.h"
 #include "event_data_objects.h"
-#include "event_scheduler.h"
 #include "event_queue.h"
 #include "event_db_repository.h"
+#include "sql_connect.h"         // init_new_connection_handler_thread
+#include "sql_acl.h"             // SUPER_ACL
 
 /**
   @addtogroup Event_Scheduler

@@ -1,0 +1,91 @@
+-- source include/not_ndb_default.inc
+-- source include/have_binlog_format_row.inc
+-- source include/master-slave.inc
+
+# Test is dependent on binlog positions
+
+# prepare version for substitutions
+let $VERSION=`select version()`;
+
+# stop slave before he will start replication also sync with master
+# for avoiding undetermenistic behaviour
+save_master_pos;
+connection slave;
+sync_with_master;
+stop slave;
+
+connection master;
+# create some events on master
+create table t1(n int not null auto_increment primary key);
+insert into t1 values (1),(2),(3),(4);
+drop table t1;
+create table t2(n int not null auto_increment primary key);
+insert into t2 values (1),(2);
+insert into t2 values (3),(4);
+drop table t2;
+
+# try to replicate all queries until drop of t1
+connection slave;
+start slave until master_log_file='master-bin.000001', master_log_pos=311;
+sleep 2;
+wait_for_slave_to_stop;
+# here table should be still not deleted
+select * from t1;
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 7 # 9 # 11 # 22 # 23 # 33 #
+show slave status;
+
+# this should fail right after start
+start slave until master_log_file='master-no-such-bin.000001', master_log_pos=291;
+# again this table should be still not deleted
+select * from t1;
+sleep 2;
+wait_for_slave_to_stop;
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 7 # 9 # 11 # 22 # 23 # 33 #
+show slave status;
+
+# try replicate all up to and not including the second insert to t2;
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=728;
+sleep 2;
+wait_for_slave_to_stop;
+select * from t2;
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_MYPORT
+--replace_column 1 # 7 # 9 # 11 # 22 # 23 # 33 #
+show slave status;
+
+# clean up
+start slave;
+connection master;
+save_master_pos;
+connection slave;
+sync_with_master;
+stop slave;
+
+# this should stop immediately as we are already there
+start slave until master_log_file='master-bin.000001', master_log_pos=740;
+sleep 2;
+wait_for_slave_to_stop;
+# here the sql slave thread should be stopped
+--vertical_results
+--replace_result $MASTER_MYPORT MASTER_MYPORT bin.000005 bin.000004 bin.000006 bin.000004 bin.000007 bin.000004
+--replace_column 1 # 7 # 9 # 22 # 23 # 33 #
+show slave status;
+
+#testing various error conditions
+--error 1277
+start slave until master_log_file='master-bin', master_log_pos=561;
+--error 1277
+start slave until master_log_file='master-bin.000001', master_log_pos=561, relay_log_pos=12;
+--error 1277
+start slave until master_log_file='master-bin.000001';
+--error 1277
+start slave until relay_log_file='slave-relay-bin.000002';
+--error 1277
+start slave until relay_log_file='slave-relay-bin.000002', master_log_pos=561;
+# Warning should be given for second command
+start slave sql_thread;
+start slave until master_log_file='master-bin.000001', master_log_pos=740;

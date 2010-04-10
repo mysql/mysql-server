@@ -17,6 +17,25 @@
 #ifndef _SP_H_
 #define _SP_H_
 
+#include "sql_string.h"                         // LEX_STRING
+
+class Field;
+class Open_tables_backup;
+class Open_tables_state;
+class Query_arena;
+class Query_tables_list;
+class Sroutine_hash_entry;
+class THD;
+class sp_cache;
+class sp_head;
+class sp_name;
+class st_sp_chistics;
+struct LEX;
+struct TABLE;
+struct TABLE_LIST;
+typedef struct st_hash HASH;
+typedef struct st_sql_list SQL_LIST;
+
 /* Tells what SP_DEFAULT_ACCESS should be mapped to */
 #define SP_DEFAULT_ACCESS_MAPPING SP_CONTAINS_SQL
 
@@ -161,5 +180,15 @@ sp_load_for_information_schema(THD *thd, TABLE *proc_table, String *db,
                                String *name, ulong sql_mode, int type,
                                const char *returns, const char *params,
                                bool *free_sp_head);
+
+bool load_charset(MEM_ROOT *mem_root,
+                  Field *field,
+                  CHARSET_INFO *dflt_cs,
+                  CHARSET_INFO **cs);
+
+bool load_collation(MEM_ROOT *mem_root,
+                    Field *field,
+                    CHARSET_INFO *dflt_cl,
+                    CHARSET_INFO **cl);
 
 #endif /* _SP_H_ */

@@ -30,6 +30,10 @@ class sys_var;
 class set_var;
 class sys_var_pluginvar;
 class PolyLock;
+class Item_func_set_user_var;
+
+// This include needs to be here since item.h requires enum_var_type :-P
+#include "item.h"                          /* Item */
 
 extern TYPELIB bool_typelib;
 
@@ -165,6 +169,9 @@ protected:
   { return ((uchar*)&global_system_variables) + offset; }
 };
 
+#include "log.h"                           /* binlog_format_typelib */
+#include "sql_plugin.h"                    /* SHOW_HA_ROWS, SHOW_MY_BOOL */
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -276,6 +283,18 @@ public:
   int check(THD *thd);
   int update(THD *thd);
 };
+
+
+/* optional things, have_* variables */
+extern SHOW_COMP_OPTION have_csv, have_innodb;
+extern SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
+extern SHOW_COMP_OPTION have_profiling;
+
+extern SHOW_COMP_OPTION have_ssl, have_symlink, have_dlopen;
+extern SHOW_COMP_OPTION have_query_cache;
+extern SHOW_COMP_OPTION have_geometry, have_rtree_keys;
+extern SHOW_COMP_OPTION have_crypt;
+extern SHOW_COMP_OPTION have_compress;
 
 /*
   Prototypes for helper functions

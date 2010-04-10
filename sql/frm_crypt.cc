@@ -21,7 +21,8 @@
 ** mysql binary.
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "frm_crypt.h"
 
 #ifdef HAVE_CRYPTED_FRM
 

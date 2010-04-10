@@ -19,9 +19,10 @@
 #endif
 
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "probes_mysql.h"
-#include <mysql/plugin.h>
+#include "key.h"                                // key_copy
+#include "sql_plugin.h"
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <myisampack.h>
@@ -29,6 +30,8 @@
 #include <stdarg.h>
 #include "myisamdef.h"
 #include "rt_index.h"
+#include "sql_table.h"                          // tablename_to_filename
+#include "sql_class.h"                          // THD
 
 ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;
@@ -1346,9 +1349,17 @@ int ha_myisam::enable_indexes(uint mode)
     {
       sql_print_warning("Warning: Enabling keys got errno %d on %s.%s, retrying",
                         my_errno, param.db_name, param.table_name);
-      /* Repairing by sort failed. Now try standard repair method. */
-      param.testflag&= ~(T_REP_BY_SORT | T_QUICK);
-      error= (repair(thd,param,0) != HA_ADMIN_OK);
+      /*
+        Repairing by sort failed. Now try standard repair method.
+        Still we want to fix only index file. If data file corruption
+        was detected (T_RETRY_WITHOUT_QUICK), we shouldn't do much here.
+        Let implicit repair do this job.
+      */
+      if (!(param.testflag & T_RETRY_WITHOUT_QUICK))
+      {
+        param.testflag&= ~T_REP_BY_SORT;
+        error= (repair(thd,param,0) != HA_ADMIN_OK);
+      }
       /*
         If the standard repair succeeded, clear all error messages which
         might have been set by the first repair. They can still be seen
