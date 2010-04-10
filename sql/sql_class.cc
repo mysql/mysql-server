@@ -25,7 +25,18 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_class.h"
+#include "lock.h"      // unlock_global_read_lock, mysql_unlock_tables
+#include "sql_cache.h"                          // query_cache_abort
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_time.h"                         // date_time_format_copy
+#include "sql_acl.h"                          // NO_ACCESS,
+                                              // acl_getroot_no_password
+#include "sql_base.h"                         // close_temporary_tables
+#include "sql_handler.h"                      // mysql_ha_cleanup
 #include "rpl_rli.h"
 #include "rpl_filter.h"
 #include "rpl_record.h"
@@ -46,6 +57,7 @@
 #include "sp_cache.h"
 #include "transaction.h"
 #include "debug_sync.h"
+#include "sql_parse.h"                          // is_update_query
 
 /*
   The following is used to initialise Table_ident with a internal

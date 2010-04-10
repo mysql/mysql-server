@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,9 @@
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
+
+#include "thr_malloc.h"                         /* sql_calloc */
+#include "item_func.h"             /* Item_int_func, Item_bool_func */
 
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 class Item_bool_func2;
@@ -1624,7 +1627,7 @@ public:
   longlong val_int(); 
   const char *func_name() const { return "multiple equal"; }
   optimize_type select_optimize() const { return OPTIMIZE_EQUAL; }
-  void sort(Item_field_cmpfunc cmp, void *arg);
+  void sort(Item_field_cmpfunc compare, void *arg);
   friend class Item_equal_iterator;
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);
@@ -1760,8 +1763,26 @@ inline Item *and_conds(Item *a, Item *b)
   return new Item_cond_and(a, b);
 }
 
+
 Item *and_expressions(Item *a, Item *b, Item **org_item);
+
+longlong get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
+                            Item *warn_item, bool *is_null);
+
 
 bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
                              const char *warn_name, MYSQL_TIME *l_time);
+
+/*
+  These need definitions from this file but the variables are defined
+  in mysqld.h. The variables really belong in this component, but for
+  the time being we leave them in mysqld.cc to avoid merge problems.
+*/
+extern Eq_creator eq_creator;
+extern Ne_creator ne_creator;
+extern Gt_creator gt_creator;
+extern Lt_creator lt_creator;
+extern Ge_creator ge_creator;
+extern Le_creator le_creator;
+
 #endif /* ITEM_CMPFUNC_INCLUDED */

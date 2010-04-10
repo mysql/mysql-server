@@ -14,8 +14,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "rpl_reporting.h"
+#include "log.h" // sql_print_error, sql_print_warning,
+                 // sql_print_information
 
 Slave_reporting_capability::Slave_reporting_capability(char const *thread_name)
   : m_thread_name(thread_name)

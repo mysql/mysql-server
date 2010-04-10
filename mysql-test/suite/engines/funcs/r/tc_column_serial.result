@@ -1,0 +1,14 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 SERIAL);
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  UNIQUE KEY `c1` (`c1`)
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test

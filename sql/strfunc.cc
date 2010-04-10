@@ -15,7 +15,13 @@
 
 /* Some useful string utility functions used by the MySQL server */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "strfunc.h"
+#include "sql_class.h"
+#include "typelib.h"                            // TYPELIB
+#include "m_ctype.h"                            // my_charset_latin1
+#include "mysqld.h"                             // system_charset_info
 
 /*
   Return bitmap for strings used in a set

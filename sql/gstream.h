@@ -17,6 +17,13 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+#include "my_global.h"                          /* NULL, NullS */
+#include "my_sys.h"                             /* MY_ALLOW_ZERO_PTR */
+#include "m_ctype.h"           /* my_charset_latin1, my_charset_bin */
+
+typedef struct charset_info_st CHARSET_INFO;
+typedef struct st_mysql_lex_string LEX_STRING;
+
 class Gis_read_stream
 {
 public:

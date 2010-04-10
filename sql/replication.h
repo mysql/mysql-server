@@ -16,6 +16,8 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
+#include <mysql.h>
+
 typedef struct st_mysql MYSQL;
 
 #ifdef __cplusplus

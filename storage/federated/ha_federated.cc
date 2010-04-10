@@ -1,4 +1,4 @@
-/* Copyright (C) 2004 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2004, 2010 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -372,7 +372,10 @@
 
 
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_servers.h"         // FOREIGN_SERVER, get_server_by_name
+#include "sql_class.h"           // SSV
+#include "sql_analyse.h"         // append_escaped
 #include <mysql/plugin.h>
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -383,6 +386,7 @@
 #include "probes_mysql.h"
 
 #include "m_string.h"
+#include "key.h"                                // key_copy
 
 #include <mysql/plugin.h>
 
@@ -1282,7 +1286,7 @@ bool ha_federated::create_where_from_key(String *to,
                                          const key_range *start_key,
                                          const key_range *end_key,
                                          bool from_records_in_range,
-                                         bool eq_range)
+                                         bool eq_range_arg)
 {
   bool both_not_null=
     (start_key != NULL && end_key != NULL) ? TRUE : FALSE;
@@ -1389,7 +1393,7 @@ bool ha_federated::create_where_from_key(String *to,
         }
         break;
       case HA_READ_AFTER_KEY:
-        if (eq_range)
+        if (eq_range_arg)
         {
           if (tmp.append("1=1"))                // Dummy
             goto err;
@@ -1651,11 +1655,10 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
 
   DBUG_ASSERT(mysql == NULL);
 
-  ref_length= (table->s->primary_key != MAX_KEY ?
-               table->key_info[table->s->primary_key].key_length :
-               table->s->reclength);
+  ref_length= sizeof(MYSQL_RES *) + sizeof(MYSQL_ROW_OFFSET);
   DBUG_PRINT("info", ("ref_length: %u", ref_length));
 
+  my_init_dynamic_array(&results, sizeof(MYSQL_RES *), 4, 4);
   reset();
 
   DBUG_RETURN(0);
@@ -1675,21 +1678,17 @@ int ha_federated::open(const char *name, int mode, uint test_if_locked)
 
 int ha_federated::close(void)
 {
-  int retval;
   DBUG_ENTER("ha_federated::close");
 
-  /* free the result set */
-  if (stored_result)
-  {
-    mysql_free_result(stored_result);
-    stored_result= 0;
-  }
+  free_result();
+  
+  delete_dynamic(&results);
+  
   /* Disconnect from mysql */
   mysql_close(mysql);
   mysql= NULL;
-  retval= free_share(share);
-  DBUG_RETURN(retval);
 
+  DBUG_RETURN(free_share(share));
 }
 
 /*
@@ -2358,8 +2357,7 @@ int ha_federated::index_read(uchar *buf, const uchar *key,
   DBUG_ENTER("ha_federated::index_read");
 
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  if (stored_result)
-    mysql_free_result(stored_result);
+  free_result();
   rc= index_read_idx_with_result_set(buf, active_index, key,
                                      key_len, find_flag,
                                      &stored_result);
@@ -2393,7 +2391,8 @@ int ha_federated::index_read_idx(uchar *buf, uint index, const uchar *key,
                                               &mysql_result)))
     DBUG_RETURN(retval);
   mysql_free_result(mysql_result);
-  DBUG_RETURN(retval);
+  results.elements--;
+  DBUG_RETURN(0);
 }
 
 
@@ -2449,18 +2448,20 @@ int ha_federated::index_read_idx_with_result_set(uchar *buf, uint index,
     retval= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
     goto error;
   }
-  if (!(*result= mysql_store_result(mysql)))
+  if (!(*result= store_result(mysql)))
   {
     retval= HA_ERR_END_OF_FILE;
     goto error;
   }
-  if (!(retval= read_next(buf, *result)))
+  if ((retval= read_next(buf, *result)))
+  {
+    mysql_free_result(*result);
+    results.elements--;
+    *result= 0;
+    table->status= STATUS_NOT_FOUND;
     DBUG_RETURN(retval);
-
-  mysql_free_result(*result);
-  *result= 0;
-  table->status= STATUS_NOT_FOUND;
-  DBUG_RETURN(retval);
+  }
+  DBUG_RETURN(0);
 
 error:
   table->status= STATUS_NOT_FOUND;
@@ -2521,12 +2522,6 @@ int ha_federated::read_range_first(const key_range *start_key,
   create_where_from_key(&sql_query,
                         &table->key_info[active_index],
                         start_key, end_key, 0, eq_range_arg);
-
-  if (stored_result)
-  {
-    mysql_free_result(stored_result);
-    stored_result= 0;
-  }
   if (real_query(sql_query.ptr(), sql_query.length()))
   {
     retval= ER_QUERY_ON_FOREIGN_DATA_SOURCE;
@@ -2534,7 +2529,7 @@ int ha_federated::read_range_first(const key_range *start_key,
   }
   sql_query.length(0);
 
-  if (!(stored_result= mysql_store_result(mysql)))
+  if (!(stored_result= store_result(mysql)))
   {
     retval= HA_ERR_END_OF_FILE;
     goto error;
@@ -2628,23 +2623,11 @@ int ha_federated::rnd_init(bool scan)
 
   if (scan)
   {
-    if (stored_result)
-    {
-      mysql_free_result(stored_result);
-      stored_result= 0;
-    }
-
-    if (real_query(share->select_query, strlen(share->select_query)))
-      goto error;
-
-    stored_result= mysql_store_result(mysql);
-    if (!stored_result)
-      goto error;
+    if (real_query(share->select_query, strlen(share->select_query)) ||
+        !(stored_result= store_result(mysql)))
+      DBUG_RETURN(stash_remote_error());
   }
   DBUG_RETURN(0);
-
-error:
-  DBUG_RETURN(stash_remote_error());
 }
 
 
@@ -2658,11 +2641,7 @@ int ha_federated::rnd_end()
 int ha_federated::index_end(void)
 {
   DBUG_ENTER("ha_federated::index_end");
-  if (stored_result)
-  {
-    mysql_free_result(stored_result);
-    stored_result= 0;
-  }
+  free_result();
   active_index= MAX_KEY;
   DBUG_RETURN(0);
 }
@@ -2733,6 +2712,9 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result)
   DBUG_ENTER("ha_federated::read_next");
 
   table->status= STATUS_NOT_FOUND;              // For easier return
+  
+  /* Save current data cursor position. */
+  current_position= result->data_cursor;
 
   /* Fetch a row, insert it back in a row format. */
   if (!(row= mysql_fetch_row(result)))
@@ -2745,24 +2727,38 @@ int ha_federated::read_next(uchar *buf, MYSQL_RES *result)
 }
 
 
-/*
-  store reference to current row so that we can later find it for
-  a re-read, update or delete.
-
-  In case of federated, a reference is either a primary key or
-  the whole record.
-
-  Called from filesort.cc, sql_select.cc, sql_delete.cc and sql_update.cc.
+/**
+  @brief      Store a reference to current row.
+  
+  @details    During a query execution we may have different result sets (RS),
+              e.g. for different ranges. All the RS's used are stored in 
+              memory and placed in @c results dynamic array. At the end of 
+              execution all stored RS's are freed at once in the
+              @c ha_federated::reset().
+              So, in case of federated, a reference to current row is a 
+              stored result address and current data cursor position.
+              As we keep all RS in memory during a query execution,
+              we can get any record using the reference any time until
+              @c ha_federated::reset() is called.
+              TODO: we don't have to store all RS's rows but only those
+              we call @c ha_federated::position() for, so we can free memory
+              where we store other rows in the @c ha_federated::index_end().
+ 
+  @param[in]  record  record data (unused)
 */
 
-void ha_federated::position(const uchar *record)
+void ha_federated::position(const uchar *record __attribute__ ((unused)))
 {
   DBUG_ENTER("ha_federated::position");
-  if (table->s->primary_key != MAX_KEY)
-    key_copy(ref, (uchar *)record, table->key_info + table->s->primary_key,
-             ref_length);
-  else
-    memcpy(ref, record, ref_length);
+  
+  DBUG_ASSERT(stored_result);
+
+  position_called= TRUE;
+  /* Store result set address. */
+  memcpy_fixed(ref, &stored_result, sizeof(MYSQL_RES *));
+  /* Store data cursor position. */
+  memcpy_fixed(ref + sizeof(MYSQL_RES *), &current_position,
+               sizeof(MYSQL_ROW_OFFSET));
   DBUG_VOID_RETURN;
 }
 
@@ -2778,26 +2774,24 @@ void ha_federated::position(const uchar *record)
 
 int ha_federated::rnd_pos(uchar *buf, uchar *pos)
 {
-  int result;
+  MYSQL_RES *result;
+  int ret_val;
   DBUG_ENTER("ha_federated::rnd_pos");
+
   MYSQL_READ_ROW_START(table_share->db.str, table_share->table_name.str,
                        FALSE);
   ha_statistic_increment(&SSV::ha_read_rnd_count);
-  if (table->s->primary_key != MAX_KEY)
-  {
-    /* We have a primary key, so use index_read_idx to find row */
-    result= index_read_idx(buf, table->s->primary_key, pos,
-                           ref_length, HA_READ_KEY_EXACT);
-  }
-  else
-  {
-    /* otherwise, get the old record ref as obtained in ::position */
-    memcpy(buf, pos, ref_length);
-    result= 0;
-  }
-  table->status= result ? STATUS_NOT_FOUND : 0;
-  MYSQL_READ_ROW_DONE(result);
-  DBUG_RETURN(result);
+
+  /* Get stored result set. */
+  memcpy_fixed(&result, pos, sizeof(MYSQL_RES *));
+  DBUG_ASSERT(result);
+  /* Set data cursor position. */
+  memcpy_fixed(&result->data_cursor, pos + sizeof(MYSQL_RES *),
+               sizeof(MYSQL_ROW_OFFSET));
+  /* Read a row. */
+  ret_val= read_next(buf, result);
+  MYSQL_READ_ROW_DONE(ret_val);
+  DBUG_RETURN(ret_val);
 }
 
 
@@ -3000,6 +2994,16 @@ int ha_federated::reset(void)
   insert_dup_update= FALSE;
   ignore_duplicates= FALSE;
   replace_duplicates= FALSE;
+
+  /* Free stored result sets. */
+  for (uint i= 0; i < results.elements; i++)
+  {
+    MYSQL_RES *result;
+    get_dynamic(&results, (uchar *) &result, i);
+    mysql_free_result(result);
+  }
+  reset_dynamic(&results);
+
   return 0;
 }
 
@@ -3263,6 +3267,45 @@ bool ha_federated::get_error_message(int error, String* buf)
   DBUG_RETURN(FALSE);
 }
 
+
+/**
+  @brief      Store a result set.
+
+  @details    Call @c mysql_store_result() to save a result set then
+              append it to the stored results array.
+
+  @param[in]  mysql_arg  MySLQ connection structure.
+
+  @return     Stored result set (MYSQL_RES object).
+*/
+
+MYSQL_RES *ha_federated::store_result(MYSQL *mysql_arg)
+{
+  MYSQL_RES *result= mysql_store_result(mysql_arg);
+  DBUG_ENTER("ha_federated::store_result");
+  if (result)
+  {
+    (void) insert_dynamic(&results, (uchar*) &result);
+  }
+  position_called= FALSE;
+  DBUG_RETURN(result);
+}
+
+
+void ha_federated::free_result()
+{
+  DBUG_ENTER("ha_federated::free_result");
+  if (stored_result && !position_called)
+  {
+    mysql_free_result(stored_result);
+    stored_result= 0;
+    if (results.elements > 0)
+      results.elements--;
+  }
+  DBUG_VOID_RETURN;
+}
+
+ 
 int ha_federated::external_lock(THD *thd, int lock_type)
 {
   int error= 0;
