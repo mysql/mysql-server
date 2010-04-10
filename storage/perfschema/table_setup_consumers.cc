@@ -18,7 +18,7 @@
   Table SETUP_CONSUMERS (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "table_setup_consumers.h"
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"

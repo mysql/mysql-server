@@ -1,0 +1,18 @@
+DROP DATABASE IF EXISTS d5;
+CREATE DATABASE d5;
+SHOW DATABASES;
+Database
+information_schema
+d5
+mtr
+mysql
+test
+DROP DATABASE nond5;
+ERROR HY000: Can't drop database 'nond5'; database doesn't exist
+DROP DATABASE d5;
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+test

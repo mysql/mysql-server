@@ -8,6 +8,30 @@
 drop table if exists t1;
 --enable_warnings
  
+--echo #
+--echo # Bug#50392: insert_id is not reset for partitioned tables
+--echo #            auto_increment on duplicate entry
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY);
+SET INSERT_ID= 13;
+INSERT INTO t1 VALUES (NULL);
+SET INSERT_ID= 12;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) PARTITION BY KEY(a);
+SET INSERT_ID= 13;
+INSERT INTO t1 VALUES (NULL);
+SET INSERT_ID= 12;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+DROP TABLE t1;
+
 #
 # Bug#38719: Partitioning returns a different error code for a
 # duplicate key error

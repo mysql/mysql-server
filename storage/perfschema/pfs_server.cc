@@ -21,7 +21,7 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "mysys_err.h"
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "pfs_server.h"
 #include "pfs.h"
 #include "pfs_global.h"

@@ -22,6 +22,13 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "sql_const.h"
+#include "mysqld.h"                             /* server_id */
+#include "sql_plugin.h"        /* plugin_ref, st_plugin_int, plugin */
+#include "thr_lock.h"          /* thr_lock_type, THR_LOCK_DATA */
+#include "sql_cache.h"
+#include "structs.h"                            /* SHOW_COMP_OPTION */
+
 #include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
@@ -2173,4 +2180,15 @@ int ha_binlog_end(THD *thd);
 #define ha_binlog_wait(a) do {} while (0)
 #define ha_binlog_end(a)  do {} while (0)
 #endif
+
+const char *get_canonical_filename(handler *file, const char *path,
+                                   char *tmp_path);
+bool mysql_xa_recover(THD *thd);
+
+
+inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
+{
+  return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
+}
+
 #endif /* HANDLER_INCLUDED */

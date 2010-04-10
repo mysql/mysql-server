@@ -18,7 +18,7 @@
   Table SETUP_TIMERS (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "table_setup_timers.h"
 #include "pfs_column_values.h"
 #include "pfs_timer.h"

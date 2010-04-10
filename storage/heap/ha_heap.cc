@@ -19,11 +19,12 @@
 #endif
 
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "probes_mysql.h"
-#include <mysql/plugin.h>
+#include "sql_plugin.h"
 #include "ha_heap.h"
 #include "heapdef.h"
+#include "sql_base.h"                    // enum_tdc_remove_table_type
 
 static handler *heap_create_handler(handlerton *hton,
                                     TABLE_SHARE *table, 

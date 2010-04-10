@@ -65,7 +65,13 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "key.h"        // is_key_used, key_copy, key_cmp, key_restore
+#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_partition.h"    // get_part_id_func, PARTITION_ITERATOR,
+                              // struct partition_info
+#include "sql_base.h"         // free_io_cache
+#include "records.h"          // init_read_record, end_read_record
 #include <m_ctype.h>
 #include "sql_select.h"
 

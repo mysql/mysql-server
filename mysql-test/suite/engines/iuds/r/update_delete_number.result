@@ -1,0 +1,4091 @@
+DROP TABLE IF EXISTS t1,t2;
+CREATE TABLE t1(c1 INT UNSIGNED NOT NULL, c2 INT SIGNED NULL, c3 INT, INDEX idx2(c2));
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+SELECT * FROM t1;
+c1	c2	c3
+0	-128	0
+0	NULL	3
+1	1	1
+101	-101	4
+102	-102	5
+103	-103	6
+104	-104	7
+105	-105	8
+2	2	2
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1 WHERE c1=110;
+c1	c2	c3
+110	-104	7
+110	-105	8
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101;
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+c1	c2	c3
+102	NULL	4
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+SELECT c1,c2 FROM t1 WHERE c1=120;
+c1	c2
+120	NULL
+120	NULL
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+c1	c2
+0	-102
+UPDATE t1 SET c1=0,c2=-2147483648 WHERE c1=103 AND c2=-103;
+SELECT * FROM t1 WHERE c1=0 AND c2=-2147483648;
+c1	c2	c3
+0	-2147483648	6
+UPDATE t1 SET c1=4294967295,c2=2147483647 WHERE c1=104 OR c2=105;
+SELECT * FROM t1 WHERE c1=4294967295 AND c2=2147483647;
+c1	c2	c3
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+SELECT * FROM t1 WHERE c2=0;
+c1	c2	c3
+1	0	1
+2	0	2
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+UPDATE t1 SET c1=4294967296,c2=2147483648 WHERE c2 BETWEEN -108 AND -106;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c1' at row 2
+Warning	1264	Out of range value for column 'c2' at row 2
+Warning	1264	Out of range value for column 'c1' at row 3
+Warning	1264	Out of range value for column 'c2' at row 3
+SELECT COUNT(*) FROM t1 WHERE c1=4294967296 AND c2=2147483648 /* no rows */;
+COUNT(*)
+0
+SELECT * FROM t1 WHERE c1=4294967295 AND c2=2147483647;
+c1	c2	c3
+4294967295	2147483647	10
+4294967295	2147483647	11
+4294967295	2147483647	9
+UPDATE t1 SET c2=-2147483649 WHERE c1=109 ORDER BY c1;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 WHERE c1=109;
+c1	c2
+109	-2147483648
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+ERROR 23000: Column 'c1' cannot be null
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+c1	c2
+0	-110
+SET SQL_MODE=DEFAULT;
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT * FROM t1 WHERE c1=0;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-2147483648	6
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+c1	c2	c3
+1	0	1
+2	0	2
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-2147483648	6
+109	-2147483648	12
+110	-104	7
+110	-105	8
+120	NULL	3
+120	NULL	4
+2	1	1
+255	127	13
+3	1	2
+4294967295	2147483647	10
+4294967295	2147483647	11
+4294967295	2147483647	9
+CREATE TABLE t2(c1 INT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 INT UNSIGNED NULL, c3 INT);
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+UPDATE t2 SET c1=1 WHERE c1=3;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+SELECT c1 FROM t2;
+c1
+1
+2
+3
+4
+5
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 INT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+c1
+11
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+c1
+11
+UPDATE t1 SET c1=4294967295,c2=2147483647 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+4294967295	2147483647
+UPDATE t2 SET c1=0,c2=-2147483648 WHERE c2=2;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+4294967295	2147483647
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+4294967295	2147483647
+UPDATE t2 SET c1=2147483647,c2=4294967295 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+2147483647	4294967295
+UPDATE t2 SET c1=-2147483648,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+2147483647	4294967295
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+2147483647	4294967295
+CREATE TABLE mt1 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 INT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+SELECT * FROM mt1;
+c1	c2
+1	30
+2	30
+3	3
+4	4
+5	5
+SELECT * FROM mt2;
+c1	c2
+11	40
+12	1
+13	40
+14	40
+15	6
+SELECT * FROM mt3;
+c1	c2
+21	50
+22	50
+23	50
+24	50
+25	15
+DROP TABLE mt1,mt2,mt3;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 INT UNSIGNED NULL, ADD KEY(c2);
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+ALTER TABLE t2 CHANGE c1 c1 INT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 INT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-2147483648,0,13),(2147483647,4294967295,14),(0,2147483648,15),(2147483647,2147483647,16);
+UPDATE t2 SET c1=-2147483648 WHERE c2 <> 0 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c2;
+c1	c2	c3
+-2147483648	1	1
+-2147483648	2	2
+-3	3	3
+-4	4	4
+-5	5	5
+-6	6	6
+-7	7	7
+-8	8	8
+-9	9	9
+-12	12	12
+50	50	10
+2147483647	2147483647	16
+0	2147483648	15
+2147483647	4294967295	14
+UPDATE t2 SET c1=-2147483648 WHERE c2 >= 0 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 >= 0 ORDER BY c2 DESC;
+c1	c2	c3
+-2147483648	4294967295	14
+-2147483648	2147483648	15
+2147483647	2147483647	16
+50	50	10
+-12	12	12
+-9	9	9
+-8	8	8
+-7	7	7
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-2147483648	2	2
+-2147483648	1	1
+-2147483648	0	13
+UPDATE t2 SET c1=-2147483648 WHERE c2 <= 3 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <= 3 ORDER BY c2;
+c1	c2	c3
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	2	2
+-3	3	3
+UPDATE t2 SET c1=-2147483648 WHERE c2 <=> 4 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 <=> 4 ORDER BY c2;
+c1	c2	c3
+-2147483648	4	4
+UPDATE t2 SET c1=-2147483648 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2;
+c1	c2	c3
+-2147483648	4	4
+-2147483648	5	5
+-6	6	6
+-7	7	7
+UPDATE t2 SET c1=-2147483648 WHERE c2 IN(8,9) ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IN(8,9) ORDER BY c2 DESC;
+c1	c2	c3
+-2147483648	9	9
+-2147483648	8	8
+UPDATE t2 SET c1=-2147483648 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+c1	c2	c3
+-2147483648	NULL	11
+UPDATE t2 SET c1=-2147483648 WHERE c2>= 6 AND c2 < 9 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2>= 6 AND c2 < 9 ORDER BY c2;
+c1	c2	c3
+-2147483648	6	6
+-2147483648	7	7
+-2147483648	8	8
+UPDATE t2 SET c1=-2147483648 WHERE c1=-12 OR c2=1;
+SELECT * FROM t2 WHERE c1=-2147483648;
+c1	c2	c3
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	12	12
+-2147483648	2	2
+-2147483648	2147483648	15
+-2147483648	4	4
+-2147483648	4294967295	14
+-2147483648	5	5
+-2147483648	6	6
+-2147483648	7	7
+-2147483648	8	8
+-2147483648	9	9
+-2147483648	NULL	11
+SELECT * FROM t2;
+c1	c2	c3
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	12	12
+-2147483648	2	2
+-2147483648	2147483648	15
+-2147483648	4	4
+-2147483648	4294967295	14
+-2147483648	5	5
+-2147483648	6	6
+-2147483648	7	7
+-2147483648	8	8
+-2147483648	9	9
+-2147483648	NULL	11
+-3	3	3
+2147483647	2147483647	16
+50	50	10
+SELECT c1 FROM t2;
+c1
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-3
+2147483647
+50
+SELECT c1 FROM t2 ORDER BY c1 DESC;
+c1
+2147483647
+50
+-3
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+-2147483648
+SELECT * FROM t2 WHERE c1=-2147483648;
+c1	c2	c3
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	12	12
+-2147483648	2	2
+-2147483648	2147483648	15
+-2147483648	4	4
+-2147483648	4294967295	14
+-2147483648	5	5
+-2147483648	6	6
+-2147483648	7	7
+-2147483648	8	8
+-2147483648	9	9
+-2147483648	NULL	11
+SELECT * FROM t2 WHERE c1 <> -2147483648 ORDER BY c1,c2;
+c1	c2	c3
+-3	3	3
+50	50	10
+2147483647	2147483647	16
+SELECT * FROM t2 WHERE c1 <> -2147483648 ORDER BY c1,c2 DESC LIMIT 2;
+c1	c2	c3
+-3	3	3
+50	50	10
+SELECT * FROM t2 WHERE c1 > -2147483648 ORDER BY c1,c2 DESC;
+c1	c2	c3
+-3	3	3
+50	50	10
+2147483647	2147483647	16
+SELECT * FROM t2 WHERE c1 >= -2147483648 ORDER BY c1,c2 LIMIT 2;
+c1	c2	c3
+-2147483648	NULL	11
+-2147483648	0	13
+SELECT * FROM t2 WHERE c1 < -2147483648 ORDER BY c1,c2;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 <= -2147483648 ORDER BY c1,c2 DESC LIMIT 2;
+c1	c2	c3
+-2147483648	4294967295	14
+-2147483648	2147483648	15
+SELECT * FROM t2 WHERE c1 <=> -2147483648 ORDER BY c1,c2 DESC;
+c1	c2	c3
+-2147483648	4294967295	14
+-2147483648	2147483648	15
+-2147483648	12	12
+-2147483648	9	9
+-2147483648	8	8
+-2147483648	7	7
+-2147483648	6	6
+-2147483648	5	5
+-2147483648	4	4
+-2147483648	2	2
+-2147483648	1	1
+-2147483648	0	13
+-2147483648	NULL	11
+SELECT * FROM t2 WHERE c1 <=> -2147483648 ORDER BY c1,c2 LIMIT 2;
+c1	c2	c3
+-2147483648	NULL	11
+-2147483648	0	13
+SELECT * FROM t2 WHERE c1 BETWEEN -2147483648 AND 2147483647 ORDER BY c1,c2;
+c1	c2	c3
+-2147483648	NULL	11
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	2	2
+-2147483648	4	4
+-2147483648	5	5
+-2147483648	6	6
+-2147483648	7	7
+-2147483648	8	8
+-2147483648	9	9
+-2147483648	12	12
+-2147483648	2147483648	15
+-2147483648	4294967295	14
+-3	3	3
+50	50	10
+2147483647	2147483647	16
+SELECT * FROM t2 WHERE c1 BETWEEN -2147483648 AND 2147483647 ORDER BY c1,c2 DESC LIMIT 2;
+c1	c2	c3
+-2147483648	4294967295	14
+-2147483648	2147483648	15
+SELECT * FROM t2 WHERE c1 IN(-2147483648,2147483647) ORDER BY c1,c2 DESC;
+c1	c2	c3
+-2147483648	4294967295	14
+-2147483648	2147483648	15
+-2147483648	12	12
+-2147483648	9	9
+-2147483648	8	8
+-2147483648	7	7
+-2147483648	6	6
+-2147483648	5	5
+-2147483648	4	4
+-2147483648	2	2
+-2147483648	1	1
+-2147483648	0	13
+-2147483648	NULL	11
+2147483647	2147483647	16
+SELECT * FROM t2 WHERE c1 IN(-2147483648,2147483647) ORDER BY c1,c2 LIMIT 2;
+c1	c2	c3
+-2147483648	NULL	11
+-2147483648	0	13
+SELECT * FROM t2 WHERE c1>=-2147483648 AND c1 <= 2147483647 ORDER BY c1,c2 DESC;
+c1	c2	c3
+-2147483648	4294967295	14
+-2147483648	2147483648	15
+-2147483648	12	12
+-2147483648	9	9
+-2147483648	8	8
+-2147483648	7	7
+-2147483648	6	6
+-2147483648	5	5
+-2147483648	4	4
+-2147483648	2	2
+-2147483648	1	1
+-2147483648	0	13
+-2147483648	NULL	11
+-3	3	3
+50	50	10
+2147483647	2147483647	16
+SELECT * FROM t2 WHERE c1>=-2147483648 AND c1 <= 2147483647 ORDER BY c1,c2 LIMIT 2;
+c1	c2	c3
+-2147483648	NULL	11
+-2147483648	0	13
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+c1	c2	c3
+-2147483648	NULL	11
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-2147483648	NULL	11
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+-2147483648	0	13
+-2147483648	1	1
+-2147483648	2	2
+-3	3	3
+-2147483648	4	4
+-2147483648	5	5
+-2147483648	6	6
+-2147483648	7	7
+-2147483648	8	8
+-2147483648	9	9
+-2147483648	12	12
+50	50	10
+2147483647	2147483647	16
+-2147483648	2147483648	15
+-2147483648	4294967295	14
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-2147483648	0	13
+-2147483648	1	1
+CREATE TABLE mt1 (a int not null primary key, b int not null, key (b));
+CREATE TABLE mt2 (a int not null primary key, b int not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+update mt1,mt2 set mt1.a=mt1.a+100;
+select * from mt1;
+a	b
+101	1
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+select * from mt1;
+a	b
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+201	1
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+select * from mt1;
+a	b
+102	12
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+201	1
+update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+select * from mt1;
+a	b
+102	12
+103	5
+104	6
+105	7
+106	6
+107	7
+108	8
+109	9
+201	1
+select * from mt2;
+a	b
+1	1
+2	2
+3	13
+4	14
+5	15
+6	6
+7	7
+8	8
+9	9
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+SELECT * FROM t2 WHERE c1=127 OR c2=3;
+c1	c2	c3
+-3	3	3
+127	255	9
+DELETE FROM t2 WHERE c1=127 OR c2=3;
+SELECT * FROM t2 WHERE c1=127 OR c2=3;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+1	1	8
+0	0	7
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-2	2	2
+-1	1	1
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+c1	c2	c3
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+0	0	7
+-2	2	2
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+-1	1	1
+1	1	8
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+127	255	11
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-3	3	3
+127	255	11
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+3	NULL	10
+2	NULL	9
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+255	-128	2	127	255	1
+3	NULL	5	-1	NULL	5
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+CREATE TABLE t3(c1 INT UNSIGNED NOT NULL PRIMARY KEY, c2 INT SIGNED NULL, c3 INT);
+CREATE TABLE t4(c1 INT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+200	126	1	200	1
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+DROP TABLE t1,t2,t3,t4;
+create table mt1 (a int not null, b int not null, key (a));
+insert into mt1 values (1,1),(1,2),(1,3),(3,1),(3,2),(3,3),(3,1),(3,2),(3,3),(2,1),(2,2),(2,3);
+SET @tmp=0;
+update mt1 set b=(@tmp:=@tmp+1) order by a;
+update mt1 set b=99 where a=1 order by b asc limit 1;
+select * from mt1 order by a,b;
+a	b
+1	2
+1	3
+1	99
+2	4
+2	5
+2	6
+3	7
+3	8
+3	9
+3	10
+3	11
+3	12
+update mt1 set b=100 where a=1 order by b desc limit 2;
+update mt1 set a=a+10+b where a=1 order by b;
+select * from mt1 order by a,b;
+a	b
+2	4
+2	5
+2	6
+3	7
+3	8
+3	9
+3	10
+3	11
+3	12
+13	2
+111	100
+111	100
+create table mt2 (a int not null, b int not null);
+insert into mt2 values (1,1),(1,2),(1,3);
+update mt1 set b=(select distinct 1 from (select * from mt2) a);
+drop table mt1,mt2;
+create table mt1 (f1 int);
+create table mt2 (f2 int);
+insert into mt1 values(1),(2);
+insert into mt2 values(1),(1);
+update mt1,mt2 set f1=3,f2=3 where f1=f2 and f1=1;
+affected rows: 3
+info: Rows matched: 3  Changed: 3  Warnings: 0
+update mt2 set f2=1;
+update mt1 set f1=1 where f1=3;
+update mt2,mt1 set f1=3,f2=3 where f1=f2 and f1=1;
+affected rows: 3
+info: Rows matched: 3  Changed: 3  Warnings: 0
+SELECT * FROM mt1;
+f1
+2
+3
+SELECT * FROM mt2;
+f2
+3
+3
+drop table mt1,mt2;
+create table mt1(f1 int, f2 int);
+create table mt2(f3 int, f4 int);
+create index idx on mt2(f3);
+insert into mt1 values(1,0),(2,0);
+insert into mt2 values(1,1),(2,2);
+UPDATE mt1 SET mt1.f2=(SELECT MAX(mt2.f4) FROM mt2 WHERE mt2.f3=mt1.f1);
+select * from mt1;
+f1	f2
+1	1
+2	2
+drop table mt1,mt2;
+create table mt1 (a int, b char(255), key(a, b(20)));
+insert into mt1 values (0, '1');
+update mt1 set b = b + 1 where a = 0;
+select * from mt1;
+a	b
+0	2
+drop table mt1;
+create table mt1(f1 int, f2 int);
+create table mt2(f3 int, f4 int);
+create index idx on mt2(f3);
+insert into mt1 values(1,0),(2,0);
+insert into mt2 values(1,1),(2,2);
+UPDATE mt1 SET mt1.f2=(SELECT MAX(mt2.f4) FROM mt2 WHERE mt2.f3=mt1.f1);
+select * from mt1;
+f1	f2
+1	1
+2	2
+drop table mt1,mt2;
+create table mt1 (id int not null auto_increment primary key, id_str varchar(32));
+insert into mt1 (id_str) values ("test");
+update mt1 set id_str = concat(id_str, id) where id = last_insert_id();
+select * from mt1;
+id	id_str
+1	test1
+drop table mt1;
+create table mt1 (n int(10) not null primary key, d int(10));
+create table mt2 (n int(10) not null primary key, d int(10));
+insert into mt1 values(1,1), (3,3);
+insert into mt2 values(1,10),(2,20);
+UPDATE mt2 left outer join mt1 on mt1.n=mt2.n  SET mt1.d=mt2.d;
+select * from mt1;
+n	d
+1	10
+3	3
+select * from mt2;
+n	d
+1	10
+2	20
+drop table mt1,mt2;
+create table mt1 (n int(10), d int(10));
+create table mt2 (n int(10), d int(10));
+insert into mt1 values(1,1),(1,2);
+insert into mt2 values(1,10),(2,20);
+UPDATE mt1,mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
+select * from mt1;
+n	d
+1	10
+1	10
+select * from mt2;
+n	d
+1	30
+2	20
+drop table mt1,mt2;
+create table mt1 (n int(10), d int(10));
+create table mt2 (n int(10), d int(10));
+insert into mt1 values(1,1),(3,2);
+insert into mt2 values(1,10),(1,20);
+UPDATE mt1,mt2 SET mt1.d=mt2.d,mt2.d=30 WHERE mt1.n=mt2.n;
+select * from mt1;
+n	d
+1	10
+3	2
+select * from mt2;
+n	d
+1	30
+1	30
+UPDATE mt1 a ,mt2 b SET a.d=b.d,b.d=30 WHERE a.n=b.n;
+select * from mt1;
+n	d
+1	30
+3	2
+select * from mt2;
+n	d
+1	30
+1	30
+DELETE a, b  FROM mt1 a,mt2 b where a.n=b.n;
+select * from mt1;
+n	d
+3	2
+select * from mt2;
+n	d
+drop table mt1,mt2;
+CREATE TABLE mt1 (`colA` int(10) unsigned NOT NULL auto_increment, `colB` int(11) NOT NULL default '0', PRIMARY KEY  (`colA`));
+INSERT INTO mt1 VALUES (4433,5424);
+CREATE TABLE mt2 (`colC` int(10) unsigned NOT NULL default '0', `colA` int(10) unsigned NOT NULL default '0', `colD` int(10) unsigned NOT NULL default '0', `colE` int(10) unsigned NOT NULL default '0', `colF` int(10) unsigned NOT NULL default '0', PRIMARY KEY  (`colC`,`colA`,`colD`,`colE`));
+INSERT INTO mt2 VALUES (3,4433,10005,495,500);
+INSERT INTO mt2 VALUES (3,4433,10005,496,500);
+INSERT INTO mt2 VALUES (3,4433,10009,494,500);
+INSERT INTO mt2 VALUES (3,4433,10011,494,500);
+INSERT INTO mt2 VALUES (3,4433,10005,497,500);
+INSERT INTO mt2 VALUES (3,4433,10013,489,500);
+INSERT INTO mt2 VALUES (3,4433,10005,494,500);
+INSERT INTO mt2 VALUES (3,4433,10005,493,500);
+INSERT INTO mt2 VALUES (3,4433,10005,492,500);
+UPDATE IGNORE mt2,mt1 set mt2.colE = mt2.colE + 1,colF=0 WHERE mt1.colA = mt2.colA AND (mt1.colB & 4096) > 0 AND (colE + 1) < colF;
+SELECT * FROM mt2;
+colC	colA	colD	colE	colF
+3	4433	10005	492	500
+3	4433	10005	493	500
+3	4433	10005	494	500
+3	4433	10005	495	500
+3	4433	10005	496	500
+3	4433	10005	498	0
+3	4433	10009	495	0
+3	4433	10011	495	0
+3	4433	10013	490	0
+DROP TABLE mt1,mt2;
+create table mt1(id1 smallint(5), field char(5));
+create table mt2(id2 smallint(5), field char(5));
+insert into mt1 values (1, 'a'), (2, 'aa');
+insert into mt2 values (1, 'b'), (2, 'bb');
+select * from mt1;
+id1	field
+1	a
+2	aa
+select * from mt2;
+id2	field
+1	b
+2	bb
+update mt2 inner join mt1 on mt1.id1=mt2.id2 set mt2.field=mt1.field where 0=1;
+update mt2, mt1 set mt2.field=mt1.field where mt1.id1=mt2.id2 and 0=1;
+delete mt1, mt2 from mt2 inner join mt1 on mt1.id1=mt2.id2 where 0=1;
+delete mt1, mt2 from mt2,mt1 where mt1.id1=mt2.id2 and 0=1;
+drop table mt1,mt2;
+create table mt1 (n numeric(10));
+create table mt2 (n numeric(10));
+insert into mt2 values (1),(2),(4),(8),(16),(32);
+select * from mt2 left outer join mt1  using (n);
+n
+1
+16
+2
+32
+4
+8
+delete  mt1,mt2 from mt2 left outer join mt1  using (n);
+select * from mt2 left outer join mt1  using (n);
+n
+drop table mt1,mt2 ;
+create table mt1(id1 int not null  primary key, t varchar(100)) pack_keys = 1;
+create table mt2(id2 int not null, t varchar(100), index(id2)) pack_keys = 1;
+delete mt1  from mt1,mt2 where mt1.id1 = mt2.id2 and mt1.id1 > 500;
+drop table mt1,mt2;
+create table mt1 (aclid bigint not null primary key, status tinyint(1) not null);
+create table mt2 (refid bigint not null primary key, aclid bigint, index idx_acl(aclid));
+insert into mt2 values(1,null);
+delete mt2, mt1 from mt2 left join mt1 on (mt2.aclid=mt1.aclid) where mt2.refid='1';
+drop table mt1, mt2;
+create table mt1 (a int, primary key (a));
+create table mt2 (a int, primary key (a));
+create table mt3 (a int, primary key (a));
+delete mt1,mt3 from mt1,mt2 where mt1.a=mt2.a and mt2.a=(select mt3.a from mt3 where mt1.a=mt3.a);
+ERROR 42S02: Unknown table 'mt3' in MULTI DELETE
+drop table mt1, mt2, mt3;
+create table mt1 (col1 int);
+create table mt2 (col1 int);
+update mt1,mt2 set mt1.col1 = (select max(col1) from mt1) where mt1.col1 = mt2.col1;
+ERROR HY000: You can't specify target table 'mt1' for update in FROM clause
+delete mt1 from mt1,mt2 where mt1.col1 < (select max(col1) from mt1) and mt1.col1 = mt2.col1;
+ERROR HY000: You can't specify target table 'mt1' for update in FROM clause
+drop table mt1,mt2;
+CREATE TABLE IF NOT EXISTS `mt1` (`id` int(11) NOT NULL auto_increment, `tst` text, `tsmt1` text, PRIMARY KEY  (`id`));
+CREATE TABLE IF NOT EXISTS `mt2` (`ID` int(11) NOT NULL auto_increment, `ParId` int(11) default NULL, `tst` text, `tsmt1` text, PRIMARY KEY  (`ID`), KEY `IX_ParId_mt2` (`ParId`),  FOREIGN KEY (`ParId`) REFERENCES `mt1` (`id`));
+INSERT INTO mt1(tst,tsmt1) VALUES("MySQL","MySQL AB"), ("MSSQL","Microsoft"), ("ORACLE","ORACLE");
+INSERT INTO mt2(ParId) VALUES(1), (2), (3);
+select * from mt2;
+ID	ParId	tst	tsmt1
+1	1	NULL	NULL
+2	2	NULL	NULL
+3	3	NULL	NULL
+UPDATE mt2, mt1 SET mt2.tst = mt1.tst, mt2.tsmt1 = mt1.tsmt1 WHERE mt2.ParId = mt1.Id;
+select * from mt2;
+ID	ParId	tst	tsmt1
+1	1	MySQL	MySQL AB
+2	2	MSSQL	Microsoft
+3	3	ORACLE	ORACLE
+drop table mt2,mt1;
+CREATE TABLE mt1 ( a int );
+CREATE TABLE mt2 ( a int );
+DELETE mt1 FROM mt1, mt2 AS t3;
+DELETE t4 FROM mt1, mt1 AS t4;
+DELETE t3 FROM mt1 AS t3, mt1 AS t4;
+DELETE mt1 FROM mt1 AS t3, mt2 AS t4;
+ERROR 42S02: Unknown table 'mt1' in MULTI DELETE
+INSERT INTO mt1 values (1),(2);
+INSERT INTO mt2 values (1),(2);
+DELETE mt1 FROM mt1 AS mt2, mt2 AS mt1 where mt1.a=mt2.a and mt1.a=1;
+SELECT * from mt1;
+a
+1
+2
+SELECT * from mt2;
+a
+2
+DELETE mt2 FROM mt1 AS mt2, mt2 AS mt1 where mt1.a=mt2.a and mt1.a=2;
+SELECT * from mt1;
+a
+1
+SELECT * from mt2;
+a
+2
+DROP TABLE mt1,mt2;
+create table mt1(id1 int not null auto_increment primary key, t char(12));
+create table mt2(id2 int not null, t char(12));
+create table mt3(id3 int not null, t char(12), index(id3));
+select count(*) from mt1 where id1 > 95;
+count(*)
+5
+select count(*) from mt2 where id2 > 95;
+count(*)
+25
+select count(*) from mt3 where id3 > 95;
+count(*)
+250
+update mt1,mt2,mt3 set mt1.t="aaa", mt2.t="bbb", mt3.t="cc" where  mt1.id1 = mt2.id2 and mt2.id2 = mt3.id3  and mt1.id1 > 90;
+select count(*) from mt1 where t = "aaa";
+count(*)
+10
+select count(*) from mt1 where id1 > 90;
+count(*)
+10
+select count(*) from mt2 where t = "bbb";
+count(*)
+50
+select count(*) from mt2 where id2 > 90;
+count(*)
+50
+select count(*) from mt3 where t = "cc";
+count(*)
+500
+select count(*) from mt3 where id3 > 90;
+count(*)
+500
+delete mt1.*, mt2.*, mt3.*  from mt1,mt2,mt3 where mt1.id1 = mt2.id2 and mt2.id2 = mt3.id3  and mt1.id1 > 95;
+check table mt1, mt2, mt3;
+Table	Op	Msg_type	Msg_text
+test.mt1	check	status	OK
+test.mt2	check	status	OK
+test.mt3	check	status	OK
+select count(*) from mt1 where id1 > 95;
+count(*)
+0
+select count(*) from mt2 where id2 > 95;
+count(*)
+0
+select count(*) from mt3 where id3 > 95;
+count(*)
+0
+delete mt1, mt2, mt3  from mt1,mt2,mt3 where mt1.id1 = mt2.id2 and mt2.id2 = mt3.id3  and mt1.id1 > 5;
+select count(*) from mt1 where id1 > 5;
+count(*)
+0
+select count(*) from mt2 where id2 > 5;
+count(*)
+0
+select count(*) from mt3 where id3 > 5;
+count(*)
+0
+delete from mt1, mt2, mt3  using mt1,mt2,mt3 where mt1.id1 = mt2.id2 and mt2.id2 = mt3.id3  and mt1.id1 > 0;
+select count(*) from mt1 where id1;
+count(*)
+0
+select count(*) from mt2 where id2;
+count(*)
+0
+select count(*) from mt3 where id3;
+count(*)
+0
+drop table mt1,mt2,mt3;
+CREATE TABLE t1(c1 TINYINT UNSIGNED NOT NULL, c2 TINYINT SIGNED NULL, c3 INT, INDEX idx2(c2));
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+SELECT * FROM t1;
+c1	c2	c3
+0	-128	0
+0	NULL	3
+1	1	1
+101	-101	4
+102	-102	5
+103	-103	6
+104	-104	7
+105	-105	8
+2	2	2
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1 WHERE c1=110;
+c1	c2	c3
+110	-104	7
+110	-105	8
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101;
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+c1	c2	c3
+102	NULL	4
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+SELECT c1,c2 FROM t1 WHERE c1=120;
+c1	c2
+120	NULL
+120	NULL
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+c1	c2
+0	-102
+UPDATE t1 SET c1=0,c2=-128 WHERE c1=103 AND c2=-103;
+SELECT * FROM t1 WHERE c1=0 AND c2=-128;
+c1	c2	c3
+0	-128	0
+0	-128	6
+UPDATE t1 SET c1=255,c2=127 WHERE c1=104 OR c2=105;
+SELECT * FROM t1 WHERE c1=255 AND c2=127;
+c1	c2	c3
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+SELECT * FROM t1 WHERE c2=0;
+c1	c2	c3
+1	0	1
+2	0	2
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+UPDATE t1 SET c1=256,c2=128 WHERE c2 BETWEEN -108 AND -106;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c1' at row 2
+Warning	1264	Out of range value for column 'c2' at row 2
+Warning	1264	Out of range value for column 'c1' at row 3
+Warning	1264	Out of range value for column 'c2' at row 3
+SELECT COUNT(*) FROM t1 WHERE c1=256 AND c2=128 /* no rows */;
+COUNT(*)
+0
+SELECT * FROM t1 WHERE c1=255 AND c2=127;
+c1	c2	c3
+255	127	10
+255	127	11
+255	127	13
+255	127	9
+UPDATE t1 SET c2=-129 WHERE c1=109 ORDER BY c1;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 WHERE c1=109;
+c1	c2
+109	-128
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+ERROR 23000: Column 'c1' cannot be null
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+c1	c2
+0	-110
+SET SQL_MODE=DEFAULT;
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT * FROM t1 WHERE c1=0;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-128	6
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+c1	c2	c3
+1	0	1
+2	0	2
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-128	6
+109	-128	12
+110	-104	7
+110	-105	8
+120	NULL	3
+120	NULL	4
+2	1	1
+255	127	10
+255	127	11
+255	127	13
+255	127	9
+3	1	2
+CREATE TABLE t2(c1 TINYINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 TINYINT UNSIGNED NULL, c3 INT);
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+UPDATE t2 SET c1=1 WHERE c1=3;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+SELECT c1 FROM t2;
+c1
+1
+2
+3
+4
+5
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 TINYINT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+c1
+11
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+c1
+11
+UPDATE t1 SET c1=255,c2=127 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+255	127
+UPDATE t2 SET c1=0,c2=-128 WHERE c2=2;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+255	127
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+255	127
+UPDATE t2 SET c1=127,c2=255 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+127	255
+UPDATE t2 SET c1=-128,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+127	255
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+127	255
+CREATE TABLE mt1 (c1 TINYINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 TINYINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 TINYINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+SELECT * FROM mt1;
+c1	c2
+1	30
+2	30
+3	3
+4	4
+5	5
+SELECT * FROM mt2;
+c1	c2
+11	40
+12	1
+13	40
+14	40
+15	6
+SELECT * FROM mt3;
+c1	c2
+21	50
+22	50
+23	50
+24	50
+25	15
+DROP TABLE mt1,mt2,mt3;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 TINYINT UNSIGNED NULL, ADD KEY(c2);
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+ALTER TABLE t2 CHANGE c1 c1 TINYINT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 TINYINT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-128,0,13),(127,255,14),(0,128,15),(127,127,16);
+UPDATE t2 SET c1=-128 WHERE c2 <> 0 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c2;
+c1	c2	c3
+-128	1	1
+-128	2	2
+-3	3	3
+-4	4	4
+-5	5	5
+-6	6	6
+-7	7	7
+-8	8	8
+-9	9	9
+-12	12	12
+50	50	10
+127	127	16
+0	128	15
+127	255	14
+UPDATE t2 SET c1=-128 WHERE c2 >= 0 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 >= 0 ORDER BY c2 DESC;
+c1	c2	c3
+-128	255	14
+-128	128	15
+127	127	16
+50	50	10
+-12	12	12
+-9	9	9
+-8	8	8
+-7	7	7
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-128	2	2
+-128	1	1
+-128	0	13
+UPDATE t2 SET c1=-128 WHERE c2 <= 3 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <= 3 ORDER BY c2;
+c1	c2	c3
+-128	0	13
+-128	1	1
+-128	2	2
+-3	3	3
+UPDATE t2 SET c1=-128 WHERE c2 <=> 4 ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 <=> 4 ORDER BY c2;
+c1	c2	c3
+-128	4	4
+UPDATE t2 SET c1=-128 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 BETWEEN 4 AND 7 ORDER BY c2;
+c1	c2	c3
+-128	4	4
+-128	5	5
+-6	6	6
+-7	7	7
+UPDATE t2 SET c1=-128 WHERE c2 IN(8,9) ORDER BY c2 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IN(8,9) ORDER BY c2 DESC;
+c1	c2	c3
+-128	9	9
+-128	8	8
+UPDATE t2 SET c1=-128 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+c1	c2	c3
+-128	NULL	11
+UPDATE t2 SET c1=-128 WHERE c2>= 6 AND c2 < 9 ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2>= 6 AND c2 < 9 ORDER BY c2;
+c1	c2	c3
+-128	6	6
+-128	7	7
+-128	8	8
+UPDATE t2 SET c1=-128 WHERE c1=-12 OR c2=1;
+SELECT * FROM t2 WHERE c1=-128;
+c1	c2	c3
+-128	0	13
+-128	1	1
+-128	12	12
+-128	128	15
+-128	2	2
+-128	255	14
+-128	4	4
+-128	5	5
+-128	6	6
+-128	7	7
+-128	8	8
+-128	9	9
+-128	NULL	11
+SELECT * FROM t2;
+c1	c2	c3
+-128	0	13
+-128	1	1
+-128	12	12
+-128	128	15
+-128	2	2
+-128	255	14
+-128	4	4
+-128	5	5
+-128	6	6
+-128	7	7
+-128	8	8
+-128	9	9
+-128	NULL	11
+-3	3	3
+127	127	16
+50	50	10
+SELECT c1 FROM t2;
+c1
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-3
+127
+50
+SELECT c1 FROM t2 ORDER BY c1 DESC;
+c1
+127
+50
+-3
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+-128
+SELECT * FROM t2 WHERE c1=-128;
+c1	c2	c3
+-128	0	13
+-128	1	1
+-128	12	12
+-128	128	15
+-128	2	2
+-128	255	14
+-128	4	4
+-128	5	5
+-128	6	6
+-128	7	7
+-128	8	8
+-128	9	9
+-128	NULL	11
+SELECT * FROM t2 WHERE c1 <> -128 ORDER BY c1,c2;
+c1	c2	c3
+-3	3	3
+50	50	10
+127	127	16
+SELECT * FROM t2 WHERE c1 <> -128 ORDER BY c1,c2 DESC LIMIT 2;
+c1	c2	c3
+-3	3	3
+50	50	10
+SELECT * FROM t2 WHERE c1 > -128 ORDER BY c1,c2 DESC;
+c1	c2	c3
+-3	3	3
+50	50	10
+127	127	16
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1,c2 LIMIT 2;
+c1	c2	c3
+-128	NULL	11
+-128	0	13
+SELECT * FROM t2 WHERE c1 < -128 ORDER BY c1,c2;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 <= -128 ORDER BY c1,c2 DESC LIMIT 2;
+c1	c2	c3
+-128	255	14
+-128	128	15
+SELECT * FROM t2 WHERE c1 <=> -128 ORDER BY c1,c2 DESC;
+c1	c2	c3
+-128	255	14
+-128	128	15
+-128	12	12
+-128	9	9
+-128	8	8
+-128	7	7
+-128	6	6
+-128	5	5
+-128	4	4
+-128	2	2
+-128	1	1
+-128	0	13
+-128	NULL	11
+SELECT * FROM t2 WHERE c1 <=> -128 ORDER BY c1,c2 LIMIT 2;
+c1	c2	c3
+-128	NULL	11
+-128	0	13
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1,c2;
+c1	c2	c3
+-128	NULL	11
+-128	0	13
+-128	1	1
+-128	2	2
+-128	4	4
+-128	5	5
+-128	6	6
+-128	7	7
+-128	8	8
+-128	9	9
+-128	12	12
+-128	128	15
+-128	255	14
+-3	3	3
+50	50	10
+127	127	16
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1,c2 DESC LIMIT 2;
+c1	c2	c3
+-128	255	14
+-128	128	15
+SELECT * FROM t2 WHERE c1 IN(-128,127) ORDER BY c1,c2 DESC;
+c1	c2	c3
+-128	255	14
+-128	128	15
+-128	12	12
+-128	9	9
+-128	8	8
+-128	7	7
+-128	6	6
+-128	5	5
+-128	4	4
+-128	2	2
+-128	1	1
+-128	0	13
+-128	NULL	11
+127	127	16
+SELECT * FROM t2 WHERE c1 IN(-128,127) ORDER BY c1,c2 LIMIT 2;
+c1	c2	c3
+-128	NULL	11
+-128	0	13
+SELECT * FROM t2 WHERE c1>=-128 AND c1 <= 127 ORDER BY c1,c2 DESC;
+c1	c2	c3
+-128	255	14
+-128	128	15
+-128	12	12
+-128	9	9
+-128	8	8
+-128	7	7
+-128	6	6
+-128	5	5
+-128	4	4
+-128	2	2
+-128	1	1
+-128	0	13
+-128	NULL	11
+-3	3	3
+50	50	10
+127	127	16
+SELECT * FROM t2 WHERE c1>=-128 AND c1 <= 127 ORDER BY c1,c2 LIMIT 2;
+c1	c2	c3
+-128	NULL	11
+-128	0	13
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+c1	c2	c3
+-128	NULL	11
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-128	NULL	11
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+-128	0	13
+-128	1	1
+-128	2	2
+-3	3	3
+-128	4	4
+-128	5	5
+-128	6	6
+-128	7	7
+-128	8	8
+-128	9	9
+-128	12	12
+50	50	10
+127	127	16
+-128	128	15
+-128	255	14
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-128	0	13
+-128	1	1
+SELECT * FROM t2 WHERE c1=-128 OR c2=3;
+c1	c2	c3
+-128	0	13
+-128	1	1
+-128	12	12
+-128	128	15
+-128	2	2
+-128	255	14
+-128	4	4
+-128	5	5
+-128	6	6
+-128	7	7
+-128	8	8
+-128	9	9
+-128	NULL	11
+-3	3	3
+CREATE TABLE mt1 (a tinyint not null primary key, b tinyint not null, key (b));
+CREATE TABLE mt2 (a tinyint not null primary key, b tinyint not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+update mt1,mt2 set mt1.a=mt1.a+100;
+select * from mt1;
+a	b
+101	1
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from mt1;
+a	b
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+127	1
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+select * from mt1;
+a	b
+102	12
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+127	1
+update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+select * from mt1;
+a	b
+102	12
+103	5
+104	6
+105	7
+106	6
+107	7
+108	8
+109	9
+127	1
+select * from mt2;
+a	b
+1	1
+2	2
+3	13
+4	14
+5	15
+6	6
+7	7
+8	8
+9	9
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+c1	c2	c3
+-3	3	3
+127	255	9
+DELETE FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+1	1	8
+0	0	7
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-2	2	2
+-1	1	1
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+c1	c2	c3
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+0	0	7
+-2	2	2
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+-1	1	1
+1	1	8
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+127	255	11
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-3	3	3
+127	255	11
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+3	NULL	10
+2	NULL	9
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+255	-128	2	127	255	1
+3	NULL	5	-1	NULL	5
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+CREATE TABLE t3(c1 TINYINT UNSIGNED NOT NULL PRIMARY KEY, c2 TINYINT SIGNED NULL, c3 INT);
+CREATE TABLE t4(c1 TINYINT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+200	126	1	200	1
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1(c1 SMALLINT UNSIGNED NOT NULL, c2 SMALLINT SIGNED NULL, c3 INT, INDEX idx2(c2));
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+SELECT * FROM t1;
+c1	c2	c3
+0	-128	0
+0	NULL	3
+1	1	1
+101	-101	4
+102	-102	5
+103	-103	6
+104	-104	7
+105	-105	8
+2	2	2
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1 WHERE c1=110;
+c1	c2	c3
+110	-104	7
+110	-105	8
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101;
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+c1	c2	c3
+102	NULL	4
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+SELECT c1,c2 FROM t1 WHERE c1=120;
+c1	c2
+120	NULL
+120	NULL
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+c1	c2
+0	-102
+UPDATE t1 SET c1=0,c2=-32768 WHERE c1=103 AND c2=-103;
+SELECT * FROM t1 WHERE c1=0 AND c2=-32768;
+c1	c2	c3
+0	-32768	6
+UPDATE t1 SET c1=65535,c2=32767 WHERE c1=104 OR c2=105;
+SELECT * FROM t1 WHERE c1=65535 AND c2=32767;
+c1	c2	c3
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+SELECT * FROM t1 WHERE c2=0;
+c1	c2	c3
+1	0	1
+2	0	2
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+UPDATE t1 SET c1=65536,c2=32768 WHERE c2 BETWEEN -108 AND -106;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c1' at row 2
+Warning	1264	Out of range value for column 'c2' at row 2
+Warning	1264	Out of range value for column 'c1' at row 3
+Warning	1264	Out of range value for column 'c2' at row 3
+SELECT COUNT(*) FROM t1 WHERE c1=65536 AND c2=32768 /* no rows */;
+COUNT(*)
+0
+SELECT * FROM t1 WHERE c1=65535 AND c2=32767;
+c1	c2	c3
+65535	32767	10
+65535	32767	11
+65535	32767	9
+UPDATE t1 SET c2=-32769 WHERE c1=109 ORDER BY c1;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 WHERE c1=109;
+c1	c2
+109	-32768
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+ERROR 23000: Column 'c1' cannot be null
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+c1	c2
+0	-110
+SET SQL_MODE=DEFAULT;
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT * FROM t1 WHERE c1=0;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-32768	6
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+c1	c2	c3
+1	0	1
+2	0	2
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-32768	6
+109	-32768	12
+110	-104	7
+110	-105	8
+120	NULL	3
+120	NULL	4
+2	1	1
+255	127	13
+3	1	2
+65535	32767	10
+65535	32767	11
+65535	32767	9
+CREATE TABLE t2(c1 SMALLINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 SMALLINT UNSIGNED NULL, c3 INT);
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+UPDATE t2 SET c1=1 WHERE c1=3;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+SELECT c1 FROM t2;
+c1
+1
+2
+3
+4
+5
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+c1
+11
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+c1
+11
+UPDATE t1 SET c1=65535,c2=32767 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+65535	32767
+UPDATE t2 SET c1=0,c2=-32768 WHERE c2=2;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+65535	32767
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+65535	32767
+UPDATE t2 SET c1=32767,c2=65535 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+32767	65535
+UPDATE t2 SET c1=-32768,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+32767	65535
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+32767	65535
+CREATE TABLE mt1 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 SMALLINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+SELECT * FROM mt1;
+c1	c2
+1	30
+2	30
+3	3
+4	4
+5	5
+SELECT * FROM mt2;
+c1	c2
+11	40
+12	1
+13	40
+14	40
+15	6
+SELECT * FROM mt3;
+c1	c2
+21	50
+22	50
+23	50
+24	50
+25	15
+DROP TABLE mt1,mt2,mt3;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 SMALLINT UNSIGNED NULL, ADD KEY(c2);
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+ALTER TABLE t2 CHANGE c1 c1 SMALLINT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 SMALLINT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-32768,0,12),(0,255,13),(32767,65535,14);
+UPDATE t2 SET c2=65535 WHERE c1 <> 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c1;
+c1	c2	c3
+-32768	65535	12
+-12	65535	12
+-9	9	9
+-8	8	8
+-7	7	7
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	255	13
+50	50	10
+32767	65535	14
+UPDATE t2 SET c2=65535 WHERE c1 >= 0 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= 0 ORDER BY c1 DESC;
+c1	c2	c3
+32767	65535	14
+50	65535	10
+0	255	13
+UPDATE t2 SET c2=65535 WHERE c1 <= -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= -9 ORDER BY c1;
+c1	c2	c3
+-32768	65535	12
+-12	65535	12
+-11	NULL	11
+-9	9	9
+UPDATE t2 SET c2=65535 WHERE c1 <=> -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <=> -3 ORDER BY c1;
+c1	c2	c3
+-3	65535	3
+UPDATE t2 SET c2=65535 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1;
+c1	c2	c3
+-6	65535	6
+-5	65535	5
+-4	4	4
+UPDATE t2 SET c2=65535 WHERE c1 IN(-7,-8) ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 IN(-7,-8) ORDER BY c1 DESC;
+c1	c2	c3
+-7	65535	7
+-8	65535	8
+UPDATE t2 SET c2=65535 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+c1	c2	c3
+UPDATE t2 SET c2=65535 WHERE c1>= -32768 AND c1 < -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1>= -32768 AND c1 < -9 ORDER BY c1;
+c1	c2	c3
+-32768	65535	12
+-12	65535	12
+-11	65535	11
+UPDATE t2 SET c2=65535 WHERE c1=-2 OR c2=1;
+SELECT * FROM t2 WHERE c2=65535;
+c1	c2	c3
+-1	65535	1
+-11	65535	11
+-12	65535	12
+-2	65535	2
+-3	65535	3
+-32768	65535	12
+-5	65535	5
+-6	65535	6
+-7	65535	7
+-8	65535	8
+32767	65535	14
+50	65535	10
+SELECT * FROM t2;
+c1	c2	c3
+-1	65535	1
+-11	65535	11
+-12	65535	12
+-2	65535	2
+-3	65535	3
+-32768	65535	12
+-4	4	4
+-5	65535	5
+-6	65535	6
+-7	65535	7
+-8	65535	8
+-9	9	9
+0	255	13
+32767	65535	14
+50	65535	10
+SELECT c2 FROM t2;
+c2
+255
+4
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+9
+SELECT c2 FROM t2 ORDER BY c2 DESC;
+c2
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+65535
+255
+9
+4
+SELECT * FROM t2 WHERE c2=65535;
+c1	c2	c3
+-1	65535	1
+-11	65535	11
+-12	65535	12
+-2	65535	2
+-3	65535	3
+-32768	65535	12
+-5	65535	5
+-6	65535	6
+-7	65535	7
+-8	65535	8
+32767	65535	14
+50	65535	10
+SELECT * FROM t2 WHERE c2 <> 65535 ORDER BY c2,c1;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+SELECT * FROM t2 WHERE c2 <> 65535 ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 > 65535 ORDER BY c2,c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 >= 65535 ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-32768	65535	12
+-12	65535	12
+SELECT * FROM t2 WHERE c2 < 65535 ORDER BY c2,c1;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+SELECT * FROM t2 WHERE c2 <= 65535 ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 <=> 65535 ORDER BY c2,c1 DESC;
+c1	c2	c3
+32767	65535	14
+50	65535	10
+-1	65535	1
+-2	65535	2
+-3	65535	3
+-5	65535	5
+-6	65535	6
+-7	65535	7
+-8	65535	8
+-11	65535	11
+-12	65535	12
+-32768	65535	12
+SELECT * FROM t2 WHERE c2 <=> 65535 ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-32768	65535	12
+-12	65535	12
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 65535 ORDER BY c2,c1;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+-32768	65535	12
+-12	65535	12
+-11	65535	11
+-8	65535	8
+-7	65535	7
+-6	65535	6
+-5	65535	5
+-3	65535	3
+-2	65535	2
+-1	65535	1
+50	65535	10
+32767	65535	14
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 65535 ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 IN(0,65535) ORDER BY c2,c1 DESC;
+c1	c2	c3
+32767	65535	14
+50	65535	10
+-1	65535	1
+-2	65535	2
+-3	65535	3
+-5	65535	5
+-6	65535	6
+-7	65535	7
+-8	65535	8
+-11	65535	11
+-12	65535	12
+-32768	65535	12
+SELECT * FROM t2 WHERE c2 IN(0,65535) ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-32768	65535	12
+-12	65535	12
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 65535 ORDER BY c2,c1 DESC;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+32767	65535	14
+50	65535	10
+-1	65535	1
+-2	65535	2
+-3	65535	3
+-5	65535	5
+-6	65535	6
+-7	65535	7
+-8	65535	8
+-11	65535	11
+-12	65535	12
+-32768	65535	12
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 65535 ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+32767	65535	14
+50	65535	10
+-1	65535	1
+-2	65535	2
+-3	65535	3
+-5	65535	5
+-6	65535	6
+-7	65535	7
+-8	65535	8
+-11	65535	11
+-12	65535	12
+-32768	65535	12
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2=65535 OR c1=-4;
+c1	c2	c3
+-1	65535	1
+-11	65535	11
+-12	65535	12
+-2	65535	2
+-3	65535	3
+-32768	65535	12
+-4	4	4
+-5	65535	5
+-6	65535	6
+-7	65535	7
+-8	65535	8
+32767	65535	14
+50	65535	10
+CREATE TABLE mt1 (a smallint not null primary key, b smallint not null, key (b));
+CREATE TABLE mt2 (a smallint not null primary key, b smallint not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+update mt1,mt2 set mt1.a=mt1.a+100;
+select * from mt1;
+a	b
+101	1
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+select * from mt1;
+a	b
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+201	1
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+select * from mt1;
+a	b
+102	12
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+201	1
+update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+select * from mt1;
+a	b
+102	12
+103	5
+104	6
+105	7
+106	6
+107	7
+108	8
+109	9
+201	1
+select * from mt2;
+a	b
+1	1
+2	2
+3	13
+4	14
+5	15
+6	6
+7	7
+8	8
+9	9
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+c1	c2	c3
+-3	3	3
+127	255	9
+DELETE FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+1	1	8
+0	0	7
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-2	2	2
+-1	1	1
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+c1	c2	c3
+DELETE FROM t2 WHERE c1=-3 OR c2=2;
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+c1	c2	c3
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+0	0	7
+-2	2	2
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+-1	1	1
+1	1	8
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+127	255	11
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-3	3	3
+127	255	11
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+3	NULL	10
+2	NULL	9
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+255	-128	2	127	255	1
+3	NULL	5	-1	NULL	5
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+CREATE TABLE t3(c1 SMALLINT UNSIGNED NOT NULL PRIMARY KEY, c2 SMALLINT SIGNED NULL, c3 INT);
+CREATE TABLE t4(c1 SMALLINT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+200	126	1	200	1
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1(c1 MEDIUMINT UNSIGNED NOT NULL, c2 MEDIUMINT SIGNED NULL, c3 INT, INDEX idx2(c2));
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+SELECT * FROM t1;
+c1	c2	c3
+0	-128	0
+0	NULL	3
+1	1	1
+101	-101	4
+102	-102	5
+103	-103	6
+104	-104	7
+105	-105	8
+2	2	2
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1 WHERE c1=110;
+c1	c2	c3
+110	-104	7
+110	-105	8
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101;
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+c1	c2	c3
+102	NULL	4
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+SELECT c1,c2 FROM t1 WHERE c1=120;
+c1	c2
+120	NULL
+120	NULL
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+c1	c2
+0	-102
+UPDATE t1 SET c1=0,c2=-8388608 WHERE c1=103 AND c2=-103;
+SELECT * FROM t1 WHERE c1=0 AND c2=-8388608;
+c1	c2	c3
+0	-8388608	6
+UPDATE t1 SET c1=16777215,c2=8388607 WHERE c1=104 OR c2=105;
+SELECT * FROM t1 WHERE c1=16777215 AND c2=8388607;
+c1	c2	c3
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+SELECT * FROM t1 WHERE c2=0;
+c1	c2	c3
+1	0	1
+2	0	2
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+UPDATE t1 SET c1=16777216,c2=8388608 WHERE c2 BETWEEN -108 AND -106;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c1' at row 2
+Warning	1264	Out of range value for column 'c2' at row 2
+Warning	1264	Out of range value for column 'c1' at row 3
+Warning	1264	Out of range value for column 'c2' at row 3
+SELECT COUNT(*) FROM t1 WHERE c1=16777216 AND c2=8388608 /* no rows */;
+COUNT(*)
+0
+SELECT * FROM t1 WHERE c1=16777215 AND c2=8388607;
+c1	c2	c3
+16777215	8388607	10
+16777215	8388607	11
+16777215	8388607	9
+UPDATE t1 SET c2=-8388609 WHERE c1=109 ORDER BY c1;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 WHERE c1=109;
+c1	c2
+109	-8388608
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+ERROR 23000: Column 'c1' cannot be null
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+c1	c2
+0	-110
+SET SQL_MODE=DEFAULT;
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT * FROM t1 WHERE c1=0;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-8388608	6
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+c1	c2	c3
+1	0	1
+2	0	2
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-8388608	6
+109	-8388608	12
+110	-104	7
+110	-105	8
+120	NULL	3
+120	NULL	4
+16777215	8388607	10
+16777215	8388607	11
+16777215	8388607	9
+2	1	1
+255	127	13
+3	1	2
+CREATE TABLE t2(c1 MEDIUMINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 MEDIUMINT UNSIGNED NULL, c3 INT);
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+UPDATE t2 SET c1=1 WHERE c1=3;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+SELECT c1 FROM t2;
+c1
+1
+2
+3
+4
+5
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+c1
+11
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+c1
+11
+UPDATE t1 SET c1=16777215,c2=8388607 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+16777215	8388607
+UPDATE t2 SET c1=0,c2=-8388608 WHERE c2=2;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+16777215	8388607
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+16777215	8388607
+UPDATE t2 SET c1=8388607,c2=16777215 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+8388607	16777215
+UPDATE t2 SET c1=-8388608,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+8388607	16777215
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+8388607	16777215
+CREATE TABLE mt1 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 MEDIUMINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+SELECT * FROM mt1;
+c1	c2
+1	30
+2	30
+3	3
+4	4
+5	5
+SELECT * FROM mt2;
+c1	c2
+11	40
+12	1
+13	40
+14	40
+15	6
+SELECT * FROM mt3;
+c1	c2
+21	50
+22	50
+23	50
+24	50
+25	15
+DROP TABLE mt1,mt2,mt3;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 MEDIUMINT UNSIGNED NULL, ADD KEY(c2);
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+ALTER TABLE t2 CHANGE c1 c1 MEDIUMINT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 MEDIUMINT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-8388608,0,12),(0,255,13),(8388607,16777215,14);
+UPDATE t2 SET c2=16777215 WHERE c1 <> 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c1;
+c1	c2	c3
+-8388608	16777215	12
+-12	16777215	12
+-9	9	9
+-8	8	8
+-7	7	7
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	255	13
+50	50	10
+8388607	16777215	14
+UPDATE t2 SET c2=16777215 WHERE c1 >= 0 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= 0 ORDER BY c1 DESC;
+c1	c2	c3
+8388607	16777215	14
+50	16777215	10
+0	255	13
+UPDATE t2 SET c2=16777215 WHERE c1 <= -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= -9 ORDER BY c1;
+c1	c2	c3
+-8388608	16777215	12
+-12	16777215	12
+-11	NULL	11
+-9	9	9
+UPDATE t2 SET c2=16777215 WHERE c1 <=> -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <=> -3 ORDER BY c1;
+c1	c2	c3
+-3	16777215	3
+UPDATE t2 SET c2=16777215 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1;
+c1	c2	c3
+-6	16777215	6
+-5	16777215	5
+-4	4	4
+UPDATE t2 SET c2=16777215 WHERE c1 IN(-7,-8) ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 IN(-7,-8) ORDER BY c1 DESC;
+c1	c2	c3
+-7	16777215	7
+-8	16777215	8
+UPDATE t2 SET c2=16777215 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+c1	c2	c3
+UPDATE t2 SET c2=16777215 WHERE c1>= -8388608 AND c1 < -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1>= -8388608 AND c1 < -9 ORDER BY c1;
+c1	c2	c3
+-8388608	16777215	12
+-12	16777215	12
+-11	16777215	11
+UPDATE t2 SET c2=16777215 WHERE c1=-2 OR c2=1;
+SELECT * FROM t2 WHERE c2=16777215;
+c1	c2	c3
+-1	16777215	1
+-11	16777215	11
+-12	16777215	12
+-2	16777215	2
+-3	16777215	3
+-5	16777215	5
+-6	16777215	6
+-7	16777215	7
+-8	16777215	8
+-8388608	16777215	12
+50	16777215	10
+8388607	16777215	14
+SELECT * FROM t2;
+c1	c2	c3
+-1	16777215	1
+-11	16777215	11
+-12	16777215	12
+-2	16777215	2
+-3	16777215	3
+-4	4	4
+-5	16777215	5
+-6	16777215	6
+-7	16777215	7
+-8	16777215	8
+-8388608	16777215	12
+-9	9	9
+0	255	13
+50	16777215	10
+8388607	16777215	14
+SELECT c2 FROM t2;
+c2
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+255
+4
+9
+SELECT c2 FROM t2 ORDER BY c2 DESC;
+c2
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+16777215
+255
+9
+4
+SELECT * FROM t2 WHERE c2=16777215;
+c1	c2	c3
+-1	16777215	1
+-11	16777215	11
+-12	16777215	12
+-2	16777215	2
+-3	16777215	3
+-5	16777215	5
+-6	16777215	6
+-7	16777215	7
+-8	16777215	8
+-8388608	16777215	12
+50	16777215	10
+8388607	16777215	14
+SELECT * FROM t2 WHERE c2 <> 16777215 ORDER BY c2,c1;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+SELECT * FROM t2 WHERE c2 <> 16777215 ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 > 16777215 ORDER BY c2,c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 >= 16777215 ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-8388608	16777215	12
+-12	16777215	12
+SELECT * FROM t2 WHERE c2 < 16777215 ORDER BY c2,c1;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+SELECT * FROM t2 WHERE c2 <= 16777215 ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 <=> 16777215 ORDER BY c2,c1 DESC;
+c1	c2	c3
+8388607	16777215	14
+50	16777215	10
+-1	16777215	1
+-2	16777215	2
+-3	16777215	3
+-5	16777215	5
+-6	16777215	6
+-7	16777215	7
+-8	16777215	8
+-11	16777215	11
+-12	16777215	12
+-8388608	16777215	12
+SELECT * FROM t2 WHERE c2 <=> 16777215 ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-8388608	16777215	12
+-12	16777215	12
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 16777215 ORDER BY c2,c1;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+-8388608	16777215	12
+-12	16777215	12
+-11	16777215	11
+-8	16777215	8
+-7	16777215	7
+-6	16777215	6
+-5	16777215	5
+-3	16777215	3
+-2	16777215	2
+-1	16777215	1
+50	16777215	10
+8388607	16777215	14
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 16777215 ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 IN(0,16777215) ORDER BY c2,c1 DESC;
+c1	c2	c3
+8388607	16777215	14
+50	16777215	10
+-1	16777215	1
+-2	16777215	2
+-3	16777215	3
+-5	16777215	5
+-6	16777215	6
+-7	16777215	7
+-8	16777215	8
+-11	16777215	11
+-12	16777215	12
+-8388608	16777215	12
+SELECT * FROM t2 WHERE c2 IN(0,16777215) ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-8388608	16777215	12
+-12	16777215	12
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 16777215 ORDER BY c2,c1 DESC;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+8388607	16777215	14
+50	16777215	10
+-1	16777215	1
+-2	16777215	2
+-3	16777215	3
+-5	16777215	5
+-6	16777215	6
+-7	16777215	7
+-8	16777215	8
+-11	16777215	11
+-12	16777215	12
+-8388608	16777215	12
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 16777215 ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+8388607	16777215	14
+50	16777215	10
+-1	16777215	1
+-2	16777215	2
+-3	16777215	3
+-5	16777215	5
+-6	16777215	6
+-7	16777215	7
+-8	16777215	8
+-11	16777215	11
+-12	16777215	12
+-8388608	16777215	12
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2=16777215 OR c1=-4;
+c1	c2	c3
+-1	16777215	1
+-11	16777215	11
+-12	16777215	12
+-2	16777215	2
+-3	16777215	3
+-4	4	4
+-5	16777215	5
+-6	16777215	6
+-7	16777215	7
+-8	16777215	8
+-8388608	16777215	12
+50	16777215	10
+8388607	16777215	14
+CREATE TABLE mt1 (a mediumint not null primary key, b mediumint not null, key (b));
+CREATE TABLE mt2 (a mediumint not null primary key, b mediumint not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+update mt1,mt2 set mt1.a=mt1.a+100;
+select * from mt1;
+a	b
+101	1
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+select * from mt1;
+a	b
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+201	1
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+select * from mt1;
+a	b
+102	12
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+201	1
+update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+select * from mt1;
+a	b
+102	12
+103	5
+104	6
+105	7
+106	6
+107	7
+108	8
+109	9
+201	1
+select * from mt2;
+a	b
+1	1
+2	2
+3	13
+4	14
+5	15
+6	6
+7	7
+8	8
+9	9
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+c1	c2	c3
+-3	3	3
+127	255	9
+DELETE FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+1	1	8
+0	0	7
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-2	2	2
+-1	1	1
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+c1	c2	c3
+DELETE FROM t2 WHERE c1=-3 OR c2=2;
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+c1	c2	c3
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+0	0	7
+-2	2	2
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+-1	1	1
+1	1	8
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+127	255	11
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-3	3	3
+127	255	11
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+3	NULL	10
+2	NULL	9
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+255	-128	2	127	255	1
+3	NULL	5	-1	NULL	5
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+CREATE TABLE t3(c1 MEDIUMINT UNSIGNED NOT NULL PRIMARY KEY, c2 MEDIUMINT SIGNED NULL, c3 INT);
+CREATE TABLE t4(c1 MEDIUMINT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+200	126	1	200	1
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1(c1 BIGINT UNSIGNED NOT NULL, c2 BIGINT SIGNED NULL, c3 INT, INDEX idx2(c2));
+INSERT INTO t1 VALUES(0,-128,0),(1,1,1),(2,2,2),(0,\N,3),(101,-101,4),(102,-102,5),(103,-103,6),(104,-104,7),(105,-105,8);
+SELECT * FROM t1;
+c1	c2	c3
+0	-128	0
+0	NULL	3
+1	1	1
+101	-101	4
+102	-102	5
+103	-103	6
+104	-104	7
+105	-105	8
+2	2	2
+UPDATE t1 SET c1=110 WHERE c2 >-128 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1 WHERE c1=110;
+c1	c2	c3
+110	-104	7
+110	-105	8
+UPDATE t1 SET c1=c1+1,c2=NULL WHERE c1=101;
+SELECT * FROM t1 WHERE c1=102 AND c2 IS NULL;
+c1	c2	c3
+102	NULL	4
+UPDATE t1 SET c1=120 WHERE c2 IS NULL;
+SELECT c1,c2 FROM t1 WHERE c1=120;
+c1	c2
+120	NULL
+120	NULL
+UPDATE t1 SET c1=-120 WHERE c2=-102;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+SELECT c1,c2 FROM t1 WHERE c2=-102;
+c1	c2
+0	-102
+UPDATE t1 SET c1=0,c2=-9223372036854775808 WHERE c1=103 AND c2=-103;
+SELECT * FROM t1 WHERE c1=0 AND c2=-9223372036854775808;
+c1	c2	c3
+0	-9223372036854775808	6
+UPDATE t1 SET c1=18446744073709551615,c2=9223372036854775807 WHERE c1=104 OR c2=105;
+SELECT * FROM t1 WHERE c1=18446744073709551615 AND c2=9223372036854775807;
+c1	c2	c3
+UPDATE t1 SET c2=0 WHERE c1 IN (1,2);
+SELECT * FROM t1 WHERE c2=0;
+c1	c2	c3
+1	0	1
+2	0	2
+INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
+UPDATE t1 SET c1=18446744073709551616,c2=9223372036854775808 WHERE c2 BETWEEN -108 AND -106;
+Warnings:
+Warning	1264	Out of range value for column 'c1' at row 1
+Warning	1264	Out of range value for column 'c2' at row 1
+Warning	1264	Out of range value for column 'c1' at row 2
+Warning	1264	Out of range value for column 'c2' at row 2
+Warning	1264	Out of range value for column 'c1' at row 3
+Warning	1264	Out of range value for column 'c2' at row 3
+SELECT COUNT(*) FROM t1 WHERE c1=18446744073709551616 AND c2=9223372036854775808 /* no rows */;
+COUNT(*)
+0
+SELECT * FROM t1 WHERE c1=18446744073709551615 AND c2=9223372036854775807;
+c1	c2	c3
+18446744073709551615	9223372036854775807	10
+18446744073709551615	9223372036854775807	11
+18446744073709551615	9223372036854775807	9
+UPDATE t1 SET c2=-9223372036854775809 WHERE c1=109 ORDER BY c1;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 WHERE c1=109;
+c1	c2
+109	-9223372036854775808
+INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
+SET SQL_MODE=STRICT_ALL_TABLES;
+UPDATE t1 SET c1=NULL WHERE c2=-110;
+ERROR 23000: Column 'c1' cannot be null
+UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT c1,c2 FROM t1 WHERE c2=-110;
+c1	c2
+0	-110
+SET SQL_MODE=DEFAULT;
+UPDATE t1 SET c1=NULL WHERE c2=-111 /* updates to default value 0 */;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+SELECT * FROM t1 WHERE c1=0;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-9223372036854775808	6
+SELECT * FROM t1 WHERE c2>=-101 AND c1<=101 ORDER BY c2;
+c1	c2	c3
+1	0	1
+2	0	2
+UPDATE t1 SET c1=c1+1,c2=c2+1 WHERE c2>=-101 AND c1<=101 ORDER BY c2 LIMIT 2;
+SELECT * FROM t1;
+c1	c2	c3
+0	-102	5
+0	-110	14
+0	-111	15
+0	-128	0
+0	-9223372036854775808	6
+109	-9223372036854775808	12
+110	-104	7
+110	-105	8
+120	NULL	3
+120	NULL	4
+18446744073709551615	9223372036854775807	10
+18446744073709551615	9223372036854775807	11
+18446744073709551615	9223372036854775807	9
+2	1	1
+255	127	13
+3	1	2
+CREATE TABLE t2(c1 BIGINT SIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, c2 BIGINT UNSIGNED NULL, c3 INT);
+INSERT INTO t2(c1) VALUES(1),(2),(3),(4),(5);
+UPDATE t2 SET c1=1 WHERE c1=3;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+UPDATE IGNORE t2 SET c1=1 WHERE c1>=3;
+SELECT c1 FROM t2;
+c1
+1
+2
+3
+4
+5
+TRUNCATE TABLE t1;
+ALTER TABLE t1 CHANGE c1 c1 BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, ADD PRIMARY KEY(c1);
+INSERT INTO t1 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(1,2,3),(4,5,6),(7,8,9),(10,11,12);
+INSERT INTO t1(c2,c3) VALUES(13,14);
+SELECT c1 FROM t1 WHERE c2=13;
+c1
+11
+INSERT INTO t2(c2,c3) VALUES(13,14);
+SELECT c1 FROM t2 WHERE c2=13;
+c1
+11
+UPDATE t1 SET c1=18446744073709551615,c2=9223372036854775807 WHERE c2=13;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+18446744073709551615	9223372036854775807
+UPDATE t2 SET c1=0,c2=-9223372036854775808 WHERE c2=2;
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+18446744073709551615	9223372036854775807
+UPDATE t2 SET c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t1 ORDER BY c1;
+c1	c2
+1	2
+4	5
+7	8
+10	11
+18446744073709551615	9223372036854775807
+UPDATE t2 SET c1=9223372036854775807,c2=18446744073709551615 WHERE c2=13;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+9223372036854775807	18446744073709551615
+UPDATE t2 SET c1=-9223372036854775808,c2=0 WHERE c2=2;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+9223372036854775807	18446744073709551615
+UPDATE t2 SET c1=0,c2=0 WHERE c2=5;
+SELECT c1,c2 FROM t2 ORDER BY c1;
+c1	c2
+0	0
+4	0
+7	8
+10	11
+9223372036854775807	18446744073709551615
+CREATE TABLE mt1 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt2 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+CREATE TABLE mt3 (c1 BIGINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));
+INSERT INTO mt1 VALUES(1,1),(2,2),(3,3),(4,4),(5,5);
+INSERT INTO mt2 VALUES(11,1),(12,1),(13,1),(14,2),(15,6);
+INSERT INTO mt3 VALUES(21,11),(22,11),(23,13),(24,14),(25,15);
+UPDATE IGNORE mt1, mt2 ,mt3 SET mt1.c2 = 30, mt2.c2 = 40, mt3.c2=50 WHERE mt1.c1=mt2.c2 AND mt2.c1=mt3.c2;
+SELECT * FROM mt1;
+c1	c2
+1	30
+2	30
+3	3
+4	4
+5	5
+SELECT * FROM mt2;
+c1	c2
+11	40
+12	1
+13	40
+14	40
+15	6
+SELECT * FROM mt3;
+c1	c2
+21	50
+22	50
+23	50
+24	50
+25	15
+DROP TABLE mt1,mt2,mt3;
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+ALTER TABLE t2 CHANGE c2 c2 BIGINT UNSIGNED NULL, ADD KEY(c2);
+INSERT INTO t1 VALUES(1,-1,1),(2,-2,2),(3,-3,3),(4,-4,4),(5,-5,5),(6,-6,6),(7,-7,7),(8,-8,8),(9,-9,9),(10,-10,10),(11,NULL,11);
+INSERT INTO t2 VALUES(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(-7,7,7),(-8,8,8),(-9,9,9),(10,10,10),(-11,NULL,11),(-12,12,12);
+UPDATE t1,t2 SET t1.c1=50,t1.c2=50,t2.c1=50,t2.c2=50 WHERE t2.c1=t1.c1;
+SELECT * FROM t1,t2 WHERE t1.c1=50 AND t1.c2=50 AND t2.c1=50 AND t2.c2=50;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c1;
+c1	c2	c3	c1	c2	c3
+50	50	10	50	50	10
+ALTER TABLE t2 CHANGE c1 c1 BIGINT SIGNED NOT NULL, DROP PRIMARY KEY;
+ALTER TABLE t2 CHANGE c1 c1 BIGINT SIGNED NOT NULL, ADD KEY(c1);
+INSERT INTO t2 VALUES(-9223372036854775808,0,12),(0,255,13),(9223372036854775807,18446744073709551615,14);
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 <> 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 <> 0 ORDER BY c1;
+c1	c2	c3
+-9223372036854775808	18446744073709551615	12
+-12	18446744073709551615	12
+-9	9	9
+-8	8	8
+-7	7	7
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	255	13
+50	50	10
+9223372036854775807	18446744073709551615	14
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 >= 0 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= 0 ORDER BY c1 DESC;
+c1	c2	c3
+9223372036854775807	18446744073709551615	14
+50	18446744073709551615	10
+0	255	13
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 <= -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= -9 ORDER BY c1;
+c1	c2	c3
+-9223372036854775808	18446744073709551615	12
+-12	18446744073709551615	12
+-11	NULL	11
+-9	9	9
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 <=> -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <=> -3 ORDER BY c1;
+c1	c2	c3
+-3	18446744073709551615	3
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -6 AND -4 ORDER BY c1;
+c1	c2	c3
+-6	18446744073709551615	6
+-5	18446744073709551615	5
+-4	4	4
+UPDATE t2 SET c2=18446744073709551615 WHERE c1 IN(-7,-8) ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 IN(-7,-8) ORDER BY c1 DESC;
+c1	c2	c3
+-7	18446744073709551615	7
+-8	18446744073709551615	8
+UPDATE t2 SET c2=18446744073709551615 WHERE c2 IS NULL ORDER BY c2 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2;
+c1	c2	c3
+UPDATE t2 SET c2=18446744073709551615 WHERE c1>= -9223372036854775808 AND c1 < -9 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1>= -9223372036854775808 AND c1 < -9 ORDER BY c1;
+c1	c2	c3
+-9223372036854775808	18446744073709551615	12
+-12	18446744073709551615	12
+-11	18446744073709551615	11
+UPDATE t2 SET c2=18446744073709551615 WHERE c1=-2 OR c2=1;
+SELECT * FROM t2 WHERE c2=18446744073709551615;
+c1	c2	c3
+-1	18446744073709551615	1
+-11	18446744073709551615	11
+-12	18446744073709551615	12
+-2	18446744073709551615	2
+-3	18446744073709551615	3
+-5	18446744073709551615	5
+-6	18446744073709551615	6
+-7	18446744073709551615	7
+-8	18446744073709551615	8
+-9223372036854775808	18446744073709551615	12
+50	18446744073709551615	10
+9223372036854775807	18446744073709551615	14
+SELECT * FROM t2;
+c1	c2	c3
+-1	18446744073709551615	1
+-11	18446744073709551615	11
+-12	18446744073709551615	12
+-2	18446744073709551615	2
+-3	18446744073709551615	3
+-4	4	4
+-5	18446744073709551615	5
+-6	18446744073709551615	6
+-7	18446744073709551615	7
+-8	18446744073709551615	8
+-9	9	9
+-9223372036854775808	18446744073709551615	12
+0	255	13
+50	18446744073709551615	10
+9223372036854775807	18446744073709551615	14
+SELECT c2 FROM t2;
+c2
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+255
+4
+9
+SELECT c2 FROM t2 ORDER BY c2 DESC;
+c2
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+18446744073709551615
+255
+9
+4
+SELECT * FROM t2 WHERE c2=18446744073709551615;
+c1	c2	c3
+-1	18446744073709551615	1
+-11	18446744073709551615	11
+-12	18446744073709551615	12
+-2	18446744073709551615	2
+-3	18446744073709551615	3
+-5	18446744073709551615	5
+-6	18446744073709551615	6
+-7	18446744073709551615	7
+-8	18446744073709551615	8
+-9223372036854775808	18446744073709551615	12
+50	18446744073709551615	10
+9223372036854775807	18446744073709551615	14
+SELECT * FROM t2 WHERE c2 <> 18446744073709551615 ORDER BY c2,c1;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+SELECT * FROM t2 WHERE c2 <> 18446744073709551615 ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 > 18446744073709551615 ORDER BY c2,c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 >= 18446744073709551615 ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-9223372036854775808	18446744073709551615	12
+-12	18446744073709551615	12
+SELECT * FROM t2 WHERE c2 < 18446744073709551615 ORDER BY c2,c1;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+SELECT * FROM t2 WHERE c2 <= 18446744073709551615 ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 <=> 18446744073709551615 ORDER BY c2,c1 DESC;
+c1	c2	c3
+9223372036854775807	18446744073709551615	14
+50	18446744073709551615	10
+-1	18446744073709551615	1
+-2	18446744073709551615	2
+-3	18446744073709551615	3
+-5	18446744073709551615	5
+-6	18446744073709551615	6
+-7	18446744073709551615	7
+-8	18446744073709551615	8
+-11	18446744073709551615	11
+-12	18446744073709551615	12
+-9223372036854775808	18446744073709551615	12
+SELECT * FROM t2 WHERE c2 <=> 18446744073709551615 ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-9223372036854775808	18446744073709551615	12
+-12	18446744073709551615	12
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 18446744073709551615 ORDER BY c2,c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 BETWEEN 0 AND 18446744073709551615 ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IN(0,18446744073709551615) ORDER BY c2,c1 DESC;
+c1	c2	c3
+9223372036854775807	18446744073709551615	14
+50	18446744073709551615	10
+-1	18446744073709551615	1
+-2	18446744073709551615	2
+-3	18446744073709551615	3
+-5	18446744073709551615	5
+-6	18446744073709551615	6
+-7	18446744073709551615	7
+-8	18446744073709551615	8
+-11	18446744073709551615	11
+-12	18446744073709551615	12
+-9223372036854775808	18446744073709551615	12
+SELECT * FROM t2 WHERE c2 IN(0,18446744073709551615) ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-9223372036854775808	18446744073709551615	12
+-12	18446744073709551615	12
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 18446744073709551615 ORDER BY c2,c1 DESC;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+9223372036854775807	18446744073709551615	14
+50	18446744073709551615	10
+-1	18446744073709551615	1
+-2	18446744073709551615	2
+-3	18446744073709551615	3
+-5	18446744073709551615	5
+-6	18446744073709551615	6
+-7	18446744073709551615	7
+-8	18446744073709551615	8
+-11	18446744073709551615	11
+-12	18446744073709551615	12
+-9223372036854775808	18446744073709551615	12
+SELECT * FROM t2 WHERE c2 >=0 AND c2 <= 18446744073709551615 ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+-4	4	4
+-9	9	9
+0	255	13
+9223372036854775807	18446744073709551615	14
+50	18446744073709551615	10
+-1	18446744073709551615	1
+-2	18446744073709551615	2
+-3	18446744073709551615	3
+-5	18446744073709551615	5
+-6	18446744073709551615	6
+-7	18446744073709551615	7
+-8	18446744073709551615	8
+-11	18446744073709551615	11
+-12	18446744073709551615	12
+-9223372036854775808	18446744073709551615	12
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c2,c1 LIMIT 2;
+c1	c2	c3
+-4	4	4
+-9	9	9
+SELECT * FROM t2 WHERE c2=18446744073709551615 OR c1=-4;
+c1	c2	c3
+-1	18446744073709551615	1
+-11	18446744073709551615	11
+-12	18446744073709551615	12
+-2	18446744073709551615	2
+-3	18446744073709551615	3
+-4	4	4
+-5	18446744073709551615	5
+-6	18446744073709551615	6
+-7	18446744073709551615	7
+-8	18446744073709551615	8
+-9223372036854775808	18446744073709551615	12
+50	18446744073709551615	10
+9223372036854775807	18446744073709551615	14
+CREATE TABLE mt1 (a bigint not null primary key, b bigint not null, key (b));
+CREATE TABLE mt2 (a bigint not null primary key, b bigint not null, key (b));
+INSERT INTO mt1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+INSERT INTO mt2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
+update mt1,mt2 set mt1.a=mt1.a+100;
+select * from mt1;
+a	b
+101	1
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
+select * from mt1;
+a	b
+102	2
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+201	1
+update mt1,mt2 set mt1.b=mt1.b+10 where mt1.b=2;
+select * from mt1;
+a	b
+102	12
+103	3
+104	4
+105	5
+106	6
+107	7
+108	8
+109	9
+201	1
+update mt1,mt2 set mt1.b=mt1.b+2,mt2.b=mt1.b+10 where mt1.b between 3 and 5 and mt2.a=mt1.a-100;
+select * from mt1;
+a	b
+102	12
+103	5
+104	6
+105	7
+106	6
+107	7
+108	8
+109	9
+201	1
+select * from mt2;
+a	b
+1	1
+2	2
+3	13
+4	14
+5	15
+6	6
+7	7
+8	8
+9	9
+update mt1,mt2 set mt1.b=mt2.b, mt1.a=mt2.a where mt1.a=mt2.a and not exists (select * from mt2 where mt2.a > 10);
+drop table mt1,mt2;
+TRUNCATE TABLE t2;
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(127,255,9);
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+c1	c2	c3
+-3	3	3
+127	255	9
+DELETE FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1=127 OR c2=3 ORDER BY c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+DELETE FROM t2 WHERE c1 >= -128 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -128 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+1	1	8
+0	0	7
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+DELETE FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 <= 127 ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+-4	4	4
+-5	5	5
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-2	2	2
+-1	1	1
+DELETE FROM t2 WHERE c1 < 0 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 < 0 ORDER BY c1;
+c1	c2	c3
+-2	2	2
+-1	1	1
+SELECT * FROM t2 WHERE c1 > -3  ORDER BY c1 DESC;
+c1	c2	c3
+-1	1	1
+-2	2	2
+DELETE FROM t2 WHERE c1 > -3 ORDER BY c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c1 > -3 ORDER BY c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+c1	c2	c3
+DELETE FROM t2 WHERE c1=-3 OR c2=2;
+SELECT * FROM t2 WHERE c1=-3 OR c2=2;
+c1	c2	c3
+INSERT INTO t2 VALUES(-128,0,1),(-1,1,1),(-2,2,2),(-3,3,3),(-4,4,4),(-5,5,5),(-6,6,6),(0,0,7),(1,1,8),(2,NULL,9),(3,NULL,10),(127,255,11);
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-128	0	1
+-6	6	6
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+DELETE FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 BETWEEN -128 AND 127 ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+-2	2	2
+-1	1	1
+0	0	7
+1	1	8
+2	NULL	9
+3	NULL	10
+127	255	11
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+0	0	7
+-2	2	2
+DELETE FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+SELECT * FROM t2 WHERE c1 IN(-2,0) ORDER BY c1 DESC;
+c1	c2	c3
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+-1	1	1
+1	1	8
+DELETE FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c1 >= -6 AND c2 < 3 ORDER BY c1;
+c1	c2	c3
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-5	5	5
+-4	4	4
+-3	3	3
+127	255	11
+DELETE FROM t2 WHERE c2 IS NOT NULL ORDER BY c1 LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NOT NULL ORDER BY c1;
+c1	c2	c3
+-3	3	3
+127	255	11
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+3	NULL	10
+2	NULL	9
+DELETE FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC LIMIT 2;
+SELECT * FROM t2 WHERE c2 IS NULL ORDER BY c2,c1 DESC;
+c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+255	-128	2	127	255	1
+3	NULL	5	-1	NULL	5
+DELETE t1,t2 FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2 OR t2.c2=t1.c1 OR t2.c2<=>t1.c2;
+c1	c2	c3	c1	c2	c3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+INSERT INTO t1 VALUES(254,127,1),(0,-128,2),(1,127,3),(2,-128,4),(3,NULL,5);
+INSERT INTO t2 VALUES(127,255,1),(127,1,2),(-128,0,3),(-128,2,4),(-1,NULL,5);
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+1	127	3	127	1	2
+1	127	3	127	255	1
+2	-128	4	-128	0	3
+2	-128	4	-128	2	4
+254	127	1	127	1	2
+254	127	1	127	255	1
+255	-128	2	-128	0	3
+255	-128	2	-128	2	4
+DELETE FROM a1, a2 USING t1 AS a1 INNER JOIN t2 AS a2 WHERE a2.c1=a1.c2;
+SELECT * FROM t1,t2 WHERE t2.c1=t1.c2;
+c1	c2	c3	c1	c2	c3
+DELETE FROM t1,t2 using t1,t2 where t1.c1=(select c1 from t1);
+ERROR HY000: You can't specify target table 't1' for update in FROM clause
+CREATE TABLE t3(c1 BIGINT UNSIGNED NOT NULL PRIMARY KEY, c2 BIGINT SIGNED NULL, c3 INT);
+CREATE TABLE t4(c1 BIGINT UNSIGNED, c2 INT);
+INSERT INTO t3 VALUES(200,126,1),(250,-127,2);
+INSERT INTO t4 VALUES(200,1),(150,3);
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+200	126	1	200	1
+DELETE t3.*,t4.* FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+SELECT * FROM t3,t4 WHERE t3.c1=t4.c1 AND t3.c3=t4.c2;
+c1	c2	c3	c1	c2
+DROP TABLE t1,t2,t3,t4;

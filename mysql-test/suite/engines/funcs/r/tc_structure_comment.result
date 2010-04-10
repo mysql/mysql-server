@@ -1,0 +1,301 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(c1 BIT NULL) COMMENT = 'This table has a BIT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bit(1) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a BIT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 TINYINT NULL) COMMENT = 'This table has a TINYINT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyint(4) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TINYINT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 SMALLINT NULL) COMMENT = 'This table has a SMALLINT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` smallint(6) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a SMALLINT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 MEDIUMINT NULL) COMMENT = 'This table has a MEDIUMINT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumint(9) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a MEDIUMINT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 INT NULL) COMMENT = 'This table has a INT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a INT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 INTEGER NULL) COMMENT = 'This table has a INTEGER column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a INTEGER column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 BIGINT NULL) COMMENT = 'This table has a BIGINT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` bigint(20) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a BIGINT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 REAL NULL) COMMENT = 'This table has a REAL column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` double DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a REAL column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 DOUBLE NULL) COMMENT = 'This table has a DOUBLE column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` double DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a DOUBLE column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 FLOAT NULL) COMMENT = 'This table has a FLOAT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` float DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a FLOAT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 DECIMAL NULL) COMMENT = 'This table has a DECIMAL column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` decimal(10,0) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a DECIMAL column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 NUMERIC NULL) COMMENT = 'This table has a NUMERIC column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` decimal(10,0) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a NUMERIC column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 DATE NULL) COMMENT = 'This table has a DATE column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` date DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a DATE column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 TIME NULL) COMMENT = 'This table has a TIME column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` time DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TIME column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 DATETIME NULL) COMMENT = 'This table has a DATETIME column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` datetime DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a DATETIME column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 TIMESTAMP NULL) COMMENT = 'This table has a TIMESTAMP column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` timestamp NULL DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TIMESTAMP column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 YEAR NULL) COMMENT = 'This table has a YEAR column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` year(4) DEFAULT NULL
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a YEAR column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 TINYBLOB NULL) COMMENT = 'This table has a TINYBLOB column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinyblob
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TINYBLOB column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 BLOB NULL) COMMENT = 'This table has a BLOB column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` blob
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a BLOB column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 MEDIUMBLOB NULL) COMMENT = 'This table has a MEDIUMBLOB column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumblob
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a MEDIUMBLOB column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 LONGBLOB NULL) COMMENT = 'This table has a LONGBLOB column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` longblob
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a LONGBLOB column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 TINYTEXT NULL) COMMENT = 'This table has a TINYTEXT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` tinytext
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TINYTEXT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 TEXT NULL) COMMENT = 'This table has a TEXT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` text
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a TEXT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 MEDIUMTEXT NULL) COMMENT = 'This table has a MEDIUMTEXT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` mediumtext
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a MEDIUMTEXT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
+CREATE TABLE t1(c1 LONGTEXT NULL) COMMENT = 'This table has a LONGTEXT column';
+SHOW TABLES;
+Tables_in_test
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` longtext
+) ENGINE=ENGINE DEFAULT CHARSET=latin1 COMMENT='This table has a LONGTEXT column'
+DROP TABLE t1;
+SHOW TABLES;
+Tables_in_test
