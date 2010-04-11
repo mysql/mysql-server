@@ -13,7 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          // THD, set_var.h: THD
+#include "set_var.h"
 
 /**
   Row items used for comparing rows and IN operations on rows:
@@ -30,7 +37,8 @@
 */
 
 Item_row::Item_row(List<Item> &arg):
-  Item(), used_tables_cache(0), const_item_cache(1), with_null(0)
+  Item(), used_tables_cache(0), not_null_tables_cache(0),
+  const_item_cache(1), with_null(0)
 {
 
   //TODO: think placing 2-3 component items in item (as it done for function)
@@ -71,6 +79,7 @@ bool Item_row::fix_fields(THD *thd, Item **ref)
     Item *item= *arg;
     used_tables_cache |= item->used_tables();
     const_item_cache&= item->const_item() && !with_null;
+    not_null_tables_cache|= item->not_null_tables();
     /*
       Some subqueries transformations aren't done in the view_prepare_mode thus
       is_null() will fail. So we skip is_null() calculation for CREATE VIEW as

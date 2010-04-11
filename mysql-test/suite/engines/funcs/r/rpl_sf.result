@@ -1,0 +1,29 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+set global log_bin_trust_function_creators=0;
+set binlog_format=STATEMENT;
+create function fn16456()
+returns int
+begin
+return unix_timestamp();
+end|
+ERROR HY000: This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
+set global log_bin_trust_function_creators=1;
+create function fn16456()
+returns int
+begin
+return unix_timestamp();
+end|
+set global log_bin_trust_function_creators=0;
+set binlog_format=ROW;
+select fn16456();
+fn16456()
+timestamp
+set binlog_format=STATEMENT;
+select fn16456();
+ERROR HY000: This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you *might* want to use the less safe log_bin_trust_function_creators variable)
+drop function fn16456;

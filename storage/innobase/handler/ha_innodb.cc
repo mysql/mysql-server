@@ -61,11 +61,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include <mysql_priv.h>
+#include <sql_table.h> // explain_filename, nz2, EXPLAIN_PARTITIONS_AS_COMMENT,
+                       // EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
 
+#include <sql_acl.h>                            // PROCESS_ACL
 #include <m_ctype.h>
 #include <mysys_err.h>
 #include <mysql/plugin.h>
+#include <mysql/innodb_priv.h>
 
 /** @file ha_innodb.cc */
 
@@ -106,7 +109,6 @@ extern "C" {
 #include "ha_innodb.h"
 #include "i_s.h"
 
-#ifndef MYSQL_SERVER
 # ifndef MYSQL_PLUGIN_IMPORT
 #  define MYSQL_PLUGIN_IMPORT /* nothing */
 # endif /* MYSQL_PLUGIN_IMPORT */
@@ -116,7 +118,6 @@ extern "C" {
 but we need it here */
 bool check_global_access(THD *thd, ulong want_access);
 #endif /* MYSQL_VERSION_ID < 50124 */
-#endif /* MYSQL_SERVER */
 
 /** to protect innobase_open_files */
 static pthread_mutex_t innobase_share_mutex;

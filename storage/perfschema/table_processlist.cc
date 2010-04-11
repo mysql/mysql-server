@@ -18,7 +18,7 @@
   Table PROCESSLIST (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "table_processlist.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"

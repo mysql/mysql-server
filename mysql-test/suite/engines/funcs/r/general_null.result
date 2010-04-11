@@ -1,0 +1,661 @@
+DROP TABLE IF EXISTS t3;
+CREATE TABLE t3(c1 TINYINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MAX(c1) AS value FROM t3;
+value
+16
+SELECT MAX(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+16
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-4
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 SMALLINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MAX(c1) AS value FROM t3;
+value
+16
+SELECT MAX(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+16
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-4
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 MEDIUMINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MAX(c1) AS value FROM t3;
+value
+16
+SELECT MAX(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+16
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-4
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 INT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MAX(c1) AS value FROM t3;
+value
+16
+SELECT MAX(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+16
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-4
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 INTEGER NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MAX(c1) AS value FROM t3;
+value
+16
+SELECT MAX(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+16
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-4
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 BIGINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MAX(c1) AS value FROM t3;
+value
+16
+SELECT MAX(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+16
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-4
+SELECT MAX(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 TINYINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MIN(c1) AS value FROM t3;
+value
+-9
+SELECT MIN(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+1
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-9
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 SMALLINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MIN(c1) AS value FROM t3;
+value
+-9
+SELECT MIN(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+1
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-9
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 MEDIUMINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MIN(c1) AS value FROM t3;
+value
+-9
+SELECT MIN(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+1
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-9
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 INT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MIN(c1) AS value FROM t3;
+value
+-9
+SELECT MIN(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+1
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-9
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 INTEGER NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MIN(c1) AS value FROM t3;
+value
+-9
+SELECT MIN(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+1
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-9
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 BIGINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT MIN(c1) AS value FROM t3;
+value
+-9
+SELECT MIN(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+1
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-9
+SELECT MIN(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 TINYINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT AVG(c1) AS value FROM t3;
+value
+0.8000
+SELECT AVG(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+8.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-6.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 SMALLINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT AVG(c1) AS value FROM t3;
+value
+0.8000
+SELECT AVG(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+8.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-6.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 MEDIUMINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT AVG(c1) AS value FROM t3;
+value
+0.8000
+SELECT AVG(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+8.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-6.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 INT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT AVG(c1) AS value FROM t3;
+value
+0.8000
+SELECT AVG(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+8.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-6.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 INTEGER NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT AVG(c1) AS value FROM t3;
+value
+0.8000
+SELECT AVG(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+8.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-6.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 BIGINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT AVG(c1) AS value FROM t3;
+value
+0.8000
+SELECT AVG(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+8.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-6.5000
+SELECT AVG(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 TINYINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT SUM(c1) AS value FROM t3;
+value
+4
+SELECT SUM(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+17
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-13
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 SMALLINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT SUM(c1) AS value FROM t3;
+value
+4
+SELECT SUM(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+17
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-13
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 MEDIUMINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT SUM(c1) AS value FROM t3;
+value
+4
+SELECT SUM(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+17
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-13
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 INT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT SUM(c1) AS value FROM t3;
+value
+4
+SELECT SUM(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+17
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-13
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 INTEGER NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT SUM(c1) AS value FROM t3;
+value
+4
+SELECT SUM(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+17
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-13
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 BIGINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT SUM(c1) AS value FROM t3;
+value
+4
+SELECT SUM(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+17
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+-13
+SELECT SUM(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+NULL
+DROP TABLE t3;
+CREATE TABLE t3(c1 TINYINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT COUNT(c1) AS value FROM t3;
+value
+5
+SELECT COUNT(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+0
+DROP TABLE t3;
+CREATE TABLE t3(c1 SMALLINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT COUNT(c1) AS value FROM t3;
+value
+5
+SELECT COUNT(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+0
+DROP TABLE t3;
+CREATE TABLE t3(c1 MEDIUMINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT COUNT(c1) AS value FROM t3;
+value
+5
+SELECT COUNT(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+0
+DROP TABLE t3;
+CREATE TABLE t3(c1 INT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT COUNT(c1) AS value FROM t3;
+value
+5
+SELECT COUNT(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+0
+DROP TABLE t3;
+CREATE TABLE t3(c1 INTEGER NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT COUNT(c1) AS value FROM t3;
+value
+5
+SELECT COUNT(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+0
+DROP TABLE t3;
+CREATE TABLE t3(c1 BIGINT NULL);
+INSERT INTO t3 (c1) VALUES(0);
+INSERT INTO t3 (c1) VALUES(1);
+INSERT INTO t3 (c1) VALUES(16);
+INSERT INTO t3 (c1) VALUES(-4);
+INSERT INTO t3 (c1) VALUES(-9);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+INSERT INTO t3 (c1) VALUES(NULL);
+SELECT COUNT(c1) AS value FROM t3;
+value
+5
+SELECT COUNT(c1) AS postive_value FROM t3 WHERE c1 > 0;
+postive_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 < 0;
+negative_value
+2
+SELECT COUNT(c1) AS negative_value FROM t3 WHERE c1 = 2;
+negative_value
+0
+DROP TABLE t3;

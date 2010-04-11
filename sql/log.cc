@@ -24,8 +24,17 @@
     Abort logging when we get an error in reading or writing log files
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "log.h"
+#include "sql_base.h"                           // close_thread_tables
 #include "sql_repl.h"
+#include "sql_delete.h"                         // mysql_truncate
+#include "sql_parse.h"                          // command_name
+#include "sql_time.h"           // calc_time_from_sec, my_time_compare
+#include "tztime.h"             // my_tz_OFFSET0, struct Time_zone
+#include "sql_acl.h"            // SUPER_ACL
+#include "log_event.h"          // Query_log_event
 #include "rpl_filter.h"
 #include "rpl_rli.h"
 #include "sql_audit.h"
@@ -38,7 +47,7 @@
 #include "message.h"
 #endif
 
-#include <mysql/plugin.h>
+#include "sql_plugin.h"
 #include "rpl_handler.h"
 
 /* max size of the log message */
@@ -4993,7 +5002,7 @@ int query_error_code(THD *thd, bool not_killed)
 {
   int error;
   
-  if (not_killed)
+  if (not_killed || (thd->killed == THD::KILL_BAD_DATA))
   {
     error= thd->is_error() ? thd->stmt_da->sql_errno() : 0;
 

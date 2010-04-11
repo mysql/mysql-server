@@ -13,7 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
@@ -27,7 +28,7 @@
 #include "sql_cursor.h"
 #include "sp_rcontext.h"
 #include "sp_pcontext.h"
-
+#include "sql_select.h"                     // create_virtual_tmp_table
 
 sp_rcontext::sp_rcontext(sp_pcontext *root_parsing_ctx,
                          Field *return_value_fld,
