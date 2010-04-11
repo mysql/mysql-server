@@ -13,11 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_parse.h"                          // check_access
 #ifdef HAVE_REPLICATION
 
 #include "rpl_mi.h"
 #include "sql_repl.h"
+#include "sql_acl.h"                            // SUPER_ACL
 #include "log_event.h"
 #include "rpl_filter.h"
 #include <my_dir.h>
@@ -1994,7 +1997,6 @@ int log_loaded_block(IO_CACHE* file)
       if (mysql_bin_log.write(&b))
         DBUG_RETURN(1);
       lf_info->wrote_create_file= 1;
-      DBUG_SYNC_POINT("debug_lock.created_file_event",10);
     }
   }
   DBUG_RETURN(0);

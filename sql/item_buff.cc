@@ -21,7 +21,14 @@
   Buffers to save and compare item values
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"          // THD
+#include "set_var.h"            // Cached_item, Cached_item_field, ...
 
 /**
   Create right type of Cached_item for an item.

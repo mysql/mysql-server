@@ -51,14 +51,17 @@ select lookup("localhost");
 --error ER_CANT_INITIALIZE_UDF
 select reverse_lookup();
 
-# These two functions should return "localhost", but it's
+# These two function calls should return "localhost", but it's
 # depending on configuration, so just call them and don't log the result
 --disable_result_log
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
+
+# This function call may return different results depending on platform,
+# so ignore results (see Bug#52060).
+select reverse_lookup("localhost");
 --enable_result_log
 
-select reverse_lookup("localhost");
 --error ER_CANT_INITIALIZE_UDF
 select avgcost();
 --error ER_CANT_INITIALIZE_UDF

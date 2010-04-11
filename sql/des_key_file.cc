@@ -13,7 +13,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "my_global.h"          // HAVE_*
+#include "sql_priv.h"
+#include "des_key_file.h"       // st_des_keyschedule, st_des_keyblock
+#include "log.h"                // sql_print_error
 #include <m_ctype.h>
 
 #ifdef HAVE_OPENSSL

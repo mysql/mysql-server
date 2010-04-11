@@ -1,0 +1,28 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (c1 INTEGER NOT NULL PRIMARY KEY, c2 VARCHAR(10), c3 DATETIME);
+LOAD DATA LOCAL INFILE 'suite/engines/funcs/t/load_null.inc' INTO TABLE t1 FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+eval SELECT * INTO OUTFILE '../../tmp/t1.dat' FROM t1;
+SELECT * FROM t1 ORDER BY c1;
+TRUNCATE TABLE t1;
+--disable_query_log
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/tmp/t1.dat' INTO TABLE t1;
+--enable_query_log
+SELECT * FROM t1 ORDER BY c1;
+remove_file $MYSQLTEST_VARDIR/tmp/t1.dat;
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INTEGER NOT NULL PRIMARY KEY, c2 VARCHAR(10), c3 DATETIME);
+LOAD DATA LOCAL INFILE 'suite/engines/funcs/t/load_null2.inc' INTO TABLE t1 FIELDS TERMINATED BY ',' ESCAPED BY '\'' LINES TERMINATED BY '\n';
+--disable_query_log
+eval SELECT * INTO OUTFILE '$MYSQLTEST_VARDIR/tmp/t1-2.dat' FIELDS ESCAPED BY '\'' FROM t1;
+--enable_query_log
+SELECT * FROM t1 ORDER BY c1;
+TRUNCATE TABLE t1;
+--disable_query_log
+eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/t1-2.dat' INTO TABLE t1 FIELDS ESCAPED BY '\'';
+--enable_query_log
+SELECT * FROM t1 ORDER BY c1;
+remove_file $MYSQLTEST_VARDIR/tmp/t1-2.dat;
+DROP TABLE t1;
+
