@@ -25,8 +25,21 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          // set_var.h: THD
+#include "set_var.h"
 #include "slave.h"				// for wait_for_master_pos
+#include "sql_show.h"                           // append_identifier
+#include "strfunc.h"                            // find_type
+#include "sql_parse.h"                          // is_update_query
+#include "sql_acl.h"                            // EXECUTE_ACL
+#include "mysqld.h"                             // LOCK_uuid_generator
 #include "rpl_mi.h"
 #include <m_ctype.h>
 #include <hash.h>
@@ -3656,80 +3669,6 @@ longlong Item_master_pos_wait::val_int()
   return event_count;
 }
 
-#ifdef EXTRA_DEBUG
-void debug_sync_point(const char* lock_name, uint lock_timeout)
-{
-  THD* thd=current_thd;
-  User_level_lock* ull;
-  struct timespec abstime;
-  size_t lock_name_len;
-  lock_name_len= strlen(lock_name);
-  mysql_mutex_lock(&LOCK_user_locks);
-
-  if (thd->ull)
-  {
-    item_user_lock_release(thd->ull);
-    thd->ull=0;
-  }
-
-  /*
-    If the lock has not been aquired by some client, we do not want to
-    create an entry for it, since we immediately release the lock. In
-    this case, we will not be waiting, but rather, just waste CPU and
-    memory on the whole deal
-  */
-  if (!(ull= ((User_level_lock*) my_hash_search(&hash_user_locks,
-                                                (uchar*) lock_name,
-                                                lock_name_len))))
-  {
-    mysql_mutex_unlock(&LOCK_user_locks);
-    return;
-  }
-  ull->count++;
-
-  /*
-    Structure is now initialized.  Try to get the lock.
-    Set up control struct to allow others to abort locks
-  */
-  thd_proc_info(thd, "User lock");
-  thd->mysys_var->current_mutex= &LOCK_user_locks;
-  thd->mysys_var->current_cond=  &ull->cond;
-
-  set_timespec(abstime,lock_timeout);
-  while (ull->locked && !thd->killed)
-  {
-    int error= mysql_cond_timedwait(&ull->cond, &LOCK_user_locks, &abstime);
-    if (error == ETIMEDOUT || error == ETIME)
-      break;
-  }
-
-  if (ull->locked)
-  {
-    if (!--ull->count)
-      delete ull;				// Should never happen
-  }
-  else
-  {
-    ull->locked=1;
-    ull->set_thread(thd);
-    thd->ull=ull;
-  }
-  mysql_mutex_unlock(&LOCK_user_locks);
-  mysql_mutex_lock(&thd->mysys_var->mutex);
-  thd_proc_info(thd, 0);
-  thd->mysys_var->current_mutex= 0;
-  thd->mysys_var->current_cond=  0;
-  mysql_mutex_unlock(&thd->mysys_var->mutex);
-  mysql_mutex_lock(&LOCK_user_locks);
-  if (thd->ull)
-  {
-    item_user_lock_release(thd->ull);
-    thd->ull=0;
-  }
-  mysql_mutex_unlock(&LOCK_user_locks);
-}
-
-#endif
 
 
 /**

@@ -210,6 +210,8 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 
 pthread_handler_t handle_slave_io(void *arg);
 pthread_handler_t handle_slave_sql(void *arg);
+bool net_request_file(NET* net, const char* fname);
+
 extern bool volatile abort_loop;
 extern Master_info main_mi, *active_mi; /* active_mi for multi-master */
 extern LIST master_list;

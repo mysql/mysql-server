@@ -21,11 +21,19 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "sql_class.h"                    // select_result_interceptor
+
 struct sp_cond_type;
 class sp_cursor;
 struct sp_variable;
 class sp_lex_keeper;
 class sp_instr_cpush;
+class Query_arena;
+class sp_head;
+class sp_pcontext;
+class Item_cache;
+typedef class st_select_lex_unit SELECT_LEX_UNIT;
+class Server_side_cursor;
 
 #define SP_HANDLER_NONE      0
 #define SP_HANDLER_EXIT      1

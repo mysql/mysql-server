@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,14 @@
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
 #define Select Lex->current_select
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_parse.h"                        /* comp_*_creator */
+#include "sql_table.h"                        /* primary_key_name */
+#include "sql_partition.h"  /* mem_alloc_error, partition_info, HASH_PARTITION */
+#include "sql_acl.h"                          /* *_ACL */
+#include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
+#include "sql_class.h"      /* Key_part_spec, enum_filetype, Diag_condition_item_name */
 #include "slave.h"
 #include "lex_symbol.h"
 #include "item_create.h"
@@ -8562,7 +8569,7 @@ function_call_generic:
             builder= find_native_function_builder(thd, $1);
             if (builder)
             {
-              item= builder->create(thd, $1, $4);
+              item= builder->create_func(thd, $1, $4);
             }
             else
             {
@@ -8584,7 +8591,7 @@ function_call_generic:
               {
                 builder= find_qualified_function_builder(thd);
                 DBUG_ASSERT(builder);
-                item= builder->create(thd, $1, $4);
+                item= builder->create_func(thd, $1, $4);
               }
             }
 

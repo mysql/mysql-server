@@ -28,8 +28,16 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          // set_var.h: THD
+#include "set_var.h"
 #include "sql_select.h"
+#include "sql_parse.h"                          // check_stack_overrun
 
 inline Item * and_items(Item* cond, Item *item)
 {
@@ -249,9 +257,13 @@ bool Item_subselect::exec()
 {
   int res;
 
-  if (thd->is_error())
-  /* Do not execute subselect in case of a fatal error */
+  /*
+    Do not execute subselect in case of a fatal error
+    or if the query has been killed.
+  */
+  if (thd->is_error() || thd->killed)
     return 1;
+
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.

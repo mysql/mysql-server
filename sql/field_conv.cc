@@ -24,7 +24,8 @@
     gives much more speed.
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_class.h"                          // THD
 #include <m_ctype.h>
 
 static void do_field_eq(Copy_field *copy)

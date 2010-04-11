@@ -16,8 +16,21 @@
 
 /* Some general useful functions */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "table.h"
+#include "frm_crypt.h"           // get_crypt_for_frm
+#include "key.h"                                // find_ref_key
+#include "sql_table.h"                          // build_table_filename,
+                                                // primary_key_name
 #include "sql_trigger.h"
+#include "sql_parse.h"                          // free_items
+#include "strfunc.h"                            // unhex_type2
+#include "sql_partition.h"       // mysql_unpack_partition,
+                                 // fix_partition_func, partition_info
+#include "sql_acl.h"             // *_ACL, acl_getroot_no_password
+#include "sql_base.h"            // release_table_share
 #include <m_ctype.h>
 #include "my_md5.h"
 
@@ -4069,9 +4082,7 @@ Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
   {
     DBUG_RETURN(field);
   }
-  Item *item= new Item_direct_view_ref(&view->view->select_lex.context,
-                                       field_ref, view->alias,
-                                       name);
+  Item *item= new Item_direct_view_ref(view, field_ref, name);
   DBUG_RETURN(item);
 }
 

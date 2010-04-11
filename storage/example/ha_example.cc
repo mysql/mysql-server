@@ -91,11 +91,11 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_class.h"           // MYSQL_HANDLERTON_INTERFACE_VERSION
 #include "ha_example.h"
 #include "probes_mysql.h"
-#include <mysql/plugin.h>
+#include "sql_plugin.h"
 
 static handler *example_create_handler(handlerton *hton,
                                        TABLE_SHARE *table, 
