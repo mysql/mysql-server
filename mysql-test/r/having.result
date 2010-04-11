@@ -528,5 +528,7 @@ HAVING ('e' , 'd') IN
 ORDER BY t1.f2;
 MAX(t2.f2)
 NULL
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'd'
 DROP TABLE t1,t2;
 End of 5.0 tests
