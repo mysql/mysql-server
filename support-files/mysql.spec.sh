@@ -34,8 +34,10 @@
 %define release         1
 
 # Macros we use which are not available in all versions of RPM
+%if 0%{defined expand}
 %defined()              %{expand:%%{?%{1}:1}%%{!?%{1}:0}}
 %undefined()            %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
+%endif
 
 # ----------------------------------------------------------------------------
 # RPM build tools now automatically detect Perl module dependencies.  This
