@@ -19,7 +19,8 @@
   and COND_INSTANCES (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "pfs_instr.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"

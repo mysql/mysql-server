@@ -52,6 +52,8 @@ void free_table_map_log_event(TABLE *table);
   A dedicated MEM_ROOT needs to be used, see below.
 */
 
+#include "hash.h"                               /* HASH */
+
 class table_mapping {
 
 private:

@@ -14,7 +14,8 @@
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"         // REQUIRED: for other includes
 #include "sql_show.h"
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
@@ -27,6 +28,14 @@
 #include "NdbDictionary.hpp"
 #include "ndb_cluster_connection.hpp"
 #include <util/NdbAutoPtr.hpp>
+
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_table.h"                         // build_table_filename
+#include "table.h"                             // open_table_from_share
+#include "discover.h"                          // readfrm, writefrm
+#include "lock.h"                              // MYSQL_LOCK_IGNORE_FLUSH,
+                                               // mysql_unlock_tables
+#include "sql_parse.h"                         // mysql_parse
 
 #ifdef ndb_dynamite
 #undef assert
@@ -2346,7 +2355,6 @@ static int open_ndb_binlog_index(THD *thd, TABLE **ndb_binlog_index)
   thd->proc_info= "Opening " NDB_REP_DB "." NDB_REP_TABLE;
 
   tables->required_type= FRMTYPE_TABLE;
-  uint counter;
   thd->clear_error();
   if (open_and_lock_tables(thd, tables, FALSE, 0))
   {
@@ -2374,7 +2382,6 @@ int ndb_add_ndb_binlog_index(THD *thd, void *_row)
 {
   ndb_binlog_index_row &row= *(ndb_binlog_index_row *) _row;
   int error= 0;
-  bool need_reopen;
   /*
     Turn of binlogging to prevent the table changes to be written to
     the binary log.

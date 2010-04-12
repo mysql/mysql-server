@@ -19,6 +19,8 @@
 #include "rpl_tblmap.h"
 #include "rpl_reporting.h"
 #include "rpl_utility.h"
+#include "log.h"                         /* LOG_INFO, MYSQL_BIN_LOG */
+#include "sql_class.h"                   /* THD */
 
 struct RPL_TABLE_LIST;
 class Master_info;

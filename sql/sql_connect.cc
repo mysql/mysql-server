@@ -18,9 +18,23 @@
   Functions to autenticate and handle reqests for a connection
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"
+#include "sql_priv.h"
+#ifndef __WIN__
+#include <netdb.h>        // getservbyname, servent
+#endif
 #include "sql_audit.h"
+#include "sql_connect.h"
+#include "my_global.h"
 #include "probes_mysql.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_parse.h"                          // sql_command_flags,
+                                                // execute_init_command,
+                                                // do_command
+#include "sql_db.h"                             // mysql_change_db
+#include "hostname.h" // inc_host_errors, ip_to_hostname,
+                      // reset_host_errors
+#include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
 
 #ifdef HAVE_OPENSSL
 /*

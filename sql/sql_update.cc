@@ -19,12 +19,28 @@
   Multi-table updates were introduced by Sinisa & Monty
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_update.h"
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_base.h"                       // close_tables_for_reopen
+#include "sql_parse.h"                          // cleanup_items
+#include "sql_partition.h"                   // partition_key_modified
 #include "sql_select.h"
+#include "sql_view.h"                           // check_key_in_view
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "probes_mysql.h"
 #include "debug_sync.h"
+#include "key.h"                                // is_key_used
+#include "sql_acl.h"                            // *_ACL, check_grant
+#include "records.h"                            // init_read_record,
+                                                // end_read_record
+#include "filesort.h"                           // filesort
+#include "sql_derived.h" // mysql_derived_prepare,
+                         // mysql_handle_derived,
+                         // mysql_derived_filling
 
 /* Return 0 if row hasn't changed */
 
@@ -203,33 +219,26 @@ int mysql_update(THD *thd,
   SQL_SELECT	*select;
   READ_RECORD	info;
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
-  bool          need_reopen;
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
   MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_update");
 
-  for ( ; ; )
-  {
-    if (open_tables(thd, &table_list, &table_count, 0))
-      DBUG_RETURN(1);
+  if (open_tables(thd, &table_list, &table_count, 0))
+    DBUG_RETURN(1);
 
-    if (table_list->multitable_view)
-    {
-      DBUG_ASSERT(table_list->view != 0);
-      DBUG_PRINT("info", ("Switch to multi-update"));
-      /* pass counter value */
-      thd->lex->table_count= table_count;
-      /* convert to multiupdate */
-      DBUG_RETURN(2);
-    }
-    if (!lock_tables(thd, table_list, table_count, 0, &need_reopen))
-      break;
-    if (!need_reopen)
-      DBUG_RETURN(1);
-    close_tables_for_reopen(thd, &table_list, start_of_statement_svp);
+  if (table_list->multitable_view)
+  {
+    DBUG_ASSERT(table_list->view != 0);
+    DBUG_PRINT("info", ("Switch to multi-update"));
+    /* pass counter value */
+    thd->lex->table_count= table_count;
+    /* convert to multiupdate */
+    DBUG_RETURN(2);
   }
+  if (lock_tables(thd, table_list, table_count, 0))
+    DBUG_RETURN(1);
 
   if (mysql_handle_derived(thd->lex, &mysql_derived_prepare) ||
       (thd->fill_derived_tables() &&
@@ -963,17 +972,14 @@ int mysql_multi_update_prepare(THD *thd)
   uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
-  bool need_reopen= FALSE;
   MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
-reopen_tables:
-
   /* open tables and create derived ones, but do not lock and fill them */
-  if (((original_multiupdate || need_reopen) &&
+  if ((original_multiupdate &&
        open_tables(thd, &table_list, &table_count, 0)) ||
       mysql_handle_derived(lex, &mysql_derived_prepare))
     DBUG_RETURN(TRUE);
@@ -1089,58 +1095,11 @@ reopen_tables:
 
   /* now lock and fill tables */
   if (!thd->stmt_arena->is_stmt_prepare() &&
-      lock_tables(thd, table_list, table_count, 0, &need_reopen))
+      lock_tables(thd, table_list, table_count, 0))
   {
-    if (!need_reopen)
-      DBUG_RETURN(TRUE);
-
-    DBUG_PRINT("info", ("lock_tables failed, reopening"));
-
-    /*
-      We have to reopen tables since some of them were altered or dropped
-      during lock_tables() or something was done with their triggers.
-      Let us do some cleanups to be able do setup_table() and setup_fields()
-      once again.
-    */
-    List_iterator_fast<Item> it(*fields);
-    Item *item;
-    while ((item= it++))
-      item->cleanup();
-
-    /*
-      To not to hog memory (as a result of the 
-      unit->reinit_exec_mechanism() call below):
-    */
-    lex->unit.cleanup();
-
-    for (SELECT_LEX *sl= lex->all_selects_list;
-        sl;
-        sl= sl->next_select_in_list())
-    {
-      SELECT_LEX_UNIT *unit= sl->master_unit();
-      unit->reinit_exec_mechanism(); // reset unit->prepared flags
-      /*
-        Reset 'clean' flag back to force normal execution of
-        unit->cleanup() in Prepared_statement::cleanup_stmt()
-        (call to lex->unit.cleanup() above sets this flag to TRUE).
-      */
-      unit->unclean();
-    }
-
-    /*
-      Also we need to cleanup Natural_join_column::table_field items.
-      To not to traverse a join tree we will cleanup whole
-      thd->free_list (in PS execution mode that list may not contain
-      items from 'fields' list, so the cleanup above is necessary to.
-    */
-    cleanup_items(thd->free_list);
-    cleanup_items(thd->stmt_arena->free_list);
-    close_tables_for_reopen(thd, &table_list, start_of_statement_svp);
-
-    DEBUG_SYNC(thd, "multi_update_reopen_tables");
-
-    goto reopen_tables;
+    DBUG_RETURN(TRUE);
   }
+  /* @todo: downgrade the metadata locks here. */
 
   /*
     Check that we are not using table that we are updating, but we should

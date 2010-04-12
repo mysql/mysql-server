@@ -54,12 +54,24 @@
 
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_insert.h"
+#include "sql_update.h"                         // compare_record
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_cache.h"                          // query_cache_*
+#include "key.h"                                // key_copy
+#include "lock.h"                               // mysql_unlock_tables
 #include "sp_head.h"
+#include "sql_view.h"         // check_key_in_view, insert_view_fields
+#include "sql_table.h"        // mysql_create_table_no_lock
+#include "sql_acl.h"          // *_ACL, check_grant_all_columns
 #include "sql_trigger.h"
 #include "sql_select.h"
 #include "sql_show.h"
 #include "slave.h"
+#include "sql_parse.h"                          // end_active_trans
 #include "rpl_mi.h"
 #include "transaction.h"
 #include "sql_audit.h"
@@ -2396,7 +2408,8 @@ void kill_delayed_threads(void)
 bool Delayed_insert::open_and_lock_table()
 {
   if (!(table= open_n_lock_single_table(&thd, &table_list,
-                                        TL_WRITE_DELAYED, 0)))
+                                        TL_WRITE_DELAYED,
+                                        MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK)))
   {
     thd.fatal_error();				// Abort waiting inserts
     return TRUE;
@@ -2557,7 +2570,6 @@ pthread_handler_t handle_delayed_insert(void *arg)
 
       if (di->tables_in_use && ! thd->lock && !thd->killed)
       {
-        bool need_reopen;
         /*
           Request for new delayed insert.
           Lock the table, but avoid to be blocked by a global read lock.
@@ -2568,30 +2580,10 @@ pthread_handler_t handle_delayed_insert(void *arg)
           handler will close the table and finish when the outstanding
           inserts are done.
         */
-        if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1,
-                                            MYSQL_LOCK_IGNORE_GLOBAL_READ_LOCK,
-                                            &need_reopen)))
+        if (! (thd->lock= mysql_lock_tables(thd, &di->table, 1, 0)))
         {
-          if (need_reopen && !thd->killed)
-          {
-            /*
-              We were waiting to obtain TL_WRITE_DELAYED (probably due to
-              someone having or requesting TL_WRITE_ALLOW_READ) and got
-              aborted. Try to reopen table and if it fails die.
-            */
-            TABLE_LIST *tl_ptr = &di->table_list;
-            close_tables_for_reopen(thd, &tl_ptr, NULL);
-            di->table= 0;
-            if (di->open_and_lock_table())
-            {
-              thd->killed= THD::KILL_CONNECTION;
-            }
-          }
-          else
-          {
-            /* Fatal error */
-            thd->killed= THD::KILL_CONNECTION;
-          }
+          /* Fatal error */
+          thd->killed= THD::KILL_CONNECTION;
         }
         mysql_cond_broadcast(&di->cond_client);
       }
@@ -3542,7 +3534,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   List_iterator_fast<Item> it(*items);
   Item *item;
   Field *tmp_field;
-  bool not_used;
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
@@ -3666,8 +3657,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     since it won't wait for the table lock (we have exclusive metadata lock on
     the table) and thus can't get aborted.
   */
-  if (! ((*lock)= mysql_lock_tables(thd, &table, 1,
-                                    MYSQL_LOCK_IGNORE_FLUSH, &not_used)) ||
+  if (! ((*lock)= mysql_lock_tables(thd, &table, 1, 0)) ||
         hooks->postlock(&table, 1))
   {
     if (*lock)

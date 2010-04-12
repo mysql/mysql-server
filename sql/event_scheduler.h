@@ -34,7 +34,9 @@
 class Event_queue;
 class Event_job_data;
 class Event_db_repository;
+class Event_queue_element_for_exec;
 class Events;
+class THD;
 
 void
 pre_init_event_thread(THD* thd);
