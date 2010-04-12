@@ -33,9 +33,15 @@
 
 %define release         1
 
-# Macros we use which are not available in all versions of RPM
-%if 0%{defined expand}
+#
+# Macros we use which are not available in all supported versions of RPM
+#
+# - defined/undefined are missing on RHEL4
+#
+%if %{expand:%{?defined:0}%{!?defined:1}}
 %define defined()       %{expand:%%{?%{1}:1}%%{!?%{1}:0}}
+%endif
+%if %{expand:%{?undefined:0}%{!?undefined:1}}
 %define undefined()     %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
 %endif
 
@@ -100,6 +106,13 @@
 %endif
 
 # ----------------------------------------------------------------------------
+# Server suffix and package name
+# ----------------------------------------------------------------------------
+%if %{undefined server_suffix}
+%define server_suffix   %{nil}
+%endif
+
+# ----------------------------------------------------------------------------
 # Distribution support
 # ----------------------------------------------------------------------------
 #
@@ -142,19 +155,6 @@
 %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
 %define distro_requires         coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
-
-# ----------------------------------------------------------------------------
-# Build with yaSSL support (off by default)
-# ----------------------------------------------------------------------------
-%{?_with_yassl:%define YASSL_BUILD 1}
-%{!?_with_yassl:%define YASSL_BUILD 0}
-
-# ----------------------------------------------------------------------------
-# Build using the bundled zlib (on by default)
-# ----------------------------------------------------------------------
-%{!?_with_bundled_zlib:%{!?_without_bundled_zlib:%define WITH_BUNDLED_ZLIB 1}}
-%{?_with_bundled_zlib:%define WITH_BUNDLED_ZLIB 1}
-%{?_without_bundled_zlib:%define WITH_BUNDLED_ZLIB 0}
 
 # ----------------------------------------------------------------------------
 # Support optional "tcmalloc" library (experimental)
