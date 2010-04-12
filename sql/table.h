@@ -39,10 +39,10 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
-class TABLE_LIST;
+struct TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
-class TABLE_LIST;
+struct TABLE_LIST;
 class Field;
 
 /*

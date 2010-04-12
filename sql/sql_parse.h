@@ -23,7 +23,7 @@ class Comp_creator;
 class Item;
 class Object_creation_ctx;
 class Parser_state;
-class TABLE_LIST;
+struct TABLE_LIST;
 class THD;
 class Table_ident;
 struct LEX;
