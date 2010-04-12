@@ -39,7 +39,7 @@ class Event_db_repository;
 class Event_parse_data;
 class Event_queue;
 class Event_scheduler;
-class TABLE_LIST;
+struct TABLE_LIST;
 class THD;
 typedef class Item COND;
 typedef struct charset_info_st CHARSET_INFO;
