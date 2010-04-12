@@ -20,18 +20,22 @@
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
-%define mysql_old_vendor  MySQL AB
-%define mysql_vendor_2    Sun Microsystems, Inc.
-%define mysql_vendor      Oracle and/or its affiliates
+%define mysql_old_vendor        MySQL AB
+%define mysql_vendor_2          Sun Microsystems, Inc.
+%define mysql_vendor            Oracle and/or its affiliates
 
-%define mysql_license     GPL
-%define mysql_version     @VERSION@
+%define mysql_license   GPL
+%define mysql_version   @VERSION@
 
-%define mysqld_user       mysql
-%define mysqld_group      mysql
-%define mysqldatadir      /var/lib/mysql
+%define mysqld_user     mysql
+%define mysqld_group    mysql
+%define mysqldatadir    /var/lib/mysql
 
-%define release           1
+%define release         1
+
+# Macros we use which are not available in all versions of RPM
+%defined()              %{expand:%%{?%{1}:1}%%{!?%{1}:0}}
+%undefined()            %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
 
 # ----------------------------------------------------------------------------
 # RPM build tools now automatically detect Perl module dependencies.  This
