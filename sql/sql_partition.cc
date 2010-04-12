@@ -46,11 +46,25 @@
 /* Some general useful functions */
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_partition.h"
+#include "key.h"                            // key_restore
+#include "sql_parse.h"                      // parse_sql
+#include "sql_cache.h"                      // query_cache_invalidate3
+#include "lock.h"                           // mysql_lock_remove
+#include "sql_show.h"                       // append_identifier
 #include <errno.h>
 #include <m_ctype.h>
 #include "my_md5.h"
 #include "transaction.h"
+
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_table.h"                  // build_table_filename,
+                                        // build_table_shadow_filename,
+                                        // table_to_filename
+#include "opt_range.h"                  // store_key_image_to_rec
+#include "sql_analyse.h"                // append_escaped
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -2128,8 +2142,6 @@ static int check_part_field(enum_field_types sql_type,
   }
   switch (sql_type)
   {
-    case MYSQL_TYPE_NEWDECIMAL:
-    case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
@@ -2151,6 +2163,8 @@ static int check_part_field(enum_field_types sql_type,
       *result_type= STRING_RESULT;
       *need_cs_check= TRUE;
       return FALSE;
+    case MYSQL_TYPE_NEWDECIMAL:
+    case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_FLOAT:
@@ -3359,6 +3373,7 @@ int get_partition_id_range(partition_info *part_info,
   *func_value= part_func_value;
   if (unsigned_flag)
     part_func_value-= 0x8000000000000000ULL;
+  /* Search for the partition containing part_func_value */
   while (max_part_id > min_part_id)
   {
     loc_part_id= (max_part_id + min_part_id) / 2;
@@ -3498,11 +3513,17 @@ uint32 get_partition_id_range_for_endpoint(partition_info *part_info,
   part_end_val= range_array[loc_part_id];
   if (left_endpoint)
   {
+    DBUG_ASSERT(part_func_value > part_end_val ?
+                (loc_part_id == max_partition &&
+                 !part_info->defined_max_value) :
+                1);
     /*
       In case of PARTITION p VALUES LESS THAN MAXVALUE
-      the maximum value is in the current partition.
+      the maximum value is in the current (last) partition.
+      If value is equal or greater than the endpoint,
+      the range starts from the next partition.
     */
-    if (part_func_value == part_end_val &&
+    if (part_func_value >= part_end_val &&
         (loc_part_id < max_partition || !part_info->defined_max_value))
       loc_part_id++;
   }
@@ -4536,6 +4557,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
 {
   DBUG_ENTER("prep_alter_part_table");
 
+  /* Foreign keys on partitioned tables are not supported, waits for WL#148 */
+  if (table->part_info && (alter_info->flags & ALTER_FOREIGN_KEY))
+  {
+    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
   /*
     We are going to manipulate the partition info on the table object
     so we need to ensure that the table instance is removed from the

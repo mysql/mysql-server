@@ -16,8 +16,10 @@
 
 /* Mallocs for used in threads */
 
+#include "sql_priv.h"
+#include "unireg.h"
 #include "thr_malloc.h"
-#include "mysql_priv.h"
+#include "sql_class.h"
 
 extern "C" void sql_alloc_error_handler(void);
 

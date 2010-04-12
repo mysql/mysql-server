@@ -13,11 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "my_global.h"                          // HAVE_*
+
 #ifdef HAVE_QUERY_CACHE
 #include <mysql.h>
 #include "emb_qcache.h"
 #include "embedded_priv.h"
+#include "sql_class.h"                          // THD
 
 void Querycache_stream::store_uchar(uchar c)
 {

@@ -23,7 +23,7 @@
 */
 
 #include "my_global.h"
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "pfs_server.h"
 #include "pfs_engine_table.h"
 

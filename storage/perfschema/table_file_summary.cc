@@ -18,7 +18,8 @@
   Table FILE_SUMMARY_BY_xxx (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"

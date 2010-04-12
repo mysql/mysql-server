@@ -16,8 +16,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_plist.h"
+#include "sql_list.h"                           /* Sql_alloc */
 #include "mdl.h"
+
+#ifndef MYSQL_CLIENT
+
+#include "hash.h"                               /* HASH */
+#include "handler.h"                /* row_type, ha_choice, handler */
+#include "mysql_com.h"              /* enum_field_types */
+#include "thr_lock.h"                  /* thr_lock_type */
 
 /* Structs that defines the TABLE */
 
@@ -30,10 +39,143 @@ class st_select_lex;
 class partition_info;
 class COND_EQUAL;
 class Security_context;
+class TABLE_LIST;
 class ACL_internal_schema_access;
 class ACL_internal_table_access;
+class TABLE_LIST;
+class Field;
+
+/*
+  Used to identify NESTED_JOIN structures within a join (applicable only to
+  structures that have not been simplified away and embed more the one
+  element)
+*/
+typedef ulonglong nested_join_map;
+
+
+#define tmp_file_prefix "#sql"			/**< Prefix for tmp tables */
+#define tmp_file_prefix_length 4
+#define TMP_TABLE_KEY_EXTRA 8
+
+/**
+  Enumerate possible types of a table from re-execution
+  standpoint.
+  TABLE_LIST class has a member of this type.
+  At prepared statement prepare, this member is assigned a value
+  as of the current state of the database. Before (re-)execution
+  of a prepared statement, we check that the value recorded at
+  prepare matches the type of the object we obtained from the
+  table definition cache.
+
+  @sa check_and_update_table_version()
+  @sa Execute_observer
+  @sa Prepared_statement::reprepare()
+*/
+
+enum enum_table_ref_type
+{
+  /** Initial value set by the parser */
+  TABLE_REF_NULL= 0,
+  TABLE_REF_VIEW,
+  TABLE_REF_BASE_TABLE,
+  TABLE_REF_I_S_TABLE,
+  TABLE_REF_TMP_TABLE
+};
+
+
+/**
+  Opening modes for open_temporary_table and open_table_from_share
+*/
+
+enum open_table_mode
+{
+  OTM_OPEN= 0,
+  OTM_CREATE= 1,
+  OTM_ALTER= 2
+};
+
 
 /*************************************************************************/
+
+/**
+ Object_creation_ctx -- interface for creation context of database objects
+ (views, stored routines, events, triggers). Creation context -- is a set
+ of attributes, that should be fixed at the creation time and then be used
+ each time the object is parsed or executed.
+*/
+
+class Object_creation_ctx
+{
+public:
+  Object_creation_ctx *set_n_backup(THD *thd);
+
+  void restore_env(THD *thd, Object_creation_ctx *backup_ctx);
+
+protected:
+  Object_creation_ctx() {}
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const = 0;
+
+  virtual void change_env(THD *thd) const = 0;
+
+public:
+  virtual ~Object_creation_ctx()
+  { }
+};
+
+/*************************************************************************/
+
+/**
+ Default_object_creation_ctx -- default implementation of
+ Object_creation_ctx.
+*/
+
+class Default_object_creation_ctx : public Object_creation_ctx
+{
+public:
+  CHARSET_INFO *get_client_cs()
+  {
+    return m_client_cs;
+  }
+
+  CHARSET_INFO *get_connection_cl()
+  {
+    return m_connection_cl;
+  }
+
+protected:
+  Default_object_creation_ctx(THD *thd);
+
+  Default_object_creation_ctx(CHARSET_INFO *client_cs,
+                              CHARSET_INFO *connection_cl);
+
+protected:
+  virtual Object_creation_ctx *create_backup_ctx(THD *thd) const;
+
+  virtual void change_env(THD *thd) const;
+
+protected:
+  /**
+    client_cs stores the value of character_set_client session variable.
+    The only character set attribute is used.
+
+    Client character set is included into query context, because we save
+    query in the original character set, which is client character set. So,
+    in order to parse the query properly we have to switch client character
+    set on parsing.
+  */
+  CHARSET_INFO *m_client_cs;
+
+  /**
+    connection_cl stores the value of collation_connection session
+    variable. Both character set and collation attributes are used.
+
+    Connection collation is included into query context, becase it defines
+    the character set and collation of text literals in internal
+    representation of query (item-objects).
+  */
+  CHARSET_INFO *m_connection_cl;
+};
+
 
 /**
  View_creation_ctx -- creation context of view objects.
@@ -162,15 +304,6 @@ enum tmp_table_type
 {
   NO_TMP_TABLE, NON_TRANSACTIONAL_TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
   INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
-};
-
-/** Event on which trigger is invoked. */
-enum trg_event_type
-{
-  TRG_EVENT_INSERT= 0,
-  TRG_EVENT_UPDATE= 1,
-  TRG_EVENT_DELETE= 2,
-  TRG_EVENT_MAX
 };
 
 enum frm_type_enum
@@ -1858,5 +1991,83 @@ size_t max_row_length(TABLE *table, const uchar *data);
 
 
 void init_mdl_requests(TABLE_LIST *table_list);
+
+int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
+                          uint db_stat, uint prgflag, uint ha_open_flags,
+                          TABLE *outparam, bool is_create_table);
+TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
+                               uint key_length);
+void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
+                          uint key_length,
+                          const char *table_name, const char *path);
+void free_table_share(TABLE_SHARE *share);
+int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
+void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
+void update_create_info_from_table(HA_CREATE_INFO *info, TABLE *form);
+bool check_and_convert_db_name(LEX_STRING *db, bool preserve_lettercase);
+bool check_db_name(LEX_STRING *db);
+bool check_column_name(const char *name);
+bool check_table_name(const char *name, uint length);
+int rename_file_ext(const char * from,const char * to,const char * ext);
+char *get_field(MEM_ROOT *mem, Field *field);
+bool get_field(MEM_ROOT *mem, Field *field, class String *res);
+
+int closefrm(TABLE *table, bool free_share);
+int read_string(File file, uchar* *to, size_t length);
+void free_blobs(TABLE *table);
+void free_field_buffers_larger_than(TABLE *table, uint32 size);
+int set_zone(int nr,int min_zone,int max_zone);
+ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
+ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
+		     const char *newname);
+ulong next_io_size(ulong pos);
+void append_unescaped(String *res, const char *pos, uint length);
+File create_frm(THD *thd, const char *name, const char *db,
+                const char *table, uint reclength, uchar *fileinfo,
+  		HA_CREATE_INFO *create_info, uint keys, KEY *key_info);
+char *fn_rext(char *name);
+
+/* performance schema */
+extern LEX_STRING PERFORMANCE_SCHEMA_DB_NAME;
+
+extern LEX_STRING GENERAL_LOG_NAME;
+extern LEX_STRING SLOW_LOG_NAME;
+
+/* information schema */
+extern LEX_STRING INFORMATION_SCHEMA_NAME;
+extern LEX_STRING MYSQL_SCHEMA_NAME;
+
+inline bool is_infoschema_db(const char *name, size_t len)
+{
+  return (INFORMATION_SCHEMA_NAME.length == len &&
+          !my_strcasecmp(system_charset_info,
+                         INFORMATION_SCHEMA_NAME.str, name));
+}
+
+inline bool is_infoschema_db(const char *name)
+{
+  return !my_strcasecmp(system_charset_info,
+                        INFORMATION_SCHEMA_NAME.str, name);
+}
+
+TYPELIB *typelib(MEM_ROOT *mem_root, List<String> &strings);
+
+/**
+  return true if the table was created explicitly.
+*/
+inline bool is_user_table(TABLE * table)
+{
+  const char *name= table->s->table_name.str;
+  return strncmp(name, tmp_file_prefix, tmp_file_prefix_length);
+}
+
+inline void mark_as_null_row(TABLE *table)
+{
+  table->null_row=1;
+  table->status|=STATUS_NULL_ROW;
+  bfill(table->null_flags,table->s->null_bytes,255);
+}
+
+#endif /* MYSQL_CLIENT */
 
 #endif /* TABLE_INCLUDED */

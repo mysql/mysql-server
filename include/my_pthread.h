@@ -18,6 +18,8 @@
 #ifndef _my_pthread_h
 #define _my_pthread_h
 
+#include "my_global.h"                          /* myf */
+
 #ifndef ETIME
 #define ETIME ETIMEDOUT				/* For FreeBSD */
 #endif

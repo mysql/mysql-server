@@ -1,0 +1,14 @@
+--disable_warnings
+DROP TABLE IF EXISTS t7;
+--enable_warnings
+CREATE TABLE t7(c1 SET('a','b','c') NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t7; DROP TABLE t7; SHOW TABLES;
+CREATE TABLE t7(c1 SET('a','b','c') NOT NULL);
+SHOW TABLES;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+--replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
+SHOW CREATE TABLE t7; DROP TABLE t7; SHOW TABLES;
+
