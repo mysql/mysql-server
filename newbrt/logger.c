@@ -55,7 +55,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->outbuf = (struct logbuf) {0, LOGGER_MIN_BUF_SIZE, toku_xmalloc(LOGGER_MIN_BUF_SIZE), ZERO_LSN};
     // written_lsn is uninitialized
     // fsynced_lsn is uninitialized
-    result->checkpoint_lsn = ZERO_LSN;
+    result->last_completed_checkpoint_lsn = ZERO_LSN;
     // next_log_file_number is uninitialized
     // n_in_file is uninitialized
     result->write_block_size = BRT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
@@ -68,6 +68,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->input_lock_ctr = 0;
     result->output_condition_lock_ctr = 0;
     result->swap_ctr = 0;
+    result->rollback_cachefile = NULL;
     result->output_is_available = TRUE;
     return 0;
 
@@ -136,6 +137,68 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     return 0;
 }
 
+int
+toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create) {
+    assert(logger->is_open);
+    assert(!logger->is_panicked);
+    assert(!logger->rollback_cachefile);
+    
+    int r;
+    BRT t = NULL;   // Note, there is no DB associated with this BRT.
+
+    r = toku_brt_create(&t);
+    assert(r==0);
+    r = toku_brt_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN, NULL);
+    assert(r==0);
+    logger->rollback_cachefile = t->cf;
+    toku_brtheader_lock(t->h);
+    //Verify it is empty
+    assert(!t->h->panic);
+    //Must have no data blocks (rollback logs or otherwise).
+    toku_block_verify_no_data_blocks_except_root_unlocked(t->h->blocktable, t->h->root);
+    toku_brtheader_unlock(t->h);
+    assert(toku_brt_is_empty(t));
+    return r;
+}
+
+
+//  Requires: Rollback cachefile can only be closed immediately after a checkpoint,
+//            so it will always be clean (!h->dirty) when about to be closed.
+//            Rollback log can only be closed when there are no open transactions,
+//            so it will always be empty (no data blocks) when about to be closed.
+int
+toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed) {
+    int r = 0;
+    CACHEFILE cf = logger->rollback_cachefile;  // stored in logger at rollback cachefile open
+    if (!logger->is_panicked && cf) {
+        BRT brt_to_close;
+        {   //Find "brt"
+            struct brt_header *h = toku_cachefile_get_userdata(cf);
+            toku_brtheader_lock(h);
+            if (!h->panic && recovery_failed) {
+                toku_brt_header_set_panic(h, EINVAL, "Recovery failed");
+            }
+            //Verify it is safe to close it.
+            if (!h->panic) { //If paniced, it is safe to close.
+                assert(!h->dirty);  //Must not be dirty.
+                //Must have no data blocks (rollback logs or otherwise).
+                toku_block_verify_no_data_blocks_except_root_unlocked(h->blocktable, h->root);
+            }
+            assert(!toku_list_empty(&h->live_brts));  // there is always one brt associated with the header
+	    brt_to_close = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
+            assert(brt_to_close);
+            toku_brtheader_unlock(h);
+            assert(toku_brt_is_empty(brt_to_close));
+        }
+
+        char *error_string_ignore = NULL;
+        r = toku_close_brt(brt_to_close, &error_string_ignore);
+        //Set as dealt with already.
+        logger->rollback_cachefile = NULL;
+    }
+    return r;
+}
+
 // No locks held on entry
 // No locks held on exit.
 // No locks are needed, since you cannot legally close the log concurrently with doing anything else.
@@ -183,7 +246,8 @@ int toku_logger_shutdown(TOKULOGGER logger) {
     if (logger->is_open) {
         if (toku_omt_size(logger->live_txns) == 0) {
             BYTESTRING comment = { strlen("shutdown"), "shutdown" };
-            r = toku_log_comment(logger, NULL, TRUE, 0, comment);
+            int r2 = toku_log_comment(logger, NULL, TRUE, 0, comment);
+            if (!r) r = r2;
         }
     }
     return r;
@@ -787,6 +851,10 @@ int toku_fread_LSN     (FILE *f, LSN *lsn, struct x1764 *checksum, u_int32_t *le
     return toku_fread_u_int64_t (f, &lsn->lsn, checksum, len);
 }
 
+int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *b, struct x1764 *checksum, u_int32_t *len) {
+    return toku_fread_u_int64_t (f, (u_int64_t*)&b->b, checksum, len);
+}
+
 int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct x1764 *checksum, u_int32_t *len) {
     return toku_fread_u_int32_t (f, &filenum->fileid, checksum, len);
 }
@@ -903,6 +971,11 @@ int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, stru
     return 0;
 }
 
+int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
+    return toku_logprint_u_int64_t(outf, inf, fieldname, checksum, len, format);
+
+}
+
 int toku_logprint_FILENUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format) {
     return toku_logprint_u_int32_t(outf, inf, fieldname, checksum, len, format);
 
@@ -980,11 +1053,6 @@ int toku_read_logmagic (FILE *f, u_int32_t *versionp) {
 TXNID toku_txn_get_txnid (TOKUTXN txn) {
     if (txn==0) return 0;
     else return txn->txnid64;
-}
-
-LSN toku_txn_get_last_lsn (TOKUTXN txn) {
-    if (txn==0) return (LSN){0};
-    return txn->last_lsn;
 }
 
 LSN toku_logger_last_lsn(TOKULOGGER logger) {
@@ -1083,32 +1151,20 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     // get them into increasing order
     qsort(all_logs, all_n_logs, sizeof(all_logs[0]), logfilenamecompare);
 
-    LSN oldest_live_txn_lsn;
-    {
-        TXNID oldest_living_xid = toku_logger_get_oldest_living_xid(logger);
-        if (oldest_living_xid == TXNID_NONE_LIVING)
-            oldest_live_txn_lsn = MAX_LSN;
-        else
-            oldest_live_txn_lsn.lsn = oldest_living_xid;
-    }
-
-    //printf("%s:%d Oldest txn is %lld\n", __FILE__, __LINE__, (long long)oldest_live_txn_lsn.lsn);
+    LSN save_lsn = logger->last_completed_checkpoint_lsn;
 
     // Now starting at the last one, look for archivable ones.
     // Count the total number of bytes, because we have to return a single big array.  (That's the BDB interface.  Bleah...)
     LSN earliest_lsn_in_logfile={(unsigned long long)(-1LL)};
     r = peek_at_log(logger, all_logs[all_n_logs-1], &earliest_lsn_in_logfile); // try to find the lsn that's in the most recent log
-    if ((earliest_lsn_in_logfile.lsn <= logger->checkpoint_lsn.lsn)&&
-	(earliest_lsn_in_logfile.lsn <= oldest_live_txn_lsn.lsn)) {
+    if (earliest_lsn_in_logfile.lsn <= save_lsn.lsn) {
 	i=all_n_logs-1;
     } else {
 	for (i=all_n_logs-2; i>=0; i--) { // start at all_n_logs-2 because we never archive the most recent log
 	    r = peek_at_log(logger, all_logs[i], &earliest_lsn_in_logfile);
 	    if (r!=0) continue; // In case of error, just keep going
 	
-	    //printf("%s:%d file=%s firstlsn=%lld checkpoint_lsns={%lld %lld}\n", __FILE__, __LINE__, all_logs[i], (long long)earliest_lsn_in_logfile.lsn, (long long)logger->checkpoint_lsns[0].lsn, (long long)logger->checkpoint_lsns[1].lsn);
-	    if ((earliest_lsn_in_logfile.lsn <= logger->checkpoint_lsn.lsn)&&
-		(earliest_lsn_in_logfile.lsn <= oldest_live_txn_lsn.lsn)) {
+	    if (earliest_lsn_in_logfile.lsn <= save_lsn.lsn) {
 		break;
 	    }
 	}
@@ -1148,7 +1204,7 @@ TOKUTXN toku_logger_txn_parent (TOKUTXN txn) {
 }
 
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn) {
-    logger->checkpoint_lsn = lsn;
+    logger->last_completed_checkpoint_lsn = lsn;
 }
 
 TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger) {
@@ -1156,17 +1212,6 @@ TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger) {
     if (logger)
         rval = logger->oldest_living_xid;
     return rval;
-}
-
-LSN toku_logger_get_oldest_living_lsn(TOKULOGGER logger) {
-    LSN lsn = {0};
-    if (logger) {
-        if (logger->oldest_living_xid == TXNID_NONE_LIVING)
-            lsn = MAX_LSN;
-        else
-            lsn.lsn = logger->oldest_living_xid;
-    }
-    return lsn;
 }
 
 LSN

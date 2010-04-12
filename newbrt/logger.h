@@ -5,12 +5,20 @@
 #ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-enum { TOKU_LOG_VERSION = 1 };
+enum {
+    TOKU_LOG_VERSION_1 = 1,
+    TOKU_LOG_VERSION_2 = 2,
+    TOKU_LOG_NEXT_VERSION,           // the version after the current version
+    TOKU_LOG_VERSION   = TOKU_LOG_NEXT_VERSION-1, // A hack so I don't have to change this line.
+};
+#define ROLLBACK_CACHEFILE_NAME "tokudb.rollback"
 
 int toku_logger_create (TOKULOGGER *resultp);
 int toku_logger_open (const char *directory, TOKULOGGER logger);
 int toku_logger_shutdown(TOKULOGGER logger);
 int toku_logger_close(TOKULOGGER *loggerp);
+int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL create);
+int toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed);
 
 int toku_logger_fsync (TOKULOGGER logger);
 void toku_logger_panic (TOKULOGGER logger, int err);
@@ -49,6 +57,7 @@ int toku_fread_u_int32_t_nocrclen (FILE *f, u_int32_t *v);
 int toku_fread_u_int32_t (FILE *f, u_int32_t *v, struct x1764 *checksum, u_int32_t *len);
 int toku_fread_u_int64_t (FILE *f, u_int64_t *v, struct x1764 *checksum, u_int32_t *len);
 int toku_fread_LSN     (FILE *f, LSN *lsn, struct x1764 *checksum, u_int32_t *len);
+int toku_fread_BLOCKNUM (FILE *f, BLOCKNUM *lsn, struct x1764 *checksum, u_int32_t *len);
 int toku_fread_FILENUM (FILE *f, FILENUM *filenum, struct x1764 *checksum, u_int32_t *len);
 int toku_fread_TXNID   (FILE *f, TXNID *txnid, struct x1764 *checksum, u_int32_t *len);
 int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, struct x1764 *checksum, u_int32_t *len);
@@ -58,6 +67,7 @@ int toku_logprint_LSN (FILE *outf, FILE *inf, const char *fieldname, struct x176
 int toku_logprint_TXNID (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__)));
 int toku_logprint_u_int8_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format);
 int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format);
+int toku_logprint_BLOCKNUM (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format);
 int toku_logprint_u_int64_t (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format);
 void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data);
 int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, struct x1764 *checksum, u_int32_t *len, const char *format __attribute__((__unused__)));
@@ -67,7 +77,6 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp);
 int toku_read_logmagic (FILE *f, u_int32_t *versionp);
 
 TXNID toku_txn_get_txnid (TOKUTXN txn);
-LSN toku_txn_get_last_lsn (TOKUTXN txn);
 LSN toku_logger_last_lsn(TOKULOGGER logger);
 TOKULOGGER toku_txn_logger (TOKUTXN txn);
 
@@ -81,7 +90,6 @@ TOKUTXN toku_logger_txn_parent (TOKUTXN txn);
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 
 TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger);
-LSN toku_logger_get_oldest_living_lsn(TOKULOGGER logger);
 LSN toku_logger_get_next_lsn(TOKULOGGER logger);
 void toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(DICTIONARY_ID, void *), void * extra);
 void toku_logger_call_remove_finalize_callback(TOKULOGGER logger, DICTIONARY_ID dict_id);

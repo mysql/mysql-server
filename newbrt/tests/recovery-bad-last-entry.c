@@ -5,7 +5,7 @@
 
 #define TESTDIR "dir." __FILE__ 
 
-static const int magic_begin_end_checkpoint_sz = 77;  // leave this many bytes in file
+static const int magic_begin_end_checkpoint_sz = 85;  // leave this many bytes in file
 
 static int 
 run_test(void) {
@@ -28,12 +28,12 @@ run_test(void) {
         LSN beginlsn;
         // all logs must contain a valid checkpoint
         r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0); assert(r == 0);
-        r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0); assert(r == 0);
+        r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0, 0, 0); assert(r == 0);
 
         r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
         r = toku_log_comment(logger, NULL, TRUE, 0, world); assert(r == 0);
         r = toku_log_begin_checkpoint(logger, &beginlsn, TRUE, 0); assert(r == 0);
-        r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0); assert(r == 0);
+        r = toku_log_end_checkpoint(logger, NULL, TRUE, beginlsn.lsn, 0, 0, 0); assert(r == 0);
         r = toku_log_comment(logger, NULL, TRUE, 0, hello); assert(r == 0);
         r = toku_log_comment(logger, NULL, TRUE, 0, there); assert(r == 0);
         r = toku_logger_close(&logger); assert(r == 0);

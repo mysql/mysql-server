@@ -19,10 +19,11 @@
 
 #include <sys/types.h>
 
-typedef struct memarena *MEMARENA;
+MEMARENA memarena_create_presized (size_t initial_size);
+// Effect: Create a memarena with initial size.  In case of ENOMEM, aborts.
 
 MEMARENA memarena_create (void);
-// Effect: Create a memarena.  In case of ENOMEM, aborts.
+// Effect: Create a memarena with default initial size.  In case of ENOMEM, aborts.
 
 void memarena_clear (MEMARENA ma);
 // Effect: Reset the internal state so that the allocated memory can be used again.

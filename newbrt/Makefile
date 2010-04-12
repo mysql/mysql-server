@@ -41,7 +41,6 @@ local: bins libs $(TEST_NEWBRT);
 BRT_SOURCES = \
   block_allocator \
   block_table \
-  bread \
   brt-serialize \
   brt-verify \
   brt \

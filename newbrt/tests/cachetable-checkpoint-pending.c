@@ -102,7 +102,7 @@ static void checkpoint_pending(void) {
     char fname1[] = __FILE__ "test1.dat";
     r = unlink(fname1); if (r!=0) CKERR2(errno, ENOENT);
     r = toku_cachetable_openf(&cf, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-    toku_cachefile_set_userdata(cf, NULL, NULL, NULL, NULL, NULL, NULL,
+    toku_cachefile_set_userdata(cf, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                                 dummy_pin_unpin, dummy_pin_unpin);
 
     // Insert items into the cachetable. All dirty.

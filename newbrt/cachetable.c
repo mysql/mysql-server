@@ -100,8 +100,6 @@ struct ctpair {
     PAIR     next,prev;          // In LRU list.
     PAIR     hash_chain;
 
-    LSN      modified_lsn;       // What was the LSN when modified (undefined if not dirty)
-    LSN      written_lsn;        // What was the LSN when written (we need to get this information when we fetch)
 
     BOOL     checkpoint_pending; // If this is on, then we have got to write the pair out to disk before modifying it.
     PAIR     pending_next;
@@ -155,6 +153,8 @@ struct cachetable {
     struct workqueue wq;          // async work queue 
     THREADPOOL threadpool;        // pool of worker threads
     LSN lsn_of_checkpoint_in_progress;
+    u_int32_t checkpoint_num_files;  // how many cachefiles are in the checkpoint
+    u_int32_t checkpoint_num_txns;   // how many transactions are in the checkpoint
     PAIR pending_head;           // list of pairs marked with checkpoint_pending
     struct rwlock pending_lock;  // multiple writer threads, single checkpoint thread
     struct minicron checkpointer; // the periodic checkpointing thread
@@ -164,7 +164,6 @@ struct cachetable {
     char *env_dir;
     BOOL set_env_dir; //Can only set env_dir once
 };
-
 
 // Lock the cachetable
 static inline void cachefiles_lock(CACHETABLE ct) {
@@ -224,6 +223,7 @@ struct cachefile {
 
     void *userdata;
     int (*log_fassociate_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log all open files.
+    int (*log_suppress_rollback_during_checkpoint)(CACHEFILE cf, void *userdata); // When starting a checkpoint we must log which files need rollbacks suppressed
     int (*close_userdata)(CACHEFILE cf, int fd, void *userdata, char **error_string, BOOL lsnvalid, LSN); // when closing the last reference to a cachefile, first call this function. 
     int (*begin_checkpoint_userdata)(CACHEFILE cf, int fd, LSN lsn_of_checkpoint, void *userdata); // before checkpointing cachefiles call this function.
     int (*checkpoint_userdata)(CACHEFILE cf, int fd, void *userdata); // when checkpointing a cachefile, call this function.
@@ -1239,8 +1239,7 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
                                  CACHETABLE_FLUSH_CALLBACK flush_callback,
                                  CACHETABLE_FETCH_CALLBACK fetch_callback,
                                  void *extraargs, 
-                                 enum cachetable_dirty dirty,
-                                 LSN   written_lsn) {
+                                 enum cachetable_dirty dirty) {
     TAGMALLOC(PAIR, p);
     assert(p);
     memset(p, 0, sizeof *p);
@@ -1255,8 +1254,6 @@ static PAIR cachetable_insert_at(CACHETABLE ct,
     p->flush_callback = flush_callback;
     p->fetch_callback = fetch_callback;
     p->extraargs = extraargs;
-    p->modified_lsn.lsn = 0;
-    p->written_lsn  = written_lsn;
     p->fullhash = fullhash;
     p->next = p->prev = 0;
     rwlock_init(&p->rwlock);
@@ -1321,7 +1318,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, u_int32_t fullhash, v
     }
     // flushing could change the table size, but wont' change the fullhash
     cachetable_puts++;
-    PAIR p = cachetable_insert_at(ct, cachefile, key, value, CTPAIR_IDLE, fullhash, size, flush_callback, fetch_callback, extraargs, CACHETABLE_DIRTY, ZERO_LSN);
+    PAIR p = cachetable_insert_at(ct, cachefile, key, value, CTPAIR_IDLE, fullhash, size, flush_callback, fetch_callback, extraargs, CACHETABLE_DIRTY);
     assert(p);
     rwlock_read_lock(&p->rwlock, ct->mutex);
     note_hash_count(count);
@@ -1465,7 +1462,7 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, u_int32_t ful
     int r;
     // Note.  hashit(t,key) may have changed as a result of flushing.  But fullhash won't have changed.
     {
-	p = cachetable_insert_at(ct, cachefile, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN, ZERO_LSN);
+	p = cachetable_insert_at(ct, cachefile, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN);
         assert(p);
 	get_and_pin_footprint = 10;
         rwlock_write_lock(&p->rwlock, ct->mutex);
@@ -1619,7 +1616,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
     // if not found then create a pair in the READING state and fetch it
     if (p == 0) {
         cachetable_prefetches++;
-	p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN, ZERO_LSN);
+	p = cachetable_insert_at(ct, cf, key, zero_value, CTPAIR_READING, fullhash, zero_size, flush_callback, fetch_callback, extraargs, CACHETABLE_CLEAN);
         assert(p);
         rwlock_write_lock(&p->rwlock, ct->mutex);
 #if DO_WORKER_THREAD
@@ -1906,16 +1903,51 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
 }
 
 static int
-log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *loggerv) {
-    TOKUTXN    txn    = txnv;
-    TOKULOGGER logger = loggerv;
-    if (toku_logger_txn_parent(txn)==NULL) { // only have to log the open root transactions
-	int r = toku_log_xstillopen(logger, NULL, 0,
-				    toku_txn_get_txnid(txn),
-				    toku_txn_get_txnid(toku_logger_txn_parent(txn)));
-	assert(r==0);
-    }
+set_filenum_in_array(OMTVALUE brtv, u_int32_t index, void*arrayv) {
+    FILENUM *array = arrayv;
+    BRT brt = brtv;
+    array[index] = toku_cachefile_filenum(brt->cf);
     return 0;
+}
+
+static int
+log_open_txn (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
+    TOKUTXN    txn    = txnv;
+    TOKULOGGER logger = txn->logger;
+    FILENUMS open_filenums;
+    uint32_t num_filenums = toku_omt_size(txn->open_brts);
+    FILENUM array[num_filenums];
+    {
+        open_filenums.num      = num_filenums;
+        open_filenums.filenums = array;
+        //Fill in open_filenums
+        int r = toku_omt_iterate(txn->open_brts, set_filenum_in_array, array);
+        assert(r==0);
+    }
+    int r = toku_log_xstillopen(logger, NULL, 0,
+                                toku_txn_get_txnid(txn),
+                                toku_txn_get_txnid(toku_logger_txn_parent(txn)),
+                                txn->rollentry_raw_count,
+                                open_filenums,
+                                txn->force_fsync_on_commit,
+                                txn->num_rollback_nodes,
+                                txn->num_rollentries,
+                                txn->spilled_rollback_head,
+                                txn->spilled_rollback_tail,
+                                txn->current_rollback);
+    assert(r==0);
+    return 0;
+}
+
+static int
+unpin_rollback_log_for_checkpoint (OMTVALUE txnv, u_int32_t UU(index), void *UU(extra)) {
+    int r = 0;
+    TOKUTXN    txn    = txnv;
+    if (txn->pinned_inprogress_rollback_log) {
+        r = toku_rollback_log_unpin(txn, txn->pinned_inprogress_rollback_log);
+        assert(r==0);
+    }
+    return r;
 }
 
 // TODO: #1510 locking of cachetable is suspect
@@ -1931,7 +1963,17 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 
     {
         unsigned i;
+	if (logger) { // Unpin all 'inprogress rollback log nodes' pinned by transactions
+            int r = toku_omt_iterate(logger->live_txns,
+                                     unpin_rollback_log_for_checkpoint,
+                                     NULL);
+            assert(r==0);
+        }
 	cachetable_lock(ct);
+	//Initialize accountability counters
+	ct->checkpoint_num_files = 0;
+	ct->checkpoint_num_txns  = 0;
+
         //Make list of cachefiles to be included in checkpoint.
         //If refcount is 0, the cachefile is closing (performing a local checkpoint)
         {
@@ -1960,11 +2002,6 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 		assert(r==0);
 		ct->lsn_of_checkpoint_in_progress = begin_lsn;
 	    }
-	    // Log all the open transactions
-	    {
-                int r = toku_omt_iterate(logger->live_txns, log_open_txn, logger);
-		assert(r==0);
-	    }
 	    // Log all the open files
 	    {
                 //Must loop through ALL open files (even if not included in checkpoint).
@@ -1973,6 +2010,26 @@ toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER logger) {
 		for (cf = ct->cachefiles; cf; cf=cf->next) {
                     if (cf->log_fassociate_during_checkpoint) {
                         int r = cf->log_fassociate_during_checkpoint(cf, cf->userdata);
+			ct->checkpoint_num_files++;
+                        assert(r==0);
+                    }
+		}
+                cachefiles_unlock(ct);
+	    }
+	    // Log all the open transactions MUST BE AFTER OPEN FILES
+	    {
+                ct->checkpoint_num_txns = toku_omt_size(logger->live_txns);
+                int r = toku_omt_iterate(logger->live_txns, log_open_txn, NULL);
+		assert(r==0);
+	    }
+	    // Log rollback suppression for all the open files MUST BE AFTER TXNS
+	    {
+                //Must loop through ALL open files (even if not included in checkpoint).
+		CACHEFILE cf;
+                cachefiles_lock(ct);
+		for (cf = ct->cachefiles; cf; cf=cf->next) {
+                    if (cf->log_suppress_rollback_during_checkpoint) {
+                        int r = cf->log_suppress_rollback_during_checkpoint(cf, cf->userdata);
                         assert(r==0);
                     }
 		}
@@ -2115,7 +2172,10 @@ toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
     if (logger) {
 	int r = toku_log_end_checkpoint(logger, NULL,
 					1, // want the end_checkpoint to be fsync'd
-					ct->lsn_of_checkpoint_in_progress.lsn, 0);
+					ct->lsn_of_checkpoint_in_progress.lsn, 
+					0,
+					ct->checkpoint_num_files,
+					ct->checkpoint_num_txns);
 	assert(r==0);
 	toku_logger_note_checkpoint(logger, ct->lsn_of_checkpoint_in_progress);
     }
@@ -2262,6 +2322,7 @@ void
 toku_cachefile_set_userdata (CACHEFILE cf,
 			     void *userdata,
                              int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
+                             int (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
 			     int (*close_userdata)(CACHEFILE, int, void*, char**, BOOL, LSN),
 			     int (*checkpoint_userdata)(CACHEFILE, int, void*),
 			     int (*begin_checkpoint_userdata)(CACHEFILE, int, LSN, void*),
@@ -2270,6 +2331,7 @@ toku_cachefile_set_userdata (CACHEFILE cf,
                              int (*note_unpin_by_checkpoint)(CACHEFILE, void*)) {
     cf->userdata = userdata;
     cf->log_fassociate_during_checkpoint = log_fassociate_during_checkpoint;
+    cf->log_suppress_rollback_during_checkpoint = log_suppress_rollback_during_checkpoint;
     cf->close_userdata = close_userdata;
     cf->checkpoint_userdata = checkpoint_userdata;
     cf->begin_checkpoint_userdata = begin_checkpoint_userdata;

@@ -21,7 +21,7 @@ test_stat64 (unsigned int N) {
     DB_TXN *txn;
     r = db_env_create(&env, 0);                                           CKERR(r);
 
-    r = env->set_cachesize(env, 0, 10*1000000, 1);
+    r = env->set_cachesize(env, 0, 20*1000000, 1);
     r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = db_create(&db, env, 0);                                           CKERR(r);
 
@@ -38,6 +38,10 @@ test_stat64 (unsigned int N) {
     unsigned int i;
     u_int64_t dsize=0;
     for (i=0; i<N; i++) {
+        if (verbose>1 && i % (1<<14) == 0) {
+            printf("%s(total=%u) inserted %u so far\n", __FILE__, N, i);
+            fflush(stdout);
+        }
 	char hello[30], there[30];
 	snprintf(hello, sizeof(hello), "hello%8d", i);
 	snprintf(there, sizeof(there), "there%d", i);

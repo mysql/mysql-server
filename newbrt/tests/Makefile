@@ -58,15 +58,6 @@ check_ok:
 	test 0 = 0 $(SUMMARIZE_CMD)
 
 
-ifeq ($(TOKU_SKIP_1305),1)
-check_test1305:
-	@echo SKIPPED SLOW TEST $@
-else
-# Don't run 1305 under valgrind.  It takes way too long.
-check_test1305$(BINSUF): test1305$(BINSUF)
-	./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
-endif
-
 ifeq ($(TOKU_SKIP_MINICRON),1)
 check_minicron-test$(BINSUF):
 	@echo "SKIPPED TEST $@ (Fails in win64 vm due to timing issues)"

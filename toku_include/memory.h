@@ -21,7 +21,8 @@ enum typ_tag { TYP_BRTNODE = 0xdead0001,
 	       TYP_GPMA,
                TYP_TOKULOGGER,
 	       TYP_TOKUTXN,
-	       TYP_LEAFENTRY
+	       TYP_LEAFENTRY,
+               TYP_ROLLBACK_LOG_NODE
 };
 
 /* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */

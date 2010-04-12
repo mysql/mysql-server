@@ -64,7 +64,7 @@ build: build.tdb build.bdb
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB) $(WINDOWS_BDB_LIB_NAME)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 
-check: check-default check-rowsize-dup check-rowsize check-xfast check-x check-no-rolltmp check-4G
+check: check-default check-rowsize-dup check-rowsize check-xfast check-x check-no-rollback check-4G child.benchmark.dir
 
 SUPPORT_KEYSIZE=$$((3*1024)) 	# at least 3KiB
 SUPPORT_ROWSIZE=$$((80*1024))  	# at least 80KiB
@@ -96,8 +96,8 @@ check-xfast: $(TARGET_TDB)
 	./$(TARGET_TDB) $(VERBVERBOSE) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 --env xfast.dir 1  $(SUMMARIZE_CMD)
 
 # A relatively fast test that detects #853 (don't log changes to a dictionary created in the same txn)
-check-no-rolltmp: $(TARGET_TDB)
-	./$(TARGET_TDB) $(VERBVERBOSE) --env no-rolltmp.dir --singlex --nolog --check_small_rolltmp $(SUMMARIZE_CMD)
+check-no-rollback: $(TARGET_TDB)
+	./$(TARGET_TDB) $(VERBVERBOSE) --env no-rollback.dir --singlex --nolog --check_small_rollback $(SUMMARIZE_CMD)
 
 # Check to make sure that if we make a file that's bigger than 4GB that we can read the file back out and get all the rows.
 ifeq ($(TOKU_SKIP_4G),1)

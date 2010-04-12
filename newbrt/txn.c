@@ -12,18 +12,20 @@ int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER log
 
 int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger, TXNID xid) {
     if (logger->is_panicked) return EINVAL;
+    assert(logger->rollback_cachefile);
     TAGMALLOC(TOKUTXN, result);
     if (result==0) 
         return errno;
     int r;
+    LSN first_lsn;
     if (xid == 0) {
-        r = toku_log_xbegin(logger, &result->first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
+        r = toku_log_xbegin(logger, &first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
         if (r!=0) goto died;
     } else
-        result->first_lsn.lsn = xid;
+        first_lsn.lsn = xid;
     r = toku_omt_create(&result->open_brts);
     if (r!=0) goto died;
-    result->txnid64 = result->first_lsn.lsn;
+    result->txnid64 = first_lsn.lsn;
     XIDS parent_xids;
     if (parent_tokutxn==NULL)
         parent_xids = xids_get_root_xids();
@@ -33,13 +35,19 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
         goto died;
     result->logger = logger;
     result->parent = parent_tokutxn;
-    result->oldest_logentry = result->newest_logentry = 0;
 
-    result->rollentry_arena = memarena_create();
     result->num_rollentries = 0;
     result->num_rollentries_processed = 0;
     result->progress_poll_fun = NULL;
     result->progress_poll_fun_extra = NULL;
+    result->spilled_rollback_head      = ROLLBACK_NONE;
+    result->spilled_rollback_tail      = ROLLBACK_NONE;
+    result->spilled_rollback_head_hash = 0;
+    result->spilled_rollback_tail_hash = 0;
+    result->current_rollback      = ROLLBACK_NONE;
+    result->current_rollback_hash = 0;
+    result->num_rollback_nodes = 0;
+    result->pinned_inprogress_rollback_log = NULL;
 
     if (toku_omt_size(logger->live_txns) == 0) {
         assert(logger->oldest_living_xid == TXNID_NONE_LIVING);
@@ -59,13 +67,9 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
             assert(idx > 0);
     }
 
-    result->rollentry_resident_bytecount=0;
     result->rollentry_raw_count = 0;
-    result->rollentry_filename = 0;
-    result->rollentry_fd = -1;
-    result->rollentry_filesize = 0;
     result->force_fsync_on_commit = FALSE;
-    result->has_done_work = FALSE;
+    result->recovered_from_checkpoint = FALSE;
     *tokutxn = result;
     return 0;
 
@@ -75,6 +79,36 @@ died:
     return r; 
 }
 
+//Used on recovery to recover a transaction.
+int
+toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
+#define COPY_FROM_INFO(field) txn->field = info->field
+    COPY_FROM_INFO(rollentry_raw_count);
+    uint32_t i;
+    for (i = 0; i < info->num_brts; i++) {
+        BRT brt = info->open_brts[i];
+        int r = toku_txn_note_brt(txn, brt);
+        assert(r==0);
+    }
+    COPY_FROM_INFO(force_fsync_on_commit );
+    COPY_FROM_INFO(num_rollback_nodes);
+    COPY_FROM_INFO(num_rollentries);
+
+    CACHEFILE rollback_cachefile = txn->logger->rollback_cachefile;
+
+    COPY_FROM_INFO(spilled_rollback_head);
+    txn->spilled_rollback_head_hash = toku_cachetable_hash(rollback_cachefile,
+                                                           txn->spilled_rollback_head);
+    COPY_FROM_INFO(spilled_rollback_tail);
+    txn->spilled_rollback_tail_hash = toku_cachetable_hash(rollback_cachefile,
+                                                           txn->spilled_rollback_tail);
+    COPY_FROM_INFO(current_rollback);
+    txn->current_rollback_hash = toku_cachetable_hash(rollback_cachefile,
+                                                      txn->current_rollback);
+#undef COPY_FROM_INFO
+    txn->recovered_from_checkpoint = TRUE;
+    return 0;
+}
 
 // Doesn't close the txn, just performs the commit operations.
 int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
@@ -92,13 +126,13 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
     // panic handled in log_commit
 
     //Child transactions do not actually 'commit'.  They promote their changes to parent, so no need to fsync if this txn has a parent.
-    int do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->has_done_work));
+    int do_fsync = !txn->parent && (txn->force_fsync_on_commit || (!nosync && txn->num_rollentries>0));
 
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
 
     if (release_locks) release_locks(locks_thunk);
-    r = toku_log_commit(txn->logger, (LSN*)0, do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
+    r = toku_log_xcommit(txn->logger, (LSN*)0, do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
     if (reacquire_locks) reacquire_locks(locks_thunk);
     if (r!=0)
         return r;

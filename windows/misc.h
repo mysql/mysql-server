@@ -7,6 +7,7 @@ extern "C" {
 
 #include "toku_os.h"
 #include <sys/stat.h>
+#include <stddef.h>
 
 //These are functions that really exist in windows but are named
 //something else.
@@ -81,6 +82,9 @@ int usleep(unsigned int useconds);
 int mkstemp(char * ttemplate);
 
 toku_off_t ftello(FILE *stream);
+
+#define __builtin_offsetof(type, member) offsetof(type, member)
+
 
 #if defined(__cplusplus)
 };

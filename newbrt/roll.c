@@ -12,11 +12,11 @@
 
 int
 toku_commit_fdelete (u_int8_t   file_was_open,
-		     FILENUM    filenum,    // valid if file_was_open
-		     BYTESTRING bs_fname,   // cwd/iname
-		     TOKUTXN    txn,
-		     YIELDF     UU(yield),
-		     void      *UU(yield_v),
+                     FILENUM    filenum,    // valid if file_was_open
+                     BYTESTRING bs_fname,   // cwd/iname
+                     TOKUTXN    txn,
+                     YIELDF     UU(yield),
+                     void      *UU(yield_v),
                      LSN        UU(oplsn)) //oplsn is the lsn of the commit
 {
     //TODO: #2037 verify the file is (user) closed
@@ -24,18 +24,23 @@ toku_commit_fdelete (u_int8_t   file_was_open,
     CACHEFILE cf;
     int r;
     if (file_was_open) {  // file was open when toku_brt_remove_on_commit() was called
-	r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
-	assert(r == 0);  // must still be open  (toku_brt_remove_on_commit() incremented refcount)
-	{
-	    (void)toku_cachefile_get_and_pin_fd(cf);
-	    assert(!toku_cachefile_is_dev_null_unlocked(cf));
-	    struct brt_header *h = toku_cachefile_get_userdata(cf);
-	    DICTIONARY_ID dict_id = h->dict_id;
-	    toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
+        r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+        if (r==ENOENT) { //Missing file on recovered transaction is not an error
+            assert(txn->recovered_from_checkpoint);
+            r = 0;
+            goto done;
+        }
+        assert(r == 0);  // must still be open  (toku_brt_remove_on_commit() incremented refcount)
+        {
+            (void)toku_cachefile_get_and_pin_fd(cf);
+            assert(!toku_cachefile_is_dev_null_unlocked(cf));
+            struct brt_header *h = toku_cachefile_get_userdata(cf);
+            DICTIONARY_ID dict_id = h->dict_id;
+            toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
             toku_cachefile_unpin_fd(cf);
-	}
-	r = toku_cachefile_redirect_nullfd(cf);
-	assert(r==0);
+        }
+        r = toku_cachefile_redirect_nullfd(cf);
+        assert(r==0);
     }
     char *fname_in_env = fixup_fname(&bs_fname);
     char *fname_in_cwd = toku_cachetable_get_fname_in_cwd(txn->logger->ct, fname_in_env);
@@ -44,16 +49,17 @@ toku_commit_fdelete (u_int8_t   file_was_open,
     assert(r==0 || errno==ENOENT);
     toku_free(fname_in_env);
     toku_free(fname_in_cwd);
+done:
     return 0;
 }
 
 int
 toku_rollback_fdelete (u_int8_t   UU(file_was_open),
                        FILENUM    UU(filenum),
-		       BYTESTRING UU(bs_fname),
-		       TOKUTXN    UU(txn),
-		       YIELDF     UU(yield),
-		       void*      UU(yield_v),
+                       BYTESTRING UU(bs_fname),
+                       TOKUTXN    UU(txn),
+                       YIELDF     UU(yield),
+                       void*      UU(yield_v),
                        LSN        UU(oplsn)) //oplsn is the lsn of the abort
 {
     //Rolling back an fdelete is an no-op.
@@ -62,10 +68,10 @@ toku_rollback_fdelete (u_int8_t   UU(file_was_open),
 
 int
 toku_commit_fcreate (FILENUM UU(filenum),
-		     BYTESTRING UU(bs_fname),
-		     TOKUTXN    UU(txn),
-		     YIELDF     UU(yield),
-		     void      *UU(yield_v),
+                     BYTESTRING UU(bs_fname),
+                     TOKUTXN    UU(txn),
+                     YIELDF     UU(yield),
+                     void      *UU(yield_v),
                      LSN        UU(oplsn))
 {
     return 0;
@@ -73,10 +79,10 @@ toku_commit_fcreate (FILENUM UU(filenum),
 
 int
 toku_rollback_fcreate (FILENUM    filenum,
-		       BYTESTRING bs_fname,  // cwd/iname
-		       TOKUTXN    txn,
-		       YIELDF     UU(yield),
-		       void*      UU(yield_v),
+                       BYTESTRING bs_fname,  // cwd/iname
+                       TOKUTXN    txn,
+                       YIELDF     UU(yield),
+                       void*      UU(yield_v),
                        LSN        UU(oplsn))
 {
     //TODO: #2037 verify the file is (user) closed
@@ -84,13 +90,18 @@ toku_rollback_fcreate (FILENUM    filenum,
     //Remove reference to the fd in the cachetable
     CACHEFILE cf = NULL;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+    if (r==ENOENT) { //Missing file on recovered transaction is not an error
+        assert(txn->recovered_from_checkpoint);
+        r = 0;
+        goto done;
+    }
     assert(r == 0);
     {
         (void)toku_cachefile_get_and_pin_fd(cf);
-	assert(!toku_cachefile_is_dev_null_unlocked(cf));
-	struct brt_header *h = toku_cachefile_get_userdata(cf);
-	DICTIONARY_ID dict_id = h->dict_id;
-	toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
+        assert(!toku_cachefile_is_dev_null_unlocked(cf));
+        struct brt_header *h = toku_cachefile_get_userdata(cf);
+        DICTIONARY_ID dict_id = h->dict_id;
+        toku_logger_call_remove_finalize_callback(txn->logger, dict_id);
         toku_cachefile_unpin_fd(cf);
     }
     r = toku_cachefile_redirect_nullfd(cf);
@@ -103,6 +114,7 @@ toku_rollback_fcreate (FILENUM    filenum,
     assert(r==0 || errno==ENOENT);
     toku_free(fname_in_env);
     toku_free(fname_in_cwd);
+done:
     return 0;
 }
 
@@ -119,6 +131,11 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
     CACHEFILE cf;
     //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+    if (r==ENOENT) { //Missing file on recovered transaction is not an error
+        assert(txn->recovered_from_checkpoint);
+        r = 0;
+        goto done;
+    }
     assert(r==0);
 
     (void)toku_cachefile_get_and_pin_fd(cf);
@@ -146,6 +163,7 @@ static int do_insertion (enum brt_msg_type type, FILENUM filenum, BYTESTRING key
     }
 cleanup:
     toku_cachefile_unpin_fd(cf);
+done:
     return r;
 }
 
@@ -166,11 +184,11 @@ int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING key, TOKUTXN txn, YIELDF 
 
 int
 toku_commit_cmdinsertboth (FILENUM    filenum,
-			   BYTESTRING key,
-			   BYTESTRING data,
-			   TOKUTXN    txn,
-			   YIELDF     UU(yield),
-			   void *     UU(yieldv),
+                           BYTESTRING key,
+                           BYTESTRING data,
+                           TOKUTXN    txn,
+                           YIELDF     UU(yield),
+                           void *     UU(yieldv),
                            LSN        oplsn)
 {
 #if TOKU_DO_COMMIT_CMD_INSERT
@@ -183,10 +201,10 @@ toku_commit_cmdinsertboth (FILENUM    filenum,
 
 int
 toku_rollback_cmdinsert (FILENUM    filenum,
-			 BYTESTRING key,
-			 TOKUTXN    txn,
-			 YIELDF     UU(yield),
-			 void *     UU(yieldv),
+                         BYTESTRING key,
+                         TOKUTXN    txn,
+                         YIELDF     UU(yield),
+                         void *     UU(yieldv),
                          LSN        oplsn)
 {
     return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn);
@@ -194,11 +212,11 @@ toku_rollback_cmdinsert (FILENUM    filenum,
 
 int
 toku_rollback_cmdinsertboth (FILENUM    filenum,
-			     BYTESTRING key,
-			     BYTESTRING data,
-			     TOKUTXN    txn,
-			     YIELDF     UU(yield),
-			     void *     UU(yieldv),
+                             BYTESTRING key,
+                             BYTESTRING data,
+                             TOKUTXN    txn,
+                             YIELDF     UU(yield),
+                             void *     UU(yieldv),
                              LSN        oplsn)
 {
     return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn, oplsn);
@@ -206,11 +224,11 @@ toku_rollback_cmdinsertboth (FILENUM    filenum,
 
 int
 toku_commit_cmddeleteboth (FILENUM    filenum,
-			   BYTESTRING key,
-			   BYTESTRING data,
-			   TOKUTXN    txn,
-			   YIELDF     UU(yield),
-			   void *     UU(yieldv),
+                           BYTESTRING key,
+                           BYTESTRING data,
+                           TOKUTXN    txn,
+                           YIELDF     UU(yield),
+                           void *     UU(yieldv),
                            LSN        oplsn)
 {
 #if TOKU_DO_COMMIT_CMD_DELETE_BOTH
@@ -223,11 +241,11 @@ toku_commit_cmddeleteboth (FILENUM    filenum,
 
 int
 toku_rollback_cmddeleteboth (FILENUM    filenum,
-			     BYTESTRING key,
-			     BYTESTRING data,
-			     TOKUTXN    txn,
-			     YIELDF     UU(yield),
-			     void *     UU(yieldv),
+                             BYTESTRING key,
+                             BYTESTRING data,
+                             TOKUTXN    txn,
+                             YIELDF     UU(yield),
+                             void *     UU(yieldv),
                              LSN        oplsn)
 {
     return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn, oplsn);
@@ -235,10 +253,10 @@ toku_rollback_cmddeleteboth (FILENUM    filenum,
 
 int
 toku_commit_cmddelete (FILENUM    filenum,
-		       BYTESTRING key,
-		       TOKUTXN    txn,
-		       YIELDF     UU(yield),
-		       void *     UU(yieldv),
+                       BYTESTRING key,
+                       TOKUTXN    txn,
+                       YIELDF     UU(yield),
+                       void *     UU(yieldv),
                        LSN        oplsn)
 {
 #if TOKU_DO_COMMIT_CMD_DELETE
@@ -251,113 +269,114 @@ toku_commit_cmddelete (FILENUM    filenum,
 
 int
 toku_rollback_cmddelete (FILENUM    filenum,
-			 BYTESTRING key,
-			 TOKUTXN    txn,
-			 YIELDF     UU(yield),
-			 void *     UU(yieldv),
+                         BYTESTRING key,
+                         TOKUTXN    txn,
+                         YIELDF     UU(yield),
+                         void *     UU(yieldv),
                          LSN        oplsn)
 {
     return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn);
 }
 
-int
-toku_commit_fileentries (int        fd,
-			 TOKUTXN    txn,
-			 YIELDF     yield,
-			 void *     yieldv,
-                         LSN        oplsn)
-{
-    BREAD f = create_bread_from_fd_initialize_at(fd);
-    int r=0;
-    MEMARENA ma = memarena_create();
+static int
+toku_apply_rollinclude (TXNID      xid,
+                        uint64_t   num_nodes,
+                        BLOCKNUM   spilled_head,
+                        uint32_t   spilled_head_hash,
+                        BLOCKNUM   spilled_tail,
+                        uint32_t   spilled_tail_hash,
+                        TOKUTXN    txn,
+                        YIELDF     yield,
+                        void *     yieldv,
+                        LSN        oplsn,
+                        apply_rollback_item func) {
+    int r;
+    struct roll_entry *item;
     int count=0;
-    while (bread_has_more(f)) {
-        struct roll_entry *item;
-        r = toku_read_rollback_backwards(f, &item, ma);
-        if (r!=0) goto finish;
-        r = toku_commit_rollback_item(txn, item, yield, yieldv, oplsn);
-        if (r!=0) goto finish;
-	memarena_clear(ma);
-	count++;
-	if (count%2==0) yield(NULL, yieldv); 
+
+    BLOCKNUM next_log      = spilled_tail;
+    uint32_t next_log_hash = spilled_tail_hash;
+    uint64_t last_sequence = num_nodes;
+
+    BOOL found_head = FALSE;
+    assert(next_log.b != ROLLBACK_NONE.b);
+    while (next_log.b != ROLLBACK_NONE.b) {
+        ROLLBACK_LOG_NODE log;
+        //pin log
+        r = toku_get_and_pin_rollback_log(txn, xid, last_sequence - 1, next_log, next_log_hash, &log);
+        assert(r==0);
+        last_sequence = log->sequence;
+
+        while ((item=log->newest_logentry)) {
+            log->newest_logentry = item->prev;
+            r = func(txn, item, yield, yieldv, oplsn);
+            if (r!=0) return r;
+            count++;
+            if (count%2 == 0) yield(NULL, yieldv);
+        }
+        if (next_log.b == spilled_head.b) {
+            assert(!found_head);
+            found_head = TRUE;
+            assert(log->sequence == 0);
+        }
+        next_log      = log->older;
+        next_log_hash = log->older_hash;
+        {
+            //Clean up transaction structure to prevent
+            //toku_txn_close from double-freeing
+            spilled_tail      = next_log;
+            spilled_tail_hash = next_log_hash;
+            if (found_head) {
+                assert(next_log.b == ROLLBACK_NONE.b);
+                spilled_head      = next_log;
+                spilled_head_hash = next_log_hash;
+            }
+        }
+        //Unpins log
+        r = toku_delete_rollback_log(txn, log);
+        assert(r==0);
     }
- finish:
-    { int r2 = close_bread_without_closing_fd(f); assert(r2==0); }
-    memarena_close(&ma);
     return r;
 }
 
 int
-toku_rollback_fileentries (int        fd,
-			   TOKUTXN    txn,
-			   YIELDF     yield,
-			   void *     yieldv,
-                           LSN        oplsn)
-{
-    BREAD f = create_bread_from_fd_initialize_at(fd);
-    assert(f);
-    int r=0;
-    MEMARENA ma = memarena_create();
-    int count=0;
-    while (bread_has_more(f)) {
-        struct roll_entry *item;
-        r = toku_read_rollback_backwards(f, &item, ma);
-        if (r!=0) goto finish;
-        r = toku_abort_rollback_item(txn, item, yield, yieldv, oplsn);
-        if (r!=0) goto finish;
-	memarena_clear(ma);
-	count++;
-	if (count%2==0) yield(NULL, yieldv); 
-    }
- finish:
-    { int r2 = close_bread_without_closing_fd(f); assert(r2==0); }
-    memarena_close(&ma);
-    return r;
-}
-
-int
-toku_commit_rollinclude (BYTESTRING bs,
-			 TOKUTXN    txn,
-			 YIELDF     yield,
-			 void *     yieldv,
+toku_commit_rollinclude (TXNID      xid,
+                         uint64_t   num_nodes,
+                         BLOCKNUM   spilled_head,
+                         uint32_t   spilled_head_hash,
+                         BLOCKNUM   spilled_tail,
+                         uint32_t   spilled_tail_hash,
+                         TOKUTXN    txn,
+                         YIELDF     yield,
+                         void *     yieldv,
                          LSN        oplsn) {
     int r;
-    char *fname_in_logger = fixup_fname(&bs);
-    char *fname_in_cwd = toku_construct_full_name(2, txn->logger->directory, fname_in_logger);
-    int fd = open(fname_in_cwd, O_RDONLY+O_BINARY);
-    assert(fd>=0);
-    r = toku_commit_fileentries(fd, txn, yield, yieldv, oplsn);
-    assert(r==0);
-    r = close(fd);
-    assert(r==0);
-    r = unlink(fname_in_cwd);
-    assert(r==0);
-    toku_free(fname_in_logger);
-    toku_free(fname_in_cwd);
-    return 0;
+    r = toku_apply_rollinclude(xid, num_nodes,
+                               spilled_head, spilled_head_hash,
+                               spilled_tail, spilled_tail_hash,
+                               txn, yield, yieldv, oplsn,
+                               toku_commit_rollback_item);
+    return r;
 }
 
 int
-toku_rollback_rollinclude (BYTESTRING bs,
-			   TOKUTXN    txn,
-			   YIELDF     yield,
-			   void *     yieldv,
-                           LSN        oplsn)
-{
+toku_rollback_rollinclude (TXNID      xid,
+                           uint64_t   num_nodes,
+                           BLOCKNUM   spilled_head,
+                           uint32_t   spilled_head_hash,
+                           BLOCKNUM   spilled_tail,
+                           uint32_t   spilled_tail_hash,
+                           TOKUTXN    txn,
+                           YIELDF     yield,
+                           void *     yieldv,
+                           LSN        oplsn) {
     int r;
-    char *fname_in_logger = fixup_fname(&bs);
-    char *fname_in_cwd = toku_construct_full_name(2, txn->logger->directory, fname_in_logger);
-    int fd = open(fname_in_cwd, O_RDONLY+O_BINARY);
-    assert(fd>=0);
-    r = toku_rollback_fileentries(fd, txn, yield, yieldv, oplsn);
-    assert(r==0);
-    r = close(fd);
-    assert(r==0);
-    r = unlink(fname_in_cwd);
-    assert(r==0);
-    toku_free(fname_in_logger);
-    toku_free(fname_in_cwd);
-    return 0;
+    r = toku_apply_rollinclude(xid, num_nodes,
+                               spilled_head, spilled_head_hash,
+                               spilled_tail, spilled_tail_hash,
+                               txn, yield, yieldv, oplsn,
+                               toku_abort_rollback_item);
+    return r;
 }
 
 int
@@ -365,7 +384,7 @@ toku_rollback_tablelock_on_empty_table (FILENUM filenum,
                                         TOKUTXN txn,
                                         YIELDF  yield,
                                         void*   yield_v,
-                                        LSN     UU(oplsn))
+                                        LSN     oplsn)
 {
     //TODO: Replace truncate function with something that doesn't need to mess with checkpoints.
     // on rollback we have to make the file be empty, since we locked an empty table, and then may have done things to it.
@@ -373,22 +392,33 @@ toku_rollback_tablelock_on_empty_table (FILENUM filenum,
     CACHEFILE cf;
     //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+    if (r==ENOENT) { //Missing file on recovered transaction is not an error
+        assert(txn->recovered_from_checkpoint);
+        r = 0;
+        goto done;
+    }
     assert(r==0);
 
     OMTVALUE brtv=NULL;
     r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
-    if (r==0) {
-	// If r!=0 it could be because we grabbed a log on an empty table that doesn't even exist, and we never put anything into it.
-	// So, just don't do anything in this case.
-	BRT brt = brtv;
-        toku_poll_txn_progress_function(txn, FALSE, TRUE);
-	yield(toku_checkpoint_safe_client_lock, yield_v);
-        toku_poll_txn_progress_function(txn, FALSE, FALSE);
-	r = toku_brt_truncate(brt);
-	assert(r==0);
-	toku_checkpoint_safe_client_unlock();
+    assert(r==0);
+    BRT brt = brtv;
+    {   //Do NOT truncate the file if
+        //the file already survived the truncate and was checkpointed.
+        LSN treelsn = toku_brt_checkpoint_lsn(brt);
+        if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn) {
+            r = 0;
+            goto done;
+        }
     }
+    toku_poll_txn_progress_function(txn, FALSE, TRUE);
+    yield(toku_checkpoint_safe_client_lock, yield_v);
+    toku_poll_txn_progress_function(txn, FALSE, FALSE);
+    r = toku_brt_truncate(brt);
+    assert(r==0);
+    toku_checkpoint_safe_client_unlock();
 
+done:
     return r; 
 }
 
@@ -411,7 +441,7 @@ toku_commit_load (BYTESTRING old_iname,
     char *fname_in_env = fixup_fname(&old_iname); //Delete old file
     r = toku_cachefile_of_iname_in_env(txn->logger->ct, fname_in_env, &cf);
     if (r==0) {
-	r = toku_cachefile_redirect_nullfd(cf);
+        r = toku_cachefile_redirect_nullfd(cf);
         assert(r==0);
     }
     else {
@@ -438,7 +468,7 @@ toku_rollback_load (BYTESTRING UU(old_iname),
     char *fname_in_env = fixup_fname(&new_iname); //Delete new file
     r = toku_cachefile_of_iname_in_env(txn->logger->ct, fname_in_env, &cf);
     if (r==0) {
-	r = toku_cachefile_redirect_nullfd(cf);
+        r = toku_cachefile_redirect_nullfd(cf);
         assert(r==0);
     }
     else {
@@ -455,38 +485,44 @@ toku_rollback_load (BYTESTRING UU(old_iname),
 
 int
 toku_commit_dictionary_redirect (FILENUM UU(old_filenum),
-			         FILENUM UU(new_filenum),
+                                 FILENUM UU(new_filenum),
                                  TOKUTXN UU(txn),
                                  YIELDF  UU(yield),
                                  void *  UU(yield_v),
                                  LSN     UU(oplsn)) //oplsn is the lsn of the commit
 {
-    //NO-OP
+    //Redirect only has meaning during normal operation (NOT during recovery).
+    if (!txn->recovered_from_checkpoint) {
+        //NO-OP
+    }
     return 0;
 }
 
 int
 toku_rollback_dictionary_redirect (FILENUM old_filenum,
-			           FILENUM new_filenum,
+                                   FILENUM new_filenum,
                                    TOKUTXN txn,
                                    YIELDF  UU(yield),
                                    void *  UU(yield_v),
                                    LSN     UU(oplsn)) //oplsn is the lsn of the abort
 {
     int r = 0;
-    CACHEFILE new_cf = NULL;
-    r = toku_cachefile_of_filenum(txn->logger->ct, new_filenum, &new_cf);
-    assert(r == 0);
-    struct brt_header *new_h = toku_cachefile_get_userdata(new_cf);
+    //Redirect only has meaning during normal operation (NOT during recovery).
+    if (!txn->recovered_from_checkpoint) {
+        CACHEFILE new_cf = NULL;
+        r = toku_cachefile_of_filenum(txn->logger->ct, new_filenum, &new_cf);
+        assert(r == 0);
+        struct brt_header *new_h = toku_cachefile_get_userdata(new_cf);
 
-    CACHEFILE old_cf = NULL;
-    r = toku_cachefile_of_filenum(txn->logger->ct, old_filenum, &old_cf);
-    assert(r == 0);
-    struct brt_header *old_h = toku_cachefile_get_userdata(old_cf);
+        CACHEFILE old_cf = NULL;
+        r = toku_cachefile_of_filenum(txn->logger->ct, old_filenum, &old_cf);
+        assert(r == 0);
+        struct brt_header *old_h = toku_cachefile_get_userdata(old_cf);
 
-    //Redirect back from new to old.
-    r = toku_dictionary_redirect_abort(old_h, new_h, txn);
-    assert(r==0);
+        //Redirect back from new to old.
+        r = toku_dictionary_redirect_abort(old_h, new_h, txn);
+        assert(r==0);
+    }
     return r;
 }
 

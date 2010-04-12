@@ -60,7 +60,7 @@ int singlex_child = 0;  // Do a single transaction, but do all work with a child
 int singlex = 0;  // Do a single transaction
 int singlex_create = 0;  // Create the db using the single transaction (only valid if singlex)
 int insert1first = 0;  // insert 1 before doing the rest
-int check_small_rolltmp = 0; // verify that the rollback logs are small (only valid if singlex)
+int check_small_rollback = 0; // verify that the rollback logs are small (only valid if singlex)
 int do_transactions = 0;
 int if_transactions_do_logging = DB_INIT_LOG; // set this to zero if we want no logging when transactions are used
 int do_abort = 0;
@@ -210,14 +210,14 @@ static void benchmark_shutdown (void) {
 #endif
     if (do_transactions && singlex && !insert1first && (singlex_create || prelock)) {
 #if defined(TOKUDB)
-        //There should be a single 'truncate' in the rolltmp instead of many 'insert' entries.
+        //There should be a single 'truncate' in the rollback instead of many 'insert' entries.
 	struct txn_stat *s;
 	r = tid->txn_stat(tid, &s);
 	assert(r==0);
         //TODO: #1125 Always do the test after performance testing is done.
-        if (singlex_child) fprintf(stderr, "SKIPPED 'small rolltmp' test for child txn\n");
+        if (singlex_child) fprintf(stderr, "SKIPPED 'small rollback' test for child txn\n");
         else
-            assert(s->rolltmp_raw_count < 100);  // gross test, not worth investigating details
+            assert(s->rollback_raw_count < 100);  // gross test, not worth investigating details
 	free(s);
 	//system("ls -l bench.tokudb");
 #endif
@@ -374,7 +374,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --singlex-child       (implies -x) Run the whole job as a single transaction, do all work a child of that transaction.\n");
     fprintf(stderr, "    --finish-child-first  Commit/abort child before doing so to parent (no effect if no child).\n");
     fprintf(stderr, "    --singlex-create      (implies --singlex)  Create the file using the single transaction (Default is to use a different transaction to create.)\n");
-    fprintf(stderr, "    --check_small_rolltmp (Only valid in --singlex mode)  Verify that very little data was saved in the rollback logs.\n");
+    fprintf(stderr, "    --check_small_rollback (Only valid in --singlex mode)  Verify that very little data was saved in the rollback logs.\n");
     fprintf(stderr, "    --prelock             Prelock the database.\n");
     fprintf(stderr, "    --prelockflag         Prelock the database and send the DB_PRELOCKED_WRITE flag.\n");
     fprintf(stderr, "    --abort               Abort the singlex after the transaction is over. (Requires --singlex.)\n");
@@ -463,8 +463,8 @@ int main (int argc, const char *argv[]) {
 	    singlex = 1;
 	} else if (strcmp(arg, "--insert1first") == 0) {
 	    insert1first = 1;
-	} else if (strcmp(arg, "--check_small_rolltmp") == 0) {
-	    check_small_rolltmp = 1;
+	} else if (strcmp(arg, "--check_small_rollback") == 0) {
+	    check_small_rollback = 1;
 	} else if (strcmp(arg, "--xcount") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
             items_per_transaction = strtoll(argv[++i], &endptr, 10); assert(*endptr == 0);
@@ -560,13 +560,13 @@ int main (int argc, const char *argv[]) {
 	printf("insertions of %d per batch%s\n", items_per_iteration, do_transactions ? " (with transactions)" : "");
     }
 #if !defined TOKUDB
-    if (check_small_rolltmp) {
-	fprintf(stderr, "--check_small_rolltmp only works on the TokuDB (not BDB)\n");
+    if (check_small_rollback) {
+	fprintf(stderr, "--check_small_rollback only works on the TokuDB (not BDB)\n");
 	return print_usage(argv[0]);
     }
 #endif
-    if (check_small_rolltmp && !singlex) {
-	fprintf(stderr, "--check_small_rolltmp requires --singlex\n");
+    if (check_small_rollback && !singlex) {
+	fprintf(stderr, "--check_small_rollback requires --singlex\n");
 	return print_usage(argv[0]);
     }
     benchmark_setup();

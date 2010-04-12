@@ -33,6 +33,7 @@ typedef u_int64_t TXNID;
 #define TXNID_NONE        ((TXNID)0)
 
 typedef struct s_blocknum { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
+#define ROLLBACK_NONE     ((BLOCKNUM){0})
 
 static inline BLOCKNUM make_blocknum(int64_t b) { BLOCKNUM result={b}; return result; }
 
@@ -70,6 +71,7 @@ typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
 typedef struct tokulogger *TOKULOGGER;
 #define NULL_LOGGER ((TOKULOGGER)0)
 typedef struct tokutxn    *TOKUTXN;
+typedef struct txninfo    *TXNINFO;
 #define NULL_TXN ((TOKUTXN)0)
 
 struct logged_btt_pair {
@@ -120,6 +122,9 @@ typedef int (*generate_row_for_put_func)(DB *dest_db, DB *src_db, DBT *dest_key,
 typedef int (*generate_row_for_del_func)(DB *dest_db, DB *src_db, DBT *dest_val, const DBT *src_key, const DBT *src_val, void *extra);
 
 #define UU(x) x __attribute__((__unused__))
+
+typedef struct memarena *MEMARENA;
+typedef struct rollback_log_node *ROLLBACK_LOG_NODE;
 
 #endif
 

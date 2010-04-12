@@ -91,7 +91,7 @@ do_db_work(void) {
 	}
 	if (did_fail) goto shutdown2;
 
-	// Put an extra item in so that the rolltmp file will be created. 
+	// Put an extra item in
 	r=env->txn_begin(env, 0, &tid, 0);                                         assert(r==0);
 	r=db->put(db, tid, dbt_init(&key, "a", 2), dbt_init(&data, "b", 2), 0);    DOERR(r);
 	if (did_fail) {

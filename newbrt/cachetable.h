@@ -123,6 +123,7 @@ typedef int (*CACHETABLE_FETCH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, u_int3
 
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
+    int (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
     int (*close_userdata)(CACHEFILE, int, void*, char **/*error_string*/, BOOL, LSN),
     int (*checkpoint_userdata)(CACHEFILE, int, void*),
     int (*begin_checkpoint_userdata)(CACHEFILE, int, LSN, void*),

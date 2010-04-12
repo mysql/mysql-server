@@ -153,6 +153,9 @@ int create_logfiles() {
     LSN lsn = {0};
     TXNID txnid = 0;
     TXNID cp_txnid = 0;
+
+    u_int32_t num_fassociate = 0;
+    u_int32_t num_xstillopen = 0;
     
     bs_aname.len = 4; bs_aname.data="a.db";
     bs_bname.len = 4; bs_bname.data="b.db";
@@ -171,31 +174,40 @@ int create_logfiles() {
     //fcreate                   'F': lsn=2 txnid=1 filenum=0 fname={len=4 data="a.db"} mode=0777 treeflags=0 crc=18a3d525 len=49
     r = toku_log_fcreate(logger, &lsn, NO_FSYNC, txnid, fn_aname, bs_aname, 0x0777, 0, 0, bs_empty); assert(r==0);
     //commit                    'C': lsn=3 txnid=1 crc=00001f1e len=29
-    r = toku_log_commit(logger, &lsn, FSYNC, txnid); assert(r==0);
+    r = toku_log_xcommit(logger, &lsn, FSYNC, txnid); assert(r==0);
     //xbegin                    'b': lsn=4 parenttxnid=0 crc=00000a1f len=29
     r = toku_log_xbegin(logger, &lsn, NO_FSYNC, 0); assert(r==0); txnid = lsn.lsn;
     //fcreate                   'F': lsn=5 txnid=4 filenum=1 fname={len=4 data="b.db"} mode=0777 treeflags=0 crc=14a47925 len=49
     r = toku_log_fcreate(logger, &lsn, NO_FSYNC, txnid, fn_bname, bs_bname, 0x0777, 0, 0, bs_empty); assert(r==0);
     //commit                    'C': lsn=6 txnid=4 crc=0000c11e len=29
-    r = toku_log_commit(logger, &lsn, FSYNC, txnid); assert(r==0);
+    r = toku_log_xcommit(logger, &lsn, FSYNC, txnid); assert(r==0);
     //xbegin                    'b': lsn=7 parenttxnid=0 crc=0000f91f len=29
     r = toku_log_xbegin(logger, &lsn, NO_FSYNC, 0); assert(r==0); txnid = lsn.lsn;
     //enq_insert                'I': lsn=8 filenum=0 xid=7 key={len=2 data="a\000"} value={len=2 data="b\000"} crc=40b863e4 len=45
     r = toku_log_enq_insert(logger, &lsn, NO_FSYNC, fn_aname, txnid, bs_a, bs_b); assert(r==0);
     //begin_checkpoint          'x': lsn=9 timestamp=1251309957584197 crc=cd067878 len=29
     r = toku_log_begin_checkpoint(logger, &lsn, NO_FSYNC, 1251309957584197); assert(r==0); cp_txnid = lsn.lsn;
-   //xstillopen                's': lsn=10 txnid=7 parent=0 crc=00061816 len=37
-    r = toku_log_xstillopen(logger, &lsn, NO_FSYNC, txnid, 0); assert(r==0);
     //fassociate                'f': lsn=11 filenum=1 fname={len=4 data="b.db"} crc=a7126035 len=33
     r = toku_log_fassociate(logger, &lsn, NO_FSYNC, fn_bname, 0, bs_bname); assert(r==0);
+    num_fassociate++;
     //fassociate                'f': lsn=12 filenum=0 fname={len=4 data="a.db"} crc=a70c5f35 len=33
     r = toku_log_fassociate(logger, &lsn, NO_FSYNC, fn_aname, 0, bs_aname); assert(r==0);
+    num_fassociate++;
+   //xstillopen                's': lsn=10 txnid=7 parent=0 crc=00061816 len=37 <- obsolete
+    {
+        FILENUMS filenums = {0, NULL};
+        r = toku_log_xstillopen(logger, &lsn, NO_FSYNC, txnid, 0,
+                                0, filenums, 0, 0, 0,
+                                ROLLBACK_NONE, ROLLBACK_NONE, ROLLBACK_NONE);
+        assert(r==0);
+    }
+    num_xstillopen++;
     //end_checkpoint            'X': lsn=13 txnid=9 timestamp=1251309957586872 crc=cd285c30 len=37
-    r = toku_log_end_checkpoint(logger, &lsn, FSYNC, cp_txnid, 1251309957586872); assert(r==0);
+    r = toku_log_end_checkpoint(logger, &lsn, FSYNC, cp_txnid, 1251309957586872, num_fassociate, num_xstillopen); assert(r==0);
     //enq_insert                'I': lsn=14 filenum=1 xid=7 key={len=2 data="b\000"} value={len=2 data="a\000"} crc=40388be4 len=45
     r = toku_log_enq_insert(logger, &lsn, NO_FSYNC, fn_bname, txnid, bs_b, bs_a); assert(r==0);
     //commit                    'C': lsn=15 txnid=7 crc=00016d1e len=29
-    r = toku_log_commit(logger, &lsn, FSYNC, txnid); assert(r==0);
+    r = toku_log_xcommit(logger, &lsn, FSYNC, txnid); assert(r==0);
 
     // close logger
     r = toku_logger_close(&logger); assert(r==0);

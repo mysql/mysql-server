@@ -100,6 +100,18 @@ static inline BLOCKNUM rbuf_blocknum (struct rbuf *r) {
     BLOCKNUM result = make_blocknum(rbuf_longlong(r));
     return result;
 }
+static inline void rbuf_ma_BLOCKNUM (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), BLOCKNUM *blocknum) {
+    *blocknum = rbuf_blocknum(r);
+}
+
+static inline void rbuf_ma_u_int32_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), u_int32_t *num) {
+    *num = rbuf_int(r);
+}
+
+static inline void rbuf_ma_u_int64_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), u_int64_t *num) {
+    *num = rbuf_ulonglong(r);
+}
+
 
 static inline void rbuf_TXNID (struct rbuf *r, TXNID *txnid) {
     *txnid = rbuf_ulonglong(r);
@@ -119,7 +131,7 @@ static inline void rbuf_ma_FILENUM (struct rbuf *r, MEMARENA ma __attribute__((_
 static inline void rbuf_BYTESTRING (struct rbuf *r, BYTESTRING *bs) {
     bs->len  = rbuf_int(r);
     u_int32_t newndone = r->ndone + bs->len;
-    assert(newndone < r->size);
+    assert(newndone <= r->size);
     bs->data = toku_memdup(&r->buf[r->ndone], (size_t)bs->len);
     assert(bs->data);
     r->ndone = newndone;
@@ -128,7 +140,7 @@ static inline void rbuf_BYTESTRING (struct rbuf *r, BYTESTRING *bs) {
 static inline void rbuf_ma_BYTESTRING  (struct rbuf *r, MEMARENA ma, BYTESTRING *bs) {
     bs->len  = rbuf_int(r);
     u_int32_t newndone = r->ndone + bs->len;
-    assert(newndone < r->size);
+    assert(newndone <= r->size);
     bs->data = memarena_memdup(ma, &r->buf[r->ndone], (size_t)bs->len);
     assert(bs->data);
     r->ndone = newndone;

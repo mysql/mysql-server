@@ -37,18 +37,114 @@ int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item, YIELDF yield
     return r;
 }
 
-void toku_rollback_txn_close (TOKUTXN txn) {
-    memarena_close(&txn->rollentry_arena);
-    if (txn->rollentry_filename!=0) {
-	int r = close(txn->rollentry_fd);
-	assert(r==0);
-        char *fname_in_cwd = toku_construct_full_name(2, txn->logger->directory, txn->rollentry_filename);
-	r = unlink(fname_in_cwd);
-	assert(r==0);
-	toku_free(txn->rollentry_filename);
-	toku_free(fname_in_cwd);
+static inline int
+txn_has_inprogress_rollback_log(TOKUTXN txn) {
+    return txn->current_rollback.b != ROLLBACK_NONE.b;
+}
+
+static inline int
+txn_has_spilled_rollback_logs(TOKUTXN txn) {
+    return txn->spilled_rollback_tail.b != ROLLBACK_NONE.b;
+}
+
+int
+toku_delete_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
+    int r;
+    CACHEFILE cf = txn->logger->rollback_cachefile;
+    struct brt_header *h = toku_cachefile_get_userdata(cf);
+    BLOCKNUM to_free = log->thislogname;
+    if (txn->pinned_inprogress_rollback_log == log) {
+        txn->pinned_inprogress_rollback_log = NULL;
+    }
+    r = toku_cachetable_unpin_and_remove (cf, log->thislogname);
+    assert(r==0);
+    toku_free_blocknum(h->blocktable, &to_free, h);
+    return r;
+}
+
+static int
+toku_apply_txn (TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn,
+                apply_rollback_item func) {
+    int r = 0;
+    // do the commit/abort calls and free everything
+    // we do the commit/abort calls in reverse order too.
+    struct roll_entry *item;
+    //printf("%s:%d abort\n", __FILE__, __LINE__);
+    int count=0;
+
+    BLOCKNUM next_log      = ROLLBACK_NONE;
+    uint32_t next_log_hash = 0;
+
+    BOOL is_current = FALSE;
+    if (txn_has_inprogress_rollback_log(txn)) {
+        next_log      = txn->current_rollback;
+        next_log_hash = txn->current_rollback_hash;
+        is_current = TRUE;
+    }
+    else if (txn_has_spilled_rollback_logs(txn)) {
+        next_log      = txn->spilled_rollback_tail;
+        next_log_hash = txn->spilled_rollback_tail_hash;
     }
 
+    uint64_t last_sequence = txn->num_rollback_nodes;
+    BOOL found_head = FALSE;
+    while (next_log.b != ROLLBACK_NONE.b) {
+        ROLLBACK_LOG_NODE log;
+        //pin log
+        r = toku_get_and_pin_rollback_log(txn, txn->txnid64, last_sequence-1, next_log, next_log_hash, &log);
+        assert(r==0);
+        last_sequence = log->sequence;
+        if (func) {
+            while ((item=log->newest_logentry)) {
+                log->newest_logentry = item->prev;
+                r = func(txn, item, yield, yieldv, lsn);
+                if (r!=0) return r;
+                count++;
+                if (count%2 == 0) yield(NULL, yieldv);
+            }
+        }
+        if (next_log.b == txn->spilled_rollback_head.b) {
+            assert(!found_head);
+            found_head = TRUE;
+            assert(log->sequence == 0);
+        }
+        next_log      = log->older;
+        next_log_hash = log->older_hash;
+        {
+            //Clean up transaction structure to prevent
+            //toku_txn_close from double-freeing
+            if (is_current) {
+                txn->current_rollback      = ROLLBACK_NONE;
+                txn->current_rollback_hash = 0;
+                is_current = FALSE;
+            }
+            else {
+                txn->spilled_rollback_tail      = next_log;
+                txn->spilled_rollback_tail_hash = next_log_hash;
+            }
+            if (found_head) {
+                assert(next_log.b == ROLLBACK_NONE.b);
+                txn->spilled_rollback_head      = next_log;
+                txn->spilled_rollback_head_hash = next_log_hash;
+            }
+        }
+        //Unpins log
+        r = toku_delete_rollback_log(txn, log);
+        assert(r==0);
+    }
+    return r;
+}
+
+void toku_rollback_txn_close (TOKUTXN txn) {
+    {
+        //Clean up all rollback logs if they exist.
+        //Note:  This will NOT cleanup any rollback logs as in 'rollinclude'
+        int r = toku_apply_txn(txn, NULL, NULL, ZERO_LSN, NULL);
+        assert(r==0);
+    }
+    assert(txn->spilled_rollback_head.b == ROLLBACK_NONE.b);
+    assert(txn->spilled_rollback_tail.b == ROLLBACK_NONE.b);
+    assert(txn->current_rollback.b == ROLLBACK_NONE.b);
     {
         //Remove txn from list (omt) of live transactions
         OMTVALUE txnagain;
@@ -86,18 +182,14 @@ void toku_rollback_txn_close (TOKUTXN txn) {
     return;
 }
 
-void* toku_malloc_in_rollback(TOKUTXN txn, size_t size) {
-    return malloc_in_memarena(txn->rollentry_arena, size);
+void* toku_malloc_in_rollback(ROLLBACK_LOG_NODE log, size_t size) {
+    return malloc_in_memarena(log->rollentry_arena, size);
 }
 
-void *toku_memdup_in_rollback(TOKUTXN txn, const void *v, size_t len) {
-    void *r=toku_malloc_in_rollback(txn, len);
+void *toku_memdup_in_rollback(ROLLBACK_LOG_NODE log, const void *v, size_t len) {
+    void *r=toku_malloc_in_rollback(log, len);
     memcpy(r,v,len);
     return r;
-}
-
-char *toku_strdup_in_rollback(TOKUTXN txn, const char *s) {
-    return toku_memdup_in_rollback(txn, s, strlen(s)+1);
 }
 
 static int note_brt_used_in_txns_parent(OMTVALUE brtv, u_int32_t UU(index), void*txnv) {
@@ -107,215 +199,246 @@ static int note_brt_used_in_txns_parent(OMTVALUE brtv, u_int32_t UU(index), void
     int r = toku_txn_note_brt(parent, brt);
     if (r==0 &&
         brt->h->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(child)) {
-        //Pass magic "no rolltmp needed" flag to parent.
+        //Pass magic "no rollback needed" flag to parent.
         brt->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(parent);
     }
     return r;
 }
 
-//Commit each entry in the rollback (rolltmp) log.
+//Commit each entry in the rollback log.
 //If the transaction has a parent, it just promotes its information to its parent.
 int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
     int r=0;
     if (txn->parent!=0) {
-        // First we must put a rollinclude entry into the parent if we have a rollentry file.
-        if (txn->rollentry_filename) {
-            int len = strlen(txn->rollentry_filename);
-            // Don't have to strdup the rollentry_filename because
-            // we take ownership of it.
-            BYTESTRING fname = {len, toku_strdup_in_rollback(txn, txn->rollentry_filename)};
-            r = toku_logger_save_rollback_rollinclude(txn->parent, fname);
+        // First we must put a rollinclude entry into the parent if we spilled
+
+        if (txn_has_spilled_rollback_logs(txn)) {
+            uint64_t num_nodes = txn->num_rollback_nodes;
+            if (txn_has_inprogress_rollback_log(txn)) {
+                num_nodes--; //Don't count the in-progress rollback log.
+            }
+            r = toku_logger_save_rollback_rollinclude(txn->parent, txn->txnid64, num_nodes,
+                                                      txn->spilled_rollback_head, txn->spilled_rollback_head_hash,
+                                                      txn->spilled_rollback_tail, txn->spilled_rollback_tail_hash);
             if (r!=0) return r;
-            r = close(txn->rollentry_fd);
-            if (r!=0) {
-                //TODO: #2249.. this is a panic/crash situation
-                //      If the rolltmp file is necessary for a checkpoint
-                //      we CANNOT delete it!
-                //      For now.. delete it, but figure out how to deal with this later.
-                //      Maybe we should just assert that the close succeeds?
-                // We have to do the unlink ourselves, and then
-                // set txn->rollentry_filename=0 so that the cleanup
-                // won't try to close the fd again.
-                char *fname_in_cwd = toku_construct_full_name(2, txn->logger->directory, txn->rollentry_filename);
-                r = unlink(fname_in_cwd);
-                assert(r==0); //Can we assert this at this point?
-                unlink(txn->rollentry_filename);
-                toku_free(txn->rollentry_filename);
-                toku_free(fname_in_cwd);
-                txn->rollentry_filename = 0;
-                return r;
+            //Remove ownership from child.
+            txn->spilled_rollback_head      = ROLLBACK_NONE; 
+            txn->spilled_rollback_head_hash = 0; 
+            txn->spilled_rollback_tail      = ROLLBACK_NONE; 
+            txn->spilled_rollback_tail_hash = 0; 
+        }
+        if (txn_has_inprogress_rollback_log(txn)) {
+            ROLLBACK_LOG_NODE parent_log;
+            //Pin parent log
+            r = toku_get_and_pin_rollback_log_for_new_entry(txn->parent, &parent_log);
+            assert(r==0);
+
+            ROLLBACK_LOG_NODE child_log;
+            //Pin child log
+            r = toku_get_and_pin_rollback_log(txn, txn->txnid64, txn->num_rollback_nodes - 1,
+                                              txn->current_rollback, txn->current_rollback_hash,
+                                              &child_log);
+            assert(r==0);
+
+            // Append the list to the front of the parent.
+            if (child_log->oldest_logentry) {
+                // There are some entries, so link them in.
+                child_log->oldest_logentry->prev = parent_log->newest_logentry;
+                if (!parent_log->oldest_logentry) {
+                    parent_log->oldest_logentry = child_log->oldest_logentry;
+                }
+                parent_log->newest_logentry = child_log->newest_logentry;
+                parent_log->rollentry_resident_bytecount += child_log->rollentry_resident_bytecount;
+                txn->parent->rollentry_raw_count         += txn->rollentry_raw_count;
+                child_log->rollentry_resident_bytecount = 0;
             }
-            // Stop the cleanup from closing and unlinking the file.
-            toku_free(txn->rollentry_filename);
-            txn->rollentry_filename = 0;
-        }
-        // Append the list to the front of the parent.
-        if (txn->oldest_logentry) {
-            // There are some entries, so link them in.
-            txn->oldest_logentry->prev = txn->parent->newest_logentry;
-            if (txn->parent->newest_logentry) {
-                txn->parent->newest_logentry->next = txn->oldest_logentry;
-            } else {
-                txn->parent->oldest_logentry = txn->oldest_logentry;
+            if (parent_log->oldest_logentry==NULL) {
+                parent_log->oldest_logentry = child_log->oldest_logentry;
             }
-            txn->parent->newest_logentry = txn->newest_logentry;
-            txn->parent->rollentry_resident_bytecount += txn->rollentry_resident_bytecount;
-            txn->parent->rollentry_raw_count          += txn->rollentry_raw_count;
-            txn->rollentry_resident_bytecount = 0;
-        }
-        if (txn->parent->oldest_logentry==0) {
-            txn->parent->oldest_logentry = txn->oldest_logentry;
-        }
-        txn->newest_logentry = txn->oldest_logentry = 0;
-        // Put all the memarena data into the parent.
-        if (memarena_total_size_in_use(txn->rollentry_arena) > 0) {
-            // If there are no bytes to move, then just leave things alone, and let the memory be reclaimed on txn is closed.
-            memarena_move_buffers(txn->parent->rollentry_arena, txn->rollentry_arena);
+            child_log->newest_logentry = child_log->oldest_logentry = 0;
+            // Put all the memarena data into the parent.
+            if (memarena_total_size_in_use(child_log->rollentry_arena) > 0) {
+                // If there are no bytes to move, then just leave things alone, and let the memory be reclaimed on txn is closed.
+                memarena_move_buffers(parent_log->rollentry_arena, child_log->rollentry_arena);
+            }
+            //Delete child log (unpins child_log)
+            r = toku_delete_rollback_log(txn, child_log);
+            assert(r==0);
+            txn->current_rollback = ROLLBACK_NONE;
+            txn->current_rollback_hash = 0;
+
+            r = toku_maybe_spill_rollbacks(txn->parent, parent_log); //unpins parent_log
+            assert(r==0);
         }
 
         // Note the open brts, the omts must be merged
         r = toku_omt_iterate(txn->open_brts, note_brt_used_in_txns_parent, txn);
         assert(r==0);
 
-        r = toku_maybe_spill_rollbacks(txn->parent);
-        assert(r==0);
-
         //If this transaction needs an fsync (if it commits)
         //save that in the parent.  Since the commit really happens in the root txn.
         txn->parent->force_fsync_on_commit |= txn->force_fsync_on_commit;
-        txn->parent->has_done_work         |= txn->has_done_work;
         txn->parent->num_rollentries       += txn->num_rollentries;
     } else {
-        // do the commit calls and free everything
-        // we do the commit calls in reverse order too.
-        {
-            struct roll_entry *item;
-            //printf("%s:%d abort\n", __FILE__, __LINE__);
-            int count=0;
-            while ((item=txn->newest_logentry)) {
-                txn->newest_logentry = item->prev;
-                r = toku_commit_rollback_item(txn, item, yield, yieldv, lsn);
-                if (r!=0) return r;
-                count++;
-                if (count%2 == 0) yield(NULL, yieldv);
-            }
-        }
-
-        // Read stuff out of the file and execute it.
-        if (txn->rollentry_filename) {
-            r = toku_commit_fileentries(txn->rollentry_fd, txn, yield, yieldv, lsn);
-        }
+        r = toku_apply_txn(txn, yield, yieldv, lsn, toku_commit_rollback_item);
+        assert(r==0);
     }
+
     return r;
 }
 
 int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
-    struct roll_entry *item;
-    int count=0;
-    int r=0;
-    while ((item=txn->newest_logentry)) {
-        txn->newest_logentry = item->prev;
-        r = toku_abort_rollback_item(txn, item, yield, yieldv, lsn);
-        if (r!=0) 
-            return r;
-        count++;
-        if (count%2 == 0) yield(NULL, yieldv);
-    }
-    // Read stuff out of the file and roll it back.
-    if (txn->rollentry_filename) {
-        r = toku_rollback_fileentries(txn->rollentry_fd, txn, yield, yieldv, lsn);
-        assert(r==0);
-    }
-    return 0;
+    int r;
+    r = toku_apply_txn(txn, yield, yieldv, lsn, toku_abort_rollback_item);
+    assert(r==0);
+    return r;
 }
                          
 // Write something out.  Keep trying even if partial writes occur.
 // On error: Return negative with errno set.
 // On success return nbytes.
 
-// NOTE : duplicated from logger.c - FIX THIS!!!
-static int write_it (int fd, const void *bufv, int nbytes) {
-    toku_os_full_write(fd, bufv, nbytes);
-    return nbytes;
+static size_t
+rollback_memory_size(ROLLBACK_LOG_NODE log) {
+    size_t size = sizeof(*log);
+    size += memarena_total_memory_size(log->rollentry_arena);
+    return size;
 }
 
-int toku_maybe_spill_rollbacks (TOKUTXN txn) {
-    // Previously:
-    // if (txn->rollentry_resident_bytecount>txn->logger->write_block_size) {
-    // But now we use t
-    if (memarena_total_memory_size(txn->rollentry_arena) > txn->logger->write_block_size) {
-	struct roll_entry *item;
-	ssize_t bufsize = txn->rollentry_resident_bytecount;
-	char *MALLOC_N(bufsize, buf);
-	if (bufsize==0) return errno;
-	struct wbuf w;
-	wbuf_init(&w, buf, bufsize);
-	while ((item=txn->oldest_logentry)) {
-	    assert(item->prev==0);
-	    u_int32_t rollback_fsize = toku_logger_rollback_fsize(item);
-	    txn->rollentry_resident_bytecount -= rollback_fsize;
-	    txn->oldest_logentry = item->next;
-	    if (item->next) { item->next->prev=0; }
-	    toku_logger_rollback_wbufwrite(&w, item);
-	}
-	assert(txn->rollentry_resident_bytecount==0);
-	assert((ssize_t)w.ndone==bufsize);
-	txn->oldest_logentry = txn->newest_logentry = 0;
-	if (txn->rollentry_fd<0) {
-	    char filenamepart[sizeof("__tokudb_rolltmp.") + 16];
-            snprintf(filenamepart, sizeof(filenamepart),  "__tokudb_rolltmp.%.16"PRIx64, txn->txnid64);
-            txn->rollentry_filename = toku_xstrdup(filenamepart);
-            char *rollentry_filename_in_cwd = toku_construct_full_name(2, txn->logger->directory, filenamepart);
-	    txn->rollentry_fd = open(rollentry_filename_in_cwd, O_CREAT+O_RDWR+O_EXCL+O_BINARY, 0600);
-            int r = errno;
-	    toku_free(rollentry_filename_in_cwd);
-	    if (txn->rollentry_fd == -1) return r;
-	}
-	uLongf compressed_len = compressBound(w.ndone);
-	char *MALLOC_N(compressed_len, compressed_buf);
-	{
-	    int r = compress2((Bytef*)compressed_buf, &compressed_len,
-			      (Bytef*)buf,            w.ndone,
-			      1);
-	    assert(r==Z_OK);
-	}
-	{
-	    u_int32_t v = toku_htod32(compressed_len);
-	    ssize_t r = write_it(txn->rollentry_fd, &v, sizeof(v)); assert(r==sizeof(v));
-	}
-	{
-	    ssize_t r = write_it(txn->rollentry_fd, compressed_buf, compressed_len);
-	    if (r<0) return r;
-	    assert(r==(ssize_t)compressed_len);
-	}
-	{
-	    u_int32_t v = toku_htod32(w.ndone);
-	    ssize_t r = write_it(txn->rollentry_fd, &v, sizeof(v)); assert(r==sizeof(v));
-	}
-	{
-	    u_int32_t v = toku_htod32(compressed_len);
-	    ssize_t r = write_it(txn->rollentry_fd, &v, sizeof(v)); assert(r==sizeof(v));
-	}
-	toku_free(compressed_buf);
-	txn->rollentry_filesize+=w.ndone;
-	toku_free(buf);
+static void
+toku_rollback_log_free(ROLLBACK_LOG_NODE *log_p) {
+    ROLLBACK_LOG_NODE log = *log_p;
+    *log_p = NULL; //Sanitize
 
-	// Cleanup the rollback memory
-	memarena_clear(txn->rollentry_arena);
+    // Cleanup the rollback memory
+    memarena_close(&log->rollentry_arena);
+    toku_free(log);
+}
+
+static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
+                                          void *rollback_v, void *extraargs, long UU(size),
+                                          BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
+    assert(extraargs);
+    int r;
+    TOKUTXN            txn = extraargs;
+    ROLLBACK_LOG_NODE       log = rollback_v;
+    CACHEFILE          rollback_cachefile = txn->logger->rollback_cachefile;
+    struct brt_header *h = toku_cachefile_get_userdata(rollback_cachefile);
+
+    assert(log->thislogname.b==logname.b);
+    assert(rollback_cachefile == cachefile);
+    if (write_me && !h->panic) {
+        int n_workitems, n_threads; 
+        toku_cachefile_get_workqueue_load(cachefile, &n_workitems, &n_threads);
+
+        r = toku_serialize_rollback_log_to(fd, log->thislogname, log, h, n_workitems, n_threads, for_checkpoint);
+        if (r) {
+            if (h->panic==0) {
+                char *e = strerror(r);
+                int   l = 200 + strlen(e);
+                char s[l];
+                h->panic=r;
+                snprintf(s, l-1, "While writing data to disk, error %d (%s)", r, e);
+                h->panic_string = toku_strdup(s);
+            }
+        }
     }
+    if (!keep_me) {
+        toku_rollback_log_free(&log);
+    }
+}
+
+static int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname, u_int32_t fullhash,
+                                      void **rollback_pv, long *sizep, void *extraargs) {
+    assert(extraargs);
+    int r;
+    TOKUTXN            txn = extraargs;
+    CACHEFILE          rollback_cachefile = txn->logger->rollback_cachefile;
+    struct brt_header *h = toku_cachefile_get_userdata(rollback_cachefile);
+    assert(rollback_cachefile == cachefile);
+
+    ROLLBACK_LOG_NODE *result = (ROLLBACK_LOG_NODE*)rollback_pv;
+    r = toku_deserialize_rollback_log_from(fd, logname, fullhash, result, txn, h);
+    if (r==0) {
+        *sizep = rollback_memory_size(*result);
+    }
+    return r;
+}
+
+static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t older_hash, ROLLBACK_LOG_NODE *result) {
+    TAGMALLOC(ROLLBACK_LOG_NODE, log);
+    assert(log);
+
+    int r;
+    CACHEFILE cf = txn->logger->rollback_cachefile;
+    struct brt_header *h = toku_cachefile_get_userdata(cf);
+
+    log->layout_version                = BRT_LAYOUT_VERSION;
+    log->layout_version_original       = BRT_LAYOUT_VERSION;
+    log->layout_version_read_from_disk = BRT_LAYOUT_VERSION;
+    log->dirty = TRUE;
+    log->txnid = txn->txnid64;
+    log->sequence = txn->num_rollback_nodes++;
+    toku_allocate_blocknum(h->blocktable, &log->thislogname, h);
+    log->thishash   = toku_cachetable_hash(cf, log->thislogname);
+    log->older      = older;
+    log->older_hash = older_hash;
+    log->oldest_logentry = NULL;
+    log->newest_logentry = NULL;
+    log->rollentry_arena = memarena_create();
+    log->rollentry_resident_bytecount = 0;
+
+    *result = log;
+    r=toku_cachetable_put(cf, log->thislogname, log->thishash,
+                          log, rollback_memory_size(log),
+                          toku_rollback_flush_callback, toku_rollback_fetch_callback,
+                          txn);
+    assert(r==0);
+    txn->current_rollback      = log->thislogname;
+    txn->current_rollback_hash = log->thishash;
+    txn->pinned_inprogress_rollback_log = log;
     return 0;
 }
 
-int toku_read_rollback_backwards(BREAD br, struct roll_entry **item, MEMARENA ma) {
-    u_int32_t nbytes_n; ssize_t sr;
-    if ((sr=bread_backwards(br, &nbytes_n, 4))!=4) { assert(sr<0); return errno; }
-    u_int32_t n_bytes=toku_dtoh32(nbytes_n);
-    unsigned char *buf = malloc_in_memarena(ma, n_bytes);
-    if (buf==0) return errno;
-    if ((sr=bread_backwards(br, buf, n_bytes-4))!=(ssize_t)n_bytes-4) { assert(sr<0); return errno; }
-    int r = toku_parse_rollback(buf, n_bytes, item, ma);
-    if (r!=0) return r;
-    return 0;
+int
+toku_rollback_log_unpin(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
+    int r;
+    CACHEFILE cf = txn->logger->rollback_cachefile;
+    if (txn->pinned_inprogress_rollback_log == log) {
+        txn->pinned_inprogress_rollback_log = NULL;
+    }
+    r = toku_cachetable_unpin(cf, log->thislogname, log->thishash,
+                              (enum cachetable_dirty)log->dirty, rollback_memory_size(log));
+    assert(r==0);
+    return r;
+}
+
+//Requires: log is pinned
+//          log is current
+//After:
+//  log is unpinned if a spill happened
+//  Maybe there is no current after (if it spilled)
+int toku_maybe_spill_rollbacks (TOKUTXN txn, ROLLBACK_LOG_NODE log) {
+    int r = 0;
+    if (log->rollentry_resident_bytecount > txn->logger->write_block_size) {
+        assert(log->thislogname.b == txn->current_rollback.b);
+        //spill
+        if (!txn_has_spilled_rollback_logs(txn)) {
+            //First spilled.  Copy to head.
+            txn->spilled_rollback_head      = txn->current_rollback;
+            txn->spilled_rollback_head_hash = txn->current_rollback_hash;
+        }
+        //Unconditionally copy to tail.  Old tail does not need to be cached anymore.
+        txn->spilled_rollback_tail      = txn->current_rollback;
+        txn->spilled_rollback_tail_hash = txn->current_rollback_hash;
+
+        txn->current_rollback      = ROLLBACK_NONE;
+        txn->current_rollback_hash = 0;
+        //Unpin
+        r = toku_rollback_log_unpin(txn, log);
+        assert(r==0);
+    }
+    return r;
 }
 
 //Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
@@ -452,7 +575,7 @@ static void note_txn_closing (TOKUTXN txn) {
 }
 
 // Return the number of bytes that went into the rollback data structure (the uncompressed count if there is compression)
-int toku_logger_txn_rolltmp_raw_count(TOKUTXN txn, u_int64_t *raw_count)
+int toku_logger_txn_rollback_raw_count(TOKUTXN txn, u_int64_t *raw_count)
 {
     *raw_count = txn->rollentry_raw_count;
     return 0;
@@ -466,3 +589,60 @@ int toku_txn_find_by_xid (BRT brt, TXNID xid, TOKUTXN *txnptr) {
     if (r == 0) *txnptr = txnv;
     return r;
 }
+
+int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLOCKNUM name, uint32_t hash, ROLLBACK_LOG_NODE *result) {
+    BOOL save_inprogress_node = FALSE;
+    assert(name.b != ROLLBACK_NONE.b);
+    int r = 0;
+    ROLLBACK_LOG_NODE log = NULL;
+
+    if (name.b == txn->current_rollback.b) {
+        assert(hash == txn->current_rollback_hash);
+        log = txn->pinned_inprogress_rollback_log;
+        save_inprogress_node = TRUE;
+    }
+    if (!log) {
+        CACHEFILE cf = txn->logger->rollback_cachefile;
+        void * log_v;
+        r = toku_cachetable_get_and_pin(cf, name, hash,
+                                        &log_v, NULL,
+                                        toku_rollback_flush_callback, toku_rollback_fetch_callback,
+                                        txn);
+        assert(r==0);
+        log = (ROLLBACK_LOG_NODE)log_v;
+    }
+    if (r==0) {
+        assert(log->thislogname.b == name.b);
+        assert(log->txnid    == xid);
+        assert(log->sequence == sequence);
+        if (save_inprogress_node) {
+            txn->pinned_inprogress_rollback_log = log;
+        }
+        *result = log;
+    }
+    return r;
+}
+
+int toku_get_and_pin_rollback_log_for_new_entry (TOKUTXN txn, ROLLBACK_LOG_NODE *result) {
+    int r;
+    ROLLBACK_LOG_NODE log;
+    if (txn_has_inprogress_rollback_log(txn)) {
+        r = toku_get_and_pin_rollback_log(txn, txn->txnid64, txn->num_rollback_nodes-1,
+                                          txn->current_rollback, txn->current_rollback_hash, &log);
+        assert(r==0);
+    }
+    else {
+        //Generate new one.
+        //tail will be ROLLBACK_NONE if this is the very first
+        r = toku_create_new_rollback_log(txn, txn->spilled_rollback_tail, txn->spilled_rollback_tail_hash, &log);
+        assert(r==0);
+    }
+    if (r==0) {
+        assert(log->txnid == txn->txnid64);
+	assert(log->thislogname.b != ROLLBACK_NONE.b);	
+        *result = log;
+    }
+    return r;
+}
+
+
