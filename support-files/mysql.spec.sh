@@ -35,8 +35,8 @@
 
 # Macros we use which are not available in all versions of RPM
 %if 0%{defined expand}
-%defined()              %{expand:%%{?%{1}:1}%%{!?%{1}:0}}
-%undefined()            %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
+%define defined()       %{expand:%%{?%{1}:1}%%{!?%{1}:0}}
+%define undefined()     %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
 %endif
 
 # ----------------------------------------------------------------------------
