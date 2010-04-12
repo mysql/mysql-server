@@ -17,7 +17,7 @@
 #define _SQL_PROFILE_H
 
 class Item;
-class TABLE_LIST;
+struct TABLE_LIST;
 class THD;
 typedef struct st_field_info ST_FIELD_INFO;
 typedef struct st_schema_table ST_SCHEMA_TABLE;
