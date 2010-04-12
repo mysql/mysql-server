@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -81,7 +81,7 @@ buf_page_peek_if_too_old(
 		unsigned	access_time = buf_page_is_accessed(bpage);
 
 		if (access_time > 0
-		    && (ut_time_ms() - access_time)
+		    && ((ib_uint32_t) (ut_time_ms() - access_time))
 		    >= buf_LRU_old_threshold_ms) {
 			return(TRUE);
 		}
@@ -121,7 +121,7 @@ buf_pool_get_oldest_modification(void)
 	buf_page_t*	bpage;
 	ib_uint64_t	lsn;
 
-	buf_pool_mutex_enter();
+	buf_flush_list_mutex_enter();
 
 	bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 
@@ -132,7 +132,7 @@ buf_pool_get_oldest_modification(void)
 		lsn = bpage->oldest_modification;
 	}
 
-	buf_pool_mutex_exit();
+	buf_flush_list_mutex_exit();
 
 	/* The returned answer may be out of date: the flush_list can
 	change after the mutex has been released. */
@@ -705,6 +705,12 @@ buf_block_get_lock_hash_val(
 /*========================*/
 	const buf_block_t*	block)	/*!< in: block */
 {
+	ut_ad(block);
+	ut_ad(buf_page_in_file(&block->page));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_EXCLUSIVE)
+	      || rw_lock_own(&(((buf_block_t*) block)->lock), RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 	return(block->lock_hash_val);
 }
 
@@ -902,20 +908,19 @@ Returns the control block of a file page, NULL if not found.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
-buf_page_hash_get(
-/*==============*/
+buf_page_hash_get_low(
+/*==================*/
 	ulint	space,	/*!< in: space id */
-	ulint	offset)	/*!< in: offset of the page within space */
+	ulint	offset,	/*!< in: offset of the page within space */
+	ulint	fold)	/*!< in: buf_page_address_fold(space, offset) */
 {
 	buf_page_t*	bpage;
-	ulint		fold;
 
 	ut_ad(buf_pool);
 	ut_ad(buf_pool_mutex_own());
+	ut_ad(fold == buf_page_address_fold(space, offset));
 
 	/* Look for the page in the hash table */
-
-	fold = buf_page_address_fold(space, offset);
 
 	HASH_SEARCH(hash, buf_pool->page_hash, fold, buf_page_t*, bpage,
 		    ut_ad(bpage->in_page_hash && !bpage->in_zip_hash
@@ -932,6 +937,26 @@ buf_page_hash_get(
 }
 
 /******************************************************************//**
+Returns the control block of a file page, NULL if not found.
+@return	block, NULL if not found or not a real control block */
+UNIV_INLINE
+buf_page_t*
+buf_page_hash_get(
+/*==============*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset)	/*!< in: offset of the page within space */
+{
+	ulint		fold	= buf_page_address_fold(space, offset);
+	buf_page_t*	bpage	= buf_page_hash_get_low(space, offset, fold);
+
+	if (bpage && UNIV_UNLIKELY(buf_pool_watch_is(bpage))) {
+		bpage = NULL;
+	}
+
+	return(bpage);
+}
+
+/******************************************************************//**
 Returns the control block of a file page, NULL if not found
 or an uncompressed page frame does not exist.
 @return	block, NULL if not found */
@@ -942,7 +967,11 @@ buf_block_hash_get(
 	ulint	space,	/*!< in: space id */
 	ulint	offset)	/*!< in: offset of the page within space */
 {
-	return(buf_page_get_block(buf_page_hash_get(space, offset)));
+	buf_block_t*	block;
+
+	block = buf_page_get_block(buf_page_hash_get(space, offset));
+
+	return(block);
 }
 
 /********************************************************************//**
@@ -1018,20 +1047,13 @@ void
 buf_page_release(
 /*=============*/
 	buf_block_t*	block,		/*!< in: buffer block */
-	ulint		rw_latch,	/*!< in: RW_S_LATCH, RW_X_LATCH,
+	ulint		rw_latch)	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
-	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ut_ad(block);
 
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_a(block->page.buf_fix_count > 0);
-
-	if (rw_latch == RW_X_LATCH && mtr->modifications) {
-		buf_pool_mutex_enter();
-		buf_flush_note_modification(block, mtr);
-		buf_pool_mutex_exit();
-	}
 
 	mutex_enter(&block->mutex);
 

@@ -33,7 +33,8 @@ UNIV_INTERN
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
-	buf_block_t*	block);	/*!< in/out: block which is modified */
+	buf_block_t*	block,	/*!< in/out: block which is modified */
+	ib_uint64_t	lsn);	/*!< in: oldest modification */
 /********************************************************************//**
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
@@ -42,7 +43,8 @@ UNIV_INTERN
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
-	buf_block_t*	block);	/*!< in/out: block which is modified */
+	buf_block_t*	block,	/*!< in/out: block which is modified */
+	ib_uint64_t	lsn);	/*!< in: oldest modification */
 
 /********************************************************************//**
 This function should be called at a mini-transaction commit, if a page was
@@ -61,23 +63,26 @@ buf_flush_note_modification(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
-	ut_ad(buf_pool_mutex_own());
+
+	ut_ad(!buf_pool_mutex_own());
+	ut_ad(!buf_flush_list_mutex_own());
+	ut_ad(buf_flush_order_mutex_own());
 
 	ut_ad(mtr->start_lsn != 0);
 	ut_ad(mtr->modifications);
+
+	mutex_enter(&block->mutex);
 	ut_ad(block->page.newest_modification <= mtr->end_lsn);
 
 	block->page.newest_modification = mtr->end_lsn;
 
 	if (!block->page.oldest_modification) {
-
-		block->page.oldest_modification = mtr->start_lsn;
-		ut_ad(block->page.oldest_modification != 0);
-
-		buf_flush_insert_into_flush_list(block);
+		buf_flush_insert_into_flush_list(block, mtr->start_lsn);
 	} else {
 		ut_ad(block->page.oldest_modification <= mtr->start_lsn);
 	}
+
+	mutex_exit(&block->mutex);
 
 	++srv_buf_pool_write_requests;
 }
@@ -101,23 +106,23 @@ buf_flush_recv_note_modification(
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	buf_pool_mutex_enter();
+	ut_ad(!buf_pool_mutex_own());
+	ut_ad(!buf_flush_list_mutex_own());
+	ut_ad(buf_flush_order_mutex_own());
 
+	ut_ad(start_lsn != 0);
 	ut_ad(block->page.newest_modification <= end_lsn);
 
+	mutex_enter(&block->mutex);
 	block->page.newest_modification = end_lsn;
 
 	if (!block->page.oldest_modification) {
-
-		block->page.oldest_modification = start_lsn;
-
-		ut_ad(block->page.oldest_modification != 0);
-
-		buf_flush_insert_sorted_into_flush_list(block);
+		buf_flush_insert_sorted_into_flush_list(block, start_lsn);
 	} else {
 		ut_ad(block->page.oldest_modification <= start_lsn);
 	}
 
-	buf_pool_mutex_exit();
+	mutex_exit(&block->mutex);
+
 }
 #endif /* !UNIV_HOTBACKUP */

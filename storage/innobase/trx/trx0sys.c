@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -39,6 +39,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0srv.h"
 #include "trx0purge.h"
 #include "log0log.h"
+#include "log0recv.h"
 #include "os0file.h"
 #include "read0read.h"
 
@@ -126,6 +127,12 @@ static const char*	file_format_name_map[] = {
 static const ulint	FILE_FORMAT_NAME_N
 	= sizeof(file_format_name_map) / sizeof(file_format_name_map[0]);
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register the mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 #ifndef UNIV_HOTBACKUP
 /** This is used to track the maximum file format id known to InnoDB. It's
 updated via SET GLOBAL innodb_file_format_check = 'x' or when we open
@@ -179,7 +186,8 @@ trx_doublewrite_init(
 	os_do_not_call_flush_at_each_write = TRUE;
 #endif /* UNIV_DO_FLUSH */
 
-	mutex_create(&trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
+	mutex_create(trx_doublewrite_mutex_key,
+		     &trx_doublewrite->mutex, SYNC_DOUBLEWRITE);
 
 	trx_doublewrite->first_free = 0;
 
@@ -584,8 +592,8 @@ trx_sys_doublewrite_init_or_restore_pages(
 						" recover the database"
 						" with the my.cnf\n"
 						"InnoDB: option:\n"
-						"InnoDB: set-variable="
-						"innodb_force_recovery=6\n");
+						"InnoDB:"
+						" innodb_force_recovery=6\n");
 					exit(1);
 				}
 
@@ -870,7 +878,8 @@ trx_sysf_create(
 	buf_block_t*	block;
 	page_t*		page;
 	ulint		page_no;
-	ulint		i;
+	byte*		ptr;
+	ulint		len;
 
 	ut_ad(mtr);
 
@@ -903,32 +912,31 @@ trx_sysf_create(
 	sys_header = trx_sysf_get(mtr);
 
 	/* Start counting transaction ids from number 1 up */
-	mlog_write_dulint(sys_header + TRX_SYS_TRX_ID_STORE,
-			  ut_dulint_create(0, 1), mtr);
+	mach_write_to_8(sys_header + TRX_SYS_TRX_ID_STORE,
+			ut_dulint_create(0, 1));
 
-	/* Reset the rollback segment slots */
-	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+	/* Reset the rollback segment slots.  Old versions of InnoDB
+	define TRX_SYS_N_RSEGS as 256 (TRX_SYS_OLD_N_RSEGS) and expect
+	that the whole array is initialized. */
+	ptr = TRX_SYS_RSEGS + sys_header;
+	len = ut_max(TRX_SYS_OLD_N_RSEGS, TRX_SYS_N_RSEGS)
+		* TRX_SYS_RSEG_SLOT_SIZE;
+	memset(ptr, 0xff, len);
+	ptr += len;
+	ut_a(ptr <= page + (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END));
 
-		trx_sysf_rseg_set_space(sys_header, i, ULINT_UNDEFINED, mtr);
-		trx_sysf_rseg_set_page_no(sys_header, i, FIL_NULL, mtr);
-	}
+	/* Initialize all of the page.  This part used to be uninitialized. */
+	memset(ptr, 0, UNIV_PAGE_SIZE - FIL_PAGE_DATA_END + page - ptr);
 
-	/* The remaining area (up to the page trailer) is uninitialized.
-	Silence Valgrind warnings about it. */
-	UNIV_MEM_VALID(sys_header + (TRX_SYS_RSEGS
-				     + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
-				     + TRX_SYS_RSEG_SPACE),
-		       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
-			- (TRX_SYS_RSEGS
-			   + TRX_SYS_N_RSEGS * TRX_SYS_RSEG_SLOT_SIZE
-			   + TRX_SYS_RSEG_SPACE))
-		       + page - sys_header);
+	mlog_log_string(sys_header, UNIV_PAGE_SIZE - FIL_PAGE_DATA_END
+			+ page - sys_header, mtr);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
-	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, &slot_no,
+	slot_no = trx_sysf_rseg_find_free(mtr);
+	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
 					 mtr);
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
-	ut_a(page_no != FIL_NULL);
+	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
 
 	mutex_exit(&kernel_mutex);
 }
@@ -1283,7 +1291,8 @@ void
 trx_sys_file_format_init(void)
 /*==========================*/
 {
-	mutex_create(&file_format_max.mutex, SYNC_FILE_FORMAT_TAG);
+	mutex_create(file_format_max_mutex_key,
+		     &file_format_max.mutex, SYNC_FILE_FORMAT_TAG);
 
 	/* We don't need a mutex here, as this function should only
 	be called once at start up. */
@@ -1302,6 +1311,40 @@ trx_sys_file_format_close(void)
 {
 	/* Does nothing at the moment */
 }
+
+/*********************************************************************
+Creates the rollback segments */
+UNIV_INTERN
+void
+trx_sys_create_rsegs(
+/*=================*/
+	ulint	n_rsegs)	/*!< number of rollback segments to create */
+{
+	ulint	new_rsegs = 0;
+
+	/* Do not create additional rollback segments if
+	innodb_force_recovery has been set and the database
+	was not shutdown cleanly. */
+	if (!srv_force_recovery && !recv_needed_recovery) {
+		ulint	i;
+
+		for (i = 0;  i < n_rsegs; ++i) {
+
+			if (trx_rseg_create() != NULL) {
+				++new_rsegs;
+			} else {
+				break;
+			}
+		}
+	}
+
+	if (new_rsegs > 0) {
+		fprintf(stderr,
+			"InnoDB: %lu rollback segment(s) active.\n",
+		       	new_rsegs);
+	}
+}
+
 #else /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Prints to stderr the MySQL binlog info in the system header if the
@@ -1376,8 +1419,9 @@ trx_sys_read_file_format_id(
 	dulint		file_format_id;
 
 	*format_id = ULINT_UNDEFINED;
-	
+
 	file = os_file_create_simple_no_error_handling(
+		innodb_file_data_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
@@ -1456,8 +1500,9 @@ trx_sys_read_pertable_file_format_id(
 	ib_uint32_t	flags;
 
 	*format_id = ULINT_UNDEFINED;
-	
+
 	file = os_file_create_simple_no_error_handling(
+		innodb_file_data_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
@@ -1535,6 +1580,7 @@ trx_sys_file_format_id_to_name(
 
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef UNIV_HOTBACKUP
 /*********************************************************************
 Shutdown/Close the transaction system. */
 UNIV_INTERN
@@ -1611,3 +1657,4 @@ trx_sys_close(void)
 	trx_sys = NULL;
 	mutex_exit(&kernel_mutex);
 }
+#endif /* !UNIV_HOTBACKUP */

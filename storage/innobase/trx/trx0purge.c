@@ -41,7 +41,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "row0purge.h"
 #include "row0upd.h"
 #include "trx0rec.h"
-#include "srv0que.h"
+#include "srv0srv.h"
 #include "os0thread.h"
 
 /** The global data structure coordinating a purge */
@@ -50,6 +50,16 @@ UNIV_INTERN trx_purge_t*	purge_sys = NULL;
 /** A dummy undo record used as a return value when we have a whole undo log
 which needs no purge */
 UNIV_INTERN trx_undo_rec_t	trx_purge_dummy_rec;
+
+#ifdef UNIV_PFS_RWLOCK
+/* Key to register trx_purge_latch with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register purge_sys_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	purge_sys_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 /*****************************************************************//**
 Checks if trx_id is >= purge_view: then it is guaranteed that its update
@@ -227,9 +237,11 @@ trx_purge_sys_create(void)
 	purge_sys->purge_undo_no = ut_dulint_zero;
 	purge_sys->next_stored = FALSE;
 
-	rw_lock_create(&purge_sys->latch, SYNC_PURGE_LATCH);
+	rw_lock_create(trx_purge_latch_key,
+		       &purge_sys->latch, SYNC_PURGE_LATCH);
 
-	mutex_create(&purge_sys->mutex, SYNC_PURGE_SYS);
+	mutex_create(purge_sys_mutex_key,
+		     &purge_sys->mutex, SYNC_PURGE_SYS);
 
 	purge_sys->heap = mem_heap_create(256);
 
@@ -351,6 +363,11 @@ trx_purge_add_update_undo_to_history(
 	mutex_enter(&kernel_mutex);
 	trx_sys->rseg_history_len++;
 	mutex_exit(&kernel_mutex);
+
+	if (!(trx_sys->rseg_history_len % srv_purge_batch_size)) {
+		/* Inform the purge thread that there is work to do. */
+		srv_wake_purge_thread_if_not_active();
+	}
 
 	/* Write the trx number to the undo log header */
 	mlog_write_dulint(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
@@ -1084,8 +1101,10 @@ This function runs a purge batch.
 @return	number of undo log pages handled in the batch */
 UNIV_INTERN
 ulint
-trx_purge(void)
-/*===========*/
+trx_purge(
+/*======*/
+	ulint	limit)		/*!< in: the maximum number of records to
+				purge in one batch */
 {
 	que_thr_t*	thr;
 	/*	que_thr_t*	thr2; */
@@ -1146,9 +1165,7 @@ trx_purge(void)
 
 	purge_sys->state = TRX_PURGE_ON;
 
-	/* Handle at most 20 undo log pages in one purge batch */
-
-	purge_sys->handle_limit = purge_sys->n_pages_handled + 20;
+	purge_sys->handle_limit = purge_sys->n_pages_handled + limit;
 
 	old_pages_handled = purge_sys->n_pages_handled;
 

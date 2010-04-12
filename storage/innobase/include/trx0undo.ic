@@ -42,7 +42,7 @@ trx_undo_build_roll_ptr(
 #if DATA_ROLL_PTR_LEN != 7
 # error "DATA_ROLL_PTR_LEN != 7"
 #endif
-	ut_ad(rseg_id < 128);
+	ut_ad(rseg_id < TRX_SYS_N_RSEGS);
 
 	return(ut_dulint_create(is_insert * 128 * 256 * 256
 				+ rseg_id * 256 * 256

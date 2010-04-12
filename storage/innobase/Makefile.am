@@ -28,7 +28,6 @@ INCLUDES=		-I$(top_srcdir)/include -I$(top_builddir)/include \
 
 DEFS=			@DEFS@
 
-
 noinst_HEADERS=		\
 			handler/ha_innodb.h	\
 			handler/i_s.h		\
@@ -118,6 +117,7 @@ noinst_HEADERS=		\
 			include/mtr0types.h	\
 			include/mysql_addons.h	\
 			include/os0file.h	\
+			include/os0file.ic	\
 			include/os0proc.h	\
 			include/os0proc.ic	\
 			include/os0sync.h	\
@@ -217,6 +217,7 @@ noinst_HEADERS=		\
 			include/ut0lst.h	\
 			include/ut0mem.h	\
 			include/ut0mem.ic	\
+			include/ut0rbt.h	\
 			include/ut0rnd.h	\
 			include/ut0rnd.ic	\
 			include/ut0sort.h	\
@@ -318,6 +319,7 @@ libinnobase_a_SOURCES=	\
 			ut/ut0dbg.c			\
 			ut/ut0list.c			\
 			ut/ut0mem.c			\
+			ut/ut0rbt.c			\
 			ut/ut0rnd.c			\
 			ut/ut0ut.c			\
 			ut/ut0vec.c			\

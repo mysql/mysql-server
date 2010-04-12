@@ -1,13 +1,21 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
 briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
+
+Portions of this file contain modifications contributed and copyrighted
+by Percona Inc.. Those modifications are
+gratefully acknowledged and are described briefly in the InnoDB
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
+COPYING.Percona.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,32 +30,6 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
-/***********************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-Copyright (c) 2009, Percona Inc.
-
-Portions of this file contain modifications contributed and copyrighted
-by Percona Inc.. Those modifications are
-gratefully acknowledged and are described briefly in the InnoDB
-documentation. The contributions by Percona Inc. are incorporated with
-their permission, and subject to the conditions contained in the file
-COPYING.Percona.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-***********************************************************************/
 
 /********************************************************************//**
 @file srv/srv0start.c
@@ -105,6 +87,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "btr0pcur.h"
 # include "thr0loc.h"
 # include "os0sync.h" /* for INNODB_RW_LOCKS_USE_ATOMICS */
+# include "zlib.h" /* for ZLIB_VERSION */
 
 /** Log sequence number immediately after startup */
 UNIV_INTERN ib_uint64_t	srv_start_lsn;
@@ -143,9 +126,9 @@ static mutex_t		ios_mutex;
 static ulint		ios;
 
 /** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 5];
+static ulint		n[SRV_MAX_N_IO_THREADS + 6];
 /** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 5];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -159,6 +142,19 @@ static char*	srv_monitor_file_name;
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
+#ifdef UNIV_PFS_THREAD
+/* Keys to register InnoDB threads with performance schema */
+UNIV_INTERN mysql_pfs_key_t	io_handler_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_lock_timeout_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_error_monitor_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
+#endif /* UNIV_PFS_THREAD */
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register ios_mutex_key with performance schema */
+UNIV_INTERN mysql_pfs_key_t	ios_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 /*********************************************************************//**
 Convert a numeric string that optionally ends in G or M, to a number
@@ -488,6 +484,11 @@ io_handler_thread(
 	fprintf(stderr, "Io handler thread %lu starts, id %lu\n", segment,
 		os_thread_pf(os_thread_get_curr_id()));
 #endif
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(io_handler_thread_key);
+#endif /* UNIV_PFS_THREAD */
+
 	for (i = 0;; i++) {
 		fil_aio_wait(segment);
 
@@ -601,7 +602,8 @@ open_or_create_log_file(
 
 	sprintf(name + dirnamelen, "%s%lu", "ib_logfile", (ulong) i);
 
-	files[i] = os_file_create(name, OS_FILE_CREATE, OS_FILE_NORMAL,
+	files[i] = os_file_create(innodb_file_log_key, name,
+				  OS_FILE_CREATE, OS_FILE_NORMAL,
 				  OS_LOG_FILE, &ret);
 	if (ret == FALSE) {
 		if (os_file_get_last_error(FALSE) != OS_FILE_ALREADY_EXISTS
@@ -619,7 +621,8 @@ open_or_create_log_file(
 			return(DB_ERROR);
 		}
 
-		files[i] = os_file_create(name, OS_FILE_OPEN, OS_FILE_AIO,
+		files[i] = os_file_create(innodb_file_log_key, name,
+					  OS_FILE_OPEN, OS_FILE_AIO,
 					  OS_LOG_FILE, &ret);
 		if (!ret) {
 			fprintf(stderr,
@@ -784,7 +787,8 @@ open_or_create_data_files(
 			/* First we try to create the file: if it already
 			exists, ret will get value FALSE */
 
-			files[i] = os_file_create(name, OS_FILE_CREATE,
+			files[i] = os_file_create(innodb_file_data_key,
+						  name, OS_FILE_CREATE,
 						  OS_FILE_NORMAL,
 						  OS_DATA_FILE, &ret);
 
@@ -811,7 +815,8 @@ open_or_create_data_files(
 			srv_start_raw_disk_in_use = TRUE;
 			srv_created_new_raw = TRUE;
 
-			files[i] = os_file_create(name, OS_FILE_OPEN_RAW,
+			files[i] = os_file_create(innodb_file_data_key,
+						  name, OS_FILE_OPEN_RAW,
 						  OS_FILE_NORMAL,
 						  OS_DATA_FILE, &ret);
 			if (!ret) {
@@ -844,14 +849,17 @@ open_or_create_data_files(
 
 			if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
 				files[i] = os_file_create(
+					innodb_file_data_key,
 					name, OS_FILE_OPEN_RAW,
 					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 			} else if (i == 0) {
 				files[i] = os_file_create(
+					innodb_file_data_key,
 					name, OS_FILE_OPEN_RETRY,
 					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
 			} else {
 				files[i] = os_file_create(
+					innodb_file_data_key,
 					name, OS_FILE_OPEN, OS_FILE_NORMAL,
 					OS_DATA_FILE, &ret);
 			}
@@ -994,7 +1002,7 @@ skip_size_check:
 
 	ios = 0;
 
-	mutex_create(&ios_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(ios_mutex_key, &ios_mutex, SYNC_NO_ORDER_CHECK);
 
 	return(DB_SUCCESS);
 }
@@ -1074,7 +1082,11 @@ innobase_start_or_create_for_mysql(void)
 #ifdef UNIV_IBUF_DEBUG
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_IBUF_DEBUG switched on !!!!!!!!!\n"
-		"InnoDB: Crash recovery will fail with UNIV_IBUF_DEBUG\n");
+# ifdef UNIV_IBUF_COUNT_DEBUG
+		"InnoDB: !!!!!!!! UNIV_IBUF_COUNT_DEBUG switched on !!!!!!!!!\n"
+		"InnoDB: Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG\n"
+# endif
+		);
 #endif
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1101,7 +1113,15 @@ innobase_start_or_create_for_mysql(void)
 			"InnoDB: The InnoDB memory heap is disabled\n");
 	}
 
-	fprintf(stderr, "InnoDB: %s\n", IB_ATOMICS_STARTUP_MSG);
+	fputs("InnoDB: " IB_ATOMICS_STARTUP_MSG
+	      "\nInnoDB: Compressed tables use zlib " ZLIB_VERSION
+#ifdef UNIV_ZIP_DEBUG
+	      " with validation"
+#endif /* UNIV_ZIP_DEBUG */
+#ifdef UNIV_ZIP_COPY
+	      " and extra copying"
+#endif /* UNIV_ZIP_COPY */
+	      "\n" , stderr);
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
@@ -1127,7 +1147,6 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_is_being_started = TRUE;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
-	os_aio_use_native_aio = FALSE;
 
 #ifdef __WIN__
 	switch (os_get_os_version()) {
@@ -1139,14 +1158,29 @@ innobase_start_or_create_for_mysql(void)
 		but when run in conjunction with InnoDB Hot Backup, it seemed
 		to corrupt the data files. */
 
-		os_aio_use_native_aio = FALSE;
+		srv_use_native_aio = FALSE;
 		break;
 	default:
 		/* On Win 2000 and XP use async i/o */
-		os_aio_use_native_aio = TRUE;
+		srv_use_native_aio = TRUE;
 		break;
 	}
+
+#elif defined(LINUX_NATIVE_AIO)
+
+	if (srv_use_native_aio) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Using Linux native AIO\n");
+	}
+#else
+	/* Currently native AIO is supported only on windows and linux
+	and that also when the support is compiled in. In all other
+	cases, we ignore the setting of innodb_use_native_aio. */
+	srv_use_native_aio = FALSE;
+
 #endif
+
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
 
@@ -1171,11 +1205,11 @@ innobase_start_or_create_for_mysql(void)
 #else
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
 		srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
-		os_aio_use_native_aio = FALSE;
+		srv_use_native_aio = FALSE;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "unbuffered")) {
 		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
-		os_aio_use_native_aio = FALSE;
+		srv_use_native_aio = FALSE;
 
 	} else if (0 == ut_strcmp(srv_file_flush_method_str,
 				  "async_unbuffered")) {
@@ -1226,7 +1260,8 @@ innobase_start_or_create_for_mysql(void)
 		return((int) err);
 	}
 
-	mutex_create(&srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
+	mutex_create(srv_monitor_file_mutex_key,
+		     &srv_monitor_file_mutex, SYNC_NO_ORDER_CHECK);
 
 	if (srv_innodb_status) {
 		srv_monitor_file_name = mem_alloc(
@@ -1248,14 +1283,16 @@ innobase_start_or_create_for_mysql(void)
 		}
 	}
 
-	mutex_create(&srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
+	mutex_create(srv_dict_tmpfile_mutex_key,
+		     &srv_dict_tmpfile_mutex, SYNC_DICT_OPERATION);
 
 	srv_dict_tmpfile = os_file_create_tmpfile();
 	if (!srv_dict_tmpfile) {
 		return(DB_ERROR);
 	}
 
-	mutex_create(&srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
+	mutex_create(srv_misc_tmpfile_mutex_key,
+		     &srv_misc_tmpfile_mutex, SYNC_ANY_LATCH);
 
 	srv_misc_tmpfile = os_file_create_tmpfile();
 	if (!srv_misc_tmpfile) {
@@ -1280,7 +1317,7 @@ innobase_start_or_create_for_mysql(void)
 
 	/* TODO: Investigate if SRV_N_PENDING_IOS_PER_THREAD (32) limit
 	still applies to windows. */
-	if (!os_aio_use_native_aio) {
+	if (!srv_use_native_aio) {
 		io_limit = 8 * SRV_N_PENDING_IOS_PER_THREAD;
 	} else {
 		io_limit = SRV_N_PENDING_IOS_PER_THREAD;
@@ -1493,12 +1530,19 @@ innobase_start_or_create_for_mysql(void)
 
 	if (create_new_db) {
 		mtr_start(&mtr);
+
 		fsp_header_init(0, sum_of_new_sizes, &mtr);
 
 		mtr_commit(&mtr);
 
+		/* To maintain backward compatibility we create only
+		the first rollback segment before the double write buffer.
+		All the remaining rollback segments will be created later,
+		after the double write buffer has been created. */
 		trx_sys_create();
+
 		dict_create();
+
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -1517,7 +1561,9 @@ innobase_start_or_create_for_mysql(void)
 		in any disk i/o, first call dict_boot */
 
 		dict_boot();
+
 		trx_sys_init_at_db_start();
+
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
 		/* Initialize the fsp free limit global variable in the log
@@ -1575,6 +1621,14 @@ innobase_start_or_create_for_mysql(void)
 		dict_boot();
 		trx_sys_init_at_db_start();
 
+		/* Initialize the fsp free limit global variable in the log
+		system */
+		fsp_header_get_free_limit();
+
+		/* recv_recovery_from_checkpoint_finish needs trx lists which
+		are initialized in trx_sys_init_at_db_start(). */
+
+		recv_recovery_from_checkpoint_finish();
 		if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
 			/* The following call is necessary for the insert
 			buffer to work with multiple tablespaces. We must
@@ -1590,26 +1644,14 @@ innobase_start_or_create_for_mysql(void)
 			every table in the InnoDB data dictionary that has
 			an .ibd file.
 
-			We also determine the maximum tablespace id used.
-
-			TODO: We may have incomplete transactions in the
-			data dictionary tables. Does that harm the scanning of
-			the data dictionary below? */
+			We also determine the maximum tablespace id used. */
 
 			dict_check_tablespaces_and_store_max_id(
 				recv_needed_recovery);
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
-
-		/* Initialize the fsp free limit global variable in the log
-		system */
-		fsp_header_get_free_limit();
-
-		/* recv_recovery_from_checkpoint_finish needs trx lists which
-		are initialized in trx_sys_init_at_db_start(). */
-
-		recv_recovery_from_checkpoint_finish();
+		recv_recovery_rollback_active();
 
 		/* It is possible that file_format tag has never
 		been set. In this case we initialize it to minimum
@@ -1658,15 +1700,18 @@ innobase_start_or_create_for_mysql(void)
 	/* fprintf(stderr, "Max allowed record size %lu\n",
 	page_get_free_space_of_empty() / 2); */
 
-	/* Create the thread which watches the timeouts for lock waits
-	and prints InnoDB monitor info */
-
-	os_thread_create(&srv_lock_timeout_and_monitor_thread, NULL,
+	/* Create the thread which watches the timeouts for lock waits */
+	os_thread_create(&srv_lock_timeout_thread, NULL,
 			 thread_ids + 2 + SRV_MAX_N_IO_THREADS);
 
 	/* Create the thread which warns of long semaphore waits */
 	os_thread_create(&srv_error_monitor_thread, NULL,
 			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
+
+	/* Create the thread which prints InnoDB monitor info */
+	os_thread_create(&srv_monitor_thread, NULL,
+			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
 	srv_is_being_started = FALSE;
 
 	if (trx_doublewrite == NULL) {
@@ -1674,6 +1719,14 @@ innobase_start_or_create_for_mysql(void)
 
 		trx_sys_create_doublewrite_buf();
 	}
+
+	/* Here the double write buffer has already been created and so
+	any new rollback segments will be allocated after the double
+	write buffer. The default segment should already exist.
+	We create the new segments only if it's a new database or
+	the database was shutdown cleanly. */
+
+	trx_sys_create_rsegs(TRX_SYS_N_RSEGS - 1);
 
 	err = dict_create_or_check_foreign_constraint_tables();
 
@@ -1686,6 +1739,16 @@ innobase_start_or_create_for_mysql(void)
 
 	os_thread_create(&srv_master_thread, NULL, thread_ids
 			 + (1 + SRV_MAX_N_IO_THREADS));
+
+	/* Currently we allow only a single purge thread. */
+	ut_a(srv_n_purge_threads == 0 || srv_n_purge_threads == 1);
+
+	/* If the user has requested a separate purge thread then
+	start the purge thread. */
+	if (srv_n_purge_threads == 1) {
+		os_thread_create(&srv_purge_thread, NULL, NULL);
+	}
+
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */
@@ -1779,7 +1842,7 @@ innobase_start_or_create_for_mysql(void)
 	if (srv_print_verbose_log) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
-			" InnoDB Plugin %s started; "
+			" InnoDB %s started; "
 			"log sequence number %llu\n",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
@@ -1939,7 +2002,10 @@ innobase_shutdown_for_mysql(void)
 		/* c. We wake the master thread so that it exits */
 		srv_wake_master_thread();
 
-		/* d. Exit the i/o threads */
+		/* d. We wake the purge thread so that it exits */
+		srv_wake_purge_thread();
+
+		/* e. Exit the i/o threads */
 
 		os_aio_wake_all_threads_at_shutdown();
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -138,7 +138,8 @@ btr_cur_search_to_nth_level(
 				should always be made using PAGE_CUR_LE to
 				search the position! */
 	ulint		latch_mode, /*!< in: BTR_SEARCH_LEAF, ..., ORed with
-				BTR_INSERT and BTR_ESTIMATE;
+				at most one of BTR_INSERT, BTR_DELETE_MARK,
+				BTR_DELETE, or BTR_ESTIMATE;
 				cursor->left_block is used to store a pointer
 				to the left neighbor page, in the cases
 				BTR_SEARCH_PREV and BTR_MODIFY_PREV;
@@ -152,29 +153,39 @@ btr_cur_search_to_nth_level(
 	ulint		has_search_latch,/*!< in: latch mode the caller
 				currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mtr */
 /*****************************************************************//**
 Opens a cursor at either end of an index. */
 UNIV_INTERN
 void
-btr_cur_open_at_index_side(
-/*=======================*/
+btr_cur_open_at_index_side_func(
+/*============================*/
 	ibool		from_left,	/*!< in: TRUE if open to the low end,
 					FALSE if to the high end */
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: latch mode */
 	btr_cur_t*	cursor,		/*!< in: cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr);		/*!< in: mtr */
+#define btr_cur_open_at_index_side(f,i,l,c,m)				\
+	btr_cur_open_at_index_side_func(f,i,l,c,__FILE__,__LINE__,m)
 /**********************************************************************//**
 Positions a cursor at a randomly chosen position within a B-tree. */
 UNIV_INTERN
 void
-btr_cur_open_at_rnd_pos(
-/*====================*/
+btr_cur_open_at_rnd_pos_func(
+/*=========================*/
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_cur_t*	cursor,		/*!< in/out: B-tree cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr);		/*!< in: mtr */
+#define btr_cur_open_at_rnd_pos(i,l,c,m)				\
+	btr_cur_open_at_rnd_pos_func(i,l,c,__FILE__,__LINE__,m)
 /*************************************************************//**
 Tries to perform an insert to a page in an index tree, next to cursor.
 It is assumed that mtr holds an x-latch on the page. The operation does
@@ -322,19 +333,6 @@ btr_cur_del_mark_set_sec_rec(
 	ibool		val,	/*!< in: value to set */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr);	/*!< in: mtr */
-/***********************************************************//**
-Clear a secondary index record's delete mark.  This function is only
-used by the insert buffer insert merge mechanism. */
-UNIV_INTERN
-void
-btr_cur_del_unmark_for_ibuf(
-/*========================*/
-	rec_t*		rec,		/*!< in/out: record to delete unmark */
-	page_zip_des_t*	page_zip,	/*!< in/out: compressed page
-					corresponding to rec, or NULL
-					when the tablespace is
-					uncompressed */
-	mtr_t*		mtr);		/*!< in: mtr */
 /*************************************************************//**
 Tries to compress a page of the tree if it seems useful. It is assumed
 that mtr holds an x-latch on the tree and on the cursor page. To avoid
@@ -586,7 +584,20 @@ btr_push_update_extern_fields(
 	const upd_t*	update,	/*!< in: update vector */
 	mem_heap_t*	heap)	/*!< in: memory heap */
 	__attribute__((nonnull));
-
+/***********************************************************//**
+Sets a secondary index record's delete mark to the given value. This
+function is only used by the insert buffer merge mechanism. */
+UNIV_INTERN
+void
+btr_cur_set_deleted_flag_for_ibuf(
+/*==============================*/
+	rec_t*		rec,		/*!< in/out: record */
+	page_zip_des_t*	page_zip,	/*!< in/out: compressed page
+					corresponding to rec, or NULL
+					when the tablespace is
+					uncompressed */
+	ibool		val,		/*!< in: value to set */
+	mtr_t*		mtr);		/*!< in: mtr */
 /*######################################################################*/
 
 /** In the pessimistic delete, if the page data size drops below this
@@ -618,8 +629,13 @@ enum btr_cur_method {
 				hash_node, and might be necessary to
 				update */
 	BTR_CUR_BINARY,		/*!< success using the binary search */
-	BTR_CUR_INSERT_TO_IBUF	/*!< performed the intended insert to
+	BTR_CUR_INSERT_TO_IBUF,	/*!< performed the intended insert to
 				the insert buffer */
+	BTR_CUR_DEL_MARK_IBUF,	/*!< performed the intended delete
+				mark in the insert/delete buffer */
+	BTR_CUR_DELETE_IBUF,	/*!< performed the intended delete in
+				the insert/delete buffer */
+	BTR_CUR_DELETE_REF	/*!< row_purge_poss_sec() failed */
 };
 
 /** The tree cursor: the definition appears here only for the compiler
@@ -627,6 +643,7 @@ to know struct size! */
 struct btr_cur_struct {
 	dict_index_t*	index;		/*!< index where positioned */
 	page_cur_t	page_cur;	/*!< page cursor */
+	purge_node_t*	purge_node;	/*!< purge node, for BTR_DELETE */
 	buf_block_t*	left_block;	/*!< this field is used to store
 					a pointer to the left neighbor
 					page, in the cases
@@ -683,6 +700,23 @@ struct btr_cur_struct {
 					NULL */
 	ulint		fold;		/*!< fold value used in the search if
 					flag is BTR_CUR_HASH */
+	/*----- Delete buffering -------*/
+	ulint		ibuf_cnt;	/* in searches done on insert buffer
+					trees, this contains the "counter"
+					value (the first two bytes of the
+					fourth field) extracted from the
+					page above the leaf page, from the
+					father node pointer that pointed to
+					the leaf page. in other words, it
+					contains the minimum counter value
+					for records to be inserted on the
+					chosen leaf page. If for some reason
+					this can't be read, or if the search
+					ended on the leftmost leaf page in
+					the tree (in which case the father
+					node pointer had the 'minimum
+					record' flag set), this is
+					ULINT_UNDEFINED. */
 	/*------------------------------*/
 	/* @} */
 	btr_path_t*	path_arr;	/*!< in estimating the number of

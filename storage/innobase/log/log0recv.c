@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -138,13 +138,23 @@ UNIV_INTERN ulint	recv_max_parsed_page_no;
 /** This many frames must be left free in the buffer pool when we scan
 the log and store the scanned log records in the buffer pool: we will
 use these free frames to read in pages when we start applying the
-log records to the database. */
+log records to the database.
+This is the default value. If the actual size of the buffer pool is
+larger than 10 MB we'll set this value to 512. */
 UNIV_INTERN ulint	recv_n_pool_free_frames;
 
 /** The maximum lsn we see for a page during the recovery process. If this
 is bigger than the lsn we are able to scan up to, that is an indication that
 the recovery failed and the database may be corrupt. */
 UNIV_INTERN ib_uint64_t	recv_max_page_lsn;
+
+#ifdef UNIV_PFS_THREAD
+UNIV_INTERN mysql_pfs_key_t	trx_rollback_clean_thread_key;
+#endif /* UNIV_PFS_THREAD */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	recv_sys_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 /* prototypes */
 
@@ -173,7 +183,7 @@ recv_sys_create(void)
 	recv_sys = mem_alloc(sizeof(*recv_sys));
 	memset(recv_sys, 0x0, sizeof(*recv_sys));
 
-	mutex_create(&recv_sys->mutex, SYNC_RECV);
+	mutex_create(recv_sys_mutex_key, &recv_sys->mutex, SYNC_RECV);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
@@ -239,6 +249,7 @@ recv_sys_mem_free(void)
 	}
 }
 
+#ifndef UNIV_HOTBACKUP
 /************************************************************
 Reset the state of the recovery system variables. */
 UNIV_INTERN
@@ -278,6 +289,7 @@ recv_sys_var_init(void)
 
 	recv_max_page_lsn = 0;
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
 Inits the recovery system for a recovery operation. */
@@ -292,6 +304,14 @@ recv_sys_init(
 		return;
 	}
 
+#ifndef UNIV_HOTBACKUP
+	/* Initialize red-black tree for fast insertions into the
+	flush_list during recovery process.
+	As this initialization is done while holding the buffer pool
+	mutex we perform it before acquiring recv_sys->mutex. */
+	buf_flush_init_flush_rbt();
+#endif /* !UNIV_HOTBACKUP */
+
 	mutex_enter(&(recv_sys->mutex));
 
 #ifndef UNIV_HOTBACKUP
@@ -300,6 +320,12 @@ recv_sys_init(
 	recv_sys->heap = mem_heap_create(256);
 	recv_is_from_backup = TRUE;
 #endif /* !UNIV_HOTBACKUP */
+
+	/* Set appropriate value of recv_n_pool_free_frames. */
+	if (buf_pool_get_curr_size() >= (10 * 1024 * 1024)) {
+		/* Buffer pool of size greater than 10 MB. */
+		recv_n_pool_free_frames = 512;
+	}
 
 	recv_sys->buf = ut_malloc(RECV_PARSING_BUF_SIZE);
 	recv_sys->len = 0;
@@ -370,6 +396,9 @@ recv_sys_debug_free(void)
 	recv_sys->last_block_buf_start = NULL;
 
 	mutex_exit(&(recv_sys->mutex));
+
+	/* Free up the flush_rbt. */
+	buf_flush_free_flush_rbt();
 }
 # endif /* UNIV_LOG_DEBUG */
 
@@ -1632,7 +1661,9 @@ recv_recover_page_func(
 	if (modification_to_page) {
 		ut_a(block);
 
+		buf_flush_order_mutex_enter();
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
+		buf_flush_order_mutex_exit();
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2050,15 +2081,6 @@ recv_parse_log_rec(
 	}
 #endif /* UNIV_LOG_LSN_DEBUG */
 
-	/* Check that page_no is sensible */
-
-	if (UNIV_UNLIKELY(*page_no > 0x8FFFFFFFUL)) {
-
-		recv_sys->found_corrupt_log = TRUE;
-
-		return(0);
-	}
-
 	new_ptr = recv_parse_or_apply_log_rec_body(*type, new_ptr, end_ptr,
 						   NULL, NULL);
 	if (UNIV_UNLIKELY(new_ptr == NULL)) {
@@ -2166,6 +2188,14 @@ recv_report_corrupt_log(
 			     - recv_previous_parsed_rec_offset);
 		putc('\n', stderr);
 	}
+
+#ifndef UNIV_HOTBACKUP
+	if (!srv_force_recovery) {
+		fputs("InnoDB: Set innodb_force_recovery"
+		      " to ignore this error.\n", stderr);
+		ut_error;
+	}
+#endif /* !UNIV_HOTBACKUP */
 
 	fputs("InnoDB: WARNING: the log file may have been corrupt and it\n"
 	      "InnoDB: is possible that the log scan did not proceed\n"
@@ -2556,7 +2586,7 @@ recv_scan_log_recs(
 
 	ut_ad(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_ad(len % OS_FILE_LOG_BLOCK_SIZE == 0);
-	ut_ad(len > 0);
+	ut_ad(len >= OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(store_to_hash <= TRUE);
 
 	finished = FALSE;
@@ -2680,6 +2710,16 @@ recv_scan_log_recs(
 					" Recovery may have failed!\n");
 
 				recv_sys->found_corrupt_log = TRUE;
+
+#ifndef UNIV_HOTBACKUP
+				if (!srv_force_recovery) {
+					fputs("InnoDB: Set"
+					      " innodb_force_recovery"
+					      " to ignore this error.\n",
+					      stderr);
+					ut_error;
+				}
+#endif /* !UNIV_HOTBACKUP */
 
 			} else if (!recv_sys->found_corrupt_log) {
 				more_data = recv_sys_add_to_parsing_buf(
@@ -3210,8 +3250,6 @@ void
 recv_recovery_from_checkpoint_finish(void)
 /*======================================*/
 {
-	int		i;
-
 	/* Apply the hashed log records to the respective file pages */
 
 	if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
@@ -3259,9 +3297,16 @@ recv_recovery_from_checkpoint_finish(void)
 	The data dictionary latch should guarantee that there is at
 	most one data dictionary transaction active at a time. */
 	trx_rollback_or_clean_recovered(FALSE);
+}
 
-	/* Drop partially created indexes. */
-	row_merge_drop_temp_indexes();
+/********************************************************//**
+Initiates the rollback of active transactions. */
+UNIV_INTERN
+void
+recv_recovery_rollback_active(void)
+/*===============================*/
+{
+	int		i;
 
 #ifdef UNIV_SYNC_DEBUG
 	/* Wait for a while so that created threads have time to suspend
@@ -3271,6 +3316,11 @@ recv_recovery_from_checkpoint_finish(void)
 	/* Switch latching order checks on in sync0sync.c */
 	sync_order_checks_on = TRUE;
 #endif
+	/* Drop partially created indexes. */
+	row_merge_drop_temp_indexes();
+	/* Drop temporary tables. */
+	row_mysql_drop_temp_tables();
+
 	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO) {
 		/* Rollback the uncommitted transactions which have no user
 		session */
@@ -3386,8 +3436,10 @@ recv_reset_log_files_for_backup(
 		sprintf(name, "%s%s%lu", log_dir,
 			ib_logfile_basename, (ulong)i);
 
-		log_file = os_file_create_simple(name, OS_FILE_CREATE,
-						 OS_FILE_READ_WRITE, &success);
+		log_file = os_file_create_simple(innodb_file_log_key,
+						 name, OS_FILE_CREATE,
+						 OS_FILE_READ_WRITE,
+						 &success);
 		if (!success) {
 			fprintf(stderr,
 				"InnoDB: Cannot create %s. Check that"
@@ -3426,7 +3478,8 @@ recv_reset_log_files_for_backup(
 				      LOG_BLOCK_HDR_SIZE);
 	sprintf(name, "%s%s%lu", log_dir, ib_logfile_basename, (ulong)0);
 
-	log_file = os_file_create_simple(name, OS_FILE_OPEN,
+	log_file = os_file_create_simple(innodb_file_log_key,
+					 name, OS_FILE_OPEN,
 					 OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		fprintf(stderr, "InnoDB: Cannot open %s.\n", name);
@@ -3476,7 +3529,8 @@ try_open_again:
 
 	log_archived_file_name_gen(name, group->id, group->archived_file_no);
 
-	file_handle = os_file_create(name, OS_FILE_OPEN,
+	file_handle = os_file_create(innodb_file_log_key,
+				     name, OS_FILE_OPEN,
 				     OS_FILE_LOG, OS_FILE_AIO, &ret);
 
 	if (ret == FALSE) {

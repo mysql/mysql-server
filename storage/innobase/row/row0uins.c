@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1997, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -145,37 +145,39 @@ row_undo_ins_remove_sec_low(
 	dict_index_t*	index,	/*!< in: index */
 	dtuple_t*	entry)	/*!< in: index entry to remove */
 {
-	btr_pcur_t	pcur;
-	btr_cur_t*	btr_cur;
-	ibool		found;
-	ibool		success;
-	ulint		err;
-	mtr_t		mtr;
+	btr_pcur_t		pcur;
+	btr_cur_t*		btr_cur;
+	ulint			err;
+	mtr_t			mtr;
+	enum row_search_result	search_result;
 
 	log_free_check();
 	mtr_start(&mtr);
 
-	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
-
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
-	if (!found) {
-		/* Not found */
+	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
 
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
+	search_result = row_search_index_entry(index, entry, mode,
+					       &pcur, &mtr);
 
-		return(DB_SUCCESS);
+	switch (search_result) {
+	case ROW_NOT_FOUND:
+		err = DB_SUCCESS;
+		goto func_exit;
+	case ROW_FOUND:
+		break;
+	case ROW_BUFFERED:
+	case ROW_NOT_DELETED_REF:
+		/* These are invalid outcomes, because the mode passed
+		to row_search_index_entry() did not include any of the
+		flags BTR_INSERT, BTR_DELETE, or BTR_DELETE_MARK. */
+		ut_error;
 	}
 
 	if (mode == BTR_MODIFY_LEAF) {
-		success = btr_cur_optimistic_delete(btr_cur, &mtr);
-
-		if (success) {
-			err = DB_SUCCESS;
-		} else {
-			err = DB_FAIL;
-		}
+		err = btr_cur_optimistic_delete(btr_cur, &mtr)
+			? DB_SUCCESS : DB_FAIL;
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
 
@@ -188,7 +190,7 @@ row_undo_ins_remove_sec_low(
 		btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
 					   RB_NORMAL, &mtr);
 	}
-
+func_exit:
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 

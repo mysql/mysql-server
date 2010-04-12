@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2006, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -391,6 +391,8 @@ buf_buddy_relocate_block(
 		UT_LIST_ADD_FIRST(list, buf_pool->zip_clean, dpage);
 	}
 
+	UNIV_MEM_INVALID(bpage, sizeof *bpage);
+
 	mutex_exit(&buf_pool_zip_mutex);
 	return(TRUE);
 }
@@ -454,6 +456,8 @@ buf_buddy_relocate(
 
 			return(FALSE);
 		}
+
+		ut_ad(!buf_pool_watch_is(bpage));
 
 		if (page_zip_get_size(&bpage->zip) != size) {
 			/* The block is of different size.  We would
