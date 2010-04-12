@@ -86,7 +86,7 @@
 %if %{undefined src_base}
 %define src_base mysql
 %endif
-%define src_dir  %{src_base}-%{mysql_version}
+%define src_dir %{src_base}-%{mysql_version}
 
 # ----------------------------------------------------------------------------
 # Feature set (storage engines, options).  Default to community (everything)
@@ -332,7 +332,7 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 set -eu
 
 # Optional files to include
-touch optional-server-files
+touch optional-files-server
 
 #
 # Set environment in order of preference, MYSQL_BUILD_* first, then variable
@@ -409,7 +409,7 @@ then
   then
     mkdir -p $RBR%{_libdir}/mysql
     install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-    echo "%{_libdir}/mysql/libmygcc.a" >>optional-server-files
+    echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-server
   fi
 fi
 
@@ -642,7 +642,7 @@ fi
 #  Files section
 ##############################################################################
 
-%files -n MySQL-server%{short_product_tag} -f optional-server-files
+%files -n MySQL-server%{short_product_tag} -f optional-files-server
 %defattr(-,root,root,0755)
 
 %if %{defined license_files_server}
