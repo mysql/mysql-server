@@ -30,6 +30,7 @@ Created 11/26/1995 Heikki Tuuri
 #endif
 
 #include "buf0buf.h"
+#include "buf0flu.h"
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
@@ -38,7 +39,7 @@ Created 11/26/1995 Heikki Tuuri
 # include "log0recv.h"
 /*****************************************************************//**
 Releases the item in the slot given. */
-UNIV_INLINE
+static
 void
 mtr_memo_slot_release(
 /*==================*/
@@ -48,14 +49,19 @@ mtr_memo_slot_release(
 	void*	object;
 	ulint	type;
 
-	ut_ad(mtr && slot);
+	ut_ad(mtr);
+	ut_ad(slot);
+
+#ifndef UNIV_DEBUG
+	UT_NOT_USED(mtr);
+#endif /* UNIV_DEBUG */
 
 	object = slot->object;
 	type = slot->type;
 
 	if (UNIV_LIKELY(object != NULL)) {
 		if (type <= MTR_MEMO_BUF_FIX) {
-			buf_page_release((buf_block_t*)object, type, mtr);
+			buf_page_release((buf_block_t*)object, type);
 		} else if (type == MTR_MEMO_S_LOCK) {
 			rw_lock_s_unlock((rw_lock_t*)object);
 #ifdef UNIV_DEBUG
@@ -73,13 +79,10 @@ mtr_memo_slot_release(
 }
 
 /**********************************************************//**
-Releases the mlocks and other objects stored in an mtr memo. They are released
-in the order opposite to which they were pushed to the memo. NOTE! It is
-essential that the x-rw-lock on a modified buffer page is not released before
-buf_page_note_modification is called for that page! Otherwise, some thread
-might race to modify it, and the flush list sort order on lsn would be
-destroyed. */
-UNIV_INLINE
+Releases the mlocks and other objects stored in an mtr memo.
+They are released in the order opposite to which they were pushed
+to the memo. */
+static
 void
 mtr_memo_pop_all(
 /*=============*/
@@ -102,6 +105,59 @@ mtr_memo_pop_all(
 		slot = dyn_array_get_element(memo, offset);
 
 		mtr_memo_slot_release(mtr, slot);
+	}
+}
+
+/*****************************************************************//**
+Releases the item in the slot given. */
+static
+void
+mtr_memo_slot_note_modification(
+/*============================*/
+	mtr_t*			mtr,	/*!< in: mtr */
+	mtr_memo_slot_t*	slot)	/*!< in: memo slot */
+{
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+	ut_ad(mtr->modifications);
+	ut_ad(buf_flush_order_mutex_own());
+
+	if (slot->object != NULL && slot->type == MTR_MEMO_PAGE_X_FIX) {
+		buf_flush_note_modification((buf_block_t*) slot->object, mtr);
+	}
+}
+
+/**********************************************************//**
+Add the modified pages to the buffer flush list. They are released
+in the order opposite to which they were pushed to the memo. NOTE! It is
+essential that the x-rw-lock on a modified buffer page is not released
+before buf_page_note_modification is called for that page! Otherwise,
+some thread might race to modify it, and the flush list sort order on
+lsn would be destroyed. */
+static
+void
+mtr_memo_note_modifications(
+/*========================*/
+	mtr_t*	mtr)	/*!< in: mtr */
+{
+	dyn_array_t*	memo;
+	ulint		offset;
+
+	ut_ad(mtr);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
+	ut_ad(mtr->state == MTR_COMMITTING); /* Currently only used in
+					     commit */
+	memo = &mtr->memo;
+
+	offset = dyn_array_get_data_size(memo);
+
+	while (offset > 0) {
+		mtr_memo_slot_t* slot;
+
+		offset -= sizeof(mtr_memo_slot_t);
+		slot = dyn_array_get_element(memo, offset);
+
+		mtr_memo_slot_note_modification(mtr, slot);
 	}
 }
 
@@ -137,7 +193,9 @@ mtr_log_reserve_and_write(
 			&mtr->start_lsn);
 		if (mtr->end_lsn) {
 
-			return;
+			/* Success. We have the log mutex.
+			Add pages to flush list and exit */
+			goto func_exit;
 		}
 	}
 
@@ -161,6 +219,18 @@ mtr_log_reserve_and_write(
 	}
 
 	mtr->end_lsn = log_close();
+
+func_exit:
+	buf_flush_order_mutex_enter();
+
+	/* It is now safe to release the log mutex because the
+	flush_order mutex will ensure that we are the first one
+	to insert into the flush list. */
+	log_release();
+	if (mtr->modifications) {
+		mtr_memo_note_modifications(mtr);
+	}
+	buf_flush_order_mutex_exit();
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -172,10 +242,6 @@ mtr_commit(
 /*=======*/
 	mtr_t*	mtr)	/*!< in: mini-transaction */
 {
-#ifndef UNIV_HOTBACKUP
-	ibool		write_log;
-#endif /* !UNIV_HOTBACKUP */
-
 	ut_ad(mtr);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_ACTIVE);
@@ -184,25 +250,12 @@ mtr_commit(
 #ifndef UNIV_HOTBACKUP
 	/* This is a dirty read, for debugging. */
 	ut_ad(!recv_no_log_write);
-	write_log = mtr->modifications && mtr->n_log_recs;
 
-	if (write_log) {
+	if (mtr->modifications && mtr->n_log_recs) {
 		mtr_log_reserve_and_write(mtr);
 	}
 
-	/* We first update the modification info to buffer pages, and only
-	after that release the log mutex: this guarantees that when the log
-	mutex is free, all buffer pages contain an up-to-date info of their
-	modifications. This fact is used in making a checkpoint when we look
-	at the oldest modification of any page in the buffer pool. It is also
-	required when we insert modified buffer pages in to the flush list
-	which must be sorted on oldest_modification. */
-
 	mtr_memo_pop_all(mtr);
-
-	if (write_log) {
-		log_release();
-	}
 #endif /* !UNIV_HOTBACKUP */
 
 	ut_d(mtr->state = MTR_COMMITTED);
@@ -241,6 +294,10 @@ mtr_rollback_to_savepoint(
 		slot = dyn_array_get_element(memo, offset);
 
 		ut_ad(slot->type != MTR_MEMO_MODIFY);
+
+		/* We do not call mtr_memo_slot_note_modification()
+		because there MUST be no changes made to the buffer
+		pages after the savepoint */
 		mtr_memo_slot_release(mtr, slot);
 	}
 }
@@ -267,18 +324,23 @@ mtr_memo_release(
 
 	offset = dyn_array_get_data_size(memo);
 
+	buf_flush_order_mutex_enter();
 	while (offset > 0) {
 		offset -= sizeof(mtr_memo_slot_t);
 
 		slot = dyn_array_get_element(memo, offset);
 
-		if ((object == slot->object) && (type == slot->type)) {
+		if (object == slot->object && type == slot->type) {
+			if (mtr->modifications) {
+				mtr_memo_slot_note_modification(mtr, slot);
+			}
 
 			mtr_memo_slot_release(mtr, slot);
 
 			break;
 		}
 	}
+	buf_flush_order_mutex_exit();
 }
 #endif /* !UNIV_HOTBACKUP */
 

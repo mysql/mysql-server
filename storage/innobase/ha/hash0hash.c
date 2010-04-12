@@ -31,6 +31,11 @@ Created 5/20/1997 Heikki Tuuri
 #include "mem0mem.h"
 
 #ifndef UNIV_HOTBACKUP
+
+# ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	hash_table_mutex_key;
+# endif /* UNIV_PFS_MUTEX */
+
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
 UNIV_INTERN
@@ -119,7 +124,7 @@ hash_create(
 	table->heaps = NULL;
 #endif /* !UNIV_HOTBACKUP */
 	table->heap = NULL;
-	table->magic_n = HASH_TABLE_MAGIC_N;
+	ut_d(table->magic_n = HASH_TABLE_MAGIC_N);
 
 	/* Initialize the cell array */
 	hash_table_clear(table);
@@ -135,6 +140,8 @@ hash_table_free(
 /*============*/
 	hash_table_t*	table)	/*!< in, own: hash table */
 {
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 #ifndef UNIV_HOTBACKUP
 	ut_a(table->mutexes == NULL);
 #endif /* !UNIV_HOTBACKUP */
@@ -160,13 +167,16 @@ hash_create_mutexes_func(
 {
 	ulint	i;
 
+	ut_ad(table);
+	ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
 	ut_a(n_mutexes > 0);
 	ut_a(ut_is_2pow(n_mutexes));
 
 	table->mutexes = mem_alloc(n_mutexes * sizeof(mutex_t));
 
 	for (i = 0; i < n_mutexes; i++) {
-		mutex_create(table->mutexes + i, sync_level);
+		mutex_create(hash_table_mutex_key,
+			     table->mutexes + i, sync_level);
 	}
 
 	table->n_mutexes = n_mutexes;

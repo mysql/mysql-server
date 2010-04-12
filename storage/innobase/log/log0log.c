@@ -1,23 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-*****************************************************************************/
-/*****************************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -98,6 +81,17 @@ UNIV_INTERN ulint	log_fsp_current_free_limit		= 0;
 
 /* Global log system variable */
 UNIV_INTERN log_t*	log_sys	= NULL;
+
+#ifdef UNIV_PFS_RWLOCK
+UNIV_INTERN mysql_pfs_key_t	checkpoint_lock_key;
+# ifdef UNIV_LOG_ARCHIVE
+UNIV_INTERN mysql_pfs_key_t	archive_lock_key;
+# endif
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	log_sys_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
 UNIV_INTERN ibool	log_do_write = TRUE;
@@ -773,7 +767,7 @@ log_init(void)
 {
 	log_sys = mem_alloc(sizeof(log_t));
 
-	mutex_create(&log_sys->mutex, SYNC_LOG);
+	mutex_create(log_sys_mutex_key, &log_sys->mutex, SYNC_LOG);
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -829,7 +823,8 @@ log_init(void)
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
 	log_sys->n_pending_checkpoint_writes = 0;
 
-	rw_lock_create(&log_sys->checkpoint_lock, SYNC_NO_ORDER_CHECK);
+	rw_lock_create(checkpoint_lock_key, &log_sys->checkpoint_lock,
+		       SYNC_NO_ORDER_CHECK);
 
 	log_sys->checkpoint_buf_ptr = mem_alloc(2 * OS_FILE_LOG_BLOCK_SIZE);
 	log_sys->checkpoint_buf = ut_align(log_sys->checkpoint_buf_ptr,
@@ -845,7 +840,8 @@ log_init(void)
 
 	log_sys->n_pending_archive_ios = 0;
 
-	rw_lock_create(&log_sys->archive_lock, SYNC_NO_ORDER_CHECK);
+	rw_lock_create(archive_lock_key, &log_sys->archive_lock,
+		       SYNC_NO_ORDER_CHECK);
 
 	log_sys->archive_buf = NULL;
 
@@ -2013,7 +2009,7 @@ log_checkpoint(
 		return(TRUE);
 	}
 
-	ut_ad(log_sys->written_to_all_lsn >= oldest_lsn);
+	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
 
 	if (log_sys->n_pending_checkpoint_writes > 0) {
 		/* A checkpoint write is running */
@@ -2371,13 +2367,15 @@ loop:
 		log_archived_file_name_gen(name, group->id,
 					   group->archived_file_no + n_files);
 
-		file_handle = os_file_create(name, open_mode, OS_FILE_AIO,
+		file_handle = os_file_create(innodb_file_log_key,
+					     name, open_mode,
+					     OS_FILE_AIO,
 					     OS_DATA_FILE, &ret);
 
 		if (!ret && (open_mode == OS_FILE_CREATE)) {
 			file_handle = os_file_create(
-				name, OS_FILE_OPEN, OS_FILE_AIO,
-				OS_DATA_FILE, &ret);
+				innodb_file_log_key, name, OS_FILE_OPEN,
+				OS_FILE_AIO, OS_DATA_FILE, &ret);
 		}
 
 		if (!ret) {
@@ -3095,7 +3093,7 @@ loop:
 
 	if (srv_fast_shutdown < 2
 	   && (srv_error_monitor_active
-	      || srv_lock_timeout_and_monitor_active)) {
+	      || srv_lock_timeout_active || srv_monitor_active)) {
 
 		mutex_exit(&kernel_mutex);
 

@@ -1,13 +1,21 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, 2009, Google Inc.
+Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
 briefly in the InnoDB documentation. The contributions by Google are
 incorporated with their permission, and subject to the conditions contained in
 the file COPYING.Google.
+
+Portions of this file contain modifications contributed and copyrighted
+by Percona Inc.. Those modifications are
+gratefully acknowledged and are described briefly in the InnoDB
+documentation. The contributions by Percona Inc. are incorporated with
+their permission, and subject to the conditions contained in the file
+COPYING.Percona.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,32 +30,6 @@ this program; if not, write to the Free Software Foundation, Inc., 59 Temple
 Place, Suite 330, Boston, MA 02111-1307 USA
 
 *****************************************************************************/
-/***********************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-Copyright (c) 2009, Percona Inc.
-
-Portions of this file contain modifications contributed and copyrighted
-by Percona Inc.. Those modifications are
-gratefully acknowledged and are described briefly in the InnoDB
-documentation. The contributions by Percona Inc. are incorporated with
-their permission, and subject to the conditions contained in the file
-COPYING.Percona.
-
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by the
-Free Software Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but
-WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
-Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-
-***********************************************************************/
 
 /**************************************************//**
 @file include/srv0srv.h
@@ -125,6 +107,11 @@ on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 #endif /* !UNIV_HOTBACKUP */
 
+/* If this flag is TRUE, then we will use the native aio of the
+OS (provided we compiled Innobase with it in), otherwise we will
+use simulated aio we build below with threads.
+Currently we support native aio on windows and linux */
+extern my_bool	srv_use_native_aio;
 extern ulint	srv_n_data_files;
 extern char**	srv_data_file_names;
 extern ulint*	srv_data_file_sizes;
@@ -224,7 +211,8 @@ extern ibool	srv_print_innodb_tablespace_monitor;
 extern ibool	srv_print_verbose_log;
 extern ibool	srv_print_innodb_table_monitor;
 
-extern ibool	srv_lock_timeout_and_monitor_active;
+extern ibool	srv_lock_timeout_active;
+extern ibool	srv_monitor_active;
 extern ibool	srv_error_monitor_active;
 
 extern ulong	srv_n_spin_wait_rounds;
@@ -283,6 +271,12 @@ extern ulint srv_os_log_pending_writes;
 log buffer and have to flush it */
 extern ulint srv_log_waits;
 
+/* the number of purge threads to use from the worker pool (currently 0 or 1) */
+extern ulint srv_n_purge_threads;
+
+/* the number of records to purge in one batch */
+extern ulint srv_purge_batch_size;
+
 /* variable that counts amount of data read in total (in bytes) */
 extern ulint srv_data_read;
 
@@ -324,6 +318,37 @@ typedef struct srv_sys_struct	srv_sys_t;
 
 /** The server system */
 extern srv_sys_t*	srv_sys;
+
+# ifdef UNIV_PFS_THREAD
+/* Keys to register InnoDB threads with performance schema */
+extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
+extern mysql_pfs_key_t	io_handler_thread_key;
+extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
+extern mysql_pfs_key_t	srv_error_monitor_thread_key;
+extern mysql_pfs_key_t	srv_monitor_thread_key;
+extern mysql_pfs_key_t	srv_master_thread_key;
+
+/* This macro register the current thread and its key with performance
+schema */
+#  define pfs_register_thread(key)			\
+do {								\
+	if (PSI_server) {					\
+		struct PSI_thread* psi = PSI_server->new_thread(key, NULL, 0);\
+		if (psi) {					\
+			PSI_server->set_thread(psi);		\
+		}						\
+	}							\
+} while (0)
+
+/* This macro delist the current thread from performance schema */
+#  define pfs_delete_thread()				\
+do {								\
+	if (PSI_server) {					\
+		PSI_server->delete_current_thread();		\
+	}							\
+} while (0)
+# endif /* UNIV_PFS_THREAD */
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** Types of raw partitions in innodb_data_file_path */
@@ -464,6 +489,12 @@ srv_master_thread(
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /*******************************************************************//**
+Wakes up the purge thread if it's not already awake. */
+UNIV_INTERN
+void
+srv_wake_purge_thread(void);
+/*=======================*/
+/*******************************************************************//**
 Tells the Innobase server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
 in the MySQL interface. Note that there is a small chance that the master
@@ -479,6 +510,16 @@ UNIV_INTERN
 void
 srv_wake_master_thread(void);
 /*========================*/
+/*******************************************************************//**
+Tells the purge thread that there has been activity in the database
+and wakes up the purge thread if it is suspended (not sleeping).  Note
+that there is a small chance that the purge thread stays suspended
+(we do not protect our operation with the kernel mutex, for
+performace reasons). */
+UNIV_INTERN
+void
+srv_wake_purge_thread_if_not_active(void);
+/*=====================================*/
 /*********************************************************************//**
 Puts an OS thread to wait if there are too many concurrent threads
 (>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
@@ -537,15 +578,23 @@ srv_release_mysql_thread_if_suspended(
 				MySQL OS thread	 */
 /*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.
-This also prints the info output by various InnoDB monitors.
 @return	a dummy parameter */
 UNIV_INTERN
 os_thread_ret_t
-srv_lock_timeout_and_monitor_thread(
-/*================================*/
+srv_lock_timeout_thread(
+/*====================*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /*********************************************************************//**
+A thread which prints the info output by various InnoDB monitors.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_monitor_thread(
+/*===============*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+/*************************************************************************
 A thread which prints warnings about semaphore waits which have lasted
 too long. These can be used to track bugs which cause hangs.
 @return	a dummy parameter */
@@ -556,12 +605,15 @@ srv_error_monitor_thread(
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /******************************************************************//**
-Outputs to a file the output of the InnoDB Monitor. */
+Outputs to a file the output of the InnoDB Monitor.
+@return FALSE if not all information printed
+due to failure to obtain necessary mutex */
 UNIV_INTERN
-void
+ibool
 srv_printf_innodb_monitor(
 /*======================*/
 	FILE*	file,		/*!< in: output stream */
+	ibool	nowait,		/*!< in: whether to wait for kernel mutex */
 	ulint*	trx_start,	/*!< out: file position of the start of
 				the list of active transactions */
 	ulint*	trx_end);	/*!< out: file position of the end of
@@ -574,6 +626,15 @@ void
 srv_export_innodb_status(void);
 /*==========================*/
 
+/*********************************************************************//**
+Asynchronous purge thread.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_thread(
+/*=============*/
+	void*	arg __attribute__((unused))); /*!< in: a dummy parameter
+					      required by os_thread_create */
 /** Thread slot in the thread table */
 typedef struct srv_slot_struct	srv_slot_t;
 
@@ -643,8 +704,9 @@ struct srv_sys_struct{
 
 extern ulint	srv_n_threads_active[];
 #else /* !UNIV_HOTBACKUP */
-# define srv_use_checksums			TRUE
 # define srv_use_adaptive_hash_indexes		FALSE
+# define srv_use_checksums			TRUE
+# define srv_use_native_aio			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)
 # define srv_is_being_started			0

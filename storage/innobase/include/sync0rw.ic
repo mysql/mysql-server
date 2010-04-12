@@ -622,3 +622,265 @@ rw_lock_x_unlock_direct(
 	rw_x_exit_count++;
 #endif
 }
+
+#ifdef UNIV_PFS_RWLOCK
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_create_func().
+NOTE! Please use the corresponding macro rw_lock_create(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_create_func(
+/*====================*/
+	mysql_pfs_key_t	key,		/*!< in: key registered with
+					performance schema */
+	rw_lock_t*	lock,		/*!< in: pointer to memory */
+# ifdef UNIV_DEBUG
+#  ifdef UNIV_SYNC_DEBUG
+	ulint		level,		/*!< in: level */
+#  endif /* UNIV_SYNC_DEBUG */
+	const char*	cmutex_name,	/*!< in: mutex name */
+# endif /* UNIV_DEBUG */
+	const char*	cfile_name,	/*!< in: file name where created */
+	ulint		cline)		/*!< in: file line where created */
+{
+	/* Initialize the rwlock for performance schema */
+	lock->pfs_psi = (PSI_server && PFS_IS_INSTRUMENTED(key))
+				? PSI_server->init_rwlock(key, lock)
+				: NULL;
+
+	/* The actual function to initialize an rwlock */
+	rw_lock_create_func(lock,
+# ifdef UNIV_DEBUG
+#  ifdef UNIV_SYNC_DEBUG
+			    level,
+#  endif /* UNIV_SYNC_DEBUG */
+			    cmutex_name,
+# endif /* UNIV_DEBUG */
+			    cfile_name,
+		            cline);
+}
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_x_lock_func()
+NOTE! Please use the corresponding macro rw_lock_x_lock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_x_lock_func(
+/*====================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the lock will
+				be passed to another thread to unlock */
+	const char*	file_name,/*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	struct PSI_rwlock_locker* locker = NULL;
+
+	/* Record the entry of rw x lock request in performance schema */
+	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
+		locker = PSI_server->get_thread_rwlock_locker(
+			lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
+
+		if (locker) {
+			PSI_server->start_rwlock_wrwait(locker,
+							file_name, line);
+		}
+	}
+
+	rw_lock_x_lock_func(lock, pass, file_name, line);
+
+	if (locker) {
+		PSI_server->end_rwlock_wrwait(locker, 0);
+	}
+}
+/******************************************************************//**
+Performance schema instrumented wrap function for
+rw_lock_x_lock_func_nowait()
+NOTE! Please use the corresponding macro rw_lock_x_lock_func(),
+not directly this function!
+@return	TRUE if success */
+UNIV_INLINE
+ibool
+pfs_rw_lock_x_lock_func_nowait(
+/*===========================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	const char*	file_name,/*!< in: file name where lock
+				requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	struct PSI_rwlock_locker* locker = NULL;
+	ibool	ret;
+
+	/* Record the entry of rw x lock request in performance schema */
+	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
+		locker = PSI_server->get_thread_rwlock_locker(
+			lock->pfs_psi, PSI_RWLOCK_WRITELOCK);
+
+		if (locker) {
+			PSI_server->start_rwlock_wrwait(locker,
+							file_name, line);
+		}
+	}
+
+	ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
+
+	if (locker) {
+		PSI_server->end_rwlock_wrwait(locker, 0);
+	}
+
+	return(ret);
+}
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_free_func()
+NOTE! Please use the corresponding macro rw_lock_free(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_free_func(
+/*==================*/
+	rw_lock_t*	lock)	/*!< in: pointer to rw-lock */
+{
+	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
+		PSI_server->destroy_rwlock(lock->pfs_psi);
+		lock->pfs_psi = NULL;
+	}
+
+	rw_lock_free_func(lock);
+}
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_lock_func()
+NOTE! Please use the corresponding macro rw_lock_s_lock(), not
+directly this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_s_lock_func(
+/*====================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock will be passed to another
+				thread to unlock */
+	const char*	file_name,/*!< in: file name where lock
+				requested */
+	ulint		line)	/*!< in: line where requested */
+{
+	struct PSI_rwlock_locker* locker = NULL;
+
+	/* Instrumented to inform we are aquiring a shared rwlock */
+	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
+		locker = PSI_server->get_thread_rwlock_locker(
+			lock->pfs_psi, PSI_RWLOCK_READLOCK);
+		if (locker) {
+			PSI_server->start_rwlock_rdwait(locker,
+							file_name, line);
+		}
+	}
+
+	rw_lock_s_lock_func(lock, pass, file_name, line);
+
+	if (locker) {
+		PSI_server->end_rwlock_rdwait(locker, 0);
+	}
+}
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_lock_func()
+NOTE! Please use the corresponding macro rw_lock_s_lock(), not
+directly this function!
+@return	TRUE if success */
+UNIV_INLINE
+ibool
+pfs_rw_lock_s_lock_low(
+/*===================*/
+	rw_lock_t*	lock,	/*!< in: pointer to rw-lock */
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock will be passed to another
+				thread to unlock */
+	const char*	file_name, /*!< in: file name where lock requested */
+	ulint		line)	/*!< in: line where requested */
+{
+
+	struct PSI_rwlock_locker* locker = NULL;
+	ibool	ret;
+
+	/* Instrumented to inform we are aquiring a shared rwlock */
+	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
+		locker = PSI_server->get_thread_rwlock_locker(
+			lock->pfs_psi, PSI_RWLOCK_READLOCK);
+		if (locker) {
+			PSI_server->start_rwlock_rdwait(locker,
+							file_name, line);
+		}
+	}
+
+	ret = rw_lock_s_lock_low(lock, pass, file_name, line);
+
+	if (locker) {
+		PSI_server->end_rwlock_rdwait(locker, 0);
+	}
+
+	return(ret);
+}
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_x_unlock_func()
+NOTE! Please use the corresponding macro rw_lock_x_unlock(), not directly
+this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_x_unlock_func(
+/*======================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock may have been passed to another
+				thread to unlock */
+#endif
+	rw_lock_t*	lock)	/*!< in/out: rw-lock */
+{
+	/* Inform performance schema we are unlocking the lock */
+	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
+		struct PSI_thread*	thread;
+		thread = PSI_server->get_thread();
+		if (thread) {
+			PSI_server->unlock_rwlock(thread, lock->pfs_psi);
+		}
+	}
+
+	rw_lock_x_unlock_func(
+#ifdef UNIV_SYNC_DEBUG
+		pass,
+#endif
+		lock);
+}
+
+/******************************************************************//**
+Performance schema instrumented wrap function for rw_lock_s_unlock_func()
+NOTE! Please use the corresponding macro pfs_rw_lock_s_unlock(), not
+directly this function! */
+UNIV_INLINE
+void
+pfs_rw_lock_s_unlock_func(
+/*======================*/
+#ifdef UNIV_SYNC_DEBUG
+	ulint		pass,	/*!< in: pass value; != 0, if the
+				lock may have been passed to another
+				thread to unlock */
+#endif
+	rw_lock_t*	lock)	/*!< in/out: rw-lock */
+{
+	/* Inform performance schema we are unlocking the lock */
+	if (UNIV_LIKELY(PSI_server && lock->pfs_psi)) {
+		struct PSI_thread*	thread;
+		thread = PSI_server->get_thread();
+		if (thread) {
+			PSI_server->unlock_rwlock(thread, lock->pfs_psi);
+		}
+	}
+
+	rw_lock_s_unlock_func(
+#ifdef UNIV_SYNC_DEBUG
+		pass,
+#endif
+		lock);
+
+}
+#endif /* UNIV_PFS_RWLOCK */

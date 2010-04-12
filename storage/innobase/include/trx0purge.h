@@ -112,8 +112,10 @@ This function runs a purge batch.
 @return	number of undo log pages handled in the batch */
 UNIV_INTERN
 ulint
-trx_purge(void);
-/*===========*/
+trx_purge(
+/*======*/
+	ulint	limit);		/*!< in: the maximum number of records to
+				purge in one batch */
 /******************************************************************//**
 Prints information of the purge system to stderr. */
 UNIV_INTERN

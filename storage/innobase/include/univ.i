@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2009, Sun Microsystems, Inc.
 
@@ -45,8 +45,8 @@ Created 1/20/1994 Heikki Tuuri
 #endif /* UNIV_HOTBACKUP */
 
 #define INNODB_VERSION_MAJOR	1
-#define INNODB_VERSION_MINOR	0
-#define INNODB_VERSION_BUGFIX	6
+#define INNODB_VERSION_MINOR	1
+#define INNODB_VERSION_BUGFIX	0
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -144,6 +144,23 @@ Sun Studio */
 
 #endif /* #if (defined(WIN32) || ... */
 
+/* Following defines are to enable performance schema
+instrumentation in each of four InnoDB modules if
+HAVE_PSI_INTERFACE is defined. */
+#ifdef HAVE_PSI_INTERFACE
+# define UNIV_PFS_MUTEX
+# define UNIV_PFS_RWLOCK
+/* For I/O instrumentation, performance schema rely
+on a native descriptor to identify the file, this
+descriptor could conflict with our OS level descriptor.
+Disable IO instrumentation on Windows until this is
+resolved */
+# ifndef __WIN__
+#  define UNIV_PFS_IO
+# endif
+# define UNIV_PFS_THREAD
+#endif /* HAVE_PSI_INTERFACE */
+
 /*			DEBUG VERSION CONTROL
 			===================== */
 
@@ -208,6 +225,9 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						for compressed pages */
 #define UNIV_ZIP_COPY				/* call page_zip_copy_recs()
 						more often */
+#define UNIV_AIO_DEBUG				/* prints info about
+						submitted and reaped AIO
+						requests to the log. */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
@@ -229,11 +249,6 @@ by one. */
 			/* the above option prevents forcing of log to disk
 			at a buffer page write: it should be tested with this
 			option off; also some ibuf tests are suppressed */
-/*
-#define UNIV_BASIC_LOG_DEBUG
-*/
-			/* the above option enables basic recovery debugging:
-			new allocated file pages are reset */
 
 /* Linkage specifier for non-static InnoDB symbols (variables and functions)
 that are only referenced from within InnoDB, not from MySQL */

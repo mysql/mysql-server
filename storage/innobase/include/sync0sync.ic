@@ -152,11 +152,12 @@ mutex_get_waiters(
 }
 
 /******************************************************************//**
+NOTE! Use the corresponding macro mutex_exit(), not directly this function!
 Unlocks a mutex owned by the current thread. */
 UNIV_INLINE
 void
-mutex_exit(
-/*=======*/
+mutex_exit_func(
+/*============*/
 	mutex_t*	mutex)	/*!< in: pointer to mutex */
 {
 	ut_ad(mutex_own(mutex));
@@ -220,3 +221,148 @@ mutex_enter_func(
 
 	mutex_spin_wait(mutex, file_name, line);
 }
+
+#ifdef UNIV_PFS_MUTEX
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_enter(), not directly
+this function!
+This is a performance schema instrumented wrapper function for
+mutex_enter_func(). */
+UNIV_INLINE
+void
+pfs_mutex_enter_func(
+/*=================*/
+	mutex_t*	mutex,	/*!< in: pointer to mutex */
+	const char*	file_name,	/*!< in: file name where locked */
+	ulint		line)		/*!< in: line where locked */
+{
+	struct PSI_mutex_locker*	locker = NULL;
+	int	result = 0;
+
+	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
+		locker = PSI_server->get_thread_mutex_locker(
+				mutex->pfs_psi, PSI_MUTEX_LOCK);
+		if (locker) {
+			PSI_server->start_mutex_wait(locker, file_name, line);
+		}
+	}
+
+	mutex_enter_func(mutex, file_name, line);
+
+	if (locker) {
+		PSI_server->end_mutex_wait(locker, result);
+	}
+}
+/********************************************************************//**
+NOTE! Please use the corresponding macro mutex_enter_nowait(), not directly
+this function!
+This is a performance schema instrumented wrapper function for
+mutex_enter_nowait_func.
+@return 0 if succeed, 1 if not */
+UNIV_INLINE
+ulint
+pfs_mutex_enter_nowait_func(
+/*========================*/
+	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	const char*	file_name,	/*!< in: file name where mutex
+					requested */
+	ulint		line)		/*!< in: line where requested */
+{
+	ulint	ret;
+	struct PSI_mutex_locker*	locker = NULL;
+	int	result = 0;
+
+	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
+		locker = PSI_server->get_thread_mutex_locker(
+				mutex->pfs_psi, PSI_MUTEX_LOCK);
+		if (locker) {
+			PSI_server->start_mutex_wait(locker, file_name, line);
+		}
+	}
+
+	ret = mutex_enter_nowait_func(mutex, file_name, line);
+
+	if (locker) {
+		PSI_server->end_mutex_wait(locker, result);
+	}
+
+	return(ret);
+}
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_exit(), not directly
+this function!
+A wrap function of mutex_exit_func() with performance schema instrumentation.
+Unlocks a mutex owned by the current thread. */
+UNIV_INLINE
+void
+pfs_mutex_exit_func(
+/*================*/
+	mutex_t*	mutex)	/*!< in: pointer to mutex */
+{
+	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
+		struct PSI_thread*	thread;
+		thread = PSI_server->get_thread();
+
+		if (thread) {
+			PSI_server->unlock_mutex(thread, mutex->pfs_psi);
+		}
+	}
+
+	mutex_exit_func(mutex);
+}
+
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_create(), not directly
+this function!
+A wrapper function for mutex_create_func(), registers the mutex
+with performance schema if "UNIV_PFS_MUTEX" is defined when
+creating the mutex */
+UNIV_INLINE
+void
+pfs_mutex_create_func(
+/*==================*/
+	mysql_pfs_key_t	key,		/*!< in: Performance Schema key */
+	mutex_t*	mutex,		/*!< in: pointer to memory */
+# ifdef UNIV_DEBUG
+	const char*	cmutex_name,	/*!< in: mutex name */
+#  ifdef UNIV_SYNC_DEBUG
+	ulint		level,		/*!< in: level */
+#  endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
+	const char*	cfile_name,	/*!< in: file name where created */
+	ulint		cline)		/*!< in: file line where created */
+{
+	mutex->pfs_psi = (PSI_server && PFS_IS_INSTRUMENTED(key))
+				? PSI_server->init_mutex(key, mutex)
+				: NULL;
+
+	mutex_create_func(mutex,
+# ifdef UNIV_DEBUG
+			  cmutex_name,
+#  ifdef UNIV_SYNC_DEBUG
+			  level,
+#  endif /* UNIV_SYNC_DEBUG */
+# endif /* UNIV_DEBUG */
+			  cfile_name,
+			  cline);
+}
+/******************************************************************//**
+NOTE! Please use the corresponding macro mutex_free(), not directly
+this function!
+Wrapper function for mutex_free_func(). Also destroys the performance
+schema probes when freeing the mutex */
+UNIV_INLINE
+void
+pfs_mutex_free_func(
+/*===================*/
+	mutex_t*	mutex)	/*!< in: mutex */
+{
+	if (UNIV_LIKELY(PSI_server && mutex->pfs_psi)) {
+		PSI_server->destroy_mutex(mutex->pfs_psi);
+		mutex->pfs_psi= NULL;
+	}
+
+	mutex_free_func(mutex);
+}
+
+#endif /* UNIV_PFS_MUTEX */

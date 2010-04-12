@@ -23,8 +23,8 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
+#include <mysql_priv.h>
 #include <mysqld_error.h>
-#include <sql_acl.h>                            // PROCESS_ACL
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -32,8 +32,7 @@ Created July 18, 2007 Vasil Dimov
 #include <mysys_err.h>
 #include <my_sys.h>
 #include "i_s.h"
-#include <sql_plugin.h>
-#include <mysql/innodb_priv.h>
+#include <mysql/plugin.h>
 
 extern "C" {
 #include "trx0i_s.h"

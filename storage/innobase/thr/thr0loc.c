@@ -53,6 +53,11 @@ static hash_table_t*	thr_local_hash	= NULL;
 /** Thread local data */
 typedef struct thr_local_struct thr_local_t;
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register the mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	thr_local_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
 /** @brief Thread local data.
 The private data for each thread should be put to
 the structure below and the accessor functions written
@@ -244,7 +249,8 @@ thr_local_init(void)
 
 	thr_local_hash = hash_create(OS_THREAD_MAX_N + 100);
 
-	mutex_create(&thr_local_mutex, SYNC_THR_LOCAL);
+	mutex_create(thr_local_mutex_key,
+		     &thr_local_mutex, SYNC_THR_LOCAL);
 }
 
 /********************************************************************
