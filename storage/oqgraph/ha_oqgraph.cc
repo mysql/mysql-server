@@ -357,7 +357,8 @@ ulong ha_oqgraph::table_flags() const
 #endif
 {
   return (HA_NO_BLOBS | HA_NULL_IN_KEY |
-          HA_REC_NOT_IN_SEQ | HA_CAN_INSERT_DELAYED);
+          HA_REC_NOT_IN_SEQ | HA_CAN_INSERT_DELAYED |
+          HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE);
 }
 
 ulong ha_oqgraph::index_flags(uint inx, uint part, bool all_parts) const
