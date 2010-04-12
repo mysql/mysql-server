@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -68,18 +68,29 @@ enum btr_latch_mode {
 	BTR_MODIFY_PREV = 36
 };
 
+/* BTR_INSERT, BTR_DELETE and BTR_DELETE_MARK are mutually exclusive. */
+
 /** If this is ORed to btr_latch_mode, it means that the search tuple
-will be inserted to the index, at the searched position */
+will be inserted to the index, at the searched position.
+When the record is not in the buffer pool, try to use the insert buffer. */
 #define BTR_INSERT		512
 
 /** This flag ORed to btr_latch_mode says that we do the search in query
 optimization */
 #define BTR_ESTIMATE		1024
 
-/** This flag ORed to btr_latch_mode says that we can ignore possible
+/** This flag ORed to BTR_INSERT says that we can ignore possible
 UNIQUE definition on secondary indexes when we decide if we can use
 the insert buffer to speed up inserts */
 #define BTR_IGNORE_SEC_UNIQUE	2048
+
+/** Try to delete mark the record at the searched position using the
+insert/delete buffer when the record is not in the buffer pool. */
+#define BTR_DELETE_MARK		4096
+
+/** Try to purge the record at the searched position using the insert/delete
+buffer when the record is not in the buffer pool. */
+#define BTR_DELETE		8192
 
 /**************************************************************//**
 Gets the root node of a tree and x-latches it.
@@ -193,6 +204,10 @@ btr_leaf_page_release(
 	mtr_t*		mtr);		/*!< in: mtr */
 /**************************************************************//**
 Gets the child node file address in a node pointer.
+NOTE: the offsets array must contain all offsets for the record since
+we read the last field according to offsets and assume that it contains
+the child page number. In other words offsets must have been retrieved
+with rec_get_offsets(n_fields=ULINT_UNDEFINED).
 @return	child node address */
 UNIV_INLINE
 ulint
@@ -317,12 +332,16 @@ Inserts a data tuple to a tree on a non-leaf level. It is assumed
 that mtr holds an x-latch on the tree. */
 UNIV_INTERN
 void
-btr_insert_on_non_leaf_level(
-/*=========================*/
+btr_insert_on_non_leaf_level_func(
+/*==============================*/
 	dict_index_t*	index,	/*!< in: index */
 	ulint		level,	/*!< in: level, must be > 0 */
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mtr */
+# define btr_insert_on_non_leaf_level(i,l,t,m)				\
+	btr_insert_on_non_leaf_level_func(i,l,t,__FILE__,__LINE__,m)
 #endif /* !UNIV_HOTBACKUP */
 /****************************************************************//**
 Sets a record as the predefined minimum record. */

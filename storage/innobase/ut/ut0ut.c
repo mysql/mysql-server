@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2009, Sun Microsystems, Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -623,3 +623,105 @@ ut_snprintf(
 	return(res);
 }
 #endif /* __WIN__ */
+
+/*************************************************************//**
+Convert an error number to a human readable text message. The
+returned string is static and should not be freed or modified.
+@return	string, describing the error */
+UNIV_INTERN
+const char*
+ut_strerr(
+/*======*/
+	enum db_err	num)	/*!< in: error number */
+{
+	switch (num) {
+	case DB_SUCCESS:
+		return("Success");
+	case DB_ERROR:
+		return("Generic error");
+	case DB_INTERRUPTED:
+		return("Operation interrupted");
+	case DB_OUT_OF_MEMORY:
+		return("Cannot allocate memory");
+	case DB_OUT_OF_FILE_SPACE:
+		return("Out of disk space");
+	case DB_LOCK_WAIT:
+		return("Lock wait");
+	case DB_DEADLOCK:
+		return("Deadlock");
+	case DB_ROLLBACK:
+		return("Rollback");
+	case DB_DUPLICATE_KEY:
+		return("Duplicate key");
+	case DB_QUE_THR_SUSPENDED:
+		return("The queue thread has been suspended");
+	case DB_MISSING_HISTORY:
+		return("Required history data has been deleted");
+	case DB_CLUSTER_NOT_FOUND:
+		return("Cluster not found");
+	case DB_TABLE_NOT_FOUND:
+		return("Table not found");
+	case DB_MUST_GET_MORE_FILE_SPACE:
+		return("More file space needed");
+	case DB_TABLE_IS_BEING_USED:
+		return("Table is being used");
+	case DB_TOO_BIG_RECORD:
+		return("Record too big");
+	case DB_LOCK_WAIT_TIMEOUT:
+		return("Lock wait timeout");
+	case DB_NO_REFERENCED_ROW:
+		return("Referenced key value not found");
+	case DB_ROW_IS_REFERENCED:
+		return("Row is referenced");
+	case DB_CANNOT_ADD_CONSTRAINT:
+		return("Cannot add constraint");
+	case DB_CORRUPTION:
+		return("Data structure corruption");
+	case DB_COL_APPEARS_TWICE_IN_INDEX:
+		return("Column appears twice in index");
+	case DB_CANNOT_DROP_CONSTRAINT:
+		return("Cannot drop constraint");
+	case DB_NO_SAVEPOINT:
+		return("No such savepoint");
+	case DB_TABLESPACE_ALREADY_EXISTS:
+		return("Tablespace already exists");
+	case DB_TABLESPACE_DELETED:
+		return("No such tablespace");
+	case DB_LOCK_TABLE_FULL:
+		return("Lock structs have exhausted the buffer pool");
+	case DB_FOREIGN_DUPLICATE_KEY:
+		return("Foreign key activated with duplicate keys");
+	case DB_TOO_MANY_CONCURRENT_TRXS:
+		return("Too many concurrent transactions");
+	case DB_UNSUPPORTED:
+		return("Unsupported");
+	case DB_PRIMARY_KEY_IS_NULL:
+		return("Primary key is NULL");
+	case DB_STATS_DO_NOT_EXIST:
+		return("Persistent statistics do not exist");
+	case DB_FAIL:
+		return("Failed, retry may succeed");
+	case DB_OVERFLOW:
+		return("Overflow");
+	case DB_UNDERFLOW:
+		return("Underflow");
+	case DB_STRONG_FAIL:
+		return("Failed, retry will not succeed");
+	case DB_ZIP_OVERFLOW:
+		return("Zip overflow");
+	case DB_RECORD_NOT_FOUND:
+		return("Record not found");
+	case DB_END_OF_INDEX:
+		return("End of index");
+	/* do not add default: in order to produce a warning if new code
+	is added to the enum but not added here */
+	}
+
+	/* we abort here because if unknown error code is given, this could
+	mean that memory corruption has happened and someone's error-code
+	variable has been overwritten with bogus data */
+	ut_error;
+
+	/* NOT REACHED */
+	return("Unknown error");
+}

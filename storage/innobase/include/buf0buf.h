@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "page0types.h"
 #ifndef UNIV_HOTBACKUP
+#include "ut0rbt.h"
 #include "os0proc.h"
 
 /** @name Modes for buf_page_get_gen */
@@ -46,6 +47,10 @@ Created 11/5/1995 Heikki Tuuri
 					it is error-prone programming
 					not to set a latch, and it
 					should be used with care */
+#define BUF_GET_IF_IN_POOL_OR_WATCH	15
+					/*!< Get the page only if it's in the
+					buffer pool, if not then set a watch
+					on the page. */
 /* @} */
 /** @name Modes for buf_page_get_known_nowait */
 /* @{ */
@@ -81,6 +86,8 @@ The enumeration values must be 0..7. */
 enum buf_page_state {
 	BUF_BLOCK_ZIP_FREE = 0,		/*!< contains a free
 					compressed page */
+	BUF_BLOCK_POOL_WATCH = 0,	/*!< a sentinel for the buffer pool
+					watch, element of buf_pool_watch[] */
 	BUF_BLOCK_ZIP_PAGE,		/*!< contains a clean
 					compressed page */
 	BUF_BLOCK_ZIP_DIRTY,		/*!< contains a compressed
@@ -202,20 +209,14 @@ with care. */
 #define buf_page_get_with_no_latch(SP, ZS, OF, MTR)	   buf_page_get_gen(\
 				SP, ZS, OF, RW_NO_LATCH, NULL,\
 				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
-/**************************************************************//**
-NOTE! The following macros should be used instead of
-buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
-RW_X_LATCH are allowed as LA! */
-#define buf_page_optimistic_get(LA, BL, MC, MTR)			     \
-	buf_page_optimistic_get_func(LA, BL, MC, __FILE__, __LINE__, MTR)
 /********************************************************************//**
 This is the general function used to get optimistic access to a database
 page.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-buf_page_optimistic_get_func(
-/*=========================*/
+buf_page_optimistic_get(
+/*====================*/
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH */
 	buf_block_t*	block,	/*!< in: guessed block */
 	ib_uint64_t	modify_clock,/*!< in: modify clock value if mode is
@@ -291,7 +292,8 @@ buf_page_get_gen(
 	ulint		rw_latch,/*!< in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/*!< in: guessed block or NULL */
 	ulint		mode,	/*!< in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH */
+				BUF_GET_NO_LATCH or
+				BUF_GET_IF_IN_POOL_OR_WATCH */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mini-transaction */
@@ -341,9 +343,8 @@ void
 buf_page_release(
 /*=============*/
 	buf_block_t*	block,		/*!< in: buffer block */
-	ulint		rw_latch,	/*!< in: RW_S_LATCH, RW_X_LATCH,
+	ulint		rw_latch);	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
-	mtr_t*		mtr);		/*!< in: mtr */
 /********************************************************************//**
 Moves a page to the start of the buffer pool LRU list. This high-level
 function can be used to prevent an important page from slipping out of
@@ -995,6 +996,16 @@ Returns the control block of a file page, NULL if not found.
 @return	block, NULL if not found */
 UNIV_INLINE
 buf_page_t*
+buf_page_hash_get_low(
+/*==================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset,	/*!< in: offset of the page within space */
+	ulint	fold);	/*!< in: buf_page_address_fold(space, offset) */
+/******************************************************************//**
+Returns the control block of a file page, NULL if not found.
+@return	block, NULL if not found or not a real control block */
+UNIV_INLINE
+buf_page_t*
 buf_page_hash_get(
 /*==============*/
 	ulint	space,	/*!< in: space id */
@@ -1016,8 +1027,49 @@ UNIV_INTERN
 ulint
 buf_get_free_list_len(void);
 /*=======================*/
-#endif /* !UNIV_HOTBACKUP */
 
+/********************************************************************
+Determine if a block is a sentinel for a buffer pool watch.
+@return	TRUE if a sentinel for a buffer pool watch, FALSE if not */
+UNIV_INTERN
+ibool
+buf_pool_watch_is(
+/*==============*/
+	const buf_page_t*	bpage)	/*!< in: block */
+	__attribute__((nonnull, warn_unused_result));
+/****************************************************************//**
+Add watch for the given page to be read in. Caller must have the buffer pool
+@return NULL if watch set, block if the page is in the buffer pool */
+UNIV_INTERN
+buf_page_t*
+buf_pool_watch_set(
+/*===============*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset,	/*!< in: page number */
+	ulint	fold)	/*!< in: buf_page_address_fold(space, offset) */
+	__attribute__((warn_unused_result));
+/****************************************************************//**
+Stop watching if the page has been read in.
+buf_pool_watch_set(space,offset) must have returned NULL before. */
+UNIV_INTERN
+void
+buf_pool_watch_unset(
+/*=================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset);/*!< in: page number */
+/****************************************************************//**
+Check if the page has been read in.
+This may only be called after buf_pool_watch_set(space,offset)
+has returned NULL and before invoking buf_pool_watch_unset(space,offset).
+@return	FALSE if the given page was not read in, TRUE if it was */
+UNIV_INTERN
+ibool
+buf_pool_watch_occurred(
+/*====================*/
+	ulint	space,	/*!< in: space id */
+	ulint	offset)	/*!< in: page number */
+	__attribute__((warn_unused_result));
+#endif /* !UNIV_HOTBACKUP */
 
 /** The common buffer control block structure
 for compressed and uncompressed frames */
@@ -1057,7 +1109,10 @@ struct buf_page_struct{
 #endif /* !UNIV_HOTBACKUP */
 	page_zip_des_t	zip;		/*!< compressed page; zip.data
 					(but not the data it points to) is
-					also protected by buf_pool_mutex */
+					also protected by buf_pool_mutex;
+					state == BUF_BLOCK_ZIP_PAGE and
+					zip.data == NULL means an active
+					buf_pool_watch */
 #ifndef UNIV_HOTBACKUP
 	buf_page_t*	hash;		/*!< node used in chaining to
 					buf_pool->page_hash or
@@ -1073,8 +1128,9 @@ struct buf_page_struct{
 
 	UT_LIST_NODE_T(buf_page_t) list;
 					/*!< based on state, this is a
-					list node, protected only by
-					buf_pool_mutex, in one of the
+					list node, protected either by
+					buf_pool_mutex or by
+					flush_list_mutex, in one of the
 					following lists in buf_pool:
 
 					- BUF_BLOCK_NOT_USED:	free
@@ -1082,6 +1138,12 @@ struct buf_page_struct{
 					- BUF_BLOCK_ZIP_DIRTY:	flush_list
 					- BUF_BLOCK_ZIP_PAGE:	zip_clean
 					- BUF_BLOCK_ZIP_FREE:	zip_free[]
+
+					If bpage is part of flush_list
+					then the node pointers are
+					covered by flush_list_mutex.
+					Otherwise these pointers are
+					protected by buf_pool_mutex.
 
 					The contents of the list node
 					is undefined if !in_flush_list
@@ -1093,10 +1155,15 @@ struct buf_page_struct{
 
 #ifdef UNIV_DEBUG
 	ibool		in_flush_list;	/*!< TRUE if in buf_pool->flush_list;
-					when buf_pool_mutex is free, the
+					when flush_list_mutex is free, the
 					following should hold: in_flush_list
 					== (state == BUF_BLOCK_FILE_PAGE
-					    || state == BUF_BLOCK_ZIP_DIRTY) */
+					    || state == BUF_BLOCK_ZIP_DIRTY)
+					Writes to this field must be
+					covered by both block->mutex
+					and flush_list_mutex. Hence
+					reads can happen while holding
+					any one of the two mutexes */
 	ibool		in_free_list;	/*!< TRUE if in buf_pool->free; when
 					buf_pool_mutex is free, the following
 					should hold: in_free_list
@@ -1106,7 +1173,8 @@ struct buf_page_struct{
 					/*!< log sequence number of
 					the youngest modification to
 					this block, zero if not
-					modified */
+					modified. Protected by block
+					mutex */
 	ib_uint64_t	oldest_modification;
 					/*!< log sequence number of
 					the START of the log entry
@@ -1114,7 +1182,12 @@ struct buf_page_struct{
 					modification to this block
 					which has not yet been flushed
 					on disk; zero if all
-					modifications are on disk */
+					modifications are on disk.
+					Writes to this field must be
+					covered by both block->mutex
+					and flush_list_mutex. Hence
+					reads can happen while holding
+					any one of the two mutexes */
 	/* @} */
 	/** @name LRU replacement algorithm fields
 	These fields are protected by buf_pool_mutex only (not
@@ -1185,15 +1258,21 @@ struct buf_block_struct{
 	rw_lock_t	lock;		/*!< read-write lock of the buffer
 					frame */
 	unsigned	lock_hash_val:32;/*!< hashed value of the page address
-					in the record lock hash table */
-	unsigned	check_index_page_at_flush:1;
+					in the record lock hash table;
+					protected by buf_block_t::lock
+					(or buf_block_t::mutex, buf_pool_mutex
+				        in buf_page_get_gen(),
+					buf_page_init_for_read()
+					and buf_page_create()) */
+	ibool		check_index_page_at_flush;
 					/*!< TRUE if we know that this is
 					an index page, and want the database
 					to check its consistency before flush;
 					note that there may be pages in the
 					buffer pool which are index pages,
 					but this flag is not set because
-					we do not keep track of all pages */
+					we do not keep track of all pages;
+					NOT protected by any mutex */
 	/* @} */
 	/** @name Optimistic search field */
 	/* @{ */
@@ -1346,6 +1425,21 @@ struct buf_pool_struct{
 
 	/* @{ */
 
+	mutex_t		flush_list_mutex;/*!< mutex protecting the
+					flush list access. This mutex
+					protects flush_list, flush_rbt
+					and bpage::list pointers when
+					the bpage is on flush_list. It
+					also protects writes to
+					bpage::oldest_modification */
+	mutex_t		flush_order_mutex;/*!< mutex to serialize access to
+					the flush list when we are putting
+					dirty blocks in the list. The idea
+					behind this mutex is to be able
+					to release log_sys->mutex during
+					mtr_commit and still ensure that
+					insertions in the flush_list happen
+					in the LSN order. */
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
 					/*!< base node of the modified block
 					list */
@@ -1359,6 +1453,20 @@ struct buf_pool_struct{
 					/*!< this is in the set state
 					when there is no flush batch
 					of the given type running */
+	ib_rbt_t*	flush_rbt;	/*!< a red-black tree is used
+					exclusively during recovery to
+					speed up insertions in the
+					flush_list. This tree contains
+					blocks in order of
+					oldest_modification LSN and is
+					kept in sync with the
+					flush_list.
+					Each member of the tree MUST
+					also be on the flush_list.
+					This tree is relevant only in
+					recovery and is set to NULL
+					once the recovery is over.
+					Protected by flush_list_mutex */
 	ulint		freed_page_clock;/*!< a sequence number used
 					to count the number of buffer
 					blocks removed from the end of
@@ -1372,8 +1480,8 @@ struct buf_pool_struct{
 					this is incremented by one; this is
 					set to zero when a buffer block is
 					allocated */
-
 	/* @} */
+
 	/** @name LRU replacement algorithm fields */
 	/* @{ */
 
@@ -1438,6 +1546,31 @@ Use these instead of accessing buf_pool_mutex directly. */
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));	\
 	mutex_enter(&buf_pool_mutex);		\
 } while (0)
+
+/** Test if flush list mutex is owned. */
+#define buf_flush_list_mutex_own() mutex_own(&buf_pool->flush_list_mutex)
+
+/** Acquire the flush list mutex. */
+#define buf_flush_list_mutex_enter() do {	\
+	mutex_enter(&buf_pool->flush_list_mutex);	\
+} while (0)
+/** Release the flush list mutex. */
+# define buf_flush_list_mutex_exit() do {	\
+	mutex_exit(&buf_pool->flush_list_mutex);	\
+} while (0)
+
+/** Test if flush order mutex is owned. */
+#define buf_flush_order_mutex_own() mutex_own(&buf_pool->flush_order_mutex)
+
+/** Acquire the flush order mutex. */
+#define buf_flush_order_mutex_enter() do {	\
+	mutex_enter(&buf_pool->flush_order_mutex);	\
+} while (0)
+/** Release the flush order mutex. */
+# define buf_flush_order_mutex_exit() do {	\
+	mutex_exit(&buf_pool->flush_order_mutex);	\
+} while (0)
+
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /** Flag to forbid the release of the buffer pool mutex.

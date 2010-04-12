@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2007, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -28,11 +28,18 @@ table cache" for later retrieval.
 Created July 17, 2007 Vasil Dimov
 *******************************************************/
 
+/* Found during the build of 5.5.3 on Linux 2.4 and early 2.6 kernels:
+   The includes "univ.i" -> "my_global.h" cause a different path
+   to be taken further down with pthread functions and types,
+   so they must come first.
+   From the symptoms, this is related to bug#46587 in the MySQL bug DB.
+*/
+#include "univ.i"
+
 #include <mysql/plugin.h>
 
 #include "mysql_addons.h"
 
-#include "univ.i"
 #include "buf0buf.h"
 #include "dict0dict.h"
 #include "ha0storage.h"
@@ -185,6 +192,15 @@ static trx_i_s_cache_t	trx_i_s_cache_static;
 INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 UNIV_INTERN trx_i_s_cache_t*	trx_i_s_cache = &trx_i_s_cache_static;
+
+/* Key to register the lock/mutex with performance schema */
+#ifdef UNIV_PFS_RWLOCK
+UNIV_INTERN mysql_pfs_key_t	trx_i_s_cache_lock_key;
+#endif /* UNIV_PFS_RWLOCK */
+
+#ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	cache_last_read_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 /*******************************************************************//**
 For a record lock that is in waiting state retrieves the only bit that
@@ -1246,11 +1262,13 @@ trx_i_s_cache_init(
 	release trx_i_s_cache_t::last_read_mutex
 	release trx_i_s_cache_t::rw_lock */
 
-	rw_lock_create(&cache->rw_lock, SYNC_TRX_I_S_RWLOCK);
+	rw_lock_create(trx_i_s_cache_lock_key, &cache->rw_lock,
+		       SYNC_TRX_I_S_RWLOCK);
 
 	cache->last_read = 0;
 
-	mutex_create(&cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
+	mutex_create(cache_last_read_mutex_key,
+		     &cache->last_read_mutex, SYNC_TRX_I_S_LAST_READ);
 
 	table_cache_init(&cache->innodb_trx, sizeof(i_s_trx_row_t));
 	table_cache_init(&cache->innodb_locks, sizeof(i_s_locks_row_t));

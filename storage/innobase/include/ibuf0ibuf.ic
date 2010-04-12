@@ -55,10 +55,15 @@ struct ibuf_struct{
 	ulint		height;		/*!< tree height */
 	dict_index_t*	index;		/*!< insert buffer index */
 
-	ulint		n_inserts;	/*!< number of inserts made to
-					the insert buffer */
 	ulint		n_merges;	/*!< number of pages merged */
-	ulint		n_merged_recs;	/*!< number of records merged */
+	ulint		n_merged_ops[IBUF_OP_COUNT];
+					/*!< number of operations of each type
+					merged to index pages */
+	ulint		n_discarded_ops[IBUF_OP_COUNT];
+					/*!< number of operations of each type
+					discarded without merging due to the
+					tablespace being deleted or the
+					index being dropped */
 };
 
 /************************************************************************//**

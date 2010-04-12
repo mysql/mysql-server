@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -110,7 +110,7 @@ Adds the node as the last element in a two-way linked list.
 */
 #define UT_LIST_ADD_LAST(NAME, BASE, N)\
 {\
-	ut_ad(N);\
+	ut_ad(N != NULL);\
 	((BASE).count)++;\
 	((N)->NAME).prev = (BASE).end;\
 	((N)->NAME).next = NULL;\

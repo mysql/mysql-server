@@ -1,23 +1,6 @@
-/*****************************************************************************
-
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation; version 2 of the License.
-
-This program is distributed in the hope that it will be useful, but WITHOUT
-ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
-
-*****************************************************************************/
 /***********************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -50,6 +33,11 @@ Created 10/21/1995 Heikki Tuuri
 *******************************************************/
 
 #include "os0file.h"
+
+#ifdef UNIV_NONINL
+#include "os0file.ic"
+#endif
+
 #include "ut0mem.h"
 #include "srv0srv.h"
 #include "srv0start.h"
@@ -66,6 +54,10 @@ Created 10/21/1995 Heikki Tuuri
 #  include <errno.h>
 # endif /* __WIN__ */
 #endif /* !UNIV_HOTBACKUP */
+
+#if defined(LINUX_NATIVE_AIO)
+#include <libaio.h>
+#endif
 
 /* This specifies the file permissions InnoDB uses when it creates files in
 Unix; the value of os_innodb_umask is initialized in ha_innodb.cc to
@@ -88,9 +80,7 @@ UNIV_INTERN ibool	os_do_not_call_flush_at_each_write	= FALSE;
 /* We do not call os_file_flush in every os_file_write. */
 #endif /* UNIV_DO_FLUSH */
 
-#ifdef UNIV_HOTBACKUP
-# define os_aio_use_native_aio	FALSE
-#else /* UNIV_HOTBACKUP */
+#ifndef UNIV_HOTBACKUP
 /* We use these mutexes to protect lseek + file i/o operation, if the
 OS does not provide an atomic pread or pwrite, or similar */
 #define OS_FILE_N_SEEK_MUTEXES	16
@@ -99,14 +89,69 @@ UNIV_INTERN os_mutex_t	os_file_seek_mutexes[OS_FILE_N_SEEK_MUTEXES];
 /* In simulated aio, merge at most this many consecutive i/os */
 #define OS_AIO_MERGE_N_CONSECUTIVE	64
 
-/** If this flag is TRUE, then we will use the native aio of the
-OS (provided we compiled Innobase with it in), otherwise we will
-use simulated aio we build below with threads */
+/**********************************************************************
 
-UNIV_INTERN ibool	os_aio_use_native_aio	= FALSE;
+InnoDB AIO Implementation:
+=========================
+
+We support native AIO for windows and linux. For rest of the platforms
+we simulate AIO by special io-threads servicing the IO-requests.
+
+Simulated AIO:
+==============
+
+In platforms where we 'simulate' AIO following is a rough explanation
+of the high level design.
+There are four io-threads (for ibuf, log, read, write).
+All synchronous IO requests are serviced by the calling thread using
+os_file_write/os_file_read. The Asynchronous requests are queued up
+in an array (there are four such arrays) by the calling thread. 
+Later these requests are picked up by the io-thread and are serviced
+synchronously.
+
+Windows native AIO:
+==================
+
+If srv_use_native_aio is not set then windows follow the same
+code as simulated AIO. If the flag is set then native AIO interface
+is used. On windows, one of the limitation is that if a file is opened
+for AIO no synchronous IO can be done on it. Therefore we have an
+extra fifth array to queue up synchronous IO requests.
+There are innodb_file_io_threads helper threads. These threads work
+on the four arrays mentioned above in Simulated AIO. No thread is
+required for the sync array.
+If a synchronous IO request is made, it is first queued in the sync
+array. Then the calling thread itself waits on the request, thus
+making the call synchronous.
+If an AIO request is made the calling thread not only queues it in the
+array but also submits the requests. The helper thread then collects
+the completed IO request and calls completion routine on it.
+
+Linux native AIO:
+=================
+
+If we have libaio installed on the system and innodb_use_native_aio
+is set to TRUE we follow the code path of native AIO, otherwise we
+do simulated AIO.
+There are innodb_file_io_threads helper threads. These threads work
+on the four arrays mentioned above in Simulated AIO.
+If a synchronous IO request is made, it is handled by calling
+os_file_write/os_file_read.
+If an AIO request is made the calling thread not only queues it in the
+array but also submits the requests. The helper thread then collects
+the completed IO request and calls completion routine on it.
+
+**********************************************************************/
 
 /** Flag: enable debug printout for asynchronous i/o */
 UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
+
+#ifdef UNIV_PFS_IO
+/* Keys to register InnoDB I/O with performance schema */
+UNIV_INTERN mysql_pfs_key_t  innodb_file_data_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_file_log_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_file_temp_key;
+#endif /* UNIV_PFS_IO */
 
 /** The asynchronous i/o array slot structure */
 typedef struct os_aio_slot_struct	os_aio_slot_t;
@@ -142,6 +187,10 @@ struct os_aio_slot_struct{
 					OVERLAPPED struct */
 	OVERLAPPED	control;	/*!< Windows control block for the
 					aio request */
+#elif defined(LINUX_NATIVE_AIO)
+	struct iocb	control;	/* Linux control block for aio */
+	int		n_bytes;	/* bytes written/read. */
+	int		ret;		/* AIO return code */
 #endif
 };
 
@@ -167,6 +216,10 @@ struct os_aio_array_struct{
 				array of pending aio requests. A
 				thread can wait separately for any one
 				of the segments. */
+	ulint		cur_seg;/*!< We reserve IO requests in round
+				robin fashion to different segments.
+				This points to the segment that is to
+				be used to service next IO request. */
 	ulint		n_reserved;
 				/*!< Number of reserved slots in the
 				aio array outside the ibuf segment */
@@ -180,7 +233,30 @@ struct os_aio_array_struct{
 				WaitForMultipleObjects; used only in
 				Windows */
 #endif
+
+#if defined(LINUX_NATIVE_AIO)
+	io_context_t*		aio_ctx;
+				/* completion queue for IO. There is 
+				one such queue per segment. Each thread
+				will work on one ctx exclusively. */
+	struct io_event*	aio_events;
+				/* The array to collect completed IOs.
+				There is one such event for each
+				possible pending IO. The size of the
+				array is equal to n_slots. */
+#endif
 };
+
+#if defined(LINUX_NATIVE_AIO)
+/** timeout for each io_getevents() call = 500ms. */
+#define OS_AIO_REAP_TIMEOUT	(500000000UL)
+
+/** time to sleep, in microseconds if io_setup() returns EAGAIN. */
+#define OS_AIO_IO_SETUP_RETRY_SLEEP	(500000UL)
+
+/** number of attempts before giving up on io_setup(). */
+#define OS_AIO_IO_SETUP_RETRY_ATTEMPTS	5
+#endif
 
 /** Array of events used in simulated aio */
 static os_event_t*	os_aio_segment_wait_events	= NULL;
@@ -200,7 +276,7 @@ static ulint	os_aio_n_segments	= ULINT_UNDEFINED;
 /** If the following is TRUE, read i/o handler threads try to
 wait until a batch of new read requests have been posted */
 static ibool	os_aio_recommend_sleep_for_read_threads	= FALSE;
-#endif /* UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP */
 
 UNIV_INTERN ulint	os_n_file_reads		= 0;
 UNIV_INTERN ulint	os_bytes_read_since_printout = 0;
@@ -406,17 +482,29 @@ os_file_get_last_error(
 
 	fflush(stderr);
 
-	if (err == ENOSPC) {
+	switch (err) {
+	case ENOSPC:
 		return(OS_FILE_DISK_FULL);
-	} else if (err == ENOENT) {
+	case ENOENT:
 		return(OS_FILE_NOT_FOUND);
-	} else if (err == EEXIST) {
+	case EEXIST:
 		return(OS_FILE_ALREADY_EXISTS);
-	} else if (err == EXDEV || err == ENOTDIR || err == EISDIR) {
+	case EXDEV:
+	case ENOTDIR:
+	case EISDIR:
 		return(OS_FILE_PATH_ERROR);
-	} else {
-		return(100 + err);
+	case EAGAIN:
+		if (srv_use_native_aio) {
+			return(OS_FILE_AIO_RESOURCES_RESERVED);
+		}
+		break;
+	case EINTR:
+		if (srv_use_native_aio) {
+			return(OS_FILE_AIO_INTERRUPTED);
+		}
+		break;
 	}
+	return(100 + err);
 #endif
 }
 
@@ -464,6 +552,9 @@ os_file_handle_error_cond_exit(
 
 		return(FALSE);
 	} else if (err == OS_FILE_AIO_RESOURCES_RESERVED) {
+
+		return(TRUE);
+	} else if (err == OS_FILE_AIO_INTERRUPTED) {
 
 		return(TRUE);
 	} else if (err == OS_FILE_ALREADY_EXISTS
@@ -806,7 +897,15 @@ next_file:
 #ifdef HAVE_READDIR_R
 	ret = readdir_r(dir, (struct dirent*)dirent_buf, &ent);
 
-	if (ret != 0) {
+	if (ret != 0
+#ifdef UNIV_AIX
+	    /* On AIX, only if we got non-NULL 'ent' (result) value and
+	    a non-zero 'ret' (return) value, it indicates a failed
+	    readdir_r() call. An NULL 'ent' with an non-zero 'ret'
+	    would indicate the "end of the directory" is reached. */
+	    && ent != NULL
+#endif
+	   ) {
 		fprintf(stderr,
 			"InnoDB: cannot read directory %s, error %lu\n",
 			dirname, (ulong)ret);
@@ -933,13 +1032,15 @@ os_file_create_directory(
 }
 
 /****************************************************************//**
+NOTE! Use the corresponding macro os_file_create_simple(), not directly
+this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
-os_file_create_simple(
-/*==================*/
+os_file_create_simple_func(
+/*=======================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file is
@@ -1074,13 +1175,15 @@ try_again:
 }
 
 /****************************************************************//**
+NOTE! Use the corresponding macro
+os_file_create_simple_no_error_handling(), not directly this function!
 A simple function to open or create a file.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
-os_file_create_simple_no_error_handling(
-/*====================================*/
+os_file_create_simple_no_error_handling_func(
+/*=========================================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
@@ -1229,13 +1332,15 @@ os_file_set_nocache(
 }
 
 /****************************************************************//**
+NOTE! Use the corresponding macro os_file_create(), not directly
+this function!
 Opens an existing file or creates a new.
 @return own: handle to the file, not defined if error, error number
 can be retrieved with os_file_get_last_error */
 UNIV_INTERN
 os_file_t
-os_file_create(
-/*===========*/
+os_file_create_func(
+/*================*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	ulint		create_mode,/*!< in: OS_FILE_OPEN if an existing file
@@ -1285,7 +1390,7 @@ try_again:
 		buffering of writes in the OS */
 		attributes = 0;
 #ifdef WIN_ASYNC_IO
-		if (os_aio_use_native_aio) {
+		if (srv_use_native_aio) {
 			attributes = attributes | FILE_FLAG_OVERLAPPED;
 		}
 #endif
@@ -1620,13 +1725,14 @@ loop:
 }
 
 /***********************************************************************//**
+NOTE! Use the corresponding macro os_file_rename(), not directly this function!
 Renames a file (can also move it to another directory). It is safest that the
 file is closed before calling this function.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-os_file_rename(
-/*===========*/
+os_file_rename_func(
+/*================*/
 	const char*	oldpath,/*!< in: old file path as a null-terminated
 				string */
 	const char*	newpath)/*!< in: new file path */
@@ -1659,13 +1765,14 @@ os_file_rename(
 }
 
 /***********************************************************************//**
+NOTE! Use the corresponding macro os_file_close(), not directly this function!
 Closes a file handle. In case of error, error number can be retrieved with
 os_file_get_last_error.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-os_file_close(
-/*==========*/
+os_file_close_func(
+/*===============*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
 #ifdef __WIN__
@@ -1961,12 +2068,13 @@ os_file_fsync(
 #endif /* !__WIN__ */
 
 /***********************************************************************//**
+NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
 @return	TRUE if success */
 UNIV_INTERN
 ibool
-os_file_flush(
-/*==========*/
+os_file_flush_func(
+/*===============*/
 	os_file_t	file)	/*!< in, own: handle to a file */
 {
 #ifdef __WIN__
@@ -2273,12 +2381,14 @@ func_exit:
 #endif
 
 /*******************************************************************//**
+NOTE! Use the corresponding macro os_file_read(), not directly this
+function!
 Requests a synchronous positioned read operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
 ibool
-os_file_read(
-/*=========*/
+os_file_read_func(
+/*==============*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	ulint		offset,	/*!< in: least significant 32 bits of file
@@ -2396,13 +2506,15 @@ error_handling:
 }
 
 /*******************************************************************//**
+NOTE! Use the corresponding macro os_file_read_no_error_handling(),
+not directly this function!
 Requests a synchronous positioned read operation. This function does not do
 any error handling. In case of error it returns FALSE.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
 ibool
-os_file_read_no_error_handling(
-/*===========================*/
+os_file_read_no_error_handling_func(
+/*================================*/
 	os_file_t	file,	/*!< in: handle to a file */
 	void*		buf,	/*!< in: buffer where to read */
 	ulint		offset,	/*!< in: least significant 32 bits of file
@@ -2524,12 +2636,14 @@ os_file_read_string(
 }
 
 /*******************************************************************//**
+NOTE! Use the corresponding macro os_file_write(), not directly
+this function!
 Requests a synchronous write operation.
 @return	TRUE if request was successful, FALSE if fail */
 UNIV_INTERN
 ibool
-os_file_write(
-/*==========*/
+os_file_write_func(
+/*===============*/
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
@@ -2988,15 +3102,106 @@ os_aio_array_get_nth_slot(
 	return((array->slots) + index);
 }
 
-/************************************************************************//**
-Creates an aio wait array.
-@return	own: aio array */
+#if defined(LINUX_NATIVE_AIO)
+/******************************************************************//**
+Creates an io_context for native linux AIO.
+@return	TRUE on success. */
+static
+ibool
+os_aio_linux_create_io_ctx(
+/*=======================*/
+	ulint		max_events,	/*!< in: number of events. */
+	io_context_t*	io_ctx)		/*!< out: io_ctx to initialize. */
+{
+	int	ret;
+	ulint	retries = 0;
+
+retry:
+	memset(io_ctx, 0x0, sizeof(*io_ctx));
+
+	/* Initialize the io_ctx. Tell it how many pending
+	IO requests this context will handle. */
+
+	ret = io_setup(max_events, io_ctx);
+	if (ret == 0) {
+#if defined(UNIV_AIO_DEBUG)
+		fprintf(stderr,
+			"InnoDB: Linux native AIO:"
+			" initialized io_ctx for segment\n");
+#endif
+		/* Success. Return now. */
+		return(TRUE);
+	}
+
+	/* If we hit EAGAIN we'll make a few attempts before failing. */
+
+	switch (ret) {
+	case -EAGAIN:
+		if (retries == 0) {
+			/* First time around. */
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: Warning: io_setup() failed"
+				" with EAGAIN. Will make %d attempts"
+				" before giving up.\n",
+				OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
+		}
+
+		if (retries < OS_AIO_IO_SETUP_RETRY_ATTEMPTS) {
+			++retries;
+			fprintf(stderr,
+				"InnoDB: Warning: io_setup() attempt"
+				" %lu failed.\n",
+				retries);
+			os_thread_sleep(OS_AIO_IO_SETUP_RETRY_SLEEP);
+			goto retry;
+		}
+
+		/* Have tried enough. Better call it a day. */
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Error: io_setup() failed"
+			" with EAGAIN after %d attempts.\n",
+			OS_AIO_IO_SETUP_RETRY_ATTEMPTS);
+		break;
+
+	case -ENOSYS:
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Error: Linux Native AIO interface"
+			" is not supported on this platform. Please"
+			" check your OS documentation and install"
+			" appropriate binary of InnoDB.\n");
+
+		break;
+
+	default:
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: Error: Linux Native AIO setup"
+			" returned following error[%d]\n", -ret);
+		break;
+	}
+
+	fprintf(stderr,
+		"InnoDB: You can disable Linux Native AIO by"
+		" setting innodb_native_aio = off in my.cnf\n");
+	return(FALSE);
+}
+#endif /* LINUX_NATIVE_AIO */
+
+/******************************************************************//**
+Creates an aio wait array. Note that we return NULL in case of failure.
+We don't care about freeing memory here because we assume that a
+failure will result in server refusing to start up.
+@return	own: aio array, NULL on failure */
 static
 os_aio_array_t*
 os_aio_array_create(
 /*================*/
-	ulint	n,		/*!< in: maximum number of pending aio operations
-				allowed; n must be divisible by n_segments */
+	ulint	n,		/*!< in: maximum number of pending aio
+				operations allowed; n must be
+				divisible by n_segments */
 	ulint	n_segments)	/*!< in: number of segments in the aio array */
 {
 	os_aio_array_t*	array;
@@ -3004,6 +3209,8 @@ os_aio_array_create(
 	os_aio_slot_t*	slot;
 #ifdef WIN_ASYNC_IO
 	OVERLAPPED*	over;
+#elif defined(LINUX_NATIVE_AIO)
+	struct io_event*	io_event = NULL;
 #endif
 	ut_a(n > 0);
 	ut_a(n_segments > 0);
@@ -3019,10 +3226,44 @@ os_aio_array_create(
 	array->n_slots		= n;
 	array->n_segments	= n_segments;
 	array->n_reserved	= 0;
+	array->cur_seg		= 0;
 	array->slots		= ut_malloc(n * sizeof(os_aio_slot_t));
 #ifdef __WIN__
 	array->native_events	= ut_malloc(n * sizeof(os_native_event_t));
 #endif
+
+#if defined(LINUX_NATIVE_AIO)
+	/* If we are not using native aio interface then skip this
+	part of initialization. */
+	if (!srv_use_native_aio) {
+		goto skip_native_aio;
+	}
+
+	/* Initialize the io_context array. One io_context
+	per segment in the array. */
+
+	array->aio_ctx = ut_malloc(n_segments *
+				   sizeof(*array->aio_ctx));
+	for (i = 0; i < n_segments; ++i) {
+		if (!os_aio_linux_create_io_ctx(n/n_segments,
+					   &array->aio_ctx[i])) {
+			/* If something bad happened during aio setup
+			we should call it a day and return right away.
+			We don't care about any leaks because a failure
+			to initialize the io subsystem means that the
+			server (or atleast the innodb storage engine)
+			is not going to startup. */
+			return(NULL);
+		}
+	}
+
+	/* Initialize the event array. One event per slot. */
+	io_event = ut_malloc(n * sizeof(*io_event));
+	memset(io_event, 0x0, sizeof(*io_event) * n);
+	array->aio_events = io_event;
+
+skip_native_aio:
+#endif /* LINUX_NATIVE_AIO */
 	for (i = 0; i < n; i++) {
 		slot = os_aio_array_get_nth_slot(array, i);
 
@@ -3036,6 +3277,12 @@ os_aio_array_create(
 		over->hEvent = slot->event->handle;
 
 		*((array->native_events) + i) = over->hEvent;
+
+#elif defined(LINUX_NATIVE_AIO)
+
+		memset(&slot->control, 0x0, sizeof(slot->control));
+		slot->n_bytes = 0;
+		slot->ret = 0;
 #endif
 	}
 
@@ -3078,7 +3325,7 @@ respectively. The caller must create an i/o handler thread for each
 segment in these arrays. This function also creates the sync array.
 No i/o handler thread needs to be created for that */
 UNIV_INTERN
-void
+ibool
 os_aio_init(
 /*========*/
 	ulint	n_per_seg,	/*<! in: maximum number of pending aio
@@ -3103,15 +3350,25 @@ os_aio_init(
 	/* fprintf(stderr, "Array n per seg %lu\n", n_per_seg); */
 
 	os_aio_ibuf_array = os_aio_array_create(n_per_seg, 1);
+	if (os_aio_ibuf_array == NULL) {
+		goto err_exit;
+	}
 
 	srv_io_thread_function[0] = "insert buffer thread";
 
 	os_aio_log_array = os_aio_array_create(n_per_seg, 1);
+	if (os_aio_log_array == NULL) {
+		goto err_exit;
+	}
 
 	srv_io_thread_function[1] = "log thread";
 
 	os_aio_read_array = os_aio_array_create(n_read_segs * n_per_seg,
 						n_read_segs);
+	if (os_aio_read_array == NULL) {
+		goto err_exit;
+	}
+
 	for (i = 2; i < 2 + n_read_segs; i++) {
 		ut_a(i < SRV_MAX_N_IO_THREADS);
 		srv_io_thread_function[i] = "read thread";
@@ -3119,12 +3376,20 @@ os_aio_init(
 
 	os_aio_write_array = os_aio_array_create(n_write_segs * n_per_seg,
 						 n_write_segs);
+	if (os_aio_write_array == NULL) {
+		goto err_exit;
+	}
+
 	for (i = 2 + n_read_segs; i < n_segments; i++) {
 		ut_a(i < SRV_MAX_N_IO_THREADS);
 		srv_io_thread_function[i] = "write thread";
 	}
 
 	os_aio_sync_array = os_aio_array_create(n_slots_sync, 1);
+	if (os_aio_sync_array == NULL) {
+		goto err_exit;
+	}
+
 
 	os_aio_n_segments = n_segments;
 
@@ -3137,6 +3402,11 @@ os_aio_init(
 	}
 
 	os_last_printout = time(NULL);
+
+	return(TRUE);
+
+err_exit:
+	return(FALSE);
 
 }
 
@@ -3204,6 +3474,19 @@ os_aio_wake_all_threads_at_shutdown(void)
 	os_aio_array_wake_win_aio_at_shutdown(os_aio_write_array);
 	os_aio_array_wake_win_aio_at_shutdown(os_aio_ibuf_array);
 	os_aio_array_wake_win_aio_at_shutdown(os_aio_log_array);
+
+#elif defined(LINUX_NATIVE_AIO)
+
+	/* When using native AIO interface the io helper threads
+	wait on io_getevents with a timeout value of 500ms. At
+	each wake up these threads check the server status.
+	No need to do anything to wake them up. */
+
+	if (srv_use_native_aio) {
+		return;
+	}
+	/* Fall through to simulated AIO handler wakeup if we are
+	not using native AIO. */
 #endif
 	/* This loop wakes up all simulated ai/o threads */
 
@@ -3321,11 +3604,18 @@ os_aio_array_reserve_slot(
 				offset */
 	ulint		len)	/*!< in: length of the block to read or write */
 {
-	os_aio_slot_t*	slot;
+	os_aio_slot_t*	slot = NULL;
 #ifdef WIN_ASYNC_IO
 	OVERLAPPED*	control;
+
+#elif defined(LINUX_NATIVE_AIO)
+
+	struct iocb*	iocb;
+	off_t		aio_offset;
+
 #endif
 	ulint		i;
+	ulint		counter;
 	ulint		slots_per_seg;
 	ulint		local_seg;
 
@@ -3344,7 +3634,7 @@ loop:
 	if (array->n_reserved == array->n_slots) {
 		os_mutex_exit(array->mutex);
 
-		if (!os_aio_use_native_aio) {
+		if (!srv_use_native_aio) {
 			/* If the handler threads are suspended, wake them
 			so that we get more slots */
 
@@ -3356,8 +3646,13 @@ loop:
 		goto loop;
 	}
 
-	/* First try to find a slot in the preferred local segment */
-	for (i = local_seg * slots_per_seg; i < array->n_slots; i++) {
+	/* We start our search for an available slot from our preferred
+	local segment and do a full scan of the array. We are
+	guaranteed to find a slot in full scan. */
+	for (i = local_seg * slots_per_seg, counter = 0;
+	     counter < array->n_slots; i++, counter++) {
+
+		i %= array->n_slots;
 		slot = os_aio_array_get_nth_slot(array, i);
 
 		if (slot->reserved == FALSE) {
@@ -3365,14 +3660,8 @@ loop:
 		}
 	}
 
-	/* Fall back to a full scan. We are guaranteed to find a slot */
-	for (i = 0;; i++) {
-		slot = os_aio_array_get_nth_slot(array, i);
-
-		if (slot->reserved == FALSE) {
-			goto found;
-		}
-	}
+	/* We MUST always be able to get hold of a reserved slot. */
+	ut_error;
 
 found:
 	ut_a(slot->reserved == FALSE);
@@ -3404,8 +3693,42 @@ found:
 	control->Offset = (DWORD)offset;
 	control->OffsetHigh = (DWORD)offset_high;
 	os_event_reset(slot->event);
-#endif
 
+#elif defined(LINUX_NATIVE_AIO)
+
+	/* If we are not using native AIO skip this part. */
+	if (!srv_use_native_aio) {
+		goto skip_native_aio;
+	}
+
+	/* Check if we are dealing with 64 bit arch.
+	If not then make sure that offset fits in 32 bits. */
+	if (sizeof(aio_offset) == 8) {
+		aio_offset = offset_high;
+		aio_offset <<= 32;
+		aio_offset += offset;
+	} else {
+		ut_a(offset_high == 0);
+		aio_offset = offset;
+	}
+
+	iocb = &slot->control;
+
+	if (type == OS_FILE_READ) {
+		io_prep_pread(iocb, file, buf, len, aio_offset);
+	} else {
+		ut_a(type == OS_FILE_WRITE);
+		io_prep_pwrite(iocb, file, buf, len, aio_offset);
+	}
+
+	iocb->data = (void*)slot;
+	slot->n_bytes = 0;
+	slot->ret = 0;
+	/*fprintf(stderr, "Filled up Linux native iocb.\n");*/
+	
+
+skip_native_aio:
+#endif /* LINUX_NATIVE_AIO */
 	os_mutex_exit(array->mutex);
 
 	return(slot);
@@ -3440,7 +3763,23 @@ os_aio_array_free_slot(
 	}
 
 #ifdef WIN_ASYNC_IO
+
 	os_event_reset(slot->event);
+
+#elif defined(LINUX_NATIVE_AIO)
+
+	if (srv_use_native_aio) {
+		memset(&slot->control, 0x0, sizeof(slot->control));
+		slot->n_bytes = 0;
+		slot->ret = 0;
+		/*fprintf(stderr, "Freed up Linux native slot.\n");*/
+	} else {
+		/* These fields should not be used if we are not
+		using native AIO. */
+		ut_ad(slot->n_bytes == 0);
+		ut_ad(slot->ret == 0);
+	}
+
 #endif
 	os_mutex_exit(array->mutex);
 }
@@ -3460,7 +3799,7 @@ os_aio_simulated_wake_handler_thread(
 	ulint		n;
 	ulint		i;
 
-	ut_ad(!os_aio_use_native_aio);
+	ut_ad(!srv_use_native_aio);
 
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 
@@ -3496,7 +3835,7 @@ os_aio_simulated_wake_handler_threads(void)
 {
 	ulint	i;
 
-	if (os_aio_use_native_aio) {
+	if (srv_use_native_aio) {
 		/* We do not use simulated aio: do nothing */
 
 		return;
@@ -3528,7 +3867,7 @@ readahead requests. */
 	os_aio_array_t*	array;
 	ulint		g;
 
-	if (os_aio_use_native_aio) {
+	if (srv_use_native_aio) {
 		/* We do not use simulated aio: do nothing */
 
 		return;
@@ -3547,13 +3886,62 @@ readahead requests. */
 #endif /* __WIN__ */
 }
 
+#if defined(LINUX_NATIVE_AIO)
 /*******************************************************************//**
+Dispatch an AIO request to the kernel.
+@return	TRUE on success. */
+static
+ibool
+os_aio_linux_dispatch(
+/*==================*/
+	os_aio_array_t*	array,	/*!< in: io request array. */
+	os_aio_slot_t*	slot)	/*!< in: an already reserved slot. */
+{
+	int		ret;
+	ulint		io_ctx_index;
+	struct iocb*	iocb;
+
+	ut_ad(slot != NULL);
+	ut_ad(array);
+
+	ut_a(slot->reserved);
+
+	/* Find out what we are going to work with.
+	The iocb struct is directly in the slot.
+	The io_context is one per segment. */
+
+	iocb = &slot->control;
+	io_ctx_index = (slot->pos * array->n_segments) / array->n_slots;
+
+	ret = io_submit(array->aio_ctx[io_ctx_index], 1, &iocb);
+
+#if defined(UNIV_AIO_DEBUG)
+	fprintf(stderr,
+		"io_submit[%c] ret[%d]: slot[%p] ctx[%p] seg[%lu]\n",
+		(slot->type == OS_FILE_WRITE) ? 'w' : 'r', ret, slot,
+		array->aio_ctx[io_ctx_index], (ulong)io_ctx_index);
+#endif
+
+	/* io_submit returns number of successfully
+	queued requests or -errno. */
+	if (UNIV_UNLIKELY(ret != 1)) {
+		errno = -ret;
+		return(FALSE);
+	}
+
+	return(TRUE);
+}
+#endif /* LINUX_NATIVE_AIO */
+
+
+/*******************************************************************//**
+NOTE! Use the corresponding macro os_aio(), not directly this function!
 Requests an asynchronous i/o operation.
 @return	TRUE if request was queued successfully, FALSE if fail */
 UNIV_INTERN
 ibool
-os_aio(
-/*===*/
+os_aio_func(
+/*========*/
 	ulint		type,	/*!< in: OS_FILE_READ or OS_FILE_WRITE */
 	ulint		mode,	/*!< in: OS_AIO_NORMAL, ..., possibly ORed
 				to OS_AIO_SIMULATED_WAKE_LATER: the
@@ -3596,8 +3984,7 @@ os_aio(
 	struct fil_node_struct * dummy_mess1;
 	void*		dummy_mess2;
 	ulint		dummy_type;
-#endif
-	ulint		err		= 0;
+#endif /* WIN_ASYNC_IO */
 	ibool		retry;
 	ulint		wake_later;
 
@@ -3613,8 +4000,8 @@ os_aio(
 
 	if (mode == OS_AIO_SYNC
 #ifdef WIN_ASYNC_IO
-	    && !os_aio_use_native_aio
-#endif
+	    && !srv_use_native_aio
+#endif /* WIN_ASYNC_IO */
 	    ) {
 		/* This is actually an ordinary synchronous read or write:
 		no need to use an i/o-handler thread. NOTE that if we use
@@ -3653,6 +4040,11 @@ try_again:
 		array = os_aio_log_array;
 	} else if (mode == OS_AIO_SYNC) {
 		array = os_aio_sync_array;
+
+#if defined(LINUX_NATIVE_AIO)
+		/* In Linux native AIO we don't use sync IO array. */
+		ut_a(!srv_use_native_aio);
+#endif /* LINUX_NATIVE_AIO */
 	} else {
 		array = NULL; /* Eliminate compiler warning */
 		ut_error;
@@ -3661,13 +4053,17 @@ try_again:
 	slot = os_aio_array_reserve_slot(type, array, message1, message2, file,
 					 name, buf, offset, offset_high, n);
 	if (type == OS_FILE_READ) {
-		if (os_aio_use_native_aio) {
-#ifdef WIN_ASYNC_IO
+		if (srv_use_native_aio) {
 			os_n_file_reads++;
-			os_bytes_read_since_printout += len;
-
+			os_bytes_read_since_printout += n;
+#ifdef WIN_ASYNC_IO
 			ret = ReadFile(file, buf, (DWORD)n, &len,
 				       &(slot->control));
+
+#elif defined(LINUX_NATIVE_AIO)
+			if (!os_aio_linux_dispatch(array, slot)) {
+				goto err_exit;
+			}
 #endif
 		} else {
 			if (!wake_later) {
@@ -3677,11 +4073,16 @@ try_again:
 			}
 		}
 	} else if (type == OS_FILE_WRITE) {
-		if (os_aio_use_native_aio) {
-#ifdef WIN_ASYNC_IO
+		if (srv_use_native_aio) {
 			os_n_file_writes++;
+#ifdef WIN_ASYNC_IO
 			ret = WriteFile(file, buf, (DWORD)n, &len,
 					&(slot->control));
+
+#elif defined(LINUX_NATIVE_AIO)
+			if (!os_aio_linux_dispatch(array, slot)) {
+				goto err_exit;
+			}
 #endif
 		} else {
 			if (!wake_later) {
@@ -3695,7 +4096,7 @@ try_again:
 	}
 
 #ifdef WIN_ASYNC_IO
-	if (os_aio_use_native_aio) {
+	if (srv_use_native_aio) {
 		if ((ret && len == n)
 		    || (!ret && GetLastError() == ERROR_IO_PENDING)) {
 			/* aio was queued successfully! */
@@ -3718,15 +4119,15 @@ try_again:
 			return(TRUE);
 		}
 
-		err = 1; /* Fall through the next if */
+		goto err_exit;
 	}
-#endif
-	if (err == 0) {
-		/* aio was queued successfully! */
+#endif /* WIN_ASYNC_IO */
+	/* aio was queued successfully! */
+	return(TRUE);
 
-		return(TRUE);
-	}
-
+#if defined LINUX_NATIVE_AIO || defined WIN_ASYNC_IO
+err_exit:
+#endif /* LINUX_NATIVE_AIO || WIN_ASYNC_IO */
 	os_aio_array_free_slot(array, slot);
 
 	retry = os_file_handle_error(name,
@@ -3830,7 +4231,9 @@ os_aio_windows_handle(
 #ifdef UNIV_DO_FLUSH
 		if (slot->type == OS_FILE_WRITE
 		    && !os_do_not_call_flush_at_each_write) {
-			ut_a(TRUE == os_file_flush(slot->file));
+			if (!os_file_flush(slot->file)) {
+				ut_error;
+			}
 		}
 #endif /* UNIV_DO_FLUSH */
 	} else if (os_file_handle_error(slot->name, "Windows aio")) {
@@ -3846,6 +4249,18 @@ os_aio_windows_handle(
 	if (retry) {
 		/* retry failed read/write operation synchronously.
 		No need to hold array->mutex. */
+
+#ifdef UNIV_PFS_IO
+		/* This read/write does not go through os_file_read
+		and os_file_write APIs, need to register with
+		performance schema explicitly here. */
+		struct PSI_file_locker* locker = NULL;
+		register_pfs_file_io_begin(locker, slot->file, slot->len,
+					   (slot->type == OS_FILE_WRITE)
+						? PSI_FILE_WRITE
+						: PSI_FILE_READ,
+					    __FILE__, __LINE__);
+#endif
 
 		switch (slot->type) {
 		case OS_FILE_WRITE:
@@ -3863,6 +4278,10 @@ os_aio_windows_handle(
 		default:
 			ut_error;
 		}
+
+#ifdef UNIV_PFS_IO
+		register_pfs_file_io_end(locker, len);
+#endif
 
 		if (!ret && GetLastError() == ERROR_IO_PENDING) {
 			/* aio was queued successfully!
@@ -3884,6 +4303,256 @@ os_aio_windows_handle(
 	return(ret_val);
 }
 #endif
+
+#if defined(LINUX_NATIVE_AIO)
+/******************************************************************//**
+This function is only used in Linux native asynchronous i/o. This is
+called from within the io-thread. If there are no completed IO requests
+in the slot array, the thread calls this function to collect more
+requests from the kernel.
+The io-thread waits on io_getevents(), which is a blocking call, with
+a timeout value. Unless the system is very heavy loaded, keeping the
+io-thread very busy, the io-thread will spend most of its time waiting
+in this function.
+The io-thread also exits in this function. It checks server status at
+each wakeup and that is why we use timed wait in io_getevents(). */
+static
+void
+os_aio_linux_collect(
+/*=================*/
+	os_aio_array_t* array,		/*!< in/out: slot array. */
+	ulint		segment,	/*!< in: local segment no. */
+	ulint		seg_size)	/*!< in: segment size. */
+{
+	int			i;
+	int			ret;
+	ulint			start_pos;
+	ulint			end_pos;
+	struct timespec		timeout;
+	struct io_event*	events;
+	struct io_context*	io_ctx;
+
+	/* sanity checks. */
+	ut_ad(array != NULL);
+	ut_ad(seg_size > 0);
+	ut_ad(segment < array->n_segments);
+
+	/* Which part of event array we are going to work on. */
+	events = &array->aio_events[segment * seg_size];
+
+	/* Which io_context we are going to use. */
+	io_ctx = array->aio_ctx[segment];
+
+	/* Starting point of the segment we will be working on. */
+	start_pos = segment * seg_size;
+
+	/* End point. */
+	end_pos = start_pos + seg_size;
+
+retry:
+
+	/* Go down if we are in shutdown mode.
+	In case of srv_fast_shutdown == 2, there may be pending
+	IO requests but that should be OK as we essentially treat
+	that as a crash of InnoDB. */
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		os_thread_exit(NULL);
+	}
+
+	/* Initialize the events. The timeout value is arbitrary.
+	We probably need to experiment with it a little. */
+	memset(events, 0, sizeof(*events) * seg_size);
+	timeout.tv_sec = 0;
+	timeout.tv_nsec = OS_AIO_REAP_TIMEOUT;
+
+	ret = io_getevents(io_ctx, 1, seg_size, events, &timeout);
+
+	/* This error handling is for any error in collecting the
+	IO requests. The errors, if any, for any particular IO
+	request are simply passed on to the calling routine. */
+
+	/* Not enough resources! Try again. */
+	if (ret == -EAGAIN) {
+		goto retry;
+	}
+
+	/* Interrupted! I have tested the behaviour in case of an
+	interrupt. If we have some completed IOs available then
+	the return code will be the number of IOs. We get EINTR only
+	if there are no completed IOs and we have been interrupted. */
+	if (ret == -EINTR) {
+		goto retry;
+	}
+
+	/* No pending request! Go back and check again. */
+	if (ret == 0) {
+		goto retry;
+	}
+
+	/* All other errors! should cause a trap for now. */
+	if (UNIV_UNLIKELY(ret < 0)) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			"  InnoDB: unexpected ret_code[%d] from"
+			" io_getevents()!\n", ret);
+		ut_error;
+	}
+
+	ut_a(ret > 0);
+
+	for (i = 0; i < ret; i++) {
+		os_aio_slot_t*	slot;
+		struct iocb*	control;
+
+		control = (struct iocb *)events[i].obj;
+		ut_a(control != NULL);
+
+		slot = (os_aio_slot_t *) control->data;
+
+		/* Some sanity checks. */
+		ut_a(slot != NULL);
+		ut_a(slot->reserved);
+
+#if defined(UNIV_AIO_DEBUG)
+		fprintf(stderr,
+			"io_getevents[%c]: slot[%p] ctx[%p]"
+			" seg[%lu]\n",
+			(slot->type == OS_FILE_WRITE) ? 'w' : 'r',
+			slot, io_ctx, segment);
+#endif
+
+		/* We are not scribbling previous segment. */
+		ut_a(slot->pos >= start_pos);
+
+		/* We have not overstepped to next segment. */
+		ut_a(slot->pos < end_pos);
+
+		/* Mark this request as completed. The error handling
+		will be done in the calling function. */
+		os_mutex_enter(array->mutex);
+		slot->n_bytes = events[i].res;
+		slot->ret = events[i].res2;
+		slot->io_already_done = TRUE;
+		os_mutex_exit(array->mutex);
+	}
+
+	return;
+}
+
+/**********************************************************************//**
+This function is only used in Linux native asynchronous i/o.
+Waits for an aio operation to complete. This function is used to wait for
+the completed requests. The aio array of pending requests is divided
+into segments. The thread specifies which segment or slot it wants to wait
+for. NOTE: this function will also take care of freeing the aio slot,
+therefore no other thread is allowed to do the freeing!
+@return	TRUE if the IO was successful */
+UNIV_INTERN
+ibool
+os_aio_linux_handle(
+/*================*/
+	ulint	global_seg,	/*!< in: segment number in the aio array
+				to wait for; segment 0 is the ibuf
+				i/o thread, segment 1 is log i/o thread,
+				then follow the non-ibuf read threads,
+				and the last are the non-ibuf write
+				threads. */
+	fil_node_t**message1,	/*!< out: the messages passed with the */
+	void**	message2,	/*!< aio request; note that in case the
+				aio operation failed, these output
+				parameters are valid and can be used to
+				restart the operation. */
+	ulint*	type)		/*!< out: OS_FILE_WRITE or ..._READ */
+{
+	ulint		segment;
+	os_aio_array_t*	array;
+	os_aio_slot_t*	slot;
+	ulint		n;
+	ulint		i;
+	ibool		ret = FALSE;
+
+	/* Should never be doing Sync IO here. */
+	ut_a(global_seg != ULINT_UNDEFINED);
+
+	/* Find the array and the local segment. */
+	segment = os_aio_get_array_and_local_segment(&array, global_seg);
+	n = array->n_slots / array->n_segments;
+
+	/* Loop until we have found a completed request. */
+	for (;;) {
+		os_mutex_enter(array->mutex);
+		for (i = 0; i < n; ++i) {
+			slot = os_aio_array_get_nth_slot(
+					array, i + segment * n);
+			if (slot->reserved && slot->io_already_done) {
+				/* Something for us to work on. */
+				goto found;
+			}
+		}
+
+		os_mutex_exit(array->mutex);
+
+		/* We don't have any completed request.
+		Wait for some request. Note that we return
+		from wait iff we have found a request. */
+
+		srv_set_io_thread_op_info(global_seg,
+			"waiting for completed aio requests");
+		os_aio_linux_collect(array, segment, n);
+	}
+
+found:
+	/* Note that it may be that there are more then one completed
+	IO requests. We process them one at a time. We may have a case
+	here to improve the performance slightly by dealing with all
+	requests in one sweep. */
+	srv_set_io_thread_op_info(global_seg,
+				"processing completed aio requests");
+
+	/* Ensure that we are scribbling only our segment. */
+	ut_a(i < n);
+
+	ut_ad(slot != NULL);
+	ut_ad(slot->reserved);
+	ut_ad(slot->io_already_done);
+
+	*message1 = slot->message1;
+	*message2 = slot->message2;
+
+	*type = slot->type;
+
+	if ((slot->ret == 0) && (slot->n_bytes == (long)slot->len)) {
+		ret = TRUE;
+
+#ifdef UNIV_DO_FLUSH
+		if (slot->type == OS_FILE_WRITE
+		    && !os_do_not_call_flush_at_each_write)
+		    && !os_file_flush(slot->file) {
+			ut_error;
+		}
+#endif /* UNIV_DO_FLUSH */
+	} else {
+		errno = -slot->ret;
+
+		/* os_file_handle_error does tell us if we should retry
+		this IO. As it stands now, we don't do this retry when
+		reaping requests from a different context than
+		the dispatcher. This non-retry logic is the same for
+		windows and linux native AIO.
+		We should probably look into this to transparently
+		re-submit the IO. */
+		os_file_handle_error(slot->name, "Linux aio");
+
+		ret = FALSE;
+	}
+
+	os_mutex_exit(array->mutex);
+
+	os_aio_array_free_slot(array, slot);
+
+	return(ret);
+}
+#endif /* LINUX_NATIVE_AIO */
 
 /**********************************************************************//**
 Does simulated aio. This function should be called by an i/o-handler
@@ -3922,6 +4591,9 @@ os_aio_simulated_handle(
 	ibool		ret;
 	ulint		n;
 	ulint		i;
+
+	/* Fix compiler warning */
+	*consecutive_ios = NULL;
 
 	segment = os_aio_get_array_and_local_segment(&array, global_segment);
 
@@ -4260,6 +4932,40 @@ os_aio_validate(void)
 }
 
 /**********************************************************************//**
+Prints pending IO requests per segment of an aio array.
+We probably don't need per segment statistics but they can help us
+during development phase to see if the IO requests are being
+distributed as expected. */
+static
+void
+os_aio_print_segment_info(
+/*======================*/
+	FILE*		file,	/*!< in: file where to print */
+	ulint*		n_seg,	/*!< in: pending IO array */
+	os_aio_array_t*	array)	/*!< in: array to process */
+{
+	ulint	i;
+
+	ut_ad(array);
+	ut_ad(n_seg);
+	ut_ad(array->n_segments > 0);
+
+	if (array->n_segments == 1) {
+		return;
+	}
+
+	fprintf(file, " [");
+	for (i = 0; i < array->n_segments; i++) {
+		if (i != 0) {
+			fprintf(file, ", ");
+		}
+
+		fprintf(file, "%lu", n_seg[i]);
+	}
+	fprintf(file, "] ");
+}
+
+/**********************************************************************//**
 Prints info of the aio arrays. */
 UNIV_INTERN
 void
@@ -4270,6 +4976,7 @@ os_aio_print(
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
 	ulint		n_reserved;
+	ulint		n_res_seg[SRV_MAX_N_IO_THREADS];
 	time_t		current_time;
 	double		time_elapsed;
 	double		avg_bytes_read;
@@ -4302,11 +5009,17 @@ loop:
 
 	n_reserved = 0;
 
+	memset(n_res_seg, 0x0, sizeof(n_res_seg));
+
 	for (i = 0; i < array->n_slots; i++) {
+		ulint	seg_no;
+
 		slot = os_aio_array_get_nth_slot(array, i);
 
+		seg_no = (i * array->n_segments) / array->n_slots;
 		if (slot->reserved) {
 			n_reserved++;
+			n_res_seg[seg_no]++;
 #if 0
 			fprintf(stderr, "Reserved slot, messages %p %p\n",
 				(void*) slot->message1,
@@ -4319,6 +5032,8 @@ loop:
 	ut_a(array->n_reserved == n_reserved);
 
 	fprintf(file, " %lu", (ulong) n_reserved);
+
+	os_aio_print_segment_info(file, n_res_seg, array);
 
 	os_mutex_exit(array->mutex);
 

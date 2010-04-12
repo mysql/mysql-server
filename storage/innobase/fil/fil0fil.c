@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ Created 10/25/1995 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
+#include "page0page.h"
 #include "page0zip.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0lru.h"
@@ -119,6 +120,16 @@ UNIV_INTERN ulint	fil_n_pending_tablespace_flushes	= 0;
 
 /** The null file address */
 UNIV_INTERN fil_addr_t	fil_addr_null = {FIL_NULL, 0};
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register fil_system_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	fil_system_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
+#ifdef UNIV_PFS_RWLOCK
+/* Key to register file space latch with performance schema */
+UNIV_INTERN mysql_pfs_key_t	fil_space_latch_key;
+#endif /* UNIV_PFS_RWLOCK */
 
 /** File node of a tablespace or the log data space */
 struct fil_node_struct {
@@ -648,7 +659,8 @@ fil_node_open_file(
 		async I/O! */
 
 		node->handle = os_file_create_simple_no_error_handling(
-			node->name, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+			innodb_file_data_key, node->name, OS_FILE_OPEN,
+			OS_FILE_READ_ONLY, &success);
 		if (!success) {
 			/* The following call prints an error message */
 			os_file_get_last_error(TRUE);
@@ -766,15 +778,21 @@ add_size:
 	os_file_create() to fall back to the normal file I/O mode. */
 
 	if (space->purpose == FIL_LOG) {
-		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					      OS_FILE_AIO, OS_LOG_FILE, &ret);
+		node->handle = os_file_create(innodb_file_log_key,
+					      node->name, OS_FILE_OPEN,
+					      OS_FILE_AIO, OS_LOG_FILE,
+					      &ret);
 	} else if (node->is_raw_disk) {
-		node->handle = os_file_create(node->name,
+		node->handle = os_file_create(innodb_file_data_key,
+					      node->name,
 					      OS_FILE_OPEN_RAW,
-					      OS_FILE_AIO, OS_DATA_FILE, &ret);
+					      OS_FILE_AIO, OS_DATA_FILE,
+						     &ret);
 	} else {
-		node->handle = os_file_create(node->name, OS_FILE_OPEN,
-					      OS_FILE_AIO, OS_DATA_FILE, &ret);
+		node->handle = os_file_create(innodb_file_data_key,
+					      node->name, OS_FILE_OPEN,
+					      OS_FILE_AIO, OS_DATA_FILE,
+					      &ret);
 	}
 
 	ut_a(ret);
@@ -1097,10 +1115,13 @@ fil_space_create(
 	fil_space_t*	space;
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
 	ut_a(flags != DICT_TF_COMPACT);
+	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 try_again:
 	/*printf(
@@ -1208,7 +1229,7 @@ try_again:
 	UT_LIST_INIT(space->chain);
 	space->magic_n = FIL_SPACE_MAGIC_N;
 
-	rw_lock_create(&space->latch, SYNC_FSP);
+	rw_lock_create(fil_space_latch_key, &space->latch, SYNC_FSP);
 
 	HASH_INSERT(fil_space_t, hash, fil_system->spaces, id, space);
 
@@ -1510,7 +1531,8 @@ fil_init(
 
 	fil_system = mem_alloc(sizeof(fil_system_t));
 
-	mutex_create(&fil_system->mutex, SYNC_ANY_LATCH);
+	mutex_create(fil_system_mutex_key,
+		     &fil_system->mutex, SYNC_ANY_LATCH);
 
 	fil_system->spaces = hash_create(hash_size);
 	fil_system->name_hash = hash_create(hash_size);
@@ -2515,7 +2537,7 @@ retry:
 	success = fil_rename_tablespace_in_mem(space, node, path);
 
 	if (success) {
-		success = os_file_rename(old_path, path);
+		success = os_file_rename(innodb_file_data_key, old_path, path);
 
 		if (!success) {
 			/* We have to revert the changes we made
@@ -2582,14 +2604,18 @@ fil_create_new_single_table_tablespace(
 
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
 	ut_a(flags != DICT_TF_COMPACT);
+	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
-	file = os_file_create(path, OS_FILE_CREATE, OS_FILE_NORMAL,
+	file = os_file_create(innodb_file_data_key, path,
+			      OS_FILE_CREATE, OS_FILE_NORMAL,
 			      OS_DATA_FILE, &ret);
 	if (ret == FALSE) {
 		ut_print_timestamp(stderr);
@@ -2786,11 +2812,13 @@ fil_reset_too_high_lsns(
 	ib_int64_t	offset;
 	ulint		zip_size;
 	ibool		success;
+	page_zip_des_t	page_zip;
 
 	filepath = fil_make_ibd_name(name, FALSE);
 
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+		innodb_file_data_key, filepath, OS_FILE_OPEN,
+		OS_FILE_READ_WRITE, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -2833,6 +2861,12 @@ fil_reset_too_high_lsns(
 	space_id = fsp_header_get_space_id(page);
 	zip_size = fsp_header_get_zip_size(page);
 
+	page_zip_des_init(&page_zip);
+	page_zip_set_size(&page_zip, zip_size);
+	if (zip_size) {
+		page_zip.data = page + UNIV_PAGE_SIZE;
+	}
+
 	ut_print_timestamp(stderr);
 	fprintf(stderr,
 		"  InnoDB: Flush lsn in the tablespace file %lu"
@@ -2867,20 +2901,23 @@ fil_reset_too_high_lsns(
 			/* We have to reset the lsn */
 
 			if (zip_size) {
-				memcpy(page + UNIV_PAGE_SIZE, page, zip_size);
+				memcpy(page_zip.data, page, zip_size);
 				buf_flush_init_for_writing(
-					page, page + UNIV_PAGE_SIZE,
-					current_lsn);
+					page, &page_zip, current_lsn);
+				success = os_file_write(
+					filepath, file, page_zip.data,
+					(ulint) offset & 0xFFFFFFFFUL,
+					(ulint) (offset >> 32), zip_size);
 			} else {
 				buf_flush_init_for_writing(
 					page, NULL, current_lsn);
+				success = os_file_write(
+					filepath, file, page,
+					(ulint)(offset & 0xFFFFFFFFUL),
+					(ulint)(offset >> 32),
+					UNIV_PAGE_SIZE);
 			}
-			success = os_file_write(filepath, file, page,
-						(ulint)(offset & 0xFFFFFFFFUL),
-						(ulint)(offset >> 32),
-						zip_size
-						? zip_size
-						: UNIV_PAGE_SIZE);
+
 			if (!success) {
 
 				goto func_exit;
@@ -2956,13 +2993,17 @@ fil_open_single_table_tablespace(
 	filepath = fil_make_ibd_name(name, FALSE);
 
 	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
-	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=COMPACT
+	((table->flags & ~(~0 << DICT_TF_BITS)) == DICT_TF_COMPACT) and
 	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
-	format, the tablespace flags should equal table->flags. */
+	format, the tablespace flags should equal
+	(table->flags & ~(~0 << DICT_TF_BITS)). */
 	ut_a(flags != DICT_TF_COMPACT);
+	ut_a(!(flags & (~0UL << DICT_TF_BITS)));
 
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+		innodb_file_data_key, filepath, OS_FILE_OPEN,
+		OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -3011,7 +3052,8 @@ fil_open_single_table_tablespace(
 
 	ut_free(buf2);
 
-	if (UNIV_UNLIKELY(space_id != id || space_flags != flags)) {
+	if (UNIV_UNLIKELY(space_id != id
+			  || space_flags != (flags & ~(~0 << DICT_TF_BITS)))) {
 		ut_print_timestamp(stderr);
 
 		fputs("  InnoDB: Error: tablespace id and flags in file ",
@@ -3117,7 +3159,8 @@ fil_load_single_table_tablespace(
 # endif /* !UNIV_HOTBACKUP */
 #endif
 	file = os_file_create_simple_no_error_handling(
-		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
+		innodb_file_data_key, filepath, OS_FILE_OPEN,
+		OS_FILE_READ_ONLY, &success);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(TRUE);
@@ -3275,7 +3318,7 @@ fil_load_single_table_tablespace(
 		os_file_close(file);
 
 		new_path = fil_make_ibbackup_old_name(filepath);
-		ut_a(os_file_rename(filepath, new_path));
+		ut_a(os_file_rename(innodb_file_data_key, filepath, new_path));
 
 		ut_free(buf2);
 		mem_free(filepath);
@@ -3313,7 +3356,7 @@ fil_load_single_table_tablespace(
 
 		mutex_exit(&fil_system->mutex);
 
-		ut_a(os_file_rename(filepath, new_path));
+		ut_a(os_file_rename(innodb_file_data_key, filepath, new_path));
 
 		ut_free(buf2);
 		mem_free(filepath);
@@ -4435,11 +4478,14 @@ fil_aio_wait(
 
 	ut_ad(fil_validate());
 
-	if (os_aio_use_native_aio) {
+	if (srv_use_native_aio) {
 		srv_set_io_thread_op_info(segment, "native aio handle");
 #ifdef WIN_ASYNC_IO
 		ret = os_aio_windows_handle(segment, 0, &fil_node,
 					    &message, &type);
+#elif defined(LINUX_NATIVE_AIO)
+		ret = os_aio_linux_handle(segment, &fil_node,
+					  &message, &type);
 #else
 		ret = 0; /* Eliminate compiler warning */
 		ut_error;
@@ -4781,8 +4827,10 @@ void
 fil_close(void)
 /*===========*/
 {
+#ifndef UNIV_HOTBACKUP
 	/* The mutex should already have been freed. */
 	ut_ad(fil_system->mutex.magic_n == 0);
+#endif /* !UNIV_HOTBACKUP */
 
 	hash_table_free(fil_system->spaces);
 

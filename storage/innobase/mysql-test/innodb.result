@@ -692,6 +692,9 @@ select count(*) from t1 where sca_pic is null;
 count(*)
 2
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+ERROR 42000: Incorrect index name 'sca_pic'
+alter table t1 drop index sca_pic;
+alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
@@ -699,6 +702,9 @@ select count(*) from t1 where cat_code='E';
 count(*)
 0
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+ERROR 42000: Incorrect index name 'sca_pic'
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
@@ -1833,6 +1839,7 @@ show variables like "innodb_thread_sleep_delay";
 Variable_name	Value
 innodb_thread_sleep_delay	10000
 set storage_engine=INNODB;
+set session old_alter_table=1;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
 --- Testing varchar ---
@@ -1970,7 +1977,7 @@ explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  '
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
 alter table t1 add unique(v);
-ERROR 23000: Duplicate entry 'v' for key 'v_2'
+ERROR 23000: Duplicate entry '{ ' for key 'v_2'
 alter table t1 add key(v);
 select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
 qq
@@ -2406,6 +2413,7 @@ select * from t1 where a=20 and b is null;
 a	b
 20	NULL
 drop table t1;
+set session old_alter_table=0;
 create table t1 (v varchar(65530), key(v));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
@@ -3088,7 +3096,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 drop table t1, t2, t3, t5, t6, t8, t9;
 CREATE TABLE t1 (DB_ROW_ID int) engine=innodb;
-ERROR HY000: Can't create table 'test.t1' (errno: -1)
+ERROR 42000: Incorrect column name 'DB_ROW_ID'
 CREATE TABLE t1 (
 a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)

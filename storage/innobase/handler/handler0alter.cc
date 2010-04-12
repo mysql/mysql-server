@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -21,10 +21,8 @@ Place, Suite 330, Boston, MA 02111-1307 USA
 Smart ALTER TABLE
 *******************************************************/
 
-#include <unireg.h>
+#include <mysql_priv.h>
 #include <mysqld_error.h>
-#include <sql_lex.h>                            // SQLCOM_CREATE_INDEX
-#include <mysql/innodb_priv.h>
 
 extern "C" {
 #include "log0log.h"
@@ -231,9 +229,11 @@ static
 int
 innobase_check_index_keys(
 /*======================*/
-	const KEY*	key_info,	/*!< in: Indexes to be created */
-	ulint		num_of_keys)	/*!< in: Number of indexes to
-					be created */
+	const KEY*		key_info,	/*!< in: Indexes to be
+						created */
+	ulint			num_of_keys,	/*!< in: Number of
+						indexes to be created */
+	const dict_table_t*	table)		/*!< in: Existing indexes */
 {
 	ulint		key_num;
 
@@ -250,9 +250,22 @@ innobase_check_index_keys(
 			const KEY&	key2 = key_info[i];
 
 			if (0 == strcmp(key.name, key2.name)) {
-				sql_print_error("InnoDB: key name `%s` appears"
-						" twice in CREATE INDEX\n",
-						key.name);
+				my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
+					 key.name);
+
+				return(ER_WRONG_NAME_FOR_INDEX);
+			}
+		}
+
+		/* Check that the same index name does not already exist. */
+
+		for (const dict_index_t* index
+			     = dict_table_get_first_index(table);
+		     index; index = dict_table_get_next_index(index)) {
+
+			if (0 == strcmp(key.name, index->name)) {
+				my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0),
+					 key.name);
 
 				return(ER_WRONG_NAME_FOR_INDEX);
 			}
@@ -260,7 +273,7 @@ innobase_check_index_keys(
 
 		/* Check that MySQL does not try to create a column
 		prefix index field on an inappropriate data type and
-		that the same colum does not appear twice in the index. */
+		that the same column does not appear twice in the index. */
 
 		for (ulint i = 0; i < key.key_parts; i++) {
 			const KEY_PART_INFO&	key_part1
@@ -291,14 +304,8 @@ innobase_check_index_keys(
 					}
 				}
 
-				sql_print_error("InnoDB: MySQL is trying to"
-						" create a column prefix"
-						" index field on an"
-						" inappropriate data type."
-						" column `%s`,"
-						" index `%s`.\n",
-						field->field_name,
-						key.name);
+				my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+					 field->field_name);
 				return(ER_WRONG_KEY_COLUMN);
 			}
 
@@ -311,11 +318,8 @@ innobase_check_index_keys(
 					continue;
 				}
 
-				sql_print_error("InnoDB: column `%s`"
-						" is not allowed to occur"
-						" twice in index `%s`.\n",
-						key_part1.field->field_name,
-						key.name);
+				my_error(ER_WRONG_KEY_COLUMN, MYF(0),
+					 key_part1.field->field_name);
 				return(ER_WRONG_KEY_COLUMN);
 			}
 		}
@@ -524,12 +528,14 @@ innobase_create_key_def(
 				     key_info->name, "PRIMARY");
 
 	/* If there is a UNIQUE INDEX consisting entirely of NOT NULL
-	columns, MySQL will treat it as a PRIMARY KEY unless the
-	table already has one. */
+	columns and if the index does not contain column prefix(es)
+	(only prefix/part of the column is indexed), MySQL will treat the
+	index as a PRIMARY KEY unless the table already has one. */
 
 	if (!new_primary && (key_info->flags & HA_NOSAME)
+	    && (!(key_info->flags & HA_KEY_HAS_PART_KEY_SEG))
 	    && row_table_got_default_clust_index(table)) {
-		uint	key_part = key_info->key_parts;
+		uint    key_part = key_info->key_parts;
 
 		new_primary = TRUE;
 
@@ -658,12 +664,18 @@ ha_innobase::add_index(
 	innodb_table = indexed_table
 		= dict_table_get(prebuilt->table->name, FALSE);
 
+	if (UNIV_UNLIKELY(!innodb_table)) {
+		error = HA_ERR_NO_SUCH_TABLE;
+		goto err_exit;
+	}
+
 	/* Check if the index name is reserved. */
 	if (innobase_index_name_is_reserved(trx, key_info, num_of_keys)) {
 		error = -1;
 	} else {
 		/* Check that index keys are sensible */
-		error = innobase_check_index_keys(key_info, num_of_keys);
+		error = innobase_check_index_keys(key_info, num_of_keys,
+						  innodb_table);
 	}
 
 	if (UNIV_UNLIKELY(error)) {
@@ -710,6 +722,8 @@ err_exit:
 	row_mysql_lock_data_dictionary(trx);
 	dict_locked = TRUE;
 
+	ut_d(dict_table_check_for_dup_indexes(innodb_table, FALSE));
+
 	/* If a new primary key is defined for the table we need
 	to drop the original table and rebuild all indexes. */
 
@@ -742,6 +756,8 @@ err_exit:
 					user_thd);
 			}
 
+			ut_d(dict_table_check_for_dup_indexes(innodb_table,
+							      FALSE));
 			row_mysql_unlock_data_dictionary(trx);
 			goto err_exit;
 		}
@@ -765,6 +781,10 @@ err_exit:
 	}
 
 	ut_ad(error == DB_SUCCESS);
+
+	/* We will need to rebuild index translation table. Set
+	valid index entry count in the translation table to zero */
+	share->idx_trans_tbl.index_count = 0;
 
 	/* Commit the data dictionary transaction in order to release
 	the table locks on the system tables.  This means that if
@@ -801,18 +821,6 @@ err_exit:
 					index, num_of_idx, table);
 
 error_handling:
-#ifdef UNIV_DEBUG
-	/* TODO: At the moment we can't handle the following statement
-	in our debugging code below:
-
-	alter table t drop index b, add index (b);
-
-	The fix will have to parse the SQL and note that the index
-	being added has the same name as the one being dropped and
-	ignore that in the dup index check.*/
-	//dict_table_check_for_dup_indexes(prebuilt->table);
-#endif
-
 	/* After an error, remove all those index definitions from the
 	dictionary which were defined. */
 
@@ -823,6 +831,8 @@ error_handling:
 		ut_a(!dict_locked);
 		row_mysql_lock_data_dictionary(trx);
 		dict_locked = TRUE;
+
+		ut_d(dict_table_check_for_dup_indexes(prebuilt->table, TRUE));
 
 		if (!new_primary) {
 			error = row_merge_rename_indexes(trx, indexed_table);
@@ -910,6 +920,8 @@ convert_error:
 		trx_commit_for_mysql(prebuilt->trx);
 	}
 
+	ut_d(dict_table_check_for_dup_indexes(innodb_table, FALSE));
+
 	if (dict_locked) {
 		row_mysql_unlock_data_dictionary(trx);
 	}
@@ -953,6 +965,7 @@ ha_innobase::prepare_drop_index(
 	/* Test and mark all the indexes to be dropped */
 
 	row_mysql_lock_data_dictionary(trx);
+	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));
 
 	/* Check that none of the indexes have previously been flagged
 	for deletion. */
@@ -1118,6 +1131,7 @@ func_exit:
 		} while (index);
 	}
 
+	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));
 	row_mysql_unlock_data_dictionary(trx);
 
 	DBUG_RETURN(err);
@@ -1164,6 +1178,7 @@ ha_innobase::final_drop_index(
 		prebuilt->table->flags, user_thd);
 
 	row_mysql_lock_data_dictionary(trx);
+	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));
 
 	if (UNIV_UNLIKELY(err)) {
 
@@ -1200,11 +1215,12 @@ ha_innobase::final_drop_index(
 		ut_a(!index->to_be_dropped);
 	}
 
-#ifdef UNIV_DEBUG
-	dict_table_check_for_dup_indexes(prebuilt->table);
-#endif
+	/* We will need to rebuild index translation table. Set
+	valid index entry count in the translation table to zero */
+	share->idx_trans_tbl.index_count = 0;
 
 func_exit:
+	ut_d(dict_table_check_for_dup_indexes(prebuilt->table, FALSE));
 	trx_commit_for_mysql(trx);
 	trx_commit_for_mysql(prebuilt->trx);
 	row_mysql_unlock_data_dictionary(trx);

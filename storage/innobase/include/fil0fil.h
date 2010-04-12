@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,13 +26,13 @@ Created 10/25/1995 Heikki Tuuri
 #ifndef fil0fil_h
 #define fil0fil_h
 
-#include "univ.i"
-#ifndef UNIV_HOTBACKUP
-#include "sync0rw.h"
-#endif /* !UNIV_HOTBACKUP */
 #include "dict0types.h"
 #include "ut0byte.h"
 #include "os0file.h"
+#ifndef UNIV_HOTBACKUP
+#include "sync0rw.h"
+#include "ibuf0types.h"
+#endif /* !UNIV_HOTBACKUP */
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
@@ -110,9 +110,10 @@ extern fil_addr_t	fil_addr_null;
 					contents of this field is valid
 					for all uncompressed pages. */
 #define FIL_PAGE_FILE_FLUSH_LSN	26	/*!< this is only defined for the
-					first page in a data file: the file
-					has been flushed to disk at least up
-					to this lsn */
+					first page in a system tablespace
+					data file (ibdata*, not *.ibd):
+					the file has been flushed to disk
+					at least up to this lsn */
 #define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID  34 /*!< starting from 4.1.x this
 					contains the space id of the page */
 #define FIL_PAGE_DATA		38	/*!< start of the data on the page */

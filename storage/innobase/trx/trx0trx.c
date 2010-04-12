@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,6 +50,11 @@ UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 /** Number of transactions currently allocated for MySQL: protected by
 the kernel mutex */
 UNIV_INTERN ulint	trx_n_mysql_transactions = 0;
+
+#ifdef UNIV_PFS_MUTEX
+/* Key to register the mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_undo_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
 
 /*************************************************************//**
 Set detailed error message for the transaction. */
@@ -129,7 +134,7 @@ trx_create(
 	trx->mysql_log_file_name = NULL;
 	trx->mysql_log_offset = 0;
 
-	mutex_create(&trx->undo_mutex, SYNC_TRX_UNDO);
+	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 
 	trx->rseg = NULL;
 
@@ -425,6 +430,7 @@ trx_lists_init_at_db_start(void)
 	trx_undo_t*	undo;
 	trx_t*		trx;
 
+	ut_ad(mutex_own(&kernel_mutex));
 	UT_LIST_INIT(trx_sys->trx_list);
 
 	/* Look from the rollback segments if there exist undo logs for
