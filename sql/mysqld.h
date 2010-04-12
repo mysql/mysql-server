@@ -25,7 +25,7 @@
 #include "sql_list.h"                      /* I_List */
 
 class THD;
-class handlerton;
+struct handlerton;
 class Time_zone;
 
 class scheduler_functions;
