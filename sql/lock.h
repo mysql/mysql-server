@@ -4,8 +4,8 @@
 #include "thr_lock.h"                           /* thr_lock_type */
 
 // Forward declarations
-class TABLE;
-class TABLE_LIST;
+struct TABLE;
+struct TABLE_LIST;
 class THD;
 typedef struct st_mysql_lock MYSQL_LOCK;
 
@@ -55,7 +55,7 @@ typedef struct st_mysql_lock MYSQL_LOCK;
 
 #include "thr_lock.h"                           /* thr_lock_type */
 
-class TABLE_LIST;
+struct TABLE_LIST;
 class THD;
 struct TABLE;
 typedef struct st_mysql_lock MYSQL_LOCK;

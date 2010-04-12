@@ -20,7 +20,7 @@
 #include "my_base.h"                            /* ha_rows */
 
 class MY_LOCALE;
-class TABLE_LIST;
+struct TABLE_LIST;
 class Time_zone;
 struct LEX;
 struct TABLE;
