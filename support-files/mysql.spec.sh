@@ -163,8 +163,11 @@
 # ----------------------------------------------------------------------------
 # Support optional "tcmalloc" library (experimental)
 # ----------------------------------------------------------------------------
-%{?malloc_lib_target:%define WITH_TCMALLOC 1}
-%{!?malloc_lib_target:%define WITH_TCMALLOC 0}
+%if %{defined malloc_lib_target}
+%define WITH_TCMALLOC 1
+%else
+%define WITH_TCMALLOC 0
+%endif
 
 ##############################################################################
 # Configuration based upon above user input, not to be set directly
