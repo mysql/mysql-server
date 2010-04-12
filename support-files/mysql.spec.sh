@@ -86,11 +86,11 @@
 # ----------------------------------------------------------------------------
 # Server comment strings
 # ----------------------------------------------------------------------------
-%if %{undefined server_comment_debug}
-%define server_comment_debug    MySQL Community Server - Debug (GPL)
+%if %{undefined compilation_comment_debug}
+%define compilation_comment_debug   MySQL Community Server - Debug (GPL)
 %endif
-%if %{undefined server_comment_release}
-%define server_comment_release  MySQL Community Server (GPL)
+%if %{undefined compilation_comment_release}
+%define compilation_comment_release MySQL Community Server (GPL)
 %endif
 
 # ----------------------------------------------------------------------------
@@ -365,9 +365,9 @@ mkdir debug
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
-           -DFEATURE_SET=%{feature_set} \
-           -DCOMPILATION_COMMENT=%{compilation_comment_debug} \
-           -DMYSQL_SERVER_SUFFIX=%{server_suffix}
+           -DFEATURE_SET="%{feature_set}" \
+           -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
+           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   make VERBOSE=1 mysqld mysqlserver
 )
 # Build full release
@@ -379,9 +379,9 @@ mkdir release
   ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
-           -DFEATURE_SET=%{feature_set} \
-           -DCOMPILATION_COMMENT=%{compilation_comment_release} \
-           -DMYSQL_SERVER_SUFFIX=%{server_suffix}
+           -DFEATURE_SET="%{feature_set}" \
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   make VERBOSE=1
 )
 
