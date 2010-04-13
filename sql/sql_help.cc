@@ -13,7 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_help.h"
+#include "sql_table.h"                          // primary_key_name
+#include "sql_base.h"               // REPORT_ALL_ERRORS, setup_tables
+#include "opt_range.h"              // SQL_SELECT
+#include "records.h"          // init_read_record, end_read_record
 
 struct st_find_field
 {

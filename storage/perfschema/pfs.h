@@ -23,7 +23,9 @@
 
 #define HAVE_PSI_1
 
-#include <mysql_priv.h>
+#include <sql_priv.h>
+#include <my_global.h>
+#include <unireg.h>
 #include <mysql/psi/psi.h>
 
 extern struct PSI_bootstrap PFS_bootstrap;
