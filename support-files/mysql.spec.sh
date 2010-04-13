@@ -45,6 +45,8 @@
 %define undefined()     %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
 %endif
 
+%define fileexists()    %([-f "%{1}"] && echo 1 || echo 0)
+
 # ----------------------------------------------------------------------------
 # RPM build tools now automatically detect Perl module dependencies.  This
 # detection causes problems as it is broken in some versions, and it also
@@ -123,26 +125,29 @@
 %endif
 %if %{distro_specific}
   %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-    %define redhatver %(rpm -qf --qf '%%{version}' /etc/redhat-release | sed -e 's/Server//g')
+    %define redhatver %(rpm -qf --qf '%%{version}' /etc/redhat-release | sed -e 's/^\([0-9]*\).*/\1/g')
     %if %redhatver == 4
       %define distro_description        Red Hat Enterprise Linux 4
       %define distro_releasetag         rhel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
-    %elseif %redhatver == 5
+    %else
+    %if %redhatver == 5
       %define distro_description        Red Hat Enterprise Linux 5
       %define distro_releasetag         rhel5
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %endif
-  %elseif %(test -f /etc/SuSE-release && echo 1 || echo 0)
+  %else
+  %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
     %define susever %(rpm -qf --qf '%%{version}' /etc/SuSE-release)
     %if %susever == 10
       %define distro_description        SUSE Linux Enterprise Server 10
       %define distro_releasetag         sles10
       %define distro_buildreq           gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
       %define distro_requires           aaa_base coreutils grep procps pwdutils
-    %elseif %susever == 11
+    %else
+    %if %susever == 11
       %define distro_description        SUSE Linux Enterprise Server 11
       %define distro_releasetag         sles11
       %define distro_buildreq           gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
@@ -177,7 +182,7 @@
 %define license_files_server    %{src_dir}/LICENSE.mysql
 %define license_type            Commercial
 %else
-%define license_files_client    %{src_dir}/EXCEPTIONS-CLIENT
+%define license_files_devel     %{src_dir}/EXCEPTIONS-CLIENT
 %define license_files_server    %{src_dir}/COPYING %{src_dir}/README
 %define license_type            %{mysql_license}
 %endif
@@ -466,9 +471,6 @@ install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}
 # files' warning.
 rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 
-# Auto-detect whether innodb was included
-%define WITH_INNODB %([ -x "$RBR%{_bindir}/innochecksum" ] && echo 1 || echo 0)
-
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
@@ -657,7 +659,7 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
-%if %{WITH_INNODB}
+%if %fileexists(%{_mandir}/man1/innochecksum.1*)
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %endif
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
@@ -689,7 +691,7 @@ fi
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
-%if %{WITH_INNODB}
+%if %fileexists(%{_bindir}/innochecksum)
 %attr(755, root, root) %{_bindir}/innochecksum
 %endif
 %attr(755, root, root) %{_bindir}/my_print_defaults
@@ -771,7 +773,9 @@ fi
 # ----------------------------------------------------------------------------
 %files -n MySQL-devel%{short_product_tag}
 %defattr(-, root, root, 0755)
-%doc %{src_dir}/EXCEPTIONS-CLIENT
+%if %{defined license_files_devel}
+%doc %{license_files_devel}
+%endif
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
