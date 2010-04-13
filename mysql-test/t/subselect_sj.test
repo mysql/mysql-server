@@ -509,3 +509,83 @@ WHERE (int_nokey, pk)
 
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # Bug#46550 Azalea returning duplicate results for some IN subqueries
+--echo # w/ semijoin=on
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t0, t1, t2;
+--enable_warnings
+
+CREATE TABLE t0 (
+  int_key int(11) DEFAULT NULL,
+  varchar_key varchar(1) DEFAULT NULL,
+  varchar_nokey varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY varchar_key (varchar_key,int_key)
+);
+
+INSERT INTO t0 VALUES
+(1,'m','m'),
+(40,'h','h'),
+(1,'r','r'),
+(1,'h','h'),
+(9,'x','x'),
+(NULL,'q','q'),
+(NULL,'k','k'),
+(7,'l','l'),
+(182,'k','k'),
+(202,'a','a'),
+(7,'x','x'),
+(6,'j','j'),
+(119,'z','z'),
+(4,'d','d'),
+(5,'h','h'),
+(1,'u','u'),
+(3,'q','q'),
+(7,'a','a'),
+(3,'e','e'),
+(6,'l','l');
+
+CREATE TABLE t1 (
+  int_key int(11) DEFAULT NULL,
+  varchar_key varchar(1) DEFAULT NULL,
+  varchar_nokey varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY varchar_key (varchar_key,int_key)
+);
+INSERT INTO t1 VALUES (7,NULL,NULL),(4,'x','x');
+
+CREATE TABLE t2 (
+  int_key int(11) DEFAULT NULL,
+  varchar_key varchar(1) DEFAULT NULL,
+  varchar_nokey varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY varchar_key (varchar_key,int_key)
+);
+INSERT INTO t2 VALUES (123,NULL,NULL);
+
+SELECT int_key  
+FROM t0  
+WHERE varchar_nokey  IN (  
+  SELECT t1 .varchar_key  from t1
+);
+
+SELECT t0.int_key  
+FROM t0
+WHERE t0.varchar_nokey  IN (  
+  SELECT t1_1 .varchar_key  
+  FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
+);
+
+SELECT t0.int_key  
+FROM t0, t2
+WHERE t0.varchar_nokey  IN (  
+  SELECT t1_1 .varchar_key  
+  FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key  
+);
+
+DROP TABLE t0, t1, t2;
+
+--echo # End of bug#46550
