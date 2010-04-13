@@ -62,6 +62,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 #
 # Test 2
 #
@@ -112,6 +113,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 #
 # Test 3: max_relay_log_size = 0
 #
@@ -162,6 +164,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 #
 # Test 4: Tests below are mainly to ensure that we have not coded with wrong assumptions
 #
@@ -209,6 +212,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 #
 # Test 5
 #
@@ -257,6 +261,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 #
 # Test 6: one more rotation, to be sure Relay_Log_Space is correctly updated
 #
@@ -303,6 +308,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 flush logs;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
