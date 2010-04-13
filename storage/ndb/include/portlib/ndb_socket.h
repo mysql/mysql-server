@@ -4,9 +4,9 @@
 
 
 #ifdef __WIN__
-#include <my_socket_win32.h>
+#include <ndb_socket_win32.h>
 #else
-#include <my_socket_posix.h>
+#include <ndb_socket_posix.h>
 #endif
 
 C_MODE_START
@@ -14,7 +14,7 @@ C_MODE_START
 /*
   create a pair of connected sockets
 */
-int my_socketpair(my_socket s[2]);
+int my_socketpair(ndb_socket_t s[2]);
 
 C_MODE_END
 

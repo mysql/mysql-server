@@ -60,7 +60,7 @@ Ndb_getInAddr(struct in_addr * dst, const char *address) {
 
 #ifndef DBUG_OFF
 extern "C"
-int NDB_CLOSE_SOCKET(my_socket fd)
+int NDB_CLOSE_SOCKET(NDB_SOCKET_TYPE fd)
 {
   DBUG_PRINT("info", ("NDB_CLOSE_SOCKET(" MY_SOCKET_FORMAT ")",
                       MY_SOCKET_FORMAT_VALUE(fd)));
