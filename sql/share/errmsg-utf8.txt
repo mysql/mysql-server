@@ -6327,3 +6327,6 @@ ER_LOCK_ABORTED
 
 ER_DATA_OUT_OF_RANGE 22003 
   eng "%s value is out of range in '%s'"
+
+ER_WRONG_SPVAR_TYPE_IN_LIMIT
+  eng "A variable of a non-integer type in LIMIT clause"
