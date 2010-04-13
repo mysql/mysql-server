@@ -610,8 +610,11 @@ public:
 
       if ((bytes= fread(buf, 1, sizeof(buf), m_file)) <= 0)
       {
-        fprintf(stderr, "Failed to read from '%s', errno: %d\n",
-                m_file_name, errno);
+	// ferror=0 will happen here if no queries executed yet
+	if (ferror(m_file))
+	  fprintf(stderr,
+	          "Failed to read from '%s', errno: %d, feof:%d, ferror:%d\n",
+	          m_file_name, errno, feof(m_file), ferror(m_file));
         DBUG_VOID_RETURN;
       }
 
