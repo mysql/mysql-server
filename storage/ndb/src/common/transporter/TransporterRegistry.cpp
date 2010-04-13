@@ -1088,7 +1088,7 @@ TransporterRegistry::change_epoll(TCP_Transporter *t, bool add)
 {
   struct epoll_event event_poll;
   bzero(&event_poll, sizeof(event_poll));
-  my_socket sock_fd = t->getSocket();
+  NDB_SOCKET_TYPE sock_fd = t->getSocket();
   int node_id = t->getRemoteNodeId();
   int op = add ? EPOLL_CTL_ADD : EPOLL_CTL_DEL;
   int ret_val, error;
@@ -1955,7 +1955,7 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 {
   struct ndb_mgm_reply mgm_reply;
-  my_socket sockfd;
+  NDB_SOCKET_TYPE sockfd;
   my_socket_invalidate(&sockfd);
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle)");
@@ -2013,7 +2013,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(SocketClient *sc)
 {
   NdbMgmHandle h= ndb_mgm_create_handle();
-  my_socket s;
+  NDB_SOCKET_TYPE s;
   my_socket_invalidate(&s);
 
   DBUG_ENTER("TransporterRegistry::connect_ndb_mgmd(SocketClient)");
