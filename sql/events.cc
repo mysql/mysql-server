@@ -13,8 +13,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_parse.h"                          // check_access
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_show.h"                           // append_definer
 #include "events.h"
+#include "sql_db.h"                          // check_db_dir_existence
+#include "sql_table.h"                       // write_bin_log
+#include "tztime.h"                             // struct Time_zone
+#include "sql_acl.h"                            // EVENT_ACL
+#include "records.h"          // init_read_record, end_read_record
 #include "event_data_objects.h"
 #include "event_db_repository.h"
 #include "event_queue.h"

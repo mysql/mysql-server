@@ -23,7 +23,11 @@
     str is a (long) to record position where 0 is the first position.
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_partition.h"                      // struct partition_info
+#include "sql_table.h"                          // check_duplicate_warning
+#include "sql_class.h"                  // THD, Internal_error_handler
 #include <m_ctype.h>
 #include <assert.h>
 

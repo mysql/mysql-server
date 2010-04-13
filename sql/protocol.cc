@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,10 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "protocol.h"
+#include "sql_class.h"                          // THD
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;
@@ -648,8 +651,7 @@ void Protocol::init(THD *thd_arg)
 
 void Protocol::end_partial_result_set(THD *thd_arg)
 {
-  net_send_eof(thd_arg, thd_arg->server_status,
-               0 /* no warnings, we're inside SP */);
+  net_send_eof(thd_arg, thd_arg->server_status, 0 /* no warnings, we're inside SP */);
 }
 
 

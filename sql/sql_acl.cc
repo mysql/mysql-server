@@ -24,13 +24,26 @@
   in the relevant fields. Empty strings comes last.
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "sql_acl.h"         // MYSQL_DB_FIELD_COUNT, ACL_ACCESS
+#include "sql_base.h"                           // close_thread_tables
+#include "key.h"             // key_copy, key_cmp_if_same, key_restore
+#include "sql_show.h"        // append_identifier
+#include "sql_table.h"                         // build_table_filename
 #include "hash_filo.h"
+#include "sql_parse.h"                          // check_access
+#include "sql_view.h"                           // VIEW_ANY_ACL
+#include "records.h"              // READ_RECORD, read_record_info,
+                                  // init_read_record, end_read_record
+#include "rpl_filter.h"           // rpl_filter
 #include <m_ctype.h>
 #include <stdarg.h>
 #include "sp_head.h"
 #include "sp.h"
 #include "transaction.h"
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "records.h"             // init_read_record, end_read_record
 
 bool mysql_user_table_is_in_short_password_format= false;
 
@@ -5775,16 +5788,31 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   DBUG_RETURN(result);
 }
 
-
-static void append_user(String *str, LEX_USER *user)
+/**
+  Auxiliary function for constructing a  user list string.
+  @param str     A String to store the user list.
+  @param user    A LEX_USER which will be appended into user list.
+  @param comma   If TRUE, append a ',' before the the user.
+  @param passwd  If TRUE, append ' IDENTIFIED BY PASSWORD ...' after the user,
+                 if the given user has password.
+ */
+static void append_user(String *str, LEX_USER *user, bool comma= TRUE,
+                        bool passwd= FALSE)
 {
-  if (str->length())
+  if (comma)
     str->append(',');
   str->append('\'');
   str->append(user->user.str);
   str->append(STRING_WITH_LEN("'@'"));
   str->append(user->host.str);
   str->append('\'');
+
+  if (passwd && user->password.str)
+  {
+    str->append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
+    str->append(user->password.str, user->password.length);
+    str->append('\'');
+  }
 }
 
 
@@ -5805,6 +5833,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 {
   int result;
   String wrong_users;
+  String log_query;
   ulong sql_mode;
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
@@ -5834,6 +5863,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_wrlock(&LOCK_grant);
   mysql_mutex_lock(&acl_cache->lock);
 
+  log_query.append(STRING_WITH_LEN("CREATE USER"));
   while ((tmp_user_name= user_list++))
   {
     if (!(user_name= get_current_user(thd, tmp_user_name)))
@@ -5842,13 +5872,17 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
+    log_query.append(' ');
+    append_user(&log_query, user_name, FALSE, TRUE);
+    log_query.append(',');
+
     /*
       Search all in-memory structures and grant tables
       for a mention of the new user name.
     */
     if (handle_grant_data(tables, 0, user_name, NULL))
     {
-      append_user(&wrong_users, user_name);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0);
       result= TRUE;
       continue;
     }
@@ -5857,7 +5891,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     sql_mode= thd->variables.sql_mode;
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
-      append_user(&wrong_users, user_name);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0);
       result= TRUE;
     }
   }
@@ -5868,7 +5902,11 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
 
   if (some_users_created)
-    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length());
+  {
+    /* Remove the last ',' */
+    log_query.length(log_query.length()-1);
+    result|= write_bin_log(thd, FALSE, log_query.c_ptr_safe(), log_query.length());
+  }
 
   mysql_rwlock_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5937,7 +5975,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     }  
     if (handle_grant_data(tables, 1, user_name, NULL) <= 0)
     {
-      append_user(&wrong_users, user_name);
+      append_user(&wrong_users, user_name, wrong_users.length() > 0);
       result= TRUE;
       continue;
     }
@@ -6034,7 +6072,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     if (handle_grant_data(tables, 0, user_to, NULL) ||
         handle_grant_data(tables, 0, user_from, user_to) <= 0)
     {
-      append_user(&wrong_users, user_from);
+      append_user(&wrong_users, user_from, wrong_users.length() > 0);
       result= TRUE;
       continue;
     }
