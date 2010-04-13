@@ -45,7 +45,7 @@
 %define undefined()     %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
 %endif
 
-%define fileexists()    %([ -e "%{1}" ] && echo 1 || echo 0)
+%define fileexists()    %(set -x; [ -e "%{1}" ] && echo 1 || echo 0)
 
 # ----------------------------------------------------------------------------
 # RPM build tools now automatically detect Perl module dependencies.  This
@@ -420,7 +420,7 @@ RBR=$RPM_BUILD_ROOT
 
 # For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
 # needs to be during build phase as $CC is not set during install.
-if "$CC" -v | grep '^gcc.version' >/dev/null 2>&1
+if "$CC" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1
 then
   libgcc=`$CC $CFLAGS --print-libgcc-file`
   if [ -f $libgcc ]
