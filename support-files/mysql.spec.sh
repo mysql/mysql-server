@@ -352,6 +352,9 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 # Be strict about variables, bail at earliest opportunity, etc.
 set -eu
 
+# Optional package files
+touch optional-files-devel
+
 #
 # Set environment in order of preference, MYSQL_BUILD_* first, then variable
 # name, finally a default.  RPM_OPT_FLAGS is assumed to be a part of the
@@ -427,6 +430,7 @@ then
   then
     mkdir -p $RBR%{_libdir}/mysql
     install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
+    echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
   fi
 fi
 
@@ -478,25 +482,6 @@ install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}
 # Remove man pages we explicitly do not want to package, avoids 'unpackaged
 # files' warning.
 rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
-
-#
-# Set conditional package options for use in files section
-#
-#  - libmygcc
-#
-%if %{fileexists $RBR%{_libdir}/mysql/libmygcc.a}
-%define WITH_LIBGCC 1
-%else
-%define WITH_LIBGCC 0
-%endif
-#
-#  - innodb
-#
-%if %{fileexists $RBR%{_bindir}/innochecksum}
-%define WITH_INNODB 1
-%else
-%define WITH_INNODB 0
-%endif
 
 ##############################################################################
 #  Post processing actions, i.e. when installed
@@ -686,9 +671,7 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
-%if %{WITH_INNODB}
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
-%endif
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
@@ -718,9 +701,7 @@ fi
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
-%if %{WITH_INNODB}
 %attr(755, root, root) %{_bindir}/innochecksum
-%endif
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
@@ -798,7 +779,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-devel%{product_suffix}
+%files -n MySQL-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
 %if %{defined license_files_devel}
 %doc %{license_files_devel}
@@ -810,9 +791,6 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql/*
 %{_datadir}/aclocal/mysql.m4
-%if %{WITH_LIBGCC}
-%{_libdir}/mysql/libmygcc.a
-%endif
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
