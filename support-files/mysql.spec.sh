@@ -45,7 +45,7 @@
 %define undefined()     %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
 %endif
 
-%define fileexists()    %([-f "%{1}"] && echo 1 || echo 0)
+%define fileexists()    %([ -e "%{1}" ] && echo 1 || echo 0)
 
 # ----------------------------------------------------------------------------
 # RPM build tools now automatically detect Perl module dependencies.  This
@@ -671,7 +671,7 @@ fi
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
-%if %fileexists(%{_mandir}/man1/innochecksum.1*)
+%if %{fileexists %{_mandir}/man1/innochecksum.1*}
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
 %endif
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
@@ -703,7 +703,7 @@ fi
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
-%if %fileexists(%{_bindir}/innochecksum)
+%if %{fileexists %{_bindir}/innochecksum}
 %attr(755, root, root) %{_bindir}/innochecksum
 %endif
 %attr(755, root, root) %{_bindir}/my_print_defaults
