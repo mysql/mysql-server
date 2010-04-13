@@ -8311,16 +8311,6 @@ int main(int argc, char **argv)
 	check_result();
       }
     }
-    else
-    {
-      /*
-        No result_file_name specified, the result
-        has been printed to stdout, exit with error
-        unless script has called "exit" to indicate success
-      */
-      if (abort_flag == 0)
-        die("Exit with failure! Call 'exit' in script to return with sucess");
-    }
   }
   else
   {
