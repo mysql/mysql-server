@@ -108,13 +108,18 @@
 %endif
 
 # ----------------------------------------------------------------------------
-# Product and server names
+# Product and server suffixes
 # ----------------------------------------------------------------------------
-%if %{undefined short_product_tag}
-%define short_product_tag       %{nil}
+%if %{undefined product_suffix}
+  %if %{defined short_product_tag}
+    %define product_suffix      -%{short_product_tag}
+  %else
+    %define product_suffix      %{nil}
+  %endif
 %endif
+
 %if %{undefined server_suffix}
-%define server_suffix           %{nil}
+%define server_suffix   %{nil}
 %endif
 
 # ----------------------------------------------------------------------------
@@ -198,7 +203,7 @@
 # Main spec file section
 ##############################################################################
 
-Name:           MySQL%{short_product_tag}
+Name:           MySQL%{product_suffix}
 Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_U_SCORE_VERSION@
@@ -239,14 +244,14 @@ documentation and the manual for more information.
 # Sub package definition
 ##############################################################################
 
-%package -n MySQL-server%{short_product_tag}
+%package -n MySQL-server%{product_suffix}
 Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires}
 Provides:       msqlormysql mysql-server mysql MySQL MySQL-server
 Obsoletes:      MySQL mysql mysql-server MySQL-server
 
-%description -n MySQL-server%{short_product_tag}
+%description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
@@ -268,22 +273,22 @@ This package includes the MySQL server binary as well as related utilities
 to run and administer a MySQL server.
 
 If you want to access and work with the database, you have to install
-package "MySQL-client%{short_product_tag}" as well!
+package "MySQL-client%{product_suffix}" as well!
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-client%{short_product_tag}
+%package -n MySQL-client%{product_suffix}
 Summary:        MySQL - Client
 Group:          Applications/Databases
 Obsoletes:      mysql-client MySQL-client
 Provides:       mysql-client MySQL-client
 
-%description -n MySQL-client%{short_product_tag}
+%description -n MySQL-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-test%{short_product_tag}
+%package -n MySQL-test%{product_suffix}
 Requires:       %{name}-client perl
 Summary:        MySQL - Test suite
 Group:          Applications/Databases
@@ -291,41 +296,41 @@ Provides:       mysql-test
 Obsoletes:      mysql-bench mysql-test
 AutoReqProv:    no
 
-%description -n MySQL-test%{short_product_tag}
+%description -n MySQL-test%{product_suffix}
 This package contains the MySQL regression test suite.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-devel%{short_product_tag}
+%package -n MySQL-devel%{product_suffix}
 Summary:        MySQL - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
 Obsoletes:      mysql-devel
 
-%description -n MySQL-devel%{short_product_tag}
+%description -n MySQL-devel%{product_suffix}
 This package contains the development header files and libraries necessary
 to develop MySQL client applications.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-shared%{short_product_tag}
+%package -n MySQL-shared%{product_suffix}
 Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
 
-%description -n MySQL-shared%{short_product_tag}
+%description -n MySQL-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
 and applications need to dynamically load and use MySQL.
 
 # ----------------------------------------------------------------------------
-%package -n MySQL-embedded%{short_product_tag}
+%package -n MySQL-embedded%{product_suffix}
 Summary:        MySQL - embedded library
 Group:          Applications/Databases
 Requires:       %{name}-devel
 Obsoletes:      mysql-embedded
 
-%description -n MySQL-embedded%{short_product_tag}
+%description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
 
 The embedded MySQL server library makes it possible to run a full-featured
@@ -482,7 +487,7 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 #  Post processing actions, i.e. when installed
 ##############################################################################
 
-%pre -n MySQL-server%{short_product_tag}
+%pre -n MySQL-server%{product_suffix}
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -558,7 +563,7 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
         sleep 5
 fi
 
-%post -n MySQL-server%{short_product_tag}
+%post -n MySQL-server%{product_suffix}
 mysql_datadir=%{mysqldatadir}
 
 # ----------------------------------------------------------------------
@@ -626,7 +631,7 @@ sleep 2
 #scheduled service packs and more.  Visit www.mysql.com/enterprise for more
 #information."
 
-%preun -n MySQL-server%{short_product_tag}
+%preun -n MySQL-server%{product_suffix}
 if [ $1 = 0 ] ; then
         # Stop MySQL before uninstalling it
         if [ -x %{_sysconfdir}/init.d/mysql ] ; then
@@ -655,7 +660,7 @@ fi
 #  Files section
 ##############################################################################
 
-%files -n MySQL-server%{short_product_tag} -f optional-files-server
+%files -n MySQL-server%{product_suffix} -f optional-files-server
 %defattr(-,root,root,0755)
 
 %if %{defined license_files_server}
@@ -742,7 +747,7 @@ fi
 %attr(755, root, root) %{_datadir}/mysql/
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-client%{short_product_tag}
+%files -n MySQL-client%{product_suffix}
 
 %if %{defined license_files_server}
 %doc %{license_files_server}
@@ -778,7 +783,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-devel%{short_product_tag}
+%files -n MySQL-devel%{product_suffix}
 %defattr(-, root, root, 0755)
 %if %{defined license_files_devel}
 %doc %{license_files_devel}
@@ -795,19 +800,19 @@ fi
 %{_libdir}/mysql/libmysqlservices.a
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-shared%{short_product_tag}
+%files -n MySQL-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
 
-%post -n MySQL-shared%{short_product_tag}
+%post -n MySQL-shared%{product_suffix}
 /sbin/ldconfig
 
-%postun -n MySQL-shared%{short_product_tag}
+%postun -n MySQL-shared%{product_suffix}
 /sbin/ldconfig
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-test%{short_product_tag}
+%files -n MySQL-test%{product_suffix}
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
@@ -820,7 +825,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 # ----------------------------------------------------------------------------
-%files -n MySQL-embedded%{short_product_tag}
+%files -n MySQL-embedded%{product_suffix}
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
