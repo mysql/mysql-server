@@ -17,8 +17,9 @@
 #pragma implementation        // gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "probes_mysql.h"
+#include "sql_class.h"                          // SSV
 #include <myisam.h>
 
 #include "ha_archive.h"

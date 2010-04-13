@@ -18,6 +18,7 @@
 
 
 #include <mysql/plugin_audit.h>
+#include "sql_class.h"
 
 extern unsigned long mysql_global_audit_mask[];
 

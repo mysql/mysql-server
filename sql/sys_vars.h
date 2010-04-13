@@ -26,6 +26,8 @@
 #include <my_bit.h>
 #include <my_dir.h>
 #include "keycaches.h"
+#include "strfunc.h"
+#include "tztime.h"     // my_tz_find, my_tz_SYSTEM, struct Time_zone
 
 /*
   a set of mostly trivial (as in f(X)=X) defines below to make system variable
