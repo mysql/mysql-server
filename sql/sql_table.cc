@@ -5577,6 +5577,7 @@ is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
       index_add_buffer    OUT   An array of offsets into key_info_buffer.
       index_add_count     OUT   The number of elements in the array.
       candidate_key_count OUT   The number of candidate keys in original table.
+      exact_match               Only set ALTER_TABLE_METADATA_ONLY if no diff.
 
   DESCRIPTION
     'table' (first argument) contains information of the original
@@ -5608,7 +5609,7 @@ compare_tables(TABLE *table,
                KEY **key_info_buffer,
                uint **index_drop_buffer, uint *index_drop_count,
                uint **index_add_buffer, uint *index_add_count,
-               uint *candidate_key_count)
+               uint *candidate_key_count, bool exact_match)
 {
   Field **f_ptr, *field;
   uint changes= 0, tmp;
@@ -5744,7 +5745,14 @@ compare_tables(TABLE *table,
     if (my_strcasecmp(system_charset_info,
 		      field->field_name,
 		      tmp_new_field->field_name))
+    {
       field->flags|= FIELD_IS_RENAMED;      
+      if (exact_match)
+      {
+        *need_copy_table= ALTER_TABLE_DATA_CHANGED;
+        DBUG_RETURN(0);
+      }
+    }
 
     /* Evaluate changes bitmap and send to check_if_incompatible_data() */
     if (!(tmp= field->is_equal(tmp_new_field)))
@@ -5754,6 +5762,11 @@ compare_tables(TABLE *table,
     }
     // Clear indexed marker
     field->flags&= ~FIELD_IN_ADD_INDEX;
+    if (exact_match && tmp != IS_EQUAL_YES)
+    {
+      *need_copy_table= ALTER_TABLE_DATA_CHANGED;
+      DBUG_RETURN(0);
+    }
     changes|= tmp;
   }
 
@@ -6391,6 +6404,401 @@ err:
 }
 
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+/**
+  @brief Checks that the tables will be able to be used for EXCHANGE PARTITION.
+  @param table      Non partitioned table.
+  @param part_table Partitioned table.
+
+  @retval FALSE if OK, otherwise error is reported and TRUE is returned.
+*/
+static bool check_exchange_partition(TABLE *table, TABLE *part_table)
+{
+  DBUG_ENTER("check_exchange_partition");
+  /* Both tables must exist */
+  if (!part_table || !table)
+  {
+    my_error(ER_CHECK_NO_SUCH_TABLE, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
+  /* The first table must be partitioned, and the second must not */
+  if (!part_table->part_info)
+  {
+    my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  if (table->part_info)
+  {
+    my_error(ER_PARTITION_EXCHANGE_PART_TABLE, MYF(0),
+             table->s->table_name);
+    DBUG_RETURN(TRUE);
+  }
+
+  if (part_table->file->ht != partition_hton)
+  {
+    /*
+      Only allowed on partitioned tables throught the generic ha_partition
+      handler, i.e not yet for native partitioning (NDB).
+    */
+    my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
+  if (table->file->ht != part_table->part_info->default_engine_type)
+  {
+    my_error(ER_MIX_HANDLER_ERROR, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
+  /* Verify that table is not tmp table, partitioned tables cannot be tmp. */
+  if (table->s->tmp_table != NO_TMP_TABLE)
+  {
+    my_error(ER_PARTITION_EXCHANGE_TEMP_TABLE, MYF(0),
+             table->s->table_name);
+    DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+  @brief Compare table structure/options between a non partitioned table
+  and a specific partition of a partitioned table.
+
+  @param thd        Thread object.
+  @param table      Non partitioned table.
+  @param part_table Partitioned table.
+  @param part_elem  Partition element to use for partition specific compare.
+*/
+static bool compare_table_with_partition(THD *thd, TABLE *table,
+                                         TABLE *part_table,
+                                         partition_element *part_elem)
+{
+  HA_CREATE_INFO table_create_info, part_create_info;
+  Alter_info part_alter_info;
+  enum_alter_table_change_level alter_change_level;
+  /* Unused */
+  KEY *key_info_buffer;
+  uint *index_drop_buffer, index_drop_count;
+  uint *index_add_buffer, index_add_count;
+  uint candidate_key_count= 0;
+  DBUG_ENTER("compare_table_with_partition");
+
+  alter_change_level= ALTER_TABLE_METADATA_ONLY;
+  part_alter_info.change_level= alter_change_level;
+  bzero(&part_create_info, sizeof(HA_CREATE_INFO));
+  bzero(&table_create_info, sizeof(HA_CREATE_INFO));
+  
+  update_create_info_from_table(&table_create_info, table);
+  /* get the current auto_increment value */
+  table->file->update_create_info(&table_create_info);
+  if (mysql_prepare_alter_table(thd, part_table, &part_create_info,
+                                &part_alter_info))
+  {
+    my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+  /* db_type is not set in prepare_alter_table */
+  part_create_info.db_type= part_table->part_info->default_engine_type;
+  /*
+    Since we exchange the partition with the table, allow exchanging
+    auto_increment value as well.
+  */
+  part_create_info.auto_increment_value=
+                                table_create_info.auto_increment_value;
+
+  /*
+    NOTE: ha_archive does not support check_if_compatible_data,
+    so this always fail for archive tables.
+  */
+  if (compare_tables(table, &part_alter_info, &part_create_info,
+                     0, &alter_change_level, &key_info_buffer,
+                     &index_drop_buffer, &index_drop_count,
+                     &index_add_buffer, &index_add_count,
+                     &candidate_key_count, TRUE))
+  {
+    my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
+  DEBUG_SYNC(thd, "swap_partition_after_compare_tables");
+  if (alter_change_level != ALTER_TABLE_METADATA_ONLY)
+  {
+    my_error(ER_TABLES_DIFFERENT_METADATA, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
+  if (table_create_info.avg_row_length != part_create_info.avg_row_length)
+  {
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             "AVG_ROW_LENGTH");
+    DBUG_RETURN(TRUE);
+  }
+
+  if (table_create_info.table_options != part_create_info.table_options)
+  {
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             "TABLE OPTION");
+    DBUG_RETURN(TRUE);
+  }
+
+  if (table->s->table_charset != part_table->s->table_charset)
+  {
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             "CHARACTER SET");
+    DBUG_RETURN(TRUE);
+  }
+ 
+  /*
+    NOTE: We do not support update of frm-file, i.e. change
+    max/min_rows, data/index_file_name etc.
+    The workaround is to use REORGANIZE PARTITION to rewrite
+    the frm file and then use EXCHANGE PARTITION when they are the same.
+  */
+  if (compare_partition_options(&table_create_info, part_elem))
+    DBUG_RETURN(TRUE);
+
+  DBUG_RETURN(FALSE);
+}
+
+
+/**
+  @brief Swap places between a partition and a table
+
+  @details Verify that the tables are compatible (same engine, definition etc),
+  if not IGNORE is given, verify that all rows in the table will fit in the
+  partition, if all OK, rename table to tmp name, rename partition to table
+  and finally rename tmp name to partition.
+
+  1) Take upgradable mdl, open tables and then lock them (inited in parse)
+  2) Verify that metadata matches
+  3) If not ignore, verify data
+  4) Upgrade to exclusive mdl for both tables
+  5) Rename table <-> partition
+  6) Rely on close_thread_tables to release mdl and table locks
+
+  @param thd            Thread handle.
+  @param table_list     Table where the partition exists as first table,
+                        Table to swap with the partition as second table.
+  @param alter_info     Contains partition name to swap.
+  @param ignore         flag to skip verification of partition values.
+
+  @note This is a DDL operation so triggers will not be used.
+*/
+bool mysql_exchange_partition(THD *thd,
+                              TABLE_LIST *table_list,
+                              Alter_info *alter_info,
+                              bool ignore)
+{
+  TABLE  *part_table, *swap_table;
+  TABLE_LIST *swap_table_list;
+  handler *file= NULL;
+  partition_element *part_elem;
+  char *partition_name;
+  char temp_name[FN_REFLEN+1];
+  char part_file_name[FN_REFLEN+1];
+  char swap_file_name[FN_REFLEN+1];
+  char temp_file_name[FN_REFLEN+1];
+  char *part_file_name_end;
+  uint swap_part_id;
+  Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
+  DBUG_ENTER("mysql_exchange_partition");
+
+  partition_name= alter_info->partition_names.head();
+  DBUG_ASSERT(alter_info->flags & ALTER_EXCHANGE_PARTITION);
+
+  /* Clear open tables from the threads table handler cache */
+  mysql_ha_rm_tables(thd, table_list);
+
+  /* Don't allow to exchange with log table */
+  swap_table_list= table_list->next_local;
+  if (check_if_log_table(swap_table_list->db_length, swap_table_list->db,
+                         swap_table_list->table_name_length,
+                         swap_table_list->table_name, 0))
+  {
+    my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
+    DBUG_RETURN(TRUE);
+  }
+
+  /*
+    Currently no MDL lock that allows both read and write and is upgradeable
+    to exclusive, so leave the lock type to TL_WRITE_ALLOW_READ also on the 
+    partitioned table.
+
+    TODO: add MDL lock that allows both read and write and is upgradable to
+    exclusive lock. This would allow to continue using the partitioned table
+    also with update/insert/delete while the verification of the swap table
+    is running.
+  */
+
+  /*
+    TODO: Verify that we allow crashed partition to be swapped!
+    May not be possible, since we need some info from the engine to
+    be able to verify the structure/metadata.
+    (waiting on bug#51327)
+  */
+  if (open_and_lock_tables(thd, table_list, FALSE,
+                           MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
+                           &alter_prelocking_strategy))
+    goto err;
+
+  part_table= table_list->table;
+  swap_table= swap_table_list->table;
+
+  if (check_exchange_partition(swap_table, part_table))
+    goto err;
+
+  thd_proc_info(thd, "verifying table");
+
+  /* Will append the partition name later in part_info->get_part_elem() */
+  part_file_name_end= part_file_name + 
+                      build_table_filename(part_file_name,
+                                           sizeof(part_file_name),
+                                           table_list->db, part_table->alias,
+                                           "", 0);
+  build_table_filename(swap_file_name, sizeof(swap_file_name),
+                       swap_table_list->db, swap_table->alias, "", 0);
+  /* create a unique temp name #sqlx-nnnn_nnnn, x for eXchange */
+  my_snprintf(temp_name, sizeof(temp_name), "%sx-%lx_%lx",
+              tmp_file_prefix, current_pid, thd->thread_id);
+  if (lower_case_table_names)
+    my_casedn_str(files_charset_info, temp_name);
+  build_table_filename(temp_file_name, sizeof(temp_file_name),
+                       table_list->next_local->db,
+                       temp_name, "", FN_IS_TMP);
+
+  if (!(part_elem= part_table->part_info->get_part_elem(partition_name,
+                                                        part_file_name_end,
+                                                        &swap_part_id)))
+  {
+    my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name,
+             part_table->alias);
+    DBUG_RETURN(TRUE);
+  }
+
+  if (swap_part_id == NOT_A_PARTITION_ID)
+  {
+    DBUG_ASSERT(part_table->part_info->is_sub_partitioned());
+    my_error(ER_PARTITION_INSTEAD_OF_SUBPARTITION, MYF(0));
+    DBUG_RETURN(TRUE);
+  }
+
+  if (compare_table_with_partition(thd, swap_table, part_table, part_elem))
+    DBUG_RETURN(TRUE);
+
+  /* Table and partition has same structure/options, OK to exchange */
+
+  if (!ignore)
+  {
+    if (verify_data_with_partition(swap_table, part_table, swap_part_id))
+      DBUG_RETURN(TRUE);
+  }
+
+  /*
+    Get exclusive mdl lock on both tables, alway the non partitioned table
+    first. TODO: check if this can cause deadlocks?
+  */
+
+  /* TODO: test with lower_case file systems and mixed table name caseing. */
+  /*
+    No need to set used_partitions to only propagate
+    HA_EXTRA_PREPARE_FOR_RENAME to one part since no built in engine uses
+    that flag. And the action would probably be to force close all other
+    instances which is what we are doing any way.
+  */
+  if (wait_while_table_is_used(thd, swap_table, HA_EXTRA_PREPARE_FOR_RENAME) ||
+      wait_while_table_is_used(thd, part_table, HA_EXTRA_PREPARE_FOR_RENAME))
+    goto err;
+
+  DEBUG_SYNC(thd, "swap_partition_after_wait");
+
+  /*
+    No need to take LOCK_open since we have exclusive lock
+    TODO: Verify with runtime team.
+  */
+  /*
+    TODO: Should one skip wait_while_table_is_used above and use
+    wait_for_refresh below with close_cached_tables?
+  */
+  close_all_tables_for_name(thd, swap_table->s, FALSE);
+  close_all_tables_for_name(thd, part_table->s, FALSE);
+  DEBUG_SYNC(thd, "swap_partition_before_rename");
+  file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
+                        swap_table->file->ht);
+  if (!file)
+  {
+    mem_alloc_error(sizeof(handler));
+    goto err;
+  }
+  /* TODO: Add ddl_log handling to be able to recover from crash. */
+  /* call rename table from table to tmp-name */
+  if (file->ha_rename_table(swap_file_name, temp_file_name))
+  {
+    my_error(ER_ERROR_ON_RENAME, MYF(0),
+             swap_file_name, temp_file_name);
+    goto err;
+  }
+  /* call rename table from partition to table */
+  /*
+    TODO: verify what happens when renaming between filesystems,
+    i.e. full file copy. Can it really happen? DATA DIR must be same...
+    But how about exchanging between databases?
+  */
+  if (file->ha_rename_table(part_file_name, swap_file_name))
+  {
+    (void) file->ha_rename_table(temp_file_name, swap_file_name);
+    my_error(ER_ERROR_ON_RENAME, MYF(0),
+             part_file_name, swap_file_name);
+    goto err;
+  }
+
+  /* TODO: verify bin-log handling */
+  /* call rename table from tmp-nam to partition */
+  if (file->ha_rename_table(temp_file_name, part_file_name))
+  {
+    (void) file->ha_rename_table(swap_file_name, part_file_name);
+    (void) file->ha_rename_table(temp_file_name, swap_file_name);
+    my_error(ER_ERROR_ON_RENAME, MYF(0),
+             temp_file_name, part_file_name);
+    goto err;
+  }
+
+  /* Skip ha_binlog_log_query since this function is not supported by NDB */
+
+  /* Reopen tables under LOCK TABLES */
+  if (thd->locked_tables_list.reopen_tables(thd))
+    goto err_with_exclusive_lock;
+
+  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  {
+    /*
+      Should we only report failure, even if the operation was successful,
+      or should we also revert the operation? We revert!
+    */
+    (void) file->ha_rename_table(part_file_name, temp_file_name);
+    (void) file->ha_rename_table(swap_file_name, part_file_name);
+    (void) file->ha_rename_table(temp_file_name, swap_file_name);
+    /* no my_error! */
+    goto err;
+  }
+  delete file;
+  file= NULL;
+  my_ok(thd);
+  table_list->table= NULL;			// For query cache
+  table_list->next_local->table= NULL;
+  query_cache_invalidate3(thd, table_list, 0);
+  DBUG_RETURN(FALSE);
+err:
+err_with_exclusive_lock:
+  /* TODO: Special handling for LOCK TABLE? */
+  if (file)
+    delete file;
+  DBUG_RETURN(TRUE);
+}
+#endif
+
+
 /*
   Alter table
 
@@ -6624,6 +7032,8 @@ view_err:
   error= open_and_lock_tables(thd, table_list, FALSE,
                               MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
                               &alter_prelocking_strategy);
+
+  DEBUG_SYNC(thd, "alter_opened_table");
 
   if (error)
   {
@@ -6952,7 +7362,7 @@ view_err:
                        &key_info_buffer,
                        &index_drop_buffer, &index_drop_count,
                        &index_add_buffer, &index_add_count,
-                       &candidate_key_count))
+                       &candidate_key_count, FALSE))
       goto err;
 
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
@@ -7472,11 +7882,11 @@ view_err:
   else if (mysql_rename_table(new_db_type, new_db, tmp_name, new_db,
                               new_alias, FN_FROM_IS_TMP) ||
            ((new_name != table_name || new_db != db) && // we also do rename
-           (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
-            mysql_rename_table(save_old_db_type, db, table_name, new_db,
-                               new_alias, NO_FRM_RENAME)) &&
-           Table_triggers_list::change_table_name(thd, db, table_name,
-                                                  new_db, new_alias)))
+            (need_copy_table != ALTER_TABLE_METADATA_ONLY ||
+             mysql_rename_table(save_old_db_type, db, table_name, new_db,
+                                new_alias, NO_FRM_RENAME)) &&
+            Table_triggers_list::change_table_name(thd, db, table_name,
+                                                   new_db, new_alias)))
   {
     /* Try to get everything back. */
     error=1;

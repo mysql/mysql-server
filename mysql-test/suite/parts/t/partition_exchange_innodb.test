@@ -1,0 +1,5 @@
+--source include/have_innodb.inc
+--source include/have_partition.inc
+
+let $engine= 'InnoDB';
+--source suite/parts/inc/partition_exchange.inc
