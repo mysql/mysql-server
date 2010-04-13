@@ -166,18 +166,9 @@ public:
   
   /* Index condition pushdown implementation */
   Item *idx_cond_push(uint keyno, Item* idx_cond);
-
-  void add_explain_extra_info(uint keyno, String *extra);
 private:
-  uint cond_keyno;
-  Item *idx_cond;
   DsMrr_impl ds_mrr;
   key_map keys_with_parts;
-  bool in_range_read;
-  void toggle_range_check(bool on)
-  {
-    return file;
-  }
   friend my_bool index_cond_func_myisam(void *arg);
 };
 

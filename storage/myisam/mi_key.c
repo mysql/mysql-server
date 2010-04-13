@@ -237,8 +237,8 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     uint length= keyseg->length;
     uint char_length;
     uchar *pos;
-    CHARSET_INFO *cs;
 
+    CHARSET_INFO *cs=keyseg->charset;
     keypart_map>>= 1;
     if (keyseg->null_bit)
     {

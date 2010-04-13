@@ -7876,7 +7876,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     param->is_ror_scan= FALSE;
   
   *mrr_flags= param->force_default_mrr? HA_MRR_USE_DEFAULT_IMPL: 0;
-  *mrr_flags= HA_MRR_NO_ASSOCIATION;
+  *mrr_flags|= HA_MRR_NO_ASSOCIATION;
 
   bool pk_is_clustered= file->primary_key_is_clustered();
   if (index_only && 

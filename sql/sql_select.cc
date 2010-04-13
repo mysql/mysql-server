@@ -3460,19 +3460,6 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 
   if (subq_pred->left_expr->cols() == 1)
   {
-    /*
-      psergey-insideout-todo: 
-      Figure out if we can just collect a list of items or will need 
-      to wrap them into item-refs instead, like this:
-
-      (and if we do wrap, we will have to use a permanent place to store
-      pointers. (is that one of ref-pointer-array's functions?))
-
-      new Item_direct_view_ref(&subq_lex->context,
-                               subq_lex->ref_pointer_array[0],
-                               (char *)"<no matter>",
-                               (char *)"<list ref>");
-    */
     nested_join->sj_outer_expr_list.push_back(subq_pred->left_expr);
 
     Item_func_eq *item_eq= new Item_func_eq(subq_pred->left_expr, 
@@ -14795,8 +14782,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   table->copy_blobs= 1;
   table->in_use= thd;
   table->quick_keys.init();
-  table->covering_keys.init(); //psergey-todo: check if we need to set a bit there 
-  //table->used_keys.init();
+  table->covering_keys.init();
   table->keys_in_use_for_query.init();
 
   table->s= share;
@@ -18424,12 +18410,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
         if (tab->select)
           tab->select->cond= tab->select_cond;
       }
+      if (tab->pre_idx_push_select_cond)
+        tab->select_cond= tab->select->cond= tab->pre_idx_push_select_cond;
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
       {
 	/* Found key that can be used to retrieve data in sorted order */
-        if (tab->pre_idx_push_select_cond)
-          tab->select_cond= tab->select->cond= tab->pre_idx_push_select_cond;
 	if (tab->ref.key >= 0)
 	{
           /*
@@ -21836,7 +21822,10 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
         else if (tab->select && tab->select->quick)
           keyno = tab->select->quick->index;
 
-        tab->table->file->add_explain_extra_info(keyno, &extra);
+        if (keyno != MAX_KEY && keyno == table->file->pushed_idx_cond_keyno &&
+            table->file->pushed_idx_cond)
+          extra.append(STRING_WITH_LEN("; Using index condition"));
+
         if (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
             quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE)
