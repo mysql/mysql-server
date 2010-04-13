@@ -1,0 +1,49 @@
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+ CREATE TABLE t1 ( c1  SMALLINT, c2 INT) PARTITION BY LIST (c1) (
+    PARTITION r0 VALUES IN (1, 5, 9, 13, 17, 21),
+    PARTITION r1 VALUES IN (2, 6, 10, 14, 18, 22),
+    PARTITION r2 VALUES IN (3, 7, 11, 15, 19, 23),
+    PARTITION r3 VALUES IN (4, 8, 12, 16, 20, 24));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+ CREATE TABLE t1 ( c1  MEDIUMINT, c2 INT) PARTITION BY LIST (c1) (
+    PARTITION r0 VALUES IN (1, 5, 9, 13, 17, 21),
+    PARTITION r1 VALUES IN (2, 6, 10, 14, 18, 22),
+    PARTITION r2 VALUES IN (3, 7, 11, 15, 19, 23),
+    PARTITION r3 VALUES IN (4, 8, 12, 16, 20, 24));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+ CREATE TABLE t1 ( c1  INT, c2 INT) PARTITION BY LIST (c1) (
+    PARTITION r0 VALUES IN (1, 5, 9, 13, 17, 21),
+    PARTITION r1 VALUES IN (2, 6, 10, 14, 18, 22),
+    PARTITION r2 VALUES IN (3, 7, 11, 15, 19, 23),
+    PARTITION r3 VALUES IN (4, 8, 12, 16, 20, 24));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+ CREATE TABLE t1 ( c1  INTEGER, c2 INT) PARTITION BY LIST (c1) (
+    PARTITION r0 VALUES IN (1, 5, 9, 13, 17, 21),
+    PARTITION r1 VALUES IN (2, 6, 10, 14, 18, 22),
+    PARTITION r2 VALUES IN (3, 7, 11, 15, 19, 23),
+    PARTITION r3 VALUES IN (4, 8, 12, 16, 20, 24));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+ CREATE TABLE t1 ( c1  BIGINT, c2 INT) PARTITION BY LIST (c1) (
+    PARTITION r0 VALUES IN (1, 5, 9, 13, 17, 21),
+    PARTITION r1 VALUES IN (2, 6, 10, 14, 18, 22),
+    PARTITION r2 VALUES IN (3, 7, 11, 15, 19, 23),
+    PARTITION r3 VALUES IN (4, 8, 12, 16, 20, 24));
+SHOW TABLES; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+--replace_result $ENGINE ENGINE 
+ SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
+

@@ -21,7 +21,10 @@
 #pragma implementation
 #endif
 
-#include <mysql_priv.h>
+#include <sql_priv.h>
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "scheduler.h"
+#include "sql_connect.h"         // init_new_connection_handler_thread
 
 /*
   'Dummy' functions to be used when we don't need any handling for a scheduler

@@ -26,6 +26,10 @@
 #pragma interface			/* gcc class interface */
 #endif
 
+#include "hash.h"        /* my_hash_get_key, my_hash_free_key, HASH */
+#include "m_string.h"    /* bzero */
+#include "mysqld.h"      /* key_hash_filo_lock */
+
 class hash_filo_element
 {
   hash_filo_element *next_used,*prev_used;

@@ -327,7 +327,13 @@ TODO list:
       (This could be done with almost no speed penalty)
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "sql_cache.h"
+#include "sql_parse.h"                          // check_table_access
+#include "tztime.h"                             // struct Time_zone
+#include "sql_acl.h"                            // SELECT_ACL
+#include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>

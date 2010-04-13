@@ -18,7 +18,8 @@
   Table PERFORMANCE_TIMERS (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "my_global.h"
 #include "table_performance_timers.h"
 #include "pfs_timer.h"
 #include "pfs_global.h"

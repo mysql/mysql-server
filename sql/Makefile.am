@@ -84,22 +84,29 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			item_strfunc.h item_timefunc.h \
 			item_xmlfunc.h sql_plugin_services.h \
 			item_create.h item_subselect.h item_row.h \
-			mysql_priv.h item_geofunc.h sql_bitmap.h \
+			sql_priv.h item_geofunc.h sql_bitmap.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
-			sql_profile.h \
+			sql_profile.h mysqld.h sql_help.h frm_crypt.h \
 			ha_ndbcluster.h ha_ndbcluster_cond.h \
 			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h \
 			ha_partition.h rpl_constants.h \
 			debug_sync.h \
 			opt_range.h protocol.h rpl_tblmap.h rpl_utility.h \
-			rpl_reporting.h \
+			rpl_reporting.h sql_locale.h sql_parse.h \
 			log.h sql_show.h rpl_rli.h rpl_mi.h \
 			sql_select.h structs.h table.h sql_udf.h hash_filo.h \
-			lex.h lex_symbol.h sql_acl.h sql_crypt.h  \
+			lex.h lex_symbol.h sql_acl.h sql_crypt.h sql_base.h \
+			sql_table.h key.h lock.h thr_malloc.h strfunc.h \
+			sql_delete.h sql_insert.h sql_update.h sql_db.h \
+			sql_connect.h sql_rename.h sql_time.h sql_tablespace.h \
+			hostname.h sql_test.h records.h filesort.h \
+			sql_derived.h sql_load.h sql_handler.h init.h \
+			derror.h sql_union.h des_key_file.h sql_binlog.h \
+			discover.h sql_manager.h sql_do.h \
 			sql_repl.h slave.h rpl_filter.h rpl_injector.h \
-			log_event.h rpl_record.h \
+			log_event.h rpl_record.h sql_const.h \
 			log_event_old.h rpl_record_old.h \
 			sql_sort.h sql_cache.h set_var.h sys_vars_shared.h \
 			spatial.h gstream.h client_settings.h tzfile.h \
@@ -137,7 +144,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			unireg.cc des_key_file.cc \
 			log_event.cc rpl_record.cc \
 			log_event_old.cc rpl_record_old.cc \
-			discover.cc time.cc opt_range.cc opt_sum.cc \
+			discover.cc sql_time.cc opt_range.cc opt_sum.cc \
 		   	records.cc filesort.cc handler.cc \
 		        ha_partition.cc \
 			debug_sync.cc \

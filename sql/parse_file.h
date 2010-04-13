@@ -17,6 +17,14 @@
 #ifndef _PARSE_FILE_H_
 #define _PARSE_FILE_H_
 
+#include "my_global.h"                          // uchar
+#include "sql_string.h"                         // LEX_STRING
+#include "sql_list.h"                           // Sql_alloc
+
+class THD;
+
+typedef struct st_mem_root MEM_ROOT;
+
 #define PARSE_FILE_TIMESTAMPLENGTH 19
 
 enum file_opt_type {

@@ -16,7 +16,11 @@
 #ifndef _spatial_h
 #define _spatial_h
 
+#include "sql_string.h"                         /* String, LEX_STRING */
+
 #ifdef HAVE_SPATIAL
+
+class Gis_read_stream;
 
 const uint SRID_SIZE= 4;
 const uint SIZEOF_STORED_DOUBLE= 8;

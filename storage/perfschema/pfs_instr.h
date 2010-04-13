@@ -21,7 +21,7 @@
   Performance schema instruments (declarations).
 */
 
-#include <mysql_priv.h>
+#include <sql_priv.h>
 #include "pfs_lock.h"
 #include "pfs_instr_class.h"
 #include "pfs_events_waits.h"

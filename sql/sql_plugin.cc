@@ -13,10 +13,24 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "sql_priv.h"                         // SHOW_MY_BOOL
+#include "unireg.h"
+#include "my_global.h"                       // REQUIRED by m_string.h
+#include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars_shared.h"
+#include "sql_locale.h"
+#include "sql_plugin.h"
+#include "sql_parse.h"          // check_table_access
+#include "sql_base.h"                           // close_thread_tables
+#include "key.h"                                // key_copy
+#include "sql_show.h"           // remove_status_vars, add_status_vars
+#include "strfunc.h"            // find_set
+#include "sql_acl.h"                       // *_ACL
+#include "records.h"          // init_read_record, end_read_record
 #include <my_pthread.h>
 #include <my_getopt.h>
 #include <mysql/plugin_audit.h>
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
@@ -1816,6 +1830,9 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   DBUG_ENTER("mysql_uninstall_plugin");
 
   tables.init_one_table("mysql", 5, "plugin", 6, "plugin", TL_WRITE);
+
+  if (check_table_access(thd, DELETE_ACL, &tables, FALSE, 1, FALSE))
+    DBUG_RETURN(TRUE);
 
   /* need to open before acquiring LOCK_plugin or it will deadlock */
   if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
