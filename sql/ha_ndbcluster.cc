@@ -615,6 +615,58 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
 } // field_ref_is_join_pushable
 
 
+/**
+ * Fill in ix_map[] to map from KEY_PART_INFO[] order into 
+ * primary key / unique key order of key fields.
+ */
+void build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
+                   const KEY *key_def,
+                   uint ix_map[])
+{
+  KEY_PART_INFO *key_part;
+  uint ix;
+
+  if (index.unique_index_attrid_map)
+  {
+    for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
+    {
+      ix_map[ix]= index.unique_index_attrid_map[ix];
+    }
+  }
+  else  // Primary key does not have a 'unique_index_attrid_map'
+  {
+    uint key_pos= 0;
+    int columnnr= 0;
+
+    for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
+    {
+      // As NdbColumnImpl::m_keyInfoPos isn't available through
+      // NDB API we have to calculate it ourself, else we could:
+      // ix_map[ix]= table->getColumn(key_part->fieldnr-1)->m_impl.m_keyInfoPos;
+
+      if (key_part->fieldnr < columnnr)
+      {
+        // PK columns are not in same order as the columns are defined in the table,
+        // Restart PK search from first column: 
+        key_pos=0;
+        columnnr= 0;
+      }
+
+      while (columnnr < key_part->fieldnr-1)
+      {
+        if (table->getColumn(columnnr++)->getPrimaryKey())
+           key_pos++;
+      }
+
+      assert(table->getColumn(columnnr)->getPrimaryKey());
+      ix_map[ix]= key_pos;
+
+      columnnr++;
+      key_pos++;
+    }
+  }
+} // build_key_map
+
 int
 ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
                                 const AQP::Table_access* const join_root)
@@ -720,10 +772,14 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
       {
         const KEY *key= &table->key_info[join_root->get_index_no()];
         const NdbQueryOperand* root_key[ndb_pushed_join::MAX_KEY_PART+1]= {NULL};
+
+        uint map[ndb_pushed_join::MAX_KEY_PART+1];
+        build_key_map(m_table, m_index[join_root->get_index_no()], key, map);
+
         for (uint i= 0; i < key->key_parts; i++)
         {
-          root_key[i]= builder.paramValue();
-          if (unlikely(!root_key[i]))
+          root_key[map[i]]= builder.paramValue();
+          if (unlikely(!root_key[map[i]]))
             DBUG_RETURN(0);
         }
         root_key[key->key_parts]= NULL;
@@ -811,10 +867,13 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
     DBUG_ASSERT(join_tab->get_no_of_key_fields() == key->key_parts);
 
     const NdbQueryOperand* linked_key[ndb_pushed_join::MAX_LINKED_KEYS]= {NULL};
+    uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
+    build_key_map(handler->m_table, handler->m_index[join_tab->get_index_no()], key, map);
+
     for (uint i= 0; i < key->key_parts; i++, key_part++)
     {
       const Item* item= join_items[i];
-      linked_key[i]= NULL;
+      linked_key[map[i]]= NULL;
       if (item->const_item())
       {
         // Items constant value is already propagated to Field defining
@@ -825,7 +884,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
                 ? field->ptr + ((Field_varstring*)field)->length_bytes
                 : field->ptr;
 
-        linked_key[i]= builder.constValue(ptr, field->data_length());
+        linked_key[map[i]]= builder.constValue(ptr, field->data_length());
       }
       else
       {
@@ -838,7 +897,7 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
         if (referred_table == join_parent)
         {
           // TODO use field_index ??
-          linked_key[i]=
+          linked_key[map[i]]=
               builder.linkedValue(parent_op, get_referred_field_name(field_item));
         }
         else
@@ -852,10 +911,10 @@ ha_ndbcluster::make_pushed_join(AQP::Join_plan& plan,
             DBUG_RETURN(0);
           }
           referred_fields[fld_refs++]= field_item->field;
-          linked_key[i]= builder.paramValue();
+          linked_key[map[i]]= builder.paramValue();
         }
       }
-      if (unlikely(!linked_key[i]))
+      if (unlikely(!linked_key[map[i]]))
         DBUG_RETURN(0);
     } // for (uint i= 0; i < key->key_parts; i++, key_part++)
 
