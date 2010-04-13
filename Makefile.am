@@ -60,7 +60,8 @@ dist-hook:
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
 	storage/myisam/myisamchk --silent --fast $(distdir)/win/data/mysql/*.MYI
-	test ! -f configure.am  || $(INSTALL_DATA)  configure.am $(distdir)
+	test ! -f $(top_srcdir)/configure.am  || \
+	$(INSTALL_DATA)  $(top_srcdir)/configure.am $(distdir)
 
 all-local:		@ABI_CHECK@	
 
