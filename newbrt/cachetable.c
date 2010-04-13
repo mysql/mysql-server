@@ -1878,6 +1878,7 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
 	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    p->dirty = CACHETABLE_CLEAN; // clear the dirty bit.  We're just supposed to remove it.
 	    assert(rwlock_readers(&p->rwlock)==1);
+            assert(rwlock_users(&p->rwlock) == 1); //Debug test 1
             rwlock_read_unlock(&p->rwlock);
             struct workqueue cq;
             workqueue_init(&cq);
@@ -1888,6 +1889,8 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
             WORKITEM wi = 0;
             r = workqueue_deq(&cq, &wi, 1);
             cachetable_lock(ct);
+            assert(rwlock_writers(&p->rwlock) == 1); //Debug test 2
+            assert(rwlock_users(&p->rwlock) == 1); //Debug test 2
             PAIR pp = workitem_arg(wi);
             assert(r == 0 && pp == p);
             cachetable_complete_write_pair(ct, p, TRUE);
