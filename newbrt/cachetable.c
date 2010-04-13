@@ -1610,9 +1610,12 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
     cachetable_lock(ct);
     // lookup
     PAIR p;
-    for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain)
-	if (p->key.b==key.b && p->cachefile==cf)
+    for (p = ct->table[fullhash&(ct->table_size-1)]; p; p = p->hash_chain) {
+	if (p->key.b==key.b && p->cachefile==cf) {
+            //Maybe check for pending and do write_pair_for_checkpoint()?
             break;
+        }
+    }
 
     // if not found then create a pair in the READING state and fetch it
     if (p == 0) {
@@ -1890,16 +1893,20 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
                 //this pair.
                 assert(rwlock_blocked_writers(&p->rwlock)==1); //Only one checkpoint thread.
                 //  If anyone is waiting on write lock, let them finish.
+                cachetable_unlock(ct);
+
                 struct workqueue cq;
                 workqueue_init(&cq);
                 p->cq = &cq;
                 WORKITEM wi = 0;
-                r = workqueue_deq(&cq, &wi, 0);
+                r = workqueue_deq(&cq, &wi, 1);
                 //Writer is now done.
                 assert(r == 0);
                 PAIR pp = workitem_arg(wi);
                 assert(pp == p);
+
                 //We are holding the write lock on the pair
+                cachetable_lock(ct);
                 assert(rwlock_writers(&p->rwlock) == 1);
                 assert(rwlock_users(&p->rwlock) == 1);
                 cachetable_complete_write_pair(ct, p, TRUE);
