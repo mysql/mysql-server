@@ -52,10 +52,21 @@ ENDIF()
 # Hint for FindGTest: With MSVC, we compile with static CRT (compile flags
 # /MT or /MTd) and need compatible gtest.lib
 SET(GTEST_MSVC_SEARCH MT) 
+
+# Hint for find_library(): reverse list ".so;.a" to prefer static linking.
+LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+
+# Hint for where to look: pushbuild uses GTEST_ROOT env.var.
 IF (DEFINED ENV{GTEST_PREFIX} AND NOT DEFINED ENV{GTEST_ROOT})
   SET(ENV{GTEST_ROOT} $ENV{GTEST_PREFIX})
 ENDIF()
+
+# Now look for gtest.
 FIND_PACKAGE(GTest)
+
+# Revert suffix list back to what it was before.
+LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+
 
 OPTION(ENABLE_DOWNLOADS
   "Download and build 3rd party source code components, e.g google test"
@@ -69,6 +80,7 @@ IF(NOT EXISTS DOWNLOAD_ROOT)
   MAKE_DIRECTORY(${DOWNLOAD_ROOT})
 ENDIF()
 
+# TODO: upgrade to 1.5, and revert to googlecode.
 SET(GTEST_PACKAGE_NAME "gtest-1.4")
 SET(GTEST_TARBALL "${GTEST_PACKAGE_NAME}.tar.gz")
 SET(GTEST_DOWNLOAD_URL 
@@ -168,6 +180,7 @@ INCLUDE_DIRECTORIES(
 ADD_LIBRARY(gunit STATIC
   gunit_test_main.cc tap_event_listener.cc thread_utils.cc)
 TARGET_LINK_LIBRARIES(gunit mysys mytap dbug strings ${GTEST_LIBRARIES})
+MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 
 # Add some defines.
 ADD_DEFINITIONS(-DMYSQL_SERVER)
