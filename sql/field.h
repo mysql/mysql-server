@@ -25,6 +25,12 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "mysqld.h"                             /* system_charset_info */
+#include "table.h"                              /* TABLE */
+#include "sql_string.h"                         /* String */
+#include "my_decimal.h"                         /* my_decimal */
+#include "sql_error.h"                          /* MYSQL_ERROR */
+
 #define DATETIME_DEC                     6
 const uint32 max_field_size= (uint32) 4294967295U;
 
@@ -32,6 +38,33 @@ class Send_field;
 class Protocol;
 class Create_field;
 class Relay_log_info;
+class Field;
+
+enum enum_check_fields
+{
+  CHECK_FIELD_IGNORE,
+  CHECK_FIELD_WARN,
+  CHECK_FIELD_ERROR_FOR_NULL
+};
+
+
+enum Derivation
+{
+  DERIVATION_IGNORABLE= 6,
+  DERIVATION_NUMERIC= 5,
+  DERIVATION_COERCIBLE= 4,
+  DERIVATION_SYSCONST= 3,
+  DERIVATION_IMPLICIT= 2,
+  DERIVATION_NONE= 1,
+  DERIVATION_EXPLICIT= 0
+};
+
+#define STORAGE_TYPE_MASK 7
+#define COLUMN_FORMAT_MASK 7
+#define COLUMN_FORMAT_SHIFT 3
+
+#define my_charset_numeric      my_charset_latin1
+#define MY_REPERTOIRE_NUMERIC   MY_REPERTOIRE_ASCII
 
 struct st_cache_field;
 int field_conv(Field *to,Field *from);

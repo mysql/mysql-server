@@ -24,11 +24,11 @@
   replication slave.
 */
 
-#include "mysql_priv.h"
-
-#include <mysql.h>
-#include <myisam.h>
+#include "sql_priv.h"
+#include "my_global.h"
 #include "slave.h"
+#include "sql_parse.h"                         // execute_init_command
+#include "sql_table.h"                         // mysql_rm_table
 #include "rpl_mi.h"
 #include "rpl_rli.h"
 #include "sql_repl.h"
@@ -42,6 +42,15 @@
 #include <mysqld_error.h>
 #include <mysys_err.h>
 #include "rpl_handler.h"
+#include <signal.h>
+#include <mysql.h>
+#include <myisam.h>
+
+#include "sql_base.h"                           // close_thread_tables
+#include "tztime.h"                             // struct Time_zone
+#include "log_event.h"                          // Rotate_log_event,
+                                                // Create_file_log_event,
+                                                // Format_description_log_event
 
 #ifdef HAVE_REPLICATION
 

@@ -21,6 +21,9 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "sql_list.h"                           /* Sql_alloc */
+#include "mysql_com.h"                          /* rand_struct */
+
 class SQL_CRYPT :public Sql_alloc
 {
   struct rand_struct rand,org_rand;

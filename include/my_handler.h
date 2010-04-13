@@ -23,6 +23,8 @@
 extern "C" {
 #endif
 
+#include "m_ctype.h"                            /* CHARSET_INFO */
+
 /*
   There is a hard limit for the maximum number of keys as there are only
   8 bits in the index file header for the number of keys in a table.

@@ -18,7 +18,9 @@
   NOTE: These functions assumes that the string is end \0 terminated!
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "gstream.h"
+#include "m_string.h"                           // LEX_STRING
 
 enum Gis_read_stream::enum_tok_types Gis_read_stream::get_next_toc_type()
 {

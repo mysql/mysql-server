@@ -18,6 +18,8 @@
 #ifndef ITEM_CREATE_H
 #define ITEM_CREATE_H
 
+typedef struct st_udf_func udf_func;
+
 /**
   Public function builder interface.
   The parser (sql/sql_yacc.yy) uses a factory / builder pattern to
@@ -163,5 +165,9 @@ Item *
 create_func_cast(THD *thd, Item *a, Cast_target cast_type,
                  const char *len, const char *dec,
                  CHARSET_INFO *cs);
+
+int item_create_init();
+void item_create_cleanup();
+
 #endif
 

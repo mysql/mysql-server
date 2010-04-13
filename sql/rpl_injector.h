@@ -21,6 +21,7 @@
 #include <my_bitmap.h>
 
 #include "rpl_constants.h"
+#include "table.h"                              /* TABLE */
 
 /* Forward declarations */
 class handler;

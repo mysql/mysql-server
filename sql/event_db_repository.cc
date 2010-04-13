@@ -13,12 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_base.h"                           // close_thread_tables
 #include "event_db_repository.h"
+#include "key.h"                                // key_copy
+#include "sql_db.h"                        // get_default_db_collation
+#include "sql_time.h"                      // interval_type_to_name
+#include "tztime.h"                             // struct Time_zone
+#include "sql_acl.h" // SUPER_ACL, MYSQL_DB_FIELD_COUNT, mysql_db_table_fields
+#include "records.h"          // init_read_record, end_read_record
 #include "sp_head.h"
 #include "event_data_objects.h"
 #include "events.h"
 #include "sql_show.h"
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
 /**
   @addtogroup Event_Scheduler

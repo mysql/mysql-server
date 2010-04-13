@@ -20,9 +20,13 @@
 */
 
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_derived.h"
 #include "sql_select.h"
-
+#include "sql_view.h"                         // check_duplicate_names
+#include "sql_acl.h"                          // SELECT_ACL
 
 
 /*

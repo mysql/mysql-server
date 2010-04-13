@@ -23,6 +23,20 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "thr_malloc.h"                         /* sql_memdup */
+#include "records.h"                            /* READ_RECORD */
+#include "queues.h"                             /* QUEUE */
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          // set_var.h: THD
+#include "set_var.h"                            /* Item */
+
+class JOIN;
+class Item_sum;
+
 typedef struct st_key_part {
   uint16           key,part;
   /* See KEY_PART_INFO for meaning of the next two: */
@@ -742,10 +756,15 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                                              struct st_table_ref *ref,
                                              ha_rows records);
 uint get_index_for_order(TABLE *table, ORDER *order, ha_rows limit);
+SQL_SELECT *make_select(TABLE *head, table_map const_tables,
+			table_map read_tables, COND *conds,
+                        bool allow_null_cond,  int *error);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond);
 void store_key_image_to_rec(Field *field, uchar *ptr, uint len);
 #endif
+
+extern String null_string;
 
 #endif

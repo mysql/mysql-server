@@ -23,6 +23,12 @@
 */
 
 #include "event_parse_data.h"
+#include "thr_lock.h"                           /* thr_lock_type */
+
+class Field;
+class THD;
+class Time_zone;
+struct TABLE;
 
 class Event_queue_element_for_exec
 {
