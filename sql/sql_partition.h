@@ -65,19 +65,6 @@ typedef struct st_lock_param_type
 } ALTER_PARTITION_PARAM_TYPE;
 
 
-/*typedef struct {
-  ulonglong data_file_length;
-  ulonglong max_data_file_length;
-  ulonglong index_file_length;
-  ulonglong delete_length;
-  ha_rows records;
-  ulong mean_rec_length;
-  time_t create_time;
-  time_t check_time;
-  time_t update_time;
-  ulonglong check_sum;
-} PARTITION_INFO;
-*/
 typedef struct {
   longlong list_value;
   uint32 partition_id;
@@ -280,6 +267,10 @@ char *generate_partition_syntax(partition_info *part_info,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
                                 Alter_info *alter_info);
+bool verify_data_with_partition(TABLE *table, TABLE *part_table,
+                                uint32 part_id);
+bool compare_partition_options(HA_CREATE_INFO *table_create_info,
+                               partition_element *part_elem);
 #endif
 
 void create_partition_name(char *out, const char *in1,
