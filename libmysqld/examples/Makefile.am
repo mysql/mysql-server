@@ -32,7 +32,7 @@ link_sources:
 	done
 	echo timestamp > link_sources
 
-DEFS = 		-DEMBEDDED_LIBRARY
+DEFS = 		-DEMBEDDED_LIBRARY @DEFS@
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir) \
 		-I$(top_srcdir) -I$(top_srcdir)/client -I$(top_srcdir)/regex \
 		$(openssl_includes)
