@@ -1834,6 +1834,19 @@ protected:
 };
 
 
+class Create_func_sha2 : public Create_func_arg2
+{
+public:
+  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_sha2 s_singleton;
+
+protected:
+  Create_func_sha2() {}
+  virtual ~Create_func_sha2() {}
+};
+
+
 class Create_func_sign : public Create_func_arg1
 {
 public:
@@ -4363,6 +4376,15 @@ Create_func_sha::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_sha2 Create_func_sha2::s_singleton;
+
+Item*
+Create_func_sha2::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_sha2(arg1, arg2);
+}
+
+
 Create_func_sign Create_func_sign::s_singleton;
 
 Item*
@@ -4973,6 +4995,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("SEC_TO_TIME") }, BUILDER(Create_func_sec_to_time)},
   { { C_STRING_WITH_LEN("SHA") }, BUILDER(Create_func_sha)},
   { { C_STRING_WITH_LEN("SHA1") }, BUILDER(Create_func_sha)},
+  { { C_STRING_WITH_LEN("SHA2") }, BUILDER(Create_func_sha2)},
   { { C_STRING_WITH_LEN("SIGN") }, BUILDER(Create_func_sign)},
   { { C_STRING_WITH_LEN("SIN") }, BUILDER(Create_func_sin)},
   { { C_STRING_WITH_LEN("SLEEP") }, BUILDER(Create_func_sleep)},
