@@ -240,34 +240,6 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     CHARSET_INFO *cs;
 
     keypart_map>>= 1;
-    if (!type)
-    {
-      /*
-        Decode the ROWID value back to to file pointer. The if-check below is
-        needed to distinguish between the cases of 
-          a) when this function is called with k_length=USE_WHOLE_KEY (the
-             packed tuple doesn't have rowid), and 
-          b) when this function is called with tuple+rowid
-
-        The right check ought to be "k_length == length" but sergefp has
-        discovered that rowid key segment length may be inequal to 
-        ha_myisam->ref_length, which forces us to use the below ugly check:
-      */
-      if (k_length > 0 && k_length < MI_MAX_KEY_LENGTH)
-      {
-        pos=old;
-        my_off_t rowid;
-        rowid= my_get_ptr(pos, k_length);
-        _mi_dpointer(info, key, rowid);
-        pos+=length;
-        key+= keyseg->length;
-        k_length= 0;
-        keyseg++;
-      }
-      break;
-    }
-
-    cs=keyseg->charset;
     if (keyseg->null_bit)
     {
       if (!(*key++= (char) 1-*old++))			/* Copy null marker */

@@ -9467,6 +9467,13 @@ ha_innobase::check_if_incompatible_data(
 {
 	if (table_changes != IS_EQUAL_YES) {
 
+		return COMPATIBLE_DATA_NO;
+	}
+
+	/* Check that auto_increment value was not changed */
+	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
+		info->auto_increment_value != 0) {
+
 		return(COMPATIBLE_DATA_NO);
 	}
 
