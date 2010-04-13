@@ -2963,7 +2963,7 @@ JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024ElementArray_at(JNIEnv * env, jobject obj, jint p0)
 {
     TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024ElementArray_at(JNIEnv *, jobject, jint)");
-    return gat< ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_ElementArray_r, ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_ElementArray_r, ttrait_int32 >(env, NULL, obj, p0);
+    return gat< ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_Element_r, ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_ElementArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -4219,7 +4219,7 @@ JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecificationArray_at(JNIEnv * env, jobject obj, jint p0)
 {
     TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024RecordSpecificationArray_at(JNIEnv *, jobject, jint)");
-    return gat< ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_r, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_r, ttrait_int32 >(env, NULL, obj, p0);
+    return gat< ttrait_c_m_n_n_NdbDictionary_RecordSpecification_r, ttrait_c_m_n_n_NdbDictionary_RecordSpecificationArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -7988,7 +7988,7 @@ JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_at(JNIEnv * env, jobject obj, jint p0)
 {
     TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024GetValueSpecArray_at(JNIEnv *, jobject, jint)");
-    return gat< ttrait_c_m_n_n_NdbOperation_GetValueSpecArray_r, ttrait_c_m_n_n_NdbOperation_GetValueSpecArray_r, ttrait_int32 >(env, NULL, obj, p0);
+    return gat< ttrait_c_m_n_n_NdbOperation_GetValueSpec_r, ttrait_c_m_n_n_NdbOperation_GetValueSpecArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -8272,7 +8272,7 @@ JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_at(JNIEnv * env, jobject obj, jint p0)
 {
     TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024OperationOptionsArray_at(JNIEnv *, jobject, jint)");
-    return gat< ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r, ttrait_int32 >(env, NULL, obj, p0);
+    return gat< ttrait_c_m_n_n_NdbOperation_OperationOptions_r, ttrait_c_m_n_n_NdbOperation_OperationOptionsArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -8364,7 +8364,7 @@ JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpecArray_at(JNIEnv * env, jobject obj, jint p0)
 {
     TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbOperation_00024SetValueSpecArray_at(JNIEnv *, jobject, jint)");
-    return gat< ttrait_c_m_n_n_NdbOperation_SetValueSpecArray_r, ttrait_c_m_n_n_NdbOperation_SetValueSpecArray_r, ttrait_int32 >(env, NULL, obj, p0);
+    return gat< ttrait_c_m_n_n_NdbOperation_SetValueSpec_r, ttrait_c_m_n_n_NdbOperation_SetValueSpecArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -9532,7 +9532,7 @@ JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_at(JNIEnv * env, jobject obj, jint p0)
 {
     TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbScanOperation_00024ScanOptionsArray_at(JNIEnv *, jobject, jint)");
-    return gat< ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r, ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r, ttrait_int32 >(env, NULL, obj, p0);
+    return gat< ttrait_c_m_n_n_NdbScanOperation_ScanOptions_r, ttrait_c_m_n_n_NdbScanOperation_ScanOptionsArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
@@ -10024,7 +10024,7 @@ JNIEXPORT jobject JNICALL
 Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_at(JNIEnv * env, jobject obj, jint p0)
 {
     TRACE("Java_com_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrArray_at(JNIEnv *, jobject, jint)");
-    return gat< ttrait_c_m_n_n_Ndb_Key_part_ptrArray_r, ttrait_c_m_n_n_Ndb_Key_part_ptrArray_r, ttrait_int32 >(env, NULL, obj, p0);
+    return gat< ttrait_c_m_n_n_Ndb_Key_part_ptr_r, ttrait_c_m_n_n_Ndb_Key_part_ptrArray_r, ttrait_int32 >(env, NULL, obj, p0);
 }
 
 // ---------------------------------------------------------------------------
