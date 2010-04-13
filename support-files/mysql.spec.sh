@@ -133,44 +133,44 @@
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %else
-    %if %redhatver == 5
-      %define distro_description        Red Hat Enterprise Linux 5
-      %define distro_releasetag         rhel5
-      %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-      %define distro_requires           chkconfig coreutils grep procps shadow-utils
-    %endif
+      %if %redhatver == 5
+        %define distro_description      Red Hat Enterprise Linux 5
+        %define distro_releasetag       rhel5
+        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+      %endif
     %endif
   %else
-  %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-    %define susever %(rpm -qf --qf '%%{version}' /etc/SuSE-release)
-    %{echo:Found SuSE version %{susever}}
-    %if %susever == 10
-      %define distro_description        SUSE Linux Enterprise Server 10
-      %define distro_releasetag         sles10
-      %define distro_buildreq           gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
-      %define distro_requires           aaa_base coreutils grep procps pwdutils
-    %else
-    %if %susever == 11
-      %define distro_description        SUSE Linux Enterprise Server 11
-      %define distro_releasetag         sles11
-      %define distro_buildreq           gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
-      %define distro_requires           aaa_base coreutils grep procps pwdutils
+    %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
+      %define susever %(rpm -qf --qf '%%{version}' /etc/SuSE-release)
+      %{echo:Found SuSE version %{susever}}
+      %if %susever == 10
+        %define distro_description      SUSE Linux Enterprise Server 10
+        %define distro_releasetag       sles10
+        %define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+        %define distro_requires         aaa_base coreutils grep procps pwdutils
+      %else
+        %if %susever == 11
+          %define distro_description    SUSE Linux Enterprise Server 11
+          %define distro_releasetag     sles11
+          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %endif
+      %endif
     %endif
-    %endif
-  %endif
   %endif
   %if %{undefined distro_description}
     %{error:Unsupported distribution}
   %endif
 %else
   %define generic_kernel %(uname -r | cut -d. -f1-2)
-  %define distro_description    Generic Linux %{generic_kernel}
-  %define distro_releasetag     linux%{generic_kernel}
-  %define distro_buildreq       gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
-  %define distro_requires       coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
+  %define distro_description            Generic Linux (kernel %{generic_kernel})
+  %define distro_releasetag             linux%{generic_kernel}
+  %define distro_buildreq               gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+  %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
 
-%{echo:Building for %{distro_description}
+%{echo:Building for %{distro_description}}
 
 # ----------------------------------------------------------------------------
 # Support optional "tcmalloc" library (experimental)
