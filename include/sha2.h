@@ -18,11 +18,16 @@
 
 #include <my_config.h>
 
-#  ifndef HAVE_YASSL
-#    include <openssl/sha.h>
+#if defined(HAVE_YASSL) || defined(HAVE_OPENSSL)
+
+#  ifdef HAVE_STDDEF_H
+#    include <stddef.h>
 #  endif
 
-#  ifdef HAVE_YASSL
+#  ifndef HAVE_YASSL
+#    include <openssl/sha.h>
+
+#  else
 
 #include "../extra/yassl/taocrypt/include/sha.hpp"
 
@@ -63,4 +68,5 @@ GEN_YASSL_SHA2_BRIDGE(224);
 
 #  endif /* HAVE_YASSL */
 
+#endif /* HAVE_OPENSSL || HAVE_YASSL */
 #endif /* included_sha2_h */
