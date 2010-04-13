@@ -84,9 +84,6 @@ C_MODE_START
 /* Thread safe or portable version of some functions */
 
 void my_inet_ntoa(struct in_addr in, char *buf);
-#ifdef __WIN__
-typedef int socklen_t;
-#endif
 
 /*
   Handling of gethostbyname_r()
