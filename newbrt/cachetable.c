@@ -1878,23 +1878,36 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
 	if (p->key.b==key.b && p->cachefile==cachefile) {
 	    p->dirty = CACHETABLE_CLEAN; // clear the dirty bit.  We're just supposed to remove it.
 	    assert(rwlock_readers(&p->rwlock)==1);
-            assert(rwlock_users(&p->rwlock) == 1); //Debug test 1
             rwlock_read_unlock(&p->rwlock);
-            struct workqueue cq;
-            workqueue_init(&cq);
-            p->cq = &cq;
-            if (p->state == CTPAIR_IDLE)
-                flush_and_maybe_remove(ct, p, FALSE);
-            cachetable_unlock(ct);
-            WORKITEM wi = 0;
-            r = workqueue_deq(&cq, &wi, 1);
-            cachetable_lock(ct);
-            assert(rwlock_writers(&p->rwlock) == 1); //Debug test 2
-            assert(rwlock_users(&p->rwlock) == 1); //Debug test 2
-            PAIR pp = workitem_arg(wi);
-            assert(r == 0 && pp == p);
-            cachetable_complete_write_pair(ct, p, TRUE);
-            workqueue_destroy(&cq);
+            if (rwlock_blocked_writers(&p->rwlock)>0) {
+                //Someone (checkpoint thread) is waiting for a write lock on this
+                //pair.
+                //They are still blocked because we have not released the
+                //cachetable lock.
+                //If we freed the memory for the pair we would have dangling
+                //pointers.  We need to let the checkpoint thread finish up with
+                //this pair.
+                assert(rwlock_blocked_writers(&p->rwlock)==1); //Only one checkpoint thread.
+                //  If anyone is waiting on write lock, let them finish.
+                struct workqueue cq;
+                workqueue_init(&cq);
+                p->cq = &cq;
+                WORKITEM wi = 0;
+                r = workqueue_deq(&cq, &wi, 0);
+                //Writer is now done.
+                assert(r == 0);
+                PAIR pp = workitem_arg(wi);
+                assert(pp == p);
+                //We are holding the write lock on the pair
+                assert(rwlock_writers(&p->rwlock) == 1);
+                assert(rwlock_users(&p->rwlock) == 1);
+                cachetable_complete_write_pair(ct, p, TRUE);
+                workqueue_destroy(&cq);
+            }
+            else {
+                //Remove pair.
+                cachetable_maybe_remove_and_free_pair(ct, p);
+            }
             r = 0;
 	    goto done;
 	}
