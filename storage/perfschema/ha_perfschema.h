@@ -16,6 +16,8 @@
 #ifndef HA_PERFSCHEMA_H
 #define HA_PERFSCHEMA_H
 
+#include "handler.h"                            /* class handler */
+
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface /* gcc class implementation */
 #endif

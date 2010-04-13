@@ -22,7 +22,10 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_class.h"                          // set_var.h: THD
+#include "my_global.h"                          // WITH_*
+#include "log.h"                                // sql_print_error
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include <ndbapi/NdbApi.hpp>

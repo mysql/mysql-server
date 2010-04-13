@@ -25,6 +25,13 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "set_var.h"                            /* Item, Item_field */
+
 typedef enum ndb_item_type {
   NDB_VALUE = 0,   // Qualified more with Item::Type
   NDB_FIELD = 1,   // Qualified from table definition

@@ -18,7 +18,8 @@
   Performance schema storage engine (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "ha_perfschema.h"
 #include "mysql/plugin.h"
 #include "pfs_engine_table.h"

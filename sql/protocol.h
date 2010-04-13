@@ -21,8 +21,10 @@
 #endif
 
 #include "sql_error.h"
+#include "my_decimal.h"                         /* my_decimal */
 
 class i_string;
+class Field;
 class THD;
 class Item_param;
 typedef struct st_mysql_field MYSQL_FIELD;
