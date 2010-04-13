@@ -36,7 +36,7 @@ Created November 07, 2007 Vasil Dimov
 #define MYSQL_SERVER
 #endif /* MYSQL_SERVER */
 
-#include <mysql_priv.h>
+#include <sql_priv.h>
 
 #include "mysql_addons.h"
 #include "univ.i"

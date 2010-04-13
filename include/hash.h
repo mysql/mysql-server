@@ -17,6 +17,21 @@
 
 #ifndef _hash_h
 #define _hash_h
+
+#include "my_global.h"                          /* uchar */
+#include "my_sys.h"                             /* DYNAMIC_ARRAY */
+
+/*
+  This forward declaration is used from C files where the real
+  definition is included before.  Since C does not allow repeated
+  typedef declarations, even when identical, the definition may not be
+  repeated.
+*/
+#ifndef CHARSET_INFO_DEFINED
+#define CHARSET_INFO_DEFINED
+typedef struct charset_info_st CHARSET_INFO;
+#endif  /* CHARSET_INFO_DEFINED */
+
 #ifdef	__cplusplus
 extern "C" {
 #endif

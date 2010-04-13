@@ -24,13 +24,26 @@
   in the relevant fields. Empty strings comes last.
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "sql_acl.h"         // MYSQL_DB_FIELD_COUNT, ACL_ACCESS
+#include "sql_base.h"                           // close_thread_tables
+#include "key.h"             // key_copy, key_cmp_if_same, key_restore
+#include "sql_show.h"        // append_identifier
+#include "sql_table.h"                         // build_table_filename
 #include "hash_filo.h"
+#include "sql_parse.h"                          // check_access
+#include "sql_view.h"                           // VIEW_ANY_ACL
+#include "records.h"              // READ_RECORD, read_record_info,
+                                  // init_read_record, end_read_record
+#include "rpl_filter.h"           // rpl_filter
 #include <m_ctype.h>
 #include <stdarg.h>
 #include "sp_head.h"
 #include "sp.h"
 #include "transaction.h"
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "records.h"             // init_read_record, end_read_record
 
 bool mysql_user_table_is_in_short_password_format= false;
 

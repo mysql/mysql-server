@@ -90,14 +90,19 @@
 #endif
 
 #define MYSQL_SERVER 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_show.h"                           // append_identifier
+#include "sql_table.h"                         // build_table_filename
 #include "probes_mysql.h"
 #include <mysql/plugin.h>
 #include <m_ctype.h>
 #include "../myisam/ha_myisam.h"
 #include "ha_myisammrg.h"
 #include "myrg_def.h"
-
+#include "thr_malloc.h"                         // int_sql_alloc
+#include "sql_class.h"                          // THD
 
 static handler *myisammrg_create_handler(handlerton *hton,
                                          TABLE_SHARE *table,
