@@ -18,6 +18,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+#include "unireg.h"
 #include "sql_list.h"
 
 list_node end_of_list;

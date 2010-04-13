@@ -24,7 +24,10 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "protocol.h"
+#include "sql_class.h"                          // THD
 #include <stdarg.h>
 
 static const unsigned int PACKET_BUFFER_EXTRA_ALLOC= 1024;

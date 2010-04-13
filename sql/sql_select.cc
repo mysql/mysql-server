@@ -28,15 +28,32 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "sql_select.h"
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_table.h"                          // primary_key_name
 #include "sql_cursor.h"
 #include "probes_mysql.h"
-
+#include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
+#include "lock.h"                // mysql_unlock_some_tables,
+                                 // mysql_unlock_read_tables
+#include "sql_show.h"            // append_identifier
+#include "sql_base.h"            // setup_wild, setup_fields, fill_record
+#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_partition.h"       // make_used_partitions_str
+#include "sql_acl.h"             // *_ACL
+#include "sql_test.h"            // print_where, print_keyuse_array,
+                                 // print_sjm, print_plan
+#include "records.h"             // init_read_record, end_read_record
+#include "filesort.h"            // filesort_free_buffers
+#include "sql_union.h"           // mysql_union
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <hash.h>
 #include <ft_global.h>
+
+#define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",

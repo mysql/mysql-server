@@ -16,6 +16,9 @@
 #ifndef _mysys_err_h
 #define _mysys_err_h
 #ifdef	__cplusplus
+
+#include "my_global.h"                          /* NEAR */
+
 extern "C" {
 #endif
 

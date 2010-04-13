@@ -22,9 +22,9 @@
 #include "rpl_reporting.h"
 #include "my_sys.h"
 
+typedef struct st_mysql MYSQL;
 
 /*****************************************************************************
-
   Replication IO Thread
 
   Master_info contains:

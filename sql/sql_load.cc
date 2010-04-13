@@ -17,8 +17,21 @@
 /* Copy data from a textfile to table */
 /* 2006-12 Erik Wetterberg : LOAD XML added */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_load.h"
+#include "sql_load.h"
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_base.h"          // fill_record_n_invoke_before_triggers
 #include <my_dir.h>
+#include "sql_view.h"                           // check_key_in_view
+#include "sql_insert.h" // check_that_all_fields_are_given_values,
+                        // prepare_triggers_for_insert_stmt,
+                        // write_record
+#include "sql_acl.h"    // INSERT_ACL, UPDATE_ACL
+#include "log_event.h"  // Delete_file_log_event,
+                        // Execute_load_query_log_event,
+                        // LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F
 #include <m_ctype.h>
 #include "rpl_mi.h"
 #include "sql_repl.h"

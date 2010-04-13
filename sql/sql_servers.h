@@ -16,7 +16,12 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+#include "my_global.h"                  /* uint */
 #include "slave.h" // for tables_ok(), rpl_filter
+
+class THD;
+typedef struct st_lex_server_options LEX_SERVER_OPTIONS;
+typedef struct st_mem_root MEM_ROOT;
 
 /* structs */
 typedef struct st_federated_server
