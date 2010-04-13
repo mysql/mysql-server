@@ -609,7 +609,7 @@ FieldKey	LongVal	StringVal
 1	2	1
 EXPLAIN SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	FieldKey,LongField,StringField	FieldKey	38	NULL	4	Using index condition; Using MRR; Using filesort
+1	SIMPLE	t1	range	FieldKey,LongField,StringField	FieldKey	38	NULL	4	Using index condition; Using where; Using MRR; Using filesort
 SELECT * FROM t1 WHERE FieldKey > '2' ORDER BY LongVal;
 FieldKey	LongVal	StringVal
 3	1	2
@@ -1107,7 +1107,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	k2	k3	5	NULL	73	Using where
 EXPLAIN SELECT id,c3 FROM t2 WHERE c2 BETWEEN 20 AND 30 ORDER BY c3 LIMIT 4000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	range	k2	k2	5	NULL	386	Using where; Using filesort
+1	SIMPLE	t2	range	k2	k2	5	NULL	386	Using index condition; Using where; Using MRR; Using filesort
 SELECT id,c3 FROM t2 WHERE c2=11 ORDER BY c3 LIMIT 20;
 id	c3
 6	14

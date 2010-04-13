@@ -30,7 +30,6 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   HA_KEYSEG *last_used_keyseg;
   uint pack_key_length, use_key_length, nextflag;
   uint myisam_search_flag;
-  my_bool key_tuple_has_rowid= FALSE;
   int res= 0;
   DBUG_ENTER("mi_rkey");
   DBUG_PRINT("enter", ("base: 0x%lx  buf: 0x%lx  inx: %d  search_flag: %d",
@@ -62,12 +61,6 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     key_buff=info->lastkey+info->s->base.max_key_length;
     pack_key_length=_mi_pack_key(info,(uint) inx, key_buff, (uchar*) key,
 				 keypart_map, &last_used_keyseg);
-    if (last_used_keyseg > (info->s->keyinfo[inx].seg +
-                           info->s->keyinfo[inx].keysegs))
-    {
-      key_tuple_has_rowid= TRUE;
-      last_used_keyseg--;
-    }
     /* Save packed_key_length for use by the MERGE engine. */
     info->pack_key_length= pack_key_length;
     info->last_used_keyseg= (uint16) (last_used_keyseg -
@@ -101,11 +94,6 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   case HA_KEY_ALG_BTREE:
   default:
     myisam_search_flag= myisam_read_vec[search_flag];
-    if (key_tuple_has_rowid)
-    {
-      /* Fiddle with flags so ha_key_cmp compares the rowid, too */
-      myisam_search_flag &= ~(SEARCH_FIND | SEARCH_NO_FIND);
-    }
     if (!_mi_search(info, keyinfo, key_buff, use_key_length,
                     myisam_search_flag, info->s->state.key_root[inx]))
     {

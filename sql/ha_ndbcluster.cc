@@ -9156,8 +9156,8 @@ int ha_ndbcluster::multi_range_start_retrievals(int starting_range)
   /*
    * Variables for loop
    */
-  uchar *curr= (byte*)multi_range_buffer->buffer;
-  uchar *end_of_buffer= (byte*)multi_range_buffer->buffer_end;
+  uchar *curr= multi_range_buffer->buffer;
+  uchar *end_of_buffer= multi_range_buffer->buffer_end;
   NdbOperation::LockMode lm= 
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type);
   bool need_pk = (lm == NdbOperation::LM_Read);
@@ -9313,7 +9313,7 @@ int ha_ndbcluster::multi_range_start_retrievals(int starting_range)
     lastOp ? lastOp->next() : m_active_trans->getFirstDefinedOperation();
   if (!(res= execute_no_commit_ie(this, m_active_trans,true)))
   {
-    m_multi_range_result_ptr= (byte*)multi_range_buffer->buffer;
+    m_multi_range_result_ptr= multi_range_buffer->buffer;
     first_running_range= first_range_in_batch= starting_range + 1;
     first_unstarted_range= mrr_range_no + 1;
 //    res= loc_read_multi_range_next(found_range_p);
@@ -9336,13 +9336,12 @@ int ha_ndbcluster::multi_range_read_next(char **range_info)
     DBUG_RETURN(handler::multi_range_read_next(range_info));
   }
   MYSQL_INDEX_READ_ROW_START(table_share->db.str, table_share->table_name.str);
-  rc= loc_read_multi_range_next(multi_range_found_p);
+  rc= loc_read_multi_range_next(range_info);
   MYSQL_INDEX_READ_ROW_DONE(rc);
   DBUG_RETURN(rc);
 }
  
-int ha_ndbcluster::loc_read_multi_range_next(
-         KEY_MULTI_RANGE **multi_range_found_p)
+int ha_ndbcluster::loc_read_multi_range_next(char **range_info)
 {
   int res;
   int range_no;

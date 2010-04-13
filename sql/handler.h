@@ -1354,8 +1354,7 @@ protected:
   TABLE_SHARE *table_share;             /* The table definition */
   TABLE *table;                         /* The current open table */
   Table_flags cached_table_flags;       /* Set on init() and open() */
-  friend class ha_partition;
-  friend class DsMrr_impl;
+
   ha_rows estimation_rows_to_insert;
 public:
   handlerton *ht;                 /* storage engine of this handler */
@@ -1364,10 +1363,10 @@ public:
 
   ha_statistics stats;
   
-  /* Multi range read implementation-used members: */
-  range_seq_t mrr_iter;    /* MRR range sequence iterator being traversed */
-  RANGE_SEQ_IF mrr_funcs;  /* Saved MRR range sequence traversal functions */
-  HANDLER_BUFFER *multi_range_buffer; /* Saved MRR buffer info */
+  /* MultiRangeRead-related members: */
+  range_seq_t mrr_iter;    /* Interator to traverse the range sequence */
+  RANGE_SEQ_IF mrr_funcs;  /* Range sequence traversal functions */
+  HANDLER_BUFFER *multi_range_buffer; /* MRR buffer info */
   uint ranges_in_seq; /* Total number of ranges in the traversed sequence */
   /* TRUE <=> source MRR ranges and the output are ordered */
   bool mrr_is_output_sorted;
@@ -1377,17 +1376,13 @@ public:
   /* Current range (the one we're now returning rows from) */
   KEY_MULTI_RANGE mrr_cur_range;
   
-  /* Default MRR implementation: */
-  //bool mrr_restore_scan; /* TRUE <=> we're restoring the scan */
-  //int mrr_restore_scan_res; /* iff mrr_restore_scan: return value of next call */
-
   /** The following are for read_range() */
   key_range save_end_range, *end_range;
   KEY_PART_INFO *range_key_part;
   int key_compare_result_on_equal;
   bool eq_range;
   /* 
-    TRUE <=> the engine checks that returned records are within the range
+    TRUE <=> the engine guarantees that returned records are within the range
     being scanned.
   */
   bool in_range_check_pushed_down;
@@ -1401,7 +1396,11 @@ public:
   enum {NONE=0, INDEX, RND} inited;
   bool locked;
   bool implicit_emptied;                /* Can be !=0 only if HEAP */
-  const COND *pushed_cond;
+  const Item *pushed_cond;
+
+  Item *pushed_idx_cond;
+  uint pushed_idx_cond_keyno;  /* The index which the above condition is for */
+
   /**
     next_insert_id is the next value which should be inserted into the
     auto_increment column: in a inserting-multi-row statement (like INSERT
@@ -1448,12 +1447,13 @@ public:
 
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), /*mrr_restore_scan(FALSE), */ in_range_check_pushed_down(FALSE),
+    ref(0), in_range_check_pushed_down(FALSE),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
     locked(FALSE), implicit_emptied(0),
-    pushed_cond(0), next_insert_id(0), insert_id_for_cur_row(0),
+    pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
+    next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
     m_psi(NULL)
     {}
@@ -1478,6 +1478,7 @@ public:
     DBUG_ASSERT(inited==NONE);
     if (!(result= index_init(idx, sorted)))
       inited=INDEX;
+    end_range= NULL;
     DBUG_RETURN(result);
   }
   int ha_index_end()
@@ -1485,6 +1486,7 @@ public:
     DBUG_ENTER("ha_index_end");
     DBUG_ASSERT(inited==INDEX);
     inited=NONE;
+    end_range= NULL;
     DBUG_RETURN(index_end());
   }
   int ha_rnd_init(bool scan)
@@ -1751,6 +1753,7 @@ public:
                                bool eq_range, bool sorted);
   virtual int read_range_next();
   int compare_key(key_range *range);
+  int compare_key2(key_range *range);
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
@@ -2061,7 +2064,6 @@ public:
     but we don't have a primary key
   */
   virtual void use_hidden_primary_key();
-  virtual void add_explain_extra_info(uint keyno, String *extra) {}
   virtual uint alter_table_flags(uint flags)
   {
     if (ht->alter_table_flags)
@@ -2296,34 +2298,43 @@ class DsMrr_impl
 public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
-  DsMrr_impl(range_check_toggle_func_t func)
-    : last_idx_tuple(NULL), range_check_toggle_func(func) {};
+  DsMrr_impl()
+    : use_default_impl(TRUE) {};
 
-  uchar *rowids_buf;       /* ROWIDs buffer */
+  handler *h; /* The "owner" handler object. It is used for scanning the index */
+  TABLE *table; /* Always equal to h->table */
+private:
+  /*
+    Secondary handler object. It is used to retrieve full table rows by
+    calling rnd_pos().
+  */
+  handler *h2;
+
+  /* Buffer to store rowids, or (rowid, range_id) pairs */
+  uchar *rowids_buf;
   uchar *rowids_buf_cur;   /* Current position when reading/writing */
-  uchar *rowids_buf_last;  /* Wen reading: end of used buffer space */
+  uchar *rowids_buf_last;  /* When reading: end of used buffer space */
   uchar *rowids_buf_end;   /* End of the buffer */
-  
-  KEY  *mrr_key;           /* Index to use */
-  uint mrr_keyno;          /* Number of the index */
 
-  uchar *last_idx_tuple; //TODO: remove 
-  bool dsmrr_eof;        //TODO: remove 
+  bool dsmrr_eof; /* TRUE <=> We have reached EOF when reading index tuples */
 
   /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
-  bool is_mrr_assoc; 
+  bool is_mrr_assoc;
 
-  handler *h; /* Owner table handler */
-  handler *h2; /* Slave handler for doing rnd_pos(). */
-   
-  /* Bitmaps for the rnd_pos()-calling handler object */
+  /*
+    Column bitmaps to be used with slave handler object. Those are necessary
+    as we set primary handler object's bitmap to contain index columns only.
+  */
   MY_BITMAP row_access_bitmap;
   MY_BITMAP *save_read_set, *save_write_set;
-
-  bool use_default_impl; /* TRUE <=> shortcut the calls to default MRR impl */
-  range_check_toggle_func_t range_check_toggle_func;
-
-
+  
+  bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
+public:
+  void init(handler *h_arg, TABLE *table_arg)
+  {
+    h= h_arg; 
+    table= table_arg;
+  }
   int dsmrr_init(handler *h, KEY *key, RANGE_SEQ_IF *seq_funcs, 
                  void *seq_init_param, uint n_ranges, uint mode, 
                  HANDLER_BUFFER *buf);

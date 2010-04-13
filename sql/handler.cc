@@ -4322,39 +4322,7 @@ int handler::multi_range_read_next(char **range_info)
     /* Save a call if there can be only one row in range. */
     if (mrr_cur_range.range_flag != (UNIQUE_RANGE | EQ_RANGE))
     {
-#if 0      
-      if (mrr_restore_scan)
-      {
-        result= mrr_restore_scan_res;
-        if (!result)
-          result= (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
-        else
-        {
-          if (result == HA_ERR_KEY_NOT_FOUND)
-            result= HA_ERR_END_OF_FILE;
-        }
-        mrr_restore_scan= FALSE;
-        if (!result)
-        {
-          /*
-            Continue as if we're scanning a generic (i.e. not necessarily
-            equality) range. The point is that if we're in the middle of
-            equality range, we can't continue scanning it as equality range.
-            The call sequence is:
-              file->index_read( ... , HA_READ_KEY_EXACT);
-              file->index_next_same(...)
-              ...
-              file->index_read(..., HA_READ_AFTER_KEY) // restore the scan
-            That is, the "restore the scan" call has interrupted the
-            equality range and we can't use index_next_same() anymore.
-          */
-          eq_range= FALSE; 
-        }
-      }
-      else
-#endif      
-        result= read_range_next();
-
+      result= read_range_next();
       /* On success or non-EOF errors jump to the end. */
       if (result != HA_ERR_END_OF_FILE)
         break;
@@ -4422,19 +4390,20 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
                            RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
                            uint n_ranges, uint mode, HANDLER_BUFFER *buf)
 {
-  int res;
   uint elem_size;
+  uint keyno;
+  Item *pushed_cond= NULL;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
+  keyno= h->active_index;
   if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
   {
     use_default_impl= TRUE;
     DBUG_RETURN(h->handler::multi_range_read_init(seq_funcs, seq_init_param,
                                                   n_ranges, mode, buf));
   }
-  use_default_impl= FALSE;
   
   rowids_buf= buf->buffer;
-  last_idx_tuple= rowids_buf;
+  //psergey-todo: don't add key_length as it is not needed anymore
   rowids_buf += key->key_length + h->ref_length;
 
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
@@ -4445,15 +4414,7 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
                       ((rowids_buf_end - rowids_buf)/ elem_size)*
                       elem_size;
   rowids_buf_end= rowids_buf_last;
-  res= h->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
-                                         mode, buf);
-  DBUG_ASSERT(!res);
 
-  mrr_key= key;
-  mrr_keyno= h->active_index;
-  //h->mrr_restore_scan= FALSE;
-  /* h->mrr_restore_scan_res needs no initialization */
-  
   /* Create a separate handler object to do rndpos() calls. */
   THD *thd= current_thd;
   if (!(h2= h->clone(thd->mem_root)) || h2->ha_external_lock(thd, F_RDLCK))
@@ -4461,23 +4422,32 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
     delete h2;
     DBUG_RETURN(1);
   }
-
   my_bitmap_map *bmp_buf;
-  if (!(bmp_buf= (my_bitmap_map*)thd->alloc(h->table->s->column_bitmap_size)))
+  if (!(bmp_buf= (my_bitmap_map*)thd->alloc(table->s->column_bitmap_size)))
     goto error;
 
-  bitmap_init(&row_access_bitmap, bmp_buf, h->table->s->fields, FALSE);
-  bitmap_copy(&row_access_bitmap, h->table->read_set);
-  save_read_set= h->table->read_set;
-  save_write_set= h->table->write_set;
+  bitmap_init(&row_access_bitmap, bmp_buf, table->s->fields, FALSE);
+  bitmap_copy(&row_access_bitmap, table->read_set);
+  save_read_set= table->read_set;
+  save_write_set= table->write_set;
   
-  if (h->index_end() || h->extra(HA_EXTRA_KEYREAD))
+  if (keyno == h->pushed_idx_cond_keyno)
+    pushed_cond= h->pushed_idx_cond;
+  if (h->ha_index_end())
     goto error;
- 
-  h->table->key_read= TRUE;
-  h->table->prepare_for_position();
-  h->table->mark_columns_used_by_index_no_reset(mrr_keyno, h->table->read_set);
-  if (h->index_init(mrr_keyno, FALSE) || dsmrr_fill_buffer(h))
+   
+  table->prepare_for_position();
+  h2->extra(HA_EXTRA_KEYREAD);
+
+  if (h2->ha_index_init(keyno, FALSE) || 
+      h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
+                                         mode, buf))
+    goto error;
+  use_default_impl= FALSE;
+  
+  if (pushed_cond)
+    h2->idx_cond_push(keyno, pushed_cond);
+  if (dsmrr_fill_buffer(h2))
     goto error;
 
   /*
@@ -4487,17 +4457,18 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
   if (dsmrr_eof) 
     buf->end_of_used_area= rowids_buf_last;
 
-  h->table->column_bitmaps_set_no_signal(&row_access_bitmap, 
+  table->column_bitmaps_set_no_signal(&row_access_bitmap, 
                                          &row_access_bitmap);
-  if (h2->rnd_init(FALSE))
+  if (h->ha_rnd_init(FALSE))
     goto error;
-
+  
   DBUG_RETURN(0);
 error:
+  h2->ha_index_or_rnd_end();
   h2->ha_external_lock(thd, F_UNLCK);
   h2->close();
   delete h2;
-  h->table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+  table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
   DBUG_RETURN(1);
 }
 
@@ -4505,14 +4476,18 @@ error:
 void DsMrr_impl::dsmrr_close()
 {
   DBUG_ENTER("DsMrr_impl::dsmrr_close");
-  if (h2)
+  if (!use_default_impl)
   {
-    h2->ha_external_lock(current_thd, F_UNLCK);
-    h2->close();
-    delete h2;
-    h2= NULL;
+    if (h2)
+    {
+      h2->ha_external_lock(current_thd, F_UNLCK);
+      h2->close();
+      delete h2;
+      h2= NULL;
+    }
+    table->column_bitmaps_set(save_read_set, save_write_set);
+    use_default_impl= TRUE;
   }
-  h->table->column_bitmaps_set(save_read_set, save_write_set);
   DBUG_VOID_RETURN;
 }
 
@@ -4543,7 +4518,7 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
     other - Error
 */
 
-int DsMrr_impl::dsmrr_fill_buffer(handler *h)
+int DsMrr_impl::dsmrr_fill_buffer(handler *unused)
 {
   char *range_info;
   int res;
@@ -4551,11 +4526,11 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *h)
 
   rowids_buf_cur= rowids_buf;
   while ((rowids_buf_cur < rowids_buf_end) && 
-         !(res= h->handler::multi_range_read_next(&range_info)))
+         !(res= h2->handler::multi_range_read_next(&range_info)))
   {
     /* Put rowid, or {rowid, range_id} pair into the buffer */
-    h->position(h->table->record[0]);
-    memcpy(rowids_buf_cur, h->ref, h->ref_length);
+    h2->position(table->record[0]);
+    memcpy(rowids_buf_cur, h2->ref, h2->ref_length);
     rowids_buf_cur += h->ref_length;
 
     if (is_mrr_assoc)
@@ -4608,7 +4583,7 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
     
   if (rowids_buf_cur == rowids_buf_last)
   {
-    h->table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+    table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     if (dsmrr_eof)
     {
       res= HA_ERR_END_OF_FILE;
@@ -4616,7 +4591,8 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
     }
 
     res= dsmrr_fill_buffer(h);
-    h->table->column_bitmaps_set_no_signal(&row_access_bitmap,
+    
+    table->column_bitmaps_set_no_signal(&row_access_bitmap,
                                            &row_access_bitmap);
     if (res)
       goto end;
@@ -4629,7 +4605,7 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
     goto end;
   }
 
-  res= h2->rnd_pos(h->table->record[0], rowids_buf_cur);
+  res= h->rnd_pos(table->record[0], rowids_buf_cur);
   rowids_buf_cur += h->ref_length;
   if (is_mrr_assoc)
   {
@@ -4740,8 +4716,8 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
 
 bool DsMrr_impl::key_uses_partial_cols(uint keyno)
 {
-  KEY_PART_INFO *kp= h->table->key_info[keyno].key_part;
-  KEY_PART_INFO *kp_end= kp + h->table->key_info[keyno].key_parts;
+  KEY_PART_INFO *kp= table->key_info[keyno].key_part;
+  KEY_PART_INFO *kp_end= kp + table->key_info[keyno].key_parts;
   for (; kp != kp_end; kp++)
   {
     if (!kp->field->part_of_key.is_set(keyno))
@@ -4786,7 +4762,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   THD *thd= current_thd;
   if ((thd->variables.optimizer_use_mrr == 2) || 
       (*flags & HA_MRR_INDEX_ONLY) || (*flags & HA_MRR_SORTED) ||
-      (keyno == h->table_share->primary_key && 
+      (keyno == table->s->primary_key && 
        h->primary_key_is_clustered()) || 
        key_uses_partial_cols(keyno))
   {
@@ -4795,7 +4771,7 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
     return TRUE;
   }
   
-  uint add_len= h->table->key_info[keyno].key_length + h->ref_length; 
+  uint add_len= table->key_info[keyno].key_length + h->ref_length; 
   *bufsz -= add_len;
   if (get_disk_sweep_mrr_cost(keyno, rows, *flags, bufsz, &dsmrr_cost))
     return TRUE;
@@ -4876,7 +4852,7 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   /* Adjust buffer size if we expect to use only part of the buffer */
   if (n_full_steps)
   {
-    get_sort_and_sweep_cost(h->table, rows, cost);
+    get_sort_and_sweep_cost(table, rows, cost);
     cost->multiply(n_full_steps);
   }
   else
@@ -4884,11 +4860,11 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
     cost->zero();
     *buffer_size= max(*buffer_size, 
                       (size_t)(1.2*rows_in_last_step) * elem_size + 
-                      h->ref_length + h->table->key_info[keynr].key_length);
+                      h->ref_length + table->key_info[keynr].key_length);
   }
   
   COST_VECT last_step_cost;
-  get_sort_and_sweep_cost(h->table, rows_in_last_step, &last_step_cost);
+  get_sort_and_sweep_cost(table, rows_in_last_step, &last_step_cost);
   cost->add(&last_step_cost);
  
   if (n_full_steps != 0)
@@ -5135,6 +5111,22 @@ int handler::compare_key(key_range *range)
   return cmp;
 }
 
+
+/*
+  Same as compare_key() but doesn't check have in_range_check_pushed_down.
+  This is used by index condition pushdown implementation.
+*/
+
+int handler::compare_key2(key_range *range)
+{
+  int cmp;
+  if (!range)
+    return 0;					// no max range
+  cmp= key_cmp(range_key_part, range->key, range->length);
+  if (!cmp)
+    cmp= key_compare_result_on_equal;
+  return cmp;
+}
 
 int handler::index_read_idx_map(uchar * buf, uint index, const uchar * key,
                                 key_part_map keypart_map,
