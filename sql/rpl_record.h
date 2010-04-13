@@ -17,6 +17,11 @@
 #define RPL_RECORD_H
 
 #include <rpl_reporting.h>
+#include "my_global.h"                          /* uchar */
+
+class Relay_log_info;
+struct TABLE;
+typedef struct st_bitmap MY_BITMAP;
 
 #if !defined(MYSQL_CLIENT)
 size_t pack_row(TABLE* table, MY_BITMAP const* cols,

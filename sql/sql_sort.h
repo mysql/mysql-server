@@ -16,6 +16,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "my_global.h"                          /* uchar */
+#include "my_base.h"                            /* ha_rows */
+#include "my_sys.h"                             /* qsort2_cmp */
+
+typedef struct st_buffpek BUFFPEK;
+typedef struct st_queue QUEUE;
+typedef struct st_sort_field SORT_FIELD;
+
+class Field;
+struct TABLE;
+
+
 /* Defines used by filesort and uniques */
 
 #define MERGEBUFF		7

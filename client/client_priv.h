@@ -19,7 +19,6 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <mysql.h>
-#include <mysql_embed.h>
 #include <errmsg.h>
 #include <my_getopt.h>
 

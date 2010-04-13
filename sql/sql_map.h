@@ -23,6 +23,9 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "my_base.h"                            /* ha_rows */
+#include "sql_list.h"                           /* ilink */
+
 class mapped_files;
 mapped_files *map_file(const char * name,uchar *magic,uint magic_length);
 void unmap_file(mapped_files *map);

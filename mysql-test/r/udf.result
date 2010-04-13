@@ -38,8 +38,6 @@ ERROR HY000: Can't initialize function 'reverse_lookup'; Wrong number of argumen
 select reverse_lookup("127.0.0.1");
 select reverse_lookup(127,0,0,1);
 select reverse_lookup("localhost");
-reverse_lookup("localhost")
-NULL
 select avgcost();
 ERROR HY000: Can't initialize function 'avgcost'; wrong number of arguments: AVGCOST() requires two arguments
 select avgcost(100,23.76);

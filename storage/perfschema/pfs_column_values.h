@@ -16,6 +16,8 @@
 #ifndef PFS_COLUMN_VALUES_H
 #define PFS_COLUMN_VALUES_H
 
+#include "m_string.h"                           /* LEX_STRING */
+
 /**
   @file storage/perfschema/pfs_column_values.h
   Literal values for columns used in the
