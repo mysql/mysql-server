@@ -1096,8 +1096,8 @@ typedef struct st_ha_check_opt
 
 typedef struct st_handler_buffer
 {
-  const uchar *buffer;         /* Buffer one can start using */
-  const uchar *buffer_end;     /* End of buffer */
+  uchar *buffer;         /* Buffer one can start using */
+  uchar *buffer_end;     /* End of buffer */
   uchar *end_of_used_area;     /* End of area that was used by handler */
 } HANDLER_BUFFER;
 
@@ -1378,8 +1378,8 @@ public:
   KEY_MULTI_RANGE mrr_cur_range;
   
   /* Default MRR implementation: */
-  bool mrr_restore_scan; /* TRUE <=> we're restoring the scan */
-  int mrr_restore_scan_res; /* iff mrr_restore_scan: return value of next call */
+  //bool mrr_restore_scan; /* TRUE <=> we're restoring the scan */
+  //int mrr_restore_scan_res; /* iff mrr_restore_scan: return value of next call */
 
   /** The following are for read_range() */
   key_range save_end_range, *end_range;
@@ -1448,7 +1448,7 @@ public:
 
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), mrr_restore_scan(FALSE), in_range_check_pushed_down(FALSE),
+    ref(0), /*mrr_restore_scan(FALSE), */ in_range_check_pushed_down(FALSE),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
@@ -2298,28 +2298,36 @@ public:
 
   DsMrr_impl(range_check_toggle_func_t func)
     : last_idx_tuple(NULL), range_check_toggle_func(func) {};
-  uchar *rowids_buf;       // rows buffer
 
-  uchar *rowids_buf_cur;   // current position in rowids buffer
-  uchar *rowids_buf_last;  // just-after-the-end position in rowids buffer 
-  uchar *rowids_buf_end;
+  uchar *rowids_buf;       /* ROWIDs buffer */
+  uchar *rowids_buf_cur;   /* Current position when reading/writing */
+  uchar *rowids_buf_last;  /* Wen reading: end of used buffer space */
+  uchar *rowids_buf_end;   /* End of the buffer */
   
-  KEY  *mrr_key;
-  uchar *last_idx_tuple;
-  uint mrr_keyno;
-  bool dsmrr_eof;
+  KEY  *mrr_key;           /* Index to use */
+  uint mrr_keyno;          /* Number of the index */
 
-  bool is_mrr_assoc;  // TRUE <=> need mrr association (and the buffer holds 
-                      //  {rowid, range_id} pairs
-  /* Some extern variables used with handlers */
-  handler *h;
-  bool use_default_impl;
+  uchar *last_idx_tuple; //TODO: remove 
+  bool dsmrr_eof;        //TODO: remove 
+
+  /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
+  bool is_mrr_assoc; 
+
+  handler *h; /* Owner table handler */
+  handler *h2; /* Slave handler for doing rnd_pos(). */
+   
+  /* Bitmaps for the rnd_pos()-calling handler object */
+  MY_BITMAP row_access_bitmap;
+  MY_BITMAP *save_read_set, *save_write_set;
+
+  bool use_default_impl; /* TRUE <=> shortcut the calls to default MRR impl */
   range_check_toggle_func_t range_check_toggle_func;
 
 
   int dsmrr_init(handler *h, KEY *key, RANGE_SEQ_IF *seq_funcs, 
                  void *seq_init_param, uint n_ranges, uint mode, 
                  HANDLER_BUFFER *buf);
+  void dsmrr_close();
   int dsmrr_fill_buffer(handler *h);
   int dsmrr_next(handler *h, char **range_info);
 

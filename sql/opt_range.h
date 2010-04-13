@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2006 My QL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -384,6 +384,10 @@ private:
     mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
     mrr_buf_size= 0;
   }
+  friend bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, 
+                             KEY_PART *key, SEL_ARG *key_tree, 
+                             uchar *min_key, uint min_key_flag,
+                             uchar *max_key, uint max_key_flag);
 };
 
 

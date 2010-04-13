@@ -4322,6 +4322,7 @@ int handler::multi_range_read_next(char **range_info)
     /* Save a call if there can be only one row in range. */
     if (mrr_cur_range.range_flag != (UNIQUE_RANGE | EQ_RANGE))
     {
+#if 0      
       if (mrr_restore_scan)
       {
         result= mrr_restore_scan_res;
@@ -4351,6 +4352,7 @@ int handler::multi_range_read_next(char **range_info)
         }
       }
       else
+#endif      
         result= read_range_next();
 
       /* On success or non-EOF errors jump to the end. */
@@ -4422,21 +4424,21 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
 {
   int res;
   uint elem_size;
-
+  DBUG_ENTER("DsMrr_impl::dsmrr_init");
   if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
   {
     use_default_impl= TRUE;
-    return h->handler::multi_range_read_init(seq_funcs, seq_init_param,
-                                             n_ranges, mode, buf);
+    DBUG_RETURN(h->handler::multi_range_read_init(seq_funcs, seq_init_param,
+                                                  n_ranges, mode, buf));
   }
   use_default_impl= FALSE;
   
-  rowids_buf= (byte*)buf->buffer;
+  rowids_buf= buf->buffer;
   last_idx_tuple= rowids_buf;
   rowids_buf += key->key_length + h->ref_length;
 
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
-  rowids_buf_end= (byte*)buf->buffer_end;
+  rowids_buf_end= buf->buffer_end;
   
   elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
   rowids_buf_last= rowids_buf + 
@@ -4449,34 +4451,69 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
 
   mrr_key= key;
   mrr_keyno= h->active_index;
+  //h->mrr_restore_scan= FALSE;
+  /* h->mrr_restore_scan_res needs no initialization */
+  
+  /* Create a separate handler object to do rndpos() calls. */
+  THD *thd= current_thd;
+  if (!(h2= h->clone(thd->mem_root)) || h2->ha_external_lock(thd, F_RDLCK))
+  {
+    delete h2;
+    DBUG_RETURN(1);
+  }
+
+  my_bitmap_map *bmp_buf;
+  if (!(bmp_buf= (my_bitmap_map*)thd->alloc(h->table->s->column_bitmap_size)))
+    goto error;
+
+  bitmap_init(&row_access_bitmap, bmp_buf, h->table->s->fields, FALSE);
+  bitmap_copy(&row_access_bitmap, h->table->read_set);
+  save_read_set= h->table->read_set;
+  save_write_set= h->table->write_set;
   
   if (h->index_end() || h->extra(HA_EXTRA_KEYREAD))
-    return 1;
+    goto error;
  
   h->table->key_read= TRUE;
   h->table->prepare_for_position();
   h->table->mark_columns_used_by_index_no_reset(mrr_keyno, h->table->read_set);
-      
-  if (h->index_init(mrr_keyno, FALSE))
-    return 1;
-  
-
-  h->mrr_restore_scan= FALSE;
-  /* h->mrr_restore_scan_res needs no initialization */
- 
-  if ((res= dsmrr_fill_buffer(h)))
-    return res;
- 
-  if (h->index_end() || h->rnd_init(FALSE))
-    return 1;
+  if (h->index_init(mrr_keyno, FALSE) || dsmrr_fill_buffer(h))
+    goto error;
 
   /*
     If the above call has scanned through all intervals in *seq, then
     adjust *buf to indicate that the remaining buffer space will not be used.
   */
-  if (dsmrr_eof)
+  if (dsmrr_eof) 
     buf->end_of_used_area= rowids_buf_last;
-  return 0;
+
+  h->table->column_bitmaps_set_no_signal(&row_access_bitmap, 
+                                         &row_access_bitmap);
+  if (h2->rnd_init(FALSE))
+    goto error;
+
+  DBUG_RETURN(0);
+error:
+  h2->ha_external_lock(thd, F_UNLCK);
+  h2->close();
+  delete h2;
+  h->table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+  DBUG_RETURN(1);
+}
+
+
+void DsMrr_impl::dsmrr_close()
+{
+  DBUG_ENTER("DsMrr_impl::dsmrr_close");
+  if (h2)
+  {
+    h2->ha_external_lock(current_thd, F_UNLCK);
+    h2->close();
+    delete h2;
+    h2= NULL;
+  }
+  h->table->column_bitmaps_set(save_read_set, save_write_set);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -4517,7 +4554,7 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *h)
          !(res= h->handler::multi_range_read_next(&range_info)))
   {
     /* Put rowid, or {rowid, range_id} pair into the buffer */
-    h->position((const byte*)(h->table->record[0]));
+    h->position(h->table->record[0]);
     memcpy(rowids_buf_cur, h->ref, h->ref_length);
     rowids_buf_cur += h->ref_length;
 
@@ -4532,6 +4569,8 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *h)
     DBUG_RETURN(res); 
   dsmrr_eof= test(res == HA_ERR_END_OF_FILE);
 
+//psergey-pmerge{: not needed: 
+#if 0
   if (!res && (h->mrr_cur_range.range_flag != (UNIQUE_RANGE | EQ_RANGE)))
   {
     /* Save the index position: search tuple + rowid */
@@ -4542,7 +4581,8 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *h)
     memcpy(last_idx_tuple + mrr_key->key_length, h->ref, h->ref_length);
     h->mrr_restore_scan= TRUE;
   }
-
+#endif
+//}psergey-pmerge
   /* Sort the buffer contents by rowid */
   uint elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
   uint n_rowids= (rowids_buf_cur - rowids_buf) / elem_size;
@@ -4566,78 +4606,40 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
   if (use_default_impl)
     return h->handler::multi_range_read_next(range_info);
     
-  if ((rowids_buf_cur == rowids_buf_last))
+  if (rowids_buf_cur == rowids_buf_last)
   {
-    h->rnd_end();
-    if (h->extra(HA_EXTRA_KEYREAD))
-      return HA_ERR_KEY_NOT_FOUND;
-    h->table->prepare_for_position();
-    h->table->mark_columns_used_by_index_no_reset(mrr_keyno, h->table->read_set);
-
-    if (h->index_init(mrr_keyno, FALSE))
-      return HA_ERR_KEY_NOT_FOUND;
-    /* 
-      The following check is made here after index_init call so that we
-      leave the table handler in "scanning the index" state after returning
-      EOF. Join de-initialization code depends on this.
-    */
+    h->table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     if (dsmrr_eof)
-      return HA_ERR_END_OF_FILE;
-
-    if (h->mrr_restore_scan)
     {
-      if (h->eq_range)
-      {
-        /*
-          When scanning equality ranges, the index condition pushdown
-          function doesn't check if we've ran out of the range; this is done
-          by the implementation of engine's index_next_same() function.
-
-          When we continue such scan to need to tell the handler that
-           1. We need a row that is 'after' than {last_idx_tuple, rowid}
-           2. But the first N key components (N depends on what range we're
-              scanning) must be equal to those of previously returned tuples.
-
-          The index_read() call contract allows to request only #1. We need
-          to pass the #2 down, too: if we don't, the index_read() call may
-          run out of the range we're scanning and will continue walking forward
-          until it finds an index tuple that satisfies the index condition.
-
-          To prevent this overrun, we enable the range bound check for the
-          time of the call.
-        */
-      (h->*range_check_toggle_func)(TRUE);
-      }
-      h->mrr_restore_scan_res= 
-        h->index_read(h->table->record[0], last_idx_tuple,
-                      mrr_key->key_length + h->ref_length, 
-                      HA_READ_AFTER_KEY);
-      //if (h->eq_range)
-      //  (h->*range_check_toggle_func)(FALSE);
+      res= HA_ERR_END_OF_FILE;
+      goto end;
     }
+
     res= dsmrr_fill_buffer(h);
-
-    h->index_end();
-    h->rnd_init(FALSE);
-
+    h->table->column_bitmaps_set_no_signal(&row_access_bitmap,
+                                           &row_access_bitmap);
     if (res)
-      return res;
+      goto end;
   }
   
   /* Return EOF if there are no rowids in the buffer after re-fill attempt */
   if (rowids_buf_cur == rowids_buf_last)
   {
-    return HA_ERR_END_OF_FILE;
+    res= HA_ERR_END_OF_FILE;
+    goto end;
   }
 
-  res= h->rnd_pos((byte*)h->table->record[0], rowids_buf_cur);
+  res= h2->rnd_pos(h->table->record[0], rowids_buf_cur);
   rowids_buf_cur += h->ref_length;
-  
   if (is_mrr_assoc)
   {
     memcpy(range_info, rowids_buf_cur, sizeof(void*));
     rowids_buf_cur += sizeof(void*);
   }
+
+end:
+  if (res)
+    dsmrr_close();
   return res;
 }
 
@@ -4669,7 +4671,6 @@ int DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows, uint *bufsz,
   {
     DBUG_PRINT("info", ("DS-MRR implementation choosen"));
   }
-
   return 0;
 }
 
@@ -4881,7 +4882,9 @@ bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
   else
   {
     cost->zero();
-    *buffer_size= rows_in_last_step * elem_size;
+    *buffer_size= max(*buffer_size, 
+                      (size_t)(1.2*rows_in_last_step) * elem_size + 
+                      h->ref_length + h->table->key_info[keynr].key_length);
   }
   
   COST_VECT last_step_cost;

@@ -17965,8 +17965,15 @@ part_of_refkey(TABLE *table,Field *field)
   {
     KEY_PART_INFO *key_part=
       table->key_info[table->reginfo.join_tab->ref.key].key_part;
+    uint part;
 
-    for (uint part=0 ; part < ref_parts ; part++,key_part++)
+    for (part=0 ; part < ref_parts ; part++)
+    {
+      if (table->reginfo.join_tab->ref.cond_guards[part])
+        return 0;
+    }
+
+    for (part=0 ; part < ref_parts ; part++,key_part++)
       if (field->eq(key_part->field) &&
 	  !(key_part->key_part_flag & HA_PART_KEY_SEG))
 	return table->reginfo.join_tab->ref.items[part];

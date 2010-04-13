@@ -9120,7 +9120,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
      * This as we don't want mysqld to reuse the buffer when we read
      *   the remaining ranges
      */
-    buffer->end_of_used_area= (byte*)multi_range_buffer->buffer_end;
+    buffer->end_of_used_area= multi_range_buffer->buffer_end;
   }
   else
   {
