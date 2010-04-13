@@ -1339,7 +1339,7 @@ static PAIR write_for_checkpoint_pair = NULL;
 // On exit:  the node is written out
 // Method:   take write lock
 //           if still pending write out the node
-//           release the write lock.
+//           if p->cq, put on completion queue.  Else release write lock
 static void
 write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
 {
@@ -1358,9 +1358,10 @@ write_pair_for_checkpoint (CACHETABLE ct, PAIR p)
         p->remove_me = FALSE;
         cachetable_write_pair(ct, p);    // releases the write lock on the pair
     }
-    else {
+    else if (p->cq)
+        workqueue_enq(p->cq, &p->asyncwork, 1);
+    else
 	rwlock_write_unlock(&p->rwlock); // didn't call cachetable_write_pair so we have to unlock it ourselves.
-    }
     write_for_checkpoint_pair = NULL;
 }
 
