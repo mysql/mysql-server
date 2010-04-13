@@ -5137,7 +5137,7 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
 {
   uint pos;
   char *start=to;
-  DBUG_ASSERT(max_length >= 30);		// For end ',' removal
+  DBUG_ASSERT(max_length >= 30);                // For end ', ' removal
 
   if (access)
   {
@@ -5148,10 +5148,12 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
 	  command_lengths[pos] + (uint) (to-start) < max_length)
       {
 	to= strmov(to, command_array[pos]);
-	*to++=',';
+        *to++= ',';
+        *to++= ' ';
       }
     }
-    to--;					// Remove end ','
+    to--;                                       // Remove end ' '
+    to--;                                       // Remove end ','
   }
   *to=0;
 }
