@@ -568,7 +568,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
    * Do connect
    */
   LocalConfig &cfg= handle->cfg;
-  my_socket sockfd;
+  NDB_SOCKET_TYPE sockfd;
   my_socket_invalidate(&sockfd);
   Uint32 i;
   while (!my_socket_valid(sockfd))
@@ -1789,7 +1789,7 @@ ndb_mgm_set_loglevel_node(NdbMgmHandle handle, int nodeId,
 
 int
 ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
-			      int parsable, my_socket *sock)
+			      int parsable, NDB_SOCKET_TYPE* sock)
 {
   DBUG_ENTER("ndb_mgm_listen_event_internal");
   CHECK_HANDLE(handle, -1);
@@ -1849,7 +1849,7 @@ ndb_mgm_listen_event_internal(NdbMgmHandle handle, const int filter[],
     args.put("filter", tmp.c_str());
   }
 
-  my_socket tmp = handle->socket;
+  NDB_SOCKET_TYPE tmp = handle->socket;
   handle->socket = sockfd;
 
   const Properties *reply;
@@ -1880,7 +1880,7 @@ int
 #endif
 ndb_mgm_listen_event(NdbMgmHandle handle, const int filter[])
 {
-  my_socket s;
+  NDB_SOCKET_TYPE s;
   if(ndb_mgm_listen_event_internal(handle,filter,0,&s)<0)
     my_socket_invalidate(&s);
 #ifdef NDB_WIN

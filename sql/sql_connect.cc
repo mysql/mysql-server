@@ -22,6 +22,9 @@
 */
 
 #include "mysql_priv.h"
+#ifndef __WIN__
+#include <netdb.h>
+#endif
 
 #ifdef HAVE_OPENSSL
 /*

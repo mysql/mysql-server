@@ -64,7 +64,7 @@ SocketServer::tryBind(unsigned short port, const char * intface) {
       return false;
   }
 
-  const NDB_SOCKET_TYPE sock  = my_socket_create(AF_INET, SOCK_STREAM, 0);
+  const NDB_SOCKET_TYPE sock = my_socket_create(AF_INET, SOCK_STREAM, 0);
   if (!my_socket_valid(sock))
     return false;
 
@@ -103,7 +103,7 @@ SocketServer::setup(SocketServer::Service * service,
       DBUG_RETURN(false);
   }
   
-  const my_socket sock  = my_socket_create(AF_INET, SOCK_STREAM, 0);
+  const NDB_SOCKET_TYPE sock = my_socket_create(AF_INET, SOCK_STREAM, 0);
   if (!my_socket_valid(sock))
   {
     DBUG_PRINT("error",("socket() - %d - %s",
@@ -191,7 +191,7 @@ SocketServer::doAccept(){
       ServiceInstance & si = m_services[i];
 
       if(my_FD_ISSET(si.m_socket, &readSet)){
-	my_socket childSock = my_accept(si.m_socket, 0, 0);
+	NDB_SOCKET_TYPE childSock = my_accept(si.m_socket, 0, 0);
 	if(!my_socket_valid(childSock))
         {
           m_services.unlock();

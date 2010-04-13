@@ -32,7 +32,8 @@
 #include "ndb_logevent.hpp"
 
 extern
-int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[], int, my_socket*);
+int ndb_mgm_listen_event_internal(NdbMgmHandle, const int filter[],
+                                  int, NDB_SOCKET_TYPE*);
 
 struct ndb_logevent_error_msg {
   enum ndb_logevent_handle_error code;
@@ -74,7 +75,7 @@ NdbLogEventHandle
 ndb_mgm_create_logevent_handle(NdbMgmHandle mh,
 			       const int filter[])
 {
-  my_socket sock;
+  NDB_SOCKET_TYPE sock;
   if(ndb_mgm_listen_event_internal(mh, filter, 1, &sock) < 0)
     return 0;
 
