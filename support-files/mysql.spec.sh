@@ -44,8 +44,6 @@
 %define undefined()     %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
 %endif
 
-%define fileexists()    %(set -x; [ -e "%{1}" ] && echo 1 || echo 0)
-
 # ----------------------------------------------------------------------------
 # RPM build tools now automatically detect Perl module dependencies.  This
 # detection causes problems as it is broken in some versions, and it also
@@ -64,15 +62,10 @@
 # Command line handling
 ##############################################################################
 #
-# To enable the following options:
+# To set options:
 #
-#   $ rpmbuild --with <option>                  # RPM 4.x+
-#   $ rpmbuild --define '_with_<option> 1'      # RPM 3.x
+#   $ rpmbuild --define="option <x>" ...
 #
-# To disable:
-#
-#   $ rpmbuild --without <option>               # RPM 4.x+
-#   $ rpmbuild --define '_without_<option> 1'   # RPM 3.x
 
 # ----------------------------------------------------------------------------
 # Commercial builds
@@ -174,9 +167,6 @@
   %define distro_buildreq               gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
-
-%{echo:Building for %{distro_description}
-}
 
 # ----------------------------------------------------------------------------
 # Support optional "tcmalloc" library (experimental)
