@@ -322,15 +322,13 @@ toku_rollback_log_free(ROLLBACK_LOG_NODE *log_p) {
 static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
                                           void *rollback_v, void *extraargs, long UU(size),
                                           BOOL write_me, BOOL keep_me, BOOL for_checkpoint) {
-    assert(extraargs);
     int r;
-    TOKUTXN            txn = extraargs;
-    ROLLBACK_LOG_NODE       log = rollback_v;
-    CACHEFILE          rollback_cachefile = txn->logger->rollback_cachefile;
-    struct brt_header *h = toku_cachefile_get_userdata(rollback_cachefile);
+    ROLLBACK_LOG_NODE  log = rollback_v;
+    struct brt_header *h   = extraargs;
 
+    assert(h->cf == cachefile);
     assert(log->thislogname.b==logname.b);
-    assert(rollback_cachefile == cachefile);
+
     if (write_me && !h->panic) {
         int n_workitems, n_threads; 
         toku_cachefile_get_workqueue_load(cachefile, &n_workitems, &n_threads);
@@ -354,15 +352,12 @@ static void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM 
 
 static int toku_rollback_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname, u_int32_t fullhash,
                                       void **rollback_pv, long *sizep, void *extraargs) {
-    assert(extraargs);
     int r;
-    TOKUTXN            txn = extraargs;
-    CACHEFILE          rollback_cachefile = txn->logger->rollback_cachefile;
-    struct brt_header *h = toku_cachefile_get_userdata(rollback_cachefile);
-    assert(rollback_cachefile == cachefile);
+    struct brt_header *h = extraargs;
+    assert(h->cf == cachefile);
 
     ROLLBACK_LOG_NODE *result = (ROLLBACK_LOG_NODE*)rollback_pv;
-    r = toku_deserialize_rollback_log_from(fd, logname, fullhash, result, txn, h);
+    r = toku_deserialize_rollback_log_from(fd, logname, fullhash, result, h);
     if (r==0) {
         *sizep = rollback_memory_size(*result);
     }
@@ -396,7 +391,7 @@ static int toku_create_new_rollback_log (TOKUTXN txn, BLOCKNUM older, uint32_t o
     r=toku_cachetable_put(cf, log->thislogname, log->thishash,
                           log, rollback_memory_size(log),
                           toku_rollback_flush_callback, toku_rollback_fetch_callback,
-                          txn);
+                          h);
     assert(r==0);
     txn->current_rollback      = log->thislogname;
     txn->current_rollback_hash = log->thishash;
@@ -602,10 +597,11 @@ toku_maybe_prefetch_older_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     if (name.b != ROLLBACK_NONE.b) {
         uint32_t hash = log->older_hash;
         CACHEFILE cf = txn->logger->rollback_cachefile;
+        struct brt_header *h = toku_cachefile_get_userdata(cf);
         r = toku_cachefile_prefetch(cf, name, hash,
                                     toku_rollback_flush_callback,
                                     toku_rollback_fetch_callback,
-                                    txn);
+                                    h);
         assert(r==0);
     }
     return r;
@@ -625,10 +621,11 @@ int toku_get_and_pin_rollback_log(TOKUTXN txn, TXNID xid, uint64_t sequence, BLO
     if (!log) {
         CACHEFILE cf = txn->logger->rollback_cachefile;
         void * log_v;
+        struct brt_header *h = toku_cachefile_get_userdata(cf);
         r = toku_cachetable_get_and_pin(cf, name, hash,
                                         &log_v, NULL,
                                         toku_rollback_flush_callback, toku_rollback_fetch_callback,
-                                        txn);
+                                        h);
         assert(r==0);
         log = (ROLLBACK_LOG_NODE)log_v;
     }
