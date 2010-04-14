@@ -801,30 +801,37 @@ void mysql_query_cache_invalidate4(MYSQL_THD thd,
                                    const char *key, unsigned int key_length,
                                    int using_trx);
 
-#ifdef __cplusplus
-}
-#endif
 
-#ifdef __cplusplus
 /**
   Provide a handler data getter to simplify coding
 */
-inline
-void *
-thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton)
-{
-  return *thd_ha_data(thd, hton);
-}
+void *thd_get_ha_data(const MYSQL_THD thd, const struct handlerton *hton);
+
 
 /**
   Provide a handler data setter to simplify coding
+
+  @details
+  Set ha_data pointer (storage engine per-connection information).
+
+  To avoid unclean deactivation (uninstall) of storage engine plugin
+  in the middle of transaction, additional storage engine plugin
+  lock is acquired.
+
+  If ha_data is not null and storage engine plugin was not locked
+  by thd_set_ha_data() in this connection before, storage engine
+  plugin gets locked.
+
+  If ha_data is null and storage engine plugin was locked by
+  thd_set_ha_data() in this connection before, storage engine
+  plugin lock gets released.
+
+  If handlerton::close_connection() didn't reset ha_data, server does
+  it immediately after calling handlerton::close_connection().
 */
-inline
-void
-thd_set_ha_data(const MYSQL_THD thd, const struct handlerton *hton,
-                const void *ha_data)
-{
-  *thd_ha_data(thd, hton)= (void*) ha_data;
+void thd_set_ha_data(MYSQL_THD thd, const struct handlerton *hton,
+                     const void *ha_data);
+#ifdef __cplusplus
 }
 #endif
 
