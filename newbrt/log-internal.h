@@ -177,7 +177,7 @@ static inline int toku_logsizeof_TXNID (TXNID txnid __attribute__((__unused__)))
 }
 
 static inline int toku_logsizeof_FILENUMS (FILENUMS fs) {
-    static const FILENUM f; //fs could have .num==0 and then we cannot dereference
+    static const FILENUM f = {0}; //fs could have .num==0 and then we cannot dereference
     return 4 + fs.num * toku_logsizeof_FILENUM(f);
 }
 

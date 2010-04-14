@@ -281,7 +281,7 @@ dump_block(int f, BLOCKNUM blocknum, struct brt_header *h) {
     unsigned char *vp = toku_malloc(size);
     u_int64_t r = pread(f, vp, size, offset);
     if (r == (u_int64_t)size) {
-        printf("%.8s layout_version=%u %u\n", vp, get_unaligned_uint32(vp+8), get_unaligned_uint32(vp+12));
+        printf("%.8s layout_version=%u %u\n", (char*)vp, get_unaligned_uint32(vp+8), get_unaligned_uint32(vp+12));
         verify_block(vp, size);
     }
     toku_free(vp);

@@ -31,8 +31,14 @@ $(notdir $(TLIBTDB)): $(TLIBTDB)
 SRCS = $(sort $(wildcard *.c))
 RECOVER_SRCS = $(wildcard recover-*.c)
 
+#Tests that don't compile in windows.  SHould
+WINDOWS_NOT_PORTED_TESTS = \
+        diskfull \
+#\ ends prev line
+
 #Tests that are irrelevant in windows.
 WINDOWS_DONTRUN_TESTS = \
+	$(WINDOWS_NOT_PORTED_TESTS) \
 	helgrind1 \
 	helgrind2 \
 	helgrind3 \
