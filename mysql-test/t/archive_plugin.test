@@ -1,0 +1,23 @@
+--source include/not_windows.inc
+--source include/have_archive_plugin.inc
+
+CREATE TABLE t1(a int) ENGINE=ARCHIVE;
+DROP TABLE t1;
+
+INSTALL PLUGIN archive SONAME 'ha_archive.so';
+--error 1125
+INSTALL PLUGIN ARCHIVE SONAME 'ha_archive.so';
+
+UNINSTALL PLUGIN archive;
+
+INSTALL PLUGIN archive SONAME 'ha_archive.so';
+
+CREATE TABLE t1(a int) ENGINE=ARCHIVE;
+
+DROP TABLE t1;
+
+UNINSTALL PLUGIN archive;
+
+--error ER_SP_DOES_NOT_EXIST 
+UNINSTALL PLUGIN archive;
+
