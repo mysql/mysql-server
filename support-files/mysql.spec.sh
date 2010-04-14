@@ -24,7 +24,6 @@
 %define mysql_vendor_2          Sun Microsystems, Inc.
 %define mysql_vendor            Oracle and/or its affiliates
 
-%define mysql_license   GPL
 %define mysql_version   @VERSION@
 
 %define mysqld_user     mysql
@@ -130,42 +129,43 @@
 %endif
 %if %{distro_specific}
   %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-    %define redhatver %(rpm -qf --qf '%%{version}' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-    %{echo:Found Red Hat version %{redhatver}}
-    %if %redhatver == 4
+    %define redhatver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+    %if "%redhatver" == "4"
       %define distro_description        Red Hat Enterprise Linux 4
       %define distro_releasetag         rhel4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %else
-      %if %redhatver == 5
+      %if "%redhatver" == "5"
         %define distro_description      Red Hat Enterprise Linux 5
         %define distro_releasetag       rhel5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils
+      %else
+        %{error:Red Hat %{redhatver} is unsupported}
       %endif
     %endif
   %else
     %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
-      %define susever %(rpm -qf --qf '%%{version}' /etc/SuSE-release)
-      %{echo:Found SuSE version %{susever}}
-      %if %susever == 10
+      %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+      %if "%susever" == "10"
         %define distro_description      SUSE Linux Enterprise Server 10
         %define distro_releasetag       sles10
         %define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
         %define distro_requires         aaa_base coreutils grep procps pwdutils
       %else
-        %if %susever == 11
+        %if "%susever" == "11"
           %define distro_description    SUSE Linux Enterprise Server 11
           %define distro_releasetag     sles11
           %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
           %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %else
+          %{error:SuSE %{susever} is unsupported}
         %endif
       %endif
+    %else
+      %{error:Unsupported distribution}
     %endif
-  %endif
-  %if %{undefined distro_description}
-    %{error:Unsupported distribution}
   %endif
 %else
   %define generic_kernel %(uname -r | cut -d. -f1-2)
@@ -175,7 +175,8 @@
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
 
-%{echo:Building for %{distro_description}}
+%{echo:Building for %{distro_description}
+}
 
 # ----------------------------------------------------------------------------
 # Support optional "tcmalloc" library (experimental)
@@ -196,7 +197,7 @@
 %else
 %define license_files_devel     %{src_dir}/EXCEPTIONS-CLIENT
 %define license_files_server    %{src_dir}/COPYING %{src_dir}/README
-%define license_type            %{mysql_license}
+%define license_type            GPL
 %endif
 
 ##############################################################################
@@ -209,7 +210,7 @@ Group:          Applications/Databases
 Version:        @MYSQL_U_SCORE_VERSION@
 Release:        %{release}%{?distro_releasetag:.%{distro_releasetag}}
 Distribution:   %{distro_description}
-License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
+License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
 Source:         http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
 Packager:       MySQL Build Team <build@mysql.com>
