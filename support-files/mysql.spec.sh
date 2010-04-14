@@ -289,7 +289,7 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
 %package -n MySQL-test%{product_suffix}
-Requires:       %{name}-client perl
+Requires:       MySQL-client%{product_suffix} perl
 Summary:        MySQL - Test suite
 Group:          Applications/Databases
 Provides:       mysql-test
@@ -327,7 +327,7 @@ and applications need to dynamically load and use MySQL.
 %package -n MySQL-embedded%{product_suffix}
 Summary:        MySQL - embedded library
 Group:          Applications/Databases
-Requires:       %{name}-devel
+Requires:       MySQL-devel%{product_suffix}
 Obsoletes:      mysql-embedded
 
 %description -n MySQL-embedded%{product_suffix}
