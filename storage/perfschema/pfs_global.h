@@ -66,12 +66,13 @@ inline uint randomized_index(const void *ptr, uint max_size)
   value= (reinterpret_cast<intptr> (ptr)) >> 3;
   value*= 1789;
   value+= seed2 + seed1 + 1;
-  value%= max_size;
   
-  result= static_cast<uint> (value);
+  result= (static_cast<uint> (value)) % max_size;
+
   seed2= seed1*seed1;
   seed1= result;
 
+  DBUG_ASSERT(result < max_size);
   return result;
 }
 
