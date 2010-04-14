@@ -746,10 +746,6 @@ fi
 # ----------------------------------------------------------------------------
 %files -n MySQL-client%{product_suffix}
 
-%if %{defined license_files_server}
-%doc %{license_files_server}
-%endif
-
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
