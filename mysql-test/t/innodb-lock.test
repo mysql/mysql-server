@@ -56,12 +56,9 @@ commit;
 
 drop table t1;
 
---echo #
---echo # Old lock method (where LOCK TABLE was ignored by InnoDB) no longer
---echo # works due to fix for bugs  #46272 "MySQL 5.4.4, new MDL: unnecessary
---echo # deadlock" and bug #37346 "innodb does not detect deadlock between
---echo # update and alter table".
---echo #
+#
+# Try with old lock method (where LOCK TABLE is ignored by InnoDB)
+#
 
 set @@innodb_table_locks=0;
 
@@ -70,38 +67,36 @@ insert into t1 values(0, 0),(1,1),(2,2);
 commit;
 SELECT * from t1 where id = 0 FOR UPDATE;
 
---echo # Connection 'con2'.
 connection con2;
 set autocommit=0;
 set @@innodb_table_locks=0;
 
---echo # The following statement should block because SQL-level lock
---echo # is taken on t1 which will wait until concurrent transaction
---echo # is commited.
---echo # Sending:
---send lock table t1 write;
+# The following statement should work becase innodb doesn't check table locks
+lock table t1 write;
 
---echo # Connection 'con1'.
 connection con1;
---echo # Wait until LOCK TABLE is blocked on SQL-level lock.
-let $wait_condition=
-  select count(*) = 1 from information_schema.processlist
-  where state = "Waiting for table" and info = "lock table t1 write";
---source include/wait_condition.inc
---echo # We should be able to do UPDATEs and SELECTs within transaction.
-update t1 set x=1 where id = 0;
-select * from t1;
---echo # Unblock LOCK TABLE.
-commit;
 
---echo # Connection 'con2'.
+# This will be locked by MySQL
+--send
+update t1 set x=10 where id = 2;
+--sleep 2
+
 connection con2;
---echo # Reap LOCK TABLE.
---reap
+
+# Note that we will get a deadlock if we try to select any rows marked
+# for update by con1 !
+
+SELECT * from t1 where id = 2;
+UPDATE t1 set x=3 where id = 2;
+commit;
+SELECT * from t1;
+commit;
 unlock tables;
 
---echo # Connection 'con1'.
 connection con1;
+reap;
+commit;
+select * from t1;
 drop table t1;
 
 # End of 4.1 tests
