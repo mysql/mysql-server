@@ -692,6 +692,9 @@ select count(*) from t1 where sca_pic is null;
 count(*)
 2
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+ERROR 42000: Incorrect index name 'sca_pic'
+alter table t1 drop index sca_pic;
+alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
@@ -699,6 +702,9 @@ select count(*) from t1 where cat_code='E';
 count(*)
 0
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+ERROR 42000: Incorrect index name 'sca_pic'
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
@@ -1738,7 +1744,7 @@ count(*)
 drop table t1;
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 variable_value
-512
+8191
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 variable_value
 16384
@@ -1788,7 +1794,7 @@ Variable_name	Value
 innodb_thread_concurrency	0
 set global innodb_thread_concurrency=1001;
 Warnings:
-Warning	1292	Truncated incorrect innodb_thread_concurrency value: '1001'
+Warning	1292	Truncated incorrect thread_concurrency value: '1001'
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	1000
@@ -1809,7 +1815,7 @@ Variable_name	Value
 innodb_concurrency_tickets	1000
 set global innodb_concurrency_tickets=0;
 Warnings:
-Warning	1292	Truncated incorrect innodb_concurrency_tickets value: '0'
+Warning	1292	Truncated incorrect concurrency_tickets value: '0'
 show variables like "innodb_concurrency_tickets";
 Variable_name	Value
 innodb_concurrency_tickets	1
@@ -1833,6 +1839,7 @@ show variables like "innodb_thread_sleep_delay";
 Variable_name	Value
 innodb_thread_sleep_delay	10000
 set storage_engine=INNODB;
+set session old_alter_table=1;
 drop table if exists t1,t2,t3;
 --- Testing varchar ---
 --- Testing varchar ---
@@ -1970,7 +1977,7 @@ explain select count(*) from t1 where v between 'a' and 'a ' and v between 'a  '
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
 alter table t1 add unique(v);
-ERROR 23000: Duplicate entry 'v' for key 'v_2'
+ERROR 23000: Duplicate entry '{ ' for key 'v_2'
 alter table t1 add key(v);
 select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
 qq
@@ -2406,6 +2413,7 @@ select * from t1 where a=20 and b is null;
 a	b
 20	NULL
 drop table t1;
+set session old_alter_table=0;
 create table t1 (v varchar(65530), key(v));
 Warnings:
 Warning	1071	Specified key was too long; max key length is 767 bytes
@@ -2723,7 +2731,7 @@ create table t3 (s1 varchar(2) binary,primary key (s1)) engine=innodb;
 create table t4 (s1 char(2) binary,primary key (s1)) engine=innodb;
 insert into t1 values (0x41),(0x4120),(0x4100);
 insert into t2 values (0x41),(0x4120),(0x4100);
-ERROR 23000: Duplicate entry 'A\x00' for key 'PRIMARY'
+ERROR 23000: Duplicate entry 'A' for key 'PRIMARY'
 insert into t2 values (0x41),(0x4120);
 insert into t3 values (0x41),(0x4120),(0x4100);
 ERROR 23000: Duplicate entry 'A ' for key 'PRIMARY'
@@ -2834,10 +2842,10 @@ t2	CREATE TABLE `t2` (
 DROP TABLE t2,t1;
 create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
 insert into t1(a) values (1),(2),(3);
-create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
 commit;
 set autocommit = 0;
 update t1 set b = 5 where a = 2;
+create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
 set autocommit = 0;
 insert into t1(a) values (10),(20),(30),(40),(50),(60),(70),(80),(90),(100),
 (11),(21),(31),(41),(51),(61),(71),(81),(91),(101),
@@ -2884,7 +2892,6 @@ insert into t1(a) values(7);
 insert into t2(a) values(8);
 delete from t2 where a = 3;
 update t4 set b = b + 1 where a = 3;
-commit;
 commit;
 drop trigger t1t;
 drop trigger t2t;

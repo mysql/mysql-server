@@ -15,6 +15,8 @@
 
 -- source include/have_innodb.inc
 
+let $MYSQLD_DATADIR= `select @@datadir`;
+
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
 # test assumed that e.g. rows_deleted is 0 here and after deleting 23
@@ -425,11 +427,19 @@ INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca
 select count(*) from t1 where sca_code = 'PD';
 select count(*) from t1 where sca_code <= 'PD';
 select count(*) from t1 where sca_pic is null;
+# this should be fixed by MySQL (see Bug #51451)
+--error ER_WRONG_NAME_FOR_INDEX
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
+alter table t1 drop index sca_pic;
+alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
 
+# this should be fixed by MySQL (see Bug #51451)
+--error ER_WRONG_NAME_FOR_INDEX
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
+alter table t1 drop index sca_pic;
+alter table t1 add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where sca_pic >= 'n';
 select sca_pic from t1 where sca_pic is null;
@@ -1317,7 +1327,7 @@ drop table t1;
 
 # Test for testable InnoDB status variables. This test
 # uses previous ones(pages_created, rows_deleted, ...).
---replace_result 511 512
+--replace_result 8192 8191
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_buffer_pool_pages_total';
 SELECT variable_value FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_page_size';
 SELECT variable_value - @innodb_rows_deleted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_deleted';
@@ -1375,7 +1385,10 @@ show variables like "innodb_thread_sleep_delay";
 
 let $default=`select @@storage_engine`;
 set storage_engine=INNODB;
+# this should be fixed by MySQL (see Bug #51451)
+set session old_alter_table=1;
 source include/varchar.inc;
+set session old_alter_table=0;
 
 #
 # Some errors/warnings on create
@@ -1700,7 +1713,7 @@ set foreign_key_checks=0;
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=latin1;
 create table t3(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=utf8;
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 -- error 1025
 rename table t3 to t1;
 set foreign_key_checks=1;
@@ -1854,15 +1867,16 @@ connect (b,localhost,root,,);
 connection a;
 create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
 insert into t1(a) values (1),(2),(3);
-delimiter |;
-create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
-delimiter ;|
 commit;
 connection b;
 set autocommit = 0;
 update t1 set b = 5 where a = 2;
 connection a;
+delimiter |;
+create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
+delimiter ;|
 set autocommit = 0;
+connection a;
 insert into t1(a) values (10),(20),(30),(40),(50),(60),(70),(80),(90),(100),
 (11),(21),(31),(41),(51),(61),(71),(81),(91),(101),
 (12),(22),(32),(42),(52),(62),(72),(82),(92),(102),
@@ -1926,9 +1940,6 @@ insert into t2(a) values(8);
 delete from t2 where a = 3;
 update t4 set b = b + 1 where a = 3;
 commit;
-connection a;
-commit;
-connection b;
 drop trigger t1t;
 drop trigger t2t;
 drop trigger t3t;
@@ -2342,7 +2353,7 @@ ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
 # mysqltest first does replace_regex, then replace_result
 --replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
 # Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLD_DATADIR ./ master-data/ ''
 --error 1025
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 DELETE FROM t1;
