@@ -4606,7 +4606,12 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
   DBUG_ENTER("optimize_semijoin_nests");
   List_iterator<TABLE_LIST> sj_list_it(join->select_lex->sj_nests);
   TABLE_LIST *sj_nest;
-  if (optimizer_flag(join->thd, OPTIMIZER_SWITCH_MATERIALIZATION))
+  /*
+    The statement may have been executed with 'semijoin=on' earlier.
+    We need to verify that 'semijoin=on' still holds.
+   */
+  if (optimizer_flag(join->thd, OPTIMIZER_SWITCH_SEMIJOIN) &&
+      optimizer_flag(join->thd, OPTIMIZER_SWITCH_MATERIALIZATION))
   {
     while ((sj_nest= sj_list_it++))
     {
