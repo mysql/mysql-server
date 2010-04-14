@@ -162,9 +162,7 @@ static LEX_STRING old_password_plugin_name= {
 LEX_STRING *default_auth_plugin_name= &native_password_plugin_name;
 
 static plugin_ref native_password_plugin;
-#ifndef EMBEDDED_LIBRARY
 static plugin_ref old_password_plugin;
-#endif
 
 /* Classes */
 
