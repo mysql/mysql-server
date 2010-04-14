@@ -19,7 +19,7 @@
 #include "sql_class.h"                          /* enum_duplicates */
 
 class Item;
-class TABLE_LIST;
+struct TABLE_LIST;
 class THD;
 
 typedef class st_select_lex SELECT_LEX;
