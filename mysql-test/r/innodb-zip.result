@@ -173,19 +173,19 @@ select @@innodb_file_format;
 @@innodb_file_format
 Barracuda
 set global innodb_file_format=`2`;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of '2'
 set global innodb_file_format=`-1`;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of '-1'
 set global innodb_file_format=`Antelope`;
 set global innodb_file_format=`Barracuda`;
 set global innodb_file_format=`Cheetah`;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of 'Cheetah'
 set global innodb_file_format=`abc`;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of 'abc'
 set global innodb_file_format=`1a`;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of '1a'
 set global innodb_file_format=``;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of ''
 set global innodb_file_per_table = on;
 set global innodb_file_format = `1`;
 set innodb_strict_mode = off;
