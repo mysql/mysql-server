@@ -19,7 +19,7 @@
 #include "my_base.h"                            /* ha_rows */
 
 class THD;
-class TABLE_LIST;
+struct TABLE_LIST;
 class Item;
 
 typedef class Item COND;
