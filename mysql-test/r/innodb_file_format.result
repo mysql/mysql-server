@@ -7,7 +7,7 @@ Antelope
 set global innodb_file_format=antelope;
 set global innodb_file_format=barracuda;
 set global innodb_file_format=cheetah;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of 'cheetah'
 select @@innodb_file_format;
 @@innodb_file_format
 Barracuda
@@ -16,16 +16,16 @@ select @@innodb_file_format;
 @@innodb_file_format
 Antelope
 set global innodb_file_format=on;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of 'ON'
 set global innodb_file_format=off;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of 'off'
 select @@innodb_file_format;
 @@innodb_file_format
 Antelope
 set global innodb_file_format_check=antelope;
 set global innodb_file_format_check=barracuda;
 set global innodb_file_format_check=cheetah;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format_check' can't be set to the value of 'cheetah'
 select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda
@@ -34,9 +34,9 @@ select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda
 set global innodb_file_format=on;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of 'ON'
 set global innodb_file_format=off;
-ERROR HY000: Incorrect arguments to SET
+ERROR 42000: Variable 'innodb_file_format' can't be set to the value of 'off'
 select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda
