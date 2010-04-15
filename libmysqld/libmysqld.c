@@ -63,6 +63,8 @@ extern ulong max_allowed_packet;
 #else
 #include <errno.h>
 #define ERRNO errno
+#define SOCKET_ERROR -1
+#define closesocket(A) close(A)
 #endif
 
 #ifdef HAVE_GETPWUID
