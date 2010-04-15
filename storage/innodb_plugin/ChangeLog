@@ -1,3 +1,9 @@
+2010-04-15	The InnoDB Team
+
+	* trx/trx0rec.c:
+	Fix Bug#52746 InnoDB purge thread crashed with table containing
+	prefix indexed blobs
+
 2010-03-31	The InnoDB Team
 
 	* mysql-test/innodb_bug51920.test, mysql-test/innodb_bug51920.result,
