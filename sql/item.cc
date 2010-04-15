@@ -6714,11 +6714,19 @@ void Item_outer_ref::fix_after_pullout(st_select_lex *new_parent, Item **ref)
 
 void Item_ref::fix_after_pullout(st_select_lex *new_parent, Item **refptr)
 {
-  if (depended_from == new_parent)
-  {
-    (*ref)->fix_after_pullout(new_parent, ref);
-    depended_from= NULL;
-  }
+  /*
+    Item_ref could be used for referencing items from HAVING/ORDER BY clauses
+    and for outer references in SELECT list or in HAVING clause of inner query.
+    Neither of these cases are allowed by semi-join optimization.
+  */
+  DBUG_ASSERT(false);
+}
+
+void Item_direct_view_ref::fix_after_pullout(st_select_lex *new_parent,
+                                             Item **refptr)
+{
+  (*ref)->fix_after_pullout(new_parent, ref);
+  depended_from= NULL;
 }
 
 /**
