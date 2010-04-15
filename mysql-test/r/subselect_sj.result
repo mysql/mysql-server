@@ -1104,3 +1104,20 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DROP TABLE t1, t2, t3;
 DROP VIEW v2, v3;
 # End of Bug#49198
+# 
+# Bug #51487 Assertion failure when semi-join flattening occurs
+#            for a subquery in HAVING 
+# 
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,10),(2,11),(1,13);
+CREATE TABLE t2 AS SELECT * FROM t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+SELECT COUNT(*) FROM t1
+GROUP BY t1.a 
+HAVING t1.a IN (SELECT t3.a FROM t3
+WHERE t3.b IN (SELECT b FROM t2 WHERE t2.a=t1.a));
+COUNT(*)
+2
+1
+DROP TABLE t1, t2, t3;
+# End of Bug#51487
