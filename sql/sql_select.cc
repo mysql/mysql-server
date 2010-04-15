@@ -665,8 +665,9 @@ JOIN::prepare(Item ***rref_pointer_array,
         }
       }
 
-      /* Register the subquery for further processing */
-      select_lex->outer_select()->join->sj_subselects.append(thd->mem_root, in_subs);
+      /* Register the subquery for further processing in flatten_subqueries() */
+      select_lex->
+        outer_select()->join->sj_subselects.append(thd->mem_root, in_subs);
       in_subs->expr_join_nest= thd->thd_marker.emb_on_expr_nest;
     }
     else
@@ -3609,8 +3610,18 @@ bool JOIN::flatten_subqueries()
   for (in_subq= sj_subselects.front(), in_subq_end= sj_subselects.back(); 
        in_subq != in_subq_end; in_subq++)
   {
-    JOIN *child_join= (*in_subq)->unit->first_select()->join;
+    st_select_lex *child_select= (*in_subq)->get_select_lex();
+    JOIN *child_join= child_select->join;
     child_join->outer_tables = child_join->tables;
+
+    /*
+      child_select->where contains only the WHERE predicate of the
+      subquery itself here. We may be selecting from a VIEW, which has its
+      own predicate. The combined predicates are available in child_join->conds,
+      which was built by setup_conds() doing prepare_where() for all views.
+    */
+    child_select->where= child_join->conds;
+
     if (child_join->flatten_subqueries())
       DBUG_RETURN(TRUE);
     (*in_subq)->sj_convert_priority= 
