@@ -1898,12 +1898,14 @@ int toku_cachetable_unpin_and_remove (CACHEFILE cachefile, CACHEKEY key) {
                 //pointers.  We need to let the checkpoint thread finish up with
                 //this pair.
                 assert(rwlock_blocked_writers(&p->rwlock)==1); //Only one checkpoint thread.
-                //  If anyone is waiting on write lock, let them finish.
-                cachetable_unlock(ct);
 
                 struct workqueue cq;
                 workqueue_init(&cq);
                 p->cq = &cq;
+
+                //  If anyone is waiting on write lock, let them finish.
+                cachetable_unlock(ct);
+
                 WORKITEM wi = 0;
                 r = workqueue_deq(&cq, &wi, 1);
                 //Writer is now done.
