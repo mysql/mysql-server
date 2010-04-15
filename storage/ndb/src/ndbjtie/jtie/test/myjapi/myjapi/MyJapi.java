@@ -30,7 +30,7 @@ public class MyJapi {
     static public native void f0();
 
     // ----------------------------------------------------------------------
-    // String/ByteBuffer mappings of [const]char*/void* result/parameters
+    // String mappings of [const] char* result/parameters
     // ----------------------------------------------------------------------
 
     static public native String s012s();
@@ -38,14 +38,12 @@ public class MyJapi {
     static public native void s112s(String p0);
     static public native void s152s(String p0);
 
-/*
-// XXX StringBuilder mappings not supported yet
-
-    static public native StringBuilder s032sb();
-    static public native StringBuilder s072sb();
-    static public native void s132sb(StringBuilder p0);
-    static public native void s172sb(StringBuilder p0);
-*/
+    // mapping as result is supported, for s112(s032()) is in C++
+    static public native String s032s();
+    static public native String s072s();
+    // mapping as parameters is not supported, for s132(s012()) is not in C++
+    //static public native void s132s(String p0);
+    //static public native void s172s(String p0);
 
     // ----------------------------------------------------------------------
     // ByteBuffer<size=0> mappings of void/char pointers
