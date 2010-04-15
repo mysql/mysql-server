@@ -106,9 +106,9 @@ Java_com_mysql_ndbjtie_mysql_CharsetMap_getName(JNIEnv * env, jobject obj, jint 
 {
     TRACE("jstring Java_com_mysql_ndbjtie_mysql_CharsetMap_getName(JNIEnv *, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getName >(env, obj, p0);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_char_cp_jutf8null, ttrait_int, &CharsetMap::getName >(env, obj, p0);
 #else
-    return gcall_fr< ttrait_utf8cstring, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int, &MysqlUtilsWrapper::CharsetMap__getName >(env, NULL, obj, p0);
+    return gcall_fr< ttrait_char_cp_jutf8null, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int, &MysqlUtilsWrapper::CharsetMap__getName >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
@@ -122,9 +122,9 @@ Java_com_mysql_ndbjtie_mysql_CharsetMap_getMysqlName(JNIEnv * env, jobject obj, 
 {
     TRACE("jstring Java_com_mysql_ndbjtie_mysql_CharsetMap_getMysqlName(JNIEnv *, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_utf8cstring, ttrait_int, &CharsetMap::getMysqlName >(env, obj, p0);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_char_cp_jutf8null, ttrait_int, &CharsetMap::getMysqlName >(env, obj, p0);
 #else
-    return gcall_fr< ttrait_utf8cstring, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int, &MysqlUtilsWrapper::CharsetMap__getMysqlName >(env, NULL, obj, p0);
+    return gcall_fr< ttrait_char_cp_jutf8null, ttrait_c_m_n_m_CharsetMap_cr, ttrait_int, &MysqlUtilsWrapper::CharsetMap__getMysqlName >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
@@ -138,9 +138,9 @@ Java_com_mysql_ndbjtie_mysql_CharsetMap_getCharsetNumber(JNIEnv * env, jobject o
 {
     TRACE("jint Java_com_mysql_ndbjtie_mysql_CharsetMap_getCharsetNumber(JNIEnv *, jobject, jstring)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, ttrait_utf8cstring, &CharsetMap::getCharsetNumber >(env, obj, p0);
+    return gcall_mfr< ttrait_c_m_n_m_CharsetMap_ct, ttrait_int, ttrait_char_cp_jutf8null, &CharsetMap::getCharsetNumber >(env, obj, p0);
 #else
-    return gcall_fr< ttrait_int, ttrait_c_m_n_m_CharsetMap_cr, ttrait_utf8cstring, &MysqlUtilsWrapper::CharsetMap__getCharsetNumber >(env, NULL, obj, p0);
+    return gcall_fr< ttrait_int, ttrait_c_m_n_m_CharsetMap_cr, ttrait_char_cp_jutf8null, &MysqlUtilsWrapper::CharsetMap__getCharsetNumber >(env, NULL, obj, p0);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 

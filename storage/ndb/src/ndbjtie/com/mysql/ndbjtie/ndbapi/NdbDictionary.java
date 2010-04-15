@@ -688,9 +688,9 @@ public class NdbDictionary extends Wrapper
                 public final native void state(int/*_Object.State_*/ p0);
                 public final native void store(int/*_Object.Store_*/ p0);
                 public final native void temp(int/*_Uint32_*/ p0);
-                public final native void database(String/*_char *_*/ p0); // MMM confirmed as null-terminated C string
-                public final native void schema(String/*_char *_*/ p0); // MMM confirmed as null-terminated C string
-                public final native void name(String/*_char *_*/ p0); // MMM confirmed as null-terminated C string
+                // MMM unsupported by JTie (and NDBAPI): public final native void database(String/*_char *_*/ p0);
+                // MMM unsupported by JTie (and NDBAPI): public final native void schema(String/*_char *_*/ p0);
+                // MMM unsupported by JTie (and NDBAPI): public final native void name(String/*_char *_*/ p0);
                 static public final native Element create();
                 static public final native void delete(Element p0);
             }
