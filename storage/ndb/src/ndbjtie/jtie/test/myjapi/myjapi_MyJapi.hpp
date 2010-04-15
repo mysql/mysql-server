@@ -66,61 +66,43 @@ JNIEXPORT jstring JNICALL
 Java_myjapi_MyJapi_s012s(JNIEnv * env, jclass cls) 
 {
     TRACE("jstring Java_myjapi_MyJapi_s012s(JNIEnv * env, jclass cls)");
-    return gcall_fr< ttrait_utf8cstring, s012 >(env, cls);
+    return gcall_fr< ttrait_char_cp_jutf8null, s012 >(env, cls);
 }
 
 JNIEXPORT jstring JNICALL
 Java_myjapi_MyJapi_s052s(JNIEnv * env, jclass cls) 
 {
     TRACE("jstring Java_myjapi_MyJapi_s052s(JNIEnv * env, jclass cls)");
-    return gcall_fr< ttrait_utf8cstring_c, s052 >(env, cls);
+    return gcall_fr< ttrait_char_cpc_jutf8null, s052 >(env, cls);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_MyJapi_s112s(JNIEnv * env, jclass cls, jstring p0) 
 {
     TRACE("void Java_myjapi_MyJapi_s112s(JNIEnv *, jclass, jstring)");
-    gcall_fv< ttrait_utf8cstring, s112 >(env, cls, p0);
+    gcall_fv< ttrait_char_cp_jutf8null, s112 >(env, cls, p0);
 }
 
 JNIEXPORT void JNICALL
 Java_myjapi_MyJapi_s152s(JNIEnv * env, jclass cls, jstring p0) 
 {
     TRACE("void Java_myjapi_MyJapi_s152s(JNIEnv *, jclass, jstring)");
-    gcall_fv< ttrait_utf8cstring_c, s152 >(env, cls, p0);
+    gcall_fv< ttrait_char_cpc_jutf8null, s152 >(env, cls, p0);
 }
 
-/*
-// XXX StringBuilder mappings not supported yet
-
-JNIEXPORT jobject JNICALL
-Java_myjapi_MyJapi_s032sb(JNIEnv * env, jclass cls) 
+JNIEXPORT jstring JNICALL
+Java_myjapi_MyJapi_s032s(JNIEnv * env, jclass cls) 
 {
-    TRACE("jobject Java_myjapi_MyJapi_s032sb(JNIEnv * env, jclass cls)");
-    return 0; // XXX
+    TRACE("jstring Java_myjapi_MyJapi_s032s(JNIEnv * env, jclass cls)");
+    return gcall_fr< ttrait_char_p_jutf8null, s032 >(env, cls);
 }
 
-JNIEXPORT jobject JNICALL
-Java_myjapi_MyJapi_s072sb(JNIEnv * env, jclass cls) 
+JNIEXPORT jstring JNICALL
+Java_myjapi_MyJapi_s072s(JNIEnv * env, jclass cls) 
 {
-    TRACE("jobject Java_myjapi_MyJapi_s072sb(JNIEnv * env, jclass cls)");
-    return 0; // XXX
+    TRACE("jstring Java_myjapi_MyJapi_s072s(JNIEnv * env, jclass cls)");
+    return gcall_fr< ttrait_char_pc_jutf8null, s072 >(env, cls);
 }
-
-JNIEXPORT void JNICALL
-Java_myjapi_MyJapi_s132sb(JNIEnv *, jclass, jobject) 
-{
-    TRACE("void Java_myjapi_MyJapi_s132sb(JNIEnv *, jclass, jobject)");
-    // XXX
-}
-
-JNIEXPORT void JNICALL
-Java_myjapi_MyJapi_s172sb(JNIEnv *, jclass, jobject) 
-{
-    TRACE("void Java_myjapi_MyJapi_s172sb(JNIEnv *, jclass, jobject)");
-    // XXX
-}
-*/
 
 // ---------------------------------------------------------------------------
 

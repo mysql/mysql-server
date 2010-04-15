@@ -37,12 +37,6 @@
 
 #include "helpers.hpp"
 
-// XXX reference returns
-//extern [const] int& f0(); -> ByteBuffer
-//extern [const] int* f0(); -> ByteBuffer, but no way of knowing size
-//extern [const] char* f0(); -> ByteBuffer, but no way of knowing size
-//extern const char* f0(); -> String, assuming 0-terminated and copy-semantics
-
 extern void f0();
 
 // ----------------------------------------------------------------------

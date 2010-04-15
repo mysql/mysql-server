@@ -2546,24 +2546,23 @@ public class MyJapiTest {
         out.println("\ncalling s112s(s052s())");
         MyJapi.s112s(MyJapi.s052s());
 
+        out.println("\ncalling s112s(s032s())");
+        MyJapi.s112s(MyJapi.s032s());
+
+        out.println("\ncalling s112s(s072s())");
+        MyJapi.s112s(MyJapi.s072s());
+
         out.println("\ncalling s152s(s012s())");
         MyJapi.s152s(MyJapi.s012s());
 
         out.println("\ncalling s152s(s052s())");
         MyJapi.s152s(MyJapi.s052s());
 
-        // ------------------------------------------------------------
+        out.println("\ncalling s152s(s032s())");
+        MyJapi.s152s(MyJapi.s032s());
 
-/*
-//XXX add tests for:
-
-StringBuilder s032sb();
-StringBuilder s072sb();
-void s132sb(StringBuilder p0);
-void s172sb(StringBuilder p0);
- */
-
-        // ------------------------------------------------------------
+        out.println("\ncalling s152s(s072s())");
+        MyJapi.s152s(MyJapi.s072s());
 
         out.println();
         out.println("<-- MyJapiTest.test7s()");
