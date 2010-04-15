@@ -1591,3 +1591,34 @@ DROP TABLE t1;
 
 --echo End of 5.1 tests
 
+
+--echo #
+--echo # Bug#51327 MyISAM table is automatically repaired on ALTER
+--echo #           even if myisam-recover is OFF
+--echo #
+
+call mtr.add_suppression("Got an error from thread_id=.*ha_myisam.cc:");
+call mtr.add_suppression("MySQL thread id .*, query id .* localhost.*root Checking table");
+call mtr.add_suppression(" '\..test.t1'");
+
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+--echo # Test that we can exchange a crashed partition with a table
+SELECT @@global.myisam_recover_options;
+CREATE TABLE t1 (a INT, KEY (a)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (2);
+FLUSH TABLES;
+
+--echo # replacing t.MYI with a corrupt + unclosed one created by doing:
+--echo # 'create table t1 (a int key(a))' head -c1024 t1.MYI > corrupt_t1.MYI 
+--remove_file $MYSQLD_DATADIR/test/t1.MYI
+--copy_file std_data/corrupt_t1.MYI $MYSQLD_DATADIR/test/t1.MYI
+
+CHECK TABLE t1;
+--echo # Alter table should report error and not auto-repair the table.
+# Remove the path to t1 to prevent platform differences
+--replace_regex /'[^']+'/'t1'/
+--error 145
+ALTER TABLE t1 ENGINE = MyISAM;
+CHECK TABLE t1;
+
+DROP TABLE t1;
