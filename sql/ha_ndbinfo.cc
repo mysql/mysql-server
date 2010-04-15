@@ -121,10 +121,12 @@ struct ha_ndbinfo_impl
   const NdbInfo::Table* m_table;
   NdbInfoScanOperation* m_scan_op;
   Vector<const NdbInfoRecAttr *> m_columns;
+  bool m_first_use;
 
   ha_ndbinfo_impl() :
     m_table(NULL),
-    m_scan_op(NULL)
+    m_scan_op(NULL),
+    m_first_use(true)
   {
   }
 };
@@ -362,13 +364,6 @@ int ha_ndbinfo::open(const char *name, int mode, uint test_if_locked)
     }
   }
 
-  if (table->s->fields < ndb_tab->columns())
-  {
-    // There are more columns available in NDB
-    warn_incompatible(ndb_tab, false,
-                      "there are more columns available");
-  }
-
   /* Increase "ref_length" to allow a whole row to be stored in "ref" */
   ref_length = 0;
   for (uint i = 0; i < table->s->fields; i++)
@@ -410,6 +405,25 @@ int ha_ndbinfo::rnd_init(bool scan)
 
   assert(is_open());
   assert(m_impl.m_scan_op == NULL); // No scan already ongoing
+
+  if (m_impl.m_first_use)
+  {
+    m_impl.m_first_use = false;
+
+    /*
+      Due to different code paths in MySQL Server
+      for prepared statement protocol, some warnings
+      from 'handler::open' are lost and need to be
+      deffered to first use instead
+    */
+    const NdbInfo::Table* ndb_tab = m_impl.m_table;
+    if (table->s->fields < ndb_tab->columns())
+    {
+      // There are more columns available in NDB
+      warn_incompatible(ndb_tab, false,
+                        "there are more columns available");
+    }
+  }
 
   if (!scan)
   {
