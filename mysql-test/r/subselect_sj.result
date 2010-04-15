@@ -987,3 +987,73 @@ Algeria	2
 drop table t1, t2;
 drop view v1;
 # End of bug#48073
+
+Bug#49097 subquery with view generates wrong result with
+non-prepared statement
+
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+CREATE TABLE t1 (
+city VARCHAR(50) NOT NULL,
+country_id SMALLINT UNSIGNED NOT NULL
+);
+INSERT INTO t1 VALUES 
+('Batna',2),
+('Bchar',2),
+('Skikda',2),
+('Tafuna',3),
+('Algeria',2) ;
+CREATE TABLE t2 (
+country_id SMALLINT UNSIGNED NOT NULL,
+country VARCHAR(50) NOT NULL
+);
+INSERT INTO t2 VALUES
+(2,'Algeria'),
+(3,'XAmerican Samoa') ;
+CREATE VIEW v1 AS 
+SELECT country_id, country 
+FROM t2
+WHERE LEFT(country,1) = "A" 
+;
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (
+SELECT country_id 
+FROM t2
+WHERE LEFT(country,1) = "A" 
+);
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (
+SELECT country_id 
+FROM v1
+);
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+PREPARE stmt FROM
+"
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (
+  SELECT country_id 
+  FROM v1
+);
+";
+execute stmt;
+city	country_id
+Batna	2
+Bchar	2
+Skikda	2
+Algeria	2
+deallocate prepare stmt;
+drop table t1, t2;
+drop view v1;
+# End of Bug#49097
