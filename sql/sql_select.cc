@@ -3487,9 +3487,8 @@ bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
                                (char *)"<list ref>");
     */
     nested_join->sj_outer_expr_list.push_back(subq_pred->left_expr);
-
-    Item_func_eq *item_eq= new Item_func_eq(subq_pred->left_expr, 
-                                    subq_lex->ref_pointer_array[0]);
+    Item_func_eq *item_eq=
+      new Item_func_eq(subq_pred->left_expr, subq_lex->ref_pointer_array[0]);
     item_eq->in_equality_no= 0;
     sj_nest->sj_on_expr= and_items(sj_nest->sj_on_expr, item_eq);
   }
@@ -9606,7 +9605,9 @@ bool setup_sj_materialization(JOIN_TAB *tab)
     {
       bool dummy;
       Item_equal *item_eq;
-      Field *copy_to=((Item_field*)it++)->field; 
+      Item *item= (it++)->real_item();
+      DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
+      Field *copy_to= ((Item_field*)item)->field;
       /*
         Tricks with Item_equal are due to the following: suppose we have a
         query:

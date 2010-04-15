@@ -940,3 +940,50 @@ drop view v1;
 drop procedure p1;
 set SESSION optimizer_switch='default';
 # End of bug#46744
+
+Bug #48073 Subquery on char columns from view crashes Mysql
+
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+CREATE TABLE t1 (
+city VARCHAR(50) NOT NULL,
+country_id SMALLINT UNSIGNED NOT NULL
+);
+INSERT INTO t1 VALUES 
+('Batna',2),
+('Bchar',2),
+('Skikda',2),
+('Tafuna',3),
+('Algeria',2) ;
+CREATE TABLE t2 (
+country_id SMALLINT UNSIGNED NOT NULL,
+country VARCHAR(50) NOT NULL
+);
+INSERT INTO t2 VALUES
+(2,'Algeria'),
+(3,'American Samoa') ;
+CREATE VIEW v1 AS 
+SELECT country_id, country 
+FROM t2
+WHERE LEFT(country,1) = "A" 
+;
+SELECT city, country_id
+FROM t1
+WHERE city IN (
+SELECT country 
+FROM t2
+WHERE LEFT(country, 1) = "A" 
+);
+city	country_id
+Algeria	2
+SELECT city, country_id
+FROM t1
+WHERE city IN (
+SELECT country 
+FROM v1
+);
+city	country_id
+Algeria	2
+drop table t1, t2;
+drop view v1;
+# End of bug#48073
