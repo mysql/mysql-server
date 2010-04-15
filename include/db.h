@@ -96,6 +96,8 @@ typedef struct __toku_engine_status {
   u_int32_t        range_locks_max;         /* max total number of range locks */ 
   u_int32_t        range_locks_max_per_index;  /* max range locks per dictionary */ 
   u_int32_t        range_locks_curr;        /* total range locks currently in use */ 
+  u_int32_t        range_lock_escalation_successes;       /* number of times range locks escalation succeeded */ 
+  u_int32_t        range_lock_escalation_failures;        /* number of times range locks escalation failed */ 
   u_int64_t        inserts;                 /* ydb row insert operations            */ 
   u_int64_t        deletes;                 /* ydb row delete operations            */ 
   u_int64_t        commits;                 /* ydb txn commit operations            */ 

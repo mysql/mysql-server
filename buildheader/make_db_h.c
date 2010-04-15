@@ -455,6 +455,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int32_t        range_locks_max;         /* max total number of range locks */ \n");
     printf("  u_int32_t        range_locks_max_per_index;  /* max range locks per dictionary */ \n");
     printf("  u_int32_t        range_locks_curr;        /* total range locks currently in use */ \n");
+    printf("  u_int32_t        range_lock_escalation_successes;       /* number of times range locks escalation succeeded */ \n");
+    printf("  u_int32_t        range_lock_escalation_failures;        /* number of times range locks escalation failed */ \n");
     printf("  u_int64_t        inserts;                 /* ydb row insert operations            */ \n");
     printf("  u_int64_t        deletes;                 /* ydb row delete operations            */ \n");
     printf("  u_int64_t        commits;                 /* ydb txn commit operations            */ \n");

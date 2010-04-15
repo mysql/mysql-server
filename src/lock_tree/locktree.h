@@ -133,6 +133,10 @@ struct __toku_ltm {
     u_int32_t          curr_locks;
     /** The maximum number of locks allowed for the db. */
     u_int32_t          max_locks_per_db;
+    /** The number of times lock escalation succeeded */
+    u_int32_t          lock_escalation_successes;
+    /** The number of times lock escalation failed */
+    u_int32_t          lock_escalation_failures;
     /** The list of lock trees it manages. */
     toku_lth*          lth;
     /** List of lock-tree DB mappings. Upon a request for a lock tree given
@@ -505,9 +509,16 @@ int toku_ltm_set_max_locks_per_db(toku_ltm* mgr, u_int32_t max_locks);
     - 0 on success.
     - EINVAL if any parameter is NULL.
 */
-int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks);
 
-int toku_ltm_get_curr_locks(toku_ltm* mgr, u_int32_t* curr_locks);
+typedef struct ltm_status {
+    uint32_t   max_locks;
+    uint32_t   max_locks_per_db;
+    uint32_t   curr_locks;
+    uint32_t   lock_escalation_successes;
+    uint32_t   lock_escalation_failures;
+} LTM_STATUS_S, *LTM_STATUS;
+
+void toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS s);
 
 int toku_ltm_get_max_locks_per_db(toku_ltm* mgr, u_int32_t* max_locks);
 

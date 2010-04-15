@@ -209,25 +209,16 @@ cleanup:
     return r;
 }
 
-int toku_ltm_get_curr_locks(toku_ltm* mgr, u_int32_t* curr_locks) {
-    int r = ENOSYS;
 
-    if (!mgr || !curr_locks) { r = EINVAL; goto cleanup; }
-    *curr_locks = mgr->curr_locks;
-    r = 0;
-cleanup:
-    return r;
+void 
+toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS s) {
+    s->max_locks                 = mgr->max_locks;
+    s->max_locks_per_db          = mgr->max_locks_per_db;
+    s->curr_locks                = mgr->curr_locks;
+    s->lock_escalation_successes = mgr->lock_escalation_successes;
+    s->lock_escalation_failures  = mgr->lock_escalation_failures;
 }
 
-int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks) {
-    int r = ENOSYS;
-
-    if (!mgr || !max_locks) { r = EINVAL; goto cleanup; }
-    *max_locks = mgr->max_locks;
-    r = 0;
-cleanup:
-    return r;
-}
 
 int toku_ltm_get_max_locks_per_db(toku_ltm* mgr, u_int32_t* max_locks) {
     int r = ENOSYS;
@@ -1727,6 +1718,7 @@ static int toku__ltm_do_escalation(toku_ltm* mgr, BOOL* locks_available) {
     }
 
     *locks_available = toku__ltm_lock_test_incr(mgr, 0);
+#warning 'if this code is ever made real, add accountability counters here'
     r = 0;
 cleanup:
     return r;
@@ -1742,6 +1734,10 @@ static int toku__lt_do_escalation_per_db(toku_lock_tree* lt, DB* db, BOOL* locks
     if (r!=0) { goto cleanup; }
 
     *locks_available = toku__lt_lock_test_incr_per_db(lt, 0);
+    if (*locks_available)
+	lt->mgr->lock_escalation_successes++;
+    else
+	lt->mgr->lock_escalation_failures++;	    
     r = 0;
 cleanup:
     toku__lt_clear_comparison_functions(lt);
