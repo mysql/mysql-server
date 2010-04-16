@@ -242,6 +242,42 @@ drop logfile group lfg engine ndb;
 
 # end of tests for bug#39395
 
+# bug#33158
+# bug#33158 NDB table name problem(sensitive/insensitive)
+# Check that tables with same letters, but different case
+# don't conflict in query cache
+reset query cache;
+flush status;
+disable_query_log;
+if (`SELECT @@lower_case_table_names = 0`)
+{
+  CREATE TABLE t1 ( pk int not null primary key,
+  a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
+  insert into t1 value (1, 2, 3, 'First row');
+  select * from t1;
+  CREATE TABLE T1 ( pk int not null primary key,
+  a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
+  insert into T1 value (1, 2, 3, 'First row');
+  select * from T1;
+  select * from T1;
+  drop table t1,T1;
+}
+if (`SELECT @@lower_case_table_names <> 0`)
+{
+  CREATE TABLE t1 ( pk int not null primary key,
+  a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
+  insert into t1 value (1, 2, 3, 'First row');
+  select * from t1;
+  CREATE TABLE tt1 ( pk int not null primary key,
+  a int, b int not null, c varchar(20)) ENGINE=ndbcluster;
+  insert into tt1 value (1, 2, 3, 'First row');
+  select * from tt1;
+  select * from tt1;
+  drop table t1,tt1;
+}
+enable_query_log;
+show status like "Qcache_hits";
+
 SET GLOBAL query_cache_size=0;
 
 

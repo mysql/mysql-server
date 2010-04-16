@@ -367,4 +367,15 @@ drop table t1;
 alter tablespace tbsp drop datafile 'mydatafile.fil' engine ndb;
 drop tablespace tbsp engine ndb;
 drop logfile group lfg engine ndb;
+reset query cache;
+flush status;
+pk	a	b	c
+1	2	3	First row
+pk	a	b	c
+1	2	3	First row
+pk	a	b	c
+1	2	3	First row
+show status like "Qcache_hits";
+Variable_name	Value
+Qcache_hits	1
 SET GLOBAL query_cache_size=0;
