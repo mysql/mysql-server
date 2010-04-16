@@ -18,12 +18,15 @@
   Performance schema instruments (implementation).
 */
 
+#include <string.h>
+
 #include "my_global.h"
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "my_sys.h"
 #include "pfs_stat.h"
 #include "pfs_instr.h"
 #include "pfs_global.h"
+#include "m_string.h"                           // strmov
 
 /**
   @addtogroup Performance_schema_buffers

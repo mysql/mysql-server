@@ -83,7 +83,7 @@ link_sources:
 #
 # A list of needed headers collected from the deps information 000213
 nh =		my_global.h config-win32.h dbug.h errmsg.h \
-		m_ctype.h m_string.h \
+		m_ctype.h m_string.h password.h \
 		my_alarm.h my_config.h my_dir.h my_list.h my_net.h my_sys.h \
 		mysql.h mysql_com.h mysql_version.h mysqld_error.h \
 		mysys_err.h my_pthread.h thr_alarm.h violite.h hash.h \

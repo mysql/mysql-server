@@ -24,6 +24,7 @@
 #endif
 
 #include <my_tree.h>
+#include "sql_udf.h"                            /* udf_handler */
 
 class Item_sum;
 class Aggregator_distinct;

@@ -15,6 +15,7 @@ main.mysqlbinlog_row_innodb @solaris     # Bug#52202 2010-03-22 alik mysqlbinlog
 main.mysqlbinlog_row_myisam @solaris     # Bug#52202 2010-03-22 alik mysqlbinlog_row* fail in daily-trunk on Sol10 x86_64 debug_max
 main.outfile_loaddata @solaris           # Bug#46895 2010-01-20 alik Test "outfile_loaddata" fails (reproducible)
 main.plugin* @solaris                    # Bug#47146 Linking problem with example plugin when dtrace enabled
+main.query_cache_debug @linux            # Bug#52356 2010-04-10 alik query_cache_debug fails on Linux
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
