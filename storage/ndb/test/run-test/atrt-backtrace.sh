@@ -1,5 +1,11 @@
 #!/bin/sh
 
+# Does not work on Windows (gcc only)
+if uname | grep -iq cygwin
+then
+    exit
+fi
+
 core=$1
 out=$2
 
