@@ -49,6 +49,8 @@ LIBRARIES+= \
 ifeq ($(OS_CHOICE),windows)
 #Does not support parallel builds for files in src.
 .NOTPARALLEL:;
+#Do not build the dynamic libraries.
+LIBRARIES=
 ifeq ($(DEBUG),0)
 WINYDB = $(IPO_YDB)
 else
@@ -60,7 +62,7 @@ endif
 
 INSTALL_LIBRARIES= $(patsubst %,%.install,$(LIBRARIES))
 ifeq ($(OS_CHOICE),windows)
-    INSTALL_LIBRARIES += libtokudb.pdb.install
+    #INSTALL_LIBRARIES += libtokudb.pdb.install #Disabled dynamic libraries
 endif
 
 
@@ -96,6 +98,7 @@ buildlocktrees: $(LOCKTREE) $(RANGETREE) ;
 
 $(YDB):  $(OBJS) 
 
+
 $(LIBRARY):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(DEPEND_COMPILE) $(DEPEND_LINK) 
 
 $(LIBRARY):  LINK_FILES=ydb_lib.$(OEXT) $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT)
@@ -106,7 +109,10 @@ $(LIBRARY_S):  $(patsubst %.$(AEXT),%.bundle, $(YDB) $(LOCKTREE) $(RANGETREE) $(
 else ifneq ($(CC),icc)
 $(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 else
-$(LIBRARY_S):  $(LIBRARY)  ;
+$(LIBRARY) $(LIBRARY_S):
+	echo "Dynamic tokudb in windows is deprecated"
+	test 1 = 0
+#$(LIBRARY_S):  $(LIBRARY)  ;
 #$(LIBRARY_S):  $(YDB)  $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 #$(TLIBRARY_S): $(TYDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
 endif

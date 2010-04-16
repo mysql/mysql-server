@@ -11,22 +11,25 @@ DEPEND_COMPILE += \
 #end
 include $(TOKUROOT)toku_include/Makefile.include
 CPPFLAGS+=-D_GNU_SOURCE
-LIBTDB=../libtokudb.$(SOEXT)
-TLIBTDB=../libtokudbtrace.$(SOEXT)
 
 ifeq ($(CC),icc)
 SKIP_WARNING += $(ICC_NOWARN)1418 #Non static functions do not need prototypes.
 endif
 BDBVGRIND=
 
-$(LIBTDB) $(TLIBTDB):
-	cd $(@D) && $(MAKE) $(@F)
+TDB_EXTRA_NEEDED=
+ifeq ($(OS_CHOICE),windows)
+LIBTDB=$(WIN_YDB)
+%.tdb$(BINSUF):  $(WIN_YDB)
+%.tdb$(BINSUF):  LINK_FILES+=$(WIN_YDB)
+TDB_EXTRA_NEEDED=$(WIN_YDB)
+else
+LIBTDB=../libtokudb.$(SOEXT)
+TLIBTDB=../libtokudbtrace.$(SOEXT)
+%.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
+%.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
+endif
 
-$(notdir $(LIBTDB)): $(LIBTDB)
-	cp $< $@
-
-$(notdir $(TLIBTDB)): $(TLIBTDB)
-	cp $< $@
 
 SRCS = $(sort $(wildcard *.c))
 RECOVER_SRCS = $(wildcard recover-*.c)
@@ -262,7 +265,7 @@ tests: tests.bdb tests.tdb ;
 tests.bdb: $(BDB_BINS) ;
 check.bdb: $(RUN_BDB_TESTS) ;
 tests.tdb: $(TDB_BINS) ;
-check.tdb: $(notdir $(LIBTDB)) $(PTHREAD_LOCAL) $(RUN_TDB_TESTS) ;
+check.tdb: $(LIBTDB) $(PTHREAD_LOCAL) $(RUN_TDB_TESTS) ;
 check.tdb.extra: $(EXTRA_TDB_TESTS) ;
 check.abortrecover: $(RECOVER_TESTS) ;
 
@@ -320,7 +323,7 @@ endif
 # Use -s on the command line to make things quiet.
 %.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(WINDOWS_BDB_LIB_NAME)
 	$(BDBVGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-%.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB)) $(PTHREAD_LOCAL)
+%.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(LIBTDB) $(PTHREAD_LOCAL)
 	$(TDBVGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 ifeq ($(OS_CHOICE),windows)
@@ -372,21 +375,6 @@ $(patsubst %,test_log%.tdbrun,$(TLRECOVER)): ;
 
 %.bdb$(BINSUF): %.c $(DEPEND_COMPILE) $(DEPEND_LINK)
 	$(CC) $< $(BIN_FROM_C_FLAGS) $(LINK_MUST_BE_LAST)
-
-TDB_EXTRA_NEEDED=
-ifeq ($(CYGWIN),)
-%.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
-%.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
-else ifneq ($(CC),icc)
-%.tdb$(BINSUF):  DLINK_FILES+=$(LIBTDB)
-%.tdb$(BINSUF):  RPATH_DIRS+=$(dir $(LIBTDB))
-else ifeq  ($(DEBUG),0)
-%.tdb$(BINSUF):  LINK_FILES+=$(IPO_YDB)
-TDB_EXTRA_NEEDED=$(IPO_YDB)
-else
-%.tdb$(BINSUF):  LINK_FILES+=$(NOIPO_YDB)
-TDB_EXTRA_NEEDED=$(NOIPO_YDB)
-endif
 
 %.tdbt$(BINSUF): DLINK_FILES+=$(TLIBTDB)
 %.tdbt$(BINSUF): RPATH_DIRS+=$(dir $(TLIBTDB))

@@ -450,6 +450,11 @@ IPO_YDB       = $(TOKUROOT)src/ipo_libtokudb.$(AEXT)
 NOIPO_YDB     = $(TOKUROOT)src/static_libtokudb.$(AEXT)
 $(NOIPO_YDB) $(IPO_YDB): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
+ifeq  ($(DEBUG),0)
+    WIN_YDB   = $(IPO_YDB)
+else
+    WIN_YDB   = $(NOIPO_YDB)
+endif
 endif
 
 ifeq ($(OS_CHOICE),windows)
