@@ -169,32 +169,50 @@ main(int argc, char ** argv)
   g_logger.createConsoleHandler();
   
   if(!parse_args(argc, argv))
+  {
+    g_logger.critical("Failed to parse arguments");
     goto end;
+  }
   
   g_logger.info("Starting...");
   g_config.m_generated = false;
   g_config.m_replication = g_replicate;
   if (!setup_config(g_config, g_mysqld_host))
+  {
+    g_logger.critical("Failed to setup configuration");
     goto end;
+  }
 
   if (!configure(g_config, g_do_setup))
+  {
+    g_logger.critical("Failed to configure");
     goto end;
+  }
   
   g_logger.info("Setting up directories");
   if (!setup_directories(g_config, g_do_setup))
+  {
+    g_logger.critical("Failed to set up directories");
     goto end;
+  }
 
   if (g_do_setup)
   {
     g_logger.info("Setting up files");
     if (!setup_files(g_config, g_do_setup, g_do_sshx))
+    {
+      g_logger.critical("Failed to set up files");
       goto end;
+    }
   }
   
   if (g_do_deploy)
   {
     if (!deploy(g_config))
+    {
+      g_logger.critical("Failed to deploy");
       goto end;
+    }
   }
 
   if (g_do_quit)
@@ -204,19 +222,28 @@ main(int argc, char ** argv)
   }
 
   if(!setup_hosts(g_config))
+  {
+    g_logger.critical("Failed to setup hosts");
     goto end;
+  }
 
   if (g_do_sshx)
   {
     g_logger.info("Starting xterm-ssh");
     if (!sshx(g_config, g_do_sshx))
+    {
+      g_logger.critical("Failed to start xterm-ssh");
       goto end;
+    }
 
     g_logger.info("Done...sleeping");
     while(true)
     {
       if (!do_command(g_config))
+      {
+        g_logger.critical("Failed to do ssh command");
         goto end;
+      }
 
       NdbSleep_SecSleep(1);
     }
@@ -226,16 +253,25 @@ main(int argc, char ** argv)
  
   g_logger.info("Connecting to hosts");
   if(!connect_hosts(g_config))
+  {
+    g_logger.critical("Failed to connect to CPCD on hosts");
     goto end;
+  }
 
   if (g_do_start && !g_test_case_filename)
   {
     g_logger.info("Starting server processes: %x", g_do_start);    
     if (!start(g_config, g_do_start))
+    {
+      g_logger.critical("Failed to start server processes");
       goto end;
+    }
     
     if (!setup_db(g_config))
+    {
+      g_logger.critical("Failed to setup database");
       goto end;
+    }
 
     g_logger.info("Done...sleeping");
     while(true)
@@ -257,6 +293,7 @@ main(int argc, char ** argv)
   /**
    * Main loop
    */
+  g_logger.debug("Entering main loop");
   while(!feof(g_test_case_file))
   {
     /**
@@ -267,25 +304,41 @@ main(int argc, char ** argv)
       restart = false;
       g_logger.info("(Re)starting server processes");
       if(!stop_processes(g_config, ~0))
-	goto end;
+      {
+        g_logger.critical("Failed to stop all processes");
+        goto end;
+      }
       
       if (!setup_directories(g_config, 2))
-	goto end;
+      {
+        g_logger.critical("Failed to setup directories");
+        goto end;
+      }
       
       if (!setup_files(g_config, 2, 1))
-	goto end;
+      {
+        g_logger.critical("Failed to setup files");
+        goto end;
+      }
       
       if(!setup_hosts(g_config))
+      {
+        g_logger.critical("Failed to setup hosts");
         goto end;
+      }
       
+      g_logger.debug("Setup complete, starting servers");
       if (!start(g_config, p_ndb | p_servers))
       {
-        g_logger.info("Failed to start server processes");
+        g_logger.critical("Failed to start server processes");
         g_logger.info("Gathering logs and saving them as test %u", test_no);
         
         int tmp;
         if(!gather_result(g_config, &tmp))
+        {
+          g_logger.critical("Failed to gather results");
           goto end;
+        }
         
         if(g_report_file != 0)
         {
@@ -308,7 +361,10 @@ main(int argc, char ** argv)
       }
 
       if (!setup_db(g_config))
-	goto end;
+      {
+        g_logger.critical("Failed to setup database");
+        goto end;
+      }
       
       g_logger.info("All servers start completed");
     }
@@ -324,10 +380,16 @@ main(int argc, char ** argv)
     
     // Assign processes to programs
     if(!setup_test_case(g_config, test_case))
+    {
+      g_logger.critical("Failed to setup test case");
       goto end;
+    }
     
     if(!start_processes(g_config, p_clients))
+    {
+      g_logger.critical("Failed to start client processes");
       goto end;
+    }
 
     int result = 0;
     
@@ -336,7 +398,10 @@ main(int argc, char ** argv)
     do 
     {
       if(!update_status(g_config, atrt_process::AP_ALL))
-	goto end;
+      {
+        g_logger.critical("Failed to get updated status for all processes");
+        goto end;
+      }
       
       if(is_running(g_config, p_ndb) != 2)
       {
@@ -364,6 +429,7 @@ main(int argc, char ** argv)
       now = time(0);
       if(now  > (start + test_case.m_max_time))
       {
+        g_logger.debug("Timed out");
 	result = ERR_MAX_TIME_ELAPSED;
 	break;
       }
@@ -373,11 +439,17 @@ main(int argc, char ** argv)
     const time_t elapsed = time(0) - start;
    
     if(!stop_processes(g_config, p_clients))
+    {
+      g_logger.critical("Failed to stop client processes");
       goto end;
+    }
     
     int tmp, *rp = result ? &tmp : &result;
     if(!gather_result(g_config, rp))
+    {
+      g_logger.critical("Failed to gather result after test run");
       goto end;
+    }
     
     g_logger.info("#%d %s(%d)", 
 		  test_no, 
@@ -691,8 +763,14 @@ parse_args(int argc, char** argv)
     return false;
   }
   
+  /* Read username from environment, default to sakila */
   g_user = strdup(getenv("LOGNAME"));
-  
+  if (g_user == 0)
+  {
+    g_user = "sakila";
+    g_logger.info("No default user specified, will use 'sakila'.");
+    g_logger.info("Please set LOGNAME environment variable for other username");
+  }
   return true;
 }
 
