@@ -124,4 +124,24 @@ SELECT @query;
 
 DROP PROCEDURE p1;
 
+--echo #
+--echo # Bug #40625: Concat fails on DOUBLE values in a Stored Procedure,
+--echo #             while DECIMAL works
+--echo #
+
+DELIMITER //;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE v1 DOUBLE(10,3);
+  SET v1= 100;
+  SET @s = CONCAT('########################################', 40 , v1);
+  SELECT @s;
+END;//
+DELIMITER ;//
+
+CALL p1();
+CALL p1();
+
+DROP PROCEDURE p1;
+
 --echo # End of 5.1 tests

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4596,7 +4596,7 @@ create_table_option:
         | TYPE_SYM opt_equal storage_engines
           {
             Lex->create_info.db_type= $3;
-            WARN_DEPRECATED(yythd, "5.4.4", "TYPE=storage_engine",
+            WARN_DEPRECATED(yythd, "6.0", "TYPE=storage_engine",
                             "'ENGINE=storage_engine'");
             Lex->create_info.used_fields|= HA_CREATE_USED_ENGINE;
           }
@@ -8013,7 +8013,7 @@ function_call_generic:
             builder= find_native_function_builder(thd, $1);
             if (builder)
             {
-              item= builder->create(thd, $1, $4);
+              item= builder->create_func(thd, $1, $4);
             }
             else
             {
@@ -8035,7 +8035,7 @@ function_call_generic:
               {
                 builder= find_qualified_function_builder(thd);
                 DBUG_ASSERT(builder);
-                item= builder->create(thd, $1, $4);
+                item= builder->create_func(thd, $1, $4);
               }
             }
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,9 +54,9 @@ public:
   /* Allow owner function to use string buffers. */
   String value1, value2;
 
-  Arg_comparator(): thd(0), a_cache(0), b_cache(0), set_null(TRUE),
+  Arg_comparator(): comparators(0), thd(0), a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
-  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), thd(0),
+  Arg_comparator(Item **a1, Item **a2): a(a1), b(a2), comparators(0), thd(0),
     a_cache(0), b_cache(0), set_null(TRUE),
     get_value_a_func(0), get_value_b_func(0) {};
 
@@ -111,6 +111,11 @@ public:
   {
     return (owner->type() == Item::FUNC_ITEM &&
            ((Item_func*)owner)->functype() == Item_func::EQUAL_FUNC);
+  }
+  void cleanup()
+  {
+    delete [] comparators;
+    comparators= 0;
   }
 
   friend class Item_func;
@@ -365,6 +370,11 @@ public:
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
   void top_level_item() { abort_on_null= TRUE; }
+  void cleanup()
+  {
+    Item_int_func::cleanup();
+    cmp.cleanup();
+  }
 
   friend class  Arg_comparator;
 };
@@ -1474,9 +1484,21 @@ public:
   Item_cond(THD *thd, Item_cond *item);
   Item_cond(List<Item> &nlist)
     :Item_bool_func(), list(nlist), abort_on_null(0) {}
-  bool add(Item *item) { return list.push_back(item); }
-  bool add_at_head(Item *item) { return list.push_front(item); }
-  void add_at_head(List<Item> *nlist) { list.prepand(nlist); }
+  bool add(Item *item)
+  {
+    DBUG_ASSERT(item);
+    return list.push_back(item);
+  }
+  bool add_at_head(Item *item)
+  {
+    DBUG_ASSERT(item);
+    return list.push_front(item);
+  }
+  void add_at_head(List<Item> *nlist)
+  {
+    DBUG_ASSERT(nlist->elements);
+    list.prepand(nlist);
+  }
   bool fix_fields(THD *, Item **ref);
 
   enum Type type() const { return COND_ITEM; }
@@ -1604,7 +1626,7 @@ public:
   longlong val_int(); 
   const char *func_name() const { return "multiple equal"; }
   optimize_type select_optimize() const { return OPTIMIZE_EQUAL; }
-  void sort(Item_field_cmpfunc cmp, void *arg);
+  void sort(Item_field_cmpfunc compare, void *arg);
   friend class Item_equal_iterator;
   void fix_length_and_dec();
   bool fix_fields(THD *thd, Item **ref);

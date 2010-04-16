@@ -327,3 +327,38 @@ drop table t1;
 create table t1 select -9223372036854775809 bi;
 describe t1;
 drop table t1;
+
+--echo #
+--echo # Bug #45360: wrong results
+--echo #
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY,
+                 a BIGINT(20) UNSIGNED,
+                 b VARCHAR(20));
+
+INSERT INTO t1 (a) VALUES
+  (0),
+  (CAST(0x7FFFFFFFFFFFFFFF AS UNSIGNED)),
+  (CAST(0x8000000000000000 AS UNSIGNED)),
+  (CAST(0xFFFFFFFFFFFFFFFF AS UNSIGNED));
+
+UPDATE t1 SET b = a;
+
+let $n = `SELECT MAX(id) FROM t1`;
+while($n) {
+  let $x = `SELECT a FROM t1 WHERE id = $n`;
+  dec $n;
+  let $hex = `SELECT HEX($x)`;
+  echo # $hex;
+
+  --disable_result_log
+  eval EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = $x AND TRIM(a) = b;
+  --enable_result_log
+  SHOW WARNINGS;
+}
+
+DROP TABLE t1;
+
+--echo # End of 5.1 tests
+
+

@@ -44,7 +44,7 @@ static DYNAMIC_STRING conn_args;
 static char *opt_password= 0;
 static my_bool tty_password= 0;
 
-static char opt_tmpdir[FN_REFLEN];
+static char opt_tmpdir[FN_REFLEN] = "";
 
 #ifndef DBUG_OFF
 static char *default_dbug_option= (char*) "d:t:O,/tmp/mysql_upgrade.trace";
@@ -459,7 +459,8 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 
   DBUG_ENTER("run_query");
   DBUG_PRINT("enter", ("query: %s", query));
-  if ((fd= create_temp_file(query_file_path, opt_tmpdir,
+  if ((fd= create_temp_file(query_file_path, 
+                            opt_tmpdir[0] ? opt_tmpdir : NULL,
                             "sql", O_CREAT | O_SHARE | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for defaults");

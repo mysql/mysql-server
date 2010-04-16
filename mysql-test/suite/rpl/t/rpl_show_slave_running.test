@@ -1,0 +1,82 @@
+#
+# Bug #30703  SHOW STATUS LIKE 'Slave_running' is not compatible with `SHOW SLAVE STATUS'
+# The test verifies that  SHOW STATUS LIKE 'Slave_running' displays ON
+# if and only if `SHOW SLAVE STATUS' displays YES for Slave_IO_Running and  Slave_SQL_Running
+#
+source include/master-slave.inc;
+source include/have_debug.inc;
+source include/have_debug_sync.inc;
+
+connection slave;
+SET DEBUG_SYNC= 'RESET';
+source include/stop_slave.inc;
+let $debug_saved= `select @@global.debug`;
+set global debug= 'd,dbug.before_get_running_status_yes'; # to block due-started IO
+
+
+# Test 1. Slave is stopped
+
+--echo Slave_running, Slave_IO_Running, Slave_SQL_Running, must be OFF, NO, NO in three following queries
+
+SHOW STATUS LIKE 'Slave_running';
+let $status= query_get_value("show slave status", Slave_IO_Running, 1);
+echo Slave_IO_Running= $status;
+let $status= query_get_value("show slave status", Slave_SQL_Running, 1);
+echo Slave_SQL_Running= $status;
+
+# Test 2. The slave IO thread is started but not yet got connected to master
+#         and SQL thread is not started
+
+start slave io_thread;
+
+#
+# Notice a difference between versions in showing p.2: 
+# 5.1 has two OFF,ON IO-thread state running state whereas later versions
+# have three: OFF,Connecting,ON.
+# Hence, 5.1 must display OFF NO NO where as 5.1+ OFF Connecting NO
+#
+--echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF NO NO in three following queries
+
+SHOW STATUS LIKE 'Slave_running';
+let $status= query_get_value("show slave status", Slave_IO_Running, 1);
+echo Slave_IO_Running= $status;
+let $status= query_get_value("show slave status", Slave_SQL_Running, 1);
+echo Slave_SQL_Running= $status;
+
+# Test 3. The slave IO thread is started and got connected to master
+#         and SQL thread is still not started
+
+SET DEBUG_SYNC='now SIGNAL signal.io_thread_let_running'; # unblock IO thread now
+let $slave_param= Slave_IO_Running;
+let $slave_param_value= YES;
+source include/wait_for_slave_param.inc;
+
+--echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be OFF YES NO in three following queries
+
+SHOW STATUS LIKE 'Slave_running';
+let $status= query_get_value("show slave status", Slave_IO_Running, 1);
+echo Slave_IO_Running= $status;
+let $status= query_get_value("show slave status", Slave_SQL_Running, 1);
+echo Slave_SQL_Running= $status;
+
+# Test 4. The slave IO thread is started and got connected to master
+#         and SQL thread is started
+
+start slave sql_thread;
+source include/wait_for_slave_sql_to_start.inc;
+
+--echo Slave_running, Slave_IO_Running, Slave_SQL_Running must be ON, YES, YES in three following queries
+
+SHOW STATUS LIKE 'Slave_running';
+let $status= query_get_value("show slave status", Slave_IO_Running, 1);
+echo Slave_IO_Running= $status;
+let $status= query_get_value("show slave status", Slave_SQL_Running, 1);
+echo Slave_SQL_Running= $status;
+
+# cleanup
+
+connection slave;
+
+eval set global debug= '$debug_saved';
+SET DEBUG_SYNC= 'RESET';
+--echo End of tests

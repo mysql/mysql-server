@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1402,6 +1402,7 @@ public:
              const char *db_name_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_ident(THD *thd, Item_ident *item);
+  Item_ident(TABLE_LIST *view_arg, const char *field_name_arg);
   const char *full_name() const;
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
@@ -2222,6 +2223,8 @@ public:
   Item_ref(Name_resolution_context *context_arg, Item **item,
            const char *table_name_arg, const char *field_name_arg,
            bool alias_name_used_arg= FALSE);
+  Item_ref(TABLE_LIST *view_arg, Item **item,
+           const char *field_name_arg, bool alias_name_used_arg= FALSE);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
@@ -2317,6 +2320,11 @@ public:
     if (ref && result_type() == ROW_RESULT)
       (*ref)->bring_value();
   }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(fixed);
+    return (*ref)->get_time(ltime);
+  }
 
 };
 
@@ -2337,6 +2345,12 @@ public:
   {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+  Item_direct_ref(TABLE_LIST *view_arg, Item **item,
+                  const char *field_name_arg,
+                  bool alias_name_used_arg= FALSE)
+    :Item_ref(view_arg, item, field_name_arg,
+              alias_name_used_arg)
+  {}
 
   double val_real();
   longlong val_int();
@@ -2362,6 +2376,10 @@ public:
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
     :Item_direct_ref(thd, item) {}
+  Item_direct_view_ref(TABLE_LIST *view_arg, Item **item,
+                       const char *field_name_arg)
+    :Item_direct_ref(view_arg, item, field_name_arg)
+  {}
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
@@ -3015,6 +3033,7 @@ public:
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
 
+  virtual void store(Item *item){ Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();

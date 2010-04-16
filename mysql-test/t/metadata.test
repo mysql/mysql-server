@@ -129,4 +129,17 @@ SELECT COALESCE(d, d), IFNULL(d, d), IF(i, d, d),
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#41788 mysql_fetch_field returns org_table == table by a view
+--echo #
+
+CREATE TABLE t1 (f1 INT);
+CREATE VIEW v1 AS SELECT f1 FROM t1;
+--enable_metadata
+SELECT f1 FROM v1 va;
+--disable_metadata
+
+DROP VIEW v1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -51,16 +51,18 @@ static
 dtuple_t*
 dict_create_sys_tables_tuple(
 /*=========================*/
-	dict_table_t*	table,	/*!< in: table */
-	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
-				the built tuple is allocated */
+	const dict_table_t*	table,	/*!< in: table */
+	mem_heap_t*		heap)	/*!< in: memory heap from
+					which the memory for the built
+					tuple is allocated */
 {
 	dict_table_t*	sys_tables;
 	dtuple_t*	entry;
 	dfield_t*	dfield;
 	byte*		ptr;
 
-	ut_ad(table && heap);
+	ut_ad(table);
+	ut_ad(heap);
 
 	sys_tables = dict_sys->sys_tables;
 
@@ -69,18 +71,18 @@ dict_create_sys_tables_tuple(
 	dict_table_copy_types(entry, sys_tables);
 
 	/* 0: NAME -----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 0);
+	dfield = dtuple_get_nth_field(entry, 0/*NAME*/);
 
 	dfield_set_data(dfield, table->name, ut_strlen(table->name));
 	/* 3: ID -------------------------------*/
-	dfield = dtuple_get_nth_field(entry, 1);
+	dfield = dtuple_get_nth_field(entry, 1/*ID*/);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 4: N_COLS ---------------------------*/
-	dfield = dtuple_get_nth_field(entry, 2);
+	dfield = dtuple_get_nth_field(entry, 2/*N_COLS*/);
 
 #if DICT_TF_COMPACT != 1
 #error
@@ -91,40 +93,41 @@ dict_create_sys_tables_tuple(
 			| ((table->flags & DICT_TF_COMPACT) << 31));
 	dfield_set_data(dfield, ptr, 4);
 	/* 5: TYPE -----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 3);
+	dfield = dtuple_get_nth_field(entry, 3/*TYPE*/);
 
 	ptr = mem_heap_alloc(heap, 4);
-	if (table->flags & ~DICT_TF_COMPACT) {
+	if (table->flags & (~DICT_TF_COMPACT & ~(~0 << DICT_TF_BITS))) {
 		ut_a(table->flags & DICT_TF_COMPACT);
 		ut_a(dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
 		ut_a((table->flags & DICT_TF_ZSSIZE_MASK)
 		     <= (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT));
-		ut_a(!(table->flags & (~0 << DICT_TF_BITS)));
-		mach_write_to_4(ptr, table->flags);
+		ut_a(!(table->flags & (~0 << DICT_TF2_BITS)));
+		mach_write_to_4(ptr, table->flags & ~(~0 << DICT_TF_BITS));
 	} else {
 		mach_write_to_4(ptr, DICT_TABLE_ORDINARY);
 	}
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: MIX_ID (obsolete) ---------------------------*/
-	dfield = dtuple_get_nth_field(entry, 4);
+	dfield = dtuple_get_nth_field(entry, 4/*MIX_ID*/);
 
 	ptr = mem_heap_zalloc(heap, 8);
 
 	dfield_set_data(dfield, ptr, 8);
-	/* 7: MIX_LEN (obsolete) --------------------------*/
+	/* 7: MIX_LEN (additional flags) --------------------------*/
 
-	dfield = dtuple_get_nth_field(entry, 5);
+	dfield = dtuple_get_nth_field(entry, 5/*MIX_LEN*/);
 
-	ptr = mem_heap_zalloc(heap, 4);
+	ptr = mem_heap_alloc(heap, 4);
+	mach_write_to_4(ptr, table->flags >> DICT_TF2_SHIFT);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: CLUSTER_NAME ---------------------*/
-	dfield = dtuple_get_nth_field(entry, 6);
+	dfield = dtuple_get_nth_field(entry, 6/*CLUSTER_NAME*/);
 	dfield_set_null(dfield); /* not supported */
 
 	/* 9: SPACE ----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 7);
+	dfield = dtuple_get_nth_field(entry, 7/*SPACE*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, table->space);
@@ -143,19 +146,21 @@ static
 dtuple_t*
 dict_create_sys_columns_tuple(
 /*==========================*/
-	dict_table_t*	table,	/*!< in: table */
-	ulint		i,	/*!< in: column number */
-	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
-				the built tuple is allocated */
+	const dict_table_t*	table,	/*!< in: table */
+	ulint			i,	/*!< in: column number */
+	mem_heap_t*		heap)	/*!< in: memory heap from
+					which the memory for the built
+					tuple is allocated */
 {
 	dict_table_t*		sys_columns;
 	dtuple_t*		entry;
 	const dict_col_t*	column;
 	dfield_t*		dfield;
 	byte*			ptr;
-	const char*	col_name;
+	const char*		col_name;
 
-	ut_ad(table && heap);
+	ut_ad(table);
+	ut_ad(heap);
 
 	column = dict_table_get_nth_col(table, i);
 
@@ -166,47 +171,47 @@ dict_create_sys_columns_tuple(
 	dict_table_copy_types(entry, sys_columns);
 
 	/* 0: TABLE_ID -----------------------*/
-	dfield = dtuple_get_nth_field(entry, 0);
+	dfield = dtuple_get_nth_field(entry, 0/*TABLE_ID*/);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 1: POS ----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 1);
+	dfield = dtuple_get_nth_field(entry, 1/*POS*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, i);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 4: NAME ---------------------------*/
-	dfield = dtuple_get_nth_field(entry, 2);
+	dfield = dtuple_get_nth_field(entry, 2/*NAME*/);
 
 	col_name = dict_table_get_col_name(table, i);
 	dfield_set_data(dfield, col_name, ut_strlen(col_name));
 	/* 5: MTYPE --------------------------*/
-	dfield = dtuple_get_nth_field(entry, 3);
+	dfield = dtuple_get_nth_field(entry, 3/*MTYPE*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, column->mtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: PRTYPE -------------------------*/
-	dfield = dtuple_get_nth_field(entry, 4);
+	dfield = dtuple_get_nth_field(entry, 4/*PRTYPE*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, column->prtype);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 7: LEN ----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 5);
+	dfield = dtuple_get_nth_field(entry, 5/*LEN*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, column->len);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 8: PREC ---------------------------*/
-	dfield = dtuple_get_nth_field(entry, 6);
+	dfield = dtuple_get_nth_field(entry, 6/*PREC*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, 0/* unused */);
@@ -230,6 +235,7 @@ dict_build_table_def_step(
 	dict_table_t*	table;
 	dtuple_t*	row;
 	ulint		error;
+	ulint		flags;
 	const char*	path_or_name;
 	ibool		is_path;
 	mtr_t		mtr;
@@ -268,9 +274,10 @@ dict_build_table_def_step(
 		ut_ad(!dict_table_zip_size(table)
 		      || dict_table_get_format(table) >= DICT_TF_FORMAT_ZIP);
 
+		flags = table->flags & ~(~0 << DICT_TF_BITS);
 		error = fil_create_new_single_table_tablespace(
 			&space, path_or_name, is_path,
-			table->flags == DICT_TF_COMPACT ? 0 : table->flags,
+			flags == DICT_TF_COMPACT ? 0 : flags,
 			FIL_IBD_FILE_INITIAL_SIZE);
 		table->space = (unsigned int) space;
 
@@ -286,7 +293,7 @@ dict_build_table_def_step(
 		mtr_commit(&mtr);
 	} else {
 		/* Create in the system tablespace: disallow new features */
-		table->flags &= DICT_TF_COMPACT;
+		table->flags &= (~0 << DICT_TF_BITS) | DICT_TF_COMPACT;
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);
@@ -322,9 +329,10 @@ static
 dtuple_t*
 dict_create_sys_indexes_tuple(
 /*==========================*/
-	dict_index_t*	index,	/*!< in: index */
-	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
-				the built tuple is allocated */
+	const dict_index_t*	index,	/*!< in: index */
+	mem_heap_t*		heap)	/*!< in: memory heap from
+					which the memory for the built
+					tuple is allocated */
 {
 	dict_table_t*	sys_indexes;
 	dict_table_t*	table;
@@ -333,7 +341,8 @@ dict_create_sys_indexes_tuple(
 	byte*		ptr;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	ut_ad(index && heap);
+	ut_ad(index);
+	ut_ad(heap);
 
 	sys_indexes = dict_sys->sys_indexes;
 
@@ -344,32 +353,32 @@ dict_create_sys_indexes_tuple(
 	dict_table_copy_types(entry, sys_indexes);
 
 	/* 0: TABLE_ID -----------------------*/
-	dfield = dtuple_get_nth_field(entry, 0);
+	dfield = dtuple_get_nth_field(entry, 0/*TABLE_ID*/);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, table->id);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 1: ID ----------------------------*/
-	dfield = dtuple_get_nth_field(entry, 1);
+	dfield = dtuple_get_nth_field(entry, 1/*ID*/);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, index->id);
 
 	dfield_set_data(dfield, ptr, 8);
 	/* 4: NAME --------------------------*/
-	dfield = dtuple_get_nth_field(entry, 2);
+	dfield = dtuple_get_nth_field(entry, 2/*NAME*/);
 
 	dfield_set_data(dfield, index->name, ut_strlen(index->name));
 	/* 5: N_FIELDS ----------------------*/
-	dfield = dtuple_get_nth_field(entry, 3);
+	dfield = dtuple_get_nth_field(entry, 3/*N_FIELDS*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, index->n_fields);
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 6: TYPE --------------------------*/
-	dfield = dtuple_get_nth_field(entry, 4);
+	dfield = dtuple_get_nth_field(entry, 4/*TYPE*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, index->type);
@@ -381,7 +390,7 @@ dict_create_sys_indexes_tuple(
 #error "DICT_SYS_INDEXES_SPACE_NO_FIELD != 7"
 #endif
 
-	dfield = dtuple_get_nth_field(entry, 5);
+	dfield = dtuple_get_nth_field(entry, 5/*SPACE*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, index->space);
@@ -393,7 +402,7 @@ dict_create_sys_indexes_tuple(
 #error "DICT_SYS_INDEXES_PAGE_NO_FIELD != 8"
 #endif
 
-	dfield = dtuple_get_nth_field(entry, 6);
+	dfield = dtuple_get_nth_field(entry, 6/*PAGE_NO*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 	mach_write_to_4(ptr, FIL_NULL);
@@ -412,10 +421,11 @@ static
 dtuple_t*
 dict_create_sys_fields_tuple(
 /*=========================*/
-	dict_index_t*	index,	/*!< in: index */
-	ulint		i,	/*!< in: field number */
-	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
-				the built tuple is allocated */
+	const dict_index_t*	index,	/*!< in: index */
+	ulint			i,	/*!< in: field number */
+	mem_heap_t*		heap)	/*!< in: memory heap from
+					which the memory for the built
+					tuple is allocated */
 {
 	dict_table_t*	sys_fields;
 	dtuple_t*	entry;
@@ -425,7 +435,8 @@ dict_create_sys_fields_tuple(
 	ibool		index_contains_column_prefix_field	= FALSE;
 	ulint		j;
 
-	ut_ad(index && heap);
+	ut_ad(index);
+	ut_ad(heap);
 
 	for (j = 0; j < index->n_fields; j++) {
 		if (dict_index_get_nth_field(index, j)->prefix_len > 0) {
@@ -443,7 +454,7 @@ dict_create_sys_fields_tuple(
 	dict_table_copy_types(entry, sys_fields);
 
 	/* 0: INDEX_ID -----------------------*/
-	dfield = dtuple_get_nth_field(entry, 0);
+	dfield = dtuple_get_nth_field(entry, 0/*INDEX_ID*/);
 
 	ptr = mem_heap_alloc(heap, 8);
 	mach_write_to_8(ptr, index->id);
@@ -451,7 +462,7 @@ dict_create_sys_fields_tuple(
 	dfield_set_data(dfield, ptr, 8);
 	/* 1: POS + PREFIX LENGTH ----------------------------*/
 
-	dfield = dtuple_get_nth_field(entry, 1);
+	dfield = dtuple_get_nth_field(entry, 1/*POS*/);
 
 	ptr = mem_heap_alloc(heap, 4);
 
@@ -471,7 +482,7 @@ dict_create_sys_fields_tuple(
 
 	dfield_set_data(dfield, ptr, 4);
 	/* 4: COL_NAME -------------------------*/
-	dfield = dtuple_get_nth_field(entry, 2);
+	dfield = dtuple_get_nth_field(entry, 2/*COL_NAME*/);
 
 	dfield_set_data(dfield, field->name,
 			ut_strlen(field->name));
@@ -602,6 +613,7 @@ dict_create_index_tree_step(
 	dict_table_t*	sys_indexes;
 	dict_table_t*	table;
 	dtuple_t*	search_tuple;
+	ulint		zip_size;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
 
@@ -626,8 +638,9 @@ dict_create_index_tree_step(
 
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
-	node->page_no = btr_create(index->type, index->space,
-				   dict_table_zip_size(index->table),
+	zip_size = dict_table_zip_size(index->table);
+
+	node->page_no = btr_create(index->type, index->space, zip_size,
 				   index->id, index, &mtr);
 	/* printf("Created a new index tree in space %lu root page %lu\n",
 	index->space, index->page_no); */
