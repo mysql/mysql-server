@@ -2920,9 +2920,9 @@ signal_stmt:
             Yacc_state *state= & thd->m_parser_state->m_yacc;
 
             lex->sql_command= SQLCOM_SIGNAL;
-            lex->m_stmt= new (thd->mem_root) Signal_statement(lex, $2,
-                                                      state->m_set_signal_info);
-            if (lex->m_stmt == NULL)
+            lex->m_sql_cmd=
+              new (thd->mem_root) Sql_cmd_signal($2, state->m_set_signal_info);
+            if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         ;
@@ -3059,9 +3059,10 @@ resignal_stmt:
             Yacc_state *state= & thd->m_parser_state->m_yacc;
 
             lex->sql_command= SQLCOM_RESIGNAL;
-            lex->m_stmt= new (thd->mem_root) Resignal_statement(lex, $2,
-                                                      state->m_set_signal_info);
-            if (lex->m_stmt == NULL)
+            lex->m_sql_cmd=
+              new (thd->mem_root) Sql_cmd_resignal($2,
+                                                   state->m_set_signal_info);
+            if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
         ;
