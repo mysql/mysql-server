@@ -43,7 +43,7 @@ toku_sync_fetch_and_decrement_int32(volatile int32_t *a) {
 
 //Vista has 64 bit atomic instruction functions.
 //64 bit windows should also have it, but we're using neither right now.
-#if TOKU_WINDOWS_MIN_SUPPORTED_IS_VISTA || defined(_WIN64)
+#if TOKU_WINDOWS_MIN_SUPPORTED_IS_VISTA || TOKU_WINDOWS_64
 #define TOKU_WINDOWS_HAS_ATOMIC_64 1
 #else
 #define TOKU_WINDOWS_HAS_ATOMIC_64 0

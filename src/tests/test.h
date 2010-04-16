@@ -282,7 +282,7 @@ main(int argc, char * const argv[])
 #endif
 {
     int r;
-#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
+#if IS_TDB && TOKU_WINDOWS
     int rinit = toku_ydb_init();
     CKERR(rinit);
 #endif
@@ -293,7 +293,7 @@ main(int argc, char * const argv[])
 #endif
     toku_os_initialize_settings(1);
     r = test_main(argc, argv);
-#if IS_TDB && (defined(_WIN32) || defined(_WIN64))
+#if IS_TDB && TOKU_WINDOWS
     int rdestroy = toku_ydb_destroy();
     CKERR(rdestroy);
 #endif

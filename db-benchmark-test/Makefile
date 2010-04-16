@@ -60,7 +60,12 @@ CPPFLAGS+= -D_GNU_SOURCE
 TOKUDB=libtokudb.$(SOEXT)
 
 default: build
-build: build.tdb build.bdb
+ifeq ($(OS_CHOICE),windows)
+build: build.tdb;
+else
+build: build.tdb build.bdb;
+endif
+
 build.bdb: $(TARGET_BDB) $(SCANSCAN_BDB) $(WINDOWS_BDB_LIB_NAME)
 build.tdb: $(TARGET_TDB) $(SCANSCAN_TDB)
 

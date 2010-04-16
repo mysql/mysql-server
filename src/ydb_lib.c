@@ -29,12 +29,27 @@ BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved) {
     UNUSED(h); UNUSED(reserved);
     // printf("%s:%lu\n", __FUNCTION__, reason);
     int r = 0;
-    if (reason == DLL_PROCESS_ATTACH)
+    switch(reason) {
+    case DLL_PROCESS_ATTACH:
         r = toku_ydb_init();
-    if (reason == DLL_PROCESS_DETACH)
+        break;
+    case DLL_PROCESS_DETACH:
         r = toku_ydb_destroy();
+        break;
+    case DLL_THREAD_ATTACH:
+        //TODO: Any new thread code if necessary, i.e. allocate per-thread
+        //      storage.
+        break;
+    case DLL_THREAD_DETACH:
+        //TODO: Any cleanup thread code if necessary, i.e. free per-thread
+        //      storage.
+        break;
+    default:
+        break;
+    }
     assert(r==0);
     return TRUE;
 }
 
 #endif
+

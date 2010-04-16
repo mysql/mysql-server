@@ -12,9 +12,20 @@ extern "C" {
 #define TOKU_WINDOWS 1
 #define DEV_NULL_FILE "NUL"
 
+# if defined(_WIN64)
+#  define TOKU_WINDOWS_32 0
+#  define TOKU_WINDOWS_64 1
+# else
+#  define TOKU_WINDOWS_32 1
+#  define TOKU_WINDOWS_64 2
+#endif
+
+
 #else
 
 #define TOKU_WINDOWS 0
+#define TOKU_WINDOWS_32 0
+#define TOKU_WINDOWS_64 0
 #define DEV_NULL_FILE "/dev/null"
 
 #endif
