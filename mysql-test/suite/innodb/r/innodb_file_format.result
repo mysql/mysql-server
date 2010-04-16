@@ -1,4 +1,3 @@
-call mtr.add_suppression("InnoDB: invalid innodb_file_format_check value");
 select @@innodb_file_format;
 @@innodb_file_format
 Antelope
@@ -41,3 +40,4 @@ ERROR 42000: Variable 'innodb_file_format' can't be set to the value of 'off'
 select @@innodb_file_format_check;
 @@innodb_file_format_check
 Barracuda
+set global innodb_file_format_check=antelope;
