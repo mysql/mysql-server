@@ -1,10 +1,5 @@
 -- source include/have_innodb.inc
 
-call mtr.add_suppression("InnoDB: invalid innodb_file_format_check value");
-
-let $format=`select @@innodb_file_format`;
-let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
-
 select @@innodb_file_format;
 select @@innodb_file_format_check;
 set global innodb_file_format=antelope;
@@ -31,12 +26,4 @@ set global innodb_file_format=on;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_file_format=off;
 select @@innodb_file_format_check;
-
-#
-# restore environment to the state it was before this test execution
-#
-
--- disable_query_log
-eval set global innodb_file_format=$format;
-eval set global innodb_file_format_check=$innodb_file_format_check_orig;
--- enable_query_log
+set global innodb_file_format_check=antelope;
