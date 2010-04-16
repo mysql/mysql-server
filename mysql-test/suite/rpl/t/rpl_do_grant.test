@@ -316,4 +316,33 @@ DROP USER 'user49119'@'localhost';
 
 -- sync_slave_with_master
 
+#
+# Bug #51987  	revoke privileges logs wrong error code
+#
+
+-- connection master
+-- source include/master-slave-reset.inc
+-- connection master
+
+grant all on *.* to foo@"1.2.3.4";
+-- error ER_REVOKE_GRANTS
+revoke all privileges, grant option from "foo";
+
+## assertion: revoke is logged
+-- source include/show_binlog_events.inc
+
+-- sync_slave_with_master
+
+## assertion: slave replicates revoke and does not fail because master
+##            logged revoke with correct expected error code
+-- let $err= query_get_value(SHOW SLAVE STATUS, Last_SQL_Errno, 1)
+  if ($err)
+{
+    -- die UNEXPECTED ERROR AT SLAVE: $err
+}
+
+-- connection master
+DROP USER foo@"1.2.3.4";
+-- sync_slave_with_master
+
 --echo "End of test"
