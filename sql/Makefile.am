@@ -114,6 +114,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			sql_audit.h \
 			contributors.h sql_servers.h sql_signal.h records.h \
 			sql_prepare.h rpl_handler.h replication.h mdl.h \
+			sql_cmd.h \
 			sql_plist.h transaction.h sys_vars.h
 
 mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
