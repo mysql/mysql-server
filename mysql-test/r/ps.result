@@ -2988,4 +2988,17 @@ select @plaintext;
 bcd
 deallocate prepare encode;
 deallocate prepare decode;
+#
+# Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
+#
+CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
+INSERT INTO t1 VALUES (0, 0),(0, 0);
+PREPARE stmt FROM "SELECT 1 FROM t1 WHERE
+ROW(a, b) >= ROW('1', (SELECT 1 FROM t1 WHERE a > 1234))";
+EXECUTE stmt;
+1
+EXECUTE stmt;
+1
+DEALLOCATE PREPARE stmt;
+DROP TABLE t1;
 End of 5.1 tests.
