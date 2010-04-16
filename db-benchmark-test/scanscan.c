@@ -71,7 +71,7 @@ static double gettime (void) {
     return tv.tv_sec + 1e-6*tv.tv_usec;
 }
 
-static void parse_args (int argc, const char *const argv[]) {
+static void parse_args (int argc, char *const argv[]) {
     pname=argv[0];
     argc--; argv++;
     int specified_run_mode=0;
