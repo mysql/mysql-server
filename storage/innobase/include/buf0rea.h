@@ -18,12 +18,10 @@ buffer buf_pool if it is not already there. Sets the io_fix flag and sets
 an exclusive lock on the buffer frame. The flag is cleared and the x-lock
 released by the i/o-handler thread. Does a random read-ahead if it seems
 sensible. */
-
-ulint
+ibool
 buf_read_page(
 /*==========*/
-			/* out: number of page read requests issued: this can
-			be > 1 if read-ahead occurred */
+			/* out: TRUE if success, FALSE otherwise */
 	ulint	space,	/* in: space id */
 	ulint	offset);/* in: page number */
 /************************************************************************

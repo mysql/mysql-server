@@ -756,4 +756,17 @@ TRUNCATE t1;
 HANDLER t1 READ FIRST;
 ERROR 42S02: Unknown table 't1' in HANDLER
 DROP TABLE t1;
+#
+# BUG#51877 - HANDLER interface causes invalid memory read
+#
+CREATE TABLE t1(a INT, KEY(a));
+HANDLER t1 OPEN;
+HANDLER t1 READ a FIRST;
+a
+INSERT INTO t1 VALUES(1);
+HANDLER t1 READ a NEXT;
+a
+1
+HANDLER t1 CLOSE;
+DROP TABLE t1;
 End of 5.1 tests

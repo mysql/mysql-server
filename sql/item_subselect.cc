@@ -122,6 +122,21 @@ void Item_subselect::cleanup()
   DBUG_VOID_RETURN;
 }
 
+
+/*
+   We cannot use generic Item::safe_charset_converter() because
+   Subselect transformation does not happen in view_prepare_mode
+   and thus we can not evaluate val_...() for const items.
+*/
+
+Item *Item_subselect::safe_charset_converter(CHARSET_INFO *tocs)
+{
+  Item_func_conv_charset *conv=
+    new Item_func_conv_charset(this, tocs, thd->lex->view_prepare_mode ? 0 : 1);
+  return conv->safe ? conv : NULL;
+}
+
+
 void Item_singlerow_subselect::cleanup()
 {
   DBUG_ENTER("Item_singlerow_subselect::cleanup");
@@ -249,9 +264,13 @@ bool Item_subselect::exec()
 {
   int res;
 
-  if (thd->is_error())
-  /* Do not execute subselect in case of a fatal error */
+  /*
+    Do not execute subselect in case of a fatal error
+    or if the query has been killed.
+  */
+  if (thd->is_error() || thd->killed)
     return 1;
+
   /*
     Simulate a failure in sub-query execution. Used to test e.g.
     out of memory or query being killed conditions.

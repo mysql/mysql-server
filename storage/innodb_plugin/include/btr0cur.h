@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1994, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -152,29 +152,39 @@ btr_cur_search_to_nth_level(
 	ulint		has_search_latch,/*!< in: latch mode the caller
 				currently has on btr_search_latch:
 				RW_S_LATCH, or 0 */
+	const char*	file,	/*!< in: file name */
+	ulint		line,	/*!< in: line where called */
 	mtr_t*		mtr);	/*!< in: mtr */
 /*****************************************************************//**
 Opens a cursor at either end of an index. */
 UNIV_INTERN
 void
-btr_cur_open_at_index_side(
-/*=======================*/
+btr_cur_open_at_index_side_func(
+/*============================*/
 	ibool		from_left,	/*!< in: TRUE if open to the low end,
 					FALSE if to the high end */
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: latch mode */
 	btr_cur_t*	cursor,		/*!< in: cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr);		/*!< in: mtr */
+#define btr_cur_open_at_index_side(f,i,l,c,m)				\
+	btr_cur_open_at_index_side_func(f,i,l,c,__FILE__,__LINE__,m)
 /**********************************************************************//**
 Positions a cursor at a randomly chosen position within a B-tree. */
 UNIV_INTERN
 void
-btr_cur_open_at_rnd_pos(
-/*====================*/
+btr_cur_open_at_rnd_pos_func(
+/*=========================*/
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: BTR_SEARCH_LEAF, ... */
 	btr_cur_t*	cursor,		/*!< in/out: B-tree cursor */
+	const char*	file,		/*!< in: file name */
+	ulint		line,		/*!< in: line where called */
 	mtr_t*		mtr);		/*!< in: mtr */
+#define btr_cur_open_at_rnd_pos(i,l,c,m)				\
+	btr_cur_open_at_rnd_pos_func(i,l,c,__FILE__,__LINE__,m)
 /*************************************************************//**
 Tries to perform an insert to a page in an index tree, next to cursor.
 It is assumed that mtr holds an x-latch on the page. The operation does

@@ -4,9 +4,11 @@ source include/have_binlog_format_statement.inc;
 
 disable_warnings;
 DROP DATABASE IF EXISTS db1;
+DROP DATABASE IF EXISTS db2;
 enable_warnings;
 
 CREATE DATABASE db1;
+CREATE DATABASE db2;
 
 use db1;
 
@@ -116,10 +118,55 @@ eval SELECT $result as 'Must be 0';
 SELECT * from db1.t1;
 SELECT * from db1.t2;
 
+START SLAVE;
+source include/wait_for_slave_sql_to_start.inc;
+
+--echo #
+--echo # SAVEPOINT and ROLLBACK TO have the same problem in BUG#43263
+--echo # This was reported by BUG#50407
+connection master;
+echo [on master]
+SET SESSION AUTOCOMMIT=0;
+let $binlog_start=query_get_value(SHOW MASTER STATUS, Position, 1);
+
+BEGIN;
+INSERT INTO db1.t1 VALUES(20);
+
+--echo # 
+--echo # Verify whether this statement is binlogged correctly
+/*comment*/ SAVEPOINT has_comment;
+USE db1;
+INSERT INTO db1.t1 VALUES(30);
+INSERT INTO db1.t2 VALUES("in savepoint has_comment");
+USE db2;
+SavePoint mixed_cases;
+USE db1;
+INSERT INTO db1.t2 VALUES("in savepoint mixed_cases");
+INSERT INTO db1.t1 VALUES(40);
+USE db2;
+ROLLBACK TO mixed_cases;
+ROLLBACK TO has_comment;
+USE db1;
+INSERT INTO db1.t2 VALUES("after rollback to");
+INSERT INTO db1.t1 VALUES(50);
+USE db2;
+COMMIT;
+source include/show_binlog_events.inc;
+sync_slave_with_master;
+
+--echo [on slave]
+--echo #
+--echo # Verify INSERT statements in savepoints are executed, for MyISAM table
+--echo # is not effected by ROLLBACK TO
+SELECT * FROM db1.t2 WHERE s LIKE '% savepoint %';
+--echo #
+--echo # Verify INSERT statements on the Innodb table are rolled back;
+SELECT * FROM db1.t1 WHERE a IN (30, 40);
+
 --echo #
 --echo # Clean up
 --echo #
 connection master;
 DROP DATABASE db1;
-connection slave;
-DROP DATABASE db1;
+DROP DATABASE db2;
+source include/master-slave-end.inc;

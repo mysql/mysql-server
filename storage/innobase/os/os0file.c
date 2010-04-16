@@ -759,7 +759,15 @@ next_file:
 #ifdef HAVE_READDIR_R
 	ret = readdir_r(dir, (struct dirent*)dirent_buf, &ent);
 
-	if (ret != 0) {
+	if (ret != 0
+#ifdef UNIV_AIX
+	    /* On AIX, only if we got non-NULL 'ent' (result) value and
+	    a non-zero 'ret' (return) value, it indicates a failed
+	    readdir_r() call. An NULL 'ent' with an non-zero 'ret'
+	    would indicate the "end of the directory" is reached. */
+	    && ent != NULL
+#endif
+	   ) {
 		fprintf(stderr,
 			"InnoDB: cannot read directory %s, error %lu\n",
 			dirname, (ulong)ret);
