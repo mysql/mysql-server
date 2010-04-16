@@ -350,9 +350,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       }
       else if (opt_secure_file_priv)
       {
-        char secure_file_real_path[FN_REFLEN];
-        (void) my_realpath(secure_file_real_path, opt_secure_file_priv, 0);
-        if (strncmp(secure_file_real_path, name, strlen(secure_file_real_path)))
+        if (strncmp(opt_secure_file_priv, name, strlen(opt_secure_file_priv)))
         {
           /* Read only allowed from within dir specified by secure_file_priv */
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
