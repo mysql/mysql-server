@@ -220,6 +220,16 @@ toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS s) {
 }
 
 
+int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks) {
+    int r = ENOSYS;
+
+    if (!mgr || !max_locks) { r = EINVAL; goto cleanup; }
+    *max_locks = mgr->max_locks;
+    r = 0;
+cleanup:
+    return r;
+}
+
 int toku_ltm_get_max_locks_per_db(toku_ltm* mgr, u_int32_t* max_locks) {
     int r = ENOSYS;
 
