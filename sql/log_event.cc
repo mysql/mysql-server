@@ -1729,8 +1729,8 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
     {
       uint32 tmp= uint3korr(ptr);
       int part;
-      char buf[10];
-      char *pos= &buf[10];
+      char buf[11];
+      char *pos= &buf[10];  // start from '\0' to the beginning
 
       /* Copied from field.cc */
       *pos--=0;					// End NULL
