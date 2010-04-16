@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS t9;
+CREATE TABLE t9(c1 INTEGER NOT NULL);
+DROP INDEX i1 ON t9;
+ERROR 42000: Can't DROP 'i1'; check that column/key exists
+DROP TABLE t9;
+SHOW TABLES;
+Tables_in_test

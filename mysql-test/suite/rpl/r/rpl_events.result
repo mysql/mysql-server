@@ -208,8 +208,14 @@ CREATE /*!50000 DEFINER='user44331' */ EVENT event44331_4
 ON SCHEDULE AT CURRENT_TIMESTAMP
 ON COMPLETION PRESERVE DISABLE
 DO INSERT INTO test.t1 VALUES('event event44331_4 fired - DEFINER=user1');
-Warnings:
-Note	1449	The user specified as a definer ('user44331'@'%') does not exist
+# Test for bug#50095 Multi-statement including CREATE EVENT causes rotten
+# binlog entry
+SELECT 'ABC';
+SELECT '123'|
+ABC
+ABC
+123
+123
 #on master 
 select EVENT_SCHEMA, EVENT_NAME, DEFINER from information_schema.events
 where EVENT_NAME='event44331_1';

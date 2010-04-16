@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1106,12 +1106,37 @@ JOIN::optimize()
     }
   }
 
-  if (conds &&!outer_join && const_table_map != found_const_table_map && 
+  if (conds && const_table_map != found_const_table_map &&
       (select_options & SELECT_DESCRIBE) &&
       select_lex->master_unit() == &thd->lex->unit) // upper level SELECT
   {
     conds=new Item_int((longlong) 0,1);	// Always false
   }
+
+  /*
+    It's necessary to check const part of HAVING cond as
+    there is a chance that some cond parts may become
+    const items after make_join_statisctics(for example
+    when Item is a reference to cost table field from
+    outer join).
+    This check is performed only for those conditions
+    which do not use aggregate functions. In such case
+    temporary table may not be used and const condition
+    elements may be lost during further having
+    condition transformation in JOIN::exec.
+  */
+  if (having && const_table_map)
+  {
+    having->update_used_tables();
+    having= remove_eq_conds(thd, having, &having_value);
+    if (having_value == Item::COND_FALSE)
+    {
+      having= new Item_int((longlong) 0,1);
+      zero_result_cause= "Impossible HAVING noticed after reading const tables";
+      DBUG_RETURN(0);
+    }
+  }
+
   if (make_join_select(this, select, conds))
   {
     zero_result_cause=
@@ -2943,7 +2968,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      if (records == 0 && s->table->reginfo.impossible_range)
+      if (records == 0 && s->table->reginfo.impossible_range &&
+          (s->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
       {
 	/*
 	  Impossible WHERE or ON expression
@@ -5017,6 +5043,11 @@ greedy_search(JOIN      *join,
     if (best_extension_by_limited_search(join, remaining_tables, idx, record_count,
                                          read_time, search_depth, prune_level))
       DBUG_RETURN(TRUE);
+    /*
+      'best_read < DBL_MAX' means that optimizer managed to find
+      some plan and updated 'best_positions' array accordingly.
+    */
+    DBUG_ASSERT(join->best_read < DBL_MAX); 
 
     if (size_remain <= search_depth)
     {
@@ -5845,7 +5876,7 @@ store_val_in_field(Field *field, Item *item, enum_check_fields check_flag)
   @retval TRUE        error occurred
 */
 bool
-JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
+JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
 {
   DBUG_ENTER("JOIN::make_simple_join");
 
@@ -5858,7 +5889,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
     DBUG_RETURN(TRUE);                        /* purecov: inspected */
 
   join_tab= parent->join_tab_reexec;
-  table= &parent->table_reexec[0]; parent->table_reexec[0]= tmp_table;
+  table= &parent->table_reexec[0]; parent->table_reexec[0]= temp_table;
   tables= 1;
   const_tables= 0;
   const_table_map= 0;
@@ -5878,7 +5909,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   do_send_rows= row_limit ? 1 : 0;
 
   join_tab->cache.buff=0;			/* No caching */
-  join_tab->table=tmp_table;
+  join_tab->table=temp_table;
   join_tab->select=0;
   join_tab->select_cond=0;
   join_tab->quick=0;
@@ -5895,8 +5926,8 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   join_tab->join= this;
   join_tab->ref.key_parts= 0;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
-  tmp_table->status=0;
-  tmp_table->null_row=0;
+  temp_table->status=0;
+  temp_table->null_row=0;
   DBUG_RETURN(FALSE);
 }
 
@@ -7028,9 +7059,11 @@ eq_ref_table(JOIN *join, ORDER *start_order, JOIN_TAB *tab)
       }
       if (order)
       {
-	found++;
-	DBUG_ASSERT(!(order->used & map));
-	order->used|=map;
+        if (!(order->used & map))
+        {
+          found++;
+          order->used|= map;
+        }
 	continue;				// Used in ORDER BY
       }
       if (!only_eq_ref_tables(join,start_order, (*ref_item)->used_tables()))
@@ -8198,7 +8231,8 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   else
   {
     DBUG_ASSERT(cond->type() == Item::COND_ITEM);
-    ((Item_cond *) cond)->add_at_head(&eq_list);
+    if (eq_list.elements)
+      ((Item_cond *) cond)->add_at_head(&eq_list);
   }
 
   cond->quick_fix_field();
@@ -8795,8 +8829,14 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
           we still make the inner tables dependent on the outer tables.
           It would be enough to set dependency only on one outer table
           for them. Yet this is really a rare case.
+          Note:
+          RAND_TABLE_BIT mask should not be counted as it
+          prevents update of inner table dependences.
+          For example it might happen if RAND() function
+          is used in JOIN ON clause.
 	*/  
-        if (!(prev_table->on_expr->used_tables() & ~prev_used_tables))
+        if (!((prev_table->on_expr->used_tables() & ~RAND_TABLE_BIT) &
+              ~prev_used_tables))
           prev_table->dep_tables|= used_tables;
       }
     }
@@ -12909,12 +12949,35 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
-  uint min_length= (uint) ~0;
   uint best= MAX_KEY;
+  uint usable_clustered_pk= (table->file->primary_key_is_clustered() &&
+                             table->s->primary_key != MAX_KEY &&
+                             usable_keys->is_set(table->s->primary_key)) ?
+                            table->s->primary_key : MAX_KEY;
   if (!usable_keys->is_clear_all())
   {
+    uint min_length= (uint) ~0;
     for (uint nr=0; nr < table->s->keys ; nr++)
     {
+      /*
+       As far as 
+       1) clustered primary key entry data set is a set of all record
+          fields (key fields and not key fields) and
+       2) secondary index entry data is a union of its key fields and
+          primary key fields (at least InnoDB and its derivatives don't
+          duplicate primary key fields there, even if the primary and
+          the secondary keys have a common subset of key fields),
+       then secondary index entry data is always a subset of primary key
+       entry, and the PK is always longer.
+       Unfortunately, key_info[nr].key_length doesn't show the length
+       of key/pointer pair but a sum of key field lengths only, thus
+       we can't estimate index IO volume comparing only this key_length
+       value of seconday keys and clustered PK.
+       So, try secondary keys first, and choose PK only if there are no
+       usable secondary covering keys:
+      */
+      if (nr == usable_clustered_pk)
+        continue;
       if (usable_keys->is_set(nr))
       {
         if (table->key_info[nr].key_length < min_length)
@@ -12925,7 +12988,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
       }
     }
   }
-  return best;
+  return best != MAX_KEY ? best : usable_clustered_pk;
 }
 
 /**
@@ -13304,12 +13367,6 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     */
     if (select_limit >= table_records)
     {
-      /* 
-        filesort() and join cache are usually faster than reading in 
-        index order and not using join cache
-        */
-      if (tab->type == JT_ALL && tab->join->tables > tab->join->const_tables + 1)
-        DBUG_RETURN(0);
       keys= *table->file->keys_to_use_for_scanning();
       keys.merge(table->covering_keys);
 
@@ -13459,6 +13516,19 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	}      
       }
     }
+
+    /*
+      filesort() and join cache are usually faster than reading in 
+      index order and not using join cache, except in case that chosen
+      index is clustered primary key.
+    */
+    if ((select_limit >= table_records) &&
+        (tab->type == JT_ALL &&
+         tab->join->tables > tab->join->const_tables + 1) &&
+         ((unsigned) best_key != table->s->primary_key ||
+          !table->file->primary_key_is_clustered()))
+      DBUG_RETURN(0);
+
     if (best_key >= 0)
     {
       bool quick_created= FALSE;
@@ -15655,7 +15725,7 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
 
   Item_cond_and *cond=new Item_cond_and();
   TABLE *table=join_tab->table;
-  int error;
+  int error= 0;
   if (!cond)
     DBUG_RETURN(TRUE);
 
@@ -15673,7 +15743,8 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
     cond->fix_fields(thd, (Item**)&cond);
   if (join_tab->select)
   {
-    error=(int) cond->add(join_tab->select->cond);
+    if (join_tab->select->cond)
+      error=(int) cond->add(join_tab->select->cond);
     join_tab->select_cond=join_tab->select->cond=cond;
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
@@ -16916,7 +16987,17 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
       first= 0;
     else
       str->append(',');
-    item->print_item_w_name(str, query_type);
+
+    if (master_unit()->item && item->is_autogenerated_name)
+    {
+      /*
+        Do not print auto-generated aliases in subqueries. It has no purpose
+        in a view definition or other contexts where the query is printed.
+      */
+      item->print(str, query_type);
+    }
+    else
+      item->print_item_w_name(str, query_type);
   }
 
   /*

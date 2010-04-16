@@ -434,10 +434,11 @@ struct hash_table_struct {
 				these heaps */
 #endif /* !UNIV_HOTBACKUP */
 	mem_heap_t*	heap;
+#ifdef UNIV_DEBUG
 	ulint		magic_n;
+# define HASH_TABLE_MAGIC_N	76561114
+#endif /* UNIV_DEBUG */
 };
-
-#define HASH_TABLE_MAGIC_N	76561114
 
 #ifndef UNIV_NONINL
 #include "hash0hash.ic"

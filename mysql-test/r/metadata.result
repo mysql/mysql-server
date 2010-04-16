@@ -198,4 +198,15 @@ def				IF(i, d, d)	IF(i, d, d)	10	10	10	Y	128	0	63
 def				IFNULL(d, d)	IFNULL(d, d)	10	10	10	Y	128	0	63
 def				LEAST(d, d)	LEAST(d, d)	10	10	10	Y	128	0	63
 DROP TABLE t1;
+#
+# Bug#41788 mysql_fetch_field returns org_table == table by a view
+#
+CREATE TABLE t1 (f1 INT);
+CREATE VIEW v1 AS SELECT f1 FROM t1;
+SELECT f1 FROM v1 va;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def	test	v1	va	f1	f1	3	11	0	Y	32768	0	63
+f1
+DROP VIEW v1;
+DROP TABLE t1;
 End of 5.0 tests

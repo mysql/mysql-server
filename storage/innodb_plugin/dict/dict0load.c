@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Innobase Oy. All Rights Reserved.
+Copyright (c) 1996, 2010, Innobase Oy. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -260,7 +260,7 @@ dict_sys_tables_get_flags(
 		return(0);
 	}
 
-	field = rec_get_nth_field_old(rec, 4, &len);
+	field = rec_get_nth_field_old(rec, 4/*N_COLS*/, &len);
 	n_cols = mach_read_from_4(field);
 
 	if (UNIV_UNLIKELY(!(n_cols & 0x80000000UL))) {
@@ -390,15 +390,35 @@ loop:
 
 		mtr_commit(&mtr);
 
-		if (space_id != 0 && in_crash_recovery) {
+		if (space_id == 0) {
+			/* The system tablespace always exists. */
+		} else if (in_crash_recovery) {
 			/* Check that the tablespace (the .ibd file) really
-			exists; print a warning to the .err log if not */
+			exists; print a warning to the .err log if not.
+			Do not print warnings for temporary tables. */
+			ibool	is_temp;
 
-			fil_space_for_table_exists_in_mem(space_id, name,
-							  FALSE, TRUE, TRUE);
-		}
+			field = rec_get_nth_field_old(rec, 4, &len);
+			if (0x80000000UL &  mach_read_from_4(field)) {
+				/* ROW_FORMAT=COMPACT: read the is_temp
+				flag from SYS_TABLES.MIX_LEN. */
+				field = rec_get_nth_field_old(rec, 7, &len);
+				is_temp = mach_read_from_4(field)
+					& DICT_TF2_TEMPORARY;
+			} else {
+				/* For tables created with old versions
+				of InnoDB, SYS_TABLES.MIX_LEN may contain
+				garbage.  Such tables would always be
+				in ROW_FORMAT=REDUNDANT.  Pretend that
+				all such tables are non-temporary.  That is,
+				do not suppress error printouts about
+				temporary tables not being found. */
+				is_temp = FALSE;
+			}
 
-		if (space_id != 0 && !in_crash_recovery) {
+			fil_space_for_table_exists_in_mem(
+				space_id, name, is_temp, TRUE, !is_temp);
+		} else {
 			/* It is a normal database startup: create the space
 			object and check that the .ibd file exists. */
 
@@ -894,31 +914,6 @@ err_exit:
 				(ulong) flags);
 			goto err_exit;
 		}
-
-		if (fil_space_for_table_exists_in_mem(space, name, FALSE,
-						      FALSE, FALSE)) {
-			/* Ok; (if we did a crash recovery then the tablespace
-			can already be in the memory cache) */
-		} else {
-			/* In >= 4.1.9, InnoDB scans the data dictionary also
-			at a normal mysqld startup. It is an error if the
-			space object does not exist in memory. */
-
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: error: space object of table %s,\n"
-				"InnoDB: space id %lu did not exist in memory."
-				" Retrying an open.\n",
-				name, (ulong)space);
-			/* Try to open the tablespace */
-			if (!fil_open_single_table_tablespace(
-				    TRUE, space, flags, name)) {
-				/* We failed to find a sensible tablespace
-				file */
-
-				ibd_file_missing = TRUE;
-			}
-		}
 	} else {
 		flags = 0;
 	}
@@ -928,9 +923,63 @@ err_exit:
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
 
-	/* The high-order bit of N_COLS is the "compact format" flag. */
+	/* The high-order bit of N_COLS is the "compact format" flag.
+	For tables in that format, MIX_LEN may hold additional flags. */
 	if (n_cols & 0x80000000UL) {
+		ulint	flags2;
+
 		flags |= DICT_TF_COMPACT;
+
+		ut_a(name_of_col_is(sys_tables, sys_index, 7, "MIX_LEN"));
+		field = rec_get_nth_field_old(rec, 7, &len);
+
+		flags2 = mach_read_from_4(field);
+
+		if (flags2 & (~0 << (DICT_TF2_BITS - DICT_TF2_SHIFT))) {
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Warning: table ", stderr);
+			ut_print_filename(stderr, name);
+			fprintf(stderr, "\n"
+				"InnoDB: in InnoDB data dictionary"
+				" has unknown flags %lx.\n",
+				(ulong) flags2);
+
+			flags2 &= ~(~0 << (DICT_TF2_BITS - DICT_TF2_SHIFT));
+		}
+
+		flags |= flags2 << DICT_TF2_SHIFT;
+	}
+
+	/* See if the tablespace is available. */
+	if (space == 0) {
+		/* The system tablespace is always available. */
+	} else if (!fil_space_for_table_exists_in_mem(
+			   space, name,
+			   (flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY,
+			   FALSE, FALSE)) {
+
+		if ((flags >> DICT_TF2_SHIFT) & DICT_TF2_TEMPORARY) {
+			/* Do not bother to retry opening temporary tables. */
+			ibd_file_missing = TRUE;
+		} else {
+			ut_print_timestamp(stderr);
+			fprintf(stderr,
+				"  InnoDB: error: space object of table");
+			ut_print_filename(stderr, name);
+			fprintf(stderr, ",\n"
+				"InnoDB: space id %lu did not exist in memory."
+				" Retrying an open.\n",
+				(ulong) space);
+			/* Try to open the tablespace */
+			if (!fil_open_single_table_tablespace(
+				    TRUE, space,
+				    flags & ~(~0 << DICT_TF_BITS), name)) {
+				/* We failed to find a sensible
+				tablespace file */
+
+				ibd_file_missing = TRUE;
+			}
+		}
 	}
 
 	table = dict_mem_table_create(name, space, n_cols & ~0x80000000UL,

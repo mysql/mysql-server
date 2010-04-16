@@ -532,6 +532,9 @@ sub collect_one_suite($)
       next if ($test->{'name'} eq 'main.innodb-autoinc');
       # Fails with innodb plugin: r6185 Testcases changes not included
       next if ($test->{'name'} eq 'main.innodb_bug44369');
+      # Fix for BUG47621 is not in InnoDB plugin
+      next if ($test->{'name'} eq 'main.innodb_bug21704');
+      next if ($test->{'name'} eq 'main.innodb_bug47621');
       # Copy test options
       my $new_test= My::Test->new();
       while (my ($key, $value) = each(%$test))
