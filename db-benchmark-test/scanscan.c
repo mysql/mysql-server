@@ -2,6 +2,7 @@
 #define DONT_DEPRECATE_MALLOC
 
 #include <toku_portability.h>
+#include "tokudb_common_funcs.h"
 #include <toku_assert.h>
 #include <db.h>
 #include <errno.h>
@@ -540,7 +541,7 @@ static void scanscan_verify (void) {
 
 #endif
 
-int main (int argc, const char *const argv[]) {
+static int test_main (int argc, char *const argv[]) {
 
     parse_args(argc,argv);
 

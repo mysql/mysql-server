@@ -38,10 +38,16 @@ UTILS=            \
 BDB_UTILS=$(patsubst %$(BINSUF),%.bdb$(BINSUF),$(UTILS))
 STATIC_UTILS=$(patsubst %$(BINSUF),%_static$(BINSUF),$(UTILS))
 
+ifeq ($(OS_CHOICE),windows)
+$(UTILS): LINK_FILES+=$(WIN_YDB)
+$(UTILS): $(WIN_YDB)
+else
 $(UTILS): DLINK_FILES=$(TOKUROOT)lib/libtokudb.$(SOEXT)
 $(STATIC_UTILS): LINK_FILES+=$(TOKUROOT)lib/libtokudb.$(AEXT)
 
 $(UTILS) $(STATIC_UTILS): RPATH_DIRS+=$(TOKUROOT)lib
+endif
+
 #empty
 
 ifeq ($(OS_CHOICE),windows)
