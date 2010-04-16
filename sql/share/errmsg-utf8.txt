@@ -5905,12 +5905,17 @@ ER_EVENT_OPEN_TABLE_FAILED
 ER_EVENT_NEITHER_M_EXPR_NOR_M_AT
         eng "No datetime expression provided"
         ger "Kein DATETIME-Ausdruck angegeben"
-ER_COL_COUNT_DOESNT_MATCH_CORRUPTED
+
+# OBSOLETE, USE ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+ER_OBSOLETE_COL_COUNT_DOESNT_MATCH_CORRUPTED
         eng "Column count of mysql.%s is wrong. Expected %d, found %d. The table is probably corrupted"
         ger "Spaltenanzahl von mysql.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
-ER_CANNOT_LOAD_FROM_TABLE
+
+# OBSOLETE, USE ER_CANNOT_LOAD_FROM_TABLE_V2
+ER_OBSOLETE_CANNOT_LOAD_FROM_TABLE
         eng "Cannot load from mysql.%s. The table is probably corrupted"
         ger "Kann mysql.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
+
 ER_EVENT_CANNOT_DELETE
         eng "Failed to delete the event from mysql.event"
         ger "Löschen des Events aus mysql.event fehlgeschlagen"
@@ -6330,3 +6335,12 @@ ER_DATA_OUT_OF_RANGE 22003
 
 ER_WRONG_SPVAR_TYPE_IN_LIMIT
   eng "A variable of a non-integer type in LIMIT clause"
+
+ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
+        eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
+        ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
+
+ER_CANNOT_LOAD_FROM_TABLE_V2
+        eng "Cannot load from %s.%s. The table is probably corrupted"
+        ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
+

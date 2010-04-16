@@ -108,7 +108,12 @@ void PFS_check_intact::report_error(uint code, const char *fmt, ...)
   my_vsnprintf(buff, sizeof(buff), fmt, args);
   va_end(args);
 
-  my_message(code, buff, MYF(0));
+  /*
+    This is an install/upgrade issue:
+    - do not report it in the user connection, there is none in main(),
+    - report it in the server error log.
+  */
+  sql_print_error("%s", buff);
 }
 
 /**
