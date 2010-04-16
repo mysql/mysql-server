@@ -457,3 +457,12 @@ abc	1	abc	1
 select host,user from mysql.user where (host,user) = ('localhost','test');
 host	user
 drop table t1,t2;
+#
+# Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
+#
+CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
+INSERT INTO t1 VALUES (0, 0),(0, 0);
+SELECT 1 FROM t1 WHERE ROW(a, b) >=
+ROW('1', (SELECT 1 FROM t1 WHERE a > 1234));
+1
+DROP TABLE t1;
