@@ -16,6 +16,7 @@
 
 
 #include "semisync_master.h"
+#include "sql_class.h"                          // THD
 
 ReplSemiSyncMaster repl_semisync;
 

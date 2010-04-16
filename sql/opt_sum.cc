@@ -47,7 +47,8 @@
   (assuming a index for column d of table t2 is defined)
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "key.h"                                // key_cmp_if_same
 #include "sql_select.h"
 
 static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref, Field* field,

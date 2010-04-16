@@ -16,6 +16,7 @@
 
 
 #include "semisync_slave.h"
+#include <mysql.h>
 
 ReplSemiSyncSlave repl_semisync;
 

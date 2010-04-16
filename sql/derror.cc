@@ -21,8 +21,13 @@
   Read language depeneded messagefile
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "derror.h"
 #include "mysys_err.h"
+#include "mysqld.h"                             // lc_messages_dir
+#include "derror.h"                             // read_texts
+#include "sql_class.h"                          // THD
 
 static void init_myfunc_errs(void);
 

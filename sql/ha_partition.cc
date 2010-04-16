@@ -51,12 +51,14 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_parse.h"                          // append_file_to_dir
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
-
-#include <mysql/plugin.h>
+#include "sql_table.h"                        // tablename_to_filename
+#include "key.h"
+#include "sql_plugin.h"
 
 static const char *ha_par_ext= ".par";
 #ifdef NOT_USED
