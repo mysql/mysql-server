@@ -138,6 +138,7 @@ IF(UNIX)
     IF(CMAKE_C_COMPILER_ID MATCHES "Intel")
       SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-static-intel -g -O3 -unroll2 -ip -mp -restrict")
       SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-static-intel -g -O3 -unroll2 -ip -mp -restrict")
+      SET(WITH_SSL no)
     ENDIF()
   ENDIF()
   
