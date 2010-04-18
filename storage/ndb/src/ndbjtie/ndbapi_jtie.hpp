@@ -2854,7 +2854,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_
     gset< ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_Element_t, ttrait_Uint32, &NdbDictionary::Dictionary::List::Element::temp >(env, obj, p0);
 }
 
-#if 0 // MMM unsupported by JTie (and NDBAPI)
+#if 0 // MMM unsupported mapping <in:String->char*> (and questionable NDBAPI usage)
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_Element
  * Method:    database
@@ -2866,9 +2866,9 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_
     TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024Element_database__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
     gset< ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_Element_t, ttrait_utf8string, &NdbDictionary::Dictionary::List::Element::database >(env, obj, p0);
 }
-#endif // MMM unsupported by JTie (and NDBAPI)
+#endif // MMM unsupported mapping <in:String->char*> (and questionable NDBAPI usage)
 
-#if 0 // MMM unsupported by JTie (and NDBAPI)
+#if 0 // MMM unsupported mapping <in:String->char*> (and questionable NDBAPI usage)
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_Element
  * Method:    schema
@@ -2880,9 +2880,9 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_
     TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024Element_schema__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
     gset< ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_Element_t, ttrait_utf8string, &NdbDictionary::Dictionary::List::Element::schema >(env, obj, p0);
 }
-#endif // MMM unsupported by JTie (and NDBAPI)
+#endif // MMM unsupported mapping <in:String->char*> (and questionable NDBAPI usage)
 
-#if 0 // MMM unsupported by JTie (and NDBAPI)
+#if 0 // MMM unsupported mapping <in:String->char*> (and questionable NDBAPI usage)
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_Element
  * Method:    name
@@ -2894,7 +2894,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_
     TRACE("void Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024DictionaryConst_00024ListConst_00024Element_name__Ljava_lang_String_2(JNIEnv *, jobject, jstring)");
     gset< ttrait_c_m_n_n_NdbDictionary_DictionaryConst_ListConst_Element_t, ttrait_utf8string, &NdbDictionary::Dictionary::List::Element::name >(env, obj, p0);
 }
-#endif // MMM unsupported by JTie (and NDBAPI)
+#endif // MMM unsupported mapping <in:String->char*> (and questionable NDBAPI usage)
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_DictionaryConst_ListConst_Element
@@ -3304,7 +3304,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_addEventColumn__Ljava_lan
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#if 0 // MMM! array support, error: parse error in template argument list
+#if 0 // MMM! support <in:String[]>, error: parse error in template argument list
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
  * Method:    addEventColumns
@@ -3320,7 +3320,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Event_addEventColumns(JNIEnv * 
     gcall_fv< ttrait_c_m_n_n_NdbDictionary_Event_r, ttrait_int, String[]/*_const char * *_*/, &NdbApiWrapper::NdbDictionary__Event__addEventColumns >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // MMM! array support, error: parse error in template argument list
+#endif // MMM! support <in:String[]>, error: parse error in template argument list
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Event
@@ -3590,7 +3590,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Index_addColumnName(JNIEnv * en
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#if 0 // MMM! array support, error: parse error in template argument list
+#if 0 // MMM! support <in:String[]>, error: parse error in template argument list
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Index
  * Method:    addColumnNames
@@ -3606,7 +3606,7 @@ Java_com_mysql_ndbjtie_ndbapi_NdbDictionary_00024Index_addColumnNames(JNIEnv * e
     return gcall_fr< ttrait_int, ttrait_c_m_n_n_NdbDictionary_Index_r, ttrait_uint, String[]/*_const char * *_*/, &NdbApiWrapper::NdbDictionary__Index__addColumnNames >(env, NULL, obj, p0, p1);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // MMM! array support, error: parse error in template argument list
+#endif // MMM! support <in:String[]>, error: parse error in template argument list
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbDictionary_Index
@@ -7340,7 +7340,6 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getTable(JNIEnv * env, jobject obj)
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 
-#if 0 // MMM! why not implemented?  const enums a problem?
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
  * Method:    getType
@@ -7351,12 +7350,11 @@ Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getType(JNIEnv * env, jobject obj)
 {
     TRACE("jint Java_com_mysql_ndbjtie_ndbapi_NdbOperation_getType(JNIEnv *, jobject)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
-    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_ct, ttrait_c_m_n_n_NdbOperation_Type_c_iv/*_enum_*/, &NdbOperation::getType >(env, obj); // MMM const return
+    return gcall_mfr< ttrait_c_m_n_n_NdbOperation_ct, ttrait_c_m_n_n_NdbOperation_Type_iv/*_enum_*/, &NdbOperation::getType >(env, obj); // MMM const return
 #else
-    return gcall_fr< ttrait_c_m_n_n_NdbOperation_Type_c_iv/*_enum_*/, ttrait_c_m_n_n_NdbOperation_cr, &NdbApiWrapper::NdbOperation__getType >(env, NULL, obj); // MMM const return
+    return gcall_fr< ttrait_c_m_n_n_NdbOperation_Type_iv/*_enum_*/, ttrait_c_m_n_n_NdbOperation_cr, &NdbApiWrapper::NdbOperation__getType >(env, NULL, obj); // MMM const return
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
-#endif // MMM! why not implemented?  const enums a problem?
 
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_NdbOperation
@@ -8650,6 +8648,22 @@ Java_com_mysql_ndbjtie_ndbapi_NdbRecAttr_double_1value(JNIEnv * env, jobject obj
     return gcall_mfr< ttrait_c_m_n_n_NdbRecAttr_ct, ttrait_double, &NdbRecAttr::double_value >(env, obj);
 #else
     return gcall_fr< ttrait_double, ttrait_c_m_n_n_NdbRecAttr_cr, &NdbApiWrapper::NdbRecAttr__double_value >(env, NULL, obj);
+#endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+}
+
+/*
+ * Class:     com_mysql_ndbjtie_ndbapi_NdbRecAttr
+ * Method:    cloneNative
+ * Signature: ()Lcom/mysql/ndbjtie/ndbapi/NdbRecAttr;
+ */
+JNIEXPORT jobject JNICALL
+Java_com_mysql_ndbjtie_ndbapi_NdbRecAttr_cloneNative(JNIEnv * env, jobject obj)
+{
+    TRACE("Java_com_mysql_ndbjtie_ndbapi_NdbRecAttr_cloneNative(JNIEnv *, jobject)");
+#ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
+    return gcall_mfr< ttrait_c_m_n_n_NdbRecAttr_ct, ttrait_c_m_n_n_NdbRecAttr_p, &NdbRecAttr::clone >(env, obj);
+#else
+    return gcall_fr< ttrait_c_m_n_n_NdbRecAttr_p, ttrait_c_m_n_n_NdbRecAttr_cr, &NdbApiWrapper::NdbRecAttr__clone >(env, NULL, obj);
 #endif // NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
 }
 

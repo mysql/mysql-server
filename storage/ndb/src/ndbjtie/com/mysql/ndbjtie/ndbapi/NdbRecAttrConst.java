@@ -46,5 +46,5 @@ public interface NdbRecAttrConst
     float float_value() /*_const_*/;
     double double_value() /*_const_*/;
     // MMM! support <out:BB> or check if needed: char * aRef() /*_const_*/;
-    // MMM! nameclash with Java's Object version: NdbRecAttr/*_NdbRecAttr *_*/ clone/*_clone_*/() /*_const_*/;
+    NdbRecAttr/*_NdbRecAttr *_*/ cloneNative/*_clone_*/() /*_const_*/; // MMM renamed due to nameclash with Java's Object version
 }
