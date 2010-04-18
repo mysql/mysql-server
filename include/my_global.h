@@ -18,6 +18,11 @@
 #ifndef _global_h
 #define _global_h
 
+/* Client library users on Windows need this macro defined here. */
+#if !defined(__WIN__) && defined(_WIN32)
+#define __WIN__
+#endif
+
 /*
   InnoDB depends on some MySQL internals which other plugins should not
   need.  This is because of InnoDB's foreign key support, "safe" binlog
@@ -1089,10 +1094,14 @@ typedef long long	my_ptrdiff_t;
 #define HUGE_PTR
 #endif
 #endif
-#if defined(__IBMC__) || defined(__IBMCPP__)
-/* This was  _System _Export but caused a lot of warnings on _AIX43 */
-#define STDCALL
-#elif !defined( STDCALL)
+
+#ifdef STDCALL
+#undef STDCALL
+#endif
+
+#ifdef _WIN32
+#define STDCALL __stdcall
+#else
 #define STDCALL
 #endif
 
