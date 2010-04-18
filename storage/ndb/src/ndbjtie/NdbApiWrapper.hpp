@@ -2982,6 +2982,20 @@ struct NdbApiWrapper {
         return obj.double_value();
     }
 
+    static char *
+    NdbRecAttr__aRef
+    ( const NdbRecAttr & obj )
+    {
+        return obj.aRef();
+    }
+
+    static NdbRecAttr *
+    NdbRecAttr__clone
+    ( const NdbRecAttr & obj )
+    {
+        return obj.clone();
+    }
+
 // ---------------------------------------------------------------------------
 
 // mapped by "com_mysql_ndbjtie_ndbapi_NdbScanFilter.h"

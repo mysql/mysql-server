@@ -46,6 +46,7 @@ public class NdbRecAttr extends Wrapper implements NdbRecAttrConst
     public final native float float_value() /*_const_*/;
     public final native double double_value() /*_const_*/;
     // MMM! support <out:BB> or check if needed: public final native char * aRef() /*_const_*/;
-    // MMM! nameclash with Java's Object version: public final native NdbRecAttr/*_NdbRecAttr *_*/ clone/*_clone_*/() /*_const_*/;
-    // MMM! nameclash with Java's Object version: static public final native void delete(NdbRecAttr p0);
+    public final native NdbRecAttr/*_NdbRecAttr *_*/ cloneNative/*_clone_*/() /*_const_*/; // MMM renamed due to nameclash with Java's Object version
+    // MMM c'tor not part of the public API: static public final native NdbRecAttr create();
+    static public final native void delete(NdbRecAttr p0);
 }

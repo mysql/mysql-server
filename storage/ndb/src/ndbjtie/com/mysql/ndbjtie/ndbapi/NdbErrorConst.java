@@ -60,5 +60,4 @@ public interface /*_struct_*/ NdbErrorConst
     int code();
     int mysql_code();
     String/*_const char *_*/ message();
-    // MMM! support <int->char*> mapping: String/*_char *_*/ details(); // MMM confirmed as Uint32* out paramater 
 }
