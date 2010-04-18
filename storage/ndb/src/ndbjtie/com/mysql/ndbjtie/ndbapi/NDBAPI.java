@@ -27,8 +27,8 @@ import com.mysql.jtie.Wrapper;
 
 public class NDBAPI
 {
-    // MMM! support <MySQL server type> or design replacement: public final native struct charset_info_st;
-    // MMM! support <MySQL server type> or design replacement: public final native typedef struct charset_info_st CHARSET_INFO;
+    // MMM unsupported, opaque MySQL server type, mapped by mysql utilities: public final native struct charset_info_st;
+    // MMM unsupported, opaque MySQL server type, mapped by mysql utilities: public final native typedef struct charset_info_st CHARSET_INFO;
     static public final native boolean create_instance(Ndb_cluster_connection/*_Ndb_cluster_connection *_*/ cc, int/*_Uint32_*/ max_ndb_objects, int/*_Uint32_*/ no_conn_obj, int/*_Uint32_*/ init_no_ndb_objects);
     static public final native void drop_instance();
     static public final native Ndb/*_Ndb *_*/ get_ndb_object(int[]/*_Uint32 &_*/ hint_id, String/*_const char *_*/ a_catalog_name, String/*_const char *_*/ a_schema_name);

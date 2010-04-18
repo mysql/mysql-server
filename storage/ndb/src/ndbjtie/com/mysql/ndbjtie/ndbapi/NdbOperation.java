@@ -34,7 +34,7 @@ public class NdbOperation extends Wrapper implements NdbOperationConst
     public final native int getNdbErrorLine() /*_const_*/;
     public final native String/*_const char *_*/ getTableName() /*_const_*/;
     public final native NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ getTable() /*_const_*/;
-    public final native int/*_const Type_*/ getType() /*_const_*/;
+    public final native int/*_Type_*/ getType() /*_const_*/;
     public final native int/*_LockMode_*/ getLockMode() /*_const_*/;
     public final native int/*_AbortOption_*/ getAbortOption() /*_const_*/;
     public /*_virtual_*/ native NdbTransaction/*_NdbTransaction *_*/ getNdbTransaction() /*_const_*/;

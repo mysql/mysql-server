@@ -166,7 +166,7 @@ public class NdbDictionary extends Wrapper
         int getPrecision() /*_const_*/;
         int getScale() /*_const_*/;
         int getLength() /*_const_*/;
-        // MMM! support <MySQL server type> or design replacement: CHARSET_INFO * getCharset() /*_const_*/;
+        // MMM unsupported, opaque MySQL server type, mapped by mysql utilities: CHARSET_INFO * getCharset() /*_const_*/;
         int getCharsetNumber() /*_const_*/;
         int getInlineSize() /*_const_*/;
         int getPartSize() /*_const_*/;
@@ -189,7 +189,7 @@ public class NdbDictionary extends Wrapper
         public final native int getPrecision() /*_const_*/;
         public final native int getScale() /*_const_*/;
         public final native int getLength() /*_const_*/;
-        // MMM! support <MySQL server type> or design replacement: public final native CHARSET_INFO * getCharset() /*_const_*/;
+        // MMM unsupported, opaque MySQL server type, mapped by mysql utilities: public final native CHARSET_INFO * getCharset() /*_const_*/;
         public final native int getCharsetNumber() /*_const_*/;
         public final native int getInlineSize() /*_const_*/;
         public final native int getPartSize() /*_const_*/;
@@ -210,7 +210,7 @@ public class NdbDictionary extends Wrapper
         public final native void setPrecision(int p0);
         public final native void setScale(int p0);
         public final native void setLength(int length);
-        // MMM! support <MySQL server type> or design replacement: public final native void setCharset(CHARSET_INFO * cs);
+        // MMM unsupported, opaque MySQL server type, mapped by mysql utilities: public final native void setCharset(CHARSET_INFO * cs);
         public final native void setInlineSize(int size);
         public final native void setPartSize(int size);
         public final native void setStripeSize(int size);
@@ -688,9 +688,9 @@ public class NdbDictionary extends Wrapper
                 public final native void state(int/*_Object.State_*/ p0);
                 public final native void store(int/*_Object.Store_*/ p0);
                 public final native void temp(int/*_Uint32_*/ p0);
-                // MMM unsupported by JTie (and NDBAPI): public final native void database(String/*_char *_*/ p0);
-                // MMM unsupported by JTie (and NDBAPI): public final native void schema(String/*_char *_*/ p0);
-                // MMM unsupported by JTie (and NDBAPI): public final native void name(String/*_char *_*/ p0);
+                // MMM unsupported mapping <in:String->char*> (and questionable NDBAPI usage): public final native void database(String/*_char *_*/ p0);
+                // MMM unsupported mapping <in:String->char*> (and questionable NDBAPI usage): public final native void schema(String/*_char *_*/ p0);
+                // MMM unsupported mapping <in:String->char*> (and questionable NDBAPI usage): public final native void name(String/*_char *_*/ p0);
                 static public final native Element create();
                 static public final native void delete(Element p0);
             }

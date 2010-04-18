@@ -32,13 +32,11 @@ public class /*_struct_*/ NdbError extends Wrapper implements NdbErrorConst
     public final native int code();
     public final native int mysql_code();
     public final native String/*_const char *_*/ message();
-    // MMM! support <int->char*> mapping: public final native int/*_char *_*/ details(); // MMM confirmed as Uint32* out paramater
     public final native void status(int/*_Status_*/ p0);
     public final native void classification(int/*_Classification_*/ p0);
     public final native void code(int p0);
     public final native void mysql_code(int p0);
     public final native void message(String/*_const char *_*/ p0);
-    // MMM! support <int->char*> mapping: public final native void details(int/*_char *_*/); // MMM confirmed as Uint32* out paramater 
     // MMM c'tor not part of the public API: static public final native NdbError create();
     // MMM c'tor not part of the public API: static public final native void delete(NdbError p0);
 }
