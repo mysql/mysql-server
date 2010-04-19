@@ -31,6 +31,7 @@ Created 11/5/1995 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "mtr0types.h"
 #include "buf0types.h"
+#include "log0log.h"
 
 /********************************************************************//**
 Remove a block from the flush list of modified blocks. */
@@ -58,11 +59,19 @@ buf_flush_write_complete(
 	buf_page_t*	bpage);	/*!< in: pointer to the block in question */
 /*********************************************************************//**
 Flushes pages from the end of the LRU list if there is too small
-a margin of replaceable pages there. */
+a margin of replaceable pages there. If buffer pool is NULL it
+means flush free margin on all buffer pool instances. */
 UNIV_INTERN
 void
-buf_flush_free_margin(void);
-/*=======================*/
+buf_flush_free_margin(
+/*==================*/
+	 buf_pool_t*	buf_pool);
+/*********************************************************************//**
+Flushes pages from the end of all the LRU lists. */
+UNIV_INTERN
+void
+buf_flush_free_margins(void);
+/*=========================*/
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Initializes a page for writing to the tablespace. */
@@ -76,21 +85,30 @@ buf_flush_init_for_writing(
 					to the page */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
-This utility flushes dirty blocks from the end of the LRU list or flush_list.
-NOTE 1: in the case of an LRU flush the calling thread may own latches to
-pages: to avoid deadlocks, this function must be written so that it cannot
-end up waiting for these latches! NOTE 2: in the case of a flush list flush,
-the calling thread is not allowed to own any latches on pages!
+This utility flushes dirty blocks from the end of the LRU list.
+NOTE: The calling thread may own latches to pages: to avoid deadlocks,
+this function must be written so that it cannot end up waiting for these
+latches!
 @return number of blocks for which the write request was queued;
 ULINT_UNDEFINED if there was a flush of the same type already running */
 UNIV_INTERN
 ulint
-buf_flush_batch(
+buf_flush_LRU(
+/*==========*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	ulint		min_n);		/*!< in: wished minimum mumber of blocks
+					flushed (it is not guaranteed that the
+					actual number is that big, though) */
+/*******************************************************************//**
+This utility flushes dirty blocks from the end of the flush_list of
+all buffer pool instances.
+NOTE: The calling thread is not allowed to own any latches on pages!
+@return number of blocks for which the write request was queued;
+ULINT_UNDEFINED if there was a flush of the same type already running */
+UNIV_INTERN
+ulint
+buf_flush_list(
 /*============*/
-	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
-					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
-					then the caller must not own any
-					latches on pages */
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
@@ -105,7 +123,9 @@ UNIV_INTERN
 void
 buf_flush_wait_batch_end(
 /*=====================*/
-	enum buf_flush	type);	/*!< in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
+	enum buf_flush	type);		/*!< in: BUF_FLUSH_LRU
+					or BUF_FLUSH_LIST */
 /********************************************************************//**
 This function should be called at a mini-transaction commit, if a page was
 modified in it. Puts the block to the list of modified blocks, if it not
@@ -181,8 +201,9 @@ Validates the flush list.
 @return	TRUE if ok */
 UNIV_INTERN
 ibool
-buf_flush_validate(void);
-/*====================*/
+buf_flush_validate(
+/*===============*/
+	buf_pool_t*	buf_pool);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
 /********************************************************************//**
@@ -205,9 +226,10 @@ buf_flush_free_flush_rbt(void);
 available to replacement in the free list and at the end of the LRU list (to
 make sure that a read-ahead batch can be read efficiently in a single
 sweep). */
-#define BUF_FLUSH_FREE_BLOCK_MARGIN	(5 + BUF_READ_AHEAD_AREA)
+#define BUF_FLUSH_FREE_BLOCK_MARGIN(b)	(5 + BUF_READ_AHEAD_AREA(b))
 /** Extra margin to apply above BUF_FLUSH_FREE_BLOCK_MARGIN */
-#define BUF_FLUSH_EXTRA_MARGIN		(BUF_FLUSH_FREE_BLOCK_MARGIN / 4 + 100)
+#define BUF_FLUSH_EXTRA_MARGIN(b)	(BUF_FLUSH_FREE_BLOCK_MARGIN(b) / 4 \
+					+ 100)
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

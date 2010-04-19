@@ -81,13 +81,13 @@ extern mysql_pfs_key_t	dict_sys_mutex_key;
 extern mysql_pfs_key_t	file_format_max_mutex_key;
 extern mysql_pfs_key_t	fil_system_mutex_key;
 extern mysql_pfs_key_t	flush_list_mutex_key;
-extern mysql_pfs_key_t	flush_order_mutex_key;
 extern mysql_pfs_key_t	hash_table_mutex_key;
 extern mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 extern mysql_pfs_key_t	ibuf_mutex_key;
 extern mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
 extern mysql_pfs_key_t	ios_mutex_key;
 extern mysql_pfs_key_t	log_sys_mutex_key;
+extern mysql_pfs_key_t	log_flush_order_mutex_key;
 extern mysql_pfs_key_t	kernel_mutex_key;
 # ifdef UNIV_MEM_DEBUG
 extern mysql_pfs_key_t	mem_hash_mutex_key;
@@ -661,6 +661,7 @@ or row lock! */
 #define	SYNC_TRX_LOCK_HEAP	298
 #define SYNC_TRX_SYS_HEADER	290
 #define SYNC_LOG		170
+#define SYNC_LOG_FLUSH_ORDER	147
 #define SYNC_RECV		168
 #define	SYNC_WORK_QUEUE		162
 #define	SYNC_SEARCH_SYS_CONF	161	/* for assigning btr_search_enabled */
@@ -671,7 +672,6 @@ or row lock! */
 					can call routines there! Otherwise
 					the level is SYNC_MEM_HASH. */
 #define	SYNC_BUF_POOL		150	/* Buffer pool mutex */
-#define SYNC_BUF_FLUSH_ORDER	147
 #define	SYNC_BUF_BLOCK		146	/* Block mutex */
 #define	SYNC_BUF_FLUSH_LIST	145	/* Buffer flush list mutex */
 #define SYNC_DOUBLEWRITE	140

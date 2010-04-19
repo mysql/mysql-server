@@ -1016,7 +1016,6 @@ int
 innobase_start_or_create_for_mysql(void)
 /*====================================*/
 {
-	buf_pool_t*	ret;
 	ibool		create_new_db;
 	ibool		log_file_created;
 	ibool		log_created	= FALSE;
@@ -1241,13 +1240,16 @@ innobase_start_or_create_for_mysql(void)
 #else
 	if (srv_buf_pool_size >= 1000 * 1024 * 1024) {
 		/* If buffer pool is less than 1000 MB,
-		assume fewer threads. */
+		assume fewer threads. Also use only one
+		buffer pool instance */
 		srv_max_n_threads = 50000;
 
 	} else if (srv_buf_pool_size >= 8 * 1024 * 1024) {
 
+		srv_buf_pool_instances = 1;
 		srv_max_n_threads = 10000;
 	} else {
+		srv_buf_pool_instances = 1;
 		srv_max_n_threads = 1000;	/* saves several MB of memory,
 						especially in 64-bit
 						computers */
@@ -1331,9 +1333,9 @@ innobase_start_or_create_for_mysql(void)
 	fil_init(srv_file_per_table ? 50000 : 5000,
 		 srv_max_n_open_files);
 
-	ret = buf_pool_init();
+	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
 
-	if (ret == NULL) {
+	if (err != DB_SUCCESS) {
 		fprintf(stderr,
 			"InnoDB: Fatal error: cannot allocate the memory"
 			" for the buffer pool\n");
@@ -2089,7 +2091,7 @@ innobase_shutdown_for_mysql(void)
 
 	pars_lexer_close();
 	log_mem_free();
-	buf_pool_free();
+	buf_pool_free(srv_buf_pool_instances);
 	ut_free_all_mem();
 	mem_close();
 
