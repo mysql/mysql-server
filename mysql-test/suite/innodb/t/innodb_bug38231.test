@@ -32,7 +32,7 @@ LOCK TABLE bug38231 WRITE;
 # connection that has been released, otherwise it will wait forever. We assume
 # that the released connection will be the first one that has gained the LOCK,
 # thus we force the order here - con2 does LOCK first, then con3. In other
-# words we wait for LOCK from con2 above to be exected before doing LOCK in
+# words we wait for LOCK from con2 above to be executed before doing LOCK in
 # con3.
 -- connection con1
 let $wait_condition =
