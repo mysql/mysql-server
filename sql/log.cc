@@ -1640,7 +1640,10 @@ binlog_flush_stmt_cache(THD *thd, binlog_cache_mngr *cache_mngr)
   */
   bool const is_transactional= FALSE;
   IO_CACHE *cache_log= &cache_mngr->stmt_cache.cache_log;
-  thd->binlog_flush_pending_rows_event(TRUE, is_transactional);
+
+  if (thd->binlog_flush_pending_rows_event(TRUE, is_transactional))
+    DBUG_RETURN(1);
+
   Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE, TRUE, 0);
   if ((error= mysql_bin_log.write(thd, cache_log, &qev,
                                   cache_mngr->stmt_cache.has_incident())))
@@ -4189,7 +4192,7 @@ bool MYSQL_BIN_LOG::is_query_in_union(THD *thd, query_id_t query_id_param)
 }
 
 /** 
-  This function checks if a transactional talbe was updated by the
+  This function checks if a transactional table was updated by the
   current transaction.
 
   @param thd The client thread that executed the current statement.
@@ -4202,11 +4205,11 @@ trans_has_updated_trans_table(const THD* thd)
   binlog_cache_mngr *const cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
-  return (cache_mngr ? my_b_tell (&cache_mngr->trx_cache.cache_log) : 0);
+  return (cache_mngr ? !cache_mngr->trx_cache.empty() : 0);
 }
 
 /** 
-  This function checks if a transactional talbe was updated by the
+  This function checks if a transactional table was updated by the
   current statement.
 
   @param thd The client thread that executed the current statement.
@@ -4218,7 +4221,8 @@ stmt_has_updated_trans_table(const THD *thd)
 {
   Ha_trx_info *ha_info;
 
-  for (ha_info= thd->transaction.stmt.ha_list; ha_info; ha_info= ha_info->next())
+  for (ha_info= thd->transaction.stmt.ha_list; ha_info;
+       ha_info= ha_info->next())
   {
     if (ha_info->is_trx_read_write() && ha_info->ht() != binlog_hton)
       return (TRUE);
@@ -4228,11 +4232,14 @@ stmt_has_updated_trans_table(const THD *thd)
 
 /** 
   This function checks if either a trx-cache or a non-trx-cache should
-  be used. If @c bin_log_direct_non_trans_update is active, the cache
-  to be used depends on the flag @c is_transactional. 
+  be used. If @c bin_log_direct_non_trans_update is active or the format
+  is either MIXED or ROW, the cache to be used depends on the flag @c
+  is_transactional. 
 
-  Otherswise, we use the trx-cache if either the @c is_transactional
-  is true or the trx-cache is not empty.
+  On the other hand, if binlog_format is STMT or direct option is
+  OFF, the trx-cache should be used if and only if the statement is
+  transactional or the trx-cache is not empty. Otherwise, the
+  non-trx-cache should be used.
 
   @param thd              The client thread.
   @param is_transactional The changes are related to a trx-table.
@@ -4245,8 +4252,9 @@ bool use_trans_cache(const THD* thd, bool is_transactional)
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
   return
-    (thd->variables.binlog_direct_non_trans_update ? is_transactional :
-    (cache_mngr->trx_cache.empty() && !is_transactional ? FALSE : TRUE));
+    ((thd->variables.binlog_format != BINLOG_FORMAT_STMT ||
+     thd->variables.binlog_direct_non_trans_update) ? is_transactional :
+     (is_transactional || !cache_mngr->trx_cache.empty()));
 }
 
 /*
