@@ -91,6 +91,7 @@ UNIV_INTERN mysql_pfs_key_t	archive_lock_key;
 
 #ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	log_sys_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	log_flush_order_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
@@ -768,6 +769,10 @@ log_init(void)
 	log_sys = mem_alloc(sizeof(log_t));
 
 	mutex_create(log_sys_mutex_key, &log_sys->mutex, SYNC_LOG);
+
+	mutex_create(log_flush_order_mutex_key,
+		     &log_sys->log_flush_order_mutex,
+		     SYNC_LOG_FLUSH_ORDER);
 
 	mutex_enter(&(log_sys->mutex));
 
@@ -1650,10 +1655,10 @@ log_preflush_pool_modified_pages(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	n_pages = buf_flush_batch(BUF_FLUSH_LIST, ULINT_MAX, new_oldest);
+	n_pages = buf_flush_list(ULINT_MAX, new_oldest);
 
 	if (sync) {
-		buf_flush_wait_batch_end(BUF_FLUSH_LIST);
+		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 	}
 
 	if (n_pages == ULINT_UNDEFINED) {
@@ -3285,9 +3290,9 @@ log_check_log_recs(
 
 	ut_memcpy(scan_buf, start, end - start);
 
-	recv_scan_log_recs((buf_pool->curr_size
-			    - recv_n_pool_free_frames) * UNIV_PAGE_SIZE,
-			   FALSE, scan_buf, end - start,
+	recv_scan_log_recs((buf_pool_get_n_pages()
+			   - (recv_n_pool_free_frames * srv_buf_pool_instances))
+			   * UNIV_PAGE_SIZE, FALSE, scan_buf, end - start,
 			   ut_uint64_align_down(buf_start_lsn,
 						OS_FILE_LOG_BLOCK_SIZE),
 			   &contiguous_lsn, &scanned_lsn);

@@ -3882,14 +3882,15 @@ btr_blob_free(
 				if there is one */
 	mtr_t*		mtr)	/*!< in: mini-transaction to commit */
 {
-	ulint	space	= buf_block_get_space(block);
-	ulint	page_no	= buf_block_get_page_no(block);
+	buf_pool_t*	buf_pool = buf_pool_from_block(block);
+	ulint		space	= buf_block_get_space(block);
+	ulint		page_no	= buf_block_get_page_no(block);
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 
 	mtr_commit(mtr);
 
-	buf_pool_mutex_enter();
+	buf_pool_mutex_enter(buf_pool);
 	mutex_enter(&block->mutex);
 
 	/* Only free the block if it is still allocated to
@@ -3910,7 +3911,7 @@ btr_blob_free(
 		}
 	}
 
-	buf_pool_mutex_exit();
+	buf_pool_mutex_exit(buf_pool);
 	mutex_exit(&block->mutex);
 }
 

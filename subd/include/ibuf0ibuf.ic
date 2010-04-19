@@ -110,7 +110,7 @@ ibuf_should_try(
 
 		if (ibuf_flush_count % 4 == 0) {
 
-			buf_LRU_try_free_flushed_blocks();
+			buf_LRU_try_free_flushed_blocks(NULL);
 		}
 
 		return(TRUE);

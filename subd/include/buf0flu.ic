@@ -33,8 +33,9 @@ UNIV_INTERN
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
-	buf_block_t*	block,	/*!< in/out: block which is modified */
-	ib_uint64_t	lsn);	/*!< in: oldest modification */
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
+	buf_block_t*	block,		/*!< in/out: block which is modified */
+	ib_uint64_t	lsn);		/*!< in: oldest modification */
 /********************************************************************//**
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
@@ -43,8 +44,9 @@ UNIV_INTERN
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
-	buf_block_t*	block,	/*!< in/out: block which is modified */
-	ib_uint64_t	lsn);	/*!< in: oldest modification */
+	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
+	buf_block_t*	block,		/*!< in/out: block which is modified */
+	ib_uint64_t	lsn);		/*!< in: oldest modification */
 
 /********************************************************************//**
 This function should be called at a mini-transaction commit, if a page was
@@ -57,6 +59,8 @@ buf_flush_note_modification(
 	buf_block_t*	block,	/*!< in: block which is modified */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
+	buf_pool_t*	buf_pool = buf_pool_from_block(block);
+
 	ut_ad(block);
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->page.buf_fix_count > 0);
@@ -64,9 +68,9 @@ buf_flush_note_modification(
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_ad(!buf_pool_mutex_own());
-	ut_ad(!buf_flush_list_mutex_own());
-	ut_ad(buf_flush_order_mutex_own());
+	ut_ad(!buf_pool_mutex_own(buf_pool));
+	ut_ad(!buf_flush_list_mutex_own(buf_pool));
+	ut_ad(log_flush_order_mutex_own());
 
 	ut_ad(mtr->start_lsn != 0);
 	ut_ad(mtr->modifications);
@@ -77,7 +81,8 @@ buf_flush_note_modification(
 	block->page.newest_modification = mtr->end_lsn;
 
 	if (!block->page.oldest_modification) {
-		buf_flush_insert_into_flush_list(block, mtr->start_lsn);
+		buf_flush_insert_into_flush_list(
+			buf_pool, block, mtr->start_lsn);
 	} else {
 		ut_ad(block->page.oldest_modification <= mtr->start_lsn);
 	}
@@ -99,6 +104,8 @@ buf_flush_recv_note_modification(
 	ib_uint64_t	end_lsn)	/*!< in: end lsn of the last mtr in the
 					set of mtr's */
 {
+	buf_pool_t*	buf_pool = buf_pool_from_block(block);
+
 	ut_ad(block);
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->page.buf_fix_count > 0);
@@ -106,9 +113,9 @@ buf_flush_recv_note_modification(
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	ut_ad(!buf_pool_mutex_own());
-	ut_ad(!buf_flush_list_mutex_own());
-	ut_ad(buf_flush_order_mutex_own());
+	ut_ad(!buf_pool_mutex_own(buf_pool));
+	ut_ad(!buf_flush_list_mutex_own(buf_pool));
+	ut_ad(log_flush_order_mutex_own());
 
 	ut_ad(start_lsn != 0);
 	ut_ad(block->page.newest_modification <= end_lsn);
@@ -117,7 +124,8 @@ buf_flush_recv_note_modification(
 	block->page.newest_modification = end_lsn;
 
 	if (!block->page.oldest_modification) {
-		buf_flush_insert_sorted_into_flush_list(block, start_lsn);
+		buf_flush_insert_sorted_into_flush_list(
+			buf_pool, block, start_lsn);
 	} else {
 		ut_ad(block->page.oldest_modification <= start_lsn);
 	}
