@@ -619,9 +619,10 @@ field_ref_is_join_pushable(const AQP::Join_plan& plan,
  * Fill in ix_map[] to map from KEY_PART_INFO[] order into 
  * primary key / unique key order of key fields.
  */
-void build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
-                   const KEY *key_def,
-                   uint ix_map[])
+static void
+build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
+              const KEY *key_def,
+              uint ix_map[])
 {
   KEY_PART_INFO *key_part;
   uint ix;
