@@ -326,11 +326,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  if (!error && reckey_in_range(0, &ref, item_field->field, 
 			                conds, range_fl, prefix_len))
 	    error= HA_ERR_KEY_NOT_FOUND;
-          if (table->key_read)
-          {
-            table->key_read= 0;
-            table->file->extra(HA_EXTRA_NO_KEYREAD);
-          }
+          table->set_keyread(FALSE);
           table->file->ha_index_end();
           if (error)
 	  {
@@ -413,11 +409,7 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
 	  if (!error && reckey_in_range(1, &ref, item_field->field,
 			                conds, range_fl, prefix_len))
 	    error= HA_ERR_KEY_NOT_FOUND;
-          if (table->key_read)
-          {
-            table->key_read=0;
-            table->file->extra(HA_EXTRA_NO_KEYREAD);
-          }
+          table->set_keyread(FALSE);
           table->file->ha_index_end();
           if (error)
           {
@@ -876,10 +868,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
             converted (for example to upper case)
           */
           if (field->part_of_key.is_set(idx))
-          {
-            table->key_read= 1;
-            table->file->extra(HA_EXTRA_KEYREAD);
-          }
+            table->set_keyread(TRUE);
           return 1;
         }
       }

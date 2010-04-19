@@ -15,6 +15,7 @@ funcs_2.ndb_charset                      # joro : NDB tests marked as experiment
 main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
 main.plugin_load  @solaris               # Bug#42144
 main.outfile_loaddata @solaris           # joro : Bug #46895
+main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
 ndb.*                                    # joro : NDB tests marked as experimental as agreed with bochklin
 
@@ -25,6 +26,7 @@ rpl_ndb.rpl_ndb_log                      # Bug#38998
 rpl.rpl_innodb_bug28430*  @solaris       # Bug#46029
 rpl.rpl_get_master_version_and_clock*    # Bug#46931 2009-08-26 alik rpl.rpl_get_master_version_and_clock fails on hpux11.31
 rpl_ndb.rpl_ndb_extraCol*                # BUG#41369 2008-12-10 alik, BUG#47741 2009-09-30 alfranio
+rpl.rpl_row_sp011* @solaris              # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
 stress.ddl_ndb                           # joro : NDB tests marked as experimental as agreed with bochklin
 

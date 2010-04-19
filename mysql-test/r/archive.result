@@ -12728,3 +12728,12 @@ Table	Op	Msg_type	Msg_text
 test.t1	repair	Error	Table upgrade required. Please do "REPAIR TABLE `t1`" or dump/reload to fix it!
 test.t1	repair	error	Corrupt
 DROP TABLE t1;
+#
+# BUG#48757 - missing .ARZ file causes server crash
+#
+CREATE TABLE t1(a INT) ENGINE=ARCHIVE;
+FLUSH TABLE t1;
+SELECT * FROM t1;
+ERROR HY000: Can't find file: 't1' (errno: 2)
+DROP TABLE t1;
+ERROR 42S02: Unknown table 't1'
