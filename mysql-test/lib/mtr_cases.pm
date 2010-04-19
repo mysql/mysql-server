@@ -74,6 +74,16 @@ my $lib_innodb_plugin;
 # If "Quick collect", set to 1 once a test to run has been found.
 my $some_test_found;
 
+sub find_innodb_plugin {
+  $lib_innodb_plugin=
+    my_find_file($::basedir,
+		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
+		  "lib/mysql/plugin", "lib/plugin"],
+		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
+		  "ha_innodb_plugin.sl"],
+		 NOT_REQUIRED);
+}
+
 sub init_pattern {
   my ($from, $what)= @_;
   return undef unless defined $from;
@@ -106,13 +116,7 @@ sub collect_test_cases ($$$) {
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
 
-  $lib_innodb_plugin=
-    my_find_file($::basedir,
-		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
-		  "lib/mysql/plugin", "lib/plugin"],
-		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
-		  "ha_innodb_plugin.sl"],
-		 NOT_REQUIRED);
+  &find_innodb_plugin;
 
   # If not reordering, we also shouldn't group by suites, unless
   # no test cases were named.
@@ -940,6 +944,15 @@ sub collect_one_test_case {
   }
   elsif ( $tinfo->{'innodb_plugin_test'} )
   {
+    # This is a test that needs the innodb plugin
+    if (!&find_innodb_plugin)
+    {
+      # innodb plugin is not supported, skip it
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No innodb plugin support";
+      return $tinfo;
+    }
+
     my $sep= (IS_WINDOWS) ? ';' : ':';
     my $plugin_filename= basename($lib_innodb_plugin);
     my $plugin_list=
