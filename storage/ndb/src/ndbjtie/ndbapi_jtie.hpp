@@ -569,12 +569,12 @@ Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_Nd
 /*
  * Class:     com_mysql_ndbjtie_ndbapi_Ndb
  * Method:    startTransaction
- * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;[Lcom/mysql/ndbjtie/ndbapi/Ndb/Key_part_ptrConst;Ljava/nio/ByteBuffer;I)Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;
+ * Signature: (Lcom/mysql/ndbjtie/ndbapi/NdbDictionary/TableConst;Lcom/mysql/ndbjtie/ndbapi/Ndb/Key_part_ptrConstArray;Ljava/nio/ByteBuffer;I)Lcom/mysql/ndbjtie/ndbapi/NdbTransaction;
  */
 JNIEXPORT jobject JNICALL
-Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2_3Lcom_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrConst_2Ljava_nio_ByteBuffer_2I(JNIEnv * env, jobject obj, jobject p0, jobjectArray p1, jobject p2, jint p3)
+Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2Lcom_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrConstArray_2Ljava_nio_ByteBuffer_2I(JNIEnv * env, jobject obj, jobject p0, jobject p1, jobject p2, jint p3)
 {
-    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2_3Lcom_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrConst_2Ljava_nio_ByteBuffer_2I(JNIEnv *, jobject, jobject, jobjectArray, jobject, jint)");
+    TRACE("jobject Java_com_mysql_ndbjtie_ndbapi_Ndb_startTransaction__Lcom_mysql_ndbjtie_ndbapi_NdbDictionary_00024TableConst_2Lcom_mysql_ndbjtie_ndbapi_Ndb_00024Key_1part_1ptrConstArray_2Ljava_nio_ByteBuffer_2I(JNIEnv *, jobject, jobject, jobject, jobject, jint)");
 #ifndef NDBJTIE_USE_WRAPPED_VARIANT_FOR_FUNCTION
     return gcall_mfr< ttrait_c_m_n_n_Ndb_t, ttrait_c_m_n_n_NdbTransaction_p, ttrait_c_m_n_n_NdbDictionary_Table_cp, ttrait_c_m_n_n_Ndb_Key_part_ptrArray_cp, ttrait_void_1p_bb, ttrait_Uint32, &Ndb::startTransaction >(env, obj, p0, p1, p2, p3);
 #else
