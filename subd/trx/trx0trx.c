@@ -764,7 +764,6 @@ trx_commit_off_kernel(
 		if (undo) {
 			mutex_enter(&kernel_mutex);
 			trx->no = trx_sys_get_new_trx_no();
-
 			mutex_exit(&kernel_mutex);
 
 			/* It is not necessary to obtain trx->undo_mutex here
