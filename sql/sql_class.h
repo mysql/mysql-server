@@ -23,10 +23,22 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#ifdef MYSQL_SERVER
+#include "unireg.h"                    // REQUIRED: for other includes
+#endif
+#include "sql_const.h"
 #include <mysql/plugin_audit.h>
 #include "log.h"
 #include "rpl_tblmap.h"
 #include "mdl.h"
+#include "sql_locale.h"                         /* my_locale_st */
+#include "sql_profile.h"                   /* PROFILING */
+#include "scheduler.h"                     /* thd_scheduler */
+#include "protocol.h"             /* Protocol_text, Protocol_binary */
+#include "violite.h"              /* vio_is_connected */
+#include "thr_lock.h"             /* thr_lock_type, THR_LOCK_DATA,
+                                     THR_LOCK_INFO, THR_LOCK_OWNER */
 
 
 class Reprepare_observer;
@@ -40,6 +52,8 @@ class sp_cache;
 class Parser_state;
 class Rows_log_event;
 class Sroutine_hash_entry;
+class User_level_lock;
+class user_var_entry;
 
 enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
@@ -54,6 +68,40 @@ enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
 enum enum_filetype { FILETYPE_CSV, FILETYPE_XML };
+
+/* Bits for different SQL modes modes (including ANSI mode) */
+#define MODE_REAL_AS_FLOAT              1
+#define MODE_PIPES_AS_CONCAT            2
+#define MODE_ANSI_QUOTES                4
+#define MODE_IGNORE_SPACE               8
+#define MODE_NOT_USED                   16
+#define MODE_ONLY_FULL_GROUP_BY         32
+#define MODE_NO_UNSIGNED_SUBTRACTION    64
+#define MODE_NO_DIR_IN_CREATE           128
+#define MODE_POSTGRESQL                 256
+#define MODE_ORACLE                     512
+#define MODE_MSSQL                      1024
+#define MODE_DB2                        2048
+#define MODE_MAXDB                      4096
+#define MODE_NO_KEY_OPTIONS             8192
+#define MODE_NO_TABLE_OPTIONS           16384
+#define MODE_NO_FIELD_OPTIONS           32768
+#define MODE_MYSQL323                   65536L
+#define MODE_MYSQL40                    (MODE_MYSQL323*2)
+#define MODE_ANSI                       (MODE_MYSQL40*2)
+#define MODE_NO_AUTO_VALUE_ON_ZERO      (MODE_ANSI*2)
+#define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
+#define MODE_STRICT_TRANS_TABLES        (MODE_NO_BACKSLASH_ESCAPES*2)
+#define MODE_STRICT_ALL_TABLES          (MODE_STRICT_TRANS_TABLES*2)
+#define MODE_NO_ZERO_IN_DATE            (MODE_STRICT_ALL_TABLES*2)
+#define MODE_NO_ZERO_DATE               (MODE_NO_ZERO_IN_DATE*2)
+#define MODE_INVALID_DATES              (MODE_NO_ZERO_DATE*2)
+#define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
+#define MODE_TRADITIONAL                (MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
+#define MODE_NO_AUTO_CREATE_USER        (MODE_TRADITIONAL*2)
+#define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
+#define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
+#define MODE_PAD_CHAR_TO_FULL_LENGTH    (ULL(1) << 31)
 
 extern char internal_table_name[2];
 extern char empty_c_string[1];
@@ -247,6 +295,8 @@ public:
   uint rights;
   LEX_COLUMN (const String& x,const  uint& y ): column (x),rights (y) {}
 };
+
+class MY_LOCALE;
 
 /**
   Query_cache_tls -- query cache thread local data.
@@ -2767,8 +2817,6 @@ public:
   bool escaped_given(void);
 };
 
-#include "log_event.h"
-
 /*
   This is used to get result from a select
 */
@@ -3485,13 +3533,55 @@ public:
 */
 #define CF_SKIP_QUESTIONS       (1U << 1)
 
-/* Functions in sql_class.cc */
-
 void add_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var);
 
 void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
                         STATUS_VAR *dec_var);
 void mark_transaction_to_rollback(THD *thd, bool all);
 
+/*
+  This prototype is placed here instead of in item_func.h because it
+  depends on the definition of enum_sql_command, which is in this
+  file.
+ */
+int get_var_with_binlog(THD *thd, enum_sql_command sql_command,
+                        LEX_STRING &name, user_var_entry **out_entry);
+
+/* Inline functions */
+
+inline bool add_item_to_list(THD *thd, Item *item)
+{
+  return thd->lex->current_select->add_item_to_list(thd, item);
+}
+
+inline bool add_value_to_list(THD *thd, Item *value)
+{
+  return thd->lex->value_list.push_back(value);
+}
+
+inline bool add_order_to_list(THD *thd, Item *item, bool asc)
+{
+  return thd->lex->current_select->add_order_to_list(thd, item, asc);
+}
+
+inline bool add_group_to_list(THD *thd, Item *item, bool asc)
+{
+  return thd->lex->current_select->add_group_to_list(thd, item, asc);
+}
+
 #endif /* MYSQL_SERVER */
+
+/**
+  The meat of thd_proc_info(THD*, char*), a macro that packs the last
+  three calling-info parameters.
+*/
+extern "C"
+const char *set_thd_proc_info(THD *thd, const char *info,
+                              const char *calling_func,
+                              const char *calling_file,
+                              const unsigned int calling_line);
+
+#define thd_proc_info(thd, msg) \
+  set_thd_proc_info(thd, msg, __func__, __FILE__, __LINE__)
+
 #endif /* SQL_CLASS_INCLUDED */

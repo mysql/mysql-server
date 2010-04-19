@@ -23,5 +23,5 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "hash_filo.h"

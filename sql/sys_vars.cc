@@ -27,6 +27,9 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars.h"
 
 #include "events.h"
@@ -34,10 +37,24 @@
 #include "slave.h"
 #include "rpl_mi.h"
 #include "transaction.h"
+#include "mysqld.h"
+#include "lock.h"
+#include "sql_time.h"                       // known_date_time_formats
+#include "sql_acl.h" // SUPER_ACL,
+                     // mysql_user_table_is_in_short_password_format
+#include "derror.h"  // read_texts
+#include "sql_base.h"                           // close_cached_tables
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+/*
+  This forward declaration is needed because including sql_base.h
+  causes further includes.  [TODO] Eliminate this forward declaration
+  and include a file with the prototype instead.
+*/
+extern void close_thread_tables(THD *thd);
 
 /*
   The rule for this file: everything should be 'static'. When a sys_var

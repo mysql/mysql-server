@@ -21,10 +21,18 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "sql_priv.h"                /* STRING_BUFFER_USUAL_SIZE */
+#include "unireg.h"
+#include "sql_const.h"                 /* RAND_TABLE_BIT, MAX_FIELD_NAME */
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "thr_malloc.h"                         /* sql_calloc */
+#include "field.h"                              /* Derivation */
+
 class Protocol;
 struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
 class Item_field;
+class user_var_entry;
 
 /*
    "Declared Type Collation"
@@ -2689,6 +2697,7 @@ public:
 #include "item_timefunc.h"
 #include "item_subselect.h"
 #include "item_xmlfunc.h"
+#include "item_create.h"
 #endif
 
 /**
@@ -3020,18 +3029,6 @@ public:
   }
 };
 
-
-/*
-  We need this two enums here instead of sql_lex.h because
-  at least one of them is used by Item_trigger_field interface.
-
-  Time when trigger is invoked (i.e. before or after row actually
-  inserted/updated/deleted).
-*/
-enum trg_action_time_type
-{
-  TRG_ACTION_BEFORE= 0, TRG_ACTION_AFTER= 1, TRG_ACTION_MAX
-};
 
 class Table_triggers_list;
 
@@ -3418,4 +3415,7 @@ extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
+
+extern const String my_null_string;
+
 #endif /* ITEM_INCLUDED */

@@ -15,7 +15,6 @@
 
 #include <my_global.h>
 #include <mysql.h>
-#include <mysql_embed.h>
 #include <mysqld_error.h>
 #include <my_pthread.h>
 #include "embedded_priv.h"

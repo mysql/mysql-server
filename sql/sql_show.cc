@@ -16,10 +16,26 @@
 
 /* Function with list databases, tables or fields */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_acl.h"                        // fill_schema_*_privileges
 #include "sql_select.h"                         // For select_describe
+#include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
+#include "sql_table.h"                        // filename_to_tablename,
+                                              // primary_key_name,
+                                              // build_table_filename
 #include "repl_failsafe.h"
+#include "sql_view.h"                           // mysql_frm_type
+#include "sql_parse.h"             // check_access, check_table_access
+#include "sql_partition.h"         // partition_element
+#include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
+#include "sql_time.h"   // interval_type_to_name
+#include "tztime.h"                             // struct Time_zone
+#include "sql_acl.h"     // TABLE_ACLS, check_grant, DB_ACLS, acl_get,
+                         // check_grant_db
+#include "filesort.h"    // filesort_free_buffers
 #include "sp.h"
 #include "sp_head.h"
 #include "sp_pcontext.h"
@@ -33,6 +49,7 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
+#include "lock.h"                           // MYSQL_LOCK_IGNORE_FLUSH
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 

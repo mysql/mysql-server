@@ -16,6 +16,7 @@
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
 
+#include "sql_acl.h"                            /* struct ACL_* */
 /**
   @file storage/perfschema/pfs_engine_table.h
   Performance schema tables (declarations).
