@@ -2323,7 +2323,7 @@ ibuf_get_merge_page_nos(
 
 	*n_stored = 0;
 
-	limit = ut_min(IBUF_MAX_N_PAGES_MERGED, buf_pool->curr_size / 4);
+	limit = ut_min(IBUF_MAX_N_PAGES_MERGED, buf_pool_get_curr_size() / 4);
 
 	if (page_rec_is_supremum(rec)) {
 
@@ -3139,9 +3139,9 @@ ibuf_set_entry_counter(
 	ibool		is_optimistic,	/*!< in: is this an optimistic insert */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ulint		counter;
 	dfield_t*	field;
 	byte*		data;
+	ulint		counter = 0;
 
 	/* pcur points to either a user rec or to a page's infimum record. */
 	ut_ad(page_validate(btr_pcur_get_page(pcur), ibuf->index));
@@ -3682,10 +3682,11 @@ check_watch:
 	{
 		buf_page_t*	bpage;
 		ulint		fold = buf_page_address_fold(space, page_no);
+		buf_pool_t*	buf_pool = buf_pool_get(space, page_no);
 
-		buf_pool_mutex_enter();
-		bpage = buf_page_hash_get_low(space, page_no, fold);
-		buf_pool_mutex_exit();
+		buf_pool_mutex_enter(buf_pool);
+		bpage = buf_page_hash_get_low(buf_pool, space, page_no, fold);
+		buf_pool_mutex_exit(buf_pool);
 
 		if (UNIV_LIKELY_NULL(bpage)) {
 			/* A buffer pool watch has been set or the
