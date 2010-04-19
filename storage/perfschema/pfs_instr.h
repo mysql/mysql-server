@@ -136,6 +136,48 @@ struct PFS_table : public PFS_instr
 */
 #define LOCKER_STACK_SIZE 3
 
+/**
+  @def PFS_MAX_ALLOC_RETRY
+  Maximum number of times the code attempts to allocate an item
+  from internal buffers, before giving up.
+*/
+#define PFS_MAX_ALLOC_RETRY 1000
+
+#define PFS_MAX_SCAN_PASS 2
+
+/**
+  Helper to scan circular buffers.
+  Given a buffer of size [0, max_size - 1],
+  and a random starting point in the buffer,
+  this helper returns up to two [first, last -1] intervals that:
+  - fit into the [0, max_size - 1] range,
+  - have a maximum combined length of at most PFS_MAX_ALLOC_RETRY.
+*/
+struct PFS_scan
+{
+public:
+  void init(uint random, uint max_size);
+
+  bool has_pass() const
+  { return (m_pass < m_pass_max); }
+
+  void next_pass()
+  { m_pass++; }
+  
+  uint first() const
+  { return m_first[m_pass]; }
+
+  uint last() const
+  { return m_last[m_pass]; }
+
+private:
+  uint m_pass;
+  uint m_pass_max;
+  uint m_first[PFS_MAX_SCAN_PASS];
+  uint m_last[PFS_MAX_SCAN_PASS];
+};
+
+
 /** Instrumented thread implementation. @see PSI_thread. */
 struct PFS_thread
 {
