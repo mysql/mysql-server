@@ -1205,6 +1205,12 @@ typedef unsigned long my_off_t;
 #endif /*_WIN32*/
 #define MY_FILEPOS_ERROR	(~(my_off_t) 0)
 
+/*
+  TODO Convert these to use Bitmap class.
+ */
+typedef ulonglong table_map;          /* Used for table bits in join */
+typedef ulong nesting_map;  /* Used for flags of nesting constructs */
+
 #if defined(__WIN__)
 #define socket_errno	WSAGetLastError()
 #define SOCKET_EINTR	WSAEINTR
@@ -1675,7 +1681,13 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 #if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
-#endif
+#endif  
+
+#define x_free(A) \
+  do { my_free((uchar*)(A), MYF(MY_WME|MY_FAE|MY_ALLOW_ZERO_PTR)); } while (0)
+#define safeFree(X) \
+    do { if (X) { my_free((uchar*)(X), MYF(0)); (X) = NULL; } } while (0)
+
 /*
   Only Linux is known to need an explicit sync of the directory to make sure a
   file creation/deletion/renaming in(from,to) this directory durable.
@@ -1754,5 +1766,21 @@ static inline double rint(double x)
 #define MYSQL_PLUGIN_IMPORT
 #endif
 #endif
+
+/* Defines that are unique to the embedded version of MySQL */
+
+#ifdef EMBEDDED_LIBRARY
+
+/* Things we don't need in the embedded version of MySQL */
+/* TODO HF add #undef HAVE_VIO if we don't want client in embedded library */
+
+#undef HAVE_PSTACK				/* No stacktrace */
+#undef HAVE_OPENSSL
+#undef HAVE_SMEM				/* No shared memory */
+#undef HAVE_NDBCLUSTER_DB /* No NDB cluster */
+
+#define DONT_USE_RAID
+
+#endif /* EMBEDDED_LIBRARY */
 
 #endif /* my_global_h */

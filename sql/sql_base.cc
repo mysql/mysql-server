@@ -16,8 +16,30 @@
 
 /* Basic functions needed by many modules */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
 #include "debug_sync.h"
+#include "sql_base.h"                           // setup_table_map
+#include "lock.h"        // broadcast_refresh, mysql_lock_remove,
+                         // mysql_unlock_tables,
+                         // mysql_lock_have_duplicate
+#include "sql_show.h"    // append_identifier
+#include "strfunc.h"     // find_type
+#include "parse_file.h"  // sql_parse_prepare, File_parser
+#include "sql_view.h"    // mysql_frm_type, mysql_make_view, VIEW_ANY_ACL
+#include "sql_parse.h"   // check_table_access
+#include "sql_insert.h"  // kill_delayed_threads
+#include "sql_acl.h"     // *_ACL, check_grant_all_columns,
+                         // check_column_grant_in_table_ref,
+                         // get_column_grant
+#include "sql_partition.h"               // ALTER_PARTITION_PARAM_TYPE
+#include "sql_derived.h" // mysql_derived_prepare,
+                         // mysql_handle_derived,
+                         // mysql_derived_filling
+#include "sql_handler.h" // mysql_ha_flush
+#include "sql_partition.h"                      // ALTER_PARTITION_PARAM_TYPE
+#include "log_event.h"                          // Query_log_event
 #include "sql_select.h"
 #include "sp_head.h"
 #include "sp.h"
@@ -29,6 +51,7 @@
 #include <my_dir.h>
 #include <hash.h>
 #include "rpl_filter.h"
+#include "sql_table.h"                          // build_table_filename
 #ifdef  __WIN__
 #include <io.h>
 #endif

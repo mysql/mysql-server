@@ -26,7 +26,9 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_crypt.h"
+#include "password.h"
 
 void SQL_CRYPT::init(ulong *rand_nr)
 {

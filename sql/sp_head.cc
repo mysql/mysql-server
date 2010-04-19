@@ -13,9 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
 #include "sql_prepare.h"
+#include "sql_cache.h"                          // query_cache_*
 #include "probes_mysql.h"
+#include "sql_show.h"                           // append_identifier
+#include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
+#include "sql_table.h"         // sp_prepare_create_field,
+                               // prepare_create_field
+#include "sql_acl.h"           // *_ACL
+#include "sql_array.h"         // Dynamic_array
+#include "log_event.h"         // append_query_string, Query_log_event
+
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation
 #endif
@@ -25,6 +36,8 @@
 #include "sp_rcontext.h"
 #include "sp_cache.h"
 #include "set_var.h"
+#include "sql_parse.h"                          // cleanup_items
+#include "sql_base.h"                           // close_thread_tables
 
 /*
   Sufficient max length of printed destinations and frame offsets (all uints).

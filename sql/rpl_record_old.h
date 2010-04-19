@@ -16,6 +16,8 @@
 #ifndef RPL_RECORD_OLD_H
 #define RPL_RECORD_OLD_H
 
+#include "log_event.h"                          /* Log_event_type */
+
 #ifndef MYSQL_CLIENT
 size_t pack_row_old(TABLE *table, MY_BITMAP const* cols,
                     uchar *row_data, const uchar *record);

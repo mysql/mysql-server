@@ -46,11 +46,25 @@
 /* Some general useful functions */
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_partition.h"
+#include "key.h"                            // key_restore
+#include "sql_parse.h"                      // parse_sql
+#include "sql_cache.h"                      // query_cache_invalidate3
+#include "lock.h"                           // mysql_lock_remove
+#include "sql_show.h"                       // append_identifier
 #include <errno.h>
 #include <m_ctype.h>
 #include "my_md5.h"
 #include "transaction.h"
+
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_table.h"                  // build_table_filename,
+                                        // build_table_shadow_filename,
+                                        // table_to_filename
+#include "opt_range.h"                  // store_key_image_to_rec
+#include "sql_analyse.h"                // append_escaped
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"

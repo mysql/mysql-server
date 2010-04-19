@@ -21,7 +21,12 @@
   Init and dummy functions for interface with unireg
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "init.h"
+#include "my_sys.h"
+#include "mysqld.h"                             // abort_loop, ...
+#include "my_time.h"                            // my_init_time
+#include "unireg.h"                             // SPECIAL_SAME_DB_NAME
 #include <m_ctype.h>
 
 void unireg_init(ulong options)

@@ -13,10 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "event_queue.h"
 #include "event_data_objects.h"
 #include "sql_audit.h"
+#include "tztime.h"     // my_tz_find, my_tz_OFFSET0, struct Time_zone
+#include "log.h"        // sql_print_error
+#include "sql_class.h"  // struct THD
 
 /**
   @addtogroup Event_Scheduler
