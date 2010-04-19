@@ -1659,11 +1659,15 @@ recv_recover_page_func(
 
 #ifndef UNIV_HOTBACKUP
 	if (modification_to_page) {
+		buf_pool_t*	buf_pool;
+
 		ut_a(block);
 
-		buf_flush_order_mutex_enter();
+		buf_pool = buf_pool_from_block(block);
+
+		log_flush_order_mutex_enter();
 		buf_flush_recv_note_modification(block, start_lsn, end_lsn);
-		buf_flush_order_mutex_exit();
+		log_flush_order_mutex_exit();
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1848,11 +1852,10 @@ loop:
 		mutex_exit(&(recv_sys->mutex));
 		mutex_exit(&(log_sys->mutex));
 
-		n_pages = buf_flush_batch(BUF_FLUSH_LIST, ULINT_MAX,
-					  IB_ULONGLONG_MAX);
-		ut_a(n_pages != ULINT_UNDEFINED);
-
-		buf_flush_wait_batch_end(BUF_FLUSH_LIST);
+ 		n_pages = buf_flush_list(ULINT_MAX, IB_ULONGLONG_MAX);
+  		ut_a(n_pages != ULINT_UNDEFINED);
+  
+ 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 		buf_pool_invalidate();
 
@@ -2762,8 +2765,8 @@ recv_scan_log_recs(
 		recv_parse_log_recs(store_to_hash);
 
 #ifndef UNIV_HOTBACKUP
-		if (store_to_hash && mem_heap_get_size(recv_sys->heap)
-		    > available_memory) {
+		if (store_to_hash
+		    && mem_heap_get_size(recv_sys->heap) > available_memory) {
 
 			/* Hash table of log records has grown too big:
 			empty it; FALSE means no ibuf operations
@@ -2815,8 +2818,10 @@ recv_group_scan_log_recs(
 				       group, start_lsn, end_lsn);
 
 		finished = recv_scan_log_recs(
-			(buf_pool->curr_size - recv_n_pool_free_frames)
-			* UNIV_PAGE_SIZE, TRUE, log_sys->buf, RECV_SCAN_SIZE,
+			(buf_pool_get_n_pages()
+			- (recv_n_pool_free_frames * srv_buf_pool_instances))
+			* UNIV_PAGE_SIZE,
+			TRUE, log_sys->buf, RECV_SCAN_SIZE,
 			start_lsn, contiguous_lsn, group_scanned_lsn);
 		start_lsn = end_lsn;
 	}
@@ -3497,6 +3502,7 @@ recv_reset_log_files_for_backup(
 #endif /* UNIV_HOTBACKUP */
 
 #ifdef UNIV_LOG_ARCHIVE
+/* Dead code */
 /******************************************************//**
 Reads from the archive of a log group and performs recovery.
 @return	TRUE if no more complete consistent archive files */
@@ -3662,7 +3668,8 @@ ask_again:
 		       read_offset % UNIV_PAGE_SIZE, len, buf, NULL);
 
 		ret = recv_scan_log_recs(
-			(buf_pool->n_frames - recv_n_pool_free_frames)
+			(buf_pool_get_n_pages()
+			- (recv_n_pool_free_frames * srv_buf_pool_instances))
 			* UNIV_PAGE_SIZE, TRUE, buf, len, start_lsn,
 			&dummy_lsn, &scanned_lsn);
 
