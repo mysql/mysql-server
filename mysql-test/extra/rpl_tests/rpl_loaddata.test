@@ -219,6 +219,19 @@ connect (conn2,localhost,root,,*NO-ONE*);
 -- echo ### assertion: works without stating the default database
 -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 -- eval $UPPER_STMT_HEAD LOCAL INFILE '$MYSQLTEST_VARDIR/std_data/loaddata5.dat' INTO TABLE $db1.t1
+
+# We cannot disconnect right away because when inserting
+# concurrently in a MyISAM table, the server is sending an OK 
+# to the client before updating the table state (where the 
+# number of records is kept). See: BUG#37521 and BUG#29334.
+# So we need to wait, otherwise we would be having sporadic 
+# failures as reported here: BUG#50451.
+
+# 12 = 3 rows per each LOAD DATA executed x 4
+-- let $count= 12
+-- let $table= $db1.t1
+--source include/wait_until_rows_count.inc
+
 -- echo ### disconnect and switch back to master connection
 -- disconnect conn2
 -- connection master

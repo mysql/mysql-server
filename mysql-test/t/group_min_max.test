@@ -1044,4 +1044,14 @@ SELECT a, MAX(b) FROM t WHERE b GROUP BY a;
 
 DROP TABLE t;
 
+#
+# BUG#49902 - SELECT returns incorrect results
+#
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL, KEY (b));
+INSERT INTO t1 VALUES(1,1),(2,1);
+ANALYZE TABLE t1;
+SELECT 1 AS c, b FROM t1 WHERE b IN (1,2) GROUP BY c, b;
+SELECT a FROM t1 WHERE b=1;
+DROP TABLE t1;
+
 --echo End of 5.1 tests

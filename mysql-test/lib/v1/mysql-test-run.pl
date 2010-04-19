@@ -905,6 +905,11 @@ sub command_line_setup () {
   mtr_report("Using default engine '$used_default_engine'")
     if defined $used_default_engine;
 
+  if ($glob_win32 and defined $opt_mem) {
+    mtr_report("--mem not supported on Windows, ignored");
+    $opt_mem= undef;
+  }
+
   # --------------------------------------------------------------------------
   # Check if we should speed up tests by trying to run on tmpfs
   # --------------------------------------------------------------------------

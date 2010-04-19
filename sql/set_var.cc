@@ -208,8 +208,8 @@ static sys_var_long_ptr	sys_binlog_cache_size(&vars, "binlog_cache_size",
 					      &binlog_cache_size);
 static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
-static sys_var_thd_bool sys_binlog_direct_non_trans_update(&vars, "binlog_direct_non_transactional_updates",
-                                                           &SV::binlog_direct_non_trans_update);
+static sys_var_thd_binlog_direct sys_binlog_direct_non_trans_update(&vars, "binlog_direct_non_transactional_updates",
+                                                                    &SV::binlog_direct_non_trans_update);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
 static sys_var_const_os         sys_character_sets_dir(&vars,
@@ -1293,11 +1293,11 @@ bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
     return 1;
   }
   /*
-    All variables that affect writing to binary log (either format or
-    turning logging on and off) use the same checking. We call the
-    superclass ::check function to assign the variable correctly, and
-    then check the value.
-   */
+    All variables that affect writing to binary log (e.g. format, direct
+    write or turning logging on and off) use the same checking. We call
+    the superclass ::check function to assign the variable correctly,
+    and then check the value.
+  */
   bool result= sys_var_thd_enum::check(thd, var);
   if (!result)
     result= check_log_update(thd, var);
@@ -1321,6 +1321,51 @@ bool sys_var_thd_binlog_format::check(THD *thd, set_var *var) {
     return 1;
   }
   return result;
+}
+
+
+bool sys_var_thd_binlog_direct::check(THD *thd, set_var *var)
+{
+  /*
+    Make the session variable 'binlog_direct' read-only inside a transaction.
+  */
+  if (thd->active_transaction() && (var->type == OPT_SESSION))
+  {
+    my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
+    return 1;
+  }
+
+  /*
+    All variables that affect writing to binary log (e.g. format, direct
+    write or turning logging on and off) use the same checking. We call
+    the superclass ::check function to assign the variable correctly,
+    and then check the value.
+  */
+  bool result= sys_var_thd_bool::check(thd, var);
+  if (!result)
+    result= check_log_update(thd, var);
+ 
+  return result;
+}
+
+
+bool sys_var_thd_binlog_direct::is_readonly() const
+{
+  /*
+    Under certain circumstances, the variable is read-only (unchangeable):
+  */
+  THD *thd= current_thd;
+
+  /*
+    if in a stored function/trigger, it's too late to change mode
+  */
+  if (thd->in_sub_stmt)
+  {
+    my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
+    return 1;    
+  }
+
+  return sys_var_thd_bool::is_readonly();
 }
 
 bool sys_var_thd_binlog_format::is_readonly() const

@@ -2524,4 +2524,17 @@ SELECT a, MAX(b) FROM t WHERE b GROUP BY a;
 a	MAX(b)
 2	1
 DROP TABLE t;
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL, KEY (b));
+INSERT INTO t1 VALUES(1,1),(2,1);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT 1 AS c, b FROM t1 WHERE b IN (1,2) GROUP BY c, b;
+c	b
+1	1
+SELECT a FROM t1 WHERE b=1;
+a
+1
+2
+DROP TABLE t1;
 End of 5.1 tests

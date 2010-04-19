@@ -1273,6 +1273,16 @@ public:
   bool is_readonly() const;
 };
 
+class sys_var_thd_binlog_direct :public sys_var_thd_bool
+{
+public:
+  sys_var_thd_binlog_direct(sys_var_chain *chain, const char *name_arg,
+                            my_bool SV::*offset_arg)
+    :sys_var_thd_bool(chain, name_arg, offset_arg)
+  {};
+  bool check(THD *thd, set_var *var);
+  bool is_readonly() const;
+};
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/

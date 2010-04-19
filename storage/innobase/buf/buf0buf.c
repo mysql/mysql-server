@@ -224,6 +224,9 @@ in the free list to the frames.
 /* Value in microseconds */
 static const int WAIT_FOR_READ	= 20000;
 
+/* Number of attemtps made to read in a page in the buffer pool */
+static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
+
 buf_pool_t*	buf_pool = NULL; /* The buffer buf_pool of the database */
 
 #ifdef UNIV_DEBUG
@@ -1160,6 +1163,7 @@ buf_page_get_gen(
 	ulint		fix_type;
 	ibool		success;
 	ibool		must_read;
+	ulint		retries = 0;
 
 	ut_ad(mtr);
 	ut_ad((rw_latch == RW_S_LATCH)
@@ -1200,7 +1204,29 @@ loop:
 			return(NULL);
 		}
 
-		buf_read_page(space, offset);
+		if (buf_read_page(space, offset)) {
+			retries = 0;
+		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
+			++retries;
+		} else {
+			fprintf(stderr, "InnoDB: Error: Unable"
+				" to read tablespace %lu page no"
+				" %lu into the buffer pool after"
+				" %lu attempts\n"
+				"InnoDB: The most probable cause"
+				" of this error may be that the"
+				" table has been corrupted.\n"
+				"InnoDB: You can try to fix this"
+				" problem by using"
+				" innodb_force_recovery.\n"
+				"InnoDB: Please see reference manual"
+				" for more details.\n"
+				"InnoDB: Aborting...\n",
+				space, offset,
+				BUF_PAGE_READ_MAX_RETRIES);
+
+			ut_error;
+		}
 
 #ifdef UNIV_DEBUG
 		buf_dbg_counter++;

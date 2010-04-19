@@ -1158,3 +1158,53 @@ SELECT COUNT(i) FROM t1 WHERE i > 1;
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
 
+--echo #
+--echo # Bug #45640: optimizer bug produces wrong results
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (4, 40), (1, 10), (2, 20), (2, 20), (3, 30);
+
+--echo # should return 4 ordered records:
+SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa;
+
+SELECT (SELECT (SELECT t1.a)) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa;
+
+SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
+
+--echo # should return the same result in a reverse order:
+SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
+
+--echo # execution plan should not use temporary table:
+EXPLAIN EXTENDED
+SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY aa+0;
+
+EXPLAIN EXTENDED
+SELECT (SELECT t1.a) aa, COUNT(DISTINCT b) FROM t1 GROUP BY -aa;
+
+--echo # should return only one record
+SELECT (SELECT tt.a FROM t1 tt LIMIT 1) aa, COUNT(DISTINCT b) FROM t1
+  GROUP BY aa;
+
+CREATE TABLE t2 SELECT DISTINCT a FROM t1;
+
+--echo # originally reported queries (1st two columns of next two query
+--echo # results should be same):
+
+SELECT (SELECT t2.a FROM t2 WHERE t2.a = t1.a) aa, b, COUNT(DISTINCT b)
+  FROM t1 GROUP BY aa, b;
+SELECT (SELECT t2.a FROM t2 WHERE t2.a = t1.a) aa, b, COUNT(         b)
+  FROM t1 GROUP BY aa, b;
+
+--echo # ORDER BY for sure:
+
+SELECT (SELECT t2.a FROM t2 WHERE t2.a = t1.a) aa, b, COUNT(DISTINCT b)
+  FROM t1 GROUP BY aa, b ORDER BY -aa, -b;
+SELECT (SELECT t2.a FROM t2 WHERE t2.a = t1.a) aa, b, COUNT(         b)
+  FROM t1 GROUP BY aa, b ORDER BY -aa, -b;
+
+DROP TABLE t1, t2;
+
+--echo #
+
+--echo # End of 5.1 tests

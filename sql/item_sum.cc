@@ -3402,6 +3402,8 @@ String* Item_func_group_concat::val_str(String* str)
 
 void Item_func_group_concat::print(String *str, enum_query_type query_type)
 {
+  /* orig_args is not filled with valid values until fix_fields() */
+  Item **pargs= fixed ? orig_args : args;
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct)
     str->append(STRING_WITH_LEN("distinct "));
@@ -3409,7 +3411,7 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
   {
     if (i)
       str->append(',');
-    args[i]->print(str, query_type);
+    pargs[i]->print(str, query_type);
   }
   if (arg_count_order)
   {

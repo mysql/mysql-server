@@ -62,21 +62,21 @@ static struct my_option my_long_options[]=
 {
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"basedir", 'b', "Not used by mysql_upgrade. Only for backward compatibilty",
+  {"basedir", 'b', "Not used by mysql_upgrade. Only for backward compatibility.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", 0,
+   "Directory for character set files.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", OPT_COMPRESS, "Use compression in server/client protocol.",
    (uchar**)&not_used, (uchar**)&not_used, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 'd',
-   "Not used by mysql_upgrade. Only for backward compatibilty",
+   "Not used by mysql_upgrade. Only for backward compatibility.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
-  {"debug", '#', "This is a non-debug version. Catch this and exit",
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", (uchar* *) & default_dbug_option,
+  {"debug", '#', "Output debug log.", (uchar* *) & default_dbug_option,
    (uchar* *) & default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
@@ -94,7 +94,7 @@ static struct my_option my_long_options[]=
   {"host",'h', "Connect to host.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"password", 'p',
-   "Password to use when connecting to server. If password is not given"
+   "Password to use when connecting to server. If password is not given,"
    " it's solicited on the tty.", (uchar**) &opt_password,(uchar**) &opt_password,
    0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef __WIN__
@@ -109,21 +109,21 @@ static struct my_option my_long_options[]=
    "built-in default (" STRINGIFY_ARG(MYSQL_PORT) ").",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"protocol", OPT_MYSQL_PROTOCOL,
-   "The protocol of connection (tcp,socket,pipe,memory).",
+   "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"socket", 'S', "Socket file to use for connection.",
+  {"socket", 'S', "The socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
-  {"tmpdir", 't', "Directory for temporary files",
+  {"tmpdir", 't', "Directory for temporary files.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User for login if not current user.", (uchar**) &opt_user,
    (uchar**) &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"verbose", 'v', "Display more output about the process",
+  {"verbose", 'v', "Display more output about the process.",
    (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
@@ -228,7 +228,7 @@ get_one_option(int optid, const struct my_option *opt,
   case '?':
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
-    puts("MySQL utility for upgrading databases to new MySQL versions\n");
+    puts("MySQL utility for upgrading databases to new MySQL versions.\n");
     my_print_help(my_long_options);
     exit(0);
     break;

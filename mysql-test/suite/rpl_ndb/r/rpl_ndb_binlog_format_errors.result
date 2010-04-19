@@ -33,21 +33,19 @@ AAAAAAAAAAAAAAAAAADWBFVKEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
 ==== Test ====
 ---- binlog_format=row ----
 * Modify tables of more than one engine, one of which is self-logging
-CREATE TRIGGER trig_1 AFTER INSERT ON t_self_logging FOR EACH ROW BEGIN INSERT INTO t VALUES (1); END;
-INSERT INTO t_self_logging VALUES (1);
+UPDATE t_self_logging, t SET t_self_logging.a = 1, t.a = 1;
 ERROR HY000: Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging.
-DROP trigger trig_1;
-SELECT * FROM t_self_logging /* Should be empty */;
+SELECT * FROM t_self_logging /* should be empty */;
 a
 SELECT * FROM t /* Should be empty */;
 a
 * Modify both row-only and stmt-only table
-CREATE TRIGGER trig_2 AFTER INSERT ON t_stmt FOR EACH ROW BEGIN INSERT INTO t_row VALUES(1); END;
-INSERT INTO t_stmt VALUES (1);
+UPDATE t_row, t_stmt SET t_row.a = 1, t_stmt.a = 1;
 ERROR HY000: Cannot execute statement: binlogging impossible since both row-incapable engines and statement-incapable engines are involved.
 SELECT * FROM t_stmt /* should be empty */;
 a
-DROP TRIGGER trig_2;
+SELECT * FROM t_row /* should be empty */;
+a
 * Stmt-only table and binlog_format=row
 INSERT INTO t_stmt VALUES (1);
 ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging.
