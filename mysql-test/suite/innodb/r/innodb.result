@@ -692,7 +692,6 @@ select count(*) from t1 where sca_pic is null;
 count(*)
 2
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
-ERROR 42000: Incorrect index name 'sca_pic'
 alter table t1 drop index sca_pic;
 alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
@@ -1753,7 +1752,7 @@ variable_value - @innodb_rows_deleted_orig
 71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1084
+1087
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
 885
