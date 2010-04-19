@@ -175,7 +175,7 @@ if (`SELECT '$master_uuid_on_slave' <> ''`)
   #--echo Master_Server_Id $master_server_id
 }
 
---replace_result $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
 eval CHANGE MASTER TO MASTER_PORT= $MASTER_MYPORT,
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
 START SLAVE IO_THREAD;
@@ -202,7 +202,7 @@ if (`SELECT '$master_uuid_on_slave' <> ''`)
   #--echo Master_Server_Id $master_server_id
 }
 
---replace_result $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
 eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1',
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
 START SLAVE IO_THREAD;
@@ -228,7 +228,7 @@ if (`SELECT '$master_uuid_on_slave' <> ''`)
   #--echo Master_Server_Id $master_server_id
 }
 
---replace_result $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
 eval CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= $MASTER_MYPORT,
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
 START SLAVE IO_THREAD;
@@ -255,7 +255,7 @@ if (`SELECT '$master_uuid_on_slave' = ''`)
   #--echo Master_Server_Id $master_server_id
 }
 
---replace_result $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
 eval CHANGE MASTER TO 
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
 --let $master_uuid_on_slave= query_get_value(SHOW SLAVE STATUS, Master_UUID, 1)
@@ -283,7 +283,7 @@ if (`SELECT '$master_uuid_on_slave' = ''`)
   --echo Master's UUID is null
 }
 
---replace_result $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
+--replace_result $old_master_log_file MASTER_LOG_FILE $MASTER_MYPORT MASTER_PORT $old_master_log_pos MASTER_POS
 eval CHANGE MASTER TO 
        MASTER_LOG_FILE= '$old_master_log_file', MASTER_LOG_POS= $old_master_log_pos;
 START SLAVE;
