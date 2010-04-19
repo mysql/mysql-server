@@ -165,6 +165,9 @@ command. Not tested on Windows. */
 #define UNIV_COMPILE_TEST_FUNCS
 */
 
+#ifdef HAVE_purify
+# define UNIV_DEBUG_VALGRIND
+#endif /* HAVE_purify */
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
