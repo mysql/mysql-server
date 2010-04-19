@@ -16,7 +16,7 @@
 #ifndef SQL_DERIVED_INCLUDED
 #define SQL_DERIVED_INCLUDED
 
-class TABLE_LIST;
+struct TABLE_LIST;
 class THD;
 struct LEX;
 

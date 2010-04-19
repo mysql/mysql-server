@@ -22,7 +22,7 @@
 class Alter_info;
 class Alter_info;
 class Create_field;
-class TABLE_LIST;
+struct TABLE_LIST;
 class THD;
 struct TABLE;
 struct handlerton;
