@@ -940,16 +940,6 @@ sub collect_one_test_case {
   }
   elsif ( $tinfo->{'innodb_plugin_test'} )
   {
-    # This is a test that needs the innodb plugin
-    if ( $::mysqld_variables{'innodb'} eq "OFF" ||
-         ! exists $::mysqld_variables{'innodb'} )
-    {
-      # innodb plugin is not supported, skip it
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No innodb plugin support";
-      return $tinfo;
-    }
-
     my $sep= (IS_WINDOWS) ? ';' : ':';
     my $plugin_filename= basename($lib_innodb_plugin);
     my $plugin_list=
