@@ -725,7 +725,7 @@ public:
   /* Number of ranges in the last checked tree->key */
   uint range_count;
 
-  char min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
+  uchar min_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH],
     max_key[MAX_KEY_LENGTH+MAX_FIELD_WIDTH];
   bool quick;				// Don't calulate possible keys
 
@@ -762,9 +762,6 @@ static SEL_ARG *get_mm_leaf(RANGE_OPT_PARAM *param,COND *cond_func,Field *field,
 static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond);
 
 static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts);
-static ha_rows check_quick_keys(PARAM *param,uint index,SEL_ARG *key_tree,
-                                uchar *min_key, uint min_key_flag, int,
-                                uchar *max_key, uint max_key_flag, int);
 static ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                                   SEL_ARG *tree, bool update_tbl_stats, 
                                   uint *mrr_flags, uint *bufsize,
@@ -790,9 +787,6 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
 static
 TRP_GROUP_MIN_MAX *get_best_group_min_max(PARAM *param, SEL_TREE *tree,
                                           double read_time);
-static double get_index_only_read_time(const PARAM* param, ha_rows records,
-                                       int keynr);
-
 #ifndef DBUG_OFF
 static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
                            const char *msg);
@@ -7593,11 +7587,11 @@ range_seq_t sel_arg_range_seq_init(void *init_param, uint n_ranges, uint flags)
   SEL_ARG_RANGE_SEQ *seq= (SEL_ARG_RANGE_SEQ*)init_param;
   seq->at_start= TRUE;
   seq->stack[0].key_tree= NULL;
-  seq->stack[0].min_key= seq->param->min_key;
+  seq->stack[0].min_key= (uchar*)seq->param->min_key;
   seq->stack[0].min_key_flag= 0;
   seq->stack[0].min_key_parts= 0;
 
-  seq->stack[0].max_key= seq->param->max_key;
+  seq->stack[0].max_key= (uchar*)seq->param->max_key;
   seq->stack[0].max_key_flag= 0;
   seq->stack[0].max_key_parts= 0;
   seq->i= 0;
@@ -7659,6 +7653,7 @@ static void step_down_to(SEL_ARG_RANGE_SEQ *arg, SEL_ARG *key_tree)
     1  No more ranges in the sequence
 */
 
+//psergey-merge-todo: support check_quick_keys:max_keypart
 uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   SEL_ARG *key_tree;
@@ -7728,12 +7723,14 @@ walk_right_n_up:
           cur->min_key_parts += 
             key_tree->next_key_part->store_min_key(seq->param->key[seq->keyno],
                                                    &cur->min_key,
-                                                   &cur->min_key_flag);
+                                                   &cur->min_key_flag,
+                                                   MAX_KEY);
         if (!key_tree->max_flag)
           cur->max_key_parts += 
             key_tree->next_key_part->store_max_key(seq->param->key[seq->keyno],
                                                    &cur->max_key,
-                                                   &cur->max_key_flag);
+                                                   &cur->max_key_flag,
+                                                   MAX_KEY);
         break;
       }
     }
@@ -7785,7 +7782,7 @@ walk_up_n_right:
 
     if (!(cur->min_key_flag & ~NULL_RANGE) && !cur->max_key_flag &&
         (uint)key_tree->part+1 == seq->param->table->key_info[seq->real_keyno].key_parts &&
-        (seq->param->table->key_info[seq->real_keyno].flags & (HA_NOSAME | HA_END_SPACE_KEY)) ==
+        (seq->param->table->key_info[seq->real_keyno].flags & HA_NOSAME) ==
         HA_NOSAME &&
         range->start_key.length == range->end_key.length &&
         !memcmp(seq->param->min_key,seq->param->max_key,range->start_key.length))
@@ -7919,241 +7916,10 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     if (param->table->s->primary_key == keynr && pk_is_clustered)
       param->is_ror_scan= TRUE;
   }
-  if (param->table->file->index_flags(key, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
+  if (param->table->file->index_flags(keynr, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
     param->is_ror_scan= FALSE;
-  DBUG_PRINT("exit", ("Records: %lu", (ulong) records));
-  DBUG_RETURN(records);
-}
-
-
-/*
-  Recursively calculate estimate of # rows that will be retrieved by
-  key scan on key idx.
-  SYNOPSIS
-    check_quick_keys()
-      param         Parameter from test_quick select function.
-      idx           Number of key to use in PARAM::keys in list of used keys
-                    (param->real_keynr[idx] holds the key number in table)
-      key_tree      SEL_ARG tree being examined.
-      min_key       Buffer with partial min key value tuple
-      min_key_flag
-      max_key       Buffer with partial max key value tuple
-      max_key_flag
-
-  NOTES
-    The function does the recursive descent on the tree via SEL_ARG::left,
-    SEL_ARG::right, and SEL_ARG::next_key_part edges. The #rows estimates
-    are calculated using records_in_range calls at the leaf nodes and then
-    summed.
-
-    param->min_key and param->max_key are used to hold prefixes of key value
-    tuples.
-
-    The side effects are:
-
-    param->max_key_part is updated to hold the maximum number of key parts used
-      in scan minus 1.
-
-    param->range_count is incremented if the function finds a range that
-      wasn't counted by the caller.
-
-    param->is_ror_scan is cleared if the function detects that the key scan is
-      not a Rowid-Ordered Retrieval scan ( see comments for is_key_scan_ror
-      function for description of which key scans are ROR scans)
-
-  RETURN
-    #records      E(#records) for given subtree
-    HA_POS_ERROR  if subtree cannot be used for record retrieval
-
-*/
-
-static ha_rows
-check_quick_keys(PARAM *param, uint idx, SEL_ARG *key_tree,
-		 uchar *min_key, uint min_key_flag, int min_keypart,
-                 uchar *max_key, uint max_key_flag, int max_keypart)
-{
-  ha_rows records=0, tmp;
-  uint tmp_min_flag, tmp_max_flag, keynr, min_key_length, max_key_length;
-  uint tmp_min_keypart= min_keypart, tmp_max_keypart= max_keypart;
-  uchar *tmp_min_key, *tmp_max_key;
-  uint8 save_first_null_comp= param->first_null_comp;
-
-  param->max_key_part=max(param->max_key_part,key_tree->part);
-  if (key_tree->left != &null_element)
-  {
-    /*
-      There are at least two intervals for current key part, i.e. condition
-      was converted to something like
-        (keyXpartY less/equals c1) OR (keyXpartY more/equals c2).
-      This is not a ROR scan if the key is not Clustered Primary Key.
-    */
-    param->is_ror_scan= FALSE;
-    records=check_quick_keys(param, idx, key_tree->left,
-                             min_key, min_key_flag, min_keypart,
-			     max_key, max_key_flag, max_keypart);
-    if (records == HA_POS_ERROR)			// Impossible
-      return records;
-  }
-
-  tmp_min_key= min_key;
-  tmp_max_key= max_key;
-  tmp_min_keypart+= key_tree->store_min(param->key[idx][key_tree->part].store_length,
-                                        &tmp_min_key, min_key_flag);
-  tmp_max_keypart+= key_tree->store_max(param->key[idx][key_tree->part].store_length,
-                                        &tmp_max_key, max_key_flag);
-  min_key_length= (uint) (tmp_min_key - param->min_key);
-  max_key_length= (uint) (tmp_max_key - param->max_key);
-
-  if (param->is_ror_scan)
-  {
-    /*
-      If the index doesn't cover entire key, mark the scan as non-ROR scan.
-      Actually we're cutting off some ROR scans here.
-    */
-    uint16 fieldnr= param->table->key_info[param->real_keynr[idx]].
-                    key_part[key_tree->part].fieldnr - 1;
-    if (param->table->field[fieldnr]->key_length() !=
-        param->key[idx][key_tree->part].length)
-      param->is_ror_scan= FALSE;
-  }
-
-  if (!param->first_null_comp && key_tree->is_null_interval())
-    param->first_null_comp= key_tree->part+1;
-
-  if (key_tree->next_key_part &&
-      key_tree->next_key_part->type == SEL_ARG::KEY_RANGE &&
-      key_tree->next_key_part->part == key_tree->part+1)
-  {						// const key as prefix
-    if (min_key_length == max_key_length &&
-	!memcmp(min_key, max_key, (uint) (tmp_max_key - max_key)) &&
-	!key_tree->min_flag && !key_tree->max_flag)
-    {
-      tmp=check_quick_keys(param,idx,key_tree->next_key_part, tmp_min_key,
-                           min_key_flag | key_tree->min_flag, tmp_min_keypart,
-                           tmp_max_key, max_key_flag | key_tree->max_flag,
-                           tmp_max_keypart);
-      goto end;					// Ugly, but efficient
-    }
-    else
-    {
-      /* The interval for current key part is not c1 <= keyXpartY <= c1 */
-      param->is_ror_scan= FALSE;
-    }
-
-    tmp_min_flag=key_tree->min_flag;
-    tmp_max_flag=key_tree->max_flag;
-    if (!tmp_min_flag)
-      tmp_min_keypart+=
-      key_tree->next_key_part->store_min_key(param->key[idx],
-                                             &tmp_min_key,
-                                             &tmp_min_flag,
-                                             MAX_KEY);
-    if (!tmp_max_flag)
-      tmp_max_keypart+=
-      key_tree->next_key_part->store_max_key(param->key[idx],
-                                             &tmp_max_key,
-                                             &tmp_max_flag,
-                                             MAX_KEY);
-    min_key_length= (uint) (tmp_min_key - param->min_key);
-    max_key_length= (uint) (tmp_max_key - param->max_key);
-  }
-  else
-  {
-    tmp_min_flag= min_key_flag | key_tree->min_flag;
-    tmp_max_flag= max_key_flag | key_tree->max_flag;
-  }
-
-  if (unlikely(param->thd->killed != 0))
-    return HA_POS_ERROR;
-  
-  keynr=param->real_keynr[idx];
-  param->range_count++;
-  if (!tmp_min_flag && ! tmp_max_flag &&
-      (uint) key_tree->part+1 == param->table->key_info[keynr].key_parts &&
-      param->table->key_info[keynr].flags & HA_NOSAME &&
-      min_key_length == max_key_length &&
-      !memcmp(param->min_key, param->max_key, min_key_length) &&
-      !param->first_null_comp)
-  {
-    tmp=1;					// Max one record
-    param->n_ranges++;
-  }
-  else
-  {
-    if (param->is_ror_scan)
-    {
-      /*
-        If we get here, the condition on the key was converted to form
-        "(keyXpart1 = c1) AND ... AND (keyXpart{key_tree->part - 1} = cN) AND
-          somecond(keyXpart{key_tree->part})"
-        Check if
-          somecond is "keyXpart{key_tree->part} = const" and
-          uncovered "tail" of KeyX parts is either empty or is identical to
-          first members of clustered primary key.
-      */
-      if (!(min_key_length == max_key_length &&
-            !memcmp(min_key, max_key, (uint) (tmp_max_key - max_key)) &&
-            !key_tree->min_flag && !key_tree->max_flag &&
-            is_key_scan_ror(param, keynr, key_tree->part + 1)))
-        param->is_ror_scan= FALSE;
-    }
-    param->n_ranges++;
-
-    if (tmp_min_flag & GEOM_FLAG)
-    {
-      key_range min_range;
-      min_range.key=    param->min_key;
-      min_range.length= min_key_length;
-      min_range.keypart_map= make_keypart_map(tmp_min_keypart);
-      /* In this case tmp_min_flag contains the handler-read-function */
-      min_range.flag=   (ha_rkey_function) (tmp_min_flag ^ GEOM_FLAG);
-
-      tmp= param->table->file->records_in_range(keynr,
-                                                &min_range, (key_range*) 0);
-    }
-    else
-    {
-      key_range min_range, max_range;
-
-      min_range.key=    param->min_key;
-      min_range.length= min_key_length;
-      min_range.flag=   (tmp_min_flag & NEAR_MIN ? HA_READ_AFTER_KEY :
-                         HA_READ_KEY_EXACT);
-      min_range.keypart_map= make_keypart_map(tmp_min_keypart);
-      max_range.key=    param->max_key;
-      max_range.length= max_key_length;
-      max_range.flag=   (tmp_max_flag & NEAR_MAX ?
-                         HA_READ_BEFORE_KEY : HA_READ_AFTER_KEY);
-      max_range.keypart_map= make_keypart_map(tmp_max_keypart);
-      tmp=param->table->file->records_in_range(keynr,
-                                               (min_key_length ? &min_range :
-                                                (key_range*) 0),
-                                               (max_key_length ? &max_range :
-                                                (key_range*) 0));
-    }
-  }
- end:
-  if (tmp == HA_POS_ERROR)			// Impossible range
-    return tmp;
-  records+=tmp;
-  if (key_tree->right != &null_element)
-  {
-    /*
-      There are at least two intervals for current key part, i.e. condition
-      was converted to something like
-        (keyXpartY less/equals c1) OR (keyXpartY more/equals c2).
-      This is not a ROR scan if the key is not Clustered Primary Key.
-    */
-    param->is_ror_scan= FALSE;
-    tmp=check_quick_keys(param, idx, key_tree->right,
-                         min_key, min_key_flag, min_keypart,
-                         max_key, max_key_flag, max_keypart);
-    if (tmp == HA_POS_ERROR)
-      return tmp;
-    records+=tmp;
-  }
-  param->first_null_comp= save_first_null_comp;
-  return records;
+  DBUG_PRINT("exit", ("Records: %lu", (ulong) rows));
+  DBUG_RETURN(rows);
 }
 
 
@@ -8565,6 +8331,7 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
   QUICK_RANGE *range;
   uint part;
   bool create_err= FALSE;
+  COST_VECT cost;
 
   old_root= thd->mem_root;
   /* The following call may change thd->mem_root */
@@ -8643,7 +8410,6 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
 #endif
 
   quick->mrr_buf_size= thd->variables.read_rnd_buff_size;
-  COST_VECT cost;
   if (table->file->multi_range_read_info(quick->index, 1, records,
                                          &quick->mrr_buf_size,
                                          &quick->mrr_flags, &cost))
@@ -9357,7 +9123,8 @@ bool QUICK_RANGE_SELECT::row_in_ranges()
  */
 
 QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
-                                     uint used_key_parts_arg)
+                                     uint used_key_parts_arg,
+                                     bool *error)
  :QUICK_RANGE_SELECT(*q), rev_it(rev_ranges),
   used_key_parts (used_key_parts_arg)
 {
@@ -9366,9 +9133,10 @@ QUICK_SELECT_DESC::QUICK_SELECT_DESC(QUICK_RANGE_SELECT *q,
     Use default MRR implementation for reverse scans. No table engine
     currently can do an MRR scan with output in reverse index order.
   */
-  multi_range_length= 0;
-  multi_range= NULL;
-  multi_range_buff= NULL;
+  mrr_buf_desc= NULL;
+  mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
+  mrr_buf_size= 0;
+
 
   QUICK_RANGE **pr= (QUICK_RANGE**)ranges.buffer;
   QUICK_RANGE **end_range= pr + ranges.elements;

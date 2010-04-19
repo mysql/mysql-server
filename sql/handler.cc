@@ -4342,6 +4342,7 @@ start:
     /* Try the next range(s) until one matches a record. */
     while (!(range_res= mrr_funcs.next(mrr_iter, &mrr_cur_range)))
     {
+scan_it_again:
       result= read_range_first(mrr_cur_range.start_key.length ?
                                  &mrr_cur_range.start_key : 0,
                                mrr_cur_range.end_key.length ?
@@ -4480,6 +4481,7 @@ void DsMrr_impl::dsmrr_close()
   {
     if (h2)
     {
+      h2->ha_index_or_rnd_end();
       h2->ha_external_lock(current_thd, F_UNLCK);
       h2->close();
       delete h2;
@@ -4562,8 +4564,8 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *unused)
   uint elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
   uint n_rowids= (rowids_buf_cur - rowids_buf) / elem_size;
   
-  qsort2(rowids_buf, n_rowids, elem_size, (qsort2_cmp)rowid_cmp,
-         (void*)h);
+  my_qsort2(rowids_buf, n_rowids, elem_size, (qsort2_cmp)rowid_cmp,
+            (void*)h);
   rowids_buf_last= rowids_buf_cur;
   rowids_buf_cur=  rowids_buf;
   DBUG_RETURN(0);
