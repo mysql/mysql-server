@@ -3601,13 +3601,33 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       capabilities, and one with the intersection of all the engine
       capabilities.
     */
+    handler::Table_flags flags_write_some_set= 0;
     handler::Table_flags flags_some_set= 0;
-    handler::Table_flags flags_all_set=
+    handler::Table_flags flags_write_all_set=
       HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 
-    my_bool multi_engine= FALSE;
-    my_bool mixed_engine= FALSE;
-    my_bool all_trans_engines= TRUE;
+    /* 
+       If different types of engines are about to be updated.
+       For example: Innodb and Falcon; Innodb and MyIsam.
+    */
+    my_bool multi_write_engine= FALSE;
+    /*
+       If different types of engines are about to be accessed 
+       and any of them is about to be updated. For example:
+       Innodb and Falcon; Innodb and MyIsam.
+    */
+    my_bool multi_access_engine= FALSE;
+    /*
+       If non-transactional and transactional engines are about
+       to be accessed and any of them is about to be updated.
+       For example: Innodb and MyIsam.
+    */
+    my_bool trans_non_trans_access_engines= FALSE;
+    /*
+       If all engines that are about to be updated are
+       transactional.
+    */
+    my_bool all_trans_write_engines= TRUE;
     TABLE* prev_write_table= NULL;
     TABLE* prev_access_table= NULL;
 
@@ -3633,32 +3653,50 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         continue;
       if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
+      handler::Table_flags const flags= table->table->file->ha_table_flags();
+      DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
+                          table->table_name, flags));
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
-        handler::Table_flags const flags= table->table->file->ha_table_flags();
-        DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
-                            table->table_name, flags));
         if (prev_write_table && prev_write_table->file->ht !=
             table->table->file->ht)
-          multi_engine= TRUE;
-        all_trans_engines= all_trans_engines &&
-                           table->table->file->has_transactions();
+          multi_write_engine= TRUE;
+        all_trans_write_engines= all_trans_write_engines &&
+                                 table->table->file->has_transactions();
         prev_write_table= table->table;
-        flags_all_set &= flags;
-        flags_some_set |= flags;
+        flags_write_all_set &= flags;
+        flags_write_some_set |= flags;
       }
+      flags_some_set |= flags;
       if (prev_access_table && prev_access_table->file->ht != table->table->file->ht)
-        mixed_engine= mixed_engine || (prev_access_table->file->has_transactions() !=
-                      table->table->file->has_transactions());
+      {
+        multi_access_engine= TRUE;
+        trans_non_trans_access_engines= trans_non_trans_access_engines ||
+          (prev_access_table->file->has_transactions() !=
+           table->table->file->has_transactions());
+      }
       prev_access_table= table->table;
     }
+
+    DBUG_PRINT("info", ("flags_write_all_set: 0x%llx", flags_write_all_set));
+    DBUG_PRINT("info", ("flags_write_some_set: 0x%llx", flags_write_some_set));
+    DBUG_PRINT("info", ("flags_some_set: 0x%llx", flags_some_set));
+    DBUG_PRINT("info", ("multi_write_engine: %d", multi_write_engine));
+    DBUG_PRINT("info", ("multi_access_engine: %d", multi_access_engine));
+    DBUG_PRINT("info", ("trans_non_trans_access_engines: %d",
+                        trans_non_trans_access_engines));
+
+    int error= 0;
+    int unsafe_flags;
 
     /*
       Set the statement as unsafe if:
 
       . it is a mixed statement, i.e. access transactional and non-transactional
-      tables, and updates at least one;
-      or
+      tables, and update any of them;
+
+      or:
+
       . an early statement updated a transactional table;
       . and, the current statement updates a non-transactional table.
 
@@ -3722,16 +3760,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       isolation level but if we have pure repeatable read or serializable the
       lock history on the slave will be different from the master.
     */
-    if (mixed_engine ||
-        (trans_has_updated_trans_table(this) && !all_trans_engines))
+    if (trans_non_trans_access_engines)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MIXED_STATEMENT);
+    else if (trans_has_updated_trans_table(this) && !all_trans_write_engines)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS);
-
-    DBUG_PRINT("info", ("flags_all_set: 0x%llx", flags_all_set));
-    DBUG_PRINT("info", ("flags_some_set: 0x%llx", flags_some_set));
-    DBUG_PRINT("info", ("multi_engine: %d", multi_engine));
-
-    int error= 0;
-    int unsafe_flags;
 
     /*
       If more than one engine is involved in the statement and at
@@ -3739,15 +3771,15 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       statement cannot be logged atomically, so we generate an error
       rather than allowing the binlog to become corrupt.
     */
-    if (multi_engine &&
-        (flags_some_set & HA_HAS_OWN_BINLOGGING))
-    {
+    if (multi_write_engine &&
+        (flags_write_some_set & HA_HAS_OWN_BINLOGGING))
       my_error((error= ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE),
                MYF(0));
-    }
+    else if (multi_access_engine && flags_some_set & HA_HAS_OWN_BINLOGGING)
+      lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE);
 
     /* both statement-only and row-only engines involved */
-    if ((flags_all_set & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE)) == 0)
+    if ((flags_write_all_set & (HA_BINLOG_STMT_CAPABLE | HA_BINLOG_ROW_CAPABLE)) == 0)
     {
       /*
         1. Error: Binary logging impossible since both row-incapable
@@ -3756,7 +3788,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       my_error((error= ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE), MYF(0));
     }
     /* statement-only engines involved */
-    else if ((flags_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
+    else if ((flags_write_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
     {
       if (lex->is_stmt_row_injection())
       {
@@ -3804,7 +3836,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           */
           my_error((error= ER_BINLOG_ROW_INJECTION_AND_STMT_MODE), MYF(0));
         }
-        else if ((flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+        else if ((flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
         {
           /*
             5. Error: Cannot modify table that uses a storage engine
@@ -3832,7 +3864,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       else
       {
         if (lex->is_stmt_unsafe() || lex->is_stmt_row_injection()
-            || (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+            || (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
         {
           /* log in row format! */
           set_current_stmt_binlog_format_row_if_mixed();
