@@ -11,96 +11,79 @@ SET storage_engine=InnoDB;
 -- disable_query_log
 -- disable_result_log
 
-DROP TABLE IF EXISTS bug38231;
-CREATE TABLE bug38231 (a INT);
+DROP TABLE IF EXISTS bug38231_1;
+CREATE TABLE bug38231_1 (a INT);
 
--- connect (con1,localhost,root,,)
--- connect (con2,localhost,root,,)
--- connect (con3,localhost,root,,)
+-- connect (lock_gain,localhost,root,,)
+-- connect (lock_wait1,localhost,root,,)
+-- connect (lock_wait2,localhost,root,,)
+-- connect (truncate_wait,localhost,root,,)
 
--- connection con1
+-- connection lock_gain
 SET autocommit=0;
-LOCK TABLE bug38231 WRITE;
+LOCK TABLE bug38231_1 WRITE;
 
--- connection con2
-SET autocommit=0;
--- send
-LOCK TABLE bug38231 WRITE;
-
-# When con1 does UNLOCK below this will release either con2 or con3 which are
-# both waiting on LOCK. At the end we must first --reap and UNLOCK the
-# connection that has been released, otherwise it will wait forever. We assume
-# that the released connection will be the first one that has gained the LOCK,
-# thus we force the order here - con2 does LOCK first, then con3. In other
-# words we wait for LOCK from con2 above to be executed before doing LOCK in
-# con3.
--- connection con1
-let $wait_condition =
-  SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE info = 'LOCK TABLE bug38231 WRITE';
--- source include/wait_condition.inc
-# the above enables query log, re-disable it
--- disable_query_log
-
--- connection con3
+-- connection lock_wait1
 SET autocommit=0;
 -- send
-LOCK TABLE bug38231 WRITE;
+LOCK TABLE bug38231_1 WRITE;
 
--- connection default
+-- connection lock_wait2
+SET autocommit=0;
 -- send
-TRUNCATE TABLE bug38231;
+LOCK TABLE bug38231_1 WRITE;
 
--- connection con1
-# Wait for TRUNCATE and the other two LOCKs to be executed; without this,
-# sometimes UNLOCK executes before them. We assume there are no other
-# sessions executing at the same time with the same SQL commands.
-let $wait_condition =
-  SELECT COUNT(*) = 1 FROM information_schema.processlist
-  WHERE info = 'TRUNCATE TABLE bug38231';
--- source include/wait_condition.inc
-let $wait_condition =
-  SELECT COUNT(*) = 2 FROM information_schema.processlist
-  WHERE info = 'LOCK TABLE bug38231 WRITE';
--- source include/wait_condition.inc
-# the above enables query log, re-disable it
--- disable_query_log
+-- connection truncate_wait
+-- send
+TRUNCATE TABLE bug38231_1;
 
+-- connection lock_gain
 # this crashes the server if the bug is present
 UNLOCK TABLES;
 
 # clean up
 
--- connection con2
--- reap
-UNLOCK TABLES;
-
--- connection con3
--- reap
-UNLOCK TABLES;
+# do not clean up - we do not know which of the tree has been released
+# so the --reap command may hang because the executing command is still
+# running/waiting
+#-- connection lock_wait1
+#-- reap
+#UNLOCK TABLES;
+#
+#-- connection lock_wait2
+#-- reap
+#UNLOCK TABLES;
+#
+#-- connection truncate_wait
+#-- reap
 
 -- connection default
--- reap
 
--- disconnect con1
--- disconnect con2
--- disconnect con3
+-- disconnect lock_gain
+-- disconnect lock_wait1
+-- disconnect lock_wait2
+-- disconnect truncate_wait
 
-# test that TRUNCATE works with with row-level locks
+DROP TABLE bug38231_1;
+
+# test that TRUNCATE works with row-level locks
+
+DROP TABLE IF EXISTS bug38231_2;
+CREATE TABLE bug38231_2 (a INT);
 
 -- enable_query_log
 -- enable_result_log
 
-INSERT INTO bug38231 VALUES (1), (10), (300);
+INSERT INTO bug38231_2 VALUES (1), (10), (300);
 
 -- connect (con4,localhost,root,,)
 
 -- connection con4
 SET autocommit=0;
-SELECT * FROM bug38231 FOR UPDATE;
+SELECT * FROM bug38231_2 FOR UPDATE;
 
 -- connection default
-TRUNCATE TABLE bug38231;
+TRUNCATE TABLE bug38231_2;
 
 -- connection con4
 COMMIT;
@@ -109,4 +92,4 @@ COMMIT;
 
 -- disconnect con4
 
-DROP TABLE bug38231;
+DROP TABLE bug38231_2;
