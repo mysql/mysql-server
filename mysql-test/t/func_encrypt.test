@@ -1,4 +1,4 @@
--- source include/have_ssl.inc
+-- source include/have_ssl_crypto_functs.inc
 
 --disable_warnings
 drop table if exists t1;
