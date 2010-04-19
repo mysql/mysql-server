@@ -29,7 +29,7 @@ class THD;
 class sp_cache;
 class sp_head;
 class sp_name;
-class st_sp_chistics;
+struct st_sp_chistics;
 struct LEX;
 struct TABLE;
 struct TABLE_LIST;
