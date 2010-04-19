@@ -135,6 +135,7 @@ static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 static ulong innobase_commit_concurrency = 0;
 static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
+static long innobase_buffer_pool_instances = 1;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -241,7 +242,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	{&file_format_max_mutex_key, "file_format_max_mutex", 0},
 	{&fil_system_mutex_key, "fil_system_mutex", 0},
 	{&flush_list_mutex_key, "flush_list_mutex", 0},
-	{&flush_order_mutex_key, "flush_order_mutex", 0},
+	{&log_flush_order_mutex_key, "log_flush_order_mutex", 0},
 	{&hash_table_mutex_key, "hash_table_mutex", 0},
 	{&ibuf_bitmap_mutex_key, "ibuf_bitmap_mutex", 0},
 	{&ibuf_mutex_key, "ibuf_mutex", 0},
@@ -2305,6 +2306,7 @@ innobase_change_buffering_inited_ok:
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
+	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
@@ -2347,9 +2349,6 @@ innobase_change_buffering_inited_ok:
 
 	ut_a(0 == strcmp(my_charset_latin1.name, "latin1_swedish_ci"));
 	srv_latin1_ordering = my_charset_latin1.sort_order;
-
-	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
-		innobase_old_blocks_pct, FALSE);
 
 	innobase_commit_concurrency_init_default();
 
@@ -2403,6 +2402,9 @@ innobase_change_buffering_inited_ok:
 	if (err != DB_SUCCESS) {
 		goto mem_free_and_error;
 	}
+
+	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
+		innobase_old_blocks_pct, TRUE);
 
 	innobase_open_tables = hash_create(200);
 	mysql_mutex_init(innobase_share_mutex_key,
@@ -3337,6 +3339,8 @@ innobase_build_index_translation(
 
 	DBUG_ENTER("innobase_build_index_translation");
 
+	mutex_enter(&dict_sys->mutex);
+
 	mysql_num_index = table->s->keys;
 	ib_num_index = UT_LIST_GET_LEN(ib_table->indexes);
 
@@ -3367,13 +3371,19 @@ innobase_build_index_translation(
 							MYF(MY_ALLOW_ZERO_PTR));
 
 		if (!index_mapping) {
+			/* Report an error if index_mapping continues to be
+			NULL and mysql_num_index is a non-zero value */
+			sql_print_error("InnoDB: fail to allocate memory for "
+					"index translation table. Number of "
+					"Index:%lu, array size:%lu",
+					mysql_num_index,
+					share->idx_trans_tbl.array_size);
 			ret = FALSE;
 			goto func_exit;
 		}
 
 		share->idx_trans_tbl.array_size = mysql_num_index;
 	}
-
 
 	/* For each index in the mysql key_info array, fetch its
 	corresponding InnoDB index pointer into index_mapping
@@ -3419,6 +3429,8 @@ func_exit:
 	}
 
 	share->idx_trans_tbl.index_mapping = index_mapping;
+
+	mutex_exit(&dict_sys->mutex);
 
 	DBUG_RETURN(ret);
 }
@@ -10813,6 +10825,11 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 5*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
+static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
+  NULL, NULL, 1L, 1L, MAX_BUFFER_POOLS, 1L);
+
 static MYSQL_SYSVAR_ULONG(commit_concurrency, innobase_commit_concurrency,
   PLUGIN_VAR_RQCMDARG,
   "Helps in performance tuning in heavily concurrent environments.",
@@ -10948,6 +10965,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
+  MYSQL_SYSVAR(buffer_pool_instances),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),

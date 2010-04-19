@@ -1,4 +1,27 @@
-/**********************************************************************
+/***************************************************************************//**
+
+Copyright (c) 2007, 2010, Innobase Oy. All Rights Reserved.
+
+Portions of this file contain modifications contributed and copyrighted by
+Sun Microsystems, Inc. Those modifications are gratefully acknowledged and
+are described briefly in the InnoDB documentation. The contributions by
+Sun Microsystems are incorporated with their permission, and subject to the
+conditions contained in the file COPYING.Sun_Microsystems.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place, Suite 330, Boston, MA 02111-1307 USA
+
+*****************************************************************************/
+/********************************************************************//**
 Red-Black tree implementation
 
 (c) 2007 Oracle/Innobase Oy
@@ -8,7 +31,7 @@ Created 2007-03-20 Sunny Bains
 
 #include "ut0rbt.h"
 
-/************************************************************************
+/**********************************************************************//**
 Definition of a red-black tree
 ==============================
 
@@ -34,7 +57,7 @@ red-black properties:
 #define ROOT(t)		(t->root->left)
 #define	SIZEOF_NODE(t)	((sizeof(ib_rbt_node_t) + t->sizeof_value) - 1)
 
-/************************************************************************
+/**********************************************************************//**
 Print out the sub-tree recursively. */
 static
 void
@@ -52,7 +75,7 @@ rbt_print_subtree(
 	}
 }
 
-/************************************************************************
+/**********************************************************************//**
 Verify that the keys are in order.
 @return	TRUE of OK. FALSE if not ordered */
 static
@@ -77,7 +100,7 @@ rbt_check_ordering(
 	return(TRUE);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Check that every path from the root to the leaves has the same count.
 Count is expressed in the number of black nodes.
 @return	0 on failure else black height of the subtree */
@@ -125,7 +148,7 @@ rbt_count_black_nodes(
 	return(result);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Turn the node's right child's left sub-tree into node's right sub-tree.
 This will also make node's right child it's parent. */
 static
@@ -161,7 +184,7 @@ rbt_rotate_left(
 	node->parent = right;
 }
 
-/************************************************************************
+/**********************************************************************//**
 Turn the node's left child's right sub-tree into node's left sub-tree.
 This also make node's left child it's parent. */
 static
@@ -197,7 +220,7 @@ rbt_rotate_right(
 	node->parent = left;
 }
 
-/************************************************************************
+/**********************************************************************//**
 Append a node to the tree. */
 static
 ib_rbt_node_t*
@@ -224,7 +247,7 @@ rbt_tree_add_child(
 	return(node);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Generic binary tree insert */
 static
 ib_rbt_node_t*
@@ -260,7 +283,7 @@ rbt_tree_insert(
 	return(node);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Balance a tree after inserting a node. */
 static
 void
@@ -350,7 +373,7 @@ rbt_balance_tree(
 	ROOT(tree)->color = IB_RBT_BLACK;
 }
 
-/************************************************************************
+/**********************************************************************//**
 Find the given node's successor.
 @return	successor node or NULL if no successor */
 static
@@ -390,7 +413,7 @@ rbt_find_successor(
 	return(next);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Find the given node's precedecessor.
 @return	predecessor node or NULL if no predecesor */
 static
@@ -430,7 +453,7 @@ rbt_find_predecessor(
 	return(prev);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Replace node with child. After applying transformations eject becomes
 an orphan. */
 static
@@ -454,7 +477,7 @@ rbt_eject_node(
 	node->parent = eject->parent;
 }
 
-/************************************************************************
+/**********************************************************************//**
 Replace a node with another node. */
 static
 void
@@ -481,7 +504,7 @@ rbt_replace_node(
 	replace->color = color;
 }
 
-/************************************************************************
+/**********************************************************************//**
 Detach node from the tree replacing it with one of it's children.
 @return	the child node that now occupies the position of the detached node */
 static
@@ -524,7 +547,7 @@ rbt_detach_node(
 	return(child);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Rebalance the right sub-tree after deletion.
 @return	node to rebalance if more rebalancing required else NULL */
 static
@@ -584,7 +607,7 @@ rbt_balance_right(
 	return(node);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Rebalance the left sub-tree after deletion.
 @return	node to rebalance if more rebalancing required else NULL */
 static
@@ -644,7 +667,7 @@ rbt_balance_left(
 	return(node);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Delete the node and rebalance the tree if necessary */
 static
 void
@@ -696,7 +719,7 @@ rbt_remove_node_and_rebalance(
 	--tree->n_nodes;
 }
 
-/************************************************************************
+/**********************************************************************//**
 Recursively free the nodes. */
 static
 void
@@ -713,7 +736,7 @@ rbt_free_node(
 	}
 }
 
-/************************************************************************
+/**********************************************************************//**
 Free all the nodes and free the tree. */
 UNIV_INTERN
 void
@@ -726,7 +749,7 @@ rbt_free(
 	ut_free(tree);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Create an instance of a red black tree.
 @return	an empty rb tree */
 UNIV_INTERN
@@ -764,7 +787,7 @@ rbt_create(
 	return(tree);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Generic insert of a value in the rb tree.
 @return	inserted node */
 UNIV_INTERN
@@ -793,7 +816,7 @@ rbt_insert(
 	return(node);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Add a new node to the tree, useful for data that is pre-sorted.
 @return	appended node */
 UNIV_INTERN
@@ -831,7 +854,7 @@ rbt_add_node(
 	return(node);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Find a matching node in the rb tree.
 @return	NULL if not found else the node where key was found */
 UNIV_INTERN
@@ -859,7 +882,7 @@ rbt_lookup(
 	return(current != tree->nil ? current : NULL);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Delete a node indentified by key.
 @return	TRUE if success FALSE if not found */
 UNIV_INTERN
@@ -882,7 +905,7 @@ rbt_delete(
 	return(deleted);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Remove a node from the rb tree, the node is not free'd, that is the
 callers responsibility.
 @return	deleted node but without the const */
@@ -906,7 +929,7 @@ rbt_remove_node(
 	return((ib_rbt_node_t*) const_node);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Find the node that has the lowest key that is >= key.
 @return	node satisfying the lower bound constraint or NULL */
 UNIV_INTERN
@@ -940,7 +963,7 @@ rbt_lower_bound(
 	return(lb_node);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Find the node that has the greatest key that is <= key.
 @return	node satisfying the upper bound constraint or NULL */
 UNIV_INTERN
@@ -974,7 +997,7 @@ rbt_upper_bound(
 	return(ub_node);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Find the node that has the greatest key that is <= key.
 @return	value of result */
 UNIV_INTERN
@@ -1008,7 +1031,7 @@ rbt_search(
 	return(parent->result);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Find the node that has the greatest key that is <= key. But use the
 supplied comparison function.
 @return	value of result */
@@ -1044,7 +1067,7 @@ rbt_search_cmp(
 	return(parent->result);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Return the left most node in the tree. */
 UNIV_INTERN
 const ib_rbt_node_t*
@@ -1064,7 +1087,7 @@ rbt_first(
 	return(first);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Return the right most node in the tree.
 @return	the rightmost node or NULL */
 UNIV_INTERN
@@ -1084,7 +1107,7 @@ rbt_last(
 	return(last);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Return the next node.
 @return	node next from current */
 UNIV_INTERN
@@ -1097,7 +1120,7 @@ rbt_next(
 	return(current ? rbt_find_successor(tree, current) : NULL);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Return the previous node.
 @return	node prev from current */
 UNIV_INTERN
@@ -1110,7 +1133,7 @@ rbt_prev(
 	return(current ? rbt_find_predecessor(tree, current) : NULL);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Reset the tree. Delete all the nodes. */
 UNIV_INTERN
 void
@@ -1124,7 +1147,7 @@ rbt_clear(
 	tree->root->left = tree->root->right = tree->nil;
 }
 
-/************************************************************************
+/**********************************************************************//**
 Merge the node from dst into src. Return the number of nodes merged.
 @return	no. of recs merged */
 UNIV_INTERN
@@ -1153,7 +1176,7 @@ rbt_merge_uniq(
 	return(n_merged);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Merge the node from dst into src. Return the number of nodes merged.
 Delete the nodes from src after copying node to dst. As a side effect
 the duplicates will be left untouched in the src.
@@ -1201,7 +1224,7 @@ rbt_merge_uniq_destructive(
 	return(rbt_size(dst) - old_size);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Check that every path from the root to the leaves has the same count and
 the tree nodes are in order.
 @return	TRUE if OK FALSE otherwise */
@@ -1218,7 +1241,7 @@ rbt_validate(
 	return(FALSE);
 }
 
-/************************************************************************
+/**********************************************************************//**
 Iterate over the tree in depth first order. */
 UNIV_INTERN
 void

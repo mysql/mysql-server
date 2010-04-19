@@ -1307,6 +1307,14 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 	 STRUCT_FLD(old_name,		"Buddy Block Size"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+	{STRUCT_FLD(field_name,		"buffer_pool_instance"),
+	STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	STRUCT_FLD(value,		0),
+	STRUCT_FLD(field_flags,	0),
+	STRUCT_FLD(old_name,		"Buffer Pool Id"),
+	STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	{STRUCT_FLD(field_name,		"pages_used"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -1356,8 +1364,8 @@ i_s_cmpmem_fill_low(
 	COND*		cond,	/*!< in: condition (ignored) */
 	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
 {
+	int		status = 0;
 	TABLE*	table	= (TABLE *) tables->table;
-	int	status	= 0;
 
 	DBUG_ENTER("i_s_cmpmem_fill_low");
 
@@ -1369,33 +1377,50 @@ i_s_cmpmem_fill_low(
 
 	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
-	buf_pool_mutex_enter();
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t*	buf_pool;
 
-	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
-		buf_buddy_stat_t*	buddy_stat = &buf_buddy_stat[x];
+		status	= 0;
 
-		table->field[0]->store(BUF_BUDDY_LOW << x);
-		table->field[1]->store(buddy_stat->used);
-		table->field[2]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
-				       ? UT_LIST_GET_LEN(buf_pool->zip_free[x])
-				       : 0);
-		table->field[3]->store((longlong) buddy_stat->relocated, true);
-		table->field[4]->store(
-			(ulong) (buddy_stat->relocated_usec / 1000000));
+		buf_pool = buf_pool_from_array(i);
 
-		if (reset) {
-			/* This is protected by buf_pool_mutex. */
-			buddy_stat->relocated = 0;
-			buddy_stat->relocated_usec = 0;
+		buf_pool_mutex_enter(buf_pool);
+
+		for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
+			buf_buddy_stat_t*	buddy_stat;
+
+			buddy_stat = &buf_pool->buddy_stat[x];
+
+			table->field[0]->store(BUF_BUDDY_LOW << x);
+			table->field[1]->store(i);
+			table->field[2]->store(buddy_stat->used);
+			table->field[3]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
+				? UT_LIST_GET_LEN(buf_pool->zip_free[x])
+				: 0);
+			table->field[4]->store((longlong)
+			buddy_stat->relocated, true);
+			table->field[5]->store(
+				(ulong) (buddy_stat->relocated_usec / 1000000));
+
+			if (reset) {
+				/* This is protected by buf_pool->mutex. */
+				buddy_stat->relocated = 0;
+				buddy_stat->relocated_usec = 0;
+			}
+
+			if (schema_table_store_record(thd, table)) {
+				status = 1;
+				break;
+			}
 		}
 
-		if (schema_table_store_record(thd, table)) {
-			status = 1;
+		buf_pool_mutex_exit(buf_pool);
+
+		if (status) {
 			break;
 		}
 	}
 
-	buf_pool_mutex_exit();
 	DBUG_RETURN(status);
 }
 

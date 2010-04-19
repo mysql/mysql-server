@@ -195,6 +195,8 @@ UNIV_INTERN const byte*	srv_latin1_ordering;
 UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
+/* requested number of buffer pool instances */
+UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
 /* previously requested size */
 UNIV_INTERN ulint	srv_buf_pool_old_size;
 /* current size in kilobytes */
@@ -1700,7 +1702,7 @@ srv_refresh_innodb_monitor_stats(void)
 
 	log_refresh_stats();
 
-	buf_refresh_io_stats();
+	buf_refresh_io_stats_all();
 
 	srv_n_rows_inserted_old = srv_n_rows_inserted;
 	srv_n_rows_updated_old = srv_n_rows_updated;
@@ -1911,6 +1913,14 @@ void
 srv_export_innodb_status(void)
 /*==========================*/
 {
+	buf_pool_stat_t	stat;
+	ulint		LRU_len;
+	ulint		free_len;
+	ulint		flush_list_len;
+
+	buf_get_total_stat(&stat);
+	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
+
 	mutex_enter(&srv_innodb_monitor_mutex);
 
 	export_vars.innodb_data_pending_reads
@@ -1925,31 +1935,26 @@ srv_export_innodb_status(void)
 	export_vars.innodb_data_reads = os_n_file_reads;
 	export_vars.innodb_data_writes = os_n_file_writes;
 	export_vars.innodb_data_written = srv_data_written;
-	export_vars.innodb_buffer_pool_read_requests = buf_pool->stat.n_page_gets;
+	export_vars.innodb_buffer_pool_read_requests = stat.n_page_gets;
 	export_vars.innodb_buffer_pool_write_requests
 		= srv_buf_pool_write_requests;
 	export_vars.innodb_buffer_pool_wait_free = srv_buf_pool_wait_free;
 	export_vars.innodb_buffer_pool_pages_flushed = srv_buf_pool_flushed;
 	export_vars.innodb_buffer_pool_reads = srv_buf_pool_reads;
 	export_vars.innodb_buffer_pool_read_ahead
-		= buf_pool->stat.n_ra_pages_read;
+		= stat.n_ra_pages_read;
 	export_vars.innodb_buffer_pool_read_ahead_evicted
-		= buf_pool->stat.n_ra_pages_evicted;
-	export_vars.innodb_buffer_pool_pages_data
-		= UT_LIST_GET_LEN(buf_pool->LRU);
-	export_vars.innodb_buffer_pool_pages_dirty
-		= UT_LIST_GET_LEN(buf_pool->flush_list);
-	export_vars.innodb_buffer_pool_pages_free
-		= UT_LIST_GET_LEN(buf_pool->free);
+		= stat.n_ra_pages_evicted;
+	export_vars.innodb_buffer_pool_pages_data = LRU_len;
+	export_vars.innodb_buffer_pool_pages_dirty = flush_list_len;
+	export_vars.innodb_buffer_pool_pages_free = free_len;
 #ifdef UNIV_DEBUG
 	export_vars.innodb_buffer_pool_pages_latched
 		= buf_get_latched_pages_number();
 #endif /* UNIV_DEBUG */
-	export_vars.innodb_buffer_pool_pages_total = buf_pool->curr_size;
+	export_vars.innodb_buffer_pool_pages_total = buf_pool_get_curr_size();
 
-	export_vars.innodb_buffer_pool_pages_misc = buf_pool->curr_size
-		- UT_LIST_GET_LEN(buf_pool->LRU)
-		- UT_LIST_GET_LEN(buf_pool->free);
+	export_vars.innodb_buffer_pool_pages_misc = buf_pool_get_curr_size();
 #ifdef HAVE_ATOMIC_BUILTINS
 	export_vars.innodb_have_atomic_builtins = 1;
 #else
@@ -1965,9 +1970,9 @@ srv_export_innodb_status(void)
 	export_vars.innodb_log_writes = srv_log_writes;
 	export_vars.innodb_dblwr_pages_written = srv_dblwr_pages_written;
 	export_vars.innodb_dblwr_writes = srv_dblwr_writes;
-	export_vars.innodb_pages_created = buf_pool->stat.n_pages_created;
-	export_vars.innodb_pages_read = buf_pool->stat.n_pages_read;
-	export_vars.innodb_pages_written = buf_pool->stat.n_pages_written;
+	export_vars.innodb_pages_created = stat.n_pages_created;
+	export_vars.innodb_pages_read = stat.n_pages_read;
+	export_vars.innodb_pages_written = stat.n_pages_written;
 	export_vars.innodb_row_lock_waits = srv_n_lock_wait_count;
 	export_vars.innodb_row_lock_current_waits
 		= srv_n_lock_wait_current_count;
@@ -2279,7 +2284,7 @@ srv_error_monitor_thread(
 #endif
 
 #ifdef UNIV_PFS_THREAD
-        pfs_register_thread(srv_error_monitor_thread_key);
+	pfs_register_thread(srv_error_monitor_thread_key);
 #endif
 
 loop:
@@ -2503,6 +2508,7 @@ srv_master_thread(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	buf_pool_stat_t buf_stat;
 	os_event_t	event;
 	ulint		old_activity_count;
 	ulint		n_pages_purged	= 0;
@@ -2544,8 +2550,9 @@ loop:
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
-	n_ios_very_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
-		+ buf_pool->stat.n_pages_written;
+	buf_get_total_stat(&buf_stat);
+	n_ios_very_old = log_sys->n_log_ios + buf_stat.n_pages_read
+		+ buf_stat.n_pages_written;
 	mutex_enter(&kernel_mutex);
 
 	/* Store the user activity counter at the start of this loop */
@@ -2566,8 +2573,12 @@ loop:
 
 	for (i = 0; i < 10; i++) {
 		ulint	cur_time = ut_time_ms();
-		n_ios_old = log_sys->n_log_ios + buf_pool->stat.n_pages_read
-			+ buf_pool->stat.n_pages_written;
+
+		buf_get_total_stat(&buf_stat);
+
+		n_ios_old = log_sys->n_log_ios + buf_stat.n_pages_read
+			+ buf_stat.n_pages_written;
+
 		srv_main_thread_op_info = "sleeping";
 		srv_main_1_second_loops++;
 
@@ -2607,13 +2618,14 @@ loop:
 		log_free_check();
 
 		/* If i/os during one second sleep were less than 5% of
-                capacity, we assume that there is free disk i/o capacity
-                available, and it makes sense to do an insert buffer merge. */
+		capacity, we assume that there is free disk i/o capacity
+		available, and it makes sense to do an insert buffer merge. */
 
+		buf_get_total_stat(&buf_stat);
 		n_pend_ios = buf_get_n_pending_ios()
 			+ log_sys->n_pending_writes;
-		n_ios = log_sys->n_log_ios + buf_pool->stat.n_pages_read
-			+ buf_pool->stat.n_pages_written;
+		n_ios = log_sys->n_log_ios + buf_stat.n_pages_read
+			+ buf_stat.n_pages_written;
 		if (n_pend_ios < SRV_PEND_IO_THRESHOLD
 		    && (n_ios - n_ios_old < SRV_RECENT_IO_ACTIVITY)) {
 			srv_main_thread_op_info = "doing insert buffer merge";
@@ -2631,9 +2643,8 @@ loop:
 
 			srv_main_thread_op_info =
 				"flushing buffer pool pages";
-			n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
-							  PCT_IO(100),
-							  IB_ULONGLONG_MAX);
+			n_pages_flushed = buf_flush_list(
+				PCT_IO(100), IB_ULONGLONG_MAX);
 
 		} else if (srv_adaptive_flushing) {
 
@@ -2647,8 +2658,7 @@ loop:
 					"flushing buffer pool pages";
 				n_flush = ut_min(PCT_IO(100), n_flush);
 				n_pages_flushed =
-					buf_flush_batch(
-						BUF_FLUSH_LIST,
+					buf_flush_list(
 						n_flush,
 						IB_ULONGLONG_MAX);
 			}
@@ -2680,17 +2690,17 @@ loop:
 	loop above requests writes for that case. The writes done here
 	are not required, and may be disabled. */
 
+	buf_get_total_stat(&buf_stat);
 	n_pend_ios = buf_get_n_pending_ios() + log_sys->n_pending_writes;
-	n_ios = log_sys->n_log_ios + buf_pool->stat.n_pages_read
-		+ buf_pool->stat.n_pages_written;
+	n_ios = log_sys->n_log_ios + buf_stat.n_pages_read
+		+ buf_stat.n_pages_written;
 
 	srv_main_10_second_loops++;
 	if (n_pend_ios < SRV_PEND_IO_THRESHOLD
 	    && (n_ios - n_ios_very_old < SRV_PAST_IO_ACTIVITY)) {
 
 		srv_main_thread_op_info = "flushing buffer pool pages";
-		buf_flush_batch(BUF_FLUSH_LIST, PCT_IO(100),
-				IB_ULONGLONG_MAX);
+		buf_flush_list(PCT_IO(100), IB_ULONGLONG_MAX);
 
 		/* Flush logs if needed */
 		srv_sync_log_buffer_in_background();
@@ -2705,8 +2715,6 @@ loop:
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
 
-	/* We run a full purge every 10 seconds, even if the server
-	were active */
 	if (srv_n_purge_threads == 0) {
 		srv_main_thread_op_info = "master purging";
 
@@ -2728,17 +2736,15 @@ loop:
 		(> 70 %), we assume we can afford reserving the disk(s) for
 		the time it requires to flush 100 pages */
 
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
-						  PCT_IO(100),
-						  IB_ULONGLONG_MAX);
+		n_pages_flushed = buf_flush_list(
+			PCT_IO(100), IB_ULONGLONG_MAX);
 	} else {
 		/* Otherwise, we only flush a small number of pages so that
 		we do not unnecessarily use much disk i/o capacity from
 		other work */
 
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
-						  PCT_IO(10),
-						  IB_ULONGLONG_MAX);
+		n_pages_flushed = buf_flush_list(
+			  PCT_IO(10), IB_ULONGLONG_MAX);
 	}
 
 	srv_main_thread_op_info = "making checkpoint";
@@ -2807,7 +2813,7 @@ background_loop:
 	} else {
 		/* This should do an amount of IO similar to the number of
 		dirty pages that will be flushed in the call to
-		buf_flush_batch below. Otherwise, the system favors
+		buf_flush_list below. Otherwise, the system favors
 		clean pages over cleanup throughput. */
 		n_bytes_merged = ibuf_contract_for_n_pages(FALSE,
 							   PCT_IO(100));
@@ -2826,9 +2832,8 @@ flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
 	srv_main_flush_loops++;
 	if (srv_fast_shutdown < 2) {
-		n_pages_flushed = buf_flush_batch(BUF_FLUSH_LIST,
-						  PCT_IO(100),
-						  IB_ULONGLONG_MAX);
+		n_pages_flushed = buf_flush_list(
+			  PCT_IO(100), IB_ULONGLONG_MAX);
 	} else {
 		/* In the fastest shutdown we do not flush the buffer pool
 		to data files: we set n_pages_flushed to 0 artificially. */
@@ -2846,7 +2851,7 @@ flush_loop:
 	mutex_exit(&kernel_mutex);
 
 	srv_main_thread_op_info = "waiting for buffer pool flush to end";
-	buf_flush_wait_batch_end(BUF_FLUSH_LIST);
+	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 	/* Flush logs if needed */
 	srv_sync_log_buffer_in_background();
