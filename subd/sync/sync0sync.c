@@ -1157,14 +1157,12 @@ sync_thread_add_level(
 	case SYNC_RECV:
 	case SYNC_WORK_QUEUE:
 	case SYNC_LOG:
+	case SYNC_LOG_FLUSH_ORDER:
 	case SYNC_THR_LOCAL:
 	case SYNC_ANY_LATCH:
 	case SYNC_TRX_SYS_HEADER:
 	case SYNC_FILE_FORMAT_TAG:
 	case SYNC_DOUBLEWRITE:
-	case SYNC_BUF_FLUSH_LIST:
-	case SYNC_BUF_FLUSH_ORDER:
-	case SYNC_BUF_POOL:
 	case SYNC_SEARCH_SYS:
 	case SYNC_SEARCH_SYS_CONF:
 	case SYNC_TRX_LOCK_HEAP:
@@ -1186,6 +1184,18 @@ sync_thread_add_level(
 			ut_error;
 		}
 		break;
+	case SYNC_BUF_FLUSH_LIST:
+	case SYNC_BUF_POOL:
+		/* We can have multiple mutexes of this type therefore we
+		can only check whether the greater than condition holds. */
+		if (!sync_thread_levels_g(array, level-1, TRUE)) {
+			fprintf(stderr,
+				"InnoDB: sync_thread_levels_g(array, %lu)"
+				" does not hold!\n", level-1);
+			ut_error;
+		}
+		break;
+
 	case SYNC_BUF_BLOCK:
 		/* Either the thread must own the buffer pool mutex
 		(buf_pool_mutex), or it is allowed to latch only ONE
