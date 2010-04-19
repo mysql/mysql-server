@@ -9423,10 +9423,11 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
   if (tab->table->file->index_flags(keyno, 0, 1) & HA_DO_INDEX_COND_PUSHDOWN &&
       tab->join->thd->variables.engine_condition_pushdown)
   {
-    DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond"););
+    DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond",
+                 QT_ORDINARY););
     idx_cond= make_cond_for_index(tab->select_cond, tab->table, keyno,
                                   other_tbls_ok);
-    DBUG_EXECUTE("where", print_where(idx_cond, "idx cond"););
+    DBUG_EXECUTE("where", print_where(idx_cond, "idx cond", QT_ORDINARY););
     if (idx_cond)
     {
       tab->pre_idx_push_select_cond= tab->select_cond;
@@ -9445,7 +9446,8 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
         tab->ref.disable_cache= TRUE;
 
       Item *row_cond= make_cond_remainder(tab->select_cond, TRUE);
-      DBUG_EXECUTE("where", print_where(row_cond, "remainder cond"););
+      DBUG_EXECUTE("where", print_where(row_cond, "remainder cond",
+                   QT_ORDINARY););
       
       if (row_cond)
       {
@@ -9463,7 +9465,8 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
         tab->select_cond= idx_remainder_cond;
       if (tab->select)
       {
-        DBUG_EXECUTE("where", print_where(tab->select->cond, "select_cond"););
+        DBUG_EXECUTE("where", print_where(tab->select->cond, "select_cond",
+                     QT_ORDINARY););
         tab->select->cond= tab->select_cond;
       }
     }
@@ -18672,7 +18675,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                     join->select_options & OPTION_FOUND_ROWS ?
                                     HA_POS_ERROR :
                                     join->unit->select_limit_cnt,
-                                    0) > 0;
+                                    TRUE, FALSE) > 0;
       }
       if (!no_changes)
       {
@@ -18743,6 +18746,7 @@ check_reverse_order:
       if (!select->quick->reverse_sorted())
       {
         QUICK_SELECT_DESC *tmp;
+        bool error= FALSE;
         int quick_type= select->quick->get_type();
         if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
             quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT ||
@@ -18756,8 +18760,8 @@ check_reverse_order:
             
         /* ORDER BY range_key DESC */
 	tmp= new QUICK_SELECT_DESC((QUICK_RANGE_SELECT*)(select->quick),
-                                    used_key_parts, &create_error);
-	if (!tmp || tmp->error)
+                                    used_key_parts, &error);
+	if (!tmp || error)
 	{
 	  delete tmp;
           select->quick= save_quick;

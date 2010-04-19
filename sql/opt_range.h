@@ -351,7 +351,7 @@ public:
   MEM_ROOT alloc;
 
   QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc,
-                     MEM_ROOT *parent_alloc= NULL);
+                     MEM_ROOT *parent_alloc, bool *create_error);
   ~QUICK_RANGE_SELECT();
 
   int init();
@@ -384,10 +384,6 @@ private:
     mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
     mrr_buf_size= 0;
   }
-  friend bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, 
-                             KEY_PART *key, SEL_ARG *key_tree, 
-                             uchar *min_key, uint min_key_flag,
-                             uchar *max_key, uint max_key_flag);
 };
 
 
@@ -395,8 +391,10 @@ class QUICK_RANGE_SELECT_GEOM: public QUICK_RANGE_SELECT
 {
 public:
   QUICK_RANGE_SELECT_GEOM(THD *thd, TABLE *table, uint index_arg,
-                          bool no_alloc, MEM_ROOT *parent_alloc)
-    :QUICK_RANGE_SELECT(thd, table, index_arg, no_alloc, parent_alloc)
+                          bool no_alloc, MEM_ROOT *parent_alloc,
+                          bool *create_error)
+    :QUICK_RANGE_SELECT(thd, table, index_arg, no_alloc, parent_alloc,
+                        create_error)
     {};
   virtual int get_next();
 };
@@ -774,8 +772,8 @@ class SQL_SELECT :public Sql_alloc {
 class FT_SELECT: public QUICK_RANGE_SELECT 
 {
 public:
-  FT_SELECT(THD *thd, TABLE *table, uint key) :
-      QUICK_RANGE_SELECT (thd, table, key, 1) { (void) init(); }
+  FT_SELECT(THD *thd, TABLE *table, uint key, bool *error) :
+      QUICK_RANGE_SELECT (thd, table, key, 1, NULL, error) { (void) init(); }
   ~FT_SELECT() { file->ft_end(); }
   int init() { return file->ft_init(); }
   int reset() { return 0; }

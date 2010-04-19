@@ -1340,6 +1340,18 @@ static Sys_var_ulong Sys_optimizer_search_depth(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_optimizer_search_depth));
 
+static const char *optimizer_use_mrr_names[]= { "AUTO", "FORCE", "DISABLE", NullS };
+static Sys_var_enum Sys_optimizer_use_mrr(
+       "optimizer_use_mrr",
+       "Controls use of Engine-MRR:"
+       " AUTO - based on cost;"
+       " FORCE - force MRR when the storage engine is capable of doing it;"
+       " DISABLE - disable MRR.",
+       SESSION_VAR(optimizer_use_mrr), CMD_LINE(OPT_ARG),
+       optimizer_use_mrr_names, DEFAULT(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(0));
+
 static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",

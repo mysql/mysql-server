@@ -1446,7 +1446,8 @@ public:
   PSI_table *m_psi;
 
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
-    :table_share(share_arg), estimation_rows_to_insert(0), ht(ht_arg),
+    :table_share(share_arg), table(0),
+    estimation_rows_to_insert(0), ht(ht_arg),
     ref(0), in_range_check_pushed_down(FALSE),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
@@ -1744,10 +1745,6 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return index_read_last(buf, key, key_len);
   }
-  virtual int read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
-                                     KEY_MULTI_RANGE *ranges, uint range_count,
-                                     bool sorted, HANDLER_BUFFER *buffer);
-  virtual int read_multi_range_next(KEY_MULTI_RANGE **found_range_p);
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
