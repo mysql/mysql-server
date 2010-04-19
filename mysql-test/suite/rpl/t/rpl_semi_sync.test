@@ -15,6 +15,7 @@ call mtr.add_suppression("Unsafe statement binlogged in statement format since B
 connection slave;
 call mtr.add_suppression("Master server does not support semi-sync");
 call mtr.add_suppression("Semi-sync slave .* reply");
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT.");
 enable_query_log;
 connection master;
 
