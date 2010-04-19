@@ -17,9 +17,18 @@
   Atomic rename of table;  RENAME TABLE t1 to t2, tmp to t1 [,...]
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_rename.h"
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_table.h"                         // build_table_filename
+#include "sql_view.h"             // mysql_frm_type, mysql_rename_view
 #include "sql_trigger.h"
-
+#include "lock.h"       // wait_if_global_read_lock, lock_table_names,
+                        // unlock_table_names,
+                        // start_waiting_global_read_lock
+#include "sql_base.h"   // tdc_remove_table
+#include "sql_handler.h"                        // mysql_ha_rm_tables
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);

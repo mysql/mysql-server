@@ -26,6 +26,11 @@
 
 void *sql_alloc(size_t);
 
+#include "my_sys.h"                    /* alloc_root, TRASH, MY_WME,
+                                          MY_FAE, MY_ALLOW_ZERO_PTR */
+#include "m_string.h"                           /* bfill */
+#include "thr_malloc.h"                         /* sql_alloc */
+
 /* mysql standard class memory allocator */
 
 class Sql_alloc
@@ -59,6 +64,57 @@ public:
 #endif
 
 };
+
+
+/**
+   Struct to handle simple linked lists.
+
+   @todo What is the relation between this class and list_node, below?
+   /Matz
+
+   @see list_node, base_list, List
+
+*/
+typedef struct st_sql_list {
+  uint elements;
+  uchar *first;
+  uchar **next;
+
+  st_sql_list() {}                              /* Remove gcc warning */
+  inline void empty()
+  {
+    elements=0;
+    first=0;
+    next= &first;
+  }
+  inline void link_in_list(uchar *element,uchar **next_ptr)
+  {
+    elements++;
+    (*next)=element;
+    next= next_ptr;
+    *next=0;
+  }
+  inline void save_and_clear(struct st_sql_list *save)
+  {
+    *save= *this;
+    empty();
+  }
+  inline void push_front(struct st_sql_list *save)
+  {
+    *save->next= first;				/* link current list last */
+    first= save->first;
+    elements+= save->elements;
+  }
+  inline void push_back(struct st_sql_list *save)
+  {
+    if (save->first)
+    {
+      *next= save->first;
+      next= save->next;
+      elements+= save->elements;
+    }
+  }
+} SQL_LIST;
 
 
 /*
@@ -636,5 +692,8 @@ list_copy_and_replace_each_value(List<T> &list, MEM_ROOT *mem_root)
   while ((el= it++))
     it.replace(el->clone(mem_root));
 }
+
+void free_list(I_List <i_string_pair> *list);
+void free_list(I_List <i_string> *list);
 
 #endif // INCLUDES_MYSQL_SQL_LIST_H

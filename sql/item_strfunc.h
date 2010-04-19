@@ -23,6 +23,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+class MY_LOCALE;
+
 class Item_str_func :public Item_func
 {
 public:
@@ -877,5 +879,7 @@ public:
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
 };
+
+extern String my_empty_string;
 
 #endif /* ITEM_STRFUNC_INCLUDED */

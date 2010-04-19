@@ -20,7 +20,7 @@
 */
 
 /*
-  We should not include mysql_priv.h in mysql_tzinfo_to_sql utility since
+  We should not include sql_priv.h in mysql_tzinfo_to_sql utility since
   it creates unsolved link dependencies on some platforms.
 */
 
@@ -30,7 +30,12 @@
 
 #include <my_global.h>
 #if !defined(TZINFO2SQL) && !defined(TESTTIME)
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "tztime.h"
+#include "sql_time.h"                           // localtime_to_TIME
+#include "sql_base.h"                           // open_system_tables_for_read,
+                                                // close_system_tables
 #else
 #include <my_time.h>
 #include "tztime.h"
@@ -41,6 +46,15 @@
 #include <m_string.h>
 #include <my_dir.h>
 #include <mysql/psi/mysql_file.h>
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_FLUSH,
+                                                // MYSQL_LOCK_IGNORE_TIMEOUT
+
+/*
+  This forward declaration is needed because including sql_base.h
+  causes further includes.  [TODO] Eliminate this forward declaration
+  and include a file with the prototype instead.
+*/
+extern void close_thread_tables(THD *thd);
 
 /*
   Now we don't use abbreviations in server but we will do this in future.

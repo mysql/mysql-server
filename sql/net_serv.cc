@@ -39,7 +39,6 @@
  */
 #include <my_global.h>
 #include <mysql.h>
-#include <mysql_embed.h>
 #include <mysql_com.h>
 #include <mysqld_error.h>
 #include <my_sys.h>
@@ -88,7 +87,7 @@ void sql_print_error(const char *format,...);
 #ifdef MYSQL_SERVER
 /*
   The following variables/functions should really not be declared
-  extern, but as it's hard to include mysql_priv.h here, we have to
+  extern, but as it's hard to include sql_priv.h here, we have to
   live with this for a while.
 */
 extern uint test_flags;

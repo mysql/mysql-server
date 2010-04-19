@@ -35,6 +35,11 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "my_global.h"                   /* ulonglong */
+#include "thr_lock.h"                    /* THR_LOCK, THR_LOCK_DATA */
+#include "handler.h"                     /* handler */
+#include "my_base.h"                     /* ha_rows */
+
 /** @brief
   EXAMPLE_SHARE is a structure that will be shared among all open handlers.
   This example implements the minimum of what you will probably need.

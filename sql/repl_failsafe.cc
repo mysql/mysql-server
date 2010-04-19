@@ -23,15 +23,18 @@
   functions like register_slave()) are working.
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "sql_parse.h"                          // check_access
 #ifdef HAVE_REPLICATION
 
 #include "repl_failsafe.h"
+#include "sql_acl.h"                            // REPL_SLAVE_ACL
 #include "sql_repl.h"
 #include "slave.h"
 #include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "log_event.h"
+#include "sql_db.h"                             // mysql_create_db
 #include <mysql.h>
 
 #define SLAVE_LIST_CHUNK 128

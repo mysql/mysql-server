@@ -16,7 +16,7 @@
 
 #ifdef MYSQL_CLIENT
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 
 #else
 
@@ -24,7 +24,19 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
+#include "log_event.h"
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_cache.h"                       // QUERY_CACHE_FLAGS_SIZE
+#include "sql_locale.h" // MY_LOCALE, my_locale_by_number, my_locale_en_US
+#include "key.h"        // key_copy
+#include "lock.h"       // mysql_unlock_tables
+#include "sql_parse.h"  // mysql_test_parse_for_slave
+#include "tztime.h"     // struct Time_zone
+#include "sql_load.h"   // mysql_load
+#include "sql_db.h"     // load_db_opt_by_name
 #include "slave.h"
 #include "rpl_rli.h"
 #include "rpl_mi.h"

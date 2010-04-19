@@ -20,6 +20,7 @@ extern "C" {
 #endif
 
 #include "my_base.h"		/* get 'enum ha_rkey_function' */
+#include "my_alloc.h"           /* MEM_ROOT */
 
 /* Worst case tree is half full. This gives use 2^(MAX_TREE_HEIGHT/2) leafs */
 #define MAX_TREE_HEIGHT	64
