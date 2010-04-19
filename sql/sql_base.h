@@ -23,13 +23,13 @@
 #include "mysqld.h"                             /* key_map */
 
 class Item_ident;
-class Name_resolution_context;
+struct Name_resolution_context;
 class Open_table_context;
 class Open_tables_state;
 class Prelocking_strategy;
-class TABLE_LIST;
+struct TABLE_LIST;
 class THD;
-class handlerton;
+struct handlerton;
 struct TABLE;
 
 typedef class st_select_lex SELECT_LEX;

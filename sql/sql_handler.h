@@ -21,7 +21,7 @@
 #include "sql_list.h"                  /* List */
 
 class THD;
-class TABLE_LIST;
+struct TABLE_LIST;
 
 bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen);
 bool mysql_ha_close(THD *thd, TABLE_LIST *tables);
