@@ -7826,6 +7826,7 @@ ha_innobase::reset()
         pushed_idx_cond_keyno= MAX_KEY;
         pushed_idx_cond= NULL;
         prebuilt->idx_cond_func= NULL;
+        ds_mrr.dsmrr_close();
 	/* TODO: This should really be reset in reset_template() but for now
 	it's safer to do it explicitly here. */
 

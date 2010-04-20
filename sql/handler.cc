@@ -4394,15 +4394,16 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
   uint elem_size;
   uint keyno;
   Item *pushed_cond= NULL;
+  handler *new_h2;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
   keyno= h->active_index;
+  DBUG_ASSERT(h2 == NULL);
   if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
   {
     use_default_impl= TRUE;
     DBUG_RETURN(h->handler::multi_range_read_init(seq_funcs, seq_init_param,
                                                   n_ranges, mode, buf));
   }
-  
   rowids_buf= buf->buffer;
   //psergey-todo: don't add key_length as it is not needed anymore
   rowids_buf += key->key_length + h->ref_length;
@@ -4418,27 +4419,24 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
 
   /* Create a separate handler object to do rndpos() calls. */
   THD *thd= current_thd;
-  if (!(h2= h->clone(thd->mem_root)) || h2->ha_external_lock(thd, F_RDLCK))
+  if (!(new_h2= h->clone(thd->mem_root)) || 
+      new_h2->ha_external_lock(thd, F_RDLCK))
   {
-    delete h2;
+    delete new_h2;
     DBUG_RETURN(1);
   }
-  my_bitmap_map *bmp_buf;
-  if (!(bmp_buf= (my_bitmap_map*)thd->alloc(table->s->column_bitmap_size)))
-    goto error;
 
-  bitmap_init(&row_access_bitmap, bmp_buf, table->s->fields, FALSE);
-  bitmap_copy(&row_access_bitmap, table->read_set);
-  save_read_set= table->read_set;
-  save_write_set= table->write_set;
-  
   if (keyno == h->pushed_idx_cond_keyno)
     pushed_cond= h->pushed_idx_cond;
   if (h->ha_index_end())
+  {
+    new_h2= h2;
     goto error;
-   
+  }
+
+  h2= new_h2;
   table->prepare_for_position();
-  h2->extra(HA_EXTRA_KEYREAD);
+  new_h2->extra(HA_EXTRA_KEYREAD);
 
   if (h2->ha_index_init(keyno, FALSE) || 
       h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
@@ -4448,7 +4446,7 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
   
   if (pushed_cond)
     h2->idx_cond_push(keyno, pushed_cond);
-  if (dsmrr_fill_buffer(h2))
+  if (dsmrr_fill_buffer(new_h2))
     goto error;
 
   /*
@@ -4458,8 +4456,6 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
   if (dsmrr_eof) 
     buf->end_of_used_area= rowids_buf_last;
 
-  table->column_bitmaps_set_no_signal(&row_access_bitmap, 
-                                         &row_access_bitmap);
   if (h->ha_rnd_init(FALSE))
     goto error;
   
@@ -4469,7 +4465,6 @@ error:
   h2->ha_external_lock(thd, F_UNLCK);
   h2->close();
   delete h2;
-  table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
   DBUG_RETURN(1);
 }
 
@@ -4477,19 +4472,15 @@ error:
 void DsMrr_impl::dsmrr_close()
 {
   DBUG_ENTER("DsMrr_impl::dsmrr_close");
-  if (!use_default_impl)
+  if (h2)
   {
-    if (h2)
-    {
-      h2->ha_index_or_rnd_end();
-      h2->ha_external_lock(current_thd, F_UNLCK);
-      h2->close();
-      delete h2;
-      h2= NULL;
-    }
-    table->column_bitmaps_set(save_read_set, save_write_set);
-    use_default_impl= TRUE;
+    h2->ha_index_or_rnd_end();
+    h2->ha_external_lock(current_thd, F_UNLCK);
+    h2->close();
+    delete h2;
+    h2= NULL;
   }
+  use_default_impl= TRUE;
   DBUG_VOID_RETURN;
 }
 
@@ -4585,17 +4576,12 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
     
   if (rowids_buf_cur == rowids_buf_last)
   {
-    table->column_bitmaps_set_no_signal(save_read_set, save_write_set);
     if (dsmrr_eof)
     {
       res= HA_ERR_END_OF_FILE;
       goto end;
     }
-
     res= dsmrr_fill_buffer(h);
-    
-    table->column_bitmaps_set_no_signal(&row_access_bitmap,
-                                           &row_access_bitmap);
     if (res)
       goto end;
   }
