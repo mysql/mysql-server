@@ -23,8 +23,8 @@
   except the part which must be in the server and in the client.
 */
 
-#ifndef MYSQL_PRIV_H
-#define MYSQL_PRIV_H
+#ifndef SQL_PRIV_INCLUDED
+#define SQL_PRIV_INCLUDED
 
 #ifndef MYSQL_CLIENT
 
@@ -262,4 +262,4 @@ inline int hexchar_to_int(char c)
 
 #endif /* MYSQL_CLIENT */
 
-#endif /* MYSQL_PRIV_H */
+#endif /* SQL_PRIV_INCLUDED */
