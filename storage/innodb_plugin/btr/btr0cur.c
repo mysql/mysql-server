@@ -1064,7 +1064,6 @@ btr_cur_optimistic_insert(
 	ibool		inherit;
 	ulint		zip_size;
 	ulint		rec_size;
-	mem_heap_t*	heap		= NULL;
 	ulint		err;
 
 	*big_rec = NULL;
@@ -1144,10 +1143,6 @@ btr_cur_optimistic_insert(
 					index, entry, big_rec_vec);
 			}
 
-			if (heap) {
-				mem_heap_free(heap);
-			}
-
 			return(DB_TOO_BIG_RECORD);
 		}
 	}
@@ -1170,15 +1165,11 @@ fail_err:
 			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
 		}
 
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
-
 		return(err);
 	}
 
 	if (UNIV_UNLIKELY(max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT
-	     || max_size < rec_size)
+			  || max_size < rec_size)
 	    && UNIV_LIKELY(page_get_n_recs(page) > 1)
 	    && page_get_max_insert_size(page, 1) < rec_size) {
 
@@ -1242,10 +1233,6 @@ fail_err:
 				(ulong) max_size);
 			ut_error;
 		}
-	}
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
 	}
 
 #ifdef BTR_CUR_HASH_ADAPT
