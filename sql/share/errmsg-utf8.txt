@@ -6336,11 +6336,17 @@ ER_DATA_OUT_OF_RANGE 22003
 ER_WRONG_SPVAR_TYPE_IN_LIMIT
   eng "A variable of a non-integer type in LIMIT clause"
 
+ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
+  eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
+
+ER_BINLOG_UNSAFE_MIXED_STATEMENT
+  eng "Statements that read from both transactional and non-transactional tables and write to any of them are unsafe."
+
 ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2
-        eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
-        ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
+  eng "Column count of %s.%s is wrong. Expected %d, found %d. The table is probably corrupted"
+  ger "Spaltenanzahl von %s.%s falsch. %d erwartet, aber %d gefunden. Tabelle ist wahrscheinlich beschädigt"
 
 ER_CANNOT_LOAD_FROM_TABLE_V2
-        eng "Cannot load from %s.%s. The table is probably corrupted"
-        ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
+  eng "Cannot load from %s.%s. The table is probably corrupted"
+  ger "Kann %s.%s nicht einlesen. Tabelle ist wahrscheinlich beschädigt"
 
