@@ -28,6 +28,10 @@
 source include/have_log_bin.inc;
 source include/have_binlog_format_mixed_or_statement.inc;
 
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
 connect (master1,127.0.0.1,root,,test,$MASTER_MYPORT,);
 
@@ -55,10 +59,12 @@ delete from tmp1_foo where a < 5;
 connection master1;
 delete from tmp2_foo where a < 5;
 
+--disable_warnings
 connection master;
 insert into foo select * from tmp1_foo;
 connection master1;
 insert into foo select * from tmp2_foo;
+--enable_warnings
 
 connection master;
 truncate table tmp1_foo;
