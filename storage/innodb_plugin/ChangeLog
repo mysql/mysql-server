@@ -1,3 +1,9 @@
+2010-04-20	The InnoDB Team
+
+	* btr/btr0btr.c, include/univ.i:
+	Implement UNIV_BTR_AVOID_COPY, for avoiding writes when a B-tree
+	node is split at the first or last record.
+
 2010-04-15	The InnoDB Team
 
 	* trx/trx0rec.c:
