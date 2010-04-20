@@ -142,13 +142,13 @@ BEGIN;
 --eval INSERT INTO t1 (a, data) VALUES (21, 's');
 --enable_query_log
 
-if (`SELECT @@binlog_format = 'STATEMENT'`)
+if (`SELECT @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
   --disable_query_log
   CREATE TABLE t4 SELECT * FROM t1;
   --enable_query_log
 }
-if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'`)
+if (`SELECT @@binlog_format = 'ROW'`)
 {
   --disable_query_log
   --error ER_TRANS_CACHE_FULL, ER_ERROR_ON_WRITE
@@ -178,7 +178,7 @@ BEGIN;
 CREATE TABLE t5 (a int);
 --enable_query_log
 
-if (`SELECT @@binlog_format = 'ROW' || @@binlog_format = 'MIXED'` )
+if (`SELECT @@binlog_format = 'ROW'`)
 {
   connection slave;
   --source include/wait_for_slave_sql_to_stop.inc

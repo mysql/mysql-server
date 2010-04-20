@@ -2531,11 +2531,11 @@ public:
                ("temporary_tables: %s, in_sub_stmt: %s, system_thread: %s",
                 YESNO(temporary_tables), YESNO(in_sub_stmt),
                 show_system_thread(system_thread)));
-    if ((temporary_tables == NULL) && (in_sub_stmt == 0))
+    if (in_sub_stmt == 0)
     {
       if (variables.binlog_format == BINLOG_FORMAT_ROW)
         set_current_stmt_binlog_format_row();
-      else
+      else if (temporary_tables == NULL)
         clear_current_stmt_binlog_format_row();
     }
     DBUG_VOID_RETURN;

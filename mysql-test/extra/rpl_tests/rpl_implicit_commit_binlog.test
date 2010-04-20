@@ -362,10 +362,8 @@ while (`SELECT $ddl_cases >= 1`)
     #
     # 1: BEGIN
     # 2: CREATE TEMPORARY
-    # 3: COMMIT
-    # 4: BEGIN
-    # 5: INSERT
-    # 6: COMMIT
+    # 3: INSERT
+    # 4: COMMIT
     #
     # In RBR the transaction is not committed either and the statement is not
     # written to the binary log:
@@ -377,7 +375,7 @@ while (`SELECT $ddl_cases >= 1`)
     #
     if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'` )
     {
-      let $commit_event_row_number= 6;
+      let $commit_event_row_number= 4;
     }
     #
     # In NDB (RBR mode), the commit event is the sixth event
@@ -488,11 +486,9 @@ while (`SELECT $ddl_cases >= 1`)
     # In SBR, we have what follows:
     #
     # 1: BEGIN
-    # 2: DROP TEMPORARY
-    # 3: COMMIT
-    # 4: BEGIN
-    # 5: INSERT
-    # 6: COMMIT
+    # 2: INSERT
+    # 3: DROP TEMPORARY
+    # 4: COMMIT
     #
     # In RBR the transaction is not committed either and the statement is not
     # written to the binary log:
@@ -504,10 +500,6 @@ while (`SELECT $ddl_cases >= 1`)
     #
     if (`select @@binlog_format = 'STATEMENT'`)
     {
-      let $commit_event_row_number= 6;
-    }
-    if (`select @@binlog_format = 'ROW'`)
-    {
       let $commit_event_row_number= 4;
     }
     # In MIXED mode, the changes are logged as rows and we have what follows:
@@ -518,7 +510,7 @@ while (`SELECT $ddl_cases >= 1`)
     # 4: DROP TEMPORARY table IF EXISTS
     # 5: COMMIT
     #
-    if (`select @@binlog_format = 'MIXED'`)
+    if (`select @@binlog_format = 'MIXED' || @@binlog_format = 'ROW'`)
     {
       let $commit_event_row_number= 5;
     }
@@ -527,15 +519,18 @@ while (`SELECT $ddl_cases >= 1`)
     # in the binary log:
     #
     # 1: BEGIN
-    # 2: TABLE MAP EVENT
-    # 3: TABLE MAP EVENT (ndb_apply_status)
-    # 4: ROW EVENT
-    # 5: ROW EVENT
-    # 6: COMMIT
+    # 2: DROP TEMPORARY table IF EXISTS
+    # 3: COMMIT
+    # 4: BEGIN
+    # 5: TABLE MAP EVENT
+    # 6: TABLE MAP EVENT (ndb_apply_status)
+    # 7: ROW EVENT
+    # 8: ROW EVENT
+    # 9: COMMIT
     #
     if (`SELECT '$engine' = 'NDB'`)
     {
-      let $commit_event_row_number= 6;
+      let $commit_event_row_number= 9;
     }
     #
     # In NDB (MIXED mode), the commit event is the nineth event

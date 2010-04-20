@@ -3661,19 +3661,80 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         if (prev_write_table && prev_write_table->file->ht !=
             table->table->file->ht)
           multi_write_engine= TRUE;
+        /*
+          Every temporary table must be always written to the binary
+          log in transaction boundaries and as such we artificially
+          classify them as transactional.
+
+          Indirectly, this avoids classifying a temporary table created
+          on a non-transactional engine as unsafe when it is modified
+          after any transactional table:
+
+          BEGIN;
+            INSERT INTO innodb_t VALUES (1);
+            INSERT INTO myisam_t_temp VALUES (1);
+          COMMIT;
+
+          BINARY LOG:
+
+          BEGIN;
+            INSERT INTO innodb_t VALUES (1);
+            INSERT INTO myisam_t_temp VALUES (1);
+          COMMIT;
+        */
         all_trans_write_engines= all_trans_write_engines &&
-                                 table->table->file->has_transactions();
+                                 (table->table->file->has_transactions() ||
+                                  table->table->s->tmp_table);
         prev_write_table= table->table;
         flags_write_all_set &= flags;
         flags_write_some_set |= flags;
       }
       flags_some_set |= flags;
-      if (prev_access_table && prev_access_table->file->ht != table->table->file->ht)
+      /*
+        The mixture of non-transactional and transactional tables must
+        identified and classified as unsafe. However, a temporary table
+        must be always handled as a transactional table. Based on that,
+        we have the following statements classified as mixed and by
+        consequence as unsafe:
+
+        1: INSERT INTO myisam_t SELECT * FROM innodb_t;
+
+        2: INSERT INTO innodb_t SELECT * FROM myisam_t;
+
+        3: INSERT INTO myisam_t SELECT * FROM myisam_t_temp;
+
+        4: INSERT INTO myisam_t_temp SELECT * FROM myisam_t;
+
+        5: CREATE TEMPORARY TABLE myisam_t_temp SELECT * FROM mysiam_t;
+
+        The following statements are not considered mixed and as such
+        are safe:
+
+        1: INSERT INTO innodb_t SELECT * FROM myisam_t_temp;
+
+        2: INSERT INTO myisam_t_temp SELECT * FROM innodb_t_temp;
+      */
+      if (!trans_non_trans_access_engines && prev_access_table &&
+          (lex->sql_command != SQLCOM_CREATE_TABLE ||
+          (lex->sql_command == SQLCOM_CREATE_TABLE &&
+          (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE))))
       {
+        my_bool prev_trans;
+        my_bool act_trans;
+        if (prev_access_table->s->tmp_table || table->table->s->tmp_table)
+        {
+          prev_trans= prev_access_table->s->tmp_table ? TRUE :
+                     prev_access_table->file->has_transactions();
+          act_trans= table->table->s->tmp_table ? TRUE :
+                    table->table->file->has_transactions();
+        }
+        else
+        {
+          prev_trans= prev_access_table->file->has_transactions();
+          act_trans= table->table->file->has_transactions();
+        }
+        trans_non_trans_access_engines= (prev_trans != act_trans);
         multi_access_engine= TRUE;
-        trans_non_trans_access_engines= trans_non_trans_access_engines ||
-          (prev_access_table->file->has_transactions() !=
-           table->table->file->has_transactions());
       }
       prev_access_table= table->table;
     }
@@ -3709,6 +3770,12 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       1: INSERT INTO myisam_t SELECT * FROM innodb_t;
 
       2: INSERT INTO innodb_t SELECT * FROM myisam_t;
+
+      3: INSERT INTO myisam_t SELECT * FROM myisam_t_temp;
+
+      4: INSERT INTO myisam_t_temp SELECT * FROM myisam_t;
+
+      5: CREATE TEMPORARY TABLE myisam_t_temp SELECT * FROM mysiam_t;
 
       are classified as unsafe to ensure that in mixed mode the execution is
       completely safe and equivalent to the row mode. Consider the following

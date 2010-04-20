@@ -5,6 +5,9 @@
 -- source extra/binlog_tests/ctype_cp932_binlog.test
 
 call mtr.add_suppression('Error in Log_event::read_log_event()');
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
 
 #
 # Bug#18293: Values in stored procedure written to binlog unescaped
@@ -79,9 +82,11 @@ ORDER BY head, tail;
 #
 # Populate t1 with Half Width Kana [A1..DF]
 #
+--disable_warnings
 INSERT t1 (code) SELECT head FROM head
 WHERE (head BETWEEN 'A1' AND 'DF')
 ORDER BY head;
+--enable_warnings
 DROP TEMPORARY TABLE head, tail;
 SHOW CREATE TABLE t1;
 UPDATE t1 SET a=unhex(code) ORDER BY code;
