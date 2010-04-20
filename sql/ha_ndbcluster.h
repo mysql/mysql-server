@@ -274,6 +274,9 @@ private:
   uint first_range_in_batch;
   uint first_unstarted_range;
   int multi_range_start_retrievals(int first_range);
+  /* TRUE <=> need range association */
+  bool mrr_need_range_assoc;
+
 public:
 
   bool null_value_index_search(KEY_MULTI_RANGE *ranges,

@@ -454,6 +454,12 @@ typedef struct system_status_var
   ulong ha_read_prev_count;
   ulong ha_read_rnd_count;
   ulong ha_read_rnd_next_count;
+  /*
+    This number doesn't include calls to the default implementation and
+    calls made by range access. The intent is to count only calls made by
+    BatchedKeyAccess.
+  */
+  ulong ha_multi_range_read_init_count;
   ulong ha_rollback_count;
   ulong ha_update_count;
   ulong ha_write_count;
