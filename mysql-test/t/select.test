@@ -1989,7 +1989,7 @@ DROP TABLE t1;
 #
 
 create table t1 (a int(11) unsigned, b int(11) unsigned);
-insert into t1 values (1,0), (1,1), (1,2);
+insert into t1 values (1,0), (1,1), (18446744073709551615,0);
 select a-b  from t1 order by 1;
 select a-b , (a-b < 0)  from t1 order by 1;
 select a-b as d, (a-b >= 0), b from t1 group by b having d >= 0;
@@ -2910,6 +2910,7 @@ DROP TABLE t1,t2;
 # cases to prevent fixing this accidently. It is intended behaviour)
 #
 
+SET SQL_MODE='NO_UNSIGNED_SUBTRACTION';
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
 UPDATE t1 SET i = -1;
@@ -2919,6 +2920,7 @@ SELECT * FROM t1;
 UPDATE t1 SET i = i - 1;
 SELECT * FROM t1;
 DROP TABLE t1;
+SET SQL_MODE=default;
 
 # BUG#17379
 

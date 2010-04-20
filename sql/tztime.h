@@ -21,7 +21,16 @@
 #pragma interface			/* gcc class interface */
 #endif
 
+#include "my_time.h"                            /* my_time_t */
+#include "mysql_time.h"                         /* MYSQL_TIME */
+#include "sql_list.h"                           /* Sql_alloc */
+#include "sql_string.h"                         /* String */
+
+class THD;
+
 #if !defined(TESTTIME) && !defined(TZINFO2SQL)
+
+class THD;
 
 /**
   This class represents abstract time zone and provides 

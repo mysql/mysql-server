@@ -13,14 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
-
+#include "sql_priv.h"
+#include "unireg.h"                             // HAVE_*
 #include "rpl_mi.h"
 #include "rpl_rli.h"
+#include "sql_base.h"                        // close_thread_tables
 #include <my_dir.h>    // For MY_STAT
 #include "sql_repl.h"  // For check_binlog_magic
+#include "log_event.h" // Format_description_log_event, Log_event,
+                       // FORMAT_DESCRIPTION_LOG_EVENT, ROTATE_EVENT,
+                       // PREFIX_SQL_LOAD
 #include "rpl_utility.h"
 #include "transaction.h"
+#include "sql_parse.h"                          // end_trans, ROLLBACK
 
 static int count_relay_log_space(Relay_log_info* rli);
 

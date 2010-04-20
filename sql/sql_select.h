@@ -30,6 +30,10 @@
 
 #include "procedure.h"
 #include <myisam.h>
+#include "sql_array.h"                        /* Array */
+#include "records.h"                          /* READ_RECORD */
+#include "opt_range.h"                /* SQL_SELECT, QUICK_SELECT_I */
+
 
 typedef struct keyuse_t {
   TABLE *table;
@@ -798,6 +802,46 @@ bool error_if_full_join(JOIN *join);
 int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
 COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
+int get_quick_record(SQL_SELECT *select);
+SORT_FIELD * make_unireg_sortorder(ORDER *order, uint *length,
+                                  SORT_FIELD *sortorder);
+int setup_order(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+		List<Item> &fields, List <Item> &all_fields, ORDER *order);
+int setup_group(THD *thd, Item **ref_pointer_array, TABLE_LIST *tables,
+		List<Item> &fields, List<Item> &all_fields, ORDER *order,
+		bool *hidden_group_fields);
+bool fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
+                   Item **ref_pointer_array, ORDER *group_list= NULL);
+
+bool handle_select(THD *thd, LEX *lex, select_result *result,
+                   ulong setup_tables_done_option);
+bool mysql_select(THD *thd, Item ***rref_pointer_array,
+                  TABLE_LIST *tables, uint wild_num,  List<Item> &list,
+                  COND *conds, uint og_num, ORDER *order, ORDER *group,
+                  Item *having, ORDER *proc_param, ulonglong select_type, 
+                  select_result *result, SELECT_LEX_UNIT *unit, 
+                  SELECT_LEX *select_lex);
+void free_underlaid_joins(THD *thd, SELECT_LEX *select);
+bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit,
+                         select_result *result);
+Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
+			Item ***copy_func, Field **from_field,
+                        Field **def_field,
+			bool group, bool modify_item,
+			bool table_cant_handle_bit_fields,
+                        bool make_copy_field,
+                        uint convert_blob_length);
+
+/*
+  General routine to change field->ptr of a NULL-terminated array of Field
+  objects. Useful when needed to call val_int, val_str or similar and the
+  field data is not in table->record[0] but in some other structure.
+  set_key_field_ptr changes all fields of an index using a key_info object.
+  All methods presume that there is at least one field to change.
+*/
+
+TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list);
+
 
 inline bool optimizer_flag(THD *thd, uint flag)
 { 

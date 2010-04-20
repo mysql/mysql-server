@@ -25,9 +25,9 @@ length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))
 36	utf8	16
 set @a= uuid_short();
 set @b= uuid_short();
-select cast(@a - @b as signed);
-cast(@a - @b as signed)
--1
+select @b - @a;
+@b - @a
+1
 select length(format('nan', 2)) > 0;
 length(format('nan', 2)) > 0
 1
@@ -336,4 +336,13 @@ End of 5.0 tests
 select connection_id() > 0;
 connection_id() > 0
 1
+#
+# Bug #52165: Assertion failed: file .\dtoa.c, line 465
+# 
+CREATE TABLE t1 (a SET('a'), b INT);
+INSERT INTO t1 VALUES ('', 0);
+SELECT COALESCE(a) = COALESCE(b) FROM t1;
+COALESCE(a) = COALESCE(b)
+1
+DROP TABLE t1;
 End of tests

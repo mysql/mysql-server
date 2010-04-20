@@ -1,0 +1,213 @@
+
+-- source include/master-slave.inc
+
+# Clean up old slave's binlogs.
+# The slave is started with --log-slave-updates
+# and this test does SHOW BINLOG EVENTS on the slave's
+# binlog. But previous tests can influence the current test's
+# binlog (e.g. a temporary table in the previous test has not
+# been explicitly deleted, or it has but the slave hasn't had
+# enough time to catch it before STOP SLAVE, 
+# and at the beginning of the current
+# test the slave immediately writes DROP TEMPORARY TABLE this_old_table).
+# We wait for the slave to have written all he wants to the binlog
+# (otherwise RESET MASTER may come too early).
+save_master_pos;
+connection slave;
+sync_with_master;
+reset master;
+connection master;
+
+connect (con1,localhost,root,,);
+
+#added on 2007/5/18
+connection con1;
+CREATE USER ''@localhost;
+
+connect (con2,localhost,root,,);
+# We want to connect as an unprivileged user. But if we use user="" then this
+# will pick the Unix login, which will cause problems if you're running the test
+# as root.
+connect (con3,localhost,zedjzlcsjhd,,);
+
+# We are going to use SET PSEUDO_THREAD_ID in this test;
+# check that it requires the SUPER privilege.
+
+connection con3;
+SET @save_select_limit=@@session.sql_select_limit;
+--error 1227
+SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
+SELECT @@session.sql_select_limit = @save_select_limit; #shouldn't have changed
+# While we are here we also test that SQL_LOG_BIN can't be set
+--error 1227
+SET @@session.sql_select_limit=10, @@session.sql_log_bin=0;
+SELECT @@session.sql_select_limit = @save_select_limit; #shouldn't have changed
+# Now as root, to be sure it works
+connection con2;
+SET @@session.pseudo_thread_id=100;
+SET @@session.pseudo_thread_id=connection_id();
+SET @@session.sql_log_bin=0;
+SET @@session.sql_log_bin=1;
+
+connection con3;
+let $VERSION=`select version()`;
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1(f int);
+create table t2(f int);
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+
+connection con1;
+create temporary table t3(f int);
+insert into t3 select * from t1 where f<6;
+sleep 1;
+
+connection con2;
+create temporary table t3(f int);
+sleep 1;
+
+connection con1;
+insert into t2 select count(*) from t3;
+sleep 1;
+
+connection con2;
+insert into t3 select * from t1 where f>=4;
+sleep 1;
+
+connection con1;
+drop temporary table t3;
+sleep 1;
+
+connection con2;
+insert into t2 select count(*) from t3;
+drop temporary table t3;
+
+select * from t2 ORDER BY f;
+
+# Commented out 8/30/2005 to make compatable with both sbr and rbr
+#--replace_result $VERSION VERSION
+#--replace_column 2 # 5 #
+#show binlog events;
+
+drop table t1, t2;
+
+use test;
+SET TIMESTAMP=1040323920;
+create table t1(f int);
+SET TIMESTAMP=1040323931;
+create table t2(f int);
+SET TIMESTAMP=1040323938;
+insert into t1 values (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+
+SET TIMESTAMP=1040323945;
+SET @@session.pseudo_thread_id=1;
+create temporary table t3(f int);
+SET TIMESTAMP=1040323952;
+SET @@session.pseudo_thread_id=1;
+insert into t3 select * from t1 where f<6;
+SET TIMESTAMP=1040324145;
+SET @@session.pseudo_thread_id=2;
+create temporary table t3(f int);
+SET TIMESTAMP=1040324186;
+SET @@session.pseudo_thread_id=1;
+insert into t2 select count(*) from t3;
+SET TIMESTAMP=1040324200;
+SET @@session.pseudo_thread_id=2;
+insert into t3 select * from t1 where f>=4;
+SET TIMESTAMP=1040324211;
+SET @@session.pseudo_thread_id=1;
+drop temporary table t3;
+SET TIMESTAMP=1040324219;
+SET @@session.pseudo_thread_id=2;
+insert into t2 select count(*) from t3;
+SET TIMESTAMP=1040324224;
+SET @@session.pseudo_thread_id=2;
+drop temporary table t3;
+
+select * from t2 ORDER BY f;
+drop table t1,t2;
+
+# Create last a temporary table that is not dropped at end to ensure that we
+# don't get any memory leaks for this
+
+create temporary table t3 (f int);
+#sync_with_master;
+
+# The server will now close done
+
+#
+# Bug#17284 erroneous temp table cleanup on slave
+#
+
+connection master;
+create temporary table t4 (f int);
+create table t5 (f int);
+#sync_with_master;
+# find dumper's $id
+select id from information_schema.processlist where command='Binlog Dump' into @id;
+kill @id; # to stimulate reconnection by slave w/o timeout
+insert into t5 select * from t4;
+save_master_pos;
+
+connection slave;
+sync_with_master;
+select * from t5 /* must be 1 after reconnection */;
+
+connection master;
+drop temporary table t4;
+drop table t5;
+
+#
+# BUG#17263 incorrect generation DROP temp tables
+# Temporary tables of connection are dropped in batches
+# where a batch correspond to pseudo_thread_id
+# value was set up at the moment of temp table creation
+#
+connection con1;
+set @@session.pseudo_thread_id=100;
+create temporary table t101 (id int);
+create temporary table t102 (id int);
+set @@session.pseudo_thread_id=200;
+create temporary table t201 (id int);
+create temporary table `t``201` (id int);
+# emulate internal temp table not to come to binlog
+create temporary table `#sql_not_user_table202` (id int);
+set @@session.pseudo_thread_id=300;
+create temporary table t301 (id int);
+create temporary table t302 (id int);
+create temporary table `#sql_not_user_table303` (id int);
+
+
+#Added on 2007/5/18
+DROP USER ''@localhost;
+
+disconnect con1;
+
+#now do something to show that slave is ok after DROP temp tables
+connection master;
+create table t1(f int);
+insert into t1 values (1);
+
+sync_slave_with_master;
+#connection slave;
+select * from t1 /* must be 1 */;
+
+connection master; 
+drop table t1;
+
+#
+#14157: utf8 encoding in binlog without set character_set_client
+#
+exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test -e "create table t1 (a int); set names latin1; create temporary table ‰ˆ¸ƒ÷‹ (a int); insert into ‰ˆ¸ƒ÷‹ values (1); insert into t1 select * from ‰ˆ¸ƒ÷‹";
+
+sync_slave_with_master;
+#connection slave;
+select * from t1;
+
+connection master; 
+drop table t1;
+
+# End of 5.1 tests

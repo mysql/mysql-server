@@ -16,6 +16,38 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA */
 
+/* Forward declarations */
+
+class Item_trigger_field;
+class sp_head;
+class sp_name;
+class Query_tables_list;
+struct TABLE_LIST;
+class Query_tables_list;
+
+/** Event on which trigger is invoked. */
+enum trg_event_type
+{
+  TRG_EVENT_INSERT= 0,
+  TRG_EVENT_UPDATE= 1,
+  TRG_EVENT_DELETE= 2,
+  TRG_EVENT_MAX
+};
+
+#include "table.h"                              /* GRANT_INFO */
+
+/*
+  We need this two enums here instead of sql_lex.h because
+  at least one of them is used by Item_trigger_field interface.
+
+  Time when trigger is invoked (i.e. before or after row actually
+  inserted/updated/deleted).
+*/
+enum trg_action_time_type
+{
+  TRG_ACTION_BEFORE= 0, TRG_ACTION_AFTER= 1, TRG_ACTION_MAX
+};
+
 
 /**
   This class holds all information about triggers of table.
@@ -178,5 +210,9 @@ bool load_table_name_for_trigger(THD *thd,
                                  const sp_name *trg_name,
                                  const LEX_STRING *trn_path,
                                  LEX_STRING *tbl_name);
+bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
+
+extern const char * const TRG_EXT;
+extern const char * const TRN_EXT;
 
 #endif /* SQL_TRIGGER_INCLUDED */

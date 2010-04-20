@@ -19,6 +19,7 @@
 
 #include "sql_list.h" /* Sql_alloc, MEM_ROOT */
 #include "m_string.h" /* LEX_STRING */
+#include "sql_string.h"                        /* String */
 #include "mysql_com.h" /* MYSQL_ERRMSG_SIZE */
 
 class THD;

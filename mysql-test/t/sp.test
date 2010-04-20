@@ -7076,11 +7076,14 @@ select bug20777(9223372036854775807) as '9223372036854775807   2**63-1';
 select bug20777(9223372036854775808) as '9223372036854775808   2**63+0';
 select bug20777(9223372036854775809) as '9223372036854775809   2**63+1';
 select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
+--error ER_DATA_OUT_OF_RANGE
 select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
 select bug20777(9223372036854775807) as 'upper bounds signed bigint';
+--error ER_DATA_OUT_OF_RANGE
 select bug20777(0) as 'lower bounds unsigned bigint';
 select bug20777(18446744073709551615) as 'upper bounds unsigned bigint';
 select bug20777(18446744073709551616) as 'upper bounds unsigned bigint + 1';
+--error ER_DATA_OUT_OF_RANGE
 select bug20777(-1) as 'lower bounds unsigned bigint - 1';
 
 create table examplebug20777 as select 
@@ -7091,10 +7094,8 @@ create table examplebug20777 as select
   bug20777(9223372036854775809) as '2**63+1',
   bug20777(18446744073709551614) as '2**64-2',
   bug20777(18446744073709551615) as '2**64-1', 
-  bug20777(18446744073709551616) as '2**64',
-  bug20777(0) as '0',
-  bug20777(-1) as '-1';
-insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
+  bug20777(18446744073709551616) as '2**64';
+insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616);
 show create table examplebug20777;
 select * from examplebug20777 order by i;
 
@@ -8598,4 +8599,95 @@ SELECT * FROM t1;
 DROP TEMPORARY TABLE t1;
 DROP PROCEDURE p1;
 
+--echo #
+--echo # Bug #11918 Can't use a declared variable in LIMIT clause
+--echo #
+--disable_warnings
+drop table if exists t1;
+drop procedure if exists p1;
+--enable_warnings
+create table t1 (c1 int);
+insert into t1 (c1) values (1), (2), (3), (4), (5);
 
+delimiter |;
+create procedure p1()
+begin
+  declare a integer;
+  declare b integer;
+  select * from t1 limit a, b;
+end|
+delimiter ;|
+--echo # How do we handle NULL limit values?
+call p1();
+drop table t1;
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5);
+--echo #
+--echo # Do we correctly resolve identifiers in LIMIT?
+--echo # Since DROP and CREATE did not invalidate
+--echo # the SP cache, we can't test until
+--echo # we drop and re-create the procedure.
+--echo #
+--error ER_BAD_FIELD_ERROR
+call p1();
+--echo # 
+--echo # Drop and recreate the procedure, then repeat
+--echo #
+drop procedure p1;
+delimiter |;
+create procedure p1()
+begin
+  declare a integer;
+  declare b integer;
+  select * from t1 limit a, b;
+end|
+delimiter ;|
+--echo # Stored procedure variables are resolved correctly in the LIMIT
+call p1();
+drop table t1;
+create table t1 (c1 int);
+insert into t1 (c1) values (1), (2), (3), (4), (5);
+drop procedure p1;
+--echo # Try to create a procedure that
+--echo # refers to non-existing variables.
+--error ER_SP_UNDECLARED_VAR
+create procedure p1(p1 integer, p2 integer)
+  select * from t1 limit a, b;
+--echo #
+--echo # Try to use data types not allowed in LIMIT 
+--echo #
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
+--error ER_WRONG_SPVAR_TYPE_IN_LIMIT
+create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
+
+--echo #
+--echo # Finally, test the valid case.
+--echo #
+create procedure p1(p1 integer, p2 integer)
+  select * from t1 limit p1, p2;
+
+call p1(NULL, NULL);
+call p1(0, 0);
+call p1(0, -1);
+call p1(-1, 0);
+call p1(-1, -1);
+call p1(0, 1);
+call p1(1, 0);
+call p1(1, 5);
+call p1(3, 2);
+
+
+--echo # Cleanup
+drop table t1;
+drop procedure p1;
+
+--echo # End of 5.5 test

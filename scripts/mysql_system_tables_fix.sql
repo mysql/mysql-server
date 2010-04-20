@@ -1,3 +1,18 @@
+-- Copyright (C) 2008, 2010 Oracle and/or its affiliates. All rights reserved.
+--
+-- This program is free software; you can redistribute it and/or modify
+-- it under the terms of the GNU General Public License as published by
+-- the Free Software Foundation; version 2 of the License.
+--
+-- This program is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU General Public License for more details.
+--
+-- You should have received a copy of the GNU General Public License
+-- along with this program; if not, write to the Free Software
+-- Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
 # This part converts any old privilege tables to privilege tables suitable
 # for current version of MySQL
 
@@ -217,12 +232,29 @@ ALTER TABLE func
 
 SET @old_log_state = @@global.general_log;
 SET GLOBAL general_log = 'OFF';
-ALTER TABLE general_log MODIFY COLUMN server_id INTEGER UNSIGNED NOT NULL;
+ALTER TABLE general_log
+  MODIFY event_time TIMESTAMP NOT NULL,
+  MODIFY user_host MEDIUMTEXT NOT NULL,
+  MODIFY thread_id INTEGER NOT NULL,
+  MODIFY server_id INTEGER UNSIGNED NOT NULL,
+  MODIFY command_type VARCHAR(64) NOT NULL,
+  MODIFY argument MEDIUMTEXT NOT NULL;
 SET GLOBAL general_log = @old_log_state;
 
 SET @old_log_state = @@global.slow_query_log;
 SET GLOBAL slow_query_log = 'OFF';
-ALTER TABLE slow_log MODIFY COLUMN server_id INTEGER UNSIGNED NOT NULL;
+ALTER TABLE slow_log
+  MODIFY start_time TIMESTAMP NOT NULL,
+  MODIFY user_host MEDIUMTEXT NOT NULL,
+  MODIFY query_time TIME NOT NULL,
+  MODIFY lock_time TIME NOT NULL,
+  MODIFY rows_sent INTEGER NOT NULL,
+  MODIFY rows_examined INTEGER NOT NULL,
+  MODIFY db VARCHAR(512) NOT NULL,
+  MODIFY last_insert_id INTEGER NOT NULL,
+  MODIFY insert_id INTEGER NOT NULL,
+  MODIFY server_id INTEGER UNSIGNED NOT NULL,
+  MODIFY sql_text MEDIUMTEXT NOT NULL;
 SET GLOBAL slow_query_log = @old_log_state;
 
 ALTER TABLE plugin
@@ -586,6 +618,29 @@ ALTER TABLE user ADD Create_tablespace_priv enum('N','Y') COLLATE utf8_general_c
 ALTER TABLE user MODIFY Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Trigger_priv;
 
 UPDATE user SET Create_tablespace_priv = Super_priv WHERE @hadCreateTablespacePriv = 0;
+
+--
+-- Unlike 'performance_schema', the 'mysql' database is reserved already,
+-- so no user procedure is supposed to be there.
+--
+-- NOTE: until upgrade is finished, stored routines are not available,
+-- because system tables (e.g. mysql.proc) might be not usable.
+--
+drop procedure if exists mysql.die;
+create procedure mysql.die() signal sqlstate 'HY000' set message_text='Unexpected content found in the performance_schema database.';
+
+--
+-- For broken upgrades, SIGNAL the error
+--
+
+SET @cmd="call mysql.die()";
+
+SET @str = IF(@broken_pfs > 0, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+drop procedure mysql.die;
 
 # Activate the new, possible modified privilege tables
 # This should not be needed, but gives us some extra testing that the above

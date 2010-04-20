@@ -20,6 +20,11 @@
 #ifndef SQL_LEX_INCLUDED
 #define SQL_LEX_INCLUDED
 
+#include "violite.h"                            /* SSL_type */
+#include "sql_trigger.h"
+#include "item.h"               /* From item_subselect.h: subselect_union_engine */
+#include "thr_lock.h"                  /* thr_lock_type, TL_UNLOCK */
+
 /* YACC and LEX Definitions */
 
 /* These may not be declared yet */
@@ -35,6 +40,12 @@ class partition_info;
 class Event_parse_data;
 class set_var_base;
 class sys_var;
+class Item_func_match;
+class Alter_drop;
+class Alter_column;
+class Key;
+class File_parser;
+class Key_part_spec;
 
 /**
   used by the parser to store internal variable name
@@ -55,6 +66,7 @@ struct sys_var_with_base
 #else
 #include "lex_symbol.h"
 #if MYSQL_LEX
+#include "item_func.h"            /* Cast_target used in sql_yacc.h */
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
 #else
@@ -191,6 +203,12 @@ enum enum_drop_mode
   DROP_CASCADE, // CASCADE option
   DROP_RESTRICT // RESTRICT option
 };
+
+/* Options to add_table_to_list() */
+#define TL_OPTION_UPDATING	1
+#define TL_OPTION_FORCE_INDEX	2
+#define TL_OPTION_IGNORE_LEAVES 4
+#define TL_OPTION_ALIAS         8
 
 typedef List<Item> List_item;
 
@@ -1142,6 +1160,18 @@ public:
       reads or writes inside a transaction.
     */
     BINLOG_STMT_UNSAFE_NONTRANS_AFTER_TRANS,
+
+    /**
+      Mixing self-logging and non-self-logging engines in a statement
+      is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
+
+    /**
+      Statements that read from both transactional and non-transactional
+      tables and write to any of them are unsafe.
+    */
+    BINLOG_STMT_UNSAFE_MIXED_STATEMENT,
 
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
@@ -2287,6 +2317,7 @@ extern bool is_lex_native_function(const LEX_STRING *name);
 */
 
 void my_missing_function_error(const LEX_STRING &token, const char *name);
+bool is_keyword(const char *name, uint len);
 
 #endif /* MYSQL_SERVER */
 #endif /* SQL_LEX_INCLUDED */

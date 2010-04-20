@@ -86,3 +86,11 @@ select count(distinct if(f1,3,f2)) from t1;
 count(distinct if(f1,3,f2))
 2
 drop table t1;
+create table t1 (i int);
+insert into t1 values (0), (1);
+create view v1 as select * from t1;
+select count(distinct i) from v1;
+count(distinct i)
+2
+drop table t1;
+drop view v1;
