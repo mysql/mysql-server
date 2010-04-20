@@ -4681,40 +4681,6 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
 }
 
 
-/*
-  Check if key has partially-covered columns
-
-  SYNOPSIS
-    DsMrr_impl::key_uses_partial_cols()
-      keyno  Key to check
-
-  DESCRIPTION
-    We can't use DS-MRR to perform range scans when the ranges are over
-    partially-covered keys, because we'll not have full key part values
-    (we'll have their prefixes from the index) and will not be able to check
-    if we've reached the end the range.
-
-    TODO: Allow use of DS-MRR in cases where the index has partially-covered
-    components but they are not used for scanning.
-
-  RETURN 
-    TRUE  - Yes
-    FALSE - No
-*/
-
-bool key_uses_partial_cols(TABLE *table, uint keyno)
-{
-  KEY_PART_INFO *kp= table->key_info[keyno].key_part;
-  KEY_PART_INFO *kp_end= kp + table->key_info[keyno].key_parts;
-  for (; kp != kp_end; kp++)
-  {
-    if (!kp->field->part_of_key.is_set(keyno))
-      return TRUE;
-  }
-  return FALSE;
-}
-
-
 /**
   DS-MRR Internals: Choose between Default MRR implementation and DS-MRR
 
