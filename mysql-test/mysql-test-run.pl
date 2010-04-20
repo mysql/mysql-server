@@ -440,7 +440,7 @@ sub run_test_server ($$$) {
   my $result;
   my $exe_mysqld= find_mysqld($basedir) || ""; # Used as hint to CoreDump
 
-  my $suite_timeout_proc= My::SafeProcess->timer(suite_timeout());
+  my $suite_timeout= start_timer(suite_timeout());
 
   my $s= IO::Select->new();
   $s->add($server);
@@ -461,7 +461,6 @@ sub run_test_server ($$$) {
 	  mtr_verbose("Child closed socket");
 	  $s->remove($sock);
 	  if (--$childs == 0){
-	    $suite_timeout_proc->kill();
 	    return $completed;
 	  }
 	  next;
@@ -530,13 +529,11 @@ sub run_test_server ($$$) {
 
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
-	      $suite_timeout_proc->kill();
 	      push(@$completed, $result);
 	      return $completed;
 	    }
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
-	      $suite_timeout_proc->kill();
 	      push(@$completed, $result);
 	      mtr_report_stats($completed, 1);
 	      mtr_report("Too many tests($num_failed_test) failed!",
@@ -668,7 +665,7 @@ sub run_test_server ($$$) {
     # ----------------------------------------------------
     # Check if test suite timer expired
     # ----------------------------------------------------
-    if ( ! $suite_timeout_proc->wait_one(0) )
+    if ( has_expired($suite_timeout) )
     {
       mtr_report_stats($completed, 1);
       mtr_report("Test suite timeout! Terminating...");
@@ -3013,11 +3010,11 @@ sub check_testcase($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout_proc= My::SafeProcess->timer(check_timeout());
+  my $timeout= start_timer(check_timeout());
 
   while (1){
     my $result;
-    my $proc= My::SafeProcess->wait_any();
+    my $proc= My::SafeProcess->wait_any_timeout($timeout);
     mtr_report("Got $proc");
 
     if ( delete $started{$proc->pid()} ) {
@@ -3041,9 +3038,6 @@ sub check_testcase($$)
 
 	if ( keys(%started) == 0){
 	  # All checks completed
-
-	  $timeout_proc->kill();
-
 	  return 0;
 	}
 	# Wait for next process to exit
@@ -3084,10 +3078,9 @@ test case was executed:\n";
 
       }
     }
-    elsif ( $proc eq $timeout_proc ) {
-      $tinfo->{comment}.= "Timeout $timeout_proc for ".
-	"'check-testcase' expired after ".check_timeout().
-	  " seconds";
+    elsif ( $proc->{timeout} ) {
+      $tinfo->{comment}.= "Timeout for 'check-testcase' expired after "
+	.check_timeout()." seconds";
       $result= 4;
     }
     else {
@@ -3101,8 +3094,6 @@ test case was executed:\n";
 
     # Kill any check processes still running
     map($_->kill(), values(%started));
-
-    $timeout_proc->kill();
 
     return $result;
   }
@@ -3175,11 +3166,11 @@ sub run_on_all($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout_proc= My::SafeProcess->timer(check_timeout());
+  my $timeout= start_timer(check_timeout());
 
   while (1){
     my $result;
-    my $proc= My::SafeProcess->wait_any();
+    my $proc= My::SafeProcess->wait_any_timeout($timeout);
     mtr_report("Got $proc");
 
     if ( delete $started{$proc->pid()} ) {
@@ -3198,17 +3189,15 @@ sub run_on_all($$)
 
       if ( keys(%started) == 0){
 	# All completed
-	$timeout_proc->kill();
 	return 0;
       }
 
       # Wait for next process to exit
       next;
     }
-    elsif ( $proc eq $timeout_proc ) {
-      $tinfo->{comment}.= "Timeout $timeout_proc for '$run' ".
-	"expired after ". check_timeout().
-	  " seconds";
+    elsif ($proc->{timeout}) {
+      $tinfo->{comment}.= "Timeout for '$run' expired after "
+	.check_timeout()." seconds";
     }
     else {
       # Unknown process returned, most likley a crash, abort everything
@@ -3219,8 +3208,6 @@ sub run_on_all($$)
 
     # Kill any check processes still running
     map($_->kill(), values(%started));
-
-    $timeout_proc->kill();
 
     return 1;
   }
@@ -3451,16 +3438,13 @@ sub run_testcase ($) {
     }
   }
 
-  my $test_timeout_proc= My::SafeProcess->timer(testcase_timeout());
+  my $test_timeout= start_timer(testcase_timeout());
 
   do_before_run_mysqltest($tinfo);
 
   if ( $opt_check_testcases and check_testcase($tinfo, "before") ){
     # Failed to record state of server or server crashed
     report_failure_and_restart($tinfo);
-
-    # Stop the test case timer
-    $test_timeout_proc->kill();
 
     return 1;
   }
@@ -3479,20 +3463,20 @@ sub run_testcase ($) {
       if ($proc)
       {
 	mtr_verbose ("Found exited process $proc");
-	# If that was the timeout, cancel waiting
-	if ( $proc eq $test_timeout_proc )
-	{
-	  $keep_waiting_proc = 0;
-	}
       }
       else
       {
 	$proc = $keep_waiting_proc;
+	# Also check if timer has expired, if so cancel waiting
+	if ( has_expired($test_timeout) )
+	{
+	  $keep_waiting_proc = 0;
+	}
       }
     }
-    else
+    if (! $keep_waiting_proc)
     {
-      $proc= My::SafeProcess->wait_any();
+      $proc= My::SafeProcess->wait_any_timeout($test_timeout);
     }
 
     # Will be restored if we need to keep waiting
@@ -3509,9 +3493,6 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     if ($proc eq $test)
     {
-      # Stop the test case timer
-      $test_timeout_proc->kill();
-
       my $res= $test->exit_status();
 
       if ($res == 0 and $opt_warnings and check_warnings($tinfo) )
@@ -3605,7 +3586,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # Stop the test case timer
     # ----------------------------------------------------
-    $test_timeout_proc->kill();
+    $test_timeout= 0;
 
     # ----------------------------------------------------
     # Check if it was a server that died
@@ -3644,7 +3625,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # Check if testcase timer expired
     # ----------------------------------------------------
-    if ( $proc eq $test_timeout_proc )
+    if ( $proc->{timeout} )
     {
       my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
       $tinfo->{comment}=
@@ -3878,11 +3859,11 @@ sub check_warnings ($) {
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout_proc= My::SafeProcess->timer(check_timeout());
+  my $timeout= start_timer(check_timeout());
 
   while (1){
     my $result= 0;
-    my $proc= My::SafeProcess->wait_any();
+    my $proc= My::SafeProcess->wait_any_timeout($timeout);
     mtr_report("Got $proc");
 
     if ( delete $started{$proc->pid()} ) {
@@ -3911,9 +3892,6 @@ sub check_warnings ($) {
 
 	if ( keys(%started) == 0){
 	  # All checks completed
-
-	  $timeout_proc->kill();
-
 	  return $result;
 	}
 	# Wait for next process to exit
@@ -3930,10 +3908,9 @@ sub check_warnings ($) {
 	$result= 2;
       }
     }
-    elsif ( $proc eq $timeout_proc ) {
-      $tinfo->{comment}.= "Timeout $timeout_proc for ".
-	"'check warnings' expired after ".check_timeout().
-	  " seconds";
+    elsif ( $proc->{timeout} ) {
+      $tinfo->{comment}.= "Timeout for 'check warnings' expired after "
+	.check_timeout()." seconds";
       $result= 4;
     }
     else {
@@ -3946,8 +3923,6 @@ sub check_warnings ($) {
 
     # Kill any check processes still running
     map($_->kill(), values(%started));
-
-    $timeout_proc->kill();
 
     return $result;
   }

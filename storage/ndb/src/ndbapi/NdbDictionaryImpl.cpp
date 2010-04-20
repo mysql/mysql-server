@@ -3992,7 +3992,7 @@ NdbDictInterface::createIndex(Ndb & ndb,
   req->tableId = table.m_id;
   req->tableVersion = table.m_version;
   req->online = true;
-  AttributeList attributeList;
+  IndexAttributeList attributeList;
   attributeList.sz = impl.m_columns.size();
   for(i = 0; i<attributeList.sz; i++){
     const NdbColumnImpl* col = 
@@ -5157,8 +5157,8 @@ NdbDictionaryImpl::listObjects(List& list,
   }
 
   ListTablesReq req;
-  req.requestData = 0;
-  req.tableId = 0;
+  req.init();
+  req.setTableId(0);
   req.setTableType(getKernelConstant(type, objectTypeMapping, 0));
   req.setListNames(true);
   if (!list2.count)
@@ -5189,9 +5189,9 @@ int
 NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
 {
   ListTablesReq req;
-  req.requestData = 0;
+  req.init();
   req.setTableId(indexId);
-  req.tableType = 0;
+  req.setTableType(0);
   req.setListNames(true);
   req.setListIndexes(true);
   return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
@@ -5204,11 +5204,9 @@ NdbDictInterface::listObjects(NdbDictionary::Dictionary::List& list,
   bool listTablesLongSignal = false;
   NdbApiSignal tSignal(m_reference);
   ListTablesReq* const req = CAST_PTR(ListTablesReq, tSignal.getDataPtrSend());
+  memcpy(req, &ltreq, sizeof(ListTablesReq));
   req->senderRef = m_reference;
   req->senderData = 0;
-  req->requestData = ltreq.requestData;
-  req->setTableId(ltreq.getTableId());
-  req->setTableType(ltreq.getTableType());
   if (ltreq.getTableId() > 4096)
   {
     /*
@@ -5256,7 +5254,9 @@ NdbDictInterface::unpackListTables(NdbDictionary::Dictionary::List& list,
   while (count < m_noOfTables)
   {
     NdbDictionary::Dictionary::List::Element& element = list.elements[count];
-    ListTablesData* ltd = (ListTablesData *) tableData;
+    ListTablesData _ltd;
+    ListTablesData * ltd = &_ltd;
+    memcpy(ltd, tableData, 4 * listTablesDataSizeInWords);
     tableData += listTablesDataSizeInWords;
     element.id = ltd->getTableId();
     element.type = (NdbDictionary::Object::Type)

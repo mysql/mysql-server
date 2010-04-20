@@ -38,7 +38,7 @@ echo == 12 ==;
 --exec $NDB_CONFIG --no-defaults --query=nodeid --host=1.2.3.4   --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 echo == 13 ==;
---exec $NDB_CONFIG --no-defaults --query=nodeid --host=127.0.0.1 --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
+--exec $NDB_CONFIG --no-defaults --query=nodeid --host=localhost --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini 2> /dev/null
 
 echo == 14 == ndb_config --configinfo;
 --exec $NDB_CONFIG --configinfo > /dev/null

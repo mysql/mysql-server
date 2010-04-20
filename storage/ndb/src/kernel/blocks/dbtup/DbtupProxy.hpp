@@ -50,8 +50,8 @@ protected:
   struct Ss_BUILD_INDX_IMPL_REQ : SsParallel {
     BuildIndxImplReq m_req;
     Ss_BUILD_INDX_IMPL_REQ() {
-      m_sendREQ = (SsFUNC)&DbtupProxy::sendBUILD_INDX_IMPL_REQ;
-      m_sendCONF = (SsFUNC)&DbtupProxy::sendBUILD_INDX_IMPL_CONF;
+      m_sendREQ = (SsFUNCREQ)&DbtupProxy::sendBUILD_INDX_IMPL_REQ;
+      m_sendCONF = (SsFUNCREP)&DbtupProxy::sendBUILD_INDX_IMPL_CONF;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_BUILD_INDX_IMPL_REQ>& pool(LocalProxy* proxy) {
@@ -60,7 +60,7 @@ protected:
   };
   SsPool<Ss_BUILD_INDX_IMPL_REQ> c_ss_BUILD_INDX_IMPL_REQ;
   void execBUILD_INDX_IMPL_REQ(Signal*);
-  void sendBUILD_INDX_IMPL_REQ(Signal*, Uint32 ssId);
+  void sendBUILD_INDX_IMPL_REQ(Signal*, Uint32 ssId, SectionHandle*);
   void execBUILD_INDX_IMPL_CONF(Signal*);
   void execBUILD_INDX_IMPL_REF(Signal*);
   void sendBUILD_INDX_IMPL_CONF(Signal*, Uint32 ssId);

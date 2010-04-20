@@ -1,6 +1,5 @@
 --result_format 2
 --source include/have_ndb.inc
---source have_ndbinfo.inc
 
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,
        PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,PLUGIN_AUTHOR,PLUGIN_DESCRIPTION
@@ -14,6 +13,9 @@ CREATE TEMPORARY TABLE `t1` (
 
 if (`select @@ndbinfo_version < ((7<<16) | (1 << 8))`)
 {
+  # Check if ndbinfo.sql exists
+  --source have_ndbinfo.inc
+
   # Run the ndbinfo.sql script that creates ndbinfo database, tables and views
   --disable_warnings
   --disable_query_log
