@@ -204,10 +204,10 @@ a	b	c
 15	NULL	Fifteen
 show variables like "secure_file_pri%";
 Variable_name	Value
-secure_file_priv	MYSQLTEST_VARDIR/
+secure_file_priv	MYSQLTEST_VARDIR
 select @@secure_file_priv;
 @@secure_file_priv
-MYSQLTEST_VARDIR/
+MYSQLTEST_VARDIR
 set @@secure_file_priv= 0;
 ERROR HY000: Variable 'secure_file_priv' is a read only variable
 truncate table t1;
