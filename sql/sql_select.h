@@ -114,54 +114,6 @@ typedef struct st_table_ref
 } TABLE_REF;
 
 
-
-#define CACHE_BLOB      1        /* blob field  */
-#define CACHE_STRIPPED  2        /* field stripped of trailing spaces */
-
-/**
-  CACHE_FIELD and JOIN_CACHE is used on full join to cache records in outer
-  table
-*/
-
-typedef struct st_cache_field {
-  /* 
-    Where source data is located (i.e. this points to somewhere in 
-    tableX->record[0])
-  */
-  uchar *str;
-  uint length; /* Length of data at *str, in bytes */
-  uint blob_length; /* Valid IFF blob_field != 0 */
-
-  TABLE *get_rowid; /* _ != NULL <=> */
-  Field *field;
-  uint type;    /**< category of the of the copied field (CACHE_BLOB et al.) */
-} CACHE_FIELD;
-
-
-typedef struct st_join_cache 
-{
-  uchar *buff;
-  uchar *pos;    /* Start of free space in the buffer */
-  uchar *end;
-  uint records;  /* # of row cominations currently stored in the cache */
-  uint record_nr;
-  uint ptr_record; 
-  /* 
-    Number of fields (i.e. cache_field objects). Those correspond to table
-    columns, and there are also special fields for
-     - table's column null bits
-     - table's null-complementation byte
-     - [new] table's rowid.
-  */
-  uint fields; 
-  uint length; 
-  uint blobs;
-  CACHE_FIELD *field;
-  CACHE_FIELD **blob_ptr;
-  SQL_SELECT *select;
-} JOIN_CACHE;
-
-
 /*
   The structs which holds the join connections and join states
 */
@@ -185,6 +137,7 @@ enum enum_nested_loop_state
 #define TAB_INFO_USING_WHERE 4
 #define TAB_INFO_FULL_SCAN_ON_NULL 8
 
+class JOIN_CACHE;
 class SJ_TMP_TABLE;
 
 typedef enum_nested_loop_state
@@ -260,6 +213,8 @@ typedef struct st_join_table
   uint		use_quick,index;
   uint		status;				///< Save status for cache
   uint		used_fields,used_fieldlength,used_blobs;
+  uint          used_null_fields;
+  uint          used_rowid_fields;
   enum join_type type;
   bool		cached_eq_ref_table,eq_ref_table,not_used_in_distinct;
   /* TRUE <=> index-based access method must return records in order */
@@ -271,7 +226,9 @@ typedef struct st_join_table
   */ 
   ha_rows       limit; 
   TABLE_REF	ref;
-  JOIN_CACHE	cache;
+  bool          use_join_cache;
+  JOIN_CACHE	*cache;
+  SQL_SELECT    *cache_select;
   JOIN		*join;
 
   /* SemiJoinDuplicateElimination variables: */
@@ -280,6 +237,9 @@ typedef struct st_join_table
     This variable holds the result of table pullout.
   */
   TABLE_LIST    *emb_sj_nest;
+
+  struct st_join_table *first_sj_inner_tab;
+  struct st_join_table *last_sj_inner_tab;
 
   /* Variables for semi-join duplicate elimination */
   SJ_TMP_TABLE  *flush_weedout_table;
@@ -332,7 +292,546 @@ typedef struct st_join_table
     return (is_using_loose_index_scan() &&
             ((QUICK_GROUP_MIN_MAX_SELECT *)select->quick)->is_agg_distinct());
   }
+  /* SemiJoinDuplicateElimination: reserve space for rowid */
+  bool check_rowid_field()
+  {
+    if (keep_current_rowid && !used_rowid_fields)
+    {
+      used_rowid_fields= 1;
+      used_fieldlength+= table->file->ref_length;
+    }
+    return test(used_rowid_fields);
+  }
+  bool is_single_inner_of_semi_join_with_first_match()
+  {
+    return first_sj_inner_tab == this && last_sj_inner_tab == this;            
+  }
+  bool is_single_inner_of_outer_join()
+  {
+    return first_inner && first_inner == last_inner;
+  }
+  bool is_first_inner_for_outer_join()
+  {
+    return first_inner && first_inner == this;
+  }
+  bool use_match_flag()
+  {
+    return is_first_inner_for_outer_join() || first_sj_inner_tab == this ; 
+  }
+  bool check_only_first_match()
+  {
+    return  last_sj_inner_tab == this ||
+           first_inner && first_inner->last_inner == this &&
+           table->reginfo.not_exists_optimize;
+  }
+  bool is_last_inner_table()
+  {
+    return first_inner && first_inner->last_inner == this ||
+           last_sj_inner_tab == this;
+  }
+  struct st_join_table *get_first_inner_table()
+  {
+    if (first_inner)
+      return first_inner;
+    return first_sj_inner_tab; 
+  }
 } JOIN_TAB;
+
+/* 
+  Categories of data fields of variable length written into join cache buffers.
+  The value of any of these fields is written into cache together with the
+  prepended length of the value.     
+*/
+#define CACHE_BLOB      1        /* blob field  */
+#define CACHE_STRIPPED  2        /* field stripped of trailing spaces */
+#define CACHE_VARSTR1   3        /* short string value (length takes 1 byte) */ 
+#define CACHE_VARSTR2   4        /* long string value (length takes 2 bytes) */
+
+/*
+  The CACHE_FIELD structure used to describe fields of records that
+  are written into a join cache buffer from record buffers and backward.
+*/
+typedef struct st_cache_field {
+  uchar *str;   /* buffer from/to where the field is to be moved */ 
+  uint length;  /* maximal number of bytes to be moved from/to str */
+  Field *field; /* field object for the moved field (0 - for a flag field) */
+  uint type;    /* category of the of the moved field (CACHE_BLOB et al.) */
+  /* 
+    The number of the record offset value for the field in the sequence
+    of offsets placed after the last field of the record. These
+    offset values are used to access fields referred to from other caches.
+    If the value is 0 then no offset for the field is saved in the
+    trailing sequence of offsets.
+  */ 
+  uint referenced_field_no; 
+  TABLE *get_rowid; /* only for ROWID fields used for Duplicate Elimination */
+  /* The remaining structure fields are used as containers for temp values */
+  uint blob_length; /* length of the blob to be moved */
+  uint offset;      /* field offset to be saved in cache buffer */
+} CACHE_FIELD;
+
+
+/*
+  JOIN_CACHE is the base class to support the implementations of both
+  Blocked-Based Nested Loops (BNL) Join Algorithm and Batched Key Access (BKA)
+  Join Algorithm. The first algorithm is supported by the derived class
+  JOIN_CACHE_BNL, while the second algorithm is supported by the derived
+  class JOIN_CACHE_BKA.
+  These two algorithms have a lot in common. Both algorithms first
+  accumulate the records of the left join operand in a join buffer and
+  then search for matching rows of the second operand for all accumulated
+  records.
+  For the first algorithm this strategy saves on logical I/O operations:
+  the entire set of records from the join buffer requires only one look-through
+  the records provided by the second operand. 
+  For the second algorithm the accumulation of records allows to optimize
+  fetching rows of the second operand from disk for some engines (MyISAM, InnoDB),
+  or to minimize the number of round-trips between the Server and the engine nodes
+  (NDB Cluster).        
+*/ 
+
+class JOIN_CACHE :public Sql_alloc
+{
+
+private:
+
+  /* Size of the offset of a record from the cache */   
+  uint size_of_rec_ofs;    
+  /* Size of the length of a record in the cache */
+  uint size_of_rec_len;
+  /* Size of the offset of a field within a record in the cache */   
+  uint size_of_fld_ofs; 
+
+  /* 
+    The total maximal length of the fields stored for a record in the cache.
+    For blob fields only the sizes of the blob lengths are taken into account. 
+  */
+  uint length;
+
+  /* Calculate the number of bytes used to store an offset value */ 
+  uint length_size(uint len)
+  { return (len < 256 ? 1 : len < 256*256 ? 2 : 4); }
+
+  /* Get the offset value that takes ofs_sz bytes at the position ptr */ 
+  ulong get_offset(uint ofs_sz, uchar *ptr)
+   {
+     switch (ofs_sz) {
+     case 1: return uint(*ptr);
+     case 2: return uint2korr(ptr);
+     case 4: return uint4korr(ptr);
+     }
+     return 0;
+   }
+
+  /* Set the offset value ofs that takes ofs_sz bytes at the position ptr */ 
+  void store_offset(uint ofs_sz, uchar *ptr, ulong ofs)
+  {
+    switch (ofs_sz) {
+    case 1: *ptr= (uchar) ofs; return;
+    case 2: int2store(ptr, (uint16) ofs); return;
+    case 4: int4store(ptr, (uint32) ofs); return;
+    }
+  }
+  
+protected:
+       
+  /* 
+    Representation of the executed multi-way join through which all needed
+    context can be accessed.  
+  */   
+  JOIN *join;  
+
+  /* 
+    Cardinality of the range of join tables whose fields can be put into the
+    cache. (A table from the range not necessarily contributes to the cache.)
+  */
+  uint tables;
+
+  /* 
+    The total number of flag and data fields that can appear in a record
+    written into the cache. Fields with null values are always skipped 
+    to save space. 
+  */
+  uint fields;
+
+  /* 
+    The total number of flag fields in a record put into the cache. They are
+    used for table null bitmaps, table null row flags, and an optional match
+    flag. Flag fields are follows before other fields in a cache record with 
+    the match flag field placed always at the very beginning of the record.
+  */
+  uint flag_fields;
+
+  /* The total number of blob fields that are written into the cache */ 
+  uint blobs;
+
+  /* 
+    The total number of fields referenced from field descriptors for other join
+    caches. These fields are used to construct key values to access matching
+    rows with index lookups. Currently the fields can be referenced only from
+    descriptors for bka caches. However they may belong to a cache of any type.
+  */   
+  uint referenced_fields;
+   
+  /* 
+    The current number of already created data field descriptors. This number 
+    is can be useful for implementations the init functions.  
+  */
+  uint data_field_count; 
+
+  /* 
+    Array of the descriptors of fields containing 'fields' elements.
+    These are all fields that are stored for a record in the cache. 
+  */
+  CACHE_FIELD *field_descr;
+
+  /* 
+    Array of pointers to the blob descriptors that contains 'blobs' elements.
+  */
+  CACHE_FIELD **blob_ptr;
+
+  /* 
+    This flag indicates that records written into the join buffer contain
+    a match flag field. The flat must be set by the init method. 
+  */
+  bool with_match_flag; 
+  /*
+    This flag indicates that any record is prepended with the length of the
+    record which allows us to skip the record or part of it without reading.
+  */
+  bool with_length;
+
+  /* 
+    The maximal number of bytes used for a record representation in
+    the cache excluding the space for blob data. 
+    For future derived classes this representation may contains some
+    redundant info such as a key value associated with the record.     
+  */
+  uint pack_length;
+  /* 
+    The value of pack_length incremented by the total size of all 
+    pointers of a record in the cache to the blob data. 
+  */
+  uint pack_last_length;
+
+  /* Pointer to the beginning of the join buffer */
+  uchar *buff;         
+  /* 
+    Size of the entire memory allocated for the join buffer.
+    Part of this memory may be reserved for the auxiliary buffer.
+  */ 
+  ulong buff_size;
+  /* Size of the auxiliary buffer. */ 
+  ulong aux_buff_size;
+
+  /* The number of records put into the join buffer */ 
+  uint records;
+
+  /* 
+    Pointer to the current position in the join buffer.
+    This member is used both when writing to buffer and
+    when reading from it.
+  */
+  uchar *pos;
+  /* 
+    Pointer to the first free position in the join buffer,
+    right after the last record into it.
+  */
+  uchar *end_pos; 
+
+  /* 
+    Pointer to the beginning of first field of the current read/write record
+    from the join buffer. The value is adjusted by the get_record/put_record
+    functions.
+  */
+  uchar *curr_rec_pos;
+  /* 
+    Pointer to the beginning of first field of the last record
+    from the join buffer.
+  */
+  uchar *last_rec_pos;
+
+  /* 
+    Flag is set on if the blob data for the last record in the join buffer
+    is in record buffers rather than in the join cache.
+  */
+  bool last_rec_blob_data_is_in_rec_buff; 
+
+  void calc_record_fields();     
+  int alloc_fields(uint external_fields);
+  void create_flag_fields();
+  void create_remaining_fields(bool all_read_fields);
+  void set_constants();
+  int alloc_buffer();
+
+  uint get_size_of_rec_offset() { return size_of_rec_ofs; }
+  uint get_size_of_fld_offset() { return size_of_fld_ofs; }
+
+  uchar *get_rec_ref(uchar *ptr)
+  {
+    return buff+get_offset(size_of_rec_ofs, ptr);
+  }
+  ulong get_rec_length(uchar *ptr)
+  { 
+    return (ulong) get_offset(size_of_rec_len, ptr);
+  }
+  ulong get_fld_offset(uchar *ptr)
+  { 
+    return (ulong) get_offset(size_of_fld_ofs, ptr);
+  }
+
+  void store_rec_ref(uchar *ptr, uchar* ref)
+  {
+    store_offset(size_of_rec_ofs, ptr, (ulong) (ref-buff));
+  }
+
+  void store_rec_length(uchar *ptr, ulong len)
+  {
+    store_offset(size_of_rec_len, ptr, len);
+  }
+  void store_fld_offset(uchar *ptr, ulong ofs)
+  {
+    store_offset(size_of_fld_ofs, ptr, ofs);
+  }
+
+  /* Write record fields and their required offsets into the join buffer */ 
+  uint write_record_data(uchar *link, bool *is_full);
+
+  /* 
+    This method must determine for how much the auxiliary buffer should be
+    incremented when a new record is added to the join buffer.
+    If no auxiliary buffer is needed the function should return 0.
+  */
+  virtual uint aux_buffer_incr() { return 0; }
+
+  /* Calculate how much space is remaining in the join biffer */ 
+  uint rem_space() { return (buff_size-aux_buff_size) - (end_pos-buff); }
+
+  /* Skip record from the join buffer if its match flag is on */
+  bool skip_record_if_match();
+
+  /*  Read all flag and data fields of a record from the join buffer */
+  uint read_all_record_fields();
+  
+  /* Read all flag fields of a record from the join buffer */
+  uint read_flag_fields();
+
+  /* Read a data record field from the join buffer */
+  uint read_record_field(CACHE_FIELD *copy, bool last_record);
+
+  /* Read a referenced field from the join buffer */
+  bool read_referenced_field(CACHE_FIELD *copy, uchar *rec_ptr, uint *len);
+
+  /* 
+    True if rec_ptr points to the record whose blob data stay in
+    record buffers
+  */
+  bool blob_data_is_in_rec_buff(uchar *rec_ptr)
+  {
+    return rec_ptr == last_rec_pos && last_rec_blob_data_is_in_rec_buff;
+  }
+
+  /* Find matches from the next table for records from the join buffer */   
+  virtual enum_nested_loop_state join_matching_records(bool skip_last)=0;
+
+  /* Add null complements for unmatched outer records from buffer */
+  virtual enum_nested_loop_state join_null_complements(bool skip_last);
+
+  /*Set match flag for a record in join buffer if it has not been set yet */
+  bool set_match_flag_if_none(JOIN_TAB *first_inner, uchar *rec_ptr);
+
+  /* Check matching to a partial join record from the join buffer */
+  bool check_match(uchar *rec_ptr);
+
+public:
+
+  /* Table to be joined with the partial join records from the cache */ 
+  JOIN_TAB *join_tab;
+
+  /* Pointer to the previous join cache if there is any */
+  JOIN_CACHE *prev_cache;
+  /* Pointer to the next join cache if there is any */
+  JOIN_CACHE *next_cache;
+
+  /* Shall initialize the join cache structure */ 
+  virtual int init()=0;  
+
+  /* The function shall return TRUE only for BKA caches */
+  virtual bool is_key_access() { return FALSE; }
+
+  /* Shall reset the join buffer for reading/writing */
+  virtual void reset(bool for_writing);
+
+  /* 
+    This function shall add a record into the join buffer and return TRUE
+    if it has been decided that it should be the last record in the buffer.
+  */ 
+  virtual bool put_record();
+
+  /* 
+    This function shall read the next record into the join buffer and return
+    TRUE if there is no more next records.
+  */ 
+  virtual bool get_record();
+
+  /* 
+    This function shall read the record at the position rec_ptr
+    in the join buffer
+  */ 
+  virtual void get_record_by_pos(uchar *rec_ptr);
+
+  /* Shall return the position of the current record */
+  virtual uchar *get_curr_rec() { return curr_rec_pos; }
+     
+  /* Join records from the join buffer with records from the next join table */    
+  enum_nested_loop_state join_records(bool skip_last);
+
+  virtual ~JOIN_CACHE() {}
+  void reset_join(JOIN *j) { join= j; }
+  void free()
+  { 
+    x_free(buff);
+    buff= 0;
+  }   
+  
+  friend class JOIN_CACHE_BNL;
+  friend class JOIN_CACHE_BKA;
+};
+
+class JOIN_CACHE_BNL :public JOIN_CACHE
+{
+
+protected:
+
+  /* Using BNL find matches from the next table for records from join buffer */
+  enum_nested_loop_state join_matching_records(bool skip_last);
+
+public:
+
+  /* 
+    This constructor creates an unlinked BNL join cache. The cache is to be
+    used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter.
+  */   
+  JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab)
+  { 
+    join= j;
+    join_tab= tab;
+    prev_cache= next_cache= 0;
+  }
+
+  /* 
+    This constructor creates a linked BNL join cache. The cache is to be 
+    used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter. The parameter 'prev' specifies the previous
+    cache object to which this cache is linked.
+  */   
+  JOIN_CACHE_BNL(JOIN *j, JOIN_TAB *tab, JOIN_CACHE *prev)
+  { 
+    join= j;
+    join_tab= tab;
+    prev_cache= prev;
+    next_cache= 0;
+    if (prev)
+      prev->next_cache= this;
+  }
+
+  /* Initialize the BNL cache */       
+  int init();
+
+};
+
+class JOIN_CACHE_BKA :public JOIN_CACHE
+{
+
+private:
+
+  /* MRR buffer assotiated with this join cache */
+  HANDLER_BUFFER mrr_buff;
+  /* Flag to to be passed to the MRR interface */ 
+  uint mrr_mode;
+
+  /* Shall initialize the MRR buffer */
+  virtual void init_mrr_buff()
+  {
+    mrr_buff.buffer= end_pos;
+    mrr_buff.buffer_end= buff+buff_size;
+  }
+
+protected:
+
+  /*
+    The number of the cache fields that are used in building keys to access
+    the table join_tab
+  */
+  uint local_key_arg_fields;
+  /* 
+    The total number of the fields in the previous caches that are used
+    in building keys t access the table join_tab
+  */
+  uint external_key_arg_fields;
+
+  /* 
+    This flag indicates that the key values will be read directly from the join
+    buffer. It will save us building key values in the key buffer.
+  */
+  bool use_emb_key;
+  /* The length of an embedded key value */ 
+  uint emb_key_length;
+
+  /* Check the possibility to read the access keys directly from join buffer */  
+  bool check_emb_key_usage();
+
+  /* Calculate the increment of the MM buffer for a record write */
+  uint aux_buffer_incr();
+
+  /* Using BKA find matches from the next table for records from join buffer */
+  enum_nested_loop_state join_matching_records(bool skip_last);
+
+  /* Shall return the value of the match flag for the positioned record */
+  virtual bool get_match_flag_by_pos(uchar *rec_ptr)
+  { return test(*rec_ptr); }
+
+public:
+  
+  /* 
+    This constructor creates an unlinked BKA join cache. The cache is to be
+    used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter.
+  */   
+  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab)
+  { 
+    join= j;
+    join_tab= tab;
+    prev_cache= next_cache= 0;
+  }
+
+  /* 
+    This constructor creates a linked BKA join cache. The cache is to be 
+    used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter. The parameter 'prev' specifies the cache
+    object to which this cache is linked.
+  */   
+  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, JOIN_CACHE* prev)
+  { 
+    join= j;
+    join_tab= tab;
+    prev_cache= prev;
+    next_cache= 0;
+    if (prev)
+      prev->next_cache= this;
+  }
+
+  /* Initialize the BNL cache */       
+  int init();
+
+  bool is_key_access() { return TRUE; }
+
+  /* Shall get the key built over the next record from the join buffer */
+  virtual uint get_next_key(uchar **key);    
+
+};
+
 
 enum_nested_loop_state sub_select_cache(JOIN *join, JOIN_TAB *join_tab, bool
                                         end_of_records);

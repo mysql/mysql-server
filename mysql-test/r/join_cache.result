@@ -1,0 +1,700 @@
+DROP DATABASE IF EXISTS world;
+set names utf8;
+CREATE DATABASE world;
+use world;
+CREATE TABLE Country (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+Population int(11) NOT NULL default '0',
+Capital int(11) default NULL
+);
+CREATE TABLE City (
+ID int(11) NOT NULL,
+Name char(35) NOT NULL default '',
+Country char(3) NOT NULL default '',
+Population int(11) NOT NULL default '0'
+);
+CREATE TABLE CountryLanguage (
+Country char(3) NOT NULL default '',
+Language char(30) NOT NULL default '',
+Percentage float(3,1) NOT NULL default '0.0'
+);
+COUNT(*)
+239
+COUNT(*)
+4079
+COUNT(*)
+984
+Variable_name	Value
+join_buffer_size	131072
+Variable_name	Value
+join_cache_level	1
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+Variable_name	Value
+join_cache_level	2
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+Variable_name	Value
+join_buffer_size	256
+Variable_name	Value
+join_cache_level	1
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+Variable_name	Value
+join_cache_level	2
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
+1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
+1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+Name	Name	Language
+Leiden	Netherlands	Dutch
+La Matanza	Argentina	Spanish
+Lomas de Zamora	Argentina	Spanish
+La Plata	Argentina	Spanish
+Lanús	Argentina	Spanish
+Las Heras	Argentina	Spanish
+La Rioja	Argentina	Spanish
+Liège	Belgium	Dutch
+La Paz	Bolivia	Spanish
+Londrina	Brazil	Portuguese
+Limeira	Brazil	Portuguese
+Lages	Brazil	Portuguese
+Luziânia	Brazil	Portuguese
+Lauro de Freitas	Brazil	Portuguese
+Linhares	Brazil	Portuguese
+London	United Kingdom	English
+Liverpool	United Kingdom	English
+Leeds	United Kingdom	English
+Leicester	United Kingdom	English
+Luton	United Kingdom	English
+Los Angeles	Chile	Spanish
+La Serena	Chile	Spanish
+La Romana	Dominican Republic	Spanish
+Loja	Ecuador	Spanish
+Luxor	Egypt	Arabic
+Las Palmas de Gran Canaria	Spain	Spanish
+L´Hospitalet de Llobregat	Spain	Spanish
+Leganés	Spain	Spanish
+León	Spain	Spanish
+Logroño	Spain	Spanish
+Lleida (Lérida)	Spain	Spanish
+Le-Cap-Haïtien	Haiti	Haiti Creole
+La Ceiba	Honduras	Spanish
+Livorno	Italy	Italian
+Latina	Italy	Italian
+Lecce	Italy	Italian
+La Spezia	Italy	Italian
+Linz	Austria	German
+London	Canada	English
+Laval	Canada	English
+Longueuil	Canada	English
+Lanzhou	China	Chinese
+Luoyang	China	Chinese
+Liuzhou	China	Chinese
+Liaoyang	China	Chinese
+Liupanshui	China	Chinese
+Liaoyuan	China	Chinese
+Lianyungang	China	Chinese
+Leshan	China	Chinese
+Linyi	China	Chinese
+Luzhou	China	Chinese
+Laiwu	China	Chinese
+Liaocheng	China	Chinese
+Laizhou	China	Chinese
+Linfen	China	Chinese
+Liangcheng	China	Chinese
+Longkou	China	Chinese
+Langfang	China	Chinese
+Liu´an	China	Chinese
+Longjing	China	Chinese
+Lengshuijiang	China	Chinese
+Laiyang	China	Chinese
+Longyan	China	Chinese
+Linhe	China	Chinese
+Leiyang	China	Chinese
+Loudi	China	Chinese
+Luohe	China	Chinese
+Linqing	China	Chinese
+Laohekou	China	Chinese
+Linchuan	China	Chinese
+Lhasa	China	Chinese
+Lianyuan	China	Chinese
+Liyang	China	Chinese
+Liling	China	Chinese
+Linhai	China	Chinese
+Larisa	Greece	Greek
+La Habana	Cuba	Spanish
+Lilongwe	Malawi	Chichewa
+León	Mexico	Spanish
+La Paz	Mexico	Spanish
+La Paz	Mexico	Spanish
+Lázaro Cárdenas	Mexico	Spanish
+Lagos de Moreno	Mexico	Spanish
+Lerdo	Mexico	Spanish
+Los Cabos	Mexico	Spanish
+Lerma	Mexico	Spanish
+Las Margaritas	Mexico	Spanish
+Lashio (Lasho)	Myanmar	Burmese
+Lalitapur	Nepal	Nepali
+León	Nicaragua	Spanish
+Lambaré	Paraguay	Spanish
+Lima	Peru	Spanish
+Lisboa	Portugal	Portuguese
+Lódz	Poland	Polish
+Lublin	Poland	Polish
+Legnica	Poland	Polish
+Lyon	France	French
+Le Havre	France	French
+Lille	France	French
+Le Mans	France	French
+Limoges	France	French
+Linköping	Sweden	Swedish
+Lund	Sweden	Swedish
+Leipzig	Germany	German
+Lübeck	Germany	German
+Ludwigshafen am Rhein	Germany	German
+Leverkusen	Germany	German
+Lünen	Germany	German
+Lahti	Finland	Finnish
+Lausanne	Switzerland	German
+Latakia	Syria	Arabic
+Luchou	Taiwan	Min
+Lungtan	Taiwan	Min
+Liberec	Czech Republic	Czech
+Lviv	Ukraine	Ukrainian
+Lugansk	Ukraine	Ukrainian
+Lutsk	Ukraine	Ukrainian
+Lysyt?ansk	Ukraine	Ukrainian
+Lower Hutt	New Zealand	English
+Lida	Belarus	Belorussian
+Los Teques	Venezuela	Spanish
+Lipetsk	Russian Federation	Russian
+Ljubertsy	Russian Federation	Russian
+Leninsk-Kuznetski	Russian Federation	Russian
+Long Xuyen	Vietnam	Vietnamese
+Los Angeles	United States	English
+Las Vegas	United States	English
+Long Beach	United States	English
+Lexington-Fayette	United States	English
+Louisville	United States	English
+Lincoln	United States	English
+Lubbock	United States	English
+Little Rock	United States	English
+Laredo	United States	English
+Lakewood	United States	English
+Lansing	United States	English
+Lancaster	United States	English
+Lafayette	United States	English
+Lowell	United States	English
+Livonia	United States	English
+Variable_name	Value
+join_buffer_size	131072
+Variable_name	Value
+join_cache_level	1

@@ -1,0 +1,145 @@
+--disable_warnings
+DROP DATABASE IF EXISTS world;
+--enable_warnings
+
+set names utf8;
+
+CREATE DATABASE world;
+
+use world;
+
+--source include/world_schema1.inc
+
+--disable_query_log
+--disable_warnings
+--source include/world.inc
+--disable_warnings
+--disable_query_log
+
+SELECT COUNT(*) FROM Country;
+SELECT COUNT(*) FROM City;
+SELECT COUNT(*) FROM CountryLanguage;
+
+show variables like 'join_buffer_size';
+
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+set join_cache_level=2;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+set join_cache_level=default;
+
+set join_buffer_size=256;
+show variables like 'join_buffer_size';
+
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+set join_cache_level=2;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+set join_cache_level=default;
+set join_buffer_size=default;
+
+show variables like 'join_buffer_size';
+show variables like 'join_cache_level';
+
+DROP DATABASE world; 
+
+
+

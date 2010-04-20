@@ -805,6 +805,14 @@ static Sys_var_ulong Sys_join_buffer_size(
        SESSION_VAR(join_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(128, ULONG_MAX), DEFAULT(128*1024), BLOCK_SIZE(128));
 
+static Sys_var_ulong Sys_join_cache_level(
+       "join_cache_level",
+       "Controls what join operations can be executed with join buffers. "
+       "Odd numbers are used for plain join buffers while even numbers "
+       "are used for linked buffers",
+       SESSION_VAR(join_cache_level), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 8), DEFAULT(1), BLOCK_SIZE(1));
+
 static Sys_var_keycache Sys_key_buffer_size(
        "key_buffer_size", "The size of the buffer used for "
        "index blocks for MyISAM tables. Increase this to get better index "
