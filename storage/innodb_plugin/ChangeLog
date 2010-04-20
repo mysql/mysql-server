@@ -1,5 +1,13 @@
 2010-04-20	The InnoDB Team
 
+	* dict/dict0crea.c, handler/ha_innodb.cc, include/trx0trx.h:
+	Fix Bug#50495 'Row size too large' for plugin, but works for
+	built-in InnoDB
+	Only check the record size at index creation time when
+	innodb_strict_mode is set.
+
+2010-04-20	The InnoDB Team
+
 	* btr/btr0btr.c, include/univ.i:
 	Implement UNIV_BTR_AVOID_COPY, for avoiding writes when a B-tree
 	node is split at the first or last record.
