@@ -56,6 +56,8 @@ class ha_myisam: public handler
   ulonglong table_flags() const { return int_table_flags; }
   int index_init(uint idx, bool sorted);
   int index_end();
+  int rnd_end();
+
   ulong index_flags(uint inx, uint part, bool all_parts) const
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?

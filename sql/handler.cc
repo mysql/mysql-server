@@ -4397,7 +4397,7 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
   handler *new_h2;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
   keyno= h->active_index;
-  DBUG_ASSERT(h2 == NULL);
+
   if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
   {
     use_default_impl= TRUE;
@@ -4405,44 +4405,51 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
                                                   n_ranges, mode, buf));
   }
   rowids_buf= buf->buffer;
-  //psergey-todo: don't add key_length as it is not needed anymore
-  rowids_buf += key->key_length + h->ref_length;
 
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
+  semi_join= test(mode & HA_MRR_SEMI_JOIN);
+  DBUG_ASSERT(!semi_join || is_mrr_assoc);
+
+  if (is_mrr_assoc)
+    status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
+ 
   rowids_buf_end= buf->buffer_end;
-  
   elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
   rowids_buf_last= rowids_buf + 
                       ((rowids_buf_end - rowids_buf)/ elem_size)*
                       elem_size;
   rowids_buf_end= rowids_buf_last;
 
-  /* Create a separate handler object to do rndpos() calls. */
-  THD *thd= current_thd;
-  if (!(new_h2= h->clone(thd->mem_root)) || 
-      new_h2->ha_external_lock(thd, F_RDLCK))
+  if (!h2)
   {
-    delete new_h2;
-    DBUG_RETURN(1);
+    /* Create a separate handler object to do rndpos() calls. */
+    THD *thd= current_thd;
+    if (!(new_h2= h->clone(thd->mem_root)) || 
+        new_h2->ha_external_lock(thd, F_RDLCK))
+    {
+      delete new_h2;
+      DBUG_RETURN(1);
+    }
+
+    if (keyno == h->pushed_idx_cond_keyno)
+      pushed_cond= h->pushed_idx_cond;
+    if (h->ha_index_end())
+    {
+      new_h2= h2;
+      goto error;
+    }
+
+    h2= new_h2;
+    table->prepare_for_position();
+    new_h2->extra(HA_EXTRA_KEYREAD);
+  
+    if (h2->ha_index_init(keyno, FALSE))
+      goto error;
   }
 
-  if (keyno == h->pushed_idx_cond_keyno)
-    pushed_cond= h->pushed_idx_cond;
-  if (h->ha_index_end())
-  {
-    new_h2= h2;
-    goto error;
-  }
-
-  h2= new_h2;
-  table->prepare_for_position();
-  new_h2->extra(HA_EXTRA_KEYREAD);
-
-  if (h2->ha_index_init(keyno, FALSE) || 
-      h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
+  if (h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
                                          mode, buf))
     goto error;
-  use_default_impl= FALSE;
   
   if (pushed_cond)
     h2->idx_cond_push(keyno, pushed_cond);
@@ -4456,13 +4463,27 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
   if (dsmrr_eof) 
     buf->end_of_used_area= rowids_buf_last;
 
-  if (h->ha_rnd_init(FALSE))
+  /*
+     h->inited == INDEX may occur when 'range checked for each record' is
+     used.
+  */
+  if ((h->inited != handler::RND) && 
+      ((h->inited==handler::INDEX? h->ha_index_end(): FALSE) || 
+       (h->ha_rnd_init(FALSE))))
+      goto error;
+
+  if (((h->inited != handler::RND)) &&
+      (h->inited != handler::INDEX || h->ha_index_end()) &&
+       h->ha_rnd_init(FALSE))
     goto error;
+ 
+  use_default_impl= FALSE;
+  h->mrr_funcs= *seq_funcs;
   
   DBUG_RETURN(0);
 error:
   h2->ha_index_or_rnd_end();
-  h2->ha_external_lock(thd, F_UNLCK);
+  h2->ha_external_lock(current_thd, F_UNLCK);
   h2->close();
   delete h2;
   DBUG_RETURN(1);
@@ -4521,15 +4542,18 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *unused)
   while ((rowids_buf_cur < rowids_buf_end) && 
          !(res= h2->handler::multi_range_read_next(&range_info)))
   {
-    /* Put rowid, or {rowid, range_id} pair into the buffer */
-    h2->position(table->record[0]);
-    memcpy(rowids_buf_cur, h2->ref, h2->ref_length);
-    rowids_buf_cur += h->ref_length;
-
-    if (is_mrr_assoc)
+    if (!semi_join || *range_info==0)
     {
-      memcpy(rowids_buf_cur, &range_info, sizeof(void*));
-      rowids_buf_cur += sizeof(void*);
+      /* Put rowid, or {rowid, range_id} pair into the buffer */
+      h2->position(table->record[0]);
+      memcpy(rowids_buf_cur, h2->ref, h2->ref_length);
+      rowids_buf_cur += h2->ref_length;
+
+      if (is_mrr_assoc)
+      {
+        memcpy(rowids_buf_cur, &range_info, sizeof(void*));
+        rowids_buf_cur += sizeof(void*);
+      }
     }
   }
 
@@ -4570,40 +4594,41 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *unused)
 int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
 {
   int res;
+  uchar *cur_range_info;
   
   if (use_default_impl)
     return h->handler::multi_range_read_next(range_info);
     
-  if (rowids_buf_cur == rowids_buf_last)
+  do
   {
-    if (dsmrr_eof)
+    if (rowids_buf_cur == rowids_buf_last)
+    {
+      if (dsmrr_eof)
+      {
+        res= HA_ERR_END_OF_FILE;
+        goto end;
+      }
+
+      res= dsmrr_fill_buffer(h);
+      if (res)
+        goto end;
+    }
+   
+    /* return eof if there are no rowids in the buffer after re-fill attempt */
+    if (rowids_buf_cur == rowids_buf_last)
     {
       res= HA_ERR_END_OF_FILE;
       goto end;
     }
-    res= dsmrr_fill_buffer(h);
-    if (res)
-      goto end;
-  }
-  
-  /* Return EOF if there are no rowids in the buffer after re-fill attempt */
-  if (rowids_buf_cur == rowids_buf_last)
-  {
-    res= HA_ERR_END_OF_FILE;
-    goto end;
-  }
-
-  res= h->rnd_pos(table->record[0], rowids_buf_cur);
-  rowids_buf_cur += h->ref_length;
+    res= h->rnd_pos(table->record[0], rowids_buf_cur);
+    cur_range_info= rowids_buf_cur + h->ref_length;
+    rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
+  } while (semi_join && *cur_range_info==0);
+ 
   if (is_mrr_assoc)
-  {
-    memcpy(range_info, rowids_buf_cur, sizeof(void*));
-    rowids_buf_cur += sizeof(void*);
-  }
+    memcpy(range_info, cur_range_info, sizeof(void*));
 
 end:
-  if (res)
-    dsmrr_close();
   return res;
 }
 

@@ -1252,6 +1252,16 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 */
 #define HA_MRR_NO_NULL_ENDPOINTS 128
 
+/*
+  Flag set <=> We're running a first-match semi-join, and the accessed table
+  is the inner table.
+  MRR implementation may (but doesn't have to) interpret KEY_MULTI_RANGE::ptr
+  as char* need_no_more_matches, if "*need_no_more_matches=1" then the SQL
+  layer does not need any more records from this range.
+
+  HA_MRR_SEMI_JOIN cannot be used together with HA_MRR_NO_ASSOCIATION.
+*/
+#define HA_MRR_SEMI_JOIN 256
 
 class ha_statistics
 {
@@ -1277,6 +1287,11 @@ public:
   ulong check_time;
   ulong update_time;
   uint block_size;			/* index block size */
+  
+  /*
+    number of buffer bytes that native mrr implementation needs,
+  */
+  uint mrr_length_per_rec; 
 
   ha_statistics():
     data_file_length(0), max_data_file_length(0),
@@ -2317,6 +2332,12 @@ private:
 
   /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
   bool is_mrr_assoc;
+
+  /*
+    TRUE <=> doing a first-match semi-join, check if we need any more records in
+    the scanned range
+  */
+  bool semi_join;
 
   bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
 public:

@@ -4164,6 +4164,7 @@ int ha_ndbcluster::info(uint flag)
   if (flag & HA_STATUS_VARIABLE)
   {
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
+    stats.mrr_length_per_rec= table_share->reclength + 2*sizeof(void*) + sizeof(uint16);
     if (m_table_info)
     {
       if (m_ha_not_exact_count)
@@ -9111,6 +9112,11 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
   mrr_iter= mrr_funcs.init(seq_init_param, n_ranges, mode);
   ranges_in_seq= n_ranges;
 
+  mrr_need_range_assoc = !test(mode & HA_MRR_NO_ASSOCIATION);
+  if (mrr_need_range_assoc)
+  {
+    ha_statistic_increment(&SSV::ha_multi_range_read_init_count);
+  }
   res= multi_range_start_retrievals(-1);
   if (first_unstarted_range == n_ranges)
   {
