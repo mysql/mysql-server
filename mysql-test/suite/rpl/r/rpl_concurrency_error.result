@@ -22,7 +22,7 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 UPDATE t SET f = 'yellow 2' WHERE i = 3;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 SET AUTOCOMMIT = 1;
 BEGIN;
 UPDATE t SET f = 'magenta 2' WHERE f = 'red';
@@ -51,7 +51,7 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 UPDATE t SET f = 'gray 2' WHERE i = 3;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 SET AUTOCOMMIT = 1;
 BEGIN;
 UPDATE t SET f = 'dark blue 2' WHERE f = 'red';
@@ -77,7 +77,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 SET AUTOCOMMIT = 0;
 UPDATE t SET f = 'yellow 1' WHERE i = 3;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 SET AUTOCOMMIT = 0;
 UPDATE t SET f = 'magenta 1' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -104,7 +104,7 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 SET AUTOCOMMIT = 0;
 UPDATE t SET f = 'gray 1' WHERE i = 3;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 SET AUTOCOMMIT = 0;
 UPDATE t SET f = 'dark blue 1' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
