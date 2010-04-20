@@ -6335,4 +6335,4 @@ ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
   eng "Mixing self-logging and non-self-logging engines in a statement is unsafe."
 
 ER_BINLOG_UNSAFE_MIXED_STATEMENT
-  eng "Statements that read from both transactional and non-transactional tables and write to any of them are unsafe."
+  eng "Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe."
