@@ -5927,7 +5927,7 @@ ER_DROP_INDEX_FK
         eng "Cannot drop index '%-.192s': needed in a foreign key constraint"
         ger "Kann Index '%-.192s' nicht löschen: wird für einen Fremdschlüssel benötigt"
 # When using this error message, use the ER_WARN_DEPRECATED_SYNTAX error
-# code.  See, for example, code in mysql_priv.h.
+# code.
 ER_WARN_DEPRECATED_SYNTAX_WITH_VER  
         eng  "The syntax '%s' is deprecated and will be removed in MySQL %s. Please use %s instead"
         ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt. Bitte benutzen Sie statt dessen %s"
@@ -6173,7 +6173,7 @@ ER_FUNC_INEXISTENT_NAME_COLLISION 42000
   eng "FUNCTION %s does not exist. Check the 'Function Name Parsing and Resolution' section in the Reference Manual"
 
 # When updating these, please update EXPLAIN_FILENAME_MAX_EXTRA_LENGTH in
-# mysql_priv.h with the new maximal additional length for explain_filename.
+# sql_table.h with the new maximal additional length for explain_filename.
 ER_DATABASE_NAME
   eng "Database"
   swe "Databas"
