@@ -6022,16 +6022,12 @@ select bug20777(9223372036854775810) as '9223372036854775810   2**63+2';
 9223372036854775810   2**63+2
 9223372036854775810
 select bug20777(-9223372036854775808) as 'lower bounds signed bigint';
-lower bounds signed bigint
-0
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 select bug20777(9223372036854775807) as 'upper bounds signed bigint';
 upper bounds signed bigint
 9223372036854775807
 select bug20777(0) as 'lower bounds unsigned bigint';
-lower bounds unsigned bigint
-0
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 select bug20777(18446744073709551615) as 'upper bounds unsigned bigint';
 upper bounds unsigned bigint
 18446744073709551615
@@ -6041,10 +6037,7 @@ upper bounds unsigned bigint + 1
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
 select bug20777(-1) as 'lower bounds unsigned bigint - 1';
-lower bounds unsigned bigint - 1
-0
-Warnings:
-Warning	1264	Out of range value for column 'f1' at row 1
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(f1@0 - 10)'
 create table examplebug20777 as select 
 0 as 'i',
 bug20777(9223372036854775806) as '2**63-2',
@@ -6053,15 +6046,10 @@ bug20777(9223372036854775808) as '2**63',
 bug20777(9223372036854775809) as '2**63+1',
 bug20777(18446744073709551614) as '2**64-2',
 bug20777(18446744073709551615) as '2**64-1', 
-bug20777(18446744073709551616) as '2**64',
-bug20777(0) as '0',
-bug20777(-1) as '-1';
+bug20777(18446744073709551616) as '2**64';
 Warnings:
 Warning	1264	Out of range value for column 'f1' at row 1
-Warning	1264	Out of range value for column 'f1' at row 1
-insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616, 0, -1);
-Warnings:
-Warning	1264	Out of range value for column '-1' at row 1
+insert into examplebug20777 values (1, 9223372036854775806, 9223372036854775807, 223372036854775808, 9223372036854775809, 18446744073709551614, 18446744073709551615, 8446744073709551616);
 show create table examplebug20777;
 Table	Create Table
 examplebug20777	CREATE TABLE `examplebug20777` (
@@ -6072,14 +6060,12 @@ examplebug20777	CREATE TABLE `examplebug20777` (
   `2**63+1` bigint(20) unsigned DEFAULT NULL,
   `2**64-2` bigint(20) unsigned DEFAULT NULL,
   `2**64-1` bigint(20) unsigned DEFAULT NULL,
-  `2**64` bigint(20) unsigned DEFAULT NULL,
-  `0` bigint(20) unsigned DEFAULT NULL,
-  `-1` bigint(20) unsigned DEFAULT NULL
+  `2**64` bigint(20) unsigned DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 select * from examplebug20777 order by i;
-i	2**63-2	2**63-1	2**63	2**63+1	2**64-2	2**64-1	2**64	0	-1
-0	9223372036854775806	9223372036854775807	9223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	18446744073709551615	0	0
-1	9223372036854775806	9223372036854775807	223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	8446744073709551616	0	0
+i	2**63-2	2**63-1	2**63	2**63+1	2**64-2	2**64-1	2**64
+0	9223372036854775806	9223372036854775807	9223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	18446744073709551615
+1	9223372036854775806	9223372036854775807	223372036854775808	9223372036854775809	18446744073709551614	18446744073709551615	8446744073709551616
 drop table examplebug20777;
 select bug20777(18446744073709551613)+1;
 bug20777(18446744073709551613)+1
@@ -7206,3 +7192,106 @@ f1
 7
 DROP TEMPORARY TABLE t1;
 DROP PROCEDURE p1;
+#
+# Bug #11918 Can't use a declared variable in LIMIT clause
+#
+drop table if exists t1;
+drop procedure if exists p1;
+create table t1 (c1 int);
+insert into t1 (c1) values (1), (2), (3), (4), (5);
+create procedure p1()
+begin
+declare a integer;
+declare b integer;
+select * from t1 limit a, b;
+end|
+# How do we handle NULL limit values?
+call p1();
+c1
+drop table t1;
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5);
+#
+# Do we correctly resolve identifiers in LIMIT?
+# Since DROP and CREATE did not invalidate
+# the SP cache, we can't test until
+# we drop and re-create the procedure.
+#
+call p1();
+ERROR 42S22: Unknown column 'test.t1.c1' in 'field list'
+# 
+# Drop and recreate the procedure, then repeat
+#
+drop procedure p1;
+create procedure p1()
+begin
+declare a integer;
+declare b integer;
+select * from t1 limit a, b;
+end|
+# Stored procedure variables are resolved correctly in the LIMIT
+call p1();
+a
+drop table t1;
+create table t1 (c1 int);
+insert into t1 (c1) values (1), (2), (3), (4), (5);
+drop procedure p1;
+# Try to create a procedure that
+# refers to non-existing variables.
+create procedure p1(p1 integer, p2 integer)
+select * from t1 limit a, b;
+ERROR 42000: Undeclared variable: a
+#
+# Try to use data types not allowed in LIMIT 
+#
+create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+#
+# Finally, test the valid case.
+#
+create procedure p1(p1 integer, p2 integer)
+select * from t1 limit p1, p2;
+call p1(NULL, NULL);
+c1
+call p1(0, 0);
+c1
+call p1(0, -1);
+c1
+1
+2
+3
+4
+5
+call p1(-1, 0);
+c1
+call p1(-1, -1);
+c1
+call p1(0, 1);
+c1
+1
+call p1(1, 0);
+c1
+call p1(1, 5);
+c1
+2
+3
+4
+5
+call p1(3, 2);
+c1
+4
+5
+# Cleanup
+drop table t1;
+drop procedure p1;
+# End of 5.5 test

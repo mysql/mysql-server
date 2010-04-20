@@ -16,7 +16,7 @@
 #ifndef RPL_HANDLER_H
 #define RPL_HANDLER_H
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
 #include "sql_plugin.h"

@@ -17,7 +17,11 @@
 /* A lexical scanner on a temporary buffer with a yacc interface */
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_class.h"                          // sql_lex.h: SQLCOM_END
+#include "sql_lex.h"
+#include "sql_parse.h"                          // add_to_list
 #include "item_create.h"
 #include <m_ctype.h>
 #include <hash.h>
@@ -52,7 +56,9 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_UDF,
   ER_BINLOG_UNSAFE_SYSTEM_VARIABLE,
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
-  ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
+  ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS,
+  ER_BINLOG_UNSAFE_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE,
+  ER_BINLOG_UNSAFE_MIXED_STATEMENT,
 };
 
 

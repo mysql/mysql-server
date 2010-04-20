@@ -23,6 +23,8 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+class MY_LOCALE;
+
 class Item_str_func :public Item_func
 {
 public:
@@ -78,6 +80,18 @@ public:
   String *val_str_ascii(String *);    
   void fix_length_and_dec();      
   const char *func_name() const { return "sha"; }	
+};
+
+class Item_func_sha2 :public Item_str_func
+{
+public:
+  Item_func_sha2(Item *a, Item *b) :Item_str_func(a, b)
+  {
+    collation.set(&my_charset_bin);
+  }
+  String *val_str(String *);    
+  void fix_length_and_dec();      
+  const char *func_name() const { return "sha2"; }	
 };
 
 class Item_func_aes_encrypt :public Item_str_func
@@ -876,5 +890,7 @@ public:
   const char *func_name() const{ return "uuid"; }
   String *val_str(String *);
 };
+
+extern String my_empty_string;
 
 #endif /* ITEM_STRFUNC_INCLUDED */

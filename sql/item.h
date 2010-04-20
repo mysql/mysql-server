@@ -1,7 +1,7 @@
 #ifndef ITEM_INCLUDED
 #define ITEM_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,10 +21,18 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "sql_priv.h"                /* STRING_BUFFER_USUAL_SIZE */
+#include "unireg.h"
+#include "sql_const.h"                 /* RAND_TABLE_BIT, MAX_FIELD_NAME */
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "thr_malloc.h"                         /* sql_calloc */
+#include "field.h"                              /* Derivation */
+
 class Protocol;
 struct TABLE_LIST;
 void item_init(void);			/* Init item functions */
 class Item_field;
+class user_var_entry;
 
 /*
    "Declared Type Collation"
@@ -1294,6 +1302,13 @@ class Item_splocal :public Item_sp_variable,
   Item_result m_result_type;
   enum_field_types m_field_type;
 public:
+  /*
+    Is this variable a parameter in LIMIT clause. 
+    Used only during NAME_CONST substitution, to not append
+    NAME_CONST to the resulting query and thus not break
+    the slave.
+  */
+  bool limit_clause_param;
   /* 
     Position of this reference to SP variable in the statement (the
     statement itself is in sp_instr_stmt::m_query).
@@ -1543,6 +1558,7 @@ public:
              const char *db_name_arg, const char *table_name_arg,
              const char *field_name_arg);
   Item_ident(THD *thd, Item_ident *item);
+  Item_ident(TABLE_LIST *view_arg, const char *field_name_arg);
   const char *full_name() const;
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
@@ -2386,6 +2402,8 @@ public:
   Item_ref(Name_resolution_context *context_arg, Item **item,
            const char *table_name_arg, const char *field_name_arg,
            bool alias_name_used_arg= FALSE);
+  Item_ref(TABLE_LIST *view_arg, Item **item,
+           const char *field_name_arg, bool alias_name_used_arg= FALSE);
 
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_ref(THD *thd, Item_ref *item)
@@ -2481,6 +2499,11 @@ public:
     if (ref && result_type() == ROW_RESULT)
       (*ref)->bring_value();
   }
+  bool get_time(MYSQL_TIME *ltime)
+  {
+    DBUG_ASSERT(fixed);
+    return (*ref)->get_time(ltime);
+  }
   bool basic_const_item() { return (*ref)->basic_const_item(); }
 
 };
@@ -2502,6 +2525,12 @@ public:
   {}
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_ref(THD *thd, Item_direct_ref *item) : Item_ref(thd, item) {}
+  Item_direct_ref(TABLE_LIST *view_arg, Item **item,
+                  const char *field_name_arg,
+                  bool alias_name_used_arg= FALSE)
+    :Item_ref(view_arg, item, field_name_arg,
+              alias_name_used_arg)
+  {}
 
   double val_real();
   longlong val_int();
@@ -2527,6 +2556,10 @@ public:
   /* Constructor need to process subselect with temporary tables (see Item) */
   Item_direct_view_ref(THD *thd, Item_direct_ref *item)
     :Item_direct_ref(thd, item) {}
+  Item_direct_view_ref(TABLE_LIST *view_arg, Item **item,
+                       const char *field_name_arg)
+    :Item_direct_ref(view_arg, item, field_name_arg)
+  {}
 
   bool fix_fields(THD *, Item **);
   bool eq(const Item *item, bool binary_cmp) const;
@@ -2671,6 +2704,7 @@ public:
 #include "item_timefunc.h"
 #include "item_subselect.h"
 #include "item_xmlfunc.h"
+#include "item_create.h"
 #endif
 
 /**
@@ -3003,18 +3037,6 @@ public:
 };
 
 
-/*
-  We need this two enums here instead of sql_lex.h because
-  at least one of them is used by Item_trigger_field interface.
-
-  Time when trigger is invoked (i.e. before or after row actually
-  inserted/updated/deleted).
-*/
-enum trg_action_time_type
-{
-  TRG_ACTION_BEFORE= 0, TRG_ACTION_AFTER= 1, TRG_ACTION_MAX
-};
-
 class Table_triggers_list;
 
 /*
@@ -3184,6 +3206,7 @@ public:
   Item_cache_int(enum_field_types field_type_arg):
     Item_cache(field_type_arg), value(0) {}
 
+  virtual void store(Item *item){ Item_cache::store(item); }
   void store(Item *item, longlong val_arg);
   double val_real();
   longlong val_int();
@@ -3399,4 +3422,7 @@ extern Cached_item *new_Cached_item(THD *thd, Item *item);
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
+
+extern const String my_null_string;
+
 #endif /* ITEM_INCLUDED */

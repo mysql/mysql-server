@@ -86,7 +86,9 @@ BitKeeper/post-commit-manual
 BitKeeper/tmp/*
 BitKeeper/tmp/bkr3sAHD
 BitKeeper/tmp/gone
+CMakeFiles
 CMakeFiles/*
+CTestTestfile.cmake
 COPYING
 COPYING.LIB
 Docs/#manual.texi#
@@ -394,6 +396,7 @@ client/rpl_tblmap.cc
 client/rpl_utility.h
 client/rpl_utility.cc
 client/select_test
+client/sql_const.h
 client/sql_string.cpp
 client/ssl_test
 client/thimble
@@ -1147,6 +1150,7 @@ libmysqld/rpl_record_old.cc
 libmysqld/rpl_utility.cc
 libmysqld/scheduler.cc
 libmysqld/set_var.cc
+libmysqld/sha2.cc
 libmysqld/simple-test
 libmysqld/slave.cc
 libmysqld/sp.cc
@@ -1209,7 +1213,7 @@ libmysqld/stacktrace.c
 libmysqld/strfunc.cc
 libmysqld/table.cc
 libmysqld/thr_malloc.cc
-libmysqld/time.cc
+libmysqld/sql_time.cc
 libmysqld/tztime.cc
 libmysqld/uniques.cc
 libmysqld/unireg.cc
@@ -1414,7 +1418,7 @@ mysql-test/var/*
 mysql-test/windows_sys_vars.inc
 mysql.kdevprj
 mysql.proj
-mysql_priv.h
+sql_priv.h
 mysqlbinlog/*.ds?
 mysqlbinlog/*.vcproj
 mysqlcheck/*.ds?

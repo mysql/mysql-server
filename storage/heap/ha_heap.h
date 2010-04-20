@@ -21,6 +21,7 @@
 /* class for the the heap handler */
 
 #include <heap.h>
+#include "sql_class.h"                          /* THD */
 
 class ha_heap: public handler
 {

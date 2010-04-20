@@ -55,7 +55,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/net_serv.cc ../sql/opt_range.cc ../sql/opt_sum.cc 
            ../sql/parse_file.cc ../sql/procedure.cc ../sql/protocol.cc 
            ../sql/records.cc ../sql/repl_failsafe.cc ../sql/rpl_filter.cc
-           ../sql/rpl_record.cc
+           ../sql/rpl_record.cc ../sql/sha2.cc ../sql/des_key_file.cc
            ../sql/rpl_injector.cc ../sql/set_var.cc ../sql/spatial.cc 
            ../sql/sp_cache.cc ../sql/sp.cc ../sql/sp_head.cc 
            ../sql/sp_pcontext.cc ../sql/sp_rcontext.cc ../sql/sql_acl.cc 
@@ -76,7 +76,7 @@ SET(SQL_EMBEDDED_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/sql_trigger.cc ../sql/sql_udf.cc ../sql/sql_union.cc
            ../sql/sql_update.cc ../sql/sql_view.cc ../sql/sql_profile.cc
            ../sql/strfunc.cc ../sql/table.cc ../sql/thr_malloc.cc
-           ../sql/time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
+           ../sql/sql_time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
            ../sql/scheduler.cc ../sql/sql_audit.cc
            ../sql/event_parse_data.cc
@@ -129,6 +129,11 @@ MERGE_LIBRARIES(mysqlserver STATIC ${EMBEDDED_LIBS}
 # Visual Studio users need debug  static library 
 IF(MSVC)
  INSTALL_DEBUG_TARGET(mysqlserver DESTINATION ${INSTALL_LIBDIR}/debug)
+ENDIF()
+
+IF(UNIX)
+ INSTALL_DEBUG_TARGET(mysqlserver DESTINATION ${INSTALL_LIBDIR} RENAME
+  ${CMAKE_STATIC_LIBRARY_PREFIX}/mysqld-debug)
 ENDIF()
 
 IF(MSVC AND NOT DISABLE_SHARED)

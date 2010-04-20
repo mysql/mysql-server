@@ -27,6 +27,9 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "sql_class.h"                          // set_var.h: THD
 #include "sys_vars.h"
 
 #include "events.h"
@@ -34,10 +37,24 @@
 #include "slave.h"
 #include "rpl_mi.h"
 #include "transaction.h"
+#include "mysqld.h"
+#include "lock.h"
+#include "sql_time.h"                       // known_date_time_formats
+#include "sql_acl.h" // SUPER_ACL,
+                     // mysql_user_table_is_in_short_password_format
+#include "derror.h"  // read_texts
+#include "sql_base.h"                           // close_cached_tables
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+/*
+  This forward declaration is needed because including sql_base.h
+  causes further includes.  [TODO] Eliminate this forward declaration
+  and include a file with the prototype instead.
+*/
+extern void close_thread_tables(THD *thd);
 
 /*
   The rule for this file: everything should be 'static'. When a sys_var
@@ -241,6 +258,12 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 }
 static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
 {
+  if (check_has_super(self, thd, var))
+    return true;
+
+  if (var->type == OPT_GLOBAL)
+    return false;
+
   /*
      If RBR and open temporary tables, their CREATE TABLE may not be in the
      binlog, so we can't toggle to SBR in this connection.
@@ -272,17 +295,11 @@ static bool binlog_format_check(sys_var *self, THD *thd, set_var *var)
   /*
     Make the session variable 'binlog_format' read-only inside a transaction.
   */
-  if (thd->active_transaction() && (var->type == OPT_SESSION))
+  if (thd->active_transaction())
   {
     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
     return true;
   }
-
-  if (check_has_super(self, thd, var))
-    return true;
-  if (var->type == OPT_GLOBAL ||
-      (thd->variables.binlog_format == var->save_result.ulonglong_value))
-    return false;
 
   return false;
 }
@@ -312,15 +329,12 @@ static Sys_var_enum Sys_binlog_format(
 
 static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
 {
-   /*
-     Makes the session variable 'binlog_direct_non_transactional_updates'
-     read-only inside a transaction.
-   */
-   if (thd->active_transaction() && (var->type == OPT_SESSION))
-   {
-     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
-     return 1;
-   }
+  if (check_has_super(self, thd, var))
+    return true;
+
+  if (var->type == OPT_GLOBAL)
+    return false;
+
    /*
      Makes the session variable 'binlog_direct_non_transactional_updates'
      read-only if within a procedure, trigger or function.
@@ -328,15 +342,17 @@ static bool binlog_direct_check(sys_var *self, THD *thd, set_var *var)
    if (thd->in_sub_stmt)
    {
      my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
-     return 1;
+     return true;
    }
-
-  if (check_has_super(self, thd, var))
-    return true;
-  if (var->type == OPT_GLOBAL ||
-      (thd->variables.binlog_direct_non_trans_update ==
-       static_cast<my_bool>(var->save_result.ulonglong_value)))
-    return false;
+   /*
+     Makes the session variable 'binlog_direct_non_transactional_updates'
+     read-only inside a transaction.
+   */
+   if (thd->active_transaction())
+   {
+     my_error(ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_DIRECT, MYF(0));
+     return true;
+   }
 
   return false;
 }
@@ -1906,7 +1922,7 @@ static Sys_var_set Sys_sql_mode(
        sql_mode_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)
 #else
 #define SSL_OPT(X) NO_CMD_LINE
