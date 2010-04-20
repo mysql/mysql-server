@@ -66,3 +66,36 @@ select * from t1 where (f3>=5 and f3<=10) or (f3>=1 and f3<=4);
 
 drop table t1;
 
+--echo
+--echo BUG#37977: Wrong result returned on GROUP BY + OR + Innodb
+--echo
+CREATE TABLE t1 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) NOT NULL,
+  `int_key` int(11) NOT NULL,
+  `date_key` date NOT NULL,
+  `date_nokey` date NOT NULL,
+  `time_key` time NOT NULL,
+  `time_nokey` time NOT NULL,
+  `datetime_key` datetime NOT NULL,
+  `datetime_nokey` datetime NOT NULL,
+  `varchar_key` varchar(5) DEFAULT NULL,
+  `varchar_nokey` varchar(5) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`),
+  KEY `date_key` (`date_key`),
+  KEY `time_key` (`time_key`),
+  KEY `datetime_key` (`datetime_key`),
+  KEY `varchar_key` (`varchar_key`)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES 
+(1,5,5,'2009-10-16','2009-10-16','09:28:15','09:28:15','2007-09-14 05:34:08','2007-09-14 05:34:08','qk','qk'),
+(2,6,6,'0000-00-00','0000-00-00','23:06:39','23:06:39','0000-00-00 00:00:00','0000-00-00 00:00:00','j','j'),
+(3,10,10,'2000-12-18','2000-12-18','22:16:19','22:16:19','2006-11-04 15:42:50','2006-11-04 15:42:50','aew','aew'),
+(4,0,0,'2001-09-18','2001-09-18','00:00:00','00:00:00','2004-03-23 13:23:35','2004-03-23 13:23:35',NULL,NULL),
+(5,6,6,'2007-08-16','2007-08-16','22:13:38','22:13:38','2004-08-19 11:01:28','2004-08-19 11:01:28','qu','qu');
+select pk from t1 WHERE `varchar_key` > 'kr' group by pk;
+select pk from t1 WHERE `int_nokey` IS NULL OR  `varchar_key` > 'kr' group by pk;
+drop table t1;
+
