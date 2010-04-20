@@ -2296,7 +2296,7 @@ public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
   DsMrr_impl()
-    : use_default_impl(TRUE) {};
+    : h2(NULL) {};
 
   handler *h; /* The "owner" handler object. It is used for scanning the index */
   TABLE *table; /* Always equal to h->table */
@@ -2318,13 +2318,6 @@ private:
   /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
   bool is_mrr_assoc;
 
-  /*
-    Column bitmaps to be used with slave handler object. Those are necessary
-    as we set primary handler object's bitmap to contain index columns only.
-  */
-  MY_BITMAP row_access_bitmap;
-  MY_BITMAP *save_read_set, *save_write_set;
-  
   bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
 public:
   void init(handler *h_arg, TABLE *table_arg)
