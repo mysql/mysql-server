@@ -259,17 +259,12 @@ test-full-qa:
 
 #
 # Headers which need to be checked for abi/api compatibility.
-# API_PREPROCESSOR_HEADER will be used until mysql_priv.h stablizes
-# after which TEST_PREPROCESSOR_HEADER will be used.
 #
 
 API_PREPROCESSOR_HEADER = $(top_srcdir)/include/mysql/plugin.h \
 			$(top_srcdir)/include/mysql.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v1.h \
 			$(top_srcdir)/include/mysql/psi/psi_abi_v2.h
-
-TEST_PREPROCESSOR_HEADER = $(API_PREPROCESSOR_HEADER) \
-			$(top_srcdir)/sql/mysql_priv.h
 
 #
 # Rules for checking that the abi/api has not changed.
@@ -311,8 +306,7 @@ TEST_PREPROCESSOR_HEADER = $(API_PREPROCESSOR_HEADER) \
 abi_check:	$(API_PREPROCESSOR_HEADER)
 	$(MAKE) abi_headers="$^" do_abi_check
 
-abi_check_all:	$(TEST_PREPROCESSOR_HEADER)
-	$(MAKE) abi_headers="$^" do_abi_check
+abi_check_all:	abi_check 
 
 do_abi_check:
 	set -ex; \
