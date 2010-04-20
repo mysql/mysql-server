@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,15 +28,32 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "sql_select.h"
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_table.h"                          // primary_key_name
 #include "sql_cursor.h"
 #include "probes_mysql.h"
-
+#include "key.h"                 // key_copy, key_cmp, key_cmp_if_same
+#include "lock.h"                // mysql_unlock_some_tables,
+                                 // mysql_unlock_read_tables
+#include "sql_show.h"            // append_identifier
+#include "sql_base.h"            // setup_wild, setup_fields, fill_record
+#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_partition.h"       // make_used_partitions_str
+#include "sql_acl.h"             // *_ACL
+#include "sql_test.h"            // print_where, print_keyuse_array,
+                                 // print_sjm, print_plan
+#include "records.h"             // init_read_record, end_read_record
+#include "filesort.h"            // filesort_free_buffers
+#include "sql_union.h"           // mysql_union
 #include <m_ctype.h>
 #include <my_bit.h>
 #include <hash.h>
 #include <ft_global.h>
+
+#define PREV_BITS(type,A)	((type) (((type) 1 << (A)) -1))
 
 const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
 			      "MAYBE_REF","ALL","range","index","fulltext",
@@ -1114,6 +1131,31 @@ JOIN::optimize()
       select_lex->master_unit() == &thd->lex->unit) // upper level SELECT
   {
     conds=new Item_int((longlong) 0,1);	// Always false
+  }
+
+  /*
+    It's necessary to check const part of HAVING cond as
+    there is a chance that some cond parts may become
+    const items after make_join_statisctics(for example
+    when Item is a reference to cost table field from
+    outer join).
+    This check is performed only for those conditions
+    which do not use aggregate functions. In such case
+    temporary table may not be used and const condition
+    elements may be lost during further having
+    condition transformation in JOIN::exec.
+  */
+  if (having && !having->with_sum_func)
+  {
+    COND *const_cond= make_cond_for_table(having, const_table_map, 0);
+    DBUG_EXECUTE("where", print_where(const_cond, "const_having_cond",
+                                      QT_ORDINARY););
+    if (const_cond && !const_cond->val_int())
+    {
+      zero_result_cause= "Impossible HAVING noticed after reading const tables";
+      error= 0;
+      DBUG_RETURN(0);
+    }
   }
 
   /* Cache constant expressions in WHERE, HAVING, ON clauses. */
@@ -2964,7 +3006,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       s->quick=select->quick;
       s->needed_reg=select->needed_reg;
       select->quick=0;
-      if (records == 0 && s->table->reginfo.impossible_range)
+      if (records == 0 && s->table->reginfo.impossible_range &&
+          (s->table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT))
       {
 	/*
 	  Impossible WHERE or ON expression
@@ -4114,7 +4157,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
         optimization is applicable 
       */
       if (out_args)
-        out_args->push_back((Item_field *) expr);
+        out_args->push_back((Item_field *) expr->real_item());
       result= true;
     }
   }
@@ -5946,7 +5989,7 @@ store_val_in_field(Field *field, Item *item, enum_check_fields check_flag)
   @retval TRUE        error occurred
 */
 bool
-JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
+JOIN::make_simple_join(JOIN *parent, TABLE *temp_table)
 {
   DBUG_ENTER("JOIN::make_simple_join");
 
@@ -5959,7 +6002,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
     DBUG_RETURN(TRUE);                        /* purecov: inspected */
 
   join_tab= parent->join_tab_reexec;
-  parent->table_reexec[0]= tmp_table;
+  parent->table_reexec[0]= temp_table;
   tables= 1;
   const_tables= 0;
   const_table_map= 0;
@@ -5979,7 +6022,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   do_send_rows= row_limit ? 1 : 0;
 
   join_tab->cache.buff=0;			/* No caching */
-  join_tab->table=tmp_table;
+  join_tab->table=temp_table;
   join_tab->select=0;
   join_tab->select_cond=0;
   join_tab->quick=0;
@@ -5996,8 +6039,8 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   join_tab->join= this;
   join_tab->ref.key_parts= 0;
   bzero((char*) &join_tab->read_record,sizeof(join_tab->read_record));
-  tmp_table->status=0;
-  tmp_table->null_row=0;
+  temp_table->status=0;
+  temp_table->null_row=0;
   DBUG_RETURN(FALSE);
 }
 
@@ -13098,12 +13141,35 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 
 uint find_shortest_key(TABLE *table, const key_map *usable_keys)
 {
-  uint min_length= (uint) ~0;
   uint best= MAX_KEY;
+  uint usable_clustered_pk= (table->file->primary_key_is_clustered() &&
+                             table->s->primary_key != MAX_KEY &&
+                             usable_keys->is_set(table->s->primary_key)) ?
+                            table->s->primary_key : MAX_KEY;
   if (!usable_keys->is_clear_all())
   {
+    uint min_length= (uint) ~0;
     for (uint nr=0; nr < table->s->keys ; nr++)
     {
+      /*
+       As far as 
+       1) clustered primary key entry data set is a set of all record
+          fields (key fields and not key fields) and
+       2) secondary index entry data is a union of its key fields and
+          primary key fields (at least InnoDB and its derivatives don't
+          duplicate primary key fields there, even if the primary and
+          the secondary keys have a common subset of key fields),
+       then secondary index entry data is always a subset of primary key
+       entry, and the PK is always longer.
+       Unfortunately, key_info[nr].key_length doesn't show the length
+       of key/pointer pair but a sum of key field lengths only, thus
+       we can't estimate index IO volume comparing only this key_length
+       value of seconday keys and clustered PK.
+       So, try secondary keys first, and choose PK only if there are no
+       usable secondary covering keys:
+      */
+      if (nr == usable_clustered_pk)
+        continue;
       if (usable_keys->is_set(nr))
       {
         if (table->key_info[nr].key_length < min_length)
@@ -13114,7 +13180,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
       }
     }
   }
-  return best;
+  return best != MAX_KEY ? best : usable_clustered_pk;
 }
 
 /**
@@ -17150,7 +17216,17 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
       first= 0;
     else
       str->append(',');
-    item->print_item_w_name(str, query_type);
+
+    if (master_unit()->item && item->is_autogenerated_name)
+    {
+      /*
+        Do not print auto-generated aliases in subqueries. It has no purpose
+        in a view definition or other contexts where the query is printed.
+      */
+      item->print(str, query_type);
+    }
+    else
+      item->print_item_w_name(str, query_type);
   }
 
   /*

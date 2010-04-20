@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2008 MySQL AB
+/* Copyright 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,6 +12,11 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+#define COPYRIGHT_NOTICE "\
+Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.\n\
+This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
+and you are welcome to modify and redistribute it under the GPL v2 license\n"
 
 /* mysql command tool
  * Commands compatible with mSQL by David J. Hughes
@@ -1181,6 +1186,8 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
+  put_info(COPYRIGHT_NOTICE, INFO_INFO);
+
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
   if (!status.batch && !quick && !opt_html && !opt_xml)
@@ -1223,13 +1230,11 @@ int main(int argc,char *argv[])
       sprintf(histfile_tmp, "%s.TMP", histfile);
     }
   }
+
 #endif
+
   sprintf(buff, "%s",
-#ifndef NOT_YET
 	  "Type 'help;' or '\\h' for help. Type '\\c' to clear the current input statement.\n");
-#else
-	  "Type 'help [[%]function name[%]]' to get help on usage of function.\n");
-#endif
   put_info(buff,INFO_INFO);
   status.exit_status= read_and_execute(!status.batch);
   if (opt_outfile)
@@ -1585,10 +1590,7 @@ static void usage(int version)
 
   if (version)
     return;
-  printf("\
-Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n");
+  printf("%s", COPYRIGHT_NOTICE);
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -4298,7 +4300,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql, MYSQL_SECURE_AUTH, (char *) &opt_secure_auth);
   if (using_opt_local_infile)
     mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if (opt_use_ssl)
     mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
 		  opt_ssl_capath, opt_ssl_cipher);
@@ -4419,12 +4421,12 @@ com_status(String *buffer __attribute__((unused)),
     mysql_free_result(result);
   }
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   if ((status_str= mysql_get_ssl_cipher(&mysql)))
     tee_fprintf(stdout, "SSL:\t\t\tCipher in use is %s\n",
                 status_str);
   else
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
     tee_puts("SSL:\t\t\tNot in use", stdout);
 
   if (skip_updates)

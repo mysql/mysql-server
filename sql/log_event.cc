@@ -16,7 +16,7 @@
 
 #ifdef MYSQL_CLIENT
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 
 #else
 
@@ -24,7 +24,19 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "my_global.h" // REQUIRED by log_event.h > m_string.h > my_bitmap.h
+#include "log_event.h"
+#include "sql_base.h"                           // close_thread_tables
+#include "sql_cache.h"                       // QUERY_CACHE_FLAGS_SIZE
+#include "sql_locale.h" // MY_LOCALE, my_locale_by_number, my_locale_en_US
+#include "key.h"        // key_copy
+#include "lock.h"       // mysql_unlock_tables
+#include "sql_parse.h"  // mysql_test_parse_for_slave
+#include "tztime.h"     // struct Time_zone
+#include "sql_load.h"   // mysql_load
+#include "sql_db.h"     // load_db_opt_by_name
 #include "slave.h"
 #include "rpl_rli.h"
 #include "rpl_mi.h"
@@ -1717,8 +1729,8 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
     {
       uint32 tmp= uint3korr(ptr);
       int part;
-      char buf[10];
-      char *pos= &buf[10];
+      char buf[11];
+      char *pos= &buf[10];  // start from '\0' to the beginning
 
       /* Copied from field.cc */
       *pos--=0;					// End NULL
@@ -9638,7 +9650,7 @@ Incident_log_event::write_data_body(IO_CACHE *file)
   they will always be printed for the first event.
 */
 st_print_event_info::st_print_event_info()
-  :flags2_inited(0), sql_mode_inited(0),
+  :flags2_inited(0), sql_mode_inited(0), sql_mode(0),
    auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
    lc_time_names_number(~0),
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),

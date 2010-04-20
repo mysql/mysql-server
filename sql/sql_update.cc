@@ -19,12 +19,28 @@
   Multi-table updates were introduced by Sinisa & Monty
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_update.h"
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_base.h"                       // close_tables_for_reopen
+#include "sql_parse.h"                          // cleanup_items
+#include "sql_partition.h"                   // partition_key_modified
 #include "sql_select.h"
+#include "sql_view.h"                           // check_key_in_view
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "probes_mysql.h"
 #include "debug_sync.h"
+#include "key.h"                                // is_key_used
+#include "sql_acl.h"                            // *_ACL, check_grant
+#include "records.h"                            // init_read_record,
+                                                // end_read_record
+#include "filesort.h"                           // filesort
+#include "sql_derived.h" // mysql_derived_prepare,
+                         // mysql_handle_derived,
+                         // mysql_derived_filling
 
 /* Return 0 if row hasn't changed */
 

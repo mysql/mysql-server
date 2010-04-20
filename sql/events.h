@@ -32,10 +32,17 @@ extern PSI_cond_key key_event_scheduler_COND_state;
 extern PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
 #endif /* HAVE_PSI_INTERFACE */
 
-class Event_parse_data;
+#include "sql_string.h"                         /* LEX_STRING */
+#include "my_time.h"                            /* interval_type */
+
 class Event_db_repository;
+class Event_parse_data;
 class Event_queue;
 class Event_scheduler;
+struct TABLE_LIST;
+class THD;
+typedef class Item COND;
+typedef struct charset_info_st CHARSET_INFO;
 
 /* Return codes */
 enum enum_events_error_code

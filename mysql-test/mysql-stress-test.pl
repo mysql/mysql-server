@@ -122,8 +122,8 @@ $opt_threads=1;
 $pid_file="mysql_stress_test.pid";
 $opt_mysqltest= ($^O =~ /mswin32/i) ? "mysqltest.exe" : "mysqltest";
 $opt_check_tests_file="";
-# OBM adding a setting for 'max-connect-retries=7' the default of 500 is to high  
-@mysqltest_args=("--silent", "-v", "--skip-safemalloc", "--max-connect-retries=7");
+# OBM adding a setting for 'max-connect-retries=20' the default of 500 is to high  
+@mysqltest_args=("--silent", "-v", "--skip-safemalloc", "--max-connect-retries=20");
 
 # Client ip address
 $client_ip=inet_ntoa((gethostbyname(hostname()))[4]);
@@ -150,7 +150,12 @@ $client_ip=~ s/\.//g;
                             
 %error_strings = ( 'Failed in mysql_real_connect()' => S1,
                    'Can\'t connect' => S1,       
-                   'not found (Errcode: 2)' => S1 );
+                   'not found (Errcode: 2)' => S1,
+                   'does not exist' => S1,
+                   'Could not open connection \'default\' after \d+ attempts' => S1,
+                   'wrong errno ' => S3,
+                   'Result length mismatch' => S4,
+                   'Result content mismatch' => S4);
   
 %error_codes = ( 1012 => S2, 1015 => S2, 1021 => S2,
                  1027 => S2, 1037 => S2, 1038 => S2,

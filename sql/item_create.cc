@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,14 @@
   Functions to create an item. Used by sql_yac.yy
 */
 
-#include "mysql_priv.h"
-#include "item_create.h"
+#include "sql_priv.h"
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          // set_var.h: THD
+#include "set_var.h"
 #include "sp_head.h"
 #include "sp.h"
 
@@ -42,7 +48,7 @@
 class Create_native_func : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with no arguments.
@@ -69,7 +75,7 @@ protected:
 class Create_func_arg0 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with no arguments.
@@ -93,7 +99,7 @@ protected:
 class Create_func_arg1 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with one argument.
@@ -118,7 +124,7 @@ protected:
 class Create_func_arg2 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with two arguments.
@@ -144,7 +150,7 @@ protected:
 class Create_func_arg3 : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /**
     Builder method, with three arguments.
@@ -194,7 +200,7 @@ protected:
 class Create_func_no_geom : public Create_func
 {
 public:
-  virtual Item *create(THD *thd, LEX_STRING name, List<Item> *item_list);
+  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
 
   /** Singleton. */
   static Create_func_no_geom s_singleton;
@@ -1828,6 +1834,19 @@ protected:
 };
 
 
+class Create_func_sha2 : public Create_func_arg2
+{
+public:
+  virtual Item* create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_sha2 s_singleton;
+
+protected:
+  Create_func_sha2() {}
+  virtual ~Create_func_sha2() {}
+};
+
+
 class Create_func_sign : public Create_func_arg1
 {
 public:
@@ -2327,7 +2346,7 @@ static bool has_named_parameters(List<Item> *params)
 Create_func_no_geom Create_func_no_geom::s_singleton;
 
 Item*
-Create_func_no_geom::create(THD * /* unused */,
+Create_func_no_geom::create_func(THD * /* unused */,
                             LEX_STRING /* unused */,
                             List<Item> * /* unused */)
 {
@@ -2340,7 +2359,7 @@ Create_func_no_geom::create(THD * /* unused */,
 
 
 Item*
-Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_qfunc::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   LEX_STRING db;
 
@@ -2373,7 +2392,7 @@ Create_qfunc::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 Create_udf_func Create_udf_func::s_singleton;
 
 Item*
-Create_udf_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_udf_func::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   udf_func *udf= find_udf(name.str, name.length);
   DBUG_ASSERT(udf);
@@ -2525,7 +2544,7 @@ Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 
 
 Item*
-Create_native_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_native_func::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   if (has_named_parameters(item_list))
   {
@@ -2538,7 +2557,7 @@ Create_native_func::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg0::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg0::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2556,7 +2575,7 @@ Create_func_arg0::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg1::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg1::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2582,7 +2601,7 @@ Create_func_arg1::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg2::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg2::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2610,7 +2629,7 @@ Create_func_arg2::create(THD *thd, LEX_STRING name, List<Item> *item_list)
 
 
 Item*
-Create_func_arg3::create(THD *thd, LEX_STRING name, List<Item> *item_list)
+Create_func_arg3::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   int arg_count= 0;
 
@@ -2946,9 +2965,7 @@ Create_func_cot Create_func_cot::s_singleton;
 Item*
 Create_func_cot::create(THD *thd, Item *arg1)
 {
-  Item *i1= new (thd->mem_root) Item_int((char*) "1", 1, 1);
-  Item *i2= new (thd->mem_root) Item_func_tan(arg1);
-  return new (thd->mem_root) Item_func_div(i1, i2);
+  return new (thd->mem_root) Item_func_cot(arg1);
 }
 
 
@@ -4359,6 +4376,15 @@ Create_func_sha::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_sha2 Create_func_sha2::s_singleton;
+
+Item*
+Create_func_sha2::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) Item_func_sha2(arg1, arg2);
+}
+
+
 Create_func_sign Create_func_sign::s_singleton;
 
 Item*
@@ -4969,6 +4995,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("SEC_TO_TIME") }, BUILDER(Create_func_sec_to_time)},
   { { C_STRING_WITH_LEN("SHA") }, BUILDER(Create_func_sha)},
   { { C_STRING_WITH_LEN("SHA1") }, BUILDER(Create_func_sha)},
+  { { C_STRING_WITH_LEN("SHA2") }, BUILDER(Create_func_sha2)},
   { { C_STRING_WITH_LEN("SIGN") }, BUILDER(Create_func_sign)},
   { { C_STRING_WITH_LEN("SIN") }, BUILDER(Create_func_sin)},
   { { C_STRING_WITH_LEN("SLEEP") }, BUILDER(Create_func_sleep)},

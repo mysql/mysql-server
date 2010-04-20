@@ -18,7 +18,7 @@
   Performance schema tables (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"
@@ -36,6 +36,9 @@
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
+
+#include "sql_base.h"                           // close_thread_tables
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
 /**
   @addtogroup Performance_schema_engine

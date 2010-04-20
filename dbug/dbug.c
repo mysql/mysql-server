@@ -384,7 +384,7 @@ static CODE_STATE *code_state(void)
   if (!init_done)
   {
     init_done=TRUE;
-    pthread_mutex_init(&THR_LOCK_dbug,MY_MUTEX_INIT_FAST);
+    pthread_mutex_init(&THR_LOCK_dbug, NULL);
     bzero(&init_settings, sizeof(init_settings));
     init_settings.out_file=stderr;
     init_settings.flags=OPEN_APPEND;
@@ -1365,7 +1365,7 @@ static void DbugVfprintf(FILE *stream, const char* format, va_list args)
 {
   char cvtbuf[1024];
   size_t len;
-  // Do not use my_vsnprintf, it does not support "%g".
+  /* Do not use my_vsnprintf, it does not support "%g". */
   len = vsnprintf(cvtbuf, sizeof(cvtbuf), format, args);
   (void) fprintf(stream, "%s\n", cvtbuf);
 }

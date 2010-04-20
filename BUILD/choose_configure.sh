@@ -5,10 +5,11 @@
 # Ensure cmake and perl are there
 cmake -P cmake/check_minimal_version.cmake >/dev/null 2>&1 || HAVE_CMAKE=no
 perl --version >/dev/null 2>&1 || HAVE_CMAKE=no
+scriptdir=`dirname $0`
 if test "$HAVE_CMAKE" = "no"
 then
-  sh ./configure.am "$@"
+  sh $scriptdir/configure.am "$@"
 else
-  perl ./cmake/configure.pl "$@"
+  perl $scriptdir/cmake/configure.pl "$@"
 fi
 

@@ -13,7 +13,43 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
+#include <signal.h>
+#ifndef __WIN__
+#include <netdb.h>        // getservbyname, servent
+#endif
+#include "sql_parse.h"    // test_if_data_home_dir
+#include "sql_cache.h"    // query_cache, query_cache_*
+#include "sql_locale.h"   // MY_LOCALES, my_locales, my_locale_by_name
+#include "sql_show.h"     // free_status_vars, add_status_vars,
+                          // reset_status_vars
+#include "strfunc.h"      // find_set_from_flags
+#include "parse_file.h"   // File_parser_dummy_hook
+#include "sql_db.h"       // my_database_names_free,
+                          // my_database_names_init
+#include "sql_table.h"    // release_ddl_log, execute_ddl_log_recovery
+#include "sql_connect.h"  // free_max_user_conn, init_max_user_conn,
+                          // handle_one_connection
+#include "sql_time.h"     // known_date_time_formats,
+                          // get_date_time_format_str,
+                          // date_time_format_make
+#include "tztime.h"       // my_tz_free, my_tz_init, my_tz_SYSTEM
+#include "hostname.h"     // hostname_cache_free, hostname_cache_init
+#include "sql_acl.h"      // acl_free, grant_free, acl_init,
+                          // grant_init
+#include "sql_base.h"     // table_def_free, table_def_init,
+                          // cached_open_tables,
+                          // cached_table_definitions
+#include "sql_test.h"     // mysql_print_status
+#include "item_create.h"  // item_create_cleanup, item_create_init
+#include "sql_servers.h"  // servers_free, servers_init
+#include "init.h"         // unireg_init
+#include "derror.h"       // init_errmessage
+#include "derror.h"       // init_errmessage
+#include "des_key_file.h" // load_des_key_file
+#include "sql_manager.h"  // stop_handle_manager, start_handle_manager
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <my_bit.h>
@@ -921,7 +957,9 @@ static void openssl_lock(int, openssl_lock_t *, const char *, int);
 static unsigned long openssl_id_function();
 #endif
 char *des_key_file;
+#ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
+#endif
 #endif /* HAVE_OPENSSL */
 
 /**
@@ -967,8 +1005,8 @@ static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static void create_pid_file();
 static void mysqld_exit(int exit_code) __attribute__((noreturn));
-static void end_ssl();
 #endif
+static void end_ssl();
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -1456,6 +1494,7 @@ void clean_up(bool print_message)
   item_user_lock_free();
   lex_free();				/* Free some memory */
   item_create_cleanup();
+  free_charsets();
   if (!opt_noacl)
   {
 #ifdef HAVE_DLOPEN
@@ -1487,9 +1526,7 @@ void clean_up(bool print_message)
 #endif
   delete binlog_filter;
   delete rpl_filter;
-#ifndef EMBEDDED_LIBRARY
   end_ssl();
-#endif
   vio_end();
 #ifdef USE_REGEX
   my_regex_end();
@@ -3879,11 +3916,10 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 #endif /* HAVE_OPENSSL */
 
 
-#ifndef EMBEDDED_LIBRARY
-
 static void init_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
@@ -3905,6 +3941,9 @@ static void init_ssl()
   {
     have_ssl= SHOW_OPTION_DISABLED;
   }
+#else
+  have_ssl= SHOW_OPTION_DISABLED;
+#endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
@@ -3914,15 +3953,15 @@ static void init_ssl()
 static void end_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef EMBEDDED_LIBRARY
   if (ssl_acceptor_fd)
   {
     free_vio_ssl_acceptor_fd(ssl_acceptor_fd);
     ssl_acceptor_fd= 0;
   }
+#endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 }
-
-#endif /* EMBEDDED_LIBRARY */
 
 
 static int init_server_components()
@@ -6123,7 +6162,10 @@ thread is in the master's binlogs.",
    "Tells the slave thread to not replicate to the specified database. To specify more than one database to ignore, use the directive multiple times, once for each database. This option will not work if you use cross database updates. If you need cross database updates to work, make sure you have 3.23.28 or later, and use replicate-wild-ignore-table=db_name.%. ",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replicate-ignore-table", OPT_REPLICATE_IGNORE_TABLE,
-   "Tells the slave thread to not replicate to the specified table. To specify more than one table to ignore, use the directive multiple times, once for each table. This will work for cross-datbase updates, in contrast to replicate-ignore-db.",
+   "Tells the slave thread to not replicate to the specified table. To specify "
+   "more than one table to ignore, use the directive multiple times, once for "
+   "each table. This will work for cross-database updates, in contrast to "
+   "replicate-ignore-db.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"replicate-rewrite-db", OPT_REPLICATE_REWRITE_DB,
    "Updates to a database with a different name than the original. Example: replicate-rewrite-db=master_db_name->slave_db_name.",
@@ -6394,7 +6436,7 @@ static int show_table_definitions(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /* Functions relying on CTX */
 static int show_ssl_ctx_sess_accept(THD *thd, SHOW_VAR *var, char *buff)
 {
@@ -6650,7 +6692,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
 
 /*
@@ -6741,6 +6783,7 @@ SHOW_VAR status_vars[]= {
   {"Sort_rows",		       (char*) offsetof(STATUS_VAR, filesort_rows), SHOW_LONG_STATUS},
   {"Sort_scan",		       (char*) offsetof(STATUS_VAR, filesort_scan_count), SHOW_LONG_STATUS},
 #ifdef HAVE_OPENSSL
+#ifndef EMBEDDED_LIBRARY
   {"Ssl_accept_renegotiates",  (char*) &show_ssl_ctx_sess_accept_renegotiate, SHOW_FUNC},
   {"Ssl_accepts",              (char*) &show_ssl_ctx_sess_accept, SHOW_FUNC},
   {"Ssl_callback_cache_hits",  (char*) &show_ssl_ctx_sess_cb_hits, SHOW_FUNC},
@@ -6764,6 +6807,7 @@ SHOW_VAR status_vars[]= {
   {"Ssl_verify_depth",         (char*) &show_ssl_get_verify_depth, SHOW_FUNC},
   {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
   {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
+#endif
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
@@ -7063,8 +7107,10 @@ static int mysql_init_variables(void)
 #endif
 #ifdef HAVE_OPENSSL
   des_key_file = 0;
+#ifndef EMBEDDED_LIBRARY
   ssl_acceptor_fd= 0;
-#endif
+#endif /* ! EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 #ifdef HAVE_SMEM
   shared_memory_base_name= default_shared_memory_base_name;
 #endif

@@ -187,12 +187,55 @@ public:
                      void * arg, traverse_order order);
   bool is_expensive_processor(uchar *arg);
   virtual bool is_expensive() { return 0; }
-  inline double fix_result(double value)
+  inline void raise_numeric_overflow(const char *type_name)
   {
-    if (isfinite(value))
-      return value;
-    null_value=1;
+    char buf[256];
+    String str(buf, sizeof(buf), system_charset_info);
+    str.length(0);
+    print(&str, QT_ORDINARY);
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), type_name, str.c_ptr_safe());
+  }
+  inline double raise_float_overflow()
+  {
+    raise_numeric_overflow("DOUBLE");
     return 0.0;
+  }
+  inline longlong raise_integer_overflow()
+  {
+    raise_numeric_overflow(unsigned_flag ? "BIGINT UNSIGNED": "BIGINT");
+    return 0;
+  }
+  inline int raise_decimal_overflow()
+  {
+    raise_numeric_overflow("DECIMAL");
+    return E_DEC_OVERFLOW;
+  }
+  /**
+     Throw an error if the input double number is not finite, i.e. is either
+     +/-INF or NAN.
+  */
+  inline double check_float_overflow(double value)
+  {
+    return isfinite(value) ? value : raise_float_overflow();
+  }
+  /**
+    Throw an error if the input BIGINT value represented by the
+    (longlong value, bool unsigned flag) pair cannot be returned by the
+    function, i.e. is not compatible with this Item's unsigned_flag.
+  */
+  inline longlong check_integer_overflow(longlong value, bool val_unsigned)
+  {
+    if ((unsigned_flag && !val_unsigned && value < 0) ||
+        (!unsigned_flag && val_unsigned && (ulonglong) value > LONGLONG_MAX))
+      return raise_integer_overflow();
+    return value;
+  }
+  /**
+     Throw an error if the error code of a DECIMAL operation is E_DEC_OVERFLOW.
+  */
+  inline int check_decimal_overflow(int error)
+  {
+    return (error == E_DEC_OVERFLOW) ? raise_decimal_overflow() : error;
   }
   bool has_timestamp_args()
   {
@@ -665,6 +708,14 @@ public:
   Item_func_tan(Item *a) :Item_dec_func(a) {}
   double val_real();
   const char *func_name() const { return "tan"; }
+};
+
+class Item_func_cot :public Item_dec_func
+{
+public:
+  Item_func_cot(Item *a) :Item_dec_func(a) {}
+  double val_real();
+  const char *func_name() const { return "cot"; }
 };
 
 class Item_func_integer :public Item_int_func
@@ -1745,5 +1796,15 @@ public:
   { max_length= 21; unsigned_flag=1; }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
+
+Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
+                     LEX_STRING component);
+extern bool check_reserved_words(LEX_STRING *name);
+extern enum_field_types agg_field_type(Item **items, uint nitems);
+double my_double_round(double value, longlong dec, bool dec_unsigned,
+                       bool truncate);
+bool eval_const_cond(COND *cond);
+
+extern bool volatile  mqh_used;
 
 #endif /* ITEM_FUNC_INCLUDED */

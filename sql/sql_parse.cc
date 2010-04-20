@@ -14,7 +14,68 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #define MYSQL_LEX 1
-#include "mysql_priv.h"
+#include "my_global.h"
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
+#include "sql_parse.h"        // sql_kill, *_precheck, *_prepare
+#include "lock.h"             // wait_if_global_read_lock,
+                              // unlock_global_read_lock,
+                              // try_transactional_lock,
+                              // check_transactional_lock,
+                              // set_handler_table_locks,
+                              // start_waiting_global_read_lock,
+                              // lock_global_read_lock,
+                              // make_global_read_lock_block_commit
+#include "sql_base.h"         // find_temporary_tablesx
+#include "sql_cache.h"        // QUERY_CACHE_FLAGS_SIZE, query_cache_*
+#include "sql_show.h"         // mysqld_list_*, mysqld_show_*,
+                              // calc_sum_of_all_status
+#include "mysqld.h"
+#include "sql_locale.h"                         // my_locale_en_US
+#include "log.h"                                // flush_error_log
+#include "sql_view.h"         // mysql_create_view, mysql_drop_view
+#include "sql_delete.h"       // mysql_truncate, mysql_delete
+#include "sql_insert.h"       // mysql_insert
+#include "sql_update.h"       // mysql_update, mysql_multi_update
+#include "sql_partition.h"    // struct partition_info
+#include "sql_db.h"           // mysql_change_db, mysql_create_db,
+                              // mysql_rm_db, mysql_upgrade_db,
+                              // mysql_alter_db,
+                              // check_db_dir_existence,
+                              // my_dbopt_cleanup
+#include "sql_table.h"        // mysql_create_like_table,
+                              // mysql_create_table,
+                              // mysql_alter_table,
+                              // mysql_recreate_table,
+                              // mysql_backup_table,
+                              // mysql_restore_table
+#include "sql_connect.h"      // check_user,
+                              // decrease_user_connections,
+                              // thd_init_client_charset, check_mqh,
+                              // reset_mqh
+#include "sql_rename.h"       // mysql_rename_table
+#include "sql_tablespace.h"   // mysql_alter_tablespace
+#include "hostname.h"         // hostname_cache_refresh
+#include "sql_acl.h"          // *_ACL, check_grant, is_acl_user,
+                              // has_any_table_level_privileges,
+                              // mysql_drop_user, mysql_rename_user,
+                              // check_grant_routine,
+                              // mysql_routine_grant,
+                              // mysql_show_grants,
+                              // sp_grant_privileges, ...
+#include "sql_test.h"         // mysql_print_status
+#include "sql_select.h"       // handle_select, mysql_select,
+                              // mysql_explain_union
+#include "sql_load.h"         // mysql_load
+#include "sql_servers.h"      // create_servers, alter_servers,
+                              // drop_servers, servers_reload
+#include "sql_handler.h"      // mysql_ha_open, mysql_ha_close,
+                              // mysql_ha_read
+#include "sql_binlog.h"       // mysql_client_binlog_statement
+#include "sql_do.h"           // mysql_do
+#include "sql_help.h"         // mysqld_help
+#include "rpl_constants.h"    // Incident, INCIDENT_LOST_EVENTS
+#include "log_event.h"
 #include "sql_repl.h"
 #include "rpl_filter.h"
 #include "repl_failsafe.h"
@@ -34,6 +95,8 @@
 #include "debug_sync.h"
 #include "probes_mysql.h"
 #include "set_var.h"
+
+#define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
 /**
   @defgroup Runtime_Environment Runtime Environment
@@ -2854,15 +2917,20 @@ end_with_restore_list:
         NOTE: SHOW_VIEW ACL is checked when the view is created.
       */
 
+      DBUG_PRINT("debug", ("lex->only_view: %d, table: %s.%s",
+                           lex->only_view,
+                           first_table->db, first_table->table_name));
       if (lex->only_view)
       {
         if (check_table_access(thd, SELECT_ACL, first_table, FALSE, 1, FALSE))
         {
+          DBUG_PRINT("debug", ("check_table_access failed"));
           my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
                   "SHOW", thd->security_ctx->priv_user,
                   thd->security_ctx->host_or_ip, first_table->alias);
           goto error;
         }
+        DBUG_PRINT("debug", ("check_table_access succeeded"));
 
         /* Ignore temporary tables if this is "SHOW CREATE VIEW" */
         first_table->open_type= OT_BASE_ONLY;
@@ -2875,6 +2943,8 @@ end_with_restore_list:
           access is granted. We need to check if first_table->grant.privilege
           contains any table-specific privilege.
         */
+        DBUG_PRINT("debug", ("first_table->grant.privilege: %x",
+                             first_table->grant.privilege));
         if (check_some_access(thd, SHOW_CREATE_TABLE_ACLS, first_table) ||
             (first_table->grant.privilege & SHOW_CREATE_TABLE_ACLS) == 0)
         {
