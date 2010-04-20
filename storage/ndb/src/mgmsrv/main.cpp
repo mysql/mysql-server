@@ -202,20 +202,13 @@ static int mgmd_main(int argc, char** argv)
 
   g_eventLogger->setCategory(opt_logname);
 
-#ifdef _WIN32
-#ifdef _DEBUG
-  if (opts.daemon)
-  {
-    /* Write eventlog output to file for easier debugging */
-    g_eventLogger->createFileHandler("c:\\ndb_mgmd_debug.log");
-    g_eventLogger->info("StdoutFileName: %s", NdbConfig_StdoutFileName(0));
-    g_eventLogger->info("get_path: %s", NdbConfig_get_path(0));
-    g_eventLogger->info("GetCommandLine: %s", GetCommandLine());
-  }
-#endif
-#endif
   /* Output to console initially */
   g_eventLogger->createConsoleHandler();
+
+#ifdef _WIN32
+  /* Output to Windows event log */
+  g_eventLogger->createEventLogHandler("MySQL Cluster Management Server");
+#endif
 
   if (opts.verbose)
     g_eventLogger->enable(Logger::LL_DEBUG);

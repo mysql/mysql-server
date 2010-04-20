@@ -29,6 +29,8 @@ ADD_LIBRARY(ndbconf
 )
 
 ADD_EXECUTABLE(ndb_mgmd
+               ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/message.rc
+               ${CMAKE_SOURCE_DIR}/storage/ndb/src/common/logger/msg00001.bin
                MgmtSrvr.cpp
                main.cpp
                Services.cpp

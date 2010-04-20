@@ -1215,13 +1215,13 @@ Dbdict::writeTableFile(Signal* signal, Uint32 tableId,
     c_writeTableRecord.m_callback = * callback;
 
     c_writeTableRecord.pageId = 0;
-    ndbrequire(pages == 1);
 
     PageRecordPtr pageRecPtr;
     c_pageRecordArray.getPtr(pageRecPtr, c_writeTableRecord.pageId);
 
     Uint32* dst = &pageRecPtr.p->word[ZPAGE_HEADER_SIZE];
-    Uint32 dstSize = ZSIZE_OF_PAGES_IN_WORDS - ZPAGE_HEADER_SIZE;
+    Uint32 dstSize = (ZMAX_PAGES_OF_TABLE_DEFINITION * ZSIZE_OF_PAGES_IN_WORDS)
+      - ZPAGE_HEADER_SIZE;
     bool ok = copyOut(tabInfoSec, dst, dstSize);
     ndbrequire(ok);
 
@@ -5797,6 +5797,17 @@ Dbdict::createTable_parse(Signal* signal, bool master,
     }
   }
 
+  {
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, CreateTabReq::DICT_TAB_INFO);
+    if (ptr.sz > MAX_WORDS_META_FILE)
+    {
+      jam();
+      setError(error, CreateTableRef::TableDefinitionTooBig, __LINE__);
+      return;
+    }
+  }
+
   // save sections to DICT memory
   saveOpSection(op_ptr, handle, CreateTabReq::DICT_TAB_INFO);
   if (op_ptr.p->m_restart == 0)
@@ -8009,6 +8020,17 @@ Dbdict::alterTable_parse(Signal* signal, bool master,
     }
    }
 
+
+  {
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, AlterTabReq::DICT_TAB_INFO);
+    if (ptr.sz > MAX_WORDS_META_FILE)
+    {
+      jam();
+      setError(error, AlterTableRef::TableDefinitionTooBig, __LINE__);
+      return;
+    }
+  }
 
   // save sections
   saveOpSection(op_ptr, handle, AlterTabReq::DICT_TAB_INFO);
@@ -10376,7 +10398,7 @@ Dbdict::createIndex_parse(Signal* signal, bool master,
   CreateIndxImplReq* impl_req = &createIndexPtr.p->m_request;
 
   // save attribute list
-  AttributeList& attrList = createIndexPtr.p->m_attrList;
+  IndexAttributeList& attrList = createIndexPtr.p->m_attrList;
   {
     SegmentedSectionPtr ss_ptr;
     handle.getSection(ss_ptr, CreateIndxReq::ATTRIBUTE_LIST_SECTION);
@@ -10680,7 +10702,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
 
   // write index key attributes
 
-  //const AttributeList& attrList = createIndexPtr.p->m_attrList;
+  //const IndexAttributeList& attrList = createIndexPtr.p->m_attrList;
   const AttributeMap& attrMap = createIndexPtr.p->m_attrMap;
   Uint32 k;
   for (k = 0; k < createIndexPtr.p->m_attrList.sz; k++) {
@@ -15597,7 +15619,7 @@ Dbdict::execDROP_EVNT_REQ(Signal* signal)
     ref->setMasterNode(c_masterNodeId);
     sendSignal(senderRef, GSN_DROP_EVNT_REF, signal,
 	       DropEvntRef::SignalLength2, JBB);
-    return;
+    DBUG_VOID_RETURN;
   }
 
   // Seize a Create Event record
@@ -17662,7 +17684,7 @@ Dbdict::getIndexAttr(TableRecordPtr indexPtr, Uint32 itAttr, Uint32* id)
 }
 
 void
-Dbdict::getIndexAttrList(TableRecordPtr indexPtr, AttributeList& list)
+Dbdict::getIndexAttrList(TableRecordPtr indexPtr, IndexAttributeList& list)
 {
   jam();
   list.sz = 0;
@@ -22455,18 +22477,31 @@ Dbdict::findOpInfo(Uint32 gsn)
 bool
 Dbdict::copyIn(OpSection& op_sec, const SegmentedSectionPtr& ss_ptr)
 {
-  const Uint32 size = ZSIZE_OF_PAGES_IN_WORDS;
+  const Uint32 size = 1024;
   Uint32 buf[size];
 
-  if (size < ss_ptr.sz) {
+  SegmentedSectionPtr tmp = ss_ptr;
+  SectionReader reader(tmp, getSectionSegmentPool());
+  Uint32 len = ss_ptr.sz;
+  while (len > size)
+  {
+    jam();
+    ndbrequire(reader.getWords(buf, size));
+    if (!copyIn(op_sec, buf, size))
+    {
+      jam();
+      return false;
+    }
+    len -= size;
+  }
+
+  ndbrequire(reader.getWords(buf, len));
+  if (!copyIn(op_sec, buf, len))
+  {
     jam();
     return false;
   }
-  ::copy(buf, ss_ptr);
-  if (!copyIn(op_sec, buf, ss_ptr.sz)) {
-    jam();
-    return false;
-  }
+
   return true;
 }
 
@@ -22482,24 +22517,67 @@ Dbdict::copyIn(OpSection& op_sec, const Uint32* src, Uint32 srcSize)
 }
 
 bool
+Dbdict::copyOut(Dbdict::OpSectionBuffer & buffer,
+                Dbdict::OpSectionBufferConstIterator & iter,
+                Uint32 * dst,
+                Uint32 len)
+{
+  Uint32 n = 0;
+  for(; !iter.isNull() && n < len; buffer.next(iter))
+  {
+    dst[n] = *iter.data;
+    n++;
+  }
+
+  return n == len;
+}
+
+bool
 Dbdict::copyOut(const OpSection& op_sec, SegmentedSectionPtr& ss_ptr)
 {
-  const Uint32 size = ZSIZE_OF_PAGES_IN_WORDS;
+  const Uint32 size = 1024;
   Uint32 buf[size];
 
-  if (!copyOut(op_sec, buf, size)) {
-    jam();
-    return false;
+  Uint32 len = op_sec.getSize();
+  OpSectionBufferHead tmp_head = op_sec.m_head;
+  OpSectionBuffer buffer(c_opSectionBufferPool, tmp_head);
+
+  OpSectionBufferConstIterator iter;
+  buffer.first(iter);
+  Uint32 ptrI = RNIL;
+  while (len > size)
+  {
+    if (!copyOut(buffer, iter, buf, size))
+    {
+      jam();
+      goto fail;
+    }
+    if (!appendToSection(ptrI, buf, size))
+    {
+      jam();
+      goto fail;
+    }
+    len -= size;
   }
-  Ptr<SectionSegment> ptr;
-  if (!import(ptr, buf, op_sec.getSize())) {
+
+  if (!copyOut(buffer, iter, buf, len))
+  {
     jam();
-    return false;
+    goto fail;
   }
-  ss_ptr.i = ptr.i;
-  ss_ptr.p = ptr.p;
-  ss_ptr.sz = op_sec.getSize();
+
+  if (!appendToSection(ptrI, buf, len))
+  {
+    jam();
+    goto fail;
+  }
+
+  getSection(ss_ptr, ptrI);
   return true;
+
+fail:
+  releaseSection(ptrI);
+  return false;
 }
 
 bool
@@ -23015,7 +23093,7 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
     {
       jam();
       setError(error, SchemaTransBeginRef::IncompatibleVersions, __LINE__);
-      return;
+      break;
     }
 
     if (!seizeSchemaTrans(trans_ptr)) {

@@ -75,6 +75,7 @@ extern ulong ndb_report_thresh_binlog_mem_usage;
 extern my_bool ndb_log_binlog_index;
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
+extern my_bool opt_ndb_log_empty_epochs;
 #endif
 
 extern CHARSET_INFO *character_set_filesystem;
@@ -723,6 +724,8 @@ static sys_var_bool_ptr
 sys_ndb_log_update_as_write(&vars, "ndb_log_update_as_write", &opt_ndb_log_update_as_write);
 static sys_var_bool_ptr
 sys_ndb_log_updated_only(&vars, "ndb_log_updated_only", &opt_ndb_log_updated_only);
+static sys_var_bool_ptr
+sys_ndb_log_empty_epochs(&vars, "ndb_log_empty_epochs", &opt_ndb_log_empty_epochs);
 static sys_var_thd_bool
 sys_ndb_use_exact_count(&vars, "ndb_use_exact_count", &SV::ndb_use_exact_count);
 static sys_var_thd_bool

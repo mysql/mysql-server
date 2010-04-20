@@ -121,7 +121,8 @@ DbtupProxy::execBUILD_INDX_IMPL_REQ(Signal* signal)
 }
 
 void
-DbtupProxy::sendBUILD_INDX_IMPL_REQ(Signal* signal, Uint32 ssId)
+DbtupProxy::sendBUILD_INDX_IMPL_REQ(Signal* signal, Uint32 ssId,
+                                    SectionHandle* handle)
 {
   Ss_BUILD_INDX_IMPL_REQ& ss = ssFind<Ss_BUILD_INDX_IMPL_REQ>(ssId);
 
@@ -129,8 +130,8 @@ DbtupProxy::sendBUILD_INDX_IMPL_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderRef = reference();
   req->senderData = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_BUILD_INDX_IMPL_REQ,
-             signal, BuildIndxImplReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_BUILD_INDX_IMPL_REQ,
+                      signal, BuildIndxImplReq::SignalLength, JBB, handle);
 }
 
 void

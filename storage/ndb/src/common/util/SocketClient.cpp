@@ -103,6 +103,12 @@ SocketClient::bind(const char* bindaddress, unsigned short localport)
   return 0;
 }
 
+#ifdef _WIN32
+#define NONBLOCKERR(E) (E!=SOCKET_EAGAIN && E!=SOCKET_EWOULDBLOCK)
+#else
+#define NONBLOCKERR(E) (E!=EINPROGRESS)
+#endif
+
 NDB_SOCKET_TYPE
 SocketClient::connect(const char *toaddress, unsigned short toport)
 {

@@ -4277,8 +4277,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
       binlog_[wild_]{do|ignore}_table?" (WL#1049)"
     */
     const char *local_db= event_info->get_db();
-    if ((thd && !(thd->options & OPTION_BIN_LOG)) ||
-	(!binlog_filter->db_ok(local_db)))
+    if ((event_info->flags & LOG_EVENT_NO_DB_CHECK_F) == 0 &&
+        ((thd && !(thd->options & OPTION_BIN_LOG)) ||
+         (!binlog_filter->db_ok(local_db))))
     {
       VOID(pthread_mutex_unlock(&LOCK_log));
       DBUG_RETURN(0);

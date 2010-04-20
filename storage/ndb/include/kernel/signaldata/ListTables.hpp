@@ -22,54 +22,62 @@
 #include <Bitmask.hpp>
 #include "SignalData.hpp"
 
-class ListTablesData {
-public:
-  Uint32 getTableId() {
+struct ListTablesData
+{
+  Uint32 requestData;
+  Uint32 tableId;
+  Uint32 tableType;
+
+  void init() {
+    requestData = 0;
+  }
+
+  Uint32 getTableId() const {
     return tableId;
   }
+
   void setTableId(Uint32 val) {
     tableId = val;
   }
-  Uint32 getTableType() {
+
+  Uint32 getTableType() const {
     return tableType;
   }
+
   void setTableType(Uint32 val) {
     tableType = val;
   }
-  Uint32 getTableStore() {
+
+  Uint32 getTableStore() const {
     return BitmaskImpl::getField(1, &requestData, 20, 3);
   }
   void setTableStore(Uint32 val) {
     BitmaskImpl::setField(1, &requestData, 20, 3, val);
   }
-  Uint32 getTableTemp() {
+  Uint32 getTableTemp() const {
     return BitmaskImpl::getField(1, &requestData, 23, 1);
   }
   void setTableTemp(Uint32 val) {
     BitmaskImpl::setField(1, &requestData, 23, 1, val);
   }
-  Uint32 getTableState() {
+  Uint32 getTableState() const {
     return BitmaskImpl::getField(1, &requestData, 24, 4);
   }
   void setTableState(Uint32 val) {
     BitmaskImpl::setField(1, &requestData, 24, 4, val);
   }
-  Uint32 getListNames() {
+  Uint32 getListNames() const {
     return BitmaskImpl::getField(1, &requestData, 28, 1);
   }
   void setListNames(Uint32 val) {
     BitmaskImpl::setField(1, &requestData, 28, 1, val);
   }
-  Uint32 getListIndexes() {
+  Uint32 getListIndexes() const {
     return BitmaskImpl::getField(1, &requestData, 29, 1);
   }
   void setListIndexes(Uint32 val) {
     BitmaskImpl::setField(1, &requestData, 29, 1, val);
   }
-public:
-  Uint32 requestData;
-  Uint32 tableId;
-  Uint32 tableType;
 };
 
 /**
@@ -144,52 +152,50 @@ public:
 public:  
   Uint32 senderData;
   Uint32 senderRef;
-  Uint32 requestData;
-  Uint32 tableId;
-  Uint32 tableType;
+  ListTablesData data;
 
-  Uint32 getTableId() {
-    return tableId;
+  void init(){
+    data.init();
+  }
+
+  Uint32 getTableId() const {
+    return data.getTableId();
   }
   void setTableId(Uint32 val) {
-    tableId = val;
+    data.setTableId(val);
   }
   Uint32 getTableType() const {
-    return tableType;
+    return data.getTableType();
   }
   void setTableType(Uint32 val) {
-    tableType = val;
+    data.setTableType(val);
   }
   Uint32 getListNames() const {
-    ListTablesData* ltd = (ListTablesData *) &requestData;
-    return ltd->getListNames();
+    return data.getListNames();
   }
   void setListNames(Uint32 val) {
-    ListTablesData* ltd = (ListTablesData *) &requestData;
-    ltd->setListNames(val);
+    data.setListNames(val);
   }
   Uint32 getListIndexes() const {
-    ListTablesData* ltd = (ListTablesData *) &requestData;
-    return ltd->getListIndexes();
+    return data.getListIndexes();
   }
   void setListIndexes(Uint32 val) {
-    ListTablesData* ltd = (ListTablesData *) &requestData;
-    ltd->setListIndexes(val);
+    data.setListIndexes(val);
   }
 
 
   /* For backwards compatility */
   Uint32 oldGetTableId() {
-    return OldListTablesData::getTableId(requestData);
+    return OldListTablesData::getTableId(data.requestData);
   }
   void oldSetTableId(Uint32 val) {
-    OldListTablesData::setTableId(requestData, val);
+    OldListTablesData::setTableId(data.requestData, val);
   }
   Uint32 oldGetTableType() const {
-    return OldListTablesData::getTableType(requestData);
+    return OldListTablesData::getTableType(data.requestData);
   }
   void oldSetTableType(Uint32 val) {
-    OldListTablesData::setTableType(requestData, val);
+    OldListTablesData::setTableType(data.requestData, val);
   }
 };
 

@@ -144,6 +144,16 @@ public:
   void removeConsoleHandler();
 
   /**
+   * Create a default handler that logs to the Windows event log
+   * with source component set to source_name
+   *
+   * NOTE! Can only  be created on Windows.
+   *
+   * @return true if successful.
+   */
+  bool createEventLogHandler(const char* source_name);
+
+  /**
    * Create a default handler that logs to a file called logger.log.
    *
    * @return true if successful.

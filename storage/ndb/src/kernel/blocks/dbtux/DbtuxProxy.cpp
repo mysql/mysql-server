@@ -48,7 +48,8 @@ DbtuxProxy::execALTER_INDX_IMPL_REQ(Signal* signal)
 }
 
 void
-DbtuxProxy::sendALTER_INDX_IMPL_REQ(Signal* signal, Uint32 ssId)
+DbtuxProxy::sendALTER_INDX_IMPL_REQ(Signal* signal, Uint32 ssId,
+                                    SectionHandle * handle)
 {
   Ss_ALTER_INDX_IMPL_REQ& ss = ssFind<Ss_ALTER_INDX_IMPL_REQ>(ssId);
 
@@ -56,8 +57,8 @@ DbtuxProxy::sendALTER_INDX_IMPL_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderRef = reference();
   req->senderData = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_ALTER_INDX_IMPL_REQ,
-             signal, AlterIndxImplReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_ALTER_INDX_IMPL_REQ,
+                      signal, AlterIndxImplReq::SignalLength, JBB, handle);
 }
 
 void

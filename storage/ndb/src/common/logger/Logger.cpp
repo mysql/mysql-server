@@ -25,7 +25,9 @@
 #include <FileLogHandler.hpp>
 #include "LogHandlerList.hpp"
 
-#if !defined NDB_WIN32
+#ifdef _WIN32
+#include "EventLogHandler.hpp"
+#else
 #include <SysLogHandler.hpp>
 #endif
 
@@ -101,6 +103,27 @@ Logger::removeConsoleHandler()
 }
 
 bool
+Logger::createEventLogHandler(const char* source_name)
+{
+#ifdef _WIN32
+  Guard g(m_handler_mutex);
+
+  LogHandler* log_handler = new EventLogHandler(source_name);
+  if (!log_handler)
+    return false;
+
+  if (!addHandler(log_handler))
+  {
+    delete log_handler;
+    return false;
+  }
+  return true;
+#else
+  return false;
+#endif
+}
+
+bool
 Logger::createFileHandler(char*filename)
 {
   Guard g(m_handler_mutex);
@@ -133,15 +156,14 @@ Logger::removeFileHandler()
 bool
 Logger::createSyslogHandler()
 {
+#ifdef _WIN32
+  return false;
+#else
   Guard g(m_handler_mutex);
   bool rc = true;
   if (m_pSyslogHandler == NULL)
   {
-#if defined NDB_WIN32
-    m_pSyslogHandler = new ConsoleLogHandler(); 
-#else
     m_pSyslogHandler = new SysLogHandler(); 
-#endif
     if (!addHandler(m_pSyslogHandler)) // TODO: check error code
     {
       rc = false;
@@ -151,6 +173,7 @@ Logger::createSyslogHandler()
   }
 
   return rc;
+#endif
 }
 
 void 
@@ -204,7 +227,7 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
 
     LogHandler *handler = NULL;
 
-#ifndef NDB_WIN32
+#ifndef _WIN32
     if(type == "SYSLOG")
     {
       handler = new SysLogHandler();
