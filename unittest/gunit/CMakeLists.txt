@@ -57,9 +57,9 @@ SET(GTEST_MSVC_SEARCH MT)
 LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
 
 # Hint for where to look: pushbuild uses GTEST_ROOT env.var.
-IF (DEFINED ENV{GTEST_PREFIX} AND NOT DEFINED ENV{GTEST_ROOT})
-  SET(ENV{GTEST_ROOT} $ENV{GTEST_PREFIX})
-ENDIF()
+## IF (DEFINED ENV{GTEST_PREFIX} AND NOT DEFINED ENV{GTEST_ROOT})
+##   SET(ENV{GTEST_ROOT} $ENV{GTEST_PREFIX})
+## ENDIF()
 
 # Now look for gtest.
 FIND_PACKAGE(GTest)
@@ -70,7 +70,7 @@ LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
 
 OPTION(ENABLE_DOWNLOADS
   "Download and build 3rd party source code components, e.g google test"
-  OFF)
+  ON)
 
 # Download and build gtest if not found
 IF(NOT DOWNLOAD_ROOT)
@@ -80,12 +80,12 @@ IF(NOT EXISTS DOWNLOAD_ROOT)
   MAKE_DIRECTORY(${DOWNLOAD_ROOT})
 ENDIF()
 
-# TODO: upgrade to 1.5, and revert to googlecode.
-SET(GTEST_PACKAGE_NAME "gtest-1.4")
+# While experimenting, use local URL rather than google.
+SET(GTEST_PACKAGE_NAME "gtest-1.5.0")
 SET(GTEST_TARBALL "${GTEST_PACKAGE_NAME}.tar.gz")
 SET(GTEST_DOWNLOAD_URL 
-# "http://googletest.googlecode.com/files/${GTEST_TARBALL}"
-  "https://clustra.norway.sun.com/~td136807/${GTEST_TARBALL}"
+  "http://googletest.googlecode.com/files/${GTEST_TARBALL}"
+# "https://clustra.norway.sun.com/~td136807/${GTEST_TARBALL}"
   )
   
 IF(NOT GTEST_FOUND)
