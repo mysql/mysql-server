@@ -51,6 +51,10 @@ reset master;
 
 connection master;
 
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
 disable_warnings;
 DROP TABLE IF EXISTS t1;
 enable_warnings;
@@ -137,7 +141,9 @@ SELECT COUNT(*) FROM t1;
 
 connection con1;
 create temporary table t3(f int);
+--disable_warnings
 insert into t3 select * from t1 where f<6;
+--enable_warnings
 let $wait_condition= SELECT COUNT(*) = 5 FROM t3;
 --source include/wait_condition.inc
 
@@ -145,12 +151,16 @@ connection con2;
 create temporary table t3(f int);
 
 connection con1;
+--disable_warnings
 insert into t2 select count(*) from t3;
+--enable_warnings
 let $wait_condition= SELECT COUNT(*) = 1 FROM t2;
 --source include/wait_condition.inc
 
 connection con2;
+--disable_warnings
 insert into t3 select * from t1 where f>=4;
+--enable_warnings
 let $wait_condition= SELECT COUNT(*) = 7 FROM t3;
 --source include/wait_condition.inc
 
@@ -158,7 +168,9 @@ connection con1;
 drop temporary table t3;
 
 connection con2;
+--disable_warnings
 insert into t2 select count(*) from t3;
+--enable_warnings
 drop temporary table t3;
 
 select * from t2 ORDER BY f;
@@ -183,22 +195,30 @@ SET @@session.pseudo_thread_id=1;
 create temporary table t3(f int);
 SET TIMESTAMP=1040323952;
 SET @@session.pseudo_thread_id=1;
+--disable_warnings
 insert into t3 select * from t1 where f<6;
+--enable_warnings
 SET TIMESTAMP=1040324145;
 SET @@session.pseudo_thread_id=2;
 create temporary table t3(f int);
 SET TIMESTAMP=1040324186;
 SET @@session.pseudo_thread_id=1;
+--disable_warnings
 insert into t2 select count(*) from t3;
+--enable_warnings
 SET TIMESTAMP=1040324200;
 SET @@session.pseudo_thread_id=2;
+--disable_warnings
 insert into t3 select * from t1 where f>=4;
+--enable_warnings
 SET TIMESTAMP=1040324211;
 SET @@session.pseudo_thread_id=1;
 drop temporary table t3;
 SET TIMESTAMP=1040324219;
 SET @@session.pseudo_thread_id=2;
+--disable_warnings
 insert into t2 select count(*) from t3;
+--enable_warnings
 SET TIMESTAMP=1040324224;
 SET @@session.pseudo_thread_id=2;
 drop temporary table t3;
@@ -226,7 +246,9 @@ sync_slave_with_master;
 # connection slave
 stop slave;  # to prepare for reconnecting w/o waiting for timeout
 connection master;
+--disable_warnings
 insert into t5 select * from t4;
+--enable_warnings
 save_master_pos;
 
 connection slave;

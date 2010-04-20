@@ -1576,7 +1576,7 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
     inside a transaction, we reset the transaction cache.
   */
   thd->binlog_remove_pending_rows_event(TRUE, is_transactional);
-  if (all || !thd->in_multi_stmt_transaction())
+  if (ending_trans(thd, all))
   {
     if (cache_mngr->trx_cache.has_incident())
       error= mysql_bin_log.write_incident(thd, TRUE);
@@ -1682,12 +1682,11 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("binlog_commit");
   binlog_cache_mngr *const cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
-  bool const in_transaction= thd->in_multi_stmt_transaction();
 
   DBUG_PRINT("debug",
              ("all: %d, in_transaction: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
               all,
-              YESNO(in_transaction),
+              YESNO(thd->in_multi_stmt_transaction()),
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
 
@@ -1711,7 +1710,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
      - We are in a transaction and a full transaction is committed.
     Otherwise, we accumulate the changes.
   */
-  if (!in_transaction || all)
+  if (ending_trans(thd, all))
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE, TRUE, 0);
     error= binlog_flush_trx_cache(thd, cache_mngr, &qev);
@@ -1789,29 +1788,28 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
   {  
     /*
       We flush the cache wrapped in a beging/rollback if:
-        . aborting a transcation that modified a non-transactional table or;
-        . aborting a statement that modified both transactional and
-         non-transctional tables but which is not in the boundaries of any
-         transaction;
+        . aborting a single or multi-statement transaction and;
+        . the format is STMT and non-trans engines were updated or;
         . the OPTION_KEEP_LOG is activate.
     */
-    if (thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
-        ((all && thd->transaction.all.modified_non_trans_table) ||
-        (!all && thd->transaction.stmt.modified_non_trans_table &&
-        !thd->in_multi_stmt_transaction()) ||
-        (thd->variables.option_bits & OPTION_KEEP_LOG)))
+    if (ending_trans(thd, all) &&
+        ((thd->variables.option_bits & OPTION_KEEP_LOG) ||
+         (trans_has_updated_non_trans_table(thd) &&
+          thd->variables.binlog_format == BINLOG_FORMAT_STMT)))
     {
       Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE, TRUE, 0);
       error= binlog_flush_trx_cache(thd, cache_mngr, &qev);
     }
     /*
-      Otherwise, we simply truncate the cache as there is no change on
-      non-transactional tables as follows.
+      Truncate the cache if:
+        . aborting a single or multi-statement transaction or;
+        . the OPTION_KEEP_LOG is not activate and;
+        . the format is not STMT or no non-trans were updated.
     */
-    else if (all || (!all &&
-                     (!thd->transaction.stmt.modified_non_trans_table ||
-                      !thd->in_multi_stmt_transaction() || 
-                      thd->variables.binlog_format != BINLOG_FORMAT_STMT)))
+    else if (ending_trans(thd, all) ||
+             (!(thd->variables.option_bits & OPTION_KEEP_LOG) &&
+              ((!stmt_has_updated_non_trans_table(thd) ||
+               thd->variables.binlog_format != BINLOG_FORMAT_STMT))))
       error= binlog_truncate_trx_cache(thd, cache_mngr, all);
   }
 
@@ -1909,7 +1907,7 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
     non-transactional table. Otherwise, truncate the binlog cache starting
     from the SAVEPOINT command.
   */
-  if (unlikely(thd->transaction.all.modified_non_trans_table ||
+  if (unlikely(trans_has_updated_non_trans_table(thd) ||
                (thd->variables.option_bits & OPTION_KEEP_LOG)))
   {
     int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
@@ -4257,6 +4255,49 @@ bool use_trans_cache(const THD* thd, bool is_transactional)
      (is_transactional || !cache_mngr->trx_cache.empty()));
 }
 
+/**
+  This function checks if a transaction, either a multi-statement
+  or a single statement transaction is about to commit or not.
+
+  @param thd The client thread that executed the current statement.
+  @param all Committing a transaction (i.e. TRUE) or a statement
+             (i.e. FALSE).
+  @return
+    @c true if committing a transaction, otherwise @c false.
+*/
+bool ending_trans(THD* thd, const bool all)
+{
+  return (all || (!all && !thd->in_multi_stmt_transaction()));
+}
+
+/**
+  This function checks if a non-transactional table was updated by
+  the current transaction.
+
+  @param thd The client thread that executed the current statement.
+  @return
+    @c true if a non-transactional table was updated, @c false
+    otherwise.
+*/
+bool trans_has_updated_non_trans_table(const THD* thd)
+{
+  return (thd->transaction.all.modified_non_trans_table ||
+          thd->transaction.stmt.modified_non_trans_table);
+}
+
+/**
+  This function checks if a non-transactional table was updated by the
+  current statement.
+
+  @param thd The client thread that executed the current statement.
+  @return
+    @c true if a non-transactional table was updated, @c false otherwise.
+*/
+bool stmt_has_updated_non_trans_table(const THD* thd)
+{
+  return (thd->transaction.stmt.modified_non_trans_table);
+}
+
 /*
   These functions are placed in this file since they need access to
   binlog_hton, which has internal linkage.
@@ -4539,7 +4580,7 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
     {
       set_write_error(thd);
       if (check_write_error(thd) && cache_data &&
-          thd->transaction.stmt.modified_non_trans_table)
+          stmt_has_updated_non_trans_table(thd))
         cache_data->set_incident();
       DBUG_RETURN(1);
     }
@@ -4740,7 +4781,7 @@ unlock:
     {
       set_write_error(thd);
       if (check_write_error(thd) && cache_data &&
-        thd->transaction.stmt.modified_non_trans_table)
+          stmt_has_updated_non_trans_table(thd))
         cache_data->set_incident();
     }
   }
