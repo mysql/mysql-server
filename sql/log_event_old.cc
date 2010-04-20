@@ -241,11 +241,6 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(table, error);
-    if (!ev->use_trans_cache())
-    {
-      DBUG_PRINT("info", ("Marked that we need to keep log"));
-      ev_thd->variables.option_bits|= OPTION_KEEP_LOG;
-    }
   }
 
   if (error)
@@ -1683,11 +1678,6 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
     DBUG_EXECUTE_IF("stop_slave_middle_group",
                     const_cast<Relay_log_info*>(rli)->abort_slave= 1;);
     error= do_after_row_operations(rli, error);
-    if (!use_trans_cache())
-    {
-      DBUG_PRINT("info", ("Marked that we need to keep log"));
-      thd->variables.option_bits|= OPTION_KEEP_LOG;
-    }
   } // if (table)
 
   if (error)
