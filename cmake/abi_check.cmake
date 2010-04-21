@@ -14,9 +14,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
  
 #
-# Headers which need to be checked for abi/api compatibility.
-# API_PREPROCESSOR_HEADER will be used until mysql_priv.h stablizes
-# after which TEST_PREPROCESSOR_HEADER will be used.
+# Headers which need to be checked for abi/api compatibility are in
+# API_PREPROCESSOR_HEADER.
 #
 # We use gcc specific preprocessing command and sed/diff, so it will 
 # only be run  on Unix and only if gcc is used.
@@ -34,11 +33,6 @@ IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
     ${CMAKE_SOURCE_DIR}/include/mysql/psi/psi_abi_v2.h
   )
 
-  SET(TEST_PREPROCESSOR_HEADER 
-    ${CMAKE_SOURCE_DIR}/sql/mysql_priv.h
-  )
-
-
   ADD_CUSTOM_TARGET(abi_check ALL
   COMMAND ${CMAKE_COMMAND} 
     -DCOMPILER=${COMPILER}
@@ -54,7 +48,7 @@ IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_SYSTEM_NAME MATCHES "Linux")
     -DCMAKE_C_COMPILER=${COMPILER} 
     -DCMAKE_SOURCE_DIR=${CMAKE_SOURCE_DIR}
     -DCMAKE_BINARY_DIR=${CMAKE_BINARY_DIR}
-    "-DABI_HEADERS=${TEST_PREPROCESSOR_HEADER}"
+    "-DABI_HEADERS=${API_PREPROCESSOR_HEADER}"
     -P ${CMAKE_SOURCE_DIR}/cmake/scripts/do_abi_check.cmake
     VERBATIM
   )
