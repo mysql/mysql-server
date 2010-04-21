@@ -9,12 +9,12 @@ INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 START TRANSACTION;
 INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 UPDATE t3, t2 SET e = 2, b = 3 WHERE f = c;
 COMMIT;
 show binlog events from <binlog_start>;
