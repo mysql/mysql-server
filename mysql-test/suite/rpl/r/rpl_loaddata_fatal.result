@@ -86,7 +86,7 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1593
-Last_SQL_Error	Fatal error: Not enough memory
+Last_SQL_Error	YYMMDD HH:MM:SS Fatal error: Not enough memory
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;

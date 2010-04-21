@@ -29,6 +29,7 @@ source include/wait_for_slave_sql_error.inc;
 if ($show_sql_error)
 {
   let $error= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+  let $error= `SELECT SUBSTRING("$error" FROM 17)`;
   echo Last_SQL_Error = $error;
 }
 

@@ -1840,11 +1840,30 @@ bool show_master_info(THD* thd, Master_info* mi)
     // Last_IO_Errno
     protocol->store(mi->last_error().number);
     // Last_IO_Error
-    protocol->store(mi->last_error().message, &my_charset_bin);
+    if (*mi->last_error().message != '\0')
+    {
+      String msg_buf;
+      msg_buf.append(mi->last_error().timestamp);
+      msg_buf.append(" ");
+      msg_buf.append(mi->last_error().message);
+      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
+    }
+    else
+      protocol->store(mi->last_error().message, &my_charset_bin);
     // Last_SQL_Errno
     protocol->store(mi->rli.last_error().number);
     // Last_SQL_Error
-    protocol->store(mi->rli.last_error().message, &my_charset_bin);
+    if (*mi->rli.last_error().message != '\0')
+    {
+      String msg_buf;
+      msg_buf.append(mi->rli.last_error().timestamp);
+      msg_buf.append(" ");
+      msg_buf.append(mi->rli.last_error().message);
+      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
+    }
+    else
+      protocol->store(mi->rli.last_error().message, &my_charset_bin);
+
     // Replicate_Ignore_Server_Ids
     {
       char buff[FN_REFLEN];
