@@ -1,0 +1,174 @@
+################################################################################
+# BUG#51894 Replication failure with SBR on DROP TEMPORARY TABLE inside a
+#           transaction
+# BUG#52616 Temp table prevents switch binlog format from STATEMENT to ROW
+#
+# This test verifies what follows:
+#
+# 1 - If the following statements are classified as unsafe:
+#   1.1 - INSERT INTO t_myisam SELECT * FROM t_myisam_temp
+#   1.2 - INSERT INTO t_myisam_temp SELECT * FROM t_myisam
+#
+# 2 - If the following statements are classified as safe:
+#   1.7 - INSERT INTO t_innodb SELECT * FROM t_myisam_temp
+#   1.8 - INSERT INTO t_myisam_temp SELECT * FROM t_innodb
+#
+# 3 - If we can switch from statement to row format.
+#
+# 4 - If statements that can manipulate a temporary table and do not cause an
+# implicit commit are kept in the boundaries of an on-going transaction. For
+# instance:
+#   4.1 - CREATE TEMPORARY TABLE
+#   4.2 - CREATE TEMPORARY TABLE LIKE
+#   4.3 - CREATE TEMPORARY TABLE SELECT * FROM
+#   4.4 - INSERT/UPDATE/DELETE (Note that only inserts are verified)
+#   4.5 - INSERT INTO t_myisam SELECT * FROM t_myisam_temp
+#   4.6 - INSERT INTO t_myisam_temp SELECT * FROM t_myisam
+#   4.7 - INSERT INTO t_innodb SELECT * FROM t_myisam_temp
+#   4.8 - INSERT INTO t_myisam_temp SELECT * FROM t_innodb
+#
+# 5 - If transactions that have a DROP TEMPORARY are always written to the 
+# binary log regardless of the mode and the outcome: commit or rollback.
+#
+# 6 - In particular, if the current statement logging format is set to row
+# the CREATE TEMPORARY is not logged and the DROP TEMPORARY is extended with
+# the IF EXISTS clause.
+#
+################################################################################
+
+source include/master-slave.inc;
+source include/have_binlog_format_statement.inc;
+source include/have_innodb.inc;
+
+CALL mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
+--echo ########################################################################
+--echo #                         VERIFY ITEMS 1 and 2
+--echo ########################################################################
+
+--echo #
+--echo # Create temporary tables to verify when statements involving temporary
+--echo # tables are classified as safe or unsafe by printing out the warning
+--echo # messages.
+--echo #
+connection master;
+CREATE TABLE t_myisam(id int) engine= MyIsam;
+INSERT INTO t_myisam VALUES(1);
+CREATE TABLE t_innodb(id int) engine= Innodb;
+INSERT INTO t_innodb VALUES(1);
+CREATE TEMPORARY TABLE t_myisam_temp(id int) engine= MyIsam;
+INSERT INTO t_myisam_temp VALUES(1);
+CREATE TEMPORARY TABLE t_innodb_temp(id int) engine= Innodb;
+INSERT INTO t_innodb_temp VALUES(1);
+
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+INSERT INTO t_myisam SELECT * FROM t_myisam_temp;
+INSERT INTO t_innodb SELECT * FROM t_myisam_temp;
+INSERT INTO t_innodb SELECT * FROM t_innodb_temp;
+ROLLBACK;
+
+BEGIN;
+INSERT INTO t_myisam SELECT * FROM t_innodb_temp;
+INSERT INTO t_innodb SELECT * FROM t_myisam_temp;
+INSERT INTO t_innodb SELECT * FROM t_innodb_temp;
+ROLLBACK;
+
+--echo ########################################################################
+--echo #                          VERIFY ITEM 3
+--echo ########################################################################
+
+--echo #
+--echo # When there is a temporary table we can switch between the mixed and
+--echo # row formats. However, we cannot switch to the statement format.
+--echo #
+SET BINLOG_FORMAT=MIXED;
+SET BINLOG_FORMAT=ROW;
+SET BINLOG_FORMAT=MIXED;
+--error ER_TEMP_TABLE_PREVENTS_SWITCH_OUT_OF_RBR
+SET BINLOG_FORMAT=STATEMENT;
+
+--echo #
+--echo # When there is a temporary table we can switch between the mixed and
+--echo # row formats. However, we cannot swith to the statement format.
+--echo #
+SET BINLOG_FORMAT=MIXED;
+DROP TABLE t_myisam_temp, t_innodb_temp, t_myisam, t_innodb;
+source include/show_binlog_events.inc;
+
+--echo ########################################################################
+--echo #                          VERIFY ITEMS 4 and 5
+--echo ########################################################################
+
+--echo #
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+CREATE TEMPORARY TABLE tmp1(id int) engine= MyIsam;
+INSERT INTO tmp1 VALUES(1);
+CREATE TEMPORARY TABLE tmp2 LIKE tmp1;
+INSERT INTO tmp2 VALUES(1);
+CREATE TEMPORARY TABLE tmp3 engine= MyIsam SELECT * FROM tmp1;
+INSERT INTO tmp3 VALUES(1);
+DROP TEMPORARY TABLE tmp1;
+DROP TEMPORARY TABLE tmp2;
+DROP TEMPORARY TABLE tmp3;
+COMMIT;
+source include/show_binlog_events.inc;
+
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+BEGIN;
+CREATE TEMPORARY TABLE tmp1(id int) engine= MyIsam;
+INSERT INTO tmp1 VALUES(1);
+CREATE TEMPORARY TABLE tmp2 LIKE tmp1;
+INSERT INTO tmp2 VALUES(1);
+CREATE TEMPORARY TABLE tmp3 engine= MyIsam SELECT * FROM tmp1;
+INSERT INTO tmp3 VALUES(1);
+DROP TEMPORARY TABLE tmp1;
+DROP TEMPORARY TABLE tmp2;
+DROP TEMPORARY TABLE tmp3;
+ROLLBACK;
+source include/show_binlog_events.inc;
+
+--echo ########################################################################
+--echo #                          VERIFY ITEM 6
+--echo ########################################################################
+
+SET BINLOG_FORMAT=STATEMENT;
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+CREATE TEMPORARY TABLE tmp1(id int) engine= MyIsam;
+CREATE TEMPORARY TABLE tmp2 LIKE tmp1;
+CREATE TEMPORARY TABLE tmp3 engine= MyIsam SELECT * FROM tmp1;
+SET BINLOG_FORMAT=ROW;
+DROP TEMPORARY TABLE tmp1;
+BEGIN;
+INSERT INTO tmp2 VALUES(1);
+DROP TEMPORARY TABLE tmp2;
+INSERT INTO tmp3 VALUES(1);
+DROP TEMPORARY TABLE tmp3;
+COMMIT;
+source include/show_binlog_events.inc;
+
+SET BINLOG_FORMAT=STATEMENT;
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+CREATE TEMPORARY TABLE tmp1(id int) engine= MyIsam;
+CREATE TEMPORARY TABLE tmp2 LIKE tmp1;
+CREATE TEMPORARY TABLE tmp3 engine= MyIsam SELECT * FROM tmp1;
+SET BINLOG_FORMAT=ROW;
+DROP TEMPORARY TABLE tmp1;
+BEGIN;
+INSERT INTO tmp2 VALUES(1);
+DROP TEMPORARY TABLE tmp2;
+INSERT INTO tmp3 VALUES(1);
+DROP TEMPORARY TABLE tmp3;
+ROLLBACK;
+source include/show_binlog_events.inc;
+
+--echo ###################################################################################
+--echo #                               CHECK CONSISTENCY
+--echo ###################################################################################
+connection master;
+sync_slave_with_master;
+
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
+--diff_files $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
