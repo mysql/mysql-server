@@ -92,6 +92,7 @@
 #include "transaction.h"
 #include "sql_audit.h"
 #include "sql_prepare.h"
+#include "debug_sync.h"
 #include "probes_mysql.h"
 #include "set_var.h"
 
@@ -2177,6 +2178,11 @@ mysql_execute_command(THD *thd)
       !thd->locked_tables_mode)
     if (thd->global_read_lock.wait_if_global_read_lock(thd, FALSE, TRUE))
       goto error;
+
+#ifndef DBUG_OFF
+  if (lex->sql_command != SQLCOM_SET_OPTION)
+    DEBUG_SYNC(thd,"before_execute_sql_command");
+#endif
 
   switch (lex->sql_command) {
 

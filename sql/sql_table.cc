@@ -5017,11 +5017,17 @@ send_result_message:
       {
         /* Clear the ticket released in close_thread_tables(). */
         table->mdl_request.ticket= NULL;
-        if ((table->table= open_ltable(thd, table, lock_type, 0)) &&
-            ((result_code= table->table->file->ha_analyze(thd, check_opt)) > 0))
-          result_code= 0; // analyze went ok
-        if (result_code)  // analyze failed
-          table->table->file->print_error(result_code, MYF(0));
+        DEBUG_SYNC(thd, "ha_admin_open_ltable");
+        if (table->table= open_ltable(thd, table, lock_type, 0))
+        {
+          result_code= table->table->file->ha_analyze(thd, check_opt);
+          if (result_code == HA_ADMIN_ALREADY_DONE)
+            result_code= HA_ADMIN_OK;
+          else if (result_code)  // analyze failed
+            table->table->file->print_error(result_code, MYF(0));
+        }
+        else
+          result_code= -1; // open failed
       }
       /* Start a new row for the final status row */
       protocol->prepare_for_resend();
