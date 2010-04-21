@@ -4589,9 +4589,9 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *unused)
 int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
 {
   int res;
-  uchar *cur_range_info;
+  uchar *cur_range_info= 0;
   uchar *rowid;
-  
+
   if (use_default_impl)
     return h->handler::multi_range_read_next(range_info);
   
@@ -4617,7 +4617,10 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
       goto end;
     }
     rowid= rowids_buf_cur;
-    cur_range_info= *(uchar**)(rowids_buf_cur + h->ref_length);
+
+    if (is_mrr_assoc)
+      cur_range_info= *(uchar**)(rowids_buf_cur + h->ref_length);
+
     rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
     if (h->mrr_funcs.skip_record &&
 	h->mrr_funcs.skip_record(h->mrr_iter, (char *) cur_range_info, rowid))
