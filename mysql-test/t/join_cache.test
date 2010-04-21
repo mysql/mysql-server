@@ -838,3 +838,21 @@ SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 
 set join_cache_level=default;
 DROP TABLE t2, t3, t4;
+
+--echo #
+--echo # Bug #40192: outer join with where clause when using BNL 
+--echo #
+
+create table t1 (a int, b int);
+insert into t1 values (2, 20), (3, 30), (1, 10);
+create table t2 (a int, c int);
+insert into t2 values (1, 101), (3, 102), (1, 100);
+
+set join_cache_level=6;
+
+select * from t1 left join t2 on t1.a=t2.a;
+explain select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
+select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
+
+set join_cache_level=default;
+drop table t1, t2;
