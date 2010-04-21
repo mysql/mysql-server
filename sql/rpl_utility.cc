@@ -16,7 +16,9 @@
 #include "rpl_utility.h"
 
 #ifndef MYSQL_CLIENT
+#include "unireg.h"                      // REQUIRED by later includes
 #include "rpl_rli.h"
+#include "sql_select.h"
 
 /**
    Function to compare two size_t integers for their relative

@@ -30,6 +30,10 @@ extern PSI_mutex_key key_LOCK_event_queue;
 extern PSI_cond_key key_COND_queue_state;
 #endif /* HAVE_PSI_INTERFACE */
 
+#include "queues.h"                             // QUEUE
+#include "sql_string.h"                         /* LEX_STRING */
+#include "my_time.h"                    /* my_time_t, interval_type */
+
 class Event_basic;
 class Event_queue_element;
 class Event_queue_element_for_exec;

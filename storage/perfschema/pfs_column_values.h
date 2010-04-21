@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 #ifndef PFS_COLUMN_VALUES_H
 #define PFS_COLUMN_VALUES_H
+
+#include "m_string.h"                           /* LEX_STRING */
 
 /**
   @file storage/perfschema/pfs_column_values.h

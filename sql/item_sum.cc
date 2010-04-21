@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "sql_select.h"
 
 /**
@@ -576,24 +576,27 @@ Item *Item_sum::set_arg(uint i, THD *thd, Item *new_val)
 
 int Item_sum::set_aggregator(Aggregator::Aggregator_type aggregator)
 {
-  if (aggr)
+  /*
+    Dependent subselects may be executed multiple times, making
+    set_aggregator to be called multiple times. The aggregator type
+    will be the same, but it needs to be reset so that it is
+    reevaluated with the new dependent data.
+    This function may also be called multiple times during query optimization.
+    In this case, the type may change, so we delete the old aggregator,
+    and create a new one.
+  */
+  if (aggr && aggregator == aggr->Aggrtype())
   {
-    /* 
-      Dependent subselects may be executed multiple times, making
-      set_aggregator to be called multiple times. The aggregator type
-      will be the same, but it needs to be reset so that it is
-      reevaluated with the new dependent data.
-    */
-    DBUG_ASSERT(aggregator == aggr->Aggrtype());
     aggr->clear();
     return FALSE;
   }
+
+  delete aggr;
   switch (aggregator)
   {
   case Aggregator::DISTINCT_AGGREGATOR:
     aggr= new Aggregator_distinct(this);
     break;
-
   case Aggregator::SIMPLE_AGGREGATOR:
     aggr= new Aggregator_simple(this);
     break;
@@ -1176,7 +1179,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   default:
     DBUG_ASSERT(0);
   };
-  setup(args[0], NULL);
+  setup_hybrid(args[0], NULL);
   /* MIN/MAX can return NULL for empty set indepedent of the used column */
   maybe_null= 1;
   unsigned_flag=item->unsigned_flag;
@@ -1210,7 +1213,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
     of the original MIN/MAX object and it is saved in this object's cache.
 */
 
-void Item_sum_hybrid::setup(Item *item, Item *value_arg)
+void Item_sum_hybrid::setup_hybrid(Item *item, Item *value_arg)
 {
   value= Item_cache::get_cache(item);
   value->setup(item);
@@ -1972,7 +1975,7 @@ void Item_sum_hybrid::no_rows_in_result()
 Item *Item_sum_min::copy_or_same(THD* thd)
 {
   Item_sum_min *item= new (thd->mem_root) Item_sum_min(thd, this);
-  item->setup(args[0], value);
+  item->setup_hybrid(args[0], value);
   return item;
 }
 
@@ -1995,7 +1998,7 @@ bool Item_sum_min::add()
 Item *Item_sum_max::copy_or_same(THD* thd)
 {
   Item_sum_max *item= new (thd->mem_root) Item_sum_max(thd, this);
-  item->setup(args[0], value);
+  item->setup_hybrid(args[0], value);
   return item;
 }
 

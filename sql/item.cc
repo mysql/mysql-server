@@ -17,7 +17,9 @@
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
 #endif
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"                    // REQUIRED: for other includes
 #include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
@@ -25,6 +27,19 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_select.h"
+#include "sql_show.h"                           // append_identifier
+#include "sql_view.h"                           // VIEW_ANY_SQL
+#include "sql_time.h"                  // str_to_datetime_with_warn,
+                                       // make_truncated_value_warning
+#include "sql_acl.h"                   // get_column_grant,
+                                       // SELECT_ACL, UPDATE_ACL,
+                                       // INSERT_ACL,
+                                       // check_grant_column
+#include "sql_base.h"                  // enum_resolution_type,
+                                       // REPORT_EXCEPT_NOT_FOUND,
+                                       // find_item_in_list,
+                                       // RESOLVED_AGAINST_ALIAS, ...
+#include "log_event.h"                 // append_query_string
 
 const String my_null_string("NULL", 4, default_charset_info);
 
@@ -584,6 +599,18 @@ Item_ident::Item_ident(Name_resolution_context *context_arg,
    field_name(field_name_arg),
    alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
    cached_table(0), depended_from(0)
+{
+  name = (char*) field_name_arg;
+}
+
+
+Item_ident::Item_ident(TABLE_LIST *view_arg, const char *field_name_arg)
+  :orig_db_name(NullS), orig_table_name(view_arg->table_name),
+   orig_field_name(field_name_arg), context(&view_arg->view->select_lex.context),
+   db_name(NullS), table_name(view_arg->alias),
+   field_name(field_name_arg),
+   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
+   cached_table(NULL), depended_from(NULL)
 {
   name = (char*) field_name_arg;
 }
@@ -1159,7 +1186,9 @@ Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
                            enum_field_types sp_var_type,
                            uint pos_in_q, uint len_in_q)
   :Item_sp_variable(sp_var_name.str, sp_var_name.length),
-   m_var_idx(sp_var_idx), pos_in_query(pos_in_q), len_in_query(len_in_q)
+   m_var_idx(sp_var_idx),
+   limit_clause_param(FALSE),
+   pos_in_query(pos_in_q), len_in_query(len_in_q)
 {
   maybe_null= TRUE;
 
@@ -4710,6 +4739,7 @@ void Item_field::cleanup()
     I.e. we can drop 'field'.
    */
   field= result_field= 0;
+  item_equal= NULL;
   null_value= FALSE;
   DBUG_VOID_RETURN;
 }
@@ -5990,9 +6020,14 @@ void Item_field::print(String *str, enum_query_type query_type)
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff),str->charset());
     field->val_str(&tmp);
-    str->append('\'');
-    str->append(tmp);
-    str->append('\'');
+    if (field->is_null())
+      str->append("NULL");
+    else
+    {
+      str->append('\'');
+      str->append(tmp);
+      str->append('\'');
+    }
     return;
   }
   Item_ident::print(str, query_type);
@@ -6009,6 +6044,20 @@ Item_ref::Item_ref(Name_resolution_context *context_arg,
   alias_name_used= alias_name_used_arg;
   /*
     This constructor used to create some internals references over fixed items
+  */
+  if (ref && *ref && (*ref)->fixed)
+    set_properties();
+}
+
+
+Item_ref::Item_ref(TABLE_LIST *view_arg, Item **item,
+                   const char *field_name_arg, bool alias_name_used_arg)
+  :Item_ident(view_arg, field_name_arg),
+   result_field(NULL), ref(item)
+{
+  alias_name_used= alias_name_used_arg;
+  /*
+    This constructor is used to create some internal references over fixed items
   */
   if (ref && *ref && (*ref)->fixed)
     set_properties();
@@ -7504,7 +7553,7 @@ double Item_cache_decimal::val_real()
   DBUG_ASSERT(fixed);
   double res;
   if (!value_cached && !cache_value())
-    return NULL;
+    return 0.0;
   my_decimal2double(E_DEC_FATAL_ERROR, &decimal_value, &res);
   return res;
 }

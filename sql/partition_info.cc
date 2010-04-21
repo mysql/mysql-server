@@ -19,7 +19,13 @@
 #pragma implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+// Required to get server definitions for mysql/plugin.h right
+#include "sql_plugin.h"
+#include "sql_partition.h"     /* partition_info.h: LIST_PART_ENTRY */
+#include "partition_info.h"
+#include "sql_parse.h"                        // test_if_data_home_dir
+#include "sql_acl.h"                          // *_ACL
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"

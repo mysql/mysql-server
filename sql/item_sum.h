@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #endif
 
 #include <my_tree.h>
+#include "sql_udf.h"                            /* udf_handler */
 
 class Item_sum;
 class Aggregator_distinct;
@@ -440,10 +441,9 @@ public:
   */
   virtual void no_rows_in_result()
   {
-    if (!aggr)
-      set_aggregator(with_distinct ?
-                     Aggregator::DISTINCT_AGGREGATOR :
-                     Aggregator::SIMPLE_AGGREGATOR);
+    set_aggregator(with_distinct ?
+                   Aggregator::DISTINCT_AGGREGATOR :
+                   Aggregator::SIMPLE_AGGREGATOR);
     reset();
   }
   virtual void make_unique() { force_copy_fields= TRUE; }
@@ -494,11 +494,10 @@ public:
     quick_group= with_distinct ? 0 : 1;
   }
 
-  /**
+  /*
     Set the type of aggregation : DISTINCT or not.
 
-    Called when the final determination is done about the aggregation
-    type and the object is about to be used.
+    May be called multiple times.
   */
 
   int set_aggregator(Aggregator::Aggregator_type aggregator);
@@ -987,7 +986,7 @@ protected:
     was_values(item->was_values)
   { }
   bool fix_fields(THD *, Item **);
-  void setup(Item *item, Item *value_arg);
+  void setup_hybrid(Item *item, Item *value_arg);
   void clear();
   double val_real();
   longlong val_int();
