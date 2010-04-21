@@ -3095,3 +3095,4 @@ CTestTestfile.cmake
 make_dist.cmake
 _CPack_Packages
 merge_archives*.cmake
+libmysqld/des_key_file.cc
