@@ -21776,9 +21776,10 @@ int JOIN_CACHE_BKA_UNIQUE::init()
   /* Take into account a reference to the next record in the key chain */
   pack_length+= get_size_of_rec_offset(); 
  
-  /* Calculate the minimal possible value of size_of_key_ofs greater than 1 */  
+  /* Calculate the minimal possible value of size_of_key_ofs greater than 1 */
+  uint max_size_of_key_ofs= max(2, get_size_of_rec_offset());  
   for (size_of_key_ofs= 2;
-       size_of_key_ofs <= get_size_of_rec_offset();
+       size_of_key_ofs <= max_size_of_key_ofs;
        size_of_key_ofs+= 2)
   {    
     key_entry_length= get_size_of_rec_offset() + // key chain header

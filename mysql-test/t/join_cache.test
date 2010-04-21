@@ -750,3 +750,23 @@ SELECT a1<>a2, a1, a2, b2, b3, c3,
 FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
  
 DROP TABLE t1,t2,t3;
+
+#
+# Bug #37690: crash with a tiny buffer when using BKA_JOIN_CACHE_UNIQUE
+#
+
+CREATE TABLE t1 (a int, b int, INDEX idx(b));
+CREATE TABLE t2 (a int, b int, INDEX idx(a)); 
+INSERT INTO t1 VALUES (5,30), (3,20), (7,40), (2,10), (8,30), (1,10), (4,20);     
+INSERT INTO t2 VALUES (7,10), (1,20), (2,20), (8,20), (8,10), (1,20);
+INSERT INTO t2 VALUES (1,10), (4,20), (3,20), (7,20), (7,10), (1,20); 
+    
+set join_buffer_size=32; 
+set join_cache_level=8;  
+ 
+EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30; 
+--sorted_result  
+SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;  
+
+DROP TABLE t1,t2;
+ 
