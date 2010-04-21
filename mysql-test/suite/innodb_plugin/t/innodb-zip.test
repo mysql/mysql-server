@@ -85,14 +85,9 @@ SELECT table_schema, table_name, row_format
 FROM information_schema.tables WHERE engine='innodb';
 drop table t1,t2;
 
-# The following should not fail in non-strict mode. (Bug #50945)
+# The following should fail in non-strict mode too.
+# (The fix of Bug #50945 only affects REDUNDANT and COMPACT tables.)
 SET SESSION innodb_strict_mode = off;
-CREATE TABLE t1(
-	c TEXT NOT NULL, d TEXT NOT NULL,
-	PRIMARY KEY (c(767),d(767)))
-ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-DROP TABLE t1;
-SET SESSION innodb_strict_mode = on;
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(
 	c TEXT NOT NULL, d TEXT NOT NULL,
