@@ -24,6 +24,7 @@ SET GLOBAL innodb_file_per_table=ON;
 # Generating 10 tables
 # Creating a table with 94 columns and 24 indexes
 DROP TABLE IF EXISTS `table0`;
+set innodb_strict_mode=on;
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE IF NOT EXISTS `table0`
 (`col0` BOOL,
