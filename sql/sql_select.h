@@ -360,10 +360,14 @@ typedef struct st_join_table
   are written into a join cache buffer from record buffers and backward.
 */
 typedef struct st_cache_field {
-  uchar *str;   /* buffer from/to where the field is to be moved */ 
-  uint length;  /* maximal number of bytes to be moved from/to str */
-  Field *field; /* field object for the moved field (0 - for a flag field) */
-  uint type;    /* category of the of the moved field (CACHE_BLOB et al.) */
+  uchar *str;   /**< buffer from/to where the field is to be copied */ 
+  uint length;  /**< maximal number of bytes to be copied from/to str */
+  /* 
+    Field object for the moved field
+    (0 - for a flag field, see JOIN_CACHE::create_flag_fields).
+  */
+  Field *field;
+  uint type;    /**< category of the of the copied field (CACHE_BLOB et al.) */
   /* 
     The number of the record offset value for the field in the sequence
     of offsets placed after the last field of the record. These
@@ -372,10 +376,10 @@ typedef struct st_cache_field {
     trailing sequence of offsets.
   */ 
   uint referenced_field_no; 
-  TABLE *get_rowid; /* only for ROWID fields used for Duplicate Elimination */
+  TABLE *get_rowid; /**< only for ROWID fields used for Duplicate Elimination */
   /* The remaining structure fields are used as containers for temp values */
-  uint blob_length; /* length of the blob to be moved */
-  uint offset;      /* field offset to be saved in cache buffer */
+  uint blob_length; /**< length of the blob to be copied */
+  uint offset;      /**< field offset to be saved in cache buffer */
 } CACHE_FIELD;
 
 
@@ -410,13 +414,15 @@ private:
   /* Size of the offset of a field within a record in the cache */   
   uint size_of_fld_ofs;
 
-  /* 3 functions below actually does not use the hidden parameter 'this' */ 
-
   /* 
     The total maximal length of the fields stored for a record in the cache.
     For blob fields only the sizes of the blob lengths are taken into account. 
   */
   uint length;
+
+protected:
+       
+  /* 3 functions below actually do not use the hidden parameter 'this' */ 
 
   /* Calculate the number of bytes used to store an offset value */
   uint offset_size(uint len)
@@ -443,8 +449,6 @@ private:
     }
   }
   
-protected:
-       
   /* 
     Representation of the executed multi-way join through which all needed
     context can be accessed.  
@@ -467,8 +471,8 @@ protected:
   /* 
     The total number of flag fields in a record put into the cache. They are
     used for table null bitmaps, table null row flags, and an optional match
-    flag. Flag fields are follows before other fields in a cache record with 
-    the match flag field placed always at the very beginning of the record.
+    flag. Flag fields go before other fields in a cache record with the match
+    flag field placed always at the very beginning of the record.
   */
   uint flag_fields;
 
@@ -485,7 +489,7 @@ protected:
    
   /* 
     The current number of already created data field descriptors. This number 
-    is can be useful for implementations the init functions.  
+    is can be useful for implementations of the init functions.  
   */
   uint data_field_count; 
 
@@ -502,7 +506,7 @@ protected:
 
   /* 
     This flag indicates that records written into the join buffer contain
-    a match flag field. The flat must be set by the init method. 
+    a match flag field. The flag must be set by the init method. 
   */
   bool with_match_flag; 
   /*
@@ -522,7 +526,7 @@ protected:
     The value of pack_length incremented by the total size of all 
     pointers of a record in the cache to the blob data. 
   */
-  uint pack_last_length;
+  uint pack_length_with_blob_ptrs;
 
   /* Pointer to the beginning of the join buffer */
   uchar *buff;         
@@ -562,7 +566,7 @@ protected:
   uchar *last_rec_pos;
 
   /* 
-    Flag is set on if the blob data for the last record in the join buffer
+    Flag is set if the blob data for the last record in the join buffer
     is in record buffers rather than in the join cache.
   */
   bool last_rec_blob_data_is_in_rec_buff;
@@ -591,7 +595,7 @@ protected:
 
   uchar *get_rec_ref(uchar *ptr)
   {
-    return buff+get_offset(size_of_rec_ofs, ptr-get_size_of_rec_offset());
+    return buff+get_offset(size_of_rec_ofs, ptr-size_of_rec_ofs);
   }
   ulong get_rec_length(uchar *ptr)
   { 
@@ -604,7 +608,7 @@ protected:
 
   void store_rec_ref(uchar *ptr, uchar* ref)
   {
-    store_offset(size_of_rec_ofs, ptr, (ulong) (ref-buff));
+    store_offset(size_of_rec_ofs, ptr-size_of_rec_ofs, (ulong) (ref-buff));
   }
 
   void store_rec_length(uchar *ptr, ulong len)

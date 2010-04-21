@@ -4470,11 +4470,6 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
        (h->ha_rnd_init(FALSE))))
       goto error;
 
-  if (((h->inited != handler::RND)) &&
-      (h->inited != handler::INDEX || h->ha_index_end()) &&
-       h->ha_rnd_init(FALSE))
-    goto error;
- 
   use_default_impl= FALSE;
   h->mrr_funcs= *seq_funcs;
   

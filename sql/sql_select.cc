@@ -9579,6 +9579,23 @@ static uint make_join_orderinfo(JOIN *join)
   return i-1;
 }
 
+
+/*
+  Deny usage of join buffer for the specified table
+
+  SYNOPSIS
+    set_join_cache_denial()
+      tab    join table for which join buffer usage is to be denied  
+     
+  DESCRIPTION
+    The function denies usage of join buffer when joining the table 'tab'.
+    The table is marked as not employing any join buffer. If a join cache
+    object has been already allocated for the table this object is destroyed.
+
+  RETURN
+    none    
+*/
+
 static
 void set_join_cache_denial(JOIN_TAB *join_tab)
 {
@@ -9593,6 +9610,23 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
     join_tab[-1].next_select= sub_select;
   }
 }
+
+
+/* 
+  Revise usage of join buffer for the specified table and the whole nest   
+
+  SYNOPSIS
+    revise_cache_usage()
+      tab    join table for which join buffer usage is to be revised  
+
+  DESCRIPTION
+    The function revise the decision to use a join buffer for the table 'tab'.
+    If this table happened to be among the inner tables of a nested outer join/
+    semi-join the functions denies usage of join buffers for all of them
+
+  RETURN
+    none    
+*/
 
 static
 void revise_cache_usage(JOIN_TAB *join_tab)
@@ -9624,6 +9658,69 @@ void revise_cache_usage(JOIN_TAB *join_tab)
   else set_join_cache_denial(join_tab);
 }
 
+
+/* 
+  Check whether a join buffer can be used to join the specified table   
+
+  SYNOPSIS
+    check_join_cache_usage()
+      tab            joined table to check join buffer usage for 
+      join           join for which the check is performed 
+      options        options of the join 
+      no_jbuf_after  don't use join buffering after table with this number
+
+  DESCRIPTION
+    The function finds out whether the table 'tab' can be joined using a join
+    buffer. This check is performed after the best execution plan for 'join'
+    has been chosen. If the function decides that a join buffer can be employed
+    then it selects the most appropriate join cache object that contains this
+    join buffer.
+    The result of the check and the type of the the join buffer to be used
+    depend on:
+      - the access method to access rows of the joined table
+      - whether the join table is an inner table of an outer join or semi-join
+      - the join cache level set for the query
+      - the join 'options'.
+    In any case join buffer is not used if the number of the joined table is
+    greater than 'no_jbuf_after'. It's also never used if the value of
+    join_cache_level is equal to 0.
+    The other valid settings of join_cache_level lay in the interval 1..8.
+    If join_cache_level==1|2 then join buffer is used only for inner joins
+    with 'JT_ALL' access method.  
+    If join_cache_level==3|4 then join buffer is used for any join operation
+    (inner join, outer join, semi-join) with 'JT_ALL' access method.
+    If 'JT_ALL' access method is used to read rows of the joined table then
+    always a JOIN_CACHE_BNL object is employed.
+    If an index is used to access rows of the joined table and the value of
+    join_cache_level==5|6 then a JOIN_CACHE_BKA object is employed. 
+    If an index is used to access rows of the joined table and the value of
+    join_cache_level==7|8 then a JOIN_CACHE_BKA_UNIQUE object is employed. 
+    If the value of join_cache_level is odd then creation of a non-linked 
+    join cache is forced.
+    If the function decides that a join buffer can be used to join the table
+    'tab' then it sets the value of tab->use_join_buffer to TRUE and assigns
+    the selected join cache object to the field 'cache' of the previous
+    join table. 
+    If the function creates a join cache object it tries to initialize it. The
+    failure to do this results in an invocation of the function that destructs
+    the created object.
+ 
+  NOTES
+    An inner table of a nested outer join or a nested semi-join can be currently
+    joined only when a linked cache object is employed. In these cases setting
+    join cache level to an odd number results in denial of usage of any join
+    buffer when joining the table.
+    For a nested outer join/semi-join, currently, we either use join buffers for
+    all inner tables or for none of them. 
+    Some engines (e.g. Falcon) currently allow to use only a join cache
+    of the type JOIN_CACHE_BKA_UNIQUE when the joined table is accessed through
+    an index. For these engines setting the value of join_cache_level to 5 or 6
+    results in that no join buffer is used to join the table. 
+   
+  RETURN
+    TRUE   if a join buffer can be employed to join the table 'tab'
+    FALSE  otherwise 
+*/
 
 static
 bool check_join_cache_usage(JOIN_TAB *tab,
@@ -19790,13 +19887,13 @@ void JOIN_CACHE::set_constants()
   size_of_fld_ofs= size_of_rec_len;
   /* 
     The size of the offsets for referenced fields will be added later.
-    The values of 'pack_length' and 'pack_last_length' are adjusted every
-    time when the first reference to the referenced field is registered.
+    The values of 'pack_length' and 'pack_length_with_blob_ptrs' are adjusted
+    every time when the first reference to the referenced field is registered.
   */
   pack_length= (with_length ? size_of_rec_len : 0) +
                (prev_cache ? prev_cache->get_size_of_rec_offset() : 0) + 
                length;
-  pack_last_length= pack_length + blobs*sizeof(uchar *);
+  pack_length_with_blob_ptrs= pack_length + blobs*sizeof(uchar *);
 }
 
 
@@ -19983,12 +20080,13 @@ int JOIN_CACHE_BKA::init()
               Register the referenced field 'copy': 
               - set the offset number in copy->referenced_field_no,
               - adjust the value of the flag 'with_length',
-              - adjust the values of 'pack_length' and 'pack_last_length'.
+              - adjust the values of 'pack_length' and 
+                of 'pack_length_with_blob_ptrs'.
 	    */
             copy->referenced_field_no= ++cache->referenced_fields;
             cache->with_length= TRUE;
 	    cache->pack_length+= cache->get_size_of_fld_offset();
-            cache->pack_last_length+= cache->get_size_of_fld_offset();
+            cache->pack_length_with_blob_ptrs+= cache->get_size_of_fld_offset();
           }        
         }
       }
@@ -20274,7 +20372,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
     This function is called only in the case when there is enough space left in
     the cache to store at least non-blob parts of the current record.
   */
-  last_record= (len+pack_last_length) > rem_space();
+  last_record= (len+pack_length_with_blob_ptrs) > rem_space();
   
   /* 
     Save the position for the length of the record in the cache if it's needed.
@@ -20293,8 +20391,8 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   */
   if (prev_cache)
   {
-    prev_cache->store_rec_ref(cp, link);
     cp+= prev_cache->get_size_of_rec_offset();
+    prev_cache->store_rec_ref(cp, link);
   } 
 
   curr_rec_pos= cp;
@@ -20424,12 +20522,12 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   DESCRIPTION
     This default implementation of the virtual function reset() resets 
     the join buffer for reading or writing.
-    If the buffer is reset for writing only the 'pos' value is reset
+    If the buffer is reset for reading only the 'pos' value is reset
     to point to the very beginning of the join buffer. If the buffer is
     reset for writing additionally: 
     - the counter of the records in the buffer is set to 0,
-    - the the value of 'last_rec_pos' gets pointing  just at the position
-      just before the buffer, 
+    - the the value of 'last_rec_pos' gets pointing at the position just
+      before the buffer, 
     - 'end_pos' is set to point to the beginning of the join buffer,
     - the size of the auxiliary buffer is reset to 0,
     - the flag 'last_rec_blob_data_is_in_rec_buff' is set to 0.
@@ -21833,7 +21931,7 @@ int JOIN_CACHE_BKA_UNIQUE::init()
   curr_key_entry= hash_table;
 
   pack_length+= key_entry_length;
-  pack_last_length+= get_size_of_rec_offset() + key_entry_length;
+  pack_length_with_blob_ptrs+= get_size_of_rec_offset() + key_entry_length;
 
   rec_fields_offset= get_size_of_rec_offset()+get_size_of_rec_length()+
                      (prev_cache ? prev_cache->get_size_of_rec_offset() : 0);
