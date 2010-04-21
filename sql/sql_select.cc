@@ -21220,8 +21220,7 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
   JOIN_TAB *first_inner= join_tab->get_first_inner_table();
   do
   {
-    if (!set_match_flag_if_none(first_inner, rec_ptr))
-      continue;
+    set_match_flag_if_none(first_inner, rec_ptr);
     if (first_inner->check_only_first_match() &&
         !join_tab->first_inner)
       return TRUE;
@@ -21285,8 +21284,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   DBUG_ASSERT(join_tab->first_inner);
 
   for ( ; cnt; cnt--)
-  { 
-   next:
+  {
     if (join->thd->killed)
     {
       /* The user has aborted the execution of the query */
@@ -21310,8 +21308,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
         JOIN_TAB *first_upper= join_tab->first_unmatched->first_upper;
         while (first_upper && first_upper->last_inner == join_tab)
         {
-          if (!set_match_flag_if_none(first_upper, get_curr_rec()))
-            break;
+          set_match_flag_if_none(first_upper, get_curr_rec());
           for (JOIN_TAB* tab= first_upper; tab <= join_tab; tab++)
           {
             if (tab->select && tab->select->skip_record())
@@ -21328,6 +21325,8 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
         goto finish;
       }
     }
+  next:
+    ;
   }
 
 finish:
