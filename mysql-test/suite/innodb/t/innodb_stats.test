@@ -44,9 +44,10 @@ CREATE TABLE test_innodb_stats (
 	KEY a_key (a)
 ) ENGINE=INNODB;
 
-SET SESSION innodb_analyze_is_persistent=ON;
+SET SESSION innodb_analyze_is_persistent=1;
 
 -- enable_warnings
+-- enable_query_log
 
 # test empty table
 -- let $insert = SELECT 'dummy INSERT, the table should be empty'

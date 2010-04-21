@@ -1,15 +1,10 @@
--- disable_query_log
 DELETE FROM test_innodb_stats;
 
--- enable_query_log
 -- eval $insert
 
--- disable_query_log
--- disable_result_log
 ANALYZE TABLE test_innodb_stats;
 
--- enable_result_log
-SELECT
+query_vertical SELECT
 stat_name,
 stat_value,
 sample_size,
