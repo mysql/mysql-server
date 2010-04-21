@@ -9051,11 +9051,11 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     See handler::multi_range_read_info.
 */
 
-int 
+ha_rows 
 ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                      uint *bufsz, uint *flags, COST_VECT *cost)
 {
-  int res;
+  ha_rows res;
   uint save_bufsize= *bufsz;
   res= handler::multi_range_read_info(keyno, n_ranges, keys, bufsz, flags,
                                       cost);

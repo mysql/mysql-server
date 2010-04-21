@@ -4211,8 +4211,8 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     other - Error or can't perform the requested scan
 */
 
-int handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
-                                   uint *bufsz, uint *flags, COST_VECT *cost)
+ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
+                                       uint *bufsz, uint *flags, COST_VECT *cost)
 {
   *bufsz= 0; /* Default implementation doesn't need a buffer */
 
@@ -4641,10 +4641,10 @@ end:
 /*
   DS-MRR implementation: multi_range_read_info() function
 */
-int DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows, uint *bufsz,
-                           uint *flags, COST_VECT *cost)
+ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
+                               uint *bufsz, uint *flags, COST_VECT *cost)
 {  
-  int res;
+  ha_rows res;
   uint def_flags= *flags;
   uint def_bufsz= *bufsz;
 
