@@ -186,12 +186,20 @@ MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 # We use -fno-rtti with gcc, so disable RTTI in gtest as well.
 ADD_DEFINITIONS(-DGTEST_HAS_RTTI=0)
+# /opt/studio12/SUNWspro/bin/CC complains about
+#   iterator_traits is not a member of std
+IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
+  ADD_DEFINITIONS("-library=stlport4")
+ENDIF()
+
 
 # Add tests (link them with sql library) 
 SET(TESTS sql_list mdl mdl_mytap thread_utils)
 FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
   TARGET_LINK_LIBRARIES(${test}-t gunit sql)
+  IF (CMAKE_CXX_COMPILER_ID STREQUAL "SunPro")
+    SET_TARGET_PROPERTIES(${test}-t  PROPERTIES LINK_FLAGS "-library=stlport4")
+  ENDIF()
   ADD_TEST(${test} ${test}-t)
 ENDFOREACH()
-

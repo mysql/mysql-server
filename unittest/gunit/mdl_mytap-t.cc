@@ -23,6 +23,8 @@
 
 #include <string>
 #include <iostream>
+#include <stdio.h>
+
 #include <tap.h>
 
 #include "mdl.h"
