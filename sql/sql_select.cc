@@ -21458,6 +21458,15 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
 finish:                  
   for (tab=join->join_tab; tab != join_tab ; tab++)
     tab->table->status= tab->status;
+  /* 
+    Restore the values of the fields of the last record put into join buffer.
+    These value most probably has been overwritten by the field values
+    from other records when they were read from the join buffer into the
+    record buffer in order to check pushdown predicates.
+    TODO. Investigate whether the restoration of the fields of the last
+    table whose rows are to be stored in the join buffer is really needed.
+  */ 
+  get_record_by_pos(last_rec_pos);
   return rc;
 }
 

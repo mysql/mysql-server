@@ -1,4 +1,5 @@
 --disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 --enable_warnings
 
@@ -13,8 +14,8 @@ use world;
 --disable_query_log
 --disable_warnings
 --source include/world.inc
---disable_warnings
---disable_query_log
+--enable_warnings
+--enable_query_log
 
 SELECT COUNT(*) FROM Country;
 SELECT COUNT(*) FROM City;
@@ -151,8 +152,8 @@ use world;
 --disable_query_log
 --disable_warnings
 --source include/world.inc
---disable_warnings
---disable_query_log
+--enable_warnings
+--enable_query_log
 
 show variables like 'join_buffer_size';
 set join_cache_level=5;
@@ -342,8 +343,6 @@ use test;
 # Bug #35685: assertion abort when initializing a BKA cache
 #
 
-DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
-
 CREATE TABLE t1(
   affiliatetometaid int  NOT NULL default '0',
   uniquekey int NOT NULL default '0',
@@ -525,3 +524,59 @@ WHERE t7.metaid = t2.metaid AND t7.artistid = t8.artistid AND
       t1.metaid = t2.metaid AND t1.affiliateid = '2';
 
 DROP TABLE t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
+
+#
+# Bug #37131: 3-way join query with BKA used with a small buffer and
+#             only for the third table
+#
+
+CREATE TABLE t1 (a1 int, filler1 char(64) default ' ' );
+CREATE TABLE t2 (
+  a2 int, b2 int, filler2 char(64) default ' ', 
+  PRIMARY KEY idx(a2,b2,filler2)
+) ;
+CREATE TABLE t3 (b3 int, c3 int, INDEX idx(b3));
+
+INSERT INTO t1(a1) VALUES 
+ (4), (7), (1), (9), (8), (5), (3), (6), (2);
+INSERT INTO t2(a2,b2) VALUES
+ (1,30), (3,40), (2,61), (6,73), (8,92), (9,27), (4,18), (5,84), (7,56),
+ (4,14), (6,76), (8,98), (7,55), (1,39), (2,68), (3,45), (9,21), (5,81),
+ (5,88), (2,65), (6,74), (9,23), (1,37), (3,44), (4,17), (8,99), (7,51),
+ (9,28), (7,52), (1,33), (4,13), (5,87), (3,43), (8,91), (2,62), (6,79),
+ (3,49), (8,93), (7,34), (5,82), (6,78), (2,63), (1,32), (9,22), (4,11);
+INSERT INTO t3 VALUES
+ (30,302), (92,923), (18,187), (45,459), (30,309), 
+ (39,393), (68,685), (45,458), (21,210), (81,817),
+ (40,405), (61,618), (73,738), (92,929), (27,275),
+ (18,188), (84,846), (56,564), (14,144), (76,763), 
+ (98,982), (55,551), (17,174), (99,998), (51,513),
+ (28,282), (52,527), (33,336), (13,138), (87,878), 
+ (43,431), (91,916), (62,624), (79,797), (49,494),
+ (93,933), (34,347), (82,829), (78,780), (63,634), 
+ (32,329), (22,228), (11,114), (74,749), (23,236);
+
+set join_cache_level=1;
+
+EXPLAIN
+SELECT a1<>a2, a1, a2, b2, b3, c3,
+       SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
+FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7; 
+
+SELECT a1<>a2, a1, a2, b2, b3, c3,
+       SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
+FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
+ 
+set join_cache_level=5;
+set join_buffer_size=512;
+
+EXPLAIN
+SELECT a1<>a2, a1, a2, b2, b3, c3,
+       SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
+FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7; 
+
+SELECT a1<>a2, a1, a2, b2, b3, c3,
+       SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
+FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
+ 
+DROP TABLE t1,t2,t3;
