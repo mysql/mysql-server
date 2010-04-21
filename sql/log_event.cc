@@ -8758,11 +8758,28 @@ static bool record_compare(TABLE *table)
   {
     for (int i = 0 ; i < 2 ; ++i)
     {
-      saved_x[i]= table->record[i][0];
-      saved_filler[i]= table->record[i][table->s->null_bytes - 1];
-      table->record[i][0]|= 1U;
-      table->record[i][table->s->null_bytes - 1]|=
-        256U - (1U << table->s->last_null_bit_pos);
+      /* 
+        If we have an X bit then we need to take care of it.
+      */
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+      {
+        saved_x[i]= table->record[i][0];
+        table->record[i][0]|= 1U;
+      }
+
+      /*
+         If (last_null_bit_pos == 0 && null_bytes > 1), then:
+
+         X bit (if any) + N nullable fields + M Field_bit fields = 8 bits 
+
+         Ie, the entire byte is used.
+      */
+      if (table->s->last_null_bit_pos > 0)
+      {
+        saved_filler[i]= table->record[i][table->s->null_bytes - 1];
+        table->record[i][table->s->null_bytes - 1]|=
+          256U - (1U << table->s->last_null_bit_pos);
+      }
     }
   }
 
@@ -8802,8 +8819,11 @@ record_compare_exit:
   {
     for (int i = 0 ; i < 2 ; ++i)
     {
-      table->record[i][0]= saved_x[i];
-      table->record[i][table->s->null_bytes - 1]= saved_filler[i];
+      if (!(table->s->db_options_in_use & HA_OPTION_PACK_RECORD))
+        table->record[i][0]= saved_x[i];
+
+      if (table->s->last_null_bit_pos)
+        table->record[i][table->s->null_bytes - 1]= saved_filler[i];
     }
   }
 
