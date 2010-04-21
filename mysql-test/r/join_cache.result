@@ -3270,3 +3270,43 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 set join_cache_level=default;
 drop table t1, t2;
+#
+# Bug #41204: small buffer with big rec_per_key for ref access
+#
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (0);
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1(a) SELECT a FROM t1;
+INSERT INTO t1 VALUES (20000), (10000);
+CREATE TABLE t2 (pk int AUTO_INCREMENT PRIMARY KEY, b int, c int, INDEX idx(b));
+INSERT INTO t2(b,c) VALUES (10000, 3), (20000, 7), (20000, 1), (10000, 9), (20000, 5);
+INSERT INTO t2(b,c) SELECT b,c FROM t2;
+INSERT INTO t2(b,c) SELECT b,c FROM t2;
+INSERT INTO t2(b,c) SELECT b,c FROM t2;
+INSERT INTO t2(b,c) SELECT b,c FROM t2;
+INSERT INTO t2(b,c) SELECT b,c FROM t2;
+INSERT INTO t2(b,c) SELECT b,c FROM t2;
+INSERT INTO t2(b,c) SELECT b,c FROM t2;
+INSERT INTO t2(b,c) SELECT b,c FROM t2;
+ANALYZE TABLE t1,t2;
+set join_cache_level=6;
+set join_buffer_size=1024;
+EXPLAIN SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2050	
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.a	640	Using join buffer
+SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
+AVG(c)
+5.0000
+set join_buffer_size=default;
+set join_cache_level=default;
+DROP TABLE t1, t2;

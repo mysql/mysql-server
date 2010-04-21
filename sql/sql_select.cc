@@ -19812,7 +19812,7 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
                                                  &copy, &copy_ptr);
   
     /* SemiJoinDuplicateElimination: allocate space for rowid if needed */
-    if (keep_current_rowid)
+    if (tab->keep_current_rowid)
     {
       copy->str= table->file->ref;
       copy->length= table->file->ref_length;
@@ -19820,13 +19820,6 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
       copy->field= 0;
       copy->referenced_field_no= 0;
       copy->get_rowid= NULL;
-      if (tab->rowid_keep_flags & JOIN_TAB::CALL_POSITION)
-      {
-        /* We will need to call h->position(): */
-        copy->get_rowid= tab->table;
-        /* And those after us won't have to: */
-        tab->rowid_keep_flags &=  ~((int)JOIN_TAB::CALL_POSITION);
-      }
       length+= copy->length;
       data_field_count++;
       copy++;
@@ -20336,8 +20329,8 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 
   /* Make an adjustment for the size of the auxiliary buffer if there is any */
   uint incr= aux_buffer_incr();
-  if (len+incr < rem_space())
-    aux_buff_size+= incr;  
+  ulong rem= rem_space();
+  aux_buff_size+= len+incr < rem ? incr : rem;
 
   /*
     For each blob to be put into cache save its length and a pointer
