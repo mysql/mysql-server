@@ -3006,3 +3006,23 @@ a	a	b
 DROP TABLE t1, t2;
 set join_cache_level=default;
 set join_buffer_size=default;
+#
+# BUG#40268: Nested outer join with not null-rejecting where condition
+#            over an inner table which is not the last in the nest
+#
+CREATE TABLE t2 (a int, b int, c int);
+CREATE TABLE t3 (a int, b int, c int);
+CREATE TABLE t4 (a int, b int, c int);
+INSERT INTO t2 VALUES (3,3,0), (4,2,0), (5,3,0);
+INSERT INTO t3 VALUES (1,2,0), (2,2,0);
+INSERT INTO t4 VALUES (3,2,0), (4,2,0);
+SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
+FROM t2 LEFT JOIN (t3, t4) ON t2.b=t4.b
+WHERE t3.a+2<t2.a OR t3.c IS NULL;
+a	b	a	b	a	b
+4	2	1	2	3	2
+4	2	1	2	4	2
+3	3	NULL	NULL	NULL	NULL
+5	3	NULL	NULL	NULL	NULL
+set join_cache_level=default;
+DROP TABLE t2, t3, t4;
