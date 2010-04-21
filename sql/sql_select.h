@@ -379,40 +379,6 @@ typedef struct st_cache_field {
 } CACHE_FIELD;
 
 
-/* Calculate the number of bytes used to store an offset value */
- 
-static
-uint offset_size(uint len)
-{ return (len < 256 ? 1 : len < 256*256 ? 2 : 4); }
-
-
-/* Get the offset value that takes ofs_sz bytes at the position ptr */
- 
-static
-ulong get_offset(uint ofs_sz, uchar *ptr)
-{
-  switch (ofs_sz) {
-  case 1: return uint(*ptr);
-  case 2: return uint2korr(ptr);
-  case 4: return uint4korr(ptr);
-  }
-  return 0;
-}
-
-
-/* Set the offset value ofs that takes ofs_sz bytes at the position ptr */ 
-
-static
-void store_offset(uint ofs_sz, uchar *ptr, ulong ofs)
-{
-  switch (ofs_sz) {
-  case 1: *ptr= (uchar) ofs; return;
-  case 2: int2store(ptr, (uint16) ofs); return;
-  case 4: int4store(ptr, (uint32) ofs); return;
-  }
-}
-  
-
 /*
   JOIN_CACHE is the base class to support the implementations of both
   Blocked-Based Nested Loops (BNL) Join Algorithm and Batched Key Access (BKA)
@@ -442,7 +408,9 @@ private:
   /* Size of the length of a record in the cache */
   uint size_of_rec_len;
   /* Size of the offset of a field within a record in the cache */   
-  uint size_of_fld_ofs; 
+  uint size_of_fld_ofs;
+
+  /* 3 functions below actually does not use the hidden parameter 'this' */ 
 
   /* 
     The total maximal length of the fields stored for a record in the cache.
@@ -450,6 +418,31 @@ private:
   */
   uint length;
 
+  /* Calculate the number of bytes used to store an offset value */
+  uint offset_size(uint len)
+  { return (len < 256 ? 1 : len < 256*256 ? 2 : 4); }
+
+  /* Get the offset value that takes ofs_sz bytes at the position ptr */
+  ulong get_offset(uint ofs_sz, uchar *ptr)
+  {
+    switch (ofs_sz) {
+    case 1: return uint(*ptr);
+    case 2: return uint2korr(ptr);
+    case 4: return uint4korr(ptr);
+    }
+    return 0;
+  }
+
+  /* Set the offset value ofs that takes ofs_sz bytes at the position ptr */ 
+  void store_offset(uint ofs_sz, uchar *ptr, ulong ofs)
+  {
+    switch (ofs_sz) {
+    case 1: *ptr= (uchar) ofs; return;
+    case 2: int2store(ptr, (uint16) ofs); return;
+    case 4: int4store(ptr, (uint32) ofs); return;
+    }
+  }
+  
 protected:
        
   /* 
@@ -1098,7 +1091,7 @@ protected:
   */ 
   ulong rem_space() 
   { 
-    return max((buff+buff_size-last_key_entry)-(end_pos-buff)-aux_buff_size,0);
+    return max(last_key_entry-end_pos-aux_buff_size,0);
   }
 
   /* 
