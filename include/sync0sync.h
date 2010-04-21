@@ -105,6 +105,7 @@ extern mysql_pfs_key_t	rw_lock_mutex_key;
 extern mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
 extern mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 extern mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
+extern mysql_pfs_key_t	srv_threads_mutex_key;
 extern mysql_pfs_key_t	srv_monitor_file_mutex_key;
 extern mysql_pfs_key_t	syn_arr_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
@@ -587,6 +588,9 @@ Kernel mutex				If a kernel operation needs a file
 |					fsp x-latch before acquiring the kernel
 |					mutex.
 V
+Threads mutex				Thread scheduling mutex
+|
+V
 Search system mutex
 |
 V
@@ -657,8 +661,9 @@ or row lock! */
 /*------------------------------------- MySQL binlog mutex */
 /*-------------------------------*/
 #define	SYNC_KERNEL		300
-#define SYNC_REC_LOCK		299
-#define	SYNC_TRX_LOCK_HEAP	298
+#define SYNC_THREADS		299
+#define SYNC_REC_LOCK		298
+#define	SYNC_TRX_LOCK_HEAP	297
 #define SYNC_TRX_SYS_HEADER	290
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147
