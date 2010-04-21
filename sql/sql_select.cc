@@ -21223,18 +21223,17 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
     if (!set_match_flag_if_none(first_inner, rec_ptr))
       continue;
     if (first_inner->check_only_first_match() &&
-        !first_inner->first_upper)
+        !join_tab->first_inner)
       return TRUE;
     /* 
       This is the first match for the outer table row.
       The function set_match_flag_if_none has turned the flag
       first_inner->found on. The pushdown predicates for
       inner tables must be re-evaluated with this flag on.
-      Note that, if first_inner is the first inner table of
-      a semi-join or of an outer join such that 'not exist'
-      optimization can  be applied to it and it is not embedded
-      outer join then the re-valuation of the pushdown predicates
-      is not needed.
+      Note that, if first_inner is the first inner table 
+      of a semi-join, but is not an inner table of an outer join
+      such that 'not exists' optimization can  be applied to it, 
+      the re-evaluation of the pushdown predicates is not needed.
     */      
     for (JOIN_TAB *tab= first_inner; tab <= join_tab; tab++)
     {
