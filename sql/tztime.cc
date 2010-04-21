@@ -1585,7 +1585,6 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
 {
   THD *thd;
   TABLE_LIST tz_tables[1+MY_TZ_TABLES_COUNT];
-  Open_tables_state open_tables_state_backup;
   TABLE *table;
   Tz_names_entry *tmp_tzname;
   my_bool return_val= 1;
@@ -1662,12 +1661,14 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   tz_init_table_list(tz_tables+1);
   tz_tables[0].next_global= tz_tables[0].next_local= &tz_tables[1];
   tz_tables[1].prev_global= &tz_tables[0].next_global;
+  init_mdl_requests(tz_tables);
 
   /*
     We need to open only mysql.time_zone_leap_second, but we try to
     open all time zone tables to see if they exist.
   */
-  if (open_system_tables_for_read(thd, tz_tables, &open_tables_state_backup))
+  if (open_and_lock_tables(thd, tz_tables, FALSE,
+                           MYSQL_LOCK_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
                       "trying to live without them", thd->stmt_da->message());
@@ -1675,6 +1676,9 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
     return_val= time_zone_tables_exist= 0;
     goto end_with_setting_default_tz;
   }
+
+  for (TABLE_LIST *tl= tz_tables; tl; tl= tl->next_global)
+    tl->table->use_all_columns();
 
   /*
     Now we are going to load leap seconds descriptions that are shared
@@ -1764,7 +1768,8 @@ end_with_close:
   if (time_zone_tables_exist)
   {
     thd->version--; /* Force close to free memory */
-    close_system_tables(thd, &open_tables_state_backup);
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
   }
 
 end_with_cleanup:
@@ -2322,9 +2327,10 @@ my_tz_find(THD *thd, const String *name)
     else if (time_zone_tables_exist)
     {
       TABLE_LIST tz_tables[MY_TZ_TABLES_COUNT];
-      Open_tables_state open_tables_state_backup;
+      Open_tables_backup open_tables_state_backup;
 
       tz_init_table_list(tz_tables);
+      init_mdl_requests(tz_tables);
       if (!open_system_tables_for_read(thd, tz_tables,
                                        &open_tables_state_backup))
       {

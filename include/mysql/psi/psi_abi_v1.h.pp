@@ -127,6 +127,7 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
 typedef void (*delete_current_thread_v1_t)(void);
+typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
 typedef struct PSI_mutex_locker* (*get_thread_mutex_locker_v1_t)
   (struct PSI_mutex *mutex, enum PSI_mutex_operation op);
 typedef struct PSI_rwlock_locker* (*get_thread_rwlock_locker_v1_t)
@@ -204,6 +205,7 @@ struct PSI_v1
   get_thread_v1_t get_thread;
   set_thread_v1_t set_thread;
   delete_current_thread_v1_t delete_current_thread;
+  delete_thread_v1_t delete_thread;
   get_thread_mutex_locker_v1_t get_thread_mutex_locker;
   get_thread_rwlock_locker_v1_t get_thread_rwlock_locker;
   get_thread_cond_locker_v1_t get_thread_cond_locker;

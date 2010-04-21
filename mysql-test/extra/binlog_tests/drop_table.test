@@ -1,0 +1,34 @@
+#
+# Bug#989: If DROP TABLE while there's an active transaction, wrong binlog order
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+
+connection con1;
+RESET MASTER;
+CREATE TABLE t1 (a INT);
+SET AUTOCOMMIT=OFF;
+BEGIN;
+INSERT INTO t1 VALUES(1);
+
+connection con2;
+--send DROP TABLE t1;
+
+connection con1;
+COMMIT;
+
+connection con2;
+--reap
+
+connection default;
+
+--disconnect con1
+--disconnect con2
+
+let $VERSION=`select version()`;
+source include/show_binlog_events.inc;

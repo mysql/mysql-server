@@ -38,7 +38,7 @@
 #define SLAVE_ERRMSG_SIZE (FN_REFLEN+64)
 
 
-uint rpl_status=RPL_NULL;
+RPL_STATUS rpl_status=RPL_NULL;
 mysql_mutex_t LOCK_rpl_status;
 mysql_cond_t COND_rpl_status;
 HASH slave_list;

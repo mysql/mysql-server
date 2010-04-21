@@ -46,6 +46,7 @@
 #cmakedefine HAVE_MEMORY_H 1
 #cmakedefine HAVE_NETINET_IN_H 1
 #cmakedefine HAVE_PATHS_H 1
+#cmakedefine HAVE_POLL_H 1
 #cmakedefine HAVE_PORT_H 1
 #cmakedefine HAVE_PWD_H 1
 #cmakedefine HAVE_SCHED_H 1
@@ -204,6 +205,7 @@
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KILL 1
 #cmakedefine HAVE_PTHREAD_RWLOCK_RDLOCK 1
+#cmakedefine HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP 1
 #cmakedefine HAVE_PTHREAD_SETPRIO_NP 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
@@ -565,6 +567,9 @@
 #cmakedefine USE_MB 1
 #cmakedefine USE_MB_IDENT 1
 #cmakedefine USE_STRCOLL 1
+
+/* This should mean case insensitive file system */
+#cmakedefine FN_NO_CASE_SENSE 1
 
 #cmakedefine HAVE_CHARSET_armscii8 1
 #cmakedefine HAVE_CHARSET_ascii 

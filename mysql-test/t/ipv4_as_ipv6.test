@@ -5,8 +5,7 @@
 # Test of ipv4 (127.0.0.1) in ipv6 format
 # Options: --skip-name-resolve, --bind-address=0.0.0.0 (see corresponding opt file).
 #
-# Can't be tested with windows due to mixed format like 0::0000:FFFF:127.0.0.1
---source include/not_windows.inc
+--source include/have_ipv4_mapped.inc
 # Can't be tested with embedded server
 --source include/not_embedded.inc
 

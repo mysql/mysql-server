@@ -12,3 +12,39 @@ mysql
 performance_schema
 test
 drop schema foo;
+#
+# Bug #48940 MDL deadlocks against mysql_rm_db
+#
+DROP SCHEMA IF EXISTS schema1;
+# Connection default
+CREATE SCHEMA schema1;
+CREATE TABLE schema1.t1 (a INT);
+SET autocommit= FALSE;
+INSERT INTO schema1.t1 VALUES (1);
+# Connection 2
+DROP SCHEMA schema1;
+# Connection default
+ALTER SCHEMA schema1 DEFAULT CHARACTER SET utf8;
+Got one of the listed errors
+SET autocommit= TRUE;
+# Connection 2
+# Connection default
+#
+# Bug #49988 MDL deadlocks with mysql_create_db, reload_acl_and_cache
+#
+DROP SCHEMA IF EXISTS schema1;
+# Connection default
+CREATE SCHEMA schema1;
+CREATE TABLE schema1.t1 (id INT);
+LOCK TABLE schema1.t1 WRITE;
+# Connection con2
+DROP SCHEMA schema1;
+# Connection default
+# CREATE SCHEMA used to give a deadlock.
+# Now we prohibit CREATE SCHEMA in LOCK TABLES mode.
+CREATE SCHEMA IF NOT EXISTS schema1;
+ERROR HY000: Can't execute the given command because you have active locked tables or an active transaction
+# UNLOCK TABLES so DROP SCHEMA can continue.
+UNLOCK TABLES;
+# Connection con2
+# Connection default

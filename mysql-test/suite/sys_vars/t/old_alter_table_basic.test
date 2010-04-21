@@ -1,3 +1,8 @@
+
+#
+# 2010-01-20 OBN - added check of I_S values after variable value changed
+#
+
 SET @start_global_value = @@global.old_alter_table;
 SELECT @start_global_value;
 
@@ -15,9 +20,13 @@ select * from information_schema.session_variables where variable_name='old_alte
 # show that it's writable
 #
 set global old_alter_table=1;
-select @@global.old_alter_table;
 set session old_alter_table=ON;
+select @@global.old_alter_table;
 select @@session.old_alter_table;
+show global variables like 'old_alter_table';
+show session variables like 'old_alter_table';
+select * from information_schema.global_variables where variable_name='old_alter_table';
+select * from information_schema.session_variables where variable_name='old_alter_table';
 
 #
 # incorrect types

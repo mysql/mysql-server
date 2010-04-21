@@ -6,22 +6,7 @@
 # Options: --skip-name-resolve, --bind-address=0.0.0.0 (see corresponding cnf file)
 # for master and slave
 #
-# Check if ipv4 is available.
---disable_query_log
---disable_abort_on_error
-connect (checkcon123456789,127.0.0.1,root,,test);
-if($mysql_errno)
-{
-skip wrong IP;
-}
-connection default;
-disconnect checkcon123456789;
---enable_abort_on_error
---enable_query_log
-# end check
-
-# Can't be tested with windows due to mixed format like 0::0000:FFFF:127.0.0.1
---source include/not_windows.inc
+--source include/have_ipv4_mapped.inc
 --source include/have_log_bin.inc
 
 let $IPv6= 127.0.0.1;
@@ -56,7 +41,7 @@ let $IPv6= ::FFFF:127.0.0.1;
 #--echo #################### IP: $IPv6 ###########################
 #--source include/rpl_ipv6.inc
 
-let $IPv6= ::1;
+let $IPv6= ::FFFF:127.0.0.1;
 --echo #################### IP: $IPv6 ###########################
 --echo connect (master,127.0.0.1,root,,test,MASTER_MYPORT);
 connect (master,127.0.0.1,root,,test,$MASTER_MYPORT);
@@ -75,10 +60,10 @@ let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 eval change master to master_host='$IPv6';
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --echo Master-Host: $master_host
-eval change master to master_host='::FFFF:127.0.0.1';
+eval change master to master_host='127.0.0.1';
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --echo Master-Host: $master_host
-eval change master to master_host='0:0:0:0:0:0:0:1';
+eval change master to master_host='0:0000:0000:0:0000:FFFF:127.0.0.1';
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --echo Master-Host: $master_host
 --echo disconnect slave;

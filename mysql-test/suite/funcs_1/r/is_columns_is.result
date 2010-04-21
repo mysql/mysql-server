@@ -19,7 +19,7 @@ def	information_schema	COLUMNS	CHARACTER_MAXIMUM_LENGTH	9	NULL	YES	bigint	NULL	N
 def	information_schema	COLUMNS	CHARACTER_OCTET_LENGTH	10	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	COLUMNS	CHARACTER_SET_NAME	13	NULL	YES	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
 def	information_schema	COLUMNS	COLLATION_NAME	14	NULL	YES	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
-def	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
+def	information_schema	COLUMNS	COLUMN_COMMENT	19		NO	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
 def	information_schema	COLUMNS	COLUMN_DEFAULT	6	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 def	information_schema	COLUMNS	COLUMN_KEY	16		NO	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
 def	information_schema	COLUMNS	COLUMN_NAME	4		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -242,6 +242,7 @@ def	information_schema	STATISTICS	CARDINALITY	10	NULL	YES	bigint	NULL	NULL	19	0	
 def	information_schema	STATISTICS	COLLATION	9	NULL	YES	varchar	1	3	NULL	NULL	utf8	utf8_general_ci	varchar(1)			select	
 def	information_schema	STATISTICS	COLUMN_NAME	8		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	STATISTICS	COMMENT	15	NULL	YES	varchar	16	48	NULL	NULL	utf8	utf8_general_ci	varchar(16)			select	
+def	information_schema	STATISTICS	INDEX_COMMENT	16		NO	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
 def	information_schema	STATISTICS	INDEX_NAME	6		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	STATISTICS	INDEX_SCHEMA	5		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	STATISTICS	INDEX_TYPE	14		NO	varchar	16	48	NULL	NULL	utf8	utf8_general_ci	varchar(16)			select	
@@ -267,7 +268,7 @@ def	information_schema	TABLES	MAX_DATA_LENGTH	11	NULL	YES	bigint	NULL	NULL	19	0	
 def	information_schema	TABLES	ROW_FORMAT	7	NULL	YES	varchar	10	30	NULL	NULL	utf8	utf8_general_ci	varchar(10)			select	
 def	information_schema	TABLES	TABLE_CATALOG	1		NO	varchar	512	1536	NULL	NULL	utf8	utf8_general_ci	varchar(512)			select	
 def	information_schema	TABLES	TABLE_COLLATION	18	NULL	YES	varchar	32	96	NULL	NULL	utf8	utf8_general_ci	varchar(32)			select	
-def	information_schema	TABLES	TABLE_COMMENT	21		NO	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
+def	information_schema	TABLES	TABLE_COMMENT	21		NO	varchar	2048	6144	NULL	NULL	utf8	utf8_general_ci	varchar(2048)			select	
 def	information_schema	TABLES	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	TABLES	TABLE_ROWS	8	NULL	YES	bigint	NULL	NULL	19	0	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	TABLES	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -419,7 +420,7 @@ NULL	information_schema	COLUMNS	NUMERIC_SCALE	bigint	NULL	NULL	NULL	NULL	bigint(
 3.0000	information_schema	COLUMNS	COLUMN_KEY	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	COLUMNS	EXTRA	varchar	27	81	utf8	utf8_general_ci	varchar(27)
 3.0000	information_schema	COLUMNS	PRIVILEGES	varchar	80	240	utf8	utf8_general_ci	varchar(80)
-3.0000	information_schema	COLUMNS	COLUMN_COMMENT	varchar	255	765	utf8	utf8_general_ci	varchar(255)
+3.0000	information_schema	COLUMNS	COLUMN_COMMENT	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	COLUMN_PRIVILEGES	GRANTEE	varchar	81	243	utf8	utf8_general_ci	varchar(81)
 3.0000	information_schema	COLUMN_PRIVILEGES	TABLE_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	COLUMN_PRIVILEGES	TABLE_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -639,6 +640,7 @@ NULL	information_schema	STATISTICS	SUB_PART	bigint	NULL	NULL	NULL	NULL	bigint(3)
 3.0000	information_schema	STATISTICS	NULLABLE	varchar	3	9	utf8	utf8_general_ci	varchar(3)
 3.0000	information_schema	STATISTICS	INDEX_TYPE	varchar	16	48	utf8	utf8_general_ci	varchar(16)
 3.0000	information_schema	STATISTICS	COMMENT	varchar	16	48	utf8	utf8_general_ci	varchar(16)
+3.0000	information_schema	STATISTICS	INDEX_COMMENT	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	TABLES	TABLE_CATALOG	varchar	512	1536	utf8	utf8_general_ci	varchar(512)
 3.0000	information_schema	TABLES	TABLE_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TABLES	TABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -659,7 +661,7 @@ NULL	information_schema	TABLES	CHECK_TIME	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	TABLES	TABLE_COLLATION	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 NULL	information_schema	TABLES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 3.0000	information_schema	TABLES	CREATE_OPTIONS	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-3.0000	information_schema	TABLES	TABLE_COMMENT	varchar	80	240	utf8	utf8_general_ci	varchar(80)
+3.0000	information_schema	TABLES	TABLE_COMMENT	varchar	2048	6144	utf8	utf8_general_ci	varchar(2048)
 3.0000	information_schema	TABLESPACES	TABLESPACE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TABLESPACES	ENGINE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	TABLESPACES	TABLESPACE_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)

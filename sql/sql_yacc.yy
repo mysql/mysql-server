@@ -688,7 +688,8 @@ static bool add_create_index_prepare (LEX *lex, Table_ident *table)
 {
   lex->sql_command= SQLCOM_CREATE_INDEX;
   if (!lex->current_select->add_table_to_list(lex->thd, table, NULL,
-                                              TL_OPTION_UPDATING))
+                                              TL_OPTION_UPDATING,
+                                              TL_WRITE_ALLOW_READ))
     return TRUE;
   lex->alter_info.reset();
   lex->alter_info.flags= ALTER_ADD_INDEX;
@@ -756,6 +757,7 @@ static bool add_create_index (LEX *lex, Key::Keytype type,
   struct p_elem_val *p_elem_value;
   enum index_hint_type index_hint;
   enum enum_filetype filetype;
+  enum Foreign_key::fk_option m_fk_option;
   Diag_condition_item_name diag_condition_item_name;
 }
 
@@ -765,10 +767,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser                                    /* We have threads */
 /*
-  Currently there are 172 shift/reduce conflicts.
+  Currently there are 168 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 172
+%expect 168
 
 /*
    Comments for TOKENS.
@@ -966,7 +968,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  FOREIGN                       /* SQL-2003-R */
 %token  FOR_SYM                       /* SQL-2003-R */
 %token  FOUND_SYM                     /* SQL-2003-R */
-%token  FRAC_SECOND_SYM
 %token  FROM
 %token  FULL                          /* SQL-2003-R */
 %token  FULLTEXT_SYM
@@ -1170,7 +1171,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  PREV_SYM
 %token  PRIMARY_SYM                   /* SQL-2003-R */
 %token  PRIVILEGES                    /* SQL-2003-N */
-%token  PROCEDURE                     /* SQL-2003-R */
+%token  PROCEDURE_SYM                 /* SQL-2003-R */
 %token  PROCESS
 %token  PROCESSLIST_SYM
 %token  PROFILE_SYM
@@ -1422,13 +1423,16 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         type type_with_opt_collate int_type real_type order_dir lock_option
         udf_type if_exists opt_local opt_table_options table_options
         table_option opt_if_not_exists opt_no_write_to_binlog
-        delete_option opt_temporary all_or_any opt_distinct
+        opt_temporary all_or_any opt_distinct
         opt_ignore_leaves fulltext_options spatial_type union_option
         start_transaction_opts opt_chain opt_release
         union_opt select_derived_init option_type2
         opt_natural_language_mode opt_query_expansion
         opt_ev_status opt_ev_on_completion ev_on_completion opt_ev_comment
         ev_alter_on_schedule_completion opt_ev_rename_to opt_ev_sql_stmt
+
+%type <m_fk_option>
+        delete_option
 
 %type <ulong_num>
         ulong_num real_ulong_num merge_insert_types
@@ -1489,8 +1493,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <date_time_type> date_time_type;
 %type <interval> interval
 
-%type <interval_time_st> interval_time_st
-
 %type <interval_time_st> interval_time_stamp
 
 %type <db_type> storage_engines known_storage_engines
@@ -1544,7 +1546,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_precision opt_ignore opt_column opt_restrict
         grant revoke set lock unlock string_list field_options field_option
         field_opt_list opt_binary ascii unicode table_lock_list table_lock
-        ref_list opt_on_delete opt_on_delete_list opt_on_delete_item use
+        ref_list opt_match_clause opt_on_update_delete use
         opt_delete_options opt_delete_option varchar nchar nvarchar
         opt_outer table_list table_name table_alias_ref_list table_alias_ref
         opt_option opt_place
@@ -1552,6 +1554,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         opt_column_list grant_privileges grant_ident grant_list grant_option
         object_privilege object_privilege_list user_list rename_list
         clear_privileges flush_options flush_option
+        opt_with_read_lock flush_options_list
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
         table_to_table_list table_to_table opt_table_list opt_as
@@ -2023,6 +2026,7 @@ create:
             lex->create_info.default_table_charset= NULL;
             lex->name.str= 0;
             lex->name.length= 0;
+            lex->create_last_non_select_table= lex->last_table();
           }
           create2
           {
@@ -2037,6 +2041,7 @@ create:
                                   ha_resolve_storage_engine_name(lex->create_info.db_type),
                                   $5->table.str);
             }
+            create_table_set_open_action_and_adjust_tables(lex);
           }
         | CREATE opt_unique INDEX_SYM ident key_alg ON table_ident
           {
@@ -4190,7 +4195,7 @@ size_number:
 create2:
           '(' create2a {}
         | opt_create_table_options
-          opt_partitioning
+          opt_create_partitioning
           create3 {}
         | LIKE table_ident
           {
@@ -4223,10 +4228,10 @@ create2:
         ;
 
 create2a:
-          field_list ')' opt_create_table_options
-          opt_partitioning
+          create_field_list ')' opt_create_table_options
+          opt_create_partitioning
           create3 {}
-        |  opt_partitioning
+        |  opt_create_partitioning
            create_select ')'
            { Select->set_braces(1);}
            union_opt {}
@@ -4240,6 +4245,19 @@ create3:
         | opt_duplicate opt_as '(' create_select ')'
           { Select->set_braces(1);}
           union_opt {}
+        ;
+
+opt_create_partitioning:
+          opt_partitioning
+          {
+            /*
+              Remove all tables used in PARTITION clause from the global table
+              list. Partitioning with subqueries is not allowed anyway.
+            */
+            TABLE_LIST *last_non_sel_table= Lex->create_last_non_select_table;
+            last_non_sel_table->next_global= 0;
+            Lex->query_tables_last= &last_non_sel_table->next_global;
+          }
         ;
 
 /*
@@ -5072,19 +5090,30 @@ create_table_option:
             Lex->create_info.row_type= $3;
             Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT;
           }
-        | UNION_SYM opt_equal '(' opt_table_list ')'
+        | UNION_SYM opt_equal
           {
-            /* Move the union list to the merge_list */
+            Lex->select_lex.table_list.save_and_clear(&Lex->save_list);
+          }
+          '(' opt_table_list ')'
+          {
+            /*
+              Move the union list to the merge_list and exclude its tables
+              from the global list.
+            */
             LEX *lex=Lex;
-            TABLE_LIST *table_list= lex->select_lex.get_table_list();
             lex->create_info.merge_list= lex->select_lex.table_list;
-            lex->create_info.merge_list.elements--;
-            lex->create_info.merge_list.first=
-              (uchar*) (table_list->next_local);
-            lex->select_lex.table_list.elements=1;
-            lex->select_lex.table_list.next=
-              (uchar**) &(table_list->next_local);
-            table_list->next_local= 0;
+            lex->select_lex.table_list= lex->save_list;
+            /*
+              When excluding union list from the global list we assume that
+              elements of the former immediately follow elements which represent
+              table being created/altered and parent tables.
+            */
+            TABLE_LIST *last_non_sel_table= lex->create_last_non_select_table;
+            DBUG_ASSERT(last_non_sel_table->next_global ==
+                        (TABLE_LIST *)lex->create_info.merge_list.first);
+            last_non_sel_table->next_global= 0;
+            Lex->query_tables_last= &last_non_sel_table->next_global;
+
             lex->create_info.used_fields|= HA_CREATE_USED_UNION;
           }
         | default_charset
@@ -5222,6 +5251,14 @@ udf_type:
         | INT_SYM {$$ = (int) INT_RESULT; }
         ;
 
+
+create_field_list:
+        field_list
+        {
+          Lex->create_last_non_select_table= Lex->last_table();
+        }
+        ;
+
 field_list:
           field_list_item
         | field_list ',' field_list_item
@@ -5282,10 +5319,6 @@ key_def:
             /* Only used for ALTER TABLE. Ignored otherwise. */
             lex->alter_info.flags|= ALTER_FOREIGN_KEY;
           }
-        | constraint opt_check_constraint
-          {
-            Lex->col_list.empty(); /* Alloced by sql_alloc */
-          }
         | opt_constraint check_constraint
           {
             Lex->col_list.empty(); /* Alloced by sql_alloc */
@@ -5298,7 +5331,7 @@ opt_check_constraint:
         ;
 
 check_constraint:
-          CHECK_SYM expr
+          CHECK_SYM '(' expr ')'
         ;
 
 opt_constraint:
@@ -5837,21 +5870,20 @@ opt_primary:
         ;
 
 references:
-          REFERENCES table_ident
-          {
-            LEX *lex=Lex;
-            lex->fk_delete_opt= lex->fk_update_opt= lex->fk_match_option= 0;
-            lex->ref_list.empty();
-          }
+          REFERENCES
+          table_ident
           opt_ref_list
+          opt_match_clause
+          opt_on_update_delete
           {
             $$=$2;
           }
         ;
 
 opt_ref_list:
-          /* empty */ opt_on_delete {}
-        | '(' ref_list ')' opt_on_delete {}
+          /* empty */
+          { Lex->ref_list.empty(); }
+        | '(' ref_list ')'
         ;
 
 ref_list:
@@ -5867,34 +5899,64 @@ ref_list:
             Key_part_spec *key= new Key_part_spec($1, 0);
             if (key == NULL)
               MYSQL_YYABORT;
-            Lex->ref_list.push_back(key);
+            LEX *lex= Lex;
+            lex->ref_list.empty();
+            lex->ref_list.push_back(key);
           }
         ;
 
-opt_on_delete:
-          /* empty */ {}
-        | opt_on_delete_list {}
+opt_match_clause:
+          /* empty */
+          { Lex->fk_match_option= Foreign_key::FK_MATCH_UNDEF; }
+        | MATCH FULL
+          { Lex->fk_match_option= Foreign_key::FK_MATCH_FULL; }
+        | MATCH PARTIAL
+          { Lex->fk_match_option= Foreign_key::FK_MATCH_PARTIAL; }
+        | MATCH SIMPLE_SYM
+          { Lex->fk_match_option= Foreign_key::FK_MATCH_SIMPLE; }
         ;
 
-opt_on_delete_list:
-          opt_on_delete_list opt_on_delete_item {}
-        | opt_on_delete_item {}
-        ;
-
-opt_on_delete_item:
-          ON DELETE_SYM delete_option { Lex->fk_delete_opt= $3; }
-        | ON UPDATE_SYM delete_option { Lex->fk_update_opt= $3; }
-        | MATCH FULL       { Lex->fk_match_option= Foreign_key::FK_MATCH_FULL; }
-        | MATCH PARTIAL    { Lex->fk_match_option= Foreign_key::FK_MATCH_PARTIAL; }
-        | MATCH SIMPLE_SYM { Lex->fk_match_option= Foreign_key::FK_MATCH_SIMPLE; }
+opt_on_update_delete:
+          /* empty */
+          {
+            LEX *lex= Lex;
+            lex->fk_update_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_delete_opt= Foreign_key::FK_OPTION_UNDEF;
+          }
+        | ON UPDATE_SYM delete_option
+          {
+            LEX *lex= Lex;
+            lex->fk_update_opt= $3;
+            lex->fk_delete_opt= Foreign_key::FK_OPTION_UNDEF;
+          }
+        | ON DELETE_SYM delete_option
+          {
+            LEX *lex= Lex;
+            lex->fk_update_opt= Foreign_key::FK_OPTION_UNDEF;
+            lex->fk_delete_opt= $3;
+          }
+        | ON UPDATE_SYM delete_option
+          ON DELETE_SYM delete_option
+          {
+            LEX *lex= Lex;
+            lex->fk_update_opt= $3;
+            lex->fk_delete_opt= $6;
+          }
+        | ON DELETE_SYM delete_option
+          ON UPDATE_SYM delete_option
+          {
+            LEX *lex= Lex;
+            lex->fk_update_opt= $6;
+            lex->fk_delete_opt= $3;
+          }
         ;
 
 delete_option:
-          RESTRICT      { $$= (int) Foreign_key::FK_OPTION_RESTRICT; }
-        | CASCADE       { $$= (int) Foreign_key::FK_OPTION_CASCADE; }
-        | SET NULL_SYM  { $$= (int) Foreign_key::FK_OPTION_SET_NULL; }
-        | NO_SYM ACTION { $$= (int) Foreign_key::FK_OPTION_NO_ACTION; }
-        | SET DEFAULT   { $$= (int) Foreign_key::FK_OPTION_DEFAULT;  }
+          RESTRICT      { $$= Foreign_key::FK_OPTION_RESTRICT; }
+        | CASCADE       { $$= Foreign_key::FK_OPTION_CASCADE; }
+        | SET NULL_SYM  { $$= Foreign_key::FK_OPTION_SET_NULL; }
+        | NO_SYM ACTION { $$= Foreign_key::FK_OPTION_NO_ACTION; }
+        | SET DEFAULT   { $$= Foreign_key::FK_OPTION_DEFAULT;  }
         ;
 
 normal_key_type:
@@ -5999,6 +6061,7 @@ key_using_alg:
 all_key_opt:
           KEY_BLOCK_SIZE opt_equal ulong_num
           { Lex->key_create_info.block_size= $3; }
+	| COMMENT_SYM TEXT_STRING_sys { Lex->key_create_info.comment= $2; }
         ;
 
 normal_key_opt:
@@ -6083,7 +6146,8 @@ alter:
             lex->sql_command= SQLCOM_ALTER_TABLE;
             lex->duplicates= DUP_ERROR; 
             if (!lex->select_lex.add_table_to_list(thd, $4, NULL,
-                                                   TL_OPTION_UPDATING))
+                                                   TL_OPTION_UPDATING,
+                                                   TL_WRITE_ALLOW_READ))
               MYSQL_YYABORT;
             lex->col_list.empty();
             lex->select_lex.init_order();
@@ -6096,6 +6160,7 @@ alter:
             lex->alter_info.reset();
             lex->no_write_to_binlog= 0;
             lex->create_info.storage_media= HA_SM_DEFAULT;
+            lex->create_last_non_select_table= lex->last_table();
           }
           alter_commands
           {}
@@ -6124,7 +6189,7 @@ alter:
             lex->sql_command= SQLCOM_ALTER_DB_UPGRADE;
             lex->name= $3;
           }
-        | ALTER PROCEDURE sp_name
+        | ALTER PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
 
@@ -6479,12 +6544,16 @@ add_column:
         ;
 
 alter_list_item:
-          add_column column_def opt_place { }
+          add_column column_def opt_place
+          {
+            Lex->create_last_non_select_table= Lex->last_table();
+          }
         | ADD key_def
           {
+            Lex->create_last_non_select_table= Lex->last_table();
             Lex->alter_info.flags|= ALTER_ADD_INDEX;
           }
-        | add_column '(' field_list ')'
+        | add_column '(' create_field_list ')'
           {
             Lex->alter_info.flags|= ALTER_ADD_COLUMN | ALTER_ADD_INDEX;
           }
@@ -6495,6 +6564,9 @@ alter_list_item:
             lex->alter_info.flags|= ALTER_CHANGE_COLUMN;
           }
           field_spec opt_place
+          {
+            Lex->create_last_non_select_table= Lex->last_table();
+          }
         | MODIFY_SYM opt_column field_ident
           {
             LEX *lex=Lex;
@@ -6517,6 +6589,9 @@ alter_list_item:
               MYSQL_YYABORT;
           }
           opt_place
+          {
+            Lex->create_last_non_select_table= Lex->last_table();
+          }
         | DROP opt_column field_ident opt_restrict
           {
             LEX *lex=Lex;
@@ -9218,8 +9293,8 @@ table_factor:
               lex->pop_context();
               lex->nest_level--;
             }
-            else if ($3->select_lex &&
-                     $3->select_lex->master_unit()->is_union() || $5)
+            else if (($3->select_lex &&
+                     $3->select_lex->master_unit()->is_union()) || $5)
             {
               /* simple nested joins cannot have aliases or unions */
               my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -9458,7 +9533,7 @@ using_list:
         ;
 
 interval:
-          interval_time_st {}
+          interval_time_stamp    {}
         | DAY_HOUR_SYM           { $$=INTERVAL_DAY_HOUR; }
         | DAY_MICROSECOND_SYM    { $$=INTERVAL_DAY_MICROSECOND; }
         | DAY_MINUTE_SYM         { $$=INTERVAL_DAY_MINUTE; }
@@ -9473,27 +9548,6 @@ interval:
         ;
 
 interval_time_stamp:
-          interval_time_st       {}
-        | FRAC_SECOND_SYM
-          { 
-            $$=INTERVAL_MICROSECOND; 
-            /*
-              FRAC_SECOND was mistakenly implemented with
-              a wrong resolution. According to the ODBC
-              standard it should be nanoseconds, not
-              microseconds. Changing it to nanoseconds
-              in MySQL would mean making TIMESTAMPDIFF
-              and TIMESTAMPADD to return DECIMAL, since
-              the return value would be too big for BIGINT
-              Hence we just deprecate the incorrect
-              implementation without changing its
-              resolution.
-            */
-            WARN_DEPRECATED(yythd, 6, 2, "FRAC_SECOND", "MICROSECOND");
-          }
-        ;
-
-interval_time_st:
           DAY_SYM         { $$=INTERVAL_DAY; }
         | WEEK_SYM        { $$=INTERVAL_WEEK; }
         | HOUR_SYM        { $$=INTERVAL_HOUR; }
@@ -9852,7 +9906,7 @@ dec_num:
 
 procedure_clause:
           /* empty */
-        | PROCEDURE ident /* Procedure name */
+        | PROCEDURE_SYM ident /* Procedure name */
           {
             LEX *lex=Lex;
 
@@ -10052,7 +10106,8 @@ drop:
             lex->alter_info.flags= ALTER_DROP_INDEX;
             lex->alter_info.drop_list.push_back(ad);
             if (!lex->current_select->add_table_to_list(lex->thd, $5, NULL,
-                                                        TL_OPTION_UPDATING))
+                                                        TL_OPTION_UPDATING,
+                                                        TL_WRITE_ALLOW_READ))
               MYSQL_YYABORT;
           }
         | DROP DATABASE if_exists ident
@@ -10106,7 +10161,7 @@ drop:
             spname->init_qname(thd);
             lex->spname= spname;
           }
-        | DROP PROCEDURE if_exists sp_name
+        | DROP PROCEDURE_SYM if_exists sp_name
           {
             LEX *lex=Lex;
             if (lex->sphead)
@@ -10865,7 +10920,7 @@ show_param:
           {
             Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT;
           }
-        | CREATE PROCEDURE sp_name
+        | CREATE PROCEDURE_SYM sp_name
           {
             LEX *lex= Lex;
 
@@ -10885,7 +10940,7 @@ show_param:
             lex->sql_command= SQLCOM_SHOW_CREATE_TRIGGER;
             lex->spname= $3;
           }
-        | PROCEDURE STATUS_SYM wild_and_where
+        | PROCEDURE_SYM STATUS_SYM wild_and_where
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_SHOW_STATUS_PROC;
@@ -10899,7 +10954,7 @@ show_param:
             if (prepare_schema_table(YYTHD, lex, 0, SCH_PROCEDURES))
               MYSQL_YYABORT;
           }
-        | PROCEDURE CODE_SYM sp_name
+        | PROCEDURE_SYM CODE_SYM sp_name
           {
             Lex->sql_command= SQLCOM_SHOW_PROC_CODE;
             Lex->spname= $3;
@@ -11041,17 +11096,27 @@ flush:
         ;
 
 flush_options:
-          flush_options ',' flush_option
-        | flush_option
-        ;
-
-flush_option:
           table_or_tables
           { Lex->type|= REFRESH_TABLES; }
           opt_table_list {}
-        | TABLES WITH READ_SYM LOCK_SYM
-          { Lex->type|= REFRESH_TABLES | REFRESH_READ_LOCK; }
-        | ERROR_SYM LOGS_SYM
+          opt_with_read_lock {}
+        | flush_options_list
+        ;
+
+opt_with_read_lock:
+          /* empty */ {}
+        | WITH READ_SYM LOCK_SYM
+          { Lex->type|= REFRESH_READ_LOCK; }
+        ;
+
+flush_options_list:
+          flush_options_list ',' flush_option
+        | flush_option
+          {}
+        ;
+
+flush_option:
+          ERROR_SYM LOGS_SYM
           { Lex->type|= REFRESH_ERROR_LOG; }
         | ENGINE_SYM LOGS_SYM
           { Lex->type|= REFRESH_ENGINE_LOG; } 
@@ -12229,7 +12294,6 @@ keyword_sp:
         | FILE_SYM                 {}
         | FIRST_SYM                {}
         | FIXED_SYM                {}
-        | FRAC_SECOND_SYM          {}
         | GEOMETRY_SYM             {}
         | GEOMETRYCOLLECTION       {}
         | GET_FORMAT               {}
@@ -13049,7 +13113,7 @@ revoke_command:
             lex->sql_command= SQLCOM_REVOKE;
             lex->type= TYPE_ENUM_FUNCTION;
           }
-        | grant_privileges ON PROCEDURE grant_ident FROM grant_list
+        | grant_privileges ON PROCEDURE_SYM grant_ident FROM grant_list
           {
             LEX *lex= Lex;
             if (lex->columns.elements)
@@ -13091,7 +13155,7 @@ grant_command:
             lex->sql_command= SQLCOM_GRANT;
             lex->type= TYPE_ENUM_FUNCTION;
           }
-        | grant_privileges ON PROCEDURE grant_ident TO_SYM grant_list
+        | grant_privileges ON PROCEDURE_SYM grant_ident TO_SYM grant_list
           require_clause grant_options
           {
             LEX *lex= Lex;
@@ -14128,7 +14192,7 @@ sf_tail:
         ;
 
 sp_tail:
-          PROCEDURE remember_name sp_name
+          PROCEDURE_SYM remember_name sp_name
           {
             LEX *lex= Lex;
             sp_head *sp;

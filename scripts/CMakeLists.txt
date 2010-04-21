@@ -20,31 +20,41 @@ IF(NOT CMAKE_CROSSCOMPILING)
  TARGET_LINK_LIBRARIES(comp_sql)
 ENDIF()
 
-SET(FIX_PRIVS_IN 
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_fix.sql
-)
-SET(FIX_PRIVILEGES_SQL
- ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables.sql
-)
 
 # Build mysql_fix_privilege_tables.sql (concatenate 2 sql scripts)
-FILE(WRITE ${FIX_PRIVILEGES_SQL} "")
-FOREACH(FILENAME ${FIX_PRIVS_IN})
-  FILE(READ "${FILENAME}" CONTENTS)
-  FILE(APPEND ${FIX_PRIVILEGES_SQL} "${CONTENTS}")
-ENDFOREACH()
+IF(NOT WIN32 OR CMAKE_CROSSCOMPILING)
+  FIND_PROGRAM(CAT_EXECUTABLE cat DOC "path to the executable")
+ENDIF()
 
+IF(CAT_EXECUTABLE)
+  SET(CAT_COMMAND COMMAND 
+    ${CMAKE_COMMAND} -E chdir  ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CAT_EXECUTABLE} mysql_system_tables.sql mysql_system_tables_fix.sql >
+    ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables.sql
+  )
+ELSEIF(WIN32)
+  FILE(TO_NATIVE_PATH ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables.sql
+   native_outfile )
+  SET(CAT_COMMAND
+   COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_CURRENT_SOURCE_DIR}
+   cmd /c copy /b mysql_system_tables.sql + mysql_system_tables_fix.sql
+   ${native_outfile} )
+ELSE()
+  MESSAGE(FATAL_ERROR "Cannot concatenate files")
+ENDIF()
 
 # Build mysql_fix_privilege_tables.c
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables_sql.c
+  ${CAT_COMMAND}
   COMMAND comp_sql
   mysql_fix_privilege_tables
   mysql_fix_privilege_tables.sql
   mysql_fix_privilege_tables_sql.c
-  DEPENDS comp_sql
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_fix.sql
 )
 
 # Add target for the above to be built
@@ -66,6 +76,7 @@ INSTALL(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
+  ${FIX_PRIVILEGES_SQL}
   DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
 )
 
@@ -102,9 +113,9 @@ ENDIF()
 IF(NOT FIND_PROC)
   # BSD style
   EXECUTE_PROCESS(COMMAND ps -uaxww OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE result)
-  IF(result MATCHES 0)
+  IF(result MATCHES 0) 
      SET( FIND_PROC
-       "ps -uaxww | grep -v \" grep\" | grep -v mysqld_safe | grep -- "\$MYSQLD\" | grep \" $PID \" > /dev/null")
+        "ps -uaxww | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"$MYSQLD\" | grep \" $PID \" > /dev/null")
   ENDIF()
 ENDIF()
 
@@ -112,26 +123,20 @@ IF(NOT FIND_PROC)
   # SysV style
   EXECUTE_PROCESS(COMMAND ps -ef OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE result)
   IF(result MATCHES 0)
-    SET( FIND_PROC "ps -ef | grep -v \" grep\" | grep -v mysqld_safe | grep -- "\$MYSQLD\" | grep \" $PID \" > /dev/null")
+    SET( FIND_PROC "ps -ef | grep -v \" grep\" | grep -v mysqld_safe | grep -- \"$MYSQLD\" | grep \" $PID \" > /dev/null")
   ENDIF()
 ENDIF()
   
-EXECUTE_PROCESS(COMMAND sh -c "kill -0 $$" OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE result2)
-IF(result3 MATCHES 0)
+EXECUTE_PROCESS(COMMAND sh -c "kill -0 $$" OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE result)
+IF(result MATCHES 0)
   SET(CHECK_PID "kill -0 $PID > /dev/null 2> /dev/null")
 ELSE()
-  EXECUTE_PROCESS(COMMAND sh -c "kill -s 0 $$" OUTPUT_QUIET ERROR_QUIET RESULT_VARIABLE result3)
-  IF(result4 MATCHES 0)
-    SET(CHECK_PID "kill -s 0 $PID > /dev/null 2> /dev/null")
-  ELSE()
-    SET(CHECK_PID "kill -s SIGCONT $PID  > /dev/null 2> /dev/null")
-  ENDIF()
+  SET(CHECK_PID "kill -s SIGCONT $PID  > /dev/null 2> /dev/null")
 ENDIF()
 
+SET(HOSTNAME "hostname")
+
 ENDIF(UNIX)
-
-
-
 
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
 # i.e. makes access relative the current directory. This matches
@@ -157,7 +162,7 @@ ENDIF()
 IF(UNIX)
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.sh
   ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db ESCAPE_QUOTES @ONLY)
-  SET(DEST ${INSTALL_BINDIR})
+  SET(DEST ${INSTALL_SCRIPTDIR})
   SET(EXT)
 ELSE()
  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.pl.in
@@ -254,7 +259,8 @@ IF(WIN32)
   SET(PLIN_FILES mysql_config mysql_secure_installation)
   # Input files with .sh extension
 
-  SET(SH_FILES mysql_convert_table_format mysqld_multi)
+  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow
+    mysqlhotcopy)
 
   FOREACH(file ${PLIN_FILES})
     IF(NOT ${file}_COMPONENT)
@@ -281,14 +287,13 @@ ELSE()
     mysql_secure_installation
     mysql_zap
     mysqlaccess
+    mysqlaccess.conf
     mysqlbug
     mysql_convert_table_format
     mysql_find_rows
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi
-    mysqlaccess
-    mysqlaccess.conf
     mysqld_safe
   )
   FOREACH(file ${BIN_SCRIPTS})

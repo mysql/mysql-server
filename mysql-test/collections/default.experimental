@@ -1,12 +1,11 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
 
-binlog.binlog_tmp_table*                 # Bug#45578:2009-07-10 alik Test binlog_tmp_table fails ramdonly on PB2: Unknown table 't2'
 binlog.binlog_multi_engine               # joro : NDB tests marked as experimental as agreed with bochklin
 
 funcs_1.charset_collation_1              # depends on compile-time decisions
+funcs_1.myisam_views @solaris            # Bug#50595 2010-03-05 alik funcs_1.myisam_views takes longer time on 6.0 branch than 5.1 branch
 
-main.ctype_gbk_binlog  @solaris          # Bug#46010: main.ctype_gbk_binlog fails sporadically : Table 't2' already exists
 main.information_schema                  # Bug#47449 2009-09-19 alik main.information_schema and innodb.innodb_information_schema fail sporadically
 main.lock_multi_bug38499                 # Bug#47448 2009-09-19 alik main.lock_multi_bug38499 times out sporadically
 main.lock_multi_bug38691 @solaris        # Bug#47792 2009-10-02 alik main.lock_multi_bug38691 times out sporadically on Solaris 10
@@ -16,9 +15,6 @@ main.plugin                              # Bug#47146 Linking problem with exampl
 main.signal_demo3 @solaris               # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 main.sp @solaris                         # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
-perfschema.tampered_perfschema_table1 @windows # Bug#50478 2010-01-20 alik perfschema.tampered_perfschema_table1 fails sporadically on Windows and Solaris
-perfschema.tampered_perfschema_table1 @solaris # Bug#50478 2010-01-20 alik perfschema.tampered_perfschema_table1 fails sporadically on Windows and Solaris
-
 rpl.rpl_heartbeat_basic                  # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_heartbeat_2slaves                # BUG#43828 2009-10-22 luis fails sporadically
 rpl.rpl_innodb_bug28430*                 # Bug#46029
@@ -26,12 +22,8 @@ rpl.rpl_innodb_bug30888* @solaris        # Bug#47646 2009-09-25 alik rpl.rpl_inn
 rpl.rpl_killed_ddl @windows              # Bug#47638 2010-01-20 alik The rpl_killed_ddl test fails on Windows
 rpl.rpl_plugin_load*  @solaris           # Bug#47146
 rpl.rpl_row_sp011* @solaris              # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-rpl.rpl_slave_load_remove_tmpfile* @windows # Bug#50474 2010-01-20 alik rpl_slave_load_remove_tmpfile failed on windows debug enabled binary
-rpl.rpl_sync* @windows                    # Bug#50473 2010-01-20 alik rpl_sync fails on windows debug enabled binaries
-rpl.rpl_timezone*                        # Bug#47017 2009-10-27 alik rpl_timezone fails on PB-2 with mismatch error
 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#47791 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-sys_vars.delayed_insert_limit_func       # Bug#50435 2010-01-25 alik sys_vars.delayed_insert_limit_func fails on Ubuntu x86_64 in debug mode
 
 # Declare all NDB-tests in ndb and rpl_ndb test suites experimental.
 # Usually the test cases from ndb and rpl_ndb test suites are not run in PB,

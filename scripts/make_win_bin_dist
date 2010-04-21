@@ -158,7 +158,6 @@ cp tests/$TARGET/*.exe                                   $DESTDIR/bin/
 cp libmysql/$TARGET/libmysql.dll                         $DESTDIR/bin/
 
 cp sql/$TARGET/mysqld.exe                $DESTDIR/bin/mysqld$EXE_SUFFIX.exe
-cp sql/$TARGET/mysqld.map                $DESTDIR/bin/mysqld$EXE_SUFFIX.map || /bin/true
 if [ x"$TARGET" != x"release" ] ; then
   cp sql/$TARGET/mysqld.pdb              $DESTDIR/bin/mysqld$EXE_SUFFIX.pdb
 fi
@@ -167,7 +166,6 @@ if [ x"$PACK_DEBUG" = x"" -a -f "sql/debug/mysqld.exe" -o \
      x"$PACK_DEBUG" = x"yes" ] ; then
   cp sql/debug/mysqld.exe                $DESTDIR/bin/mysqld-debug.exe
   cp sql/debug/mysqld.pdb                $DESTDIR/bin/mysqld-debug.pdb
-  cp sql/debug/mysqld.map                $DESTDIR/bin/mysqld-debug.map
 fi
 
 # ----------------------------------------------------------------------
@@ -397,15 +395,15 @@ cp scripts/*.sql $DESTDIR/share/
 # Clean up from possibly copied SCCS directories
 # ----------------------------------------------------------------------
 
-rm -rf `find $DISTDIR -type d -name SCCS -print`
+rm -rf `find $DESTDIR -type d -name SCCS -print`
 
 # ----------------------------------------------------------------------
 # Copy other files specified on command line DEST=SOURCE
 # ----------------------------------------------------------------------
 
 for arg do
-  dst=`echo $arg | sed 's/=.*$//'`
-  src=`echo $arg | sed 's/^.*=//'`
+  dst=`echo $arg | sed -n 's/=.*$//p'`
+  src=`echo $arg | sed -n 's/^.*=//p'`
 
   if [ x"$dst" = x"" -o x"$src" = x"" ] ; then
     echo "Invalid specification of what to copy"

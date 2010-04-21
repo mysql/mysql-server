@@ -160,9 +160,23 @@ SELECT * FROM t1
 WHERE HEX(CAST(UPPER(a) AS CHAR CHARACTER SET utf8)) <>
       HEX(UPPER(CAST(a AS CHAR CHARACTER SET utf8))) ORDER BY code;
 
+--echo #
+--echo # WL#3090 Japanese Character Set adjustments
+--echo # Test sjis->Unicode conversion
+--echo #
+SELECT HEX(a), HEX(CONVERT(a USING utf8)) as b FROM t1
+WHERE a<>'' HAVING b<>'3F' ORDER BY code;
+
 DROP TABLE t1;
 
 
+--echo #
+--echo # WL#3090 Japanese Character Set adjustments
+--echo # Test Unicode->sjis conversion
+--echo #
+--source include/ctype_utf8_table.inc
+SELECT HEX(a), HEX(CONVERT(a using sjis)) as b FROM t1 HAVING b<>'3F' ORDER BY BINARY a;
+DROP TABLE t1;
 
 
 --echo #

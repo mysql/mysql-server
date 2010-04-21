@@ -390,7 +390,7 @@ DROP TABLE IF EXISTS t1;
 #
 # Test.
 CREATE TABLE t1 (c1 INT);
-LOCK TABLE t1 WRITE;
+LOCK TABLE t1 READ;
     --echo connection con1
     connect (con1,localhost,root,,);
     # Retain action after use. First used by general_log.

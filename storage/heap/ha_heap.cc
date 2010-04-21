@@ -689,7 +689,7 @@ int ha_heap::create(const char *name, TABLE *table_arg,
       if (field->flags & (ENUM_FLAG | SET_FLAG))
         seg->charset= &my_charset_bin;
       else
-        seg->charset= field->charset();
+        seg->charset= field->charset_for_protocol();
       if (field->null_ptr)
       {
 	seg->null_bit= field->null_bit;

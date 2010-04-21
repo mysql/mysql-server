@@ -1612,9 +1612,8 @@ int Gis_multi_polygon::area(double *ar,  const char **end_of_data) const
 int Gis_multi_polygon::centroid(String *result) const
 {
   uint32 n_polygons;
-  bool first_loop= 1;
   Gis_polygon p;
-  double UNINIT_VAR(res_area), UNINIT_VAR(res_cx), UNINIT_VAR(res_cy);
+  double res_area= 0.0, res_cx= 0.0, res_cy= 0.0;
   double cur_area, cur_cx, cur_cy;
   const char *data= m_data;
 
@@ -1631,20 +1630,13 @@ int Gis_multi_polygon::centroid(String *result) const
 	p.centroid_xy(&cur_cx, &cur_cy))
       return 1;
 
-    if (!first_loop)
-    {
-      double sum_area= res_area + cur_area;
-      res_cx= (res_area * res_cx + cur_area * cur_cx) / sum_area;
-      res_cy= (res_area * res_cy + cur_area * cur_cy) / sum_area;
-    }
-    else
-    {
-      first_loop= 0;
-      res_area= cur_area;
-      res_cx= cur_cx;
-      res_cy= cur_cy;
-    }
+    res_area+= cur_area;
+    res_cx+= cur_area * cur_cx;
+    res_cy+= cur_area * cur_cy;
   }
+   
+  res_cx/= res_area;
+  res_cy/= res_area;
 
   return create_point(result, res_cx, res_cy);
 }

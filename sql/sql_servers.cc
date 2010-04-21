@@ -39,6 +39,7 @@
 #include <stdarg.h>
 #include "sp_head.h"
 #include "sp.h"
+#include "transaction.h"
 
 /*
   We only use 1 mutex to guard the data structures - THR_LOCK_servers.
@@ -247,22 +248,12 @@ bool servers_reload(THD *thd)
   bool return_val= TRUE;
   DBUG_ENTER("servers_reload");
 
-  if (thd->locked_tables)
-  {					// Can't have locked tables here
-    thd->lock=thd->locked_tables;
-    thd->locked_tables=0;
-    close_thread_tables(thd);
-  }
-
   DBUG_PRINT("info", ("locking servers_cache"));
   mysql_rwlock_wrlock(&THR_LOCK_servers);
 
-  bzero((char*) tables, sizeof(tables));
-  tables[0].alias= tables[0].table_name= (char*) "servers";
-  tables[0].db= (char*) "mysql";
-  tables[0].lock_type= TL_READ;
+  tables[0].init_one_table("mysql", 5, "servers", 7, "servers", TL_READ);
 
-  if (simple_open_n_lock_tables(thd, tables))
+  if (open_and_lock_tables(thd, tables, FALSE, MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     /*
       Execution might have been interrupted; only print the error message
@@ -284,7 +275,9 @@ bool servers_reload(THD *thd)
   }
 
 end:
+  trans_commit_implicit(thd);
   close_thread_tables(thd);
+  thd->mdl_context.release_transactional_locks();
   DBUG_PRINT("info", ("unlocking servers_cache"));
   mysql_rwlock_unlock(&THR_LOCK_servers);
   DBUG_RETURN(return_val);
@@ -394,12 +387,10 @@ insert_server(THD *thd, FOREIGN_SERVER *server)
 
   DBUG_ENTER("insert_server");
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.alias= tables.table_name= (char*) "servers";
+  tables.init_one_table("mysql", 5, "servers", 7, "servers", TL_WRITE);
 
   /* need to open before acquiring THR_LOCK_plugin or it will deadlock */
-  if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
     goto end;
 
   /* insert the server into the table */
@@ -612,9 +603,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   DBUG_PRINT("info", ("server name server->server_name %s",
                       server_options->server_name));
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*) "mysql";
-  tables.alias= tables.table_name= (char*) "servers";
+  tables.init_one_table("mysql", 5, "servers", 7, "servers", TL_WRITE);
 
   mysql_rwlock_wrlock(&THR_LOCK_servers);
 
@@ -622,7 +611,7 @@ int drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
   if ((error= delete_server_record_in_cache(server_options)))
     goto end;
 
-  if (! (table= open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (! (table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
   {
     error= my_errno;
     goto end;
@@ -736,11 +725,10 @@ int update_server(THD *thd, FOREIGN_SERVER *existing, FOREIGN_SERVER *altered)
   TABLE_LIST tables;
   DBUG_ENTER("update_server");
 
-  bzero((char*) &tables, sizeof(tables));
-  tables.db= (char*)"mysql";
-  tables.alias= tables.table_name= (char*)"servers";
+  tables.init_one_table("mysql", 5, "servers", 7, "servers",
+                         TL_WRITE);
 
-  if (!(table= open_ltable(thd, &tables, TL_WRITE, 0)))
+  if (!(table= open_ltable(thd, &tables, TL_WRITE, MYSQL_LOCK_IGNORE_TIMEOUT)))
   {
     error= my_errno;
     goto end;

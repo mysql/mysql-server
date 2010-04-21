@@ -1363,3 +1363,22 @@ SELECT SQL_CACHE * FROM t1 WHERE a IN
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Bug#51336 Assert in reload_acl_and_cache during RESET QUERY CACHE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(id INT);
+
+START TRANSACTION;
+SELECT * FROM t1;
+# This caused an assert
+RESET QUERY CACHE;
+
+COMMIT;
+DROP TABLE t1;

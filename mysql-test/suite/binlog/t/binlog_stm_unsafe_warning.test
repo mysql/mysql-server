@@ -27,6 +27,7 @@
 -- source include/have_binlog_format_statement.inc
 call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted. .*");
 call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave. .*");
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column");
 
 -- echo ### NOT filtered database => assertion: warnings ARE shown
 
@@ -117,3 +118,34 @@ perl;
   print "Occurrences: $count\n";
   close(FILE);
 EOF
+
+# bug#50192: diplaying the unsafe warning comes out to the user warning stack
+
+-- disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+-- enable_warnings
+
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 (a int auto_increment primary key, b int);
+CREATE TRIGGER tr_bug50192 AFTER INSERT ON t1 FOR EACH ROW INSERT INTO t2 (b) VALUES (1);
+
+DELIMITER |;
+
+CREATE FUNCTION sf_bug50192() RETURNS INTEGER
+BEGIN
+   INSERT INTO t2(b) VALUES(2);
+   RETURN 1;
+END |
+
+DELIMITER ;|
+
+INSERT INTO t1 VALUES (0);
+SHOW WARNINGS;
+SELECT sf_bug50192();
+SHOW WARNINGS;
+
+# cleanup
+
+DROP FUNCTION sf_bug50192;
+DROP TRIGGER tr_bug50192;
+DROP TABLE t1, t2;

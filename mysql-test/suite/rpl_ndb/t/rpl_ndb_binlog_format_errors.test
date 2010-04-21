@@ -97,11 +97,11 @@ SELECT * FROM t_self_logging /* Should be empty */;
 SELECT * FROM t /* Should be empty */;
 
 --echo * Modify both row-only and stmt-only table
+--error ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
 --eval CREATE TRIGGER trig_2 AFTER INSERT ON t_stmt FOR EACH ROW BEGIN INSERT INTO t_row VALUES(1); END
---error ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
+--error ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
 INSERT INTO t_stmt VALUES (1);
 SELECT * FROM t_stmt /* should be empty */;
-DROP TRIGGER trig_2;
 
 --echo * Stmt-only table and binlog_format=row
 --error ER_BINLOG_ROW_MODE_AND_STMT_ENGINE

@@ -1,0 +1,26 @@
+#
+# Bug 42074 concurrent optimize table and 
+# alter table = Assertion failed: thd->is_error()
+#
+DROP TABLE IF EXISTS t1;
+# Create InnoDB table
+CREATE TABLE t1 (id INT) engine=innodb;
+# Connection 1
+# Start optimizing table
+SET DEBUG_SYNC='ha_admin_try_alter SIGNAL optimize_started WAIT_FOR table_altered';
+OPTIMIZE TABLE t1;
+# Connection 2
+# Change table to engine=memory
+SET DEBUG_SYNC='now WAIT_FOR optimize_started';
+ALTER TABLE t1 engine=memory;
+SET DEBUG_SYNC='now SIGNAL table_altered';
+# Connection 1
+# Complete optimization
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	error	Got error -1 from storage engine
+test.t1	optimize	status	Operation failed
+Warnings:
+Error	1030	Got error -1 from storage engine
+DROP TABLE t1;
+SET DEBUG_SYNC='RESET';

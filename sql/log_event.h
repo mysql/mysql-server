@@ -2498,6 +2498,10 @@ private:
 class User_var_log_event: public Log_event
 {
 public:
+  enum {
+    UNDEF_F= 0,
+    UNSIGNED_F= 1
+  };
   char *name;
   uint name_len;
   char *val;
@@ -2505,12 +2509,14 @@ public:
   Item_result type;
   uint charset_number;
   bool is_null;
+  uchar flags;
 #ifndef MYSQL_CLIENT
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
-		     uint charset_number_arg)
+		     uint charset_number_arg, uchar flags_arg)
     :Log_event(), name(name_arg), name_len(name_len_arg), val(val_arg),
-    val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg)
+    val_len(val_len_arg), type(type_arg), charset_number(charset_number_arg),
+    flags(flags_arg)
     { is_null= !val; }
   void pack_info(Protocol* protocol);
 #else

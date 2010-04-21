@@ -779,9 +779,9 @@ GRANT CREATE VIEW ON db26813.v2 TO u26813@localhost;
 GRANT DROP, CREATE VIEW ON db26813.v3 TO u26813@localhost;
 GRANT SELECT ON db26813.t1 TO u26813@localhost;
 ALTER VIEW v1 AS SELECT f2 FROM t1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: CREATE VIEW command denied to user 'u26813'@'localhost' for table 'v1'
 ALTER VIEW v2 AS SELECT f2 FROM t1;
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+ERROR 42000: DROP command denied to user 'u26813'@'localhost' for table 'v2'
 ALTER VIEW v3 AS SELECT f2 FROM t1;
 ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
 SHOW CREATE VIEW v3;
@@ -1237,3 +1237,14 @@ SELECT a FROM v2;
 a
 DROP USER mysqluser1;
 DROP DATABASE mysqltest1;
+USE test;
+#
+# Bug#47734: Assertion failed: ! is_set() when locking a view with non-existing definer
+#
+DROP VIEW IF EXISTS v1;
+CREATE DEFINER=`unknown`@`unknown` SQL SECURITY DEFINER VIEW v1 AS SELECT 1;
+Warnings:
+Note	1449	The user specified as a definer ('unknown'@'unknown') does not exist
+LOCK TABLES v1 READ;
+ERROR HY000: The user specified as a definer ('unknown'@'unknown') does not exist
+DROP VIEW v1;

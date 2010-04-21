@@ -454,7 +454,7 @@ bool Log_to_csv_event_handler::
   bool need_rnd_end= FALSE;
   uint field_index;
   Silence_log_table_errors error_handler;
-  Open_tables_state open_tables_backup;
+  Open_tables_backup open_tables_backup;
   ulonglong save_thd_options;
   bool save_time_zone_used;
 
@@ -467,14 +467,10 @@ bool Log_to_csv_event_handler::
   save_thd_options= thd->variables.option_bits;
   thd->variables.option_bits&= ~OPTION_BIN_LOG;
 
-  bzero(& table_list, sizeof(TABLE_LIST));
-  table_list.alias= table_list.table_name= GENERAL_LOG_NAME.str;
-  table_list.table_name_length= GENERAL_LOG_NAME.length;
-
-  table_list.lock_type= TL_WRITE_CONCURRENT_INSERT;
-
-  table_list.db= MYSQL_SCHEMA_NAME.str;
-  table_list.db_length= MYSQL_SCHEMA_NAME.length;
+  table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                            GENERAL_LOG_NAME.str, GENERAL_LOG_NAME.length,
+                            GENERAL_LOG_NAME.str,
+                            TL_WRITE_CONCURRENT_INSERT);
 
   /*
     1) open_log_table generates an error of the
@@ -619,7 +615,7 @@ bool Log_to_csv_event_handler::
   bool need_close= FALSE;
   bool need_rnd_end= FALSE;
   Silence_log_table_errors error_handler;
-  Open_tables_state open_tables_backup;
+  Open_tables_backup open_tables_backup;
   CHARSET_INFO *client_cs= thd->variables.character_set_client;
   bool save_time_zone_used;
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
@@ -631,14 +627,10 @@ bool Log_to_csv_event_handler::
   */
   save_time_zone_used= thd->time_zone_used;
 
-  bzero(& table_list, sizeof(TABLE_LIST));
-  table_list.alias= table_list.table_name= SLOW_LOG_NAME.str;
-  table_list.table_name_length= SLOW_LOG_NAME.length;
-
-  table_list.lock_type= TL_WRITE_CONCURRENT_INSERT;
-
-  table_list.db= MYSQL_SCHEMA_NAME.str;
-  table_list.db_length= MYSQL_SCHEMA_NAME.length;
+  table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                            SLOW_LOG_NAME.str, SLOW_LOG_NAME.length,
+                            SLOW_LOG_NAME.str,
+                            TL_WRITE_CONCURRENT_INSERT);
 
   if (!(table= open_log_table(thd, &table_list, &open_tables_backup)))
     goto err;
@@ -775,29 +767,25 @@ int Log_to_csv_event_handler::
 {
   TABLE_LIST table_list;
   TABLE *table;
+  LEX_STRING *UNINIT_VAR(log_name);
   int result;
-  Open_tables_state open_tables_backup;
+  Open_tables_backup open_tables_backup;
 
   DBUG_ENTER("Log_to_csv_event_handler::activate_log");
 
-  bzero(& table_list, sizeof(TABLE_LIST));
-
   if (log_table_type == QUERY_LOG_GENERAL)
   {
-    table_list.alias= table_list.table_name= GENERAL_LOG_NAME.str;
-    table_list.table_name_length= GENERAL_LOG_NAME.length;
+    log_name= &GENERAL_LOG_NAME;
   }
   else
   {
     DBUG_ASSERT(log_table_type == QUERY_LOG_SLOW);
-    table_list.alias= table_list.table_name= SLOW_LOG_NAME.str;
-    table_list.table_name_length= SLOW_LOG_NAME.length;
+
+    log_name= &SLOW_LOG_NAME;
   }
-
-  table_list.lock_type= TL_WRITE_CONCURRENT_INSERT;
-
-  table_list.db= MYSQL_SCHEMA_NAME.str;
-  table_list.db_length= MYSQL_SCHEMA_NAME.length;
+  table_list.init_one_table(MYSQL_SCHEMA_NAME.str, MYSQL_SCHEMA_NAME.length,
+                            log_name->str, log_name->length, log_name->str,
+                            TL_WRITE_CONCURRENT_INSERT);
 
   table= open_log_table(thd, &table_list, &open_tables_backup);
   if (table)
@@ -1593,7 +1581,7 @@ binlog_truncate_trx_cache(THD *thd, binlog_cache_mngr *cache_mngr, bool all)
     transaction cache to remove the statement.
   */
   else
-      cache_mngr->trx_cache.restore_prev_position();
+    cache_mngr->trx_cache.restore_prev_position();
 
   /*
     We need to step the table map version on a rollback to ensure that a new
@@ -4324,7 +4312,7 @@ THD::binlog_start_trans_and_stmt()
       cache_mngr->trx_cache.get_prev_position() == MY_OFF_T_UNDEF)
   {
     this->binlog_set_stmt_begin();
-    if (variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    if (in_multi_stmt_transaction())
       trans_register_ha(this, TRUE, binlog_hton);
     trans_register_ha(this, FALSE, binlog_hton);
     /*
@@ -4591,7 +4579,7 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
     this will close all tables on the slave.
   */
   bool const end_stmt=
-    thd->prelocked_mode && thd->lex->requires_prelocking();
+    thd->locked_tables_mode && thd->lex->requires_prelocking();
   if (thd->binlog_flush_pending_rows_event(end_stmt,
                                            event_info->use_trans_cache()))
     DBUG_RETURN(error);
@@ -4680,12 +4668,19 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info)
           {
             BINLOG_USER_VAR_EVENT *user_var_event;
             get_dynamic(&thd->user_var_events,(uchar*) &user_var_event, i);
+
+            /* setting flags for user var log event */
+            uchar flags= User_var_log_event::UNDEF_F;
+            if (user_var_event->user_var_event->unsigned_flag)
+              flags|= User_var_log_event::UNSIGNED_F;
+
             User_var_log_event e(thd, user_var_event->user_var_event->name.str,
                                  user_var_event->user_var_event->name.length,
                                  user_var_event->value,
                                  user_var_event->length,
                                  user_var_event->type,
-                                 user_var_event->charset_number);
+                                 user_var_event->charset_number,
+                                 flags);
             if (e.write(file))
               goto err;
           }

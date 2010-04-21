@@ -55,3 +55,24 @@ create table test.t1 like performance_schema.EVENTS_WAITS_CURRENT;
 --error ER_TABLEACCESS_DENIED_ERROR
 create table performance_schema.t1(a int);
 
+#
+# Bug#51447 performance schema evil twin files
+#
+
+--disable_warnings
+drop table if exists test.ghost;
+--enable_warnings
+
+create table test.ghost (a int, b int);
+alter table test.ghost add index index_a(a);
+alter table test.ghost add index index_b(b);
+insert into test.ghost values (1, 3);
+insert into test.ghost values (2, 4);
+select * from test.ghost;
+
+drop table test.ghost;
+
+# Shoud return nothing
+select * from performance_schema.FILE_INSTANCES
+  where file_name like "%ghost%";
+

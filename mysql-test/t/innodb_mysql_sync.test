@@ -1,0 +1,48 @@
+#
+# Test file for InnoDB tests that require the debug sync facility
+#
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+
+--echo #
+--echo # Bug 42074 concurrent optimize table and 
+--echo # alter table = Assertion failed: thd->is_error()
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo # Create InnoDB table
+CREATE TABLE t1 (id INT) engine=innodb;
+connect (con2, localhost, root);
+
+--echo # Connection 1
+--echo # Start optimizing table
+connection default;
+SET DEBUG_SYNC='ha_admin_try_alter SIGNAL optimize_started WAIT_FOR table_altered';
+--send OPTIMIZE TABLE t1
+
+--echo # Connection 2
+--echo # Change table to engine=memory
+connection con2;
+SET DEBUG_SYNC='now WAIT_FOR optimize_started';
+ALTER TABLE t1 engine=memory;
+SET DEBUG_SYNC='now SIGNAL table_altered';
+
+--echo # Connection 1
+--echo # Complete optimization
+connection default;
+--reap
+
+disconnect con2;
+DROP TABLE t1;
+SET DEBUG_SYNC='RESET';
+
+
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc

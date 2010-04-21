@@ -1058,3 +1058,33 @@ SELECT Polygon(12345123,'');
 Polygon(12345123,'')
 NULL
 End of 5.1 tests
+CREATE TABLE t1(
+col0 BINARY NOT NULL,
+col2 TIMESTAMP,
+SPATIAL INDEX i1 (col0)
+) ENGINE=MyISAM;
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+CREATE TABLE t1 (
+col0 BINARY NOT NULL,
+col2 TIMESTAMP
+) ENGINE=MyISAM;
+CREATE SPATIAL INDEX idx0 ON t1(col0);
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+ALTER TABLE t1 ADD SPATIAL INDEX i1 (col0);
+ERROR 42000: A SPATIAL index may only contain a geometrical type column
+CREATE TABLE t2 (
+col0 INTEGER NOT NULL,
+col1 POINT,
+col2 POINT
+);
+CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
+CREATE TABLE t3 (
+col0 INTEGER NOT NULL,
+col1 POINT,
+col2 LINESTRING,
+SPATIAL INDEX i1 (col1, col2)
+);
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
+DROP TABLE t1;
+DROP TABLE t2;
