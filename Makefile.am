@@ -174,7 +174,6 @@ noinst_HEADERS=		\
 			include/row0upd.ic	\
 			include/row0vers.h	\
 			include/row0vers.ic	\
-			include/srv0que.h	\
 			include/srv0srv.h	\
 			include/srv0srv.ic	\
 			include/srv0start.h	\
@@ -299,7 +298,6 @@ libinnobase_a_SOURCES=	\
 			row/row0undo.c			\
 			row/row0upd.c			\
 			row/row0vers.c			\
-			srv/srv0que.c			\
 			srv/srv0srv.c			\
 			srv/srv0start.c			\
 			sync/sync0arr.c			\
