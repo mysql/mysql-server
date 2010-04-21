@@ -29,6 +29,13 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+/*
+  NOTE: zlib.h must be included *before* my_global.h because my_global.h
+  may undef some HAVE_ macros. Including zlib.h after my_global.h may lead
+  to re-defining undefined macros, thus to compile errors.
+*/
+#include <zlib.h>                               // Must be before my_global.h
+
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
 #include "my_global.h"                          // HAVE_*
@@ -51,7 +58,6 @@
 #include "my_md5.h"
 #include "sha1.h"
 #include "my_aes.h"
-#include <zlib.h>
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
