@@ -1953,6 +1953,14 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
     return;
   }
 
+  /* If the write rows event contained no values for the AI */
+  if ((type_code == WRITE_ROWS_EVENT) && (m_rows_buf==m_rows_end))
+  {
+    my_b_printf(file, "### INSERT INTO `%s`.`%s` VALUES ()\n", 
+                      map->get_db_name(), map->get_table_name());
+    goto end;
+  }
+
   for (const uchar *value= m_rows_buf; value < m_rows_end; )
   {
     size_t length;
@@ -7636,7 +7644,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     // row processing loop
 
-    while (error == 0 && m_curr_row < m_rows_end)
+    while (error == 0)
     {
       /* in_use can have been set to NULL in close_tables_for_reopen */
       THD* old_thd= table->in_use;
@@ -7687,7 +7695,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   
       // at this moment m_curr_row_end should be set
       DBUG_ASSERT(error || m_curr_row_end != NULL); 
-      DBUG_ASSERT(error || m_curr_row < m_curr_row_end);
+      DBUG_ASSERT(error || m_curr_row <= m_curr_row_end);
       DBUG_ASSERT(error || m_curr_row_end <= m_rows_end);
   
       m_curr_row= m_curr_row_end;
@@ -7695,6 +7703,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       if (error == 0 && !transactional_table)
         thd->transaction.all.modified_non_trans_table=
           thd->transaction.stmt.modified_non_trans_table= TRUE;
+
+      if (m_curr_row == m_rows_end)
+        break;
     } // row processing loop
 
     {/**
@@ -8695,7 +8706,13 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
     /* this is the first row to be inserted, we estimate the rows with
        the size of the first row and use that value to initialize
        storage engine for bulk insertion */
-    ulong estimated_rows= (m_rows_end - m_curr_row) / (m_curr_row_end - m_curr_row);
+    DBUG_ASSERT(!(m_curr_row > m_curr_row_end));
+    ulong estimated_rows;
+    if (m_curr_row < m_curr_row_end)
+      estimated_rows= (m_rows_end - m_curr_row) / (m_curr_row_end - m_curr_row);
+    else if (m_curr_row = m_curr_row_end)
+      estimated_rows= 1;
+
     m_table->file->ha_start_bulk_insert(estimated_rows);
   }
   
@@ -9665,8 +9682,44 @@ int
 Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
+  int error= 0;
 
-  int error= find_row(rli); 
+  /**
+     Check if update contains only values in AI for columns that do 
+     not exist on the slave. If it does, we can just unpack the rows 
+     and return (do nothing on the local table).
+
+     NOTE: We do the following optimization and check only if there 
+     are usable values on the AI and disregard the fact that there 
+     might be usable values in the BI. In practice this means that 
+     the slave will not go through find_row (since we have nothing
+     on the record to update, why go looking for it?).
+
+     If we wanted find_row to run anyway, we could move this
+     check after find_row, but then we would have to face the fact
+     that the slave might stop without finding the proper record 
+     (because it might have incomplete BI), even though there were
+     no values in AI.
+
+     On the other hand, if AI has usable values but BI has not,
+     then find_row will return an error (and the error is then
+     propagated as it was already).
+   */
+  if (!is_any_column_signaled_for_table(m_table, &m_cols_ai))
+  {
+    /* 
+      Read and discard images, because:
+      1. AI does not contain any useful values to replay;
+      2. BI is irrelevant if there is nothing useful in AI.
+    */
+    error = unpack_current_row(rli, &m_cols);
+    m_curr_row= m_curr_row_end;
+    error = error | unpack_current_row(rli, &m_cols_ai);
+
+    return error;
+  }
+
+  error= find_row(rli); 
   if (error)
   {
     /*
