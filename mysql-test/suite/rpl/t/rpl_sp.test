@@ -679,6 +679,56 @@ drop table t1, t2;
 --error ER_SP_DOES_NOT_EXIST
 drop function f1;
 
+
+--echo #
+--echo # Bug #11918 Can't use a declared variable in LIMIT clause
+--echo #
+--disable_warnings
+drop table if exists t1;
+drop procedure if exists p1;
+--enable_warnings
+connection master;
+-- source include/master-slave-reset.inc
+connection default;
+create table t1 (c1 int);
+insert into t1 (c1) values
+(1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
+
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
+create procedure p1(p1 integer)
+  delete from t1 limit p1; 
+
+set @save_binlog_format=@@session.binlog_format;
+set @@session.binlog_format=STATEMENT;
+
+--disable_warnings
+call p1(NULL);
+call p1(0);
+call p1(1);
+call p1(2);
+call p1(3);
+--enable_warnings
+
+select * from t1;
+sync_slave_with_master;
+connection slave;
+select * from t1;
+connection default;
+--disable_warnings
+call p1(-1);
+--enable_warnings
+select * from t1;
+sync_slave_with_master;
+connection slave;
+select * from t1;
+connection default;
+
+--echo # Cleanup
+set @@session.binlog_format=@save_binlog_format;
+drop table t1;
+drop procedure p1;
+
 --echo # End of 5.5 tests.
 
 
