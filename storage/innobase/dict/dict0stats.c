@@ -489,7 +489,9 @@ dict_stats_analyze_index_level(
 	/* iterate over all user records on this level
 	and compare each two adjacent ones, even the last on page
 	X and the fist on page X+1 */
-	while (btr_pcur_is_on_user_rec(&pcur)) {
+	for (;
+	     btr_pcur_is_on_user_rec(&pcur);
+	     btr_pcur_move_to_next_user_rec(&pcur, &mtr)) {
 
 		ulint	matched_fields = 0;
 		ulint	matched_bytes = 0;
@@ -499,6 +501,12 @@ dict_stats_analyze_index_level(
 		rec_offs_init(offsets_rec_onstack);
 
 		rec = btr_pcur_get_rec(&pcur);
+
+		if (rec_get_deleted_flag(rec, page_is_comp(
+				btr_pcur_get_page(&pcur)))) {
+
+			continue;
+		}
 
 		offsets_rec = rec_get_offsets(rec, index, offsets_rec_onstack,
 					      n_uniq, &heap);
@@ -553,7 +561,7 @@ dict_stats_analyze_index_level(
 				n_diff[i]++;
 			}
 		} else {
-			/* this is the first record */
+			/* this is the first non-delete marked record */
 			for (i = 1; i <= n_uniq; i++) {
 				n_diff[i] = 1;
 			}
@@ -574,8 +582,6 @@ dict_stats_analyze_index_level(
 
 			(*total_pages)++;
 		}
-
-		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
 	/* if *total_pages is left untouched then the above loop was not
