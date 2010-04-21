@@ -4407,8 +4407,8 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
   rowids_buf= buf->buffer;
 
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
-  semi_join= test(mode & HA_MRR_SEMI_JOIN);
-  DBUG_ASSERT(!semi_join || is_mrr_assoc);
+
+  DBUG_ASSERT(!seq_funcs->skip_record || is_mrr_assoc);
 
   if (is_mrr_assoc)
     status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
@@ -4542,18 +4542,15 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *unused)
   while ((rowids_buf_cur < rowids_buf_end) && 
          !(res= h2->handler::multi_range_read_next(&range_info)))
   {
-    if (!semi_join || *range_info==0)
-    {
-      /* Put rowid, or {rowid, range_id} pair into the buffer */
-      h2->position(table->record[0]);
-      memcpy(rowids_buf_cur, h2->ref, h2->ref_length);
-      rowids_buf_cur += h2->ref_length;
+    /* Put rowid, or {rowid, range_id} pair into the buffer */
+    h2->position(table->record[0]);
+    memcpy(rowids_buf_cur, h2->ref, h2->ref_length);
+    rowids_buf_cur += h2->ref_length;
 
-      if (is_mrr_assoc)
-      {
-        memcpy(rowids_buf_cur, &range_info, sizeof(void*));
-        rowids_buf_cur += sizeof(void*);
-      }
+    if (is_mrr_assoc)
+    {
+      memcpy(rowids_buf_cur, &range_info, sizeof(void*));
+      rowids_buf_cur += sizeof(void*);
     }
   }
 
@@ -4624,7 +4621,8 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
     rowid= rowids_buf_cur;
     cur_range_info= *(uchar**)(rowids_buf_cur + h->ref_length);
     rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
-    if (semi_join && *cur_range_info == 1)
+    if (h->mrr_funcs.skip_record &&
+	h->mrr_funcs.skip_record(h->mrr_iter, (char *) cur_range_info))
       continue;
     res= h->rnd_pos(table->record[0], rowid);
     break;

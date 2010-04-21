@@ -379,6 +379,40 @@ typedef struct st_cache_field {
 } CACHE_FIELD;
 
 
+/* Calculate the number of bytes used to store an offset value */
+ 
+static
+uint offset_size(uint len)
+{ return (len < 256 ? 1 : len < 256*256 ? 2 : 4); }
+
+
+/* Get the offset value that takes ofs_sz bytes at the position ptr */
+ 
+static
+ulong get_offset(uint ofs_sz, uchar *ptr)
+{
+  switch (ofs_sz) {
+  case 1: return uint(*ptr);
+  case 2: return uint2korr(ptr);
+  case 4: return uint4korr(ptr);
+  }
+  return 0;
+}
+
+
+/* Set the offset value ofs that takes ofs_sz bytes at the position ptr */ 
+
+static
+void store_offset(uint ofs_sz, uchar *ptr, ulong ofs)
+{
+  switch (ofs_sz) {
+  case 1: *ptr= (uchar) ofs; return;
+  case 2: int2store(ptr, (uint16) ofs); return;
+  case 4: int4store(ptr, (uint32) ofs); return;
+  }
+}
+  
+
 /*
   JOIN_CACHE is the base class to support the implementations of both
   Blocked-Based Nested Loops (BNL) Join Algorithm and Batched Key Access (BKA)
@@ -393,9 +427,9 @@ typedef struct st_cache_field {
   the entire set of records from the join buffer requires only one look-through
   the records provided by the second operand. 
   For the second algorithm the accumulation of records allows to optimize
-  fetching rows of the second operand from disk for some engines (MyISAM, InnoDB),
-  or to minimize the number of round-trips between the Server and the engine nodes
-  (NDB Cluster).        
+  fetching rows of the second operand from disk for some engines (MyISAM, 
+  InnoDB), or to minimize the number of round-trips between the Server and
+  the engine nodes (NDB Cluster).        
 */ 
 
 class JOIN_CACHE :public Sql_alloc
@@ -416,31 +450,6 @@ private:
   */
   uint length;
 
-  /* Calculate the number of bytes used to store an offset value */ 
-  uint length_size(uint len)
-  { return (len < 256 ? 1 : len < 256*256 ? 2 : 4); }
-
-  /* Get the offset value that takes ofs_sz bytes at the position ptr */ 
-  ulong get_offset(uint ofs_sz, uchar *ptr)
-   {
-     switch (ofs_sz) {
-     case 1: return uint(*ptr);
-     case 2: return uint2korr(ptr);
-     case 4: return uint4korr(ptr);
-     }
-     return 0;
-   }
-
-  /* Set the offset value ofs that takes ofs_sz bytes at the position ptr */ 
-  void store_offset(uint ofs_sz, uchar *ptr, ulong ofs)
-  {
-    switch (ofs_sz) {
-    case 1: *ptr= (uchar) ofs; return;
-    case 2: int2store(ptr, (uint16) ofs); return;
-    case 4: int4store(ptr, (uint32) ofs); return;
-    }
-  }
-  
 protected:
        
   /* 
@@ -573,8 +582,7 @@ protected:
     In the simplest case a record link is just a pointer to the beginning of
     the record stored in the buffer.
     In a more general case a link could be a reference to an array of pointers
-    to records in the buffer. 
-  */
+    to records in the buffer.   */
   uchar *curr_rec_link;
 
   void calc_record_fields();     
@@ -585,6 +593,7 @@ protected:
   int alloc_buffer();
 
   uint get_size_of_rec_offset() { return size_of_rec_ofs; }
+  uint get_size_of_rec_length() { return size_of_rec_len; }
   uint get_size_of_fld_offset() { return size_of_fld_ofs; }
 
   uchar *get_rec_ref(uchar *ptr)
@@ -624,11 +633,14 @@ protected:
   */
   virtual uint aux_buffer_incr() { return 0; }
 
-  /* Calculate how much space is remaining in the join biffer */ 
-  uint rem_space() { return (buff_size-aux_buff_size) - (end_pos-buff); }
+  /* Shall calculate how much space is remaining in the join buffer */ 
+  virtual ulong rem_space() 
+  { 
+    return max(buff_size-(end_pos-buff)-aux_buff_size,0);
+  }
 
-  /* Skip record from the join buffer if its match flag is on */
-  bool skip_record_if_match();
+  /* Shall skip record from the join buffer if its match flag is on */
+  virtual bool skip_record_if_match();
 
   /*  Read all flag and data fields of a record from the join buffer */
   uint read_all_record_fields();
@@ -659,6 +671,8 @@ protected:
 
   /*Set match flag for a record in join buffer if it has not been set yet */
   bool set_match_flag_if_none(JOIN_TAB *first_inner, uchar *rec_ptr);
+
+  enum_nested_loop_state generate_full_extensions(uchar *rec_ptr);
 
   /* Check matching to a partial join record from the join buffer */
   bool check_match(uchar *rec_ptr);
@@ -700,6 +714,9 @@ public:
   */ 
   virtual void get_record_by_pos(uchar *rec_ptr);
 
+  /* Shall return the value of the match flag for the positioned record */
+  virtual bool get_match_flag_by_pos(uchar *rec_ptr);
+
   /* Shall return the position of the current record */
   virtual uchar *get_curr_rec() { return curr_rec_pos; }
 
@@ -725,6 +742,7 @@ public:
   
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;
+  friend class JOIN_CACHE_BKA_UNIQUE;
 };
 
 class JOIN_CACHE_BNL :public JOIN_CACHE
@@ -772,13 +790,13 @@ public:
 
 class JOIN_CACHE_BKA :public JOIN_CACHE
 {
+protected:
 
-private:
+  /* Flag to to be passed to the MRR interface */ 
+  uint mrr_mode;
 
   /* MRR buffer assotiated with this join cache */
   HANDLER_BUFFER mrr_buff;
-  /* Flag to to be passed to the MRR interface */ 
-  uint mrr_mode;
 
   /* Shall initialize the MRR buffer */
   virtual void init_mrr_buff()
@@ -786,8 +804,6 @@ private:
     mrr_buff.buffer= end_pos;
     mrr_buff.buffer_end= buff+buff_size;
   }
-
-protected:
 
   /*
     The number of the cache fields that are used in building keys to access
@@ -817,9 +833,11 @@ protected:
   /* Using BKA find matches from the next table for records from join buffer */
   enum_nested_loop_state join_matching_records(bool skip_last);
 
-  /* Shall return the value of the match flag for the positioned record */
-  virtual bool get_match_flag_by_pos(uchar *rec_ptr)
-  { return test(*rec_ptr); }
+  /* Prepare to search for records that match records from the join buffer */
+  enum_nested_loop_state init_join_matching_records(RANGE_SEQ_IF *seq_funcs);
+
+  /* Finish searching for records that match records from the join buffer */
+  enum_nested_loop_state end_join_matching_records(enum_nested_loop_state rc);
 
 public:
   
@@ -855,13 +873,301 @@ public:
     mrr_mode= flags;
   }
 
-  /* Initialize the BNL cache */       
+  /* Initialize the BKA cache */       
   int init();
 
   bool is_key_access() { return TRUE; }
 
   /* Shall get the key built over the next record from the join buffer */
   virtual uint get_next_key(uchar **key);    
+
+};
+
+/*
+  The class JOIN_CACHE_BKA_UNIQUE supports the variant of the BKA join algorithm
+  that submits only distinct keys to the MRR interface. The records in the join
+  buffer of a cache of this class that have the same access key are linked into
+  a chain attached to a key entry structure that either itself contains the key
+  value, or, in the case when the keys are embedded, refers to its occurance in
+  one of the records from the chain.
+  To build the chains with the same keys a hash table is employed. It is placed
+  at the very end of the join buffer. The array of hash entries is allocated
+  first at the very bottom of the join buffer, then go key entries. A hash entry
+  contains a header of the list of the key entries with the same hash value. 
+  Each key entry is a structure of the following type:
+    struct st_join_cache_key_entry {
+      union { 
+        uchar[] value;
+        cache_ref *value_ref; // offset from the beginning of the buffer
+      } hash_table_key;
+      key_ref next_key; // offset backward from the beginning of hash table
+      cache_ref *last_rec // offset from the beginning of the buffer
+    }
+  The references linking the records in a chain are always placed at the very
+  beginning of the record info stored in the join buffer. The records are 
+  linked in a circular list. A new record is always added to the end of this 
+  list. When a key is passed to the MRR interface it can be passed either with
+  an association link containing a reference to the header of the record chain
+  attached to the corresponding key entry in the hash table, or without any
+  association link. When the next record is returned by a call to the MRR 
+  function multi_range_read_next without any association (because if was not
+  passed  with together with the key) then the key value is extracted from the
+  returned record and searched for it in the hash table. If there is any records
+  with such key the chain of them will be yielded as the result of this search.
+
+  The following picture represents a typical layout for the info stored in the
+  join buffer of a join cache object of the JOIN_CACHE_BKA_UNIQUE class.
+    
+  buff
+  V
+  +----------------------------------------------------------------------------+
+  |     |[*]record_1_1|                                                        |
+  |     ^ |                                                                    |
+  |     | +--------------------------------------------------+                 |
+  |     |                           |[*]record_2_1|          |                 |
+  |     |                           ^ |                      V                 |
+  |     |                           | +------------------+   |[*]record_1_2|   |
+  |     |                           +--------------------+-+   |               |
+  |+--+ +---------------------+                          | |   +-------------+ |
+  ||  |                       |                          V |                 | |
+  |||[*]record_3_1|         |[*]record_1_3|              |[*]record_2_2|     | |
+  ||^                       ^                            ^                   | |
+  ||+----------+            |                            |                   | |
+  ||^          |            |<---------------------------+-------------------+ |
+  |++          | | ... mrr  |   buffer ...           ... |     |               |
+  |            |            |                            |                     |
+  |      +-----+--------+   |                      +-----|-------+             |
+  |      V     |        |   |                      V     |       |             |
+  ||key_3|[/]|[*]|      |   |                |key_2|[/]|[*]|     |             |
+  |                   +-+---|-----------------------+            |             |
+  |                   V |   |                       |            |             |
+  |             |key_1|[*]|[*]|         |   | ... |[*]|   ...  |[*]|  ...  |   |
+  +----------------------------------------------------------------------------+
+                                        ^
+                                        |
+                                        hash table
+
+  i-th hash entry:
+    circular record chain for key_3:
+      record_2_1
+      record_2_2 (points to record_2_1)
+
+  j-th hash entry:
+    circular record chain for key_1:
+      record_1_1
+      record_1_2
+      record_1_3 (points to record_1_1)
+    circular record chain for key_3:
+      record_3_1 (points to itself)
+*/
+
+class JOIN_CACHE_BKA_UNIQUE :public JOIN_CACHE_BKA
+{
+
+private:
+
+  /* Size of the offset of a key entry in the hash table */
+  uint size_of_key_ofs;
+
+  /* 
+    Length of a key value.
+    It is assumed that all key values have the same length.
+  */
+  uint key_length;
+  /* 
+    Length of the key entry in the hash table.
+    A key entry either contains the key value, or it contains a reference
+    to the key value if use_emb_key flag is set for the cache.
+  */ 
+  uint key_entry_length;
+ 
+  /* The beginning of the hash table in the join buffer */
+  uchar *hash_table;
+  /* Number of hash entries in the hash table */
+  uint hash_entries;
+
+  /* The position of the last key entry in the hash table */
+  uchar *last_key_entry;
+
+  /* The position of the currently retrieved key entry in the hash table */
+  uchar *curr_key_entry;
+
+  /* 
+    The offset of the record fields from the beginning of the record
+    representation. The record representation starts with a reference to
+    the next record in the key record chain followed by the length of
+    the trailing record data followed by a reference to the record segment
+     in the previous cache, if any, followed by the record fields.
+  */ 
+  uint rec_fields_offset;
+  /* The offset of the data fields from the beginning of the record fields */
+  uint data_fields_offset;
+  
+  uint get_hash_idx(uchar* key, uint key_len);
+
+  void cleanup_hash_table();
+  
+protected:
+
+  uint get_size_of_key_offset() { return size_of_key_ofs; }
+
+  /* 
+    Get the position of the next_key_ptr field pointed to by 
+    a linking reference stored at the position key_ref_ptr. 
+    This reference is actually the offset backward from the
+    beginning of hash table.
+  */  
+  uchar *get_next_key_ref(uchar *key_ref_ptr)
+  {
+    return hash_table-get_offset(size_of_key_ofs, key_ref_ptr);
+  }
+
+  /* 
+    Store the linking reference to the next_key_ptr field at 
+    the position key_ref_ptr. The position of the next_key_ptr
+    field is pointed to by ref. The stored reference is actually
+    the offset backward from the beginning of the hash table.
+  */  
+  void store_next_key_ref(uchar *key_ref_ptr, uchar *ref)
+  {
+    store_offset(size_of_key_ofs, key_ref_ptr, (ulong) (hash_table-ref));
+  }     
+  
+  /* 
+    Check whether the reference to the next_key_ptr field at the position
+    key_ref_ptr contains  a nil value.
+  */
+  bool is_null_key_ref(uchar *key_ref_ptr)
+  {
+    ulong nil= 0;
+    return memcmp(key_ref_ptr, &nil, size_of_key_ofs ) == 0;
+  } 
+
+  /* 
+    Set the reference to the next_key_ptr field at the position
+    key_ref_ptr equal to nil.
+  */
+  void store_null_key_ref(uchar *key_ref_ptr)
+  {
+    ulong nil= 0;
+    store_offset(size_of_key_ofs, key_ref_ptr, nil);
+  } 
+
+  uchar *get_next_rec_ref(uchar *ref_ptr)
+  {
+    return buff+get_offset(get_size_of_rec_offset(), ref_ptr);
+  }
+
+  void store_next_rec_ref(uchar *ref_ptr, uchar *ref)
+  {
+    store_offset(get_size_of_rec_offset(), ref_ptr, (ulong) (ref-buff));
+  }     
+ 
+  /*
+    Get the position of the embedded key value for the current
+    record pointed to by get_curr_rec().
+  */ 
+  uchar *get_curr_emb_key()
+  {
+    return get_curr_rec()+data_fields_offset;
+  }
+
+  /*
+    Get the position of the embedded key value pointed to by a reference
+    stored at ref_ptr. The stored reference is actually the offset from
+    the beginning of the join buffer.
+  */  
+  uchar *get_emb_key(uchar *ref_ptr)
+  {
+    return buff+get_offset(get_size_of_rec_offset(), ref_ptr);
+  }
+
+  /* 
+    Store the reference to an embedded key at the position key_ref_ptr.
+    The position of the embedded key is pointed to by ref. The stored
+    reference is actually the offset from the beginning of the join buffer.
+  */  
+  void store_emb_key_ref(uchar *ref_ptr, uchar *ref)
+  {
+    store_offset(get_size_of_rec_offset(), ref_ptr, (ulong) (ref-buff));
+  }
+  
+  /* 
+    Calculate how much space in the buffer would not be occupied by
+    records, key entries and additional memory for the MMR buffer.
+  */ 
+  ulong rem_space() 
+  { 
+    return max((buff+buff_size-last_key_entry)-(end_pos-buff)-aux_buff_size,0);
+  }
+
+  /* 
+    Initialize the MRR buffer allocating some space within the join buffer.
+    The entire space between the last record put into the join buffer and the
+    last key entry added to the hash table is used for the MRR buffer.
+  */
+  void init_mrr_buff()
+  {
+    mrr_buff.buffer= end_pos;
+    mrr_buff.buffer_end= last_key_entry;
+  }
+
+  /* Skip record from JOIN_CACHE_BKA_UNIQUE buffer if its match flag is on */
+  bool skip_record_if_match();
+
+  /* Using BKA_UNIQUE find matches for records from join buffer */
+  enum_nested_loop_state join_matching_records(bool skip_last);
+
+  /* Search for a key in the hash table of the join buffer */
+  bool key_search(uchar *key, uint key_len, uchar **key_ref_ptr);
+
+public:
+
+  /* 
+    This constructor creates an unlinked BKA_UNIQUE join cache. The cache is
+    to be used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter.
+    The MRR mode initially is set to 'flags'.
+  */   
+  JOIN_CACHE_BKA_UNIQUE(JOIN *j, JOIN_TAB *tab, uint flags)
+    :JOIN_CACHE_BKA(j, tab, flags) {}
+
+  /* 
+    This constructor creates a linked BKA_UNIQUE join cache. The cache is
+    to be used to join table 'tab' to the result of joining the previous tables 
+    specified by the 'j' parameter. The parameter 'prev' specifies the cache
+    object to which this cache is linked.
+    The MRR mode initially is set to 'flags'.
+  */   
+  JOIN_CACHE_BKA_UNIQUE(JOIN *j, JOIN_TAB *tab, uint flags,  JOIN_CACHE* prev)
+    :JOIN_CACHE_BKA(j, tab, flags, prev) {}
+
+  /* Initialize the BKA_UNIQUE cache */       
+  int init();
+
+  /* Reset the JOIN_CACHE_BKA_UNIQUE  buffer for reading/writing */
+  void reset(bool for_writing);
+
+  /* Add a record into the JOIN_CACHE_BKA_UNIQUE buffer */
+  bool put_record();
+
+  /* Read the next record from the JOIN_CACHE_BKA_UNIQUE buffer */
+  bool get_record();
+
+  /*
+    Shall check whether all records in a key chain have 
+    their match flags set on
+  */   
+  virtual bool check_all_match_flags_for_key(uchar *key_chain_ptr);
+
+  uint get_next_key(uchar **key); 
+  
+  /* Get the head of the record chain attached to the current key entry */ 
+  uchar *get_curr_key_chain()
+  {
+    return get_next_rec_ref(curr_key_entry+key_entry_length-
+                            get_size_of_rec_offset());
+  }
 
 };
 

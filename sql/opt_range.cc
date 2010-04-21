@@ -7846,7 +7846,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            uint *mrr_flags, uint *bufsize, COST_VECT *cost)
 {
   SEL_ARG_RANGE_SEQ seq;
-  RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next};
+  RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next, 0};
   handler *file= param->table->file;
   ha_rows rows;
   uint keynr= param->real_keynr[idx];
@@ -8772,7 +8772,7 @@ int QUICK_RANGE_SELECT::reset()
  
   if (sorted)
      mrr_flags |= HA_MRR_SORTED;
-  RANGE_SEQ_IF seq_funcs= {quick_range_seq_init, quick_range_seq_next};
+  RANGE_SEQ_IF seq_funcs= {quick_range_seq_init, quick_range_seq_next, 0};
   error= file->multi_range_read_init(&seq_funcs, (void*)this, ranges.elements,
                                      mrr_flags, mrr_buf_desc? mrr_buf_desc: 
                                                               &empty_buf);

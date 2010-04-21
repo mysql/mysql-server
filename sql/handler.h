@@ -1136,6 +1136,22 @@ typedef struct st_range_seq_if
       1 - No more ranges
   */
   uint (*next) (range_seq_t seq, KEY_MULTI_RANGE *range);
+
+  /*
+    Check whether range_info orders to skip the next record
+
+    SYNOPSIS
+      skip_record()
+        seq         The value returned by RANGE_SEQ_IF::init()
+        range_info  Information about the next range
+    
+    RETURN
+      0 - Record with this range_info will be returned by the next call
+          of multi_range_read_next()
+      1 - The record will be skipped
+  */ 
+  bool (*skip_record) (range_seq_t seq, char *range_info);
+ 
 } RANGE_SEQ_IF;
 
 uint16 &mrr_persistent_flag_storage(range_seq_t seq, uint idx);
@@ -1251,17 +1267,6 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   will not have NULL values.
 */
 #define HA_MRR_NO_NULL_ENDPOINTS 128
-
-/*
-  Flag set <=> We're running a first-match semi-join, and the accessed table
-  is the inner table.
-  MRR implementation may (but doesn't have to) interpret KEY_MULTI_RANGE::ptr
-  as char* need_no_more_matches, if "*need_no_more_matches=1" then the SQL
-  layer does not need any more records from this range.
-
-  HA_MRR_SEMI_JOIN cannot be used together with HA_MRR_NO_ASSOCIATION.
-*/
-#define HA_MRR_SEMI_JOIN 256
 
 class ha_statistics
 {
@@ -2332,12 +2337,6 @@ private:
 
   /* TRUE <=> need range association, buffer holds {rowid, range_id} pairs */
   bool is_mrr_assoc;
-
-  /*
-    TRUE <=> doing a first-match semi-join, check if we need any more records in
-    the scanned range
-  */
-  bool semi_join;
 
   bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
 public:

@@ -254,6 +254,104 @@ SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.P
   WHERE 
        Country.Population > 10000000;
 
+set join_cache_level=7;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+set join_cache_level=8;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+  FROM Country LEFT JOIN CountryLanguage ON
+       (CountryLanguage.Country=Country.Code AND Language='English')
+  WHERE 
+       Country.Population > 10000000;
+
 set join_buffer_size=256;
 show variables like 'join_buffer_size';
 
@@ -294,6 +392,78 @@ SELECT Name FROM City
         City.Population > 100000;
 
 set join_cache_level=6;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+set join_cache_level=7;
+show variables like 'join_cache_level';
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+SELECT City.Name, Country.Name, CountryLanguage.Language
+  FROM City,Country,CountryLanguage
+  WHERE City.Country=Country.Code AND
+        CountryLanguage.Country=Country.Code AND
+        City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+        CountryLanguage.Percentage > 50;
+
+EXPLAIN
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+SELECT Name FROM City
+  WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+        City.Population > 100000;
+
+set join_cache_level=8;
 show variables like 'join_cache_level';
 
 EXPLAIN
