@@ -7,8 +7,6 @@
 # (see corresponding cnf file)
 #
 --source include/check_ipv6.inc
-# Can't be tested with windows due to mixed format like 0::0000:FFFF:127.0.0.1
---source include/not_windows.inc
 --source include/have_log_bin.inc
 
 let $IPv6= ::1;
@@ -26,38 +24,6 @@ let $IPv6= 0000:0000:0000:0000:0000:0000:0000:0001;
 let $IPv6= 0:0:0:0:0:0:0:1;
 --echo #################### IP: $IPv6 ###########################
 --source include/rpl_ip_mix.inc
-
-let $IPv6= 127.0.0.1;
---echo #################### IP: $IPv6 ###########################
---source include/rpl_ip_mix.inc
-
-let $IPv6= 0:0:0:0:0:FFFF:127.0.0.1;
---echo #################### IP: $IPv6 ###########################
---source include/rpl_ip_mix.inc
-
-let $IPv6= 0000:0000:0000:0000:0000:FFFF:127.0.0.1;
---echo #################### IP: $IPv6 ###########################
---source include/rpl_ip_mix.inc
-
-let $IPv6= 0:0000:0000:0:0000:FFFF:127.0.0.1;
---echo #################### IP: $IPv6 ###########################
---source include/rpl_ip_mix.inc
-
-let $IPv6= 0::0000:FFFF:127.0.0.1;
---echo #################### IP: $IPv6 ###########################
---source include/rpl_ip_mix.inc
-
-#let $IPv6= 0:0:0:0:0:FFFF:127.0.0.1/96;
-#--echo #################### IP: $IPv6 ###########################
-#--source include/rpl_ip_mix.inc
-
-let $IPv6= ::FFFF:127.0.0.1;
---echo #################### IP: $IPv6 ###########################
---source include/rpl_ip_mix.inc
-
-#let $IPv6= ::FFFF:127.0.0.1/96;
-#--echo #################### IP: $IPv6 ###########################
-#--source include/rpl_ip_mix.inc
 
 let $IPv6= ::1;
 --echo #################### IP: $IPv6 mix #######################
@@ -78,7 +44,7 @@ let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 eval change master to master_host='$IPv6';
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --echo Master-Host: $master_host
-eval change master to master_host='::FFFF:127.0.0.1';
+eval change master to master_host='127.0.0.1';
 let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
 --echo Master-Host: $master_host
 eval change master to master_host='0:0:0:0:0:0:0:1';

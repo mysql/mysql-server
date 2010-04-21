@@ -382,7 +382,7 @@ let $slave_param_comparison= =;
 let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 # Flush logs every 0.1 second during 5 sec
 --disable_query_log
-let $i=50;
+let $i=100;
 while ($i) {
   FLUSH LOGS;
   dec $i;

@@ -68,7 +68,6 @@ void check_data_vol();
 void check_setup();
 void check_tables();
 void mysql_start(int, char *[]);
-void parse_setvar(char *arg);
 
 /******************************************************************************
 
@@ -330,8 +329,7 @@ void parse_args(int argc, char *argv[])
     OPT_ERR_LOG,
     OPT_SAFE_LOG,
     OPT_MYSQLD,
-    OPT_HELP,
-    OPT_SETVAR
+    OPT_HELP
   };
 
   static struct option options[]=
@@ -347,7 +345,6 @@ void parse_args(int argc, char *argv[])
     {"safe-log", required_argument, 0, OPT_SAFE_LOG},
     {"mysqld", required_argument, 0, OPT_MYSQLD},
     {"help", no_argument, 0, OPT_HELP},
-    {"set-variable", required_argument, 0, OPT_SETVAR},
     {0, 0, 0, 0}
   };
 
@@ -395,10 +392,6 @@ void parse_args(int argc, char *argv[])
       strcpy(mysqld, optarg);
       break;
 
-    case OPT_SETVAR:
-      parse_setvar(optarg);
-      break;
-
     case OPT_HELP:
       usage();
       break;
@@ -410,21 +403,6 @@ void parse_args(int argc, char *argv[])
   }
 }
 
-/*
-  parse_setvar(char *arg)
-  Pasrsing for port just to display the port num on the mysqld_safe screen
-*/
-void parse_setvar(char *arg)
-{
-  char *pos;
-
-  if ((pos= strindex(arg, "port")))
-  {
-    for (; *pos && *pos != '='; pos++);
-    if (*pos)
-      strcpy(port, pos + 1);
-  }
-}
 
 /******************************************************************************
 
@@ -589,10 +567,8 @@ void check_tables()
 	  add_arg(&al, "--force");
 	  add_arg(&al, "--fast");
 	  add_arg(&al, "--medium-check");
-	  add_arg(&al, "-O");
-	  add_arg(&al, "key_buffer=64M");
-	  add_arg(&al, "-O");
-	  add_arg(&al, "sort_buffer=64M");
+	  add_arg(&al, "--key_buffer=64M");
+	  add_arg(&al, "--sort_buffer=64M");
 	  add_arg(&al, table);
 
 	  spawn(mycheck, &al, TRUE, NULL, NULL, NULL);
@@ -611,8 +587,7 @@ void check_tables()
 	  add_arg(&al, mycheck);
 	  add_arg(&al, "--silent");
 	  add_arg(&al, "--force");
-	  add_arg(&al, "-O");
-	  add_arg(&al, "sort_buffer=64M");
+	  add_arg(&al, "--sort_buffer=64M");
 	  add_arg(&al, table);
 
 	  spawn(mycheck, &al, TRUE, NULL, NULL, NULL);

@@ -191,10 +191,11 @@ enum ha_extra_function {
   /* Inform handler that we will do a rename */
   HA_EXTRA_PREPARE_FOR_RENAME,
   /*
-    Orders MERGE handler to attach or detach its child tables. Used at
-    begin and end of a statement.
+    Special actions for MERGE tables.
   */
+  HA_EXTRA_ADD_CHILDREN_LIST,
   HA_EXTRA_ATTACH_CHILDREN,
+  HA_EXTRA_IS_ATTACHED_CHILDREN,
   HA_EXTRA_DETACH_CHILDREN
 };
 
@@ -272,6 +273,7 @@ enum ha_base_keytype {
 #define HA_SPACE_PACK_USED	 4	/* Test for if SPACE_PACK used */
 #define HA_VAR_LENGTH_KEY	 8
 #define HA_NULL_PART_KEY	 64
+#define HA_USES_COMMENT          4096
 #define HA_USES_PARSER           16384  /* Fulltext index uses [pre]parser */
 #define HA_USES_BLOCK_SIZE	 ((uint) 32768)
 #define HA_SORT_ALLOWS_SAME      512    /* Intern bit when sorting records */

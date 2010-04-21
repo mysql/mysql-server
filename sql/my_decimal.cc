@@ -110,7 +110,60 @@ int my_decimal2string(uint mask, const my_decimal *d,
                          &length, (int)fixed_prec, fixed_dec,
                          filler);
   str->length(length);
+  str->set_charset(&my_charset_numeric);
   return check_result(mask, result);
+}
+
+
+/**
+  @brief Converting decimal to string with character set conversion
+
+  @details Convert given my_decimal to String; allocate buffer as needed.
+
+  @param[in]   mask        what problems to warn on (mask of E_DEC_* values)
+  @param[in]   val         the decimal to print
+  @param[in]   fixed_prec  overall number of digits if ZEROFILL, 0 otherwise
+  @param[in]   fixed_dec   number of decimal places (if fixed_prec != 0)
+  @param[in]   filler      what char to pad with (ZEROFILL et al.)
+  @param[out]  *str        where to store the resulting string
+  @param[in]   cs          character set
+
+  @return error coce
+    @retval E_DEC_OK
+    @retval E_DEC_TRUNCATED
+    @retval E_DEC_OVERFLOW
+    @retval E_DEC_OOM
+
+  Would be great to make it a method of the String class,
+  but this would need to include
+  my_decimal.h from sql_string.h and sql_string.cc, which is not desirable.
+*/
+bool
+str_set_decimal(uint mask, const my_decimal *val,
+                uint fixed_prec, uint fixed_dec, char filler,
+                String *str, CHARSET_INFO *cs)
+{
+  if (!(cs->state & MY_CS_NONASCII))
+  {
+    /* For ASCII-compatible character sets we can use my_decimal2string */
+    my_decimal2string(mask, val, fixed_prec, fixed_dec, filler, str);
+    str->set_charset(cs);
+    return FALSE;
+  }
+  else
+  {
+    /*
+      For ASCII-incompatible character sets (like UCS2) we
+      call my_decimal2string() on a temporary buffer first,
+      and then convert the result to the target character
+      with help of str->copy().
+    */
+    uint errors;
+    char buf[DECIMAL_MAX_STR_LENGTH];
+    String tmp(buf, sizeof(buf), &my_charset_latin1);
+    my_decimal2string(mask, val, fixed_prec, fixed_dec, filler, &tmp);
+    return str->copy(tmp.ptr(), tmp.length(), &my_charset_latin1, cs, &errors);
+  }
 }
 
 

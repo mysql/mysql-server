@@ -1,21 +1,39 @@
 drop table if exists t1,t2;
 create table t1(n int);
 insert into t1 values (1);
-lock tables t1 write;
+select get_lock("mysqltest_lock", 100);
+get_lock("mysqltest_lock", 100)
+1
+update t1 set n = 2 and get_lock('mysqltest_lock', 100);
 update low_priority t1 set n = 4;
 select n from t1;
-unlock tables;
+select release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
+select release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
 n
 4
 drop table t1;
 create table t1(n int);
 insert into t1 values (1);
-lock tables t1 read;
+select get_lock("mysqltest_lock", 100);
+get_lock("mysqltest_lock", 100)
+1
+select n from t1 where get_lock('mysqltest_lock', 100);
 update low_priority t1 set n = 4;
 select n from t1;
 n
 1
-unlock tables;
+select release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
+n
+1
+select release_lock("mysqltest_lock");
+release_lock("mysqltest_lock")
+1
 drop table t1;
 create table t1 (a int, b int);
 create table t2 (c int, d int);
@@ -35,6 +53,7 @@ create table t2 (a int);
 lock table t1 write, t2 write;
 insert t1 select * from t2;
 drop table t2;
+unlock tables;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
 create table t1 (a int);
@@ -42,6 +61,7 @@ create table t2 (a int);
 lock table t1 write, t2 write, t1 as t1_2 write, t2 as t2_2 write;
 insert t1 select * from t2;
 drop table t2;
+unlock tables;
 ERROR 42S02: Table 'test.t2' doesn't exist
 drop table t1;
 End of 4.1 tests
@@ -72,9 +92,10 @@ CREATE TABLE t1 (c1 int);
 LOCK TABLE t1 WRITE;
 FLUSH TABLES WITH READ LOCK;
 CREATE TABLE t2 (c1 int);
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
 UNLOCK TABLES;
 UNLOCK TABLES;
-DROP TABLE t1, t2;
+DROP TABLE t1;
 CREATE TABLE t1 (c1 int);
 LOCK TABLE t1 WRITE;
 FLUSH TABLES WITH READ LOCK;
@@ -203,7 +224,7 @@ drop table if exists t1,t2;
 create table t1 (a int);
 flush status;
 lock tables t1 read;
-insert into t1 values(1);;
+insert into t1 values(1);
 unlock tables;
 drop table t1;
 select @tlwa < @tlwb;
@@ -219,3 +240,239 @@ flush tables with read lock;;
 connection: default
 flush tables;
 drop table t1;
+#
+# Test for bug #46272 "MySQL 5.4.4, new MDL: unnecessary deadlock".
+#
+drop table if exists t1;
+create table t1 (c1 int primary key, c2 int, c3 int);
+insert into t1 values (1,1,0),(2,2,0),(3,3,0),(4,4,0),(5,5,0);
+begin;
+update t1 set c3=c3+1 where c2=3;
+#
+# Switching to connection 'con46272'.
+# The below ALTER TABLE statement should wait till transaction
+# in connection 'default' is complete and then succeed.
+# It should not deadlock or fail with ER_LOCK_DEADLOCK error.
+# Sending:
+alter table t1 add column c4 int;;
+#
+# Switching to connection 'default'.
+# Wait until the above ALTER TABLE gets blocked because this
+# connection holds SW metadata lock on table to be altered.
+# The below statement should succeed. It should not
+# deadlock or end with ER_LOCK_DEADLOCK error.
+update t1 set c3=c3+1 where c2=4;
+# Unblock ALTER TABLE by committing transaction.
+commit;
+#
+# Switching to connection 'con46272'.
+# Reaping ALTER TABLE.
+#
+# Switching to connection 'default'.
+drop table t1;
+#
+# Bug#47249 assert in MDL_global_lock::is_lock_type_compatible
+#
+DROP TABLE IF EXISTS t1;
+DROP VIEW  IF EXISTS v1;
+#
+# Test 1: LOCK TABLES v1 WRITE, t1 READ;
+#
+# Thanks to the fact that we no longer allow DDL on tables
+# which are locked for write implicitly, the exact scenario
+# in which assert was failing is no longer repeatable.
+CREATE TABLE t1 ( f1 integer );
+CREATE VIEW v1 AS SELECT f1 FROM t1 ;
+LOCK TABLES v1 WRITE, t1 READ;
+FLUSH TABLE t1;
+ERROR HY000: Table 't1' was locked with a READ lock and can't be updated
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP VIEW v1;
+#
+# Test 2: LOCK TABLES t1 WRITE, v1 READ;
+#
+CREATE TABLE t1 ( f1 integer );
+CREATE VIEW v1 AS SELECT f1 FROM t1 ;
+# Connection 2
+LOCK TABLES t1 WRITE, v1 READ;
+FLUSH TABLE t1;
+# Connection 1
+LOCK TABLES t1 WRITE;
+FLUSH TABLE t1;
+DROP TABLE t1;
+DROP VIEW v1;
+#
+# Test for bug #50913 "Deadlock between open_and_lock_tables_derived
+# and MDL". Also see additional coverage in mdl_sync.test.
+# 
+drop table if exists t1;
+drop view if exists v1;
+create table t1 (i int);
+create view v1 as select i from t1;
+begin;
+select * from t1;
+i
+# Switching to connection 'con50913'.
+# Sending:
+alter table t1 add column j int;
+# Switching to connection 'default'.
+# Wait until ALTER TABLE gets blocked.
+# The below statement should try to acquire SW lock on 't1'
+# and therefore should get ER_LOCK_DEADLOCK error. Before
+# bug fix it acquired SR lock and hung on thr_lock.c lock.
+delete a from t1 as a where i = 1;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Unblock ALTER TABLE.
+commit;
+# Switching to connection 'con50913'.
+# Reaping ALTER TABLE;
+# Switching to connection 'default'.
+begin;
+select * from v1;
+i
+# Switching to connection 'con50913'.
+# Sending:
+alter table t1 drop column j;
+# Switching to connection 'default'.
+# Wait until ALTER TABLE gets blocked.
+# The below statement should try to acquire SW lock on 't1'
+# and therefore should get ER_LOCK_DEADLOCK error. Before
+# bug fix it acquired SR lock and hung on thr_lock.c lock.
+insert into v1 values (1);
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+# Unblock ALTER TABLE.
+commit;
+# Switching to connection 'con50913'.
+# Reaping ALTER TABLE;
+# Switching to connection 'default'.
+drop view v1;
+drop table t1;
+#
+# Bug#45225 Locking: hang if drop table with no timeout
+#
+# These tests also provide function coverage for the
+# lock_wait_timeout server variable.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id int);
+SET SESSION lock_wait_timeout= 1;
+#
+# Test 1: acquire exclusive lock
+#
+# Connection default
+START TRANSACTION;
+INSERT INTO t1 VALUES (1);
+# Connection 2
+DROP TABLE t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+COMMIT;
+#
+# Test 2: upgrade shared lock
+#
+# Connection default
+START TRANSACTION;
+SELECT * FROM t1;
+id
+1
+# Connection 2
+ALTER TABLE t1 RENAME TO t2;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+COMMIT;
+#
+# Test 3: acquire shared lock
+#
+# Connection default
+LOCK TABLE t1 WRITE;
+# Connection 2
+INSERT INTO t1(id) VALUES (2);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+UNLOCK TABLES;
+#
+# Test 4: table level locks
+#
+# Connection default
+LOCK TABLE t1 READ;
+# Connection 2
+INSERT INTO t1(id) VALUES(4);
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+UNLOCK TABLES;
+#
+# Test 5: Waiting on Table Definition Cache (TDC)
+#
+# Connection default
+LOCK TABLE t1 READ;
+# Connection con3
+# Sending:
+FLUSH TABLES;
+# Connection con2
+SELECT * FROM t1;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+# Connection default
+UNLOCK TABLES;
+# Connection con3
+# Reaping: FLUSH TABLES
+#
+# Test 6: Timeouts in I_S queries
+#
+# Connection default
+CREATE TABLE t2 (id INT);
+LOCK TABLE t2 WRITE;
+# Connection con3
+# Sending:
+DROP TABLE t1, t2;
+# Connection con2
+SELECT table_name, table_comment FROM information_schema.tables
+WHERE table_schema= 'test' AND table_name= 't1';
+table_name	table_comment
+t1	Lock wait timeout exceeded; try restarting transaction
+# Connection default
+UNLOCK TABLES;
+# Connection con3
+# Reaping: DROP TABLE t1, t2
+# Connection default
+# Cleanup
+#
+# Test for bug #51134 "Crash in MDL_lock::destroy on a concurrent
+#                      DDL workload".
+#
+drop tables if exists t1, t2, t3;
+create table t3 (i int);
+# Switching to connection 'con1'
+# Lock 't3' so upcoming RENAME is blocked.
+lock table t3 read;
+# Switching to connection 'con2'
+# Remember ID for this connection.
+# Start statement which will try to acquire two instances
+# of X metadata lock on the same object.
+# Sending:
+rename tables t1 to t2, t2 to t3;;
+# Switching to connection 'default'
+# Wait until RENAME TABLE is blocked on table 't3'.
+# Kill RENAME TABLE.
+kill query ID;
+# Switching to connection 'con2'
+# RENAME TABLE should be aborted but should not crash.
+ERROR 70100: Query execution was interrupted
+# Switching to connection 'con1'
+unlock tables;
+# Switching to connection 'default'
+drop table t3;
+# 
+# Test for the bug where upgradable metadata locks was acquired
+# even if the table to altered was temporary.
+# Bug found while working on the related bug #51240.
+#
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (id INT);
+LOCK TABLE t1 WRITE;
+# Connection con1
+CREATE TEMPORARY TABLE t1 (id INT);
+ALTER TABLE t1 ADD COLUMN j INT;
+# Connection default
+UNLOCK TABLES;
+DROP TABLE t1;

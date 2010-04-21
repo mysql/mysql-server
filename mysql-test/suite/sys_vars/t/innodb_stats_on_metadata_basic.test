@@ -1,0 +1,70 @@
+
+
+# 2010-01-25 - Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_stats_on_metadata;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are 'ON' and 'OFF' 
+select @@global.innodb_stats_on_metadata in (0, 1);
+select @@global.innodb_stats_on_metadata;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_stats_on_metadata;
+show global variables like 'innodb_stats_on_metadata';
+show session variables like 'innodb_stats_on_metadata';
+select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+
+#
+# show that it's writable
+#
+set global innodb_stats_on_metadata='OFF';
+select @@global.innodb_stats_on_metadata;
+select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+set @@global.innodb_stats_on_metadata=1;
+select @@global.innodb_stats_on_metadata;
+select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+set global innodb_stats_on_metadata=0;
+select @@global.innodb_stats_on_metadata;
+select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+set @@global.innodb_stats_on_metadata='ON';
+select @@global.innodb_stats_on_metadata;
+select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+--error ER_GLOBAL_VARIABLE
+set session innodb_stats_on_metadata='OFF';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_stats_on_metadata='ON';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_stats_on_metadata=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_stats_on_metadata=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_stats_on_metadata=2;
+--echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+set global innodb_stats_on_metadata=-3;
+select @@global.innodb_stats_on_metadata;
+select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
+select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_stats_on_metadata='AUTO';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_stats_on_metadata = @start_global_value;
+SELECT @@global.innodb_stats_on_metadata;

@@ -24,6 +24,7 @@ INSTALL(
  PATTERN "mtr.out*" EXCLUDE
  PATTERN ".cvsignore" EXCLUDE
  PATTERN "*.am" EXCLUDE
+ PATTERN "*.in" EXCLUDE
 )
 
 
@@ -46,7 +47,8 @@ IF(UNIX)
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   ) 
   INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/mtr 
-          ${CMAKE_CURRENT_BINARY_DIR}/mysql-test-run DESTINATION mysql-test)
+          ${CMAKE_CURRENT_BINARY_DIR}/mysql-test-run
+          DESTINATION ${INSTALL_MYSQLTESTDIR})
 ENDIF()
 
 IF(CMAKE_GENERATOR MATCHES "Visual Studio")
@@ -64,12 +66,6 @@ ELSE()
 ENDIF()
 
 
-ADD_CUSTOM_TARGET(test-force
-  COMMAND ${SETCONFIG_COMMAND}
-  COMMAND ${SETOS_COMMAND}
-  COMMAND perl mysql-test-run.pl --force
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-)
 
 SET(EXP --experimental=collections/default.experimental)
 IF(WIN32)
@@ -100,6 +96,11 @@ SET(TEST_BT_START
   COMMAND ${SET_ENV} MTR_BUILD_THREAD=auto
 )
 
+ADD_CUSTOM_TARGET(test-force
+  ${TEST_BT_START}
+  COMMAND ${MTR_FORCE}
+)
+
 ADD_CUSTOM_TARGET(test-bt
   ${TEST_BT_START}
   COMMAND ${MTR_FORCE} --comment=normal --timer  --skip-ndbcluster --report-features ${EXP}
@@ -123,5 +124,4 @@ ADD_CUSTOM_TARGET(test-bt-debug
   ${TEST_BT_START}
   COMMAND ${MTR_FORCE} --comment=debug --timer  --skip-ndbcluster --skip-rpl --report-features ${EXP}
 )
-
 

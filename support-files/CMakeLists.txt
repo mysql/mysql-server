@@ -29,29 +29,35 @@ ELSE()
   SET(CXXFLAGS ${CMAKE_CXX_FLAGS})
   SET(MYSQLD_USER "mysql")
   SET(ini_file_extension "cnf")
+  SET(HOSTNAME "hostname")
+ENDIF()
+
+# XXX: shouldn't we just have variables for all this stuff and centralise
+# XXX: their configuration in install_layout.cmake?
+IF(WIN32)
+  SET(inst_location ${INSTALL_DOCREADMEDIR})
+ELSE()
+  SET(inst_location ${INSTALL_SUPPORTFILESDIR})
 ENDIF()
 
 FOREACH(inifile my-huge my-innodb-heavy-4G my-large my-medium my-small)
   CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${inifile}.cnf.sh 
                  ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension} @ONLY)
-  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension} DESTINATION 
-  ${INSTALL_DOCREADMEDIR} COMPONENT IniFiles)
-
+  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension}
+          DESTINATION ${inst_location} COMPONENT IniFiles)
 ENDFOREACH()
 
 IF(UNIX)
+  # XXX: again, used elsewhere (scripts/), should be standardised in
+  # XXX: install_layout.cmake
   IF(INSTALL_LAYOUT MATCHES "STANDALONE")
     SET(prefix ".")
-    SET(inst_location ${INSTALL_SUPPORTFILESDIR})
   ELSE()
     SET(prefix ${CMAKE_INSTALL_PREFIX})
-    SET(inst_location ${INSTALL_MYSQLSHAREDIR})
   ENDIF()
-
-  FILE(GLOB ndb_ini_files ${CMAKE_CURRENT_SOURCE_DIR}/*.ini)
-  INSTALL(FILES ${ndb_ini_files}  DESTINATION  ${inst_location})
-
-  FOREACH(script  mysqld_multi.server mysql-log-rotate)
+ 
+  FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure
+    config.medium.ini config.small.ini config.huge.ini ndb-config-2-node.ini)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
                    ${CMAKE_CURRENT_BINARY_DIR}/${script} @ONLY )
 

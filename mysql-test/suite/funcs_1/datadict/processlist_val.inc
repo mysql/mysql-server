@@ -367,13 +367,13 @@ echo
 ;
 connection default;
 echo
-# Poll till INFO is no more NULL and State = 'Locked'.
+# Poll till INFO is no more NULL and State = 'Waiting for table'.
 ;
 let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
-        WHERE INFO IS NOT NULL AND STATE = 'Locked';
+        WHERE INFO IS NOT NULL AND STATE = 'Waiting for table';
 --source include/wait_condition.inc
 #
-# Expect to see the state 'Locked' for the third connection because the SELECT
+# Expect to see the state 'Waiting for table' for the third connection because the SELECT
 # collides with the WRITE TABLE LOCK.
 --replace_column 1 <ID> 3 <HOST_NAME> 6 <TIME>
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
@@ -422,10 +422,10 @@ echo
 ;
 connection default;
 echo
-# Poll till INFO is no more NULL and State = 'Locked'.
+# Poll till INFO is no more NULL and State = 'Waiting for table'.
 ;
 let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
-        WHERE INFO IS NOT NULL AND STATE = 'Locked';
+        WHERE INFO IS NOT NULL AND STATE = 'Waiting for table';
 --source include/wait_condition.inc
 echo
 # Expect result:

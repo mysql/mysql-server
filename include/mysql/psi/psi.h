@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (C) 2008-2010 Sun Microsystems, Inc
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -614,6 +614,9 @@ typedef void (*set_thread_v1_t)(struct PSI_thread *thread);
 /** Delete the current thread instrumentation. */
 typedef void (*delete_current_thread_v1_t)(void);
 
+/** Delete a thread instrumentation. */
+typedef void (*delete_thread_v1_t)(struct PSI_thread *thread);
+
 /**
   Get a mutex instrumentation locker.
   @param mutex the instrumented mutex to lock
@@ -890,6 +893,8 @@ struct PSI_v1
   set_thread_v1_t set_thread;
   /** @sa delete_current_thread_v1_t. */
   delete_current_thread_v1_t delete_current_thread;
+  /** @sa delete_thread_v1_t. */
+  delete_thread_v1_t delete_thread;
   /** @sa get_thread_mutex_locker_v1_t. */
   get_thread_mutex_locker_v1_t get_thread_mutex_locker;
   /** @sa get_thread_rwlock_locker_v1_t. */

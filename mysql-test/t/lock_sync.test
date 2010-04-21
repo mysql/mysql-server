@@ -4,6 +4,10 @@
 --source include/have_debug_sync.inc
 # We need InnoDB to be able use TL_WRITE_ALLOW_WRITE type of locks in our tests.
 --source include/have_innodb.inc
+# The test for Bug#50821 requires binary logging turned on.
+# With binary logging on, sub-queries in DML statements acquire
+# TL_READ_NO_INSERT which was needed to reproduce this deadlock bug.
+--source include/have_log_bin.inc
 # Until bug#41971 'Thread state on embedded server is always "Writing to net"'
 # is fixed this test can't be run on embedded version of server.
 --source include/not_embedded.inc
@@ -19,8 +23,16 @@
 --echo # (TL_WRITE_ALLOW_WRITE) on several instances of the same table and
 --echo # statements which tried to acquire stronger write lock (TL_WRITE,
 --echo # TL_WRITE_ALLOW_READ) on this table might have led to deadlock.
+#
+# Suppress warnings for INSERTs that use get_lock().
+#
+disable_query_log;
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+enable_query_log;
+
 --disable_warnings
 drop table if exists t1;
+drop view if exists v1;
 --enable_warnings
 --echo # Create auxiliary connections used through the test.
 connect (con_bug45143_1,localhost,root,,test,,);
@@ -35,6 +47,9 @@ set @old_general_log = @@global.general_log;
 set @@global.general_log= OFF;
 
 create table t1 (i int) engine=InnoDB;
+--echo # We have to use view in order to make LOCK TABLES avoid
+--echo # acquiring SNRW metadata lock on table.
+create view v1 as select * from t1;
 insert into t1 values (1);
 --echo # Prepare user lock which will be used for resuming execution of
 --echo # the first statement after it acquires TL_WRITE_ALLOW_WRITE lock.
@@ -65,14 +80,14 @@ connection con_bug45143_3;
 --echo # acquiring lock for the the first instance of 't1'.
 set debug_sync= 'now WAIT_FOR parked';
 --echo # Send LOCK TABLE statement which will try to get TL_WRITE lock on 't1':
---send lock table t1 write;
+--send lock table v1 write;
 
 --echo # Switch to connection 'default'.
 connection default;
 --echo # Wait until this LOCK TABLES statement starts waiting for table lock.
 let $wait_condition= select count(*)= 1 from information_schema.processlist
-                       where state= 'Locked' and
-                             info='lock table t1 write';
+                       where state= 'Table lock' and
+                             info='lock table v1 write';
 --source include/wait_condition.inc
 --echo # Allow SELECT ... FOR UPDATE to resume.
 --echo # Since it already has TL_WRITE_ALLOW_WRITE lock on the first instance
@@ -94,7 +109,13 @@ select release_lock("lock_bug45143_wait");
 --echo # Switch to connection 'con_bug45143_1'.
 connection con_bug45143_1;
 --echo # Reap INSERT statement.
+--echo # In Statement and Mixed replication mode we get here "Unsafe 
+--echo # for binlog" warnings. In row mode there are no warnings.
+--echo # Hide the discrepancy.
+--disable_warnings
 --reap
+--enable_warnings
+
 
 --echo # Switch to connection 'con_bug45143_3'.
 connection con_bug45143_3;
@@ -110,7 +131,51 @@ disconnect con_bug45143_2;
 disconnect con_bug45143_3;
 set debug_sync= 'RESET';
 set @@global.general_log= @old_general_log;
+drop view v1;
 drop table t1;
+
+
+--echo #
+--echo # Bug#50821 Deadlock between LOCK TABLES and ALTER TABLE
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE TABLE t1(id INT);
+CREATE TABLE t2(id INT);
+
+--echo # Connection con2
+connect (con2, localhost, root);
+START TRANSACTION;
+SELECT * FROM t1;
+
+--echo # Connection default
+connection default;
+--echo # Sending:
+--send ALTER TABLE t1 ADD COLUMN j INT
+
+--echo # Connection con2
+connection con2;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM information_schema.processlist
+  WHERE state = "Waiting for table" 
+  AND info = "ALTER TABLE t1 ADD COLUMN j INT";
+--source include/wait_condition.inc
+
+--echo # This used to cause a deadlock.
+INSERT INTO t2 SELECT * FROM t1;
+
+COMMIT;
+
+--echo # Connection default
+connection default;
+--echo # Reaping ALTER TABLE t1 ADD COLUMN j INT
+--reap
+
+DROP TABLE t1, t2;
+disconnect con2;
 
 
 # Check that all connections opened by test cases in this file are really

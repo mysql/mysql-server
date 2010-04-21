@@ -3267,7 +3267,44 @@ DROP PROCEDURE p2;
 
 ###########################################################################
 
---echo
---echo End of 6.0 tests.
+
+--echo #
+--echo # WL#4284: Transactional DDL locking
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (a INT);
+BEGIN;
+SELECT * FROM t1;
+--echo # Test that preparing a CREATE TABLE does not take a exclusive metdata lock.
+PREPARE stmt1 FROM "CREATE TABLE t1 AS SELECT 1";
+--error ER_TABLE_EXISTS_ERROR
+EXECUTE stmt1;
+DEALLOCATE PREPARE stmt1;
+DROP TABLE t1;
+
+--echo #
+--echo # WL#4284: Transactional DDL locking
+--echo #
+--echo # Test that metadata locks taken during prepare are released.
+--echo #
+
+connect(con1,localhost,root,,);
+connection default;
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+CREATE TABLE t1 (a INT);
+connection con1;
+BEGIN;
+PREPARE stmt1 FROM "SELECT * FROM t1";
+connection default;
+DROP TABLE t1;
+disconnect con1;
+
+--echo #
+--echo # End of 6.0 tests.
 
 ###########################################################################

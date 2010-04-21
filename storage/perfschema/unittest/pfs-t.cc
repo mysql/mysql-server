@@ -37,14 +37,25 @@ PFS_file* lookup_file_by_name(const char* name)
   uint i;
   PFS_file *pfs;
   uint len= strlen(name);
+  size_t dirlen;
+  const char *filename;
+  uint filename_length;;
 
   for (i= 0; i < file_max; i++)
   {
     pfs= & file_array[i];
     if (pfs->m_lock.is_populated())
     {
-      if ((len == pfs->m_filename_length) &&
-          (strncmp(name, pfs->m_filename, pfs->m_filename_length) == 0))
+      /*
+        When a file "foo" is instrumented, the name is normalized
+        to "/path/to/current/directory/foo", so we remove the
+        directory name here to find it back.
+      */
+      dirlen= dirname_length(pfs->m_filename);
+      filename= pfs->m_filename + dirlen;
+      filename_length= pfs->m_filename_length - dirlen;
+      if ((len == filename_length) &&
+          (strncmp(name, filename, filename_length) == 0))
         return pfs;
     }
   }

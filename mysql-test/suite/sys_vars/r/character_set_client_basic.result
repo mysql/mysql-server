@@ -162,8 +162,16 @@ SET @@character_set_client = utf8;
 SELECT @@character_set_client;
 @@character_set_client
 utf8
+SET @@character_set_client = utf8mb4;
+SELECT @@character_set_client;
+@@character_set_client
+utf8mb4
 SET @@character_set_client = ucs2;
 ERROR 42000: Variable 'character_set_client' can't be set to the value of 'ucs2'
+SET @@character_set_client = utf16;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'utf16'
+SET @@character_set_client = utf32;
+ERROR 42000: Variable 'character_set_client' can't be set to the value of 'utf32'
 SET @@character_set_client = cp866;
 SELECT @@character_set_client;
 @@character_set_client
@@ -422,7 +430,7 @@ ERROR 42000: Unknown character set: '100'
 SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
 SELECT @total_charset;
 @total_charset
-36
+39
 '#--------------------FN_DYNVARS_010_10-------------------------#'
 SET @@character_set_client = abc;
 ERROR 42000: Unknown character set: 'abc'

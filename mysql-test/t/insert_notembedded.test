@@ -174,7 +174,7 @@ connection default;
 # we must wait till the insert opens and locks the table
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where state = "Locked" and id = $ID;
+  where state = "Table lock" and id = $ID;
 --source include/wait_condition.inc
 connect (select,localhost,root,,);
 --echo connection: select

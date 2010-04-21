@@ -68,21 +68,21 @@ longblob_col	longblob	NULL	NO		NULL		#
 options	enum('one','two','tree')	latin1_swedish_ci	NO	MUL	NULL		#	
 flags	set('one','two','tree')	latin1_swedish_ci	NO				#	
 show keys from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	auto	A	0	NULL	NULL		BTREE	
-t1	1	utiny	1	utiny	A	NULL	NULL	NULL		BTREE	
-t1	1	tiny	1	tiny	A	NULL	NULL	NULL		BTREE	
-t1	1	short	1	short	A	NULL	NULL	NULL		BTREE	
-t1	1	any_name	1	medium	A	NULL	NULL	NULL		BTREE	
-t1	1	longlong	1	longlong	A	NULL	NULL	NULL		BTREE	
-t1	1	real_float	1	real_float	A	NULL	NULL	NULL		BTREE	
-t1	1	ushort	1	ushort	A	NULL	NULL	NULL		BTREE	
-t1	1	umedium	1	umedium	A	NULL	NULL	NULL		BTREE	
-t1	1	ulong	1	ulong	A	NULL	NULL	NULL		BTREE	
-t1	1	ulonglong	1	ulonglong	A	NULL	NULL	NULL		BTREE	
-t1	1	ulonglong	2	ulong	A	NULL	NULL	NULL		BTREE	
-t1	1	options	1	options	A	NULL	NULL	NULL		BTREE	
-t1	1	options	2	flags	A	NULL	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	auto	A	0	NULL	NULL		BTREE		
+t1	1	utiny	1	utiny	A	NULL	NULL	NULL		BTREE		
+t1	1	tiny	1	tiny	A	NULL	NULL	NULL		BTREE		
+t1	1	short	1	short	A	NULL	NULL	NULL		BTREE		
+t1	1	any_name	1	medium	A	NULL	NULL	NULL		BTREE		
+t1	1	longlong	1	longlong	A	NULL	NULL	NULL		BTREE		
+t1	1	real_float	1	real_float	A	NULL	NULL	NULL		BTREE		
+t1	1	ushort	1	ushort	A	NULL	NULL	NULL		BTREE		
+t1	1	umedium	1	umedium	A	NULL	NULL	NULL		BTREE		
+t1	1	ulong	1	ulong	A	NULL	NULL	NULL		BTREE		
+t1	1	ulonglong	1	ulonglong	A	NULL	NULL	NULL		BTREE		
+t1	1	ulonglong	2	ulong	A	NULL	NULL	NULL		BTREE		
+t1	1	options	1	options	A	NULL	NULL	NULL		BTREE		
+t1	1	options	2	flags	A	NULL	NULL	NULL		BTREE		
 CREATE UNIQUE INDEX test on t1 ( auto ) ;
 CREATE INDEX test2 on t1 ( ulonglong,ulong) ;
 CREATE INDEX test3 on t1 ( medium ) ;
@@ -271,7 +271,7 @@ drop table t2;
 create table t2 (primary key (auto)) select auto+1 as auto,1 as t1, 'a' as t2, repeat('a',256) as t3, binary repeat('b',256) as t4, repeat('a',4096) as t5, binary repeat('b',4096) as t6, '' as t7, binary '' as t8 from t1;
 show full columns from t2;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
-auto	bigint(12) unsigned	NULL	NO	PRI	0		#	
+auto	int(6) unsigned	NULL	NO	PRI	0		#	
 t1	int(1)	NULL	NO		0		#	
 t2	varchar(1)	latin1_swedish_ci	NO				#	
 t3	varchar(256)	latin1_swedish_ci	NO				#	

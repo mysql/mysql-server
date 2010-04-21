@@ -152,6 +152,10 @@ SELECT * from t1;
 CONNECTION test_con2;
 SELECT * from t1;
 
+--echo ## Commit changes
+CONNECTION test_con1;
+COMMIT;
+
 --echo ## Dropping table t1 ##
 DROP table t1;
 

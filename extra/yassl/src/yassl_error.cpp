@@ -55,7 +55,7 @@ Library Error::get_lib() const
 */
 
 
-void SetErrorString(YasslError error, char* buffer)
+void SetErrorString(unsigned long error, char* buffer)
 {
     using namespace TaoCrypt;
     const int max = MAX_ERROR_SZ;  // shorthand

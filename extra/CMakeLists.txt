@@ -68,7 +68,7 @@ IF(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 ENDIF()
 
 
-ADD_EXECUTABLE(replace replace.c)
+MYSQL_ADD_EXECUTABLE(replace replace.c)
 TARGET_LINK_LIBRARIES(replace mysys)
 IF(UNIX)
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.c)

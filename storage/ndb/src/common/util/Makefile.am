@@ -37,7 +37,7 @@ testBitmask_LDFLAGS = @ndb_bin_am_ldflags@ \
 
 testBitmask.cpp : Bitmask.cpp
 	rm -f testBitmask.cpp
-	@LN_CP_F@ Bitmask.cpp testBitmask.cpp
+	@LN_CP_F@ $(srcdir)/Bitmask.cpp testBitmask.cpp
 
 testBitmask.o:	$(testBitmask_SOURCES)
 		$(CXXCOMPILE) -c $(INCLUDES) -D__TEST_BITMASK__ $<

@@ -1854,16 +1854,15 @@ connect (b,localhost,root,,);
 connection a;
 create table t1(a int not null, b int, c int, d int, primary key(a)) engine=innodb;
 insert into t1(a) values (1),(2),(3);
+delimiter |;
+create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
+delimiter ;|
 commit;
 connection b;
 set autocommit = 0;
 update t1 set b = 5 where a = 2;
 connection a;
-delimiter |;
-create trigger t1t before insert on t1 for each row begin set NEW.b = NEW.a * 10 + 5, NEW.c = NEW.a / 10; end |
-delimiter ;|
 set autocommit = 0;
-connection a;
 insert into t1(a) values (10),(20),(30),(40),(50),(60),(70),(80),(90),(100),
 (11),(21),(31),(41),(51),(61),(71),(81),(91),(101),
 (12),(22),(32),(42),(52),(62),(72),(82),(92),(102),
@@ -1927,6 +1926,9 @@ insert into t2(a) values(8);
 delete from t2 where a = 3;
 update t4 set b = b + 1 where a = 3;
 commit;
+connection a;
+commit;
+connection b;
 drop trigger t1t;
 drop trigger t2t;
 drop trigger t3t;

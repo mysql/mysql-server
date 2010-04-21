@@ -83,7 +83,6 @@ multiple read locks.
 
 my_bool thr_lock_inited=0;
 ulong locks_immediate = 0L, locks_waited = 0L;
-ulong table_lock_wait_timeout;
 enum thr_lock_type thr_upgraded_concurrent_insert_lock = TL_WRITE;
 
 /* The following constants are only for debug output */
@@ -389,13 +388,13 @@ static void wake_up_waiters(THR_LOCK *lock);
 
 static enum enum_thr_lock_result
 wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
-              my_bool in_wait_list)
+              my_bool in_wait_list, ulong lock_wait_timeout)
 {
   struct st_my_thread_var *thread_var= my_thread_var;
   mysql_cond_t *cond= &thread_var->suspend;
   struct timespec wait_timeout;
   enum enum_thr_lock_result result= THR_LOCK_ABORTED;
-  my_bool can_deadlock= test(data->owner->info->n_cursors);
+  const char *old_proc_info;
   DBUG_ENTER("wait_for_lock");
 
   /*
@@ -434,14 +433,13 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_cond=  cond;
   data->cond= cond;
 
-  if (can_deadlock)
-    set_timespec(wait_timeout, table_lock_wait_timeout);
+  old_proc_info= proc_info_hook(NULL, "Table lock",
+                                __func__, __FILE__, __LINE__);
+
+  set_timespec(wait_timeout, lock_wait_timeout);
   while (!thread_var->abort || in_wait_list)
   {
-    int rc= (can_deadlock ?
-             mysql_cond_timedwait(cond, &data->lock->mutex,
-                                  &wait_timeout) :
-             mysql_cond_wait(cond, &data->lock->mutex));
+    int rc= mysql_cond_timedwait(cond, &data->lock->mutex, &wait_timeout);
     /*
       We must break the wait if one of the following occurs:
       - the connection has been aborted (!thread_var->abort), but
@@ -504,13 +502,16 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   thread_var->current_mutex= 0;
   thread_var->current_cond=  0;
   mysql_mutex_unlock(&thread_var->mutex);
+
+  proc_info_hook(NULL, old_proc_info, __func__, __FILE__, __LINE__);
+
   DBUG_RETURN(result);
 }
 
 
 enum enum_thr_lock_result
 thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
-         enum thr_lock_type lock_type)
+         enum thr_lock_type lock_type, ulong lock_wait_timeout)
 {
   THR_LOCK *lock=data->lock;
   enum enum_thr_lock_result result= THR_LOCK_SUCCESS;
@@ -533,13 +534,31 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
     /* Request for READ lock */
     if (lock->write.data)
     {
-      /* We can allow a read lock even if there is already a write lock
-	 on the table in one the following cases:
-	 - This thread alread have a write lock on the table
-	 - The write lock is TL_WRITE_ALLOW_READ or TL_WRITE_DELAYED
-           and the read lock is TL_READ_HIGH_PRIORITY or TL_READ
-         - The write lock is TL_WRITE_CONCURRENT_INSERT or TL_WRITE_ALLOW_WRITE
-	   and the read lock is not TL_READ_NO_INSERT
+      /*
+        We can allow a read lock even if there is already a
+        write lock on the table if they are owned by the same
+        thread or if they satisfy the following lock
+        compatibility matrix:
+
+           Request
+          /-------
+         H|++++  WRITE_ALLOW_WRITE
+         e|++++  WRITE_ALLOW_READ
+         l|+++-  WRITE_CONCURRENT_INSERT
+         d|++++  WRITE_DELAYED
+           ||||
+           |||\= READ_NO_INSERT
+           ||\ = READ_HIGH_PRIORITY
+           |\  = READ_WITH_SHARED_LOCKS
+           \   = READ
+
+        + = Request can be satisified.
+        - = Request cannot be satisified.
+
+        READ_NO_INSERT and WRITE_ALLOW_WRITE should in principle
+        be incompatible. However this will cause starvation of
+        LOCK TABLE READ in InnoDB under high write load.
+        See Bug#42147 for more information.
       */
 
       DBUG_PRINT("lock",("write locked 1 by thread: 0x%lx",
@@ -547,8 +566,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
       if (thr_lock_owner_equal(data->owner, lock->write.data->owner) ||
 	  (lock->write.data->type <= TL_WRITE_DELAYED &&
 	   (((int) lock_type <= (int) TL_READ_HIGH_PRIORITY) ||
-	    (lock->write.data->type != TL_WRITE_CONCURRENT_INSERT &&
-	     lock->write.data->type != TL_WRITE_ALLOW_READ))))
+	    (lock->write.data->type != TL_WRITE_CONCURRENT_INSERT))))
       {						/* Already got a write lock */
 	(*lock->read.last)=data;		/* Add to running FIFO */
 	data->prev=lock->read.last;
@@ -631,6 +649,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
     {
       if (lock->write.data->type == TL_WRITE_ONLY)
       {
+        /* purecov: begin tested */
         /* Allow lock owner to bypass TL_WRITE_ONLY. */
         if (!thr_lock_owner_equal(data->owner, lock->write.data->owner))
         {
@@ -639,6 +658,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
           result= THR_LOCK_ABORTED;               /* Can't wait for this one */
           goto end;
         }
+        /* purecov: end */
       }
 
       /*
@@ -647,14 +667,23 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
         write locks are of TL_WRITE_ALLOW_WRITE type.
 
         Note that, since lock requests for the same table are sorted in
-        such way that requests with higher thr_lock_type value come first,
-        lock being requested usually has equal or "weaker" type than one
-        which thread might have already acquired.
-        The exceptions are situations when:
-          - old lock type is TL_WRITE_ALLOW_READ and new lock type is
-            TL_WRITE_ALLOW_WRITE
-          - when old lock type is TL_WRITE_DELAYED
-        But these should never happen within MySQL.
+        such way that requests with higher thr_lock_type value come first
+        (with one exception (*)), lock being requested usually (**) has
+        equal or "weaker" type than one which thread might have already
+        acquired.
+        *)  The only exception to this rule is case when type of old lock
+            is TL_WRITE_LOW_PRIORITY and type of new lock is changed inside
+            of thr_lock() from TL_WRITE_CONCURRENT_INSERT to TL_WRITE since
+            engine turns out to be not supporting concurrent inserts.
+            Note that since TL_WRITE has the same compatibility rules as
+            TL_WRITE_LOW_PRIORITY (their only difference is priority),
+            it is OK to grant new lock without additional checks in such
+            situation.
+        **) The exceptions are situations when:
+            - old lock type is TL_WRITE_ALLOW_READ and new lock type is
+              TL_WRITE_ALLOW_WRITE
+            - when old lock type is TL_WRITE_DELAYED
+            But these should never happen within MySQL.
         Therefore it is OK to allow acquiring write lock on the table if
         this thread already holds some write lock on it.
 
@@ -663,7 +692,9 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
         different types of write lock on the same table).
       */
       DBUG_ASSERT(! has_old_lock(lock->write.data, data->owner) ||
-                  (lock_type <= lock->write.data->type &&
+                  ((lock_type <= lock->write.data->type ||
+                    (lock_type == TL_WRITE &&
+                     lock->write.data->type == TL_WRITE_LOW_PRIORITY)) &&
                    ! ((lock_type < TL_WRITE_ALLOW_READ &&
                        lock->write.data->type == TL_WRITE_ALLOW_READ) ||
                      lock->write.data->type == TL_WRITE_DELAYED)));
@@ -745,7 +776,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_OWNER *owner,
     goto end;
   }
   /* Can't get lock yet;  Wait for it */
-  DBUG_RETURN(wait_for_lock(wait_queue, data, 0));
+  DBUG_RETURN(wait_for_lock(wait_queue, data, 0, lock_wait_timeout));
 end:
   mysql_mutex_unlock(&lock->mutex);
   DBUG_RETURN(result);
@@ -1004,7 +1035,8 @@ static void sort_locks(THR_LOCK_DATA **data,uint count)
 
 
 enum enum_thr_lock_result
-thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
+thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner,
+               ulong lock_wait_timeout)
 {
   THR_LOCK_DATA **pos,**end;
   DBUG_ENTER("thr_multi_lock");
@@ -1014,7 +1046,8 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
   /* lock everything */
   for (pos=data,end=data+count; pos < end ; pos++)
   {
-    enum enum_thr_lock_result result= thr_lock(*pos, owner, (*pos)->type);
+    enum enum_thr_lock_result result= thr_lock(*pos, owner, (*pos)->type,
+                                               lock_wait_timeout);
     if (result != THR_LOCK_SUCCESS)
     {						/* Aborted */
       thr_multi_unlock(data,(uint) (pos-data));
@@ -1026,12 +1059,43 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
 	   (long) pos[0]->lock, pos[0]->type); fflush(stdout);
 #endif
   }
-  /*
-    Ensure that all get_locks() have the same status
-    If we lock the same table multiple times, we must use the same
-    status_param!
-  */
+  thr_lock_merge_status(data, count);
+  DBUG_RETURN(THR_LOCK_SUCCESS);
+}
+
+
+/**
+  Ensure that all locks for a given table have the same
+  status_param.
+
+  This is a MyISAM and possibly Maria specific crutch. MyISAM
+  engine stores data file length, record count and other table
+  properties in status_param member of handler. When a table is
+  locked, connection-local copy is made from a global copy
+  (myisam_share) by mi_get_status(). When a table is unlocked,
+  the changed status is transferred back to the global share by
+  mi_update_status().
+
+  One thing MyISAM doesn't do is to ensure that when the same
+  table is opened twice in a connection all instances share the
+  same status_param. This is necessary, however: for one, to keep
+  all instances of a connection "on the same page" with regard to
+  the current state of the table. For other, unless this is done,
+  myisam_share will always get updated from the last unlocked
+  instance (in mi_update_status()), and when this instance was not
+  the one that was used to update data, records may be lost.
+
+  For each table, this function looks up the last lock_data in the
+  list of acquired locks, and makes sure that all other instances
+  share status_param with it.
+*/
+
+void
+thr_lock_merge_status(THR_LOCK_DATA **data, uint count)
+{
 #if !defined(DONT_USE_RW_LOCKS)
+  THR_LOCK_DATA **pos= data;
+  THR_LOCK_DATA **end= data + count;
   if (count > 1)
   {
     THR_LOCK_DATA *last_lock= end[-1];
@@ -1073,7 +1137,6 @@ thr_multi_lock(THR_LOCK_DATA **data, uint count, THR_LOCK_OWNER *owner)
     } while (pos != data);
   }
 #endif
-  DBUG_RETURN(THR_LOCK_SUCCESS);
 }
 
   /* free all locks */
@@ -1405,7 +1468,8 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
 /* Upgrade a WRITE_DELAY lock to a WRITE_LOCK */
 
 my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data,
-                                     enum thr_lock_type new_lock_type)
+                                     enum thr_lock_type new_lock_type,
+                                     ulong lock_wait_timeout)
 {
   THR_LOCK *lock=data->lock;
   DBUG_ENTER("thr_upgrade_write_delay_lock");
@@ -1448,13 +1512,14 @@ my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data,
   {
     check_locks(lock,"waiting for lock",0);
   }
-  DBUG_RETURN(wait_for_lock(&lock->write_wait,data,1));
+  DBUG_RETURN(wait_for_lock(&lock->write_wait,data,1, lock_wait_timeout));
 }
 
 
 /* downgrade a WRITE lock to a WRITE_DELAY lock if there is pending locks */
 
-my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data)
+my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data,
+                                  ulong lock_wait_timeout)
 {
   THR_LOCK *lock=data->lock;
   enum thr_lock_type write_lock_type;
@@ -1486,7 +1551,8 @@ my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data)
   free_all_read_locks(lock,0);
 
   mysql_mutex_unlock(&lock->mutex);
-  DBUG_RETURN(thr_upgrade_write_delay_lock(data, write_lock_type));
+  DBUG_RETURN(thr_upgrade_write_delay_lock(data, write_lock_type,
+                                           lock_wait_timeout));
 }
 
 

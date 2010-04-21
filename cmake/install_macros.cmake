@@ -112,27 +112,26 @@ ENDFUNCTION()
 # Install symbolic link to CMake target. 
 # the link is created in the same directory as target
 # and extension will be the same as for target file.
-MACRO(INSTALL_SYMLINK linkbasename target destination component)
+MACRO(INSTALL_SYMLINK linkname target destination component)
 IF(UNIX)
   GET_TARGET_PROPERTY(location ${target} LOCATION)
   GET_FILENAME_COMPONENT(path ${location} PATH)
-  GET_FILENAME_COMPONENT(name_we ${location} NAME_WE)
-  GET_FILENAME_COMPONENT(ext ${location} EXT)
-  SET(output ${path}/${linkbasename}${ext})
+  GET_FILENAME_COMPONENT(name ${location} NAME)
+  SET(output ${path}/${linkname})
   ADD_CUSTOM_COMMAND(
     OUTPUT ${output}
     COMMAND ${CMAKE_COMMAND} ARGS -E remove -f ${output}
     COMMAND ${CMAKE_COMMAND} ARGS -E create_symlink 
-      ${name_we}${ext} 
-      ${linkbasename}${ext}
+      ${name} 
+      ${linkname}
     WORKING_DIRECTORY ${path}
     DEPENDS ${target}
     )
   
-  ADD_CUSTOM_TARGET(symlink_${linkbasename}${ext}
+  ADD_CUSTOM_TARGET(symlink_${linkname}
     ALL
     DEPENDS ${output})
-  SET_TARGET_PROPERTIES(symlink_${linkbasename}${ext} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+  SET_TARGET_PROPERTIES(symlink_${linkname} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
   IF(CMAKE_GENERATOR MATCHES "Xcode")
     # For Xcode, replace project config with install config
     STRING(REPLACE "${CMAKE_CFG_INTDIR}" 
@@ -240,5 +239,86 @@ FUNCTION(MYSQL_INSTALL_TARGETS)
   SET(INSTALL_LOCATION ${ARG_DESTINATION} )
   INSTALL_DEBUG_SYMBOLS("${TARGETS}")
   SET(INSTALL_LOCATION)
+ENDFUNCTION()
+
+# Optionally install mysqld/client/embedded from debug build run. outside of the current build dir 
+# (unless multi-config generator is used like Visual Studio or Xcode). 
+# For Makefile generators we default Debug build directory to ${buildroot}/../debug.
+GET_FILENAME_COMPONENT(BINARY_PARENTDIR ${CMAKE_BINARY_DIR} PATH)
+SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL "Directory of debug build")
+
+
+FUNCTION(INSTALL_DEBUG_TARGET target)
+ CMAKE_PARSE_ARGUMENTS(ARG
+  "DESTINATION;RENAME"
+  ""
+  ${ARGN}
+  )
+  GET_TARGET_PROPERTY(target_type ${target} TYPE)
+  IF(ARG_RENAME)
+    SET(RENAME_PARAM RENAME ${ARG_RENAME}${CMAKE_${target_type}_SUFFIX})
+  ELSE()
+    SET(RENAME_PARAM)
+  ENDIF()
+  IF(NOT ARG_DESTINATION)
+    MESSAGE(FATAL_ERROR "Need DESTINATION parameter for INSTALL_DEBUG_TARGET")
+  ENDIF()
+  GET_TARGET_PROPERTY(target_location ${target} LOCATION)
+  IF(CMAKE_GENERATOR MATCHES "Makefiles")
+   STRING(REPLACE "${CMAKE_BINARY_DIR}" "${DEBUGBUILDDIR}"  debug_target_location "${target_location}")
+  ELSE()
+   STRING(REPLACE "${CMAKE_CFG_INTDIR}" "Debug"  debug_target_location "${target_location}" )
+  ENDIF()
+  
+  # Define permissions
+  # For executable files
+  SET(PERMISSIONS_EXECUTABLE
+      PERMISSIONS
+      OWNER_READ OWNER_WRITE OWNER_EXECUTE
+      GROUP_READ GROUP_EXECUTE
+      WORLD_READ WORLD_EXECUTE)
+
+  # Permissions for shared library (honors CMAKE_INSTALL_NO_EXE which is 
+  # typically set on Debian)
+  IF(CMAKE_INSTALL_SO_NO_EXE)
+    SET(PERMISSIONS_SHARED_LIBRARY
+      PERMISSIONS
+      OWNER_READ OWNER_WRITE 
+      GROUP_READ
+      WORLD_READ)
+  ELSE()
+    SET(PERMISSIONS_SHARED_LIBRARY ${PERMISSIONS_EXECUTABLE})
+  ENDIF()
+
+  # Shared modules get the same permissions as shared libraries
+  SET(PERMISSIONS_MODULE_LIBRARY ${PERMISSIONS_SHARED_LIBRARY})
+
+  #  Define permissions for static library
+  SET(PERMISSIONS_STATIC_LIBRARY
+      PERMISSIONS
+      OWNER_READ OWNER_WRITE 
+      GROUP_READ
+      WORLD_READ)
+
+  INSTALL(FILES ${debug_target_location}
+    DESTINATION ${ARG_DESTINATION}
+    ${RENAME_PARAM}
+    ${PERMISSIONS_${target_type}}
+    CONFIGURATIONS Release RelWithDebInfo
+    OPTIONAL)
+
+  IF(MSVC)
+    GET_FILENAME_COMPONENT(ext ${debug_target_location} EXT)
+    STRING(REPLACE "${ext}" ".pdb"  debug_pdb_target_location "${debug_target_location}" )
+    IF(RENAME_PARAM)
+      STRING(REPLACE "${ext}" ".pdb"  "${ARG_RENAME}" pdb_rename)
+      SET(PDB_RENAME_PARAM RENAME ${pdb_rename})
+    ENDIF()
+    INSTALL(FILES ${debug_pdb_target_location}
+      DESTINATION ${ARG_DESTINATION}
+      ${RPDB_RENAME_PARAM}
+      CONFIGURATIONS Release RelWithDebInfo
+      OPTIONAL)
+  ENDIF()
 ENDFUNCTION()
 

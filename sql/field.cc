@@ -1779,11 +1779,10 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
   uint store_length;
   copy->str=ptr;
   copy->length=pack_length();
-  copy->blob_field=0;
+  copy->field= this;
   if (flags & BLOB_FLAG)
   {
-    copy->blob_field=(Field_blob*) this;
-    copy->strip=0;
+    copy->type= CACHE_BLOB;
     copy->length-= table->s->blob_ptr_size;
     return copy->length;
   }
@@ -1791,15 +1790,15 @@ uint Field::fill_cache_field(CACHE_FIELD *copy)
            (type() == MYSQL_TYPE_STRING && copy->length >= 4 &&
             copy->length < 256))
   {
-    copy->strip=1;				/* Remove end space */
+    copy->type= CACHE_STRIPPED;
     store_length= 2;
   }
   else
   {
-    copy->strip=0;
+    copy->type= 0;
     store_length= 0;
   }
-  return copy->length+ store_length;
+  return copy->length + store_length;
 }
 
 
@@ -1808,7 +1807,7 @@ bool Field::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_datetime_with_warn(res->ptr(), res->length(),
+      str_to_datetime_with_warn(res->charset(), res->ptr(), res->length(),
                                 ltime, fuzzydate) <= MYSQL_TIMESTAMP_ERROR)
     return 1;
   return 0;
@@ -1819,7 +1818,7 @@ bool Field::get_time(MYSQL_TIME *ltime)
   char buff[40];
   String tmp(buff,sizeof(buff),&my_charset_bin),*res;
   if (!(res=val_str(&tmp)) ||
-      str_to_time_with_warn(res->ptr(), res->length(), ltime))
+      str_to_time_with_warn(res->charset(), res->ptr(), res->length(), ltime))
     return 1;
   return 0;
 }
@@ -1836,7 +1835,9 @@ int Field::store_time(MYSQL_TIME *ltime, timestamp_type type_arg)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   char buff[MAX_DATE_STRING_REP_LENGTH];
   uint length= (uint) my_TIME_to_str(ltime, buff);
-  return store(buff, length, &my_charset_bin);
+  /* Avoid conversion when field character set is ASCII compatible */
+  return store(buff, length, (charset()->state & MY_CS_NONASCII) ?
+                              &my_charset_latin1 : charset());
 }
 
 
@@ -2428,7 +2429,7 @@ String *Field_decimal::val_str(String *val_buffer __attribute__((unused)),
   size_t tmp_length;
 
   for (str=ptr ; *str == ' ' ; str++) ;
-  val_ptr->set_charset(&my_charset_bin);
+  val_ptr->set_charset(&my_charset_numeric);
   tmp_length= (size_t) (str-ptr);
   if (field_length < tmp_length)		// Error in data
     val_ptr->length(0);
@@ -2558,7 +2559,7 @@ Field *Field_new_decimal::create_from_item (Item *item)
 {
   uint8 dec= item->decimals;
   uint8 intg= item->decimal_precision() - dec;
-  uint32 len= item->max_length;
+  uint32 len= item->max_char_length();
 
   DBUG_ASSERT (item->result_type() == DECIMAL_RESULT);
 
@@ -2850,6 +2851,7 @@ String *Field_new_decimal::val_str(String *val_buffer,
   uint fixed_precision= zerofill ? precision : 0;
   my_decimal2string(E_DEC_FATAL_ERROR, val_decimal(&decimal_value),
                     fixed_precision, dec, '0', val_buffer);
+  val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
@@ -3121,7 +3123,7 @@ String *Field_tiny::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,5*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3137,6 +3139,7 @@ String *Field_tiny::val_str(String *val_buffer,
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
+  val_buffer->set_charset(cs);
   return val_buffer;
 }
 
@@ -3333,7 +3336,7 @@ String *Field_short::val_str(String *val_buffer,
 			     String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,7*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3354,6 +3357,7 @@ String *Field_short::val_str(String *val_buffer,
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
+  val_buffer->set_charset(cs);
   return val_buffer;
 }
 
@@ -3550,7 +3554,7 @@ String *Field_medium::val_str(String *val_buffer,
 			      String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,10*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3561,6 +3565,7 @@ String *Field_medium::val_str(String *val_buffer,
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer); /* purecov: inspected */
+  val_buffer->set_charset(cs);
   return val_buffer;
 }
 
@@ -3769,7 +3774,7 @@ String *Field_long::val_str(String *val_buffer,
 			    String *val_ptr __attribute__((unused)))
 {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  CHARSET_INFO *cs= &my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,12*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -3789,6 +3794,7 @@ String *Field_long::val_str(String *val_buffer,
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
+  val_buffer->set_charset(cs);
   return val_buffer;
 }
 
@@ -4010,7 +4016,7 @@ longlong Field_longlong::val_int(void)
 String *Field_longlong::val_str(String *val_buffer,
 				String *val_ptr __attribute__((unused)))
 {
-  CHARSET_INFO *cs= &my_charset_bin;
+  CHARSET_INFO *cs= &my_charset_numeric;
   uint length;
   uint mlength=max(field_length+1,22*cs->mbmaxlen);
   val_buffer->alloc(mlength);
@@ -4028,6 +4034,7 @@ String *Field_longlong::val_str(String *val_buffer,
   val_buffer->length(length);
   if (zerofill)
     prepend_zeros(val_buffer);
+  val_buffer->set_charset(cs);
   return val_buffer;
 }
 
@@ -4254,6 +4261,7 @@ String *Field_float::val_str(String *val_buffer,
   val_buffer->length((uint) len);
   if (zerofill)
     prepend_zeros(val_buffer);
+  val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
@@ -4564,6 +4572,7 @@ String *Field_double::val_str(String *val_buffer,
   val_buffer->length((uint) len);
   if (zerofill)
     prepend_zeros(val_buffer);
+  val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
@@ -4698,7 +4707,7 @@ Field_timestamp::Field_timestamp(uchar *ptr_arg, uint32 len_arg,
 	     unireg_check_arg, field_name_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
-  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | BINARY_FLAG;
   if (!share->timestamp_field && unireg_check != NONE)
   {
     /* This timestamp has auto-update */
@@ -4718,7 +4727,7 @@ Field_timestamp::Field_timestamp(bool maybe_null_arg,
 	     NONE, field_name_arg, cs)
 {
   /* For 4.0 MYD and 4.0 InnoDB compatibility */
-  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG;
+  flags|= ZEROFILL_FLAG | UNSIGNED_FLAG | BINARY_FLAG;
     if (unireg_check != TIMESTAMP_DN_FIELD)
       flags|= ON_UPDATE_NOW_FLAG;
 }
@@ -4770,7 +4779,7 @@ int Field_timestamp::store(const char *from,uint len,CHARSET_INFO *cs)
   THD *thd= table ? table->in_use : current_thd;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
-  have_smth_to_conv= (str_to_datetime(from, len, &l_time,
+  have_smth_to_conv= (str_to_datetime(cs, from, len, &l_time,
                                       (thd->variables.sql_mode &
                                        MODE_NO_ZERO_DATE) |
                                       MODE_NO_ZERO_IN_DATE, &error) >
@@ -4919,10 +4928,10 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
 
   if (temp == 0L)
   {				      /* Zero time is "000000" */
-    val_ptr->set(STRING_WITH_LEN("0000-00-00 00:00:00"), &my_charset_bin);
+    val_ptr->set(STRING_WITH_LEN("0000-00-00 00:00:00"), &my_charset_numeric);
     return val_ptr;
   }
-  val_buffer->set_charset(&my_charset_bin);	// Safety
+  val_buffer->set_charset(&my_charset_numeric);	// Safety
   
   thd->variables.time_zone->gmt_sec_to_TIME(&time_tmp,(my_time_t)temp);
 
@@ -4966,6 +4975,7 @@ String *Field_timestamp::val_str(String *val_buffer, String *val_ptr)
   *to++= (char) ('0'+(char) (temp2));
   *to++= (char) ('0'+(char) (temp));
   *to= 0;
+  val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
@@ -5076,7 +5086,7 @@ int Field_time::store(const char *from,uint len,CHARSET_INFO *cs)
   int error= 0;
   int warning;
 
-  if (str_to_time(from, len, &ltime, &warning))
+  if (str_to_time(cs, from, len, &ltime, &warning))
   {
     tmp=0L;
     error= 2;
@@ -5235,6 +5245,7 @@ String *Field_time::val_str(String *val_buffer,
   ltime.minute= (uint) (tmp/100 % 100);
   ltime.second= (uint) (tmp % 100);
   make_time((DATE_TIME_FORMAT*) 0, &ltime, val_buffer);
+  val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
@@ -5432,6 +5443,7 @@ String *Field_year::val_str(String *val_buffer,
   val_buffer->length(field_length);
   char *to=(char*) val_buffer->ptr();
   sprintf(to,field_length == 2 ? "%02d" : "%04d",(int) Field_year::val_int());
+  val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
@@ -5459,7 +5471,7 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
   int error;
   THD *thd= table ? table->in_use : current_thd;
 
-  if (str_to_datetime(from, len, &l_time, TIME_FUZZY_DATE |
+  if (str_to_datetime(cs, from, len, &l_time, TIME_FUZZY_DATE |
                       (thd->variables.sql_mode &
                        (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                         MODE_INVALID_DATES)),
@@ -5606,6 +5618,7 @@ String *Field_date::val_str(String *val_buffer,
   ltime.month= (int) ((uint32) tmp/100 % 100);
   ltime.day= (int) ((uint32) tmp % 100);
   make_date((DATE_TIME_FORMAT *) 0, &ltime, val_buffer);
+  val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
@@ -5695,7 +5708,7 @@ int Field_newdate::store(const char *from,uint len,CHARSET_INFO *cs)
   int error;
   THD *thd= table ? table->in_use : current_thd;
   enum enum_mysql_timestamp_type ret;
-  if ((ret= str_to_datetime(from, len, &l_time,
+  if ((ret= str_to_datetime(cs, from, len, &l_time,
                             (TIME_FUZZY_DATE |
                              (thd->variables.sql_mode &
                               (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
@@ -5867,6 +5880,7 @@ String *Field_newdate::val_str(String *val_buffer,
   *pos--= (char) ('0'+part%10); part/=10;
   *pos--= (char) ('0'+part%10); part/=10;
   *pos=   (char) ('0'+part);
+  val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
@@ -5929,7 +5943,7 @@ int Field_datetime::store(const char *from,uint len,CHARSET_INFO *cs)
   enum enum_mysql_timestamp_type func_res;
   THD *thd= table ? table->in_use : current_thd;
 
-  func_res= str_to_datetime(from, len, &time_tmp,
+  func_res= str_to_datetime(cs, from, len, &time_tmp,
                             (TIME_FUZZY_DATE |
                              (thd->variables.sql_mode &
                               (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
@@ -6129,6 +6143,7 @@ String *Field_datetime::val_str(String *val_buffer,
   *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
   *pos--= (char) ('0'+(char) (part3%10)); part3/=10;
   *pos=(char) ('0'+(char) part3);
+  val_buffer->set_charset(&my_charset_numeric);
   return val_buffer;
 }
 
@@ -6370,7 +6385,7 @@ int Field_str::store(double nr)
     else
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
   }
-  return store(buff, length, charset());
+  return store(buff, length, &my_charset_numeric);
 }
 
 
@@ -6405,7 +6420,7 @@ int Field_string::store(longlong nr, bool unsigned_val)
 int Field_longstr::store_decimal(const my_decimal *d)
 {
   char buff[DECIMAL_MAX_STR_LENGTH+1];
-  String str(buff, sizeof(buff), &my_charset_bin);
+  String str(buff, sizeof(buff), &my_charset_numeric);
   my_decimal2string(E_DEC_FATAL_ERROR, d, 0, 0, 0, &str);
   return store(str.ptr(), str.length(), str.charset());
 }
@@ -6598,8 +6613,20 @@ uchar *Field_string::pack(uchar *to, const uchar *from,
     local_char_length= my_charpos(field_charset, from, from+length,
                                   local_char_length);
   set_if_smaller(length, local_char_length);
-  while (length && from[length-1] == field_charset->pad_char)
-    length--;
+ 
+  /*
+     TODO: change charset interface to add a new function that does 
+           the following or add a flag to lengthsp to do it itself 
+           (this is for not packing padding adding bytes in BINARY 
+           fields).
+  */
+  if (field_charset->mbmaxlen == 1)
+  {
+    while (length && from[length-1] == field_charset->pad_char)
+      length --;
+  }
+  else
+    length= field_charset->cset->lengthsp(field_charset, (const char*) from, length);
 
   // Length always stored little-endian
   *to++= (uchar) length;
@@ -6665,7 +6692,7 @@ Field_string::unpack(uchar *to,
 
   memcpy(to, from, length);
   // Pad the string with the pad character of the fields charset
-  bfill(to + length, field_length - length, field_charset->pad_char);
+  field_charset->cset->fill(field_charset, (char*) to + length, field_length - length, field_charset->pad_char);
   return from+length;
 }
 
@@ -9565,8 +9592,8 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   case MYSQL_TYPE_TIME:
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
-    charset= &my_charset_bin;
-    flags|= BINCMP_FLAG;
+    charset= &my_charset_numeric;
+    flags|= BINARY_FLAG;
   default: break;
   }
 
@@ -9682,7 +9709,7 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
   case MYSQL_TYPE_TIME:
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
-    field_charset= &my_charset_bin;
+    field_charset= &my_charset_numeric;
   default: break;
   }
 

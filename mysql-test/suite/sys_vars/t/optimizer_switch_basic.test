@@ -1,3 +1,8 @@
+
+#
+# 2010-01-20 OBN Added check for I_S values after variable value changed
+#
+
 SET @start_global_value = @@global.optimizer_switch;
 SELECT @start_global_value;
 
@@ -15,13 +20,17 @@ select * from information_schema.session_variables where variable_name='optimize
 # show that it's writable
 #
 set global optimizer_switch=10;
-select @@global.optimizer_switch;
 set session optimizer_switch=5;
+select @@global.optimizer_switch;
 select @@session.optimizer_switch;
 set global optimizer_switch="index_merge_sort_union=on";
-select @@global.optimizer_switch;
 set session optimizer_switch="index_merge=off";
+select @@global.optimizer_switch;
 select @@session.optimizer_switch;
+show global variables like 'optimizer_switch';
+show session variables like 'optimizer_switch';
+select * from information_schema.global_variables where variable_name='optimizer_switch';
+select * from information_schema.session_variables where variable_name='optimizer_switch';
 set session optimizer_switch="default";
 select @@session.optimizer_switch;
 

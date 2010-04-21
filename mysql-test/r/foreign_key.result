@@ -13,3 +13,45 @@ foreign key (a,b) references t3 (c,d) on update set null);
 create index a on t1 (a);
 create unique index b on t1 (a,b);
 drop table t1;
+drop table if exists t_34455;
+create table t_34455 (
+a int not null,
+foreign key (a) references t3 (a) match full match partial);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'match partial)' at line 3
+create table t_34455 (
+a int not null,
+foreign key (a) references t3 (a) on delete set default match full);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'match full)' at line 3
+create table t_34455 (
+a int not null,
+foreign key (a) references t3 (a) on update set default match full);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'match full)' at line 3
+create table t_34455 (
+a int not null,
+foreign key (a) references t3 (a)
+on delete set default on delete set default);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'delete set default)' at line 4
+create table t_34455 (
+a int not null,
+foreign key (a) references t3 (a)
+on update set default on update set default);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'update set default)' at line 4
+create table t_34455 (a int not null);
+alter table t_34455
+add foreign key (a) references t3 (a) match full match partial);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'match partial)' at line 2
+alter table t_34455
+add foreign key (a) references t3 (a) on delete set default match full);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'match full)' at line 2
+alter table t_34455
+add foreign key (a) references t3 (a) on update set default match full);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'match full)' at line 2
+alter table t_34455
+add foreign key (a) references t3 (a)
+on delete set default on delete set default);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'delete set default)' at line 3
+alter table t_34455
+add foreign key (a) references t3 (a)
+on update set default on update set default);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'update set default)' at line 3
+drop table t_34455;

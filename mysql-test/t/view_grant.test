@@ -1047,9 +1047,9 @@ GRANT SELECT ON db26813.t1 TO u26813@localhost;
 
 connect (u1,localhost,u26813,,db26813);
 connection u1;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR 
 ALTER VIEW v1 AS SELECT f2 FROM t1;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--error ER_TABLEACCESS_DENIED_ERROR
 ALTER VIEW v2 AS SELECT f2 FROM t1;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 ALTER VIEW v3 AS SELECT f2 FROM t1;
@@ -1532,3 +1532,17 @@ SELECT a FROM v2;
 --disconnect mysqluser1
 DROP USER mysqluser1;
 DROP DATABASE mysqltest1;
+USE test;
+
+--echo #
+--echo # Bug#47734: Assertion failed: ! is_set() when locking a view with non-existing definer
+--echo #
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE DEFINER=`unknown`@`unknown` SQL SECURITY DEFINER VIEW v1 AS SELECT 1;
+--error ER_NO_SUCH_USER
+LOCK TABLES v1 READ;
+DROP VIEW v1;

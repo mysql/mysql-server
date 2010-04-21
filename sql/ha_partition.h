@@ -945,7 +945,7 @@ private:
     if(table_share->tmp_table == NO_TMP_TABLE)
     {
       auto_increment_lock= TRUE;
-      mysql_mutex_lock(&table_share->mutex);
+      mysql_mutex_lock(&table_share->LOCK_ha_data);
     }
   }
   virtual void unlock_auto_increment()
@@ -958,7 +958,7 @@ private:
     */
     if(auto_increment_lock && !auto_increment_safe_stmt_log_lock)
     {
-      mysql_mutex_unlock(&table_share->mutex);
+      mysql_mutex_unlock(&table_share->LOCK_ha_data);
       auto_increment_lock= FALSE;
     }
   }

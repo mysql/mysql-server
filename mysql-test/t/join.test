@@ -804,3 +804,28 @@ DEALLOCATE PREPARE stmt;
 
 DROP VIEW v1;
 DROP TABLE t1, t2;
+
+#
+# Bug#45195 valgrind warnings about uninitialized values in store_record_in_cache()
+#
+CREATE TABLE t1(a CHAR(9),b INT,KEY(b),KEY(a)) ENGINE=MYISAM;
+CREATE TABLE t2(a CHAR(9),b INT,KEY(b),KEY(a)) ENGINE=MYISAM;
+INSERT INTO t1 VALUES ('1',null),(null,null);
+INSERT INTO t2 VALUES ('1',null),(null,null);
+CREATE TABLE mm1(a CHAR(9),b INT,KEY(b),KEY(a))
+ENGINE=MERGE  UNION=(t1,t2);
+SELECT t1.a FROM mm1,t1;
+DROP TABLE t1, t2, mm1;
+
+--echo #
+--echo # Bug #50335: Assertion `!(order->used & map)' in eq_ref_table
+--echo # 
+
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b));
+INSERT INTO t1 VALUES (0,0), (1,1);
+
+SELECT * FROM t1 STRAIGHT_JOIN t1 t2 ON t1.a=t2.a AND t1.a=t2.b ORDER BY t2.a, t1.a;
+
+DROP TABLE t1;
+
+--echo End of 5.1 tests

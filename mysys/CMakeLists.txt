@@ -42,7 +42,7 @@ IF (WIN32)
  SET (MYSYS_SOURCES ${MYSYS_SOURCES} my_winthread.c my_wincond.c my_winerr.c my_winfile.c my_windac.c my_conio.c)
 ENDIF()
 
-IF(CMAKE_COMPILER_IS_GNUCC AND  NOT HAVE_CXX_NEW)
+IF(NOT HAVE_CXX_NEW)
  # gcc as C++ compiler  does not have new/delete
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_new.cc)
  ADD_DEFINITIONS( -DUSE_MYSYS_NEW)

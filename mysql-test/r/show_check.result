@@ -73,10 +73,11 @@ def	information_schema	STATISTICS	STATISTICS	PACKED	Packed	253	10	0	Y	0	0	8
 def	information_schema	STATISTICS	STATISTICS	NULLABLE	Null	253	3	0	N	1	0	8
 def	information_schema	STATISTICS	STATISTICS	INDEX_TYPE	Index_type	253	16	5	N	1	0	8
 def	information_schema	STATISTICS	STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	8
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE	
-t1	1	b	1	b	A	1	NULL	NULL		BTREE	
-t1	1	b	2	c	A	5	NULL	NULL		BTREE	
+def	information_schema	STATISTICS	STATISTICS	INDEX_COMMENT	Index_comment	253	1024	0	N	1	0	8
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	a	A	5	NULL	NULL		BTREE		
+t1	1	b	1	b	A	1	NULL	NULL		BTREE		
+t1	1	b	2	c	A	5	NULL	NULL		BTREE		
 insert into t1 values (5,5,5);
 ERROR 23000: Duplicate entry '5' for key 'PRIMARY'
 -- Here we enable metadata just to check that the collation of the
@@ -133,7 +134,7 @@ def	information_schema	TABLES	TABLES	CHECK_TIME	Check_time	12	19	0	Y	128	0	63
 def	information_schema	TABLES	TABLES	TABLE_COLLATION	Collation	253	32	0	Y	0	0	8
 def	information_schema	TABLES	TABLES	CHECKSUM	Checksum	8	21	0	Y	32800	0	63
 def	information_schema	TABLES	TABLES	CREATE_OPTIONS	Create_options	253	255	0	Y	0	0	8
-def	information_schema	TABLES	TABLES	TABLE_COMMENT	Comment	253	80	0	N	1	0	8
+def	information_schema	TABLES	TABLES	TABLE_COMMENT	Comment	253	2048	0	N	1	0	8
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 show databases;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -163,11 +164,11 @@ def					Msg_text	253	255	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE	
-t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE	
-t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE	
-t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE		
+t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE		
+t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE		
+t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE		
 -- Here we enable metadata just to check that the collation of the
 -- resultset is non-binary for string type. This should be changed
 -- after Bug#29394 is implemented.
@@ -180,11 +181,11 @@ def					Msg_text	253	255	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 show index from t1;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE	
-t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE	
-t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE	
-t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	f1	A	1	NULL	NULL		BTREE		
+t1	0	PRIMARY	2	f2	A	3	NULL	NULL		BTREE		
+t1	0	PRIMARY	3	f3	A	9	NULL	NULL		BTREE		
+t1	0	PRIMARY	4	f4	A	18	NULL	NULL		BTREE		
 drop table t1;
 create temporary table t1 (a int not null);
 show create table t1;
@@ -639,8 +640,9 @@ def	information_schema	STATISTICS	STATISTICS	PACKED	Packed	253	10	0	Y	0	0	63
 def	information_schema	STATISTICS	STATISTICS	NULLABLE	Null	253	3	0	N	1	0	63
 def	information_schema	STATISTICS	STATISTICS	INDEX_TYPE	Index_type	253	16	5	N	1	0	63
 def	information_schema	STATISTICS	STATISTICS	COMMENT	Comment	253	16	0	Y	0	0	63
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	field1	A	0	1000	NULL		BTREE	
+def	information_schema	STATISTICS	STATISTICS	INDEX_COMMENT	Index_comment	253	1024	0	N	1	0	63
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	field1	A	0	1000	NULL		BTREE		
 drop table t1;
 create table t1 (
 c1 int NOT NULL,
@@ -904,8 +906,9 @@ def	information_schema	STATISTICS	STATISTICS	PACKED	Packed	253	30	0	Y	0	0	33
 def	information_schema	STATISTICS	STATISTICS	NULLABLE	Null	253	9	0	N	1	0	33
 def	information_schema	STATISTICS	STATISTICS	INDEX_TYPE	Index_type	253	48	5	N	1	0	33
 def	information_schema	STATISTICS	STATISTICS	COMMENT	Comment	253	48	0	Y	0	0	33
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t1	0	PRIMARY	1	c	A	0	NULL	NULL		BTREE	
+def	information_schema	STATISTICS	STATISTICS	INDEX_COMMENT	Index_comment	253	3072	0	N	1	0	33
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t1	0	PRIMARY	1	c	A	0	NULL	NULL		BTREE		
 ----------------------------------------------------------------
 SELECT
 TABLE_CATALOG,
@@ -928,7 +931,7 @@ def	information_schema	TABLES	TABLES	ENGINE	ENGINE	253	192	6	Y	0	0	33
 def	information_schema	TABLES	TABLES	ROW_FORMAT	ROW_FORMAT	253	30	5	Y	0	0	33
 def	information_schema	TABLES	TABLES	TABLE_COLLATION	TABLE_COLLATION	253	96	17	Y	0	0	33
 def	information_schema	TABLES	TABLES	CREATE_OPTIONS	CREATE_OPTIONS	253	765	0	Y	0	0	33
-def	information_schema	TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	240	0	N	1	0	33
+def	information_schema	TABLES	TABLES	TABLE_COMMENT	TABLE_COMMENT	253	6144	0	N	1	0	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	ROW_FORMAT	TABLE_COLLATION	CREATE_OPTIONS	TABLE_COMMENT
 def	test	t1	BASE TABLE	MyISAM	Fixed	latin1_swedish_ci		
 ----------------------------------------------------------------
@@ -963,7 +966,7 @@ def	information_schema	COLUMNS	COLUMNS	COLUMN_TYPE	COLUMN_TYPE	252	589815	7	N	17
 def	information_schema	COLUMNS	COLUMNS	COLUMN_KEY	COLUMN_KEY	253	9	3	N	1	0	33
 def	information_schema	COLUMNS	COLUMNS	EXTRA	EXTRA	253	81	0	N	1	0	33
 def	information_schema	COLUMNS	COLUMNS	PRIVILEGES	PRIVILEGES	253	240	31	N	1	0	33
-def	information_schema	COLUMNS	COLUMNS	COLUMN_COMMENT	COLUMN_COMMENT	253	765	0	N	1	0	33
+def	information_schema	COLUMNS	COLUMNS	COLUMN_COMMENT	COLUMN_COMMENT	253	3072	0	N	1	0	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 def	test	t1	c	NULL	NO	int	NULL	NULL	int(11)	PRI		select,insert,update,references	
 ----------------------------------------------------------------
@@ -1295,7 +1298,7 @@ show columns from `a\b` from `mysqlttest\1`;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	YES		NULL	
 show keys from `mysqlttest\1`.`a\b`;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 drop table `mysqlttest\1`.`a\b`;
 drop database `mysqlttest\1`;
 show engine foobar status;

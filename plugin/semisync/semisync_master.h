@@ -26,6 +26,266 @@ extern PSI_mutex_key key_ss_mutex_LOCK_binlog_;
 extern PSI_cond_key key_ss_cond_COND_binlog_send_;
 #endif
 
+struct TranxNode {
+  char             log_name_[FN_REFLEN];
+  my_off_t          log_pos_;
+  struct TranxNode *next_;            /* the next node in the sorted list */
+  struct TranxNode *hash_next_;    /* the next node during hash collision */
+};
+
+/**
+  @class TranxNodeAllocator
+
+  This class provides memory allocating and freeing methods for
+  TranxNode. The main target is performance.
+
+  @section ALLOCATE How to allocate a node
+    The pointer of the first node after 'last_node' in current_block is
+    returned. current_block will move to the next free Block when all nodes of
+    it are in use. A new Block is allocated and is put into the rear of the
+    Block link table if no Block is free.
+
+    The list starts up empty (ie, there is no allocated Block).
+
+    After some nodes are freed, there probably are some free nodes before
+    the sequence of the allocated nodes, but we do not reuse it. It is better
+    to keep the allocated nodes are in the sequence, for it is more efficient
+    for allocating and freeing TranxNode.
+
+  @section FREENODE How to free nodes
+    There are two methods for freeing nodes. They are free_all_nodes and
+    free_nodes_before.
+
+    'A Block is free' means all of its nodes are free.
+    @subsection free_nodes_before
+    As all allocated nodes are in the sequence, 'Before one node' means all
+    nodes before given node in the same Block and all Blocks before the Block
+    which containing the given node. As such, all Blocks before the given one
+    ('node') are free Block and moved into the rear of the Block link table.
+    The Block containing the given 'node', however, is not. For at least the
+    given 'node' is still in use. This will waste at most one Block, but it is
+    more efficient.
+ */
+#define BLOCK_TRANX_NODES 16
+class TranxNodeAllocator
+{
+public:
+  /**
+    @param reserved_nodes
+      The number of reserved TranxNodes. It is used to set 'reserved_blocks'
+      which can contain at least 'reserved_nodes' number of TranxNodes.  When
+      freeing memory, we will reserve at least reserved_blocks of Blocks not
+      freed.
+   */
+  TranxNodeAllocator(uint reserved_nodes) :
+    reserved_blocks(reserved_nodes/BLOCK_TRANX_NODES +
+                  (reserved_nodes%BLOCK_TRANX_NODES > 1 ? 2 : 1)),
+    first_block(NULL), last_block(NULL),
+    current_block(NULL), last_node(-1), block_num(0) {}
+
+  ~TranxNodeAllocator()
+  {
+    Block *block= first_block;
+    while (block != NULL)
+    {
+      Block *next= block->next;
+      free_block(block);
+      block= next;
+    }
+  }
+
+  /**
+    The pointer of the first node after 'last_node' in current_block is
+    returned. current_block will move to the next free Block when all nodes of
+    it are in use. A new Block is allocated and is put into the rear of the
+    Block link table if no Block is free.
+
+    @return Return a TranxNode *, or NULL if an error occured.
+   */
+  TranxNode *allocate_node()
+  {
+    TranxNode *trx_node;
+    Block *block= current_block;
+
+    if (last_node == BLOCK_TRANX_NODES-1)
+    {
+      current_block= current_block->next;
+      last_node= -1;
+    }
+
+    if (current_block == NULL && allocate_block())
+    {
+      current_block= block;
+      if (current_block)
+        last_node= BLOCK_TRANX_NODES-1;
+      return NULL;
+    }
+
+    trx_node= &(current_block->nodes[++last_node]);
+    trx_node->log_name_[0] = '\0';
+    trx_node->log_pos_= 0;
+    trx_node->next_= 0;
+    trx_node->hash_next_= 0;
+    return trx_node;
+  }
+
+  /**
+    All nodes are freed.
+
+    @return Return 0, or 1 if an error occured.
+   */
+  int free_all_nodes()
+  {
+    current_block= first_block;
+    last_node= -1;
+    free_blocks();
+    return 0;
+  }
+
+  /**
+    All Blocks before the given 'node' are free Block and moved into the rear
+    of the Block link table.
+
+    @param node All nodes before 'node' will be freed
+
+    @return Return 0, or 1 if an error occured.
+   */
+  int free_nodes_before(TranxNode* node)
+  {
+    Block *block;
+    Block *prev_block;
+
+    block= first_block;
+    while (block != current_block->next)
+    {
+      /* Find the Block containing the given node */
+      if (&(block->nodes[0]) <= node && &(block->nodes[BLOCK_TRANX_NODES]) >= node)
+      {
+        /* All Blocks before the given node are put into the rear */
+        if (first_block != block)
+        {
+          last_block->next= first_block;
+          first_block= block;
+          last_block= prev_block;
+          last_block->next= NULL;
+          free_blocks();
+        }
+        return 0;
+      }
+      prev_block= block;
+      block= block->next;
+    }
+
+    /* Node does not find should never happen */
+    DBUG_ASSERT(0);
+    return 1;
+  }
+
+private:
+  uint reserved_blocks;
+
+ /**
+   A sequence memory which contains BLOCK_TRANX_NODES TranxNodes.
+
+   BLOCK_TRANX_NODES The number of TranxNodes which are in a Block.
+
+   next Every Block has a 'next' pointer which points to the next Block.
+        These linking Blocks constitute a Block link table.
+  */
+  struct Block {
+    Block *next;
+    TranxNode nodes[BLOCK_TRANX_NODES];
+  };
+
+  /**
+    The 'first_block' is the head of the Block link table;
+   */
+  Block *first_block;
+  /**
+    The 'last_block' is the rear of the Block link table;
+   */
+  Block *last_block;
+
+  /**
+    current_block always points the Block in the Block link table in
+    which the last allocated node is. The Blocks before it are all in use
+    and the Blocks after it are all free.
+   */
+  Block *current_block;
+
+  /**
+    It always points to the last node which has been allocated in the
+    current_block.
+   */
+  int last_node;
+
+  /**
+    How many Blocks are in the Block link table.
+   */
+  uint block_num;
+
+  /**
+    Allocate a block and then assign it to current_block.
+  */
+  int allocate_block()
+  {
+    Block *block= (Block *)my_malloc(sizeof(Block), MYF(0));
+    if (block)
+    {
+      block->next= NULL;
+
+      if (first_block == NULL)
+        first_block= block;
+      else
+        last_block->next= block;
+
+      /* New Block is always put into the rear */
+      last_block= block;
+      /* New Block is always the current_block */
+      current_block= block;
+      ++block_num;
+      return 0;
+    }
+    return 1;
+  }
+
+  /**
+    Free a given Block.
+    @param block The Block will be freed.
+   */
+  void free_block(Block *block)
+  {
+    my_free(block, MYF(0));
+    --block_num;
+  }
+
+
+  /**
+    If there are some free Blocks and the total number of the Blocks in the
+    Block link table is larger than the 'reserved_blocks', Some free Blocks
+    will be freed until the total number of the Blocks is equal to the
+    'reserved_blocks' or there is only one free Block behind the
+    'current_block'.
+   */
+  void free_blocks()
+  {
+    if (current_block == NULL || current_block->next == NULL)
+      return;
+
+    /* One free Block is always kept behind the current block */
+    Block *block= current_block->next->next;
+    while (block_num > reserved_blocks && block != NULL)
+    {
+      Block *next= block->next;
+      free_block(block);
+      block= next;
+    }
+    current_block->next->next= block;
+    if (block == NULL)
+      last_block= current_block->next;
+  }
+};
+
 /**
    This class manages memory for active transaction list.
 
@@ -37,13 +297,8 @@ extern PSI_cond_key key_ss_cond_COND_binlog_send_;
 class ActiveTranx
   :public Trace {
 private:
-  struct TranxNode {
-    char             log_name_[FN_REFLEN];
-    my_off_t          log_pos_;
-    struct TranxNode *next_;            /* the next node in the sorted list */
-    struct TranxNode *hash_next_;    /* the next node during hash collision */
-  };
 
+  TranxNodeAllocator allocator_;
   /* These two record the active transaction list in sort order. */
   TranxNode       *trx_front_, *trx_rear_;
 
@@ -54,24 +309,22 @@ private:
 
   inline void assert_lock_owner();
 
-  inline TranxNode* alloc_tranx_node();
-
   inline unsigned int calc_hash(const unsigned char *key,unsigned int length);
   unsigned int get_hash_value(const char *log_file_name, my_off_t log_file_pos);
 
   int compare(const char *log_file_name1, my_off_t log_file_pos1,
-	      const TranxNode *node2) {
+              const TranxNode *node2) {
     return compare(log_file_name1, log_file_pos1,
-		   node2->log_name_, node2->log_pos_);
+                   node2->log_name_, node2->log_pos_);
   }
   int compare(const TranxNode *node1,
-	      const char *log_file_name2, my_off_t log_file_pos2) {
+              const char *log_file_name2, my_off_t log_file_pos2) {
     return compare(node1->log_name_, node1->log_pos_,
-		   log_file_name2, log_file_pos2);
+                   log_file_name2, log_file_pos2);
   }
   int compare(const TranxNode *node1, const TranxNode *node2) {
     return compare(node1->log_name_, node1->log_pos_,
-		   node2->log_name_, node2->log_pos_);
+                   node2->log_name_, node2->log_pos_);
   }
 
 public:
@@ -94,7 +347,7 @@ public:
    *  0: success;  non-zero: error
    */
   int clear_active_tranx_nodes(const char *log_file_name,
-			       my_off_t    log_file_pos);
+                               my_off_t    log_file_pos);
 
   /* Given a position, check to see whether the position is an active
    * transaction's ending position by probing the hash table.
@@ -105,7 +358,7 @@ public:
    * (file_name, file_position).
    */
   static int compare(const char *log_file_name1, my_off_t log_file_pos1,
-		     const char *log_file_name2, my_off_t log_file_pos2);
+                     const char *log_file_name2, my_off_t log_file_pos2);
 
 };
 
