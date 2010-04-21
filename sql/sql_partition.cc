@@ -3096,7 +3096,7 @@ int get_partition_id_list_col(partition_info *part_info,
     }
     else
     {
-      *part_id= (uint32)list_col_array[list_index].partition_id;
+      *part_id= (uint32)list_col_array[list_index*num_columns].partition_id;
       DBUG_RETURN(0);
     }
   }
@@ -7701,7 +7701,7 @@ uint32 get_next_partition_id_range(PARTITION_ITERATOR* part_iter)
   DESCRIPTION
     This implementation of PARTITION_ITERATOR::get_next() is special for 
     LIST partitioning: it enumerates partition ids in
-    part_info->list_array[i] (list_col_array[i] for COLUMNS LIST
+    part_info->list_array[i] (list_col_array[i*cols] for COLUMNS LIST
     partitioning) where i runs over [min_idx, max_idx] interval.
     The function conforms to partition_iter_func type.
 
@@ -7727,9 +7727,12 @@ uint32 get_next_partition_id_list(PARTITION_ITERATOR *part_iter)
   {
     partition_info *part_info= part_iter->part_info;
     uint32 num_part= part_iter->part_nums.cur++;
-    return part_info->column_list ?
-           part_info->list_col_array[num_part].partition_id :
-           part_info->list_array[num_part].partition_id;
+    if (part_info->column_list)
+    {
+      uint num_columns= part_info->part_field_list.elements;
+      return part_info->list_col_array[num_part*num_columns].partition_id;
+    }
+    return part_info->list_array[num_part].partition_id;
   }
 }
 
