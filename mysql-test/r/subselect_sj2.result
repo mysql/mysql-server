@@ -60,8 +60,6 @@ set @save_max_heap_table_size= @@max_heap_table_size;
 set max_heap_table_size=16384;
 set @save_join_buffer_size = @@join_buffer_size;
 set join_buffer_size= 8000;
-Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '8000'
 drop table t3;
 create table t3 (
 a int, 
@@ -112,8 +110,6 @@ a	b
 drop table t1, t2, t3;
 set @save_join_buffer_size = @@join_buffer_size;
 set join_buffer_size= 8000;
-Warnings:
-Warning	1292	Truncated incorrect join_buffer_size value: '8000'
 create table t1 (a int, filler1 binary(200), filler2 binary(200));
 insert into t1 select a, 'filler123456', 'filler123456' from t0;
 insert into t1 select a+10, 'filler123456', 'filler123456' from t0;

@@ -302,13 +302,21 @@ typedef struct st_join_table
     }
     return test(used_rowid_fields);
   }
+  bool is_inner_table_of_semi_join_with_first_match()
+  {
+    return first_sj_inner_tab != NULL;
+  }
+  bool is_inner_table_of_outer_join()
+  {
+    return first_inner != NULL;
+  }
   bool is_single_inner_of_semi_join_with_first_match()
   {
     return first_sj_inner_tab == this && last_sj_inner_tab == this;            
   }
   bool is_single_inner_of_outer_join()
   {
-    return first_inner && first_inner == last_inner;
+    return first_inner == this && first_inner->last_inner == this;
   }
   bool is_first_inner_for_outer_join()
   {
@@ -555,7 +563,19 @@ protected:
     Flag is set on if the blob data for the last record in the join buffer
     is in record buffers rather than in the join cache.
   */
-  bool last_rec_blob_data_is_in_rec_buff; 
+  bool last_rec_blob_data_is_in_rec_buff;
+
+  /* 
+    Pointer to the position to the current record link. 
+    Record links are used only with linked caches. Record links allow to set
+    connections between parts of one join record that are stored in different
+    join buffers.
+    In the simplest case a record link is just a pointer to the beginning of
+    the record stored in the buffer.
+    In a more general case a link could be a reference to an array of pointers
+    to records in the buffer. 
+  */
+  uchar *curr_rec_link;
 
   void calc_record_fields();     
   int alloc_fields(uint external_fields);
@@ -569,7 +589,7 @@ protected:
 
   uchar *get_rec_ref(uchar *ptr)
   {
-    return buff+get_offset(size_of_rec_ofs, ptr);
+    return buff+get_offset(size_of_rec_ofs, ptr-get_size_of_rec_offset());
   }
   ulong get_rec_length(uchar *ptr)
   { 
@@ -682,6 +702,15 @@ public:
 
   /* Shall return the position of the current record */
   virtual uchar *get_curr_rec() { return curr_rec_pos; }
+
+  /* Shall set the current record link */
+  virtual void set_curr_rec_link(uchar *link) { curr_rec_link= link; }
+
+  /* Shall return the current record link */
+  virtual uchar *get_curr_rec_link()
+  { 
+    return (curr_rec_link ? curr_rec_link : get_curr_rec());
+  }
      
   /* Join records from the join buffer with records from the next join table */    
   enum_nested_loop_state join_records(bool skip_last);
@@ -798,12 +827,14 @@ public:
     This constructor creates an unlinked BKA join cache. The cache is to be
     used to join table 'tab' to the result of joining the previous tables 
     specified by the 'j' parameter.
+    The MRR mode initially is set to 'flags'.
   */   
-  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab)
+  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, uint flags)
   { 
     join= j;
     join_tab= tab;
     prev_cache= next_cache= 0;
+    mrr_mode= flags;    
   }
 
   /* 
@@ -811,8 +842,9 @@ public:
     used to join table 'tab' to the result of joining the previous tables 
     specified by the 'j' parameter. The parameter 'prev' specifies the cache
     object to which this cache is linked.
+    The MRR mode initially is set to 'flags'.
   */   
-  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, JOIN_CACHE* prev)
+  JOIN_CACHE_BKA(JOIN *j, JOIN_TAB *tab, uint flags,  JOIN_CACHE* prev)
   { 
     join= j;
     join_tab= tab;
@@ -820,6 +852,7 @@ public:
     next_cache= 0;
     if (prev)
       prev->next_cache= this;
+    mrr_mode= flags;
   }
 
   /* Initialize the BNL cache */       
