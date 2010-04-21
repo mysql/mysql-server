@@ -336,3 +336,192 @@ show variables like 'join_cache_level';
 
 DROP DATABASE world;
 
+use test;
+
+#
+# Bug #35685: assertion abort when initializing a BKA cache
+#
+
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
+
+CREATE TABLE t1(
+  affiliatetometaid int  NOT NULL default '0',
+  uniquekey int NOT NULL default '0',
+  metaid int  NOT NULL default '0',
+  affiliateid int  NOT NULL default '0',
+  xml text,
+  isactive char(1) NOT NULL default 'Y',
+  PRIMARY KEY  (affiliatetometaid)
+);
+CREATE UNIQUE INDEX t1_uniquekey ON t1(uniquekey);
+CREATE INDEX t1_affiliateid ON t1(affiliateid);
+CREATE INDEX t1_metaid on t1 (metaid);
+INSERT INTO t1 VALUES
+  (1616, 1571693233, 1391, 2, NULL, 'Y'), (1943, 1993216749, 1726, 2, NULL, 'Y');
+
+CREATE TABLE t2(
+  metaid int  NOT NULL default '0',
+  name varchar(80) NOT NULL default '',
+  dateadded timestamp NOT NULL ,
+  xml text,
+  status int default NULL,
+  origin int default NULL,
+  gid int NOT NULL default '1',
+  formattypeid int  default NULL,
+  PRIMARY KEY  (metaid)
+);
+CREATE INDEX t2_status ON t2(status);
+CREATE INDEX t2_gid ON t2(gid);
+CREATE INDEX t2_formattypeid ON t2(formattypeid);
+INSERT INTO t2 VALUES
+ (1391, "I Just Died", "2003-10-02 10:07:37", "", 1, NULL, 3, NULL),
+ (1726, "Me, Myself & I", "2003-12-05 11:24:36", " ", 1, NULL, 3, NULL);
+
+CREATE TABLE t3(
+  mediaid int  NOT NULL ,
+  metaid int  NOT NULL default '0',
+  formatid int  NOT NULL default '0',
+  status int default NULL,
+  path varchar(100) NOT NULL default '',
+  datemodified timestamp NOT NULL ,
+  resourcetype int  NOT NULL default '1',
+  parameters text,
+  signature int  default NULL,
+  quality int  NOT NULL default '255',
+  PRIMARY KEY  (mediaid)
+);
+CREATE INDEX t3_metaid ON t3(metaid);
+CREATE INDEX t3_formatid ON t3(formatid);
+CREATE INDEX t3_status ON t3(status);
+CREATE INDEX t3_metaidformatid ON t3(metaid,formatid);
+CREATE INDEX t3_signature ON t3(signature);
+CREATE INDEX t3_quality ON t3(quality);
+INSERT INTO t3 VALUES
+  (6, 4, 8, 0, "010101_anastacia_spmidi.mid", "2004-03-16 13:40:00", 1, NULL, NULL, 255),
+  (3343, 3, 8, 1, "010102_4VN4bsPwnxRQUJW5Zp1RhG2IL9vvl_8.mid", "2004-03-16 13:40:00", 1, NULL, NULL, 255);
+
+CREATE TABLE t4(
+  formatid int  NOT NULL ,
+  name varchar(60) NOT NULL default '',
+  formatclassid int  NOT NULL default '0',
+  mime varchar(60) default NULL,
+  extension varchar(10) default NULL,
+  priority int NOT NULL default '0',
+  canaddtocapability char(1) NOT NULL default 'Y',
+  PRIMARY KEY  (formatid)
+);
+CREATE INDEX t4_formatclassid ON t4(formatclassid);
+CREATE INDEX t4_formats_idx ON t4(canaddtocapability);
+INSERT INTO t4 VALUES
+  (19, "XHTML", 11, "text/html", "xhtml", 10, 'Y'),
+  (54, "AMR (wide band)", 13, "audio/amr-wb", "awb", 0, 'Y');
+
+CREATE TABLE t5(
+  formatclassid int  NOT NULL ,
+  name varchar(60) NOT NULL default '',
+  priority int NOT NULL default '0',
+  formattypeid int  NOT NULL default '0',
+  PRIMARY KEY  (formatclassid)
+);
+CREATE INDEX t5_formattypeid on t5(formattypeid);
+INSERT INTO t5 VALUES
+  (11, "Info", 0, 4), (13, "Digital Audio", 0, 2);
+
+CREATE TABLE t6(
+  formattypeid int  NOT NULL ,
+  name varchar(60) NOT NULL default '',
+  priority int default NULL,
+  PRIMARY KEY  (formattypeid)
+);
+INSERT INTO t6 VALUES
+ (2, "Ringtones", 0);
+
+CREATE TABLE t7(
+  metaid int  NOT NULL default '0',
+  artistid int  NOT NULL default '0',
+  PRIMARY KEY  (metaid,artistid)
+);
+INSERT INTO t7 VALUES
+  (4, 5), (3, 4);
+
+CREATE TABLE t8(
+  artistid int  NOT NULL ,
+  name varchar(80) NOT NULL default '',
+  PRIMARY KEY  (artistid)
+);
+INSERT INTO t8 VALUES
+  (5, "Anastacia"), (4, "John Mayer");
+
+CREATE TABLE t9(
+  subgenreid int  NOT NULL default '0',
+  metaid int  NOT NULL default '0',
+  PRIMARY KEY  (subgenreid,metaid)
+) ;
+CREATE INDEX t9_subgenreid ON t9(subgenreid);
+CREATE INDEX t9_metaid ON t9(metaid);
+INSERT INTO t9 VALUES 
+  (138, 4), (31, 3);
+
+CREATE TABLE t10(
+  subgenreid int  NOT NULL ,
+  genreid int  NOT NULL default '0',
+  name varchar(80) NOT NULL default '',
+  PRIMARY KEY  (subgenreid)
+) ;
+CREATE INDEX t10_genreid ON t10(genreid);
+INSERT INTO t10 VALUES 
+  (138, 19, ''), (31, 3, '');
+
+CREATE TABLE t11(
+  genreid int  NOT NULL default '0',
+  name char(80) NOT NULL default '',
+  priority int NOT NULL default '0',
+  masterclip char(1) default NULL,
+  PRIMARY KEY  (genreid)
+) ;
+CREATE INDEX t11_masterclip ON t11( masterclip);
+INSERT INTO t11 VALUES
+  (19, "Pop & Dance", 95, 'Y'), (3, "Rock & Alternative", 100, 'Y');
+
+set join_cache_level=6;
+
+EXPLAIN
+SELECT t1.uniquekey, t1.xml AS affiliateXml,
+       t8.name AS artistName, t8.artistid, 
+       t11.name AS genreName, t11.genreid, t11.priority AS genrePriority,
+       t10.subgenreid, t10.name AS subgenreName,
+       t2.name AS metaName, t2.metaid, t2.xml AS metaXml,
+       t4.priority + t5.priority + t6.priority AS overallPriority,
+       t3.path AS path, t3.mediaid, 
+       t4.formatid, t4.name AS formatName, 
+       t5.formatclassid, t5.name AS formatclassName, 
+       t6.formattypeid, t6.name AS formattypeName 
+FROM t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11
+WHERE t7.metaid = t2.metaid AND t7.artistid = t8.artistid AND
+      t9.metaid = t2.metaid AND t9.subgenreid = t10.subgenreid AND 
+      t10.genreid = t11.genreid AND  t3.metaid = t2.metaid AND
+      t3.formatid = t4.formatid AND t4.formatclassid = t5.formatclassid AND
+      t4.canaddtocapability =  'Y' AND t5.formattypeid = t6.formattypeid AND
+      t6.formattypeid IN (2) AND (t3.formatid IN (31, 8, 76)) AND
+      t1.metaid = t2.metaid AND t1.affiliateid = '2';
+
+SELECT t1.uniquekey, t1.xml AS affiliateXml,
+       t8.name AS artistName, t8.artistid, 
+       t11.name AS genreName, t11.genreid, t11.priority AS genrePriority,
+       t10.subgenreid, t10.name AS subgenreName,
+       t2.name AS metaName, t2.metaid, t2.xml AS metaXml,
+       t4.priority + t5.priority + t6.priority AS overallPriority,
+       t3.path AS path, t3.mediaid, 
+       t4.formatid, t4.name AS formatName, 
+       t5.formatclassid, t5.name AS formatclassName, 
+       t6.formattypeid, t6.name AS formattypeName 
+FROM t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11
+WHERE t7.metaid = t2.metaid AND t7.artistid = t8.artistid AND
+      t9.metaid = t2.metaid AND t9.subgenreid = t10.subgenreid AND 
+      t10.genreid = t11.genreid AND  t3.metaid = t2.metaid AND
+      t3.formatid = t4.formatid AND t4.formatclassid = t5.formatclassid AND
+      t4.canaddtocapability =  'Y' AND t5.formattypeid = t6.formattypeid AND
+      t6.formattypeid IN (2) AND (t3.formatid IN (31, 8, 76)) AND
+      t1.metaid = t2.metaid AND t1.affiliateid = '2';
+
+DROP TABLE t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;

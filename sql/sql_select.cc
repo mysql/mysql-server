@@ -10143,8 +10143,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       }
       delete tab->quick;
       tab->quick=0;
-      if (tab->type != JT_REF_OR_NULL &&
-          check_join_cache_usage(tab, join, options, no_jbuf_after))
+      if (check_join_cache_usage(tab, join, options, no_jbuf_after))
       {
         using_join_cache= TRUE;
         tab[-1].next_select=sub_select_cache;
@@ -19933,7 +19932,8 @@ int JOIN_CACHE_BKA::init()
       copy_end= cache->field_descr+cache->fields;
       for (copy= cache->field_descr+cache->flag_fields; copy < copy_end; copy++)
       {
-        if (bitmap_is_set(key_read_set, copy->field->field_index))
+        if (copy->field->table == tab->table &&
+            bitmap_is_set(key_read_set, copy->field->field_index))
         {
           *copy_ptr++= copy; 
           ext_key_arg_cnt--;
@@ -19949,7 +19949,8 @@ int JOIN_CACHE_BKA::init()
             cache->with_length= TRUE;
 	    cache->pack_length+= cache->get_size_of_fld_offset();
             cache->pack_last_length+= cache->get_size_of_fld_offset();
-          }        }
+          }        
+        }
       }
     } 
   }
