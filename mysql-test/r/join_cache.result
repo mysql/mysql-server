@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
 DROP DATABASE IF EXISTS world;
 set names utf8;
 CREATE DATABASE world;
@@ -20,19 +21,31 @@ Country char(3) NOT NULL default '',
 Language char(30) NOT NULL default '',
 Percentage float(3,1) NOT NULL default '0.0'
 );
+SELECT COUNT(*) FROM Country;
 COUNT(*)
 239
+SELECT COUNT(*) FROM City;
 COUNT(*)
 4079
+SELECT COUNT(*) FROM CountryLanguage;
 COUNT(*)
 984
+show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	1
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 Name	Name
 Vientiane	Laos
 Riga	Latvia
@@ -49,10 +62,23 @@ Kaunas	Lithuania
 Klaipeda	Lithuania
 ?iauliai	Lithuania
 Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
 1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 Name	Name	Language
 Leiden	Netherlands	Dutch
 La Matanza	Argentina	Spanish
@@ -194,11 +220,20 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
+set join_cache_level=2;
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	2
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 Name	Name
 Vientiane	Laos
 Riga	Latvia
@@ -215,10 +250,23 @@ Kaunas	Lithuania
 Klaipeda	Lithuania
 ?iauliai	Lithuania
 Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
 1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 Name	Name	Language
 Leiden	Netherlands	Dutch
 La Matanza	Argentina	Spanish
@@ -360,13 +408,24 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
+set join_cache_level=default;
+set join_buffer_size=256;
+show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	256
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	1
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 Name	Name
 Vientiane	Laos
 Riga	Latvia
@@ -383,10 +442,23 @@ Kaunas	Lithuania
 Klaipeda	Lithuania
 ?iauliai	Lithuania
 Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
 1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 Name	Name	Language
 Leiden	Netherlands	Dutch
 La Matanza	Argentina	Spanish
@@ -528,11 +600,20 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
+set join_cache_level=2;
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	2
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 Name	Name
 Vientiane	Laos
 Riga	Latvia
@@ -549,10 +630,23 @@ Kaunas	Lithuania
 Klaipeda	Lithuania
 ?iauliai	Lithuania
 Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	CountryLanguage	ALL	NULL	NULL	NULL	NULL	984	Using where; Using join buffer
 1	SIMPLE	City	ALL	NULL	NULL	NULL	NULL	4079	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 Name	Name	Language
 Leiden	Netherlands	Dutch
 La Matanza	Argentina	Spanish
@@ -694,17 +788,59 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
+set join_cache_level=default;
+set join_buffer_size=default;
+show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	1
+DROP DATABASE world;
+CREATE DATABASE world;
+use world;
+CREATE TABLE Country (
+Code char(3) NOT NULL default '',
+Name char(52) NOT NULL default '',
+SurfaceArea float(10,2) NOT NULL default '0.00',
+Population int(11) NOT NULL default '0',
+Capital int(11) default NULL,
+PRIMARY KEY  (Code),
+UNIQUE INDEX (Name)
+);
+CREATE TABLE City (
+ID int(11) NOT NULL auto_increment,
+Name char(35) NOT NULL default '',
+Country char(3) NOT NULL default '',
+Population int(11) NOT NULL default '0',
+PRIMARY KEY  (ID),
+INDEX (Population),
+INDEX (Country) 
+);
+CREATE TABLE CountryLanguage (
+Country char(3) NOT NULL default '',
+Language char(30) NOT NULL default '',
+Percentage float(3,1) NOT NULL default '0.0',
+PRIMARY KEY  (Country, Language),
+INDEX (Percentage)
+);
+show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
+set join_cache_level=5;
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	5
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 Name	Name
 Vientiane	Laos
 Riga	Latvia
@@ -721,10 +857,23 @@ Kaunas	Lithuania
 Klaipeda	Lithuania
 ?iauliai	Lithuania
 Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
 1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 Name	Name	Language
 Leiden	Netherlands	Dutch
 La Matanza	Argentina	Spanish
@@ -866,9 +1015,16 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
+EXPLAIN
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	ALL	PRIMARY,Name	NULL	NULL	NULL	239	Using where
 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
 Name
 Vientiane
 Riga
@@ -885,9 +1041,20 @@ Kaunas
 Klaipeda
 ?iauliai
 Panevezys
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+FROM Country LEFT JOIN CountryLanguage ON
+(CountryLanguage.Country=Country.Code AND Language='English')
+WHERE 
+Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+FROM Country LEFT JOIN CountryLanguage ON
+(CountryLanguage.Country=Country.Code AND Language='English')
+WHERE 
+Country.Population > 10000000;
 Name	IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 Australia	81.2
 United Kingdom	97.3
@@ -967,11 +1134,20 @@ Belarus	NULL
 Venezuela	NULL
 Russian Federation	NULL
 Vietnam	NULL
+set join_cache_level=6;
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	6
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 Name	Name
 Vientiane	Laos
 Riga	Latvia
@@ -988,10 +1164,23 @@ Kaunas	Lithuania
 Klaipeda	Lithuania
 ?iauliai	Lithuania
 Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
 1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 Name	Name	Language
 Leiden	Netherlands	Dutch
 La Matanza	Argentina	Spanish
@@ -1133,9 +1322,16 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
+EXPLAIN
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	ALL	PRIMARY,Name	NULL	NULL	NULL	239	Using where
 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
 Name
 Vientiane
 Riga
@@ -1152,9 +1348,20 @@ Kaunas
 Klaipeda
 ?iauliai
 Panevezys
+EXPLAIN
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+FROM Country LEFT JOIN CountryLanguage ON
+(CountryLanguage.Country=Country.Code AND Language='English')
+WHERE 
+Country.Population > 10000000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	ALL	NULL	NULL	NULL	NULL	239	Using where
 1	SIMPLE	CountryLanguage	eq_ref	PRIMARY	PRIMARY	33	world.Country.Code,const	1	Using where; Using join buffer
+SELECT Country.Name, IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
+FROM Country LEFT JOIN CountryLanguage ON
+(CountryLanguage.Country=Country.Code AND Language='English')
+WHERE 
+Country.Population > 10000000;
 Name	IF(ISNULL(CountryLanguage.Country), NULL, CountryLanguage.Percentage)
 Australia	81.2
 United Kingdom	97.3
@@ -1234,13 +1441,24 @@ Belarus	NULL
 Venezuela	NULL
 Russian Federation	NULL
 Vietnam	NULL
+set join_buffer_size=256;
+show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	256
+set join_cache_level=5;
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	5
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 Name	Name
 Vientiane	Laos
 Riga	Latvia
@@ -1257,10 +1475,23 @@ Kaunas	Lithuania
 Klaipeda	Lithuania
 ?iauliai	Lithuania
 Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
 1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 Name	Name	Language
 Leiden	Netherlands	Dutch
 La Matanza	Argentina	Spanish
@@ -1402,9 +1633,16 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
+EXPLAIN
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	ALL	PRIMARY,Name	NULL	NULL	NULL	239	Using where
 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
 Name
 Vientiane
 Riga
@@ -1421,11 +1659,20 @@ Kaunas
 Klaipeda
 ?iauliai
 Panevezys
+set join_cache_level=6;
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	6
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	Country	range	PRIMARY,Name	Name	52	NULL	10	Using index condition; Using MRR
 1	SIMPLE	City	ref	Population,Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
 Name	Name
 Vientiane	Laos
 Riga	Latvia
@@ -1442,10 +1689,23 @@ Kaunas	Lithuania
 Klaipeda	Lithuania
 ?iauliai	Lithuania
 Panevezys	Lithuania
+EXPLAIN
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	CountryLanguage	ALL	PRIMARY,Percentage	NULL	NULL	NULL	984	Using where
 1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.CountryLanguage.Country	1	Using where; Using join buffer
 1	SIMPLE	City	ref	Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT City.Name, Country.Name, CountryLanguage.Language
+FROM City,Country,CountryLanguage
+WHERE City.Country=Country.Code AND
+CountryLanguage.Country=Country.Code AND
+City.Name LIKE 'L%' AND Country.Population > 3000000 AND
+CountryLanguage.Percentage > 50;
 Name	Name	Language
 Leiden	Netherlands	Dutch
 La Matanza	Argentina	Spanish
@@ -1587,9 +1847,16 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
+EXPLAIN
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Country	ALL	PRIMARY,Name	NULL	NULL	NULL	239	Using where
 1	PRIMARY	City	ref	Population,Country	Country	3	world.Country.Code	8	Using where; Using join buffer
+SELECT Name FROM City
+WHERE City.Country IN (SELECT Code FROM Country WHERE Country.Name LIKE 'L%') AND
+City.Population > 100000;
 Name
 Vientiane
 Riga
@@ -1606,10 +1873,164 @@ Kaunas
 Klaipeda
 ?iauliai
 Panevezys
+set join_cache_level=default;
+set join_buffer_size=default;
+show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
+show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	1
+DROP DATABASE world;
+use test;
+CREATE TABLE t1(
+affiliatetometaid int  NOT NULL default '0',
+uniquekey int NOT NULL default '0',
+metaid int  NOT NULL default '0',
+affiliateid int  NOT NULL default '0',
+xml text,
+isactive char(1) NOT NULL default 'Y',
+PRIMARY KEY  (affiliatetometaid)
+);
+CREATE UNIQUE INDEX t1_uniquekey ON t1(uniquekey);
+CREATE INDEX t1_affiliateid ON t1(affiliateid);
+CREATE INDEX t1_metaid on t1 (metaid);
+INSERT INTO t1 VALUES
+(1616, 1571693233, 1391, 2, NULL, 'Y'), (1943, 1993216749, 1726, 2, NULL, 'Y');
+CREATE TABLE t2(
+metaid int  NOT NULL default '0',
+name varchar(80) NOT NULL default '',
+dateadded timestamp NOT NULL ,
+xml text,
+status int default NULL,
+origin int default NULL,
+gid int NOT NULL default '1',
+formattypeid int  default NULL,
+PRIMARY KEY  (metaid)
+);
+CREATE INDEX t2_status ON t2(status);
+CREATE INDEX t2_gid ON t2(gid);
+CREATE INDEX t2_formattypeid ON t2(formattypeid);
+INSERT INTO t2 VALUES
+(1391, "I Just Died", "2003-10-02 10:07:37", "", 1, NULL, 3, NULL),
+(1726, "Me, Myself & I", "2003-12-05 11:24:36", " ", 1, NULL, 3, NULL);
+CREATE TABLE t3(
+mediaid int  NOT NULL ,
+metaid int  NOT NULL default '0',
+formatid int  NOT NULL default '0',
+status int default NULL,
+path varchar(100) NOT NULL default '',
+datemodified timestamp NOT NULL ,
+resourcetype int  NOT NULL default '1',
+parameters text,
+signature int  default NULL,
+quality int  NOT NULL default '255',
+PRIMARY KEY  (mediaid)
+);
+CREATE INDEX t3_metaid ON t3(metaid);
+CREATE INDEX t3_formatid ON t3(formatid);
+CREATE INDEX t3_status ON t3(status);
+CREATE INDEX t3_metaidformatid ON t3(metaid,formatid);
+CREATE INDEX t3_signature ON t3(signature);
+CREATE INDEX t3_quality ON t3(quality);
+INSERT INTO t3 VALUES
+(6, 4, 8, 0, "010101_anastacia_spmidi.mid", "2004-03-16 13:40:00", 1, NULL, NULL, 255),
+(3343, 3, 8, 1, "010102_4VN4bsPwnxRQUJW5Zp1RhG2IL9vvl_8.mid", "2004-03-16 13:40:00", 1, NULL, NULL, 255);
+CREATE TABLE t4(
+formatid int  NOT NULL ,
+name varchar(60) NOT NULL default '',
+formatclassid int  NOT NULL default '0',
+mime varchar(60) default NULL,
+extension varchar(10) default NULL,
+priority int NOT NULL default '0',
+canaddtocapability char(1) NOT NULL default 'Y',
+PRIMARY KEY  (formatid)
+);
+CREATE INDEX t4_formatclassid ON t4(formatclassid);
+CREATE INDEX t4_formats_idx ON t4(canaddtocapability);
+INSERT INTO t4 VALUES
+(19, "XHTML", 11, "text/html", "xhtml", 10, 'Y'),
+(54, "AMR (wide band)", 13, "audio/amr-wb", "awb", 0, 'Y');
+CREATE TABLE t5(
+formatclassid int  NOT NULL ,
+name varchar(60) NOT NULL default '',
+priority int NOT NULL default '0',
+formattypeid int  NOT NULL default '0',
+PRIMARY KEY  (formatclassid)
+);
+CREATE INDEX t5_formattypeid on t5(formattypeid);
+INSERT INTO t5 VALUES
+(11, "Info", 0, 4), (13, "Digital Audio", 0, 2);
+CREATE TABLE t6(
+formattypeid int  NOT NULL ,
+name varchar(60) NOT NULL default '',
+priority int default NULL,
+PRIMARY KEY  (formattypeid)
+);
+INSERT INTO t6 VALUES
+(2, "Ringtones", 0);
+CREATE TABLE t7(
+metaid int  NOT NULL default '0',
+artistid int  NOT NULL default '0',
+PRIMARY KEY  (metaid,artistid)
+);
+INSERT INTO t7 VALUES
+(4, 5), (3, 4);
+CREATE TABLE t8(
+artistid int  NOT NULL ,
+name varchar(80) NOT NULL default '',
+PRIMARY KEY  (artistid)
+);
+INSERT INTO t8 VALUES
+(5, "Anastacia"), (4, "John Mayer");
+CREATE TABLE t9(
+subgenreid int  NOT NULL default '0',
+metaid int  NOT NULL default '0',
+PRIMARY KEY  (subgenreid,metaid)
+) ;
+CREATE INDEX t9_subgenreid ON t9(subgenreid);
+CREATE INDEX t9_metaid ON t9(metaid);
+INSERT INTO t9 VALUES 
+(138, 4), (31, 3);
+CREATE TABLE t10(
+subgenreid int  NOT NULL ,
+genreid int  NOT NULL default '0',
+name varchar(80) NOT NULL default '',
+PRIMARY KEY  (subgenreid)
+) ;
+CREATE INDEX t10_genreid ON t10(genreid);
+INSERT INTO t10 VALUES 
+(138, 19, ''), (31, 3, '');
+CREATE TABLE t11(
+genreid int  NOT NULL default '0',
+name char(80) NOT NULL default '',
+priority int NOT NULL default '0',
+masterclip char(1) default NULL,
+PRIMARY KEY  (genreid)
+) ;
+CREATE INDEX t11_masterclip ON t11( masterclip);
+INSERT INTO t11 VALUES
+(19, "Pop & Dance", 95, 'Y'), (3, "Rock & Alternative", 100, 'Y');
+set join_cache_level=6;
+EXPLAIN
+SELECT t1.uniquekey, t1.xml AS affiliateXml,
+t8.name AS artistName, t8.artistid, 
+t11.name AS genreName, t11.genreid, t11.priority AS genrePriority,
+t10.subgenreid, t10.name AS subgenreName,
+t2.name AS metaName, t2.metaid, t2.xml AS metaXml,
+t4.priority + t5.priority + t6.priority AS overallPriority,
+t3.path AS path, t3.mediaid, 
+t4.formatid, t4.name AS formatName, 
+t5.formatclassid, t5.name AS formatclassName, 
+t6.formattypeid, t6.name AS formattypeName 
+FROM t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11
+WHERE t7.metaid = t2.metaid AND t7.artistid = t8.artistid AND
+t9.metaid = t2.metaid AND t9.subgenreid = t10.subgenreid AND 
+t10.genreid = t11.genreid AND  t3.metaid = t2.metaid AND
+t3.formatid = t4.formatid AND t4.formatclassid = t5.formatclassid AND
+t4.canaddtocapability =  'Y' AND t5.formattypeid = t6.formattypeid AND
+t6.formattypeid IN (2) AND (t3.formatid IN (31, 8, 76)) AND
+t1.metaid = t2.metaid AND t1.affiliateid = '2';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t6	system	PRIMARY	NULL	NULL	NULL	1	
 1	SIMPLE	t1	ref	t1_affiliateid,t1_metaid	t1_affiliateid	4	const	1	
@@ -1622,4 +2043,103 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t9	index	PRIMARY,t9_subgenreid,t9_metaid	PRIMARY	8	NULL	2	Using where; Using index; Using join buffer
 1	SIMPLE	t10	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	Using join buffer
 1	SIMPLE	t11	eq_ref	PRIMARY	PRIMARY	4	test.t10.genreid	1	Using join buffer
+SELECT t1.uniquekey, t1.xml AS affiliateXml,
+t8.name AS artistName, t8.artistid, 
+t11.name AS genreName, t11.genreid, t11.priority AS genrePriority,
+t10.subgenreid, t10.name AS subgenreName,
+t2.name AS metaName, t2.metaid, t2.xml AS metaXml,
+t4.priority + t5.priority + t6.priority AS overallPriority,
+t3.path AS path, t3.mediaid, 
+t4.formatid, t4.name AS formatName, 
+t5.formatclassid, t5.name AS formatclassName, 
+t6.formattypeid, t6.name AS formattypeName 
+FROM t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11
+WHERE t7.metaid = t2.metaid AND t7.artistid = t8.artistid AND
+t9.metaid = t2.metaid AND t9.subgenreid = t10.subgenreid AND 
+t10.genreid = t11.genreid AND  t3.metaid = t2.metaid AND
+t3.formatid = t4.formatid AND t4.formatclassid = t5.formatclassid AND
+t4.canaddtocapability =  'Y' AND t5.formattypeid = t6.formattypeid AND
+t6.formattypeid IN (2) AND (t3.formatid IN (31, 8, 76)) AND
+t1.metaid = t2.metaid AND t1.affiliateid = '2';
 uniquekey	affiliateXml	artistName	artistid	genreName	genreid	genrePriority	subgenreid	subgenreName	metaName	metaid	metaXml	overallPriority	path	mediaid	formatid	formatName	formatclassid	formatclassName	formattypeid	formattypeName
+DROP TABLE t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11;
+CREATE TABLE t1 (a1 int, filler1 char(64) default ' ' );
+CREATE TABLE t2 (
+a2 int, b2 int, filler2 char(64) default ' ', 
+PRIMARY KEY idx(a2,b2,filler2)
+) ;
+CREATE TABLE t3 (b3 int, c3 int, INDEX idx(b3));
+INSERT INTO t1(a1) VALUES 
+(4), (7), (1), (9), (8), (5), (3), (6), (2);
+INSERT INTO t2(a2,b2) VALUES
+(1,30), (3,40), (2,61), (6,73), (8,92), (9,27), (4,18), (5,84), (7,56),
+(4,14), (6,76), (8,98), (7,55), (1,39), (2,68), (3,45), (9,21), (5,81),
+(5,88), (2,65), (6,74), (9,23), (1,37), (3,44), (4,17), (8,99), (7,51),
+(9,28), (7,52), (1,33), (4,13), (5,87), (3,43), (8,91), (2,62), (6,79),
+(3,49), (8,93), (7,34), (5,82), (6,78), (2,63), (1,32), (9,22), (4,11);
+INSERT INTO t3 VALUES
+(30,302), (92,923), (18,187), (45,459), (30,309), 
+(39,393), (68,685), (45,458), (21,210), (81,817),
+(40,405), (61,618), (73,738), (92,929), (27,275),
+(18,188), (84,846), (56,564), (14,144), (76,763), 
+(98,982), (55,551), (17,174), (99,998), (51,513),
+(28,282), (52,527), (33,336), (13,138), (87,878), 
+(43,431), (91,916), (62,624), (79,797), (49,494),
+(93,933), (34,347), (82,829), (78,780), (63,634), 
+(32,329), (22,228), (11,114), (74,749), (23,236);
+set join_cache_level=1;
+EXPLAIN
+SELECT a1<>a2, a1, a2, b2, b3, c3,
+SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
+FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	Using index
+1	SIMPLE	t3	ref	idx	idx	5	test.t2.b2	5	Using where
+SELECT a1<>a2, a1, a2, b2, b3, c3,
+SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
+FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
+a1<>a2	a1	a2	b2	b3	c3	s1	s2
+0	4	4	13	13	138		
+0	4	4	18	18	188		
+0	1	1	30	30	309		
+0	1	1	32	32	329		
+0	9	9	22	22	228		
+0	8	8	92	92	929		
+0	8	8	99	99	998		
+0	5	5	82	82	829		
+0	5	5	87	87	878		
+0	3	3	45	45	459		
+0	3	3	45	45	458		
+0	6	6	73	73	738		
+0	6	6	74	74	749		
+0	2	2	61	61	618		
+set join_cache_level=5;
+set join_buffer_size=512;
+EXPLAIN
+SELECT a1<>a2, a1, a2, b2, b3, c3,
+SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
+FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	9	
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	test.t1.a1	1	Using index
+1	SIMPLE	t3	ref	idx	idx	5	test.t2.b2	5	Using where; Using join buffer
+SELECT a1<>a2, a1, a2, b2, b3, c3,
+SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
+FROM t1,t2,t3 WHERE a1=a2 AND b2=b3 AND MOD(c3,10)>7;
+a1<>a2	a1	a2	b2	b3	c3	s1	s2
+0	4	4	18	18	188		
+0	4	4	13	13	138		
+0	1	1	30	30	309		
+0	1	1	32	32	329		
+0	8	8	92	92	929		
+0	9	9	22	22	228		
+0	8	8	99	99	998		
+0	5	5	87	87	878		
+0	5	5	82	82	829		
+0	3	3	45	45	459		
+0	3	3	45	45	458		
+0	6	6	73	73	738		
+0	6	6	74	74	749		
+0	2	2	61	61	618		
+DROP TABLE t1,t2,t3;
