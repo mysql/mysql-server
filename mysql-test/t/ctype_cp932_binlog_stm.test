@@ -64,8 +64,10 @@ INSERT INTO t1 VALUES ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');
 #
 # Populate tables head and tail with values '00'-'FF'
 #
+--disable_warnings
 CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 b2;
 CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
+--enable_warnings
 DROP TABLE t1;
 #
 # Populate table t1 with all codes [80..FF][20..FF]
