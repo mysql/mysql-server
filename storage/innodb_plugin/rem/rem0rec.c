@@ -1215,11 +1215,20 @@ rec_convert_dtuple_to_rec(
 		mem_heap_t*	heap	= NULL;
 		ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 		const ulint*	offsets;
+		ulint		i;
 		rec_offs_init(offsets_);
 
 		offsets = rec_get_offsets(rec, index,
 					  offsets_, ULINT_UNDEFINED, &heap);
 		ut_ad(rec_validate(rec, offsets));
+		ut_ad(dtuple_get_n_fields(dtuple)
+		      == rec_offs_n_fields(offsets));
+
+		for (i = 0; i < rec_offs_n_fields(offsets); i++) {
+			ut_ad(dfield_is_ext(dtuple_get_nth_field(dtuple, i))
+			      == rec_offs_nth_extern(offsets, i));
+		}
+
 		if (UNIV_LIKELY_NULL(heap)) {
 			mem_heap_free(heap);
 		}
