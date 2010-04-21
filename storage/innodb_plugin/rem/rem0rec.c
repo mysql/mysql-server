@@ -1225,8 +1225,8 @@ rec_convert_dtuple_to_rec(
 		      == rec_offs_n_fields(offsets));
 
 		for (i = 0; i < rec_offs_n_fields(offsets); i++) {
-			ut_ad(dfield_is_ext(dtuple_get_nth_field(dtuple, i))
-			      == rec_offs_nth_extern(offsets, i));
+			ut_ad(!dfield_is_ext(dtuple_get_nth_field(dtuple, i))
+			      == !rec_offs_nth_extern(offsets, i));
 		}
 
 		if (UNIV_LIKELY_NULL(heap)) {
