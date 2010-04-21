@@ -4595,10 +4595,11 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
 {
   int res;
   uchar *cur_range_info;
+  uchar *rowid;
   
   if (use_default_impl)
     return h->handler::multi_range_read_next(range_info);
-    
+  
   do
   {
     if (rowids_buf_cur == rowids_buf_last)
@@ -4620,14 +4621,19 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
       res= HA_ERR_END_OF_FILE;
       goto end;
     }
-    res= h->rnd_pos(table->record[0], rowids_buf_cur);
-    cur_range_info= rowids_buf_cur + h->ref_length;
+    rowid= rowids_buf_cur;
+    cur_range_info= *(uchar**)(rowids_buf_cur + h->ref_length);
     rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
-  } while (semi_join && *cur_range_info==0);
+    if (semi_join && *cur_range_info == 1)
+      continue;
+    res= h->rnd_pos(table->record[0], rowid);
+    break;
+  } while (true);
  
   if (is_mrr_assoc)
-    memcpy(range_info, cur_range_info, sizeof(void*));
-
+  {
+    memcpy(range_info, rowid + h->ref_length, sizeof(void*));
+  }
 end:
   return res;
 }
