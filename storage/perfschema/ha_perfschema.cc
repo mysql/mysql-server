@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,7 +18,8 @@
   Performance schema storage engine (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "ha_perfschema.h"
 #include "mysql/plugin.h"
 #include "pfs_engine_table.h"

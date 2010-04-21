@@ -1,4 +1,4 @@
-source include/have_ssl.inc;
+source include/have_ssl_communication.inc;
 source include/master-slave.inc;
 
 # create a user for replication that requires ssl encryption

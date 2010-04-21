@@ -105,6 +105,10 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
 	suite/parts suite/parts/t suite/parts/r suite/parts/inc \
 	suite/innodb suite/innodb/t suite/innodb/r suite/innodb/include \
+	suite/engines suite/engines/funcs suite/engines/iuds suite/engines/rr_trx \
+	suite/engines/funcs/r suite/engines/funcs/t suite/engines/iuds/r \
+	suite/engines/iuds/t suite/engines/rr_trx/include suite/engines/rr_trx/r \
+	suite/engines/rr_trx/t \
 	suite/sys_vars suite/sys_vars/t suite/sys_vars/inc suite/sys_vars/r \
         suite/perfschema suite/perfschema/t suite/perfschema/r \
         suite/perfschema/include
@@ -138,12 +142,12 @@ uninstall-local:
 # mtr - a shortcut for executing mysql-test-run.pl
 mtr:
 	$(RM) -f mtr
-	$(LN_S) $(srcdir)/mysql-test-run.pl mtr
+	$(LN_S) mysql-test-run.pl mtr
 
 # mysql-test-run - a shortcut for executing mysql-test-run.pl
 mysql-test-run:
 	$(RM) -f mysql-test-run
-	$(LN_S) $(srcdir)/mysql-test-run.pl mysql-test-run
+	$(LN_S) mysql-test-run.pl mysql-test-run
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

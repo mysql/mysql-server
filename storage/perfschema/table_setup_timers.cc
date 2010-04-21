@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
   Table SETUP_TIMERS (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "table_setup_timers.h"
 #include "pfs_column_values.h"
 #include "pfs_timer.h"

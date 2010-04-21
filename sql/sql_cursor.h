@@ -20,6 +20,10 @@
 #pragma interface                              /* gcc class interface */
 #endif
 
+#include "sql_class.h"                          /* Query_arena */
+
+class JOIN;
+
 /**
   @file
 

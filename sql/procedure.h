@@ -23,6 +23,14 @@
 #pragma interface				/* gcc class implementation */
 #endif
 
+/*
+  It is necessary to include set_var.h instead of item.h because there
+  are dependencies on include order for set_var.h and item.h. This
+  will be resolved later.
+*/
+#include "sql_class.h"                          /* select_result, set_var.h: THD */
+#include "set_var.h"                            /* Item */
+
 #define PROC_NO_SORT 1				/**< Bits in flags */
 #define PROC_GROUP   2				/**< proc must have group */
 

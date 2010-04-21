@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,10 +25,19 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "sql_select.h"
 #include "rpl_rli.h"                            // Pull in Relay_log_info
 #include "slave.h"                              // Pull in rpl_master_has_bug()
+#include "strfunc.h"                            // find_type2, find_set
+#include "sql_time.h"                    // str_to_datetime_with_warn,
+                                         // str_to_time_with_warn,
+                                         // TIME_to_timestamp,
+                                         // make_time, make_date,
+                                         // make_truncated_value_warning
+#include "tztime.h"                      // struct Time_zone
+#include "filesort.h"                    // change_double_for_sort
+#include "log_event.h"                   // class Table_map_log_event
 #include <m_ctype.h>
 #include <errno.h>
 
@@ -2981,16 +2990,16 @@ Field_new_decimal::unpack(uchar* to,
       a decimal and write that to the raw data buffer.
     */
     decimal_digit_t dec_buf[DECIMAL_MAX_PRECISION];
-    decimal_t dec;
-    dec.len= from_precision;
-    dec.buf= dec_buf;
+    decimal_t dec_val;
+    dec_val.len= from_precision;
+    dec_val.buf= dec_buf;
     /*
       Note: bin2decimal does not change the length of the field. So it is
       just the first step the resizing operation. The second step does the
       resizing using the precision and decimals from the slave.
     */
-    bin2decimal((uchar *)from, &dec, from_precision, from_decimal);
-    decimal2bin(&dec, to, precision, decimals());
+    bin2decimal((uchar *)from, &dec_val, from_precision, from_decimal);
+    decimal2bin(&dec_val, to, precision, decimals());
   }
   else
     memcpy(to, from, len); // Sizes are the same, just copy the data.
@@ -6287,7 +6296,7 @@ check_string_copy_error(Field_str *field,
 
   SYNOPSIS
     Field_longstr::report_if_important_data()
-    ptr                      - Truncated rest of string
+    pstr                     - Truncated rest of string
     end                      - End of truncated string
     count_spaces             - Treat traling spaces as important data
 
@@ -6303,12 +6312,12 @@ check_string_copy_error(Field_str *field,
 */
 
 int
-Field_longstr::report_if_important_data(const char *ptr, const char *end,
+Field_longstr::report_if_important_data(const char *pstr, const char *end,
                                         bool count_spaces)
 {
-  if ((ptr < end) && table->in_use->count_cuted_fields)
+  if ((pstr < end) && table->in_use->count_cuted_fields)
   {
-    if (test_if_important_data(field_charset, ptr, end))
+    if (test_if_important_data(field_charset, pstr, end))
     {
       if (table->in_use->abort_on_warning)
         set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_DATA_TOO_LONG, 1);
@@ -6824,9 +6833,8 @@ const uint Field_varstring::MAX_SIZE= UINT_MAX16;
 */
 int Field_varstring::do_save_field_metadata(uchar *metadata_ptr)
 {
-  char *ptr= (char *)metadata_ptr;
   DBUG_ASSERT(field_length <= 65535);
-  int2store(ptr, field_length);
+  int2store((char*)metadata_ptr, field_length);
   return 2;
 }
 

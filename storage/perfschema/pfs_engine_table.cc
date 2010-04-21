@@ -19,7 +19,7 @@
   Performance schema tables (implementation).
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"
@@ -37,6 +37,9 @@
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
+
+#include "sql_base.h"                           // close_thread_tables
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
 /**
   @addtogroup Performance_schema_engine
@@ -106,7 +109,12 @@ void PFS_check_intact::report_error(uint code, const char *fmt, ...)
   my_vsnprintf(buff, sizeof(buff), fmt, args);
   va_end(args);
 
-  my_message(code, buff, MYF(0));
+  /*
+    This is an install/upgrade issue:
+    - do not report it in the user connection, there is none in main(),
+    - report it in the server error log.
+  */
+  sql_print_error("%s", buff);
 }
 
 /**
