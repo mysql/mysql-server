@@ -9600,16 +9600,12 @@ void revise_cache_usage(JOIN_TAB *join_tab)
   if (join_tab->first_inner)
   {
     JOIN_TAB *end_tab= join_tab;
-    JOIN_TAB *last_inner= join_tab->first_inner->last_inner;
     for (first_inner= join_tab->first_inner; 
-         first_inner && first_inner->last_inner == last_inner;
+         first_inner;
          first_inner= first_inner->first_upper)           
     {
       for (tab= end_tab-1; tab >= first_inner; tab--)
-      {
-        if (tab->first_inner->last_inner == last_inner)
-          set_join_cache_denial(tab);
-      }
+        set_join_cache_denial(tab);
       end_tab= first_inner;
     }
   }
@@ -9632,12 +9628,12 @@ bool check_join_cache_usage(JOIN_TAB *tab,
 {
   uint flags;
   COST_VECT cost;
+  ha_rows rows;
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
   uint cache_level= join->thd->variables.join_cache_level;
   bool force_unlinked_cache= test(cache_level & 1);
   uint i= tab-join->join_tab;
-  ha_rows rows;
   
   if (cache_level == 0)
     return FALSE;
@@ -9657,10 +9653,33 @@ bool check_join_cache_usage(JOIN_TAB *tab,
     goto no_join_cache;
   for (JOIN_TAB *first_inner= tab->first_inner; first_inner;
        first_inner= first_inner->first_upper)
-  { 
+  {
     if (first_inner != tab && !first_inner->use_join_cache)
       goto no_join_cache;
   }
+  if (tab->first_sj_inner_tab && tab->first_sj_inner_tab != tab &&
+      !tab->first_sj_inner_tab->use_join_cache)
+    goto no_join_cache;
+  if (!tab[-1].use_join_cache)
+  {
+    /* 
+      Check whether table tab and the previous one belong to the same nest of
+      inner tables and if so do not use join buffer when joining table tab. 
+    */
+    if (tab->first_inner)
+    {
+      for (JOIN_TAB *first_inner= tab[-1].first_inner;
+           first_inner;
+           first_inner= first_inner->first_upper)
+      {
+        if (first_inner == tab->first_inner)
+          goto no_join_cache;
+      }
+    }
+    else if (tab->first_sj_inner_tab &&
+             tab->first_sj_inner_tab == tab[-1].first_sj_inner_tab)
+      goto no_join_cache; 
+  }       
 
   if (!force_unlinked_cache)
     prev_cache= tab[-1].cache;
@@ -9675,6 +9694,8 @@ bool check_join_cache_usage(JOIN_TAB *tab,
         !tab->cache->init())
       return TRUE;
     goto no_join_cache;
+  case JT_SYSTEM:
+  case JT_CONST:
   case JT_REF:
   case JT_EQ_REF:
     if (cache_level <= 4)
@@ -10152,7 +10173,15 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       }
       tab->use_join_cache= using_join_cache;
       /* fall through */
-    case JT_CONST:				// Only happens with left join
+    case JT_SYSTEM: 
+    case JT_CONST:
+      /* Only happens with outer joins */
+      if (check_join_cache_usage(tab, join, options, no_jbuf_after))
+      {
+        using_join_cache= TRUE;
+	tab[-1].next_select=sub_select_cache;
+      }
+      tab->use_join_cache= using_join_cache;
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
         table->set_keyread(TRUE);
@@ -10238,7 +10267,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       }
       break;
     case JT_FT:
-    case JT_SYSTEM: 
       break;
     default:
       DBUG_PRINT("error",("Table type %d found",tab->type)); /* purecov: deadcode */
@@ -20846,10 +20874,10 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool outer_join_first_inner= join_tab->is_first_inner_for_outer_join();
 
-  if (outer_join_first_inner)
-    join_tab->not_null_compl= TRUE;
+  if (outer_join_first_inner && !join_tab->first_unmatched)
+    join_tab->not_null_compl= TRUE;   
 
-  if (!join_tab->first_inner || join_tab->first_inner->not_null_compl)
+  if (!join_tab->first_unmatched)
   {
     /* Find all records from join_tab that match records from join buffer */
     rc= join_matching_records(skip_last);   
@@ -20876,7 +20904,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
         tab->first_unmatched= join_tab->first_inner;
     }
   }
-  if (join_tab->first_unmatched && !join_tab->first_unmatched->not_null_compl)
+  if (join_tab->first_unmatched)
   {
     /* 
       Generate all null complementing extensions for the records from
@@ -20982,7 +21010,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   { 
     /* A dynamic range access was used last. Clean up after it */
     delete join_tab->select->quick;
-    join_tab->select->quick=0;
+    join_tab->select->quick= 0;
   }
 
   for (tab= join->join_tab; tab != join_tab ; tab++)
@@ -20992,7 +21020,7 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
   }
 
   /* Start retrieving all records of the joined table */
-  if ((error=join_init_read_record(join_tab)))
+  if ((error= join_init_read_record(join_tab))) 
   {
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
     goto finish;
@@ -21193,7 +21221,7 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
   do
   {
     if (!set_match_flag_if_none(first_inner, rec_ptr))
-      return TRUE;
+      continue;
     if (first_inner->check_only_first_match() &&
         !first_inner->first_upper)
       return TRUE;
@@ -21214,7 +21242,8 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
         return FALSE;
     }
   }
-  while ((first_inner= first_inner->first_upper));
+  while ((first_inner= first_inner->first_upper) &&
+         first_inner->last_inner == join_tab);
   
   return TRUE;
 } 
@@ -21280,7 +21309,7 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
       if (is_last_inner)
       { 
         JOIN_TAB *first_upper= join_tab->first_unmatched->first_upper;
-        while (first_upper)
+        while (first_upper && first_upper->last_inner == join_tab)
         {
           if (!set_match_flag_if_none(first_upper, get_curr_rec()))
             break;
