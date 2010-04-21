@@ -10075,7 +10075,6 @@ struct system_variables
   char* dynamic_variables_ptr;
   uint dynamic_variables_head;
   uint dynamic_variables_size;
-  ulonglong myisam_max_extra_sort_file_size;
   ulonglong myisam_max_sort_file_size;
   ulonglong max_heap_table_size;
   ulonglong tmp_table_size;

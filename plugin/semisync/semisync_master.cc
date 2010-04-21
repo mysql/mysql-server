@@ -43,19 +43,16 @@ unsigned long long rpl_semi_sync_master_trx_wait_time = 0;
 char rpl_semi_sync_master_wait_no_slave = 1;
 
 
-static int getWaitTime(const struct timeval& start_tv);
+static int getWaitTime(const struct timespec& start_ts);
 
-#ifdef __WIN__
-static int gettimeofday(struct timeval *tv, void *tz)
+static unsigned long long timespec_to_usec(const struct timespec *ts)
 {
-  unsigned int ticks;
-  ticks= GetTickCount();
-  tv->tv_usec= ticks*1000;
-  tv->tv_sec= ticks/1000;
-
-  return 0;
-}
+#ifndef __WIN__
+  return (unsigned long long) ts->tv_sec * TIME_MILLION + ts->tv_nsec / TIME_THOUSAND;
+#else
+  return ts->tv.i64 / 10;
 #endif /* __WIN__ */
+}
 
 /*******************************************************************************
  *
@@ -65,7 +62,7 @@ static int gettimeofday(struct timeval *tv, void *tz)
 
 ActiveTranx::ActiveTranx(mysql_mutex_t *lock,
 			 unsigned long trace_level)
-  : Trace(trace_level),
+  : Trace(trace_level), allocator_(max_connections),
     num_entries_(max_connections << 1), /* Transaction hash table size
                                          * is set to double the size
                                          * of max_connections */
@@ -115,25 +112,6 @@ unsigned int ActiveTranx::get_hash_value(const char *log_file_name,
   return (hash1 + hash2) % num_entries_;
 }
 
-ActiveTranx::TranxNode* ActiveTranx::alloc_tranx_node()
-{
-  MYSQL_THD thd= (MYSQL_THD)current_thd;
-  /* The memory allocated for TranxNode will be automatically freed at
-     the end of the command of current THD. And because
-     ha_autocommit_or_rollback() will always be called before that, so
-     we are sure that the node will be removed from the active list
-     before it get freed. */
-  TranxNode *trx_node = (TranxNode *)thd_alloc(thd, sizeof(TranxNode));
-  if (trx_node)
-  {
-    trx_node->log_name_[0] = '\0';
-    trx_node->log_pos_= 0;
-    trx_node->next_= 0;
-    trx_node->hash_next_= 0;
-  }
-  return trx_node;
-}
-
 int ActiveTranx::compare(const char *log_file_name1, my_off_t log_file_pos1,
 			 const char *log_file_name2, my_off_t log_file_pos2)
 {
@@ -159,7 +137,7 @@ int ActiveTranx::insert_tranx_node(const char *log_file_name,
 
   function_enter(kWho);
 
-  ins_node = alloc_tranx_node();
+  ins_node = allocator_.allocate_node();
   if (!ins_node)
   {
     sql_print_error("%s: transaction node allocation failed for: (%s, %lu)",
@@ -271,6 +249,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
 
     /* Clear the hash table. */
     memset(trx_htb_, 0, num_entries_ * sizeof(TranxNode *));
+    allocator_.free_all_nodes();
 
     /* Clear the active transaction list. */
     if (trx_front_ != NULL)
@@ -311,6 +290,7 @@ int ActiveTranx::clear_active_tranx_nodes(const char *log_file_name,
     }
 
     trx_front_ = new_front;
+    allocator_.free_nodes_before(trx_front_);
 
     if (trace_level_ & kTraceDetail)
       sql_print_information("%s: cleared %d nodes back until pos (%s, %lu)",
@@ -623,12 +603,12 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
 
   if (getMasterEnabled() && trx_wait_binlog_name)
   {
-    struct timeval start_tv;
+    struct timespec start_ts;
     struct timespec abstime;
-    int wait_result, start_time_err;
+    int wait_result;
     const char *old_msg= 0;
 
-    start_time_err = gettimeofday(&start_tv, 0);
+    set_timespec(start_ts, 0);
 
     /* Acquire the mutex. */
     lock();
@@ -696,98 +676,72 @@ int ReplSemiSyncMaster::commitTrx(const char* trx_wait_binlog_name,
                                 kWho, wait_file_name_, (unsigned long)wait_file_pos_);
       }
 
-      if (start_time_err == 0)
-      {
-        int diff_usecs = start_tv.tv_usec + wait_timeout_ * TIME_THOUSAND;
-
-        /* Calcuate the waiting period. */
+      /* Calcuate the waiting period. */
 #ifdef __WIN__
-        abstime.tv.i64 = (__int64)start_tv.tv_sec * TIME_MILLION * 10;
-        abstime.tv.i64 += (__int64)diff_usecs * 10;
-        abstime.max_timeout_msec= (long)wait_timeout_;
+      abstime.tv.i64 = start_ts.tv.i64 + (__int64)wait_timeout_ * TIME_THOUSAND * 10;
+      abstime.max_timeout_msec= (long)wait_timeout_;
 #else
-        abstime.tv_sec = start_tv.tv_sec;
-        if (diff_usecs < TIME_MILLION)
-	{
-          abstime.tv_nsec = diff_usecs * TIME_THOUSAND;
-        }
-	else
-	{
-          while (diff_usecs >= TIME_MILLION)
-	  {
-            abstime.tv_sec++;
-            diff_usecs -= TIME_MILLION;
-          }
-          abstime.tv_nsec = diff_usecs * TIME_THOUSAND;
-        }
+      unsigned long long diff_nsecs =
+        start_ts.tv_nsec + (unsigned long long)wait_timeout_ * TIME_MILLION;
+      abstime.tv_sec = start_ts.tv_sec;
+      while (diff_nsecs >= TIME_BILLION)
+      {
+        abstime.tv_sec++;
+        diff_nsecs -= TIME_BILLION;
+      }
+      abstime.tv_nsec = diff_nsecs;
 #endif /* __WIN__ */
-
-        /* In semi-synchronous replication, we wait until the binlog-dump
-         * thread has received the reply on the relevant binlog segment from the
-         * replication slave.
-         *
-         * Let us suspend this thread to wait on the condition;
-         * when replication has progressed far enough, we will release
-         * these waiting threads.
-         */
-        rpl_semi_sync_master_wait_sessions++;
-
-        if (trace_level_ & kTraceDetail)
-          sql_print_information("%s: wait %lu ms for binlog sent (%s, %lu)",
-                                kWho, wait_timeout_,
-                                wait_file_name_, (unsigned long)wait_file_pos_);
-
-        wait_result = cond_timewait(&abstime);
-        rpl_semi_sync_master_wait_sessions--;
-
-        if (wait_result != 0)
-	{
-          /* This is a real wait timeout. */
-          sql_print_warning("Timeout waiting for reply of binlog (file: %s, pos: %lu), "
-                            "semi-sync up to file %s, position %lu.",
-                            trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos,
-                            reply_file_name_, (unsigned long)reply_file_pos_);
-          rpl_semi_sync_master_wait_timeouts++;
-
-          /* switch semi-sync off */
-          switch_off();
-        }
-	else
-	{
-          int wait_time;
-
-          wait_time = getWaitTime(start_tv);
-          if (wait_time < 0)
-	  {
-            if (trace_level_ & kTraceGeneral)
-	    {
-              /* This is a time/gettimeofday function call error. */
-              sql_print_error("Replication semi-sync gettimeofday fail1 at "
-                              "wait position (%s, %lu)",
-                              trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos);
-            }
-            rpl_semi_sync_master_timefunc_fails++;
-          }
-	  else
-	  {
-            rpl_semi_sync_master_trx_wait_num++;
-            rpl_semi_sync_master_trx_wait_time += wait_time;
-          }
-        }
+      
+      /* In semi-synchronous replication, we wait until the binlog-dump
+       * thread has received the reply on the relevant binlog segment from the
+       * replication slave.
+       *
+       * Let us suspend this thread to wait on the condition;
+       * when replication has progressed far enough, we will release
+       * these waiting threads.
+       */
+      rpl_semi_sync_master_wait_sessions++;
+      
+      if (trace_level_ & kTraceDetail)
+        sql_print_information("%s: wait %lu ms for binlog sent (%s, %lu)",
+                              kWho, wait_timeout_,
+                              wait_file_name_, (unsigned long)wait_file_pos_);
+      
+      wait_result = cond_timewait(&abstime);
+      rpl_semi_sync_master_wait_sessions--;
+      
+      if (wait_result != 0)
+      {
+        /* This is a real wait timeout. */
+        sql_print_warning("Timeout waiting for reply of binlog (file: %s, pos: %lu), "
+                          "semi-sync up to file %s, position %lu.",
+                          trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos,
+                          reply_file_name_, (unsigned long)reply_file_pos_);
+        rpl_semi_sync_master_wait_timeouts++;
+        
+        /* switch semi-sync off */
+        switch_off();
       }
       else
       {
-        if (trace_level_ & kTraceGeneral)
-	{
-          /* This is a gettimeofday function call error. */
-          sql_print_error("Replication semi-sync gettimeofday fail2 at "
-                          "wait position (%s, %lu)",
-                          trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos);
+        int wait_time;
+        
+        wait_time = getWaitTime(start_ts);
+        if (wait_time < 0)
+        {
+          if (trace_level_ & kTraceGeneral)
+          {
+            sql_print_error("Replication semi-sync getWaitTime fail at "
+                            "wait position (%s, %lu)",
+                            trx_wait_binlog_name, (unsigned long)trx_wait_binlog_pos);
+          }
+          rpl_semi_sync_master_timefunc_fails++;
         }
-        rpl_semi_sync_master_timefunc_fails++;
-
-        /* switch semi-sync off */
-        switch_off();
+        else
+        {
+          rpl_semi_sync_master_trx_wait_num++;
+          rpl_semi_sync_master_trx_wait_time += wait_time;
+        }
       }
     }
 
@@ -1097,8 +1051,7 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
   ulong    packet_len;
   int      result = -1;
 
-  struct timeval start_tv;
-  int   start_time_err= 0;
+  struct timespec start_ts;
   ulong trc_level = trace_level_;
 
   function_enter(kWho);
@@ -1112,7 +1065,7 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
   }
 
   if (trc_level & kTraceNetWait)
-    start_time_err = gettimeofday(&start_tv, 0);
+    set_timespec(start_ts, 0);
 
   /* We flush to make sure that the current event is sent to the network,
    * instead of being buffered in the TCP/IP stack.
@@ -1137,28 +1090,17 @@ int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,
 
   if (trc_level & kTraceNetWait)
   {
-    if (start_time_err != 0)
+    int wait_time = getWaitTime(start_ts);
+    if (wait_time < 0)
     {
       sql_print_error("Semi-sync master wait for reply "
-                      "gettimeofday fail to get start time");
+                      "fail to get wait time.");
       rpl_semi_sync_master_timefunc_fails++;
     }
     else
     {
-      int wait_time;
-
-      wait_time = getWaitTime(start_tv);
-      if (wait_time < 0)
-      {
-        sql_print_error("Semi-sync master wait for reply "
-                        "gettimeofday fail to get wait time.");
-        rpl_semi_sync_master_timefunc_fails++;
-      }
-      else
-      {
-        rpl_semi_sync_master_net_wait_num++;
-        rpl_semi_sync_master_net_wait_time += wait_time;
-      }
+      rpl_semi_sync_master_net_wait_num++;
+      rpl_semi_sync_master_net_wait_time += wait_time;
     }
   }
 
@@ -1247,24 +1189,23 @@ void ReplSemiSyncMaster::setExportStats()
  * 
  * Return:
  *  >= 0: the waiting time in microsecons(us)
- *   < 0: error in gettimeofday or time back traverse
+ *   < 0: error in get time or time back traverse
  */
-static int getWaitTime(const struct timeval& start_tv)
+static int getWaitTime(const struct timespec& start_ts)
 {
   unsigned long long start_usecs, end_usecs;
-  struct timeval end_tv;
-  int end_time_err;
-
+  struct timespec end_ts;
+  
   /* Starting time in microseconds(us). */
-  start_usecs = start_tv.tv_sec * TIME_MILLION + start_tv.tv_usec;
+  start_usecs = timespec_to_usec(&start_ts);
 
   /* Get the wait time interval. */
-  end_time_err = gettimeofday(&end_tv, 0);
+  set_timespec(end_ts, 0);
 
   /* Ending time in microseconds(us). */
-  end_usecs = end_tv.tv_sec * TIME_MILLION + end_tv.tv_usec;
+  end_usecs = timespec_to_usec(&end_ts);
 
-  if (end_time_err != 0 || end_usecs < start_usecs)
+  if (end_usecs < start_usecs)
     return -1;
 
   return (int)(end_usecs - start_usecs);

@@ -102,6 +102,7 @@ use IO::Select;
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
+require "lib/mtr_gprof.pl";
 require "lib/mtr_misc.pl";
 
 $SIG{INT}= sub { mtr_error("Got ^C signal"); };
@@ -187,6 +188,9 @@ our $opt_gcov_exe= "gcov";
 our $opt_gcov_err= "mysql-test-gcov.msg";
 our $opt_gcov_msg= "mysql-test-gcov.err";
 
+our $opt_gprof;
+our %gprof_dirs;
+
 our $glob_debugger= 0;
 our $opt_gdb;
 our $opt_client_gdb;
@@ -205,7 +209,9 @@ our $opt_experimental;
 our $experimental_test_cases;
 
 my $baseport;
+# $opt_build_thread may later be set from $opt_port_base
 my $opt_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
+my $opt_port_base= $ENV{'MTR_PORT_BASE'} || "auto";
 my $build_thread= 0;
 
 my $opt_record;
@@ -215,6 +221,7 @@ my $opt_skip_core;
 
 our $opt_check_testcases= 1;
 my $opt_mark_progress;
+my $opt_max_connections;
 
 my $opt_sleep;
 
@@ -234,6 +241,7 @@ my $opt_wait_all;
 my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= env_or_val(MTR_RETRY_FAILURE => 2);
+my $opt_reorder= 1;
 
 my $opt_strace_client;
 
@@ -246,6 +254,7 @@ my @default_valgrind_args= ("--show-reachable=yes");
 my @valgrind_args;
 my $opt_valgrind_path;
 my $opt_callgrind;
+my %mysqld_logs;
 my $opt_debug_sync_timeout= 300; # Default timeout for WAIT_FOR actions.
 
 our $opt_warnings= 1;
@@ -285,6 +294,9 @@ sub main {
 
   command_line_setup();
 
+  # --help will not reach here, so now it's safe to assume we have binaries
+  My::SafeProcess::find_bin();
+
   if ( $opt_gcov ) {
     gcov_prepare($basedir);
   }
@@ -314,7 +326,7 @@ sub main {
   }
 
   mtr_report("Collecting tests...");
-  my $tests= collect_test_cases($opt_suites, \@opt_cases);
+  my $tests= collect_test_cases($opt_reorder, $opt_suites, \@opt_cases);
 
   if ( $opt_report_features ) {
     # Put "report features" as the first test to run
@@ -431,7 +443,7 @@ sub main {
 		 $opt_gcov_msg, $opt_gcov_err);
   }
 
-  mtr_report_stats($completed);
+  mtr_report_stats("Completed", $completed);
 
   exit(0);
 }
@@ -455,7 +467,7 @@ sub run_test_server ($$$) {
   my $result;
   my $exe_mysqld= find_mysqld($basedir) || ""; # Used as hint to CoreDump
 
-  my $suite_timeout_proc= My::SafeProcess->timer(suite_timeout());
+  my $suite_timeout= start_timer(suite_timeout());
 
   my $s= IO::Select->new();
   $s->add($server);
@@ -476,7 +488,6 @@ sub run_test_server ($$$) {
 	  mtr_verbose("Child closed socket");
 	  $s->remove($sock);
 	  if (--$childs == 0){
-	    $suite_timeout_proc->kill();
 	    return $completed;
 	  }
 	  next;
@@ -545,15 +556,13 @@ sub run_test_server ($$$) {
 
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
-	      $suite_timeout_proc->kill();
 	      push(@$completed, $result);
 	      return $completed;
 	    }
 	    elsif ($opt_max_test_fail > 0 and
 		   $num_failed_test >= $opt_max_test_fail) {
-	      $suite_timeout_proc->kill();
 	      push(@$completed, $result);
-	      mtr_report_stats($completed, 1);
+	      mtr_report_stats("Too many failed", $completed, 1);
 	      mtr_report("Too many tests($num_failed_test) failed!",
 			 "Terminating...");
 	      return undef;
@@ -640,9 +649,9 @@ sub run_test_server ($$$) {
 	    next;
 	  }
 
-	  # Prefer same configuration
-	  if (defined $result and
-	      $result->{template_path} eq $t->{template_path})
+	  # Prefer same configuration, or just use next if --noreorder
+	  if (!$opt_reorder or (defined $result and
+	      $result->{template_path} eq $t->{template_path}))
 	  {
 	    #mtr_report("Test uses same config => good match");
 	    # Test uses same config => good match
@@ -683,9 +692,9 @@ sub run_test_server ($$$) {
     # ----------------------------------------------------
     # Check if test suite timer expired
     # ----------------------------------------------------
-    if ( ! $suite_timeout_proc->wait_one(0) )
+    if ( has_expired($suite_timeout) )
     {
-      mtr_report_stats($completed, 1);
+      mtr_report_stats("Timeout", $completed, 1);
       mtr_report("Test suite timeout! Terminating...");
       return undef;
     }
@@ -761,6 +770,12 @@ sub run_worker ($) {
     elsif ($line eq 'BYE'){
       mtr_report("Server said BYE");
       stop_all_servers($opt_shutdown_timeout);
+      if ($opt_valgrind_mysqld) {
+        valgrind_exit_reports();
+      }
+      if ( $opt_gprof ) {
+	gprof_collect (find_mysqld($basedir), keys %gprof_dirs);
+      }
       exit(0);
     }
     else {
@@ -841,9 +856,11 @@ sub command_line_setup {
 	     'combination=s'            => \@opt_combinations,
              'skip-combinations'        => \&collect_option,
              'experimental=s'           => \$opt_experimental,
+	     'skip-im'                  => \&ignore_option,
 
              # Specify ports
 	     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
+	     'port-base|mtr-port-base=i'       => \$opt_port_base,
 
              # Test case authoring
              'record'                   => \$opt_record,
@@ -874,6 +891,7 @@ sub command_line_setup {
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
+             'gprof'                    => \$opt_gprof,
              'valgrind|valgrind-all'    => \$opt_valgrind,
              'valgrind-mysqltest'       => \$opt_valgrind_mysqltest,
              'valgrind-mysqld'          => \$opt_valgrind_mysqld,
@@ -904,7 +922,7 @@ sub command_line_setup {
              'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
-             'reorder!'                 => \&collect_option,
+             'reorder!'                 => \$opt_reorder,
              'enable-disabled'          => \&collect_option,
              'verbose+'                 => \$opt_verbose,
              'verbose-restart'          => \&report_option,
@@ -924,6 +942,7 @@ sub command_line_setup {
              'warnings!'                => \$opt_warnings,
 	     'timestamp'                => \&report_option,
 	     'timediff'                 => \&report_option,
+	     'max-connections=i'        => \$opt_max_connections,
 
              'help|h'                   => \$opt_usage,
              'list-options'             => \$opt_list_options,
@@ -948,6 +967,11 @@ sub command_line_setup {
 
   # Find the absolute path to the test directory
   $glob_mysql_test_dir= cwd();
+  if ($glob_mysql_test_dir =~ / /)
+  {
+    die("Working directory \"$glob_mysql_test_dir\" contains space\n".
+	"Bailing out, cannot function properly with space in path");
+  }
   if (IS_CYGWIN)
   {
     # Use mixed path format i.e c:/path/to/
@@ -1102,6 +1126,21 @@ sub command_line_setup {
       collect_option('default-storage-engine', $1);
       mtr_report("Using default engine '$1'")
     }
+  }
+
+  if (IS_WINDOWS and defined $opt_mem) {
+    mtr_report("--mem not supported on Windows, ignored");
+    $opt_mem= undef;
+  }
+
+  if ($opt_port_base ne "auto")
+  {
+    if (my $rem= $opt_port_base % 10)
+    {
+      mtr_warning ("Port base $opt_port_base rounded down to multiple of 10");
+      $opt_port_base-= $rem;
+    }
+    $opt_build_thread= $opt_port_base / 10 - 1000;
   }
 
   # --------------------------------------------------------------------------
@@ -1276,7 +1315,7 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   # Gcov flag
   # --------------------------------------------------------------------------
-  if ( $opt_gcov and ! $source_dist )
+  if ( ($opt_gcov or $opt_gprof) and ! $source_dist )
   {
     mtr_error("Coverage test needs the source - please use source dist");
   }
@@ -1375,8 +1414,7 @@ sub command_line_setup {
     push(@valgrind_args, @default_valgrind_args)
       unless @valgrind_args;
 
-    # Make valgrind run in quiet mode so it only print errors
-    push(@valgrind_args, "--quiet" );
+    # Don't add --quiet; you will loose the summary reports.
 
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
@@ -1480,6 +1518,12 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--skip-grant-tables");
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
+
+  # Need --user=root if running as *nix root user
+  if (!IS_WINDOWS and $> == 0)
+  {
+    mtr_add_arg($args, "--user=root");
+  }
 
   my $exe_mysqld= find_mysqld($basedir);
   my $cmd= join(" ", $exe_mysqld, @$args);
@@ -1824,11 +1868,11 @@ sub environment_setup {
     {
       push(@ld_library_paths, "$basedir/libmysql/.libs/",
 	   "$basedir/libmysql_r/.libs/",
-	   "$basedir/zlib.libs/");
+	   "$basedir/zlib/.libs/");
     }
     else
     {
-      push(@ld_library_paths, "$basedir/lib");
+      push(@ld_library_paths, "$basedir/lib", "$basedir/lib/mysql");
     }
   }
 
@@ -2601,6 +2645,7 @@ sub create_config_file_for_extern {
 # binlog reads from [client] and [mysqlbinlog]
 [mysqlbinlog]
 character-sets-dir= $path_charsetsdir
+local-load= $opt_tmpdir
 
 # mysql_fix_privilege_tables.sh don't read from [client]
 [mysql_fix_privilege_tables]
@@ -3030,11 +3075,11 @@ sub check_testcase($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout_proc= My::SafeProcess->timer(check_timeout());
+  my $timeout= start_timer(check_timeout());
 
   while (1){
     my $result;
-    my $proc= My::SafeProcess->wait_any();
+    my $proc= My::SafeProcess->wait_any_timeout($timeout);
     mtr_report("Got $proc");
 
     if ( delete $started{$proc->pid()} ) {
@@ -3058,9 +3103,6 @@ sub check_testcase($$)
 
 	if ( keys(%started) == 0){
 	  # All checks completed
-
-	  $timeout_proc->kill();
-
 	  return 0;
 	}
 	# Wait for next process to exit
@@ -3101,10 +3143,9 @@ test case was executed:\n";
 
       }
     }
-    elsif ( $proc eq $timeout_proc ) {
-      $tinfo->{comment}.= "Timeout $timeout_proc for ".
-	"'check-testcase' expired after ".check_timeout().
-	  " seconds";
+    elsif ( $proc->{timeout} ) {
+      $tinfo->{comment}.= "Timeout for 'check-testcase' expired after "
+	.check_timeout()." seconds";
       $result= 4;
     }
     else {
@@ -3118,8 +3159,6 @@ test case was executed:\n";
 
     # Kill any check processes still running
     map($_->kill(), values(%started));
-
-    $timeout_proc->kill();
 
     return $result;
   }
@@ -3192,11 +3231,11 @@ sub run_on_all($$)
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout_proc= My::SafeProcess->timer(check_timeout());
+  my $timeout= start_timer(check_timeout());
 
   while (1){
     my $result;
-    my $proc= My::SafeProcess->wait_any();
+    my $proc= My::SafeProcess->wait_any_timeout($timeout);
     mtr_report("Got $proc");
 
     if ( delete $started{$proc->pid()} ) {
@@ -3215,17 +3254,15 @@ sub run_on_all($$)
 
       if ( keys(%started) == 0){
 	# All completed
-	$timeout_proc->kill();
 	return 0;
       }
 
       # Wait for next process to exit
       next;
     }
-    elsif ( $proc eq $timeout_proc ) {
-      $tinfo->{comment}.= "Timeout $timeout_proc for '$run' ".
-	"expired after ". check_timeout().
-	  " seconds";
+    elsif ($proc->{timeout}) {
+      $tinfo->{comment}.= "Timeout for '$run' expired after "
+	.check_timeout()." seconds";
     }
     else {
       # Unknown process returned, most likley a crash, abort everything
@@ -3236,8 +3273,6 @@ sub run_on_all($$)
 
     # Kill any check processes still running
     map($_->kill(), values(%started));
-
-    $timeout_proc->kill();
 
     return 1;
   }
@@ -3345,9 +3380,11 @@ sub run_testcase ($) {
 
   mtr_verbose("Running test:", $tinfo->{name});
 
-  # Allow only alpanumerics pluss _ - + . in combination names
+  # Allow only alpanumerics pluss _ - + . in combination names,
+  # or anything beginning with -- (the latter comes from --combination)
   my $combination= $tinfo->{combination};
-  if ($combination && $combination !~ /^\w[-\w\.\+]+$/)
+  if ($combination && $combination !~ /^\w[-\w\.\+]+$/
+                   && $combination !~ /^--/)
   {
     mtr_error("Combination '$combination' contains illegal characters");
   }
@@ -3468,16 +3505,13 @@ sub run_testcase ($) {
     }
   }
 
-  my $test_timeout_proc= My::SafeProcess->timer(testcase_timeout());
+  my $test_timeout= start_timer(testcase_timeout());
 
   do_before_run_mysqltest($tinfo);
 
   if ( $opt_check_testcases and check_testcase($tinfo, "before") ){
     # Failed to record state of server or server crashed
     report_failure_and_restart($tinfo);
-
-    # Stop the test case timer
-    $test_timeout_proc->kill();
 
     return 1;
   }
@@ -3496,20 +3530,20 @@ sub run_testcase ($) {
       if ($proc)
       {
 	mtr_verbose ("Found exited process $proc");
-	# If that was the timeout, cancel waiting
-	if ( $proc eq $test_timeout_proc )
-	{
-	  $keep_waiting_proc = 0;
-	}
       }
       else
       {
 	$proc = $keep_waiting_proc;
+	# Also check if timer has expired, if so cancel waiting
+	if ( has_expired($test_timeout) )
+	{
+	  $keep_waiting_proc = 0;
+	}
       }
     }
-    else
+    if (! $keep_waiting_proc)
     {
-      $proc= My::SafeProcess->wait_any();
+      $proc= My::SafeProcess->wait_any_timeout($test_timeout);
     }
 
     # Will be restored if we need to keep waiting
@@ -3526,9 +3560,6 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     if ($proc eq $test)
     {
-      # Stop the test case timer
-      $test_timeout_proc->kill();
-
       my $res= $test->exit_status();
 
       if ($res == 0 and $opt_warnings and check_warnings($tinfo) )
@@ -3585,6 +3616,14 @@ sub run_testcase ($) {
 	  run_on_all($tinfo, "analyze-$analyze");
 	}
 
+	# Wait a bit and see if a server died, if so report that instead
+	mtr_milli_sleep(100);
+	my $srvproc= My::SafeProcess::check_any();
+	if ($srvproc && grep($srvproc eq $_, started(all_servers()))) {
+	  $proc= $srvproc;
+	  goto SRVDIED;
+	}
+
 	# Test case failure reported by mysqltest
 	report_failure_and_restart($tinfo);
       }
@@ -3592,7 +3631,7 @@ sub run_testcase ($) {
       {
 	# mysqltest failed, probably crashed
 	$tinfo->{comment}=
-	  "mysqltest failed with unexpected return code $res";
+	  "mysqltest failed with unexpected return code $res\n";
 	report_failure_and_restart($tinfo);
       }
 
@@ -3610,6 +3649,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # Check if it was an expected crash
     # ----------------------------------------------------
+    SRVDIED:
     my $check_crash = check_expected_crash_and_restart($proc);
     if ($check_crash)
     {
@@ -3622,7 +3662,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # Stop the test case timer
     # ----------------------------------------------------
-    $test_timeout_proc->kill();
+    $test_timeout= 0;
 
     # ----------------------------------------------------
     # Check if it was a server that died
@@ -3661,7 +3701,7 @@ sub run_testcase ($) {
     # ----------------------------------------------------
     # Check if testcase timer expired
     # ----------------------------------------------------
-    if ( $proc eq $test_timeout_proc )
+    if ( $proc->{timeout} )
     {
       my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
       $tinfo->{comment}=
@@ -3783,16 +3823,24 @@ sub extract_warning_lines ($$) {
     (
      qr/^Warning:|mysqld: Warning|\[Warning\]/,
      qr/^Error:|\[ERROR\]/,
-     qr/^==\d*==/, # valgrind errors
+     qr/^==\d+==\s+\S/, # valgrind errors
      qr/InnoDB: Warning|InnoDB: Error/,
      qr/^safe_mutex:|allocated at line/,
      qr/missing DBUG_RETURN/,
      qr/Attempting backtrace/,
      qr/Assertion .* failed/,
     );
+  my $skip_valgrind= 0;
 
   foreach my $line ( @lines )
   {
+    if ($opt_valgrind_mysqld) {
+      # Skip valgrind summary from tests where server has been restarted
+      # Should this contain memory leaks, the final report will find it
+      $skip_valgrind= 1 if $line =~ /^==\d+== ERROR SUMMARY:/;
+      $skip_valgrind= 0 unless $line =~ /^==\d+==/;
+      next if $skip_valgrind;
+    }
     foreach my $pat ( @patterns )
     {
       if ( $line =~ /$pat/ )
@@ -3832,7 +3880,6 @@ sub start_check_warnings ($$) {
 
   mtr_add_arg($args, "--loose-skip-safemalloc");
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
-  mtr_add_arg($args, "--verbose");
 
   if ( $opt_embedded_server )
   {
@@ -3895,11 +3942,11 @@ sub check_warnings ($) {
   # Return immediately if no check proceess was started
   return 0 unless ( keys %started );
 
-  my $timeout_proc= My::SafeProcess->timer(check_timeout());
+  my $timeout= start_timer(check_timeout());
 
   while (1){
     my $result= 0;
-    my $proc= My::SafeProcess->wait_any();
+    my $proc= My::SafeProcess->wait_any_timeout($timeout);
     mtr_report("Got $proc");
 
     if ( delete $started{$proc->pid()} ) {
@@ -3928,9 +3975,6 @@ sub check_warnings ($) {
 
 	if ( keys(%started) == 0){
 	  # All checks completed
-
-	  $timeout_proc->kill();
-
 	  return $result;
 	}
 	# Wait for next process to exit
@@ -3947,10 +3991,9 @@ sub check_warnings ($) {
 	$result= 2;
       }
     }
-    elsif ( $proc eq $timeout_proc ) {
-      $tinfo->{comment}.= "Timeout $timeout_proc for ".
-	"'check warnings' expired after ".check_timeout().
-	  " seconds";
+    elsif ( $proc->{timeout} ) {
+      $tinfo->{comment}.= "Timeout for 'check warnings' expired after "
+	.check_timeout()." seconds";
       $result= 4;
     }
     else {
@@ -3963,8 +4006,6 @@ sub check_warnings ($) {
 
     # Kill any check processes still running
     map($_->kill(), values(%started));
-
-    $timeout_proc->kill();
 
     return $result;
   }
@@ -3983,7 +4024,7 @@ sub check_expected_crash_and_restart {
 
   foreach my $mysqld ( mysqlds() )
   {
-    next unless ( $mysqld->{proc} eq $proc );
+    next unless ( $mysqld->{proc} and $mysqld->{proc} eq $proc );
 
     # Check if crash expected by looking at the .expect file
     # in var/tmp
@@ -4181,6 +4222,20 @@ sub report_failure_and_restart ($) {
 	# about what failed has been saved to file. Save the report
 	# in tinfo
 	$tinfo->{logfile}= mtr_fromfile($logfile);
+	# If no newlines in the test log:
+	# (it will contain the CURRENT_TEST written by mtr, so is not empty)
+	if ($tinfo->{logfile} !~ /\n/)
+	{
+	  # Show how far it got before suddenly failing
+	  $tinfo->{comment}.= "mysqltest failed but provided no output\n";
+	  my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
+	  if (-e $log_file_name) {
+	    $tinfo->{comment}.=
+	      "The result from queries just before the failure was:".
+	      "\n< snip >\n".
+	      mtr_lastlinesfromfile($log_file_name, 20)."\n";
+	  }
+	}
       }
       else
       {
@@ -4395,6 +4450,10 @@ sub mysqld_start ($$) {
     # see the exact location where valgrind complains
     $output= "$opt_vardir/log/".$mysqld->name().".trace";
   }
+  # Remember this log file for valgrind error report search
+  $mysqld_logs{$output}= 1 if $opt_valgrind;
+  # Remember data dir for gmon.out files if using gprof
+  $gprof_dirs{$mysqld->value('datadir')}= 1 if $opt_gprof;
 
   if ( defined $exe )
   {
@@ -4944,6 +5003,10 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--ssl");
   }
 
+  if ( $opt_max_connections ) {
+    mtr_add_arg($args, "--max-connections=%d", $opt_max_connections);
+  }
+
   if ( $opt_embedded_server )
   {
 
@@ -5172,7 +5235,7 @@ sub debugger_arguments {
   {
     # vc[express] /debugexe exe arg1 .. argn
 
-    # Add /debugexe and name of the exe before args
+    # Add name of the exe and /debugexe before args
     unshift(@$$args, "$$exe");
     unshift(@$$args, "/debugexe");
 
@@ -5247,6 +5310,66 @@ sub valgrind_arguments {
   }
 }
 
+#
+# Search server logs for valgrind reports printed at mysqld termination
+#
+
+sub valgrind_exit_reports() {
+  foreach my $log_file (keys %mysqld_logs)
+  {
+    my @culprits= ();
+    my $valgrind_rep= "";
+    my $found_report= 0;
+    my $err_in_report= 0;
+
+    my $LOGF = IO::File->new($log_file)
+      or mtr_error("Could not open file '$log_file' for reading: $!");
+
+    while ( my $line = <$LOGF> )
+    {
+      if ($line =~ /^CURRENT_TEST: (.+)$/)
+      {
+        my $testname= $1;
+        # If we have a report, report it if needed and start new list of tests
+        if ($found_report)
+        {
+          if ($err_in_report)
+          {
+            mtr_print ("Valgrind report from $log_file after tests:\n",
+                        @culprits);
+            mtr_print_line();
+            print ("$valgrind_rep\n");
+            $err_in_report= 0;
+          }
+          # Make ready to collect new report
+          @culprits= ();
+          $found_report= 0;
+          $valgrind_rep= "";
+        }
+        push (@culprits, $testname);
+        next;
+      }
+      # This line marks the start of a valgrind report
+      $found_report= 1 if $line =~ /ERROR SUMMARY:/;
+
+      if ($found_report) {
+        $line=~ s/^==\d+== //;
+        $valgrind_rep .= $line;
+        $err_in_report= 1 if $line =~ /ERROR SUMMARY: [1-9]/;
+        $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
+        $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
+      }
+    }
+
+    $LOGF= undef;
+
+    if ($err_in_report) {
+      mtr_print ("Valgrind report from $log_file after tests:\n", @culprits);
+      mtr_print_line();
+      print ("$valgrind_rep\n");
+    }
+  }
+}
 
 #
 # Usage
@@ -5326,6 +5449,11 @@ Options to control what test suites or cases to run
 
 Options that specify ports
 
+  mtr-port-base=#       Base for port numbers, ports from this number to
+  port-base=#           number+9 are reserved. Should be divisible by 10;
+                        if not it will be rounded down. May be set with
+                        environment variable MTR_PORT_BASE. If this value is
+                        set and is not "auto", it overrides build-thread.
   mtr-build-thread=#    Specify unique number to calculate port number(s) from.
   build-thread=#        Can be set in environment variable MTR_BUILD_THREAD.
                         Set  MTR_BUILD_THREAD="auto" to automatically aquire
@@ -5437,6 +5565,7 @@ Misc options
   timestamp             Print timestamp before each test report line
   timediff              With --timestamp, also print time passed since
                         *previous* test started
+  max-connections=N     Max number of open connection to server in mysqltest
 
 HERE
   exit(1);

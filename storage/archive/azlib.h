@@ -33,10 +33,14 @@
   (zlib format), rfc1951.txt (deflate format) and rfc1952.txt (gzip format).
 */
 
-#include <zlib.h>
-
 #include "../../mysys/mysys_priv.h"
 #include <my_dir.h>
+
+/* See bug#46587:
+   As described in the bug report, this placement is a fix.
+   It is needed to build 5.5.3-m3 on Linux 2.4 and early 2.6 kernels.
+*/
+#include <zlib.h>
 
 #ifdef  __cplusplus
 extern "C" {

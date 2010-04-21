@@ -23,10 +23,22 @@ set global relay_log_recovery=1;
 select @@global.relay_log_recovery;
 @@global.relay_log_recovery
 1
+select * from information_schema.global_variables where variable_name='relay_log_recovery';
+VARIABLE_NAME	VARIABLE_VALUE
+RELAY_LOG_RECOVERY	ON
+select * from information_schema.session_variables where variable_name='relay_log_recovery';
+VARIABLE_NAME	VARIABLE_VALUE
+RELAY_LOG_RECOVERY	ON
 set global relay_log_recovery=OFF;
 select @@global.relay_log_recovery;
 @@global.relay_log_recovery
 0
+select * from information_schema.global_variables where variable_name='relay_log_recovery';
+VARIABLE_NAME	VARIABLE_VALUE
+RELAY_LOG_RECOVERY	OFF
+select * from information_schema.session_variables where variable_name='relay_log_recovery';
+VARIABLE_NAME	VARIABLE_VALUE
+RELAY_LOG_RECOVERY	OFF
 set session relay_log_recovery=1;
 ERROR HY000: Variable 'relay_log_recovery' is a GLOBAL variable and should be set with SET GLOBAL
 set global relay_log_recovery=1.1;

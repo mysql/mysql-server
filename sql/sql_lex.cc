@@ -48,7 +48,7 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_LIMIT,
   ER_BINLOG_UNSAFE_INSERT_DELAYED,
   ER_BINLOG_UNSAFE_SYSTEM_TABLE,
-  ER_BINLOG_UNSAFE_TWO_AUTOINC_COLUMNS,
+  ER_BINLOG_UNSAFE_AUTOINC_COLUMNS,
   ER_BINLOG_UNSAFE_UDF,
   ER_BINLOG_UNSAFE_SYSTEM_VARIABLE,
   ER_BINLOG_UNSAFE_SYSTEM_FUNCTION,
@@ -1675,6 +1675,7 @@ void st_select_lex::init_query()
   having= prep_having= where= prep_where= 0;
   olap= UNSPECIFIED_OLAP_TYPE;
   having_fix_field= 0;
+  group_fix_field= 0;
   context.select_lex= this;
   context.init();
   /*

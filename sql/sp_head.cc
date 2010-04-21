@@ -383,31 +383,34 @@ error:
 }
 
 
-/*
- *
- *  sp_name
- *
- */
+/**
+  Create temporary sp_name object from MDL key.
 
-sp_name::sp_name(THD *thd, char *key, uint key_len)
+  @note The lifetime of this object is bound to the lifetime of the MDL_key.
+        This should be fine as sp_name objects created by this constructor
+        are mainly used for SP-cache lookups.
+
+  @param key         MDL key containing database and routine name.
+  @param qname_buff  Buffer to be used for storing quoted routine name
+                     (should be at least 2*NAME_LEN+1+1 bytes).
+*/
+
+sp_name::sp_name(const MDL_key *key, char *qname_buff)
 {
-  m_sroutines_key.str= key;
-  m_sroutines_key.length= key_len;
-  m_qname.str= ++key;
-  m_qname.length= key_len - 1;
-  if ((m_name.str= strchr(m_qname.str, '.')))
+  m_db.str= (char*)key->db_name();
+  m_db.length= key->db_name_length();
+  m_name.str= (char*)key->name();
+  m_name.length= key->name_length();
+  m_qname.str= qname_buff;
+  if (m_db.length)
   {
-    m_db.length= m_name.str - key;
-    m_db.str= strmake_root(thd->mem_root, key, m_db.length);
-    m_name.str++;
-    m_name.length= m_qname.length - m_db.length - 1;
+    strxmov(qname_buff, m_db.str, ".", m_name.str, NullS);
+    m_qname.length= m_db.length + 1 + m_name.length;
   }
   else
   {
-    m_name.str= m_qname.str;
-    m_name.length= m_qname.length;
-    m_db.str= 0;
-    m_db.length= 0;
+    strmov(qname_buff, m_name.str);
+    m_qname.length= m_name.length;
   }
   m_explicit_name= false;
 }
@@ -420,12 +423,10 @@ void
 sp_name::init_qname(THD *thd)
 {
   const uint dot= !!m_db.length;
-  /* m_sroutines format: m_type + [database + dot] + name + nul */
-  m_sroutines_key.length= 1 + m_db.length + dot + m_name.length;
-  if (!(m_sroutines_key.str= (char*) thd->alloc(m_sroutines_key.length + 1)))
+  /* m_qname format: [database + dot] + name + '\0' */
+  m_qname.length= m_db.length + dot + m_name.length;
+  if (!(m_qname.str= (char*) thd->alloc(m_qname.length + 1)))
     return;
-  m_qname.length= m_sroutines_key.length - 1;
-  m_qname.str= m_sroutines_key.str + 1;
   sprintf(m_qname.str, "%.*s%.*s%.*s",
           (int) m_db.length, (m_db.length ? m_db.str : ""),
           dot, ".",
@@ -511,7 +512,11 @@ sp_head::operator delete(void *ptr, size_t size) throw()
 
 sp_head::sp_head()
   :Query_arena(&main_mem_root, INITIALIZED_FOR_SP),
-   m_flags(0), unsafe_flags(0), m_recursion_level(0), m_next_cached_sp(0),
+   m_flags(0),
+   m_sp_cache_version(0),
+   unsafe_flags(0),
+   m_recursion_level(0),
+   m_next_cached_sp(0),
    m_cont_level(0)
 {
   const LEX_STRING str_reset= { NULL, 0 };
@@ -586,9 +591,6 @@ sp_head::init(LEX *lex)
   m_defstr.str= NULL;
   m_defstr.length= 0;
 
-  m_sroutines_key.str= NULL;
-  m_sroutines_key.length= 0;
-
   m_return_field_def.charset= NULL;
 
   DBUG_VOID_RETURN;
@@ -618,14 +620,10 @@ sp_head::init_sp_name(THD *thd, sp_name *spname)
   if (spname->m_qname.length == 0)
     spname->init_qname(thd);
 
-  m_sroutines_key.length= spname->m_sroutines_key.length;
-  m_sroutines_key.str= (char*) memdup_root(thd->mem_root,
-                                           spname->m_sroutines_key.str,
-                                           spname->m_sroutines_key.length + 1);
-  m_sroutines_key.str[0]= static_cast<char>(m_type);
-
-  m_qname.length= m_sroutines_key.length - 1;
-  m_qname.str= m_sroutines_key.str + 1;
+  m_qname.length= spname->m_qname.length;
+  m_qname.str= (char*) memdup_root(thd->mem_root,
+                                   spname->m_qname.str,
+                                   spname->m_qname.length + 1);
 
   DBUG_VOID_RETURN;
 }
@@ -733,16 +731,6 @@ create_typelib(MEM_ROOT *mem_root, Create_field *field_def, List<String> *src)
   DBUG_RETURN(result);
 }
 
-
-int
-sp_head::create(THD *thd)
-{
-  DBUG_ENTER("sp_head::create");
-  DBUG_PRINT("info", ("type: %d name: %s params: %s body: %s",
-		      m_type, m_name.str, m_params.str, m_body.str));
-
-  DBUG_RETURN(sp_create_routine(thd, m_type, this));
-}
 
 sp_head::~sp_head()
 {
@@ -1185,8 +1173,7 @@ sp_head::execute(THD *thd)
     We should also save Item tree change list to avoid rollback something
     too early in the calling query.
   */
-  old_change_list= thd->change_list;
-  thd->change_list.empty();
+  thd->change_list.move_elements_to(&old_change_list);
   /*
     Cursors will use thd->packet, so they may corrupt data which was prepared
     for sending by upper level. OTOH cursors in the same routine can share this
@@ -1255,7 +1242,7 @@ sp_head::execute(THD *thd)
       Will write this SP statement into binlog separately 
       (TODO: consider changing the condition to "not inside event union")
     */
-    if (thd->prelocked_mode == NON_PRELOCKED)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
     err_status= i->execute(thd, &ip);
@@ -1267,7 +1254,7 @@ sp_head::execute(THD *thd)
       If we've set thd->user_var_events_alloc to mem_root of this SP
       statement, clean all the events allocated in it.
     */
-    if (thd->prelocked_mode == NON_PRELOCKED)
+    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     {
       reset_dynamic(&thd->user_var_events);
       thd->user_var_events_alloc= NULL;//DEBUG
@@ -1332,9 +1319,7 @@ sp_head::execute(THD *thd)
   /* Restore all saved */
   old_packet.swap(thd->packet);
   DBUG_ASSERT(thd->change_list.is_empty());
-  thd->change_list= old_change_list;
-  /* To avoid wiping out thd->change_list on old_change_list destruction */
-  old_change_list.empty();
+  old_change_list.move_elements_to(&thd->change_list);
   thd->lex= old_lex;
   thd->set_query_id(old_query_id);
   DBUG_ASSERT(!thd->derived_tables);
@@ -1863,6 +1848,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   bool err_status= FALSE;
   uint params = m_pcont->context_var_count();
+  /* Query start time may be reset in a multi-stmt SP; keep this for later. */
+  ulonglong utime_before_sp_exec= thd->utime_after_lock;
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
   bool save_enable_slow_log= false;
@@ -2069,6 +2056,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   delete nctx;
   thd->spcont= save_spcont;
+  thd->utime_after_lock= utime_before_sp_exec;
 
   DBUG_RETURN(err_status);
 }
@@ -2745,7 +2733,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   thd->set_query_id(next_query_id());
 
-  if (thd->prelocked_mode == NON_PRELOCKED)
+  if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
   {
     /*
       This statement will enter/leave prelocked mode on its own.
@@ -2840,7 +2828,7 @@ int sp_instr::exec_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
     and open and lock them before executing instructions core function.
   */
   if (check_table_access(thd, SELECT_ACL, tables, FALSE, UINT_MAX, FALSE)
-      || open_and_lock_tables(thd, tables))
+      || open_and_lock_tables(thd, tables, TRUE, 0))
     result= -1;
   else
     result= 0;
@@ -3997,6 +3985,9 @@ sp_head::add_used_tables_to_table_list(THD *thd,
       table->prelocking_placeholder= 1;
       table->belong_to_view= belong_to_view;
       table->trg_event_map= stab->trg_event_map;
+      table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
+                              table->lock_type >= TL_WRITE_ALLOW_WRITE ?
+                              MDL_SHARED_WRITE : MDL_SHARED_READ);
 
       /* Everyting else should be zeroed */
 
@@ -4038,7 +4029,10 @@ sp_add_to_query_tables(THD *thd, LEX *lex,
   table->lock_type= locktype;
   table->select_lex= lex->current_select;
   table->cacheable_table= 1;
-  
+  table->mdl_request.init(MDL_key::TABLE, table->db, table->table_name,
+                          table->lock_type >= TL_WRITE_ALLOW_WRITE ?
+                          MDL_SHARED_WRITE : MDL_SHARED_READ);
+
   lex->add_to_query_tables(table);
   return table;
 }

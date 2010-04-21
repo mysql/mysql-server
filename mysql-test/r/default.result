@@ -180,7 +180,6 @@ insert into bug20691 values (2, 3, 5, '0007-01-01', 11, 13, 17, '0019-01-01 00:0
 insert into bug20691 values (DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, DEFAULT, 4);
 Warnings:
 Warning	1364	Field 'a' doesn't have a default value
-Warning	1364	Field 'b' doesn't have a default value
 Warning	1364	Field 'c' doesn't have a default value
 Warning	1364	Field 'd' doesn't have a default value
 Warning	1364	Field 'e' doesn't have a default value
@@ -193,7 +192,7 @@ a	b	c	d	e	f	g	h	i	x
 two	large	00:00:05	0007-01-01	11	13	17	0019-01-01 00:00:00	23	1
 	small	00:00:00	0000-00-00	0			0000-00-00 00:00:00	0	2
 two	large	00:00:05	0007-01-01	11	13	17	0019-01-01 00:00:00	23	3
-		00:00:00	0000-00-00	0			0000-00-00 00:00:00	0	4
+	small	00:00:00	0000-00-00	0			0000-00-00 00:00:00	0	4
 drop table bug20691;
 create table t1 (id int not null);
 insert into t1 values(default);

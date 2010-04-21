@@ -1,0 +1,55 @@
+
+
+# 2010-01-25 - Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_file_format;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are 'Antelope' and 'Barracuda' 
+select @@global.innodb_file_format in ('Antelope', 'Barracuda');
+select @@global.innodb_file_format;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_file_format;
+show global variables like 'innodb_file_format';
+show session variables like 'innodb_file_format';
+select * from information_schema.global_variables where variable_name='innodb_file_format';
+select * from information_schema.session_variables where variable_name='innodb_file_format';
+
+#
+# show that it's writable
+#
+set global innodb_file_format='Antelope';
+select @@global.innodb_file_format;
+select * from information_schema.global_variables where variable_name='innodb_file_format';
+select * from information_schema.session_variables where variable_name='innodb_file_format';
+set @@global.innodb_file_format='Barracuda';
+select @@global.innodb_file_format;
+select * from information_schema.global_variables where variable_name='innodb_file_format';
+select * from information_schema.session_variables where variable_name='innodb_file_format';
+--error ER_GLOBAL_VARIABLE
+set session innodb_file_format='Salmon';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_file_format='Salmon';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_file_format=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_file_format=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_file_format='Salmon';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_file_format = @start_global_value;
+SELECT @@global.innodb_file_format;

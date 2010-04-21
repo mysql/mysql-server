@@ -184,9 +184,6 @@ HASH ignore_table;
 
 static struct my_option my_long_options[] =
 {
-  {"all", 'a', "Deprecated. Use --create-options instead.",
-   (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
-   0, 0, 0, 0, 0},
   {"all-databases", 'A',
    "Dump all the databases. This will be same as --databases with all databases selected.",
    (uchar**) &opt_alldbs, (uchar**) &opt_alldbs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
@@ -199,13 +196,13 @@ static struct my_option my_long_options[] =
    "Do not dump any tablespace information.",
    (uchar**) &opt_notspcs, (uchar**) &opt_notspcs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"add-drop-database", OPT_DROP_DATABASE, "Add a 'DROP DATABASE' before each create.",
+  {"add-drop-database", OPT_DROP_DATABASE, "Add a DROP DATABASE before each create.",
    (uchar**) &opt_drop_database, (uchar**) &opt_drop_database, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-  {"add-drop-table", OPT_DROP, "Add a 'drop table' before each create.",
+  {"add-drop-table", OPT_DROP, "Add a DROP TABLE before each create.",
    (uchar**) &opt_drop, (uchar**) &opt_drop, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
-  {"add-locks", OPT_LOCKS, "Add locks around insert statements.",
+  {"add-locks", OPT_LOCKS, "Add locks around INSERT statements.",
    (uchar**) &opt_lock, (uchar**) &opt_lock, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0,
    0},
   {"allow-keywords", OPT_KEYWORDS,
@@ -216,11 +213,11 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_slave_apply, (uchar**) &opt_slave_apply, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
 #ifdef __NETWARE__
-  {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
+  {"autoclose", OPT_AUTO_CLOSE, "Automatically close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"character-sets-dir", OPT_CHARSETS_DIR,
-   "Directory where character sets are.", (uchar**) &charsets_dir,
+   "Directory for character set files.", (uchar**) &charsets_dir,
    (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"comments", 'i', "Write additional information.",
    (uchar**) &opt_comments, (uchar**) &opt_comments, 0, GET_BOOL, NO_ARG,
@@ -230,7 +227,7 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_compatible_mode_str, (uchar**) &opt_compatible_mode_str, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"compact", OPT_COMPACT,
-   "Give less verbose output (useful for debugging). Disables structure comments and header/footer constructs.  Enables options --skip-add-drop-table --skip-add-locks --skip-comments --skip-disable-keys --skip-set-charset",
+   "Give less verbose output (useful for debugging). Disables structure comments and header/footer constructs.  Enables options --skip-add-drop-table --skip-add-locks --skip-comments --skip-disable-keys --skip-set-charset.",
    (uchar**) &opt_compact, (uchar**) &opt_compact, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"complete-insert", 'c', "Use complete insert statements.",
@@ -239,19 +236,19 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    (uchar**) &opt_compress, (uchar**) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
-  {"create-options", OPT_CREATE_OPTIONS,
+  {"create-options", 'a',
    "Include all MySQL specific create options.",
    (uchar**) &create_options, (uchar**) &create_options, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
   {"databases", 'B',
-   "To dump several databases. Note the difference in usage; In this case no tables are given. All name arguments are regarded as databasenames. 'USE db_name;' will be included in the output.",
+   "Dump several databases. Note the difference in usage; in this case no tables are given. All name arguments are regarded as database names. 'USE db_name;' will be included in the output.",
    (uchar**) &opt_databases, (uchar**) &opt_databases, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
 #ifdef DBUG_OFF
-  {"debug", '#', "This is a non-debug version. Catch this and exit",
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
-  {"debug", '#', "Output debug log", (uchar**) &default_dbug_option,
+  {"debug", '#', "Output debug log.", (uchar**) &default_dbug_option,
    (uchar**) &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
@@ -263,7 +260,7 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (uchar**) &default_charset,
    (uchar**) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED; ",
+  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED.",
    (uchar**) &opt_delayed, (uchar**) &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
@@ -294,19 +291,21 @@ static struct my_option my_long_options[] =
    (uchar**) &extended_insert, (uchar**) &extended_insert, 0, GET_BOOL, NO_ARG,
    1, 0, 0, 0, 0, 0},
   {"fields-terminated-by", OPT_FTB,
-   "Fields in the textfile are terminated by ...", (uchar**) &fields_terminated,
-   (uchar**) &fields_terminated, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   "Fields in the output file are terminated by the given string.", 
+   (uchar**) &fields_terminated, (uchar**) &fields_terminated, 0, 
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"fields-enclosed-by", OPT_ENC,
-   "Fields in the importfile are enclosed by ...", (uchar**) &enclosed,
-   (uchar**) &enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
+   "Fields in the output file are enclosed by the given character.", 
+   (uchar**) &enclosed, (uchar**) &enclosed, 0, 
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
   {"fields-optionally-enclosed-by", OPT_O_ENC,
-   "Fields in the i.file are opt. enclosed by ...", (uchar**) &opt_enclosed,
-   (uchar**) &opt_enclosed, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
-  {"fields-escaped-by", OPT_ESC, "Fields in the i.file are escaped by ...",
-   (uchar**) &escaped, (uchar**) &escaped, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"first-slave", 'x', "Deprecated, renamed to --lock-all-tables.",
-   (uchar**) &opt_lock_all_tables, (uchar**) &opt_lock_all_tables, 0, GET_BOOL, NO_ARG,
-   0, 0, 0, 0, 0, 0},
+   "Fields in the output file are optionally enclosed by the given character.",
+   (uchar**) &opt_enclosed, (uchar**) &opt_enclosed, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0 ,0, 0},
+  {"fields-escaped-by", OPT_ESC,
+   "Fields in the output file are escaped by the given character.",
+   (uchar**) &escaped, (uchar**) &escaped, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"flush-logs", 'F', "Flush logs file in server before starting dump. "
    "Note that if you dump many databases at once (using the option "
    "--databases= or --all-databases), the logs will be flushed for "
@@ -315,7 +314,7 @@ static struct my_option my_long_options[] =
    "in this case the logs will be flushed only once, corresponding "
    "to the moment all tables are locked. So if you want your dump and "
    "the log flush to happen at the same exact moment you should use "
-   "--lock-all-tables or --master-data with --flush-logs",
+   "--lock-all-tables or --master-data with --flush-logs.",
    (uchar**) &flush_logs, (uchar**) &flush_logs, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"flush-privileges", OPT_ESC, "Emit a FLUSH PRIVILEGES statement "
@@ -324,7 +323,7 @@ static struct my_option my_long_options[] =
    "that depends on the data in the mysql database for proper restore. ",
    (uchar**) &flush_privileges, (uchar**) &flush_privileges, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"force", 'f', "Continue even if we get an sql-error.",
+  {"force", 'f', "Continue even if we get an SQL error.",
    (uchar**) &ignore_errors, (uchar**) &ignore_errors, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
@@ -337,7 +336,8 @@ static struct my_option my_long_options[] =
   {"ignore-table", OPT_IGNORE_TABLE,
    "Do not dump the specified table. To specify more than one table to ignore, "
    "use the directive multiple times, once for each table.  Each table must "
-   "be specified with both database and table names, e.g. --ignore-table=database.table",
+   "be specified with both database and table names, e.g., "
+   "--ignore-table=database.table.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include-master-host-port", OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT,
    "Adds 'MASTER_HOST=<host>, MASTER_PORT=<port>' to 'CHANGE MASTER TO..' in dump produced with --dump-slave.",
@@ -348,7 +348,8 @@ static struct my_option my_long_options[] =
   {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
    (uchar**) &opt_ignore, (uchar**) &opt_ignore, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
-  {"lines-terminated-by", OPT_LTB, "Lines in the i.file are terminated by ...",
+  {"lines-terminated-by", OPT_LTB, 
+   "Lines in the output file are terminated by the given string.",
    (uchar**) &lines_terminated, (uchar**) &lines_terminated, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lock-all-tables", 'x', "Locks all tables across all databases. This "
@@ -367,17 +368,19 @@ static struct my_option my_long_options[] =
    " to 2, that command will be prefixed with a comment symbol. "
    "This option will turn --lock-all-tables on, unless "
    "--single-transaction is specified too (in which case a "
-   "global read lock is only taken a short time at the beginning of the dump "
-   "- don't forget to read about --single-transaction below). In all cases "
-   "any action on logs will happen at the exact moment of the dump."
+   "global read lock is only taken a short time at the beginning of the dump; "
+   "don't forget to read about --single-transaction below). In all cases, "
+   "any action on logs will happen at the exact moment of the dump. "
    "Option automatically turns --lock-tables off.",
    (uchar**) &opt_master_data, (uchar**) &opt_master_data, 0,
    GET_UINT, OPT_ARG, 0, 0, MYSQL_OPT_MASTER_DATA_COMMENTED_SQL, 0, 0, 0},
-  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, "",
+  {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET, 
+   "The maximum packet length to send to or receive from server.",
     (uchar**) &opt_max_allowed_packet, (uchar**) &opt_max_allowed_packet, 0,
     GET_ULONG, REQUIRED_ARG, 24*1024*1024, 4096,
    (longlong) 2L*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
-  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, "",
+  {"net_buffer_length", OPT_NET_BUFFER_LENGTH, 
+   "The buffer size for TCP/IP and socket communication.",
     (uchar**) &opt_net_buffer_length, (uchar**) &opt_net_buffer_length, 0,
     GET_ULONG, REQUIRED_ARG, 1024*1024L-1025, 4096, 16*1024L*1024L,
    MALLOC_OVERHEAD-1024, 1024, 0},
@@ -386,16 +389,17 @@ static struct my_option my_long_options[] =
    (uchar**) &opt_autocommit, (uchar**) &opt_autocommit, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"no-create-db", 'n',
-   "'CREATE DATABASE /*!32312 IF NOT EXISTS*/ db_name;' will not be put in the output. The above line will be added otherwise, if --databases or --all-databases option was given.}.",
-   (uchar**) &opt_create_db, (uchar**) &opt_create_db, 0, GET_BOOL, NO_ARG, 0, 0,
-   0, 0, 0, 0},
+   "Suppress the CREATE DATABASE ... IF EXISTS statement that normally is "
+   "output for each dumped database if --all-databases or --databases is "
+   "given.",
+   (uchar**) &opt_create_db, (uchar**) &opt_create_db, 0, 
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-create-info", 't', "Don't write table creation info.",
    (uchar**) &opt_no_create_info, (uchar**) &opt_no_create_info, 0, GET_BOOL,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"no-data", 'd', "No row information.", (uchar**) &opt_no_data,
    (uchar**) &opt_no_data, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-set-names", 'N',
-   "Deprecated. Use --skip-set-charset instead.",
+  {"no-set-names", 'N',  "Same as--skip-set-charset.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"opt", OPT_OPTIMIZE,
    "Same as --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys. Enabled by default, disable with --skip-opt.",
@@ -413,8 +417,9 @@ static struct my_option my_long_options[] =
   {"port", 'P', "Port number to use for connection.", (uchar**) &opt_mysql_port,
    (uchar**) &opt_mysql_port, 0, GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0,
    0},
-  {"protocol", OPT_MYSQL_PROTOCOL, "The protocol of connection (tcp,socket,pipe,memory).",
-   0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"protocol", OPT_MYSQL_PROTOCOL, 
+   "The protocol to use for connection (tcp, socket, pipe, memory).",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"quick", 'q', "Don't buffer query, dump directly to stdout.",
    (uchar**) &quick, (uchar**) &quick, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"quote-names",'Q', "Quote table and column names with backticks (`).",
@@ -433,9 +438,6 @@ static struct my_option my_long_options[] =
    "Add 'SET NAMES default_character_set' to the output.",
    (uchar**) &opt_set_charset, (uchar**) &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
-  {"set-variable", 'O',
-   "Change the value of a variable. Please note that this option is deprecated; you can set variables directly with --variable-name=value.",
-   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", (uchar**) &shared_memory_base_name, (uchar**) &shared_memory_base_name,
@@ -464,18 +466,20 @@ static struct my_option my_long_options[] =
   {"skip-opt", OPT_SKIP_OPTIMIZATION,
    "Disable --opt. Disables --add-drop-table, --add-locks, --create-options, --quick, --extended-insert, --lock-tables, --set-charset, and --disable-keys.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"socket", 'S', "Socket file to use for connection.",
-   (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, GET_STR,
-   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"socket", 'S', "The socket file to use for connection.",
+   (uchar**) &opt_mysql_unix_port, (uchar**) &opt_mysql_unix_port, 0, 
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
   {"tab",'T',
-   "Creates tab separated textfile for each table to given path. (creates .sql and .txt files). NOTE: This only works if mysqldump is run on the same machine as the mysqld daemon.",
+   "Create tab-separated textfile for each table to given path. (Create .sql "
+   "and .txt files.) NOTE: This only works if mysqldump is run on the same "
+   "machine as the mysqld server.",
    (uchar**) &path, (uchar**) &path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"tables", OPT_TABLES, "Overrides option --databases (-B).",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-   {"triggers", OPT_TRIGGERS, "Dump triggers for each dumped table",
-     (uchar**) &opt_dump_triggers, (uchar**) &opt_dump_triggers, 0, GET_BOOL,
-     NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"triggers", OPT_TRIGGERS, "Dump triggers for each dumped table.",
+   (uchar**) &opt_dump_triggers, (uchar**) &opt_dump_triggers, 0, GET_BOOL,
+   NO_ARG, 1, 0, 0, 0, 0, 0},
   {"tz-utc", OPT_TZ_UTC,
     "SET TIME_ZONE='+00:00' at top of dump to allow dumping of TIMESTAMP data when a server has data in different time zones or data is being moved between servers with different time zones.",
     (uchar**) &opt_tz_utc, (uchar**) &opt_tz_utc, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -488,7 +492,7 @@ static struct my_option my_long_options[] =
    (uchar**) &verbose, (uchar**) &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version",'V', "Output version information and exit.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"where", 'w', "Dump only selected records; QUOTES mandatory!",
+  {"where", 'w', "Dump only selected records. Quotes are mandatory.",
    (uchar**) &where, (uchar**) &where, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"xml", 'X', "Dump a database as well formed XML.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -582,9 +586,9 @@ static void short_usage_sub(void)
 static void usage(void)
 {
   print_version();
-  puts("By Igor Romanenko, Monty, Jani & Sinisa");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
-  puts("Dumping definition and data mysql database or table");
+  puts("By Igor Romanenko, Monty, Jani & Sinisa.");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
+  puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();
   print_defaults("my",load_default_groups);
   my_print_help(my_long_options);

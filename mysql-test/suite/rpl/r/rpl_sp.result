@@ -1187,4 +1187,47 @@ drop procedure mysqltestbug36570_p1;
 drop procedure ` mysqltestbug36570_p2`;
 drop function mysqltestbug36570_f1;
 End of 5.0 tests
-End of 5.1 tests
+# End of 5.1 tests
+#
+# Test Bug#30977 Concurrent statement using stored
+# function and DROP FUNCTION breaks SBR.
+#
+# Demonstrate that stored function DDL can not go through,
+# or, worse yet, make its way into the binary log, while
+# the stored function is in use.
+# For that, try to insert a result of a stored function
+# into a table. Block the insert in the beginning, waiting
+# on a table lock. While insert is blocked, attempt to
+# drop the routine. Verify that this attempt 
+# blocks and waits for INSERT to complete. Commit and 
+# reap the chain of events. Master and slave must contain
+# identical data. Statements in the binrary log must be
+# consistent with data in the table.
+#
+# --> connection default
+drop table if exists t1, t2;
+drop function if exists t1;
+create table t1 (a int);
+create table t2 (a int) as select 1 as a;
+create function f1() returns int deterministic return (select max(a) from t2);
+lock table t2 write;
+# --> connection master
+# Sending 'insert into t1 (a) values (f1())'...
+insert into t1 (a) values (f1());
+# Waitng for 'insert into t1 ...' to get blocked on table lock...
+# Sending 'drop function f1'. It will abort the table lock wait.
+drop function f1;
+# --> connection default
+# Now let's let 'insert' go through...
+unlock tables;
+# --> connection con1
+# Reaping 'insert into t1 (a) values (f1())'...
+ERROR 42000: FUNCTION test.f1 does not exist
+select * from t1;
+a
+select * from  t1;
+a
+drop table t1, t2;
+drop function f1;
+ERROR 42000: FUNCTION test.f1 does not exist
+# End of 5.5 tests.

@@ -668,7 +668,7 @@ int ha_ndbcluster::ndb_err(NdbTransaction *trans)
     bzero((char*) &table_list,sizeof(table_list));
     table_list.db= m_dbname;
     table_list.alias= table_list.table_name= m_tabname;
-    close_cached_tables(thd, &table_list, FALSE, FALSE, FALSE);
+    close_cached_tables(thd, &table_list, FALSE, FALSE);
     break;
   }
   default:
@@ -4617,7 +4617,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   trans_register_ha(thd, FALSE, ndbcluster_hton);
   if (!thd_ndb->trans)
   {
-    if (thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+    if (thd->in_multi_stmt_transaction())
       trans_register_ha(thd, TRUE, ndbcluster_hton);
     DBUG_PRINT("trans",("Starting transaction"));      
     thd_ndb->trans= ndb->startTransaction();
@@ -4687,7 +4687,7 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb)
   }
 #endif
 
-  if (thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+  if (thd->in_multi_stmt_transaction())
   {
     const void *key= m_table;
     HASH_SEARCH_STATE state;
@@ -4771,7 +4771,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
     if (opt_ndb_cache_check_time && m_rows_changed)
     {
       DBUG_PRINT("info", ("Rows has changed and util thread is running"));
-      if (thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
+      if (thd->in_multi_stmt_transaction())
       {
         DBUG_PRINT("info", ("Add share to list of tables to be invalidated"));
         /* NOTE push_back allocates memory using transactions mem_root! */
@@ -4790,7 +4790,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
       DBUG_PRINT("trans", ("Last external_lock"));
       PRINT_OPTION_FLAGS(thd);
 
-      if (!(thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+      if (!thd->in_multi_stmt_transaction())
       {
         if (thd_ndb->trans)
         {
@@ -4900,8 +4900,7 @@ static int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   PRINT_OPTION_FLAGS(thd);
   DBUG_PRINT("enter", ("Commit %s", (all ? "all" : "stmt")));
   thd_ndb->start_stmt_count= 0;
-  if (trans == NULL || (!all &&
-      thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  if (trans == NULL || (!all && thd->in_multi_stmt_transaction()))
   {
     /*
       An odditity in the handler interface is that commit on handlerton
@@ -4971,7 +4970,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   DBUG_ASSERT(ndb);
   thd_ndb->start_stmt_count= 0;
   if (trans == NULL || (!all &&
-      thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+      thd->in_multi_stmt_transaction()))
   {
     /* Ignore end-of-statement until real rollback or commit is called */
     DBUG_PRINT("info", ("Rollback before start or end-of-statement only"));
@@ -7379,6 +7378,16 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
+  /*
+    ndbcluster_find_files() may be called from I_S code and ndbcluster_binlog
+    thread in situations when some tables are already open. This means that
+    code below will try to obtain exclusive metadata lock on some table
+    while holding shared meta-data lock on other tables. This might lead to
+    a deadlock, and therefore is disallowed by assertions of the metadata
+    locking subsystem. This is violation of metadata
+    locking protocol which has to be closed ASAP.
+    XXX: the scenario described above is not covered with any test.
+  */
   if (!global_read_lock)
   {
     // Delete old files
@@ -7402,8 +7411,9 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
     }
   }
 
+  /* Lock mutex before creating .FRM files. */
   mysql_mutex_lock(&LOCK_open);
-  // Create new files
+  /* Create new files. */
   List_iterator_fast<char> it2(create_list);
   while ((file_name_str=it2++))
   {  
@@ -8242,17 +8252,15 @@ ndbcluster_cache_retrieval_allowed(THD *thd,
                                    ulonglong *engine_data)
 {
   Uint64 commit_count;
-  bool is_autocommit= !(thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   char *dbname= full_name;
   char *tabname= dbname+strlen(dbname)+1;
 #ifndef DBUG_OFF
   char buff[22], buff2[22];
 #endif
   DBUG_ENTER("ndbcluster_cache_retrieval_allowed");
-  DBUG_PRINT("enter", ("dbname: %s, tabname: %s, is_autocommit: %d",
-                       dbname, tabname, is_autocommit));
+  DBUG_PRINT("enter", ("dbname: %s, tabname: %s", dbname, tabname));
 
-  if (!is_autocommit)
+  if (thd->in_multi_stmt_transaction())
   {
     DBUG_PRINT("exit", ("No, don't use cache in transaction"));
     DBUG_RETURN(FALSE);
@@ -8317,12 +8325,10 @@ ha_ndbcluster::register_query_cache_table(THD *thd,
 #ifndef DBUG_OFF
   char buff[22];
 #endif
-  bool is_autocommit= !(thd->variables.option_bits & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN));
   DBUG_ENTER("ha_ndbcluster::register_query_cache_table");
-  DBUG_PRINT("enter",("dbname: %s, tabname: %s, is_autocommit: %d",
-		      m_dbname, m_tabname, is_autocommit));
+  DBUG_PRINT("enter",("dbname: %s, tabname: %s", m_dbname, m_tabname));
 
-  if (!is_autocommit)
+  if (thd->in_multi_stmt_transaction())
   {
     DBUG_PRINT("exit", ("Can't register table during transaction"));
     DBUG_RETURN(FALSE);
@@ -8433,7 +8439,7 @@ int handle_trailing_share(NDB_SHARE *share)
   table_list.db= share->db;
   table_list.alias= table_list.table_name= share->table_name;
   mysql_mutex_assert_owner(&LOCK_open);
-  close_cached_tables(thd, &table_list, TRUE, FALSE, FALSE);
+  close_cached_tables(thd, &table_list, TRUE, FALSE);
 
   mysql_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference temporary free */
@@ -9498,6 +9504,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   my_net_init(&thd->net, 0);
   thd->main_security_ctx.master_access= ~0;
   thd->main_security_ctx.priv_user = 0;
+  /* Do not use user-supplied timeout value for system threads. */
+  thd->variables.lock_wait_timeout= LONG_TIMEOUT;
 
   CHARSET_INFO *charset_connection;
   charset_connection= get_charset_by_csname("utf8",

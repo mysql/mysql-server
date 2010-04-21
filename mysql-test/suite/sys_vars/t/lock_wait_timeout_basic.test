@@ -1,0 +1,213 @@
+############## mysql-test\t\lock_wait_timeout_basic.test #######################
+#                                                                              #
+# Variable Name: lock_wait_timeout                                             #
+# Scope: GLOBAL & SESSION                                                      #
+# Access Type: Dynamic                                                         #
+# Data Type: Numeric                                                           #
+# Default Value: 1                                                             #
+# Range: 1 - 31536000                                                          #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2010-02-08                                                    #
+# Author:  Jon Olav Hauglid                                                    #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "lock_wait_timeout"       #
+#              that checks behavior of this variable in the following ways     #
+#              * Default Value                                                 #
+#              * Valid & Invalid values                                        #
+#              * Scope & Access method                                         #
+#              * Data Integrity                                                #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.5/en/                           #
+#  server-system-variables.html#option_mysqld_lock-wait-timeout                #
+#                                                                              #
+################################################################################
+
+--source include/load_sysvars.inc
+
+#####################################################################
+#           START OF lock_wait_timeout TESTS                        #
+#####################################################################
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+
+SET @start_global_value = @@global.lock_wait_timeout;
+SELECT @start_global_value;
+SET @start_session_value = @@session.lock_wait_timeout;
+SELECT @start_session_value;
+
+
+--echo '#--------------------FN_DYNVARS_002_01-------------------------#'
+#####################################################################
+#     Display the DEFAULT value of lock_wait_timeout                #
+#####################################################################
+
+SET @@global.lock_wait_timeout = 100;
+SET @@global.lock_wait_timeout = DEFAULT;
+SELECT @@global.lock_wait_timeout;
+
+SET @@session.lock_wait_timeout = 200;
+SET @@session.lock_wait_timeout = DEFAULT;
+SELECT @@session.lock_wait_timeout;
+
+
+--echo '#--------------------FN_DYNVARS_002_02-------------------------#'
+#####################################################################
+#     Check the DEFAULT value of lock_wait_timeout                  #
+#####################################################################
+
+SET @@global.lock_wait_timeout = @start_global_value;
+SELECT @@global.lock_wait_timeout = 31536000;
+SET @@session.lock_wait_timeout = @start_session_value;
+SELECT @@session.lock_wait_timeout = 31536000;
+
+
+--echo '#--------------------FN_DYNVARS_002_03-------------------------#'
+###############################################################################
+# Change the value of lock_wait_timeout to a valid value for GLOBAL Scope     #
+###############################################################################
+
+SET @@global.lock_wait_timeout = 1;
+SELECT @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout = 60020;
+SELECT @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout = 65535;
+SELECT @@global.lock_wait_timeout;
+
+
+--echo '#--------------------FN_DYNVARS_002_04-------------------------#'
+###############################################################################
+# Change the value of lock_wait_timeout to a valid value for SESSION Scope    #
+###############################################################################
+
+SET @@session.lock_wait_timeout = 1;
+SELECT @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout = 50050;
+SELECT @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout = 65535;
+SELECT @@session.lock_wait_timeout;
+
+
+--echo '#------------------FN_DYNVARS_002_05-----------------------#'
+#################################################################
+# Change the value of lock_wait_timeout to an invalid value     #
+#################################################################
+# for global scope
+SET @@global.lock_wait_timeout = 0;
+SELECT @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout = -1024;
+SELECT @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout = 31536001;
+SELECT @@global.lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.lock_wait_timeout = ON;
+SELECT @@global.lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.lock_wait_timeout = OFF;
+SELECT @@global.lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.lock_wait_timeout = test;
+SELECT @@global.lock_wait_timeout;
+# for session scope
+SET @@session.lock_wait_timeout = 0;
+SELECT @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout = -2;
+SELECT @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout = 31537000;
+SELECT @@session.lock_wait_timeout;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.lock_wait_timeout = ON;
+SELECT @@session.lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.lock_wait_timeout = OFF;
+SELECT @@session.lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.lock_wait_timeout = test;
+SELECT @@session.lock_wait_timeout;
+
+
+
+--echo '#------------------FN_DYNVARS_002_06-----------------------#'
+####################################################################
+#   Check if the value in GLOBAL Table matches value in variable   #
+####################################################################
+
+SELECT @@global.lock_wait_timeout = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='lock_wait_timeout';
+
+
+--echo '#------------------FN_DYNVARS_002_07-----------------------#'
+####################################################################
+#  Check if the value in SESSION Table matches value in variable   #
+####################################################################
+
+SELECT @@session.lock_wait_timeout = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='lock_wait_timeout';
+
+
+--echo '#------------------FN_DYNVARS_002_08-----------------------#'
+####################################################################
+#     Check if TRUE and FALSE values can be used on variable       #
+####################################################################
+
+SET @@global.lock_wait_timeout = TRUE;
+SELECT @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout = FALSE;
+SELECT @@global.lock_wait_timeout;
+
+
+--echo '#---------------------FN_DYNVARS_001_09----------------------#'
+###############################################################################
+#  Check if global and session variables are independant of each other        #
+###############################################################################
+
+SET @@global.lock_wait_timeout = 10;
+SET @@session.lock_wait_timeout = 11;
+SELECT @@lock_wait_timeout = @@global.lock_wait_timeout;
+
+
+--echo '#---------------------FN_DYNVARS_001_10----------------------#'
+##############################################################################
+#    Check if accessing variable with SESSION,LOCAL and without SCOPE points #
+#    to same session variable                                                #
+##############################################################################
+
+SET @@lock_wait_timeout = 100;
+SELECT @@lock_wait_timeout = @@local.lock_wait_timeout;
+SELECT @@local.lock_wait_timeout = @@session.lock_wait_timeout;
+
+
+--echo '#---------------------FN_DYNVARS_001_11----------------------#'
+###############################################################################
+#   Check if lock_wait_timeout can be accessed with and without @@ sign       #
+###############################################################################
+
+SET lock_wait_timeout = 1;
+SELECT @@lock_wait_timeout;
+--Error ER_UNKNOWN_TABLE
+SELECT local.lock_wait_timeout;
+--Error ER_UNKNOWN_TABLE
+SELECT session.lock_wait_timeout;
+--Error ER_BAD_FIELD_ERROR
+SELECT lock_wait_timeout = @@session.lock_wait_timeout;
+
+
+####################################
+#     Restore initial value        #
+####################################
+
+SET @@global.lock_wait_timeout = @start_global_value;
+SELECT @@global.lock_wait_timeout;
+SET @@session.lock_wait_timeout = @start_session_value;
+SELECT @@session.lock_wait_timeout;
+
+
+###################################################
+#          END OF lock_wait_timeout TESTS         #
+###################################################
+

@@ -226,10 +226,9 @@ drop table t_bug44738_UPPERCASE;
 create table t_bug44738_UPPERCASE (i int);
 drop table t_bug44738_UPPERCASE;
 # Finally, let us check that another issue which was exposed by
-# the original test case is solved. I.e. that fuse in CREATE TABLE
-# which ensures that table is not created if there is an entry for
-# it in TDC even though it was removed from disk uses normalized
-# version of the table name.
+# the original test case is solved. I.e. that the table is not 
+# created if there is an entry for it in TDC even though it was 
+# removed from disk.
 create table t_bug44738_UPPERCASE (i int) engine = myisam;
 # Load table definition in TDC.
 select table_schema, table_name, table_comment from information_schema.tables
@@ -237,10 +236,13 @@ where table_schema = 'test' and table_name like 't_bug44738_%';
 table_schema	table_name	table_comment
 test	t_bug44738_UPPERCASE	
 # Simulate manual removal of the table.
-# After manual removal of table still there should be an entry for table
-# in TDC so attempt to create table with the same name should fail.
+# Check that still there is an entry for table in TDC.
+show open tables like 't_bug44738_%';
+Database	Table	In_use	Name_locked
+test	t_bug44738_uppercase	0	0
+# So attempt to create table with the same name should fail.
 create table t_bug44738_UPPERCASE (i int);
-ERROR 42S01: Table 't_bug44738_uppercase' already exists
+ERROR HY000: Can't find file: 't_bug44738_uppercase' (errno: 2)
 # And should succeed after FLUSH TABLES.
 flush tables;
 create table t_bug44738_UPPERCASE (i int);

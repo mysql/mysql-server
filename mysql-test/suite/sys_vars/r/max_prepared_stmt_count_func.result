@@ -66,7 +66,7 @@ SET GLOBAL max_prepared_stmt_count=3;
 ** Creating procedure **
 DROP PROCEDURE  IF EXISTS  sp_checkstmts;
 Warnings:
-Note	1305	PROCEDURE sp_checkstmts does not exist
+Note	1305	PROCEDURE test.sp_checkstmts does not exist
 CREATE PROCEDURE sp_checkstmts ()
 BEGIN
 PREPARE newstmt from "SELECT * FROM information_schema.CHARACTER_SETS C";

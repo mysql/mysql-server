@@ -1044,6 +1044,16 @@ SELECT a, MAX(b) FROM t WHERE b GROUP BY a;
 
 DROP TABLE t;
 
+#
+# BUG#49902 - SELECT returns incorrect results
+#
+CREATE TABLE t1(a INT NOT NULL, b INT NOT NULL, KEY (b));
+INSERT INTO t1 VALUES(1,1),(2,1);
+ANALYZE TABLE t1;
+SELECT 1 AS c, b FROM t1 WHERE b IN (1,2) GROUP BY c, b;
+SELECT a FROM t1 WHERE b=1;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 
 
@@ -1166,3 +1176,22 @@ SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 DROP TABLE t1,t2;
 
 --echo # end of WL#3220 tests
+
+--echo #
+--echo # Bug#50539: Wrong result when loose index scan is used for an aggregate
+--echo #            function with distinct
+--echo #
+CREATE TABLE t1 (
+  f1 int(11) NOT NULL DEFAULT '0',
+  f2 char(1) NOT NULL DEFAULT '',
+  PRIMARY KEY (f1,f2)
+) ;
+insert into t1 values(1,'A'),(1 , 'B'), (1, 'C'), (2, 'A'), 
+(3, 'A'), (3, 'B'), (3, 'C'), (3, 'D');
+
+SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
+explain SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
+ 
+drop table t1;
+--echo # End of test#50539.
+

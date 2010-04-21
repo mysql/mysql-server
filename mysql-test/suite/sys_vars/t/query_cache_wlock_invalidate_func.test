@@ -60,6 +60,8 @@ INSERT INTO t1 VALUES(1, 'val1');
 INSERT INTO t1 VALUES(2, 'val2');
 INSERT INTO t1 VALUES(3, 'val3');
 
+CREATE VIEW v1 AS SELECT * FROM t1;
+
 #
 # Clearing the query cache and setting up cache size
 #
@@ -99,7 +101,7 @@ SELECT * FROM t1;
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 --echo 1 Expected
 
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 
 UNLOCK TABLES;
 
@@ -127,7 +129,7 @@ SELECT * FROM t1;
 --echo ** Connection con0 **
 connection con0;
 
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 
 --echo ** Connection con1 **
 connection con1;
@@ -139,7 +141,7 @@ send SELECT * FROM t1;
 connection con0;
 
 --echo wait until table is locked
-let $wait_condition= SELECT count(*) > 0 FROM information_schema.processlist WHERE state= 'Locked';
+let $wait_condition= SELECT count(*) > 0 FROM information_schema.processlist WHERE state= 'Table lock';
 --source include/wait_condition.inc
 UNLOCK TABLES;
 
@@ -175,7 +177,7 @@ SELECT * FROM t1;
 SHOW STATUS LIKE 'Qcache_queries_in_cache';
 --echo 1 Expected
 
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 
 UNLOCK TABLES;
 
@@ -199,7 +201,7 @@ SELECT * FROM t1;
 
 --echo ** Connection con0 **
 connection con0;
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 
 --echo ** Connection con1 **
 connection con1;
@@ -281,6 +283,7 @@ disconnect con0;
 disconnect con1;
 
 DROP TABLE t1;
+DROP VIEW v1;
 
 --enable_ps_protocol
 

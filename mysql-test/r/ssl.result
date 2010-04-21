@@ -2087,10 +2087,10 @@ fld6	char(4)	latin1_swedish_ci	NO				#
 show full columns from t2 from test like 's%';
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
 show keys from t2;
-Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
-t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE	
-t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE	
-t2	1	fld3	1	fld3	A	NULL	NULL	NULL		BTREE	
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
+t2	0	PRIMARY	1	auto	A	1199	NULL	NULL		BTREE		
+t2	0	fld1	1	fld1	A	1199	NULL	NULL		BTREE		
+t2	1	fld3	1	fld3	A	NULL	NULL	NULL		BTREE		
 drop table t4, t3, t2, t1;
 CREATE TABLE t1 (
 cont_nr int(11) NOT NULL auto_increment,

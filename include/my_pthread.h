@@ -102,6 +102,19 @@ struct timespec {
   (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000); \
 }
 
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
+   ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
+
 
 int win_pthread_mutex_trylock(pthread_mutex_t *mutex);
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
@@ -417,6 +430,33 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #endif /* !set_timespec_nsec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#ifdef HAVE_TIMESPEC_TS_SEC
+#ifndef cmp_timespec
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.ts_sec > TS2.ts_sec || \
+    (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec > TS2.ts_nsec)) ? 1 : \
+   ((TS1.ts_sec < TS2.ts_sec || \
+     (TS1.ts_sec == TS2.ts_sec && TS1.ts_nsec < TS2.ts_nsec)) ? -1 : 0))
+#endif /* !cmp_timespec */
+#else
+#ifndef cmp_timespec
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv_sec > TS2.tv_sec || \
+    (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec > TS2.tv_nsec)) ? 1 : \
+   ((TS1.tv_sec < TS2.tv_sec || \
+     (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
+#endif /* !cmp_timespec */
+#endif /* HAVE_TIMESPEC_TS_SEC */
+
 	/* safe_mutex adds checking to mutex for easier debugging */
 
 #if defined(__NETWARE__) && !defined(SAFE_MUTEX_DETECT_DESTROY)
@@ -560,30 +600,76 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp);
 #define my_rwlock_init(A,B) rwlock_init((A),USYNC_THREAD,0)
 #else
 /* Use our own version of read/write locks */
-typedef struct _my_rw_lock_t {
-	pthread_mutex_t lock;		/* lock for structure		*/
-	pthread_cond_t	readers;	/* waiting readers		*/
-	pthread_cond_t	writers;	/* waiting writers		*/
-	int		state;		/* -1:writer,0:free,>0:readers	*/
-	int		waiters;	/* number of waiting writers	*/
-} my_rw_lock_t;
-
+#define NEED_MY_RW_LOCK 1
 #define rw_lock_t my_rw_lock_t
+#define my_rwlock_init(A,B) my_rw_init((A), 0)
 #define rw_rdlock(A) my_rw_rdlock((A))
 #define rw_wrlock(A) my_rw_wrlock((A))
 #define rw_tryrdlock(A) my_rw_tryrdlock((A))
 #define rw_trywrlock(A) my_rw_trywrlock((A))
 #define rw_unlock(A) my_rw_unlock((A))
-#define rwlock_destroy(A) my_rwlock_destroy((A))
+#define rwlock_destroy(A) my_rw_destroy((A))
+#endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
 
-extern int my_rwlock_init(my_rw_lock_t *, void *);
-extern int my_rwlock_destroy(my_rw_lock_t *);
+
+/*
+  Portable read-write locks which prefer readers.
+
+  Required by some algorithms in order to provide correctness.
+*/
+
+#if defined(HAVE_PTHREAD_RWLOCK_RDLOCK) && defined(HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP)
+/*
+  On systems which have a way to specify that readers should
+  be preferred through attribute mechanism (e.g. Linux) we use
+  system implementation of read/write locks.
+*/
+#define rw_pr_lock_t pthread_rwlock_t
+extern int rw_pr_init(rw_pr_lock_t *);
+#define rw_pr_rdlock(A) pthread_rwlock_rdlock(A)
+#define rw_pr_wrlock(A) pthread_rwlock_wrlock(A)
+#define rw_pr_tryrdlock(A) pthread_rwlock_tryrdlock(A)
+#define rw_pr_trywrlock(A) pthread_rwlock_trywrlock(A)
+#define rw_pr_unlock(A) pthread_rwlock_unlock(A)
+#define rw_pr_destroy(A) pthread_rwlock_destroy(A)
+#else
+/* Otherwise we have to use our own implementation of read/write locks. */
+#define NEED_MY_RW_LOCK 1
+struct st_my_rw_lock_t;
+#define rw_pr_lock_t my_rw_lock_t
+extern int rw_pr_init(struct st_my_rw_lock_t *);
+#define rw_pr_rdlock(A) my_rw_rdlock((A))
+#define rw_pr_wrlock(A) my_rw_wrlock((A))
+#define rw_pr_tryrdlock(A) my_rw_tryrdlock((A))
+#define rw_pr_trywrlock(A) my_rw_trywrlock((A))
+#define rw_pr_unlock(A) my_rw_unlock((A))
+#define rw_pr_destroy(A) my_rw_destroy((A))
+#endif /* defined(HAVE_PTHREAD_RWLOCK_RDLOCK) && defined(HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP) */
+
+
+#ifdef NEED_MY_RW_LOCK
+/*
+  On systems which don't support native read/write locks, or don't support
+  read/write locks which prefer readers we have to use own implementation.
+*/
+typedef struct st_my_rw_lock_t {
+	pthread_mutex_t lock;		/* lock for structure		*/
+	pthread_cond_t	readers;	/* waiting readers		*/
+	pthread_cond_t	writers;	/* waiting writers		*/
+	int		state;		/* -1:writer,0:free,>0:readers	*/
+	int             waiters;        /* number of waiting writers	*/
+	my_bool         prefer_readers;
+} my_rw_lock_t;
+
+extern int my_rw_init(my_rw_lock_t *, my_bool *);
+extern int my_rw_destroy(my_rw_lock_t *);
 extern int my_rw_rdlock(my_rw_lock_t *);
 extern int my_rw_wrlock(my_rw_lock_t *);
 extern int my_rw_unlock(my_rw_lock_t *);
 extern int my_rw_tryrdlock(my_rw_lock_t *);
 extern int my_rw_trywrlock(my_rw_lock_t *);
-#endif /* USE_MUTEX_INSTEAD_OF_RW_LOCKS */
+#endif /* NEED_MY_RW_LOCK */
+
 
 #define GETHOSTBYADDR_BUFF_SIZE 2048
 

@@ -103,6 +103,8 @@ id	name
 2	Record_2
 4	Record_4
 5	Record_5
+## Commit changes
+COMMIT;
 ## Dropping table t1 ##
 DROP table t1;
 ## Disconnecting both connections ##

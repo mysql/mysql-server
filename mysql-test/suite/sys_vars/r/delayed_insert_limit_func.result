@@ -4,6 +4,7 @@ Creating connection con0
 Creating connection con1
 SET @global_delayed_insert_limit = @@GLOBAL.delayed_insert_limit;
 CREATE TABLE t1 (a VARCHAR(100),b VARCHAR(100),c VARCHAR(100));
+CREATE VIEW v1 as select * from t1;
 '#--------------------FN_DYNVARS_25_01-------------------------#'
 SET GLOBAL delayed_insert_limit = 14;
 INSERT INTO t1 VALUES('1','1','1');
@@ -12,7 +13,7 @@ INSERT INTO t1 VALUES('3','1','1');
 INSERT INTO t1 VALUES('4','1','1');
 INSERT INTO t1 VALUES('5','1','1');
 INSERT INTO t1 VALUES('6','1','1');
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 ** Connection con1 **
 INSERT DELAYED INTO t1 VALUES('7','1','1');
 INSERT DELAYED INTO t1 VALUES('8','1','1');
@@ -70,8 +71,10 @@ SELECT COUNT(*) FROM t1;
 COUNT(*)
 43
 DROP TABLE t1;
+DROP VIEW v1;
 '#--------------------FN_DYNVARS_25_02-------------------------#'
 CREATE TABLE t1 (a VARCHAR(100));
+CREATE VIEW v1 AS SELECT * FROM t1;
 SET GLOBAL delayed_insert_limit = 20;
 INSERT INTO t1 VALUES('1');
 INSERT INTO t1 VALUES('2');
@@ -79,7 +82,7 @@ INSERT INTO t1 VALUES('3');
 INSERT INTO t1 VALUES('4');
 INSERT INTO t1 VALUES('5');
 INSERT INTO t1 VALUES('6');
-LOCK TABLE t1 WRITE;
+LOCK TABLE v1 WRITE;
 ** Connection con1 **
 Asynchronous execute
 INSERT DELAYED INTO t1 VALUES('7');
@@ -100,21 +103,22 @@ INSERT DELAYED INTO t1 VALUES('21');
 INSERT DELAYED INTO t1 VALUES('22');|
 ** Connection con0 **
 Asynchronous execute
-SELECT COUNT(*) = 22 FROM t1;
+SELECT COUNT(*) BETWEEN 6 AND 22 FROM t1;
 ** Connection default **
 ** Wait till con0 is blocked **
 UNLOCK TABLES;
 ** Connection con1 **
 ** Connection con0 **
 Asynchronous "reap" result
-COUNT(*) = 22
+COUNT(*) BETWEEN 6 AND 22
 1
 ** Connection default**
 Checking if the delayed insert gives the same result afterwards
-SELECT COUNT(*) = 22 FROM t1;
-COUNT(*) = 22
+SELECT COUNT(*) BETWEEN 6 AND 22 FROM t1;
+COUNT(*) BETWEEN 6 AND 22
 1
 ** Connection default**
 DROP TABLE t1;
+DROP VIEW v1;
 SET @@GLOBAL.delayed_insert_limit = @global_delayed_insert_limit;
 Disconnecting from con1, con0

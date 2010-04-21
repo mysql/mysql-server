@@ -118,6 +118,7 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   net_clear_error(net);
   thd->current_stmt= stmt;
 
+  thd->thread_stack= (char*) &thd;
   thd->store_globals();				// Fix if more than one connect
   /* 
      We have to call free_old_query before we start to fill mysql->fields 
@@ -936,10 +937,10 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
                                          strlen(server_field.org_table_name), cs, thd_cs);
     client_field->org_name= dup_str_aux(field_alloc, server_field.org_col_name,
                                         strlen(server_field.org_col_name), cs, thd_cs);
-    if (item->collation.collation == &my_charset_bin || thd_cs == NULL)
+    if (item->charset_for_protocol() == &my_charset_bin || thd_cs == NULL)
     {
       /* No conversion */
-      client_field->charsetnr= server_field.charsetnr;
+      client_field->charsetnr= item->charset_for_protocol()->number;
       client_field->length= server_field.length;
     }
     else

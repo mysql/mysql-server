@@ -404,3 +404,37 @@ describe t1;
 Field	Type	Null	Key	Default	Extra
 bi	decimal(19,0)	NO		0	
 drop table t1;
+#
+# Bug #45360: wrong results
+#
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY,
+a BIGINT(20) UNSIGNED,
+b VARCHAR(20));
+INSERT INTO t1 (a) VALUES
+(0),
+(CAST(0x7FFFFFFFFFFFFFFF AS UNSIGNED)),
+(CAST(0x8000000000000000 AS UNSIGNED)),
+(CAST(0xFFFFFFFFFFFFFFFF AS UNSIGNED));
+UPDATE t1 SET b = a;
+# FFFFFFFFFFFFFFFF
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 18446744073709551615 AND TRIM(a) = b;
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 18446744073709551615) and ('18446744073709551615' = `test`.`t1`.`b`))
+# 8000000000000000
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 9223372036854775808 AND TRIM(a) = b;
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 9223372036854775808) and ('9223372036854775808' = `test`.`t1`.`b`))
+# 7FFFFFFFFFFFFFFF
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 9223372036854775807 AND TRIM(a) = b;
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 9223372036854775807) and ('9223372036854775807' = `test`.`t1`.`b`))
+# 0
+EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a = 0 AND TRIM(a) = b;
+SHOW WARNINGS;
+Level	Code	Message
+Note	1003	select 1 AS `1` from `test`.`t1` where ((`test`.`t1`.`a` = 0) and ('0' = `test`.`t1`.`b`))
+DROP TABLE t1;
+# End of 5.1 tests

@@ -1198,11 +1198,7 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     if (file) 
     {
       range_end();
-      if (head->key_read)
-      {
-        head->key_read= 0;
-        file->extra(HA_EXTRA_NO_KEYREAD);
-      }
+      head->set_keyread(FALSE);
       if (free_file)
       {
         DBUG_PRINT("info", ("Freeing separate handler 0x%lx (free: %d)", (long) file,
@@ -1404,10 +1400,7 @@ end:
   head->file= file;
   /* We don't have to set 'head->keyread' here as the 'file' is unique */
   if (!head->no_keyread)
-  {
-    head->key_read= 1;
     head->mark_columns_used_by_index(index);
-  }
   head->prepare_for_position();
   head->file= org_file;
   bitmap_copy(&column_bitmap, head->read_set);
@@ -2266,9 +2259,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
   keys_to_use.intersect(head->keys_in_use_for_query);
   if (!keys_to_use.is_clear_all())
   {
-#ifndef EMBEDDED_LIBRARY                      // Avoid compiler warning
     uchar buff[STACK_BUFF_ALLOC];
-#endif
     MEM_ROOT alloc;
     SEL_TREE *tree= NULL;
     KEY_PART *key_parts;
@@ -8346,7 +8337,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   DBUG_ENTER("QUICK_INDEX_MERGE_SELECT::read_keys_and_merge");
 
   /* We're going to just read rowids. */
-  file->extra(HA_EXTRA_KEYREAD);
+  head->set_keyread(TRUE);
   head->prepare_for_position();
 
   cur_quick_it.rewind();
@@ -8422,7 +8413,7 @@ int QUICK_INDEX_MERGE_SELECT::read_keys_and_merge()
   delete unique;
   doing_pk_scan= FALSE;
   /* index_merge currently doesn't support "using index" at all */
-  file->extra(HA_EXTRA_NO_KEYREAD);
+  head->set_keyread(FALSE);
   init_read_record(&read_record, thd, head, (SQL_SELECT*) 0, 1 , 1, TRUE);
   DBUG_RETURN(result);
 }
@@ -10840,7 +10831,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
   int result;
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::reset");
 
-  file->extra(HA_EXTRA_KEYREAD); /* We need only the key attributes */
+  head->set_keyread(TRUE); /* We need only the key attributes */
   if ((result= file->ha_index_init(index,1)))
     DBUG_RETURN(result);
   if (quick_prefix_select && quick_prefix_select->reset())
@@ -10955,17 +10946,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
   } while ((result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE) &&
            is_last_prefix != 0);
 
-  if (result == 0)
-  {
-    /*
-      Partially mimic the behavior of end_select_send. Copy the
-      field data from Item_field::field into Item_field::result_field
-      of each non-aggregated field (the group fields, and optionally
-      other fields in non-ANSI SQL mode).
-    */
-    copy_fields(&join->tmp_table_param);
-  }
-  else if (result == HA_ERR_KEY_NOT_FOUND)
+  if (result == HA_ERR_KEY_NOT_FOUND)
     result= HA_ERR_END_OF_FILE;
 
   DBUG_RETURN(result);

@@ -25,9 +25,10 @@ wait/synch/rwlock/sql/LOCK_system_variables_hash	YES	YES
 wait/synch/rwlock/sql/LOCK_sys_init_connect	YES	YES
 wait/synch/rwlock/sql/LOCK_sys_init_slave	YES	YES
 wait/synch/rwlock/sql/LOGGER::LOCK_logger	YES	YES
+wait/synch/rwlock/sql/MDL_context::waiting_for_lock	YES	YES
+wait/synch/rwlock/sql/MDL_lock::rwlock	YES	YES
 wait/synch/rwlock/sql/Query_cache_query::lock	YES	YES
 wait/synch/rwlock/sql/THR_LOCK_servers	YES	YES
-wait/synch/rwlock/sql/THR_LOCK_udf	YES	YES
 select * from performance_schema.SETUP_INSTRUMENTS
 where name like 'Wait/Synch/Cond/sql/%'
   and name not in (

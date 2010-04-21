@@ -83,12 +83,6 @@
 #endif
 #endif /* _WIN32... */
 
-#ifdef EMBEDDED_LIBRARY
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-#undef WITH_PERFSCHEMA_STORAGE_ENGINE
-#endif
-#endif /* EMBEDDED_LIBRARY */
-
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #define HAVE_PSI_INTERFACE
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -1681,7 +1675,7 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 #if !defined(max)
 #define max(a, b)	((a) > (b) ? (a) : (b))
 #define min(a, b)	((a) < (b) ? (a) : (b))
-#endif  
+#endif
 /*
   Only Linux is known to need an explicit sync of the directory to make sure a
   file creation/deletion/renaming in(from,to) this directory durable.
@@ -1692,6 +1686,25 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 
 #if !defined(__cplusplus) && !defined(bool)
 #define bool In_C_you_should_use_my_bool_instead()
+#endif
+
+/* Provide __func__ macro definition for platforms that miss it. */
+#if __STDC_VERSION__ < 199901L
+#  if __GNUC__ >= 2
+#    define __func__ __FUNCTION__
+#  else
+#    define __func__ "<unknown>"
+#  endif
+#elif defined(_MSC_VER)
+#  if _MSC_VER < 1300
+#    define __func__ "<unknown>"
+#  else
+#    define __func__ __FUNCTION__
+#  endif
+#elif defined(__BORLANDC__)
+#  define __func__ __FUNC__
+#else
+#  define __func__ "<unknown>"
 #endif
 
 #ifndef HAVE_RINT

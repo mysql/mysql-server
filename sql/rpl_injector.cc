@@ -15,6 +15,7 @@
 
 #include "mysql_priv.h" 
 #include "rpl_injector.h"
+#include "transaction.h"
 
 /*
   injector::transaction - member definitions
@@ -35,7 +36,7 @@ injector::transaction::transaction(MYSQL_BIN_LOG *log, THD *thd)
   m_start_pos.m_file_name= my_strdup(log_info.log_file_name, MYF(0));
   m_start_pos.m_file_pos= log_info.pos;
 
-  begin_trans(m_thd);
+  trans_begin(m_thd);
 }
 
 injector::transaction::~transaction()
@@ -83,10 +84,15 @@ int injector::transaction::commit()
      is committed by committing the statement transaction
      explicitly.
    */
-   error |= ha_autocommit_or_rollback(m_thd, error);
-   end_trans(m_thd, error ? ROLLBACK : COMMIT);
+   trans_commit_stmt(m_thd);
+   if (!trans_commit(m_thd))
+   {
+     close_thread_tables(m_thd);
+     m_thd->mdl_context.release_transactional_locks();
+   }
    DBUG_RETURN(error);
 }
+
 
 int injector::transaction::use_table(server_id_type sid, table tbl)
 {
@@ -111,7 +117,7 @@ int injector::transaction::write_row (server_id_type sid, table tbl,
 				      record_type record)
 {
    DBUG_ENTER("injector::transaction::write_row(...)");
- 
+
    int error= check_state(ROW_STATE);
    if (error)
      DBUG_RETURN(error);

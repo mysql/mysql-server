@@ -23,7 +23,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
 ADD_DEFINITIONS(-DEMBEDDED_LIBRARY -UMYSQL_CLIENT)
 
 
-ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
+MYSQL_ADD_EXECUTABLE(mysql_embedded ../../client/completion_hash.cc
                ../../client/mysql.cc ../../client/readline.cc)
 TARGET_LINK_LIBRARIES(mysql_embedded mysqlserver)
 IF(UNIX)
@@ -31,7 +31,7 @@ IF(UNIX)
   TARGET_LINK_LIBRARIES(mysql_embedded ${READLINE_LIBRARY})
 ENDIF(UNIX)
 
-ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
+MYSQL_ADD_EXECUTABLE(mysqltest_embedded ../../client/mysqltest.cc)
 TARGET_LINK_LIBRARIES(mysqltest_embedded mysqlserver)
 
 
@@ -44,11 +44,11 @@ IF(CMAKE_GENERATOR MATCHES "Xcode")
    COMMAND ${CMAKE_COMMAND} -E touch 
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_client_test_embedded_dummy.cc
   )
-  ADD_EXECUTABLE(mysql_client_test_embedded
+  MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_client_test_embedded_dummy.cc
     ../../tests/mysql_client_test.c)
 ELSE()
-  ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
+  MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
   SET_TARGET_PROPERTIES(mysql_client_test_embedded  PROPERTIES HAS_CXX TRUE)
 ENDIF()
 TARGET_LINK_LIBRARIES(mysql_client_test_embedded mysqlserver)
@@ -58,5 +58,3 @@ SET_TARGET_PROPERTIES(mysql_embedded PROPERTIES ENABLE_EXPORTS TRUE)
 SET_TARGET_PROPERTIES(mysqltest_embedded PROPERTIES ENABLE_EXPORTS TRUE)
 SET_TARGET_PROPERTIES(mysql_client_test_embedded PROPERTIES ENABLE_EXPORTS TRUE)
 ENDIF()
-
-INSTALL(TARGETS mysql_embedded  mysqltest_embedded mysql_client_test_embedded DESTINATION bin)

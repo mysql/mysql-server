@@ -376,6 +376,9 @@ sub mtr_report_stats ($) {
 		/Slave: Can't DROP 'c7'.* 1091/ or
 		/Slave: Key column 'c6'.* 1072/ or
 
+    # Warnings generated until bug#42147 is properly resolved
+    /Found lock of type 6 that is write and read locked/ or
+
 		# rpl_idempotency.test produces warnings for the slave.
 		($testname eq 'rpl.rpl_idempotency' and
 		 (/Slave: Can\'t find record in \'t1\' Error_code: 1032/ or

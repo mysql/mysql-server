@@ -57,12 +57,12 @@ public:
   String *val_str(String *);
 };
 
-class Item_func_as_wkt: public Item_str_func
+class Item_func_as_wkt: public Item_str_ascii_func
 {
 public:
-  Item_func_as_wkt(Item *a): Item_str_func(a) {}
+  Item_func_as_wkt(Item *a): Item_str_ascii_func(a) {}
   const char *func_name() const { return "astext"; }
-  String *val_str(String *);
+  String *val_str_ascii(String *);
   void fix_length_and_dec();
 };
 
@@ -75,16 +75,17 @@ public:
   enum_field_types field_type() const  { return MYSQL_TYPE_BLOB; }
 };
 
-class Item_func_geometry_type: public Item_str_func
+class Item_func_geometry_type: public Item_str_ascii_func
 {
 public:
-  Item_func_geometry_type(Item *a): Item_str_func(a) {}
-  String *val_str(String *);
+  Item_func_geometry_type(Item *a): Item_str_ascii_func(a) {}
+  String *val_str_ascii(String *);
   const char *func_name() const { return "geometrytype"; }
   void fix_length_and_dec() 
   {
-     max_length=20; // "GeometryCollection" is the most long
-     maybe_null= 1;
+    // "GeometryCollection" is the longest
+    fix_length_and_charset(20, default_charset());
+    maybe_null= 1;
   };
 };
 

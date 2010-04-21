@@ -205,6 +205,10 @@ select (@after:=unix_timestamp())*0; # always give repeatable output
 # the bug, the reap would return immediately after the insert into t2.
 select (@after-@before) >= 2;
 
+connection con3;
+commit;
+
+connection con2;
 drop table t1,t2;
 commit;
 

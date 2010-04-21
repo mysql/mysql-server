@@ -68,10 +68,13 @@ drop table t1;
 create table t1 (c1 int);
 lock table t1 write;
 # Cannot get the global read lock with write locked tables.
---error 1192
+--error ER_LOCK_OR_ACTIVE_TRANSACTION 
 flush tables with read lock;
 lock table t1 read;
-# Can get the global read lock with read locked tables.
+# Cannot get the global read lock with read locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+flush tables with read lock;
+unlock tables;
 flush tables with read lock;
 --error 1223
 lock table t1 write;
@@ -84,12 +87,12 @@ create table t2 (c1 int);
 create table t3 (c1 int);
 lock table t1 read, t2 read, t3 write;
 # Cannot get the global read lock with write locked tables.
---error 1192
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 flush tables with read lock;
 lock table t1 read, t2 read, t3 read;
-# Can get the global read lock with read locked tables.
+# Cannot get the global read lock with read locked tables.
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 flush tables with read lock;
-# Release all table locks and the global read lock.
 unlock tables;
 drop table t1, t2, t3;
 
@@ -157,6 +160,7 @@ flush tables with read lock;
 unlock tables;
 
 lock tables t1 read;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
 flush tables with read lock;
 unlock tables;
 
@@ -199,3 +203,155 @@ set global general_log= @old_general_log;
 set global read_only= @old_read_only;
 
 --echo End of 5.1 tests
+
+
+--echo #
+--echo # Additional test for bug #51136 "Crash in pthread_rwlock_rdlock
+--echo #                                 on TEMPORARY + HANDLER + LOCK + SP".
+--echo # Also see the main test for this bug in include/handler.inc.
+--echo #
+--disable_warnings
+drop tables if exists t1, t2;
+--enable_warnings
+create table t1 (i int);
+create temporary table t2 (j int);
+flush tables with read lock;
+lock table t2 read;
+--echo # This commit should not release any MDL locks.
+commit;
+--echo # The below statement crashed before the bug fix as it
+--echo # has attempted to release global shared metadata lock
+--echo # which was already released by commit.
+unlock tables;
+drop tables t1, t2;
+
+
+
+--echo # 
+--echo # Tests for WL#5000  FLUSH TABLES|TABLE table_list WITH READ LOCK
+--echo #
+--echo # I. Check the incompatible changes in the grammar.
+--echo #
+--error ER_PARSE_ERROR
+flush tables with read lock, hosts;
+--error ER_PARSE_ERROR
+flush privileges, tables;
+--error ER_PARSE_ERROR
+flush privileges, tables with read lock;
+--error ER_PARSE_ERROR
+flush privileges, tables;
+--error ER_PARSE_ERROR
+flush tables with read lock, tables;
+show tables;
+--echo #
+--echo # II. Check the allowed syntax.
+--echo #
+--disable_warnings
+drop table if exists t1, t2, t3;
+--enable_warnings
+create table t1 (a int);
+create table t2 (a int);
+create table t3 (a int);
+lock table t1 read, t2 read;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+flush tables with read lock;
+unlock tables;
+flush tables with read lock;
+flush tables t1, t2 with read lock;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+flush tables t1, t2 with read lock;
+--error ER_LOCK_OR_ACTIVE_TRANSACTION
+flush tables with read lock;
+select * from t1;
+select * from t2;
+--error ER_TABLE_NOT_LOCKED
+select * from t3;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+insert into t1 (a) values (1);
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+insert into t2 (a) values (1);
+--error ER_TABLE_NOT_LOCKED
+insert into t3 (a) values (1);
+--error ER_NO_SUCH_TABLE
+lock table no_such_table read;
+--echo #
+--echo # We implicitly left the locked tables
+--echo # mode but still have the read lock.
+--echo # 
+--error ER_CANT_UPDATE_WITH_READLOCK
+insert into t2 (a) values (1);
+unlock tables;
+insert into t1 (a) values (1);
+insert into t2 (a) values (1);
+flush table t1, t2 with read lock;
+select * from t1;
+select * from t2;
+--error ER_TABLE_NOT_LOCKED
+select * from t3;
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+insert into t1 (a) values (2);
+--error ER_TABLE_NOT_LOCKED_FOR_WRITE
+insert into t2 (a) values (2);
+--error ER_TABLE_NOT_LOCKED
+insert into t3 (a) values (2);
+--error ER_NO_SUCH_TABLE
+lock table no_such_table read;
+insert into t3 (a) values (2);
+
+
+--echo # 
+--echo # III. Concurrent tests.
+--echo #
+connect (con1,localhost,root,,);
+--echo # --> connection default
+--echo #
+--echo # Check that flush tables <list> with read lock
+--echo # does not affect non-locked tables.
+connection default;
+--echo #
+flush tables t1 with read lock;
+--echo # --> connection con1;
+connection con1;
+select * from t1;
+select * from t2;
+insert into t2 (a) values (3);
+--echo # --> connection default;
+connection default;
+unlock tables;
+--echo # --> connection con1
+connection con1;
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+drop table t1, t2, t3;
+
+--echo #
+--echo # Bug#51710 FLUSH TABLES <view> WITH READ LOCK kills the server
+--echo #
+--disable_warnings
+drop view if exists v1, v2, v3;
+drop table if exists t1, v1;
+--enable_warnings
+create table t1 (a int);
+create view v1 as select 1;
+create view v2 as select * from t1;
+create view v3 as select * from v2;
+
+--error ER_WRONG_OBJECT
+flush table v1, v2, v3 with read lock;
+--error ER_WRONG_OBJECT
+flush table v1 with read lock;
+--error ER_WRONG_OBJECT
+flush table v2 with read lock;
+--error ER_WRONG_OBJECT
+flush table v3 with read lock;
+create temporary table v1 (a int);
+--error ER_WRONG_OBJECT
+flush table v1 with read lock;
+drop view v1;
+create table v1 (a int);
+flush table v1 with read lock;
+drop temporary table v1;
+unlock tables;
+drop view v2, v3;
+drop table t1, v1;

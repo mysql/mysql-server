@@ -112,7 +112,8 @@ mysqlbug: ${top_builddir}/config.status mysqlbug.sh
 mysql_fix_privilege_tables.sql: mysql_system_tables.sql \
 				mysql_system_tables_fix.sql
 	@echo "Building $@";
-	@cat $(srcdir)/mysql_system_tables.sql $(srcdir)/mysql_system_tables_fix.sql > $@
+	@cat $(srcdir)/mysql_system_tables.sql \
+	  $(srcdir)/mysql_system_tables_fix.sql > $@
 
 #
 # Build mysql_fix_privilege_tables_sql.c from

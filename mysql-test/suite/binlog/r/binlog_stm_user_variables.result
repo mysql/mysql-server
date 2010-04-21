@@ -1,0 +1,157 @@
+RESET MASTER;
+SET @positive= 18446744073709551615;
+SET @negative= -9223372036854775808;
+CREATE TABLE t1 (`tinyint` TINYINT,
+`smallint` SMALLINT,
+`mediumint` MEDIUMINT,
+`integer` INTEGER,
+`bigint` BIGINT,
+`utinyint` TINYINT UNSIGNED,
+`usmallint` SMALLINT UNSIGNED,
+`umediumint` MEDIUMINT UNSIGNED,
+`uinteger` INTEGER UNSIGNED,
+`ubigint` BIGINT UNSIGNED,
+`double` DOUBLE,
+`float` FLOAT,
+`real` REAL(30,2),
+`decimal` DECIMAL(30,2)) ENGINE = MyISAM;
+### insert max unsigned
+### a) declarative
+INSERT INTO t1 VALUES (18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615,18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615);;
+TRUNCATE t1;
+### b) user var
+INSERT INTO t1 VALUES (@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive);
+## assertion: checks that User_var_log_event::pack_info 
+## correctly displays the binlog content by taking into 
+## account the unsigned_flag
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (`tinyint` TINYINT,
+`smallint` SMALLINT,
+`mediumint` MEDIUMINT,
+`integer` INTEGER,
+`bigint` BIGINT,
+`utinyint` TINYINT UNSIGNED,
+`usmallint` SMALLINT UNSIGNED,
+`umediumint` MEDIUMINT UNSIGNED,
+`uinteger` INTEGER UNSIGNED,
+`ubigint` BIGINT UNSIGNED,
+`double` DOUBLE,
+`float` FLOAT,
+`real` REAL(30,2),
+`decimal` DECIMAL(30,2)) ENGINE = MyISAM
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615,18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	User var	#	#	@`positive`=18446744073709551615
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive)
+master-bin.000001	#	Query	#	#	COMMIT
+### insert min signed
+### a) declarative
+INSERT INTO t1 VALUES (-9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808,-9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808);;
+TRUNCATE t1;
+### b) user var
+INSERT INTO t1 VALUES (@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative);
+## assertion: checks that User_var_log_event::pack_info 
+## correctly displays the binlog content by taking into 
+## account the unsigned_flag
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (`tinyint` TINYINT,
+`smallint` SMALLINT,
+`mediumint` MEDIUMINT,
+`integer` INTEGER,
+`bigint` BIGINT,
+`utinyint` TINYINT UNSIGNED,
+`usmallint` SMALLINT UNSIGNED,
+`umediumint` MEDIUMINT UNSIGNED,
+`uinteger` INTEGER UNSIGNED,
+`ubigint` BIGINT UNSIGNED,
+`double` DOUBLE,
+`float` FLOAT,
+`real` REAL(30,2),
+`decimal` DECIMAL(30,2)) ENGINE = MyISAM
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615,18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615, 18446744073709551615)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	User var	#	#	@`positive`=18446744073709551615
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive,
+@positive)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (-9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808,-9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808, -9223372036854775808)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	User var	#	#	@`negative`=-9223372036854775808
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative,
+@negative)
+master-bin.000001	#	Query	#	#	COMMIT
+DROP TABLE t1;

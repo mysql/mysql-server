@@ -13,11 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-IF(MSVC)
-    #Innodb plugin needs linker-generated map file to locate server exports
-    #see bug#42001
-    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MAP /MAPINFO:EXPORTS")
-ENDIF(MSVC)
 
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
@@ -29,10 +24,10 @@ ${CMAKE_BINARY_DIR}/sql
 )
 
 SET(GEN_SOURCES
-${CMAKE_BINARY_DIR}/sql/sql_yacc.h 
-${CMAKE_BINARY_DIR}/sql/sql_yacc.cc
-${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
-${CMAKE_BINARY_DIR}/sql/lex_hash.h 
+${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.h 
+${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+${CMAKE_CURRENT_BINARY_DIR}/sql_builtin.cc
+${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h 
 )
 
 SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED 1)
@@ -44,9 +39,10 @@ ENDIF()
 
 
 SET (SQL_SOURCE
-               ../sql-common/client.c derror.cc des_key_file.cc
+              ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
                filesort.cc gstream.cc
+               ha_partition.cc
                handler.cc hash_filo.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
                item_create.cc item_func.cc item_geofunc.cc item_row.cc 
@@ -55,7 +51,7 @@ SET (SQL_SOURCE
                log_event.cc rpl_record.cc rpl_reporting.cc
                log_event_old.cc rpl_record_old.cc
                message.h mf_iocache.cc my_decimal.cc ../sql-common/my_time.c
-               mysqld.cc net_serv.cc keycaches.cc
+               mysqld.cc net_serv.cc  keycaches.cc
                opt_range.cc opt_range.h opt_sum.cc 
                ../sql-common/pack.c parse_file.cc password.c procedure.cc 
                protocol.cc records.cc repl_failsafe.cc rpl_filter.cc set_var.cc 
@@ -78,7 +74,8 @@ SET (SQL_SOURCE
                rpl_rli.cc rpl_mi.cc sql_servers.cc sql_audit.cc
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
-               sql_signal.cc rpl_handler.cc sys_vars.cc
+               sql_signal.cc rpl_handler.cc mdl.cc
+               transaction.cc sys_vars.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
@@ -159,6 +156,7 @@ IF(WITH_MYSQLD_LDFLAGS)
   SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS 
      "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
 ENDIF()
+INSTALL_DEBUG_TARGET(mysqld DESTINATION ${INSTALL_SBINDIR} RENAME mysqld-debug)
 
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
@@ -188,10 +186,19 @@ TARGET_LINK_LIBRARIES(gen_lex_hash mysys)
 
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/lex_hash.h
-  COMMAND gen_lex_hash ARGS > lex_hash.h
+  COMMAND gen_lex_hash ARGS > lex_hash.h.tmp &&
+  ${CMAKE_COMMAND} -E copy_if_different lex_hash.h.tmp lex_hash.h
+  COMMAND ${CMAKE_COMMAND} -E remove -f lex_hash.h.tmp
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/gen_lex_hash.cc)
-        
+
+MYSQL_ADD_EXECUTABLE(mysql_tzinfo_to_sql tztime.cc)
+SET_TARGET_PROPERTIES(mysql_tzinfo_to_sql PROPERTIES COMPILE_FLAGS "-DTZINFO2SQL")
+TARGET_LINK_LIBRARIES(mysql_tzinfo_to_sql ${MYSQLD_STATIC_PLUGIN_LIBS} 
+  mysys dbug strings vio regex   
+  ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
+  ${SSL_LIBRARIES})
+
 ADD_CUSTOM_TARGET( 
         GenServerSource
         DEPENDS ${GEN_SOURCES}
@@ -231,8 +238,12 @@ ADD_CUSTOM_TARGET(dist
   WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-
-
+ADD_CUSTOM_TARGET(distclean
+  COMMAND ${CMAKE_COMMAND} -E echo  WARNING: distclean target is not functional
+  COMMAND ${CMAKE_COMMAND} -E echo  Use 'bzr clean-tree' with --unknown and/or
+    --ignored parameter instead
+  VERBATIM
+  )
 
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
@@ -269,46 +280,11 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     ALL
     DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
   )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data/mysql DESTINATION data COMPONENT DataFiles)
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . COMPONENT DataFiles
+    PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
 ENDIF()
 ENDIF()
-
-# Optionally install mysqld from debug build run. outside of the current build dir 
-# (unless multi-config generator is used# like Visual Studio or Xcode). 
-# For Makefile generators we default Debug build directory to ${buildroot}/../debug.
-
-GET_FILENAME_COMPONENT(BINARY_PARENTDIR ${CMAKE_BINARY_DIR} PATH)
-SET(DEBUGBUILDDIR "${BINARY_PARENTDIR}/debug" CACHE INTERNAL "Directory of debug build")
-  
-IF(WIN32)
- SET(EXE ".exe")
-ELSE()
- SET(EXE)
-ENDIF()
-
-IF(CMAKE_GENERATOR MATCHES "Makefiles")
-  SET(MYSQLD_DEBUG_EXE ${DEBUGBUILDDIR}/sql/mysqld${EXE})
-ELSE()
-  # Visual Studio and Xcode
-  SET(MYSQLD_DEBUG_EXE ${CMAKE_BINARY_DIR}/sql/Debug/mysqld${EXE})
-ENDIF()
-
-INSTALL(FILES ${MYSQLD_DEBUG_EXE}
-  DESTINATION ${INSTALL_SBINDIR}
-  RENAME mysqld-debug${EXE}
-  CONFIGURATIONS Release RelWithDebInfo
-  OPTIONAL)
-
-IF(WIN32)
-  STRING(REPLACE ".exe" ".pdb" MYSQLD_DEBUG_PDB ${MYSQLD_DEBUG_EXE})
-  INSTALL(FILES ${MYSQLD_DEBUG_PDB}
-  CONFIGURATIONS Release RelWithDebInfo
-  DESTINATION ${INSTALL_SBINDIR} 
-  RENAME mysqld-debug.pdb 
-  OPTIONAL)
-ENDIF()
-
 

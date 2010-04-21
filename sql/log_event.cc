@@ -30,6 +30,7 @@
 #include "rpl_mi.h"
 #include "rpl_filter.h"
 #include "rpl_record.h"
+#include "transaction.h"
 #include <my_dir.h>
 
 #endif /* MYSQL_CLIENT */
@@ -2520,6 +2521,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
     case SQLCOM_ASSIGN_TO_KEYCACHE:
     case SQLCOM_PRELOAD_KEYS:
     case SQLCOM_FLUSH:
+    case SQLCOM_RESET:
     case SQLCOM_CHECK:
       implicit_commit= TRUE;
       break;
@@ -3157,7 +3159,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   }
   else
   {
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
   }
 
   /*
@@ -3274,6 +3276,18 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       const char* found_semicolon= NULL;
       mysql_parse(thd, thd->query(), thd->query_length(), &found_semicolon);
       log_slow_statement(thd);
+
+      /*
+        Resetting the enable_slow_log thd variable.
+
+        We need to reset it back to the opt_log_slow_slave_statements
+        value after the statement execution (and slow logging
+        is done). It might have changed if the statement was an
+        admin statement (in which case, down in mysql_parse execution
+        thd->enable_slow_log is set to the value of
+        opt_log_slow_admin_statements).
+      */
+      thd->enable_slow_log= opt_log_slow_slave_statements;
     }
     else
     {
@@ -3360,7 +3374,7 @@ Default database: '%s'. Query: '%s'",
         them back here.
       */
       if (expected_error && expected_error == actual_error)
-        ha_autocommit_or_rollback(thd, TRUE);
+        trans_rollback_stmt(thd);
     }
     /*
       If we expected a non-zero error code and get nothing and, it is a concurrency
@@ -3369,7 +3383,8 @@ Default database: '%s'. Query: '%s'",
     else if (expected_error && !actual_error && 
              (concurrency_error_code(expected_error) ||
               ignored_error_code(expected_error)))
-      ha_autocommit_or_rollback(thd, TRUE);
+      trans_rollback_stmt(thd);
+
     /*
       Other cases: mostly we expected no error and get one.
     */
@@ -4717,10 +4732,10 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     thd->warning_info->opt_clear_warning_info(thd->query_id);
 
     TABLE_LIST tables;
-    bzero((char*) &tables,sizeof(tables));
-    tables.db= thd->strmake(thd->db, thd->db_length);
-    tables.alias = tables.table_name = (char*) table_name;
-    tables.lock_type = TL_WRITE;
+    tables.init_one_table(thd->strmake(thd->db, thd->db_length),
+                          thd->db_length,
+                          table_name, strlen(table_name),
+                          table_name, TL_WRITE);
     tables.updating= 1;
 
     // the table will be opened in mysql_load    
@@ -5443,10 +5458,16 @@ void Xid_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
 int Xid_log_event::do_apply_event(Relay_log_info const *rli)
 {
+  bool res;
   /* For a slave Xid_log_event is COMMIT */
   general_log_print(thd, COM_QUERY,
                     "COMMIT /* implicit, from Xid_log_event */");
-  return end_trans(thd, COMMIT);
+  if (!(res= trans_commit(thd)))
+  {
+    close_thread_tables(thd);
+    thd->mdl_context.release_transactional_locks();
+  }
+  return res;
 }
 
 Log_event::enum_skip_reason
@@ -5495,7 +5516,9 @@ void User_var_log_event::pack_info(Protocol* protocol)
     case INT_RESULT:
       if (!(buf= (char*) my_malloc(val_offset + 22, MYF(MY_WME))))
         return;
-      event_len= longlong10_to_str(uint8korr(val), buf + val_offset,-10)-buf;
+      event_len= longlong10_to_str(uint8korr(val), buf + val_offset, 
+                                   ((flags & User_var_log_event::UNSIGNED_F) ? 
+                                    10 : -10))-buf;
       break;
     case DECIMAL_RESULT:
     {
@@ -5553,12 +5576,14 @@ User_var_log_event(const char* buf,
   :Log_event(buf, description_event)
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
+  const char *start= buf;
   buf+= description_event->common_header_len +
     description_event->post_header_len[USER_VAR_EVENT-1];
   name_len= uint4korr(buf);
   name= (char *) buf + UV_NAME_LEN_SIZE;
   buf+= UV_NAME_LEN_SIZE + name_len;
   is_null= (bool) *buf;
+  flags= User_var_log_event::UNDEF_F;    // defaults to UNDEF_F
   if (is_null)
   {
     type= STRING_RESULT;
@@ -5574,6 +5599,27 @@ User_var_log_event(const char* buf,
 		       UV_CHARSET_NUMBER_SIZE);
     val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
 		   UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
+
+    /**
+      We need to check if this is from an old server
+      that did not pack information for flags.
+      We do this by checking if there are extra bytes
+      after the packed value. If there are we take the
+      extra byte and it's value is assumed to contain
+      the flags value.
+
+      Old events will not have this extra byte, thence,
+      we keep the flags set to UNDEF_F.
+    */
+    uint bytes_read= ((val + val_len) - start);
+    DBUG_ASSERT(bytes_read==data_written || 
+                bytes_read==(data_written-1));
+    if ((data_written - bytes_read) > 0)
+    {
+      flags= (uint) *(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
+                    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE +
+                    val_len);
+    }
   }
 }
 
@@ -5585,6 +5631,7 @@ bool User_var_log_event::write(IO_CACHE* file)
   char buf1[UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE + 
 	    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE];
   uchar buf2[max(8, DECIMAL_MAX_FIELD_SIZE + 2)], *pos= buf2;
+  uint unsigned_len= 0;
   uint buf1_length;
   ulong event_length;
 
@@ -5606,6 +5653,7 @@ bool User_var_log_event::write(IO_CACHE* file)
       break;
     case INT_RESULT:
       int8store(buf2, *(longlong*) val);
+      unsigned_len= 1;
       break;
     case DECIMAL_RESULT:
     {
@@ -5630,13 +5678,14 @@ bool User_var_log_event::write(IO_CACHE* file)
   }
 
   /* Length of the whole event */
-  event_length= sizeof(buf)+ name_len + buf1_length + val_len;
+  event_length= sizeof(buf)+ name_len + buf1_length + val_len + unsigned_len;
 
   return (write_header(file, event_length) ||
           my_b_safe_write(file, (uchar*) buf, sizeof(buf))   ||
 	  my_b_safe_write(file, (uchar*) name, name_len)     ||
 	  my_b_safe_write(file, (uchar*) buf1, buf1_length) ||
-	  my_b_safe_write(file, pos, val_len));
+	  my_b_safe_write(file, pos, val_len) ||
+          my_b_safe_write(file, &flags, unsigned_len));
 }
 #endif
 
@@ -5677,7 +5726,8 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       break;
     case INT_RESULT:
       char int_buf[22];
-      longlong10_to_str(uint8korr(val), int_buf, -10);
+      longlong10_to_str(uint8korr(val), int_buf, 
+                        ((flags & User_var_log_event::UNSIGNED_F) ? 10 : -10));
       my_b_printf(&cache, ":=%s%s\n", int_buf, print_event_info->delimiter);
       break;
     case DECIMAL_RESULT:
@@ -5824,7 +5874,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     a single record and with a single column. Thus, like
     a column value, it could always have IMPLICIT derivation.
    */
-  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT, 0);
+  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT,
+                (flags & User_var_log_event::UNSIGNED_F));
   free_root(thd->mem_root,0);
 
   return 0;
@@ -6491,9 +6542,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
 
   DBUG_EXECUTE_IF("remove_slave_load_file_before_write",
                   {
-                    mysql_file_close(fd, MYF(0));
-                    fd= -1;
-                    mysql_file_delete(0, fname, MYF(0));
+                    my_delete_allow_opened(fname, MYF(0));
                   });
 
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
@@ -7382,8 +7431,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
      */
     DBUG_ASSERT(get_flags(STMT_END_F));
 
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
-    close_thread_tables(thd);
+    const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -7445,7 +7493,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     /* A small test to verify that objects have consistent types */
     DBUG_ASSERT(sizeof(thd->variables.option_bits) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
-    if (simple_open_n_lock_tables(thd, rli->tables_to_lock))
+    if (open_and_lock_tables(thd, rli->tables_to_lock, FALSE, 0))
     {
       uint actual_error= thd->stmt_da->sql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
@@ -7462,7 +7510,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
-      const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+      const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
       DBUG_RETURN(actual_error);
     }
 
@@ -7494,7 +7542,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           mysql_unlock_tables(thd, thd->lock);
           thd->lock= 0;
           thd->is_slave_error= 1;
-          const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+          const_cast<Relay_log_info*>(rli)->slave_close_thread_tables(thd);
           DBUG_RETURN(ERR_BAD_TABLE_DEF);
         }
         DBUG_PRINT("debug", ("Table: %s.%s is compatible with master"
@@ -7681,12 +7729,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     }
   } // if (table)
 
-  /*
-    We need to delay this clear until here bacause unpack_current_row() uses
-    master-side table definitions stored in rli.
-  */
-  if (rli->tables_to_lock && get_flags(STMT_END_F))
-    const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
   
   if (error)
   {
@@ -7772,7 +7814,7 @@ static int rows_event_stmt_cleanup(Relay_log_info const *rli, THD * thd)
       are involved, commit the transaction and flush the pending event to the
       binlog.
     */
-    error|= ha_autocommit_or_rollback(thd, error);
+    error|= (error ? trans_rollback_stmt(thd) : trans_commit_stmt(thd));
 
     /*
       Now what if this is not a transactional engine? we still need to
@@ -8251,15 +8293,15 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
                                 NullS)))
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
-  bzero(table_list, sizeof(*table_list));
-  table_list->db = db_mem;
-  table_list->alias= table_list->table_name = tname_mem;
-  table_list->lock_type= TL_WRITE;
-  table_list->next_global= table_list->next_local= 0;
+  strmov(db_mem, rpl_filter->get_rewrite_db(m_dbnam, &dummy_len));
+  strmov(tname_mem, m_tblnam);
+
+  table_list->init_one_table(db_mem, strlen(db_mem),
+                             tname_mem, strlen(tname_mem),
+                             tname_mem, TL_WRITE);
+
   table_list->table_id= m_table_id;
   table_list->updating= 1;
-  strmov(table_list->db, rpl_filter->get_rewrite_db(m_dbnam, &dummy_len));
-  strmov(table_list->table_name, m_tblnam);
 
   int error= 0;
 
@@ -8871,7 +8913,7 @@ static bool record_compare(TABLE *table)
   DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
 
   bool result= FALSE;
-  uchar saved_x[2], saved_filler[2];
+  uchar saved_x[2]= {0, 0}, saved_filler[2]= {0, 0};
 
   if (table->s->null_bytes > 0)
   {

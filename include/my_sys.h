@@ -238,6 +238,9 @@ extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 extern uint my_file_limit;
 extern ulong my_thread_stack_size;
 
+extern const char *(*proc_info_hook)(void *, const char *, const char *,
+                                     const char *, const unsigned int);
+
 #ifdef HAVE_LARGE_PAGES
 extern my_bool my_use_large_pages;
 extern uint    my_large_page_size;

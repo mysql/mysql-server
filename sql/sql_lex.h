@@ -677,6 +677,8 @@ public:
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
+  /* TRUE when GROUP BY fix field called in processing of this SELECT */
+  bool group_fix_field;
   /* List of references to fields referenced from inner selects */
   List<Item_outer_ref> inner_refs_list;
   /* Number of Item_sum-derived objects in this SELECT */
@@ -1076,6 +1078,16 @@ public:
     }
   }
 
+  /** Return a pointer to the last element in query table list. */
+  TABLE_LIST *last_table()
+  {
+    /* Don't use offsetof() macro in order to avoid warnings. */
+    return query_tables ?
+           (TABLE_LIST*) ((char*) query_tables_last -
+                          ((char*) &(query_tables->next_global) -
+                           (char*) query_tables)) :
+           0;
+  }
 
   /**
     Enumeration listing of all types of unsafe statement.
@@ -1101,13 +1113,15 @@ public:
     */
     BINLOG_STMT_UNSAFE_SYSTEM_TABLE,
     /**
-      Update of two autoincrement columns is unsafe.  With one
-      autoincrement column, we store the counter in the binlog so that
-      slave can restore the correct value.  But we can only store one
-      such counter per statement, so updating more than one
-      autoincrement column is not safe.
+      Inserting into an autoincrement column in a stored routine is unsafe.
+      Even with just one autoincrement column, if the routine is invoked more than 
+      once slave is not guaranteed to execute the statement graph same way as 
+      the master.
+      And since it's impossible to estimate how many times a routine can be invoked at 
+      the query pre-execution phase (see lock_tables), the statement is marked
+      pessimistically unsafe. 
     */
-    BINLOG_STMT_UNSAFE_TWO_AUTOINC_COLUMNS,
+    BINLOG_STMT_UNSAFE_AUTOINC_COLUMNS,
     /**
       Using a UDF (user-defined function) is unsafe.
     */
@@ -1903,7 +1917,9 @@ struct LEX: public Query_tables_list
   uint profile_options;
   uint uint_geom_type;
   uint grant, grant_tot_col, which_columns;
-  uint fk_delete_opt, fk_update_opt, fk_match_option;
+  enum Foreign_key::fk_match_opt fk_match_option;
+  enum Foreign_key::fk_option fk_update_opt;
+  enum Foreign_key::fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int nest_level;
   /*
@@ -1938,6 +1954,12 @@ struct LEX: public Query_tables_list
   bool subqueries, ignore;
   st_parsing_options parsing_options;
   Alter_info alter_info;
+  /*
+    For CREATE TABLE statement last element of table list which is not
+    part of SELECT or LIKE part (i.e. either element for table we are
+    creating or last of tables referenced by foreign keys).
+  */
+  TABLE_LIST *create_last_non_select_table;
   /* Prepared statements SQL syntax:*/
   LEX_STRING prepared_stmt_name; /* Statement name (in all queries) */
   /*

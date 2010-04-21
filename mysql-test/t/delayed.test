@@ -307,7 +307,7 @@ connection update;
 connection default;
 let $wait_condition=
   select count(*) = 1 from information_schema.processlist
-  where command = "Delayed insert" and state = "upgrading lock";
+  where command = "Delayed insert" and state = "Table lock";
 --source include/wait_condition.inc
 connect (select,localhost,root,,);
 --echo connection: select

@@ -100,7 +100,7 @@
 
 #if defined(__SUNPRO_CC) && defined(__sparcv9) && defined(_LP64) && !defined(__SunOS_5_7)
 extern "C" ulonglong my_timer_cycles_il_sparc64();
-#elif defined(__SUNPRO_CC) && defined(__sparcv8plus) && defined(_ILP32) && !defined(__SunOS_5_7)
+#elif defined(__SUNPRO_CC) && defined(_ILP32) && !defined(__SunOS_5_7)
 extern "C" ulonglong my_timer_cycles_il_sparc32();
 #elif defined(__SUNPRO_CC) && defined(__i386) && defined(_ILP32)
 extern "C" ulonglong my_timer_cycles_il_i386();
@@ -108,7 +108,7 @@ extern "C" ulonglong my_timer_cycles_il_i386();
 extern "C" ulonglong my_timer_cycles_il_x86_64();
 #elif defined(__SUNPRO_C) && defined(__sparcv9) && defined(_LP64) && !defined(__SunOS_5_7)
 ulonglong my_timer_cycles_il_sparc64();
-#elif defined(__SUNPRO_C) && defined(__sparcv8plus) && defined(_ILP32) && !defined(__SunOS_5_7)
+#elif defined(__SUNPRO_C) && defined(_ILP32) && !defined(__SunOS_5_7)
 ulonglong my_timer_cycles_il_sparc32();
 #elif defined(__SUNPRO_C) && defined(__i386) && defined(_ILP32)
 ulonglong my_timer_cycles_il_i386();
@@ -197,7 +197,7 @@ ulonglong my_timer_cycles(void)
   }
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && defined(_LP64) && !defined(__SunOS_5_7)
   return (my_timer_cycles_il_sparc64());
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv8plus) && defined(_ILP32) && !defined(__SunOS_5_7)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && !defined(__SunOS_5_7)
   return (my_timer_cycles_il_sparc32());
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && defined(_ILP32)
   /* This is probably redundant for __SUNPRO_C. */
@@ -549,7 +549,7 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_PPC;
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && defined(_LP64) && !defined(__SunOS_5_7)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64;
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv8plus) && defined(_ILP32) && !defined(__SunOS_5_7)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && !defined(__SunOS_5_7)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC32;
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && defined(_ILP32)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_I386;
