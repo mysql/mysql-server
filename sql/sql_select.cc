@@ -9637,6 +9637,7 @@ bool check_join_cache_usage(JOIN_TAB *tab,
   uint cache_level= join->thd->variables.join_cache_level;
   bool force_unlinked_cache= test(cache_level & 1);
   uint i= tab-join->join_tab;
+  ha_rows rows;
   
   if (cache_level == 0)
     return FALSE;
@@ -9681,9 +9682,9 @@ bool check_join_cache_usage(JOIN_TAB *tab,
     flags= HA_MRR_NO_NULL_ENDPOINTS;
     if (tab->table->covering_keys.is_set(tab->ref.key))
       flags|= HA_MRR_INDEX_ONLY;
-    tab->table->file->multi_range_read_info(tab->ref.key, 10, 20,
-                                            &bufsz, &flags, &cost);
-    if (!(flags & HA_MRR_USE_DEFAULT_IMPL) &&
+    rows= tab->table->file->multi_range_read_info(tab->ref.key, 10, 20,
+                                                  &bufsz, &flags, &cost);
+    if ((rows != HA_POS_ERROR) && !(flags & HA_MRR_USE_DEFAULT_IMPL) &&
         (!(flags & HA_MRR_NO_ASSOCIATION) || cache_level > 6) &&
         ((options & SELECT_DESCRIBE) ||
          (tab->cache ||

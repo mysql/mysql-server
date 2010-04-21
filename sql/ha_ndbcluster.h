@@ -267,8 +267,8 @@ class ha_ndbcluster: public handler
                                       void *seq_init_param, 
                                       uint n_ranges, uint *bufsz,
                                       uint *flags, COST_VECT *cost);
-  int multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                            uint *bufsz, uint *flags, COST_VECT *cost);
+  ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                uint *bufsz, uint *flags, COST_VECT *cost);
 private:
   uint first_running_range;
   uint first_range_in_batch;

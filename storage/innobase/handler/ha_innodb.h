@@ -215,8 +215,8 @@ public:
                                       void *seq_init_param, 
                                       uint n_ranges, uint *bufsz,
                                       uint *flags, COST_VECT *cost);
-  int multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-                            uint *bufsz, uint *flags, COST_VECT *cost);
+  ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
+                                uint *bufsz, uint *flags, COST_VECT *cost);
   DsMrr_impl ds_mrr;
 
   int read_range_first(const key_range *start_key, const key_range *end_key,
