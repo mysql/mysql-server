@@ -2923,6 +2923,199 @@ join_buffer_size	131072
 show variables like 'join_cache_level';
 Variable_name	Value
 join_cache_level	1
+set join_cache_level=1;
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND City.Population > 3000000;
+Name	Name
+Sydney	Australia
+Dhaka	Bangladesh
+São Paulo	Brazil
+Rio de Janeiro	Brazil
+London	United Kingdom
+Santiago de Chile	Chile
+Cairo	Egypt
+Alexandria	Egypt
+Jakarta	Indonesia
+Mumbai (Bombay)	India
+Delhi	India
+Calcutta [Kolkata]	India
+Chennai (Madras)	India
+Baghdad	Iraq
+Teheran	Iran
+Tokyo	Japan
+Jokohama [Yokohama]	Japan
+Shanghai	China
+Peking	China
+Chongqing	China
+Tianjin	China
+Wuhan	China
+Harbin	China
+Shenyang	China
+Kanton [Guangzhou]	China
+Chengdu	China
+Santafé de Bogotá	Colombia
+Kinshasa	Congo, The Democratic Republic of the
+Seoul	South Korea
+Pusan	South Korea
+Ciudad de México	Mexico
+Rangoon (Yangon)	Myanmar
+Karachi	Pakistan
+Lahore	Pakistan
+Lima	Peru
+Berlin	Germany
+Riyadh	Saudi Arabia
+Singapore	Singapore
+Bangkok	Thailand
+Istanbul	Turkey
+Ankara	Turkey
+Moscow	Russian Federation
+St Petersburg	Russian Federation
+Ho Chi Minh City	Vietnam
+New York	United States
+Los Angeles	United States
+set join_cache_level=8;
+set join_buffer_size=256;
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND City.Population > 3000000;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	City	range	Population,Country	Population	4	NULL	93	Using index condition; Using MRR
+1	SIMPLE	Country	eq_ref	PRIMARY	PRIMARY	3	world.City.Country	1	Using join buffer
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND City.Population > 3000000;
+Name	Name
+Sydney	Australia
+Dhaka	Bangladesh
+Rio de Janeiro	Brazil
+São Paulo	Brazil
+London	United Kingdom
+Santiago de Chile	Chile
+Alexandria	Egypt
+Cairo	Egypt
+Jakarta	Indonesia
+Delhi	India
+Calcutta [Kolkata]	India
+Mumbai (Bombay)	India
+Chennai (Madras)	India
+Baghdad	Iraq
+Teheran	Iran
+Tokyo	Japan
+Jokohama [Yokohama]	Japan
+Peking	China
+Chongqing	China
+Shanghai	China
+Wuhan	China
+Harbin	China
+Shenyang	China
+Kanton [Guangzhou]	China
+Tianjin	China
+Chengdu	China
+Santafé de Bogotá	Colombia
+Kinshasa	Congo, The Democratic Republic of the
+Seoul	South Korea
+Pusan	South Korea
+Ciudad de México	Mexico
+Rangoon (Yangon)	Myanmar
+Karachi	Pakistan
+Lahore	Pakistan
+Lima	Peru
+Berlin	Germany
+Riyadh	Saudi Arabia
+Singapore	Singapore
+Bangkok	Thailand
+Ankara	Turkey
+Istanbul	Turkey
+St Petersburg	Russian Federation
+Moscow	Russian Federation
+Ho Chi Minh City	Vietnam
+Los Angeles	United States
+New York	United States
+set join_buffer_size=default;
+set join_cache_level=6;
+ALTER TABLE Country MODIFY Name varchar(52) NOT NULL default '';
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+ALTER TABLE Country MODIFY Name varchar(300) NOT NULL default '';
+SELECT City.Name, Country.Name FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name
+Vientiane	Laos
+Riga	Latvia
+Daugavpils	Latvia
+Maseru	Lesotho
+Beirut	Lebanon
+Tripoli	Lebanon
+Monrovia	Liberia
+Tripoli	Libyan Arab Jamahiriya
+Bengasi	Libyan Arab Jamahiriya
+Misrata	Libyan Arab Jamahiriya
+Vilnius	Lithuania
+Kaunas	Lithuania
+Klaipeda	Lithuania
+?iauliai	Lithuania
+Panevezys	Lithuania
+ALTER TABLE Country ADD COLUMN PopulationBar text;
+UPDATE Country 
+SET PopulationBar=REPEAT('x', CAST(Population/100000 AS unsigned int));
+SELECT City.Name, Country.Name, Country.PopulationBar FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name	PopulationBar
+Vientiane	Laos	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Riga	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
+Daugavpils	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
+Maseru	Lesotho	xxxxxxxxxxxxxxxxxxxxxx
+Beirut	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Tripoli	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Monrovia	Liberia	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Tripoli	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Bengasi	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Misrata	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Vilnius	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Kaunas	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Klaipeda	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+?iauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Panevezys	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+set join_buffer_size=256;
+SELECT City.Name, Country.Name, Country.PopulationBar FROM City,Country
+WHERE City.Country=Country.Code AND 
+Country.Name LIKE 'L%' AND City.Population > 100000;
+Name	Name	PopulationBar
+Vientiane	Laos	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Riga	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
+Daugavpils	Latvia	xxxxxxxxxxxxxxxxxxxxxxxx
+Maseru	Lesotho	xxxxxxxxxxxxxxxxxxxxxx
+Beirut	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Tripoli	Lebanon	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Monrovia	Liberia	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Tripoli	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Bengasi	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Misrata	Libyan Arab Jamahiriya	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Vilnius	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Kaunas	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Klaipeda	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+?iauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+Panevezys	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+set join_cache_level=default;
+set join_buffer_size=default;
 DROP DATABASE world;
 CREATE TABLE t1 (a int, b int, INDEX idx(b));
 CREATE TABLE t2 (a int, b int, INDEX idx(a));

@@ -9620,7 +9620,8 @@ void revise_cache_usage(JOIN_TAB *join_tab)
       if (tab->first_sj_inner_tab == first_inner)
         set_join_cache_denial(tab);
     }
-  } 
+  }
+  else set_join_cache_denial(join_tab);
 }
 
 
