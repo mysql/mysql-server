@@ -190,7 +190,8 @@ TEST(Sql_ilist_test, construct_and_destruct)
   I_List<Linked_node> i_list;
   I_List_iterator<Linked_node> i_list_iter(i_list);
   EXPECT_TRUE(i_list.is_empty());
-  EXPECT_EQ(0, i_list_iter++);
+  const Linked_node *null_node= NULL;
+  EXPECT_EQ(null_node, i_list_iter++);
 }
 
 
