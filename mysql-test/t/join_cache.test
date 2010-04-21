@@ -770,3 +770,23 @@ SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
 
 DROP TABLE t1,t2;
  
+--echo 
+--echo BUG#40136: Group by is ignored when join buffer is used for an outer join
+--echo 
+create table t1(a int PRIMARY KEY, b int);
+insert into t1 values
+  (5, 10), (2, 70), (7, 80), (6, 20), (1, 50), (9, 40), (8, 30), (3, 60);
+create table t2 (p int, a int, INDEX i_a(a));
+insert into t2 values
+  (103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
+  (107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
+set @save_join_cache_level=@@join_cache_level;
+set join_cache_level=6;
+--echo The following must not show "using join cache":
+explain
+select t1.a, count(t2.p) as count
+  from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
+select t1.a, count(t2.p) as count
+  from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
+drop table t1, t2;
+
