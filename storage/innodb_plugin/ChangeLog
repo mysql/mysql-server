@@ -1,5 +1,11 @@
 2010-04-21	The InnoDB Team
 
+	* btr/btr0btr.c:
+	Fix Bug#52964 Infinite loop in btr_page_split_and_insert()
+	in ROW_FORMAT=COMPRESSED
+
+2010-04-21	The InnoDB Team
+
 	* data/data0data.c:
 	Fix Bug#52745 Failing assertion: blob_no < page_zip->n_blobs
 
