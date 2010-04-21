@@ -21384,27 +21384,29 @@ uint bka_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 
   SYNOPSIS
     bka_range_seq_skip_record()
-      seq         value returned by bka_range_seq_init()
-      range_info  information about the next range
+      seq              value returned by bka_range_seq_init()
+      range_info       information about the next range
+      rowid [NOT USED] rowid of the record to be checked 
+
     
   DESCRIPTION
     The function interprets seq as a pointer to a JOIN_CACHE_BKA object.
-    The function returns TRUE if the record with this range_info will be
-     skipped for the next call of multi_range_read_next().
+    The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE
+    object. The function returns TRUE if the record with this range_info
+    is to be filtered out from the stream of records returned by
+    multi_range_read_next(). 
 
   NOTE
     This function are used only as a callback function.
-    This function cannot ne used if there is HA_MRR_NO_ASSOCIATION among
-    the flags returned by the call of multi_range_read_init()
 
   RETURN
-    0    record with this range_info will be returned by the next call
-         of multi_range_read_next()
-    1    the record will be skipped
+    1    record with this range_info is to be filtered out from the stream
+         of records returned by multi_range_read_next()
+    0    the record is to be left in the stream
 */ 
 
 static 
-bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info)
+bool bka_range_seq_skip_record(range_seq_t rseq, char *range_info, uchar *rowid)
 {
   DBUG_ENTER("bka_range_seq_skip_record");
   JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
@@ -22176,27 +22178,28 @@ uint bka_unique_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 
   SYNOPSIS
     bka_unique_range_seq_skip_record()
-      seq         value returned by bka_unique_range_seq_init()
-      range_info  information about the next range
+      seq              value returned by bka_unique_range_seq_init()
+      range_info       information about the next range
+      rowid [NOT USED] rowid of the record to be checked (not used)
     
   DESCRIPTION
-    The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE 
+    The function interprets seq as a pointer to the JOIN_CACHE_BKA_UNIQUE
     object. The function returns TRUE if the record with this range_info
-    will be skipped for the next call of multi_range_read_next().
+    is to be filtered out from the stream of records returned by
+    multi_range_read_next(). 
 
   NOTE
     This function are used only as a callback function.
-    This function cannot be used if there is HA_MRR_NO_ASSOCIATION among
-    the flags returned by the call of multi_range_read_init()
 
   RETURN
-    0    record with this range_info will be returned by the next call
-         of multi_range_read_next()
-    1    the record will be skipped
+    1    record with this range_info is to be filtered out from the stream
+         of records returned by multi_range_read_next()
+    0    the record is to be left in the stream
 */ 
 
 static 
-bool bka_unique_range_seq_skip_record(range_seq_t rseq, char *range_info)
+bool bka_unique_range_seq_skip_record(range_seq_t rseq, char *range_info,
+                                      uchar *rowid)
 {
   DBUG_ENTER("bka_unique_range_seq_skip_record");
   JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) rseq;

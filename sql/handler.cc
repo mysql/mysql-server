@@ -4408,8 +4408,6 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
 
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
 
-  DBUG_ASSERT(!seq_funcs->skip_record || is_mrr_assoc);
-
   if (is_mrr_assoc)
     status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
  
@@ -4622,7 +4620,7 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
     cur_range_info= *(uchar**)(rowids_buf_cur + h->ref_length);
     rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
     if (h->mrr_funcs.skip_record &&
-	h->mrr_funcs.skip_record(h->mrr_iter, (char *) cur_range_info))
+	h->mrr_funcs.skip_record(h->mrr_iter, (char *) cur_range_info, rowid))
       continue;
     res= h->rnd_pos(table->record[0], rowid);
     break;

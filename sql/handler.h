@@ -1143,14 +1143,16 @@ typedef struct st_range_seq_if
     SYNOPSIS
       skip_record()
         seq         The value returned by RANGE_SEQ_IF::init()
-        range_info  Information about the next range
+        range_info  Information about the next range 
+                    (Ignored if MRR_NO_ASSOCIATION is set)
+        rowid       Rowid of the record to be checked (ignored if set to 0)
     
     RETURN
-      0 - Record with this range_info will be returned by the next call
-          of multi_range_read_next()
-      1 - The record will be skipped
+      1 - Record with this range_info and/or this rowid shall be filtered
+          out from the stream of records returned by multi_range_read_next()
+      0 - The record shall be left in the stream
   */ 
-  bool (*skip_record) (range_seq_t seq, char *range_info);
+  bool (*skip_record) (range_seq_t seq, char *range_info, uchar *rowid);
  
 } RANGE_SEQ_IF;
 
