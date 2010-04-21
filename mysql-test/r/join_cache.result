@@ -3026,3 +3026,27 @@ a	b	a	b	a	b
 5	3	NULL	NULL	NULL	NULL
 set join_cache_level=default;
 DROP TABLE t2, t3, t4;
+#
+# Bug #40192: outer join with where clause when using BNL 
+#
+create table t1 (a int, b int);
+insert into t1 values (2, 20), (3, 30), (1, 10);
+create table t2 (a int, c int);
+insert into t2 values (1, 101), (3, 102), (1, 100);
+set join_cache_level=6;
+select * from t1 left join t2 on t1.a=t2.a;
+a	b	a	c
+1	10	1	101
+3	30	3	102
+1	10	1	100
+2	20	NULL	NULL
+explain select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer
+select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
+a	b	a	c
+3	30	3	102
+2	20	NULL	NULL
+set join_cache_level=default;
+drop table t1, t2;

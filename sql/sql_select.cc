@@ -9012,7 +9012,8 @@ static bool make_join_select(JOIN *join, Item *cond)
 	      2 : 1;
 	    sel->read_tables= used_tables & ~current_map;
 	  }
-	  if (i != join->const_tables && tab->use_quick != 2)
+	  if (i != join->const_tables && tab->use_quick != 2 &&
+              !tab->first_inner)
 	  {					/* Read with cache */
 	    if (cond &&
                 (tmp=make_cond_for_table(cond,
