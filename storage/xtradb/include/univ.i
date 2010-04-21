@@ -290,7 +290,7 @@ management to ensure correct alignment for doubles etc. */
 /* The 2-logarithm of UNIV_PAGE_SIZE: */
 #define UNIV_PAGE_SIZE_SHIFT	14
 /* The universal page size of the database */
-#define UNIV_PAGE_SIZE		(1 << UNIV_PAGE_SIZE_SHIFT)
+#define UNIV_PAGE_SIZE		(1u << UNIV_PAGE_SIZE_SHIFT)
 
 /* Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
