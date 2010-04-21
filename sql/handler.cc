@@ -4614,7 +4614,7 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
     rowid= rowids_buf_cur;
 
     if (is_mrr_assoc)
-      cur_range_info= *(uchar**)(rowids_buf_cur + h->ref_length);
+      memcpy(&cur_range_info, rowids_buf_cur + h->ref_length, sizeof(uchar**));
 
     rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
     if (h2->mrr_funcs.skip_record &&
