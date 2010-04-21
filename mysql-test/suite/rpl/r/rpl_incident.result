@@ -63,7 +63,7 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
 Last_IO_Error	
 Last_SQL_Errno	1590
-Last_SQL_Error	The incident LOST_EVENTS occured on the master. Message: <none>
+Last_SQL_Error	YYMMDD HH:MM:SS The incident LOST_EVENTS occured on the master. Message: <none>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
