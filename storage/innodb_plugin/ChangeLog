@@ -9,7 +9,7 @@
 	Fix Bug#50495 'Row size too large' for plugin, but works for
 	built-in InnoDB
 	Only check the record size at index creation time when
-	innodb_strict_mode is set.
+	innodb_strict_mode is set or when ROW_FORMAT is DYNAMIC or COMPRESSED.
 
 2010-04-20	The InnoDB Team
 
