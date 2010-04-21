@@ -505,6 +505,54 @@ set join_buffer_size=default;
 show variables like 'join_buffer_size';
 show variables like 'join_cache_level';
 
+set join_cache_level=1;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND City.Population > 3000000;
+
+set join_cache_level=8;
+set join_buffer_size=256;
+
+EXPLAIN
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND City.Population > 3000000;
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND City.Population > 3000000;
+
+set join_buffer_size=default;
+
+set join_cache_level=6;
+
+ALTER TABLE Country MODIFY Name varchar(52) NOT NULL default '';
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+ALTER TABLE Country MODIFY Name varchar(300) NOT NULL default '';
+
+SELECT City.Name, Country.Name FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+ALTER TABLE Country ADD COLUMN PopulationBar text;
+UPDATE Country 
+  SET PopulationBar=REPEAT('x', CAST(Population/100000 AS unsigned int));
+
+SELECT City.Name, Country.Name, Country.PopulationBar FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+set join_buffer_size=256;
+
+SELECT City.Name, Country.Name, Country.PopulationBar FROM City,Country
+  WHERE City.Country=Country.Code AND 
+        Country.Name LIKE 'L%' AND City.Population > 100000;
+
+set join_cache_level=default;
+set join_buffer_size=default;
+
 DROP DATABASE world;
 
 use test;
