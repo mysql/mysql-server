@@ -4394,7 +4394,7 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
   uint elem_size;
   uint keyno;
   Item *pushed_cond= NULL;
-  handler *new_h2;
+  handler *new_h2= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
   keyno= h->active_index;
 

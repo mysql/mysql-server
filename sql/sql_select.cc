@@ -147,8 +147,6 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 static enum_nested_loop_state
 evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab);
 static enum_nested_loop_state
-flush_cached_records(JOIN *join, JOIN_TAB *join_tab, bool skip_last);
-static enum_nested_loop_state
 end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
 static enum_nested_loop_state
 end_write(JOIN *join, JOIN_TAB *join_tab, bool end_of_records);
@@ -9062,6 +9060,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	                            new Item_cond_and(cond_tab->select_cond,tmp);
           if (!cond_tab->select_cond)
 	    DBUG_RETURN(1);
+          cond_tab->select_cond->update_used_tables();
           cond_tab->select_cond->quick_fix_field();
         }       
       }
@@ -9116,6 +9115,7 @@ static bool make_join_select(JOIN *join, Item *cond)
                                 (ulong)cond_tab->select_cond));
             if (!cond_tab->select_cond)
 	      DBUG_RETURN(1);
+            cond_tab->select_cond->update_used_tables();
             cond_tab->select_cond->quick_fix_field();
             if (cond_tab->select)
               cond_tab->select->cond= cond_tab->select_cond; 
@@ -9576,63 +9576,131 @@ static uint make_join_orderinfo(JOIN *join)
   return i;
 }
 
+static
+void set_join_cache_denial(JOIN_TAB *join_tab)
+{
+  if (join_tab->cache)
+  {
+    join_tab->cache->free();
+    join_tab->cache= 0;
+  }
+  if (join_tab->use_join_cache)
+  {
+    join_tab->use_join_cache= FALSE;
+    join_tab[-1].next_select= sub_select;
+  }
+}
+
+static
+void revise_cache_usage(JOIN_TAB *join_tab)
+{
+  JOIN_TAB *tab;
+  JOIN_TAB *first_inner;
+
+  if (join_tab->first_inner)
+  {
+    JOIN_TAB *end_tab= join_tab;
+    JOIN_TAB *last_inner= join_tab->first_inner->last_inner;
+    for (first_inner= join_tab->first_inner; 
+         first_inner && first_inner->last_inner == last_inner;
+         first_inner= first_inner->first_upper)           
+    {
+      for (tab= end_tab-1; tab >= first_inner; tab--)
+      {
+        if (tab->first_inner->last_inner == last_inner)
+          set_join_cache_denial(tab);
+      }
+      end_tab= first_inner;
+    }
+  }
+  else if (join_tab->first_sj_inner_tab)
+  {
+    first_inner= join_tab->first_sj_inner_tab;
+    for (tab= join_tab-1; tab >= first_inner; tab--)
+    {
+      if (tab->first_sj_inner_tab == first_inner)
+        set_join_cache_denial(tab);
+    }
+  } 
+}
+
 
 static
 bool check_join_cache_usage(JOIN_TAB *tab,
                             JOIN *join, ulonglong options,
                             uint no_jbuf_after)
 {
+  uint flags;
+  COST_VECT cost;
+  uint bufsz= 4096;
+  JOIN_CACHE *prev_cache=0;
   uint cache_level= join->thd->variables.join_cache_level;
   bool force_unlinked_cache= test(cache_level & 1);
   uint i= tab-join->join_tab;
   
+  if (cache_level == 0)
+    return FALSE;
   if (i == join->const_tables)
     return FALSE;
   if (options & SELECT_NO_JOIN_CACHE)
-    return FALSE;
+    goto no_join_cache;
   if (tab->use_quick == 2)
-    return FALSE;
+    goto no_join_cache;
   if (force_unlinked_cache && 
-      (tab->first_inner && tab->first_inner != tab ||
-       tab->first_sj_inner_tab && tab->first_sj_inner_tab != tab) &&
-      tab->get_first_inner_table()->cache)
-    return FALSE;
+      (tab->is_inner_table_of_semi_join_with_first_match() &&
+       !tab->is_single_inner_of_semi_join_with_first_match() ||
+       tab->is_inner_table_of_outer_join() &&
+       !tab->is_single_inner_of_outer_join()))
+    goto no_join_cache;
+  if (!(i <= no_jbuf_after))
+    goto no_join_cache;
+  for (JOIN_TAB *first_inner= tab->first_inner; first_inner;
+       first_inner= first_inner->first_upper)
+  { 
+    if (first_inner != tab && !first_inner->use_join_cache)
+      goto no_join_cache;
+  }
+  if (tab->is_inner_table_of_semi_join_with_first_match() &&
+      !tab->is_single_inner_of_semi_join_with_first_match() &&
+      !tab->first_sj_inner_tab->use_join_cache)
+    goto no_join_cache;
 
-  JOIN_CACHE *prev_cache= force_unlinked_cache ? 0 : tab[-1].cache;
+  if (!force_unlinked_cache)
+    prev_cache= tab[-1].cache;
 
   switch (tab->type) {
   case JT_ALL:
-    if (tab->first_inner || !(i <= no_jbuf_after))
-      return FALSE;
+    if (cache_level <= 2 && (tab->first_inner))
+      goto no_join_cache;
     if ((options & SELECT_DESCRIBE) ||
         (tab->cache || 
          (tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache))) &&
         !tab->cache->init())
       return TRUE;
-    return FALSE;
+    goto no_join_cache;
   case JT_REF:
   case JT_EQ_REF:
-  {
     if (cache_level <= 4)
       return FALSE;
-    uint flag= HA_MRR_NO_NULL_ENDPOINTS;
-    COST_VECT cost;
-    uint bufsz= 4096;
+    flags= HA_MRR_NO_NULL_ENDPOINTS;
+    if (tab->table->covering_keys.is_set(tab->ref.key))
+      flags|= HA_MRR_INDEX_ONLY;
     tab->table->file->multi_range_read_info(tab->ref.key, 10, 20,
-                                            &bufsz, &flag, &cost);
-    if (!(i <= no_jbuf_after))
-      return FALSE;  
-    if (!(flag & HA_MRR_USE_DEFAULT_IMPL) &&
+                                            &bufsz, &flags, &cost);
+    if (!(flags & HA_MRR_USE_DEFAULT_IMPL) &&
         ((options & SELECT_DESCRIBE) ||
          (tab->cache ||
-          (tab->cache= new JOIN_CACHE_BKA(join, tab, prev_cache))) &&
+          (tab->cache= new JOIN_CACHE_BKA(join, tab, flags, prev_cache))) &&
 	 !tab->cache->init()))
       return TRUE;
-    return FALSE;
-  }      
+    goto no_join_cache;
   default : ;
   }
-  return FALSE;            
+
+no_join_cache:
+  if (cache_level>2)
+    revise_cache_usage(tab); 
+  return FALSE;          
 }
 
 /*
@@ -10226,7 +10294,10 @@ void JOIN_TAB::cleanup()
   delete quick;
   quick= 0;
   if (cache)
+  {
     cache->free();
+    cache= 0;
+  }
   limit= 0;
   if (table)
   {
@@ -19667,8 +19738,11 @@ void JOIN_CACHE::set_constants()
     If some of the fields are referenced from other caches then
     the record length allows us to easily reach the saved offsets for
     these fields since the offsets are stored at the very end of the record.
+    However at this moment we don't know whether we have referenced fields for
+    the cache or not. Later when a referenced field is registered for the cache
+    we adjust the value of the flag 'with_length'.
   */        
-  with_length= is_key_access() || with_match_flag || referenced_fields;
+  with_length= is_key_access() || with_match_flag;
   /* 
      At this moment we don't know yet the value of 'referenced_fields',
      but in any case it can't be greater than the value of 'fields'.
@@ -19867,14 +19941,15 @@ int JOIN_CACHE_BKA::init()
           {
             /* 
               Register the referenced field 'copy': 
-              - set the offset number in copy->referenced_field_no
-              - adjust the values of 'pack_length' and 'pack_last_length'
+              - set the offset number in copy->referenced_field_no,
+              - adjust the value of the flag 'with_length',
+              - adjust the values of 'pack_length' and 'pack_last_length'.
 	    */
-            copy->referenced_field_no= ++referenced_fields;
+            copy->referenced_field_no= ++cache->referenced_fields;
+            cache->with_length= TRUE;
 	    cache->pack_length+= cache->get_size_of_fld_offset();
             cache->pack_last_length+= cache->get_size_of_fld_offset();
-          }
-        }
+          }        }
       }
     } 
   }
@@ -19882,7 +19957,7 @@ int JOIN_CACHE_BKA::init()
   blob_ptr= copy_ptr;
   
   /* Now create local fields that are used to build ref for this key access */
-  copy= field_descr;
+  copy= field_descr+flag_fields;
   for (tab= join_tab-tables; tab < join_tab ; tab++)
   {
     length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
@@ -19890,16 +19965,19 @@ int JOIN_CACHE_BKA::init()
                                                  &copy, &copy_ptr);
   }
 
-  check_emb_key_usage();
+  use_emb_key= check_emb_key_usage();
 
   create_remaining_fields(FALSE);
 
   set_constants();
 
+  if (join_tab->is_single_inner_of_semi_join_with_first_match())
+    mrr_mode|= HA_MRR_SEMI_JOIN;
+
   if (alloc_buffer())
     DBUG_RETURN(1); 
 
-  reset(TRUE); 
+  reset(TRUE);
 
   DBUG_RETURN(0);
 }  
@@ -19945,6 +20023,7 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
   Item *item; 
   KEY_PART_INFO *key_part;
   CACHE_FIELD *copy;
+  CACHE_FIELD *copy_end;
   uint len= 0;
   TABLE *table= join_tab->table;
   TABLE_REF *ref= &join_tab->ref;
@@ -19991,9 +20070,9 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
     is not considered as embedded.
   */
   
-  for (copy= field_descr+flag_fields;
-       i < local_key_arg_fields;
-       i++, copy++)
+  copy= field_descr+flag_fields;
+  copy_end= copy+local_key_arg_fields;
+  for ( ; copy < copy_end; copy++)
   {
     if (copy->type != 0)
       return FALSE;
@@ -20028,7 +20107,7 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
     }
   }
 
-  return ((use_emb_key= TRUE));
+  return TRUE;
 }    
 
 
@@ -20111,7 +20190,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   bool last_record;
   CACHE_FIELD *copy;
   CACHE_FIELD *copy_end;
-  uchar *cp= this->pos;
+  uchar *cp= pos;
   uchar *init_pos= cp;
   uchar *rec_len_ptr= 0;
  
@@ -20209,7 +20288,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
     }
     /* Save the offset of the field to put it later at the end of the record */ 
     if (copy->referenced_field_no)
-      copy->offset= pos-curr_rec_pos;
+      copy->offset= cp-curr_rec_pos;
 
     if (copy->type == CACHE_BLOB)
     {
@@ -20324,6 +20403,7 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
 void JOIN_CACHE::reset(bool for_writing)
 {
   pos= buff;
+  curr_rec_link= 0;
   if (for_writing)
   {
     records= 0;
@@ -20344,8 +20424,8 @@ void JOIN_CACHE::reset(bool for_writing)
     This default implementation of the virtual function put_record
     links the record that it written into the join buffer with
     the matching record in the previous cache if there is any.
-    The implementation assumes that prev_cache get_curr_rec() 
-    returns exactly the pointer to this matching record.
+    The implementation assumes that the function get_curr_link() 
+    will return exactly the pointer to this matching record.
 
   RETURN
     TRUE    if it has been decided that it should be the last record
@@ -20356,7 +20436,9 @@ void JOIN_CACHE::reset(bool for_writing)
 bool JOIN_CACHE::put_record()
 {
   bool is_full;
-  uchar *link = prev_cache ? prev_cache->get_curr_rec() : 0;
+  uchar *link= 0;
+  if (prev_cache)
+    link= prev_cache->get_curr_rec_link();
   write_record_data(link, &is_full);
   return is_full;
 }
@@ -20395,14 +20477,14 @@ bool JOIN_CACHE::get_record()
     pos+= size_of_rec_len;
   if (prev_cache)
   {
-    prev_rec_ptr= prev_cache->get_rec_ref(pos);
     pos+= prev_cache->get_size_of_rec_offset();
-  }    
+    prev_rec_ptr= prev_cache->get_rec_ref(pos);
+  }
   curr_rec_pos= pos;
   if (!(res= read_all_record_fields() == 0))
   {
     pos+= referenced_fields*size_of_fld_ofs;
-    if (prev_rec_ptr)
+    if (prev_cache)
       prev_cache->get_record_by_pos(prev_rec_ptr);
   } 
   return res; 
@@ -20435,8 +20517,7 @@ void JOIN_CACHE::get_record_by_pos(uchar *rec_ptr)
   pos= save_pos;
   if (prev_cache)
   {
-    uchar *prev_rec_ptr= 
-      prev_cache->get_rec_ref(rec_ptr-prev_cache->get_size_of_rec_offset());
+    uchar *prev_rec_ptr= prev_cache->get_rec_ref(rec_ptr);
     prev_cache->get_record_by_pos(prev_rec_ptr);
   }
 }
@@ -20676,7 +20757,7 @@ bool JOIN_CACHE::skip_record_if_match()
   /* Check whether the match flag is on */
   if (test(*(pos+offset)))
   {
-    pos+= get_rec_length(pos);
+    pos+= size_of_rec_len + get_rec_length(pos);
     return TRUE;
   }
   return FALSE;
@@ -20727,7 +20808,7 @@ enum_nested_loop_state JOIN_CACHE::join_records(bool skip_last)
   if (outer_join_first_inner)
     join_tab->not_null_compl= TRUE;
 
-  if (!outer_join_first_inner || join_tab->first_inner->not_null_compl)
+  if (!join_tab->first_inner || join_tab->first_inner->not_null_compl)
   {
     /* Find all records from join_tab that match records from join buffer */
     rc= join_matching_records(skip_last);   
@@ -21285,7 +21366,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   JOIN_TAB *tab;
   handler *file= join_tab->table->file;
   enum_nested_loop_state rc= NESTED_LOOP_OK;
-  uchar *rec_ptr;
+  uchar *rec_ptr= 0;
   bool check_only_first_match= join_tab->check_only_first_match();
 
   join_tab->table->null_row= 0;
@@ -21354,6 +21435,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
             !(res= do_sj_dups_weedout(join->thd,
                                         join_tab->check_weed_out_table)))
         {
+          set_curr_rec_link(rec_ptr);
           rc= (join_tab->next_select)(join, join_tab+1, 0);
           if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
           {
@@ -21415,7 +21497,6 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
   uint len;
   uint32 rec_len;
   uchar *init_pos;
-  uchar *rec_ptr;
   JOIN_CACHE *cache;
   
   if (pos > last_rec_pos)
@@ -21449,6 +21530,7 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
     /* Read key arguments from previous caches if there are any such fields */
     if (external_key_arg_fields)
     {
+      uchar *rec_ptr= curr_rec_pos;
       uint key_arg_count= external_key_arg_fields;
       CACHE_FIELD **copy_ptr= blob_ptr-key_arg_count;
       for (cache= prev_cache; key_arg_count; cache= cache->prev_cache)
@@ -21475,10 +21557,11 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
       Read the other key arguments from the current record. The fields for
       these arguments are always first in the sequence of the record's fields.
     */     
-    CACHE_FIELD *copy= field_descr;
+    CACHE_FIELD *copy= field_descr+flag_fields;
     CACHE_FIELD *copy_end= copy+local_key_arg_fields;
+    bool blob_in_rec_buff= blob_data_is_in_rec_buff(curr_rec_pos);
     for ( ; copy < copy_end; copy++)
-      read_record_field(copy, blob_data_is_in_rec_buff(curr_rec_pos));
+      read_record_field(copy, blob_in_rec_buff);
     
     /* Build the key over the fields read into the record buffers */ 
     TABLE_REF *ref= &join_tab->ref;
