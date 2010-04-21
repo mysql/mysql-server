@@ -1,3 +1,8 @@
+2010-04-21	The InnoDB Team
+
+	* data/data0data.c:
+	Fix Bug#52745 Failing assertion: blob_no < page_zip->n_blobs
+
 2010-04-20	The InnoDB Team
 
 	* dict/dict0crea.c, handler/ha_innodb.cc, include/trx0trx.h:
