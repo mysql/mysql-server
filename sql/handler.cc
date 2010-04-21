@@ -4622,8 +4622,8 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
       cur_range_info= *(uchar**)(rowids_buf_cur + h->ref_length);
 
     rowids_buf_cur += h->ref_length + sizeof(void*) * test(is_mrr_assoc);
-    if (h->mrr_funcs.skip_record &&
-	h->mrr_funcs.skip_record(h->mrr_iter, (char *) cur_range_info, rowid))
+    if (h2->mrr_funcs.skip_record &&
+	h2->mrr_funcs.skip_record(h2->mrr_iter, (char *) cur_range_info, rowid))
       continue;
     res= h->rnd_pos(table->record[0], rowid);
     break;
