@@ -5340,5 +5340,4 @@ INSERT INTO CountryLanguage VALUES
 ('RUS','Belorussian',0.3),
 ('USA','Portuguese',0.2);
 
-
-
+ANALYZE TABLE Country, City, CountryLanguage;
