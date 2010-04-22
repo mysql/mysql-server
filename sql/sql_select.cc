@@ -19037,16 +19037,7 @@ check_reverse_order:
     }
   }
   else if (select && select->quick)
-  {
-    select->quick->sorted= 1;
-    if (tab->table->file->ha_table_flags() & HA_MRR_CANT_SORT && 
-        select->quick->get_type() == QUICK_SELECT_I::QS_TYPE_RANGE)
-    {
-      ((QUICK_RANGE_SELECT*)select->quick)->mrr_flags |= 
-        HA_MRR_USE_DEFAULT_IMPL;
-    }
-
-  }
+    select->quick->need_sorted_output();
   DBUG_RETURN(1);
 }
 
