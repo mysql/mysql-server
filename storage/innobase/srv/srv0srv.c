@@ -68,7 +68,6 @@ Created 10/8/1995 Heikki Tuuri
 #include "sync0sync.h"
 #include "thr0loc.h"
 #include "que0que.h"
-#include "srv0que.h"
 #include "log0recv.h"
 #include "pars0pars.h"
 #include "usr0sess.h"
@@ -89,10 +88,6 @@ Created 10/8/1995 Heikki Tuuri
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
 UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
-
-/* The following counter is incremented whenever there is some user activity
-in the server */
-UNIV_INTERN ulint	srv_activity_count	= 0;
 
 /* The following is the maximum allowed duration of a lock wait. */
 UNIV_INTERN ulint	srv_fatal_semaphore_wait_threshold = 600;
@@ -324,16 +319,18 @@ concurrency check. */
 
 UNIV_INTERN ulong	srv_thread_concurrency	= 0;
 
-/* this mutex protects srv_conc data structures */
-UNIV_INTERN os_fast_mutex_t	srv_conc_mutex;
 /* number of transactions that have declared_to_be_inside_innodb set.
 It used to be a non-error for this value to drop below zero temporarily.
 This is no longer true. We'll, however, keep the lint datatype to add
 assertions to catch any corner cases that we may have missed. */
 UNIV_INTERN lint	srv_conc_n_threads	= 0;
+
+/* this mutex protects srv_conc data structures */
+static os_fast_mutex_t	srv_conc_mutex;
+
 /* number of OS threads waiting in the FIFO for a permission to enter
 InnoDB */
-UNIV_INTERN ulint	srv_conc_n_waiting_threads = 0;
+static ulint	srv_conc_n_waiting_threads = 0;
 
 typedef struct srv_conc_slot_struct	srv_conc_slot_t;
 struct srv_conc_slot_struct{
@@ -351,9 +348,9 @@ struct srv_conc_slot_struct{
 };
 
 /* queue of threads waiting to get in */
-UNIV_INTERN UT_LIST_BASE_NODE_T(srv_conc_slot_t)	srv_conc_queue;
+static UT_LIST_BASE_NODE_T(srv_conc_slot_t)	srv_conc_queue;
 /* array of wait slots */
-UNIV_INTERN srv_conc_slot_t* srv_conc_slots;
+static srv_conc_slot_t* srv_conc_slots;
 
 /* Number of times a thread is allowed to enter InnoDB within the same
 SQL query after it has once got the ticket at srv_conc_enter_innodb */
@@ -443,6 +440,8 @@ UNIV_INTERN mysql_pfs_key_t	srv_monitor_file_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
+/* Key to register srv_sys_t::mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	srv_srv_sys_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /* Temporary file for innodb monitor output */
@@ -490,6 +489,19 @@ intervals. Following macros define thresholds for these conditions. */
 #define SRV_PEND_IO_THRESHOLD	(PCT_IO(3))
 #define SRV_RECENT_IO_ACTIVITY	(PCT_IO(5))
 #define SRV_PAST_IO_ACTIVITY	(PCT_IO(200))
+
+/** Acquire the system_mutex. */
+#define srv_sys_mutex_enter() do {		\
+	mutex_enter(&srv_sys->mutex);		\
+} while (0)
+
+/** Test if the system mutex is owned. */
+#define srv_sys_mutex_own() mutex_own(&srv_sys->mutex)
+
+/** Release the system mutex. */
+#define srv_sys_mutex_exit() do {		\
+	mutex_exit(&srv_sys->mutex);		\
+} while (0)
 
 /*
 	IMPLEMENTATION OF THE SERVER MAIN PROGRAM
@@ -659,7 +671,7 @@ boosted at least to normal. This priority requirement can be seen similar to
 the privileged mode used when processing the kernel calls in traditional
 Unix.*/
 
-/* Thread slot in the thread table */
+/** Thread slot in the thread table.  */
 struct srv_slot_struct{
 	os_thread_id_t	id;		/*!< thread id */
 	os_thread_t	handle;		/*!< thread handle */
@@ -675,12 +687,43 @@ struct srv_slot_struct{
 					used for MySQL threads) */
 };
 
-/* Table for MySQL threads where they will be suspended to wait for locks */
-UNIV_INTERN srv_slot_t*	srv_mysql_table = NULL;
+/** Thread slot in the thread table */
+typedef struct srv_slot_struct	srv_slot_t;
+
+/** Thread table is an array of slots */
+typedef srv_slot_t	srv_table_t;
+
+/** The server system */
+typedef struct srv_sys_struct	srv_sys_t;
+
+/** The server system struct */
+struct srv_sys_struct{
+	mutex_t		mutex;			/*!< variable protecting the
+						fields in this structure. */
+	srv_table_t*	sys_threads;		/*!< server thread table */
+
+	UT_LIST_BASE_NODE_T(que_thr_t)
+			tasks;			/*!< task queue */
+
+	ulint		n_threads[SRV_MASTER + 1];
+						/*!< number of system threads
+						in a thread class */
+
+	ulint		n_threads_active[SRV_MASTER + 1];
+						/*!< number of threads active
+						in a thread class */
+
+	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
+						suspended while waiting for
+					       	locks within InnoDB */
+	srv_slot_t*	last_slot;		/*!< highest slot ever used
+						in the waiting_threads array */
+	ulint		activity_count;		/*!< For tracking server
+						activity */
+};
 
 UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
-UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
 /* padding to prevent other memory update hotspots from residing on
 the same memory cache line */
@@ -690,6 +733,8 @@ UNIV_INTERN mutex_t*	kernel_mutex_temp;
 /* padding to prevent other memory update hotspots from residing on
 the same memory cache line */
 UNIV_INTERN byte	srv_pad2[64];
+
+static srv_sys_t*	srv_sys	= NULL;
 
 #if 0
 /* The following three values measure the urgency of the jobs of
@@ -704,13 +749,6 @@ static ulint	srv_meter_high_water[SRV_MASTER + 1];
 static ulint	srv_meter_high_water2[SRV_MASTER + 1];
 static ulint	srv_meter_foreground[SRV_MASTER + 1];
 #endif
-
-/* The following values give info about the activity going on in
-the database. They are protected by the server mutex. The arrays
-are indexed by the type of the thread. */
-
-UNIV_INTERN ulint	srv_n_threads_active[SRV_MASTER + 1];
-UNIV_INTERN ulint	srv_n_threads[SRV_MASTER + 1];
 
 /*********************************************************************//**
 Asynchronous purge thread.
@@ -764,14 +802,15 @@ srv_table_get_nth_slot(
 /*===================*/
 	ulint	index)		/*!< in: index of the slot */
 {
+	ut_ad(srv_sys_mutex_own());
 	ut_a(index < OS_THREAD_MAX_N);
 
-	return(srv_sys->threads + index);
+	return(srv_sys->sys_threads + index);
 }
 
 /*********************************************************************//**
 Gets the number of threads in the system.
-@return	sum of srv_n_threads[] */
+@return	sum of srv_sys_t::n_threads[] */
 UNIV_INTERN
 ulint
 srv_get_n_threads(void)
@@ -780,14 +819,14 @@ srv_get_n_threads(void)
 	ulint	i;
 	ulint	n_threads	= 0;
 
-	mutex_enter(&kernel_mutex);
+	srv_sys_mutex_enter();
 
 	for (i = SRV_COM; i < SRV_MASTER + 1; i++) {
 
-		n_threads += srv_n_threads[i];
+		n_threads += srv_sys->n_threads[i];
 	}
 
-	mutex_exit(&kernel_mutex);
+	srv_sys_mutex_exit();
 
 	return(n_threads);
 }
@@ -805,6 +844,8 @@ srv_table_reserve_slot(
 {
 	srv_slot_t*	slot;
 	ulint		i;
+
+	ut_ad(srv_sys_mutex_own());
 
 	ut_a(type > 0);
 	ut_a(type <= SRV_MASTER);
@@ -846,7 +887,7 @@ srv_suspend_thread(void)
 	ulint			slot_no;
 	enum srv_thread_type	type;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	srv_sys_mutex_enter();
 
 	slot_no = thr_local_get_slot_no(os_thread_get_curr_id());
 
@@ -867,11 +908,13 @@ srv_suspend_thread(void)
 
 	slot->suspended = TRUE;
 
-	ut_ad(srv_n_threads_active[type] > 0);
+	ut_ad(srv_sys->n_threads_active[type] > 0);
 
-	srv_n_threads_active[type]--;
+	srv_sys->n_threads_active[type]--;
 
 	os_event_reset(event);
+
+	srv_sys_mutex_exit();
 
 	return(event);
 }
@@ -881,23 +924,24 @@ Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller!
 @return number of threads released: this may be less than n if not
 enough threads were suspended at the moment */
-UNIV_INTERN
+static
 ulint
 srv_release_threads(
 /*================*/
 	enum srv_thread_type	type,	/*!< in: thread type */
 	ulint			n)	/*!< in: number of threads to release */
 {
-	srv_slot_t*	slot;
 	ulint		i;
 	ulint		count	= 0;
 
 	ut_ad(type >= SRV_WORKER);
 	ut_ad(type <= SRV_MASTER);
 	ut_ad(n > 0);
-	ut_ad(mutex_own(&kernel_mutex));
+
+	srv_sys_mutex_enter();
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		srv_slot_t*	slot;
 
 		slot = srv_table_get_nth_slot(i);
 
@@ -905,7 +949,7 @@ srv_release_threads(
 
 			slot->suspended = FALSE;
 
-			srv_n_threads_active[type]++;
+			srv_sys->n_threads_active[type]++;
 
 			os_event_set(slot->event);
 
@@ -925,6 +969,8 @@ srv_release_threads(
 		}
 	}
 
+	srv_sys_mutex_exit();
+
 	return(count);
 }
 
@@ -940,7 +986,7 @@ srv_get_thread_type(void)
 	srv_slot_t*		slot;
 	enum srv_thread_type	type;
 
-	mutex_enter(&kernel_mutex);
+	srv_sys_mutex_enter();
 
 	slot_no = thr_local_get_slot_no(os_thread_get_curr_id());
 
@@ -951,7 +997,7 @@ srv_get_thread_type(void)
 	ut_ad(type >= SRV_WORKER);
 	ut_ad(type <= SRV_MASTER);
 
-	mutex_exit(&kernel_mutex);
+	srv_sys_mutex_exit();
 
 	return(type);
 }
@@ -963,11 +1009,14 @@ void
 srv_init(void)
 /*==========*/
 {
-	srv_conc_slot_t*	conc_slot;
-	srv_slot_t*		slot;
 	ulint			i;
+	srv_conc_slot_t*	conc_slot;
+	ulint			srv_sys_sz;
 
-	srv_sys = mem_alloc(sizeof(srv_sys_t));
+	srv_sys_sz = sizeof(*srv_sys)
+	       	   + (OS_THREAD_MAX_N * sizeof(srv_slot_t) * 2);
+
+	srv_sys = mem_zalloc(srv_sys_sz);
 
 	kernel_mutex_temp = mem_alloc(sizeof(mutex_t));
 	mutex_create(kernel_mutex_key, &kernel_mutex, SYNC_KERNEL);
@@ -975,41 +1024,29 @@ srv_init(void)
 	mutex_create(srv_innodb_monitor_mutex_key,
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 
-	srv_sys->threads = mem_alloc(OS_THREAD_MAX_N * sizeof(srv_slot_t));
+	mutex_create(srv_srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
+
+	srv_sys_mutex_enter();
+
+	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
+	srv_sys->waiting_threads = srv_sys->sys_threads + OS_THREAD_MAX_N;
+	srv_sys->last_slot = srv_sys->waiting_threads;
 
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		srv_slot_t*	slot;
+
 		slot = srv_table_get_nth_slot(i);
-		slot->in_use = FALSE;
-		slot->type=0;	/* Avoid purify errors */
-		slot->event = os_event_create(NULL);
-		ut_a(slot->event);
-	}
 
-	srv_mysql_table = mem_alloc(OS_THREAD_MAX_N * sizeof(srv_slot_t));
-
-	for (i = 0; i < OS_THREAD_MAX_N; i++) {
-		slot = srv_mysql_table + i;
-		slot->in_use = FALSE;
-		slot->type = 0;
 		slot->event = os_event_create(NULL);
+
 		ut_a(slot->event);
 	}
 
 	srv_lock_timeout_thread_event = os_event_create(NULL);
 
-	for (i = 0; i < SRV_MASTER + 1; i++) {
-		srv_n_threads_active[i] = 0;
-		srv_n_threads[i] = 0;
-#if 0
-		srv_meter[i] = 30;
-		srv_meter_low_water[i] = 50;
-		srv_meter_high_water[i] = 100;
-		srv_meter_high_water2[i] = 200;
-		srv_meter_foreground[i] = 250;
-#endif
-	}
-
 	UT_LIST_INIT(srv_sys->tasks);
+
+	srv_sys_mutex_exit();
 
 	/* Create dummy indexes for infimum and supremum records */
 
@@ -1045,14 +1082,11 @@ srv_free(void)
 	mem_free(srv_conc_slots);
 	srv_conc_slots = NULL;
 
-	mem_free(srv_sys->threads);
 	mem_free(srv_sys);
 	srv_sys = NULL;
 
 	mem_free(kernel_mutex_temp);
 	kernel_mutex_temp = NULL;
-	mem_free(srv_mysql_table);
-	srv_mysql_table = NULL;
 
 	trx_i_s_cache_free(trx_i_s_cache);
 }
@@ -1409,66 +1443,149 @@ srv_boot(void)
 }
 
 /*********************************************************************//**
+Print the contents of the srv_sys_t::waiting_threads array. */
+static
+void
+srv_print_mysql_threads(void)
+/*=========================*/
+{
+	ulint	i;
+
+	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+		srv_slot_t*	slot;
+
+		slot = srv_sys->waiting_threads + i;
+
+		fprintf(stderr,
+			"Slot %lu: thread id %lu, type %lu,"
+			" in use %lu, susp %lu, time %lu\n",
+			(ulong) i,
+			(ulong) os_thread_pf(slot->id),
+			(ulong) slot->type,
+			(ulong) slot->in_use,
+			(ulong) slot->suspended,
+			(ulong) difftime(ut_time(), slot->suspend_time));
+	}
+}
+
+/*********************************************************************//**
+Release a slot in the srv_sys_t::waiting_threads. Adjust the array last pointer
+if there are empty slots towards the end of the table. */
+static
+void
+srv_table_release_slot_for_mysql(
+/*=============================*/
+	srv_slot_t*	slot)		/*!< in: slot to release */
+{
+#ifdef UNIV_DEBUG
+	srv_slot_t*	upper = srv_sys->waiting_threads + OS_THREAD_MAX_N;
+#endif /* UNIV_DEBUG */
+
+	srv_sys_mutex_enter();
+
+	ut_a(slot->in_use);
+	ut_a(slot->thr != NULL);
+	ut_a(slot->thr->slot != NULL);
+	ut_a(slot->thr->slot == slot);
+
+	/* Must be within the array boundaries. */
+	ut_ad(slot >= srv_sys->waiting_threads);
+	ut_ad(slot < upper);
+
+	slot->thr->slot = NULL;
+	slot->thr = NULL;
+	slot->in_use = FALSE;
+
+	/* Scan backwards and adjust the last free slot pointer. */
+	for (slot = srv_sys->last_slot;
+	     slot > srv_sys->waiting_threads && !slot->in_use;
+	     --slot) {
+		/* No op */
+	}
+
+	/* Either the array is empty or the last scanned slot is in use. */
+	ut_ad(slot->in_use || slot == srv_sys->waiting_threads);
+
+	srv_sys->last_slot = slot + 1;
+
+	/* The last slot is either outside of the array boundry or it's
+	on an empty slot. */
+	ut_ad(srv_sys->last_slot == upper || !srv_sys->last_slot->in_use);
+
+	ut_ad(srv_sys->last_slot >= srv_sys->waiting_threads);
+	ut_ad(srv_sys->last_slot <= upper);
+
+	srv_sys_mutex_exit();
+}
+
+/*********************************************************************//**
 Reserves a slot in the thread table for the current MySQL OS thread.
-NOTE! The kernel mutex has to be reserved by the caller!
 @return	reserved slot */
 static
 srv_slot_t*
-srv_table_reserve_slot_for_mysql(void)
-/*==================================*/
+srv_table_reserve_slot_for_mysql(
+/*=============================*/
+	que_thr_t*	thr)		/*!< in: query thread associated
+					with the MySQL OS thread */
 {
-	srv_slot_t*	slot;
 	ulint		i;
+	srv_slot_t*	slot;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	srv_sys_mutex_enter();
 
-	i = 0;
-	slot = srv_mysql_table + i;
+	slot = srv_sys->waiting_threads;
 
-	while (slot->in_use) {
-		i++;
-
-		if (i >= OS_THREAD_MAX_N) {
-
-			ut_print_timestamp(stderr);
-
-			fprintf(stderr,
-				"  InnoDB: There appear to be %lu MySQL"
-				" threads currently waiting\n"
-				"InnoDB: inside InnoDB, which is the"
-				" upper limit. Cannot continue operation.\n"
-				"InnoDB: We intentionally generate"
-				" a seg fault to print a stack trace\n"
-				"InnoDB: on Linux. But first we print"
-				" a list of waiting threads.\n", (ulong) i);
-
-			for (i = 0; i < OS_THREAD_MAX_N; i++) {
-
-				slot = srv_mysql_table + i;
-
-				fprintf(stderr,
-					"Slot %lu: thread id %lu, type %lu,"
-					" in use %lu, susp %lu, time %lu\n",
-					(ulong) i,
-					(ulong) os_thread_pf(slot->id),
-					(ulong) slot->type,
-					(ulong) slot->in_use,
-					(ulong) slot->suspended,
-					(ulong) difftime(ut_time(),
-							 slot->suspend_time));
-			}
-
-			ut_error;
+	for (i = 0; i < OS_THREAD_MAX_N; ++i, ++slot) {
+		if (!slot->in_use) {
+			break;
 		}
-
-		slot = srv_mysql_table + i;
 	}
 
-	ut_a(slot->in_use == FALSE);
+	/* Check if we have run out of slots. */
+	if (slot == srv_sys->waiting_threads+ OS_THREAD_MAX_N) {
 
-	slot->in_use = TRUE;
-	slot->id = os_thread_get_curr_id();
-	slot->handle = os_thread_get_curr();
+		ut_print_timestamp(stderr);
+
+		fprintf(stderr,
+			"  InnoDB: There appear to be %lu MySQL"
+			" threads currently waiting\n"
+			"InnoDB: inside InnoDB, which is the"
+			" upper limit. Cannot continue operation.\n"
+			"InnoDB: We intentionally generate"
+			" a seg fault to print a stack trace\n"
+			"InnoDB: on Linux. But first we print"
+			" a list of waiting threads.\n", (ulong) i);
+
+		srv_print_mysql_threads();
+
+		ut_error;
+	} else {
+
+		ut_a(slot->in_use == FALSE);
+
+		slot->in_use = TRUE;
+		slot->thr = thr;
+		slot->thr->slot = slot;
+		slot->id = os_thread_get_curr_id();
+		slot->handle = os_thread_get_curr();
+
+		if (slot->event == NULL) {
+			slot->event = os_event_create(NULL);
+			ut_a(slot->event);
+		}
+
+		os_event_reset(slot->event);
+		slot->suspended = TRUE;
+		slot->suspend_time = ut_time();
+	}
+
+	if (slot == srv_sys->last_slot) {
+		++srv_sys->last_slot;
+	}
+
+	ut_ad(srv_sys->last_slot <= srv_sys->waiting_threads+ OS_THREAD_MAX_N);
+
+	srv_sys_mutex_exit();
 
 	return(slot);
 }
@@ -1487,7 +1604,6 @@ srv_suspend_mysql_thread(
 				OS thread */
 {
 	srv_slot_t*	slot;
-	os_event_t	event;
 	double		wait_time;
 	trx_t*		trx;
 	ulint		had_dict_lock;
@@ -1529,15 +1645,7 @@ srv_suspend_mysql_thread(
 
 	ut_ad(thr->is_active == FALSE);
 
-	slot = srv_table_reserve_slot_for_mysql();
-
-	event = slot->event;
-
-	slot->thr = thr;
-
-	os_event_reset(event);
-
-	slot->suspend_time = ut_time();
+	slot = srv_table_reserve_slot_for_mysql(thr);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		srv_n_lock_wait_count++;
@@ -1583,7 +1691,7 @@ srv_suspend_mysql_thread(
 
 	/* Suspend this thread and wait for the event. */
 
-	os_event_wait(event);
+	os_event_wait(slot->event);
 
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */
@@ -1604,13 +1712,13 @@ srv_suspend_mysql_thread(
 		srv_conc_force_enter_innodb(trx);
 	}
 
+	wait_time = ut_difftime(ut_time(), slot->suspend_time);
+
 	mutex_enter(&kernel_mutex);
 
 	/* Release the slot for others to use */
 
-	slot->in_use = FALSE;
-
-	wait_time = ut_difftime(ut_time(), slot->suspend_time);
+	srv_table_release_slot_for_mysql(slot);
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		if (ut_usectime(&sec, &ms) == -1) {
@@ -1663,25 +1771,13 @@ srv_release_mysql_thread_if_suspended(
 	que_thr_t*	thr)	/*!< in: query thread associated with the
 				MySQL OS thread	 */
 {
-	srv_slot_t*	slot;
-	ulint		i;
-
 	ut_ad(mutex_own(&kernel_mutex));
 
-	for (i = 0; i < OS_THREAD_MAX_N; i++) {
+	if (thr->slot != NULL) {
+		ut_a(thr->slot->in_use);
 
-		slot = srv_mysql_table + i;
-
-		if (slot->in_use && slot->thr == thr) {
-			/* Found */
-
-			os_event_set(slot->event);
-
-			return;
-		}
+		os_event_set(thr->slot->event);
 	}
-
-	/* not found */
 }
 
 /******************************************************************//**
@@ -2157,6 +2253,83 @@ exit_func:
 }
 
 /*********************************************************************//**
+Check if the thread lock wait has timed out. Release its locks if the
+wait has actually timed out. */
+UNIV_INTERN
+void
+srv_lock_check_wait(
+/*================*/
+	srv_slot_t*	slot)
+{
+	trx_t*		trx;
+	double		wait_time;
+	ulong		lock_wait_timeout;
+	ib_time_t	suspend_time = slot->suspend_time;
+
+	ut_ad(srv_sys_mutex_own());
+
+	wait_time = ut_difftime(ut_time(), suspend_time);
+
+	trx = thr_get_trx(slot->thr);
+
+	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
+
+	if (trx_is_interrupted(trx)
+	    || (lock_wait_timeout < 100000000
+		&& (wait_time > (double) lock_wait_timeout
+		   || wait_time < 0))) {
+
+		/* Timeout exceeded or a wrap-around in system
+		time counter: cancel the lock request queued
+		by the transaction and release possible
+		other transactions waiting behind; it is
+		possible that the lock has already been
+		granted: in that case do nothing */
+
+		if (trx->wait_lock) {
+			trx_t*	slot_trx;
+
+			/* Release the srv_sys_t->mutex to preserve the
+			latch order only. */
+			srv_sys_mutex_exit();
+
+			/* It is possible that the thread has already
+			freed its slot and released its locks and another
+			thread is now using this slot. We need to
+			check whether the slot is still in use by the
+			same thread before cancelling the wait and releasing
+		       	the locks. */
+
+			mutex_enter(&kernel_mutex);
+
+			srv_sys_mutex_enter();
+
+			slot_trx = thr_get_trx(slot->thr);
+
+			/* We can't compare the pointers here because the
+			memory can be recycled. Transaction ids are not
+			recyled and therefore safe to use. We also check if
+			the transaction suspend time is the same that we
+			used for calculating the wait earlier. If the
+		       	transaction has already released its locks there
+		       	is nothing more we can do. */
+			if (slot->in_use
+			    && suspend_time == slot->suspend_time
+			    && ut_dulint_cmp(trx->id, slot_trx->id) == 0
+			    && trx->wait_lock != NULL) {
+
+				ut_a(trx->que_state == TRX_QUE_LOCK_WAIT);
+
+				lock_cancel_waiting_and_release(
+					trx->wait_lock);
+			}
+
+			mutex_exit(&kernel_mutex);
+		}
+	}
+}
+
+/*********************************************************************//**
 A thread which wakes up threads whose lock wait may have lasted too long.
 @return	a dummy parameter */
 UNIV_INTERN
@@ -2169,8 +2342,6 @@ srv_lock_timeout_thread(
 {
 	srv_slot_t*	slot;
 	ibool		some_waits;
-	double		wait_time;
-	ulint		i;
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_lock_timeout_thread_key);
@@ -2184,52 +2355,26 @@ loop:
 
 	srv_lock_timeout_active = TRUE;
 
-	mutex_enter(&kernel_mutex);
+	srv_sys_mutex_enter();
 
 	some_waits = FALSE;
 
-	/* Check of all slots if a thread is waiting there, and if it
-	has exceeded the time limit */
+	/* Check all slots for user threads that are waiting on locks, and
+	if they have exceeded the time limit. */
 
-	for (i = 0; i < OS_THREAD_MAX_N; i++) {
-
-		slot = srv_mysql_table + i;
+	for (slot = srv_sys->waiting_threads;
+	     slot < srv_sys->last_slot;
+	     ++slot) {
 
 		if (slot->in_use) {
-			trx_t*	trx;
-			ulong	lock_wait_timeout;
-
 			some_waits = TRUE;
-
-			wait_time = ut_difftime(ut_time(), slot->suspend_time);
-
-			trx = thr_get_trx(slot->thr);
-			lock_wait_timeout = thd_lock_wait_timeout(
-				trx->mysql_thd);
-
-			if (trx_is_interrupted(trx)
-			    || (lock_wait_timeout < 100000000
-				&& (wait_time > (double) lock_wait_timeout
-				    || wait_time < 0))) {
-
-				/* Timeout exceeded or a wrap-around in system
-				time counter: cancel the lock request queued
-				by the transaction and release possible
-				other transactions waiting behind; it is
-				possible that the lock has already been
-				granted: in that case do nothing */
-
-				if (trx->wait_lock) {
-					lock_cancel_waiting_and_release(
-						trx->wait_lock);
-				}
-			}
+			srv_lock_check_wait(slot);
 		}
 	}
 
 	os_event_reset(srv_lock_timeout_thread_event);
 
-	mutex_exit(&kernel_mutex);
+	srv_sys_mutex_exit();
 
 	if (srv_shutdown_state >= SRV_SHUTDOWN_CLEANUP) {
 		goto exit_func;
@@ -2367,26 +2512,68 @@ loop:
 	OS_THREAD_DUMMY_RETURN;
 }
 
+/******************************************************************//**
+Increment the server activity count. */
+UNIV_INLINE
+void
+srv_inc_activity_count_low(void)
+/*============================*/
+{
+	srv_sys_mutex_enter();
+
+	++srv_sys->activity_count;
+
+	srv_sys_mutex_exit();
+}
+
+/******************************************************************//**
+Increment the server activity count. */
+UNIV_INTERN
+void
+srv_inc_activity_count(void)
+/*========================*/
+{
+	srv_inc_activity_count_low();
+}
+
+/**********************************************************************//**
+Check whether the master thread is active.
+@return FALSE is it is not active. */
+UNIV_INTERN
+ibool
+srv_is_master_thread_active(void)
+/*=============================*/
+{
+	ibool	ret;
+
+	srv_sys_mutex_enter();
+
+	ret = srv_sys->n_threads_active[SRV_MASTER] != 0;
+
+	srv_sys_mutex_exit();
+
+	return(ret);
+}
+
 /*******************************************************************//**
 Tells the InnoDB server that there has been activity in the database
 and wakes up the master thread if it is suspended (not sleeping). Used
 in the MySQL interface. Note that there is a small chance that the master
-thread stays suspended (we do not protect our operation with the kernel
-mutex, for performace reasons). */
+thread stays suspended (we do not protect our operation with the
+srv_sys_t->mutex, for performance reasons). */
 UNIV_INTERN
 void
 srv_active_wake_master_thread(void)
 /*===============================*/
 {
-	srv_activity_count++;
+	ut_ad(!mutex_own(&kernel_mutex));
+	ut_ad(!srv_sys_mutex_own());
 
-	if (srv_n_threads_active[SRV_MASTER] == 0) {
+	srv_inc_activity_count_low();
 
-		mutex_enter(&kernel_mutex);
+	if (srv_sys->n_threads_active[SRV_MASTER] == 0) {
 
 		srv_release_threads(SRV_MASTER, 1);
-
-		mutex_exit(&kernel_mutex);
 	}
 }
 
@@ -2394,23 +2581,20 @@ srv_active_wake_master_thread(void)
 Tells the purge thread that there has been activity in the database
 and wakes up the purge thread if it is suspended (not sleeping).  Note
 that there is a small chance that the purge thread stays suspended
-(we do not protect our operation with the kernel mutex, for
-performace reasons). */
+(we do not protect our operation with the srv_sys_t:mutex, for
+performance reasons). */
 UNIV_INTERN
 void
 srv_wake_purge_thread_if_not_active(void)
 /*=====================================*/
 {
 	ut_ad(!mutex_own(&kernel_mutex));
+	ut_ad(!srv_sys_mutex_own());
 
 	if (srv_n_purge_threads > 0
-	    && srv_n_threads_active[SRV_WORKER] == 0) {
-
-		mutex_enter(&kernel_mutex);
+	    && srv_sys->n_threads_active[SRV_WORKER] == 0) {
 
 		srv_release_threads(SRV_WORKER, 1);
-
-		mutex_exit(&kernel_mutex);
 	}
 }
 
@@ -2421,13 +2605,12 @@ void
 srv_wake_master_thread(void)
 /*========================*/
 {
-	srv_activity_count++;
+	ut_ad(!mutex_own(&kernel_mutex));
+	ut_ad(!srv_sys_mutex_own());
 
-	mutex_enter(&kernel_mutex);
+	srv_inc_activity_count_low();
 
 	srv_release_threads(SRV_MASTER, 1);
-
-	mutex_exit(&kernel_mutex);
 }
 
 /*******************************************************************//**
@@ -2438,15 +2621,32 @@ srv_wake_purge_thread(void)
 /*=======================*/
 {
 	ut_ad(!mutex_own(&kernel_mutex));
+	ut_ad(!srv_sys_mutex_own());
 
 	if (srv_n_purge_threads > 0) {
 
-		mutex_enter(&kernel_mutex);
-
 		srv_release_threads(SRV_WORKER, 1);
-
-		mutex_exit(&kernel_mutex);
 	}
+}
+
+/*******************************************************************//**
+Check if there has been any activity.
+@return FALSE if no hange in activity counter. */
+UNIV_INLINE
+ibool
+srv_check_activity(
+/*===============*/
+	ulint		old_activity_count)	/*!< old activity count */
+{
+	ibool		ret;
+
+	srv_sys_mutex_enter();
+
+	ret = srv_sys->activity_count != old_activity_count;
+
+	srv_sys_mutex_exit();
+
+	return(ret);
 }
 
 /**********************************************************************
@@ -2535,13 +2735,13 @@ srv_master_thread(
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
 
+	srv_sys_mutex_enter();
+
 	srv_table_reserve_slot(SRV_MASTER);
 
-	mutex_enter(&kernel_mutex);
+	srv_sys->n_threads_active[SRV_MASTER]++;
 
-	srv_n_threads_active[SRV_MASTER]++;
-
-	mutex_exit(&kernel_mutex);
+	srv_sys_mutex_exit();
 
 loop:
 	/*****************************************************************/
@@ -2553,12 +2753,13 @@ loop:
 	buf_get_total_stat(&buf_stat);
 	n_ios_very_old = log_sys->n_log_ios + buf_stat.n_pages_read
 		+ buf_stat.n_pages_written;
-	mutex_enter(&kernel_mutex);
+
+	srv_sys_mutex_enter();
 
 	/* Store the user activity counter at the start of this loop */
-	old_activity_count = srv_activity_count;
+	old_activity_count = srv_sys->activity_count;
 
-	mutex_exit(&kernel_mutex);
+	srv_sys_mutex_exit();
 
 	if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND) {
 
@@ -2664,7 +2865,7 @@ loop:
 			}
 		}
 
-		if (srv_activity_count == old_activity_count) {
+		if (srv_sys->activity_count == old_activity_count) {
 
 			/* There is no user activity at the moment, go to
 			the background loop */
@@ -2755,17 +2956,12 @@ loop:
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
-	mutex_enter(&kernel_mutex);
-
 	/* ---- When there is database activity, we jump from here back to
 	the start of loop */
 
-	if (srv_activity_count != old_activity_count) {
-		mutex_exit(&kernel_mutex);
+	if (srv_check_activity(old_activity_count)) {
 		goto loop;
 	}
-
-	mutex_exit(&kernel_mutex);
 
 	/* If the database is quiet, we enter the background loop */
 
@@ -2799,12 +2995,9 @@ background_loop:
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
-	mutex_enter(&kernel_mutex);
-	if (srv_activity_count != old_activity_count) {
-		mutex_exit(&kernel_mutex);
+	if (srv_check_activity(old_activity_count)) {
 		goto loop;
 	}
-	mutex_exit(&kernel_mutex);
 
 	srv_main_thread_op_info = "doing insert buffer merge";
 
@@ -2821,12 +3014,9 @@ background_loop:
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
-	mutex_enter(&kernel_mutex);
-	if (srv_activity_count != old_activity_count) {
-		mutex_exit(&kernel_mutex);
+	if (srv_check_activity(old_activity_count)) {
 		goto loop;
 	}
-	mutex_exit(&kernel_mutex);
 
 flush_loop:
 	srv_main_thread_op_info = "flushing buffer pool pages";
@@ -2843,12 +3033,9 @@ flush_loop:
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
-	mutex_enter(&kernel_mutex);
-	if (srv_activity_count != old_activity_count) {
-		mutex_exit(&kernel_mutex);
+	if (srv_check_activity(old_activity_count)) {
 		goto loop;
 	}
-	mutex_exit(&kernel_mutex);
 
 	srv_main_thread_op_info = "waiting for buffer pool flush to end";
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
@@ -2870,12 +3057,10 @@ flush_loop:
 
 	srv_main_thread_op_info = "reserving kernel mutex";
 
-	mutex_enter(&kernel_mutex);
-	if (srv_activity_count != old_activity_count) {
-		mutex_exit(&kernel_mutex);
+	if (srv_check_activity(old_activity_count)) {
 		goto loop;
 	}
-	mutex_exit(&kernel_mutex);
+
 	/*
 	srv_main_thread_op_info = "archiving log (if log archive is on)";
 
@@ -2921,9 +3106,9 @@ suspend_thread:
 		goto loop;
 	}
 
-	event = srv_suspend_thread();
-
 	mutex_exit(&kernel_mutex);
+
+	event = srv_suspend_thread();
 
 	/* DO NOT CHANGE THIS STRING. innobase_start_or_create_for_mysql()
 	waits for database activity to die down when converting < 4.1.x
@@ -2974,13 +3159,13 @@ srv_purge_thread(
 		os_thread_pf(os_thread_get_curr_id()));
 #endif /* UNIV_DEBUG_THREAD_CREATION */
 
-	mutex_enter(&kernel_mutex);
+	srv_sys_mutex_enter();
 
 	slot_no = srv_table_reserve_slot(SRV_WORKER);
 
-	++srv_n_threads_active[SRV_WORKER];
+	++srv_sys->n_threads_active[SRV_WORKER];
 
-	mutex_exit(&kernel_mutex);
+	srv_sys_mutex_exit();
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 
@@ -2996,11 +3181,7 @@ srv_purge_thread(
 
 			os_event_t	event;
 
-			mutex_enter(&kernel_mutex);
-
 			event = srv_suspend_thread();
-
-			mutex_exit(&kernel_mutex);
 
 			os_event_wait(event);
 		}
@@ -3030,13 +3211,13 @@ srv_purge_thread(
 	/* Free the thread local memory. */
 	thr_local_free(os_thread_get_curr_id());
 
-	mutex_enter(&kernel_mutex);
+	srv_sys_mutex_enter();
 
 	/* Free the slot for reuse. */
 	slot = srv_table_get_nth_slot(slot_no);
 	slot->in_use = FALSE;
 
-	mutex_exit(&kernel_mutex);
+	srv_sys_mutex_exit();
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "InnoDB: Purge thread exiting, id %lu\n",
@@ -3049,3 +3230,24 @@ srv_purge_thread(
 
 	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
 }
+
+/**********************************************************************//**
+Enqueues a task to server task queue and releases a worker thread, if there
+is a suspended one. */
+UNIV_INTERN
+void
+srv_que_task_enqueue_low(
+/*=====================*/
+	que_thr_t*	thr)	/*!< in: query thread */
+{
+	ut_ad(thr);
+
+	srv_sys_mutex_enter();
+
+	UT_LIST_ADD_LAST(queue, srv_sys->tasks, thr);
+
+	srv_sys_mutex_exit();
+
+	srv_release_threads(SRV_WORKER, 1);
+}
+
