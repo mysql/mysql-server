@@ -1349,6 +1349,11 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         {
           if (!tab->emb_sj_nest)
             jump_to= tab;
+          else
+          {
+            tab->first_sj_inner_tab= tab;
+            tab->last_sj_inner_tab= tab + pos->n_sj_tables - 1;
+          }
         }
         j[-1].do_firstmatch= jump_to;
         i += pos->n_sj_tables;
@@ -8003,7 +8008,9 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       table_map rem_tables= remaining_tables;
       uint idx;
       for (idx= first; idx <= tablenr; idx++)
+      {
         rem_tables |= join->best_positions[idx].table->table->map;
+      }
       /*
         Re-run best_access_path to produce best access methods that do not use
         join buffering
@@ -9606,6 +9613,10 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
   if (join_tab->use_join_cache)
   {
     join_tab->use_join_cache= FALSE;
+    /*
+      It could be only sub_select(). It could not be sub_seject_sjm because we
+      don't do join buffering for the first table in sjm nest. 
+    */
     join_tab[-1].next_select= sub_select;
   }
 }
@@ -9735,22 +9746,36 @@ bool check_join_cache_usage(JOIN_TAB *tab,
   bool force_unlinked_cache= test(cache_level & 1);
   uint i= tab-join->join_tab;
   
-  if (cache_level == 0)
+  if (cache_level == 0 || i == join->const_tables)
     return FALSE;
-  if (i == join->const_tables)
-    return FALSE;
+
   if (options & SELECT_NO_JOIN_CACHE)
     goto no_join_cache;
+  /* 
+    psergey-todo: why the below when execution code seems to handle the
+    "range checked for each record" case?
+  */
   if (tab->use_quick == 2)
     goto no_join_cache;
+  
+  /*
+    Non-linked join buffers can't guarantee one match
+  */
   if (force_unlinked_cache && 
       (tab->is_inner_table_of_semi_join_with_first_match() &&
        !tab->is_single_inner_of_semi_join_with_first_match() ||
        tab->is_inner_table_of_outer_join() &&
        !tab->is_single_inner_of_outer_join()))
     goto no_join_cache;
-  if (!(i <= no_jbuf_after))
+
+  /*
+    Don't use join buffering if we're dictated not to by no_jbuf_after (this
+    ...)
+  */
+  if (!(i <= no_jbuf_after) || tab->loosescan_match_tab || 
+      sj_is_materialize_strategy(join->best_positions[i].sj_strategy))
     goto no_join_cache;
+
   for (JOIN_TAB *first_inner= tab->first_inner; first_inner;
        first_inner= first_inner->first_upper)
   {
