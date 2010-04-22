@@ -189,7 +189,7 @@ redirect_dictionary(char *new_dname, int r_expect) {
     int r;
     DB *db = dbs[0];
     assert(db!=NULL);
-    r = test_db_redirect_dictionary(db, new_dname, txn);      // ydb-level wrapper gets iname of new file and redirects
+    r = toku_test_db_redirect_dictionary(db, new_dname, txn);      // ydb-level wrapper gets iname of new file and redirects
     CKERR2(r, r_expect);
     if (r==0) {
         dname = new_dname;
