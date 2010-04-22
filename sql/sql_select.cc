@@ -9231,7 +9231,12 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
     }
   case Item::COND_ITEM:
     {
-      /* This is a function, apply condition recursively to arguments */
+      /*
+        This is a AND/OR condition. Regular AND/OR clauses are handled by
+        make_cond_for_index() which will chop off the part that can be
+        checked with index. This code is for handling non-top-level AND/ORs,
+        e.g. func(x AND y).
+      */
       List_iterator<Item> li(*((Item_cond*)item)->argument_list());
       Item *item;
       while ((item=li++))
@@ -9246,7 +9251,13 @@ bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
       Item_field *item_field= (Item_field*)item;
       if (item_field->field->table != tbl) 
         return TRUE;
-      return item_field->field->part_of_key.is_set(keyno);
+      /*
+        The below is probably a repetition - the first part checks the
+        other two, but let's play it safe:
+      */
+      return item_field->field->part_of_key.is_set(keyno) &&
+             item_field->field->type() != MYSQL_TYPE_GEOMETRY &&
+             item_field->field->type() != MYSQL_TYPE_BLOB;
     }
   case Item::REF_ITEM:
     return uses_index_fields_only(item->real_item(), tbl, keyno,

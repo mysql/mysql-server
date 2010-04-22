@@ -10,12 +10,10 @@ set storage_engine=InnoDB;
 --source include/mrr_tests.inc 
 
 set storage_engine= @save_storage_engine;
-drop table t1, t2, t3, t4;
 
 # Try big rowid sizes
 set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
 set read_rnd_buffer_size=64;
-
 
 # By default InnoDB will fill values only for key parts used by the query,
 # which will cause DS-MRR to supply an invalid tuple on scan restoration. 
