@@ -2251,7 +2251,7 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   if (!records)
     return NESTED_LOOP_OK;  
                    
-  rc= init_join_matching_records(&seq_funcs);
+  rc= init_join_matching_records(&seq_funcs, records);
   if (rc != NESTED_LOOP_OK)
     goto finish;
 
@@ -2295,6 +2295,7 @@ finish:
   SYNOPSIS
     init_join_matching_records()
       seq_funcs    structure of range sequence interface
+      ranges       number of keys/ranges in the sequence
 
   DESCRIPTION
     This function calls the multi_range_read_init function to set up
@@ -2307,14 +2308,16 @@ finish:
     intended invocation of the join_matching_records method. The
     multi_range_read_init function also receives the parameters for
     MRR buffer to be used and flags specifying the mode in which
-    this buffer will be functioning. 
+    this buffer will be functioning.
+    The number of keys in the sequence expected by multi_range_read_init
+    is passed through the parameter ranges.  
     
   RETURN
     return one of enum_nested_loop_state
 */
 
 enum_nested_loop_state 
-JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs)
+JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges)
 {
   int error;
   handler *file= join_tab->table->file;
@@ -2340,7 +2343,7 @@ JOIN_CACHE_BKA::init_join_matching_records(RANGE_SEQ_IF *seq_funcs)
   */ 
   if (!file->inited)
     file->ha_index_init(join_tab->ref.key, 1);
-  if ((error= file->multi_range_read_init(seq_funcs, (void*) this, records,
+  if ((error= file->multi_range_read_init(seq_funcs, (void*) this, ranges,
 					  mrr_mode, &mrr_buff)))
     rc= error < 0 ? NESTED_LOOP_NO_MORE_ROWS: NESTED_LOOP_ERROR;
   
@@ -2534,6 +2537,7 @@ int JOIN_CACHE_BKA_UNIQUE::init()
   DBUG_ENTER("JOIN_CACHE_BKA_UNIQUE::init");
 
   hash_table= 0;
+  key_entries= 0;
 
   if ((rc= JOIN_CACHE_BKA::init()))
     DBUG_RETURN (rc);
@@ -2713,6 +2717,8 @@ bool JOIN_CACHE_BKA_UNIQUE::put_record()
       memcpy(cp, key, key_len);
     }
     last_key_entry= cp;
+    /* Increment the counter of key_entries in the hash table */ 
+    key_entries++;
   }  
   return is_full;
 }
@@ -2870,6 +2876,7 @@ void JOIN_CACHE_BKA_UNIQUE:: cleanup_hash_table()
 {
   last_key_entry= hash_table;
   bzero(hash_table, (buff+buff_size)-hash_table);
+  key_entries= 0;
 }
 
 
@@ -3118,7 +3125,7 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
   if (!records)
     return NESTED_LOOP_OK;  
                    
-  rc= init_join_matching_records(&seq_funcs);
+  rc= init_join_matching_records(&seq_funcs, key_entries);
   if (rc != NESTED_LOOP_OK)
     goto finish;
 
