@@ -3563,3 +3563,55 @@ id1
 30
 set join_cache_level=default;
 drop table t1,t2;
+#
+# Bug #44019: star-like multi-join query executed join_cache_level=6 
+#             
+create table t1 (a int, b int, c int, d int);
+create table t2 (b int, e varchar(16), index idx(b));
+create table t3 (d int, f varchar(16), index idx(d));
+create table t4 (c int, g varchar(16), index idx(c));
+insert into t1 values
+(5, 50, 500, 5000), (3, 30, 300, 3000), (9, 90, 900, 9000),
+(2, 20, 200, 2000), (4, 40, 400, 4000), (8, 80, 800, 800),
+(7, 70, 700, 7000);
+insert into t2 values
+(30, 'bbb'), (10, 'b'), (70, 'bbbbbbb'), (60, 'bbbbbb'),
+(31, 'bbb'), (11, 'b'), (71, 'bbbbbbb'), (61, 'bbbbbb'),
+(32, 'bbb'), (12, 'b'), (72, 'bbbbbbb'), (62, 'bbbbbb');
+insert into t3 values
+(4000, 'dddd'), (3000, 'ddd'), (1000, 'd'), (8000, 'dddddddd'),
+(4001, 'dddd'), (3001, 'ddd'), (1001, 'd'), (8001, 'dddddddd'),
+(4002, 'dddd'), (3002, 'ddd'), (1002, 'd'), (8002, 'dddddddd');
+insert into t4 values
+(200, 'cc'), (600, 'cccccc'), (300, 'ccc'), (500, 'ccccc'),
+(201, 'cc'), (601, 'cccccc'), (301, 'ccc'), (501, 'ccccc'),
+(202, 'cc'), (602, 'cccccc'), (302, 'ccc'), (502, 'ccccc');
+analyze table t2,t3,t4;
+set join_cache_level=1;
+explain 
+select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
+where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.b	1	
+1	SIMPLE	t3	ref	idx	idx	5	test.t1.d	1	
+1	SIMPLE	t4	ref	idx	idx	5	test.t1.c	1	
+select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
+where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
+a	b	c	d	e	f	g
+3	30	300	3000	bbb	ddd	ccc
+set join_cache_level=6;
+explain 
+select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
+where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	7	
+1	SIMPLE	t2	ref	idx	idx	5	test.t1.b	1	Using join buffer
+1	SIMPLE	t3	ref	idx	idx	5	test.t1.d	1	Using join buffer
+1	SIMPLE	t4	ref	idx	idx	5	test.t1.c	1	Using join buffer
+select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
+where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
+a	b	c	d	e	f	g
+3	30	300	3000	bbb	ddd	ccc
+set join_cache_level=default;
+drop table t1,t2,t3,t4;

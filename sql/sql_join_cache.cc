@@ -1107,14 +1107,17 @@ uint JOIN_CACHE::write_record_data(uchar * link, bool *is_full)
   /* Add the offsets of the fields that are referenced from other caches */ 
   if (referenced_fields)
   {
+    uint cnt= 0;
     for (copy= field_descr+flag_fields; copy < copy_end ; copy++)
     {
       if (copy->referenced_field_no)
       {
-        store_fld_offset(cp, copy->offset);
-        cp+= size_of_fld_ofs;
+        store_fld_offset(cp+size_of_fld_ofs*(copy->referenced_field_no-1),
+                         copy->offset);
+        cnt++;
       }
     }
+    cp+= size_of_fld_ofs*cnt;
   }
 
   if (rec_len_ptr)
