@@ -168,7 +168,7 @@ void JOIN_CACHE::calc_record_fields()
   {
     if (!tab->used_fieldlength)	    
       calc_used_field_length(join->thd, tab);
-    flag_fields+= test(tab->used_null_fields);
+    flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
     flag_fields+= test(tab->table->maybe_null);
     fields+= tab->used_fields;
     blobs+= tab->used_blobs;
@@ -230,7 +230,8 @@ int JOIN_CACHE::alloc_fields(uint external_fields)
     The match flag field is created when 'join_tab' is the first inner
     table of an outer join our a semi-join. A null bitmap field is
     created for any table whose fields are to be stored in the join
-    buffer if at least one of its fields is nullable. A null row flag
+    buffer if at least one of these fields is nullable or is a BIT field
+    whose bits are partially stored with null bits. A null row flag
     is created for any table assigned to the cache if it is an inner
     table of an outer join.
     The descriptor for flag fields are placed one after another at the
@@ -272,8 +273,7 @@ void JOIN_CACHE::create_flag_fields()
     TABLE *table= tab->table;
 
     /* Create a field for the null bitmap from table if needed */
-    /* TODO: Figure out whether we really need the second conjunct here */
-    if (test(tab->used_null_fields) && table->s->null_fields)			    
+    if (tab->used_null_fields || tab->used_uneven_bit_fields)
       length+= add_flag_field_to_join_cache(table->null_flags,
                                             table->s->null_bytes,
                                             &copy);
@@ -285,7 +285,7 @@ void JOIN_CACHE::create_flag_fields()
                                             &copy);
   }
 
-  /* Theoretically the new value of flag_fields can be less than the old one */   
+  /* Theoretically the new value of flag_fields can be less than the old one */
   flag_fields= copy-field_descr;
 }
 
@@ -732,16 +732,23 @@ bool JOIN_CACHE_BKA::check_emb_key_usage()
     if (key_part->field->maybe_null())
       return FALSE;
   }
-  /* 
-    If some of the key arguments are of variable length the key
-    is not considered as embedded.
-  */
   
   copy= field_descr+flag_fields;
   copy_end= copy+local_key_arg_fields;
   for ( ; copy < copy_end; copy++)
   {
+    /* 
+      If some of the key arguments are of variable length the key
+      is not considered as embedded.
+    */
     if (copy->type != 0)
+      return FALSE;
+    /* 
+      If some of the key arguments are bit fields whose bits are partially
+      stored with null bits the key is not considered as embedded.
+    */
+    if (copy->field->type() == MYSQL_TYPE_BIT &&
+	 ((Field_bit*) (copy->field))->bit_len)
       return FALSE;
     len+= copy->length;
   }
