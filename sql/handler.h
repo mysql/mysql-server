@@ -2329,14 +2329,15 @@ public:
 
   DsMrr_impl()
     : h2(NULL) {};
-
-  handler *h; /* The "owner" handler object. It is used for scanning the index */
+  
+  /*
+    The "owner" handler object (the one that calls dsmrr_XXX functions.
+    It is used to retrieve full table rows by calling rnd_pos().
+  */
+  handler *h;
   TABLE *table; /* Always equal to h->table */
 private:
-  /*
-    Secondary handler object. It is used to retrieve full table rows by
-    calling rnd_pos().
-  */
+  /* Secondary handler object.  It is used for scanning the index */
   handler *h2;
 
   /* Buffer to store rowids, or (rowid, range_id) pairs */
@@ -2357,12 +2358,11 @@ public:
     h= h_arg; 
     table= table_arg;
   }
-  int dsmrr_init(handler *h, KEY *key, RANGE_SEQ_IF *seq_funcs, 
-                 void *seq_init_param, uint n_ranges, uint mode, 
-                 HANDLER_BUFFER *buf);
+  int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
+                 uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
-  int dsmrr_fill_buffer(handler *h);
-  int dsmrr_next(handler *h, char **range_info);
+  int dsmrr_fill_buffer();
+  int dsmrr_next(char **range_info);
 
   ha_rows dsmrr_info(uint keyno, uint n_ranges, uint keys, uint *bufsz,
                      uint *flags, COST_VECT *cost);
