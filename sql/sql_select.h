@@ -1773,6 +1773,15 @@ public:
                                         select_lex == unit->fake_select_lex));
   }
   void cache_const_exprs();
+  /* 
+    Return the table for which an index scan can be used to satisfy 
+    the sort order needed by the ORDER BY/GROUP BY clause 
+  */
+  JOIN_TAB *get_sort_by_join_tab()
+  {
+    return (need_tmp || !sort_by_table || skip_sort_order) ?
+              NULL : join_tab+const_tables;
+  }
 private:
   /**
     TRUE if the query contains an aggregate function but has no GROUP

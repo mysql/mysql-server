@@ -1976,7 +1976,16 @@ JOIN::optimize()
 	      test(select_options & OPTION_BUFFER_RESULT))) ||
              (rollup.state != ROLLUP::STATE_NONE && select_distinct));
 
-  uint no_jbuf_after= make_join_orderinfo(this);
+  /*
+    If the hint FORCE INDEX FOR ORDER BY/GROUP BY is used for the table
+    whose columns are required to be returned in a sorted order, then
+    the proper value for no_jbuf_after should be yielded by a call to
+    the make_join_orderinfo function. 
+    Yet the current implementation of FORCE INDEX hints does not
+    allow us to do it in a clean manner.
+  */   
+  uint no_jbuf_after= 1 ? tables : make_join_orderinfo(this);
+
   ulonglong select_opts_for_readinfo= 
     (select_options & (SELECT_DESCRIBE | SELECT_NO_JOIN_CACHE)) |
     (select_lex->ftfunc_list->elements ?  SELECT_NO_JOIN_CACHE : 0);
@@ -9609,22 +9618,11 @@ pick_table_access_method(JOIN_TAB *tab)
 
 static uint make_join_orderinfo(JOIN *join)
 {
-  uint i;
+  JOIN_TAB *tab;
   if (join->need_tmp)
     return join->tables;
-
-  for (i=join->const_tables ; i < join->tables ; i++)
-  {
-    JOIN_TAB *tab=join->join_tab+i;
-    TABLE *table=tab->table;
-    if ((table == join->sort_by_table && 
-         (!join->order || join->skip_sort_order)) ||
-        (join->sort_by_table == (TABLE *) 1 && i != join->const_tables))
-    {
-      break;
-    }
-  }
-  return i-1;
+  tab= join->get_sort_by_join_tab();
+  return tab ? tab-join->join_tab : join->tables;
 }
 
 
@@ -10449,6 +10447,31 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     }
   }
   join->join_tab[join->tables-1].next_select=0; /* Set by do_select */
+
+  /* 
+    If a join buffer is used to join a table the ordering by an index
+    for the first non-constant table cannot be employed anymore.
+  */
+  for (i=join->const_tables ; i < join->tables ; i++)
+  {
+    JOIN_TAB *tab=join->join_tab+i;
+    if (tab->use_join_cache)
+    {
+      JOIN_TAB *sort_by_tab= join->get_sort_by_join_tab();
+      if (sort_by_tab && !join->need_tmp)
+      {
+        join->need_tmp= 1;
+        join->simple_order= join->simple_group= 0;
+        if (sort_by_tab->type == JT_NEXT)
+        {
+          sort_by_tab->type= JT_ALL;
+          sort_by_tab->read_first_record= join_init_read_record;
+        }
+      }
+      break;
+    }
+  } 
+
   DBUG_RETURN(FALSE);
 }
 
