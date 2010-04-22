@@ -180,6 +180,10 @@ The following options may be given as the first argument:
  interactive connection before closing it
  --join-buffer-size=# 
  The size of the buffer that is used for full joins
+ --join-cache-level=# 
+ Controls what join operations can be executed with join
+ buffers. Odd numbers are used for plain join buffers
+ while even numbers are used for linked buffers
  --keep-files-on-create 
  Don't overwrite stale .MYD and .MYI even if no directory
  is specified
@@ -407,6 +411,10 @@ The following options may be given as the first argument:
  engine_condition_pushdown, materialization, semijoin,
  loosescan, firstmatch} and val is one of {on, off,
  default}
+ --optimizer-use-mrr[=name] 
+ Controls use of Engine-MRR: AUTO - based on cost; FORCE -
+ force MRR when the storage engine is capable of doing it;
+ DISABLE - disable MRR.
  --performance-schema 
  Enable the performance schema.
  --performance-schema-events-waits-history-long-size=# 
@@ -778,6 +786,7 @@ init-rpl-role MASTER
 init-slave 
 interactive-timeout 28800
 join-buffer-size 131072
+join-cache-level 1
 keep-files-on-create FALSE
 key-buffer-size 8388608
 key-cache-age-threshold 300
@@ -852,6 +861,7 @@ old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
 optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on
+optimizer-use-mrr FORCE
 performance-schema FALSE
 performance-schema-events-waits-history-long-size 10000
 performance-schema-events-waits-history-size 10

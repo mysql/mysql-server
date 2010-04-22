@@ -1237,7 +1237,7 @@ int QUICK_RANGE_SELECT::init()
 
   if (file->inited != handler::NONE)
     file->ha_index_or_rnd_end();
-  DBUG_RETURN(file->ha_index_init(index, 1));
+  DBUG_RETURN(FALSE);
 }
 
 
