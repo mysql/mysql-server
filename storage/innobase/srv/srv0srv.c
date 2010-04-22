@@ -2965,6 +2965,10 @@ srv_purge_thread(
 
 	ut_a(srv_n_purge_threads == 1);
 
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(srv_purge_thread_key);
+#endif /* UNIV_PFS_THREAD */
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "InnoDB: Purge thread running, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
