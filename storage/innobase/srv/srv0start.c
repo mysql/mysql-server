@@ -149,6 +149,7 @@ UNIV_INTERN mysql_pfs_key_t	srv_lock_timeout_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_error_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_monitor_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_master_thread_key;
+UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_PFS_MUTEX
