@@ -182,6 +182,9 @@ command. Not tested on Windows. */
 #define UNIV_COMPILE_TEST_FUNCS
 */
 
+#ifdef HAVE_purify
+# define UNIV_DEBUG_VALGRIND
+#endif /* HAVE_purify */
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
@@ -219,6 +222,10 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						adaptive hash index */
 #define UNIV_SRV_PRINT_LATCH_WAITS		/* enable diagnostic output
 						in sync0sync.c */
+#define UNIV_BTR_AVOID_COPY			/* when splitting B-tree nodes,
+						do not move any records when
+						all the records would
+						be moved */
 #define UNIV_BTR_PRINT				/* enable functions for
 						printing B-trees */
 #define UNIV_ZIP_DEBUG				/* extensive consistency checks
