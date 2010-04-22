@@ -813,6 +813,82 @@ uint JOIN_CACHE_BKA::aux_buffer_incr()
   return incr; 
 }
 
+
+/*
+  Check if the record combination matches the index condition
+
+  SYNOPSIS
+    JOIN_CACHE_BKA::skip_index_tuple()
+      rseq             Value returned by bka_range_seq_init()
+      range_info       MRR range association data
+    
+  DESCRIPTION
+    This function is invoked from MRR implementation to check if an index
+    tuple matches the index condition. It is used in the case where the index
+    condition actually depends on both columns of the used index and columns
+    from previous tables.
+    
+    Accessing columns of the previous tables requires special handling with
+    BKA. The idea of BKA is to collect record combinations in a buffer and 
+    then do a batch of ref access lookups, i.e. by the time we're doing a
+    lookup its previous-records-combination is not in prev_table->record[0]
+    but somewhere in the join buffer.
+    
+    We need to get it from there back into prev_table(s)->record[0] before we
+    can evaluate the index condition, and that's why we need this function
+    instead of regular IndexConditionPushdown.
+
+  NOTE
+    Possible optimization:
+    Before we unpack the record from a previous table
+    check if this table is used in the condition.
+    If so then unpack the record otherwise skip the unpacking.
+    This should be done by a special virtual method
+    get_partial_record_by_pos().
+
+  RETURN
+    0    The record combination satisfies the index condition
+    1    Otherwise
+*/
+
+bool JOIN_CACHE_BKA::skip_index_tuple(range_seq_t rseq, char *range_info)
+{
+  DBUG_ENTER("JOIN_CACHE_BKA::skip_index_tuple");
+  JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
+  cache->get_record_by_pos((uchar*)range_info);
+  DBUG_RETURN(!join_tab->cache_idx_cond->val_int());
+}
+
+
+/*
+  Check if the record combination matches the index condition
+
+  SYNOPSIS
+    bka_skip_index_tuple()
+      rseq             Value returned by bka_range_seq_init()
+      range_info       MRR range association data
+    
+  DESCRIPTION
+    This is wrapper for JOIN_CACHE_BKA::skip_index_tuple method,
+    see comments there.
+
+  NOTE
+    This function is used as a RANGE_SEQ_IF::skip_index_tuple callback.
+ 
+  RETURN
+    0    The record combination satisfies the index condition
+    1    Otherwise
+*/
+
+static 
+bool bka_skip_index_tuple(range_seq_t rseq, char *range_info)
+{
+  DBUG_ENTER("bka_skip_index_tuple");
+  JOIN_CACHE_BKA *cache= (JOIN_CACHE_BKA *) rseq;
+  DBUG_RETURN(cache->skip_index_tuple(rseq, range_info));
+}
+
+
 /* 
   Write record fields and their required offsets into the join cache buffer
 
@@ -2165,7 +2241,9 @@ enum_nested_loop_state JOIN_CACHE_BKA::join_matching_records(bool skip_last)
   RANGE_SEQ_IF seq_funcs= { bka_range_seq_init, 
                             bka_range_seq_next,
                             check_only_first_match ?
-                              bka_range_seq_skip_record : 0 };
+                              bka_range_seq_skip_record : 0,
+                            join_tab->cache_idx_cond ?
+                              bka_skip_index_tuple : 0 };
 
   /* The value of skip_last must be always FALSE when this function is called */
   DBUG_ASSERT(!skip_last);
@@ -2905,6 +2983,86 @@ bool bka_unique_range_seq_skip_record(range_seq_t rseq, char *range_info,
   DBUG_RETURN(res);
 }
 
+ 
+/*
+  Check if the record combination matches the index condition
+
+  SYNOPSIS
+    JOIN_CACHE_BKA_UNIQUE::skip_index_tuple()
+      rseq             Value returned by bka_range_seq_init()
+      range_info       MRR range association data
+    
+  DESCRIPTION
+    See JOIN_CACHE_BKA::skip_index_tuple().
+    This function is the variant for use with
+    JOIN_CACHE_BKA_UNIQUE. The difference from JOIN_CACHE_BKA case is that
+    there may be multiple previous table record combinations that share the
+    same key, i.e. they map to the same MRR range.
+    As a consequence, we need to loop through all previous table record
+    combinations that match the given MRR range key range_info until we find
+    one that satisfies the index condition.
+
+  NOTE
+    Possible optimization:
+    Before we unpack the record from a previous table
+    check if this table is used in the condition.
+    If so then unpack the record otherwise skip the unpacking.
+    This should be done by a special virtual method
+    get_partial_record_by_pos().
+
+  RETURN
+    0    The record combination satisfies the index condition
+    1    Otherwise
+
+
+*/
+
+bool JOIN_CACHE_BKA_UNIQUE::skip_index_tuple(range_seq_t rseq, char *range_info)
+{
+  DBUG_ENTER("JOIN_CACHE_BKA_UNIQUE::skip_index_tuple");
+  JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) rseq;
+  uchar *last_rec_ref_ptr=  cache->get_next_rec_ref((uchar*) range_info);
+  uchar *next_rec_ref_ptr= last_rec_ref_ptr;
+  do
+  {
+    next_rec_ref_ptr= cache->get_next_rec_ref(next_rec_ref_ptr);
+    uchar *rec_ptr= next_rec_ref_ptr + cache->rec_fields_offset;
+    cache->get_record_by_pos(rec_ptr);
+    if (join_tab->cache_idx_cond->val_int())
+      DBUG_RETURN(FALSE);
+  } while(next_rec_ref_ptr != last_rec_ref_ptr);
+  DBUG_RETURN(TRUE);
+}
+
+
+/*
+  Check if the record combination matches the index condition
+
+  SYNOPSIS
+    bka_unique_skip_index_tuple()
+      rseq             Value returned by bka_range_seq_init()
+      range_info       MRR range association data
+    
+  DESCRIPTION
+    This is wrapper for JOIN_CACHE_BKA_UNIQUE::skip_index_tuple method,
+    see comments there.
+
+  NOTE
+    This function is used as a RANGE_SEQ_IF::skip_index_tuple callback.
+ 
+  RETURN
+    0    The record combination satisfies the index condition
+    1    Otherwise
+*/
+
+static 
+bool bka_unique_skip_index_tuple(range_seq_t rseq, char *range_info)
+{
+  DBUG_ENTER("bka_unique_skip_index_tuple");
+  JOIN_CACHE_BKA_UNIQUE *cache= (JOIN_CACHE_BKA_UNIQUE *) rseq;
+  DBUG_RETURN(cache->skip_index_tuple(rseq, range_info));
+}
+
 
 /*
   Using BKA_UNIQUE find matches from the next table for records from join buffer   
@@ -2947,11 +3105,12 @@ JOIN_CACHE_BKA_UNIQUE::join_matching_records(bool skip_last)
   bool no_association= test(mrr_mode &  HA_MRR_NO_ASSOCIATION);
 
   /* Set functions to iterate over keys in the join buffer */
-
   RANGE_SEQ_IF seq_funcs= { bka_unique_range_seq_init,
                             bka_unique_range_seq_next,
                             check_only_first_match && !no_association ?
-			      bka_unique_range_seq_skip_record : 0 };
+                              bka_unique_range_seq_skip_record : 0,
+                            join_tab->cache_idx_cond ?
+                              bka_unique_skip_index_tuple : 0  };
 
   /* The value of skip_last must be always FALSE when this function is called */
   DBUG_ASSERT(!skip_last);

@@ -1151,7 +1151,19 @@ typedef struct st_range_seq_if
       0 - The record shall be left in the stream
   */ 
   bool (*skip_record) (range_seq_t seq, char *range_info, uchar *rowid);
- 
+
+  /*
+    Check if the record combination matches the index condition
+    SYNOPSIS
+      skip_index_tuple()
+        seq         The value returned by RANGE_SEQ_IF::init()
+        range_info  Information about the next range 
+    
+    RETURN
+      0 - The record combination satisfies the index condition
+      1 - Otherwise
+  */ 
+  bool (*skip_index_tuple) (range_seq_t seq, char *range_info);
 } RANGE_SEQ_IF;
 
 uint16 &mrr_persistent_flag_storage(range_seq_t seq, uint idx);
