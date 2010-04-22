@@ -99,3 +99,28 @@ select pk from t1 WHERE `varchar_key` > 'kr' group by pk;
 select pk from t1 WHERE `int_nokey` IS NULL OR  `varchar_key` > 'kr' group by pk;
 drop table t1;
 
+--echo #
+--echo # BUG#39447: Error with NOT NULL condition and LIMIT 1
+--echo #
+CREATE TABLE t1 (                 
+   id int(11) NOT NULL,                
+   parent_id int(11) DEFAULT NULL,     
+   name varchar(10) DEFAULT NULL,      
+   PRIMARY KEY (id),                   
+   KEY ind_parent_id (parent_id)     
+) ENGINE=InnoDB;
+
+insert into t1 (id, parent_id, name) values
+(10,NULL,'A'),
+(20,10,'B'),
+(30,10,'C'),
+(40,NULL,'D'),
+(50,40,'E'),
+(60,40,'F'),
+(70,NULL,'J');
+
+SELECT id FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+--echo This must show type=index, extra=Using where
+explain SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+SELECT * FROM t1 WHERE parent_id IS NOT NULL ORDER BY id DESC LIMIT 1;
+drop table t1;

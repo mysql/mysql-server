@@ -18900,7 +18900,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           if (table->covering_keys.is_set(best_key))
             table->set_keyread(TRUE);
           if (tab->pre_idx_push_select_cond)
+          {
             tab->select_cond= tab->pre_idx_push_select_cond;
+            if (tab->select)
+              tab->select->cond= tab->select_cond;
+          }
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {
