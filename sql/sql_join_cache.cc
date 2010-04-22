@@ -2455,9 +2455,16 @@ int JOIN_CACHE_BKA_UNIQUE::init()
 
     uint n= buff_size / (pack_length+key_entry_length+size_of_key_ofs);
 
+    /*
+      TODO: Make a better estimate for this upper bound of
+            the number of records in in the join buffer.
+    */
+    uint max_n= buff_size / (pack_length-length+
+                             key_entry_length+size_of_key_ofs);
+
     hash_entries= (uint) (n / 0.7);
     
-    if (offset_size(n*key_entry_length) <=
+    if (offset_size(max_n*key_entry_length) <=
         size_of_key_ofs)
       break;
   }

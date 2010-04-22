@@ -414,12 +414,6 @@ private:
   /* Size of the offset of a field within a record in the cache */   
   uint size_of_fld_ofs;
 
-  /* 
-    The total maximal length of the fields stored for a record in the cache.
-    For blob fields only the sizes of the blob lengths are taken into account. 
-  */
-  uint length;
-
 protected:
        
   /* 3 functions below actually do not use the hidden parameter 'this' */ 
@@ -449,6 +443,12 @@ protected:
     }
   }
   
+  /* 
+    The total maximal length of the fields stored for a record in the cache.
+    For blob fields only the sizes of the blob lengths are taken into account. 
+  */
+  uint length;
+
   /* 
     Representation of the executed multi-way join through which all needed
     context can be accessed.  
@@ -908,7 +908,7 @@ public:
   attached to the corresponding key entry in the hash table, or without any
   association link. When the next record is returned by a call to the MRR 
   function multi_range_read_next without any association (because if was not
-  passed  with together with the key) then the key value is extracted from the
+  passed  together with the key) then the key value is extracted from the
   returned record and searched for it in the hash table. If there is any records
   with such key the chain of them will be yielded as the result of this search.
 
@@ -940,22 +940,23 @@ public:
   |                   V |   |                       |            |             |
   |             |key_1|[*]|[*]|         |   | ... |[*]|   ...  |[*]|  ...  |   |
   +----------------------------------------------------------------------------+
-                                        ^
-                                        |
+                                        ^           ^            ^
+                                        |           i-th entry   j-th entry
                                         hash table
 
   i-th hash entry:
-    circular record chain for key_3:
-      record_2_1
-      record_2_2 (points to record_2_1)
-
-  j-th hash entry:
     circular record chain for key_1:
       record_1_1
       record_1_2
       record_1_3 (points to record_1_1)
     circular record chain for key_3:
       record_3_1 (points to itself)
+
+  j-th hash entry:
+    circular record chain for key_2:
+      record_2_1
+      record_2_2 (points to record_2_1)
+
 */
 
 class JOIN_CACHE_BKA_UNIQUE :public JOIN_CACHE_BKA
