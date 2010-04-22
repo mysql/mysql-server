@@ -62,8 +62,7 @@ class ha_myisam: public handler
   {
     return ((table_share->key_info[inx].algorithm == HA_KEY_ALG_FULLTEXT) ?
             0 : HA_READ_NEXT | HA_READ_PREV | HA_READ_RANGE |
-            HA_READ_ORDER | HA_KEYREAD_ONLY | 
-            (keys_with_parts.is_set(inx)?0:HA_DO_INDEX_COND_PUSHDOWN));
+            HA_READ_ORDER | HA_KEYREAD_ONLY | HA_DO_INDEX_COND_PUSHDOWN);
   }
   uint max_supported_keys()          const { return MI_MAX_KEY; }
   uint max_supported_key_length()    const { return MI_MAX_KEY_LENGTH; }
@@ -167,7 +166,6 @@ public:
   Item *idx_cond_push(uint keyno, Item* idx_cond);
 private:
   DsMrr_impl ds_mrr;
-  key_map keys_with_parts;
   friend my_bool index_cond_func_myisam(void *arg);
 };
 

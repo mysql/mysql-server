@@ -97,4 +97,19 @@ explain
 select * from t4 where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
 
 select * from t4 ignore index(idx1) where (a ='b-1' or a='bb-1') and b IS NULL and (c='c-1' or c='cc-2');
+drop table t1, t2, t3, t4;
 
+#
+# Check how ICP works with NULLs and partially-covered indexes
+#
+create table t1 (a int, b int not null,unique key (a,b),index(b));
+insert ignore into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(null,7),(9,9),(8,8),(7,7),(null,9),(null,9),(6,6);
+create table t2 like t1;
+insert into t2 select * from t1;
+alter table t1 modify b blob not null, add c int not null, drop key a, add unique key (a,b(20),c), drop key b, add key (b(10));
+
+select * from t1 where a is null;
+select * from t1 where (a is null or a > 0 and a < 3) and b > 7 limit 3;
+
+select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
+drop table t1, t2;

@@ -14,8 +14,6 @@ select @@read_rnd_buffer_size;
 
 set @@read_rnd_buffer_size= @read_rnd_buffer_size_save;
 
-drop table t1, t2, t3, t4;
-
 #
 # BUG#30622: Incorrect query results for MRR + filesort
 # 
@@ -73,4 +71,18 @@ FROM t1 WHERE EXISTS (
 );
 
 DROP TABLE t1, t2;
+
+-- echo #
+-- echo # BUG#42048 Discrepancy between MyISAM and Maria's ICP implementation
+-- echo #
+create table t0 (a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 (a int, b char(20), filler char(200), key(a,b(10)));
+insert into t1 select A.a + 10*(B.a + 10*C.a), 'bbb','filler' from t0 A, t0 B, t0 C;
+update t1 set b=repeat(char(65+a), 20) where a < 25;
+
+--echo This must show range + using index condition:
+explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
+select * from t1 where a < 10 and b = repeat(char(65+a), 20);
+drop table t0,t1;
 

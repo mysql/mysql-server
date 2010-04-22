@@ -270,8 +270,28 @@ bb-1	NULL	cc-2	NULL-4
 bb-1	NULL	cc-2	NULL-3
 bb-1	NULL	cc-2	NULL-2
 bb-1	NULL	cc-2	NULL-1
-set storage_engine= @save_storage_engine;
 drop table t1, t2, t3, t4;
+create table t1 (a int, b int not null,unique key (a,b),index(b));
+insert ignore into t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(null,7),(9,9),(8,8),(7,7),(null,9),(null,9),(6,6);
+create table t2 like t1;
+insert into t2 select * from t1;
+alter table t1 modify b blob not null, add c int not null, drop key a, add unique key (a,b(20),c), drop key b, add key (b(10));
+select * from t1 where a is null;
+a	b	c
+NULL	7	0
+NULL	9	0
+NULL	9	0
+select * from t1 where (a is null or a > 0 and a < 3) and b > 7 limit 3;
+a	b	c
+NULL	9	0
+NULL	9	0
+select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
+a	b	c
+NULL	7	0
+NULL	9	0
+NULL	9	0
+drop table t1, t2;
+set storage_engine= @save_storage_engine;
 set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
 set read_rnd_buffer_size=64;
 create table t1(a int);

@@ -31,7 +31,8 @@
               set_if_smaller(char_length,length);                           \
             } while(0)
 
-static int _mi_put_key_in_record(MI_INFO *info,uint keynr,uchar *record);
+static int _mi_put_key_in_record(MI_INFO *info, uint keynr, 
+                                 my_bool unpack_blobs, uchar *record);
 
 /*
   Make a intern key from a record
@@ -312,6 +313,9 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
     _mi_put_key_in_record()
     info		MyISAM handler
     keynr		Key number that was used
+    unpack_blobs        TRUE  <=> Unpack blob columns
+                        FALSE <=> Skip them. This is used by index condition 
+                                  pushdown check function
     record 		Store key here
 
     Last read key is in info->lastkey
@@ -324,8 +328,8 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
    1   error
 */
 
-static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
-				 uchar *record)
+static int _mi_put_key_in_record(register MI_INFO *info, uint keynr, 
+                                 my_bool unpack_blobs, uchar *record)
 {
   reg2 uchar *key;
   uchar *pos,*key_end;
@@ -418,16 +422,17 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
       if (length > keyseg->length || key+length > key_end)
 	goto err;
 #endif
-      memcpy(record+keyseg->start+keyseg->bit_start,
-	     (char*) &blob_ptr,sizeof(char*));
-      memcpy(blob_ptr,key,length);
-      blob_ptr+=length;
-
-      /* The above changed info->lastkey2. Inform mi_rnext_same(). */
-      info->update&= ~HA_STATE_RNEXT_SAME;
-
-      _my_store_blob_length(record+keyseg->start,
-			    (uint) keyseg->bit_start,length);
+      if (unpack_blobs)
+      {
+        memcpy(record+keyseg->start+keyseg->bit_start,
+               (char*) &blob_ptr,sizeof(char*));
+        memcpy(blob_ptr,key,length);
+        blob_ptr+=length;
+        /* The above changed info->lastkey2. Inform mi_rnext_same(). */
+        info->update&= ~HA_STATE_RNEXT_SAME;
+        _mi_store_blob_length(record+keyseg->start,
+                              (uint) keyseg->bit_start,length);
+      }
       key+=length;
     }
     else if (keyseg->flag & HA_SWAP_KEY)
@@ -471,7 +476,7 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf)
   {
     if (info->lastinx >= 0)
     {				/* Read only key */
-      if (_mi_put_key_in_record(info,(uint) info->lastinx,buf))
+      if (_mi_put_key_in_record(info, (uint)info->lastinx, TRUE, buf))
       {
         mi_print_error(info->s, HA_ERR_CRASHED);
 	my_errno=HA_ERR_CRASHED;
@@ -505,7 +510,7 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 
 int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record)
 {
-  if (_mi_put_key_in_record(info, keynr, record))
+  if (_mi_put_key_in_record(info, keynr, FALSE, record))
   {
     mi_print_error(info->s, HA_ERR_CRASHED);
     my_errno=HA_ERR_CRASHED;
