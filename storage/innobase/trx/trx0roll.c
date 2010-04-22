@@ -37,7 +37,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0rec.h"
 #include "que0que.h"
 #include "usr0sess.h"
-#include "srv0que.h"
 #include "srv0start.h"
 #include "row0undo.h"
 #include "row0mysql.h"
