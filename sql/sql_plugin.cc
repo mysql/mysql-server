@@ -1665,6 +1665,12 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   struct st_plugin_int *tmp;
   DBUG_ENTER("mysql_install_plugin");
 
+  if (opt_noacl)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(TRUE);
+  }
+
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
@@ -1740,6 +1746,12 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   TABLE_LIST tables;
   struct st_plugin_int *plugin;
   DBUG_ENTER("mysql_uninstall_plugin");
+
+  if (opt_noacl)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(TRUE);
+  }
 
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
