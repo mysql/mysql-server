@@ -922,9 +922,8 @@ convert_error:
 		trx_commit_for_mysql(prebuilt->trx);
 	}
 
-	ut_d(dict_table_check_for_dup_indexes(innodb_table, FALSE));
-
 	if (dict_locked) {
+		ut_d(dict_table_check_for_dup_indexes(innodb_table, FALSE));
 		row_mysql_unlock_data_dictionary(trx);
 	}
 
