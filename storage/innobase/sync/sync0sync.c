@@ -1167,6 +1167,7 @@ sync_thread_add_level(
 	case SYNC_SEARCH_SYS_CONF:
 	case SYNC_TRX_LOCK_HEAP:
 	case SYNC_KERNEL:
+	case SYNC_THREADS:
 	case SYNC_IBUF_BITMAP_MUTEX:
 	case SYNC_RSEG:
 	case SYNC_TRX_UNDO:
