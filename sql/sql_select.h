@@ -671,6 +671,9 @@ protected:
   /* Add null complements for unmatched outer records from buffer */
   virtual enum_nested_loop_state join_null_complements(bool skip_last);
 
+  /* Restore the fields of the last record from the join buffer */
+  virtual void restore_last_record();
+
   /*Set match flag for a record in join buffer if it has not been set yet */
   bool set_match_flag_if_none(JOIN_TAB *first_inner, uchar *rec_ptr);
 
