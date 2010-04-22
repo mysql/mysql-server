@@ -2264,10 +2264,11 @@ srv_lock_check_wait(
 	trx_t*		trx;
 	double		wait_time;
 	ulong		lock_wait_timeout;
+	ib_time_t	suspend_time = slot->suspend_time;
 
 	ut_ad(srv_sys_mutex_own());
 
-	wait_time = ut_difftime(ut_time(), slot->suspend_time);
+	wait_time = ut_difftime(ut_time(), suspend_time);
 
 	trx = thr_get_trx(slot->thr);
 
@@ -2307,16 +2308,18 @@ srv_lock_check_wait(
 
 			/* We can't compare the pointers here because the
 			memory can be recycled. Transaction ids are not
-			recyled and therefore safe to use. If the transaction
-			has already released its locks there is nothing
-			more we can do. */
+			recyled and therefore safe to use. We also check if
+			the transaction suspend time is the same that we
+			used for calculating the wait earlier. If the
+		       	transaction has already released its locks there
+		       	is nothing more we can do. */
 			if (slot->in_use
+			    && suspend_time == slot->suspend_time
 			    && ut_dulint_cmp(trx->id, slot_trx->id) == 0
 			    && trx->wait_lock != NULL) {
 
 				ut_a(trx->que_state == TRX_QUE_LOCK_WAIT);
 
-				/* Note that the caller is the timeout thread */
 				lock_cancel_waiting_and_release(
 					trx->wait_lock);
 			}
