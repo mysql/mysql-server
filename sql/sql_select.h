@@ -493,11 +493,17 @@ protected:
   uint referenced_fields;
    
   /* 
-    The current number of already created data field descriptors. This number 
-    is can be useful for implementations of the init functions.  
+    The current number of already created data field descriptors.
+    This number can be useful for implementations of the init methods.  
   */
   uint data_field_count; 
 
+  /* 
+    The current number of already created pointers to the data field
+    descriptors. This number can be useful for implementations of
+    the init methods.  
+  */
+  uint data_field_ptr_count; 
   /* 
     Array of the descriptors of fields containing 'fields' elements.
     These are all fields that are stored for a record in the cache. 
