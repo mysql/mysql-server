@@ -165,9 +165,8 @@ void JOIN_CACHE::calc_record_fields()
   referenced_fields= 0;
 
   for ( ; tab < join_tab ; tab++)
-  {
-    if (!tab->used_fieldlength)	    
-      calc_used_field_length(join->thd, tab);
+  {	    
+    calc_used_field_length(join->thd, tab);
     flag_fields+= test(tab->used_null_fields || tab->used_uneven_bit_fields);
     flag_fields+= test(tab->table->maybe_null);
     fields+= tab->used_fields;

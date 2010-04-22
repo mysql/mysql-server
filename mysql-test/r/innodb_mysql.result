@@ -2344,3 +2344,24 @@ COMMIT;
 COMMIT;
 DROP TABLE t1;
 DROP FUNCTION f1;
+#
+# BUG#42744: Crash when using a join buffer to join a table with a blob
+# column and an additional column used for duplicate elimination.
+#
+CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
+CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('1'), (NULL);
+INSERT INTO t2 VALUES (1, '1');
+set join_cache_level=1;
+EXPLAIN
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Start temporary
+1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	1	Using index; Using join buffer
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+b
+1
+set join_cache_level=default;
+DROP TABLE t1,t2;
+End of 6.0 tests
