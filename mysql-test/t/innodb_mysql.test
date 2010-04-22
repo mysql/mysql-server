@@ -616,3 +616,25 @@ connection default;
 COMMIT;
 DROP TABLE t1;
 DROP FUNCTION f1;
+--echo #
+--echo # BUG#42744: Crash when using a join buffer to join a table with a blob
+--echo # column and an additional column used for duplicate elimination.
+--echo #
+
+CREATE TABLE t1 (a tinyblob) ENGINE=InnoDB;
+CREATE TABLE t2 (a int PRIMARY KEY,  b tinyblob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('1'), (NULL);
+INSERT INTO t2 VALUES (1, '1');
+ 
+set join_cache_level=1;
+
+EXPLAIN
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+
+SELECT t2.b FROM t1,t2 WHERE t1.a IN (SELECT 1 FROM t2);
+
+set join_cache_level=default;
+
+DROP TABLE t1,t2;
+
+--echo End of 6.0 tests
