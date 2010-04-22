@@ -1123,3 +1123,34 @@ select * from t0 where t0.a in (select t1.a from t1 where t1.b=0);
 set join_cache_level=@save_join_cache_level;
 drop table t0, t1;
 
+--echo # 
+--echo # BUG#32665 Query with dependent subquery is too slow
+--echo #
+create table t1 (
+  idIndividual int primary key
+);
+insert into t1 values (1),(2);
+
+create table t2 (
+  idContact int primary key,
+  contactType int,
+  idObj int
+);
+insert into t2 values (1,1,1),(2,2,2),(3,3,3);
+
+create table t3 (
+  idAddress int primary key,
+  idContact int,
+  postalStripped varchar(100)
+);
+
+insert into t3 values (1,1, 'foo'), (2,2,'bar');
+
+--echo The following must be converted to a semi-join:
+explain extended SELECT a.idIndividual FROM t1 a 
+WHERE a.idIndividual IN 
+	(	SELECT c.idObj FROM t3 cona 
+		INNER JOIN t2 c ON c.idContact=cona.idContact 
+		WHERE cona.postalStripped='T2H3B2'
+	);
+drop table t1,t2,t3;
