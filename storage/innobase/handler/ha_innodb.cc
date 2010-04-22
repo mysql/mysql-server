@@ -312,7 +312,8 @@ static PSI_thread_info	all_innodb_threads[] = {
 	{&srv_lock_timeout_thread_key, "srv_lock_timeout_thread", 0},
 	{&srv_error_monitor_thread_key, "srv_error_monitor_thread", 0},
 	{&srv_monitor_thread_key, "srv_monitor_thread", 0},
-	{&srv_master_thread_key, "srv_master_thread", 0}
+	{&srv_master_thread_key, "srv_master_thread", 0},
+	{&srv_purge_thread_key, "srv_purge_thread", 0}
 };
 # endif /* UNIV_PFS_THREAD */
 
