@@ -5370,6 +5370,8 @@ add_key_part(DYNAMIC_ARRAY *keyuse_array,KEY_FIELD *key_field)
           keyuse.sj_pred_no= key_field->sj_pred_no;
 	  if (insert_dynamic(keyuse_array,(uchar*) &keyuse))
             return TRUE;
+          /* This will be set accordingly in optimize_keyuse */
+          keyuse.ref_table_rows= ~(ha_rows) 0;
 	}
       }
     }
