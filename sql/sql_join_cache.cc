@@ -1158,7 +1158,7 @@ void JOIN_CACHE::reset(bool for_writing)
   if (for_writing)
   {
     records= 0;
-    last_rec_pos= buff-1;
+    last_rec_pos= buff;
     aux_buff_size= 0;
     end_pos= pos;
     last_rec_blob_data_is_in_rec_buff= 0;
@@ -1329,7 +1329,7 @@ uint JOIN_CACHE::read_all_record_fields()
 {
   uchar *init_pos= pos;
   
-  if (pos > last_rec_pos)
+  if (pos > last_rec_pos || !records)
     return 0;
 
   /* First match flag, read null bitmaps and null_row flag for each table */
@@ -2421,7 +2421,7 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
   uchar *init_pos;
   JOIN_CACHE *cache;
   
-  if (pos > last_rec_pos)
+  if (pos > last_rec_pos || !records)
     return 0;
 
   /* Any record in a BKA cache is prepended with its length */
