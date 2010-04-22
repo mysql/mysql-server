@@ -1142,3 +1142,37 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 
 drop table t1,t2;
 set join_cache_level=default;
+
+--echo #
+--echo # Bug #42955: join with GROUP BY/ORDER BY and when BKA is enabled 
+--echo #             
+
+create table t1 (d int, id1 int, index idx1 (d, id1));
+insert into t1 values
+  (3, 20), (2, 40), (3, 10), (1, 10), (3, 20), (1, 40), (2, 30), (3, 30);
+
+create table t2 (id1 int, id2 int, index idx2 (id1));
+insert into t2 values 
+  (20, 100), (30, 400), (20, 400), (30, 200), (10, 300), (10, 200), (40, 100),
+  (40, 200), (30, 300), (10, 400), (20, 200), (20, 300);   
+
+set join_cache_level=6;
+
+explain
+select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
+  where t1.d=3 group by t1.id1;
+
+select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
+  where t1.d=3 group by t1.id1;
+
+explain
+select t1.id1  from t1 join t2 on t1.id1=t2.id1 
+ where t1.d=3 and t2.id2 > 200 order by t1.id1;
+
+select t1.id1  from t1 join t2 on t1.id1=t2.id1 
+ where t1.d=3 and t2.id2 > 200 order by t1.id1;
+
+set join_cache_level=default;
+
+drop table t1,t2;
+
