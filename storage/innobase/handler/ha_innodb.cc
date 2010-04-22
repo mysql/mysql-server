@@ -1971,6 +1971,19 @@ trx_is_interrupted(
 	return(trx && trx->mysql_thd && thd_killed((THD*) trx->mysql_thd));
 }
 
+/**********************************************************************//**
+Determines if the currently running transaction is in strict mode.
+@return	TRUE if strict */
+extern "C" UNIV_INTERN
+ibool
+trx_is_strict(
+/*==========*/
+	trx_t*	trx)	/*!< in: transaction */
+{
+	return(trx && trx->mysql_thd
+	       && THDVAR((THD*) trx->mysql_thd, strict_mode));
+}
+
 /**************************************************************//**
 Resets some fields of a prebuilt struct. The template is used in fast
 retrieval of just those column values MySQL needs in its processing. */
@@ -2283,7 +2296,7 @@ mem_free_and_error:
 		}
 
 		sql_print_error("InnoDB: invalid value "
-				"innodb_file_format_check=%s",
+				"innodb_change_buffering=%s",
 				innobase_change_buffering);
 		goto mem_free_and_error;
 	}
