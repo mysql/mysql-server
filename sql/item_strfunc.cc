@@ -29,13 +29,6 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-/*
-  NOTE: zlib.h must be included *before* my_global.h because my_global.h
-  may undef some HAVE_ macros. Including zlib.h after my_global.h may lead
-  to re-defining undefined macros, thus to compile errors.
-*/
-#include <zlib.h>                               // Must be before my_global.h
-
 /* May include caustic 3rd-party defs. Use early, so it can override nothing. */
 #include "sha2.h"
 #include "my_global.h"                          // HAVE_*
@@ -58,6 +51,7 @@
 #include "my_md5.h"
 #include "sha1.h"
 #include "my_aes.h"
+#include <zlib.h>
 C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
@@ -251,7 +245,7 @@ void Item_func_sha::fix_length_and_dec()
 String *Item_func_sha2::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   unsigned char digest_buf[SHA512_DIGEST_LENGTH];
   String *input_string;
   unsigned char *input_ptr;
@@ -329,7 +323,7 @@ String *Item_func_sha2::val_str(String *str)
     "sha2", "--with-ssl");
   null_value= TRUE;
   return (String *) NULL;
-#endif
+#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
 }
 
 
@@ -338,7 +332,7 @@ void Item_func_sha2::fix_length_and_dec()
   maybe_null = 1;
   max_length = 0;
 
-#if defined(HAVE_OPENSSL)
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   int sha_variant= args[1]->const_item() ? args[1]->val_int() : 512;
 
   switch (sha_variant) {
@@ -384,7 +378,7 @@ void Item_func_sha2::fix_length_and_dec()
     ER_FEATURE_DISABLED,
     ER(ER_FEATURE_DISABLED),
     "sha2", "--with-ssl");
-#endif
+#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
 }
 
 /* Implementation of AES encryption routines */
@@ -643,7 +637,7 @@ void Item_func_concat::fix_length_and_dec()
 String *Item_func_des_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
@@ -729,7 +723,7 @@ error:
   push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
                       "des_encrypt", "--with-ssl");
-#endif	/* HAVE_OPENSSL */
+#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
   null_value=1;
   return 0;
 }
@@ -738,7 +732,7 @@ error:
 String *Item_func_des_decrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
@@ -807,7 +801,7 @@ wrong_key:
   push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
                       "des_decrypt", "--with-ssl");
-#endif	/* HAVE_OPENSSL */
+#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
   null_value=1;
   return 0;
 }
