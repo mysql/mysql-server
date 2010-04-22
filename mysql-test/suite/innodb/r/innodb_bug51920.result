@@ -9,5 +9,5 @@ SELECT ID FROM INFORMATION_SCHEMA.PROCESSLIST
 WHERE INFO="UPDATE bug51920 SET i=2"
 INTO @thread_id;
 KILL @thread_id;
-ERROR 70100: Query execution was interrupted
+Got one of the listed errors
 DROP TABLE bug51920;
