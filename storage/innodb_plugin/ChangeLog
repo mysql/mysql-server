@@ -1,3 +1,9 @@
+2010-04-22	The InnoDB Team
+
+	* include/dict0boot.h, dict/dict0boot.c:
+	Fix a bug that prevented the crash recovery of fast CREATE INDEX
+	from dropping partially created indexes.
+
 2010-04-21	The InnoDB Team
 
 	* btr/btr0btr.c:
