@@ -206,8 +206,11 @@ void toku_maybe_truncate_cachefile (CACHEFILE cf, int fd, u_int64_t size_used);
 int maybe_preallocate_in_file (int fd, u_int64_t size);
 // Effect: If file size is less than SIZE, make it bigger by either doubling it or growing by 16MB whichever is less.
 
-int toku_brt_note_table_lock (BRT brt, TOKUTXN txn, BOOL ignore_not_empty);
-// Effect: Record the fact that the BRT has a table lock (and thus no other txn will modify it until this txn completes.  As a result, we can limit the amount of information in the rollback data structure.
+void toku_brt_suppress_recovery_logs (BRT brt, TOKUTXN txn);
+// Effect: suppresses recovery logs
+// Requires: this is a (target) redirected brt
+//           implies: txnid_that_created_or_locked_when_empty matches txn 
+//           implies: toku_txn_note_brt(brt, txn) has been called
 
 int toku_brt_zombie_needed (BRT brt);
 
@@ -217,6 +220,7 @@ BOOL toku_brt_is_empty (BRT brt);
 
 double get_tdiff(void) __attribute__((__visibility__("default")));
 
+BOOL toku_brt_is_recovery_logging_suppressed (BRT);
 //TODO: #1485 once we have multiple main threads, restore this code, analyze performance.
 #ifndef TOKU_MULTIPLE_MAIN_THREADS
 #define TOKU_MULTIPLE_MAIN_THREADS 0

@@ -70,15 +70,16 @@ static void free_loader_resources(DB_LOADER *loader)
         }
         if (loader->i->ekeys)              toku_free(loader->i->ekeys);
         if (loader->i->evals)              toku_free(loader->i->evals);
-    
-        for (int i=0; i<loader->i->N; i++) {
-            if (loader->i->inames_in_env[i]) toku_free(loader->i->inames_in_env[i]);
-        }
 
         if (loader->i->err_key.data)       toku_free(loader->i->err_key.data);
         if (loader->i->err_val.data)       toku_free(loader->i->err_val.data);
 
-        if (loader->i->inames_in_env)      toku_free(loader->i->inames_in_env);
+        if (loader->i->inames_in_env) {
+            for (int i=0; i<loader->i->N; i++) {
+                if (loader->i->inames_in_env[i]) toku_free(loader->i->inames_in_env[i]);
+            }
+            toku_free(loader->i->inames_in_env);
+        }
         if (loader->i->temp_file_template) toku_free(loader->i->temp_file_template);
         if (loader->i->brt_loader)         toku_free(loader->i->brt_loader);
 
@@ -162,7 +163,7 @@ int toku_loader_create_loader(DB_ENV *env,
     int r;
     // lock tables and check empty
     for(int i=0;i<N;i++) {
-        r = toku_db_pre_acquire_table_lock(dbs[i], txn);
+        r = toku_db_pre_acquire_table_lock(dbs[i], txn, TRUE);
         if ( r!=0 ) {
             free_loader(loader);
             return -1;
@@ -200,9 +201,10 @@ int toku_loader_create_loader(DB_ENV *env,
         LSN load_lsn;
         r = locked_ydb_load_inames (env, txn, N, dbs, new_inames_in_env, &load_lsn);
         if ( r!=0 ) {
+            toku_free(new_inames_in_env);
             toku_free(descriptors);
             free_loader(loader);
-            return -1;
+            return r;
         }
         toku_brt_loader_open(&loader->i->brt_loader,
                              loader->i->env->i->cachetable,

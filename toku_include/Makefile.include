@@ -360,17 +360,23 @@ else
 endif
 
 .PHONY: tags
-tags: cscope.out TAGS
+tags: $(TOKUROOT)cscope.out $(TOKUROOT)TAGS
 
+ifneq ($(TOKUROOT),./)
 TAGS: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
-	rm -f `find $(TOKUROOT) -type f -name TAGS` #Delete all other tag files
 	etags $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+endif
 
-cscope.files: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
-	(echo $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch] | tr " " "\n") > $@
+$(TOKUROOT)TAGS: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+	cd $(TOKUROOT) && etags */*.[ch] */*/*.[ch] */*/*/*.[ch]
 
-cscope.out: cscope.files $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
-	$(CSCOPE) -qb
+$(TOKUROOT)cscope.files: $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+	cd $(TOKUROOT) && (echo */*.[ch] */*/*.[ch] */*/*/*.[ch] | tr " " "\n") > $(notdir $@)
+
+$(TOKUROOT)cscope.in.out $(TOKUROOT)cscope.po.out: $(TOKUROOT)cscope.out;
+
+$(TOKUROOT)cscope.out: $(TOKUROOT)cscope.files $(TOKUROOT)*/*.[ch] $(TOKUROOT)*/*/*.[ch] $(TOKUROOT)*/*/*/*.[ch]
+	cd $(TOKUROOT) && $(CSCOPE) -qb
 
 .PHONY: clean clean-default %.dir.clean
 clean: clean-default

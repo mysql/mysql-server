@@ -231,8 +231,8 @@ static const char *recover_state(RECOVER_ENV renv) {
 
 // function supplied to transaction commit and abort
 // No yielding is necessary, but it must call the f function if provided.
-static void recover_yield(voidfp f, void *UU(extra)) {
-    if (f) f();
+static void recover_yield(voidfp f, void *fpthunk, void *UU(yieldthunk)) {
+    if (f) f(fpthunk);
 }
 
 static int
@@ -287,6 +287,30 @@ static int internal_recover_fopen_or_fcreate (RECOVER_ENV renv, BOOL must_create
     }
 
     file_map_insert(&renv->fmap, filenum, brt, iname);
+    return 0;
+}
+
+static int toku_recover_local_txn_checkpoint (struct logtype_local_txn_checkpoint *l, RECOVER_ENV UU(renv)) {
+    int r;
+    switch (renv->ss.ss) {
+    case FORWARD_BETWEEN_CHECKPOINT_BEGIN_END:
+    case FORWARD_NEWER_CHECKPOINT_END: {
+        // assert that the transaction exists
+        TOKUTXN txn = NULL;
+        r = toku_txnid2txn(renv->logger, l->xid, &txn);
+        assert(r == 0 && txn != NULL);
+        r = 0;
+        break;
+    }
+    default:
+        assert(0);
+        return 0;
+    }
+    return r;
+}
+
+static int toku_recover_backward_local_txn_checkpoint (struct logtype_local_txn_checkpoint *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
     return 0;
 }
 
@@ -549,9 +573,7 @@ static int toku_recover_xcommit (struct logtype_xcommit *l, RECOVER_ENV renv) {
 
     // commit the transaction
     r = toku_txn_commit_with_lsn(txn, TRUE, recover_yield, NULL, l->lsn,
-				 NULL, NULL,
-				 // No need to release locks during recovery.
-				 NULL, NULL, NULL);
+				 NULL, NULL);
     assert(r == 0);
 
     // close the transaction
@@ -705,26 +727,6 @@ static int toku_recover_fdelete (struct logtype_fdelete *l, RECOVER_ENV renv) {
 }
 
 static int toku_recover_backward_fdelete (struct logtype_fdelete *UU(l), RECOVER_ENV UU(renv)) {
-    // nothing
-    return 0;
-}
-
-static int toku_recover_tablelock_on_empty_table(struct logtype_tablelock_on_empty_table *l, RECOVER_ENV renv) {
-    struct file_map_tuple *tuple = NULL;
-    int r = file_map_find(&renv->fmap, l->filenum, &tuple);
-    if (r==0) {
-        //Our work is only if it is open
-        TOKUTXN txn = NULL;
-        r = toku_txnid2txn(renv->logger, l->xid, &txn);
-        assert(r == 0);
-        assert(txn != NULL);
-        r = toku_brt_note_table_lock(tuple->brt, txn, TRUE);
-        assert(r == 0);
-    }
-    return 0;
-}
-
-static int toku_recover_backward_tablelock_on_empty_table(struct logtype_tablelock_on_empty_table *UU(l), RECOVER_ENV UU(renv)) {
     // nothing
     return 0;
 }

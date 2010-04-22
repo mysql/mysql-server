@@ -315,7 +315,7 @@ toku_apply_rollinclude (TXNID      xid,
             r = func(txn, item, yield, yieldv, oplsn);
             if (r!=0) return r;
             count++;
-            if (count%2 == 0) yield(NULL, yieldv);
+            if (count%2 == 0) yield(NULL, NULL, yieldv);
         }
         if (next_log.b == spilled_head.b) {
             assert(!found_head);
@@ -380,55 +380,6 @@ toku_rollback_rollinclude (TXNID      xid,
                                txn, yield, yieldv, oplsn,
                                toku_abort_rollback_item);
     return r;
-}
-
-int
-toku_rollback_tablelock_on_empty_table (FILENUM filenum,
-                                        TOKUTXN txn,
-                                        YIELDF  yield,
-                                        void*   yield_v,
-                                        LSN     oplsn)
-{
-    //TODO: Replace truncate function with something that doesn't need to mess with checkpoints.
-    // on rollback we have to make the file be empty, since we locked an empty table, and then may have done things to it.
-
-    CACHEFILE cf;
-    //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
-    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
-    if (r==ENOENT) { //Missing file on recovered transaction is not an error
-        assert(txn->recovered_from_checkpoint);
-        r = 0;
-        goto done;
-    }
-    assert(r==0);
-
-    OMTVALUE brtv=NULL;
-    r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL, NULL);
-    assert(r==0);
-    BRT brt = brtv;
-    {   //Do NOT truncate the file if
-        //the file already survived the truncate and was checkpointed.
-        LSN treelsn = toku_brt_checkpoint_lsn(brt);
-        if (oplsn.lsn != 0 && oplsn.lsn <= treelsn.lsn) {
-            r = 0;
-            goto done;
-        }
-    }
-    toku_poll_txn_progress_function(txn, FALSE, TRUE);
-    yield(toku_checkpoint_safe_client_lock, yield_v);
-    toku_poll_txn_progress_function(txn, FALSE, FALSE);
-    r = toku_brt_truncate(brt);
-    assert(r==0);
-    toku_checkpoint_safe_client_unlock();
-
-done:
-    return r; 
-}
-
-int
-toku_commit_tablelock_on_empty_table (FILENUM filenum, TOKUTXN txn, YIELDF UU(yield), void* UU(yield_v), LSN UU(oplsn))
-{
-    return do_nothing_with_filenum(txn, filenum);
 }
 
 int

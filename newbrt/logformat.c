@@ -77,8 +77,6 @@ const struct logtype rollbacks[] = {
                             {"BLOCKNUM",  "spilled_tail", 0},
                             {"u_int32_t", "spilled_tail_hash", 0},
                             NULLFIELD}},
-    {"tablelock_on_empty_table", 'L', FA{{"FILENUM", "filenum", 0},
-					 NULLFIELD}},
     {"load", 'l', FA{{"BYTESTRING", "old_iname", 0},
                      {"BYTESTRING", "new_iname", 0},
                      NULLFIELD}},
@@ -90,6 +88,7 @@ const struct logtype rollbacks[] = {
 
 const struct logtype logtypes[] = {
     // Records produced by checkpoints
+    {"local_txn_checkpoint", 'c', FA{{"TXNID",      "xid", 0}, NULLFIELD}},
     {"begin_checkpoint", 'x', FA{{"u_int64_t", "timestamp", 0}, NULLFIELD}},
     {"end_checkpoint",   'X', FA{{"TXNID", "xid", 0},           // xid is LSN of begin_checkpoint
 				 {"u_int64_t", "timestamp", 0},
@@ -143,9 +142,6 @@ const struct logtype logtypes[] = {
     {"fdelete", 'U', FA{{"TXNID",      "xid", 0},
 			{"BYTESTRING", "iname", 0},
 			NULLFIELD}},
-    {"tablelock_on_empty_table", 'L', FA{{"FILENUM",    "filenum", 0},
-                           {"TXNID",      "xid", 0},
-                           NULLFIELD}},
     {"enq_insert", 'I', FA{{"FILENUM",    "filenum", 0},
                            {"TXNID",      "xid", 0},
                            {"BYTESTRING", "key", 0},
@@ -432,6 +428,7 @@ generate_log_reader (void) {
     fprintf2(cf, hf, "int toku_log_fread_backward (FILE *infile, struct log_entry *le)");
     fprintf(hf, ";\n");
     fprintf(cf, "{\n");
+    fprintf(cf, "  memset(le, 0, sizeof(*le));\n");
     fprintf(cf, "  {\n    long pos = ftell(infile);\n    if (pos<=12) return -1;\n  }\n");
     fprintf(cf, "  int r = fseek(infile, -4, SEEK_CUR); \n");//              assert(r==0);\n");
     fprintf(cf, "  if (r!=0) return errno;\n");

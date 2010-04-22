@@ -1830,19 +1830,10 @@ static int toku_txn_release_locks(DB_TXN* txn) {
 
 // Yield the lock so someone else can work, and then reacquire the lock.
 // Useful while processing commit or rollback logs, to allow others to access the system.
-static void ydb_yield (voidfp f, void *UU(v)) {
+static void ydb_yield (voidfp f, void *fv, void *UU(v)) {
     toku_ydb_unlock(); 
-    if (f) f();
+    if (f) f(fv);
     toku_ydb_lock();
-}
-
-static void release_ydb_lock_callback (void *ignore __attribute__((__unused__))) {
-    //printf("%8.6fs Thread %ld release\n", get_tdiff(), pthread_self());
-    toku_ydb_unlock(); 
-}
-static void reacquire_ydb_lock_callback (void *ignore __attribute__((__unused__))) {
-    //printf("%8.6fs Thread %ld reacquire\n", get_tdiff(), pthread_self());
-    toku_ydb_lock(); 
 }
 
 static int toku_txn_commit(DB_TXN * txn, u_int32_t flags,
@@ -1886,8 +1877,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags,
 	// Calls ydb_yield(NULL) occasionally
         //r = toku_logger_commit(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL);
         r = toku_txn_commit_txn(db_txn_struct_i(txn)->tokutxn, nosync, ydb_yield, NULL,
-				poll, poll_extra,
-				release_ydb_lock_callback, reacquire_ydb_lock_callback, NULL);
+				poll, poll_extra);
 
     if (r!=0 && !toku_env_is_panicked(txn->mgrp)) {
         txn->mgrp->i->is_panicked = r;
@@ -4729,7 +4719,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
                 if (r==0) {
                     DB* zombie = env_get_zombie_db_with_dname(env, dname);
                     if (zombie)
-                        r = toku_db_pre_acquire_table_lock(zombie, child);
+                        r = toku_db_pre_acquire_table_lock(zombie, child, TRUE);
                     if (r!=0)
                         toku_ydb_do_error(env, r, "Cannot remove dictionary.\n");
                 }
@@ -4846,7 +4836,7 @@ toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbnam
             if (r==0) {
                 zombie = env_get_zombie_db_with_dname(env, dname);
                 if (zombie)
-                    r = toku_db_pre_acquire_table_lock(zombie, child);
+                    r = toku_db_pre_acquire_table_lock(zombie, child, TRUE);
                 if (r!=0)
                     toku_ydb_do_error(env, r, "Cannot rename dictionary.\n");
             }
@@ -5041,7 +5031,7 @@ static int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_lef
 
 //static int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
 // needed by loader.c
-int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
+int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
 
@@ -5053,8 +5043,40 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     r = toku_lt_acquire_range_write_lock(db->i->lt, db, id_anc,
                                          toku_lt_neg_infinity, toku_lt_neg_infinity,
                                          toku_lt_infinity,     toku_lt_infinity);
-    if (r==0) {
-	r = toku_brt_note_table_lock(db->i->brt, db_txn_struct_i(txn)->tokutxn, FALSE); // tell the BRT layer that the table is locked (so that it can reduce the amount of rollback data.
+    if (r==0 && !just_lock &&
+        !toku_brt_is_recovery_logging_suppressed(db->i->brt) &&
+        toku_brt_is_empty(db->i->brt) &&
+        db_is_nodup(db) //TODO: Remove this check once we kill dupsort support.
+    ) {
+        //Try to suppress both rollback and recovery logs
+        DB_LOADER *loader;
+        DB *dbs[1] = {db};
+        uint32_t db_flags[1]  = {DB_NOOVERWRITE};
+        uint32_t dbt_flags[1] = {0};
+        uint32_t loader_flags = 0;
+        DB_ENV *env = db->dbenv;
+
+        toku_ydb_unlock(); //Cannot hold ydb lock when creating loader
+        int r_loader;
+        r_loader = env->create_loader(env, txn, &loader, NULL, 1, dbs, db_flags, dbt_flags, loader_flags);
+        if (r_loader==0) {
+            int r2;
+            r2 = loader->set_error_callback(loader, NULL, NULL);
+            assert(r2==0);
+            r2 = loader->set_poll_function(loader, NULL, NULL);
+            assert(r2==0);
+            // close the loader
+            r2 = loader->close(loader);
+            assert(r2==0);
+            toku_brt_suppress_recovery_logs(db->i->brt, db_txn_struct_i(txn)->tokutxn);
+        }
+        else if (r_loader != DB_LOCK_NOTGRANTED) {
+            //Lock not granted is not an error.
+            //It just means we cannot use the loader optimization.
+            assert(r==0);
+            r = r_loader;
+        }
+        toku_ydb_lock(); //Reaquire ydb lock.
     }
 
     return r;
@@ -5174,7 +5196,7 @@ static int locked_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_l
 
 static int locked_db_pre_acquire_table_lock(DB *db, DB_TXN *txn) {
     toku_ydb_lock();
-    int r = toku_db_pre_acquire_table_lock(db, txn);
+    int r = toku_db_pre_acquire_table_lock(db, txn, FALSE);
     toku_ydb_unlock();
     return r;
 }
@@ -5202,7 +5224,7 @@ static int toku_db_truncate(DB *db, DB_TXN *txn, u_int32_t *row_count, u_int32_t
 
     // acquire a table lock
     if (txn) {
-        r = toku_db_pre_acquire_table_lock(db, txn);
+        r = toku_db_pre_acquire_table_lock(db, txn, TRUE);
         if (r != 0)
             return r;
     }
@@ -5601,10 +5623,10 @@ ydb_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[N], char * new_iname
 	char hint[strlen(dname) + 1];
 	create_iname_hint(dname, hint);
 	char * new_iname = create_iname(env, xid, hint, i);               // allocates memory for iname_in_env
+	new_inames_in_env[i] = new_iname;
         toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);      // iname_in_env goes in directory
         rval = toku_db_put(env->i->directory, child, &dname_dbt, &iname_dbt, DB_YESOVERWRITE);  // DB_YESOVERWRITE necessary
 	if (rval) break;
-	new_inames_in_env[i] = new_iname;
     }
 
     // Generate load log entries.

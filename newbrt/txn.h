@@ -10,11 +10,9 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
-			 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			 void (*release_locks)(void*), void(*reacquire_locks)(void*), void *locks_thunk);
+			 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
-			     TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			     void (*release_locks)(void*), void(*reacquire_locks)(void*), void *locks_thunk);
+			     TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
 int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);

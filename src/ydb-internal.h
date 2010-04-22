@@ -197,6 +197,6 @@ struct __toku_dbc_internal {
     struct simple_dbt *skey,*sval;
 };
 
-int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
+int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock);
 
 #endif
