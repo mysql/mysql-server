@@ -149,9 +149,6 @@ class ha_myisam: public handler
   {
     return file;
   }
-  int read_range_first(const key_range *start_key, const key_range *end_key,
-                       bool eq_range_arg, bool sorted);
-  int read_range_next();
 public:
   /**
    * Multi Range Read interface
