@@ -858,7 +858,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #endif
 
 #ifndef OS_FILE_LIMIT
-#define OS_FILE_LIMIT	65535
+#define OS_FILE_LIMIT	UINT_MAX
 #endif
 
 /* #define EXT_IN_LIBNAME     */
