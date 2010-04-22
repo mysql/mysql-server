@@ -10348,7 +10348,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     case JT_SYSTEM: 
     case JT_CONST:
       /* Only happens with outer joins */
-      if (check_join_cache_usage(tab, join, options, no_jbuf_after))
+      if (check_join_cache_usage(tab, join, options, no_jbuf_after,
                                  &icp_other_tables_ok))
       {
         tab->use_join_cache= TRUE;
