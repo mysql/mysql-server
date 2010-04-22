@@ -1154,3 +1154,19 @@ WHERE a.idIndividual IN
 		WHERE cona.postalStripped='T2H3B2'
 	);
 drop table t1,t2,t3;
+--echo
+--echo BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
+--echo
+CREATE TABLE t1 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_key` int(11) DEFAULT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `int_key` (`int_key`)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1,9),(2,3),(3,8),(4,6),(5,9),(6,5),(7,5),(8,9),(9,1),(10,10);
+
+SELECT `pk` FROM t1 AS OUTR WHERE `int_key` = ALL (
+ SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
+);
+DROP TABLE t1;

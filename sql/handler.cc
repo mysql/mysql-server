@@ -4387,17 +4387,20 @@ scan_it_again:
     other - Error
 */
 
-int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
-                           RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
-                           uint n_ranges, uint mode, HANDLER_BUFFER *buf)
+int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
+                           void *seq_init_param, uint n_ranges, uint mode,
+                           HANDLER_BUFFER *buf)
 {
   uint elem_size;
-  uint keyno;
   Item *pushed_cond= NULL;
   handler *new_h2= 0;
   DBUG_ENTER("DsMrr_impl::dsmrr_init");
-  keyno= h->active_index;
 
+  /*
+    index_merge may invoke a scan on an object for which dsmrr_info[_const]
+    has not been called, so set the owner handler here as well.
+  */
+  h= h_arg;
   if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
   {
     use_default_impl= TRUE;
@@ -4418,10 +4421,22 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
                       elem_size;
   rowids_buf_end= rowids_buf_last;
 
+  /*
+    There can be two cases:
+    - This is the first call since index_init(), h2==NULL
+       Need to setup h2 then.
+    - This is not the first call, h2 is initalized and set up appropriately.
+       The caller might have called h->index_init(), need to switch h to
+       rnd_pos calls.
+  */
   if (!h2)
   {
     /* Create a separate handler object to do rndpos() calls. */
     THD *thd= current_thd;
+
+    DBUG_ASSERT(h->active_index != MAX_KEY);
+    uint mrr_keyno= h->active_index;
+
     if (!(new_h2= h->clone(thd->mem_root)) || 
         new_h2->ha_external_lock(thd, F_RDLCK))
     {
@@ -4429,29 +4444,46 @@ int DsMrr_impl::dsmrr_init(handler *h, KEY *key,
       DBUG_RETURN(1);
     }
 
-    if (keyno == h->pushed_idx_cond_keyno)
+    if (mrr_keyno == h->pushed_idx_cond_keyno)
       pushed_cond= h->pushed_idx_cond;
+
+    /*
+      Caution: this call will invoke this->dsmrr_close(). Do not put the
+      created secondary table handler into this->h2 or it will delete it.
+    */
     if (h->ha_index_end())
     {
-      new_h2= h2;
+      h2=new_h2;
       goto error;
     }
 
-    h2= new_h2;
+    h2= new_h2; /* Ok, now can put it into h2 */
     table->prepare_for_position();
-    new_h2->extra(HA_EXTRA_KEYREAD);
-  
-    if (h2->ha_index_init(keyno, FALSE))
+    h2->extra(HA_EXTRA_KEYREAD);
+
+    if (h2->ha_index_init(mrr_keyno, FALSE) || 
+        h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
+                                           mode, buf))
+      goto error;
+    use_default_impl= FALSE;
+    
+    if (pushed_cond)
+      h2->idx_cond_push(mrr_keyno, pushed_cond);
+  }
+  else
+  {
+    /* if we call h->index_end() will invoke this->dsmrr_close(), which will  Do not let it delete h2. */
+    // psergey-todo: WTF??
+    handler *save_h2= h2;
+    h2= NULL;
+    int res= (h->inited == handler::INDEX && h->ha_index_end());
+    h2= save_h2;
+    use_default_impl= FALSE;
+    if (res)
       goto error;
   }
 
-  if (h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
-                                         mode, buf))
-    goto error;
-  
-  if (pushed_cond)
-    h2->idx_cond_push(keyno, pushed_cond);
-  if (dsmrr_fill_buffer(new_h2))
+  if (dsmrr_fill_buffer())
     goto error;
 
   /*
@@ -4525,7 +4557,7 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
     other - Error
 */
 
-int DsMrr_impl::dsmrr_fill_buffer(handler *unused)
+int DsMrr_impl::dsmrr_fill_buffer()
 {
   char *range_info;
   int res;
@@ -4586,7 +4618,7 @@ int DsMrr_impl::dsmrr_fill_buffer(handler *unused)
   DS-MRR implementation: multi_range_read_next() function
 */
 
-int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
+int DsMrr_impl::dsmrr_next(char **range_info)
 {
   int res;
   uchar *cur_range_info= 0;
@@ -4605,7 +4637,7 @@ int DsMrr_impl::dsmrr_next(handler *h, char **range_info)
         goto end;
       }
 
-      res= dsmrr_fill_buffer(h);
+      res= dsmrr_fill_buffer();
       if (res)
         goto end;
     }
