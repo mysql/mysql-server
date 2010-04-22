@@ -239,7 +239,6 @@ extern	ibool	srv_print_latch_waits;
 # define srv_print_latch_waits		FALSE
 #endif /* UNIV_DEBUG */
 
-extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 extern ulint	srv_dml_needed_delay;
 
@@ -313,12 +312,6 @@ typedef struct export_var_struct export_struc;
 
 /** Status variables to be passed to MySQL */
 extern export_struc export_vars;
-
-/** The server system */
-typedef struct srv_sys_struct	srv_sys_t;
-
-/** The server system */
-extern srv_sys_t*	srv_sys;
 
 # ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
@@ -421,6 +414,8 @@ enum srv_thread_type {
 			be biggest) */
 };
 
+struct srv_slot_struct;
+
 /*********************************************************************//**
 Boots Innobase server.
 @return	DB_SUCCESS or error code */
@@ -470,17 +465,6 @@ srv_set_io_thread_op_info(
 	ulint		i,	/*!< in: the 'segment' of the i/o thread */
 	const char*	str);	/*!< in: constant char string describing the
 				state */
-/*********************************************************************//**
-Releases threads of the type given from suspension in the thread table.
-NOTE! The server mutex has to be reserved by the caller!
-@return number of threads released: this may be less than n if not
-enough threads were suspended at the moment */
-UNIV_INTERN
-ulint
-srv_release_threads(
-/*================*/
-	enum srv_thread_type	type,	/*!< in: thread type */
-	ulint			n);	/*!< in: number of threads to release */
 /*********************************************************************//**
 The master thread controlling the server.
 @return	a dummy parameter */
@@ -628,6 +612,13 @@ void
 srv_export_innodb_status(void);
 /*==========================*/
 
+/******************************************************************//**
+Increment the server activity counter. */
+UNIV_INTERN
+void
+srv_inc_activity_count(void);
+/*=========================*/
+
 /*********************************************************************//**
 Asynchronous purge thread.
 @return	a dummy parameter */
@@ -637,11 +628,23 @@ srv_purge_thread(
 /*=============*/
 	void*	arg __attribute__((unused))); /*!< in: a dummy parameter
 					      required by os_thread_create */
-/** Thread slot in the thread table */
-typedef struct srv_slot_struct	srv_slot_t;
 
-/** Thread table is an array of slots */
-typedef srv_slot_t	srv_table_t;
+/**********************************************************************//**
+Enqueues a task to server task queue and releases a worker thread, if there
+is a suspended one. */
+UNIV_INTERN
+void
+srv_que_task_enqueue_low(
+/*=====================*/
+	que_thr_t*	thr);	/*!< in: query thread */
+
+/**********************************************************************//**
+Check whether the master thread is active.
+@return FALSE is it is not active. */
+UNIV_INTERN
+ibool
+srv_is_master_thread_active(void);
+/*==============================*/
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{
@@ -697,14 +700,6 @@ struct export_var_struct{
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 };
 
-/** The server system struct */
-struct srv_sys_struct{
-	srv_table_t*	threads;	/*!< server thread table */
-	UT_LIST_BASE_NODE_T(que_thr_t)
-			tasks;		/*!< task queue */
-};
-
-extern ulint	srv_n_threads_active[];
 #else /* !UNIV_HOTBACKUP */
 # define srv_use_adaptive_hash_indexes		FALSE
 # define srv_use_checksums			TRUE
