@@ -118,7 +118,6 @@ class QUICK_RANGE :public Sql_alloc {
 class QUICK_SELECT_I
 {
 public:
-  bool sorted;
   ha_rows records;  /* estimate of # of records to be retrieved */
   double  read_time; /* time to perform this retrieval          */
   TABLE   *head;
@@ -190,7 +189,13 @@ public:
 
   virtual bool reverse_sorted() = 0;
   virtual bool unique_key_range() { return false; }
-
+  
+  /*
+    Request that this quick select produces sorted output. Not all quick
+    selects can do it, the caller is responsible for calling this function
+    only for those quick selects that can.
+  */
+  virtual void need_sorted_output() = 0;
   enum {
     QS_TYPE_RANGE = 0,
     QS_TYPE_INDEX_MERGE = 1,
@@ -353,7 +358,8 @@ public:
   QUICK_RANGE_SELECT(THD *thd, TABLE *table,uint index_arg,bool no_alloc,
                      MEM_ROOT *parent_alloc, bool *create_error);
   ~QUICK_RANGE_SELECT();
-
+  
+  void need_sorted_output();
   int init();
   int reset(void);
   int get_next();
@@ -453,6 +459,7 @@ public:
   ~QUICK_INDEX_MERGE_SELECT();
 
   int  init();
+  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
@@ -512,6 +519,7 @@ public:
   ~QUICK_ROR_INTERSECT_SELECT();
 
   int  init();
+  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
@@ -566,6 +574,7 @@ public:
   ~QUICK_ROR_UNION_SELECT();
 
   int  init();
+  void need_sorted_output() { DBUG_ASSERT(0); /* Can't do it */ }
   int  reset(void);
   int  get_next();
   bool reverse_sorted() { return false; }
@@ -692,6 +701,7 @@ public:
   void adjust_prefix_ranges();
   bool alloc_buffers();
   int init();
+  void need_sorted_output() { /* always do it */ }
   int reset();
   int get_next();
   bool reverse_sorted() { return false; }
