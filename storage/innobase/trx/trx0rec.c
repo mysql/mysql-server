@@ -350,8 +350,13 @@ trx_undo_rec_get_col_val(
 
 		ut_ad(*orig_len >= BTR_EXTERN_FIELD_REF_SIZE);
 		ut_ad(*len > *orig_len);
-		ut_ad(*len >= REC_MAX_INDEX_COL_LEN
+		/* @see dtuple_convert_big_rec() */
+		ut_ad(*len >= BTR_EXTERN_FIELD_REF_SIZE * 2);
+		/* we do not have access to index->table here
+		ut_ad(dict_table_get_format(index->table) >= DICT_TF_FORMAT_ZIP
+		      || *len >= REC_MAX_INDEX_COL_LEN
 		      + BTR_EXTERN_FIELD_REF_SIZE);
+		*/
 
 		*len += UNIV_EXTERN_STORAGE_FIELD;
 		break;
@@ -1075,11 +1080,15 @@ trx_undo_rec_get_partial_row(
 			/* If the prefix of this column is indexed,
 			ensure that enough prefix is stored in the
 			undo log record. */
-			ut_a(ignore_prefix
-			     || !col->ord_part
-			     || dfield_get_len(dfield)
-			     >= REC_MAX_INDEX_COL_LEN
-			     + BTR_EXTERN_FIELD_REF_SIZE);
+			if (!ignore_prefix && col->ord_part) {
+				ut_a(dfield_get_len(dfield)
+				     >= 2 * BTR_EXTERN_FIELD_REF_SIZE);
+				ut_a(dict_table_get_format(index->table)
+				     >= DICT_TF_FORMAT_ZIP
+				     || dfield_get_len(dfield)
+				     >= REC_MAX_INDEX_COL_LEN
+				     + BTR_EXTERN_FIELD_REF_SIZE);
+			}
 		}
 	}
 
