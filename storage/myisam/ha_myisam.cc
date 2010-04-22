@@ -637,8 +637,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
                   HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
-                  HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT |
-                  HA_NEED_READ_RANGE_BUFFER | HA_MRR_CANT_SORT),
+                  HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
    can_enable_indexes(1)
 {}
 
@@ -1694,23 +1693,6 @@ int ha_myisam::index_next_same(uchar *buf,
   return error;
 }
 
-int ha_myisam::read_range_first(const key_range *start_key,
-		 	        const key_range *end_key,
-			        bool eq_range_arg,
-                                bool sorted /* ignored */)
-{
-  int res;
-  res= handler::read_range_first(start_key, end_key, eq_range_arg, sorted);
-  return res;
-}
-
-
-int ha_myisam::read_range_next()
-{
-  int res= handler::read_range_next();
-  return res;
-}
-
 
 int ha_myisam::rnd_init(bool scan)
 {
@@ -1774,8 +1756,8 @@ int ha_myisam::info(uint flag)
     TABLE_SHARE *share= table->s;
     stats.max_data_file_length=  misam_info.max_data_file_length;
     stats.max_index_file_length= misam_info.max_index_file_length;
-    stats.create_time= (ulong) misam_info.create_time;
-    /* 
+    stats.create_time= misam_info.create_time;
+    /*
       We want the value of stats.mrr_length_per_rec to be platform independent.
       The size of the chunk at the end of the join buffer used for MRR needs
       is calculated now basing on the values passed in the stats structure.

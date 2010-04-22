@@ -6463,7 +6463,6 @@ void ha_ndbcluster::get_auto_increment(ulonglong offset, ulonglong increment,
                 HA_NULL_IN_KEY | \
                 HA_AUTO_PART_KEY | \
                 HA_NO_PREFIX_CHAR_KEYS | \
-                HA_NEED_READ_RANGE_BUFFER | \
                 HA_CAN_GEOMETRY | \
                 HA_CAN_BIT_FIELD | \
                 HA_PRIMARY_KEY_REQUIRED_FOR_POSITION | \

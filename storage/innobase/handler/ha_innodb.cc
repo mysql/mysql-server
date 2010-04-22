@@ -1406,8 +1406,7 @@ ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
 		  HA_BINLOG_ROW_CAPABLE |
 		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
-		  HA_TABLE_SCAN_ON_INDEX | HA_NEED_READ_RANGE_BUFFER |
-                  HA_MRR_CANT_SORT),
+		  HA_TABLE_SCAN_ON_INDEX),
   primary_key(0), /* needs initialization because index_flags() may be called 
                      before this is set to the real value. It's ok to have any 
                      value here because it doesn't matter if we return the
