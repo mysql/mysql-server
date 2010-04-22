@@ -80,9 +80,10 @@ uint add_flag_field_to_join_cache(uchar *str, uint length, CACHE_FIELD **field)
     add_table_data_fields_to_join_cache()
       tab              descriptors of fields from this table are to be filled
       field_set        descriptors for only these fields are to be created
-      field_cnt IN/OUT counter of data fields  
-      descr  IN/OUT    pointer to the first descriptor to be filled
-      descr_ptr IN/OUT pointer to the first pointer to blob descriptors 
+      field_cnt IN/OUT     counter of data fields  
+      descr  IN/OUT        pointer to the first descriptor to be filled
+      field_ptr_cnt IN/OUT counter of pointers to the data fields
+      descr_ptr IN/OUT     pointer to the first pointer to blob descriptors 
 
   DESCRIPTION
     The function fills in the descriptors of cache data fields from the table
@@ -104,6 +105,7 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
                                          MY_BITMAP *field_set,
                                          uint *field_cnt, 
                                          CACHE_FIELD **descr,
+                                         uint *field_ptr_cnt,
                                          CACHE_FIELD ***descr_ptr)
 {
   Field **fld_ptr;
@@ -119,7 +121,8 @@ uint add_table_data_fields_to_join_cache(JOIN_TAB *tab,
       if (copy->type == CACHE_BLOB)
       {
         *copy_ptr= copy;
-          copy_ptr++;
+        copy_ptr++;
+        (*field_ptr_cnt)++;
       }
       copy->field= *fld_ptr;
       copy->referenced_field_no= 0;
@@ -162,6 +165,7 @@ void JOIN_CACHE::calc_record_fields()
   blobs= 0;
   flag_fields= 0;
   data_field_count= 0;
+  data_field_ptr_count= 0;
   referenced_fields= 0;
 
   for ( ; tab < join_tab ; tab++)
@@ -318,7 +322,9 @@ void JOIN_CACHE::create_flag_fields()
     to this field is added as an element of the array blob_ptr. For a blob
     field only the size of the length of the blob data is taken into account.
     It is assumed that 'data_field_count' contains the number of descriptors
-    for data fields that have been already created.
+    for data fields that have been already created and 'data_field_ptr_count'
+    contains the number of the pointers to such descriptors having been
+    stored up to the moment.
 
   RETURN
     none 
@@ -328,7 +334,7 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
 {
   JOIN_TAB *tab;
   CACHE_FIELD *copy= field_descr+flag_fields+data_field_count;
-  CACHE_FIELD **copy_ptr= blob_ptr;
+  CACHE_FIELD **copy_ptr= blob_ptr+data_field_ptr_count;
 
   for (tab= join_tab-tables; tab < join_tab; tab++)
   {
@@ -345,8 +351,9 @@ void JOIN_CACHE:: create_remaining_fields(bool all_read_fields)
     }  
 
     length+= add_table_data_fields_to_join_cache(tab, rem_field_set,
-                                                 &data_field_count,
-                                                 &copy, &copy_ptr);
+                                                 &data_field_count, &copy,
+                                                 &data_field_ptr_count,
+                                                 &copy_ptr);
   
     /* SemiJoinDuplicateElimination: allocate space for rowid if needed */
     if (tab->keep_current_rowid)
@@ -630,8 +637,9 @@ int JOIN_CACHE_BKA::init()
   for (tab= join_tab-tables; tab < join_tab ; tab++)
   {
     length+= add_table_data_fields_to_join_cache(tab, &tab->table->tmp_set,
-                                                 &data_field_count,  
-                                                 &copy, &copy_ptr);
+                                                 &data_field_count, &copy,
+                                                 &data_field_ptr_count, 
+                                                 &copy_ptr);
   }
 
   use_emb_key= check_emb_key_usage();
