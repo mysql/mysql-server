@@ -3084,3 +3084,4 @@ libmysqld/keycaches.cc
 client/dtoa.c
 libmysqld/sql_audit.cc
 configure.am
+libmysqld/des_key_file.cc
