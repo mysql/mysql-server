@@ -1070,7 +1070,7 @@ EXPLAIN
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
   FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
     WHERE t1.a=t2.a; 
-
+--sorted_result
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
   FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
     WHERE t1.a=t2.a;
