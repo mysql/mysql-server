@@ -1023,3 +1023,71 @@ set join_buffer_size=default;
 set join_cache_level=default;
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug #42020: join buffer is used  for outer join with fields of 
+--echo #             several outer tables in join buffer
+--echo #
+
+CREATE TABLE t1 (
+  a bigint NOT NULL,
+  PRIMARY KEY (a) 
+);
+INSERT INTO t1 VALUES
+  (2), (1);
+
+CREATE TABLE t2 (
+  a bigint NOT NULL,
+  b bigint NOT NULL,
+  PRIMARY KEY (a,b)
+);
+INSERT INTO t2 VALUES
+  (2,30), (2,40), (2,50), (2,60), (2,70), (2,80),
+  (1,10), (1, 20), (1,30), (1,40), (1,50);
+
+CREATE TABLE t3 (
+  pk bigint NOT NULL AUTO_INCREMENT,
+  a bigint NOT NULL,
+  b bigint NOT NULL,
+  val bigint DEFAULT '0',
+  PRIMARY KEY (pk),
+  KEY idx (a,b)
+);
+INSERT INTO t3(a,b) VALUES
+  (2,30), (2,40), (2,50), (2,60), (2,70), (2,80),
+  (4,30), (4,40), (4,50), (4,60), (4,70), (4,80),
+  (5,30), (5,40), (5,50), (5,60), (5,70), (5,80),
+  (7,30), (7,40), (7,50), (7,60), (7,70), (7,80);
+
+SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
+  FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
+    WHERE t1.a=t2.a; 
+
+set join_cache_level=6;
+set join_buffer_size=256;
+
+EXPLAIN
+SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
+  FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
+    WHERE t1.a=t2.a; 
+
+SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
+  FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
+    WHERE t1.a=t2.a;
+
+DROP INDEX idx ON t3;
+set join_cache_level=4;
+
+EXPLAIN
+SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
+  FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
+    WHERE t1.a=t2.a; 
+
+SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
+  FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
+    WHERE t1.a=t2.a; 
+
+set join_buffer_size=default;
+set join_cache_level=default;
+
+DROP TABLE t1,t2,t3;

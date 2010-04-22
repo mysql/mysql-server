@@ -1919,10 +1919,16 @@ inline bool JOIN_CACHE::check_match(uchar *rec_ptr)
 
 enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
 {
+  uint cnt; 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool is_first_inner= join_tab == join_tab->first_unmatched;
-  bool is_last_inner= join_tab == join_tab->first_unmatched->last_inner; 
-  uint cnt= records - (is_key_access() ? 0 : test(skip_last));
+  bool is_last_inner= join_tab == join_tab->first_unmatched->last_inner;
+ 
+  /* Return at once if there are no records in the join buffer */
+  if (!records)
+    return NESTED_LOOP_OK;
+  
+  cnt= records - (is_key_access() ? 0 : test(skip_last));
 
   /* This function may be called only for inner tables of outer joins */ 
   DBUG_ASSERT(join_tab->first_inner);
@@ -1974,6 +1980,16 @@ enum_nested_loop_state JOIN_CACHE::join_null_complements(bool skip_last)
   }
 
 finish:
+  if (is_first_inner)
+  {
+    /* 
+      Restore the values of the fields of the last record put into join buffer.
+      The value of the fields of the last record in the buffer must be restored
+      since at the null complementing pass fields of the records with matches
+      are skipped and their fields are not read into the record buffers at all. 
+    */
+    get_record_by_pos(last_rec_pos);
+  }
   return rc;
 }
 
