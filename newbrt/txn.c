@@ -132,6 +132,7 @@ local_checkpoints_and_log_xcommit(void *thunk) {
     TOKUTXN txn = info->txn;
 
     if (!txn->parent && !toku_list_empty(&txn->checkpoint_before_commit)) {
+        toku_poll_txn_progress_function(txn, TRUE, TRUE);
         //Do local checkpoints that must happen BEFORE logging xcommit
         uint32_t num_cachefiles = 0;
         uint32_t list_size = 16;
@@ -153,6 +154,7 @@ local_checkpoints_and_log_xcommit(void *thunk) {
 
         int r = toku_cachetable_local_checkpoint_for_commit(ct, txn, num_cachefiles, cachefiles);
         assert(r==0);
+        toku_poll_txn_progress_function(txn, TRUE, FALSE);
     }
 
     info->r = toku_log_xcommit(txn->logger, (LSN*)0, info->do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
