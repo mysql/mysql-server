@@ -1775,6 +1775,8 @@ srv_release_mysql_thread_if_suspended(
 
 	if (!thr_get_trx(thr)->lock_wait_timeout) {
 		srv_sys_mutex_enter();
+	} else {
+		ut_ad(srv_sys_mutex_own());
 	}
 
 	if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
