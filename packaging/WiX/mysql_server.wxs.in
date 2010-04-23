@@ -1,4 +1,5 @@
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" 
+      xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   <Product 
     Id="*" 
     UpgradeCode="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3"
@@ -78,5 +79,8 @@
     <!--CPACK_WIX_COMPONENTS_GROUPS -->
     @CPACK_WIX_COMPONENT_GROUPS@
     
+    <!--CPACK_WIX_INCLUDES -->
+    @CPACK_WIX_INCLUDES@
   </Product>
+
 </Wix>
