@@ -647,6 +647,16 @@ struct trx_struct{
 					TRX_QUE_LOCK_WAIT, this points to
 					the lock request, otherwise this is
 					NULL */
+	ibool		lock_wait_timeout;
+					/* when this transaction is rolled
+					back because the lock wait timed out.
+					We use this flag to distinguish between
+					a wait time out detected by the lock
+				       	monitor thread vs other code paths. For
+					the former we already have the the
+					srv_sys->mutex locked. For the other
+					cases we need to acquire it explicitly
+					when releasing a suspended thread. */
 	ibool		was_chosen_as_deadlock_victim;
 					/* when the transaction decides to wait
 					for a lock, it sets this to FALSE;
