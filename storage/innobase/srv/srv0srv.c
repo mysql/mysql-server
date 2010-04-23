@@ -1773,10 +1773,17 @@ srv_release_mysql_thread_if_suspended(
 {
 	ut_ad(mutex_own(&kernel_mutex));
 
-	if (thr->slot != NULL) {
-		ut_a(thr->slot->in_use);
+	if (!thr_get_trx(thr)->lock_wait_timeout) {
+		srv_sys_mutex_enter();
+	}
+
+	if (thr->slot != NULL && thr->slot->in_use && thr->slot->thr == thr) {
 
 		os_event_set(thr->slot->event);
+	}
+
+	if (!thr_get_trx(thr)->lock_wait_timeout) {
+		srv_sys_mutex_exit();
 	}
 }
 
@@ -2320,8 +2327,11 @@ srv_lock_check_wait(
 
 				ut_a(trx->que_state == TRX_QUE_LOCK_WAIT);
 
-				lock_cancel_waiting_and_release(
-					trx->wait_lock);
+				trx->lock_wait_timeout = TRUE;
+
+				lock_cancel_waiting_and_release(trx->wait_lock);
+
+				trx->lock_wait_timeout = FALSE;
 			}
 
 			mutex_exit(&kernel_mutex);
