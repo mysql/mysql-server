@@ -5,3 +5,4 @@ brtdump
 tdb-recover
 tdb_logprint
 
+log_print.c
