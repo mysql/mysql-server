@@ -274,21 +274,24 @@ FILE(APPEND directories.wxs "</DirectoryRef>\n")
 FILE(READ directories.wxs CPACK_WIX_DIRECTORIES)
 FILE(REMOVE directories.wxs)
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server.wxs.in 
- ${CMAKE_CURRENT_BINARY_DIR}/mysql_server.wxs)
- 
- 
-SET(WXS_FILES ${CMAKE_CURRENT_BINARY_DIR}/mysql_server.wxs ${CPACK_WIX_EXTRA_SOURCE})
-SET(WIXOBJ_NATIVE_FILES)
-SET(WXS_NATIVE_FILES)
-FOREACH(f "${WXS_FILES}")
- FILE(TO_NATIVE_PATH "${f}" f)
- EXECUTE_PROCESS(COMMAND ${CANDLE_EXECUTABLE} ${f})
- STRING(REPLACE ".wxs" ".wixobj" f "${f}")
- LIST(APPEND WIXOBJ_NATIVE_FILES ${f})
+
+FOREACH(src ${CPACK_WIX_INCLUDE})
+SET(CPACK_WIX_INCLUDES 
+"${CPACK_WIX_INCLUDES}
+ <?include ${src}?>"
+)
 ENDFOREACH()
 
+
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server.wxs.in 
+ ${CMAKE_CURRENT_BINARY_DIR}/mysql_server.wxs)
+
+FILE(REMOVE mysql_server.wixobj)
 EXECUTE_PROCESS(
- COMMAND ${LIGHT_EXECUTABLE} -ext WixUIExtension  ${WIXOBJ_NATIVE_FILES} -out  ${CPACK_PACKAGE_FILE_NAME}.msi
+ COMMAND ${CANDLE_EXECUTABLE} -ext WixUtilExtension  mysql_server.wxs 
+)
+EXECUTE_PROCESS(
+ COMMAND ${LIGHT_EXECUTABLE} -ext WixUIExtension  -ext WixUtilExtension
+  mysql_server.wixobj  -out  ${CPACK_PACKAGE_FILE_NAME}.msi
 )
 
