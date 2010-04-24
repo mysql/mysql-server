@@ -99,6 +99,7 @@ BDB_DONTRUN_TESTS = \
 	test_txn_abort9 \
 	test_txn_close_open_commit \
 	test_txn_commit8 \
+	test_txn_nested5 \
 	test_db_descriptor \
 	test_db_descriptor_named_db \
 	test_db_txn_locks_heaviside \
