@@ -8878,14 +8878,20 @@ bool Field_num::eq_def(Field *field)
 }
 
 
+/**
+  Check whether two numeric fields can be considered 'equal' for table
+  alteration purposes. Fields are equal if they are of the same type
+  and retain the same pack length.
+*/
+
 uint Field_num::is_equal(Create_field *new_field)
 {
   return ((new_field->sql_type == real_type()) &&
-	  ((new_field->flags & UNSIGNED_FLAG) == (uint) (flags &
-							 UNSIGNED_FLAG)) &&
+          ((new_field->flags & UNSIGNED_FLAG) == 
+           (uint) (flags & UNSIGNED_FLAG)) &&
 	  ((new_field->flags & AUTO_INCREMENT_FLAG) ==
 	   (uint) (flags & AUTO_INCREMENT_FLAG)) &&
-	  (new_field->length <= max_display_length()));
+          (new_field->pack_length == pack_length()));
 }
 
 
