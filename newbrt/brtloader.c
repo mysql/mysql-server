@@ -21,6 +21,7 @@
 #include "brtloader-internal.h"
 #include "brt-internal.h"
 #include "sub_block.h"
+#include "sub_block_map.h"
 
 static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
@@ -1040,7 +1041,7 @@ struct leaf_buf {
     unsigned int local_fingerprint;
     int local_fingerprint_p;
     int nkeys, ndata, dsize, n_in_buf;
-    int nkeys_p, ndata_p, dsize_p, n_in_buf_p;
+    int nkeys_p, ndata_p, dsize_p, partitions_p, n_in_buf_p;
 };
 
 const int nodesize = (SIZE_FACTOR==1) ? (1<<15) : (1<<22);
@@ -1115,6 +1116,7 @@ static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *
     lbuf->nkeys_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
     lbuf->ndata_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
     lbuf->dsize_p             = lbuf->dbuf.off;    lbuf->dbuf.off+=8;
+    lbuf->partitions_p        = lbuf->dbuf.off;    lbuf->dbuf.off+=4; lbuf->dbuf.off += stored_sub_block_map_size; // RFP partition map
     lbuf->n_in_buf_p          = lbuf->dbuf.off;    lbuf->dbuf.off+=4;
 
     return lbuf;
@@ -1173,6 +1175,16 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     putbuf_int64_at(&lbuf->dbuf, lbuf->nkeys_p,             lbuf->nkeys);
     putbuf_int64_at(&lbuf->dbuf, lbuf->ndata_p,             lbuf->ndata);
     putbuf_int64_at(&lbuf->dbuf, lbuf->dsize_p,             lbuf->dsize);
+
+    // RFP abstract this
+    const int32_t n_partitions = 1;
+    struct sub_block_map partition_map;
+    sub_block_map_init(&partition_map, 0, 0, 0);
+    putbuf_int32_at(&lbuf->dbuf, lbuf->partitions_p,        n_partitions);
+    putbuf_int32_at(&lbuf->dbuf, lbuf->partitions_p+4,      partition_map.idx);
+    putbuf_int32_at(&lbuf->dbuf, lbuf->partitions_p+8,      partition_map.offset);
+    putbuf_int32_at(&lbuf->dbuf, lbuf->partitions_p+12,     partition_map.size);
+
     putbuf_int32_at(&lbuf->dbuf, lbuf->n_in_buf_p,          lbuf->n_in_buf);
 
     //print_bytestring(lbuf->dbuf.buf, lbuf->dbuf.off, 200);

@@ -227,7 +227,7 @@ static void fill_rowset (struct rowset *rows,
 	DBT key = {.size=sizeof(keys[i]),
 		   .data=&keys[i]};
 	DBT val = {.size=strlen(vals[i]),
-		   .data=&vals[i]};
+		   .data=(void *)vals[i]};
 	add_row(rows, &key, &val);
     }
 }
@@ -252,7 +252,9 @@ static void test_merge_files (char *template) {
     struct error_callback_s cb;
     cb.error_callback = err_cb;
     r = sort_and_write_rows(&aset, &fs, &bl, dest_db, compare_ints, &cb, 0);  CKERR(r);
+    bl.n_rows += 6;
     r = sort_and_write_rows(&bset, &fs, &bl, dest_db, compare_ints, &cb, 0);  CKERR(r);
+    bl.n_rows += 3;
     assert(fs.n_temp_files==2 && fs.n_temp_files_limit >= fs.n_temp_files);
     destroy_rowset(&aset);
     destroy_rowset(&bset);

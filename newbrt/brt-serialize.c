@@ -195,17 +195,17 @@ static unsigned int
 toku_serialize_brtnode_size_slow (BRTNODE node) {
     unsigned int size = node_header_overhead + extended_node_header_overhead;
     size += toku_serialize_descriptor_size(node->desc);
-    if (node->height>0) {
+    if (node->height > 0) {
 	unsigned int hsize=0;
 	unsigned int csize=0;
-	size+=4; /* n_children */
-	size+=4; /* subtree fingerprint. */
-	size+=4*(node->u.n.n_children-1); /* key lengths*/
+	size += 4; /* n_children */
+	size += 4; /* subtree fingerprint. */
+	size += 4*(node->u.n.n_children-1); /* key lengths*/
 	if (node->flags & TOKU_DB_DUPSORT) size += 4*(node->u.n.n_children-1);
 	for (int i=0; i<node->u.n.n_children-1; i++) {
-	    csize+=toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]);
+	    csize += toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]);
 	}
-	size+=(8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and 1 for the exact bit for the estimates. */
+	size += (8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and 1 for the exact bit for the estimates. */
 	int n_buffers = node->u.n.n_children;
         assert(0 <= n_buffers && n_buffers < TREE_FANOUT+1);
 	for (int i=0; i< n_buffers; i++) {
@@ -222,12 +222,11 @@ toku_serialize_brtnode_size_slow (BRTNODE node) {
 	return size+hsize+csize;
     } else {
 	unsigned int hsize=0;
-	toku_omt_iterate(node->u.l.buffer,
-			 addupsize,
-			 &hsize);
+	toku_omt_iterate(node->u.l.buffer, addupsize, &hsize);
 	assert(hsize==node->u.l.n_bytes_in_buffer);
-	hsize+=4; /* add n entries in buffer table. */
-	hsize+=3*8; /* add the three leaf stats, but no exact bit. */
+	hsize += 4;                                   // add n entries in buffer table
+	hsize += 3*8;                                 // add the three leaf stats, but no exact bit
+        size += 4 + 1*stored_sub_block_map_size;      // one partition
 	return size+hsize;
     }
 }
@@ -238,20 +237,21 @@ toku_serialize_brtnode_size (BRTNODE node) {
     unsigned int result = node_header_overhead + extended_node_header_overhead;
     assert(sizeof(toku_off_t)==8);
     result += toku_serialize_descriptor_size(node->desc);
-    if (node->height>0) {
-	result+=4; /* subtree fingerpirnt */
-	result+=4; /* n_children */
-	result+=4*(node->u.n.n_children-1); /* key lengths*/
+    if (node->height > 0) {
+	result += 4; /* subtree fingerpirnt */
+	result += 4; /* n_children */
+	result += 4*(node->u.n.n_children-1); /* key lengths*/
         if (node->flags & TOKU_DB_DUPSORT) result += 4*(node->u.n.n_children-1); /* data lengths */
 	assert(node->u.n.totalchildkeylens < (1<<30));
-	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
-	result+=(8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and one for the exact bit. */
-	result+=node->u.n.n_bytes_in_buffers;
+	result += node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
+	result += (8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and one for the exact bit. */
+	result += node->u.n.n_bytes_in_buffers;
         result += node->u.n.n_children*stored_sub_block_map_size;
     } else {
-	result+=4; /* n_entries in buffer table. */
-	result+=3*8; /* the three leaf stats. */
-	result+=node->u.l.n_bytes_in_buffer;
+	result += 4;                                  // n_entries in buffer table
+	result += 3*8;                                // the three leaf stats
+	result += node->u.l.n_bytes_in_buffer;
+        result += 4 + 1*stored_sub_block_map_size;    // one partition
     }
     if (toku_memory_check) {
         unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
@@ -383,16 +383,16 @@ serialize_leaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], str
     wbuf_nocrc_ulonglong(wbuf, node->u.l.leaf_stats.ndata);
     wbuf_nocrc_ulonglong(wbuf, node->u.l.leaf_stats.dsize);
 
-#if 0
     // RFP partition the leaf elements. for now, 1 partition
     const int npartitions = 1;
     wbuf_nocrc_int(wbuf, npartitions);
 
     struct sub_block_map part_map[npartitions];
     for (int i = 0; i < npartitions; i++) {
-        size_t offset = wbuf_get_woffset(wbuf);
-        size_t size = sizeof (u_int32_t) +  node->u.l.n_bytes_in_buffer; // # in partition + size of partition
+        size_t offset = wbuf_get_woffset(wbuf) - node_header_overhead;
         int idx = get_sub_block_index(n_sub_blocks, sub_block, offset);
+        assert(idx >= 0);
+        size_t size = sizeof (u_int32_t) +  node->u.l.n_bytes_in_buffer; // # in partition + size of partition
         sub_block_map_init(&part_map[i], idx, offset, size);
     }
 
@@ -404,10 +404,6 @@ serialize_leaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], str
     // RFP serialize the partition maps
     for (int i = 0; i < npartitions; i++) 
         sub_block_map_serialize(&part_map[i], wbuf);
-#else
-    n_sub_blocks = n_sub_blocks;
-    sub_block = sub_block;
-#endif
 
     // serialize the leaf entries
     wbuf_nocrc_uint(wbuf, toku_omt_size(node->u.l.buffer));
@@ -714,6 +710,7 @@ deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbu
             for (int j=0; j<i; j++) toku_fifo_free(&BNC_BUFFER(result,j));
             return toku_db_badformat();
         }
+	toku_fifo_size_hint(BNC_BUFFER(result,i), child_buffer_map[i].size);
     }
 
     // deserialize all child buffers, like the function says
@@ -745,6 +742,31 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     result->u.l.leaf_stats.ndata = rbuf_ulonglong(rb);
     result->u.l.leaf_stats.dsize = rbuf_ulonglong(rb);
     result->u.l.leaf_stats.exact = TRUE;
+
+    // deserialize the number of partitions
+    int npartitions = rbuf_int(rb);
+    assert(npartitions == 1);
+    
+    // deserialize partition pivots
+    for (int p = 0; p < npartitions-1; p++) { 
+	// just throw them away for now
+        if (result->flags & TOKU_DB_DUPSORT) {
+            bytevec keyptr, dataptr;
+            unsigned int keylen, datalen;
+            rbuf_bytes(rb, &keyptr, &keylen);
+            rbuf_bytes(rb, &dataptr, &datalen);
+        } else {
+            bytevec childkeyptr;
+            unsigned int cklen;
+            rbuf_bytes(rb, &childkeyptr, &cklen);
+        }
+    }
+
+    // deserialize the partition map
+    struct sub_block_map part_map[npartitions];
+    for (int p = 0; p < npartitions; p++) 
+        sub_block_map_deserialize(&part_map[p], rb);
+
     int n_in_buf = rbuf_int(rb);
     result->u.l.n_bytes_in_buffer = 0;
     result->u.l.seqinsert = 0;

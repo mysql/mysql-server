@@ -8,21 +8,41 @@
 #include "xids-internal.h"
 #include "xids.h"
 
-struct fifo_entry {
+
+// If the fifo_entry is unpacked, the compiler aligns the xids array and we waste a lot of space
+#if TOKU_WINDOWS
+#pragma pack(push, 1)
+#endif
+
+struct __attribute__((__packed__)) fifo_entry {
     unsigned int keylen;
     unsigned int vallen;
     unsigned char type;
     XIDS_S        xids_s;
 };
 
+#if TOKU_WINDOWS
+#pragma pack(pop)
+#endif
+
 typedef struct fifo *FIFO;
 
 int toku_fifo_create(FIFO *);
+
 void toku_fifo_free(FIFO *);
+
+// Use the size hint to size the storage for the fifo entries in anticipation of putting a bunch of them
+// into the fifo.
+void toku_fifo_size_hint(FIFO, size_t size_hint);
+
 int toku_fifo_n_entries(FIFO);
+
 int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_MSG cmd);
+
 int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, XIDS xids);
+
 int toku_fifo_peek (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, XIDS *xids);
+
 // int toku_fifo_peek_cmdstruct (FIFO, BRT_MSG, DBT*, DBT*); // fill in the BRT_MSG, using the two DBTs for the DBT part.
 int toku_fifo_deq(FIFO);
 
