@@ -243,10 +243,6 @@ join_read_record_no_init(JOIN_TAB *tab);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
 
-void get_temptable_params(Item_in_subselect *item, ha_rows *out_rows,
-                          ha_rows *scan_time);
-int do_jtbm_materialization_if_needed(JOIN_TAB *tab);
-
 /**
   This handles SELECT with and without UNION.
 */
@@ -2634,7 +2630,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       no_rows_const_tables |= table->map;
     }
   }
-  //psergey-todo: inject jtbm JOIN_TABS here.
 
   stat_vector[i]=0;
   join->outer_join=outer_join;
@@ -7723,7 +7718,7 @@ void JOIN_TAB::cleanup()
       table->file->extra(HA_EXTRA_NO_KEYREAD);
     }
     table->file->ha_index_or_rnd_end();
-    //psergey-jtbm2:
+
     if (table->pos_in_table_list && 
         table->pos_in_table_list->jtbm_subselect)
     {
@@ -11570,7 +11565,6 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     {
       key_part_info->null_bit=0;
       key_part_info->field=    *reg_field;
-      //psergey-jtbm:
       (*reg_field)->flags |= PART_KEY_FLAG;
       if (key_part_info == keyinfo->key_part)
         (*reg_field)->key_start.set_bit(0);

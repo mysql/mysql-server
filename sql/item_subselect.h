@@ -382,8 +382,20 @@ public:
   };
   enum_exec_method exec_method;
 
-  /* JTBM: temporary measure to tell JTBM predicates from SJ predicates */
+  /*
+    JTBM: temporary measure to tell JTBM predicates from SJ predicates
+    psergey-jtbm-todo: can't we do without this?
+     - either remove it altogether
+     - or put into enum_exec_method
+    
+    We can't remove it altogether as it is used to classify contents in
+    join->sj_subselects.
+  */
   bool convert_to_semi_join;
+  
+  /*
+    Cost to populate the temporary table (set on if-needed basis).
+  */
   double startup_cost;
 
   bool *get_cond_guard(int i)

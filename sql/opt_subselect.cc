@@ -2,7 +2,7 @@
   @file
 
   @brief
-    Subquery optimization code here.
+    Semi-join subquery optimizations code
 
 */
 
@@ -228,15 +228,17 @@ int check_and_do_in_subquery_rewrites(JOIN *join)
         if (in_subs->exec_method == Item_in_subselect::NOT_TRANSFORMED)
           in_subs->exec_method= Item_in_subselect::MATERIALIZATION;
 
-        // psergey-jtbm: "if we're top-level, register for
-        // conversion-to-join-tab".
+        /*
+          If the subquery is an AND-part of WHERE register for being processed
+          with jtbm strategy
+        */
         if (in_subs->exec_method == Item_in_subselect::MATERIALIZATION &&
             thd->thd_marker.emb_on_expr_nest == (TABLE_LIST*)0x1)
         {
           in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
-          in_subs->convert_to_semi_join= FALSE; //JTBM
+          in_subs->convert_to_semi_join= FALSE;
           select_lex->outer_select()->
-            join->sj_subselects.append(thd->mem_root, in_subs);//JTBM
+            join->sj_subselects.append(thd->mem_root, in_subs);
         }
       }
 
@@ -406,6 +408,8 @@ static bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *i
   }
   DBUG_RETURN(FALSE);
 }
+
+
 /*
   Convert semi-join subquery predicates into semi-join join nests
 
@@ -513,29 +517,6 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
-#if 0  
-  for (in_subq= join->sj_subselects.front(); 
-       in_subq != in_subq_end && 
-       join->tables + (*in_subq)->unit->first_select()->join->tables < MAX_TABLES;
-       in_subq++)
-  {
-    Item **tree= ((*in_subq)->emb_on_expr_nest == (TABLE_LIST*)1)?
-                   &join->conds : &((*in_subq)->emb_on_expr_nest->on_expr);
-    Item *replace_me= *in_subq;
-    /*
-      JTBM: the subquery was already mapped with Item_in_optimizer, so we
-      should search for that, not for original Item_in_subselect.
-      TODO: what about delaying that rewrite until here?
-    */
-    if (!(*in_subq)->convert_to_semi_join)
-    {
-      replace_me= (*in_subq)->optimizer;
-    }
-    if (replace_where_subcondition(join, tree, replace_me, new Item_int(1),
-                                   FALSE))
-      DBUG_RETURN(TRUE); /* purecov: inspected */
-  }
-#endif
  
   for (in_subq= join->sj_subselects.front(); 
        in_subq != in_subq_end && 
@@ -543,8 +524,6 @@ bool convert_join_subqueries_to_semijoins(JOIN *join)
        in_subq++)
   {
     bool remove_item= TRUE;
-    //psergey-jtbm: todo: here: check if we should convert to semi-join or 
-    // to JTBM nest.
     if ((*in_subq)->convert_to_semi_join) 
     {
       if (convert_subq_to_sj(join, *in_subq))
@@ -668,6 +647,7 @@ void get_temptable_params(Item_in_subselect *item, ha_rows *out_rows,
   *scan_time= data_size/IO_SIZE + 2;
 } 
 
+
 /**
    @brief Replaces an expression destructively inside the expression tree of
    the WHERE clase.
@@ -685,6 +665,7 @@ void get_temptable_params(Item_in_subselect *item, ha_rows *out_rows,
    @return <code>true</code> if there was an error, <code>false</code> if
    successful.
 */
+
 static bool replace_where_subcondition(JOIN *join, Item **expr, 
                                        Item *old_cond, Item *new_cond,
                                        bool do_fix_fields)
@@ -920,8 +901,7 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   /* 3. Remove the original subquery predicate from the WHERE/ON */
 
   // The subqueries were replaced for Item_int(1) earlier
-  subq_pred->exec_method=
-    Item_in_subselect::SEMI_JOIN;         // for subsequent executions
+  subq_pred->exec_method= Item_in_subselect::SEMI_JOIN; // for subsequent executions
   /*TODO: also reset the 'with_subselect' there. */
 
   /* n. Adjust the parent_join->tables counter */
@@ -1046,7 +1026,7 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   SELECT_LEX *parent_lex= parent_join->select_lex;
   List<TABLE_LIST> *emb_join_list= &parent_lex->top_join_list;
   TABLE_LIST *emb_tbl_nest= NULL; // will change when we learn to handle outer joins
-  TABLE_LIST *tl;//, *last_leaf;
+  TABLE_LIST *tl;
   DBUG_ENTER("convert_subq_to_jtbm");
 
   if (subq_pred->setup_engine(TRUE))
@@ -1071,7 +1051,6 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
 
   jtbm->join_list= emb_join_list;
   jtbm->embedding= emb_tbl_nest;
-  jtbm->alias= (char*)"(jtbm)"; 
   jtbm->jtbm_subselect= subq_pred;
   jtbm->nested_join= NULL;
 
@@ -1504,6 +1483,7 @@ bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
   DBUG_RETURN(FALSE);
 }
 
+
 /*
   Get estimated record length for semi-join materialization temptable
   
@@ -1626,6 +1606,7 @@ bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
   }
   return FALSE;
 }
+
 
 /*
   Do semi-join optimization step after we've added a new tab to join prefix
@@ -3761,6 +3742,7 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
     return;
   }
 }
+
 
 int do_jtbm_materialization_if_needed(JOIN_TAB *tab)
 {

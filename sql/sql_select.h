@@ -1552,18 +1552,11 @@ public:
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
 
   /* 
-    Subqueries that will need to be converted to semi-join nests (the list 
-    is emptied when conversion is done
+    Subqueries that will need to be converted to semi-join nests, including
+    those converted to jtbm nests. The list is emptied when conversion is done.
   */
   Array<Item_in_subselect> sj_subselects;
   
-  /*
-    Subqueries that will need to be converted to JOIN_TABs
-    (Note this is different from the above in the respect that it's part 
-    of WHERE clause or something like that?)
-  */
-  //Array<Item_in_subselect> jtbm_subselects;
-
   /* Temporary tables used to weed-out semi-join duplicates */
   List<TABLE> sj_tmp_tables;
   List<SJ_MATERIALIZATION_INFO> sjm_info_list;
@@ -1586,7 +1579,6 @@ public:
   JOIN(THD *thd_arg, List<Item> &fields_arg, ulonglong select_options_arg,
        select_result *result_arg)
     :fields_list(fields_arg), sj_subselects(thd_arg->mem_root, 4)
-     //jtbm_subselects(thd_arg->mem_root, 4)
   {
     init(thd_arg, fields_arg, select_options_arg, result_arg);
   }
