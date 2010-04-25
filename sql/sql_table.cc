@@ -6922,6 +6922,13 @@ view_err:
                        &candidate_key_count))
       goto err;
    
+    DBUG_EXECUTE_IF("alter_table_only_metadata_change", {
+      if (need_copy_table_res != ALTER_TABLE_METADATA_ONLY)
+        goto err; });
+    DBUG_EXECUTE_IF("alter_table_only_index_change", {
+      if (need_copy_table_res != ALTER_TABLE_INDEX_CHANGED)
+        goto err; });
+   
     if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
       need_copy_table= need_copy_table_res;
   }
