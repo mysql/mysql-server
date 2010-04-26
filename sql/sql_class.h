@@ -2108,6 +2108,11 @@ public:
   
   /**  is set if some thread specific value(s) used in a statement. */
   bool       thread_specific_used;
+  /**  
+    is set if a statement accesses a temporary table created through
+    CREATE TEMPORARY TABLE. 
+  */
+  bool       thread_temporary_used;
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
