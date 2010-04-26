@@ -34,6 +34,10 @@
 # the CREATE TEMPORARY is not logged and the DROP TEMPORARY is extended with
 # the IF EXISTS clause.
 #
+# 7 - It also verifies if the CONNECTION_ID along with a non-transactional
+# table is written outside the transaction boundaries and is not classified
+# as unsafe. See BUG#53075.
+#
 ################################################################################
 
 source include/master-slave.inc;
@@ -163,6 +167,29 @@ DROP TEMPORARY TABLE tmp3;
 ROLLBACK;
 source include/show_binlog_events.inc;
 
+--echo ########################################################################
+--echo #                          VERIFY ITEM 7
+--echo ########################################################################
+
+SET BINLOG_FORMAT=STATEMENT;
+let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
+
+CREATE TEMPORARY TABLE tmp1(id int) engine= MyIsam;
+CREATE TABLE t_myisam (f1 BIGINT) ENGINE = MyISAM;
+CREATE TABLE t_innodb (f1 BIGINT) ENGINE = Innodb;
+
+BEGIN;
+INSERT INTO t_myisam VALUES(CONNECTION_ID());
+INSERT INTO tmp1 VALUES(1);
+INSERT INTO t_myisam VALUES(1);
+INSERT INTO t_innodb VALUES(1);
+INSERT INTO t_myisam VALUES(CONNECTION_ID());
+INSERT INTO t_innodb VALUES(1);
+COMMIT;
+DROP TABLE t_myisam;
+DROP TABLE t_innodb;
+source include/show_binlog_events.inc;
+
 --echo ###################################################################################
 --echo #                               CHECK CONSISTENCY
 --echo ###################################################################################
@@ -172,3 +199,5 @@ sync_slave_with_master;
 --exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql
 --exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
 --diff_files $MYSQLTEST_VARDIR/tmp/test-nmt-master.sql $MYSQLTEST_VARDIR/tmp/test-nmt-slave.sql
+
+
