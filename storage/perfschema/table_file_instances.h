@@ -45,7 +45,7 @@ struct row_file_instances
 };
 
 /** Table PERFORMANCE_SCHEMA.FILE_INSTANCES. */
-class table_file_instances : public PFS_readonly_table
+class table_file_instances : public PFS_engine_table
 {
 public:
   /** Table share */

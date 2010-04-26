@@ -45,7 +45,7 @@ struct row_processlist
 };
 
 /** Table PERFORMANCE_SCHEMA.PROCESSLIST. */
-class table_processlist : public PFS_readonly_table
+class table_processlist : public PFS_engine_table
 {
 public:
   /** Table share. */

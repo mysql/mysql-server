@@ -165,7 +165,7 @@ table_events_waits_history_long::m_share=
 
 table_events_waits_common::table_events_waits_common
 (const PFS_engine_table_share *share, void *pos)
-  : PFS_readonly_table(share, pos),
+  : PFS_engine_table(share, pos),
   m_row_exists(false)
 {}
 

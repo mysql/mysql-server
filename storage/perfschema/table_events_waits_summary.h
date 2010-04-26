@@ -96,7 +96,7 @@ struct pos_events_waits_summary_by_thread_by_event_name
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME. */
 class table_events_waits_summary_by_thread_by_event_name
-  : public PFS_readonly_table
+  : public PFS_engine_table
 {
 public:
   /** Table share */

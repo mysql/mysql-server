@@ -72,7 +72,7 @@ PFS_engine_table* table_file_instances::create(void)
 }
 
 table_file_instances::table_file_instances()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
   m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 

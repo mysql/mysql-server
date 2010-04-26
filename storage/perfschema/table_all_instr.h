@@ -63,7 +63,7 @@ struct pos_all_instr_class : public PFS_double_index,
   - a view on all cond classes,
   - a view on all file classes
 */
-class table_all_instr_class : public PFS_readonly_table
+class table_all_instr_class : public PFS_engine_table
 {
 public:
   virtual int rnd_next();
@@ -122,7 +122,7 @@ struct pos_all_instr : public PFS_double_index,
   - a view on all cond instances,
   - a view on all file instances
 */
-class table_all_instr : public PFS_readonly_table
+class table_all_instr : public PFS_engine_table
 {
 public:
   virtual int rnd_next();

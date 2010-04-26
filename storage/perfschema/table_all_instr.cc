@@ -25,7 +25,7 @@
 #include "pfs_global.h"
 
 table_all_instr::table_all_instr(const PFS_engine_table_share *share)
-  : PFS_readonly_table(share, &m_pos),
+  : PFS_engine_table(share, &m_pos),
     m_pos(), m_next_pos()
 {}
 
@@ -154,7 +154,7 @@ int table_all_instr::rnd_pos(const void *pos)
 
 table_all_instr_class::table_all_instr_class
 (const PFS_engine_table_share *share)
-  : PFS_readonly_table(share, &m_pos),
+  : PFS_engine_table(share, &m_pos),
     m_pos(), m_next_pos()
 {}
 

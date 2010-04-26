@@ -333,10 +333,10 @@ ulonglong PFS_engine_table::get_field_enum(Field *f)
   return f2->val_int();
 }
 
-int PFS_readonly_table::update_row_values(TABLE *,
-                                          const unsigned char *,
-                                          unsigned char *,
-                                          Field **)
+int PFS_engine_table::update_row_values(TABLE *,
+                                        const unsigned char *,
+                                        unsigned char *,
+                                        Field **)
 {
   my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   return HA_ERR_WRONG_COMMAND;

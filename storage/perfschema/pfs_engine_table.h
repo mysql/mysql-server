@@ -81,7 +81,7 @@ protected:
     @param fields           Table fields
   */
   virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
-                                unsigned char *new_buf, Field **fields)= 0;
+                                unsigned char *new_buf, Field **fields);
 
   /**
     Constructor.
@@ -149,27 +149,6 @@ struct PFS_engine_table_share
   TABLE_FIELD_DEF *m_field_def;
   /** Schema integrity flag. */
   bool m_checked;
-};
-
-/** Adapter for read only PERFORMANCE_SCHEMA tables. */
-class PFS_readonly_table : public PFS_engine_table
-{
-protected:
-  /**
-    Constructor.
-    @param share            table share
-    @param pos              address of the m_pos position member
-  */
-  PFS_readonly_table(const PFS_engine_table_share *share, void *pos)
-    : PFS_engine_table(share, pos)
-  {}
-
-  ~PFS_readonly_table()
-  {}
-
-  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
-                                unsigned char *new_buf, Field **fields);
-
 };
 
 class PFS_readonly_acl : public ACL_internal_table_access

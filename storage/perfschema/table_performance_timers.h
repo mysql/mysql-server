@@ -43,7 +43,7 @@ struct row_performance_timers
 };
 
 /** Table PERFORMANCE_SCHEMA.PERFORMANCE_TIMERS. */
-class table_performance_timers : public PFS_readonly_table
+class table_performance_timers : public PFS_engine_table
 {
 public:
   /** Table share. */
