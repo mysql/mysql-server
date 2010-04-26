@@ -1932,6 +1932,7 @@ func_start:
 	/* 1. Decide the split record; split_rec == NULL means that the
 	tuple to be inserted should be the first record on the upper
 	half-page */
+	insert_left = FALSE;
 
 	if (n_iterations > 0) {
 		direction = FSP_UP;
@@ -1945,7 +1946,6 @@ func_start:
 	} else if (btr_page_get_split_rec_to_right(cursor, &split_rec)) {
 		direction = FSP_UP;
 		hint_page_no = page_no + 1;
-		insert_left = FALSE;
 
 	} else if (btr_page_get_split_rec_to_left(cursor, &split_rec)) {
 		direction = FSP_DOWN;
@@ -1968,12 +1968,8 @@ func_start:
 				page_get_infimum_rec(page));
 		} else {
 			split_rec = NULL;
-			insert_left = FALSE;
 		}
 	}
-
-	/* At this point, insert_left is initialized if split_rec == NULL
-	and may be uninitialized otherwise. */
 
 	/* 2. Allocate a new page to the index */
 	new_block = btr_page_alloc(cursor->index, hint_page_no, direction,
