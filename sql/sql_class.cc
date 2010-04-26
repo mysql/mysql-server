@@ -3736,6 +3736,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         trans_non_trans_access_engines= (prev_trans != act_trans);
         multi_access_engine= TRUE;
       }
+      thread_temporary_used |= table->table->s->tmp_table;
       prev_access_table= table->table;
     }
 
