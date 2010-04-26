@@ -5530,7 +5530,7 @@ void THD::reset_for_next_command()
     thd->transaction.all.modified_non_trans_table= FALSE;
   }
   DBUG_ASSERT(thd->security_ctx== &thd->main_security_ctx);
-  thd->thread_specific_used= FALSE;
+  thd->thread_specific_used= thd->thread_temporary_used= FALSE;
 
   if (opt_bin_log)
   {
