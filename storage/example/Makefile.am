@@ -1,5 +1,5 @@
-# Copyright (C) 2005-2006 MySQL AB
-#
+# Copyright (C) 2005-2006 MySQL AB, 2009 Sun Microsystems, Inc.
+# All rights reserved.
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -23,7 +23,7 @@ pkgplugindir =		$(pkglibdir)/plugin
 INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
-                        -I$(srcdir)
+			-I$(srcdir)
 WRAPLIBS=
 
 LDADD =
@@ -50,12 +50,22 @@ libexample_a_SOURCES=	ha_example.cc
 EXTRA_DIST =		CMakeLists.txt plug.in
 
 if HAVE_DTRACE_DASH_G
+# The object for static and dynamic linking of example differ
+# For static linkage of example to mysqld
+# That's actually not needed as example is only dynamic loadable, but for completion
 libexample_a_LIBADD = probes_mysql.o
-libexample_a_DEPENDENCIES = probes_mysql.o
-CLEANFILES =
-BUILT_SOURCES =
-DTRACEFILES = libexample_a-ha_example.o
+libexample_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
+# For example as shared library
+ha_example_la_LIBADD = probes_sh_mysql.o
+# Hack: We "depend" on ".libs/" but have no rule for it,
+# but it is created as a byproduct of the ".lo"
+DTRACESHAREDDEPS = ha_example_la-ha_example.lo
+DTRACESHAREDFILES = ha_example_la-ha_example.o
 DTRACEPROVIDER = probes_mysql.d
+ha_example_la_DEPENDENCIES = probes_sh_mysql.o $(DTRACESHAREDDEPS) dtrace_providers
+
+CLEANFILES = $(DTRACEPROVIDER) dtrace_files dtrace_providers $(DTRACESHAREDFILES)
+DTRACEFILES = libexample_a-ha_example.o
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
@@ -66,8 +76,12 @@ probes_mysql.d:
 	$(CP) $(top_srcdir)/include/probes_mysql.d.base probes_mysql.d
 	echo timestamp > dtrace_sources
 
+probes_sh_mysql.o: $(DTRACEPROVIDER) $(DTRACESHAREDDEPS)
+	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACESHAREDFILES) -o $@
+	$(CP) $(DTRACESHAREDFILES) .libs
 probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACEFILES) -o $@
+
 endif
 
 # Don't update the files from bitkeeper
