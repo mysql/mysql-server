@@ -4384,9 +4384,6 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     pthread_mutex_unlock(&LOCK_open);
   }
 
-  /* A MERGE table must not come here. */
-  DBUG_ASSERT(!table->child_l);
-
   /*
     REPAIR TABLE ... USE_FRM for temporary tables makes little sense.
   */
