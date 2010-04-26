@@ -168,13 +168,8 @@
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
 
-# Turn on debuginfo RPMs for SuSE >= 10
-%define debugrpm 0
-%if %{defined suse_version}
-  %if %suse_version >= 1000
-    %define debugrpm 1
-  %endif
-%endif
+# Avoid debuginfo RPMs, leaves binaries unstripped
+%define debug_package   %{nil}
 
 # ----------------------------------------------------------------------------
 # Support optional "tcmalloc" library (experimental)
@@ -342,7 +337,6 @@ client/server version.
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 ##############################################################################
-%{?debugrpm:%debug_package}
 %prep
 %setup -T -a 0 -c -n %{src_dir}
 
