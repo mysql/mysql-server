@@ -76,7 +76,7 @@ PFS_engine_table* table_performance_timers::create(void)
 }
 
 table_performance_timers::table_performance_timers()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
     m_row(NULL), m_pos(0), m_next_pos(0)
 {
   int index;

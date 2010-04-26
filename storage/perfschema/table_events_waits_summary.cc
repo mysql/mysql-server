@@ -101,7 +101,7 @@ table_events_waits_summary_by_thread_by_event_name::delete_all_rows(void)
 
 table_events_waits_summary_by_thread_by_event_name
 ::table_events_waits_summary_by_thread_by_event_name()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
     m_row_exists(false), m_pos(), m_next_pos()
 {}
 
