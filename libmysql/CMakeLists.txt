@@ -204,14 +204,20 @@ IF(NOT DISABLE_SHARED)
     SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
     # Install links to libmysqlclient.so (client_r)
-    SET(OS_SHARED_LIB_SYMLINKS "" "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
+    GET_VERSIONED_LIBNAME(
+      "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
+      "${CMAKE_SHARED_LIBRARY_SUFFIX}"
+      ""
+      linkname)
+    INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR})
+    SET(OS_SHARED_LIB_SYMLINKS "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
     LIST(REMOVE_DUPLICATES OS_SHARED_LIB_SYMLINKS)
     FOREACH(ver ${OS_SHARED_LIB_SYMLINKS})
-       GET_VERSIONED_LIBNAME(
-         "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
-         "${CMAKE_SHARED_LIBRARY_SUFFIX}"
-         "${ver}"
-         linkname)
+      GET_VERSIONED_LIBNAME(
+        "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
+        "${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        "${ver}"
+        linkname)
       INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR})
     ENDFOREACH()
   ENDIF()
