@@ -192,8 +192,16 @@ bool partition_info::set_up_default_partitions(handler *file,
     goto end;
   }
 
-  if ((no_parts == 0) &&
-      ((no_parts= file->get_default_no_partitions(info)) == 0))
+  if (no_parts == 0)
+  { 
+    int no_parts_tmp;
+    if ((no_parts_tmp= file->get_default_no_partitions(info)) < 0)
+      goto end;
+
+    no_parts= no_parts_tmp;
+  }
+
+  if (no_parts == 0)
   {
     my_error(ER_PARTITION_NOT_DEFINED_ERROR, MYF(0), "partitions");
     goto end;
@@ -262,8 +270,15 @@ bool partition_info::set_up_default_subpartitions(handler *file,
   List_iterator<partition_element> part_it(partitions);
   DBUG_ENTER("partition_info::set_up_default_subpartitions");
 
-  if (no_subparts == 0)
-    no_subparts= file->get_default_no_partitions(info);
+  if (no_subparts == 0) 
+  {
+    int no_subparts_tmp;
+    if ((no_subparts_tmp= file->get_default_no_partitions(info)) < 0)
+      goto end;
+
+    no_subparts= no_subparts_tmp;
+  }
+
   if (unlikely((no_parts * no_subparts) > MAX_PARTITIONS))
   {
     my_error(ER_TOO_MANY_PARTITIONS_ERROR, MYF(0));
