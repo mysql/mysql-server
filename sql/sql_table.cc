@@ -3798,7 +3798,10 @@ bool mysql_create_table_no_lock(THD *thd,
                  file->get_default_no_partitions(create_info))
       {
         DBUG_ASSERT(thd->lex->sql_command != SQLCOM_CREATE_TABLE);
-        part_info->no_subparts= file->get_default_no_partitions(create_info);
+        int no_parts_tmp;
+        if (unlikely((no_parts_tmp= file->get_default_no_partitions(create_info)) < 0))
+          goto err;
+        part_info->no_subparts= no_parts_tmp;
       }
     }
     else if (create_info->db_type != engine_type)
