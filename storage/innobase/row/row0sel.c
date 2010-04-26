@@ -3956,6 +3956,7 @@ no_gap_lock:
 		case DB_LOCK_WAIT:
 			if (UNIV_LIKELY(prebuilt->row_read_type
 					!= ROW_READ_TRY_SEMI_CONSISTENT)
+			    || unique_search
 			    || index != clust_index) {
 
 				goto lock_wait_or_error;
