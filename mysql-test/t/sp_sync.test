@@ -5,54 +5,156 @@
 
 --source include/have_debug_sync.inc
 
+# Save the initial number of concurrent sessions.
+--source include/count_sessions.inc
+
+# Clean up resources used in this test case.
+--disable_warnings
+SET DEBUG_SYNC= 'RESET';
+--enable_warnings
+
 --echo #
---echo # Bug#48157: crash in Item_field::used_tables
+--echo # Bug #30977 Concurrent statement using stored function and
+--echo #            DROP FUNCTION breaks SBR
+--echo #
+--echo # A stored routine could change after dispatch_command()
+--echo # but before a MDL lock is taken. This must be noticed and the
+--echo # sp cache flushed so the correct version can be loaded.
 --echo #
 
-CREATE TABLE t1 AS SELECT 1 AS a, 1 AS b;
-CREATE TABLE t2 AS SELECT 1 AS a, 1 AS b;
+connect (con2, localhost, root);
 
-DELIMITER |;
+--echo # Connection default
+connection default;
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+--echo # Get f1 cached
+SELECT f1();
+--echo # Then start executing it again...
+SET DEBUG_SYNC= 'before_execute_sql_command SIGNAL before WAIT_FOR changed';
+--echo # Sending:
+--send SELECT f1()
 
-CREATE PROCEDURE p1()
-BEGIN
-   UPDATE t1 JOIN t2 USING( a, b ) SET t1.b = 1, t2.b = 1;
-END|
-
-DELIMITER ;|
-
-connect (con1,localhost,root,,);
-connect (con2,localhost,root,,);
-
-connection con1;
-LOCK TABLES t1 WRITE, t2 WRITE;
-
+--echo # Connection 2
 connection con2;
-LET $ID= `select connection_id()`;
-SET DEBUG_SYNC = 'multi_update_reopen_tables SIGNAL parked WAIT_FOR go';
---send CALL p1()
+SET DEBUG_SYNC= 'now WAIT_FOR before';
+--echo # ... but before f1 is locked, change it.
+DROP FUNCTION f1;
+CREATE FUNCTION f1() RETURNS INT RETURN 2;
+SET DEBUG_SYNC= 'now SIGNAL changed';
 
-connection con1;
-let $wait_condition= SELECT 1 FROM information_schema.processlist WHERE ID = $ID AND
-state = "Waiting for table";
---source include/wait_condition.inc
-DROP TABLE t1, t2;
-SET DEBUG_SYNC = 'now WAIT_FOR parked';
-CREATE TABLE t1 AS SELECT 1 AS a, 1 AS b;
-CREATE TABLE t2 AS SELECT 1 AS a, 1 AS b;
-SET DEBUG_SYNC = 'now SIGNAL go';
-
-connection con2;
+--echo # Connection default
+--echo # We should now get '2' and not '1'.
+connection default;
+--echo # Reaping: SELECT f1()
 --reap
 
-disconnect con1;
 disconnect con2;
+DROP FUNCTION f1;
+SET DEBUG_SYNC= 'RESET';
+
+--echo #
+--echo # Field translation items must be cleared in case of back-offs
+--echo # for queries that use Information Schema tables. Otherwise 
+--echo # memory allocated in fix_fields() for views may end up referring
+--echo # to freed memory.
+--echo #
+
+--disable_warnings
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+connect (con2, localhost, root);
+connect (con3, localhost, root);
+
+--echo # Connection default
 connection default;
+CREATE FUNCTION f1() RETURNS INT RETURN 0;
 
---echo # Without the DEBUG_SYNC supplied in the same patch as this test in the 
---echo # code, this test statement will hang.
-DROP TABLE t1, t2;
+--echo # Connection con2
+connection con2;
+SET DEBUG_SYNC= 'after_wait_locked_pname SIGNAL locked WAIT_FOR issued';
+--echo # con2 will now have an x-lock on f1
+--echo # Sending:
+--send ALTER FUNCTION f1 COMMENT 'comment'
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+--disable_result_log
+--echo # This query will block due to the x-lock on f1 and back-off
+--send SHOW OPEN TABLES WHERE f1()=0
+
+--echo # Connection con3
+connection con3;
+let $wait_condition= SELECT COUNT(*)= 1 FROM information_schema.processlist
+  WHERE state= 'Waiting for table' 
+  AND info='SHOW OPEN TABLES WHERE f1()=0';
+--source include/wait_condition.inc
+--echo # Check that the IS query is blocked before releasing the x-lock
+SET DEBUG_SYNC= 'now SIGNAL issued';
+
+--echo # Connection default
+connection default;
+--echo # Reaping: ALTER FUNCTION f1 COMMENT 'comment'
+--reap
+--enable_result_log
+DROP FUNCTION f1;
+SET DEBUG_SYNC= 'RESET';
+disconnect con2;
+disconnect con3;
+
+
+--echo #
+--echo # Bug #48246 assert in close_thread_table
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+CREATE FUNCTION f1(b INTEGER) RETURNS INTEGER RETURN 1;
+CREATE PROCEDURE p1() SELECT COUNT(f1(a)) FROM t1;
+
+INSERT INTO t1 VALUES(1), (2);
+
+--echo # Connection 2
+connect (con2, localhost, root);
+CALL p1();
+
+--echo # Connection default
+connection default;
+SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR called';
+--echo # Sending:
+--send CREATE TABLE t1 (a INTEGER)
+
+--echo # Connection 2
+connection con2;
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+SET DEBUG_SYNC= 'before_open_table_wait_refresh SIGNAL called WAIT_FOR created';
+--echo # This call used to cause an assertion. MDL locking conflict will
+--echo # cause back-off and retry. A variable indicating if a prelocking list
+--echo # exists, used to be not reset properly causing an eventual assert.
+--echo # Sending:
+--send CALL p1()
+
+--echo # Connection default
+connection default;
+--echo # Reaping: CREATE TABLE t1 (a INTEGER)
+--error ER_TABLE_EXISTS_ERROR
+--reap
+SET DEBUG_SYNC= 'now SIGNAL created';
+
+--echo # Connection 2
+connection con2;
+--echo # Reaping: CALL p1()
+--reap;
+
+--echo # Connection default
+connection default;
+disconnect con2;
 DROP PROCEDURE p1;
+DROP FUNCTION f1;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
 
-SET DEBUG_SYNC = 'RESET';
 
+# Check that all connections opened by test cases in this file are really
+# gone so execution of other tests won't be affected by their presence.
+--source include/wait_until_count_sessions.inc
