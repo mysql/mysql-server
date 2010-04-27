@@ -24,7 +24,7 @@ static BOOL is_a_logfile(char *name) {
     r = strncmp(&name[0], "log", 3);             
     if (r!=0) goto not_logfile; 
     // check number
-    r = snprintf(&num_str[0], len-11, &name[3]);
+    r = snprintf(&num_str[0], len-11, "%s", &name[3]);
     r = sscanf(num_str, "%lld", &num);              
     if (r!=1) goto not_logfile;
     // check '.tokulog'
