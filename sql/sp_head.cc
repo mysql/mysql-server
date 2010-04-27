@@ -978,11 +978,20 @@ subst_spvars(THD *thd, sp_instr *instr, LEX_STRING *query_str)
     res|= qbuf.append(cur + prev_pos, (*splocal)->pos_in_query - prev_pos);
     prev_pos= (*splocal)->pos_in_query + (*splocal)->len_in_query;
     
+    res|= (*splocal)->fix_fields(thd, (Item **) splocal);
+    if (res) 
+      break;
+
+    if ((*splocal)->limit_clause_param)
+    {
+      res|= qbuf.append_ulonglong((*splocal)->val_uint());
+      continue;
+    }
+
     /* append the spvar substitute */
     res|= qbuf.append(STRING_WITH_LEN(" NAME_CONST('"));
     res|= qbuf.append((*splocal)->m_name.str, (*splocal)->m_name.length);
     res|= qbuf.append(STRING_WITH_LEN("',"));
-    res|= (*splocal)->fix_fields(thd, (Item **) splocal);
 
     if (res)
       break;

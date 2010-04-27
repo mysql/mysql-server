@@ -4157,7 +4157,7 @@ is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args)
         optimization is applicable 
       */
       if (out_args)
-        out_args->push_back((Item_field *) expr);
+        out_args->push_back((Item_field *) expr->real_item());
       result= true;
     }
   }
