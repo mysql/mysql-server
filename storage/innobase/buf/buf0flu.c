@@ -1748,6 +1748,7 @@ buf_flush_list(
 {
 	ulint		i;
 	ulint		total_page_count = 0;
+	ibool		skipped = FALSE;
 
 	if (min_n != ULINT_MAX) {
 		/* Ensure that flushing is spread evenly amongst the
@@ -1758,10 +1759,6 @@ buf_flush_list(
 			 / srv_buf_pool_instances;
 	}
 
-	/* We use buffer pool instance 0 to control start and end of
-	flushing of the flush list since we always flush all instances
-	at once in this case. */
-
 	/* Flush to lsn_limit in all buffer pool instances */
 	for (i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
@@ -1770,6 +1767,18 @@ buf_flush_list(
 		buf_pool = buf_pool_from_array(i);
 
 		if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
+			/* We have two choices here. If lsn_limit was
+			specified then skipping an instance of buffer
+			pool means we cannot guarantee that all pages
+			up to lsn_limit has been flushed. We can
+			return right now with failure or we can try
+			to flush remaining buffer pools up to the
+			lsn_limit. We attempt to flush other buffer
+			pools based on the assumption that it will
+			help in the retry which will follow the
+			failure. */
+			skipped = TRUE;
+
 			continue;
 		}
 
@@ -1783,7 +1792,8 @@ buf_flush_list(
 		total_page_count += page_count;
 	}
 
-	return(total_page_count);
+	return(lsn_limit != IB_ULONGLONG_MAX && skipped
+	       ? ULINT_UNDEFINED : total_page_count);
 }
  
 /******************************************************************//**
