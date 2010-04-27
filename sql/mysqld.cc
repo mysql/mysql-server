@@ -958,7 +958,9 @@ static void openssl_lock(int, openssl_lock_t *, const char *, int);
 static unsigned long openssl_id_function();
 #endif
 char *des_key_file;
+#ifndef EMBEDDED_LIBRARY
 struct st_VioSSLFd *ssl_acceptor_fd;
+#endif
 #endif /* HAVE_OPENSSL */
 
 /**
@@ -1004,8 +1006,8 @@ static void clean_up_mutexes(void);
 static void wait_for_signal_thread_to_end(void);
 static void create_pid_file();
 static void mysqld_exit(int exit_code) __attribute__((noreturn));
-static void end_ssl();
 #endif
+static void end_ssl();
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -1525,9 +1527,7 @@ void clean_up(bool print_message)
 #endif
   delete binlog_filter;
   delete rpl_filter;
-#ifndef EMBEDDED_LIBRARY
   end_ssl();
-#endif
   vio_end();
 #ifdef USE_REGEX
   my_regex_end();
@@ -3917,11 +3917,10 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 #endif /* HAVE_OPENSSL */
 
 
-#ifndef EMBEDDED_LIBRARY
-
 static void init_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
@@ -3943,6 +3942,9 @@ static void init_ssl()
   {
     have_ssl= SHOW_OPTION_DISABLED;
   }
+#else
+  have_ssl= SHOW_OPTION_DISABLED;
+#endif /* ! EMBEDDED_LIBRARY */
   if (des_key_file)
     load_des_key_file(des_key_file);
 #endif /* HAVE_OPENSSL */
@@ -3952,15 +3954,15 @@ static void init_ssl()
 static void end_ssl()
 {
 #ifdef HAVE_OPENSSL
+#ifndef EMBEDDED_LIBRARY
   if (ssl_acceptor_fd)
   {
     free_vio_ssl_acceptor_fd(ssl_acceptor_fd);
     ssl_acceptor_fd= 0;
   }
+#endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 }
-
-#endif /* EMBEDDED_LIBRARY */
 
 
 static int init_server_components()
@@ -6432,7 +6434,7 @@ static int show_table_definitions(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 /* Functions relying on CTX */
 static int show_ssl_ctx_sess_accept(THD *thd, SHOW_VAR *var, char *buff)
 {
@@ -6688,7 +6690,7 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff)
   return 0;
 }
 
-#endif /* HAVE_OPENSSL */
+#endif /* HAVE_OPENSSL && !EMBEDDED_LIBRARY */
 
 
 /*
@@ -6779,6 +6781,7 @@ SHOW_VAR status_vars[]= {
   {"Sort_rows",		       (char*) offsetof(STATUS_VAR, filesort_rows), SHOW_LONG_STATUS},
   {"Sort_scan",		       (char*) offsetof(STATUS_VAR, filesort_scan_count), SHOW_LONG_STATUS},
 #ifdef HAVE_OPENSSL
+#ifndef EMBEDDED_LIBRARY
   {"Ssl_accept_renegotiates",  (char*) &show_ssl_ctx_sess_accept_renegotiate, SHOW_FUNC},
   {"Ssl_accepts",              (char*) &show_ssl_ctx_sess_accept, SHOW_FUNC},
   {"Ssl_callback_cache_hits",  (char*) &show_ssl_ctx_sess_cb_hits, SHOW_FUNC},
@@ -6802,6 +6805,7 @@ SHOW_VAR status_vars[]= {
   {"Ssl_verify_depth",         (char*) &show_ssl_get_verify_depth, SHOW_FUNC},
   {"Ssl_verify_mode",          (char*) &show_ssl_get_verify_mode, SHOW_FUNC},
   {"Ssl_version",              (char*) &show_ssl_get_version, SHOW_FUNC},
+#endif
 #endif /* HAVE_OPENSSL */
   {"Table_locks_immediate",    (char*) &locks_immediate,        SHOW_LONG},
   {"Table_locks_waited",       (char*) &locks_waited,           SHOW_LONG},
@@ -7102,8 +7106,10 @@ static int mysql_init_variables(void)
 #endif
 #ifdef HAVE_OPENSSL
   des_key_file = 0;
+#ifndef EMBEDDED_LIBRARY
   ssl_acceptor_fd= 0;
-#endif
+#endif /* ! EMBEDDED_LIBRARY */
+#endif /* HAVE_OPENSSL */
 #ifdef HAVE_SMEM
   shared_memory_base_name= default_shared_memory_base_name;
 #endif
