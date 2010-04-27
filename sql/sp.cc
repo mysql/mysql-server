@@ -374,7 +374,7 @@ void Proc_table_intact::report_error(uint code, const char *fmt, ...)
   if (code)
     my_message(code, buf, MYF(0));
   else
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "proc");
+    my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "proc");
 
   if (m_print_once)
   {

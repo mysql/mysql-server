@@ -71,24 +71,23 @@ EXTRA_DIST =		CMakeLists.txt plug.in
 if HAVE_DTRACE_DASH_G
 # The object for static and dynamic linking of archive differ 
 # For static linkage of archive to mysqld 
+
 libarchive_a_LIBADD = probes_mysql.o
 libarchive_a_DEPENDENCIES = probes_mysql.o dtrace_files dtrace_providers
 # For archive as shared library 
 ha_archive_la_LIBADD = probes_sh_mysql.o
-ha_archive_la_DEPENDENCIES = probes_sh_mysql.o dtrace_shared_files dtrace_providers
-
-CLEANFILES = $(DTRACEPROVIDER) dtrace_files dtrace_providers dtrace_shared_files dtrace_sources
-DTRACEFILES = libarchive_a-ha_archive.o
-DTRACESHAREDFILES = .libs/ha_archive_la-ha_archive.o
 # Hack: We "depend" on ".libs/" but have no rule for it,
 # but it is created as a byproduct of the ".lo"
-DTRACESHAREDDEPEND = ha_archive_la-ha_archive.lo
+DTRACESHAREDDEPS = ha_archive_la-ha_archive.lo
+DTRACESHAREDFILES = ha_archive_la-ha_archive.o
 DTRACEPROVIDER = probes_mysql.d
+ha_archive_la_DEPENDENCIES = probes_sh_mysql.o $(DTRACESHAREDDEPS) dtrace_providers
+
+CLEANFILES = $(DTRACEPROVIDER) dtrace_files dtrace_providers $(DTRACESHAREDFILES)
+DTRACEFILES = libarchive_a-ha_archive.o
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@
-dtrace_shared_files:
-	echo $(DTRACESHAREDFILES) > $@
 dtrace_providers: probes_mysql.d
 	echo $(DTRACEPROVIDER) > $@
 probes_mysql.d:
@@ -96,11 +95,12 @@ probes_mysql.d:
 	$(CP) $(top_srcdir)/include/probes_mysql.d.base probes_mysql.d
 	echo timestamp > dtrace_sources
 
-probes_sh_mysql.o: $(DTRACEPROVIDER) $(DTRACESHAREDDEPEND)
+probes_sh_mysql.o: $(DTRACEPROVIDER) $(DTRACESHAREDDEPS)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACESHAREDFILES) -o $@
-
+	$(CP) $(DTRACESHAREDFILES) .libs
 probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACEFILES) -o $@
+
 endif
 
 # Don't update the files from bitkeeper

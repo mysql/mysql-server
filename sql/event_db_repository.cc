@@ -220,7 +220,8 @@ mysql_event_fill_row(THD *thd,
       Safety: this can only happen if someone started the server
       and then altered mysql.event.
     */
-    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED, MYF(0), table->alias,
+    my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
+             table->s->db.str, table->s->table_name.str,
              (int) ET_FIELD_COUNT, table->s->fields);
     DBUG_RETURN(TRUE);
   }
@@ -415,7 +416,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
       key_info->key_part[0].field != event_table->field[ET_FIELD_DB])
   {
     /* Corrupted table: no index or index on a wrong column */
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
+    my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "event");
     ret= 1;
     goto end;
   }
@@ -1024,7 +1025,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
     if ((ret= find_named_event(dbname, name, table)))
       my_error(ER_EVENT_DOES_NOT_EXIST, MYF(0), name.str);
     else if ((ret= etn->load_from_row(thd, table)))
-      my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), "event");
+      my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "event");
 
     close_thread_tables(thd);
   }
