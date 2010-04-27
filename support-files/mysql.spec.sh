@@ -171,6 +171,10 @@
 # Avoid debuginfo RPMs, leaves binaries unstripped
 %define debug_package   %{nil}
 
+# Hack to work around bug in RHEL5 __os_install_post macro, wrong inverted
+# test for __debug_package
+%define __strip         /bin/true
+
 # ----------------------------------------------------------------------------
 # Support optional "tcmalloc" library (experimental)
 # ----------------------------------------------------------------------------
