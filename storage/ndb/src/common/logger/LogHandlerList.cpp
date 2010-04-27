@@ -37,10 +37,12 @@ LogHandlerList::~LogHandlerList()
   removeAll();
 }
 
-void 
+bool
 LogHandlerList::add(LogHandler* pNewHandler)
 {
   LogHandlerNode* pNode = new LogHandlerNode();
+  if (!pNode)
+    return false;
 
   if (m_pHeadNode == NULL) 
   {
@@ -57,6 +59,8 @@ LogHandlerList::add(LogHandler* pNewHandler)
   pNode->pHandler = pNewHandler;
 
   m_size++;
+
+  return true;
 }
 
 bool
