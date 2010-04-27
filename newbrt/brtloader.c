@@ -1371,7 +1371,7 @@ static int setup_nonleaf_block (int n_children,
     if ((r=bl_write_dbt(&pivots[n_children-1], next_pivots_file, NULL, bl))) return r;
     // The last pivot was written to the next_pivots file, so we free it now instead of returning it.
     toku_free(pivots[n_children-1].data);
-    memset(&pivots[n_children-1], sizeof(DBT), 0);
+    memset(&pivots[n_children-1], 0, sizeof(DBT));
 
     struct subtree_estimates new_subtree_estimates = {.nkeys=0, .ndata=0, .dsize=0, .exact=TRUE};
 
