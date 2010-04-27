@@ -10941,17 +10941,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-T->N << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE tt_xx_3 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM nt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL,
-  PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_3)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE tt_xx_3 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM nt_1
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-T->N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_3, nt_xx_3;
@@ -10960,17 +10950,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_3, nt_xx_3
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-T->N CS-T->N drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `tt_xx_3` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL,
-  PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=InnoDB
-master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_3)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE tt_xx_3 (PRIMARY KEY(trans_id, stmt_id)) engine=Innodb SELECT * FROM nt_1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_3, nt_xx_3
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-T->N CS-T->N drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -10982,16 +10962,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->T << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE nt_xx_4 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_4` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL,
-  PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_4)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_4 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-N->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_4, nt_xx_4;
@@ -11000,16 +10971,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_4, nt_xx_4
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T CS-N->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_4` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL,
-  PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_4)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_4 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_4, nt_xx_4
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -11021,16 +10983,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->T << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE nt_xx_5 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_5` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL,
-  PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_5)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_5 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-N->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_5, nt_xx_5;
@@ -11039,16 +10992,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_5, nt_xx_5
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T CS-N->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_5` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL,
-  PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_5)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_5 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_5, nt_xx_5
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -11060,16 +11004,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CS-N->T << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TABLE nt_xx_6 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_6` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL,
-  PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_6 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1
 -e-e-e-e-e-e-e-e-e-e-e- >> CS-N->T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 DROP TABLE IF EXISTS tt_xx_6, nt_xx_6;
@@ -11078,16 +11013,7 @@ master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_6, nt_xx_6
 -e-e-e-e-e-e-e-e-e-e-e- >> drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> CSe-N->T CS-N->T drop-CS << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE `nt_xx_6` (
-  `trans_id` int(11) NOT NULL DEFAULT '0',
-  `stmt_id` int(11) NOT NULL DEFAULT '0',
-  `info` varchar(64) DEFAULT NULL,
-  PRIMARY KEY (`trans_id`,`stmt_id`)
-) ENGINE=MyISAM
-master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_6)
-master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE nt_xx_6 (PRIMARY KEY(trans_id, stmt_id)) engine=MyIsam SELECT * FROM tt_1
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE IF EXISTS tt_xx_6, nt_xx_6
 -e-e-e-e-e-e-e-e-e-e-e- >> CSe-N->T CS-N->T drop-CS << -e-e-e-e-e-e-e-e-e-e-e-
 
@@ -11868,19 +11794,21 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T CT R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (351, 2)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_11 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11912,9 +11840,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R1 << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK TO s1;
@@ -11925,12 +11850,23 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
+master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T S1 T CT R1 R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 2)
+master-bin.000001	#	Query	#	#	use `test`; SAVEPOINT s1
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (353, 5)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_12 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK TO s1
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T S1 T CT R1 R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11954,9 +11890,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5);
@@ -11965,12 +11898,19 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B T CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 2)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_13 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (355, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B T CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -11998,9 +11938,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TEMPORARY TABLE tt_xx_14 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_14 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (357, 5);
@@ -12011,6 +11948,10 @@ ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_14 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (357, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B tN CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -12020,7 +11961,8 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_14 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (357, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B tN CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12040,9 +11982,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TEMPORARY TABLE tt_xx_15 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_15 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (359, 3);
@@ -12051,12 +11990,17 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
 ROLLBACK;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_15 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (359, 3)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_15 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (359, 3)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-
@@ -12083,9 +12027,6 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> CT << -b-b-b-b-b-b-b-b-b-b-b-
 CREATE TEMPORARY TABLE tt_xx_16 (a int) engine=Innodb;;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	BEGIN
-master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_16 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> CT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id) VALUES (361, 5);
@@ -12096,6 +12037,10 @@ ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_16 (a int) engine=Innodb
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (361, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> R << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> B N CT T R << -b-b-b-b-b-b-b-b-b-b-b-
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
@@ -12104,7 +12049,8 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id) VA
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; CREATE TEMPORARY TABLE tt_xx_16 (a int) engine=Innodb
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (361, 5)
+master-bin.000001	#	Query	#	#	ROLLBACK
 -e-e-e-e-e-e-e-e-e-e-e- >> B N CT T R << -e-e-e-e-e-e-e-e-e-e-e-
 
 -b-b-b-b-b-b-b-b-b-b-b- >> drop-CT << -b-b-b-b-b-b-b-b-b-b-b-

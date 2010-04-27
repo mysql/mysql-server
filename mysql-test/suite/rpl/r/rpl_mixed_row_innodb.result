@@ -55,6 +55,7 @@ DROP TEMPORARY TABLE mysqltest1.tmp;
 ROLLBACK;
 SHOW CREATE TABLE mysqltest1.tmp;
 ERROR 42S02: Table 'mysqltest1.tmp' doesn't exist
+######### Must return no rows here #########
 SELECT COUNT(*) FROM mysqltest1.t1;
 COUNT(*)
 0
@@ -66,6 +67,7 @@ Table	Create Table
 tmp2	CREATE TEMPORARY TABLE `tmp2` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
+######### Must return no rows here #########
 SELECT COUNT(*) FROM mysqltest1.t1;
 COUNT(*)
 0
@@ -74,9 +76,10 @@ SHOW CREATE TABLE mysqltest1.tmp;
 ERROR 42S02: Table 'mysqltest1.tmp' doesn't exist
 SHOW CREATE TABLE mysqltest1.tmp2;
 ERROR 42S02: Table 'mysqltest1.tmp2' doesn't exist
+######### t1 has two rows here: the transaction not rolled back since t1 uses MyISAM  #########
 SELECT COUNT(*) FROM mysqltest1.t1;
 COUNT(*)
-0
+2
 FLUSH LOGS;
 -------- switch to master --------
 FLUSH LOGS;

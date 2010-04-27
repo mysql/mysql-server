@@ -29,6 +29,8 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
+/* May include caustic 3rd-party defs. Use early, so it can override nothing. */
+#include "sha2.h"
 #include "my_global.h"                          // HAVE_*
 
 
@@ -94,9 +96,9 @@ String *Item_str_ascii_func::val_str(String *str)
 
   Used to generate a hexadecimal representation of a message digest.
 */
-static void array_to_hex(char *to, const char *str, uint len)
+static void array_to_hex(char *to, const unsigned char *str, uint len)
 {
-  const char *str_end= str + len;
+  const unsigned char *str_end= str + len;
   for (; str != str_end; ++str)
   {
     *to++= _dig_vec_lower[((uchar) *str) >> 4];
@@ -175,7 +177,7 @@ String *Item_func_md5::val_str_ascii(String *str)
       null_value=1;
       return 0;
     }
-    array_to_hex((char *) str->ptr(), (const char*) digest, 16);
+    array_to_hex((char *) str->ptr(), digest, 16);
     str->length((uint) 32);
     return str;
   }
@@ -216,7 +218,7 @@ String *Item_func_sha::val_str_ascii(String *str)
     if (!( str->alloc(SHA1_HASH_SIZE*2) ||
            (mysql_sha1_result(&context,digest))))
     {
-      array_to_hex((char *) str->ptr(), (const char*) digest, SHA1_HASH_SIZE);
+      array_to_hex((char *) str->ptr(), digest, SHA1_HASH_SIZE);
       str->length((uint)  SHA1_HASH_SIZE*2);
       null_value=0;
       return str;
@@ -240,6 +242,144 @@ void Item_func_sha::fix_length_and_dec()
   fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
 }
 
+String *Item_func_sha2::val_str(String *str)
+{
+  DBUG_ASSERT(fixed == 1);
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  unsigned char digest_buf[SHA512_DIGEST_LENGTH];
+  String *input_string;
+  unsigned char *input_ptr;
+  size_t input_len;
+  uint digest_length= 0;
+
+  str->set_charset(&my_charset_bin);
+
+  input_string= args[0]->val_str(str);
+  if (input_string == NULL)
+  {
+    null_value= TRUE;
+    return (String *) NULL;
+  }
+
+  null_value= args[0]->null_value;
+  if (null_value)
+    return (String *) NULL;
+
+  input_ptr= (unsigned char *) input_string->ptr();
+  input_len= input_string->length();
+
+  switch ((uint) args[1]->val_int()) {
+#ifndef OPENSSL_NO_SHA512
+  case 512:
+    digest_length= SHA512_DIGEST_LENGTH;
+    (void) SHA512(input_ptr, input_len, digest_buf);
+    break;
+  case 384:
+    digest_length= SHA384_DIGEST_LENGTH;
+    (void) SHA384(input_ptr, input_len, digest_buf);
+    break;
+#endif
+#ifndef OPENSSL_NO_SHA256
+  case 224:
+    digest_length= SHA224_DIGEST_LENGTH;
+    (void) SHA224(input_ptr, input_len, digest_buf);
+    break;
+  case 256:
+  case 0: // SHA-256 is the default
+    digest_length= SHA256_DIGEST_LENGTH;
+    (void) SHA256(input_ptr, input_len, digest_buf);
+    break;
+#endif
+  default:
+    if (!args[1]->const_item())
+      push_warning_printf(current_thd,
+        MYSQL_ERROR::WARN_LEVEL_WARN,
+        ER_WRONG_PARAMETERS_TO_NATIVE_FCT,
+        ER(ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
+    null_value= TRUE;
+    return NULL;
+  }
+
+  /* 
+    Since we're subverting the usual String methods, we must make sure that
+    the destination has space for the bytes we're about to write.
+  */
+  str->realloc((uint) digest_length*2 + 1); /* Each byte as two nybbles */
+
+  /* Convert the large number to a string-hex representation. */
+  array_to_hex((char *) str->ptr(), digest_buf, digest_length);
+
+  /* We poked raw bytes in.  We must inform the the String of its length. */
+  str->length((uint) digest_length*2); /* Each byte as two nybbles */
+
+  null_value= FALSE;
+  return str;
+
+#else
+  push_warning_printf(current_thd,
+    MYSQL_ERROR::WARN_LEVEL_WARN,
+    ER_FEATURE_DISABLED,
+    ER(ER_FEATURE_DISABLED),
+    "sha2", "--with-ssl");
+  null_value= TRUE;
+  return (String *) NULL;
+#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+}
+
+
+void Item_func_sha2::fix_length_and_dec()
+{
+  maybe_null = 1;
+  max_length = 0;
+
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  int sha_variant= args[1]->const_item() ? args[1]->val_int() : 512;
+
+  switch (sha_variant) {
+#ifndef OPENSSL_NO_SHA512
+  case 512:
+    max_length= SHA512_DIGEST_LENGTH*2;
+    break;
+  case 384:
+    max_length= SHA384_DIGEST_LENGTH*2;
+    break;
+#endif
+#ifndef OPENSSL_NO_SHA256
+  case 256:
+  case 0: // SHA-256 is the default
+    max_length= SHA256_DIGEST_LENGTH*2;
+    break;
+  case 224:
+    max_length= SHA224_DIGEST_LENGTH*2;
+    break;
+#endif
+  default:
+    push_warning_printf(current_thd,
+      MYSQL_ERROR::WARN_LEVEL_WARN,
+      ER_WRONG_PARAMETERS_TO_NATIVE_FCT,
+      ER(ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
+  }
+
+  /*
+    The SHA2() function treats its parameter as being a case sensitive.
+    Thus we set binary collation on it so different instances of SHA2()
+    will be compared properly.
+  */
+
+  args[0]->collation.set(
+      get_charset_by_csname(
+        args[0]->collation.collation->csname,
+        MY_CS_BINSORT,
+        MYF(0)),
+      DERIVATION_COERCIBLE);
+#else
+  push_warning_printf(current_thd,
+    MYSQL_ERROR::WARN_LEVEL_WARN,
+    ER_FEATURE_DISABLED,
+    ER(ER_FEATURE_DISABLED),
+    "sha2", "--with-ssl");
+#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
+}
 
 /* Implementation of AES encryption routines */
 
@@ -497,7 +637,7 @@ void Item_func_concat::fix_length_and_dec()
 String *Item_func_des_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
@@ -510,7 +650,6 @@ String *Item_func_des_encrypt::val_str(String *str)
     return 0;                                   // ENCRYPT(NULL) == NULL
   if ((res_length=res->length()) == 0)
     return &my_empty_string;
-
   if (arg_count == 1)
   {
     /* Protect against someone doing FLUSH DES_KEY_FILE */
@@ -583,8 +722,8 @@ error:
 #else
   push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
-                      "des_encrypt","--with-openssl");
-#endif	/* HAVE_OPENSSL */
+                      "des_encrypt", "--with-ssl");
+#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
   null_value=1;
   return 0;
 }
@@ -593,7 +732,7 @@ error:
 String *Item_func_des_decrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
   uint code= ER_WRONG_PARAMETERS_TO_PROCEDURE;
   DES_cblock ivec;
   struct st_des_keyblock keyblock;
@@ -661,8 +800,8 @@ wrong_key:
 #else
   push_warning_printf(current_thd,MYSQL_ERROR::WARN_LEVEL_WARN,
                       ER_FEATURE_DISABLED, ER(ER_FEATURE_DISABLED),
-                      "des_decrypt","--with-openssl");
-#endif	/* HAVE_OPENSSL */
+                      "des_decrypt", "--with-ssl");
+#endif /* defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY) */
   null_value=1;
   return 0;
 }

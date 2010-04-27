@@ -26,6 +26,9 @@ class Format_description_log_event;
 bool trans_has_updated_trans_table(const THD* thd);
 bool stmt_has_updated_trans_table(const THD *thd);
 bool use_trans_cache(const THD* thd, bool is_transactional);
+bool ending_trans(THD* thd, const bool all);
+bool trans_has_updated_non_trans_table(const THD* thd);
+bool stmt_has_updated_non_trans_table(const THD* thd);
 
 /*
   Transaction Coordinator log - a base abstract class
