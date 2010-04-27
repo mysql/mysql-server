@@ -252,6 +252,11 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
               [AS_HELP_STRING([--with-classpath=PATH], Include and set classpath for Cluster/J and OpenJPA support)],
               [classpath="$withval"],
               [classpath="no"])
+  AC_ARG_WITH([javac-target],
+              [AC_HELP_STRING([--with-javac-target],
+                              [Java compiler target version to be used])],
+              [javac_target="$withval"],
+              [javac_target="1.5"])
 
   AC_MSG_CHECKING([for NDB Cluster options])
   AC_MSG_RESULT([])
@@ -552,6 +557,8 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     CLUSTERJ_CLASSPATH=$have_classpath
     AC_SUBST(CLUSTERJ_CLASSPATH)
   fi
+  JAVAC_TARGET=$javac_target
+  AC_SUBST(JAVAC_TARGET)
   
 
   # building dynamic breaks on AIX. (If you want to try it and get unresolved
