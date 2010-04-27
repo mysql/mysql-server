@@ -73,20 +73,22 @@ bool
 Logger::createConsoleHandler(NdbOut &out)
 {
   Guard g(m_handler_mutex);
-  bool rc = true;
 
-  if (m_pConsoleHandler == NULL)
+  if (m_pConsoleHandler)
+    return true; // Ok, already exist
+
+  LogHandler* log_handler = new ConsoleLogHandler(out);
+  if (!log_handler)
+    return false;
+
+  if (!addHandler(log_handler))
   {
-    m_pConsoleHandler = new ConsoleLogHandler(out);
-    if (!addHandler(m_pConsoleHandler)) // TODO: check error code
-    {
-      rc = false;
-      delete m_pConsoleHandler;
-      m_pConsoleHandler = NULL;
-    }
+    delete log_handler;
+    return false;
   }
 
-  return rc;
+  m_pConsoleHandler = log_handler;
+  return true;
 }
 
 void 
@@ -114,6 +116,7 @@ Logger::createEventLogHandler(const char* source_name)
     delete log_handler;
     return false;
   }
+
   return true;
 #else
   return false;
@@ -124,20 +127,23 @@ bool
 Logger::createFileHandler(char*filename)
 {
   Guard g(m_handler_mutex);
-  bool rc = true;
-  if (m_pFileHandler == NULL)
+
+  if (m_pFileHandler)
+    return true; // Ok, already exist
+
+  LogHandler* log_handler = filename ? new FileLogHandler(filename)
+                                     : new FileLogHandler();
+  if (!log_handler)
+    return false;
+
+  if (!addHandler(log_handler))
   {
-    m_pFileHandler = filename ? new FileLogHandler(filename)
-                              : new FileLogHandler();
-    if (!addHandler(m_pFileHandler)) // TODO: check error code
-    {
-      rc = false;
-      delete m_pFileHandler;
-      m_pFileHandler = NULL;
-    }
+    delete log_handler;
+    return false;
   }
 
-  return rc;
+  m_pFileHandler = log_handler;
+  return true;
 }
 
 void 
@@ -157,19 +163,22 @@ Logger::createSyslogHandler()
   return false;
 #else
   Guard g(m_handler_mutex);
-  bool rc = true;
-  if (m_pSyslogHandler == NULL)
+
+  if (m_pSyslogHandler)
+    return true; // Ok, already exist
+
+  LogHandler* log_handler = new SysLogHandler();
+  if (!log_handler)
+    return false;
+
+  if (!addHandler(log_handler))
   {
-    m_pSyslogHandler = new SysLogHandler(); 
-    if (!addHandler(m_pSyslogHandler)) // TODO: check error code
-    {
-      rc = false;
-      delete m_pSyslogHandler;
-      m_pSyslogHandler = NULL;
-    }
+    delete log_handler;
+    return false;
   }
 
-  return rc;
+  m_pSyslogHandler = log_handler;
+  return true;
 #endif
 }
 
@@ -193,11 +202,11 @@ Logger::addHandler(LogHandler* pHandler)
       !pHandler->open())
   {
     // Failed to open
-    delete pHandler;
     return false;
   }
 
-  m_pHandlerList->add(pHandler);
+  if (!m_pHandlerList->add(pHandler))
+    return false;
 
   return true;
 }
@@ -206,7 +215,6 @@ bool
 Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr) {
   size_t i;
   Vector<BaseString> logdest;
-  Vector<LogHandler *>loghandlers;
   DBUG_ENTER("Logger::addHandler");
 
   logstring.split(logdest, ";");
@@ -241,6 +249,7 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
                            logdest[i].c_str());
       DBUG_RETURN(false);
     }
+
     if(!handler->parseParams(params))
     {
       *err= handler->getErrorCode();
@@ -249,13 +258,17 @@ Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr)
       delete handler;
       DBUG_RETURN(false);
     }
-    loghandlers.push_back(handler);
+
+    if (!addHandler(handler))
+    {
+      BaseString::snprintf(errStr,len,"Could not add log destination: %s",
+                           logdest[i].c_str());
+      delete handler;
+      DBUG_RETURN(false);
+    }
   }
-  
-  for(i = 0; i < loghandlers.size(); i++)
-    addHandler(loghandlers[i]);
-  
-  DBUG_RETURN(true); /* @todo handle errors */
+
+  DBUG_RETURN(true);
 }
 
 bool
@@ -430,5 +443,3 @@ void Logger::setRepeatFrequency(unsigned val)
     pHandler->setRepeatFrequency(val);
   }
 }
-
-template class Vector<LogHandler*>;

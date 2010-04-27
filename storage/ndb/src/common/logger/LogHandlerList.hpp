@@ -46,7 +46,7 @@ public:
    *
    * @param pNewHandler log handler.
    */
-  void add(LogHandler* pNewHandler);
+  bool add(LogHandler* pNewHandler);
 
   /**
    * Removes a log handler from the list and call its destructor.
