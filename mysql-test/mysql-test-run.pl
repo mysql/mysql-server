@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -2868,7 +2868,7 @@ sub mysql_install_db {
   {
     my $sql_dir= dirname($path_sql);
     # Use the mysql database for system tables
-    mtr_tofile($bootstrap_sql_file, "use mysql\n");
+    mtr_tofile($bootstrap_sql_file, "use mysql;\n");
 
     # Add the offical mysql system tables
     # for a production system

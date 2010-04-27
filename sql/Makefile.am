@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2006 MySQL AB
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -155,7 +155,7 @@ mysqld_SOURCES =	sql_lex.cc sql_handler.cc sql_partition.cc \
 			rpl_utility.cc rpl_injector.cc rpl_rli.cc rpl_mi.cc \
 			rpl_reporting.cc \
                         sql_union.cc sql_derived.cc \
-			sql_client.cc \
+			sql_client.cc sql_bootstrap.cc \
 			repl_failsafe.h repl_failsafe.cc \
 			sql_olap.cc sql_view.cc \
 			gstream.cc spatial.cc sql_help.cc sql_cursor.cc \

@@ -1,4 +1,4 @@
-# Copyright (C) 2006 MySQL AB
+# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ SET (SQL_SOURCE
                sql_connect.cc scheduler.cc 
                sql_profile.cc event_parse_data.cc
                sql_signal.cc rpl_handler.cc mdl.cc
-               transaction.cc sys_vars.cc
+               transaction.cc sys_vars.cc sql_bootstrap.cc
                ${GEN_SOURCES}
                ${MYSYS_LIBWRAP_SOURCE})
 
