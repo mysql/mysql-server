@@ -82,9 +82,15 @@ memory is read outside the allocated blocks. */
 
 /* Make a non-inline debug version */
 
+#if 0
+/* Please enable this when
+Bug#53202 valgrind: uninitialized bytes in dtuple_print()
+if fixed */
 #ifdef HAVE_purify
 # define UNIV_DEBUG_VALGRIND
 #endif /* HAVE_purify */
+#endif
+
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
