@@ -1187,14 +1187,6 @@ EventLogger::~EventLogger()
 {
 }
 
-bool
-EventLogger::open(const char* logFileName, int maxNoFiles, long maxFileSize, 
-		  unsigned int maxLogEntries)
-{
-  return addHandler(new FileLogHandler(logFileName, maxNoFiles, maxFileSize, 
-				       maxLogEntries));
-}
-
 void
 EventLogger::close()
 {
