@@ -20,7 +20,6 @@
 #define EVENTLOGGER_H
 
 #include <logger/Logger.hpp>
-#include <logger/FileLogHandler.hpp>
 #include <kernel/kernel_types.h>
 #include <kernel/LogLevel.hpp>
 #include <kernel/signaldata/EventReport.hpp>
@@ -106,21 +105,6 @@ public:
    * Destructor.
    */
   virtual ~EventLogger();
-
-  /**
-   * Opens/creates the eventlog with the specified filename.
-   *
-   * @param aFileName the eventlog filename.
-   * @param maxNoFiles the maximum no of archived eventlog files.
-   * @param maxFileSize the maximum eventlog file size.
-   * @param maxLogEntries the maximum number of log entries before 
-   *                      checking time to archive.
-   * @return true if successful.
-   */
-  bool open(const char* logFileName,
-	    int maxNoFiles = FileLogHandler::MAX_NO_FILES, 
-	    long int maxFileSize = FileLogHandler::MAX_FILE_SIZE,
-	    unsigned int maxLogEntries = FileLogHandler::MAX_LOG_ENTRIES);
 
   /**
    * Closes the eventlog.
