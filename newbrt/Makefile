@@ -3,7 +3,10 @@
 .DEFAULT_GOAL= build
 TOKUROOT=../
 INCLUDEDIRS=-I. -I../include
+ifneq ($(COMBINE),0)
 COMBINE=1
+endif
+
 #TODO: Replace DEPEND_COMPILE with auto-dependancy generation.
 DEPEND_COMPILE += \
   $(wildcard *.h) \
