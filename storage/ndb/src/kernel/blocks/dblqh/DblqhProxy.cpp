@@ -169,7 +169,8 @@ DblqhProxy::execCREATE_TAB_REQ(Signal* signal)
 }
 
 void
-DblqhProxy::sendCREATE_TAB_REQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendCREATE_TAB_REQ(Signal* signal, Uint32 ssId,
+                               SectionHandle* handle)
 {
   Ss_CREATE_TAB_REQ& ss = ssFind<Ss_CREATE_TAB_REQ>(ssId);
 
@@ -177,8 +178,8 @@ DblqhProxy::sendCREATE_TAB_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderRef = reference();
   req->senderData = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_CREATE_TAB_REQ,
-             signal, CreateTabReq::SignalLengthLDM, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_CREATE_TAB_REQ,
+                      signal, CreateTabReq::SignalLengthLDM, JBB, handle);
 }
 
 void
@@ -274,7 +275,7 @@ DblqhProxy::execLQHADDATTREQ(Signal* signal)
 }
 
 void
-DblqhProxy::sendLQHADDATTREQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendLQHADDATTREQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_LQHADDATTREQ& ss = ssFind<Ss_LQHADDATTREQ>(ssId);
   Ss_CREATE_TAB_REQ& ss_main = ssFind<Ss_CREATE_TAB_REQ>(ssId);
@@ -286,8 +287,8 @@ DblqhProxy::sendLQHADDATTREQ(Signal* signal, Uint32 ssId)
   req->noOfAttributes = ss.m_req.noOfAttributes;
   req->senderData = ssId;
   req->senderAttrPtr = ss.m_req.senderAttrPtr;
-  sendSignal(workerRef(ss.m_worker), GSN_LQHADDATTREQ,
-             signal, reqlength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_LQHADDATTREQ,
+                      signal, reqlength, JBB, handle);
 }
 
 void
@@ -377,7 +378,8 @@ DblqhProxy::execTAB_COMMITREQ(Signal* signal)
 }
 
 void
-DblqhProxy::sendTAB_COMMITREQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendTAB_COMMITREQ(Signal* signal, Uint32 ssId,
+                              SectionHandle* handle)
 {
   Ss_TAB_COMMITREQ& ss = ssFind<Ss_TAB_COMMITREQ>(ssId);
 
@@ -385,8 +387,8 @@ DblqhProxy::sendTAB_COMMITREQ(Signal* signal, Uint32 ssId)
   req->senderRef = reference();
   req->senderData = ssId;
   req->tableId = ss.m_req.tableId;
-  sendSignal(workerRef(ss.m_worker), GSN_TAB_COMMITREQ,
-             signal, TabCommitReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_TAB_COMMITREQ,
+                      signal, TabCommitReq::SignalLength, JBB, handle);
 }
 
 void
@@ -824,7 +826,7 @@ DblqhProxy::execGCP_SAVEREQ(Signal* signal)
 }
 
 void
-DblqhProxy::sendGCP_SAVEREQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendGCP_SAVEREQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_GCP_SAVEREQ& ss = ssFind<Ss_GCP_SAVEREQ>(ssId);
 
@@ -833,8 +835,8 @@ DblqhProxy::sendGCP_SAVEREQ(Signal* signal, Uint32 ssId)
 
   req->dihBlockRef = reference();
   req->dihPtr = ss.m_worker;
-  sendSignal(workerRef(ss.m_worker), GSN_GCP_SAVEREQ,
-             signal, GCPSaveReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_GCP_SAVEREQ,
+                      signal, GCPSaveReq::SignalLength, JBB, handle);
 }
 
 void
@@ -916,7 +918,8 @@ DblqhProxy::execPREP_DROP_TAB_REQ(Signal* signal)
 }
 
 void
-DblqhProxy::sendPREP_DROP_TAB_REQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendPREP_DROP_TAB_REQ(Signal* signal, Uint32 ssId,
+                                  SectionHandle * handle)
 {
   Ss_PREP_DROP_TAB_REQ& ss = ssFind<Ss_PREP_DROP_TAB_REQ>(ssId);
 
@@ -924,8 +927,8 @@ DblqhProxy::sendPREP_DROP_TAB_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderRef = reference();
   req->senderData = ssId; // redundant since tableId is used
-  sendSignal(workerRef(ss.m_worker), GSN_PREP_DROP_TAB_REQ,
-             signal, PrepDropTabReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_PREP_DROP_TAB_REQ,
+                      signal, PrepDropTabReq::SignalLength, JBB, handle);
 }
 
 void
@@ -995,7 +998,7 @@ DblqhProxy::execDROP_TAB_REQ(Signal* signal)
 }
 
 void
-DblqhProxy::sendDROP_TAB_REQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendDROP_TAB_REQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_DROP_TAB_REQ& ss = ssFind<Ss_DROP_TAB_REQ>(ssId);
 
@@ -1003,8 +1006,8 @@ DblqhProxy::sendDROP_TAB_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderRef = reference();
   req->senderData = ssId; // redundant since tableId is used
-  sendSignal(workerRef(ss.m_worker), GSN_DROP_TAB_REQ,
-             signal, DropTabReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_DROP_TAB_REQ,
+                      signal, DropTabReq::SignalLength, JBB, handle);
 }
 
 void
@@ -1067,29 +1070,27 @@ DblqhProxy::sendDROP_TAB_CONF(Signal* signal, Uint32 ssId)
 void
 DblqhProxy::execALTER_TAB_REQ(Signal* signal)
 {
+  jamEntry();
+  if (!assembleFragments(signal))
+  {
+    jam();
+    return;
+  }
   const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
   Uint32 ssId = getSsId(req);
   Ss_ALTER_TAB_REQ& ss = ssSeize<Ss_ALTER_TAB_REQ>(ssId);
   ss.m_req = *req;
   ndbrequire(signal->getLength() == AlterTabReq::SignalLength);
 
-  {
-    SectionHandle handle(this, signal);
-    ss.m_sections = handle.m_cnt;
-    ndbrequire(ss.m_sections <= 1);
-    if (ss.m_sections >= 1) {
-      ss.m_sz0 = handle.m_ptr[0].p->m_sz;
-      ndbrequire(ss.m_sz0 <= ss.MaxSection0);
-      ::copy(ss.m_section0, handle.m_ptr[0]);
-    }
-    releaseSections(handle);
-  }
+  SectionHandle handle(this, signal);
+  saveSections(ss, handle);
 
   sendREQ(signal, ss);
 }
 
 void
-DblqhProxy::sendALTER_TAB_REQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendALTER_TAB_REQ(Signal* signal, Uint32 ssId,
+                              SectionHandle* handle)
 {
   Ss_ALTER_TAB_REQ& ss = ssFind<Ss_ALTER_TAB_REQ>(ssId);
 
@@ -1097,18 +1098,8 @@ DblqhProxy::sendALTER_TAB_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderRef = reference();
   req->senderData = ssId;
-  if (ss.m_sections == 0) {
-    jam();
-    sendSignal(workerRef(ss.m_worker), GSN_ALTER_TAB_REQ,
-               signal, AlterTabReq::SignalLength, JBB);
-  } else {
-    jam();
-    LinearSectionPtr ptr[3];
-    ptr[0].sz = ss.m_sz0;
-    ptr[0].p = ss.m_section0;
-    sendSignal(workerRef(ss.m_worker), GSN_ALTER_TAB_REQ,
-               signal, AlterTabReq::SignalLength, JBB, ptr, 1);
-  }
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_ALTER_TAB_REQ,
+                      signal, AlterTabReq::SignalLength, JBB, handle);
 }
 
 void
@@ -1204,7 +1195,7 @@ DblqhProxy::execSTART_RECREQ(Signal* signal)
 }
 
 void
-DblqhProxy::sendSTART_RECREQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendSTART_RECREQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_START_RECREQ& ss = ssFind<Ss_START_RECREQ>(ssId);
 
@@ -1213,8 +1204,8 @@ DblqhProxy::sendSTART_RECREQ(Signal* signal, Uint32 ssId)
 
   req->senderRef = reference();
   req->senderData = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_START_RECREQ,
-             signal, StartRecReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_START_RECREQ,
+                      signal, StartRecReq::SignalLength, JBB, handle);
 }
 
 void
@@ -1313,8 +1304,8 @@ DblqhProxy::sendSTART_RECREQ_2(Signal* signal, Uint32 ssId)
       (Ss_START_RECREQ_2::Req*)signal->getDataPtrSend();
     *req = ss.m_req;
     BlockReference ref = numberToRef(req->proxyBlockNo, getOwnNodeId());
-    sendSignal(ref, GSN_START_RECREQ,
-               signal, Ss_START_RECREQ_2::Req::SignalLength, JBB);
+    sendSignal(ref, GSN_START_RECREQ, signal,
+               Ss_START_RECREQ_2::Req::SignalLength, JBB);
   }
 }
 
@@ -1334,15 +1325,16 @@ DblqhProxy::execSTART_RECCONF_2(Signal* signal)
 }
 
 void
-DblqhProxy::sendSTART_RECCONF_2(Signal* signal, Uint32 ssId)
+DblqhProxy::sendSTART_RECCONF_2(Signal* signal, Uint32 ssId,
+                                SectionHandle* handle)
 {
   Ss_START_RECREQ_2& ss = ssFind<Ss_START_RECREQ_2>(ssId);
 
   Ss_START_RECREQ_2::Conf* conf =
     (Ss_START_RECREQ_2::Conf*)signal->getDataPtrSend();
   *conf = ss.m_conf;
-  sendSignal(workerRef(ss.m_worker), GSN_START_RECCONF,
-             signal, Ss_START_RECREQ_2::Conf::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_START_RECCONF, signal,
+                      Ss_START_RECREQ_2::Conf::SignalLength, JBB, handle);
 }
 
 // GSN_LQH_TRANSREQ
@@ -1381,7 +1373,7 @@ DblqhProxy::execLQH_TRANSREQ(Signal* signal)
 }
 
 void
-DblqhProxy::sendLQH_TRANSREQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendLQH_TRANSREQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_LQH_TRANSREQ& ss = ssFind<Ss_LQH_TRANSREQ>(ssId);
 
@@ -1390,8 +1382,8 @@ DblqhProxy::sendLQH_TRANSREQ(Signal* signal, Uint32 ssId)
 
   req->senderData = ssId;
   req->senderRef = reference();
-  sendSignal(workerRef(ss.m_worker), GSN_LQH_TRANSREQ,
-             signal, LqhTransReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_LQH_TRANSREQ,
+                      signal, LqhTransReq::SignalLength, JBB, handle);
 }
 
 void
@@ -1547,11 +1539,11 @@ DblqhProxy::execEXEC_SR_1(Signal* signal, GlobalSignalNumber gsn)
 }
 
 void
-DblqhProxy::sendEXEC_SR_1(Signal* signal, Uint32 ssId)
+DblqhProxy::sendEXEC_SR_1(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_EXEC_SR_1& ss = ssFind<Ss_EXEC_SR_1>(ssId);
   signal->theData[0] = ss.m_sig.nodeId;
-  sendSignal(workerRef(ss.m_worker), ss.m_gsn, signal, 1, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), ss.m_gsn, signal, 1, JBB, handle);
 }
 
 // GSN_EXEC_SRREQ_2 [ fictional gsn ]
@@ -1671,7 +1663,8 @@ DblqhProxy::execDROP_FRAG_REQ(Signal* signal)
 }
 
 void
-DblqhProxy::sendDROP_FRAG_REQ(Signal* signal, Uint32 ssId)
+DblqhProxy::sendDROP_FRAG_REQ(Signal* signal, Uint32 ssId,
+                              SectionHandle* handle)
 {
   Ss_DROP_FRAG_REQ& ss = ssFind<Ss_DROP_FRAG_REQ>(ssId);
 
@@ -1679,8 +1672,8 @@ DblqhProxy::sendDROP_FRAG_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderRef = reference();
   req->senderData = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_DROP_FRAG_REQ,
-             signal, DropFragReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_DROP_FRAG_REQ,
+                      signal, DropFragReq::SignalLength, JBB, handle);
 }
 
 void

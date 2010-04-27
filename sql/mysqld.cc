@@ -1900,6 +1900,12 @@ void unlink_thd(THD *thd)
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
   thd->cleanup();
 
+  /*
+    Optimize common path by doing timeconsuming tear down
+    outside of global lock
+  */
+  thd->teardown();
+
   pthread_mutex_lock(&LOCK_connection_count);
   --connection_count;
   pthread_mutex_unlock(&LOCK_connection_count);

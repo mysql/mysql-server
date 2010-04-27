@@ -1930,6 +1930,9 @@ public:
   THD();
   ~THD();
 
+  bool teardown_done;
+  void teardown(void);
+
   void init(void);
   /*
     Initialize memory roots necessary for query processing and (!)

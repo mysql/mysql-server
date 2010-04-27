@@ -1587,7 +1587,7 @@ Thd_ndb::Thd_ndb()
   m_error_code= 0;
   query_state&= NDB_QUERY_NORMAL;
   options= 0;
-  (void) hash_init(&open_tables, &my_charset_bin, 5, 0, 0,
+  (void) hash_init(&open_tables, table_alias_charset, 5, 0, 0,
                    (hash_get_key)thd_ndb_share_get_key, 0, 0);
   m_unsent_bytes= 0;
   m_execute_count= 0;
@@ -10492,9 +10492,9 @@ int ndbcluster_table_exists_in_engine(handlerton *hton, THD* thd,
   for (uint i= 0 ; i < list.count ; i++)
   {
     NdbDictionary::Dictionary::List::Element& elmt= list.elements[i];
-    if (my_strcasecmp(system_charset_info, elmt.database, db))
+    if (my_strcasecmp(table_alias_charset, elmt.database, db))
       continue;
-    if (my_strcasecmp(system_charset_info, elmt.name, name))
+    if (my_strcasecmp(table_alias_charset, elmt.name, name))
       continue;
     DBUG_PRINT("info", ("Found table"));
     DBUG_RETURN(HA_ERR_TABLE_EXIST);
@@ -10776,7 +10776,7 @@ int ndbcluster_find_files(handlerton *hton, THD *thd,
                         NdbDictionary::Object::UserTable) != 0)
     ERR_RETURN(dict->getNdbError());
 
-  if (hash_init(&ndb_tables, system_charset_info,list.count,0,0,
+  if (hash_init(&ndb_tables, table_alias_charset,list.count,0,0,
                 (hash_get_key)tables_get_key,0,0))
   {
     DBUG_PRINT("error", ("Failed to init HASH ndb_tables"));
@@ -11123,7 +11123,7 @@ static int ndbcluster_init(void *p)
     goto ndbcluster_init_error;
   }
 
-  (void) hash_init(&ndbcluster_open_tables,system_charset_info,32,0,0,
+  (void) hash_init(&ndbcluster_open_tables,table_alias_charset,32,0,0,
                    (hash_get_key) ndbcluster_get_key,0,0);
   /* start the ndb injector thread */
   if (ndbcluster_binlog_start())

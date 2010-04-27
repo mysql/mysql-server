@@ -76,8 +76,8 @@ Normal full restore
 use db1;
 show tables;
 Tables_in_db1
-tab2
 tab1
+tab2
 select * from tab1 order by a;
 a
 0
@@ -102,8 +102,8 @@ a	b	c	d
 use db2;
 show tables;
 Tables_in_db2
-tab2
 tab1
+tab2
 select * from tab1 order by a;
 a
 0
@@ -135,8 +135,8 @@ Tables_in_db1
 use db2;
 show tables;
 Tables_in_db2
-tab2
 tab1
+tab2
 select * from tab1 order by a;
 a
 0
@@ -165,8 +165,8 @@ Exclude only db2
 use db1;
 show tables;
 Tables_in_db1
-tab2
 tab1
+tab2
 select * from tab1 order by a;
 a
 0
@@ -347,8 +347,8 @@ Tables_in_db1
 use db2;
 show tables;
 Tables_in_db2
-tab2
 tab1
+tab2
 select * from tab1 order by a;
 a
 0
@@ -422,8 +422,8 @@ db2
 use db1;
 show tables;
 Tables_in_db1
-tab2
 tab1
+tab2
 select * from tab1 order by a;
 a
 0
@@ -448,8 +448,8 @@ a	b	c	d
 use db2;
 show tables;
 Tables_in_db2
-tab2
 tab1
+tab2
 select * from tab1 order by a;
 a
 0
