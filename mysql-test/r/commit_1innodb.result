@@ -709,11 +709,11 @@ SUCCESS
 # 25. DDL: DROP TEMPORARY TABLE, does not start a transaction
 #
 drop temporary table t2;
-call p_verify_status_increment(1, 0, 0, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 commit;
-call p_verify_status_increment(1, 0, 0, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 SUCCESS
 
 # 26. Verify that SET AUTOCOMMIT issues an implicit commit

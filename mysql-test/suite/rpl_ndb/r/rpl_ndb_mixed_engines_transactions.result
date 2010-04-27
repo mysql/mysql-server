@@ -341,6 +341,25 @@ ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SET AUTOCOMMIT = 1;
+---- Mixed statements Innodb ----
+BEGIN;
+INSERT INTO tndb VALUES (147);
+INSERT INTO tinnodb SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+COMMIT;
+INSERT INTO tndb VALUES (148);
+BEGIN;
+INSERT INTO tinnodb SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+INSERT INTO tndb VALUES (149);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (150);
+INSERT INTO tmyisam SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+COMMIT;
+INSERT INTO tndb VALUES (151);
+BEGIN;
+INSERT INTO tmyisam SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
+INSERT INTO tndb VALUES (152);
+COMMIT;
 ==== Verify the result ====
 SELECT * FROM tmyisam ORDER BY a;
 a
@@ -393,6 +412,8 @@ a
 140
 142
 146
+150
+151
 SELECT * FROM tinnodb ORDER BY a;
 a
 1
@@ -420,6 +441,8 @@ a
 120
 125
 127
+147
+148
 SELECT * FROM tndb ORDER BY a;
 a
 2
@@ -447,6 +470,12 @@ a
 121
 123
 126
+147
+148
+149
+150
+151
+152
 [on slave]
 Comparing tables master:test.tmyisam and slave:test.tmyisam
 Comparing tables master:test.tinnodb and slave:test.tinnodb
