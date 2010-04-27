@@ -145,11 +145,13 @@ test_main(int argc, char *const argv[]) {
     int leafentry = 25;
     int n = (nodesize/leafentry) * 2;
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     r = test_truncate_with_cursors(n, 0);
     CKERR(r);
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     r = test_truncate_with_cursors(n, DB_TRUNCATE_WITHCURSORS);
     CKERR(r);

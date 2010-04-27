@@ -12,10 +12,11 @@
 static void
 test_txn_abort (void) {
 
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
-    int r;
     int i;
     DB_ENV *env;
     DBT key, val;

@@ -22,7 +22,8 @@ test_key_size_limit (int dup_mode) {
     const char * const fname = "test.rand.insert.brt";
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */
@@ -81,7 +82,8 @@ test_data_size_limit (int dup_mode) {
     const char * const fname = "test.rand.insert.brt";
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */

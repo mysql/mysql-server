@@ -52,7 +52,8 @@ static void run_test (void) {
     if (verbose)
         printf("env-put-multiple num_dbs[%u]\n", num_dbs);
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;

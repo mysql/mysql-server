@@ -45,7 +45,8 @@ static void
 setup (u_int32_t flags) {
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     /* Open/create primary */
     r = db_env_create(&dbenv, 0); assert(r == 0);

@@ -45,7 +45,8 @@ test_hsoc (int pagesize, int dup_mode) {
     const char * const fname = "test.hsoc.brt";
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */

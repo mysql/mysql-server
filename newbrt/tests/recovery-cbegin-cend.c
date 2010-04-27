@@ -8,7 +8,8 @@ run_test(void) {
     int r;
 
     // setup the test dir
-    system("rm -rf " TESTDIR);
+    r = system("rm -rf " TESTDIR);
+    CKERR(r);
     r = toku_os_mkdir(TESTDIR, S_IRWXU); assert(r == 0);
 
     // put begin and end checkpoint into separate log files

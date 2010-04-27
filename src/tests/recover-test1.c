@@ -15,7 +15,8 @@ DBT key,data;
 static void
 do_x1_shutdown (void) {
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
 

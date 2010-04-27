@@ -4,6 +4,8 @@ CPPFLAGS += -I../../toku_include -I.. -I.
 CFLAGS = -Wall -Werror -g -O0 -std=c99
 ifeq ($(GCCVERSION),4.4.2)
 	CFLAGS += -Wno-deprecated
+else ifeq ($(GCCVERSION),4.4.1)
+	CFLAGS += -Wno-deprecated
 endif
 ifneq ($(GCOV),)
 	CFLAGS += -fprofile-arcs -ftest-coverage -DGCOV

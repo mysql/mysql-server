@@ -99,13 +99,13 @@ WERROR    = -Werror
 endif
 
 # -Wno-deprecated is needed on gcc 4.4.{1,2} to make the #ident complaints go away.
-# -Wno-strict-aliasing is needed on gcc 4.4.2 to make certain gratuitous warnings go away.
+# -Wno-strict-aliasing is needed on gcc 4.4.{1,2} to make certain gratuitous warnings go away.
 ifeq ($(GCCVERSION),4.4.2)
  GCC_VERSION_SPECIFIC = -Wno-deprecated 
-endif
-ifeq ($(GCCVERSION),4.4.1)
+else ifeq ($(GCCVERSION),4.4.1)
  GCC_VERSION_SPECIFIC = -Wno-deprecated
 endif
+
 WALL      = $(GCC_VERSION_SPECIFIC) -Wall -Wextra -Wcast-align -Wbad-function-cast -Wno-missing-noreturn -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
 
 FORMAT    = -Wmissing-format-attribute #-Wformat=2 #Stronger printf warnings once logger.c cleaned up
@@ -121,6 +121,8 @@ PORTABILITY=
 SKIP_WARNING=
 COMBINE_C = -combine -c
 ifeq ($(GCCVERSION),4.4.2)
+ CFLAGS += -Wno-strict-aliasing 
+else ifeq ($(GCCVERSION),4.4.1)
  CFLAGS += -Wno-strict-aliasing 
 endif
 LIBPORTABILITY        = $(TOKUROOT)lib/libtokuportability.$(AEXT)

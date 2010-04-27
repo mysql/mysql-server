@@ -36,14 +36,15 @@ static void
 test_txn_cursor_last_1 (int nrows) {
     if (verbose) printf("test_txn_cursor_last_1:%d\n", nrows);
 
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;
     DB *db;
     DB_TXN * const null_txn = 0;
     const char * const fname = "test.txn.cursor.last.1.brt";
-    int r;
 
     /* create the dup database file */
     r = db_env_create(&env, 0);        assert(r == 0);
@@ -120,14 +121,15 @@ static void
 test_txn_cursor_last_2 (int nrows) {
     if (verbose) printf("test_txn_cursor_last_2:%d\n", nrows);
 
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     DB_ENV *env;
     DB *db;
     DB_TXN * const null_txn = 0;
     const char * const fname = "test.txn.cursor.last.1.brt";
-    int r;
 
     /* create the dup database file */
     r = db_env_create(&env, 0);        assert(r == 0);

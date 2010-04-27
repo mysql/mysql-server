@@ -11,7 +11,8 @@ static void do_1381_maybe_lock (int do_table_lock, u_int64_t *raw_count) {
     int r;
     DB_TXN * const null_txn = 0;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
 

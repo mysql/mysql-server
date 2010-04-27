@@ -12,8 +12,9 @@ const int num_insert = 25000;
 
 static void
 setup (void) {
-    system("rm -rf " ENVDIR);
     int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r);
 
     r=db_env_create(&env, 0); CKERR(r);

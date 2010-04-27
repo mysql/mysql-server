@@ -71,7 +71,8 @@ static void lookup (int i, int expect, int expectj) {
 static void
 test_dupsort_del (void) {
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
 
     r=db_env_create(&env, 0); assert(r==0);

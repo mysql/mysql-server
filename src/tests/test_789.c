@@ -15,7 +15,8 @@ test_789(void) {
     int r;
 
     /* setup test directory */
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     /* setup environment */

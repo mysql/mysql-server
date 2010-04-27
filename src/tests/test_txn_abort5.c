@@ -13,10 +13,11 @@ static void
 test_txn_abort (int n) {
     if (verbose) printf("test_txn_abort:%d\n", n);
 
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
-    int r;
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->open(env, ENVDIR, DB_INIT_MPOOL + DB_INIT_LOG + DB_INIT_LOCK + DB_INIT_TXN + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 

@@ -23,8 +23,10 @@ test_main (int argc, char *const argv[]) {
     if (verbose) printf("Warning: fmemopen does not exist in OSX!\n");
 #else
     
-    system("rm -rf " ENVDIR);
-    int r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
+    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     {
 	DB_ENV *env;

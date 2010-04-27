@@ -13,9 +13,10 @@ static void do_test1753 (int do_create_on_reopen) {
 	return; // do_create_on_reopen==0 segfaults in 4.6
     }
 
-    system("rm -rf " ENVDIR);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
+    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     // Create an empty file
     {

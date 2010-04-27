@@ -229,7 +229,7 @@ static void print_engine_status(void) {
       char buff[buffsize];
       env->get_engine_status_text(env, buff, buffsize);
       printf("Engine status:\n");
-      printf(buff);
+      printf("%s", buff);
     }
 #endif
 }

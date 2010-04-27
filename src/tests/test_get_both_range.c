@@ -41,7 +41,8 @@ static void test_get_both(int n, int dup_mode, int op) {
     {
 	char rmcmd[sizeof(annotated_envdir)+10];
 	snprintf(rmcmd, sizeof(rmcmd), "rm -rf %s", annotated_envdir);
-	system(rmcmd);
+	r = system(rmcmd);
+        CKERR(r);
     }
     toku_os_mkdir(annotated_envdir, S_IRWXU+S_IRWXG+S_IRWXO);
 
@@ -177,7 +178,9 @@ test_main(int argc, char *const argv[]) {
     {
 	char rmcmd[sizeof(annotated_envdir)+10];
 	snprintf(rmcmd, sizeof(rmcmd), "rm -rf %s", annotated_envdir);
-	system(rmcmd);
+        int r;
+	r = system(rmcmd);
+        CKERR(r);
     }
     toku_os_mkdir(annotated_envdir, S_IRWXU+S_IRWXG+S_IRWXO);
 

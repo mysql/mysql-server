@@ -43,7 +43,8 @@ test_db_delete (int n, int dup_mode) {
     const char * const fname = "test.db.delete.brt";
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */
@@ -112,7 +113,8 @@ test_db_get_datasize0 (void) {
     const char * const fname = "test.db_delete.brt";
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */

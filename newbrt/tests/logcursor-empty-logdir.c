@@ -15,7 +15,8 @@ test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
 
     int r;
-    system(rmrf);
+    r = system(rmrf);
+    CKERR(r);
     r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
 
     // verify the log is empty

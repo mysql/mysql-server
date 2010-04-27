@@ -15,7 +15,8 @@ static void test (void) {
     u_int64_t limit=100;
     u_int64_t ilimit=100;
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r);
     r=db_env_create(&env, 0); CKERR(r);
     // set the cachetable to size 1 so that things won't fit.

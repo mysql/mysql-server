@@ -12,10 +12,11 @@ static void
 test_stat64 (unsigned int N) {
     if (verbose) printf("%s:%d\n", __FUNCTION__, __LINE__);
 
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     
-    int r;
     DB_ENV *env;
     DB *db;
     DB_TXN *txn;
@@ -59,7 +60,8 @@ test_stat64 (unsigned int N) {
     DB_BTREE_STAT64 s;
     r=db->stat64(db, txn, &s); CKERR(r);
     if (verbose) {
-	system("ls -l " ENVDIR);
+	r = system("ls -l " ENVDIR);
+        CKERR(r);
 	printf("nkeys=%" PRIu64 "\nndata=%" PRIu64 "\ndsize=%" PRIu64 "\n",
 	       s.bt_nkeys, s.bt_ndata, s.bt_dsize);
 	printf("fsize=%" PRIu64 "\n", s.bt_fsize);

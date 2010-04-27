@@ -10,7 +10,8 @@ char *namea="a.db";
 static void
 do_x1_shutdown (BOOL do_commit, BOOL do_abort) {
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                         CKERR(r);

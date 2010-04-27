@@ -19,7 +19,8 @@ test_main(int argc, char*const* argv) {
     int r;
     if (argc == 2 && !strcmp(argv[1], "-v")) verbose = 1;
     
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     r = db_env_create(&dbenv, 0);

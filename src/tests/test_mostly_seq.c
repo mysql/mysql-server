@@ -12,10 +12,11 @@ static void
 seqinsert (int n, float p) {
     if (verbose) printf("%s %d %f\n", __FUNCTION__, n, p);
 
-    system("rm -rf " ENVDIR);
+    int r;
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
-    int r;
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
 

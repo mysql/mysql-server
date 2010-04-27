@@ -182,7 +182,9 @@ test_main (int argc, char *const argv[]) {
 	int size=20+strlen(env_path);
 	char command[size];
 	snprintf(command, size, "rm -rf %s", env_path);
-	system(command);
+        int r;
+	r = system(command);
+        CKERR(r);
     }
     { int r=toku_os_mkdir(env_path, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0); }
 

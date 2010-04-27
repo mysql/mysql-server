@@ -9,7 +9,8 @@ const char * const fname = "test_db_remove.brt";
 
 static void test_db_remove (void) {
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     // create the DB

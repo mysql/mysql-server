@@ -79,7 +79,8 @@ do_abort_delete_first_or_last(int N,
 			      int first // 1 for first, 0 for last
 			      ) {
     int r,i;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
 
     r=db_env_create(&env, 0); assert(r==0);

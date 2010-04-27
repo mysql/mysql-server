@@ -26,7 +26,8 @@ static void
 setup(void) {
     int r;
 
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&dbenv, 0); assert(r == 0);
     r = dbenv->open(dbenv, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);

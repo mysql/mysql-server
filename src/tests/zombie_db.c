@@ -50,7 +50,8 @@ static DB * db;
 static void
 setup (void) {
     int r;
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);       CKERR(r);
 
     r=db_env_create(&env, 0); CKERR(r);

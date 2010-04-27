@@ -17,7 +17,8 @@ testit (const int klen, const int vlen, const int n, const int lastvlen) {
     int r;
 
     // setup test directory
-    system("rm -rf " ENVDIR);
+    r = system("rm -rf " ENVDIR);
+    CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     // setup environment
