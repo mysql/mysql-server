@@ -9830,7 +9830,40 @@ limit_options:
         ;
 
 limit_option:
-        param_marker
+        ident
+        {
+          Item_splocal *splocal;
+          THD *thd= YYTHD;
+          LEX *lex= thd->lex;
+          Lex_input_stream *lip= & thd->m_parser_state->m_lip;
+          sp_variable_t *spv;
+          sp_pcontext *spc = lex->spcont;
+          if (spc && (spv = spc->find_variable(&$1)))
+          {
+            splocal= new (thd->mem_root)
+              Item_splocal($1, spv->offset, spv->type,
+                  lip->get_tok_start() - lex->sphead->m_tmp_query,
+                  lip->get_ptr() - lip->get_tok_start());
+            if (splocal == NULL)
+              MYSQL_YYABORT;
+#ifndef DBUG_OFF
+            splocal->m_sp= lex->sphead;
+#endif
+            lex->safe_to_cache_query=0;
+          }
+          else
+          {
+            my_error(ER_SP_UNDECLARED_VAR, MYF(0), $1.str);
+            MYSQL_YYABORT;
+          }
+          if (splocal->type() != Item::INT_ITEM)
+          {
+            my_error(ER_WRONG_SPVAR_TYPE_IN_LIMIT, MYF(0));
+            MYSQL_YYABORT;
+          }
+          splocal->limit_clause_param= TRUE;
+          $$= splocal;
+        } | param_marker
         {
           ((Item_param *) $1)->limit_clause_param= TRUE;
         }
