@@ -2694,9 +2694,9 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
   return 0;
 }
 
-int
-MgmtSrvr::match_hostname(const struct sockaddr *clnt_addr,
-                         const char *config_hostname) const
+static int
+match_hostname(const struct sockaddr *clnt_addr,
+               const char *config_hostname)
 {
   struct in_addr config_addr= {0};
   if (clnt_addr)
@@ -2711,11 +2711,6 @@ MgmtSrvr::match_hostname(const struct sockaddr *clnt_addr,
           || memcmp(&tmp_addr, clnt_in_addr, sizeof(config_addr)) != 0)
       {
         // not localhost
-#if 0
-        ndbout << "MgmtSrvr::getFreeNodeId compare failed for \""
-               << config_hostname
-               << "\" id=" << tmp << endl;
-#endif
         return -1;
       }
 

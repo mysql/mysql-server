@@ -304,7 +304,8 @@ struct AlterTableRef {
     UnsupportedChange = 741,
     BackupInProgress = 762,
     IncompatibleVersions = 763,
-    SingleUser = 299
+    SingleUser = 299,
+    TableDefinitionTooBig = 793
   };
 
   Uint32 senderRef;

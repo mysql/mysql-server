@@ -123,9 +123,15 @@
 #define ZFS_CONNECT_SIZE 4
 #define ZSIZE_OF_PAGES_IN_WORDS 8192
 #define ZLOG_SIZE_OF_PAGES_IN_WORDS 13
-#define ZMAX_PAGES_OF_TABLE_DEFINITION 8
-#define ZNUMBER_OF_PAGES (ZMAX_PAGES_OF_TABLE_DEFINITION + 1)
-#define ZNO_OF_FRAGRECORD 5
+#define ZMAX_PAGES_OF_TABLE_DEFINITION \
+  ((ZPAGE_HEADER_SIZE + MAX_WORDS_META_FILE + ZSIZE_OF_PAGES_IN_WORDS - 1) / \
+   ZSIZE_OF_PAGES_IN_WORDS)
+
+/**
+ * - one for retreive
+ * - one for read or write
+ */
+#define ZNUMBER_OF_PAGES (2 * ZMAX_PAGES_OF_TABLE_DEFINITION)
 
 /*--------------------------------------------------------------*/
 // Error codes
@@ -1401,6 +1407,8 @@ private:
   bool copyIn(OpSection&, const Uint32* src, Uint32 srcSize);
   bool copyOut(const OpSection&, SegmentedSectionPtr&);
   bool copyOut(const OpSection&, Uint32* dst, Uint32 dstSize);
+  bool copyOut(OpSectionBuffer & buffer, OpSectionBufferConstIterator & iter,
+               Uint32 * dst, Uint32 len);
   void release(OpSection&);
 
   // SchemaOp
@@ -2450,7 +2458,7 @@ private:
   struct CreateIndexRec : public OpRec {
     CreateIndxImplReq m_request;
     char m_indexName[MAX_TAB_NAME_SIZE];
-    AttributeList m_attrList;
+    IndexAttributeList m_attrList;
     AttributeMask m_attrMask;
     AttributeMap m_attrMap;
     Uint32 m_bits;
@@ -2579,7 +2587,7 @@ private:
 
   struct AlterIndexRec : public OpRec {
     AlterIndxImplReq m_request;
-    AttributeList m_attrList;
+    IndexAttributeList m_attrList;
     AttributeMask m_attrMask;
 
     // reflection
@@ -2673,7 +2681,7 @@ private:
 
     BuildIndxImplReq m_request;
 
-    AttributeList m_indexKeyList;
+    IndexAttributeList m_indexKeyList;
     FragAttributeList m_tableKeyList;
     AttributeMask m_attrMask;
 
@@ -3685,7 +3693,7 @@ private:
   void getTableKeyList(TableRecordPtr, 
 		       Id_array<MAX_ATTRIBUTES_IN_INDEX+1>& list);
   void getIndexAttr(TableRecordPtr indexPtr, Uint32 itAttr, Uint32* id);
-  void getIndexAttrList(TableRecordPtr indexPtr, AttributeList& list);
+  void getIndexAttrList(TableRecordPtr indexPtr, IndexAttributeList& list);
   void getIndexAttrMask(TableRecordPtr indexPtr, AttributeMask& mask);
 
   /* ------------------------------------------------------------ */

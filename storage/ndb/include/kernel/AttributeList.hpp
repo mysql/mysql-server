@@ -35,6 +35,6 @@ struct Id_array
   Uint32 id[SZ];
 };
 
-typedef Id_array<MAX_ATTRIBUTES_IN_INDEX> AttributeList;
+typedef Id_array<MAX_ATTRIBUTES_IN_INDEX> IndexAttributeList;
 
 #endif

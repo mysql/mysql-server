@@ -101,7 +101,10 @@ LocalProxy::sendREQ(Signal* signal, SsSequential& ss)
 {
   ss.m_worker = 0;
   ndbrequire(ss.m_sendREQ != 0);
-  (this->*ss.m_sendREQ)(signal, ss.m_ssId);
+  SectionHandle handle(this);
+  restoreHandle(handle, ss);
+  (this->*ss.m_sendREQ)(signal, ss.m_ssId, &handle);
+  saveSections(ss, handle);
 }
 
 void
@@ -114,7 +117,8 @@ LocalProxy::recvCONF(Signal* signal, SsSequential& ss)
   if (ss.m_worker < c_workers) {
     jam();
     ndbrequire(ss.m_sendREQ != 0);
-    (this->*ss.m_sendREQ)(signal, ss.m_ssId);
+    SectionHandle handle(this);
+    (this->*ss.m_sendREQ)(signal, ss.m_ssId, &handle);
     return;
   }
 }
@@ -138,6 +142,26 @@ LocalProxy::skipConf(SsSequential& ss)
 {
 }
 
+void
+LocalProxy::saveSections(SsCommon& ss, SectionHandle & handle)
+{
+  ss.m_sec_cnt = handle.m_cnt;
+  for (Uint32 i = 0; i<ss.m_sec_cnt; i++)
+    ss.m_sec_ptr[i] = handle.m_ptr[i].i;
+  handle.clear();
+}
+
+void
+LocalProxy::restoreHandle(SectionHandle & handle, SsCommon& ss)
+{
+  handle.m_cnt = ss.m_sec_cnt;
+  for (Uint32 i = 0; i<ss.m_sec_cnt; i++)
+    handle.m_ptr[i].i = ss.m_sec_ptr[i];
+
+  getSections(handle.m_cnt, handle.m_ptr);
+  ss.m_sec_cnt = 0;
+}
+
 bool
 LocalProxy::firstReply(const SsSequential& ss)
 {
@@ -158,12 +182,15 @@ LocalProxy::sendREQ(Signal* signal, SsParallel& ss)
   ss.m_workerMask.clear();
   ss.m_worker = 0;
   const Uint32 count = ss.m_extraLast ? c_lqhWorkers : c_workers;
+  SectionHandle handle(this);
+  restoreHandle(handle, ss);
   while (ss.m_worker < count) {
     jam();
     ss.m_workerMask.set(ss.m_worker);
-    (this->*ss.m_sendREQ)(signal, ss.m_ssId);
+    (this->*ss.m_sendREQ)(signal, ss.m_ssId, &handle);
     ss.m_worker++;
   }
+  releaseSections(handle);
 }
 
 void
@@ -230,11 +257,12 @@ LocalProxy::lastReply(const SsParallel& ss)
 bool
 LocalProxy::lastExtra(Signal* signal, SsParallel& ss)
 {
+  SectionHandle handle(this);
   if (c_lqhWorkers + ss.m_extraSent < c_workers) {
     jam();
     ss.m_worker = c_lqhWorkers + ss.m_extraSent;
     ss.m_workerMask.set(ss.m_worker);
-    (this->*ss.m_sendREQ)(signal, ss.m_ssId);
+    (this->*ss.m_sendREQ)(signal, ss.m_ssId, &handle);
     ss.m_extraSent++;
     return false;
   }
@@ -311,7 +339,8 @@ LocalProxy::backREAD_CONFIG_REQ(Signal* signal)
 }
 
 void
-LocalProxy::sendREAD_CONFIG_REQ(Signal* signal, Uint32 ssId)
+LocalProxy::sendREAD_CONFIG_REQ(Signal* signal, Uint32 ssId,
+                                SectionHandle* handle)
 {
   Ss_READ_CONFIG_REQ& ss = ssFind<Ss_READ_CONFIG_REQ>(ssId);
 
@@ -319,8 +348,8 @@ LocalProxy::sendREAD_CONFIG_REQ(Signal* signal, Uint32 ssId)
   req->senderRef = reference();
   req->senderData = ssId;
   req->noOfParameters = 0;
-  sendSignal(workerRef(ss.m_worker), GSN_READ_CONFIG_REQ,
-             signal, ReadConfigReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_READ_CONFIG_REQ,
+                      signal, ReadConfigReq::SignalLength, JBB, handle);
 }
 
 void
@@ -339,6 +368,10 @@ LocalProxy::sendREAD_CONFIG_CONF(Signal* signal, Uint32 ssId)
 
   if (!lastReply(ss))
     return;
+
+  SectionHandle handle(this);
+  restoreHandle(handle, ss);
+  releaseSections(handle);
 
   ReadConfigConf* conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
@@ -384,13 +417,13 @@ LocalProxy::backSTTOR(Signal* signal)
 }
 
 void
-LocalProxy::sendSTTOR(Signal* signal, Uint32 ssId)
+LocalProxy::sendSTTOR(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_STTOR& ss = ssFind<Ss_STTOR>(ssId);
 
   memcpy(signal->getDataPtrSend(), ss.m_reqdata, ss.m_reqlength << 2);
-  sendSignal(workerRef(ss.m_worker), GSN_STTOR,
-             signal, ss.m_reqlength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_STTOR,
+                      signal, ss.m_reqlength, JBB, handle);
 }
 
 void
@@ -454,15 +487,15 @@ LocalProxy::backNDB_STTOR(Signal* signal)
 }
 
 void
-LocalProxy::sendNDB_STTOR(Signal* signal, Uint32 ssId)
+LocalProxy::sendNDB_STTOR(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_NDB_STTOR& ss = ssFind<Ss_NDB_STTOR>(ssId);
 
   NdbSttor* req = (NdbSttor*)signal->getDataPtrSend();
   *req = ss.m_req;
   req->senderRef = reference();
-  sendSignal(workerRef(ss.m_worker), GSN_NDB_STTOR,
-             signal, ss.m_reqlength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_NDB_STTOR,
+                      signal, ss.m_reqlength, JBB, handle);
 }
 
 void
@@ -563,14 +596,14 @@ LocalProxy::execNODE_FAILREP(Signal* signal)
 }
 
 void
-LocalProxy::sendNODE_FAILREP(Signal* signal, Uint32 ssId)
+LocalProxy::sendNODE_FAILREP(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_NODE_FAILREP& ss = ssFind<Ss_NODE_FAILREP>(ssId);
 
   NodeFailRep* req = (NodeFailRep*)signal->getDataPtrSend();
   *req = ss.m_req;
-  sendSignal(workerRef(ss.m_worker), GSN_NODE_FAILREP,
-             signal, NodeFailRep::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_NODE_FAILREP,
+                      signal, NodeFailRep::SignalLength, JBB, handle);
 }
 
 void
@@ -638,7 +671,7 @@ LocalProxy::execINCL_NODEREQ(Signal* signal)
 }
 
 void
-LocalProxy::sendINCL_NODEREQ(Signal* signal, Uint32 ssId)
+LocalProxy::sendINCL_NODEREQ(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_INCL_NODEREQ& ss = ssFind<Ss_INCL_NODEREQ>(ssId);
 
@@ -647,8 +680,8 @@ LocalProxy::sendINCL_NODEREQ(Signal* signal, Uint32 ssId)
 
   memcpy(req, &ss.m_req, ss.m_reqlength << 2);
   req->senderRef = reference();
-  sendSignal(workerRef(ss.m_worker), GSN_INCL_NODEREQ,
-             signal, ss.m_reqlength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_INCL_NODEREQ,
+                      signal, ss.m_reqlength, JBB, handle);
 }
 
 void
@@ -689,12 +722,13 @@ LocalProxy::execNODE_STATE_REP(Signal* signal)
 }
 
 void
-LocalProxy::sendNODE_STATE_REP(Signal* signal, Uint32 ssId)
+LocalProxy::sendNODE_STATE_REP(Signal* signal, Uint32 ssId,
+                               SectionHandle* handle)
 {
   Ss_NODE_STATE_REP& ss = ssFind<Ss_NODE_STATE_REP>(ssId);
 
-  sendSignal(workerRef(ss.m_worker), GSN_NODE_STATE_REP,
-             signal,NodeStateRep::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_NODE_STATE_REP,
+                      signal,NodeStateRep::SignalLength, JBB, handle);
 }
 
 // GSN_CHANGE_NODE_STATE_REQ
@@ -711,15 +745,16 @@ LocalProxy::execCHANGE_NODE_STATE_REQ(Signal* signal)
 }
 
 void
-LocalProxy::sendCHANGE_NODE_STATE_REQ(Signal* signal, Uint32 ssId)
+LocalProxy::sendCHANGE_NODE_STATE_REQ(Signal* signal, Uint32 ssId,
+                                      SectionHandle* handle)
 {
   Ss_CHANGE_NODE_STATE_REQ& ss = ssFind<Ss_CHANGE_NODE_STATE_REQ>(ssId);
 
   ChangeNodeStateReq * req = (ChangeNodeStateReq*)signal->getDataPtrSend();
   req->senderRef = reference();
 
-  sendSignal(workerRef(ss.m_worker), GSN_CHANGE_NODE_STATE_REQ,
-             signal, ChangeNodeStateReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_CHANGE_NODE_STATE_REQ,
+                      signal, ChangeNodeStateReq::SignalLength, JBB, handle);
 }
 
 void
@@ -763,13 +798,14 @@ LocalProxy::execDUMP_STATE_ORD(Signal* signal)
 }
 
 void
-LocalProxy::sendDUMP_STATE_ORD(Signal* signal, Uint32 ssId)
+LocalProxy::sendDUMP_STATE_ORD(Signal* signal, Uint32 ssId,
+                               SectionHandle* handle)
 {
   Ss_DUMP_STATE_ORD& ss = ssFind<Ss_DUMP_STATE_ORD>(ssId);
 
   memcpy(signal->getDataPtrSend(), ss.m_reqdata, ss.m_reqlength << 2);
-  sendSignal(workerRef(ss.m_worker), GSN_DUMP_STATE_ORD,
-             signal, ss.m_reqlength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_DUMP_STATE_ORD,
+                      signal, ss.m_reqlength, JBB, handle);
 }
 
 // GSN_NDB_TAMPER
@@ -788,13 +824,13 @@ LocalProxy::execNDB_TAMPER(Signal* signal)
 }
 
 void
-LocalProxy::sendNDB_TAMPER(Signal* signal, Uint32 ssId)
+LocalProxy::sendNDB_TAMPER(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_NDB_TAMPER& ss = ssFind<Ss_NDB_TAMPER>(ssId);
 
   signal->theData[0] = ss.m_errorInsert;
-  sendSignal(workerRef(ss.m_worker), GSN_NDB_TAMPER,
-             signal, 1, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_NDB_TAMPER,
+                      signal, 1, JBB, handle);
 }
 
 // GSN_TIME_SIGNAL
@@ -811,12 +847,12 @@ LocalProxy::execTIME_SIGNAL(Signal* signal)
 }
 
 void
-LocalProxy::sendTIME_SIGNAL(Signal* signal, Uint32 ssId)
+LocalProxy::sendTIME_SIGNAL(Signal* signal, Uint32 ssId, SectionHandle* handle)
 {
   Ss_TIME_SIGNAL& ss = ssFind<Ss_TIME_SIGNAL>(ssId);
   signal->theData[0] = 0;
-  sendSignal(workerRef(ss.m_worker), GSN_TIME_SIGNAL,
-             signal, 1, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_TIME_SIGNAL,
+                      signal, 1, JBB, handle);
 }
 
 // GSN_CREATE_TRIG_IMPL_REQ
@@ -834,7 +870,8 @@ LocalProxy::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 }
 
 void
-LocalProxy::sendCREATE_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId)
+LocalProxy::sendCREATE_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId,
+                                     SectionHandle * handle)
 {
   Ss_CREATE_TRIG_IMPL_REQ& ss = ssFind<Ss_CREATE_TRIG_IMPL_REQ>(ssId);
 
@@ -842,8 +879,9 @@ LocalProxy::sendCREATE_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderRef = reference();
   req->senderData = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_CREATE_TRIG_IMPL_REQ,
-             signal, CreateTrigImplReq::SignalLengthLocal, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_CREATE_TRIG_IMPL_REQ,
+                      signal, CreateTrigImplReq::SignalLengthLocal, JBB,
+                      handle);
 }
 
 void
@@ -913,7 +951,8 @@ LocalProxy::execDROP_TRIG_IMPL_REQ(Signal* signal)
 }
 
 void
-LocalProxy::sendDROP_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId)
+LocalProxy::sendDROP_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId,
+                                   SectionHandle * handle)
 {
   Ss_DROP_TRIG_IMPL_REQ& ss = ssFind<Ss_DROP_TRIG_IMPL_REQ>(ssId);
 
@@ -921,8 +960,8 @@ LocalProxy::sendDROP_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId)
   *req = ss.m_req;
   req->senderRef = reference();
   req->senderData = ssId;
-  sendSignal(workerRef(ss.m_worker), GSN_DROP_TRIG_IMPL_REQ,
-             signal, DropTrigImplReq::SignalLength, JBB);
+  sendSignalNoRelease(workerRef(ss.m_worker), GSN_DROP_TRIG_IMPL_REQ,
+                      signal, DropTrigImplReq::SignalLength, JBB, handle);
 }
 
 void

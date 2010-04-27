@@ -73,5 +73,14 @@ Add_EXECUTABLE(testNdbinfo testNdbinfo.cpp)
 TARGET_LINK_LIBRARIES(testBackup ndbbank)
 TARGET_LINK_LIBRARIES(testSRBank ndbbank)
 
-INSTALL(TARGETS testBasic testBackup testNdbApi testDict testIndex testSRBank
+INSTALL(TARGETS create_all_tabs create_tab drop_all_tabs flexAsynch flexBench
+                flexHammer flexTT testBackup testBasic testBasicAsynch
+                testBlobs testDataBuffers testDict testIndex testMgm
+                testNdbApi testNodeRestart testOIBasic testOperations
+                testRestartGci testScan testSRBank testInterpreter
+                testScanFilter testScanInterpreter testScanPerf
+                testSystemRestart testTimeout testTransactions
+                testDeadlock test_event ndbapi_slow_select testReadPerf
+                testLcp testPartitioning testBitfield DbCreate
+                DbAsyncGenerator test_event_merge testNdbinfo 
         DESTINATION bin)
