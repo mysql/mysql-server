@@ -245,13 +245,20 @@ function GetJavaNdbVersion(str)
         }
     }
 
-    for(i = 0; i < 4; i++) 
+    for(i = 0; i < 3; i++) 
     {
-        if(version[i] == null) return null;
+        if(version[i] == "" || version[i] == null) 
+        {
+          return null;
+        }
     }
 
     var res = "";
-    res = res.concat(version[0], ".", version[1], ".", version[2], ".", version[3]);
+    res = res.concat(version[0], ".", version[1], ".", version[2]);
+    if(version[3] != "" && version[3] != null) 
+    {
+      res = res.concat(".", version[3]);
+    }
     return res;
 }
 
