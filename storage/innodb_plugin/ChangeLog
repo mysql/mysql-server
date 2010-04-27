@@ -1,3 +1,9 @@
+2010-04-26	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#52663 Lost update incrementing column value under
+	READ COMMITTED isolation level
+
 2010-04-22	The InnoDB Team
 
 	* include/dict0boot.h, dict/dict0boot.c:
