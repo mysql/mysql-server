@@ -720,6 +720,14 @@ struct srv_sys_struct{
 						in the waiting_threads array */
 	ulint		activity_count;		/*!< For tracking server
 						activity */
+	unsigned	lock_wait_timeout;	/*!< TRUE if the lock monitor
+						thread is rolling back a
+					       	transaction that has waited
+					       	for too long for the lock a
+						be granted. We use this flag
+					       	to track whether the
+					       	srv_sys->mutex needs to be
+					       	acquired or not */
 };
 
 UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
@@ -1773,7 +1781,7 @@ srv_release_mysql_thread_if_suspended(
 {
 	ut_ad(mutex_own(&kernel_mutex));
 
-	if (!thr_get_trx(thr)->lock_wait_timeout) {
+	if (!srv_sys->lock_wait_timeout) {
 		srv_sys_mutex_enter();
 	} else {
 		ut_ad(srv_sys_mutex_own());
@@ -1784,7 +1792,7 @@ srv_release_mysql_thread_if_suspended(
 		os_event_set(thr->slot->event);
 	}
 
-	if (!thr_get_trx(thr)->lock_wait_timeout) {
+	if (!srv_sys->lock_wait_timeout) {
 		srv_sys_mutex_exit();
 	}
 }
@@ -2327,13 +2335,14 @@ srv_lock_check_wait(
 			    && ut_dulint_cmp(trx->id, slot_trx->id) == 0
 			    && trx->wait_lock != NULL) {
 
+				ut_a(!srv_sys->lock_wait_timeout);
 				ut_a(trx->que_state == TRX_QUE_LOCK_WAIT);
 
-				trx->lock_wait_timeout = TRUE;
+				srv_sys->lock_wait_timeout = TRUE;
 
 				lock_cancel_waiting_and_release(trx->wait_lock);
 
-				trx->lock_wait_timeout = FALSE;
+				srv_sys->lock_wait_timeout = FALSE;
 			}
 
 			mutex_exit(&kernel_mutex);
