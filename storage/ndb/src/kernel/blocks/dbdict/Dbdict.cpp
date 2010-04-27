@@ -4829,6 +4829,9 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
   tablePtr.p->hashMapObjectId = c_tableDesc.HashMapObjectId;
   tablePtr.p->hashMapVersion = c_tableDesc.HashMapVersion;
 
+  tabRequire(tablePtr.p->noOfAttributes <= MAX_ATTRIBUTES_IN_TABLE,
+             CreateTableRef::NoMoreAttributeRecords); // bad error code!
+
   if (tablePtr.p->fragmentType == DictTabInfo::HashMapPartition &&
       tablePtr.p->hashMapObjectId == RNIL)
   {
