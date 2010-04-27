@@ -7192,3 +7192,106 @@ f1
 7
 DROP TEMPORARY TABLE t1;
 DROP PROCEDURE p1;
+#
+# Bug #11918 Can't use a declared variable in LIMIT clause
+#
+drop table if exists t1;
+drop procedure if exists p1;
+create table t1 (c1 int);
+insert into t1 (c1) values (1), (2), (3), (4), (5);
+create procedure p1()
+begin
+declare a integer;
+declare b integer;
+select * from t1 limit a, b;
+end|
+# How do we handle NULL limit values?
+call p1();
+c1
+drop table t1;
+create table t1 (a int);
+insert into t1 (a) values (1), (2), (3), (4), (5);
+#
+# Do we correctly resolve identifiers in LIMIT?
+# Since DROP and CREATE did not invalidate
+# the SP cache, we can't test until
+# we drop and re-create the procedure.
+#
+call p1();
+ERROR 42S22: Unknown column 'test.t1.c1' in 'field list'
+# 
+# Drop and recreate the procedure, then repeat
+#
+drop procedure p1;
+create procedure p1()
+begin
+declare a integer;
+declare b integer;
+select * from t1 limit a, b;
+end|
+# Stored procedure variables are resolved correctly in the LIMIT
+call p1();
+a
+drop table t1;
+create table t1 (c1 int);
+insert into t1 (c1) values (1), (2), (3), (4), (5);
+drop procedure p1;
+# Try to create a procedure that
+# refers to non-existing variables.
+create procedure p1(p1 integer, p2 integer)
+select * from t1 limit a, b;
+ERROR 42000: Undeclared variable: a
+#
+# Try to use data types not allowed in LIMIT 
+#
+create procedure p1(p1 date, p2 date) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 integer, p2 float) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 integer, p2 char(1)) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 varchar(5), p2 char(1)) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 decimal, p2 decimal) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+create procedure p1(p1 double, p2 double) select * from t1 limit p1, p2;
+ERROR HY000: A variable of a non-integer type in LIMIT clause
+#
+# Finally, test the valid case.
+#
+create procedure p1(p1 integer, p2 integer)
+select * from t1 limit p1, p2;
+call p1(NULL, NULL);
+c1
+call p1(0, 0);
+c1
+call p1(0, -1);
+c1
+1
+2
+3
+4
+5
+call p1(-1, 0);
+c1
+call p1(-1, -1);
+c1
+call p1(0, 1);
+c1
+1
+call p1(1, 0);
+c1
+call p1(1, 5);
+c1
+2
+3
+4
+5
+call p1(3, 2);
+c1
+4
+5
+# Cleanup
+drop table t1;
+drop procedure p1;
+# End of 5.5 test
