@@ -383,7 +383,7 @@ CALL p2(NEW.i1);
 INSERT INTO t1 VALUES (7);
 ERROR 42000: UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't1'
 INSERT INTO t2 VALUES (11);
-ERROR 42000: SELECT,UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't2'
+ERROR 42000: SELECT, UPDATE command denied to user 'mysqltest_dfn'@'localhost' for column 'i1' in table 't2'
 DROP TRIGGER t2_bi;
 DROP TRIGGER t1_bi;
 GRANT SELECT ON mysqltest_db1.* TO mysqltest_dfn@localhost;
