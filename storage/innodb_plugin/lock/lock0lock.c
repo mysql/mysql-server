@@ -4710,6 +4710,7 @@ lock_rec_queue_validate(
 			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 					       block, heap_no, impl_trx));
 		}
+#if 0
 	} else {
 
 		/* The kernel mutex may get released temporarily in the
@@ -4719,6 +4720,27 @@ lock_rec_queue_validate(
 		/* If this thread is holding the file space latch
 		(fil_space_t::latch), the following check WILL break
 		latching order and may cause a deadlock of threads. */
+
+		/* NOTE: This is a bogus check that would fail in the
+		following case: Our transaction is updating a
+		row. After it has updated the clustered index record,
+		it goes to a secondary index record and finds someone
+		else holding an explicit S- or X-lock on that
+		secondary index record, presumably from a locking
+		read. Our transaction cannot update the secondary
+		index immediately, but places a waiting X-lock request
+		on the secondary index record. There is nothing
+		illegal in this. The assertion is simply too strong. */
+
+		/* From the locking point of view, each secondary
+		index is a separate table. A lock that is held on
+		secondary index rec does not give any rights to modify
+		or read the clustered index rec. Therefore, we can
+		think of the sec index as a separate 'table' from the
+		clust index 'table'. Conversely, a transaction that
+		has acquired a lock on and modified a clustered index
+		record may need to wait for a lock on the
+		corresponding record in a secondary index. */
 
 		impl_trx = lock_sec_rec_some_has_impl_off_kernel(
 			rec, index, offsets);
@@ -4730,6 +4752,7 @@ lock_rec_queue_validate(
 			ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
 					       block, heap_no, impl_trx));
 		}
+#endif
 	}
 
 	lock = lock_rec_get_first(block, heap_no);
