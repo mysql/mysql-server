@@ -396,7 +396,7 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
-  make VERBOSE=1 mysqld mysqlserver
+  make VERBOSE=1
 )
 # Build full release
 mkdir release
@@ -730,6 +730,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
