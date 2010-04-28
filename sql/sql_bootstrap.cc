@@ -67,35 +67,8 @@ int read_bootstrap_query(char *query, int *query_length,
     if (strncmp(line, "delimiter", 9) == 0)
       continue;
 
-    if (query_len == 0)
-    {
-      if (line[len - 1] == ';')
-      {
-        /*
-          The first line is terminated by ';'.
-          This is a valid single line query.
-        */
-        memcpy(query, line, len);
-        *query_length= len;
-        query[len]= '\0';
-        return 0;
-      }
-    }
-    else
-    {
-      if ((len >= 2) && (line[0] == 'G') && (line[1] == 'O'))
-      {
-        /*
-          Found the multiline 'GO' delimiter.
-          This is a valid multi line query.
-        */
-        *query_length= query_len;
-        query[query_len]= '\0';
-        return 0;
-      }
-    }
-
     /* Append the current line to a multi line query. */
+
     if (query_len + len + 1 >= MAX_BOOTSTRAP_QUERY_SIZE)
       return READ_BOOTSTRAP_ERROR;
 
@@ -110,6 +83,17 @@ int read_bootstrap_query(char *query, int *query_length,
     }
     memcpy(query + query_len, line, len);
     query_len+= len;
+
+    if (line[len - 1] == ';')
+    {
+      /*
+        The last line is terminated by ';'.
+        Return the query found.
+      */
+      query[query_len]= '\0';
+      *query_length= query_len;
+      return 0;
+    }
   }
 }
 

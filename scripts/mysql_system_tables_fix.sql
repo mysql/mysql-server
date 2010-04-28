@@ -29,21 +29,9 @@ ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 SET @hadGrantPriv:=0;
 SELECT @hadGrantPriv:=1 FROM user WHERE Grant_priv LIKE '%';
 
-ALTER TABLE user add Grant_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,
-  add References_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,
-  add Index_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,
-  add Alter_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
-GO
-ALTER TABLE host add Grant_priv enum('N','Y') NOT NULL,
-  add References_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,
-  add Index_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,
-  add Alter_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
-GO
-ALTER TABLE db add Grant_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,
-  add References_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,
-  add Index_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,
-  add Alter_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
-GO
+ALTER TABLE user add Grant_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add References_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Index_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Alter_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
+ALTER TABLE host add Grant_priv enum('N','Y') NOT NULL,add References_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Index_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Alter_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
+ALTER TABLE db add Grant_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add References_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Index_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL,add Alter_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
 # Fix privileges for old tables
 UPDATE user SET Grant_priv=File_priv,References_priv=Create_priv,Index_priv=Create_priv,Alter_priv=Create_priv WHERE @hadGrantPriv = 0;
@@ -59,7 +47,6 @@ ADD ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci NOT NULL
 ADD ssl_cipher BLOB NOT NULL,
 ADD x509_issuer BLOB NOT NULL,
 ADD x509_subject BLOB NOT NULL;
-GO
 ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
 
 #
@@ -67,7 +54,6 @@ ALTER TABLE user MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') NOT NULL;
 #
 ALTER TABLE tables_priv
   ADD KEY Grantor (Grantor);
-GO
 
 ALTER TABLE tables_priv
   MODIFY Host char(60) NOT NULL default '',
@@ -77,7 +63,6 @@ ALTER TABLE tables_priv
   MODIFY Grantor char(77) NOT NULL default '',
   ENGINE=MyISAM,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-GO
 
 ALTER TABLE tables_priv
   MODIFY Column_priv set('Select','Insert','Update','References')
@@ -87,7 +72,6 @@ ALTER TABLE tables_priv
                         'Create View','Show view')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL,
   COMMENT='Table privileges';
-GO
 
 #
 # columns_priv
@@ -98,7 +82,6 @@ GO
 ALTER TABLE columns_priv
   CHANGE Type Column_priv set('Select','Insert','Update','References')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
-GO
 
 ALTER TABLE columns_priv
   MODIFY Host char(60) NOT NULL default '',
@@ -109,12 +92,10 @@ ALTER TABLE columns_priv
   ENGINE=MyISAM,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin,
   COMMENT='Column privileges';
-GO
 
 ALTER TABLE columns_priv
   MODIFY Column_priv set('Select','Insert','Update','References')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
-GO
 
 #
 #  Add the new 'type' column to the func table.
@@ -138,14 +119,10 @@ ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL 
 ADD Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Lock_tables_priv,
 ADD Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Execute_priv,
 ADD Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL AFTER Repl_slave_priv;
-GO
 
 # Convert privileges so that users have similar privileges as before
 
-UPDATE user SET Show_db_priv= Select_priv, Super_priv=Process_priv, Execute_priv=Process_priv,
-  Create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=File_priv
-  where user<>"" AND @hadShowDbPriv = 0;
-GO
+UPDATE user SET Show_db_priv= Select_priv, Super_priv=Process_priv, Execute_priv=Process_priv, Create_tmp_table_priv='Y', Lock_tables_priv='Y', Repl_slave_priv=file_priv, Repl_client_priv=File_priv where user<>"" AND @hadShowDbPriv = 0;
 
 
 #  Add fields that can be used to limit number of questions and connections
@@ -155,7 +132,6 @@ ALTER TABLE user
 ADD max_questions int(11) NOT NULL DEFAULT 0 AFTER x509_subject,
 ADD max_updates   int(11) unsigned NOT NULL DEFAULT 0 AFTER max_questions,
 ADD max_connections int(11) unsigned NOT NULL DEFAULT 0 AFTER max_updates;
-GO
 
 
 #
@@ -165,11 +141,9 @@ GO
 ALTER TABLE db
 ADD Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
-GO
 ALTER TABLE host
 ADD Create_tmp_table_priv enum('N','Y') DEFAULT 'N' NOT NULL,
 ADD Lock_tables_priv enum('N','Y') DEFAULT 'N' NOT NULL;
-GO
 
 alter table user change max_questions max_questions int(11) unsigned DEFAULT 0  NOT NULL;
 
@@ -185,7 +159,6 @@ ALTER TABLE user
   MODIFY Host char(60) NOT NULL default '',
   MODIFY User char(16) NOT NULL default '',
   ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-GO
 ALTER TABLE user
   MODIFY Password char(41) character set latin1 collate latin1_bin NOT NULL default '',
   MODIFY Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -210,14 +183,12 @@ ALTER TABLE user
   MODIFY Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
-GO
 
 ALTER TABLE db
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
   MODIFY User char(16) NOT NULL default '',
   ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-GO
 ALTER TABLE db
   MODIFY  Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY  Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -231,13 +202,11 @@ ALTER TABLE db
   MODIFY  Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY  Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY  Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
-GO
 
 ALTER TABLE host
   MODIFY Host char(60) NOT NULL default '',
   MODIFY Db char(64) NOT NULL default '',
   ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-GO
 ALTER TABLE host
   MODIFY Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
@@ -251,14 +220,11 @@ ALTER TABLE host
   MODIFY Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL,
   MODIFY Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
-GO
 
 ALTER TABLE func
   ENGINE=MyISAM, CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-GO
 ALTER TABLE func
   MODIFY type enum ('function','aggregate') COLLATE utf8_general_ci NOT NULL;
-GO
 
 #
 # Modify log tables.
@@ -295,7 +261,6 @@ ALTER TABLE plugin
   MODIFY name varchar(64) COLLATE utf8_general_ci NOT NULL DEFAULT '',
   MODIFY dl varchar(128) COLLATE utf8_general_ci NOT NULL DEFAULT '',
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
-GO
 
 #
 # Detect whether we had Create_view_priv
@@ -392,7 +357,6 @@ ALTER TABLE user MODIFY Create_user_priv enum('N','Y') COLLATE utf8_general_ci D
 UPDATE user LEFT JOIN db USING (Host,User) SET Create_user_priv='Y'
   WHERE @hadCreateUserPriv = 0 AND
         (user.Grant_priv = 'Y' OR db.Grant_priv = 'Y');
-GO
 
 #
 # procs_priv
@@ -401,26 +365,21 @@ GO
 ALTER TABLE procs_priv
   ENGINE=MyISAM,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin;
-GO
 
 ALTER TABLE procs_priv
   MODIFY Proc_priv set('Execute','Alter Routine','Grant')
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
-GO
 
 ALTER IGNORE TABLE procs_priv
   MODIFY Routine_name char(64)
     COLLATE utf8_general_ci DEFAULT '' NOT NULL;
-GO
 
 ALTER TABLE procs_priv
   ADD Routine_type enum('FUNCTION','PROCEDURE')
     COLLATE utf8_general_ci NOT NULL AFTER Routine_name;
-GO
 
 ALTER TABLE procs_priv
   MODIFY Timestamp timestamp AFTER Proc_priv;
-GO
 
 #
 # proc
@@ -472,7 +431,6 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'PAD_CHAR_TO_FULL_LENGTH'
                             ) DEFAULT '' NOT NULL,
                  DEFAULT CHARACTER SET utf8;
-GO
 
 # Correct the character set and collation
 ALTER TABLE proc CONVERT TO CHARACTER SET utf8;
@@ -483,77 +441,62 @@ ALTER TABLE proc  MODIFY db
                          char(77) collate utf8_bin DEFAULT '' NOT NULL,
                   MODIFY comment
                          char(64) collate utf8_bin DEFAULT '' NOT NULL;
-GO
 
 ALTER TABLE proc ADD character_set_client
                      char(32) collate utf8_bin DEFAULT NULL
                      AFTER comment;
-GO
 ALTER TABLE proc MODIFY character_set_client
                         char(32) collate utf8_bin DEFAULT NULL;
-GO
 
 SELECT CASE WHEN COUNT(*) > 0 THEN 
 CONCAT ("WARNING: NULL values of the 'character_set_client' column ('mysql.proc' table) have been updated with a default value (", @@character_set_client, "). Please verify if necessary.")
 ELSE NULL 
 END 
 AS value FROM proc WHERE character_set_client IS NULL;
-GO
 
 UPDATE proc SET character_set_client = @@character_set_client 
                      WHERE character_set_client IS NULL;
-GO
 
 ALTER TABLE proc ADD collation_connection
                      char(32) collate utf8_bin DEFAULT NULL
                      AFTER character_set_client;
-GO
 ALTER TABLE proc MODIFY collation_connection
                         char(32) collate utf8_bin DEFAULT NULL;
-GO
 
 SELECT CASE WHEN COUNT(*) > 0 THEN 
 CONCAT ("WARNING: NULL values of the 'collation_connection' column ('mysql.proc' table) have been updated with a default value (", @@collation_connection, "). Please verify if necessary.")
 ELSE NULL 
 END 
 AS value FROM proc WHERE collation_connection IS NULL;
-GO
 
 UPDATE proc SET collation_connection = @@collation_connection
                      WHERE collation_connection IS NULL;
-GO
 
 ALTER TABLE proc ADD db_collation
                      char(32) collate utf8_bin DEFAULT NULL
                      AFTER collation_connection;
-GO
 ALTER TABLE proc MODIFY db_collation
                         char(32) collate utf8_bin DEFAULT NULL;
-GO
 
 SELECT CASE WHEN COUNT(*) > 0 THEN 
 CONCAT ("WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been updated with default values. Please verify if necessary.")
 ELSE NULL
 END
 AS value FROM proc WHERE db_collation IS NULL;
-GO
 
 UPDATE proc AS p SET db_collation  = 
                      ( SELECT DEFAULT_COLLATION_NAME 
                        FROM INFORMATION_SCHEMA.SCHEMATA 
                        WHERE SCHEMA_NAME = p.db)
                      WHERE db_collation IS NULL;
-GO
 
 ALTER TABLE proc ADD body_utf8 longblob DEFAULT NULL
                      AFTER db_collation;
-GO
 ALTER TABLE proc MODIFY body_utf8 longblob DEFAULT NULL;
 
 # Change comment from char(64) to text
 ALTER TABLE proc MODIFY comment
                         text collate utf8_bin NOT NULL;
-GO
 
 #
 # EVENT privilege
@@ -611,7 +554,6 @@ ALTER TABLE event MODIFY sql_mode
                             'NO_ENGINE_SUBSTITUTION',
                             'PAD_CHAR_TO_FULL_LENGTH'
                             ) DEFAULT '' NOT NULL AFTER on_completion;
-GO
 ALTER TABLE event MODIFY name char(64) CHARACTER SET utf8 NOT NULL default '';
 
 ALTER TABLE event MODIFY COLUMN originator INT UNSIGNED NOT NULL;
@@ -621,35 +563,27 @@ ALTER TABLE event MODIFY COLUMN status ENUM('ENABLED','DISABLED','SLAVESIDE_DISA
 
 ALTER TABLE event ADD COLUMN time_zone char(64) CHARACTER SET latin1
         NOT NULL DEFAULT 'SYSTEM' AFTER originator;
-GO
 
 ALTER TABLE event ADD character_set_client
                       char(32) collate utf8_bin DEFAULT NULL
                       AFTER time_zone;
-GO
 ALTER TABLE event MODIFY character_set_client
                          char(32) collate utf8_bin DEFAULT NULL;
-GO
 
 ALTER TABLE event ADD collation_connection
                       char(32) collate utf8_bin DEFAULT NULL
                       AFTER character_set_client;
-GO
 ALTER TABLE event MODIFY collation_connection
                          char(32) collate utf8_bin DEFAULT NULL;
-GO
 
 ALTER TABLE event ADD db_collation
                       char(32) collate utf8_bin DEFAULT NULL
                       AFTER collation_connection;
-GO
 ALTER TABLE event MODIFY db_collation
                          char(32) collate utf8_bin DEFAULT NULL;
-GO
 
 ALTER TABLE event ADD body_utf8 longblob DEFAULT NULL
                       AFTER db_collation;
-GO
 ALTER TABLE event MODIFY body_utf8 longblob DEFAULT NULL;
 
 
@@ -669,10 +603,7 @@ ALTER TABLE host MODIFY Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAU
 ALTER TABLE db ADD Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 ALTER TABLE db MODIFY Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;
 
-ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete','Create','Drop',
-                                              'Grant','References','Index','Alter','Create View','Show view','Trigger')
-  COLLATE utf8_general_ci DEFAULT '' NOT NULL;
-GO
+ALTER TABLE tables_priv MODIFY Table_priv set('Select','Insert','Update','Delete','Create','Drop','Grant','References','Index','Alter','Create View','Show view','Trigger') COLLATE utf8_general_ci DEFAULT '' NOT NULL;
 
 UPDATE user SET Trigger_priv=Super_priv WHERE @hadTriggerPriv = 0;
 
