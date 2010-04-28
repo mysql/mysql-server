@@ -6594,6 +6594,7 @@ bool mysql_exchange_partition(THD *thd,
   TABLE  *part_table, *swap_table;
   TABLE_LIST *swap_table_list;
   handler *file= NULL;
+  handlerton *table_hton;
   partition_element *part_elem;
   char *partition_name;
   char temp_name[FN_REFLEN+1];
@@ -6648,6 +6649,8 @@ bool mysql_exchange_partition(THD *thd,
 
   if (check_exchange_partition(swap_table, part_table))
     goto err;
+
+  table_hton= swap_table->file->ht;
 
   thd_proc_info(thd, "verifying table");
 
@@ -6725,7 +6728,7 @@ bool mysql_exchange_partition(THD *thd,
   close_all_tables_for_name(thd, part_table->s, FALSE);
   DEBUG_SYNC(thd, "swap_partition_before_rename");
   file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root,
-                        swap_table->file->ht);
+                        table_hton);
   if (!file)
   {
     mem_alloc_error(sizeof(handler));
@@ -6753,7 +6756,6 @@ bool mysql_exchange_partition(THD *thd,
     goto err;
   }
 
-  /* TODO: verify bin-log handling */
   /* call rename table from tmp-nam to partition */
   if (file->ha_rename_table(temp_file_name, part_file_name))
   {
@@ -6770,6 +6772,7 @@ bool mysql_exchange_partition(THD *thd,
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_exclusive_lock;
 
+  /* TODO: verify bin-log handling */
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
   {
     /*
@@ -6788,6 +6791,7 @@ bool mysql_exchange_partition(THD *thd,
   table_list->table= NULL;			// For query cache
   table_list->next_local->table= NULL;
   query_cache_invalidate3(thd, table_list, 0);
+  /* TODO: unlock_table_names ? (as an optimization) */
   DBUG_RETURN(FALSE);
 err:
 err_with_exclusive_lock:
