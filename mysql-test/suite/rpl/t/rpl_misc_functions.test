@@ -94,7 +94,9 @@ select * from t1 into outfile "../../tmp/t1_slave.txt";
 
 # Load data from slave into temp table on master
 connection master;
+--disable_warnings
 create temporary table t1_slave select * from t1 where 1=0;
+--enable_warnings
 load data infile '../../tmp/t1_slave.txt' into table t1_slave;
 --remove_file $MYSQLTEST_VARDIR/tmp/t1_slave.txt
 

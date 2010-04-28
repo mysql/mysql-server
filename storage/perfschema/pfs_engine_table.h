@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ protected:
     @param fields           Table fields
   */
   virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
-                                unsigned char *new_buf, Field **fields)= 0;
+                                unsigned char *new_buf, Field **fields);
 
   /**
     Constructor.
@@ -149,27 +149,6 @@ struct PFS_engine_table_share
   TABLE_FIELD_DEF *m_field_def;
   /** Schema integrity flag. */
   bool m_checked;
-};
-
-/** Adapter for read only PERFORMANCE_SCHEMA tables. */
-class PFS_readonly_table : public PFS_engine_table
-{
-protected:
-  /**
-    Constructor.
-    @param share            table share
-    @param pos              address of the m_pos position member
-  */
-  PFS_readonly_table(const PFS_engine_table_share *share, void *pos)
-    : PFS_engine_table(share, pos)
-  {}
-
-  ~PFS_readonly_table()
-  {}
-
-  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
-                                unsigned char *new_buf, Field **fields);
-
 };
 
 class PFS_readonly_acl : public ACL_internal_table_access
