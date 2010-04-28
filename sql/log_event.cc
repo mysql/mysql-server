@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3127,7 +3127,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     END of the current log event (COMMIT). We save it in rli so that InnoDB can
     access it.
   */
-  const_cast<Relay_log_info*>(rli)->future_group_master_log_pos= log_pos;
+  const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 
   clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
@@ -3145,8 +3145,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       const_cast<Relay_log_info*>(rli)->report(ERROR_LEVEL, error,
                   "Error in cleaning up after an event preceeding the commit; "
                   "the group log file/position: %s %s",
-                  const_cast<Relay_log_info*>(rli)->group_master_log_name,
-                  llstr(const_cast<Relay_log_info*>(rli)->group_master_log_pos,
+                  const_cast<Relay_log_info*>(rli)->get_group_master_log_name(),
+                  llstr(const_cast<Relay_log_info*>(rli)->get_group_master_log_pos(),
                         llbuff));
     }
     /*
@@ -4653,7 +4653,7 @@ void Load_log_event::set_fields(const char* affected_db,
   @param rli
   @param use_rli_only_for_errors     If set to 1, rli is provided to
                                      Load_log_event::exec_event only for this
-                                     function to have RPL_LOG_NAME and
+                                     function to have rli->get_rpl_log_name and
                                      rli->last_slave_error, both being used by
                                      error reports. rli's position advancing
                                      is skipped (done by the caller which is
@@ -4703,7 +4703,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       Saved for InnoDB, see comment in
       Query_log_event::do_apply_event()
     */
-    const_cast<Relay_log_info*>(rli)->future_group_master_log_pos= log_pos;
+    const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
     DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
   }
  
@@ -4865,7 +4865,8 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
                           "log position %s in log '%s' produced %ld "
                           "warning(s). Default database: '%s'",
                           (char*) table_name,
-                          llstr(log_pos,llbuff), RPL_LOG_NAME, 
+                          llstr(log_pos,llbuff),
+                          const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                           (ulong) thd->cuted_fields,
                           print_slave_db_safe(thd->db));
       }
@@ -5099,17 +5100,19 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     pthread_mutex_lock(&rli->data_lock);
     DBUG_PRINT("info", ("old group_master_log_name: '%s'  "
                         "old group_master_log_pos: %lu",
-                        rli->group_master_log_name,
-                        (ulong) rli->group_master_log_pos));
-    memcpy(rli->group_master_log_name, new_log_ident, ident_len+1);
+                        rli->get_group_master_log_name(),
+                        (ulong) rli->get_group_master_log_pos()));
+    memcpy((void *)rli->get_group_master_log_name(),
+           new_log_ident, ident_len + 1);
     rli->notify_group_master_log_name_update();
     rli->inc_group_relay_log_pos(pos, TRUE /* skip_lock */);
+
     DBUG_PRINT("info", ("new group_master_log_name: '%s'  "
                         "new group_master_log_pos: %lu",
-                        rli->group_master_log_name,
-                        (ulong) rli->group_master_log_pos));
+                        rli->get_group_master_log_name(),
+                        (ulong) rli->get_group_master_log_pos()));
     pthread_mutex_unlock(&rli->data_lock);
-    flush_relay_log_info(rli);
+    rli->flush_info();
     
     /*
       Reset thd->options and sql_mode etc, because this could be the signal of
@@ -5962,7 +5965,7 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
   pthread_mutex_lock(&mi->data_lock);
   pthread_mutex_lock(&rli->data_lock);
   master_host_len = strlen(mi->host);
-  master_log_len = strlen(rli->group_master_log_name);
+  master_log_len = strlen(rli->get_group_master_log_name());
   // on OOM, just do not initialize the structure and print the error
   if ((mem_pool = (char*)my_malloc(get_data_size() + 1,
 				   MYF(MY_WME))))
@@ -5970,9 +5973,9 @@ Slave_log_event::Slave_log_event(THD* thd_arg,
     master_host = mem_pool + SL_MASTER_HOST_OFFSET ;
     memcpy(master_host, mi->host, master_host_len + 1);
     master_log = master_host + master_host_len + 1;
-    memcpy(master_log, rli->group_master_log_name, master_log_len + 1);
+    memcpy(master_log, rli->get_group_master_log_name(), master_log_len + 1);
     master_port = mi->port;
-    master_pos = rli->group_master_log_pos;
+    master_pos = rli->get_group_master_log_pos();
     DBUG_PRINT("info", ("master_log: %s  pos: %lu", master_log,
 			(ulong) master_pos));
   }
@@ -6118,7 +6121,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
   else
   {
     rli->inc_group_relay_log_pos(0);
-    flush_relay_log_info(rli);
+    rli->flush_info();
   }
   return 0;
 }
@@ -6778,8 +6781,7 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
     lev->do_apply_event is the place where the table is loaded (it
     calls mysql_load()).
   */
-
-  const_cast<Relay_log_info*>(rli)->future_group_master_log_pos= log_pos;
+  const_cast<Relay_log_info*>(rli)->set_future_group_master_log_pos(log_pos);
   if (lev->do_apply_event(0,rli,1)) 
   {
     /*
@@ -7438,7 +7440,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     do_apply_event(). We still check here to prevent future coding
     errors.
   */
-  DBUG_ASSERT(rli->sql_thd == thd);
+  DBUG_ASSERT(rli->info_thd == thd);
 
   /*
     If there is no locks taken, this is the first binrow event seen
@@ -7664,7 +7666,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           if (global_system_variables.log_warnings)
             slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                     get_type_str(),
-                                    RPL_LOG_NAME, (ulong) log_pos);
+                                    const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                                    (ulong) log_pos);
           clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
           error= 0;
           if (idempotent_error == 0)
@@ -7715,7 +7718,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       if (global_system_variables.log_warnings)
         slave_rows_error_report(WARNING_LEVEL, error, rli, thd, table,
                                 get_type_str(),
-                                RPL_LOG_NAME, (ulong) log_pos);
+                                const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                                (ulong) log_pos);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }
@@ -7738,7 +7742,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   {
     slave_rows_error_report(ERROR_LEVEL, error, rli, thd, table,
                              get_type_str(),
-                             RPL_LOG_NAME, (ulong) log_pos);
+                             const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
+                             (ulong) log_pos);
     /*
       @todo We should probably not call
       reset_current_stmt_binlog_format_row() from here.
@@ -8285,7 +8290,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   size_t dummy_len;
   void *memory;
   DBUG_ENTER("Table_map_log_event::do_apply_event(Relay_log_info*)");
-  DBUG_ASSERT(rli->sql_thd == thd);
+  DBUG_ASSERT(rli->info_thd == thd);
 
   /* Step the query id to mark what columns that are actually used. */
   pthread_mutex_lock(&LOCK_thread_count);
@@ -8311,7 +8316,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 
   int error= 0;
 
-  if (rli->sql_thd->slave_thread /* filtering is for slave only */ &&
+  if (rli->info_thd->slave_thread /* filtering is for slave only */ &&
       (!rpl_filter->db_ok(table_list->db) ||
        (rpl_filter->is_on() && !rpl_filter->tables_ok("", table_list))))
   {
@@ -8677,7 +8682,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
   auto_afree_ptr<char> key(NULL);
 
   /* fill table->record[0] with default values */
-  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+  bool abort_on_warnings= (rli->info_thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   if ((error= prepare_record(table, m_width,
                              table->file->ht->db_type != DB_TYPE_NDBCLUSTER,
@@ -9484,7 +9489,7 @@ Update_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 
   store_record(m_table,record[1]);
 
-  bool abort_on_warnings= (rli->sql_thd->variables.sql_mode &
+  bool abort_on_warnings= (rli->info_thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
   m_curr_row= m_curr_row_end;
   /* this also updates m_curr_row_end */

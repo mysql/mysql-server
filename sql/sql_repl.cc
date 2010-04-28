@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB & Sasha
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -197,8 +197,8 @@ static int send_file(THD *thd)
 
   TODO
     - Inform the slave threads that they should sync the position
-      in the binary log file with flush_relay_log_info.
-      Now they sync is done for next read.
+      in the binary log file with flush_info.
+      Now the sync is done for next read.
 */
 
 void adjust_linfo_offsets(my_off_t purge_offset)
@@ -1022,8 +1022,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
     thread_mask&= thd->lex->slave_thd_opt;
   if (thread_mask) //some threads are stopped, start them
   {
-    if (init_master_info(mi,master_info_file,relay_log_info_file, 0,
-			 thread_mask))
+    if (init_info(mi, FALSE, thread_mask))
       slave_errno=ER_MASTER_INFO;
     else if (server_id_supplied && *mi->host)
     {
@@ -1034,38 +1033,38 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
       */
       if (thread_mask & SLAVE_SQL)
       {
-        pthread_mutex_lock(&mi->rli.data_lock);
+        pthread_mutex_lock(&mi->rli->data_lock);
 
         if (thd->lex->mi.pos)
         {
-          mi->rli.until_condition= Relay_log_info::UNTIL_MASTER_POS;
-          mi->rli.until_log_pos= thd->lex->mi.pos;
+          mi->rli->until_condition= Relay_log_info::UNTIL_MASTER_POS;
+          mi->rli->until_log_pos= thd->lex->mi.pos;
           /*
              We don't check thd->lex->mi.log_file_name for NULL here
              since it is checked in sql_yacc.yy
           */
-          strmake(mi->rli.until_log_name, thd->lex->mi.log_file_name,
-                  sizeof(mi->rli.until_log_name)-1);
+          strmake(mi->rli->until_log_name, thd->lex->mi.log_file_name,
+                  sizeof(mi->rli->until_log_name)-1);
         }
         else if (thd->lex->mi.relay_log_pos)
         {
-          mi->rli.until_condition= Relay_log_info::UNTIL_RELAY_POS;
-          mi->rli.until_log_pos= thd->lex->mi.relay_log_pos;
-          strmake(mi->rli.until_log_name, thd->lex->mi.relay_log_name,
-                  sizeof(mi->rli.until_log_name)-1);
+          mi->rli->until_condition= Relay_log_info::UNTIL_RELAY_POS;
+          mi->rli->until_log_pos= thd->lex->mi.relay_log_pos;
+          strmake(mi->rli->until_log_name, thd->lex->mi.relay_log_name,
+                  sizeof(mi->rli->until_log_name)-1);
         }
         else
-          mi->rli.clear_until_condition();
+          mi->rli->clear_until_condition();
 
-        if (mi->rli.until_condition != Relay_log_info::UNTIL_NONE)
+        if (mi->rli->until_condition != Relay_log_info::UNTIL_NONE)
         {
           /* Preparing members for effective until condition checking */
-          const char *p= fn_ext(mi->rli.until_log_name);
+          const char *p= fn_ext(mi->rli->until_log_name);
           char *p_end;
           if (*p)
           {
             //p points to '.'
-            mi->rli.until_log_name_extension= strtoul(++p,&p_end, 10);
+            mi->rli->until_log_name_extension= strtoul(++p,&p_end, 10);
             /*
               p_end points to the first invalid character. If it equals
               to p, no digits were found, error. If it contains '\0' it
@@ -1078,7 +1077,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
             slave_errno=ER_BAD_SLAVE_UNTIL_COND;
 
           /* mark the cached result of the UNTIL comparison as "undefined" */
-          mi->rli.until_log_names_cmp_result=
+          mi->rli->until_log_names_cmp_result=
             Relay_log_info::UNTIL_LOG_NAMES_CMP_UNKNOWN;
 
           /* Issuing warning then started without --skip-slave-start */
@@ -1088,7 +1087,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                          ER(ER_MISSING_SKIP_SLAVE));
         }
 
-        pthread_mutex_unlock(&mi->rli.data_lock);
+        pthread_mutex_unlock(&mi->rli->data_lock);
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos)
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
@@ -1098,7 +1097,6 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         slave_errno = start_slave_threads(0 /*no mutex */,
 					1 /* wait for start */,
 					mi,
-					master_info_file,relay_log_info_file,
 					thread_mask);
     }
     else
@@ -1204,8 +1202,6 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
 */
 int reset_slave(THD *thd, Master_info* mi)
 {
-  MY_STAT stat_area;
-  char fname[FN_REFLEN];
   int thread_mask= 0, error= 0;
   uint sql_errno=ER_UNKNOWN_ERROR;
   const char* errmsg= "Unknown error occured while reseting slave";
@@ -1223,38 +1219,20 @@ int reset_slave(THD *thd, Master_info* mi)
   ha_reset_slave(thd);
 
   // delete relay logs, clear relay log coordinates
-  if ((error= purge_relay_logs(&mi->rli, thd,
-			       1 /* just reset */,
-			       &errmsg)))
+  if ((error= mi->rli->purge_relay_logs(thd, 1 /* just reset */, &errmsg)))
   {
     sql_errno= ER_RELAY_LOG_FAIL;
     goto err;
   }
 
-  /* Clear master's log coordinates */
-  init_master_log_pos(mi);
   /*
-     Reset errors (the idea is that we forget about the
-     old master).
+    Clear master's log coordinates.
   */
-  mi->clear_error();
-  mi->rli.clear_error();
-  mi->rli.clear_until_condition();
+  mi->init_master_log_pos();
 
-  // close master_info_file, relay_log_info_file, set mi->inited=rli->inited=0
-  end_master_info(mi);
-  // and delete these two files
-  fn_format(fname, master_info_file, mysql_data_home, "", 4+32);
-  if (my_stat(fname, &stat_area, MYF(0)) && my_delete(fname, MYF(MY_WME)))
+  if (reset_info(mi))
   {
-    error=1;
-    goto err;
-  }
-  // delete relay_log_info_file
-  fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
-  if (my_stat(fname, &stat_area, MYF(0)) && my_delete(fname, MYF(MY_WME)))
-  {
-    error=1;
+    error= 1;
     goto err;
   }
 
@@ -1332,7 +1310,9 @@ bool change_master(THD* thd, Master_info* mi)
   int thread_mask;
   const char* errmsg= 0;
   bool need_relay_log_purge= 1;
+  char *var_master_log_name= NULL, *var_group_master_log_name= NULL;
   bool ret= FALSE;
+
   DBUG_ENTER("change_master");
 
   lock_slave_threads(mi);
@@ -1344,6 +1324,7 @@ bool change_master(THD* thd, Master_info* mi)
     ret= TRUE;
     goto err;
   }
+  thread_mask= SLAVE_IO | SLAVE_SQL;
 
   thd_proc_info(thd, "Changing master");
   /* 
@@ -1359,9 +1340,8 @@ bool change_master(THD* thd, Master_info* mi)
     unlock_slave_threads(mi);
     DBUG_RETURN(TRUE);
   }
-  // TODO: see if needs re-write
-  if (init_master_info(mi, master_info_file, relay_log_info_file, 0,
-		       thread_mask))
+
+  if (init_info(mi, FALSE, thread_mask))
   {
     my_message(ER_MASTER_INFO, ER(ER_MASTER_INFO), MYF(0));
     ret= TRUE;
@@ -1381,18 +1361,18 @@ bool change_master(THD* thd, Master_info* mi)
 
   if ((lex_mi->host || lex_mi->port) && !lex_mi->log_file_name && !lex_mi->pos)
   {
-    mi->master_log_name[0] = 0;
-    mi->master_log_pos= BIN_LOG_HEADER_SIZE;
+    var_master_log_name= const_cast<char*>(mi->get_master_log_name());
+    var_master_log_name[0]= '\0';
+    mi->set_master_log_pos(BIN_LOG_HEADER_SIZE);
   }
 
   if (lex_mi->log_file_name)
-    strmake(mi->master_log_name, lex_mi->log_file_name,
-	    sizeof(mi->master_log_name)-1);
+    mi->set_master_log_name(lex_mi->log_file_name);
   if (lex_mi->pos)
   {
-    mi->master_log_pos= lex_mi->pos;
+    mi->set_master_log_pos(lex_mi->pos);
   }
-  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
 
   if (lex_mi->host)
     strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
@@ -1415,7 +1395,7 @@ bool change_master(THD* thd, Master_info* mi)
     is mentioning IGNORE_SERVER_IDS= (...)
   */
   if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
-    reset_dynamic(&mi->ignore_server_ids);
+    reset_dynamic(&(mi->ignore_server_ids->server_ids));
   for (uint i= 0; i < lex_mi->repl_ignore_server_ids.elements; i++)
   {
     ulong s_id;
@@ -1429,14 +1409,14 @@ bool change_master(THD* thd, Master_info* mi)
     else
     {
       if (bsearch((const ulong *) &s_id,
-                  mi->ignore_server_ids.buffer,
-                  mi->ignore_server_ids.elements, sizeof(ulong),
+                  mi->ignore_server_ids->server_ids.buffer,
+                  mi->ignore_server_ids->server_ids.elements, sizeof(ulong),
                   (int (*) (const void*, const void*))
                   change_master_server_id_cmp) == NULL)
-        insert_dynamic(&mi->ignore_server_ids, (uchar*) &s_id);
+        insert_dynamic(&(mi->ignore_server_ids->server_ids), (uchar*) &s_id);
     }
   }
-  sort_dynamic(&mi->ignore_server_ids, (qsort_cmp) change_master_server_id_cmp);
+  sort_dynamic(&(mi->ignore_server_ids->server_ids), (qsort_cmp) change_master_server_id_cmp);
 
   if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
@@ -1467,17 +1447,17 @@ bool change_master(THD* thd, Master_info* mi)
   {
     need_relay_log_purge= 0;
     char relay_log_name[FN_REFLEN];
-    mi->rli.relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
-    strmake(mi->rli.group_relay_log_name, relay_log_name,
-	    sizeof(mi->rli.group_relay_log_name)-1);
-    strmake(mi->rli.event_relay_log_name, relay_log_name,
-	    sizeof(mi->rli.event_relay_log_name)-1);
+
+    mi->rli->relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
+    mi->rli->set_group_relay_log_name(relay_log_name);
+    mi->rli->set_event_relay_log_name(relay_log_name);
   }
 
   if (lex_mi->relay_log_pos)
   {
     need_relay_log_purge= 0;
-    mi->rli.group_relay_log_pos= mi->rli.event_relay_log_pos= lex_mi->relay_log_pos;
+    mi->rli->set_group_relay_log_pos(lex_mi->relay_log_pos);
+    mi->rli->set_event_relay_log_pos(lex_mi->relay_log_pos);
   }
 
   /*
@@ -1499,22 +1479,21 @@ bool change_master(THD* thd, Master_info* mi)
       need_relay_log_purge)
    {
      /*
-       Sometimes mi->rli.master_log_pos == 0 (it happens when the SQL thread is
+       Sometimes mi->rli->get_master_log_pos() == 0 (it happens when the SQL thread is
        not initialized), so we use a max().
-       What happens to mi->rli.master_log_pos during the initialization stages
+       What happens to mi->rli->get_master_log_pos() during the initialization stages
        of replication is not 100% clear, so we guard against problems using
        max().
       */
-     mi->master_log_pos = max(BIN_LOG_HEADER_SIZE,
-			      mi->rli.group_master_log_pos);
-     strmake(mi->master_log_name, mi->rli.group_master_log_name,
-             sizeof(mi->master_log_name)-1);
+     mi->set_master_log_pos(max(BIN_LOG_HEADER_SIZE,
+			    mi->rli->get_group_master_log_pos()));
+     mi->set_master_log_name(mi->rli->get_group_master_log_name());
   }
   /*
     Relay log's IO_CACHE may not be inited, if rli->inited==0 (server was never
     a slave before).
   */
-  if (flush_master_info(mi, 0))
+  if (mi->flush_info())
   {
     my_error(ER_RELAY_LOG_INIT, MYF(0), "Failed to flush master info file");
     ret= TRUE;
@@ -1524,9 +1503,7 @@ bool change_master(THD* thd, Master_info* mi)
   {
     relay_log_purge= 1;
     thd_proc_info(thd, "Purging old relay logs");
-    if (purge_relay_logs(&mi->rli, thd,
-			 0 /* not only reset, but also reinit */,
-			 &errmsg))
+    if (mi->rli->purge_relay_logs(thd, 0 , &errmsg))
     {
       my_error(ER_RELAY_LOG_FAIL, MYF(0), errmsg);
       ret= TRUE;
@@ -1538,11 +1515,10 @@ bool change_master(THD* thd, Master_info* mi)
     const char* msg;
     relay_log_purge= 0;
     /* Relay log is already initialized */
-    if (init_relay_log_pos(&mi->rli,
-			   mi->rli.group_relay_log_name,
-			   mi->rli.group_relay_log_pos,
-			   0 /*no data lock*/,
-			   &msg, 0))
+    if (mi->rli->init_relay_log_pos(mi->rli->get_group_relay_log_name(),
+                                    mi->rli->get_group_relay_log_pos(),
+                                    0 /*no data lock*/,
+                                    &msg, 0))
     {
       my_error(ER_RELAY_LOG_INIT, MYF(0), msg);
       ret= TRUE;
@@ -1559,19 +1535,19 @@ bool change_master(THD* thd, Master_info* mi)
     ''/0: we have lost all copies of the original good coordinates.
     That's why we always save good coords in rli.
   */
-  mi->rli.group_master_log_pos= mi->master_log_pos;
-  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
-  strmake(mi->rli.group_master_log_name,mi->master_log_name,
-	  sizeof(mi->rli.group_master_log_name)-1);
+  mi->rli->set_group_master_log_pos(mi->get_master_log_pos());
+  DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->get_master_log_pos()));
+  mi->rli->set_group_master_log_name(mi->get_master_log_name());
 
-  if (!mi->rli.group_master_log_name[0]) // uninitialized case
-    mi->rli.group_master_log_pos=0;
+  var_group_master_log_name=  const_cast<char *>(mi->rli->get_group_master_log_name());
+  if (!var_group_master_log_name[0]) // uninitialized case
+    mi->rli->set_group_master_log_pos(0);
 
-  pthread_mutex_lock(&mi->rli.data_lock);
-  mi->rli.abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
+  pthread_mutex_lock(&mi->rli->data_lock);
+  mi->rli->abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
   /* Clear the errors, for a clean start */
-  mi->rli.clear_error();
-  mi->rli.clear_until_condition();
+  mi->rli->clear_error();
+  mi->rli->clear_until_condition();
   /*
     If we don't write new coordinates to disk now, then old will remain in
     relay-log.info until START SLAVE is issued; but if mysqld is shutdown
@@ -1579,9 +1555,9 @@ bool change_master(THD* thd, Master_info* mi)
     in-memory value at restart (thus causing errors, as the old relay log does
     not exist anymore).
   */
-  flush_relay_log_info(&mi->rli);
+  mi->rli->flush_info();
   pthread_cond_broadcast(&mi->data_cond);
-  pthread_mutex_unlock(&mi->rli.data_lock);
+  pthread_mutex_unlock(&mi->rli->data_lock);
 
 err:
   unlock_slave_threads(mi);
@@ -1683,7 +1659,7 @@ bool mysql_show_binlog_events(THD* thd)
     if (!active_mi)
       DBUG_RETURN(TRUE);
 
-    binary_log= &(active_mi->rli.relay_log);
+    binary_log= &(active_mi->rli->relay_log);
   }
 
   if (binary_log->is_open())
@@ -2085,13 +2061,13 @@ bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
 {
   int result= 0;
   pthread_mutex_lock(&LOCK_active_mi);
-  pthread_mutex_lock(&active_mi->rli.run_lock);
-  if (active_mi->rli.slave_running)
+  pthread_mutex_lock(&active_mi->rli->run_lock);
+  if (active_mi->rli->slave_running)
   {
     my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
     result=1;
   }
-  pthread_mutex_unlock(&active_mi->rli.run_lock);
+  pthread_mutex_unlock(&active_mi->rli->run_lock);
   pthread_mutex_unlock(&LOCK_active_mi);
   var->save_result.ulong_value= (ulong) var->value->val_int();
   return result;
@@ -2101,19 +2077,19 @@ bool sys_var_slave_skip_counter::check(THD *thd, set_var *var)
 bool sys_var_slave_skip_counter::update(THD *thd, set_var *var)
 {
   pthread_mutex_lock(&LOCK_active_mi);
-  pthread_mutex_lock(&active_mi->rli.run_lock);
+  pthread_mutex_lock(&active_mi->rli->run_lock);
   /*
     The following test should normally never be true as we test this
     in the check function;  To be safe against multiple
     SQL_SLAVE_SKIP_COUNTER request, we do the check anyway
   */
-  if (!active_mi->rli.slave_running)
+  if (!active_mi->rli->slave_running)
   {
-    pthread_mutex_lock(&active_mi->rli.data_lock);
-    active_mi->rli.slave_skip_counter= var->save_result.ulong_value;
-    pthread_mutex_unlock(&active_mi->rli.data_lock);
+    pthread_mutex_lock(&active_mi->rli->data_lock);
+    active_mi->rli->slave_skip_counter= var->save_result.ulong_value;
+    pthread_mutex_unlock(&active_mi->rli->data_lock);
   }
-  pthread_mutex_unlock(&active_mi->rli.run_lock);
+  pthread_mutex_unlock(&active_mi->rli->run_lock);
   pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,34 @@
    The maximum is defined as (ULONG_MAX/1000) with 4 bytes ulong
 */
 #define SLAVE_MAX_HEARTBEAT_PERIOD 4294967
+
+enum enum_mi_repository
+{
+  MI_REPOSITORY_FILE= 0,
+  MI_REPOSITORY_TABLE= 1,
+  /*
+    This value is last, after the end of slave_repository_typelib: it has no
+    corresponding cell in this typelib. We use this value to be able to know
+    if the user has explicitely specified a the type of repository at startup
+    or not.
+  */
+  MI_REPOSITORY_UNSPEC= 2
+};
+extern TYPELIB mi_repository_typelib;
+
+enum enum_rli_repository
+{
+  RLI_REPOSITORY_FILE= 0,
+  RLI_REPOSITORY_TABLE= 1,
+  /*
+    This value is last, after the end of slave_repository_typelib: it has no
+    corresponding cell in this typelib. We use this value to be able to know
+    if the user has explicitely specified a the type of repository at startup
+    or not.
+  */
+  RLI_REPOSITORY_UNSPEC= 2
+};
+extern TYPELIB rli_repository_typelib;
 
 #ifdef HAVE_REPLICATION
 
@@ -132,11 +160,6 @@ extern ulonglong relay_log_space_limit;
 #define MYSQL_SLAVE_RUN_NOT_CONNECT 1
 #define MYSQL_SLAVE_RUN_CONNECT     2
 
-#define RPL_LOG_NAME (rli->group_master_log_name[0] ? rli->group_master_log_name :\
- "FIRST")
-#define IO_RPL_LOG_NAME (mi->master_log_name[0] ? mi->master_log_name :\
- "FIRST")
-
 /*
   If the following is set, if first gives an error, second will be
   tried. Otherwise, if first fails, we fail.
@@ -145,14 +168,16 @@ extern ulonglong relay_log_space_limit;
 
 int init_slave();
 int init_recovery(Master_info* mi, const char** errmsg);
+int init_info(Master_info* mi, bool ignore_if_no_info, int thread_mask);
+void end_info(Master_info* mi);
+int reset_info(Master_info* mi);
+int flush_master_info(Master_info* mi);
 void init_slave_skip_errors(const char* arg);
-bool flush_relay_log_info(Relay_log_info* rli);
 int register_slave_on_master(MYSQL* mysql);
 int terminate_slave_threads(Master_info* mi, int thread_mask,
 			     bool skip_lock = 0);
 int start_slave_threads(bool need_slave_mutex, bool wait_for_start,
-			Master_info* mi, const char* master_info_fname,
-			const char* slave_info_fname, int thread_mask);
+			Master_info* mi, int thread_mask);
 /*
   cond_lock is usually same as start_lock. It is needed for the case when
   start_lock is 0 which happens if start_slave_thread() is called already
@@ -188,7 +213,6 @@ void end_slave(); /* release slave threads */
 void close_active_mi(); /* clean up slave threads data */
 void clear_until_condition(Relay_log_info* rli);
 void clear_slave_error(Relay_log_info* rli);
-void end_relay_log_info(Relay_log_info* rli);
 void lock_slave_threads(Master_info* mi);
 void unlock_slave_threads(Master_info* mi);
 void init_thread_mask(int* mask,Master_info* mi,bool inverse);
@@ -206,7 +230,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli);
 pthread_handler_t handle_slave_io(void *arg);
 pthread_handler_t handle_slave_sql(void *arg);
 extern bool volatile abort_loop;
-extern Master_info main_mi, *active_mi; /* active_mi for multi-master */
+extern Master_info *active_mi;      /* active_mi  for multi-master */
 extern LIST master_list;
 extern my_bool replicate_same_server_id;
 
@@ -233,5 +257,17 @@ extern I_List<THD> threads;
 /**
   @} (end of group Replication)
 */
+
+class Server_ids
+{
+public:
+  DYNAMIC_ARRAY server_ids;
+
+  Server_ids();
+  ~Server_ids();
+
+  const char *pack_server_ids();
+  bool unpack_server_ids(const char *param_server_ids);
+};
 
 #endif

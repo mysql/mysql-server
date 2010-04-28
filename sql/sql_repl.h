@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB & Sasha
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,6 @@ bool purge_master_logs_before_date(THD* thd, time_t purge_time);
 bool log_in_use(const char* log_name);
 void adjust_linfo_offsets(my_off_t purge_offset);
 bool show_binlogs(THD* thd);
-extern int init_master_info(Master_info* mi);
 void kill_zombie_dump_threads(uint32 slave_server_id);
 int check_binlog_magic(IO_CACHE* log, const char** errmsg);
 

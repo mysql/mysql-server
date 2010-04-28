@@ -509,6 +509,18 @@ TYPELIB binlog_format_typelib=
     binlog_format_names, NULL };
 ulong opt_binlog_format_id= (ulong) BINLOG_FORMAT_UNSPEC;
 const char *opt_binlog_format= binlog_format_names[opt_binlog_format_id];
+const char *mi_repository_names[]= {"FILE", "TABLE", NullS};
+TYPELIB mi_repository_typelib=
+  { array_elements(mi_repository_names) - 1, "",
+    mi_repository_names, NULL };
+ulong opt_mi_repository_id= (ulong) MI_REPOSITORY_UNSPEC;
+const char *opt_mi_repository= mi_repository_names[opt_mi_repository_id];
+const char *rli_repository_names[]= {"FILE", "TABLE", NullS};
+TYPELIB rli_repository_typelib=
+  { array_elements(rli_repository_names) - 1, "",
+    rli_repository_names, NULL };
+ulong opt_rli_repository_id= (ulong) RLI_REPOSITORY_UNSPEC;
+const char *opt_rli_repository= rli_repository_names[opt_rli_repository_id];
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
 #endif
@@ -5589,6 +5601,8 @@ enum options_mysqld
   OPT_REPLICATE_IGNORE_DB,     OPT_LOG_SLAVE_UPDATES,
   OPT_BINLOG_DO_DB,            OPT_BINLOG_IGNORE_DB,
   OPT_BINLOG_FORMAT,
+  OPT_MI_REPOSITORY,
+  OPT_RLI_REPOSITORY,
 #ifndef DBUG_OFF
   OPT_BINLOG_SHOW_XID,
 #endif
@@ -5801,6 +5815,16 @@ struct my_option my_long_options[] =
    " to 'row' and back implicitly per each query accessing a NDB table."
 #endif
    ,(uchar**) &opt_binlog_format, (uchar**) &opt_binlog_format,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"master_info_repository", OPT_MI_REPOSITORY,
+   "Chooses how the slave stores master info data. Possible values are: FILE"
+   " or TABLE. Default: FILE."
+   ,(uchar**) &opt_mi_repository, (uchar**) &opt_mi_repository,
+   0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"relay_log_info_repository", OPT_RLI_REPOSITORY,
+   "Chooses how the slave stores relay info data. Possible values are: FILE"
+   " or TABLE. Default: FILE."
+   ,(uchar**) &opt_rli_repository, (uchar**) &opt_rli_repository,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"binlog-do-db", OPT_BINLOG_DO_DB,
    "Tells the master it should log updates for the specified database, and exclude all others not explicitly mentioned.",
@@ -7150,7 +7174,7 @@ static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
   var->value= buff;
   *((my_bool *)buff)= (my_bool) (active_mi && 
                                  active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
-                                 active_mi->rli.slave_running);
+                                 active_mi->rli->slave_running);
   pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
@@ -7166,9 +7190,9 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
   {
     var->type= SHOW_LONG;
     var->value= buff;
-    pthread_mutex_lock(&active_mi->rli.data_lock);
-    *((long *)buff)= (long)active_mi->rli.retried_trans;
-    pthread_mutex_unlock(&active_mi->rli.data_lock);
+    pthread_mutex_lock(&active_mi->rli->data_lock);
+    *((long *)buff)= (long)active_mi->rli->retried_trans;
+    pthread_mutex_unlock(&active_mi->rli->data_lock);
   }
   else
     var->type= SHOW_UNDEF;
@@ -7183,9 +7207,9 @@ static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
   {
     var->type= SHOW_LONGLONG;
     var->value= buff;
-    pthread_mutex_lock(&active_mi->rli.data_lock);
+    pthread_mutex_lock(&active_mi->rli->data_lock);
     *((longlong *)buff)= active_mi->received_heartbeats;
-    pthread_mutex_unlock(&active_mi->rli.data_lock);
+    pthread_mutex_unlock(&active_mi->rli->data_lock);
   }
   else
     var->type= SHOW_UNDEF;
@@ -8139,6 +8163,20 @@ mysqld_get_one_option(int optid,
     int id;
     id= find_type_or_exit(argument, &binlog_format_typelib, opt->name);
     global_system_variables.binlog_format= opt_binlog_format_id= id - 1;
+    break;
+  }
+  case OPT_MI_REPOSITORY:
+  {
+    int id;
+    id= find_type_or_exit(argument, &mi_repository_typelib, opt->name);
+    opt_mi_repository_id= id - 1;
+    break;
+  }
+  case OPT_RLI_REPOSITORY:
+  {
+    int id;
+    id= find_type_or_exit(argument, &rli_repository_typelib, opt->name);
+    opt_rli_repository_id= id - 1;
     break;
   }
   case (int)OPT_BINLOG_DO_DB:

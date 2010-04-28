@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,7 +14,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
 #include "mysql_priv.h"
-#include "rpl_rli.h"
+#include "rpl_info.h"
+#include "rpl_info_factory.h"
 #include "base64.h"
 
 /**
@@ -61,9 +62,10 @@ void mysql_client_binlog_statement(THD* thd)
   rli= thd->rli_fake;
   if (!rli)
   {
-    rli= thd->rli_fake= new Relay_log_info(FALSE);
+    Rpl_info_factory::create_rli(RLI_REPOSITORY_FILE, FALSE, &thd->rli_fake);
+    rli= thd->rli_fake;
 #ifdef HAVE_purify
-    rli->is_fake= TRUE;
+    thd->rli_fake->is_fake= TRUE;
 #endif
     have_fd_event= FALSE;
   }
@@ -89,7 +91,7 @@ void mysql_client_binlog_statement(THD* thd)
     goto end;
   }
 
-  rli->sql_thd= thd;
+  rli->info_thd= thd;
   rli->no_storage= TRUE;
 
   for (char const *strptr= thd->lex->comment.str ;
@@ -222,7 +224,7 @@ void mysql_client_binlog_statement(THD* thd)
         i.e. when this thread terminates.
       */
       if (ev->get_type_code() != FORMAT_DESCRIPTION_EVENT)
-        delete ev; 
+        delete ev;
       ev= 0;
       if (err)
       {

@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -210,6 +210,12 @@ static sys_var_thd_binlog_format sys_binlog_format(&vars, "binlog_format",
                                             &SV::binlog_format);
 static sys_var_thd_binlog_direct sys_binlog_direct_non_trans_update(&vars, "binlog_direct_non_transactional_updates",
                                                                     &SV::binlog_direct_non_trans_update);
+static sys_var_const sys_mi_repository(&vars, "master_info_repository",
+                                       OPT_GLOBAL, SHOW_CHAR,
+                                       (uchar *) opt_mi_repository);
+static sys_var_const sys_rli_repository(&vars, "relay_log_info_repository",
+                                        OPT_GLOBAL, SHOW_CHAR,
+                                        (uchar *) opt_rli_repository);
 static sys_var_thd_ulong	sys_bulk_insert_buff_size(&vars, "bulk_insert_buffer_size",
 						  &SV::bulk_insert_buff_size);
 static sys_var_const_os         sys_character_sets_dir(&vars,
@@ -1405,7 +1411,7 @@ static void fix_max_binlog_size(THD *thd, enum_var_type type)
   mysql_bin_log.set_max_size(max_binlog_size);
 #ifdef HAVE_REPLICATION
   if (!max_relay_log_size)
-    active_mi->rli.relay_log.set_max_size(max_binlog_size);
+    active_mi->rli->relay_log.set_max_size(max_binlog_size);
 #endif
   DBUG_VOID_RETURN;
 }
@@ -1416,7 +1422,7 @@ static void fix_max_relay_log_size(THD *thd, enum_var_type type)
   DBUG_PRINT("info",("max_binlog_size=%lu max_relay_log_size=%lu",
                      max_binlog_size, max_relay_log_size));
 #ifdef HAVE_REPLICATION
-  active_mi->rli.relay_log.set_max_size(max_relay_log_size ?
+  active_mi->rli->relay_log.set_max_size(max_relay_log_size ?
                                         max_relay_log_size: max_binlog_size);
 #endif
   DBUG_VOID_RETURN;
