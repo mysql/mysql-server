@@ -1054,7 +1054,7 @@ int mysql_multi_update_prepare(THD *thd)
         be write-locked (for example, trigger to be invoked might try
         to update this table).
       */
-      tl->lock_type= read_lock_type_for_table(thd, table);
+      tl->lock_type= read_lock_type_for_table(thd, lex, tl);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)

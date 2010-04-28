@@ -129,6 +129,12 @@ extern char err_shared_dir[];
 */
 #define TMP_TABLE_FORCE_MYISAM          (1ULL << 32)
 #define OPTION_PROFILING                (1ULL << 33)
+/**
+  Indicates that this is a HIGH_PRIORITY SELECT.
+  Currently used only for printing of such selects.
+  Type of locks to be acquired is specified directly.
+*/
+#define SELECT_HIGH_PRIORITY            (1ULL << 34)     // SELECT, user
 
 
 /* The rest of the file is included in the server only */

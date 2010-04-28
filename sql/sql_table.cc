@@ -4808,6 +4808,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       /* purecov: begin inspected */
       char buff[FN_REFLEN + MYSQL_ERRMSG_SIZE];
       size_t length;
+      enum_sql_command save_sql_command= lex->sql_command;
       DBUG_PRINT("admin", ("sending error message"));
       protocol->prepare_for_resend();
       protocol->store(table_name, system_charset_info);
@@ -4821,6 +4822,11 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       lex->reset_query_tables_list(FALSE);
+      /*
+        Restore Query_tables_list::sql_command value to make statement
+        safe for re-execution.
+      */
+      lex->sql_command= save_sql_command;
       table->table=0;				// For query cache
       if (protocol->write())
 	goto err;
