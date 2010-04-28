@@ -79,7 +79,7 @@ struct GlobalData {
     gcp_timer_limit = 0;
 #endif
   }
-  ~GlobalData(){}
+  ~GlobalData(){ m_global_page_pool.clear(); m_shared_page_pool.clear(); }
   
   void             setBlock(BlockNumber blockNo, SimulatedBlock * block);
   SimulatedBlock * getBlock(BlockNumber blockNo);

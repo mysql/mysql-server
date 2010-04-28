@@ -93,7 +93,13 @@ void childExit(int code, Uint32 currentStartPhase)
   fprintf(child_info_file_w, "\n");
   fclose(child_info_file_r);
   fclose(child_info_file_w);
+
+// gcov will not produce results when using _exit
+#ifdef HAVE_gcov
   exit(code);
+#else
+  _exit(code);
+#endif
 }
 
 void childAbort(int code, Uint32 currentStartPhase)
