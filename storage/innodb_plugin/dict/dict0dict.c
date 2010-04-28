@@ -80,7 +80,7 @@ UNIV_INTERN rw_lock_t	dict_operation_lock;
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
-/* array of mutexes protecting dict_index_t::stat_n_diff_key_vals[] */
+/** array of mutexes protecting dict_index_t::stat_n_diff_key_vals[] */
 #define DICT_INDEX_STAT_MUTEX_SIZE	32
 mutex_t	dict_index_stat_mutex[DICT_INDEX_STAT_MUTEX_SIZE];
 
@@ -243,8 +243,10 @@ dict_mutex_exit_for_mysql(void)
 	mutex_exit(&(dict_sys->mutex));
 }
 
-#define FOLD_INDEX_FOR_STAT_MUTEX(index) \
-	(ut_fold_dulint(index->id) % DICT_INDEX_STAT_MUTEX_SIZE)
+/** Get the mutex that protects index->stat_n_diff_key_vals[] */
+#define GET_INDEX_STAT_MUTEX(index) \
+	(&dict_index_stat_mutex[ut_fold_dulint(index->id) \
+	 			% DICT_INDEX_STAT_MUTEX_SIZE])
 
 /**********************************************************************//**
 Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
@@ -256,7 +258,12 @@ dict_index_stat_mutex_enter(
 /*========================*/
 	const dict_index_t*	index)	/*!< in: index */
 {
-	mutex_enter(&dict_index_stat_mutex[FOLD_INDEX_FOR_STAT_MUTEX(index)]);
+	ut_ad(index != NULL);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+	ut_ad(index->cached);
+	ut_ad(!index->to_be_dropped);
+
+	mutex_enter(GET_INDEX_STAT_MUTEX(index));
 }
 
 /**********************************************************************//**
@@ -267,7 +274,7 @@ dict_index_stat_mutex_exit(
 /*=======================*/
 	const dict_index_t*	index)	/*!< in: index */
 {
-	mutex_exit(&dict_index_stat_mutex[FOLD_INDEX_FOR_STAT_MUTEX(index)]);
+	mutex_exit(GET_INDEX_STAT_MUTEX(index));
 }
 
 /********************************************************************//**
@@ -660,8 +667,7 @@ dict_init(void)
 	mutex_create(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
 
 	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
-		mutex_create(&dict_index_stat_mutex[i],
-			     /* XXX */ SYNC_INDEX_TREE);
+		mutex_create(&dict_index_stat_mutex[i], SYNC_INDEX_TREE);
 	}
 }
 
@@ -4899,5 +4905,9 @@ dict_close(void)
 
 	mem_free(dict_sys);
 	dict_sys = NULL;
+
+	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
+		mutex_free(&dict_index_stat_mutex[i]);
+	}
 }
 #endif /* !UNIV_HOTBACKUP */
