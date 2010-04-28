@@ -662,6 +662,11 @@ MgmtSrvr::setClusterLog(const Config* config)
   if (m_opts.non_interactive)
     g_eventLogger->createConsoleHandler();
 
+#ifdef _WIN32
+  /* Output to Windows event log */
+  g_eventLogger->createEventLogHandler("MySQL Cluster Management Server");
+#endif
+
   if (m_opts.verbose)
     g_eventLogger->enable(Logger::LL_DEBUG);
 }

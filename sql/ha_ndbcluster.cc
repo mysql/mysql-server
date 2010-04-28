@@ -13842,6 +13842,11 @@ int ha_ndbcluster::get_default_no_partitions(HA_CREATE_INFO *create_info)
   uint reported_frags;
   uint no_fragments=
     get_no_fragments(max_rows >= min_rows ? max_rows : min_rows);
+  if (unlikely(g_ndb_cluster_connection->get_no_ready() <= 0))
+  {
+    my_error(HA_ERR_NO_CONNECTION, MYF(0));
+    return -1;
+  }
   uint no_nodes= g_ndb_cluster_connection->no_db_nodes();
 
   if (adjusted_frag_count(no_fragments, no_nodes, reported_frags))
