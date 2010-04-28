@@ -439,14 +439,14 @@ Success: 'set @a:= f7()' doesn't allow concurrent inserts into 't1'.
 #     doesn't modify data and reads a table
 #     through a view.
 #
-# Since such statement is written to the binary log and 
+# Since such statement is written to the binary log and
 # should be serialized with concurrent statements affecting
 # the data it uses. Therefore it should take a strong lock on
 # the table it reads.
 Success: 'insert into t3 values (f6() + 5)' doesn't allow concurrent inserts into 't1'.
 Success: 'insert into t3 values (f7() + 5)' doesn't allow concurrent inserts into 't1'.
 #
-# 4.9 SELECT which uses a stored function which 
+# 4.9 SELECT which uses a stored function which
 #     modifies data and reads tables through a view.
 #
 # Since a call to such function is written to the binary log
@@ -457,7 +457,7 @@ Success: 'select f9()' doesn't allow concurrent inserts into 't1'.
 #
 # 4.10 SELECT which uses a stored function which doesn't modify
 #      data and reads a table indirectly, by calling another
-#      function. 
+#      function.
 #
 # In theory, calls to such functions won't get into the binary
 # log and thus don't need to acquire strong locks. But in practice
@@ -508,7 +508,7 @@ Success: 'insert into t2 values (f13((select i+10 from t1 where i=1)))' doesn't 
 #
 # Since neither this statement nor its components are
 # written to the binary log, there is no need to take
-# strong locks on the data read it reads.
+# strong locks on the data it reads.
 Success: 'call p2(@a)' allows concurrent inserts into 't1'.
 #
 # 5.2 Function that modifes data and uses CALL, 
@@ -543,7 +543,7 @@ Success: 'insert into t2 values (f15()+5)' doesn't allow concurrent inserts into
 # Since this statement is written to the binary log it should
 # be serialized with concurrent statements affecting the data
 # it uses. Therefore, it should take strong locks on the data
-#  it reads.
+# it reads.
 Success: 'insert into t4 values (2)' doesn't allow concurrent inserts into 't1'.
 #
 # 6.2 Statement invoking a trigger that reads table through
