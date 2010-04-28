@@ -15,7 +15,15 @@ VERSION="autotest-run.sh version 1.00"
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
 then
-  HOST=`hostname -s`
+  if uname | grep -iq cygwin
+  then
+    HOST=`hostname`
+    # Returns windows CRLF
+    HOST=`echo $HOST | tr -d "\015"`
+    echo "Host: '$HOST'"
+  else
+    HOST=`hostname -s`
+  fi
 else
   HOST=`hostname`
 fi
@@ -252,6 +260,19 @@ rm -rf $res_dir/* $run_dir/*
 # Do sed substitiutions
 # 
 cd $run_dir
+mkdir run
+
+if uname | grep -iq cygwin
+then
+  run_dir=`cygpath -m $run_dir`
+  install_dir0=`cygpath -u $install_dir0`
+  if [ "$install_dir1" ]
+  then
+    install_dir1=`cygpath -u $install_dir1`
+  fi
+  test_dir=`cygpath -m $test_dir`
+fi
+
 choose $conf $hosts > d.tmp.$$
 sed -e s,CHOOSE_dir,"$run_dir/run",g < d.tmp.$$ > my.cnf
 
@@ -260,7 +281,6 @@ if [ "$install_dir1" ]
 then
     prefix="$prefix --prefix1=$install_dir1"
 fi
-
 
 # Setup configuration
 $atrt Cdq $prefix my.cnf
@@ -295,6 +315,9 @@ else
     echo "clonename=$clone0" >> info.txt
 fi
 find . | xargs chmod ugo+r
+
+# Try to pack and transfer as much as possible
+set +e
 
 cd ..
 p2=`pwd`
