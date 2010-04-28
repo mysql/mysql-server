@@ -1,0 +1,49 @@
+.TH mysql 1 "March 2005" "MySQL 4.1" "MySQL database"
+.SH NAME
+mysqlmanager \- Manages instances of MySQL server.
+.SH SYNOPSIS
+.B mysqlmanager
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+Manages instances of MySQL server.
+.TP
+\-?, \fB\-\-help\fR
+Display this help and exit.
+.TP
+\fB\-P\fR, \fB\-\-port=\fR#
+Port number to listen on.
+.TP
+\fB\-l\fR, \fB\-\-log\fR=\fIname\fR
+Path to log file.
+.TP
+\fB\-b\fR, \fB\-\-bind\-address=\fR#
+Address to listen on.
+.HP
+\fB\-B\fR, \fB\-\-tcp\-backlog=\fR# Size of TCP/IP listen queue.
+.HP
+\fB\-g\fR, \fB\-\-greeting\fR=\fIname\fR Set greeting on connect.
+.TP
+\fB\-m\fR, \fB\-\-max\-command\-len=\fR#
+Maximum command length.
+.TP
+\fB\-d\fR, \fB\-\-one\-thread\fR
+Use one thread ( for debugging).
+.TP
+\fB\-C\fR, \fB\-\-connect\-retries=\fR#
+Number of attempts to establish MySQL connection.
+.TP
+\fB\-p\fR, \fB\-\-password\-file\fR=\fIname\fR
+Password file for manager.
+.HP
+\fB\-f\fR, \fB\-\-pid\-file\fR=\fIname\fR Pid file to use.
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Output version information and exit.
+.SH "SEE ALSO"
+The full documentation for
+.B mysqlmanager
+is available in the package mysql-doc-4.1 or on the MySQL
+homepage www.mysql.com.
+.SH AUTHOR
+This manpage was created by Christian Hammers <ch@debian.org>
+using help2man.

@@ -1,0 +1,34 @@
+mysql-dfsg-5.1 (5.1.38-1) unstable; urgency=low
+
+  * Please read http://dev.mysql.com/doc/refman/5.1/en/upgrading-from-5-0.html
+  * Make sure to do a REPAIR TABLE on all tables that use UTF-8 and have a
+    FULLTEXT index.
+
+ -- Christian Hammers <ch@debian.org>  Sat,  4 Jul 2009 02:31:21 +0200
+
+mysql-dfsg-5.0 (5.1.14beta-2) unstable; urgency=low
+
+  * The BerkeleyDB Storage Engine is no longer supported. If the options
+    have-bdb or skip-bdb are found, MySQL will not start. If you have BDB
+    tables, you should change them to use another storage engine before 
+    upgrading to 5.1.   
+
+ -- Monty Taylor <mordred@inaugust.com>  Thu, 18 Jan 2007 12:28:21 -0800
+
+mysql-dfsg-5.0 (5.0.45-2) unstable; urgency=low
+
+  * Binary logging is now disabled by default. If you really need it (e.g. on
+    a replication master), remove the comment from the log_bin line in my.cnf.
+
+ -- Norbert Tretkowski <nobse@debian.org>  Sat, 10 Nov 2007 16:26:35 +0100
+
+mysql-dfsg-5.0 (5.0.18-9) unstable; urgency=low
+
+  * Rotation of the binary logs is now configured in /etc/mysql/my.cnf with
+    "expire-logs-days" which defaults to 20 days. The old file
+    /etc/mysql/debian-log-rotate.conf should be removed together with
+    /etc/cron.daily/mysql-server after this value has been adjusted. Note that
+    the old variable defined the number of files whereas the new one defines 
+    a time span in days.
+
+ -- Christian Hammers <ch@debian.org>  Tue, 24 Jan 2006 22:18:21 +0100

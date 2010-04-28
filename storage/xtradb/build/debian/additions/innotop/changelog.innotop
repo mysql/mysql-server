@@ -1,0 +1,318 @@
+Changelog for innotop and InnoDBParser:
+
+2007-11-09: version 1.6.0
+
+   * S mode crashed on non-numeric values.
+   * New user-defined columns crashed upon restart.
+   * Added --color option to control terminal coloring.
+
+2007-09-18: version 1.5.2
+
+   * Added the ability to monitor InnoDB status from a file.
+   * Changed W mode to L mode; it monitors all locks, not just lock waits.
+
+2007-09-16: version 1.5.1
+
+   * Added C (Command Summary) mode.
+   * Fixed a bug in the 'avg' aggregate function.
+
+2007-09-10: version 1.5.0
+
+   Changes:
+   * Added plugin functionality.
+   * Added group-by functionality.
+   * Moved the configuration file to a directory.
+   * Enhanced filtering and sorting on pivoted tables.
+   * Many small bug fixes.
+
+2007-07-16: version 1.4.3
+
+   Changes:
+   * Added standard --version command-line option
+   * Changed colors to cyan instead of blue; more visible on dark terminals.
+   * Added information to the filter-choosing dialog.
+   * Added column auto-completion when entering a filter expression.
+   * Changed Term::ReadKey from optional to mandatory.
+   * Clarified username in password prompting.
+   * Ten thousand words of documentation!
+
+   Bugs fixed:
+   * innotop crashed in W mode when InnoDB status data was truncated.
+   * innotop didn't display errors in tables if debug was enabled.
+   * The colored() subroutine wasn't being created in non-interactive mode.
+   * Don't prompt to save password except the first time.
+
+2007-05-03: version 1.4.2
+
+   This version contains all changes to the trunk until revision 239; some
+   changes in revisions 240:250 are included.
+
+   MAJOR CHANGES:
+
+   * Quick-filters to easily filter any column in any display
+   * Compatibility with MySQL 3.23 through 6.0
+   * Improved error handling when a server is down, permissions denied, etc
+   * Use additional SHOW INNODB STATUS information in 5.1.x
+   * Make all modes use tables consistently, so they can all be edited,
+     filtered, colored and sorted consistently
+   * Combine V, G and S modes into S mode, with v, g, and s hot-keys
+   * Let DBD driver read MySQL option files; permit connections without
+     user/pass/etc
+   * Compile SQL-like expressions into Perl subroutines; eliminate need to
+     know Perl
+   * Do not save all config data to config file, only save user's customizations
+   * Rewritten and improved command-line option handling
+   * Added --count, --delay, and other command-line options to support
+     run-and-exit operation
+   * Improve built-in variable sets
+   * Improve help screen with three-part balanced-column layout
+   * Simplify table-editor and improve hotkey support
+   * Require Perl to have high-resolution time support (Time::HiRes)
+   * Help the user choose a query to analyze or kill
+   * Enable EXPLAIN, show-full-query in T mode just like Q mode
+   * Let data-extraction access current, previous and incremental data sets
+     all at once
+
+   MINOR CHANGES:
+
+   * Column stabilizing for Q mode
+   * New color rules for T, Q, W modes
+   * Apply slave I/O filter to Q mode
+   * Improve detection of server version and other meta-data
+   * Make connection timeout a config variable
+   * Improve cross-version-compatible SQL syntax
+   * Get some information from the DBD driver instead of asking MySQL for it
+   * Improved error messages
+   * Improve server group creation/editing
+   * Improve connection/thread killing
+   * Fix broken key bindings and restore previously mapped hot-keys for
+     choosing columns
+   * Some documentation updates (but not nearly enough)
+   * Allow the user to specify graphing char in S mode (formerly G mode)
+   * Allow easy switching between variable sets in S mode
+   * Bind 'n' key globally to choose the 'next' server connection
+   * Bind '%' key globally to filter displayed tables
+   * Allow aligning columns on the decimal place for easy readability
+   * Add hide_hdr config variable to hide column headers in tables
+   * Add a feature to smartly run PURGE MASTER LOGS in Replication mode
+   * Enable debug mode as a globally configurable variable
+   * Improve error messages when an expression or filter doesn't compile or has
+     a run-time error; die on error when debug is enabled
+   * Allow user-configurable delays after executing SQL (to let the server
+     settle down before taking another measurement)
+   * Add an expression to show how long until a transaction is finished
+   * Add skip_innodb as a global config variable
+   * Add '%' after percentages to help disambiguate (user-configurable)
+   * Add column to M mode to help see how fast slave is catching up to master
+
+   BUG FIXES:
+
+   * T and W modes had wrong value for wait_status column
+   * Error tracking on connections didn't reset when the connection recovered
+   * wait_timeout on connections couldn't be set before MySQL 4.0.3
+   * There was a crash on 3.23 when wiping deadlocks
+   * Lettercase changes in some result sets (SHOW MASTER/SLAVE STATUS) between
+     MySQL versions crashed innotop
+   * Inactive connections crashed innotop upon access to DBD driver
+   * set_precision did not respect user defaults for number of digits
+   * --inc command-line option could not be negated
+   * InnoDB status parsing was not always parsing all needed information
+   * S mode (formerly G mode) could crash trying to divide non-numeric data
+   * M table didn't show Slave_open_temp_tables variable; incorrect lettercase
+   * DBD drivers with broken AutoCommit would crash innotop
+   * Some key bindings had incorrect labels
+   * Some config-file loading routines could load data for things that didn't
+     exist
+   * Headers printed too often in S mode
+   * High-resolution time was not used even when the user had it
+   * Non-interactive mode printed blank lines sometimes
+   * Q-mode header and statusbar showed different QPS numbers
+   * Formulas for key-cache and query-cache hit ratios were wrong
+   * Mac OS "Darwin" machines were mis-identified as Microsoft Windows
+   * Some multiplications crashed when given undefined input
+   * The commify transformation did not check its input and could crash
+   * Specifying an invalid mode on the command line or config file could crash
+     innotop
+
+2007-03-29: version 1.4.1
+
+   * More tweaks to display of connection errors.
+   * Fixed a problem with skip-innodb in MySQL 5.1.
+   * Fix a bug with dead connections in single-connection mode.
+   * Fix a regex to allow parsing more data from truncated deadlocks.
+   * Don't load active cxns from the config file if the cxn isn't defined.
+
+2007-03-03: version 1.4.0
+
+   * Further tweak error handling and display of connection errors
+   * More centralization of querying
+   * Fix forking so it doesn't kill all database connections
+   * Allow user to run innotop without permissions for GLOBAL variables and status
+
+2007-02-11: version 1.3.6
+
+   * Handle some connection failures so innotop doesn't crash because of one server.
+   * Enable incremental display in more modes.
+   * Tweaks to colorizing, color editor, and default color rules.
+   * Tweaks to default sorting rules.
+   * Use prepared statements for efficiency.
+   * Bug fixes and code cleanups.
+   * Data storage is keyed on clock ticks now.
+
+2007-02-03: version 1.3.5
+
+   * Bug fixes.
+   * More tools for editing configuration from within innotop.
+   * Filters and transformations are constrained to valid values.
+   * Support for colorizing rows.
+   * Sorting by multiple columns.
+   * Compress headers when display is very wide.
+   * Stabilize and limit column widths.
+   * Check config file formats when upgrading so upgrades go smoothly.
+   * Make D mode handle many connections at once.
+   * Extract simple expressions from data sets in column src property.
+     This makes innotop more awk-ish.
+
+2007-01-16: version 1.3
+
+   * Readline support.
+   * Can be used unattended, or in a pipe-and-filter mode
+     where it outputs tab-separated data to standard output.
+   * You can specify a config file on the command line.
+     Config files can be marked read-only.
+   * Monitor multiple servers simultaneously.
+   * Server groups to help manage many servers conveniently.
+   * Monitor master/slave status, and control slaves.
+   * Columns can have user-defined expressions as their data sources.
+   * Better configuration tools.
+   * InnoDB status information is merged into SHOW VARIABLES and
+     SHOW STATUS information, so you can access it all together.
+   * High-precision time support in more places.
+   * Lots of tweaks to make things display more readably and compactly.
+   * Column transformations and filters.
+
+2007-01-16: version 1.0.1
+   * NOTE: innotop is now hosted at Sourceforge, in Subversion not CVS.
+     The new project homepage is http://sourceforge.net/projects/innotop/
+   * Tweak default T/Q mode sort columns to match what people expect.
+   * Fix broken InnoDBParser.pm documentation (and hence man page).
+
+2007-01-06: version 1.0
+   * NOTE: innotop is now hosted at Sourceforge, in Subversion not CVS.
+     The new project homepage is http://sourceforge.net/projects/innotop/
+   * Prevent control characters from freaking terminal out.
+   * Set timeout to keep busy servers from closing connection.
+   * There is only one InnoDB insert buffer.
+   * Make licenses clear and consistent.
+
+2006-11-14: innotop 0.1.160, InnoDBParser version 1.69
+   * Support for ANSI color on Microsoft Windows (more readable, compact
+     display; thanks Gisbert W. Selke).
+   * Better handling of $ENV{HOME} on Windows.
+   * Added a LICENSE file to the package as per Gentoo bug:
+     http://bugs.gentoo.org/show_bug.cgi?id=147600
+
+2006-11-11: innotop 0.1.157, InnoDBParser version 1.69
+   * Add Microsoft Windows support.
+
+2006-10-19: innotop 0.1.154, InnoDBParser version 1.69
+   * Add O (Open Tables) mode
+   * Add some more checks to handle incomplete InnoDB status information
+
+2006-09-30: innotop 0.1.152, InnoDBParser version 1.69
+   * Figured out what was wrong with package $VERSION variable: it wasn't
+     after the package declaration!
+
+2006-09-28: innotop 0.1.152, InnoDBParser version 1.67
+   * Make more efforts towards crash-resistance and tolerance of completely
+     messed-up inputs.  If innotop itself is broken, it is now much harder to
+     tell, because it just keeps on running without complaining.
+   * Fix a small bug parsing out some information and displaying it.
+
+2006-09-05: innotop 0.1.149, InnoDBParser version 1.64
+   * Try to find and eliminate any parsing code that assumes pattern matches
+     will succeed.
+
+2006-09-05: innotop 0.1.149, InnoDBParser version 1.62
+   * Make innotop crash-resistant, so I can declare it STABLE finally.
+   * Instead of using SQL conditional comments, detect MySQL version.
+
+2006-08-22: innotop 0.1.147, InnoDBParser version 1.60
+   * Fix some innotop bugs with undefined values, bad formatting etc.
+
+2006-08-19: innotop 0.1.146, InnoDBParser version 1.60
+   * Make innotop handle some unexpected NULL values in Q mode.
+   * Add OS wait information to W mode, so it is now "everything that waits."
+   * Center section captions better.
+   * Make R mode more readable and compact.
+   * Make InnoDBParser parse lock waits even when they've been waiting 0 secs.
+
+2006-08-12: innotop 0.1.139, InnoDBParser version 1.59
+   * Add more documentation
+   * Tweak V mode to show more info in less space.
+   * Fix a bug in G mode.
+
+2006-08-10: innotop 0.1.132, InnoDBParser version 1.58
+   * Handle yet more types of FK error... it will never end!
+   * Handle some special cases when DEADLOCK info truncated
+   * Add a bit more FK info to F mode in innotop
+   * More tests added to the test suite
+
+2006-08-07: innotop 0.1.131, InnoDBParser version 1.55
+   * Fix another issue with configuration
+   * Handle another type of FK error
+
+2006-08-03: innotop 0.1.130, InnoDBParser version 1.54
+   * Fix an issue loading config file
+   * Add heap_no to 'D' (InnoDB Deadlock) mode to ease deadlock debugging.
+
+2006-08-02: innotop 0.1.128, InnoDBParser version 1.54
+   * Parse lock wait information from the TRANSACTION section.
+   * Even more OS-specific parsing... pain in the butt...
+   * Add 'W' (InnoDB Lock Wait) mode.
+   * Fix some minor display issues with statusbar.
+
+2006-08-02: innotop 0.1.125, InnoDBParser version 1.50
+   * Don't try to get references to Perl built-in functions like time()
+   * Handle more OS-specific variations of InnoDB status text
+   * Add some more information to various places in innotop
+
+2006-08-01: innotop 0.1.123, InnoDBParser version 1.47
+
+   * Enhance S and G modes: clear screen and re-print headers
+   * Don't crash when deadlock data is truncated
+   * Make Analyze mode say how to get back to whatever you came from
+   * Display 'nothing to display' when there is nothing
+   * Add ability to read InnoDB status text from a file (mostly helps test)
+   * Add table of Wait Array Information in Row Op/Semaphore mode
+   * Add table of lock information in InnoDB deadlock mode
+   * Ensure new features in upgrades don't get masked by existing config files
+   * Tweak default column choices for T mode
+   * Enhance foreign key parsing
+   * Enhance physical record and data tuple parsing
+   * Enhance lock parsing (handle old-style and new-style formats)
+
+2006-07-24: innotop 0.1.112, InnoDBParser version 1.36
+
+   * InnoDBParser enhancements for FK error messages.
+   * A fix to innotop to prevent it from crashing while trying to display a FK
+     error message.
+   * Some minor cosmetic changes to number formatting in innotop.
+
+2006-07-22: innotop 0.1.106, InnoDBParser version 1.35
+
+   * InnoDBParser is much more complete and accurate.
+   * Tons of bug fixes.
+   * Add partitions to EXPLAIN mode.
+   * Enhance Q mode header, add T mode header.
+   * Share some configuration variables across modes.
+   * Add formatted time columns to Q, T modes.
+   * Add command-line argument parsing.
+   * Turn off echo when asking for password.
+   * Add option to specify port when connecting.
+   * Let display-optimized-query display multiple notes.
+   * Lots of small improvements, such as showing more info in statusbar.
+
+2006-07-02: innotop 0.1.74, InnoDBParser version 1.24
+
+   * Initial release for public consumption.
