@@ -40,7 +40,6 @@ our $default_storage_engine;
 our $opt_with_ndbcluster_only;
 our $defaults_file;
 our $defaults_extra_file;
-our $reorder= 1;
 our $quick_collect;
 
 sub collect_option {
@@ -99,7 +98,8 @@ sub init_pattern {
 #
 ##############################################################################
 
-sub collect_test_cases ($$) {
+sub collect_test_cases ($$$) {
+  my $opt_reorder= shift; # True if we're reordering tests
   my $suites= shift; # Semicolon separated list of test suites
   my $opt_cases= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
@@ -118,10 +118,16 @@ sub collect_test_cases ($$) {
 		      !(IS_WINDOWS && $::opt_embedded_server) &&
 		      $lib_innodb_plugin);
 
-  foreach my $suite (split(",", $suites))
+  # If not reordering, we also shouldn't group by suites, unless
+  # no test cases were named.
+  # This also effects some logic in the loop following this.
+  if ($opt_reorder or !@$opt_cases)
   {
-    push(@$cases, collect_one_suite($suite, $opt_cases));
-    last if $some_test_found;
+    foreach my $suite (split(",", $suites))
+    {
+      push(@$cases, collect_one_suite($suite, $opt_cases));
+      last if $some_test_found;
+    }
   }
 
   if ( @$opt_cases )
@@ -135,6 +141,7 @@ sub collect_test_cases ($$) {
       my ($sname, $tname, $extension)= split_testname($test_name_spec);
       foreach my $test ( @$cases )
       {
+	last unless $opt_reorder;
 	# test->{name} is always in suite.name format
 	if ( $test->{name} =~ /.*\.$tname/ )
 	{
@@ -144,12 +151,13 @@ sub collect_test_cases ($$) {
       }
       if ( not $found )
       {
+	$sname= "main" if !$opt_reorder and !$sname;
 	mtr_error("Could not find '$tname' in '$suites' suite(s)") unless $sname;
-	# If suite was part of name, find it there
-	my ($this_case) = collect_one_suite($sname, [ $tname ]);
-	if ($this_case)
+	# If suite was part of name, find it there, may come with combinations
+	my @this_case = collect_one_suite($sname, [ $tname ]);
+	if (@this_case)
         {
-	  push (@$cases, $this_case);
+	  push (@$cases, @this_case);
 	}
 	else
 	{
@@ -159,7 +167,7 @@ sub collect_test_cases ($$) {
     }
   }
 
-  if ( $reorder && !$quick_collect)
+  if ( $opt_reorder && !$quick_collect)
   {
     # Reorder the test cases in an order that will make them faster to run
     my %sort_criteria;
@@ -528,6 +536,9 @@ sub collect_one_suite
       next if ($test->{'name'} eq 'main.innodb-autoinc');
       # Fails with innodb plugin: r6185 Testcases changes not included
       next if ($test->{'name'} eq 'main.innodb_bug44369');
+      # Fix for BUG47621 is not in InnoDB plugin
+      next if ($test->{'name'} eq 'main.innodb_bug21704');
+      next if ($test->{'name'} eq 'main.innodb_bug47621');
       # Copy test options
       my $new_test= My::Test->new();
       while (my ($key, $value) = each(%$test))

@@ -1746,13 +1746,23 @@ void ha_partition::update_create_info(HA_CREATE_INFO *create_info)
 
 void ha_partition::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
 {
-  handler **file_array= m_file;
+  handler **file_array;
   table= table_arg;
   table_share= share;
-  do
+  /*
+    m_file can be NULL when using an old cached table in DROP TABLE, when the
+    table just has REMOVED PARTITIONING, see Bug#42438
+  */
+  if (m_file)
   {
-    (*file_array)->change_table_ptr(table_arg, share);
-  } while (*(++file_array));
+    file_array= m_file;
+    DBUG_ASSERT(*file_array);
+    do
+    {
+      (*file_array)->change_table_ptr(table_arg, share);
+    } while (*(++file_array));
+  }
+
   if (m_added_file && m_added_file[0])
   {
     /* if in middle of a drop/rename etc */
@@ -5081,6 +5091,7 @@ int ha_partition::info(uint flag)
 
     file= m_file[handler_instance];
     file->info(HA_STATUS_CONST);
+    stats.block_size= file->stats.block_size;
     stats.create_time= file->stats.create_time;
     ref_length= m_ref_length;
   }
@@ -6054,7 +6065,13 @@ void ha_partition::print_error(int error, myf errflag)
   if (error == HA_ERR_NO_PARTITION_FOUND)
     m_part_info->print_no_partition_found(table);
   else
-    m_file[m_last_part]->print_error(error, errflag);
+  {
+    /* In case m_file has not been initialized, like in bug#42438 */
+    if (m_file)
+      m_file[m_last_part]->print_error(error, errflag);
+    else
+      handler::print_error(error, errflag);
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -6064,7 +6081,12 @@ bool ha_partition::get_error_message(int error, String *buf)
   DBUG_ENTER("ha_partition::get_error_message");
 
   /* Should probably look for my own errors first */
-  DBUG_RETURN(m_file[m_last_part]->get_error_message(error, buf));
+
+  /* In case m_file has not been initialized, like in bug#42438 */
+  if (m_file)
+    DBUG_RETURN(m_file[m_last_part]->get_error_message(error, buf));
+  DBUG_RETURN(handler::get_error_message(error, buf));
+
 }
 
 
@@ -6432,9 +6454,22 @@ void ha_partition::release_auto_increment()
     ulonglong next_auto_inc_val;
     lock_auto_increment();
     next_auto_inc_val= ha_data->next_auto_inc_val;
+    /*
+      If the current auto_increment values is lower than the reserved
+      value, and the reserved value was reserved by this thread,
+      we can lower the reserved value.
+    */
     if (next_insert_id < next_auto_inc_val &&
         auto_inc_interval_for_cur_row.maximum() >= next_auto_inc_val)
-      ha_data->next_auto_inc_val= next_insert_id;
+    {
+      THD *thd= ha_thd();
+      /*
+        Check that we do not lower the value because of a failed insert
+        with SET INSERT_ID, i.e. forced/non generated values.
+      */
+      if (thd->auto_inc_intervals_forced.maximum() < next_insert_id)
+        ha_data->next_auto_inc_val= next_insert_id;
+    }
     DBUG_PRINT("info", ("ha_data->next_auto_inc_val: %lu",
                         (ulong) ha_data->next_auto_inc_val));
 

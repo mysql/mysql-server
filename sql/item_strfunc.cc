@@ -324,7 +324,7 @@ String *Item_func_concat::val_str(String *str)
       }
       else if (str->alloced_length() >= res->length()+res2->length())
       {
-	if (str == res2)
+	if (str->ptr() == res2->ptr())
 	  str->replace(0,0,*res);
 	else
 	{

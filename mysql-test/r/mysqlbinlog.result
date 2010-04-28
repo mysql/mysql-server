@@ -479,7 +479,7 @@ FLUSH LOGS;
 RESET MASTER;
 FLUSH LOGS;
 #
-# Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is exist
+# Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified exists
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -532,7 +532,7 @@ DELIMITER ;
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 #
-# Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified is not exist
+# Test if the 'BEGIN', 'ROLLBACK' and 'COMMIT' are output if the database specified does not exist
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -561,6 +561,77 @@ BEGIN
 SET TIMESTAMP=1253783037/*!*/;
 COMMIT
 /*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+#
+# Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified exists
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+SavePoint mixed_cases
+/*!*/;
+use db1/*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+INSERT INTO db1.t2 VALUES("in savepoint mixed_cases")
+/*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+INSERT INTO db1.t1 VALUES(40)
+/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+ROLLBACK TO mixed_cases
+/*!*/;
+use db1/*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+INSERT INTO db1.t2 VALUES("after rollback to")
+/*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+INSERT INTO db1.t1 VALUES(50)
+/*!*/;
+COMMIT/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+#
+# Test if the 'SAVEPOINT', 'ROLLBACK TO' are output if the database specified does not exist
+/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=0/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use test/*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+SavePoint mixed_cases
+/*!*/;
+SET TIMESTAMP=1266652094/*!*/;
+ROLLBACK TO mixed_cases
+/*!*/;
+COMMIT/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;

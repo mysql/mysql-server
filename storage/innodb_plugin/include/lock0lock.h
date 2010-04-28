@@ -613,13 +613,16 @@ lock_rec_print(
 	FILE*		file,	/*!< in: file where to print */
 	const lock_t*	lock);	/*!< in: record type lock */
 /*********************************************************************//**
-Prints info of locks for all transactions. */
+Prints info of locks for all transactions.
+@return FALSE if not able to obtain kernel mutex
+and exits without printing info */
 UNIV_INTERN
-void
+ibool
 lock_print_info_summary(
 /*====================*/
-	FILE*	file);	/*!< in: file where to print */
-/*********************************************************************//**
+	FILE*	file,	/*!< in: file where to print */
+	ibool   nowait);/*!< in: whether to wait for the kernel mutex */
+/*************************************************************************
 Prints info of locks for each transaction. */
 UNIV_INTERN
 void

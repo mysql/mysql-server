@@ -4304,10 +4304,10 @@ call bug13012()|
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 Table	Op	Msg_type	Msg_text
-test.t1	backup	Warning	The syntax 'BACKUP TABLE' is deprecated and will be removed in MySQL 6.0. Please use MySQL Administrator (mysqldump, mysql) instead
+test.t1	backup	Warning	'BACKUP TABLE' is deprecated and will be removed in a future release. Please use MySQL Administrator (mysqldump, mysql) instead
 test.t1	backup	status	OK
 Table	Op	Msg_type	Msg_text
-test.t1	restore	Warning	The syntax 'RESTORE TABLE' is deprecated and will be removed in MySQL 6.0. Please use MySQL Administrator (mysqldump, mysql) instead
+test.t1	restore	Warning	'RESTORE TABLE' is deprecated and will be removed in a future release. Please use MySQL Administrator (mysqldump, mysql) instead
 test.t1	restore	status	OK
 drop procedure bug13012|
 create view v1 as select * from t1|

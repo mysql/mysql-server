@@ -538,4 +538,57 @@ DROP PROCEDURE p1;
 DROP VIEW v1;
 DROP TABLE t1,t2;
 
+
+--echo #
+--echo # Bug #49324: more valgrind errors in test_if_skip_sort_order
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=innodb ;
+--echo #should not cause valgrind warnings
+SELECT 1 FROM t1 JOIN t1 a USING(a) GROUP BY t1.a,t1.a;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#50843: Filesort used instead of clustered index led to
+--echo #            performance degradation.
+--echo #
+create table t1(f1 int not null primary key, f2 int) engine=innodb;
+create table t2(f1 int not null, key (f1)) engine=innodb;
+insert into t1 values (1,1),(2,2),(3,3);
+insert into t2 values (1),(2),(3);
+explain select t1.* from t1 left join t2 using(f1) group by t1.f1;
+drop table t1,t2;
+--echo #
+
+
+--echo #
+--echo # Bug #39653: find_shortest_key in sql_select.cc does not consider
+--echo #             clustered primary keys
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT, c INT, d INT, e INT, f INT,
+                 KEY (b,c)) ENGINE=INNODB;
+
+INSERT INTO t1 VALUES (1,1,1,1,1,1), (2,2,2,2,2,2), (3,3,3,3,3,3),
+                      (4,4,4,4,4,4), (5,5,5,5,5,5), (6,6,6,6,6,6),
+		      (7,7,7,7,7,7), (8,8,8,8,8,8), (9,9,9,9,9,9),
+		      (11,11,11,11,11,11);
+
+--query_vertical EXPLAIN SELECT COUNT(*) FROM t1
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
+--echo #   corrupt definition at engine
+--echo #
+
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k (a,b)) 
+  ENGINE=InnoDB;
+
+ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
+
+--query_vertical SHOW INDEXES FROM t1;
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests

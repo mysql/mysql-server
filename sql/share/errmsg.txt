@@ -5027,7 +5027,7 @@ ER_UNKNOWN_STORAGE_ENGINE 42000
 # When using this error code, use ER(ER_WARN_DEPRECATED_SYNTAX_WITH_VER)
 # for the message string.  See, for example, code in mysql_priv.h.
 ER_WARN_DEPRECATED_SYNTAX  
-        eng "'%s' is deprecated; use '%s' instead"
+        eng "'%s' is deprecated and will be removed in a future release. Please use %s instead"
         ger "'%s' ist veraltet. Bitte benutzen Sie '%s'"
         por "'%s' é desatualizado. Use '%s' em seu lugar"
         spa "'%s' está desaprobado, use '%s' en su lugar"

@@ -328,7 +328,6 @@ void mi_update_status(void* param)
 			    (long) info->s->state.state.data_file_length));
 #endif
     info->s->state.state= *info->state;
-    info->state= &info->s->state.state;
 #ifdef HAVE_QUERY_CACHE
     DBUG_PRINT("info", ("invalidator... '%s' (status update)",
                         info->filename));
@@ -336,6 +335,7 @@ void mi_update_status(void* param)
     (*info->s->chst_invalidator)((const char *)info->filename);
 #endif
   }
+  info->state= &info->s->state.state;
   info->append_insert_at_end= 0;
 
   /*

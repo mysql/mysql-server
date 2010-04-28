@@ -1848,6 +1848,8 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 {
   bool err_status= FALSE;
   uint params = m_pcont->context_var_count();
+  /* Query start time may be reset in a multi-stmt SP; keep this for later. */
+  ulonglong utime_before_sp_exec= thd->utime_after_lock;
   sp_rcontext *save_spcont, *octx;
   sp_rcontext *nctx = NULL;
   bool save_enable_slow_log;
@@ -2040,6 +2042,7 @@ sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   delete nctx;
   thd->spcont= save_spcont;
+  thd->utime_after_lock= utime_before_sp_exec;
 
   DBUG_RETURN(err_status);
 }
@@ -3005,6 +3008,7 @@ int
 sp_instr_set_trigger_field::execute(THD *thd, uint *nextp)
 {
   DBUG_ENTER("sp_instr_set_trigger_field::execute");
+  thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
   DBUG_RETURN(m_lex_keeper.reset_lex_and_exec_core(thd, nextp, TRUE, this));
 }
 

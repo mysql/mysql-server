@@ -186,6 +186,19 @@ INSERT INTO global_suppressions VALUES
  ("Table '..mysqltest.t_corrupted2' is marked as crashed and should be"),
  ("Incorrect key file for table '..mysqltest.t_corrupted2.MAI'"),
 
+ /* Messages from valgrind */
+ ("==[0-9]*== Memcheck,"),
+ ("==[0-9]*== Copyright"),
+ ("==[0-9]*== Using"),
+ ("==[0-9]*== For more details"),
+ /* This comes with innodb plugin tests */
+ ("==[0-9]*== Warning: set address range perms: large range"),
+
+ /* valgrind warnings: invalid file descriptor -1 in syscall
+    write()/read(). Bug #50414 */
+ ("==[0-9]*== Warning: invalid file descriptor -1 in syscall write()"),
+ ("==[0-9]*== Warning: invalid file descriptor -1 in syscall read()"),
+
  /*
    Transient network failures that cause warnings on reconnect.
    BUG#47743 and BUG#47983.

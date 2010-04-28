@@ -22,6 +22,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 #include "sql_show.h"
+#include "debug_sync.h"
 
 #ifdef __WIN__
 #include <io.h>
@@ -1889,23 +1890,10 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
 
   pthread_mutex_lock(&LOCK_open);
 
-  /*
-    If we have the table in the definition cache, we don't have to check the
-    .frm file to find if the table is a normal table (not view) and what
-    engine to use.
-  */
-
+  /* Disable drop of enabled log tables, must be done before name locking */
   for (table= tables; table; table= table->next_local)
   {
-    TABLE_SHARE *share;
-    table->db_type= NULL;
-
-    if ((share= get_cached_table_share(table->db, table->table_name)))
-      table->db_type= share->db_type();
-
-    /* Disable drop of enabled log tables */
-    if (share && (share->table_category == TABLE_CATEGORY_PERFORMANCE) &&
-        check_if_log_table(table->db_length, table->db,
+    if (check_if_log_table(table->db_length, table->db,
                            table->table_name_length, table->table_name, 1))
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
@@ -1924,7 +1912,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   {
     char *db=table->db;
     handlerton *table_type;
-    enum legacy_db_type frm_db_type;
+    enum legacy_db_type frm_db_type= DB_TYPE_UNKNOWN;
 
     DBUG_PRINT("table", ("table_l: '%s'.'%s'  table: 0x%lx  s: 0x%lx",
                          table->db, table->table_name, (long) table->table,
@@ -1989,7 +1977,6 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
       built_query.append("`,");
     }
 
-    table_type= table->db_type;
     if (!drop_temporary)
     {
       TABLE *locked_table;
@@ -2017,9 +2004,9 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
                                         table->internal_tmp_table ?
                                         FN_IS_TMP : 0);
     }
+    DEBUG_SYNC(thd, "rm_table_part2_before_delete_table");
     if (drop_temporary ||
-        ((table_type == NULL &&
-          access(path, F_OK) &&
+        ((access(path, F_OK) &&
           ha_create_table_from_engine(thd, db, alias)) ||
          (!drop_view &&
           mysql_frm_type(thd, path, &frm_db_type) != FRMTYPE_TABLE)))
@@ -2035,15 +2022,25 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     else
     {
       char *end;
-      if (table_type == NULL)
+      /*
+        Cannot use the db_type from the table, since that might have changed
+        while waiting for the exclusive name lock. We are under LOCK_open,
+        so reading from the frm-file is safe.
+      */
+      if (frm_db_type == DB_TYPE_UNKNOWN)
       {
-	mysql_frm_type(thd, path, &frm_db_type);
-        table_type= ha_resolve_by_legacy_type(thd, frm_db_type);
+        mysql_frm_type(thd, path, &frm_db_type);
+        DBUG_PRINT("info", ("frm_db_type %d from %s", frm_db_type, path));
       }
+      table_type= ha_resolve_by_legacy_type(thd, frm_db_type);
       // Remove extension for delete
       *(end= path + path_length - reg_ext_length)= '\0';
+      DBUG_PRINT("info", ("deleting table of type %d",
+                          (table_type ? table_type->db_type : 0)));
       error= ha_delete_table(thd, table_type, path, db, table->table_name,
                              !dont_log_query);
+
+      /* No error if non existent table and 'IF EXIST' clause or view */
       if ((error == ENOENT || error == HA_ERR_NO_SUCH_TABLE) && 
 	  (if_exists || table_type == NULL))
       {
@@ -2083,6 +2080,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
     on the table name.
   */
   pthread_mutex_unlock(&LOCK_open);
+  DEBUG_SYNC(thd, "rm_table_part2_before_binlog");
   thd->thread_specific_used|= tmp_table_deleted;
   error= 0;
   if (wrong_tables.length())
@@ -5580,6 +5578,45 @@ err:
   DBUG_RETURN(-1);
 }
 
+/**
+  @brief Check if both DROP and CREATE are present for an index in ALTER TABLE
+ 
+  @details Checks if any index is being modified (present as both DROP INDEX 
+    and ADD INDEX) in the current ALTER TABLE statement. Needed for disabling 
+    online ALTER TABLE.
+  
+  @param table       The table being altered
+  @param alter_info  The ALTER TABLE structure
+  @return presence of index being altered  
+  @retval FALSE  No such index
+  @retval TRUE   Have at least 1 index modified
+*/
+
+static bool
+is_index_maintenance_unique (TABLE *table, Alter_info *alter_info)
+{
+  List_iterator<Key> key_it(alter_info->key_list);
+  List_iterator<Alter_drop> drop_it(alter_info->drop_list);
+  Key *key;
+
+  while ((key= key_it++))
+  {
+    if (key->name)
+    {
+      Alter_drop *drop;
+
+      drop_it.rewind();
+      while ((drop= drop_it++))
+      {
+        if (drop->type == Alter_drop::KEY &&
+            !my_strcasecmp(system_charset_info, key->name, drop->name))
+          return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
 
 /*
   SYNOPSIS
@@ -6887,10 +6924,14 @@ view_err:
   */
   new_db_type= create_info->db_type;
 
+  if (is_index_maintenance_unique (table, alter_info))
+    need_copy_table= ALTER_TABLE_DATA_CHANGED;
+
   if (mysql_prepare_alter_table(thd, table, create_info, alter_info))
     goto err;
   
-  need_copy_table= alter_info->change_level;
+  if (need_copy_table == ALTER_TABLE_METADATA_ONLY)
+    need_copy_table= alter_info->change_level;
 
   set_table_default_charset(thd, create_info, db);
 
@@ -7155,6 +7196,7 @@ view_err:
   else
     create_info->data_file_name=create_info->index_file_name=0;
 
+  DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
   /*
     Create a table with a temporary name.
     With create_info->frm_only == 1 this creates a .frm file only.
@@ -7360,6 +7402,7 @@ view_err:
     intern_close_table(new_table);
     my_free(new_table,MYF(0));
   }
+  DEBUG_SYNC(thd, "alter_table_before_rename_result_table");
   VOID(pthread_mutex_lock(&LOCK_open));
   if (error)
   {
@@ -7502,6 +7545,7 @@ view_err:
   thd_proc_info(thd, "end");
 
   DBUG_EXECUTE_IF("sleep_alter_before_main_binlog", my_sleep(6000000););
+  DEBUG_SYNC(thd, "alter_table_before_main_binlog");
 
   ha_binlog_log_query(thd, create_info->db_type, LOGCOM_ALTER_TABLE,
                       thd->query(), thd->query_length(),
@@ -7977,26 +8021,31 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
 	    for (uint i= 0; i < t->s->fields; i++ )
 	    {
 	      Field *f= t->field[i];
-              enum_field_types field_type= f->type();
 
               if (! thd->variables.old_mode &&
                   f->is_real_null(0))
                 continue;
-              /*
-                BLOB and VARCHAR have pointers in their field, we must convert
-                to string; GEOMETRY is implemented on top of BLOB.
-              */
-	      if ((field_type == MYSQL_TYPE_BLOB) ||
-                  (field_type == MYSQL_TYPE_VARCHAR) ||
-                  (field_type == MYSQL_TYPE_GEOMETRY))
-	      {
-		String tmp;
-		f->val_str(&tmp);
-		row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(), tmp.length());
+             /*
+               BLOB and VARCHAR have pointers in their field, we must convert
+               to string; GEOMETRY is implemented on top of BLOB.
+               BIT may store its data among NULL bits, convert as well.
+             */
+              switch (f->type()) {
+                case MYSQL_TYPE_BLOB:
+                case MYSQL_TYPE_VARCHAR:
+                case MYSQL_TYPE_GEOMETRY:
+                case MYSQL_TYPE_BIT:
+                {
+                  String tmp;
+                  f->val_str(&tmp);
+                  row_crc= my_checksum(row_crc, (uchar*) tmp.ptr(),
+                           tmp.length());
+                  break;
+                }
+                default:
+                  row_crc= my_checksum(row_crc, f->ptr, f->pack_length());
+                  break;
 	      }
-	      else
-		row_crc= my_checksum(row_crc, f->ptr,
-				     f->pack_length());
 	    }
 
 	    crc+= row_crc;

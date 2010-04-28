@@ -535,7 +535,7 @@ use db_bug7787|
 CREATE PROCEDURE p1()
 SHOW INNODB STATUS; |
 Warnings:
-Warning	1287	The syntax 'SHOW INNODB STATUS' is deprecated and will be removed in MySQL 6.0. Please use 'SHOW ENGINE INNODB STATUS' instead
+Warning	1287	'SHOW INNODB STATUS' is deprecated and will be removed in a future release. Please use 'SHOW ENGINE INNODB STATUS' instead
 GRANT EXECUTE ON PROCEDURE p1 TO user_bug7787@localhost|
 DROP DATABASE db_bug7787|
 drop user user_bug7787@localhost|

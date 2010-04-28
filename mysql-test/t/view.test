@@ -3869,6 +3869,52 @@ ALTER TABLE v1;
 DROP VIEW v1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#48449: hang on show create view after upgrading when
+--echo #            view contains function of view
+--echo #
+
+--disable_warnings
+DROP VIEW IF EXISTS v1,v2;
+DROP TABLE IF EXISTS t1,t2;
+DROP FUNCTION IF EXISTS f1;
+--enable_warnings
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+
+delimiter //;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  SELECT a FROM v2 INTO @a;
+  RETURN @a;
+END//
+delimiter ;//
+
+--echo # Trigger pre-locking when opening v2.
+CREATE VIEW v1 AS SELECT f1() FROM t1;
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+copy_file std_data/bug48449.frm $MYSQLD_DATADIR/test/v2.frm;
+
+SHOW CREATE VIEW v1;
+
+DROP VIEW v1,v2;
+DROP TABLE t1,t2;
+DROP FUNCTION f1;
+
+
+#
+# Bug#48294 assertion when creating a view based on some row() construct in select query
+#
+CREATE TABLE t1(f1 INT);
+INSERT INTO t1 VALUES ();
+
+CREATE VIEW v1 AS SELECT 1 FROM t1 WHERE
+ROW(1,1) >= ROW(1, (SELECT 1 FROM t1 WHERE  f1 >= ANY ( SELECT '1' )));
+
+DROP VIEW v1;
+DROP TABLE t1;
 
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.

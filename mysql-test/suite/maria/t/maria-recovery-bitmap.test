@@ -44,6 +44,10 @@ insert into t1 values ("bbbbbbb");
 # test).
 insert into t1 values ("bbbbbbb");
 delete from t1 limit 1;
+# Use a separate connection here. The reason is that we leave a dangling
+# --send on the connection during maria_verify_recovery.inc, which makes that
+# script fail if it were to try to use that connection before --reap.
+connect (extra, localhost, root,,mysqltest,,);
 set session debug="+d,info,enter,exit,maria_over_alloc_bitmap";
 send insert into t1 values ("aaaaaaaaa");
 connection admin;
@@ -57,6 +61,7 @@ sleep 5;
 # written.
 set global maria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
+connection default;
 
 --echo * TEST of bitmap flushed without REDO-UNDO in the log (WAL violation)
 # before crashing we'll flush the bitmap page
