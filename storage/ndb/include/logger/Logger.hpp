@@ -296,11 +296,6 @@ public:
    */
   virtual void setRepeatFrequency(unsigned val);
 
-  NdbMutex* getHandlerLock() { return m_handler_mutex; };
-
-  int getHandlerCount();
-  LogHandler* getHandler(int i);
-
 protected:
 
   NdbMutex *m_mutex;

@@ -77,6 +77,7 @@ check_message_resource(void)
   {
     fprintf(stderr, "message: <unknown>\n");
   }
+  fflush(stderr);
 
   // The program have not been properly compiled, crash in debug mode 
   assert(false);
@@ -98,11 +99,12 @@ setup_eventlogging(const char* source_name)
 
   // Create the event source registry key
   HKEY key_handle;
-  if (RegCreateKey(HKEY_LOCAL_MACHINE, sub_key, &key_handle) != ERROR_SUCCESS)
+  LONG error = RegCreateKey(HKEY_LOCAL_MACHINE, sub_key, &key_handle);
+  if (error != ERROR_SUCCESS)
   {
     // Could neither create or open key
     fprintf(stderr, "Could neither create or open key '%s', error: %u\n",
-            sub_key, GetLastError());
+            sub_key, error);
     return false;
   }
 
