@@ -820,7 +820,6 @@ fi
 # ----------------------------------------------------------------------------
 %files -n %{name}-embedded
 %defattr(-, root, root, 0755)
-%attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 
