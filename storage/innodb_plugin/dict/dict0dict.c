@@ -274,6 +274,11 @@ dict_index_stat_mutex_exit(
 /*=======================*/
 	const dict_index_t*	index)	/*!< in: index */
 {
+	ut_ad(index != NULL);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+	ut_ad(index->cached);
+	ut_ad(!index->to_be_dropped);
+
 	mutex_exit(GET_INDEX_STAT_MUTEX(index));
 }
 
