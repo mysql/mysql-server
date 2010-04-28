@@ -739,14 +739,6 @@ public:
 
   List<udf_func>     udf_list;                  /* udf function calls stack */
 
-  /**
-    Per sub-query locking strategy.
-    Note: This variable might interfer with the corresponding statement-level
-    variable Lex::lock_option because on how different parser rules depend
-    on eachother.
-  */
-  thr_lock_type lock_option;
-
   /* 
     This is a copy of the original JOIN USING list that comes from
     the parser. The parser :
@@ -1005,8 +997,11 @@ extern const LEX_STRING empty_lex_str;
 
 
 /*
-  Class representing list of all tables used by statement.
-  It also contains information about stored functions used by statement
+  Class representing list of all tables used by statement and other
+  information which is necessary for opening and locking its tables,
+  like SQL command for this statement.
+
+  Also contains information about stored functions used by statement
   since during its execution we may have to add all tables used by its
   stored functions/triggers to this list in order to pre-open and lock
   them.
@@ -1018,6 +1013,13 @@ extern const LEX_STRING empty_lex_str;
 class Query_tables_list
 {
 public:
+  /**
+    SQL command for this statement. Part of this class since the
+    process of opening and locking tables for the statement needs
+    this information to determine correct type of lock for some of
+    the tables.
+  */
+  enum_sql_command sql_command;
   /* Global list of all tables used by this statement */
   TABLE_LIST *query_tables;
   /* Pointer to next_global member of last element in the previous list. */
@@ -1918,7 +1920,6 @@ struct LEX: public Query_tables_list
     the variable can contain 0 or 1 for each nest level.
   */
   nesting_map allow_sum_func;
-  enum_sql_command sql_command;
 
   Sql_statement *m_stmt;
 
@@ -1930,7 +1931,6 @@ struct LEX: public Query_tables_list
   */
   bool expr_allows_subselect;
 
-  thr_lock_type lock_option;
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
@@ -2237,10 +2237,19 @@ class Yacc_state
 {
 public:
   Yacc_state()
-    : yacc_yyss(NULL), yacc_yyvs(NULL)
+    : yacc_yyss(NULL), yacc_yyvs(NULL), m_lock_type(TL_READ_DEFAULT)
   {}
 
   ~Yacc_state();
+
+  /**
+    Reset part of the state which needs resetting before parsing
+    substatement.
+  */
+  void reset_before_substatement()
+  {
+    m_lock_type= TL_READ_DEFAULT;
+  }
 
   /**
     Bison internal state stack, yyss, when dynamically allocated using
@@ -2259,6 +2268,25 @@ public:
     used during the parsing of SIGNAL and RESIGNAL.
   */
   Set_signal_information m_set_signal_info;
+
+  /**
+    Type of lock to be used for tables being added to the statement's
+    table list in table_factor, table_alias_ref, single_multi and
+    table_wild_one rules.
+    Statements which use these rules but require lock type different
+    from one specified by this member have to override it by using
+    st_select_lex::set_lock_for_tables() method.
+
+    The default value of this member is TL_READ_DEFAULT. The only two
+    cases in which we change it are:
+    - When parsing SELECT HIGH_PRIORITY.
+    - Rule for DELETE. In which we use this member to pass information
+      about type of lock from delete to single_multi part of rule.
+
+    We should try to avoid introducing new use cases as we would like
+    to get rid of this member eventually.
+  */
+  thr_lock_type m_lock_type;
 
   /*
     TODO: move more attributes from the LEX structure here.

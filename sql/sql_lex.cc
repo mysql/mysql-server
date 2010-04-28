@@ -350,7 +350,6 @@ void lex_start(THD *thd)
   lex->subqueries= FALSE;
   lex->view_prepare_mode= FALSE;
   lex->derived_tables= 0;
-  lex->lock_option= TL_READ;
   lex->safe_to_cache_query= 1;
   lex->leaf_tables_insert= 0;
   lex->parsing_options.reset();
@@ -363,7 +362,6 @@ void lex_start(THD *thd)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
-  lex->sql_command= SQLCOM_END;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->spname= NULL;
@@ -1708,7 +1706,6 @@ void st_select_lex::init_query()
   exclude_from_table_unique_test= no_wrap_view_item= FALSE;
   nest_level= 0;
   link_next= 0;
-  lock_option= TL_READ_DEFAULT;
 }
 
 void st_select_lex::init_select()
@@ -2219,6 +2216,7 @@ void LEX::cleanup_lex_after_parse_error(THD *thd)
 
 void Query_tables_list::reset_query_tables_list(bool init)
 {
+  sql_command= SQLCOM_END;
   if (!init && query_tables)
   {
     TABLE_LIST *table= query_tables;
@@ -2281,8 +2279,7 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0),
-   sql_command(SQLCOM_END), option_type(OPT_DEFAULT), is_lex_started(0)
+  :result(0), option_type(OPT_DEFAULT), is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),

@@ -4226,7 +4226,7 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
 
   pos= strmov(pos, "LOAD DATA ");
 
-  if (thd->lex->lock_option == TL_WRITE_CONCURRENT_INSERT)
+  if (is_concurrent)
     pos= strmov(pos, "CONCURRENT ");
 
   if (fn_start)
@@ -4368,6 +4368,7 @@ bool Load_log_event::write_data_body(IO_CACHE* file)
 Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
 			       const char *db_arg, const char *table_name_arg,
 			       List<Item> &fields_arg,
+                               bool is_concurrent_arg,
 			       enum enum_duplicates handle_dup,
 			       bool ignore, bool using_trans)
   :Log_event(thd_arg,
@@ -4378,7 +4379,8 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
    num_fields(0),fields(0),
    field_lens(0),field_block_len(0),
    table_name(table_name_arg ? table_name_arg : ""),
-   db(db_arg), fname(ex->file_name), local_fname(FALSE)
+   db(db_arg), fname(ex->file_name), local_fname(FALSE),
+   is_concurrent(is_concurrent_arg)
 {
   time_t end_time;
   time(&end_time);
@@ -4459,7 +4461,13 @@ Load_log_event::Load_log_event(const char *buf, uint event_len,
                                const Format_description_log_event *description_event)
   :Log_event(buf, description_event), num_fields(0), fields(0),
    field_lens(0),field_block_len(0),
-   table_name(0), db(0), fname(0), local_fname(FALSE)
+   table_name(0), db(0), fname(0), local_fname(FALSE),
+   /*
+     Load_log_event which comes from the binary log does not contain
+     information about the type of insert which was used on the master.
+     Assume that it was an ordinary, non-concurrent LOAD DATA.
+    */
+   is_concurrent(FALSE)
 {
   DBUG_ENTER("Load_log_event");
   /*
@@ -6149,11 +6157,14 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
 Create_file_log_event::
 Create_file_log_event(THD* thd_arg, sql_exchange* ex,
 		      const char* db_arg, const char* table_name_arg,
-		      List<Item>& fields_arg, enum enum_duplicates handle_dup,
+                      List<Item>& fields_arg,
+                      bool is_concurrent_arg,
+                      enum enum_duplicates handle_dup,
                       bool ignore,
 		      uchar* block_arg, uint block_len_arg, bool using_trans)
-  :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup, ignore,
-		  using_trans),
+  :Load_log_event(thd_arg, ex, db_arg, table_name_arg, fields_arg,
+                  is_concurrent_arg,
+                  handle_dup, ignore, using_trans),
    fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
    file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
 {
