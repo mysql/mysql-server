@@ -47,7 +47,7 @@ Created 1/20/1994 Heikki Tuuri
 #define INNODB_VERSION_MAJOR	1
 #define INNODB_VERSION_MINOR	0
 #define INNODB_VERSION_BUGFIX	6
-#define PERCONA_INNODB_VERSION	9.1
+#define PERCONA_INNODB_VERSION	10
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -288,9 +288,13 @@ management to ensure correct alignment for doubles etc. */
 */
 
 /* The 2-logarithm of UNIV_PAGE_SIZE: */
-#define UNIV_PAGE_SIZE_SHIFT	14
+/* #define UNIV_PAGE_SIZE_SHIFT	14 */
+#define UNIV_PAGE_SIZE_SHIFT_MAX	14
+#define UNIV_PAGE_SIZE_SHIFT	srv_page_size_shift
 /* The universal page size of the database */
-#define UNIV_PAGE_SIZE		(1u << UNIV_PAGE_SIZE_SHIFT)
+/* #define UNIV_PAGE_SIZE		(1u << UNIV_PAGE_SIZE_SHIFT) */
+#define UNIV_PAGE_SIZE		srv_page_size
+#define UNIV_PAGE_SIZE_MAX	(1u << UNIV_PAGE_SIZE_SHIFT_MAX)
 
 /* Maximum number of parallel threads in a parallelized operation */
 #define UNIV_MAX_PARALLELISM	32
@@ -383,7 +387,7 @@ number indicate that a field contains a reference to an externally
 stored part of the field in the tablespace. The length field then
 contains the sum of the following flag and the locally stored len. */
 
-#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE)
+#define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_MAX)
 
 /* Some macros to improve branch prediction and reduce cache misses */
 #if defined(__GNUC__) && (__GNUC__ > 2) && ! defined(__INTEL_COMPILER)
@@ -486,4 +490,6 @@ typedef void* os_thread_ret_t;
 	UNIV_MEM_ALLOC(addr, size);			\
 } while (0)
 
+extern ulint	srv_page_size_shift;
+extern ulint	srv_page_size;
 #endif

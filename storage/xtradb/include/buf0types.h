@@ -70,6 +70,7 @@ enum buf_io_fix {
 					buddy system; must be at least
 					sizeof(buf_page_t) */
 #define BUF_BUDDY_SIZES		(UNIV_PAGE_SIZE_SHIFT - BUF_BUDDY_LOW_SHIFT)
+#define BUF_BUDDY_SIZES_MAX	(UNIV_PAGE_SIZE_SHIFT_MAX - BUF_BUDDY_LOW_SHIFT)
 					/*!< number of buddy sizes */
 
 /** twice the maximum block size of the buddy system;

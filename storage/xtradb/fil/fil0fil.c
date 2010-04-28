@@ -222,6 +222,7 @@ struct fil_space_struct {
 				file we have written to */
 	ibool		is_in_unflushed_spaces; /*!< TRUE if this space is
 				currently in unflushed_spaces */
+	ibool		is_corrupt;
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
@@ -1221,6 +1222,8 @@ try_again:
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
 	space->is_in_unflushed_spaces = FALSE;
+
+	space->is_corrupt = FALSE;
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
@@ -3044,7 +3047,9 @@ fil_open_single_table_tablespace(
 			mach_write_ull(page + FIL_PAGE_FILE_FLUSH_LSN, current_lsn);
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 				srv_use_checksums
-				? buf_calc_page_new_checksum(page)
+				? (!srv_fast_checksum
+				   ? buf_calc_page_new_checksum(page)
+				   : buf_calc_page_new_checksum_32(page))
 						: BUF_NO_CHECKSUM_MAGIC);
 		mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 				srv_use_checksums
@@ -3156,8 +3161,20 @@ skip_info:
 					goto skip_write;
 				}
 
-				if (checksum_field != 0
+				if (!srv_fast_checksum
+				    && checksum_field != 0
 				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+				    && checksum_field
+				    != buf_calc_page_new_checksum(page)) {
+
+					goto skip_write;
+				}
+
+				if (srv_fast_checksum
+				    && checksum_field != 0
+				    && checksum_field != BUF_NO_CHECKSUM_MAGIC
+				    && checksum_field
+				    != buf_calc_page_new_checksum_32(page)
 				    && checksum_field
 				    != buf_calc_page_new_checksum(page)) {
 
@@ -3238,7 +3255,9 @@ skip_info:
 
 					mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM,
 							srv_use_checksums
-							? buf_calc_page_new_checksum(page)
+							? (!srv_fast_checksum
+							   ? buf_calc_page_new_checksum(page)
+							   : buf_calc_page_new_checksum_32(page))
 									: BUF_NO_CHECKSUM_MAGIC);
 					mach_write_to_4(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 							srv_use_checksums
@@ -4577,9 +4596,9 @@ _fil_io(
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(buf);
 	ut_ad(len > 0);
-#if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
-# error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
-#endif
+//#if (1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE
+//# error "(1 << UNIV_PAGE_SIZE_SHIFT) != UNIV_PAGE_SIZE"
+//#endif
 	ut_ad(fil_validate());
 #ifndef UNIV_HOTBACKUP
 # ifndef UNIV_LOG_DEBUG
@@ -4713,6 +4732,22 @@ _fil_io(
 	ut_a(byte_offset % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
+	if (srv_pass_corrupt_table && space->is_corrupt) {
+		/* should ignore i/o for the crashed space */
+		mutex_enter(&fil_system->mutex);
+		fil_node_complete_io(node, fil_system, type);
+		mutex_exit(&fil_system->mutex);
+		if (mode == OS_AIO_NORMAL) {
+			ut_a(space->purpose == FIL_TABLESPACE);
+			buf_page_io_complete(message, trx);
+		}
+		if (type == OS_FILE_READ) {
+			return(DB_TABLESPACE_DELETED);
+		} else {
+			return(DB_SUCCESS);
+		}
+	} else {
+		ut_a(!space->is_corrupt);
 #ifdef UNIV_HOTBACKUP
 	/* In ibbackup do normal i/o, not aio */
 	if (type == OS_FILE_READ) {
@@ -4727,6 +4762,8 @@ _fil_io(
 	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
 		     offset_low, offset_high, len, node, message, trx);
 #endif
+	} /**/
+
 	ut_a(ret);
 
 	if (mode == OS_AIO_SYNC) {
@@ -4873,7 +4910,7 @@ fil_aio_wait(
 
 	if (fil_node->space->purpose == FIL_TABLESPACE) {
 		srv_set_io_thread_op_info(segment, "complete io for buf page");
-		buf_page_io_complete(message);
+		buf_page_io_complete(message, NULL);
 	} else {
 		srv_set_io_thread_op_info(segment, "complete io for log");
 		log_io_complete(message);
@@ -5225,3 +5262,46 @@ fil_system_hash_nodes(void)
                return 0;
        }
 }
+
+/*************************************************************************
+functions to access is_corrupt flag of fil_space_t*/
+
+ibool
+fil_space_is_corrupt(
+/*=================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+	ibool		ret = FALSE;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (space && space->is_corrupt) {
+		ret = TRUE;
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(ret);
+}
+
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id)
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = fil_space_get_by_id(space_id);
+
+	if (space) {
+		space->is_corrupt = TRUE;
+	}
+
+	mutex_exit(&fil_system->mutex);
+}
+

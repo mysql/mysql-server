@@ -49,7 +49,7 @@ Created June 2005 by Marko Makela
 
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
-UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE - 1];
+UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_NUM_SSIZE_MAX - 1];
 #endif /* !UNIV_HOTBACKUP */
 
 /* Please refer to ../include/page0zip.ic for a description of the

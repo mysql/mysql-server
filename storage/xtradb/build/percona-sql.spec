@@ -13,10 +13,13 @@
 # pluginversion	- Version of InnoDB plugin taken as the basis, e.g. 1.0.3
 # redhatversion	- 5 or 4
 # xtradbversion	- The XtraDB release, eg. 6
-# gotrevision		- bzr revision of the sources the package is built of
 
 %define mysql_vendor  Percona, Inc
-%{!?redhatversion:%define redhatversion 5}
+%define redhatversion %(cat /etc/redhat-release | awk '{ print $3}' | awk -F. '{ print $1}')
+%define community 1
+%define mysqlversion 5.1.45
+%define pluginversion 1.0.6
+%define xtradbversion 10
 %define distribution  rhel%{redhatversion}
 %define release       %{xtradbversion}.%{distribution}
 
@@ -106,8 +109,8 @@
 
 %define server_suffix  -51
 %define package_suffix -51
-%define ndbug_comment Percona SQL Server (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
-%define debug_comment Percona SQL Server - Debug (GPL), XtraDB %{xtradbversion}, Revision %{gotrevision}
+%define ndbug_comment Percona SQL Server (GPL), XtraDB %{xtradbversion}
+%define debug_comment Percona SQL Server - Debug (GPL), XtraDB %{xtradbversion}
 %define commercial 0
 %define YASSL_BUILD 1
 %define EMBEDDED_BUILD 0
@@ -143,6 +146,7 @@ Patch04: microsec_process.patch
 Patch05: userstat.patch
 Patch06: optimizer_fix.patch
 Patch07: mysql-test_for_xtradb.diff
+Patch08: show_temp_51.patch
 
 
 %define perconaxtradbplugin percona-xtradb-%{pluginversion}-%{xtradbversion}.tar.gz
@@ -162,8 +166,8 @@ Source:		%{src_dir}.tar.gz
 URL:		http://www.percona.com/
 Packager:	%{mysql_vendor} MySQL Development Team <mysql-dev@percona.com>
 Vendor:		%{mysql_vendor}
-Provides:	msqlormysql MySQL-server mysql Percona-XtraDB-server
-BuildRequires:  gperf perl readline-devel gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache
+Provides:	msqlormysql MySQL-server Percona-XtraDB-server
+BuildRequires:  gperf perl readline-devel gcc-c++ ncurses-devel zlib-devel libtool automake autoconf time ccache bison
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -187,7 +191,7 @@ For more information visist our web site http://www.percona.com/
 Summary:	%{ndbug_comment} for Red Hat Enterprise Linux %{redhatversion}
 Group:		Applications/Databases
 Requires:	 chkconfig coreutils shadow-utils grep procps
-Provides:	msqlormysql mysql-server mysql MySQL MySQL-server Percona-XtraDB-server
+Provides:	msqlormysql mysql-server MySQL-server Percona-XtraDB-server
 Obsoletes:	MySQL mysql mysql-server MySQL-server MySQL-server-community MySQL-server-percona
 
 %description -n Percona-XtraDB-server%{package_suffix}
@@ -214,7 +218,7 @@ package "Percona-XtraDB-client%{package_suffix}" as well!
 Summary: Percona-XtraDB - Client
 Group: Applications/Databases
 Obsoletes: mysql-client MySQL-client MySQL-client-community MySQL-client-percona
-Provides: mysql-client MySQL-client Percona-XtraDB-client
+Provides: mysql-client MySQL-client Percona-XtraDB-client mysql MySQL
 
 %description -n Percona-XtraDB-client%{package_suffix}
 This package contains the standard Percona-XtraDB clients and administration tools. 
@@ -308,6 +312,7 @@ judgment as a high-performance consulting company.
 %patch05 -p1
 %patch06 -p1
 %patch07 -p1
+%patch08 -p1
 
 if [ "%{redhatversion}" = "5" ] ; then 
 tar xfz $RPM_SOURCE_DIR/%{perconaxtradbplugin} -C storage/innobase --strip-components=1
@@ -1018,6 +1023,10 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Mar 22 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
+
+XtraDB Release 10
+
 * Thu Feb 11 2010 Aleksandr Kuzminsky <aleksandr.kuzminsky@percona.com>
 
 Package name changed to Percona-XtraDB

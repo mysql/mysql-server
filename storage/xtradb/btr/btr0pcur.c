@@ -32,7 +32,7 @@ Created 2/23/1996 Heikki Tuuri
 #include "ut0byte.h"
 #include "rem0cmp.h"
 #include "trx0trx.h"
-
+#include "srv0srv.h"
 /**************************************************************//**
 Allocates memory for a persistent cursor object and initializes the cursor.
 @return	own: persistent cursor */
@@ -102,6 +102,12 @@ btr_pcur_store_position(
 	ut_ad(cursor->latch_mode != BTR_NO_LATCHES);
 
 	block = btr_pcur_get_block(cursor);
+
+	if (srv_pass_corrupt_table && !block) {
+		return;
+	}
+	ut_a(block);
+
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(cursor));
 
 	page_cursor = btr_pcur_get_page_cur(cursor);
@@ -413,6 +419,15 @@ btr_pcur_move_to_next_page(
 	next_block = btr_block_get(space, zip_size, next_page_no,
 				   cursor->latch_mode, mtr);
 	next_page = buf_block_get_frame(next_block);
+
+	if (srv_pass_corrupt_table && !next_page) {
+		btr_leaf_page_release(btr_pcur_get_block(cursor),
+				      cursor->latch_mode, mtr);
+		btr_pcur_get_page_cur(cursor)->block = 0;
+		btr_pcur_get_page_cur(cursor)->rec = 0;
+		return;
+	}
+	ut_a(next_page);
 #ifdef UNIV_BTR_DEBUG
 	ut_a(page_is_comp(next_page) == page_is_comp(page));
 	ut_a(btr_page_get_prev(next_page, mtr)

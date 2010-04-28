@@ -28,7 +28,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "page0zip.h"
-
+#include "srv0srv.h"
 #define BTR_MAX_NODE_LEVEL	50	/*!< Maximum B-tree page level
 					(not really a hard limit).
 					Used in debug assertions
@@ -52,7 +52,9 @@ btr_block_get(
 
 	block = buf_page_get(space, zip_size, page_no, mode, mtr);
 
-	if (mode != RW_NO_LATCH) {
+	ut_a(srv_pass_corrupt_table || block);
+
+	if (block && mode != RW_NO_LATCH) {
 
 		buf_block_dbg_add_level(block, SYNC_TREE_NODE);
 	}

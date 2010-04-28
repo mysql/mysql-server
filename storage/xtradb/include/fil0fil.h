@@ -116,6 +116,7 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID  34 /*!< starting from 4.1.x this
 					contains the space id of the page */
 #define FIL_PAGE_DATA		38	/*!< start of the data on the page */
+#define FIL_PAGE_DATA_ALIGN_32	40
 /* @} */
 /** File page trailer @{ */
 #define FIL_PAGE_END_LSN_OLD_CHKSUM 8	/*!< the low 4 bytes of this are used
@@ -747,6 +748,19 @@ fil_system_hash_cells(void);
 ulint
 fil_system_hash_nodes(void);
 /*========================*/
+
+/*************************************************************************
+functions to access is_corrupt flag of fil_space_t*/
+
+ibool
+fil_space_is_corrupt(
+/*=================*/
+	ulint	space_id);
+
+void
+fil_space_set_corrupt(
+/*==================*/
+	ulint	space_id);
 
 typedef	struct fil_space_struct	fil_space_t;
 
