@@ -123,7 +123,9 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 TABLE *find_write_locked_table(TABLE *list, const char *db,
                                const char *table_name);
-thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table);
+thr_lock_type read_lock_type_for_table(THD *thd,
+                                       Query_tables_list *prelocking_ctx,
+                                       TABLE_LIST *table_list);
 
 my_bool mysql_rm_tmp_tables(void);
 bool rm_temporary_table(handlerton *base, char *path);

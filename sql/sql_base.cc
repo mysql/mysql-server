@@ -3963,7 +3963,8 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
   Return a appropriate read lock type given a table object.
 
   @param thd Thread context
-  @param table TABLE object for table to be locked
+  @param prelocking_ctx Prelocking context.
+  @param table_list     Table list element for table to be locked.
 
   @remark Due to a statement-based replication limitation, statements such as
           INSERT INTO .. SELECT FROM .. and CREATE TABLE .. SELECT FROM need
@@ -3972,20 +3973,31 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
           source table. If such a statement gets applied on the slave before
           the INSERT .. SELECT statement finishes, data on the master could
           differ from data on the slave and end-up with a discrepancy between
-          the binary log and table state. Furthermore, this does not apply to
-          I_S and log tables as it's always unsafe to replicate such tables
-          under statement-based replication as the table on the slave might
-          contain other data (ie: general_log is enabled on the slave). The
-          statement will be marked as unsafe for SBR in decide_logging_format().
+          the binary log and table state.
+          This also applies to SELECT/SET/DO statements which use stored
+          functions. Calls to such functions are going to be logged as a
+          whole and thus should be serialized against concurrent changes
+          to tables used by those functions. This can be avoided if functions
+          only read data but doing so requires more complex analysis than it
+          is done now.
+          Furthermore, this does not apply to I_S and log tables as it's
+          always unsafe to replicate such tables under statement-based
+          replication as the table on the slave might contain other data
+          (ie: general_log is enabled on the slave). The statement will
+          be marked as unsafe for SBR in decide_logging_format().
 */
 
-thr_lock_type read_lock_type_for_table(THD *thd, TABLE *table)
+thr_lock_type read_lock_type_for_table(THD *thd,
+                                       Query_tables_list *prelocking_ctx,
+                                       TABLE_LIST *table_list)
 {
   bool log_on= mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG);
   ulong binlog_format= thd->variables.binlog_format;
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
-      (table->s->table_category == TABLE_CATEGORY_LOG) ||
-      (table->s->table_category == TABLE_CATEGORY_PERFORMANCE))
+      (table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
+      (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
+      !(is_update_query(prelocking_ctx->sql_command) ||
+        table_list->prelocking_placeholder))
     return TL_READ;
   else
     return TL_READ_NO_INSERT;
@@ -4336,7 +4348,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
       tables->table->reginfo.lock_type= thd->update_lock_default;
     else if (tables->lock_type == TL_READ_DEFAULT)
       tables->table->reginfo.lock_type=
-        read_lock_type_for_table(thd, tables->table);
+        read_lock_type_for_table(thd, lex, tables);
     else
       tables->table->reginfo.lock_type= tables->lock_type;
   }

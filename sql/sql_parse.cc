@@ -5710,7 +5710,6 @@ void mysql_init_multi_delete(LEX *lex)
   lex->select_lex.select_limit= 0;
   lex->unit.select_limit_cnt= HA_POS_ERROR;
   lex->select_lex.table_list.save_and_clear(&lex->auxiliary_table_list);
-  lex->lock_option= TL_READ_DEFAULT;
   lex->query_tables= 0;
   lex->query_tables_last= &lex->query_tables;
 }
