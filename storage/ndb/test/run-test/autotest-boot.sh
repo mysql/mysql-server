@@ -10,12 +10,17 @@
 ##############
 
 save_args=$*
-VERSION="autotest-boot.sh version 1.00"
+VERSION="autotest-boot.sh version 1.01"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
 then
-  HOST=`hostname -s`
+  if uname | grep -iq cygwin
+  then
+    HOST=`hostname`
+  else
+    HOST=`hostname -s`
+  fi
 else
   HOST=`hostname`
 fi
@@ -194,7 +199,18 @@ if [ "$do_clone" ]
 then
 	rm -rf $dst_place0
 	mkdir -p ${build_dir}
-	bzr export $dst_place0 $extra_clone0 $src_clone0
+	
+	# Can use local copy if clone_dir is set, to speed up
+	if [ ! -z "$clone_dir" ]
+	then
+		if [ -d "$clone_dir/$clone0" ]
+		then
+			echo "Copying $clone_dir/$clone0 to $dst_place0"
+			cp -r $clone_dir/$clone0 $dst_place0
+		fi
+	else
+		bzr export $dst_place0 $extra_clone0 $src_clone0    
+	fi
 
 	if [ "$clone1" ]
 	then
@@ -210,12 +226,22 @@ fi
 
 if [ "$build" ]
 then
-        rm -rf $install_dir
+    rm -rf $install_dir
+    
 	if [ -z "$clone1" ]
 	then
-	    cd $dst_place0
-	    BUILD/compile-ndb-autotest --prefix=$install_dir0
-	    make install
+        cd $dst_place0
+        if uname | grep -iq cygwin
+        then
+            install_dir_dos=`cygpath -w $install_dir`
+            cmd /c cscript win/configure.js WITH_NDBCLUSTER_STORAGE_ENGINE WITH_NDB_TEST --without-plugins=archive,blackhole,example,federated
+            cmd /c cmake -G "Visual Studio 9 2008" -DERROR_INSERT=1 -DCMAKE_INSTALL_PREFIX=$install_dir_dos
+            cmd /c devenv.com MySql.sln /Build RelWithDebInfo
+            cmd /c devenv.com MySql.sln /Project INSTALL /Build
+        else
+	        BUILD/compile-ndb-autotest --prefix=$install_dir0
+	        make install
+        fi
 	else
 	    cd $dst_place0
 	    BUILD/compile-ndb-autotest --prefix=$install_dir0

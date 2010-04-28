@@ -38,12 +38,6 @@ class File_class;
 class FileLogHandler : public LogHandler
 {
 public:
-  /** Max number of log files to archive. */
-  STATIC_CONST( MAX_NO_FILES = 6 );	
-  /** Max file size of the log before archiving.  */
-  STATIC_CONST( MAX_FILE_SIZE = 1024000 );
-  /** Max number of log entries before archiving. */
-  STATIC_CONST( MAX_LOG_ENTRIES = 10000 );
 
   virtual const char* handler_type() {return "FILE"; };
 
@@ -57,9 +51,9 @@ public:
    * @param maxLogEntries the maximum number of log entries before checking time to archive.
    */
   FileLogHandler(const char* aFileName = "logger.log",
-		 int maxNoFiles = MAX_NO_FILES, 
-		 long maxFileSize = MAX_FILE_SIZE,
-		 unsigned int maxLogEntries = MAX_LOG_ENTRIES);
+		 int maxNoFiles = 6,
+		 long maxFileSize = 1024000,
+		 unsigned int maxLogEntries = 10000);
 
   /**
    * Destructor.
