@@ -242,14 +242,14 @@ documentation and the manual for more information.
 # Sub package definition
 ##############################################################################
 
-%package -n %{name}-server
+%package -n MySQL-server%{product_suffix}
 Summary:        MySQL: a very fast and reliable SQL database server
 Group:          Applications/Databases
 Requires:       %{distro_requires}
 Provides:       msqlormysql mysql-server mysql MySQL MySQL-server
 Obsoletes:      MySQL mysql mysql-server MySQL-server
 
-%description -n %{name}-server
+%description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
@@ -271,64 +271,64 @@ This package includes the MySQL server binary as well as related utilities
 to run and administer a MySQL server.
 
 If you want to access and work with the database, you have to install
-package "%{name}-client" as well!
+package "MySQL-client%{product_suffix}" as well!
 
 # ----------------------------------------------------------------------------
-%package -n %{name}-client
+%package -n MySQL-client%{product_suffix}
 Summary:        MySQL - Client
 Group:          Applications/Databases
 Obsoletes:      mysql-client MySQL-client
 Provides:       mysql-client MySQL-client
 
-%description -n %{name}-client
+%description -n MySQL-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package -n %{name}-test
-Requires:       %{name}-client perl
+%package -n MySQL-test%{product_suffix}
+Requires:       MySQL-client%{product_suffix} perl
 Summary:        MySQL - Test suite
 Group:          Applications/Databases
 Provides:       mysql-test
 Obsoletes:      mysql-bench mysql-test
 AutoReqProv:    no
 
-%description -n %{name}-test
+%description -n MySQL-test%{product_suffix}
 This package contains the MySQL regression test suite.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package -n %{name}-devel
+%package -n MySQL-devel%{product_suffix}
 Summary:        MySQL - Development header files and libraries
 Group:          Applications/Databases
 Provides:       mysql-devel
 Obsoletes:      mysql-devel
 
-%description -n %{name}-devel
+%description -n MySQL-devel%{product_suffix}
 This package contains the development header files and libraries necessary
 to develop MySQL client applications.
 
 For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 # ----------------------------------------------------------------------------
-%package -n %{name}-shared
+%package -n MySQL-shared%{product_suffix}
 Summary:        MySQL - Shared libraries
 Group:          Applications/Databases
 
-%description -n %{name}-shared
+%description -n MySQL-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages
 and applications need to dynamically load and use MySQL.
 
 # ----------------------------------------------------------------------------
-%package -n %{name}-embedded
+%package -n MySQL-embedded%{product_suffix}
 Summary:        MySQL - embedded library
 Group:          Applications/Databases
-Requires:       %{name}-devel
+Requires:       MySQL-devel%{product_suffix}
 Obsoletes:      mysql-embedded
 
-%description -n %{name}-embedded
+%description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
 
 The embedded MySQL server library makes it possible to run a full-featured
@@ -485,7 +485,7 @@ rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
 #  Post processing actions, i.e. when installed
 ##############################################################################
 
-%pre -n %{name}-server
+%pre -n MySQL-server%{product_suffix}
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -561,7 +561,7 @@ if [ -x %{_sysconfdir}/init.d/mysql ] ; then
         sleep 5
 fi
 
-%post -n %{name}-server
+%post -n MySQL-server%{product_suffix}
 mysql_datadir=%{mysqldatadir}
 
 # ----------------------------------------------------------------------
@@ -629,7 +629,7 @@ sleep 2
 #scheduled service packs and more.  Visit www.mysql.com/enterprise for more
 #information."
 
-%preun -n %{name}-server
+%preun -n MySQL-server%{product_suffix}
 if [ $1 = 0 ] ; then
         # Stop MySQL before uninstalling it
         if [ -x %{_sysconfdir}/init.d/mysql ] ; then
@@ -658,7 +658,7 @@ fi
 #  Files section
 ##############################################################################
 
-%files -n %{name}-server
+%files -n MySQL-server%{product_suffix}
 %defattr(-,root,root,0755)
 
 %if %{defined license_files_server}
@@ -744,7 +744,7 @@ fi
 %attr(755, root, root) %{_datadir}/mysql/
 
 # ----------------------------------------------------------------------------
-%files -n %{name}-client
+%files -n MySQL-client%{product_suffix}
 
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
@@ -776,7 +776,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
 
 # ----------------------------------------------------------------------------
-%files -n %{name}-devel -f optional-files-devel
+%files -n MySQL-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
 %if %{defined license_files_devel}
 %doc %{license_files_devel}
@@ -793,19 +793,19 @@ fi
 %{_libdir}/mysql/libmysqlservices.a
 
 # ----------------------------------------------------------------------------
-%files -n %{name}-shared
+%files -n MySQL-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
 
-%post -n %{name}-shared
+%post -n MySQL-shared%{product_suffix}
 /sbin/ldconfig
 
-%postun -n %{name}-shared
+%postun -n MySQL-shared%{product_suffix}
 /sbin/ldconfig
 
 # ----------------------------------------------------------------------------
-%files -n %{name}-test
+%files -n MySQL-test%{product_suffix}
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
@@ -818,7 +818,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
 
 # ----------------------------------------------------------------------------
-%files -n %{name}-embedded
+%files -n MySQL-embedded%{product_suffix}
 %defattr(-, root, root, 0755)
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
