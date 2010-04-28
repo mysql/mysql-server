@@ -115,12 +115,14 @@ Database: information_schema
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
 | XTRADB_ADMIN_COMMAND                  |
 | INNODB_TRX                            |
-| INNODB_CMP_RESET                      |
+| INNODB_SYS_TABLES                     |
 | INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_LOCKS                          |
 | INNODB_CMPMEM                         |
 | INNODB_TABLE_STATS                    |
+| INNODB_SYS_INDEXES                    |
+| INNODB_CMP_RESET                      |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_INDEX_STATS                    |
 +---------------------------------------+
@@ -164,12 +166,14 @@ Database: INFORMATION_SCHEMA
 | INNODB_BUFFER_POOL_PAGES_INDEX        |
 | XTRADB_ADMIN_COMMAND                  |
 | INNODB_TRX                            |
-| INNODB_CMP_RESET                      |
+| INNODB_SYS_TABLES                     |
 | INNODB_LOCK_WAITS                     |
 | INNODB_CMPMEM_RESET                   |
 | INNODB_LOCKS                          |
 | INNODB_CMPMEM                         |
 | INNODB_TABLE_STATS                    |
+| INNODB_SYS_INDEXES                    |
+| INNODB_CMP_RESET                      |
 | INNODB_BUFFER_POOL_PAGES_BLOB         |
 | INNODB_INDEX_STATS                    |
 +---------------------------------------+

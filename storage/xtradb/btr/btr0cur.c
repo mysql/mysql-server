@@ -3417,7 +3417,7 @@ btr_estimate_n_pages_not_null(
 	ibool		diverged_lot;
 	ulint		divergence_level;
 	ulint		n_pages;
-	ulint		i,j;
+	ulint		i;
 	mtr_t		mtr;
 	mem_heap_t*	heap;
 

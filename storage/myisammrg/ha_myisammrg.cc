@@ -295,8 +295,9 @@ static int myisammrg_parent_open_callback(void *callback_param,
     }
   }
 
-  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", child_l->db_length, child_l->db,
-                      child_l->table_name_length, child_l->table_name));
+  DBUG_PRINT("myrg", ("open: '%.*s'.'%.*s'", (int)(child_l->db_length),
+                      child_l->db, (int)(child_l->table_name_length),
+                      child_l->table_name));
 
   /* Convert to lowercase if required. */
   if (lower_case_table_names && child_l->table_name_length)

@@ -3506,7 +3506,7 @@ corrupt:
 			if (srv_pass_corrupt_table && bpage->space > 0
 			    && bpage->space < SRV_LOG_SPACE_FIRST_ID) {
 				fprintf(stderr,
-					"InnoDB: space %lu will be treated as corrupt.\n",
+					"InnoDB: space %u will be treated as corrupt.\n",
 					bpage->space);
 				fil_space_set_corrupt(bpage->space);
 				if (trx && trx->dict_operation_lock_mode == 0) {

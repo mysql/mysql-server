@@ -4442,8 +4442,10 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
 ulong get_table_grant(THD *thd, TABLE_LIST *table)
 {
   ulong privilege;
+#ifndef EMBEDDED_LIBRARY
   Security_context *sctx= thd->security_ctx;
   const char *db = table->db ? table->db : thd->db;
+#endif
   GRANT_TABLE *grant_table;
 
   rw_rdlock(&LOCK_grant);

@@ -1460,7 +1460,8 @@ sub command_line_setup {
     push(@valgrind_args, @default_valgrind_args)
       unless @valgrind_args;
 
-    # Don't add --quiet; you will loose the summary reports.
+    # Make valgrind run in quiet mode so it only print errors
+    push(@valgrind_args, "--quiet" );
 
     mtr_report("Running valgrind with options \"",
 	       join(" ", @valgrind_args), "\"");
@@ -5591,66 +5592,6 @@ sub valgrind_arguments {
   }
 }
 
-#
-# Search server logs for valgrind reports printed at mysqld termination
-#
-
-sub valgrind_exit_reports() {
-  foreach my $log_file (keys %mysqld_logs)
-  {
-    my @culprits= ();
-    my $valgrind_rep= "";
-    my $found_report= 0;
-    my $err_in_report= 0;
-
-    my $LOGF = IO::File->new($log_file)
-      or mtr_error("Could not open file '$log_file' for reading: $!");
-
-    while ( my $line = <$LOGF> )
-    {
-      if ($line =~ /^CURRENT_TEST: (.+)$/)
-      {
-        my $testname= $1;
-        # If we have a report, report it if needed and start new list of tests
-        if ($found_report)
-        {
-          if ($err_in_report)
-          {
-            mtr_print ("Valgrind report from $log_file after tests:\n",
-                        @culprits);
-            mtr_print_line();
-            print ("$valgrind_rep\n");
-            $err_in_report= 0;
-          }
-          # Make ready to collect new report
-          @culprits= ();
-          $found_report= 0;
-          $valgrind_rep= "";
-        }
-        push (@culprits, $testname);
-        next;
-      }
-      # This line marks the start of a valgrind report
-      $found_report= 1 if $line =~ /ERROR SUMMARY:/;
-
-      if ($found_report) {
-        $line=~ s/^==\d+== //;
-        $valgrind_rep .= $line;
-        $err_in_report= 1 if $line =~ /ERROR SUMMARY: [1-9]/;
-        $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
-        $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
-      }
-    }
-
-    $LOGF= undef;
-
-    if ($err_in_report) {
-      mtr_print ("Valgrind report from $log_file after tests:\n", @culprits);
-      mtr_print_line();
-      print ("$valgrind_rep\n");
-    }
-  }
-}
 
 #
 # Usage

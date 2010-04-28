@@ -658,10 +658,6 @@ xdes_calc_descriptor_page(
 	ulint	offset)		/*!< in: page offset */
 {
 #ifndef DOXYGEN /* Doxygen gets confused of these */
-//# if UNIV_PAGE_SIZE <= XDES_ARR_OFFSET \
-//		+ (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
-//#  error
-//# endif
 # if PAGE_ZIP_MIN_SIZE <= XDES_ARR_OFFSET \
 		+ (PAGE_ZIP_MIN_SIZE / FSP_EXTENT_SIZE) * XDES_SIZE
 #  error

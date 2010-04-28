@@ -2042,7 +2042,7 @@ innobase_init(
 		fprintf(stderr,
 			"InnoDB: Warning: innodb_page_size has been changed from default value 16384. (###EXPERIMENTAL### operation)\n");
 		for (n_shift = 12; n_shift <= UNIV_PAGE_SIZE_SHIFT_MAX; n_shift++) {
-			if (innobase_page_size == (1 << n_shift)) {
+			if (innobase_page_size == (1u << n_shift)) {
 				srv_page_size_shift = n_shift;
 				srv_page_size = (1 << srv_page_size_shift);
 				fprintf(stderr,
