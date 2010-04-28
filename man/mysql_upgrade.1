@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 11/04/2009
+.\"      Date: 04/06/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "04/06/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -52,6 +52,24 @@ for manual table repair strategies\&.
 .nr an-break-flag 1
 .br
 .ps +1
+\fBNote\fR
+.ps -1
+.br
+.PP
+On Windows Server 2008 and Windows Vista, you must run
+\fBmysql_upgrade\fR
+with administrator privileges\&. You can do this by running a Command Prompt as Administrator and running the command\&. Failure to do so may result in the upgrade failing to execute correctly\&.
+.sp .5v
+.RE
+.if n \{\
+.sp
+.\}
+.RS 4
+.it 1 an-trap
+.nr an-no-space-flag 1
+.nr an-break-flag 1
+.br
+.ps +1
 \fBCaution\fR
 .ps -1
 .br
@@ -59,7 +77,7 @@ for manual table repair strategies\&.
 You should always back up your current MySQL installation
 \fIbefore\fR
 performing an upgrade\&. See
-Section\ \&6.1, \(lqDatabase Backup Methods\(rq\&.
+Section\ \&6.2, \(lqDatabase Backup Methods\(rq\&.
 .PP
 Some upgrade incompatibilities may require special handling before you upgrade your MySQL installation and run
 \fBmysql_upgrade\fR\&. See
@@ -132,7 +150,7 @@ FOR UPGRADE
 option of the
 CHECK TABLE
 statement (see
-Section\ \&12.5.2.3, \(lqCHECK TABLE Syntax\(rq)\&.
+Section\ \&12.4.2.3, \(lqCHECK TABLE Syntax\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -144,7 +162,7 @@ Section\ \&12.5.2.3, \(lqCHECK TABLE Syntax\(rq)\&.
 .IP \(bu 2.3
 .\}
 \fIfix_priv_tables\fR
-represents a script generated interally by
+represents a script generated internally by
 \fBmysql_upgrade\fR
 that contains SQL statements to upgrade the tables in the
 mysql
@@ -198,15 +216,17 @@ was added as a shell script and worked only for Unix systems\&. As of MySQL 5\&.
 is an executable binary and is available on all systems\&.
 .PP
 \fBmysql_upgrade\fR
-supports the options in the following list\&. It also reads option files (the
+supports the following options, which can be specified on the command line or in the
 [mysql_upgrade]
 and
 [client]
-groups) and supports the options for processing them described at
-Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&. Other options are passed to
+option file groups\&. Other options are passed to
 \fBmysqlcheck\fR\&. For example, it might be necessary to specify the
 \fB\-\-password[=\fR\fB\fIpassword\fR\fR\fB]\fR
 option\&.
+\fBmysql_upgrade\fR
+also supports the options for processing option files described at
+Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 .RS 4
 .ie n \{\
@@ -375,7 +395,7 @@ This option was introduced in MySQL 5\&.1\&.40\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

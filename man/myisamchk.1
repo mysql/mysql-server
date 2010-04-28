@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisamchk\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 11/04/2009
+.\"      Date: 04/06/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYISAMCHK\FR" "1" "04/06/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -219,12 +219,16 @@ CHECK TABLE
 instead of
 \fBmyisamchk\fR
 to check tables\&. See
-Section\ \&12.5.2.3, \(lqCHECK TABLE Syntax\(rq\&.
+Section\ \&12.4.2.3, \(lqCHECK TABLE Syntax\(rq\&.
 .sp .5v
 .RE
 .PP
 \fBmyisamchk\fR
-supports the options in the following table\&. It also reads option files and supports the options for processing them described at
+supports the following options, which can be specified on the command line or in the
+[myisamchk]
+option file group\&.
+\fBmyisamchk\fR
+also supports the options for processing option files described at
 Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .SH "MYISAMCHK GENERAL OPTIONS"
 .\" options: myisamchk
@@ -521,18 +525,7 @@ system variable\&. For more information, see the description of
 myisam_stats_method
 in
 Section\ \&5.1.4, \(lqServer System Variables\(rq, and
-Section\ \&7.4.7, \(lqMyISAM Index Statistics Collection\(rq\&. For MySQL 5\&.1,
-stats_method
-was added in MySQL 5\&.0\&.14\&. For older versions, the statistics collection method is equivalent to
-nulls_equal\&.
-.PP
-The
-ft_min_word_len
-and
-ft_max_word_len
-variables are available as of MySQL 4\&.0\&.0\&.
-ft_stopword_file
-is available as of MySQL 4\&.0\&.19\&.
+Section\ \&7.4.7, \(lqMyISAM Index Statistics Collection\(rq\&.
 .PP
 ft_min_word_len
 and
@@ -824,7 +817,7 @@ file as
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -981,7 +974,7 @@ and
 \fB\-\-quick\fR,
 \fB\-q\fR
 .sp
-Achieve a faster repair by not modifying the data file\&. You can specify this option twice to force
+Achieve a faster repair by modifying only the index file, not the data file\&. You can specify this option twice to force
 \fBmyisamchk\fR
 to modify the original data file in case of duplicate keys\&.
 .RE
@@ -1469,7 +1462,11 @@ The format used to store table rows\&. The preceding examples use
 Fixed length\&. Other possible values are
 Compressed
 and
-Packed\&.
+Packed\&. (Packed
+corresponds to what
+SHOW TABLE STATUS
+reports as
+Dynamic\&.)
 .RE
 .sp
 .RS 4
@@ -1585,7 +1582,7 @@ The number of rows in the table\&.
 Deleted blocks
 .sp
 How many deleted blocks still have reserved space\&. You can optimize your table to minimize this space\&. See
-Section\ \&6.4.4, \(lqTable Optimization\(rq\&.
+Section\ \&6.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1613,7 +1610,7 @@ Data records\&.
 Deleted data
 .sp
 How many bytes of unreclaimed deleted data there are\&. You can optimize your table to minimize this space\&. See
-Section\ \&6.4.4, \(lqTable Optimization\(rq\&.
+Section\ \&6.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2100,7 +2097,7 @@ The number of rows in the table\&.
 Deleted blocks
 .sp
 How many deleted blocks still have reserved space\&. You can optimize your table to minimize this space\&. See
-Section\ \&6.4.4, \(lqTable Optimization\(rq\&.
+Section\ \&6.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2238,7 +2235,7 @@ What percentage of the data file is unused\&.
 Blocks/Record
 .sp
 Average number of blocks per row (that is, how many links a fragmented row is composed of)\&. This is always 1\&.0 for fixed\-format tables\&. This value should stay as close to 1\&.0 as possible\&. If it gets too large, you can reorganize the table\&. See
-Section\ \&6.4.4, \(lqTable Optimization\(rq\&.
+Section\ \&6.6.4, \(lqMyISAM Table Optimization\(rq\&.
 .RE
 .sp
 .RS 4
@@ -2447,7 +2444,7 @@ instead of
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

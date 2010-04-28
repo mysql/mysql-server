@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 11/04/2009
+.\"      Date: 04/06/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "04/06/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -103,7 +103,13 @@ shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR
 .\" startup parameters: mysql
 .PP
 \fBmysql\fR
-supports the options in the following list\&. It also reads option files and supports the options for processing them described at
+supports the following options, which can be specified on the command line or in the
+[mysql]
+and
+[client]
+option file groups\&.
+\fBmysql\fR
+also supports the options for processing option files described at
 Section\ \&4.2.3.3.1, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
 .sp
 .RS 4
@@ -182,7 +188,7 @@ option\&.
 \fB\-\-character\-sets\-dir=\fR\fB\fIpath\fR\fR
 .sp
 The directory where character sets are installed\&. See
-Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq\&.
+Section\ \&9.5, \(lqCharacter Set Configuration\(rq\&.
 .RE
 .sp
 .RS 4
@@ -345,7 +351,7 @@ latin1
 character set by default\&. You can usually fix such issues by using this option to force the client to use the system character set instead\&.
 .sp
 See
-Section\ \&9.2, \(lqThe Character Set Used for Data and Sorting\(rq, for more information\&.
+Section\ \&9.5, \(lqCharacter Set Configuration\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -550,10 +556,8 @@ the section called \(lqMYSQL COMMANDS\(rq\&.
 \fB\-\-no\-auto\-rehash\fR,
 \fB\-A\fR
 .sp
-Deprecated form of
-\fB\-skip\-auto\-rehash\fR\&. Use
-\fB\-\-disable\-auto\-rehash\fR
-instead\&. See the description for
+This has the same effect as
+\fB\-skip\-auto\-rehash\fR\&. See the description for
 \fB\-\-auto\-rehash\fR\&.
 .RE
 .sp
@@ -589,6 +593,8 @@ Do not beep when errors occur\&.
 Deprecated, use
 \fB\-\-disable\-named\-commands\fR
 instead\&.
+\fB\-\-no\-named\-commands\fR
+is removed in MySQL 5\&.5\&.
 .RE
 .sp
 .RS 4
@@ -607,6 +613,8 @@ Deprecated form of
 \fB\-\-skip\-pager\fR\&. See the
 \fB\-\-pager\fR
 option\&.
+\fB\-\-no\-pager\fR
+is removed in MySQL 5\&.5\&.
 .RE
 .sp
 .RS 4
@@ -621,8 +629,12 @@ option\&.
 .\" no-tee option: mysql
 \fB\-\-no\-tee\fR
 .sp
-Do not copy output to a file\&.
-the section called \(lqMYSQL COMMANDS\(rq, discusses tee files further\&.
+Deprecated form of
+\fB\-\-skip\-tee\fR\&. See the
+\fB\-\-tee\fR
+option\&.
+\fB\-\-no\-tee\fR
+is removed in MySQL 5\&.5\&.
 .RE
 .sp
 .RS 4
@@ -684,10 +696,12 @@ value following the
 \fB\-\-password\fR
 or
 \fB\-p\fR
-option on the command line, you are prompted for one\&.
+option on the command line,
+\fBmysql\fR
+prompts for one\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -703,7 +717,7 @@ Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
 \fB\-\-pipe\fR,
 \fB\-W\fR
 .sp
-On Windows, connect to the server via a named pipe\&. This option applies only for connections to a local server, and only if the server supports named\-pipe connections\&.
+On Windows, connect to the server via a named pipe\&. This option applies only if the server supports named\-pipe connections\&.
 .RE
 .sp
 .RS 4
@@ -950,9 +964,7 @@ option\&.
 \fB\-\-skip\-column\-names\fR,
 \fB\-N\fR
 .sp
-Do not write column names in results\&. The short format,
-\fB\-N\fR
-is deprecated, use the long format instead\&.
+Do not write column names in results\&.
 .RE
 .sp
 .RS 4
@@ -968,9 +980,7 @@ is deprecated, use the long format instead\&.
 \fB\-\-skip\-line\-numbers\fR,
 \fB\-L\fR
 .sp
-Do not write line numbers for errors\&. Useful when you want to compare result files that include error messages\&. The short format,
-\fB\-L\fR
-is deprecated, use the long format instead\&.
+Do not write line numbers for errors\&. Useful when you want to compare result files that include error messages\&.
 .RE
 .sp
 .RS 4
@@ -1005,7 +1015,7 @@ localhost, the Unix socket file to use, or, on Windows, the name of the named pi
 Options that begin with
 \fB\-\-ssl\fR
 specify whether to connect to the server via SSL and indicate where to find SSL keys and certificates\&. See
-Section\ \&5.5.7.3, \(lqSSL Command Options\(rq\&.
+Section\ \&5.5.6.3, \(lqSSL Command Options\(rq\&.
 .RE
 .sp
 .RS 4
@@ -1229,7 +1239,7 @@ shell> \fBmysql \-\-xml \-uroot \-e "SHOW VARIABLES LIKE \'version%\'"\fR
 You can also set the following variables by using
 \fB\-\-\fR\fB\fIvar_name\fR\fR\fB=\fR\fB\fIvalue\fR\fR\&. The
 \fB\-\-set\-variable\fR
-format is deprecated\&.
+format is deprecated and is removed in MySQL 5\&.5\&.
 .sp
 .RS 4
 .ie n \{\
@@ -1325,7 +1335,7 @@ environment variable\&.
 The
 \&.mysql_history
 should be protected with a restrictive access mode because sensitive information might be written to it, such as the text of SQL statements that contain passwords\&. See
-Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
 .PP
 If you do not want to maintain a history file, first remove
 \&.mysql_history
@@ -2805,7 +2815,7 @@ Section\ \&21.9.11, \(lqControlling Automatic Reconnection Behavior\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
@@ -2817,7 +2827,7 @@ You should have received a copy of the GNU General Public License along with the
 .IP " 1." 4
 Bug#25946
 .RS 4
-\%http://bugs.mysql.com/25946
+\%http://bugs.mysql.com/bug.php?id=25946
 .RE
 .SH "SEE ALSO"
 For more information, please refer to the MySQL Reference Manual,

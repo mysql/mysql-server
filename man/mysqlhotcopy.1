@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlhotcopy\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 11/04/2009
+.\"      Date: 04/06/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQLHOTCOPY\FR" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQLHOTCOPY\FR" "1" "04/06/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -32,18 +32,28 @@ mysqlhotcopy \- a database backup program
 .PP
 \fBmysqlhotcopy\fR
 is a Perl script that was originally written and contributed by Tim Bunce\&. It uses
-LOCK TABLES,
-FLUSH TABLES, and
+FLUSH TABLES,
+LOCK TABLES, and
 cp
 or
 scp
-to make a database backup quickly\&. It is the fastest way to make a backup of the database or single tables, but it can be run only on the same machine where the database directories are located\&.
+to make a database backup\&. It is a fast way to make a backup of the database or single tables, but it can be run only on the same machine where the database directories are located\&.
 \fBmysqlhotcopy\fR
 works only for backing up
 MyISAM
 and
 ARCHIVE
 tables\&. It runs on Unix and NetWare\&.
+.PP
+To use
+\fBmysqlhotcopy\fR, you must have read access to the files for the tables that you are backing up, the
+SELECT
+privilege for those tables, the
+RELOAD
+privilege (to be able to execute
+FLUSH TABLES), and the
+LOCK TABLES
+privilege (to be able to lock the tables)\&.
 .sp
 .if n \{\
 .RS 4
@@ -90,7 +100,11 @@ shell> \fBmysqlhotcopy \fR\fB\fIdb_name\fR\fR\fB\&./~\fR\fB\fIregex\fR\fR\fB/\fR
 .\}
 .PP
 \fBmysqlhotcopy\fR
-supports the following options:
+supports the following options, which can be specified on the command line or in the
+[mysqlhotcopy]
+and
+[client]
+option file groups\&.
 .sp
 .RS 4
 .ie n \{\
@@ -275,7 +289,8 @@ Do not delete previous (renamed) target when done\&.
 .sp
 The method for copying files (cp
 or
-scp)\&.
+scp)\&. The default is
+cp\&.
 .RE
 .sp
 .RS 4
@@ -290,7 +305,9 @@ scp)\&.
 .\" noindices option: mysqlhotcopy
 \fB\-\-noindices\fR
 .sp
-Do not include full index files in the backup\&. This makes the backup smaller and faster\&. The indexes for reloaded tables can be reconstructed later with
+Do not include full index files for
+MyISAM
+tables in the backup\&. This makes the backup smaller and faster\&. The indexes for reloaded tables can be reconstructed later with
 \fBmyisamchk \-rq\fR\&.
 .RE
 .sp
@@ -307,10 +324,10 @@ Do not include full index files in the backup\&. This makes the backup smaller a
 \fB\-\-password=\fR\fB\fIpassword\fR\fR,
 \fB\-p\fR\fB\fIpassword\fR\fR
 .sp
-The password to use when connecting to the server\&. Note that the password value is not optional for this option, unlike for other MySQL programs\&. You can use an option file to avoid giving the password on the command line\&.
+The password to use when connecting to the server\&. The password value is not optional for this option, unlike for other MySQL programs\&.
 .sp
 Specifying a password on the command line should be considered insecure\&. See
-Section\ \&5.5.6.2, \(lqEnd-User Guidelines for Password Security\(rq\&.
+Section\ \&5.3.2.2, \(lqEnd-User Guidelines for Password Security\(rq\&. You can use an option file to avoid giving the password on the command line\&.
 .RE
 .sp
 .RS 4
@@ -423,7 +440,8 @@ file after locking all the tables\&.
 \fB\-\-socket=\fR\fB\fIpath\fR\fR,
 \fB\-S \fR\fB\fIpath\fR\fR
 .sp
-The Unix socket file to use for the connection\&.
+The Unix socket file to use for connections to
+localhost\&.
 .RE
 .sp
 .RS 4
@@ -438,7 +456,7 @@ The Unix socket file to use for the connection\&.
 .\" suffix option: mysqlhotcopy
 \fB\-\-suffix=\fR\fB\fIstr\fR\fR
 .sp
-The suffix for names of copied databases\&.
+The suffix to use for names of copied databases\&.
 .RE
 .sp
 .RS 4
@@ -473,23 +491,6 @@ The temporary directory\&. The default is
 The MySQL user name to use when connecting to the server\&.
 .RE
 .PP
-\fBmysqlhotcopy\fR
-reads the
-[client]
-and
-[mysqlhotcopy]
-option groups from option files\&.
-.PP
-To execute
-\fBmysqlhotcopy\fR, you must have access to the files for the tables that you are backing up, the
-SELECT
-privilege for those tables, the
-RELOAD
-privilege (to be able to execute
-FLUSH TABLES), and the
-LOCK TABLES
-privilege (to be able to lock the tables)\&.
-.PP
 Use
 perldoc
 for additional
@@ -512,7 +513,7 @@ shell> \fBperldoc mysqlhotcopy\fR
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
