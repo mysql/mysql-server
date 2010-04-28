@@ -80,6 +80,10 @@ UNIV_INTERN rw_lock_t	dict_operation_lock;
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
+/* array of mutexes protecting dict_index_t::stat_n_diff_key_vals[] */
+#define DICT_INDEX_STAT_MUTEX_SIZE	32
+mutex_t	dict_index_stat_mutex[DICT_INDEX_STAT_MUTEX_SIZE];
+
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
 index.
@@ -237,6 +241,33 @@ dict_mutex_exit_for_mysql(void)
 /*===========================*/
 {
 	mutex_exit(&(dict_sys->mutex));
+}
+
+#define FOLD_INDEX_FOR_STAT_MUTEX(index) \
+	(ut_fold_dulint(index->id) % DICT_INDEX_STAT_MUTEX_SIZE)
+
+/**********************************************************************//**
+Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
+index->id is used to pick the right mutex and it should not change
+before dict_index_stat_mutex_exit() is called on this index. */
+UNIV_INTERN
+void
+dict_index_stat_mutex_enter(
+/*========================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	mutex_enter(&dict_index_stat_mutex[FOLD_INDEX_FOR_STAT_MUTEX(index)]);
+}
+
+/**********************************************************************//**
+Unlock the appropriate mutex that protects index->stat_n_diff_key_vals[]. */
+UNIV_INTERN
+void
+dict_index_stat_mutex_exit(
+/*=======================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	mutex_exit(&dict_index_stat_mutex[FOLD_INDEX_FOR_STAT_MUTEX(index)]);
 }
 
 /********************************************************************//**
@@ -605,6 +636,8 @@ void
 dict_init(void)
 /*===========*/
 {
+	int	i;
+
 	dict_sys = mem_alloc(sizeof(dict_sys_t));
 
 	mutex_create(&dict_sys->mutex, SYNC_DICT);
@@ -625,6 +658,11 @@ dict_init(void)
 	ut_a(dict_foreign_err_file);
 
 	mutex_create(&dict_foreign_err_mutex, SYNC_ANY_LATCH);
+
+	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
+		mutex_create(&dict_index_stat_mutex[i],
+			     /* XXX */ SYNC_INDEX_TREE);
+	}
 }
 
 /**********************************************************************//**
@@ -4171,8 +4209,12 @@ dict_update_statistics_low(
 
 	index = dict_table_get_first_index(table);
 
+	dict_index_stat_mutex_enter(index);
+
 	table->stat_n_rows = index->stat_n_diff_key_vals[
 		dict_index_get_n_unique(index)];
+
+	dict_index_stat_mutex_exit(index);
 
 	table->stat_clustered_index_size = index->stat_index_size;
 
@@ -4351,12 +4393,16 @@ dict_index_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
+	dict_index_stat_mutex_enter(index);
+
 	if (index->n_user_defined_cols > 0) {
 		n_vals = index->stat_n_diff_key_vals[
 			index->n_user_defined_cols];
 	} else {
 		n_vals = index->stat_n_diff_key_vals[1];
 	}
+
+	dict_index_stat_mutex_exit(index);
 
 	if (dict_index_is_clust(index)) {
 		type_string = "clustered index";

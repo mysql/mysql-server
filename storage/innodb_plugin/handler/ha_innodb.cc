@@ -7597,6 +7597,8 @@ ha_innobase::info(
 					break;
 				}
 
+				dict_index_stat_mutex_enter(index);
+
 				if (index->stat_n_diff_key_vals[j + 1] == 0) {
 
 					rec_per_key = stats.records;
@@ -7604,6 +7606,8 @@ ha_innobase::info(
 					rec_per_key = (ha_rows)(stats.records /
 					 index->stat_n_diff_key_vals[j + 1]);
 				}
+
+				dict_index_stat_mutex_exit(index);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
