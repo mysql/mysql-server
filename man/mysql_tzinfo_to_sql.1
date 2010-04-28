@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_tzinfo_to_sql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.75.2 <http://docbook.sf.net/>
-.\"      Date: 11/04/2009
+.\"      Date: 04/06/2010
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 5.1
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_TZINFO_TO_S" "1" "11/04/2009" "MySQL 5\&.1" "MySQL Database System"
+.TH "\FBMYSQL_TZINFO_TO_S" "1" "04/06/2010" "MySQL 5\&.1" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * set default formatting
 .\" -----------------------------------------------------------------
@@ -33,11 +33,11 @@ program loads the time zone tables in the
 mysql
 database\&. It is used on systems that have a
 zoneinfo
-database (the set of files describing time zones)\&. Examples of such systems are Linux, FreeBSD, Sun Solaris, and Mac OS X\&. One likely location for these files is the
+database (the set of files describing time zones)\&. Examples of such systems are Linux, FreeBSD, Solaris, and Mac OS X\&. One likely location for these files is the
 /usr/share/zoneinfo
 directory (/usr/share/lib/zoneinfo
 on Solaris)\&. If your system does not have a zoneinfo database, you can use the downloadable package described in
-Section\ \&9.7, \(lqMySQL Server Time Zone Support\(rq\&.
+Section\ \&9.6, \(lqMySQL Server Time Zone Support\(rq\&.
 .PP
 \fBmysql_tzinfo_to_sql\fR
 can be invoked several ways:
@@ -113,7 +113,7 @@ After running
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright 2007-2008 MySQL AB, 2009 Sun Microsystems, Inc.
+Copyright 2007-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP
