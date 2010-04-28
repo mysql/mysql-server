@@ -222,7 +222,6 @@ int mysql_update(THD *thd,
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
-  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_update");
 
   if (open_tables(thd, &table_list, &table_count, 0))
@@ -972,7 +971,6 @@ int mysql_multi_update_prepare(THD *thd)
   uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
-  MDL_ticket *start_of_statement_svp= thd->mdl_context.mdl_savepoint();
   DBUG_ENTER("mysql_multi_update_prepare");
 
   /* following need for prepared statements, to run next time multi-update */

@@ -929,7 +929,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
   if (acl_user)
   {
     /* OK. User found and password checked continue validation */
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     Vio *vio=thd->net.vio;
     SSL *ssl= (SSL*) vio->ssl_arg;
     X509 *cert;
@@ -946,7 +946,7 @@ int acl_getroot(THD *thd, USER_RESOURCES  *mqh,
     case SSL_TYPE_NONE:				// SSL is not required
       user_access= acl_user->access;
       break;
-#ifdef HAVE_OPENSSL
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     case SSL_TYPE_ANY:				// Any kind of SSL is ok
       if (vio_type(vio) == VIO_TYPE_SSL)
 	user_access= acl_user->access;
@@ -5137,7 +5137,7 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
 {
   uint pos;
   char *start=to;
-  DBUG_ASSERT(max_length >= 30);		// For end ',' removal
+  DBUG_ASSERT(max_length >= 30);                // For end ', ' removal
 
   if (access)
   {
@@ -5148,10 +5148,12 @@ void get_privilege_desc(char *to, uint max_length, ulong access)
 	  command_lengths[pos] + (uint) (to-start) < max_length)
       {
 	to= strmov(to, command_array[pos]);
-	*to++=',';
+        *to++= ',';
+        *to++= ' ';
       }
     }
-    to--;					// Remove end ','
+    to--;                                       // Remove end ' '
+    to--;                                       // Remove end ','
   }
   *to=0;
 }

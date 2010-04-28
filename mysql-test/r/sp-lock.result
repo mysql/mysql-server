@@ -693,5 +693,47 @@ set @@session.max_sp_recursion_depth=default;
 # --> connection con3
 # --> connection default
 #
+# SHOW CREATE PROCEDURE p1 called from p1, after p1 was altered
+#
+# We are just covering the existing behaviour with tests. The
+# results are not necessarily correct."
+#
+CREATE PROCEDURE p1()
+BEGIN
+SELECT get_lock("test", 10);
+SHOW CREATE PROCEDURE p1;
+END|
+# Connection default
+SELECT get_lock("test", 10);
+get_lock("test", 10)
+1
+# Connection 2
+# Will halt before executing SHOW CREATE PROCEDURE p1
+# Sending:
+CALL p1();
+# Connection 3
+# Alter p1
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1() BEGIN END;
+# Connection default
+# Resume CALL p1, now with new p1
+SELECT release_lock("test");
+release_lock("test")
+1
+# Connection 2
+# Reaping: CALL p1()
+get_lock("test", 10)
+1
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
+BEGIN
+SELECT get_lock("test", 10);
+SHOW CREATE PROCEDURE p1;
+END	latin1	latin1_swedish_ci	latin1_swedish_ci
+# Connection 3
+# Connection 2
+# Connection default;
+DROP PROCEDURE p1;
+#
 # End of 5.5 tests
 #
