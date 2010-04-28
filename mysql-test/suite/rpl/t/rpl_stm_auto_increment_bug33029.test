@@ -11,6 +11,8 @@
 source include/have_binlog_format_statement.inc;
 source include/master-slave.inc;
 
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+
 --disable_warnings
 DROP TABLE IF EXISTS t1, t2;
 DROP PROCEDURE IF EXISTS p1;
@@ -109,4 +111,3 @@ DROP TRIGGER IF EXISTS tr1;
 enable_warnings;
 sync_slave_with_master;
 
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");

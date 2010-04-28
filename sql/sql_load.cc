@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -328,11 +328,11 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       if (thd->slave_thread)
       {
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-        if (strncmp(active_mi->rli.slave_patternload_file, name, 
-            active_mi->rli.slave_patternload_file_size))
+        if (strncmp(active_mi->rli->slave_patternload_file, name,
+            active_mi->rli->slave_patternload_file_size))
         {
           /*
-            LOAD DATA INFILE in the slave SQL Thread can only read from 
+            LOAD DATA INFILE in the slave SQL Thread can only read from
             --slave-load-tmpdir". This should never happen. Please, report a bug.
            */
 

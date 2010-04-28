@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB
+/* Copyright (C) 2005 MySQL AB, 2010 Sun Microsystems, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -428,7 +428,7 @@ public:
      @retval 0 Success
      @retval other Failure
   */
-  bool flush_and_sync(bool *synced);
+  bool flush_and_sync(bool *synced, const bool force=FALSE);
   int purge_logs(const char *to_log, bool included,
                  bool need_mutex, bool need_update_threads,
                  ulonglong *decrease_log_space);

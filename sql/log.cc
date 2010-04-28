@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3340,23 +3340,23 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
 
   DBUG_ASSERT(is_open());
   DBUG_ASSERT(rli->slave_running == 1);
-  DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->event_relay_log_name));
+  DBUG_ASSERT(!strcmp(rli->linfo.log_file_name,rli->get_event_relay_log_name()));
 
   pthread_mutex_lock(&LOCK_index);
-  to_purge_if_included= my_strdup(rli->group_relay_log_name, MYF(0));
+  to_purge_if_included= my_strdup(rli->get_group_relay_log_name(), MYF(0));
 
   /*
     Read the next log file name from the index file and pass it back to
     the caller.
   */
-  if((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)) || 
+  if((error=find_log_pos(&rli->linfo, rli->get_event_relay_log_name(), 0)) ||
      (error=find_next_log(&rli->linfo, 0)))
   {
     char buff[22];
     sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
                     error,
                     llstr(rli->linfo.index_file_offset,buff),
-                    rli->event_relay_log_name,
+                    rli->get_event_relay_log_name(),
                     included);
     goto err;
   }
@@ -3364,9 +3364,8 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   /*
     Reset rli's coordinates to the current log.
   */
-  rli->event_relay_log_pos= BIN_LOG_HEADER_SIZE;
-  strmake(rli->event_relay_log_name,rli->linfo.log_file_name,
-	  sizeof(rli->event_relay_log_name)-1);
+  rli->set_event_relay_log_pos(BIN_LOG_HEADER_SIZE);
+  rli->set_event_relay_log_name(rli->linfo.log_file_name);
 
   /*
     If we removed the rli->group_relay_log_name file,
@@ -3375,14 +3374,12 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
   */
   if (included)
   {
-    rli->group_relay_log_pos = BIN_LOG_HEADER_SIZE;
-    strmake(rli->group_relay_log_name,rli->linfo.log_file_name,
-            sizeof(rli->group_relay_log_name)-1);
+    rli->set_group_relay_log_pos(BIN_LOG_HEADER_SIZE);
+    rli->set_group_relay_log_name(rli->linfo.log_file_name);
     rli->notify_group_relay_log_name_update();
   }
-
   /* Store where we are in the new file for the execution thread */
-  flush_relay_log_info(rli);
+  rli->flush_info();
 
   DBUG_EXECUTE_IF("crash_before_purge_logs", abort(););
 
@@ -3404,13 +3401,13 @@ int MYSQL_BIN_LOG::purge_first_log(Relay_log_info* rli, bool included)
    * Need to update the log pos because purge logs has been called 
    * after fetching initially the log pos at the begining of the method.
    */
-  if((error=find_log_pos(&rli->linfo, rli->event_relay_log_name, 0)))
+  if((error=find_log_pos(&rli->linfo, rli->get_event_relay_log_name(), 0)))
   {
     char buff[22];
     sql_print_error("next log error: %d  offset: %s  log: %s included: %d",
                     error,
                     llstr(rli->linfo.index_file_offset,buff),
-                    rli->group_relay_log_name,
+                    rli->get_group_relay_log_name(),
                     included);
     goto err;
   }
@@ -4130,7 +4127,7 @@ err:
   DBUG_RETURN(error);
 }
 
-bool MYSQL_BIN_LOG::flush_and_sync(bool *synced)
+bool MYSQL_BIN_LOG::flush_and_sync(bool *synced, const bool force)
 {
   int err=0, fd=log_file.file;
   if (synced)
@@ -4139,7 +4136,8 @@ bool MYSQL_BIN_LOG::flush_and_sync(bool *synced)
   if (flush_io_cache(&log_file))
     return 1;
   uint sync_period= get_sync_period();
-  if (sync_period && ++sync_counter >= sync_period)
+  if (force ||
+      (sync_period && ++sync_counter >= sync_period))
   {
     sync_counter= 0;
     err=my_sync(fd, MYF(MY_WME));
