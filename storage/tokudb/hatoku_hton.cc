@@ -1,6 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
+#include <db.h>
 
 extern "C" {
 #include "stdint.h"
