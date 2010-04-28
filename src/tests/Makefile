@@ -334,7 +334,9 @@ else
     TDBLOAD=$(TOKUROOT)utils/tokudb_load_static$(BINSUF)
 endif
 TDBRECOVER=$(TOKUROOT)newbrt/tdb-recover$(BINSUF)
-$(TDBLOAD) $(TDBDUMP) $(TDBRECOVER):
+TDBBRTDUMP=$(TOKUROOT)newbrt/brtdump$(BINSUF)
+
+$(TDBBRTDUMP) $(TDBLOAD) $(TDBDUMP) $(TDBRECOVER):
 	cd $(@D) && $(MAKE) $(@F)
 
 %.recover: %.tdb$(BINSUF) $(PTHREAD_LOCAL) $(TDBRECOVER) $(TDBDUMP)
@@ -611,8 +613,8 @@ filesize.tdbrun: VGRIND=
 powerfail.tdbrun:
 	@echo must run powerfail by hand $(SUMMARIZE_CMD)
 
-dumpit:
-	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff -q dump.o dump.r
+dumpit: $(TDBBRTDUMP)
+	$(TDBBRTDUMP)  dir.test_log5.c.tdb.recover/foo.db > dump.r && $(TDBBRTDUMP) dir.test_log5.c.tdb/foo.db > dump.o && diff -q dump.o dump.r
 
 # test on small stacks
 test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
