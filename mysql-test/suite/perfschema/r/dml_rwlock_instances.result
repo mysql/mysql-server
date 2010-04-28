@@ -16,8 +16,8 @@ ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'RWLOCK_
 delete from performance_schema.RWLOCK_INSTANCES;
 ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'RWLOCK_INSTANCES'
 LOCK TABLES performance_schema.RWLOCK_INSTANCES READ;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'RWLOCK_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'RWLOCK_INSTANCES'
 UNLOCK TABLES;
 LOCK TABLES performance_schema.RWLOCK_INSTANCES WRITE;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'RWLOCK_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'RWLOCK_INSTANCES'
 UNLOCK TABLES;

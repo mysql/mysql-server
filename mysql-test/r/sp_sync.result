@@ -1,23 +1,94 @@
 Tests of syncronization of stored procedure execution.
+SET DEBUG_SYNC= 'RESET';
 #
-# Bug#48157: crash in Item_field::used_tables
+# Bug #30977 Concurrent statement using stored function and
+#            DROP FUNCTION breaks SBR
 #
-CREATE TABLE t1 AS SELECT 1 AS a, 1 AS b;
-CREATE TABLE t2 AS SELECT 1 AS a, 1 AS b;
-CREATE PROCEDURE p1()
-BEGIN
-UPDATE t1 JOIN t2 USING( a, b ) SET t1.b = 1, t2.b = 1;
-END|
-LOCK TABLES t1 WRITE, t2 WRITE;
-SET DEBUG_SYNC = 'multi_update_reopen_tables SIGNAL parked WAIT_FOR go';
+# A stored routine could change after dispatch_command()
+# but before a MDL lock is taken. This must be noticed and the
+# sp cache flushed so the correct version can be loaded.
+#
+# Connection default
+CREATE FUNCTION f1() RETURNS INT RETURN 1;
+# Get f1 cached
+SELECT f1();
+f1()
+1
+# Then start executing it again...
+SET DEBUG_SYNC= 'before_execute_sql_command SIGNAL before WAIT_FOR changed';
+# Sending:
+SELECT f1();
+# Connection 2
+SET DEBUG_SYNC= 'now WAIT_FOR before';
+# ... but before f1 is locked, change it.
+DROP FUNCTION f1;
+CREATE FUNCTION f1() RETURNS INT RETURN 2;
+SET DEBUG_SYNC= 'now SIGNAL changed';
+# Connection default
+# We should now get '2' and not '1'.
+# Reaping: SELECT f1()
+f1()
+2
+DROP FUNCTION f1;
+SET DEBUG_SYNC= 'RESET';
+#
+# Field translation items must be cleared in case of back-offs
+# for queries that use Information Schema tables. Otherwise 
+# memory allocated in fix_fields() for views may end up referring
+# to freed memory.
+#
+DROP FUNCTION IF EXISTS f1;
+# Connection default
+CREATE FUNCTION f1() RETURNS INT RETURN 0;
+# Connection con2
+SET DEBUG_SYNC= 'after_wait_locked_pname SIGNAL locked WAIT_FOR issued';
+# con2 will now have an x-lock on f1
+# Sending:
+ALTER FUNCTION f1 COMMENT 'comment';
+# Connection default
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+# This query will block due to the x-lock on f1 and back-off
+SHOW OPEN TABLES WHERE f1()=0;
+# Connection con3
+# Check that the IS query is blocked before releasing the x-lock
+SET DEBUG_SYNC= 'now SIGNAL issued';
+# Connection default
+# Reaping: ALTER FUNCTION f1 COMMENT 'comment'
+DROP FUNCTION f1;
+SET DEBUG_SYNC= 'RESET';
+#
+# Bug #48246 assert in close_thread_table
+#
+CREATE TABLE t1 (a INTEGER);
+CREATE FUNCTION f1(b INTEGER) RETURNS INTEGER RETURN 1;
+CREATE PROCEDURE p1() SELECT COUNT(f1(a)) FROM t1;
+INSERT INTO t1 VALUES(1), (2);
+# Connection 2
 CALL p1();
-DROP TABLE t1, t2;
-SET DEBUG_SYNC = 'now WAIT_FOR parked';
-CREATE TABLE t1 AS SELECT 1 AS a, 1 AS b;
-CREATE TABLE t2 AS SELECT 1 AS a, 1 AS b;
-SET DEBUG_SYNC = 'now SIGNAL go';
-# Without the DEBUG_SYNC supplied in the same patch as this test in the 
-# code, this test statement will hang.
-DROP TABLE t1, t2;
+COUNT(f1(a))
+2
+# Connection default
+SET DEBUG_SYNC= 'after_open_table_mdl_shared SIGNAL locked WAIT_FOR called';
+# Sending:
+CREATE TABLE t1 (a INTEGER);
+# Connection 2
+SET DEBUG_SYNC= 'now WAIT_FOR locked';
+SET DEBUG_SYNC= 'before_open_table_wait_refresh SIGNAL called WAIT_FOR created';
+# This call used to cause an assertion. MDL locking conflict will
+# cause back-off and retry. A variable indicating if a prelocking list
+# exists, used to be not reset properly causing an eventual assert.
+# Sending:
+CALL p1();
+# Connection default
+# Reaping: CREATE TABLE t1 (a INTEGER)
+ERROR 42S01: Table 't1' already exists
+SET DEBUG_SYNC= 'now SIGNAL created';
+# Connection 2
+# Reaping: CALL p1()
+COUNT(f1(a))
+2
+# Connection default
 DROP PROCEDURE p1;
-SET DEBUG_SYNC = 'RESET';
+DROP FUNCTION f1;
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
