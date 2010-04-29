@@ -1,5 +1,6 @@
 #include <sys/types.h>
 typedef char my_bool;
+typedef int my_socket;
 #include "mysql_version.h"
 #include "mysql_com.h"
 enum enum_server_command
@@ -18,7 +19,7 @@ typedef struct st_vio Vio;
 typedef struct st_net {
   Vio *vio;
   unsigned char *buff,*buff_end,*write_pos,*read_pos;
-  int fd;
+  my_socket fd;
   unsigned long remain_in_buf,length, buf_length, where_b;
   unsigned long max_packet,max_packet_size;
   unsigned int pkt_nr,compress_pkt_nr;
@@ -96,7 +97,7 @@ my_bool net_write_command(NET *net,unsigned char command,
 int net_real_write(NET *net,const unsigned char *packet, size_t len);
 unsigned long my_net_read(NET *net);
 struct sockaddr;
-int my_connect(int s, const struct sockaddr *name, unsigned int namelen,
+int my_connect(my_socket s, const struct sockaddr *name, unsigned int namelen,
         unsigned int timeout);
 struct rand_struct {
   unsigned long seed1,seed2,max_value;

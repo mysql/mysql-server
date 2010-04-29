@@ -24,8 +24,8 @@ class SocketAuthenticator
 public:
   SocketAuthenticator() {}
   virtual ~SocketAuthenticator() {};
-  virtual bool client_authenticate(my_socket sockfd) = 0;
-  virtual bool server_authenticate(my_socket sockfd) = 0;
+  virtual bool client_authenticate(NDB_SOCKET_TYPE sockfd) = 0;
+  virtual bool server_authenticate(NDB_SOCKET_TYPE sockfd) = 0;
 };
 
 class SocketAuthSimple : public SocketAuthenticator
@@ -35,8 +35,8 @@ class SocketAuthSimple : public SocketAuthenticator
 public:
   SocketAuthSimple(const char *username, const char *passwd);
   virtual ~SocketAuthSimple();
-  virtual bool client_authenticate(my_socket sockfd);
-  virtual bool server_authenticate(my_socket sockfd);
+  virtual bool client_authenticate(NDB_SOCKET_TYPE sockfd);
+  virtual bool server_authenticate(NDB_SOCKET_TYPE sockfd);
 };
 
 #endif // SOCKET_AUTHENTICATOR_HPP

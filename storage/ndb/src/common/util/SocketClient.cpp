@@ -218,7 +218,7 @@ done:
       return m_sockfd;
     }
   }
-  my_socket sockfd= m_sockfd;
+  NDB_SOCKET_TYPE sockfd = m_sockfd;
 
   my_socket_invalidate(&m_sockfd);
 
