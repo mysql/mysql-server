@@ -25,6 +25,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <../../include/kernel/ndb_limits.h>
 #include <../../include/kernel/trigger_definitions.h>
+#include <signaldata/DictTabInfo.hpp>
 #include <random.h>
 #include <NdbAutoPtr.hpp>
 #include <NdbMixRestarter.hpp>
@@ -1854,13 +1855,38 @@ runCreateDiskTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int getColumnMaxLength(const NdbDictionary::Column* c)
+{
+  int length= c->getLength();
+  if (c->getArrayType() == NDB_ARRAYTYPE_FIXED)
+  {
+    /* Not yet set - need to calculate from type etc. */
+    DictTabInfo::Attribute attrDesc;
+
+    attrDesc.init();
+    attrDesc.AttributeExtType= c->getType();
+    attrDesc.AttributeExtLength= c->getLength();
+    attrDesc.AttributeExtPrecision= c->getPrecision();
+    attrDesc.AttributeExtScale= c->getScale();
+
+    if (!attrDesc.translateExtType())
+    {
+      return 0;
+    }
+
+    length= ((1 << attrDesc.AttributeSize) * c->getLength()) >> 3;
+  }
+
+  return length;
+}
+
 #include <NDBT_Tables.hpp>
 
 #define SAFTY 300
 
 int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
   static int acclst[] = { 3001, 6200, 6202 };
-  static int tuplst[] = { 4007, 4008, 4009, 4010 };
+  static int tuplst[] = { 4007, 4008, 4009, 4010, 4032, 4033, 4034 };
   static int tuxlst[] = { 12001, 12002, 12003, 12004, 
                           6201, 6203 };
   static unsigned acccnt = sizeof(acclst)/sizeof(acclst[0]);
@@ -1881,7 +1907,44 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
     errNo = atoi(buf);
     ndbout_c("Using errno: %u", errNo);
   }
-  
+
+  const NdbDictionary::Table* origTab= ctx->getTab();
+  HugoCalculator calc(*origTab);
+
+  // Add defaults to some columns
+  for (int colNum= 0; colNum < tab.getNoOfColumns(); colNum++)
+  {
+    const NdbDictionary::Column* origCol= origTab->getColumn(colNum);
+    NdbDictionary::Column* col= tab.getColumn(colNum);
+    if (!origCol->getPrimaryKey())
+    {
+      if (myRandom48(2) == 0)
+      {
+        char defaultBuf[ NDB_MAX_TUPLE_SIZE ];
+        Uint32 real_len;
+        Uint32 updatesVal = myRandom48(1 << 16);
+        const char* def= calc.calcValue(0, colNum, updatesVal, 
+                                        defaultBuf,
+                                        getColumnMaxLength(origCol),
+                                        &real_len);
+        if (col->setDefaultValue(def, real_len) != 0)
+        {
+          ndbout_c("Error setting default value\n");
+          return NDBT_FAILED;
+        }
+        NdbDictionary::NdbDataPrintFormat dpf;
+        ndbout << "Set default for column " << origCol->getName()
+               << " to ";
+        
+        NdbDictionary::printFormattedValue(ndbout,
+                                           dpf,
+                                           col,
+                                           def);
+        ndbout << endl;
+      }
+    }
+  }
+
   // ordered index on first few columns
   NdbDictionary::Index idx("X");
   idx.setTable(tab.getName());

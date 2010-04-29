@@ -166,8 +166,14 @@ public:
     AttributeExtScale      = 1015, //Default 0
     AttributeExtLength     = 1016, //Default 0
     AttributeAutoIncrement = 1017, //Default false
-    AttributeDefaultValue  = 1018, //Default value (printable string),
     AttributeArrayType     = 1019, //Default NDB_ARRAYTYPE_FIXED
+    AttributeDefaultValueLen = 1020, //Actual Length saved in AttributeDefaultValue
+    /* Default value (Binary type, not printable as string),
+     * For backward compatibility, the new keyValue
+     * (not use the old keyValue 1018) is added
+       when restoring data from low backup version data.
+    */
+    AttributeDefaultValue = 1021,
     AttributeEnd           = 1999  //
   };
   // ----------------------------------------------------------------------
@@ -434,7 +440,8 @@ public:
     Uint32 AttributeAutoIncrement;
     Uint32 AttributeStorageType;
     Uint32 AttributeDynamic;
-    char   AttributeDefaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
+    Uint32 AttributeDefaultValueLen;  //byte sizes
+    Uint8  AttributeDefaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
     
     Attribute() {}
     void init();
@@ -588,8 +595,11 @@ public:
       fprintf(out, "AttributeExtPrecision = %d\n", AttributeExtPrecision);
       fprintf(out, "AttributeExtScale = %d\n", AttributeExtScale);
       fprintf(out, "AttributeExtLength = %d\n", AttributeExtLength);
-      fprintf(out, "AttributeDefaultValue = \"%s\"\n",
-        AttributeDefaultValue ? AttributeDefaultValue : "");
+      fprintf(out, "AttributeDefaultValueLen = %d\n",
+              AttributeDefaultValueLen);
+      fprintf(out, "AttributeDefaultValue: \n");
+      for (unsigned int i = 0; i < AttributeDefaultValueLen; i++)
+        fprintf(out, "0x%x", AttributeDefaultValue[i]);
     }
   };
   

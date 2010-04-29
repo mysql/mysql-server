@@ -101,7 +101,7 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_nullable = col.m_nullable;
   m_autoIncrement = col.m_autoIncrement;
   m_autoIncrementInitialValue = col.m_autoIncrementInitialValue;
-  m_defaultValue = col.m_defaultValue;
+  m_defaultValue.assign(col.m_defaultValue);
   m_attrSize = col.m_attrSize; 
   m_arraySize = col.m_arraySize;
   m_arrayType = col.m_arrayType;
@@ -307,7 +307,10 @@ NdbColumnImpl::equal(const NdbColumnImpl& col) const
   if (m_autoIncrement != col.m_autoIncrement){
     DBUG_RETURN(false);
   }
-  if(strcmp(m_defaultValue.c_str(), col.m_defaultValue.c_str()) != 0){
+  if (m_defaultValue.length() != col.m_defaultValue.length())
+    DBUG_RETURN(false);
+
+  if(memcmp(m_defaultValue.get_data(), col.m_defaultValue.get_data(), m_defaultValue.length()) != 0){
     DBUG_RETURN(false);
   }
 
@@ -585,6 +588,7 @@ NdbTableImpl::init(){
   m_row_gci = true;
   m_row_checksum = true;
   m_force_var_part = false;
+  m_has_default_values = false;
   m_kvalue= 6;
   m_minLoadFactor= 78;
   m_maxLoadFactor= 80;
@@ -858,6 +862,7 @@ NdbTableImpl::assign(const NdbTableImpl& org)
   m_row_gci = org.m_row_gci;
   m_row_checksum = org.m_row_checksum;
   m_force_var_part = org.m_force_var_part;
+  m_has_default_values = org.m_has_default_values;
   m_kvalue = org.m_kvalue;
   m_minLoadFactor = org.m_minLoadFactor;
   m_maxLoadFactor = org.m_maxLoadFactor;
@@ -2776,12 +2781,18 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_nullable = attrDesc.AttributeNullableFlag;
     col->m_autoIncrement = (attrDesc.AttributeAutoIncrement != 0);
     col->m_autoIncrementInitialValue = ~0;
-    if (!col->m_defaultValue.assign(attrDesc.AttributeDefaultValue))
+    AttributeHeader ah(*(Uint32*)attrDesc.AttributeDefaultValue);
+    Uint32 bytesize = ah.getByteSize();
+
+    if (col->m_defaultValue.assign((const char*)(attrDesc.AttributeDefaultValue + 4), bytesize))
     {
       delete col;
       delete impl;
       DBUG_RETURN(4000);
     }
+
+    if (bytesize > 0)
+      impl->m_has_default_values = true;
 
     col->m_column_no = impl->m_columns.size();
     impl->m_columns.push_back(col);
@@ -2866,6 +2877,12 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
       }
       autoIncrement = true;
       initialValue = c->m_autoIncrementInitialValue;
+    }
+
+    if (c->m_pk && (! c->m_defaultValue.empty())) {
+      /* Default value for primary key column not supported */
+      m_error.code = 792;
+      DBUG_RETURN(-1);
     }
   }
  
@@ -3461,9 +3478,31 @@ loop:
     }
 
     tmpAttr.AttributeAutoIncrement = col->m_autoIncrement;
-    BaseString::snprintf(tmpAttr.AttributeDefaultValue, 
-                         sizeof(tmpAttr.AttributeDefaultValue),
-                         "%s", col->m_defaultValue.c_str());
+    {
+      Uint32 ah;
+      Uint32 byteSize = col->m_defaultValue.length();
+
+      if (byteSize)
+      {
+        if (unlikely(! ndb_native_default_support(ndb.getMinDbNodeVersion())))
+        {
+          /* We can't create a table with native defaults with
+           * this kernel version
+           * Schema feature requires data node upgrade
+           */
+          m_error.code = 794;
+          DBUG_RETURN(-1);
+        }
+      }   
+
+      //The AttributeId of a column isn't decided now, so 0 is used.
+      AttributeHeader::init(&ah, 0, byteSize);
+
+      memcpy(tmpAttr.AttributeDefaultValue, &ah, 4);
+      memcpy(tmpAttr.AttributeDefaultValue + 4, col->m_defaultValue.get_data(), byteSize);
+
+      tmpAttr.AttributeDefaultValueLen = (((col->m_defaultValue.length() + 3) / 4) * 4) + 4;
+    }
     s = SimpleProperties::pack(w, 
 			       &tmpAttr,
 			       DictTabInfo::AttributeMapping, 

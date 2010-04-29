@@ -256,3 +256,46 @@ create table t1(c char(1),
 
 select a,c,d,e from t1 order by a;
 drop table t1;
+ 
+# Testcase for restore with native default added to table (WL4197)
+create table subject(pk int primary key, band varchar(50), pos int) engine=ndb;
+
+insert into subject values (1, 'Elbow', 1), (2, 'Franz Ferdinand', 2), (3, 'Proclaimers', 3);
+insert into subject values (4, 'David Bowie', 4), (5, 'Rufus Wainwright', 1);
+
+select * from subject order by pk;
+
+--echo **************************
+--echo Performing backup of table
+--echo **************************
+
+--source include/ndb_backup.inc
+
+--echo ******************
+--echo Throwing away data
+--echo ******************
+delete from subject;
+
+select * from subject order by pk;
+
+--echo *******************************************************
+--echo Modifying table to include new, native defaulted column
+--echo *******************************************************
+alter table subject add column song varchar(50) default 'Unknown';
+
+--echo ***********************************************************
+--echo Restoring data back into table and picking up default value
+--echo ***********************************************************
+
+# Note testcase nastily assumes 2 nodes, called 1 + 2.
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --print --print_meta --skip-table-check $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --print --print_meta --skip-table-check $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--echo ****************************************************
+--echo All restored entries should have song name 'Unknown'
+--echo ****************************************************
+
+select * from subject order by pk;
+
+drop table subject;
+# End of testcase for WL4197

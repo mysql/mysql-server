@@ -38,6 +38,7 @@
 #include "AttributeOffset.hpp"
 #include <my_sys.h>
 #include <signaldata/LqhFrag.hpp>
+#include <signaldata/AttrInfo.hpp>
 
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
@@ -78,6 +79,7 @@ Dbtup::execCREATE_TAB_REQ(Signal* signal)
   fragOperPtr.p->lqhBlockrefFrag = req->senderRef;
 
   regTabPtr.p->m_createTable.m_fragOpPtrI = fragOperPtr.i;
+  regTabPtr.p->m_createTable.defValSectionI = RNIL;
   regTabPtr.p->tableStatus= DEFINING;
   regTabPtr.p->m_bits = 0;
   regTabPtr.p->m_bits |= (req->checksumIndicator ? Tablerec::TR_Checksum : 0);
@@ -297,6 +299,18 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
     goto error;
   }
 
+  if (!receive_defvalue(signal, regTabPtr))
+    goto error;
+
+  if ((ERROR_INSERTED(4032) && (attrId == 0)) ||
+      (ERROR_INSERTED(4033) && lastAttr))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    terrorCode = 1;
+    goto error;
+  }
+
   if (! lastAttr)
   {
     jam();
@@ -382,6 +396,12 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   }
 #endif
 
+  if (store_default_record(regTabPtr) < 0)
+  {
+    jam();
+    goto error;
+  }
+
   ndbrequire(regTabPtr.p->tableStatus == DEFINING);
   regTabPtr.p->tableStatus= DEFINED;
 
@@ -393,12 +413,173 @@ void Dbtup::execTUP_ADD_ATTRREQ(Signal* signal)
   releaseFragoperrec(fragOperPtr);
   return;
 error:
+  {
+    /* Release any unprocessed sections */
+    SectionHandle handle(this, signal);
+    releaseSections(handle);
+  }
+  /* Release segmented section used to receive Attr default value */
+  releaseSection(regTabPtr.p->m_createTable.defValSectionI);
+  regTabPtr.p->m_createTable.defValSectionI = RNIL;
+  free_var_part(DefaultValuesFragment.p, regTabPtr.p, &regTabPtr.p->m_default_value_location);
+  regTabPtr.p->m_default_value_location.setNull();
+
   signal->theData[0]= fragOperPtr.p->lqhPtrFrag;
   signal->theData[1]= terrorCode;
   sendSignal(fragOperPtr.p->lqhBlockrefFrag,
              GSN_TUP_ADD_ATTRREF, signal, 2, JBB);
   
   return;
+}
+
+bool Dbtup::receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr)
+{
+  jam();
+  Uint32 defValueBytes = 0;
+  Uint32 defValueWords = 0;
+  Uint32 attrId = signal->theData[2];
+  Uint32 attrDescriptor = signal->theData[3];
+
+  Uint32 attrLen = AttributeDescriptor::getSize(attrDescriptor);
+  Uint32 arrayType = AttributeDescriptor::getArrayType(attrDescriptor);
+  Uint32 arraySize = AttributeDescriptor::getArraySize(attrDescriptor);
+
+  const Uint32 numSections = signal->getNoOfSections();
+
+  if (numSections == 0)
+    return true;
+
+  jam();
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr ptr;
+  handle.getSection(ptr, TupAddAttrReq::DEFAULT_VALUE_SECTION_NUM);
+
+  SimplePropertiesSectionReader r(ptr, getSectionSegmentPool());
+  r.reset();
+
+  Uint32 ahIn;
+  ndbrequire(r.getWord(&ahIn));
+
+  defValueBytes = AttributeHeader::getByteSize(ahIn);
+  defValueWords = (defValueBytes + 3) / 4;
+
+  Uint32 *dst = NULL;
+  AttributeHeader ah(attrId, defValueBytes);
+
+  if (defValueBytes == 0)
+  {
+    jam();
+    releaseSections(handle);
+    return true;
+  }
+
+  /* We have a default value, double check to be sure this is not
+   * a primary key
+   */
+  if (AttributeDescriptor::getPrimaryKey(attrDescriptor))
+  {
+    jam();
+    releaseSections(handle);
+    /* Default value for primary key column not supported */
+    terrorCode = 792;
+    return false;
+  }
+
+  Uint32 bytes;
+  if (attrLen)
+    bytes= AttributeDescriptor::getSizeInBytes(attrDescriptor);
+  else
+    bytes= ((arraySize + AD_SIZE_IN_WORDS_OFFSET)
+                              >> AD_SIZE_IN_WORDS_SHIFT) * 4;
+
+  terrorCode= 0;
+
+  if (attrLen)
+  {
+    if (arrayType == NDB_ARRAYTYPE_FIXED)
+    {
+      if (defValueBytes != bytes)
+      {
+        terrorCode = ZBAD_DEFAULT_VALUE_LEN;
+      }
+    }
+    else
+    {
+      if (defValueBytes > bytes)
+      {
+        terrorCode = ZBAD_DEFAULT_VALUE_LEN;
+      }
+    }
+  }
+  else
+  {
+    /*
+     * The condition is for BIT type.
+     * Even though it is fixed, the compare operator should be > rather than ==,
+     * for the 4-byte alignemnt, the space for BIT type occupied 4 bytes at least.
+     * yet the bytes of default value can be 1, 2, 3, 4, 5, 6, 7, 8 bytes.
+     */
+    if (defValueBytes > bytes)
+    {
+      terrorCode = ZBAD_DEFAULT_VALUE_LEN;
+    }
+  }
+  
+  jam();
+
+  if (likely( !terrorCode ))
+  {
+    dst = cinBuffer;
+    
+    ndbrequire(r.getWords(dst, defValueWords));
+    
+    /* Check that VAR types have valid inline length */
+    if ((attrLen) &&
+        (arrayType != NDB_ARRAYTYPE_FIXED))
+    {
+      jam();
+      const uchar* valPtr = (const uchar*) dst;
+      Uint32 internalVarSize = 0;
+      
+      if (arrayType == NDB_ARRAYTYPE_SHORT_VAR)
+      {
+        internalVarSize = 1 + valPtr[0];
+      }
+      else if (arrayType == NDB_ARRAYTYPE_MEDIUM_VAR)
+      {
+        internalVarSize = 2 + valPtr[0] + (256 * Uint32(valPtr[1]));
+      }
+      else
+      {
+        ndbrequire(false);
+      }
+      
+      if (unlikely(internalVarSize != defValueBytes))
+      {
+        jam();
+        terrorCode = ZBAD_DEFAULT_VALUE_LEN;
+        releaseSections(handle);
+        return false;
+      }
+    }
+
+    if (likely( appendToSection(regTabPtr.p->m_createTable.defValSectionI, 
+                                (const Uint32 *)&ah, 1) ))
+    {  
+      if (likely( appendToSection(regTabPtr.p->m_createTable.defValSectionI, 
+                                  (const Uint32*)dst, 
+                                  defValueWords)))
+      {
+        jam();
+        releaseSections(handle);
+        return true;
+      }
+    }
+    terrorCode = ZMEM_NOMEM_ERROR;
+  }
+
+  releaseSections(handle);
+  return false;
 }
 
 void Dbtup::execTUPFRAGREQ(Signal* signal)
@@ -553,11 +734,74 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   return;
 
 sendref:
-
   signal->theData[0]= userptr;
   signal->theData[1]= terrorCode;
   sendSignal(userRef, GSN_TUPFRAGREF, signal, 2, JBB);
 }
+
+/*
+  Store the default values for a table, as the ATTRINFO "program"
+  (i.e AttributeHeader|Data AttributeHeader|Data...)
+  in varsize memory associated with the dummy fragment(DefaultValuesFragment).
+  There is a DBTUP global set of defaults records in DefaultValuesFragment.
+  One record per table stored on varsize pages.
+  
+  Each Table_record has a Local_key pointing to start of its default values
+  in TUP's default values fragment.
+*/
+int Dbtup::store_default_record(const TablerecPtr& regTabPtr)
+{
+  Uint32 RdefValSectionI = regTabPtr.p->m_createTable.defValSectionI;
+  jam();
+
+  if (RdefValSectionI == RNIL) //No default values are stored for the table
+  {
+    jam();
+    if (ERROR_INSERTED(4034))
+    {
+      jam();
+      CLEAR_ERROR_INSERT_VALUE;
+      terrorCode = 1;
+      return -1;
+    }
+
+    return 0;
+  }
+
+  SegmentedSectionPtr defValSection;
+  getSection(defValSection, RdefValSectionI);
+  Uint32 sizes = defValSection.p->m_sz;
+  /**
+   * Alloc var-length memory for storing defaults
+   */
+  Uint32* var_data_ptr= alloc_var_part(&terrorCode,
+                                       DefaultValuesFragment.p,
+                                       regTabPtr.p,
+                                       sizes,
+                                       &regTabPtr.p->m_default_value_location);
+  if (unlikely( var_data_ptr == 0 ))
+  {
+    jam();
+    /* Caller releases the default values section */
+    return -1;
+  }
+
+  if (ERROR_INSERTED(4034))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    terrorCode = 1;
+    return -1;
+  }
+      
+  
+  copy(var_data_ptr, RdefValSectionI);
+  releaseSection(RdefValSectionI);
+  regTabPtr.p->m_createTable.defValSectionI= RNIL;
+
+  return 0;
+}
+
 
 bool Dbtup::addfragtotab(Tablerec* const regTabPtr,
                          Uint32 fragId,
@@ -1889,6 +2133,8 @@ Dbtup::drop_table_logsync_callback(Signal* signal,
              signal, DropTabConf::SignalLength, JBB);
   
   releaseTabDescr(tabPtr.p);
+  free_var_part(DefaultValuesFragment.p, tabPtr.p, &tabPtr.p->m_default_value_location);
+  tabPtr.p->m_default_value_location.setNull();
   initTab(tabPtr.p);
 }
 

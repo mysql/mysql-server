@@ -37,6 +37,7 @@ testLimits \
 testMgm \
 testMgmd \
 testSingleUserMode \
+testNativeDefault \
 testNdbApi \
 testNodeRestart \
 testUpgrade \
@@ -104,6 +105,7 @@ testMgmd_SOURCES = testMgmd.cpp \
 testMgmd_LDFLAGS = -static
 testMgmd_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi -I$(top_srcdir)/storage/ndb/include/debugger  
 testSingleUserMode_SOURCES = testSingleUserMode.cpp
+testNativeDefault_SOURCES = testNativeDefault.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNodeRestart_SOURCES = testNodeRestart.cpp
 testUpgrade_SOURCES = testUpgrade.cpp
