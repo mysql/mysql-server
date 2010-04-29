@@ -1,3 +1,10 @@
+2010-04-27	The InnoDB Team
+
+	* handler/ha_innodb.cc, lock/lock0lock.c, row/row0mysql.c,
+	row/row0sel.c:
+	Fix Bug#48607 READ UNCOMMITTED uses more locks than READ COMMITTED
+	in InnoDB 5.1+
+
 2010-04-26	The InnoDB Team
 
 	* row/row0sel.c:
