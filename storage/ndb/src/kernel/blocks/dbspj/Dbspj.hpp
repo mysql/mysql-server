@@ -307,7 +307,6 @@ public:
       m_send.m_correlation = 0;
       m_send.m_keyInfoPtrI = RNIL;
       m_send.m_attrInfoPtrI = RNIL;
-      m_send.m_attrInfoParamPtrI = RNIL;
     };
 
     const Uint32 m_magic;
@@ -409,7 +408,6 @@ public:
       Uint32 m_correlation;
       Uint32 m_keyInfoPtrI;      // keyInfoSection
       Uint32 m_attrInfoPtrI;     // attrInfoSection
-      Uint32 m_attrInfoParamPtrI;// attrInfoParamSection
     } m_send;
 
     union {
@@ -599,7 +597,8 @@ private:
   void getCorrelationData(const RowRef::Section & row, Uint32 col,
                           Uint32& rootStreamId, Uint32& correlationNumber);
   Uint32 appendToPattern(Local_pattern_store &, DABuffer & tree, Uint32);
-  Uint32 appendColToPattern(Local_pattern_store&,const RowRef::Linear&, Uint32);
+  Uint32 appendParamToPattern(Local_pattern_store&,const RowRef::Linear&,
+                              Uint32);
 
   Uint32 appendTreeToSection(Uint32 & ptrI, SectionReader &, Uint32);
   Uint32 appendColToSection(Uint32 & ptrI, const RowRef::Linear&, Uint32 col);
@@ -608,6 +607,8 @@ private:
   Uint32 appendDataToSection(Uint32 & ptrI, Local_pattern_store&,
 			     Local_pattern_store::ConstDataBufferIterator&,
 			     Uint32 len);
+  Uint32 appendAttrinfoToSection(Uint32&, const RowRef::Linear&, Uint32 col);
+  Uint32 appendAttrinfoToSection(Uint32&, const RowRef::Section&, Uint32 col);
   Uint32 expand(Uint32 & ptrI, Local_pattern_store&, const RowRef::Section&);
   Uint32 expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
                 DABuffer & param, Uint32 cnt);

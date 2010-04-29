@@ -16,7 +16,7 @@
 
 EXTRA_DIST = CMakeLists.txt
 
-ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect spj_sanity_test spj_performance_test
+ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect spj_sanity_test spj_performance_test test_spj
 
 # transproxy 
 
@@ -39,7 +39,17 @@ listen_event_SOURCES = listen.cpp
 eventlog_SOURCES = log_listner.cpp
 rep_latency_SOURCES = rep_latency.cpp
 ndb_connect_SOURCES = connect.cpp
-# test_spj_SOURCES = test_spj.cpp
+test_spj_SOURCES = test_spj.cpp
+test_spj_CXXFLAGS = -I$(top_srcdir)/storage/ndb/include/kernel \
+	-I$(top_srcdir)/storage/ndb/include/transporter \
+	-I$(top_srcdir)/storage/ndb/include/debugger \
+	-I$(top_srcdir)/storage/ndb/include/mgmapi \
+	-I$(top_srcdir)/storage/ndb/include/mgmcommon \
+        -I$(top_srcdir)/storage/ndb/include/ndbapi \
+        -I$(top_srcdir)/storage/ndb/include/util \
+	-I$(top_srcdir)/storage/ndb/include/portlib \
+	-I$(top_srcdir)/storage/ndb/include/logger
+
 spj_sanity_test_SOURCES = spj_sanity_test.cpp
 spj_performance_test_SOURCES = spj_performance_test.cpp
 
