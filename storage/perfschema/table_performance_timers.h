@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ struct row_performance_timers
 };
 
 /** Table PERFORMANCE_SCHEMA.PERFORMANCE_TIMERS. */
-class table_performance_timers : public PFS_readonly_table
+class table_performance_timers : public PFS_engine_table
 {
 public:
   /** Table share. */

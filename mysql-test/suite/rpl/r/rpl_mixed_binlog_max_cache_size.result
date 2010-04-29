@@ -35,12 +35,9 @@ Got one of the listed errors
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
-Got one of the listed errors
 BEGIN;
 Got one of the listed errors
 Got one of the listed errors
-SET GLOBAL SQL_SLAVE_SKIP_COUNTER = 1;
-START SLAVE SQL_THREAD;
 source include/diff_master_slave.inc;
 ########################################################################################
 #                                     3 - BEGIN - COMMIT
@@ -129,8 +126,6 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP TABLE IF EXISTS t4;
-Warnings:
-Note	1051	Unknown table 't4'
 DROP TABLE IF EXISTS t5;
 DROP TABLE IF EXISTS t6;
 Warnings:

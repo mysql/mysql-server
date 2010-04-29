@@ -52,9 +52,9 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 grant TRIGGER on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant INSERT on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
-ERROR 42000: INSERT,GRANT command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
+ERROR 42000: INSERT, GRANT command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
 grant DELETE on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost;
-ERROR 42000: DELETE,GRANT command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
+ERROR 42000: DELETE, GRANT command denied to user 'root'@'localhost' for table 'SETUP_INSTRUMENTS'
 grant SELECT on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost
 with GRANT OPTION;
 grant UPDATE on performance_schema.SETUP_INSTRUMENTS to 'pfs_user_3'@localhost
@@ -77,11 +77,11 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 grant TRIGGER on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant INSERT on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
-ERROR 42000: INSERT,GRANT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: INSERT, GRANT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 grant UPDATE on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
-ERROR 42000: UPDATE,GRANT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: UPDATE, GRANT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 grant DELETE on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost;
-ERROR 42000: DELETE,GRANT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: DELETE, GRANT command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 grant SELECT on performance_schema.EVENTS_WAITS_CURRENT to 'pfs_user_3'@localhost
 with GRANT OPTION;
 grant ALL on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost
@@ -102,11 +102,11 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 grant TRIGGER on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 grant INSERT on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
-ERROR 42000: INSERT,GRANT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: INSERT, GRANT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
 grant UPDATE on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
-ERROR 42000: UPDATE,GRANT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: UPDATE, GRANT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
 grant DELETE on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost;
-ERROR 42000: DELETE,GRANT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: DELETE, GRANT command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
 grant SELECT on performance_schema.FILE_INSTANCES to 'pfs_user_3'@localhost
 with GRANT OPTION;
 grant LOCK TABLES on performance_schema.* to 'pfs_user_3'@localhost
@@ -178,16 +178,16 @@ unlock tables;
 lock table performance_schema.SETUP_INSTRUMENTS write;
 unlock tables;
 lock table performance_schema.EVENTS_WAITS_CURRENT read;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 unlock tables;
 lock table performance_schema.EVENTS_WAITS_CURRENT write;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 unlock tables;
 lock table performance_schema.FILE_INSTANCES read;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
 unlock tables;
 lock table performance_schema.FILE_INSTANCES write;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'root'@'localhost' for table 'FILE_INSTANCES'
 unlock tables;
 #
 # WL#4818, NFS2: Can use grants to give normal user access
@@ -276,16 +276,16 @@ unlock tables;
 lock table performance_schema.SETUP_INSTRUMENTS write;
 unlock tables;
 lock table performance_schema.EVENTS_WAITS_CURRENT read;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_1'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_1'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 unlock tables;
 lock table performance_schema.EVENTS_WAITS_CURRENT write;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_1'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_1'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 unlock tables;
 lock table performance_schema.FILE_INSTANCES read;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_1'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_1'@'localhost' for table 'FILE_INSTANCES'
 unlock tables;
 lock table performance_schema.FILE_INSTANCES write;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_1'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_1'@'localhost' for table 'FILE_INSTANCES'
 unlock tables;
 #
 # WL#4818, NFS2: Can use grants to give normal user access
@@ -374,16 +374,16 @@ unlock tables;
 lock table performance_schema.SETUP_INSTRUMENTS write;
 unlock tables;
 lock table performance_schema.EVENTS_WAITS_CURRENT read;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_2'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_2'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 unlock tables;
 lock table performance_schema.EVENTS_WAITS_CURRENT write;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_2'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_2'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 unlock tables;
 lock table performance_schema.FILE_INSTANCES read;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_2'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_2'@'localhost' for table 'FILE_INSTANCES'
 unlock tables;
 lock table performance_schema.FILE_INSTANCES write;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_2'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_2'@'localhost' for table 'FILE_INSTANCES'
 unlock tables;
 #
 # WL#4818, NFS2: Can use grants to give normal user access
@@ -472,16 +472,16 @@ unlock tables;
 lock table performance_schema.SETUP_INSTRUMENTS write;
 unlock tables;
 lock table performance_schema.EVENTS_WAITS_CURRENT read;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 unlock tables;
 lock table performance_schema.EVENTS_WAITS_CURRENT write;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_CURRENT'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_3'@'localhost' for table 'EVENTS_WAITS_CURRENT'
 unlock tables;
 lock table performance_schema.FILE_INSTANCES read;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_3'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_3'@'localhost' for table 'FILE_INSTANCES'
 unlock tables;
 lock table performance_schema.FILE_INSTANCES write;
-ERROR 42000: SELECT,LOCK TABL command denied to user 'pfs_user_3'@'localhost' for table 'FILE_INSTANCES'
+ERROR 42000: SELECT, LOCK TABLES command denied to user 'pfs_user_3'@'localhost' for table 'FILE_INSTANCES'
 unlock tables;
 #
 # WL#4818, NFS2: Can use grants to give normal user access
