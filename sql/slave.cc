@@ -915,6 +915,8 @@ void close_active_mi()
   if (active_mi)
   {
     end_info(active_mi);
+    if (active_mi->rli)
+      delete active_mi->rli;
     delete active_mi;
     active_mi= 0;
   }

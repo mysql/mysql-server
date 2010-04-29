@@ -39,10 +39,13 @@ Rpl_info::~Rpl_info()
   pthread_cond_destroy(&start_cond);
   pthread_cond_destroy(&stop_cond);
 
+  if (handler)
+    delete handler;
+
   DBUG_VOID_RETURN;
 }
 
-void Rpl_info::set_rpl_info_handler(Rpl_info_handler * handler)
+void Rpl_info::set_rpl_info_handler(Rpl_info_handler * param_handler)
 {
-  this->handler= handler;
+  handler= param_handler;
 }
