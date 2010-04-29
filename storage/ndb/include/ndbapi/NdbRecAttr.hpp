@@ -463,21 +463,15 @@ NdbRecAttr::setUNDEFINED()
 
 class NdbOut& operator <<(class NdbOut&, const NdbRecAttr &);
 
-class NdbRecordPrintFormat
+class NdbRecordPrintFormat : public NdbDictionary::NdbDataPrintFormat
 {
 public:
-  NdbRecordPrintFormat();
-  virtual ~NdbRecordPrintFormat();
-  const char *lines_terminated_by;
-  const char *fields_terminated_by;
-  const char *start_array_enclosure;
-  const char *end_array_enclosure;
-  const char *fields_enclosed_by;
-  const char *fields_optionally_enclosed_by;
-  const char *hex_prefix;
-  const char *null_string;
-  int hex_format;
+  NdbRecordPrintFormat() : NdbDataPrintFormat() {};
+  virtual ~NdbRecordPrintFormat() {};
 };
+
+/* See also NdbDictionary::printFormattedValue() */
+
 NdbOut&
 ndbrecattr_print_formatted(NdbOut& out, const NdbRecAttr &r,
                            const NdbRecordPrintFormat &f);

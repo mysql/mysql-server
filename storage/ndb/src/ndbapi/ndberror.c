@@ -317,6 +317,7 @@ ErrorBundle ErrorCodes[] = {
   { 823,  DMEC, AE, "Too much attrinfo from application in tuple manager" },
   { 829,  DMEC, AE, "Corrupt data received for insert/update" },
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
+  { 850,  DMEC, AE, "Too long or too short default value"},
   { 876,  DMEC, AE, "876" },
   { 877,  DMEC, AE, "877" },
   { 878,  DMEC, AE, "878" },
@@ -472,6 +473,8 @@ ErrorBundle ErrorCodes[] = {
   { 777,  DMEC, AE, "Cannot create a temporary index on a non-temporary table" },
   { 778,  DMEC, AE, "A temporary table or index must be specified as not logging" },
   { 786,  DMEC, NR, "Schema transaction aborted due to node-failure" },
+  { 792,  DMEC, SE, "Default value for primary key column not supported" },
+  { 794,  DMEC, AE, "Schema feature requires data node upgrade" },
   
   /**
    * FunctionNotImplemented

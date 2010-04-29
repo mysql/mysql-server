@@ -630,6 +630,7 @@ void Dbtup::execNDB_STTOR(Signal* signal)
     jam();
     cownNodeId = ownNodeId;
     cownref = calcInstanceBlockRef(DBTUP);
+    initializeDefaultValuesFrag();
     break;
   case ZSTARTPHASE2:
     jam();
@@ -656,6 +657,30 @@ void Dbtup::execNDB_STTOR(Signal* signal)
 void Dbtup::startphase3Lab(Signal* signal, Uint32 config1, Uint32 config2) 
 {
 }//Dbtup::startphase3Lab()
+
+void Dbtup::initializeDefaultValuesFrag()
+{
+  /* Grab and initialize a fragment record for storing default
+   * values for the table fragments held by this TUP instance
+   */
+  seizeFragrecord(DefaultValuesFragment);
+  DefaultValuesFragment.p->fragStatus = Fragrecord::FS_ONLINE;
+  DefaultValuesFragment.p->m_undo_complete= false;
+  DefaultValuesFragment.p->m_lcp_scan_op = RNIL;
+  DefaultValuesFragment.p->m_lcp_keep_list = RNIL;
+  DefaultValuesFragment.p->noOfPages = 0;
+  DefaultValuesFragment.p->noOfVarPages = 0;
+  DefaultValuesFragment.p->m_max_page_no = 0;
+  DefaultValuesFragment.p->m_free_page_id_list = FREE_PAGE_RNIL;
+  ndbrequire(DefaultValuesFragment.p->m_page_map.isEmpty());
+  DefaultValuesFragment.p->m_restore_lcp_id = RNIL;
+  for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
+    ndbrequire(DefaultValuesFragment.p->free_var_page_array[i].isEmpty());
+
+  DefaultValuesFragment.p->m_logfile_group_id = RNIL;
+
+  return;
+}
 
 void Dbtup::initializeFragoperrec() 
 {
@@ -755,6 +780,7 @@ Dbtup::initTab(Tablerec* const regTabPtr)
   regTabPtr->m_dropTable.tabUserPtr = RNIL;
   regTabPtr->m_dropTable.tabUserRef = 0;
   regTabPtr->tableStatus = NOT_DEFINED;
+  regTabPtr->m_default_value_location.setNull();
 
   // Clear trigger data
   if (!regTabPtr->afterInsertTriggers.isEmpty())

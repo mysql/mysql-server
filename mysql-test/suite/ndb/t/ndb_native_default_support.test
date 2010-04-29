@@ -1,0 +1,314 @@
+#############################################################
+# Author: Guangbao Ni
+# Date: 2008-12
+# Purpose: ndb native default support test
+##############################################################
+
+-- source include/have_ndb.inc
+-- source include/ndb_default_cluster.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,bit1;
+DROP DATABASE IF EXISTS mysqltest;
+--enable_warnings
+
+CREATE DATABASE mysqltest;
+USE mysqltest;
+###############################################################
+# BASIC SQL STATEMENT TEST FOR NDB NATIVE DEFAULT VALUE SUPPORT
+###############################################################
+# Create table with default values for some types.
+# Create table for bit type.
+# Test cases include:
+# 1. Create table with default values
+# 2. Insert statement:
+#  --Insert default values into, the default values can be inserted into table correctly
+#  --Insert record supplied by client, it can inserted correctly
+#  --Insert record (including default value and value supplied by client)
+# 3. Update statement:
+#  --Update with primary key condition
+#  --Update with non-primary key condtion
+# 4. Replace statement:
+#  --Replace with default values when the record isn't existed in table
+#  --Replace with part default values and part value supplied by client when the record isn't existed in table.
+#  --Replace with part default values and part value suppliced by client when the record already existed in table.
+# 5. Delete statement:
+
+--echo ***************************************************************
+--echo * BASIC SQL STATEMENT TEST FOR NDB NATIVE DEFAULT VALUE SUPPORT
+--echo ***************************************************************
+
+CREATE TABLE t1( 
+  i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  j INT DEFAULT 6, 
+  f FLOAT NOT NULL DEFAULT 6.6, 
+  d DOUBLE DEFAULT 8.8,
+  d2 DOUBLE NOT NULL,  #d2 gets 'data-type-specific default', i.e. 0.
+  ch CHAR(19) DEFAULT "aaa",
+  vch VARCHAR(19) DEFAULT "bbb", 
+  b BINARY(19) DEFAULT "ccc",
+  vb VARBINARY(19) DEFAULT  "ddd", 
+  blob1 BLOB,
+  text1 TEXT,
+  timestamp_c TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)ENGINE=NDB;
+
+--disable_warnings
+INSERT INTO t1 VALUES(),();
+
+INSERT INTO t1 VALUES(
+  10, 10, 10.0, 10.0, 10.0,
+  "nnnnn", "nnnnn", "nnnnn", "nnnnn", "nnnnn", "nnnnn", 
+  "2008-11-16 08:13:32");
+INSERT INTO t1(i, ch) VALUES(11, "mmm");
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+
+UPDATE t1 SET ch = "xxx" WHERE i = 10;
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+
+UPDATE t1 SET blob1 = "yyy" WHERE j = 10;
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+
+REPLACE INTO t1(i, j, ch) VALUES(1, 1, "zzz");
+REPLACE INTO t1(i, j, ch) VALUES(20, 20, "www");
+--enable_warnings
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+DELETE FROM t1 WHERE i > 9;
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+
+#Test BIT TYPE
+CREATE TABLE bit1(
+  pk INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+  b1 BIT(3) DEFAULT B'111',
+  b2 BIT(9) DEFAULT B'101',
+  b3 BIT(23) DEFAULT B'110',
+  b4 BIT(37) DEFAULT B'011',
+  b5 BIT(63) DEFAULT B'101011'
+)ENGINE = NDB;
+
+INSERT INTO bit1 VALUES();
+INSERT INTO bit1(b1,b4) VALUES(B'101',B'111');
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+
+UPDATE bit1 SET b5=B'11111' WHERE pk = 1;
+REPLACE INTO bit1(pk, b3) VALUES(2, B'1');
+REPLACE INTO bit1(pk, b3) VALUES(6, B'101');
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+
+DELETE FROM bit1 WHERE pk = 2;
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk; 
+
+#############################################################
+# ALTER TABLE WITH DEFAULT VALUES TEST
+#############################################################
+--echo ********************************************************
+--echo * Alter table to add column with default value
+--echo ********************************************************
+ALTER TABLE t1 ADD COLUMN ch2 CHAR(30) DEFAULT "alter table";
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+--disable_warnings
+INSERT INTO t1 VALUES();
+--enable_warnings
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+
+--echo ********************************************************
+--echo * Alter table with default value can fail safely
+--echo ********************************************************
+--disable_warnings
+--error 1060
+ALTER TABLE t1 ADD COLUMN ch2 CHAR(30) DEFAULT "alter table";
+--error 1067
+ALTER TABLE t1 ADD COLUMN ch3 CHAR(3) DEFAULT "alter table";
+INSERT INTO t1 VALUES();
+--enable_warnings
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+
+##############################################################
+# BACKUP AND RESTORE TEST FOR TABLE WITH DEFAULT VALUES
+##############################################################
+#the above two tables are backuped, they can restore correctly.
+#The default values can be inserted correctly after restored.
+--echo ********************************************************
+--echo * The tables with default values BACKUP and RESTORE test
+--echo ********************************************************
+--source include/ndb_backup.inc
+DROP TABLE IF EXISTS t1, bit1;
+
+--echo ********************************************************
+--echo * Begin to restore data from backup 
+--echo ********************************************************
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -m  -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+--sorted_result
+SHOW TABLES;
+--let ndb_desc_opts= -d mysqltest t1
+--source include/ndb_desc_print.inc
+--let ndb_desc_opts= -d mysqltest bit1
+--source include/ndb_desc_print.inc
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+
+--disable_warnings
+INSERT INTO t1(i, ch) VALUES(99, "restore");
+--enable_warnings
+INSERT INTO bit1(pk, b5) VALUES(99, B'11111111');
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+DROP TABLE IF EXISTS t1, bit1;
+
+
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -A -m  -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -A -r --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--sorted_result
+SHOW TABLES;
+--replace_column 1 MAX_VALUE 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 WHERE i >= (SELECT MAX(i) FROM t1) ORDER BY i;
+
+DROP TABLE IF EXISTS t1, bit1;
+DROP DATABASE mysqltest;
+
+###############################################################################
+# RESTORE THE BACKUP FROM 6.3 OR 6.4, WHICH DON'T SUPPORT NATIVE DEFAULT VALUE
+# SO DEFAULT VALUES AREN'T STORED IN NDBD KERNEL
+###############################################################################
+--echo ******************************************************************************
+--echo * Restore the backup from 6.3 or 6.4, which don't support native default value
+--echo ******************************************************************************
+
+--exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup_before_native_default >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/std_data/ndb_backup_before_native_default >> $NDB_TOOLS_OUTPUT
+
+USE test;
+--sorted_result
+SHOW TABLES;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE bit1;
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+--disable_warnings
+INSERT INTO t1 VALUES();
+UPDATE t1 SET ch = "RESTORE FROM 6.3" WHERE i = 12;
+REPLACE INTO t1(i, j, ch) VALUES(20, 20, "RESTORE FROM 6.3");
+--enable_warnings
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+
+INSERT INTO bit1 VALUES();
+UPDATE bit1 SET b5=b'1111111' WHERE pk = 1;
+REPLACE INTO bit1(pk, b3) VALUES(6, B'110011');
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+
+#########################################################################
+# OFFLINE ALTER OF 'OLD' TABLE WITH NO DEFAULTS TO 'NEW' TABLE 
+# WITH NATIVE DEFAULTS.
+#########################################################################
+--echo ********************************************************************************
+--echo * Alter table restoring from 6.3 backup to new table with native default support
+--echo ********************************************************************************
+--let ndb_desc_opts= -d test t1
+--source include/ndb_desc_print.inc
+
+ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6;
+
+--let ndb_desc_opts= -d test t1
+--source include/ndb_desc_print.inc
+
+--disable_warnings
+INSERT INTO t1(i, ch) VALUES(99, "native default support");
+--enable_warnings
+--replace_column 12 CURRENT_TIMESTAMP
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+
+DROP TABLE IF EXISTS t1, bit1;
+--echo *************************************************************
+--echo * Test adding a unique index to a column with a default value
+--echo *************************************************************
+CREATE TABLE t2(
+  i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  j INT DEFAULT 6,
+  f FLOAT NOT NULL DEFAULT 6.6,
+  d DOUBLE DEFAULT 8.8,
+  UNIQUE INDEX t2_unique_index(j) 
+)ENGINE =NDB;
+INSERT INTO t2 VALUES();
+--error 1062
+INSERT INTO t2 VALUES();
+INSERT INTO t2 VALUES(10, 10, 10.0, 10.0);
+SELECT * FROM t2 ORDER BY i;
+
+--echo *************************************************************
+--echo * Test offline alter of default values
+--echo *************************************************************
+ALTER TABLE t2 MODIFY COLUMN j INT DEFAULT 666;
+
+--let ndb_desc_opts= -d test t2
+--source include/ndb_desc_print.inc
+INSERT INTO t2 VALUES();
+SELECT * FROM t2 ORDER BY i;
+
+--echo *************************************************************
+--echo * Test that online alter of default values fails
+--echo *************************************************************
+--error 1235
+ALTER ONLINE TABLE t2 MODIFY COLUMN j INT DEFAULT 888;
+
+DROP TABLE IF EXISTS t2;
+
+--echo **************************************************************
+--echo * Test not null-after-defaults example that failed previously
+--echo **************************************************************
+
+CREATE TABLE t1 (a int primary key, b int default 12, c char not null) engine=ndb;
+--let ndb_desc_opts= -d test t1
+--source include/ndb_desc_print.inc
+
+DROP TABLE t1;
+
+--echo **************************************************************
+--echo * Test mix of null, not-null, default etc..
+--echo **************************************************************
+
+CREATE TABLE t1 (a int primary key, 
+                 b int default 12, 
+                 c char not null, 
+                 d varchar(6) default 'Daniel',
+                 e char(3) default 'Stu',
+                 f enum('NBFry','Kebab') default 'NBFry',
+                 g set('Chips','Pie','Fish') default 'Fish,Chips',
+                 h enum('Pig','Lion') not null,
+                 i char(2) default '66') engine=ndb;
+--let ndb_desc_opts= -d test t1
+--source include/ndb_desc_print.inc
+
+DROP TABLE t1;
+
+--echo ******************************************
+--echo * Test binary default with null char value
+--echo ******************************************
+
+CREATE TABLE t1 (a int primary key,
+                 b binary(10) default 0x4142430045464748494a,
+                 c varbinary(100) default 0x4142430045464748494a) engine=ndb;
+
+SHOW CREATE TABLE t1;
+
+--let ndb_desc_opts= -d test t1
+--source include/ndb_desc_print.inc
+
+DROP TABLE t1;
+
+
+
+--echo End of ndb native default support test

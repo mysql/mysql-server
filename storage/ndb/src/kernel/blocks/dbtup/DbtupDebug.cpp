@@ -379,6 +379,15 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 
   if (signal->theData[0] == DumpStateOrd::SchemaResourceSnapshot)
   {
+    {
+      Uint64 defaultValueWords= 0;
+      if (DefaultValuesFragment.i != RNIL)
+        defaultValueWords= calculate_used_var_words(DefaultValuesFragment.p);
+      Uint32 defaultValueWordsHi= (Uint32) (defaultValueWords >> 32);
+      Uint32 defaultValueWordsLo= (Uint32) (defaultValueWords & 0xFFFFFFFF);
+      RSS_OP_SNAPSHOT_SAVE(defaultValueWordsHi);
+      RSS_OP_SNAPSHOT_SAVE(defaultValueWordsLo);
+    }
     RSS_OP_SNAPSHOT_SAVE(cnoOfFreeFragoprec);
     RSS_OP_SNAPSHOT_SAVE(cnoOfFreeFragrec);
     RSS_OP_SNAPSHOT_SAVE(cnoOfFreeTabDescrRec);
@@ -387,6 +396,15 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 
   if (signal->theData[0] == DumpStateOrd::SchemaResourceCheckLeak)
   {
+    {
+      Uint64 defaultValueWords= 0;
+      if (DefaultValuesFragment.i != RNIL)
+        defaultValueWords= calculate_used_var_words(DefaultValuesFragment.p);
+      Uint32 defaultValueWordsHi= (Uint32) (defaultValueWords >> 32);
+      Uint32 defaultValueWordsLo= (Uint32) (defaultValueWords & 0xFFFFFFFF);
+      RSS_OP_SNAPSHOT_CHECK(defaultValueWordsHi);
+      RSS_OP_SNAPSHOT_CHECK(defaultValueWordsLo);
+    }
     RSS_OP_SNAPSHOT_CHECK(cnoOfFreeFragoprec);
     RSS_OP_SNAPSHOT_CHECK(cnoOfFreeFragrec);
     RSS_OP_SNAPSHOT_CHECK(cnoOfFreeTabDescrRec);

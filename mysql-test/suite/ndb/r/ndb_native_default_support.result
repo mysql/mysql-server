@@ -1,0 +1,574 @@
+DROP TABLE IF EXISTS t1,bit1;
+DROP DATABASE IF EXISTS mysqltest;
+CREATE DATABASE mysqltest;
+USE mysqltest;
+***************************************************************
+* BASIC SQL STATEMENT TEST FOR NDB NATIVE DEFAULT VALUE SUPPORT
+***************************************************************
+CREATE TABLE t1( 
+i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+j INT DEFAULT 6, 
+f FLOAT NOT NULL DEFAULT 6.6, 
+d DOUBLE DEFAULT 8.8,
+d2 DOUBLE NOT NULL,  #d2 gets 'data-type-specific default', i.e. 0.
+ch CHAR(19) DEFAULT "aaa",
+vch VARCHAR(19) DEFAULT "bbb", 
+b BINARY(19) DEFAULT "ccc",
+vb VARBINARY(19) DEFAULT  "ddd", 
+blob1 BLOB,
+text1 TEXT,
+timestamp_c TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)ENGINE=NDB;
+INSERT INTO t1 VALUES(),();
+INSERT INTO t1 VALUES(
+10, 10, 10.0, 10.0, 10.0,
+"nnnnn", "nnnnn", "nnnnn", "nnnnn", "nnnnn", "nnnnn", 
+"2008-11-16 08:13:32");
+INSERT INTO t1(i, ch) VALUES(11, "mmm");
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
+1	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+10	10	10	10	10	nnnnn	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	CURRENT_TIMESTAMP
+11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+UPDATE t1 SET ch = "xxx" WHERE i = 10;
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
+1	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+10	10	10	10	10	xxx	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	CURRENT_TIMESTAMP
+11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+UPDATE t1 SET blob1 = "yyy" WHERE j = 10;
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
+1	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+10	10	10	10	10	xxx	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	797979	nnnnn	CURRENT_TIMESTAMP
+11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+REPLACE INTO t1(i, j, ch) VALUES(1, 1, "zzz");
+REPLACE INTO t1(i, j, ch) VALUES(20, 20, "www");
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
+1	1	6.6	8.8	0	zzz	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+10	10	10	10	10	xxx	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	797979	nnnnn	CURRENT_TIMESTAMP
+11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+20	20	6.6	8.8	0	www	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+DELETE FROM t1 WHERE i > 9;
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
+1	1	6.6	8.8	0	zzz	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+CREATE TABLE bit1(
+pk INT AUTO_INCREMENT NOT NULL PRIMARY KEY,
+b1 BIT(3) DEFAULT B'111',
+b2 BIT(9) DEFAULT B'101',
+b3 BIT(23) DEFAULT B'110',
+b4 BIT(37) DEFAULT B'011',
+b5 BIT(63) DEFAULT B'101011'
+)ENGINE = NDB;
+INSERT INTO bit1 VALUES();
+INSERT INTO bit1(b1,b4) VALUES(B'101',B'111');
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
+1	111	101	110	11	101011
+2	101	101	110	111	101011
+UPDATE bit1 SET b5=B'11111' WHERE pk = 1;
+REPLACE INTO bit1(pk, b3) VALUES(2, B'1');
+REPLACE INTO bit1(pk, b3) VALUES(6, B'101');
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
+1	111	101	110	11	11111
+2	111	101	1	11	101011
+6	111	101	101	11	101011
+DELETE FROM bit1 WHERE pk = 2;
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
+1	111	101	110	11	11111
+6	111	101	101	11	101011
+********************************************************
+* Alter table to add column with default value
+********************************************************
+ALTER TABLE t1 ADD COLUMN ch2 CHAR(30) DEFAULT "alter table";
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
+1	1	6.6	8.8	0	zzz	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+INSERT INTO t1 VALUES();
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
+1	1	6.6	8.8	0	zzz	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+21	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+********************************************************
+* Alter table with default value can fail safely
+********************************************************
+ALTER TABLE t1 ADD COLUMN ch2 CHAR(30) DEFAULT "alter table";
+ERROR 42S21: Duplicate column name 'ch2'
+ALTER TABLE t1 ADD COLUMN ch3 CHAR(3) DEFAULT "alter table";
+ERROR 42000: Invalid default value for 'ch3'
+INSERT INTO t1 VALUES();
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
+1	1	6.6	8.8	0	zzz	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+21	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+22	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+********************************************************
+* The tables with default values BACKUP and RESTORE test
+********************************************************
+DROP TABLE IF EXISTS t1, bit1;
+********************************************************
+* Begin to restore data from backup 
+********************************************************
+SHOW TABLES;
+Tables_in_mysqltest
+bit1
+t1
+-- t1 --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 13
+Number of primary keys: 1
+Length of frm data: 518
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+j Int NULL AT=FIXED ST=MEMORY DEFAULT 6
+f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
+d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
+d2 Double NOT NULL AT=FIXED ST=MEMORY
+ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "aaa"
+vch Varchar(19;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "bbb"
+b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
+vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
+blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
+text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
+timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+ch2 Char(30;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "alter table"
+
+-- Indexes -- 
+PRIMARY KEY(i) - UniqueHashIndex
+Index
+
+
+NDBT_ProgramExit: 0 - OK
+
+-- bit1 --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 6
+Number of primary keys: 1
+Length of frm data: 324
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+b1 Bit(3) NULL AT=FIXED ST=MEMORY DEFAULT H'0x7
+b2 Bit(9) NULL AT=FIXED ST=MEMORY DEFAULT H'0x5
+b3 Bit(23) NULL AT=FIXED ST=MEMORY DEFAULT H'0x6
+b4 Bit(37) NULL AT=FIXED ST=MEMORY DEFAULT H'0x3
+b5 Bit(63) NULL AT=FIXED ST=MEMORY DEFAULT H'0x2B
+
+-- Indexes -- 
+PRIMARY KEY(pk) - UniqueHashIndex
+PRIMARY(pk) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
+1	111	101	110	11	11111
+6	111	101	101	11	101011
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
+1	1	6.6	8.8	0	zzz	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+21	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+22	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+INSERT INTO t1(i, ch) VALUES(99, "restore");
+INSERT INTO bit1(pk, b5) VALUES(99, B'11111111');
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
+1	111	101	110	11	11111
+6	111	101	101	11	101011
+99	111	101	110	11	11111111
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
+1	1	6.6	8.8	0	zzz	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+21	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+22	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+99	6	6.6	8.8	0	restore	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+DROP TABLE IF EXISTS t1, bit1;
+SHOW TABLES;
+Tables_in_mysqltest
+bit1
+t1
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c, ch2 FROM t1 WHERE i >= (SELECT MAX(i) FROM t1) ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c	ch2
+MAX_VALUE	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP	alter table
+DROP TABLE IF EXISTS t1, bit1;
+DROP DATABASE mysqltest;
+******************************************************************************
+* Restore the backup from 6.3 or 6.4, which don't support native default value
+******************************************************************************
+USE test;
+SHOW TABLES;
+Tables_in_test
+bit1
+t1
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `j` int(11) DEFAULT '6',
+  `f` float NOT NULL DEFAULT '6.6',
+  `d` double DEFAULT '8.8',
+  `d2` double NOT NULL,
+  `ch` char(19) DEFAULT 'aaa',
+  `vch` varchar(19) DEFAULT 'bbb',
+  `b` binary(19) DEFAULT 'ccc\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
+  `vb` varbinary(19) DEFAULT 'ddd',
+  `blob1` blob,
+  `text1` text,
+  `timestamp_c` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`i`)
+) ENGINE=ndbcluster AUTO_INCREMENT=12 DEFAULT CHARSET=latin1
+SHOW CREATE TABLE bit1;
+Table	Create Table
+bit1	CREATE TABLE `bit1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `b1` bit(3) DEFAULT b'111',
+  `b2` bit(9) DEFAULT b'101',
+  `b3` bit(23) DEFAULT b'110',
+  `b4` bit(37) DEFAULT b'11',
+  `b5` bit(63) DEFAULT b'101011',
+  PRIMARY KEY (`pk`)
+) ENGINE=ndbcluster AUTO_INCREMENT=3 DEFAULT CHARSET=latin1
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
+1	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+10	10	10	10	10	nnnnn	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	CURRENT_TIMESTAMP
+11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
+1	111	101	110	11	101011
+2	101	101	110	111	101011
+INSERT INTO t1 VALUES();
+UPDATE t1 SET ch = "RESTORE FROM 6.3" WHERE i = 12;
+REPLACE INTO t1(i, j, ch) VALUES(20, 20, "RESTORE FROM 6.3");
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
+1	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+10	10	10	10	10	nnnnn	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	CURRENT_TIMESTAMP
+11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+12	6	6.6	8.8	0	RESTORE FROM 6.3	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+20	20	6.6	8.8	0	RESTORE FROM 6.3	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+INSERT INTO bit1 VALUES();
+UPDATE bit1 SET b5=b'1111111' WHERE pk = 1;
+REPLACE INTO bit1(pk, b3) VALUES(6, B'110011');
+SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+pk	BIN(b1)	BIN(b2)	BIN(b3)	BIN(b4)	BIN(b5)
+1	111	101	110	11	1111111
+2	101	101	110	111	101011
+3	111	101	110	11	101011
+6	111	101	110011	11	101011
+********************************************************************************
+* Alter table restoring from 6.3 backup to new table with native default support
+********************************************************************************
+-- t1 --
+Version: Any
+Fragment type: 5
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 12
+Number of primary keys: 1
+Length of frm data: 484
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+j Int NULL AT=FIXED ST=MEMORY
+f Float NOT NULL AT=FIXED ST=MEMORY
+d Double NULL AT=FIXED ST=MEMORY
+d2 Double NOT NULL AT=FIXED ST=MEMORY
+ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY
+vch Varchar(19;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY
+b Binary(19) NULL AT=FIXED ST=MEMORY
+vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY
+blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
+text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
+timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(i) - UniqueHashIndex
+Index
+
+
+NDBT_ProgramExit: 0 - OK
+
+ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6;
+-- t1 --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 12
+Number of primary keys: 1
+Length of frm data: 487
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+j Int NULL AT=FIXED ST=MEMORY DEFAULT 6
+f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
+d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
+d2 Double NOT NULL AT=FIXED ST=MEMORY
+ch Char(19;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "aaa"
+vch Varchar(19;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "bbb"
+b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
+vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
+blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
+text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
+timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
+
+-- Indexes -- 
+PRIMARY KEY(i) - UniqueHashIndex
+Index
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO t1(i, ch) VALUES(99, "native default support");
+SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
+i	j	f	d	d2	ch	vch	HEX(b)	HEX(vb)	HEX(blob1)	text1	timestamp_c
+1	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+2	6	6.6	8.8	0	aaa	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+10	10	10	10	10	nnnnn	nnnnn	6E6E6E6E6E0000000000000000000000000000	6E6E6E6E6E	6E6E6E6E6E	nnnnn	CURRENT_TIMESTAMP
+11	6	6.6	8.8	0	mmm	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+12	6	6.6	8.8	0	RESTORE FROM 6.3	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+20	20	6.6	8.8	0	RESTORE FROM 6.3	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+99	6	6.6	8.8	0	native default supp	bbb	63636300000000000000000000000000000000	646464	NULL	NULL	CURRENT_TIMESTAMP
+DROP TABLE IF EXISTS t1, bit1;
+*************************************************************
+* Test adding a unique index to a column with a default value
+*************************************************************
+CREATE TABLE t2(
+i INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+j INT DEFAULT 6,
+f FLOAT NOT NULL DEFAULT 6.6,
+d DOUBLE DEFAULT 8.8,
+UNIQUE INDEX t2_unique_index(j) 
+)ENGINE =NDB;
+INSERT INTO t2 VALUES();
+INSERT INTO t2 VALUES();
+ERROR 23000: Duplicate entry '6' for key 't2_unique_index'
+INSERT INTO t2 VALUES(10, 10, 10.0, 10.0);
+SELECT * FROM t2 ORDER BY i;
+i	j	f	d
+1	6	6.6	8.8
+10	10	10	10
+*************************************************************
+* Test offline alter of default values
+*************************************************************
+ALTER TABLE t2 MODIFY COLUMN j INT DEFAULT 666;
+-- t2 --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 4
+Number of primary keys: 1
+Length of frm data: 331
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
+j Int NULL AT=FIXED ST=MEMORY DEFAULT 666
+f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
+d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
+
+-- Indexes -- 
+PRIMARY KEY(i) - UniqueHashIndex
+Index
+Index
+Index
+
+
+NDBT_ProgramExit: 0 - OK
+
+INSERT INTO t2 VALUES();
+SELECT * FROM t2 ORDER BY i;
+i	j	f	d
+1	6	6.6	8.8
+10	10	10	10
+11	666	6.6	8.8
+*************************************************************
+* Test that online alter of default values fails
+*************************************************************
+ALTER ONLINE TABLE t2 MODIFY COLUMN j INT DEFAULT 888;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t2 MODIFY COLUMN j INT DEFAULT 888'
+DROP TABLE IF EXISTS t2;
+**************************************************************
+* Test not null-after-defaults example that failed previously
+**************************************************************
+CREATE TABLE t1 (a int primary key, b int default 12, c char not null) engine=ndb;
+-- t1 --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: 267
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
+c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+DROP TABLE t1;
+**************************************************************
+* Test mix of null, not-null, default etc..
+**************************************************************
+CREATE TABLE t1 (a int primary key, 
+b int default 12, 
+c char not null, 
+d varchar(6) default 'Daniel',
+e char(3) default 'Stu',
+f enum('NBFry','Kebab') default 'NBFry',
+g set('Chips','Pie','Fish') default 'Fish,Chips',
+h enum('Pig','Lion') not null,
+i char(2) default '66') engine=ndb;
+-- t1 --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 9
+Number of primary keys: 1
+Length of frm data: 409
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
+c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
+d Varchar(6;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "Daniel"
+e Char(3;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "Stu"
+f Char(1;binary) NULL AT=FIXED ST=MEMORY DEFAULT "0x01"
+g Char(1;binary) NULL AT=FIXED ST=MEMORY DEFAULT "0x05"
+h Char(1;binary) NOT NULL AT=FIXED ST=MEMORY
+i Char(2;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "66"
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+DROP TABLE t1;
+******************************************
+* Test binary default with null char value
+******************************************
+CREATE TABLE t1 (a int primary key,
+b binary(10) default 0x4142430045464748494a,
+c varbinary(100) default 0x4142430045464748494a) engine=ndb;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` binary(10) DEFAULT 'ABC\0EFGHIJ',
+  `c` varbinary(100) DEFAULT 'ABC\0EFGHIJ',
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+-- t1 --
+Version: Any
+Fragment type: 9
+K Value: 6
+Min load factor: 78
+Max load factor: 80
+Temporary table: no
+Number of attributes: 3
+Number of primary keys: 1
+Length of frm data: 284
+Row Checksum: 1
+Row GCI: 1
+SingleUserMode: 0
+ForceVarPart: 1
+FragmentCount: 2
+TableStatus: Retrieved
+-- Attributes -- 
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Binary(10) NULL AT=FIXED ST=MEMORY DEFAULT 0x4142430045464748494A
+c Varbinary(100) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x4142430045464748494A
+
+-- Indexes -- 
+PRIMARY KEY(a) - UniqueHashIndex
+PRIMARY(a) - OrderedIndex
+
+
+NDBT_ProgramExit: 0 - OK
+
+DROP TABLE t1;
+End of ndb native default support test
