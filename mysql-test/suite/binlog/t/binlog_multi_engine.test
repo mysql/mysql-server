@@ -7,7 +7,7 @@ source include/have_blackhole.inc;
 source include/have_ndb.inc;
 source include/have_log_bin.inc;
 
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 CREATE TABLE t1m (m INT, n INT) ENGINE=MYISAM;
 CREATE TABLE t1b (b INT, c INT) ENGINE=BLACKHOLE;
