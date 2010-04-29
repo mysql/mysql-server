@@ -269,6 +269,12 @@ DblqhProxy::execLQHADDATTREQ(Signal* signal)
   ndbrequire(ss_main.m_req.noOfAttributes >= req->noOfAttributes);
   ss_main.m_req.noOfAttributes -= req->noOfAttributes;
 
+  /* Save long section(s) in ss for forwarding to 
+   * workers
+   */
+  SectionHandle handle(this, signal);
+  saveSections(ss, handle);
+  
   sendREQ(signal, ss);
 }
 

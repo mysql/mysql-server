@@ -215,6 +215,7 @@ public:
   STATIC_CONST( HeaderLength = 4 );
   STATIC_CONST( EntryLength = 3 );
   STATIC_CONST( MAX_ATTRIBUTES = 6 );
+  STATIC_CONST( DEFAULT_VALUE_SECTION_NUM = 0 );
   struct Entry {
     Uint32 attrId;              // for index, includes primary attr id << 16
     Uint32 attrDescriptor;      // 2 words type info

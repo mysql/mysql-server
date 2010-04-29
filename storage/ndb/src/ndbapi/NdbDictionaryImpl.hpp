@@ -96,7 +96,7 @@ public:
   bool m_nullable;
   bool m_autoIncrement;
   Uint64 m_autoIncrementInitialValue;
-  BaseString m_defaultValue;
+  UtilBuffer m_defaultValue;
   /*
    * Table holding the blob parts.
    *
@@ -226,6 +226,7 @@ public:
   bool m_row_gci;
   bool m_row_checksum;
   bool m_force_var_part;
+  bool m_has_default_values; 
   int m_kvalue;
   int m_minLoadFactor;
   int m_maxLoadFactor;

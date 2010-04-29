@@ -104,6 +104,14 @@ public:
     else
       return (memcmp(get_data(), cmp.get_data(), len) == 0);
   }
+
+  int assign(const UtilBuffer& buf) {
+    int ret = 0;
+    if(this != &buf) {
+      ret = assign(buf.get_data(), buf.length());
+    }
+    return ret;
+  }
 private:
   void *data;          /* Pointer to data storage */
   size_t len;          /* Size of the stored data */

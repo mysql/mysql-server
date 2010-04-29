@@ -565,14 +565,32 @@ public:
 
     /** @} *******************************************************************/
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
+    int setDefaultValue(const char*);
+#endif
+    /* setDefaultValue
+     * Set buf to NULL for no default value, or null default value for
+     * NULLABLE column, otherwise set buf to pointer to default value.
+     * The len parameter is the number of significant bytes of default
+     * value supplied, which is the type size for fixed size types.
+     * For variable length types, the leading 1 or 2 bytes pointed to 
+     * by buf also contain length information as normal for the type.
+     */
+    int setDefaultValue(const void* buf, unsigned int len);
+
+    /* getDefaultValue
+     * Get the default value data for this column.
+     * Optional int len* will be updated with the significant length 
+     * of the default value, or set to 0 for NULL or no default.
+     */
+    const void* getDefaultValue(unsigned int* len = 0) const;
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getBlobTable() const;
 
     void setAutoIncrement(bool);
     bool getAutoIncrement() const;
     void setAutoIncrementInitialValue(Uint64 val);
-    int setDefaultValue(const char*);   
-    const char* getDefaultValue() const;
 
     static const Column * FRAGMENT;
     static const Column * FRAGMENT_FIXED_MEMORY;
@@ -1062,6 +1080,12 @@ public:
      *   will most likely be wrong
      */
     Uint32 getPartitionId(Uint32 hashvalue) const ;
+
+    /*
+     * Return TRUE if any of the columns in the table have a 
+     * non NULL default value defined
+     */ 
+    bool hasDefaultValues() const;
 
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
@@ -2518,8 +2542,32 @@ public:
       createRecord
     */
     void releaseRecord(NdbRecord *rec);
+  }; // class Dictionary
+
+  class NdbDataPrintFormat
+  {
+  public:
+    NdbDataPrintFormat();
+    virtual ~NdbDataPrintFormat();
+    const char *lines_terminated_by;
+    const char *fields_terminated_by;
+    const char *start_array_enclosure;
+    const char *end_array_enclosure;
+    const char *fields_enclosed_by;
+    const char *fields_optionally_enclosed_by;
+    const char *hex_prefix;
+    const char *null_string;
+    int hex_format;
   };
-};
+
+  static 
+  class NdbOut& printFormattedValue(class NdbOut& out, 
+                                    const NdbDataPrintFormat& format,
+                                    const NdbDictionary::Column* c,
+                                    const void* val);
+  
+
+}; // class NdbDictionary
 
 class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Column& col);
 

@@ -100,8 +100,12 @@ DictTabInfo::AttributeMapping[] = {
   DTIMAP(Attribute, AttributeExtScale, AttributeExtScale),
   DTIMAP(Attribute, AttributeExtLength, AttributeExtLength),
   DTIMAP2(Attribute, AttributeAutoIncrement, AttributeAutoIncrement, 0, 1),
-  DTIMAPS(Attribute, AttributeDefaultValue, AttributeDefaultValue,
-    0, MAX_ATTR_DEFAULT_VALUE_SIZE),
+
+  DTIMAP2(Attribute, AttributeDefaultValueLen, AttributeDefaultValueLen,
+          0, MAX_ATTR_DEFAULT_VALUE_SIZE),
+  DTIMAPB(Attribute, AttributeDefaultValue, AttributeDefaultValue,
+    0, MAX_ATTR_DEFAULT_VALUE_SIZE, AttributeDefaultValueLen),
+
   DTIBREAK(AttributeEnd)
 };
 
@@ -198,7 +202,8 @@ DictTabInfo::Attribute::init(){
   AttributeAutoIncrement = false;
   AttributeStorageType = 0;
   AttributeDynamic = 0;                         // Default is not dynamic
-  memset(AttributeDefaultValue, 0, sizeof(AttributeDefaultValue));//AttributeDefaultValue[0] = 0;
+  AttributeDefaultValueLen = 0;                 //Default byte sizes of binary default value is 0
+  memset(AttributeDefaultValue, 0, sizeof(AttributeDefaultValue));
 }
 
 //static 
