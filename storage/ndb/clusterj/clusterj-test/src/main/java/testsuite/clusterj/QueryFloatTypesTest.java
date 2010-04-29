@@ -66,8 +66,8 @@ create unique index idx_float_not_null_both on floattypes(float_not_null_both);
  */
     public void test() {
         btreeIndexScanFloat();
-//        hashIndexScanFloat();
-//        bothIndexScanFloat();
+        hashIndexScanFloat();
+        bothIndexScanFloat();
         noneIndexScanFloat();
         failOnError();
     }

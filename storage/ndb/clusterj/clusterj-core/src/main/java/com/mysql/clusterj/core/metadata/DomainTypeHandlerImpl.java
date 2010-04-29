@@ -22,12 +22,10 @@ import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
-import com.mysql.clusterj.ClusterJFatalUserException;
 import com.mysql.clusterj.ClusterJUserException;
 
 import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.annotation.Column;
-import com.mysql.clusterj.annotation.Indices;
 
 import com.mysql.clusterj.core.CacheManager;
 
@@ -174,52 +172,39 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         }
         tableName = persistenceCapable.table();
         this.dictionary = dictionary;
-        table = getTable(dictionary);
-        logger.debug("Found Table for " + tableName);
-
-        primaryKeyColumnNames = table.getPrimaryKeyColumnNames();
+        this.table = getTable(dictionary);
+        if (table == null) {
+            throw new ClusterJUserException(local.message("ERR_Get_NdbTable", className, tableName));
+        }
+        if (logger.isDebugEnabled()) logger.debug("Found Table for " + tableName);
 
         // the id field handlers will be initialized via registerPrimaryKeyColumn
-        numberOfPrimaryKeyColumns  = primaryKeyColumnNames.length;
-        idFieldHandlers = new DomainFieldHandlerImpl[numberOfPrimaryKeyColumns];
-        idFieldNumbers = new int[numberOfPrimaryKeyColumns];
+        this.primaryKeyColumnNames = table.getPrimaryKeyColumnNames();
+        this.numberOfPrimaryKeyColumns  = primaryKeyColumnNames.length;
+        this.idFieldHandlers = new DomainFieldHandlerImpl[numberOfPrimaryKeyColumns];
+        this.idFieldNumbers = new int[numberOfPrimaryKeyColumns];
 
-        if (logger.isDebugEnabled()) logger.debug(toString());
-        // TODO handle the case where there is only a hash primary key
-        // First two entries in indexHandlerImpls represent the primary key.
-        IndexHandlerImpl primaryKeyIndexHandler =
-                new IndexHandlerImpl(this, dictionary, "PRIMARY", primaryKeyColumnNames);
-        indexHandlerImpls.add(primaryKeyIndexHandler);
-        // now add the twinned unique primary key index
-        indexHandlerImpls.add(new IndexHandlerImpl(dictionary, primaryKeyIndexHandler));
-
-        // set up the partition keys
         // the partition key field handlers will be initialized via registerPrimaryKeyColumn
-        partitionKeyColumnNames = table.getPartitionKeyColumnNames();
-        numberOfPartitionKeyColumns = partitionKeyColumnNames.length;
-        partitionKeyFieldHandlers = new DomainFieldHandlerImpl[numberOfPartitionKeyColumns];
+        this.partitionKeyColumnNames = table.getPartitionKeyColumnNames();
+        this.numberOfPartitionKeyColumns = partitionKeyColumnNames.length;
+        this.partitionKeyFieldHandlers = new DomainFieldHandlerImpl[numberOfPartitionKeyColumns];
 
-        // Process index annotation on the class. There might not be a field associated with the index.
-        Indices indicesAnnotation = cls.getAnnotation(Indices.class);
-        if (indicesAnnotation != null) {
-            com.mysql.clusterj.annotation.Index[] indexList = indicesAnnotation.value();
-            for (com.mysql.clusterj.annotation.Index indexAnnotation : indexList) {
-                String indexName = indexAnnotation.name();
-                if (indexNames.contains(indexName)) {
-                    throw new ClusterJUserException(
-                        local.message("ERR_Duplicate_Index", className, indexName));
-                } else {
-                    indexNames.add(indexName);
-                }
-                String[] columnNames = getColumnNames(indexName, indexAnnotation.columns());
-                IndexHandlerImpl imd = new IndexHandlerImpl(this, dictionary, indexName, columnNames);
-                indexHandlerImpls.add(imd);
-                // for unique indexes, add the twin
-                if (imd.isTwinned(dictionary)) {
-                    IndexHandlerImpl twin = new IndexHandlerImpl(dictionary, imd);
-                    indexHandlerImpls.add(twin);
-                }
-            }
+        // Process indexes for the table. There might not be a field associated with the index.
+        // The first entry in indexHandlerImpls is for the mandatory hash primary key,
+        // which is not really an index but is treated as an index by query.
+        Index primaryIndex = dictionary.getIndex("PRIMARY$KEY", tableName, "PRIMARY");
+        IndexHandlerImpl primaryIndexHandler =
+            new IndexHandlerImpl(this, dictionary, primaryIndex, primaryKeyColumnNames);
+        indexHandlerImpls.add(primaryIndexHandler);
+
+        String[] indexNames = table.getIndexNames();
+        for (String indexName: indexNames) {
+            // the index alias is the name as known by the user (without the $unique suffix)
+            String indexAlias = removeUniqueSuffix(indexName);
+            Index index = dictionary.getIndex(indexName, tableName, indexAlias);
+            String[] columnNames = index.getColumnNames();
+            IndexHandlerImpl imd = new IndexHandlerImpl(this, dictionary, index, columnNames);
+            indexHandlerImpls.add(imd);
         }
 
         // Now iterate the fields in the class
@@ -286,9 +271,12 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
         }
 
         // Check that all index columnNames have corresponding fields
+        // indexes without fields will be unusable for query
         for (IndexHandlerImpl indexHandler:indexHandlerImpls) {
             indexHandler.assertAllColumnsHaveFields();
         }
+
+        if (logger.isDebugEnabled()) logger.debug(toString());
         logger.debug("DomainTypeHandlerImpl " + className +
                 "Indices " + indexHandlerImpls);
     }
@@ -343,30 +331,17 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
 
     /** Create and register an index from a field and return a special int[][] that
      * contains all indexHandlerImpls in which the
-     * field participates. One index can be defined in the field annotation
-     * and this index is identified here. This method is called by the
-     * FieldHandler constructor after the Index annotation is processed
-     * and the mapped column name is known.
+     * field participates. The int[][] is used by the query optimizer to determine
+     * which if any index can be used. This method is called by the
+     * DomainFieldHandlerImpl constructor after the mapped column name is known.
      * @see AbstractDomainFieldHandlerImpl#indices
      * @param fmd the FieldHandler
      * @param columnName the column name mapped to the field
-     * @param indexName the index name
-     * or null if no index annotation defined on the field
      * @return the array of array identifying the indexes into the IndexHandler
      * list and columns in the IndexHandler corresponding to the field
      */
     protected int[][] registerIndices(
-            AbstractDomainFieldHandlerImpl fmd, String columnName, String indexName) {
-        if (indexName != null) {
-            IndexHandlerImpl indexHandler =
-                    new IndexHandlerImpl(this, dictionary, indexName, fmd);
-            // Add the index to the list of indexes on the class
-            indexHandlerImpls.add(indexHandler);
-            if (indexHandler.isTwinned(dictionary)) {
-                indexHandlerImpls.add(new IndexHandlerImpl(dictionary, indexHandler));
-            }
-        }
-
+            AbstractDomainFieldHandlerImpl fmd, String columnName) {
         // Find all the indexes that this field belongs to, by iterating
         // the list of indexes and comparing column names.
         List<int[]> result =new ArrayList<int[]>();
@@ -375,7 +350,8 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
             String[] columns = indexHandler.getColumnNames();
             for (int j = 0; j < columns.length; ++j) {
                 if (fmd.getColumnName().equals(columns[j])) {
-                    if (logger.isDetailEnabled()) logger.detail("Found field " + fmd.getName() + " column " + fmd.getColumnName() + " matching " + indexHandler.indexName);
+                    if (logger.isDetailEnabled()) logger.detail("Found field " + fmd.getName()
+                            + " column " + fmd.getColumnName() + " matching " + indexHandler.indexName);
                     indexHandler.setDomainFieldHandlerFor(j, fmd);
                     result.add(new int[]{i,j});
                 }
@@ -423,7 +399,8 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
     }
 
     /** Create a list of candidate indexes to evaluate query terms and
-     * decide what type of scan to use.
+     * decide what type of operation to use. The result must correspond
+     * one to one with the indexHandlerImpls.
      * @return a new array of CandidateIndexImpl
      */
     public CandidateIndexImpl[] createCandidateIndexes() {
@@ -796,6 +773,16 @@ public class DomainTypeHandlerImpl<T> implements DomainTypeHandler<T> {
                         + " column name " + fmd.getColumnName() + " field name " + fmd.getName());
             fmd.partitionKeySetPart(result, handler);
         }
+        return result;
+    }
+
+    private String removeUniqueSuffix(String indexName) {
+        int beginIndex = indexName.lastIndexOf("$unique");
+        if (beginIndex < 0) {
+            // there's no $unique suffix
+            return indexName;
+        }
+        String result = indexName.substring(0, beginIndex);
         return result;
     }
 

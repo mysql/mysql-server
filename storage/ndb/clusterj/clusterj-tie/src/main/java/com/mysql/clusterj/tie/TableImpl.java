@@ -19,22 +19,20 @@
 package com.mysql.clusterj.tie;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
-
-import com.mysql.clusterj.ClusterJFatalInternalException;
-import com.mysql.clusterj.ClusterJUserException;
-
+import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.PartitionKey;
 import com.mysql.clusterj.core.store.Table;
 
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
+
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
 /**
  *
@@ -49,48 +47,52 @@ class TableImpl implements Table {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(TableImpl.class);
 
-    private TableConst ndbTable;
-
     /** The table name */
-    private String name;
+    private String tableName;
 
     /** The primary key column names */
     private String[] primaryKeyColumnNames;
 
-    public TableImpl(TableConst ndbTable, IndexConst primaryKeyIndex) {
-        this.ndbTable = ndbTable;
-        this.name = ndbTable.getName();
-        if (primaryKeyIndex == null) {
-            primaryKeyColumnNames = new String[0];
-        } else {
-            int numberOfPrimaryKeyColumns = primaryKeyIndex.getNoOfColumns();
-            primaryKeyColumnNames = new String[numberOfPrimaryKeyColumns];
-            int columnsInPrimaryKeyIndex = primaryKeyIndex.getNoOfColumns();
-            if (columnsInPrimaryKeyIndex != numberOfPrimaryKeyColumns) {
-                throw new ClusterJFatalInternalException(
-                        local.message("ERR_Mismatch_No_Of_Primary_Key_Columns",
-                                name, numberOfPrimaryKeyColumns, columnsInPrimaryKeyIndex));
+    /** The partition key column names */
+    private String[] partitionKeyColumnNames;
+
+    /** The columns in this table */
+    private Map<String, ColumnImpl> columns = new HashMap<String, ColumnImpl>();
+
+    /** The index names for this table */
+    private String[] indexNames;
+
+    public TableImpl(TableConst ndbTable, String[] indexNames) {
+        this.tableName = ndbTable.getName();
+        // process columns and partition key columns
+        List<String> partitionKeyColumnNameList = new ArrayList<String>();
+        List<String> primaryKeyColumnNameList = new ArrayList<String>();
+
+        for (int i = 0; i < ndbTable.getNoOfColumns(); ++i) {
+            ColumnConst column = ndbTable.getColumn(i);
+            // primary key and partition key columns are listed in the order declared in the schema
+            if (column.getPartitionKey()) {
+                partitionKeyColumnNameList.add(column.getName());
             }
-            for (int i = 0; i < numberOfPrimaryKeyColumns; ++i) {
-                primaryKeyColumnNames[i] = primaryKeyIndex.getColumn(i).getName();
+            if (column.getPrimaryKey()) {
+                primaryKeyColumnNameList.add(column.getName());
             }
+            ColumnConst ndbColumn = ndbTable.getColumn(i);
+            columns.put(ndbColumn.getName(), new ColumnImpl(tableName, ndbColumn));
         }
+        this.primaryKeyColumnNames = 
+            primaryKeyColumnNameList.toArray(new String[primaryKeyColumnNameList.size()]);
+        this.partitionKeyColumnNames = 
+            partitionKeyColumnNameList.toArray(new String[partitionKeyColumnNameList.size()]);
+        this.indexNames = indexNames;
     }
 
-    public ColumnImpl getColumn(String columnName) {
-        ColumnConst ndbColumn = ndbTable.getColumn(columnName);
-        if (ndbColumn == null) {
-            return null;
-        }
-        return new ColumnImpl(ndbTable, ndbColumn);
+    public Column getColumn(String columnName) {
+        return columns.get(columnName);
     }
 
     public String getName() {
-        return name;
-    }
-
-    public TableConst getNdbTable() {
-        return ndbTable;
+        return tableName;
     }
 
     public String[] getPrimaryKeyColumnNames() {
@@ -98,23 +100,17 @@ class TableImpl implements Table {
     }
 
     public String[] getPartitionKeyColumnNames() {
-        int numberOfColumns = ndbTable.getNoOfColumns();
-        List<String> partitionKeyColumnNames = new ArrayList<String>();
-        for (int i = 0; i < numberOfColumns; ++i) {
-            ColumnConst candidatePartitionKey = ndbTable.getColumn(i);
-            if (candidatePartitionKey.getPartitionKey()) {
-                partitionKeyColumnNames.add(candidatePartitionKey.getName());
-            }
-        }
-        String[] result = partitionKeyColumnNames.toArray(new String[partitionKeyColumnNames.size()]);
-        return result;
+        return partitionKeyColumnNames;
     }
 
     public PartitionKey createPartitionKey() {
-        PartitionKey result = new PartitionKeyImpl();
-        result.setTable(this);
+        PartitionKeyImpl result = new PartitionKeyImpl();
+        result.setTable(tableName);
         return result;
     }
 
+    public String[] getIndexNames() {
+        return indexNames;
+    }
 
 }

@@ -18,8 +18,10 @@
 
 package com.mysql.clusterj.tie;
 
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
+import java.util.Arrays;
+
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -38,44 +40,80 @@ class IndexImpl implements Index {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(IndexImpl.class);
 
-    private IndexConst ndbIndex;
-    private String name;
-    private int noOfColumns;
-    private ColumnConst[] columns;
-    private int type;
+    private String tableName;
 
-    public IndexImpl(IndexConst index, String indexAlias) {
-        this.ndbIndex = index;
+    /** The name of the index as known by the schem and user */
+    private String name;
+
+    /** The number of columns in the index */
+    private int noOfColumns;
+
+    /** The names of the columns, in the order declared in the KEY clause */
+    private String[] columnNames;
+
+    /** Is the index unique? */
+    private boolean unique;
+
+    /** The actual name of the index, e.g. idx_name$unique */
+    private String internalName;
+
+    /**
+     * Create a new IndexImpl for the index.
+     * @param ndbIndex the ndbIndex for this index
+     * @param indexAlias the name as known by the schema
+     */
+    public IndexImpl(IndexConst ndbIndex, String indexAlias) {
+        this.internalName = ndbIndex.getName();
+        this.tableName = ndbIndex.getTable();
         this.name = indexAlias;
-        // do some analysis of the index
+        this.unique = ndbIndex.getType() == IndexConst.Type.UniqueHashIndex;
         this.noOfColumns = ndbIndex.getNoOfColumns();
-        this.columns = new ColumnConst[noOfColumns];
-        this.type = ndbIndex.getType();
-        if (logger.isDetailEnabled()) {
-            StringBuffer buffer = new StringBuffer("Index columns for " + name + ":");
-            for (int i = 0; i < noOfColumns; ++i) {
-                columns[i] = index.getColumn(i);
-                buffer.append(columns[i].getName());
-                buffer.append(" ");
-            }
-            logger.detail(buffer.toString());
+        this.columnNames = new String[noOfColumns];
+        for (int i = 0; i < noOfColumns; ++i) {
+          String columnName = ndbIndex.getColumn(i).getName();
+          this.columnNames[i] = columnName;
         }
+        if (logger.isDetailEnabled()) logger.detail(toString());
     }
 
-    public boolean isHash() {
-        return IndexConst.Type.UniqueHashIndex == type;
+    /** Create a pseudo IndexImpl for the primary key. The primary key pseudo index
+     * is not an index but is treated as an index by query. This index is not used
+     * with an index scan but is only used for primary key lookup.
+     * 
+     * @param ndbTable the ndb Table
+     */
+    public IndexImpl(TableConst ndbTable) {
+        this.internalName = "PRIMARY";
+        this.name = "PRIMARY";
+        this.tableName = ndbTable.getName();
+        this.unique = true;
+        this.noOfColumns = ndbTable.getNoOfPrimaryKeys();
+        this.columnNames = new String[noOfColumns];
+        for (int i = 0; i < noOfColumns; ++i) {
+            this.columnNames[i] = ndbTable.getPrimaryKey(i);
+        }
+        if (logger.isDetailEnabled()) logger.detail(toString());
     }
 
     public boolean isUnique() {
-        return IndexConst.Type.UniqueHashIndex == type;
-    }
-
-    public IndexConst getNdbIndex() {
-    return ndbIndex;
+        return unique;
     }
 
     public String getName() {
         return name;
+    }
+
+    public String getInternalName() {
+        return internalName;
+    }
+
+    public String[] getColumnNames() {
+        return columnNames;
+    }
+
+    @Override
+    public String toString() {
+        return "IndexImpl name: " + name + " internal name: " + internalName + " table: " + tableName + " unique: " + unique + " columns: " + Arrays.toString(columnNames);
     }
 
 }

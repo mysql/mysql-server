@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2009 Sun Microsystems, Inc.
+ *  Copyright (C) 2010 Sun Microsystems, Inc.
  *  All rights reserved. Use is subject to license terms.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -19,12 +19,17 @@
 package com.mysql.clusterj.tie;
 
 import com.mysql.clusterj.core.store.ClusterConnection;
+import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 /**
  *
  */
 public class ClusterConnectionServiceImpl
         implements com.mysql.clusterj.core.store.ClusterConnectionService {
+
+    static {
+        LoggerFactoryService.getFactory().registerLogger("com.mysql.clusterj.tie");
+    }
 
     public ClusterConnection create(String connectString) {
         return new ClusterConnectionImpl(connectString);

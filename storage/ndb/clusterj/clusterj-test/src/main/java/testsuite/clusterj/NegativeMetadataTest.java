@@ -42,9 +42,9 @@ public class NegativeMetadataTest extends AbstractClusterJModelTest {
         // doTestFor(BadEmployeeWrongPrimaryKeyAnnotationOnClass.class);
         // doTestFor(BadEmployeePrimaryKeyAnnotationColumnAndColumns.class);
         // doTestFor(BadEmployeePrimaryKeyAnnotationNoColumnOrColumns.class);
-        doTestFor(BadIndexDuplicateIndexName.class);
-        doTestFor(BadIndexMissingColumn.class);
-        doTestFor(BadIndexDuplicateColumn.class);
+        // doTestFor(BadIndexDuplicateIndexName.class);
+        // doTestFor(BadIndexMissingColumn.class);
+        // doTestFor(BadIndexDuplicateColumn.class);
         failOnError();
     }
 

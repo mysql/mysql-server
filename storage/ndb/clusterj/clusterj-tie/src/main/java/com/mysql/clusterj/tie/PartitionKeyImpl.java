@@ -24,13 +24,12 @@ import java.util.List;
 
 import com.mysql.clusterj.core.store.Column;
 import com.mysql.clusterj.core.store.PartitionKey;
-import com.mysql.clusterj.core.store.Table;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 
 /**
  * This class manages the startTransaction operation based on partition keys.
@@ -50,8 +49,8 @@ class PartitionKeyImpl implements PartitionKey {
     /** The partition key parts */
     private List<KeyPart> keyParts = new ArrayList<KeyPart>();
 
-    /** The table */
-    private TableConst table = null;
+    /** The table name */
+    private String tableName = null;
 
     /** The partition id */
     private int partitionId;
@@ -74,8 +73,8 @@ class PartitionKeyImpl implements PartitionKey {
         keyParts.add(keyPart);
     }
 
-    public void setTable(Table table) {
-        this.table = ((TableImpl)table).getNdbTable();
+    public void setTable(String tableName) {
+        this.tableName = tableName;
     }
 
     public void setPartitionId(int partitionId) {
@@ -104,15 +103,15 @@ class PartitionKeyImpl implements PartitionKey {
             if (logger.isDebugEnabled()) logger.debug(
                     "PartitionKeyImpl.enlist via partitionId with keyparts "
                     + (keyParts==null?"null.":("size " + keyParts.size()))
-                    + " table: " + (table==null?"null":table.getName())
+                    + " table: " + (tableName==null?"null":tableName)
                     + " partition id: " + partitionId);
-            result = db.enlist(table, partitionId);
+            result = db.enlist(tableName, partitionId);
         } else {
             if (logger.isDebugEnabled()) logger.debug(
                     "PartitionKeyImpl.enlist via keyParts with keyparts "
                     + (keyParts==null?"null.":("size " + keyParts.size()))
-                    + " table: " + (table==null?"null":table.getName()));
-            result = db.enlist(table, keyParts);
+                    + " table: " + (tableName==null?"null":tableName));
+            result = db.enlist(tableName, keyParts);
         }
       if (logger.isDebugEnabled()) logger.debug(
               "PartitionKeyImpl.enlist transaction id: "

@@ -44,23 +44,20 @@ public class CandidateIndexImpl {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(CandidateIndexImpl.class);
 
-    private String className = "No class for null where clause";
+    private String className = "none";
     private Index storeIndex;
-    private String indexName = "No index for null where clause";
+    private String indexName = "none";
     private boolean unique;
-    private boolean hash;
-    private CandidateColumnImpl[] candidateColumns;
+    private CandidateColumnImpl[] candidateColumns = null;
     private ScanType scanType = PredicateImpl.ScanType.TABLE_SCAN;
     private int fieldScore = 1;
 
     public CandidateIndexImpl(
-            String className, Index storeIndex, boolean unique, boolean hash,
-            AbstractDomainFieldHandlerImpl[] fields) {
+            String className, Index storeIndex, boolean unique, AbstractDomainFieldHandlerImpl[] fields) {
         this.className = className;
         this.storeIndex = storeIndex;
         this.indexName = storeIndex.getName();
         this.unique = unique;
-        this.hash = hash;
         this.candidateColumns = new CandidateColumnImpl[fields.length];
         if (fields.length == 1) {
             // for a single field with multiple columns, score the number of columns
@@ -78,12 +75,13 @@ public class CandidateIndexImpl {
     static CandidateIndexImpl indexForNullWhereClause = new CandidateIndexImpl();
 
     /** The accessor for the no where clause candidate index. */
-    static CandidateIndexImpl getIndexForNullWhereClause() {
+    public static CandidateIndexImpl getIndexForNullWhereClause() {
         return indexForNullWhereClause;
     }
 
     /** The CandidateIndexImpl used in cases of no where clause. */
     protected CandidateIndexImpl() {
+        // candidateColumns will be null if no usable columns in the index
     }
 
     @Override
@@ -95,25 +93,33 @@ public class CandidateIndexImpl {
         buffer.append(indexName);
         buffer.append(" unique: ");
         buffer.append(unique);
-        buffer.append(" hash: ");
-        buffer.append(hash);
-        for (CandidateColumnImpl column:candidateColumns) {
-            buffer.append(" field: ");
-            buffer.append(column.domainFieldHandler.getName());
+        if (candidateColumns != null) {
+            for (CandidateColumnImpl column:candidateColumns) {
+                buffer.append(" field: ");
+                buffer.append(column.domainFieldHandler.getName());
+            }
+        } else {
+            buffer.append(" no fields.");
         }
         return buffer.toString();
     }
 
     public void markLowerBound(int fieldNumber, PredicateImpl predicate, boolean strict) {
-        candidateColumns[fieldNumber].markLowerBound(predicate, strict);
+        if (candidateColumns != null) {
+            candidateColumns[fieldNumber].markLowerBound(predicate, strict);
+        }
     }
 
     public void markUpperBound(int fieldNumber, PredicateImpl predicate, boolean strict) {
-        candidateColumns[fieldNumber].markUpperBound(predicate, strict);
+        if (candidateColumns != null) {
+            candidateColumns[fieldNumber].markUpperBound(predicate, strict);
+        }
     }
 
     public void markEqualBound(int fieldNumber, PredicateImpl predicate) {
-        candidateColumns[fieldNumber].markEqualBound(predicate);
+        if (candidateColumns != null) {
+            candidateColumns[fieldNumber].markEqualBound(predicate);
+        }
     }
 
     String getIndexName() {
@@ -124,10 +130,13 @@ public class CandidateIndexImpl {
     CandidateColumnImpl lastUpperBoundColumn = null;
 
     int getScore() {
+        if (candidateColumns == null) {
+            return 0;
+        }
         int result = 0;
         boolean lowerBoundDone = false;
         boolean upperBoundDone = false;
-        if (hash) {
+        if (unique) {
             // all columns need to have equal bound
             for (CandidateColumnImpl column: candidateColumns) {
                 if (!(column.equalBound)) {
@@ -138,7 +147,7 @@ public class CandidateIndexImpl {
             if ("PRIMARY".equals(indexName)) {
                 scanType = PredicateImpl.ScanType.PRIMARY_KEY;
             } else {
-                scanType = PredicateImpl.ScanType.UNIQUE_SCAN;
+                scanType = PredicateImpl.ScanType.UNIQUE_KEY;
             }
             return 100;
         } else {
@@ -294,10 +303,6 @@ public class CandidateIndexImpl {
         }
     }
 
-    public Index getStoreIndex() {
-        return storeIndex;
-    }
-
     /** Determine whether this index supports exactly the number of conditions.
      * For ordered indexes, any number of conditions are supported via filters.
      * For hash indexes, only the number of columns in the index are supported.
@@ -305,11 +310,15 @@ public class CandidateIndexImpl {
      * @return if this index supports exactly the number of conditions
      */
     public boolean supportsConditionsOfLength(int numberOfConditions) {
-        if (hash) {
+        if (unique) {
             return numberOfConditions == candidateColumns.length;
         } else {
             return true;
         }
+    }
+
+    public Index getStoreIndex() {
+        return storeIndex;
     }
 
 }

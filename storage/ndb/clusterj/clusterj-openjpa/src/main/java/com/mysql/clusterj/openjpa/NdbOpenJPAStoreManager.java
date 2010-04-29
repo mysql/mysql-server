@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.openjpa.jdbc.kernel.ConnectionInfo;
@@ -29,6 +30,7 @@ import org.apache.openjpa.jdbc.kernel.JDBCFetchConfiguration;
 import org.apache.openjpa.jdbc.kernel.JDBCStoreManager;
 import org.apache.openjpa.jdbc.meta.ClassMapping;
 import org.apache.openjpa.jdbc.meta.ValueMapping;
+import org.apache.openjpa.jdbc.schema.Table;
 import org.apache.openjpa.jdbc.sql.Result;
 import org.apache.openjpa.kernel.FetchConfiguration;
 import org.apache.openjpa.kernel.OpenJPAStateManager;
@@ -53,6 +55,7 @@ import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.SessionSPI;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.store.Dictionary;
+import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -111,7 +114,8 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
 
     protected int deleteAll(DomainTypeHandler<?> base) {
         // used by NdbOpenJPAStoreQuery to delete all instances of a class
-        return session.deletePersistentAll(base);
+        int result = session.deletePersistentAll(base);
+        return result;
     }
 
     protected SessionSPI getSession() {
@@ -135,8 +139,6 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
     }
 
     /** Load the fields for the persistent instance owned by the sm.
-     * This should only be called for relationship fields, since non-relationship fields
-     * are loaded eagerly when the instance is fetched or queried.
      * @param sm the StateManager
      * @param fields the fields to load
      * @param fetch the FetchConfiguration
@@ -149,18 +151,26 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
             FetchConfiguration fetch, int lockLevel, Object context) {
         if (logger.isDebugEnabled()) {
             logger.debug("NdbStoreManager.load(OpenJPAStateManager sm, BitSet fields, "
-                    + "FetchConfiguration fetch, int lockLevel, Object context)...");
-            logger.debug("Id: " + sm.getId() + " requested fields: " + printBitSet(sm, fields));
+                    + "FetchConfiguration fetch, int lockLevel, Object context) "
+                    + "Id: " + sm.getId() + " requested fields: "
+                    + NdbOpenJPAUtility.printBitSet(sm, fields));
         }
-        NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = getDomainTypeHandler(sm);
-        try {
-            return domainTypeHandler.load(sm, this, fields, (JDBCFetchConfiguration) fetch, context);
-        } catch (SQLException sQLException) {
-            logger.error("Fatal error from NdbOpenJPAStoreManager.load " + sQLException);
-            sQLException.printStackTrace();
-            return false;
+        if (context != null) {
+            // there is already a result set to process
+            return super.load(sm, fields, fetch, lockLevel, context);
+        } else {
+            NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = getDomainTypeHandler(sm);
+            if (!isSupportedType(domainTypeHandler, "NdbOpenJPAStoreManager.load")) {
+                return super.load(sm, fields, fetch, lockLevel, context);
+            } else {
+                try {
+                    return domainTypeHandler.load(sm, this, fields, (JDBCFetchConfiguration) fetch, context);
+                } catch (SQLException sQLException) {
+                    logger.error("Fatal error from NdbOpenJPAStoreManager.load " + sQLException);
+                    return false;
+                }
+            }
         }
-        //return super.load(sm, fields, fetch, lockLevel, context);
     }
 
     @Override
@@ -192,6 +202,21 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
             logger.debug("NdbStoreManager.initialize(OpenJPAStateManager sm, PCState state, "
                     + "FetchConfiguration fetch, Object context)");
         }
+        // if context already contains a result, use the result to initialize
+        if (context != null) {
+            ConnectionInfo info = (ConnectionInfo)context;
+            ClassMapping mapping = info.mapping;
+            Result result = info.result;
+            logger.info("info mapping: " + mapping.getDescribedType().getName() + " result: " + result);
+            try {
+                return initializeState(sm, state, (JDBCFetchConfiguration)fetch, info);
+            } catch (ClassNotFoundException e) {
+                throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"), e);
+            } catch (SQLException e) {
+                throw new ClusterJDatastoreException(local.message("ERR_Datastore_Exception"), e);
+            }
+        }
+        // otherwise, load from the datastore
         // TODO: support user-defined oid types
         OpenJPAId id = (OpenJPAId)sm.getId();
         if (logger.isTraceEnabled()) {
@@ -200,13 +225,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         // get domain type handler for StateManager
         NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = getDomainTypeHandler(sm);
 
-        if (!domainTypeHandler.isSupportedType()) {
-            if (logger.isDebugEnabled()) logger.debug(
-                    "NdbOpenJPAStoreManager.initialize found unsupported class " + domainTypeHandler.getName());
-            if (ndbConfiguration.getFailOnJDBCPath()) {
-                throw new ClusterJFatalUserException(
-                        local.message("ERR_JDBC_Path", domainTypeHandler.getName()));
-            }
+        if (!isSupportedType(domainTypeHandler, "NdbOpenJPAStoreManager.initialize")) {
             // if not supported, go the jdbc route
             boolean result = super.initialize(sm, state, fetch, context);
             if (logger.isDebugEnabled()) logger.debug(
@@ -262,7 +281,6 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
             throw e;
         } catch (Exception e) {
             session.failAutoTransaction();
-            e.printStackTrace();
             throw new ClusterJFatalInternalException("Unexpected exception.", e);
             // if any problem, fall back
             // return super.initialize(sm, state, fetch, context);
@@ -376,6 +394,25 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         return exceptions;
     }
 
+    /** Handle unsupported class in a standard way. If unsupported, log the request and
+     * throw an exception if the failOnJDBCPath flag is set.
+     * @param domainTypeHandler
+     * @return true if the type is supported by clusterjpa
+     */
+    private boolean isSupportedType(NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler,
+            String where) {
+        boolean result = domainTypeHandler.isSupportedType();
+        if (!result) {
+            if (logger.isDebugEnabled()) logger.debug(where 
+                    + " found unsupported class " + domainTypeHandler.getName());
+            if (ndbConfiguration.getFailOnJDBCPath()) {
+                throw new ClusterJFatalUserException(
+                        local.message("ERR_JDBC_Path", domainTypeHandler.getName()));
+            } 
+        }
+        return result;
+    }
+
     @Override
     public void beforeStateChange(OpenJPAStateManager sm, PCState fromState,
             PCState toState) {
@@ -486,27 +523,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
 
     protected String printLoaded(OpenJPAStateManager sm) {
         BitSet loaded = sm.getLoaded();
-        return "Loaded: " + printBitSet(sm, loaded);
-    }
-
-    protected String printBitSet(OpenJPAStateManager sm, BitSet fields) {
-        ClassMetaData classMetaData = sm.getMetaData();
-        FieldMetaData[] fieldMetaDatas = classMetaData.getDefinedFields();
-        StringBuffer buffer = new StringBuffer("[");
-        if (fields != null) {
-            String separator = "";
-            for (int i = 0; i < fields.size(); ++i) {
-                if (fields.get(i)) {
-                    buffer.append(separator);
-                    buffer.append(i);
-                    buffer.append(" ");
-                    buffer.append(fieldMetaDatas[i].getName());
-                    separator = ";";
-                }
-            }
-        }
-        buffer.append("] ");
-        return buffer.toString();
+        return "Loaded: " + NdbOpenJPAUtility.printBitSet(sm, loaded);
     }
 
     protected String printIsActive(Transaction tx) {
@@ -539,12 +556,48 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
      * @param parameterMap the bound parameters
      * @return the result of the query
      */
-    public NdbOpenJPAResult executeQuery(DomainTypeHandler<?> domainTypeHandler, QueryDomainType<?> queryDomainType,
-            Map<String, Object> parameterMap) {
+    public NdbOpenJPAResult executeQuery(DomainTypeHandler<?> domainTypeHandler,
+            QueryDomainType<?> queryDomainType, Map<String, Object> parameterMap) {
         QueryExecutionContextImpl context = new QueryExecutionContextImpl(session, parameterMap);
         ResultData resultData = context.getResultData(queryDomainType);
         NdbOpenJPAResult result = new NdbOpenJPAResult(resultData, domainTypeHandler, null);
         return result;
+    }
+
+    /** Look up the row in the database in order to load them into the instance.
+     * @param sm the state manager whose fields are to be loaded
+     * @param domainTypeHandler the domain type handler for the instance's type
+     * @param fieldHandlers the field handlers for the fields to be loaded
+     * @return the result containing just the fields requested
+     */
+    public NdbOpenJPAResult lookup(OpenJPAStateManager sm, 
+            NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler, 
+            List<NdbOpenJPADomainFieldHandlerImpl> fieldHandlers) {
+        com.mysql.clusterj.core.store.Table storeTable = domainTypeHandler.getStoreTable();
+        session.startAutoTransaction();
+        try {
+            Operation op = session.getSelectOperation(storeTable);
+            int[] keyFields = domainTypeHandler.getKeyFieldNumbers();
+            BitSet fieldsInResult = new BitSet();
+            for (int i : keyFields) {
+                fieldsInResult.set(i);
+            }
+            ValueHandler handler = domainTypeHandler.getValueHandler(sm, this);
+            domainTypeHandler.operationSetKeys(handler, op);
+            // include the key columns in the results
+            domainTypeHandler.operationGetKeys(op);
+            for (NdbOpenJPADomainFieldHandlerImpl fieldHandler : fieldHandlers) {
+                fieldHandler.operationGetValue(op);
+                fieldsInResult.set(fieldHandler.getFieldNumber());
+            }
+            ResultData resultData = op.resultData();
+            NdbOpenJPAResult result = new NdbOpenJPAResult(resultData, domainTypeHandler, fieldsInResult);
+            session.endAutoTransaction();
+            return result;
+        } catch (RuntimeException ex) {
+            session.failAutoTransaction();
+            throw ex;
+        }
     }
 
     public Dictionary getDictionary() {

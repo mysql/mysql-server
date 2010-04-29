@@ -26,6 +26,7 @@
     <class>com.mysql.clusterj.jpatest.model.DecimalTypes</class>
     <class>com.mysql.clusterj.jpatest.model.Embedded</class>
     <class>com.mysql.clusterj.jpatest.model.Embedding</class>
+    <class>com.mysql.clusterj.jpatest.model.LazyEmployee</class>
     <class>com.mysql.clusterj.jpatest.model.LongLongStringPK</class>
     <class>com.mysql.clusterj.jpatest.model.LongLongStringFKManyOne</class>
     <class>com.mysql.clusterj.jpatest.model.LongLongStringPKOneMany</class>
@@ -44,6 +45,7 @@
       <property name="openjpa.ConnectionDriverName" value="com.mysql.jdbc.Driver"/>
       <property name="openjpa.ConnectionRetainMode" value="transaction"/>
       <property name="openjpa.DataCache" value="false"/>
+      <property name="openjpa.Log" value="SQL=trace"/>
       <property name="openjpa.BrokerFactory" value="ndb"/>
       <property name="openjpa.ndb.connectString" value="localhost:9311"/>
     </properties>

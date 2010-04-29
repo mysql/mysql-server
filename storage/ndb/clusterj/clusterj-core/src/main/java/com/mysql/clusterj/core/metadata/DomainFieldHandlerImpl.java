@@ -257,7 +257,7 @@ public class DomainFieldHandlerImpl extends AbstractDomainFieldHandlerImpl imple
                         local.message("ERR_Index_Annotation_Columns", domainTypeHandler.getName(), name));
             }
         }
-        indices = domainTypeHandler.registerIndices(this, columnName, indexName);
+        indices = domainTypeHandler.registerIndices(this, columnName);
         indexNames = domainTypeHandler.getIndexNames(indices);
         logger.debug("Index names for " + name + " are " + indexNames);
         logger.debug("Indices for " + name + " are " + printIndices());

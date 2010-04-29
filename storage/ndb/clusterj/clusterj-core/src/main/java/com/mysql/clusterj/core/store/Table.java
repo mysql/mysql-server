@@ -36,4 +36,7 @@ public interface Table {
     /** Create a partition key for this table */
     public PartitionKey createPartitionKey();
 
+    /** Get the names of the indexes on this table */
+    public String[] getIndexNames();
+
 }

@@ -129,25 +129,46 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
             setUnsupported(message);
         }
         this.typeName = describedType.getName();
-        this.tableName = classMapping.getTable().getFullName();
-        this.storeTable = dictionary.getTable(tableName);
-        if (logger.isTraceEnabled()) {
-            logger.trace("initialize for class: " + typeName
-                    + " mapped to table: " + storeTable.getName());
-        }
-        
-        // set up the partition keys
-        // the partition key field handlers will be initialized via registerPrimaryKeyColumn
-        partitionKeyColumnNames = storeTable.getPartitionKeyColumnNames();
-        numberOfPartitionKeyColumns = partitionKeyColumnNames.length;
-        partitionKeyFieldHandlers = new NdbOpenJPADomainFieldHandlerImpl[numberOfPartitionKeyColumns];
-        if (logger.isDetailEnabled()) {
-            logger.detail("partition key columns for class: "+ typeName
-                    + " partition key columns: " + numberOfPartitionKeyColumns
-                    + " names: " + Arrays.toString(partitionKeyColumnNames));
+        org.apache.openjpa.jdbc.schema.Table table = classMapping.getTable();
+        if (table != null) {
+            this.tableName = table.getFullName();
+            this.storeTable = dictionary.getTable(tableName);
+            if (storeTable == null) {
+                // classes with mapped tables not in cluster are not supported
+                message = local.message("ERR_No_Table", describedType.getClass().getName(), tableName);
+                logger.info(message);
+                setUnsupported(message);
+            } else {
+                if (logger.isTraceEnabled()) {
+                    logger.trace("initialize for class: " + typeName
+                            + " mapped to table: " + storeTable.getName());
+                }
+                // set up the partition keys
+                // the partition key field handlers will be initialized via registerPrimaryKeyColumn
+                partitionKeyColumnNames = storeTable.getPartitionKeyColumnNames();
+                numberOfPartitionKeyColumns = partitionKeyColumnNames.length;
+                partitionKeyFieldHandlers = new NdbOpenJPADomainFieldHandlerImpl[numberOfPartitionKeyColumns];
+                if (logger.isDetailEnabled()) {
+                    logger.detail("partition key columns for class: "+ typeName
+                            + " partition key columns: " + numberOfPartitionKeyColumns
+                            + " names: " + Arrays.toString(partitionKeyColumnNames));
+                }
+            }
+        } else {
+            // classes without mapped tables are not supported
+            message = local.message("ERR_No_Mapped_Table", describedType.getClass().getName());
+            logger.info(message);
+            setUnsupported(message);
         }
         // set up the fields
-        for (FieldMapping fm: classMapping.getDefinedFieldMappings()) {
+        List<FieldMapping> allFieldMappings = new ArrayList<FieldMapping>();
+        allFieldMappings.addAll(Arrays.asList(classMapping.getFieldMappings()));
+        FieldMapping versionFieldMapping = classMapping.getVersionFieldMapping();
+        if (versionFieldMapping != null) {
+            allFieldMappings.add(versionFieldMapping);
+        }
+        for (FieldMapping fm: allFieldMappings) {
+            if (logger.isDetailEnabled()) logger.detail("field name: " + fm.getName() + " of type: " + fm.getTypeCode());
             NdbOpenJPADomainFieldHandlerImpl fmd = new NdbOpenJPADomainFieldHandlerImpl(
                     dictionary, this, domainTypeHandlerFactory, fm);
             fields.add(fmd);
@@ -267,6 +288,19 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
         }
     }
 
+    /** Specify that the key columns are to be returned in the result.
+     * @param op the operation
+     */
+    public void operationGetKeys(Operation op) {
+        for (NdbOpenJPADomainFieldHandlerImpl fmd: primaryKeyFields) {
+            fmd.operationGetValue(op);
+        }
+    }
+
+    /** Specify the fields to be returned in the result.
+     * @param op the operation
+     * @param fields the fields to be returned by the operation
+     */
     public void operationGetValues(Operation op, BitSet fields) {
         if (fields == null) {
             operationGetValues(op);
@@ -388,8 +422,6 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
     }
 
     /** Load the fields for the persistent instance owned by the sm.
-     * This should only be called for relationship fields, since non-relationship fields
-     * are loaded eagerly when the instance is fetched or queried.
      * @param sm the StateManager
      * @param store the StoreManager
      * @param fields the fields to load
@@ -398,16 +430,38 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
      */
     public boolean load(OpenJPAStateManager sm, NdbOpenJPAStoreManager store, 
             BitSet fields, JDBCFetchConfiguration fetch, Object context) throws SQLException {
+        if (logger.isDetailEnabled()) {
+            StringBuilder buffer = new StringBuilder("load for ");
+            buffer.append(typeName);
+            buffer.append(" for fields ");
+            buffer.append(NdbOpenJPAUtility.printBitSet(sm, fields));
+            logger.detail(buffer.toString());
+        }
         boolean loadedAny = false;
+        List<NdbOpenJPADomainFieldHandlerImpl> requestedFields = new ArrayList<NdbOpenJPADomainFieldHandlerImpl>();
         for (int i=fields.nextSetBit(0); i>=0; i=fields.nextSetBit(i+1)) {
             if (!sm.getLoaded().get(i)) {
                 // this field is not loaded
                 NdbOpenJPADomainFieldHandlerImpl fieldHandler = fieldHandlers[i];
-                loadedAny = true;
                 if (logger.isDebugEnabled()) logger.debug(
                         "loading field " + fieldHandler.getName()
                         + " for column " + fieldHandler.getColumnName());
-                fieldHandler.load(sm, store, fetch);
+                if (fieldHandler.isRelation()) {
+                    // if relation, load each field individually with its own query
+                    fieldHandler.load(sm, store, fetch);
+                    loadedAny = true;
+                } else {
+                    // if not relation, get a list of all fields to load with one lookup
+                    requestedFields.add(fieldHandler);
+                }
+            }
+        }
+        if (requestedFields.size() != 0) {
+            // load fields via primary key lookup
+            NdbOpenJPAResult result = store.lookup(sm, this, requestedFields);
+            for (NdbOpenJPADomainFieldHandlerImpl fieldHandler: fieldHandlers) {
+                loadedAny = true;
+                fieldHandler.load(sm, store, fetch, result);
             }
         }
         return loadedAny;
@@ -496,7 +550,6 @@ public class NdbOpenJPADomainTypeHandlerImpl<T> implements DomainTypeHandler<T> 
     }
 
     /** Create a partition key for any operation that knows the primary key. 
-     * @param clusterTransaction the transaction
      * @param handler the handler that contains the values of the primary key
      */
     public PartitionKey createPartitionKey(ValueHandler handler) {

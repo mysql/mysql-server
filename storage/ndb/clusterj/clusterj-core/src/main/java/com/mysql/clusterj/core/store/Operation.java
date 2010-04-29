@@ -36,6 +36,10 @@ public interface Operation {
 
     public void equalDecimal(Column storeColumn, BigDecimal bigDecimal);
 
+    public void equalDouble(Column storeColumn, double doubleValue);
+
+    public void equalFloat(Column storeColumn, float floatValue);
+
     public void equalShort(Column storeColumn, short shortValue);
 
     public void equalInt(Column storeColumn, int intValue);

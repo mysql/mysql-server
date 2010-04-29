@@ -80,11 +80,21 @@ create table charsetsjis (
  
 drop table if exists longintstringpk;
 create table longintstringpk (
- stringpk varchar(10) not null,
- intpk int not null,
  longpk bigint not null,
+ intpk int not null,
+ stringpk varchar(10) not null,
  stringvalue varchar(10),
         CONSTRAINT PK_longlongstringpk PRIMARY KEY (longpk, intpk, stringpk)
+
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY(intpk, longpk);
+
+drop table if exists hashonlylongintstringpk;
+create table hashonlylongintstringpk (
+ longpk bigint not null,
+ intpk int not null,
+ stringpk varchar(10) not null,
+ stringvalue varchar(10),
+        CONSTRAINT PK_longlongstringpk PRIMARY KEY (longpk, intpk, stringpk) USING HASH
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1 PARTITION BY KEY(intpk, longpk);
 
@@ -619,7 +629,7 @@ create table datetimetypes (
 
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
 
-CREATE DATABASE IF NOT EXISTS test2;
+create database if not exists test2;
 use test2;
 drop table if exists t_basic2;
 create table t_basic2 (

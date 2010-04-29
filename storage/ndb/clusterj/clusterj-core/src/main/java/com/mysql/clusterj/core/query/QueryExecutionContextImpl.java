@@ -54,6 +54,9 @@ public class QueryExecutionContextImpl {
     /** The filters used in the query */
     private List<ScanFilter> filters = new ArrayList<ScanFilter>();
 
+    /** The explain for this query; will be null until executed or explained */
+    protected Map<String, Object> explain = null;
+
     /** Create a new execution context with an empty map of parameters.
      * @param session the session for this context
      */
@@ -136,6 +139,14 @@ public class QueryExecutionContextImpl {
             filter.delete();
         }
         filters.clear();
+    }
+
+    public void setExplain(Map<String, Object> explain) {
+        this.explain = explain;
+    }
+
+    public Map<String, Object> getExplain() {
+        return explain;
     }
 
 }

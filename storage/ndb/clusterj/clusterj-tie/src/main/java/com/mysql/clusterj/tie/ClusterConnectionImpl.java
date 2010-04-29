@@ -60,25 +60,36 @@ public class ClusterConnectionImpl
     }
 
     static protected void loadSystemLibrary(String name) {
-        System.out.println("loading libary...");
+        String message;
+        String path;
         try {
             System.loadLibrary(name);
         } catch (UnsatisfiedLinkError e) {
-            String path;
-            try {
-                path = System.getProperty("java.library.path");
-            } catch (Exception ex) {
-                path = "<exception caught: " + ex.getMessage() + ">";
-            }
-            System.err.println("failed loading library '"
-                        + name + "'; java.library.path='" + path + "'");
+            path = getLoadLibraryPath();
+            message = local.message("ERR_Failed_Loading_Library",
+                    name, path, "UnsatisfiedLinkError", e.getLocalizedMessage());
+            logger.fatal(message);
             throw e;
         } catch (SecurityException e) {
-            System.err.println("failed loading library '"
-                        + name + "'; caught exception: " + e);
+            path = getLoadLibraryPath();
+            message = local.message("ERR_Failed_Loading_Library",
+                    name, path, "SecurityException", e.getLocalizedMessage());
+            logger.fatal(message);
             throw e;
         }
-        System.out.println("... [" + name + "]");
+    }
+
+    /**
+     * @return the load library path or the Exception string
+     */
+    private static String getLoadLibraryPath() {
+        String path;
+        try {
+            path = System.getProperty("java.library.path");
+        } catch (Exception ex) {
+            path = "<Exception: " + ex.getMessage() + ">";
+        }
+        return path;
     }
 
 
@@ -99,7 +110,7 @@ public class ClusterConnectionImpl
     }
 
     protected static void handleError(int returnCode, Ndb_cluster_connection clusterConnection) {
-        if (returnCode == 0) {
+        if (returnCode >= 0) {
             return;
         } else {
             throwError(returnCode, clusterConnection);

@@ -21,6 +21,7 @@ package com.mysql.clusterj.core.query;
 import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.Query;
 
 import com.mysql.clusterj.core.query.PredicateImpl.ScanType;
 import com.mysql.clusterj.core.spi.DomainFieldHandler;
@@ -74,19 +75,6 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
     protected Map<String, PropertyImpl> properties =
             new HashMap<String, PropertyImpl>();
 
-    /** My strategy for executing the query. To start, just the index name used. */
-    protected String theIndexUsed = "none";
-
-    /** My index for executing the query */
-    private CandidateIndexImpl index;
-
-    /** My index name */
-    private String indexName;
-
-    private Index storeIndex;
-
-    private Map<String, Object> explain;
-
     public QueryDomainTypeImpl(DomainTypeHandler<T> domainTypeHandler, Class<T> cls) {
         this.cls = cls;
         this.domainTypeHandler = domainTypeHandler;
@@ -106,6 +94,10 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         }
     }
 
+    /** Set the where clause. Mark parameters used by this query.
+     * @param predicate the predicate
+     * @return the query definition (this)
+     */
     public QueryDefinition<T> where(Predicate predicate) {
         if (predicate == null) {
             throw new ClusterJUserException(
@@ -149,20 +141,10 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
      * @return the results of executing the query
      */
     public List<T> getResultList(QueryExecutionContextImpl context) {
+        assertAllParametersBound(context);
+
         SessionSPI session = context.getSession();
         session.startAutoTransaction();
-        // Mark parameters used in this query.
-        if (where != null) {
-            // Make sure all marked parameters (used in the query) are bound.
-            for (ParameterImpl param: parameters.values()) {
-                if (param.isMarkedAndUnbound(context)) {
-                    session.failAutoTransaction();
-                    throw new ClusterJUserException(
-                            local.message("ERR_Parameter_Not_Bound", param.getName()));
-                }
-            }
-        }
-
         // set up results and table information
         List<T> resultList = new ArrayList<T>();
         try {
@@ -187,27 +169,27 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                     local.message("ERR_Exception_On_Query"), ex);
         }
     }
-        
 
     /** Execute the query and return the result data. The type of operation
      * (primary key lookup, unique key lookup, index scan, or table scan) 
-     * depends on the where clause.
+     * depends on the where clause and the bound parameter values.
      * 
      * @param context the query context, including the bound parameters
      * @return the raw result data from the query
+     * @throws ClusterJUserException if not all parameters are bound
      */
     public ResultData getResultData(QueryExecutionContextImpl context) {
 	SessionSPI session = context.getSession();
         // execute query based on what kind of scan is needed
         // if no where clause, scan the entire table
-        index = where==null?
+        CandidateIndexImpl index = where==null?
             CandidateIndexImpl.getIndexForNullWhereClause():
             where.getBestCandidateIndex(context);
         ScanType scanType = index.getScanType();
-        explain = new HashMap<String, Object>();
-        explain.put("ScanType", scanType.toString());
-        explain.put("IndexUsed", theIndexUsed);
+        Map<String, Object> explain = newExplain(index, scanType);
+        context.setExplain(explain);
         ResultData result = null;
+        Index storeIndex;
 
         switch (scanType) {
 
@@ -225,10 +207,7 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
 
             case INDEX_SCAN: {
                 storeIndex = index.getStoreIndex();
-                indexName = storeIndex.getName();
-                theIndexUsed = indexName;
-                explain.put("IndexUsed", theIndexUsed);
-                if (logger.isDetailEnabled()) logger.detail("Using index scan with index " + indexName);
+                if (logger.isDetailEnabled()) logger.detail("Using index scan with index " + index.getIndexName());
 
                 // perform an index scan operation
                 IndexScanOperation op = session.getIndexScanOperation(storeIndex, domainTypeHandler.getStoreTable());
@@ -258,12 +237,9 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
                 break;
             }
 
-            case UNIQUE_SCAN: {
+            case UNIQUE_KEY: {
                 storeIndex = index.getStoreIndex();
-                indexName = storeIndex.getName();
-                theIndexUsed = indexName;
-                explain.put("IndexUsed", theIndexUsed);
-                if (logger.isDetailEnabled()) logger.detail("Using unique scan with index " + indexName);
+                if (logger.isDetailEnabled()) logger.detail("Using unique lookup with index " + index.getIndexName());
                 // perform a unique lookup operation
                 IndexOperation op = session.getIndexOperation(storeIndex, domainTypeHandler.getStoreTable());
                 // set the keys of the indexName into the operation
@@ -289,8 +265,48 @@ public class QueryDomainTypeImpl<T> implements QueryDomainType<T> {
         return domainTypeHandler.createCandidateIndexes();
     }
 
-    public Map<String, Object> explain() {
+    /** Explain how this query will be or was executed and store
+     * the result in the context.
+     * 
+     * @param context the context, including bound parameters
+     */
+    public void explain(QueryExecutionContextImpl context) {
+        assertAllParametersBound(context);
+        CandidateIndexImpl index = where==null?
+                CandidateIndexImpl.getIndexForNullWhereClause():
+                where.getBestCandidateIndex(context);
+        ScanType scanType = index.getScanType();
+        Map<String, Object> explain = newExplain(index, scanType);
+        context.setExplain(explain);
+    }
+
+    /** Create a new explain for this query.
+     * @param index the index used
+     * @param scanType the scan type
+     * @return
+     */
+    protected Map<String, Object> newExplain(CandidateIndexImpl index,
+            ScanType scanType) {
+        Map<String, Object> explain = new HashMap<String, Object>();
+        explain.put(Query.SCAN_TYPE, scanType.toString());
+        explain.put(Query.INDEX_USED, index.getIndexName());
         return explain;
+    }
+
+    /** Assert that all parameters used by this query are bound.
+     * @param context the context, including the parameter map
+     * @throws ClusterJUserException if not all parameters are bound
+     */
+    protected void assertAllParametersBound(QueryExecutionContextImpl context) {
+        if (where != null) {
+            // Make sure all marked parameters (used in the query) are bound.
+            for (ParameterImpl param: parameters.values()) {
+                if (param.isMarkedAndUnbound(context)) {
+                    throw new ClusterJUserException(
+                            local.message("ERR_Parameter_Not_Bound", param.getName()));
+                }
+            }
+        }
     }
 
     public Class<T> getType() {

@@ -11,6 +11,7 @@
     <class>com.mysql.clusterj.jpatest.model.DecimalTypes</class>
     <class>com.mysql.clusterj.jpatest.model.Embedding</class>
     <class>com.mysql.clusterj.jpatest.model.Embedded</class>
+    <class>com.mysql.clusterj.jpatest.model.LazyEmployee</class>
     <class>com.mysql.clusterj.jpatest.model.LongIntStringPKOneOne</class>
     <class>com.mysql.clusterj.jpatest.model.LongIntStringFKOneOne</class>
     <class>com.mysql.clusterj.jpatest.model.LongLongStringPK</class>

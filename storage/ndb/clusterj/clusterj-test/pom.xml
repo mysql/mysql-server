@@ -22,7 +22,7 @@
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-test</artifactId>
   <packaging>jar</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>7.1.4-SNAPSHOT</version>
   <name>ClusterJ Test Suite</name>
   <build>
     <plugins>
@@ -44,10 +44,6 @@
           <argLine>-Djava.library.path=${ndbj.jnilib} -Xdebug -Xnoagent -Djava.compiler=NONE -Xrunjdwp:transport=dt_socket,server=y,suspend=y,address=8787</argLine>
           -->
           <systemProperties>
-            <property>
-              <name>java.util.logging.config.file</name>
-              <value>${logging.properties}</value>
-            </property>
           </systemProperties>
             <!-- The following doesn't work because system properties are set
              ! only after the vm is forked, which is too late for the
@@ -95,13 +91,13 @@
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-api</artifactId>
-      <version>1.0-SNAPSHOT</version>
+      <version>7.1.4-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-core</artifactId>
-      <version>1.0-SNAPSHOT</version>
+      <version>7.1.4-SNAPSHOT</version>
     </dependency>
     <dependency>
       <groupId>junit</groupId>

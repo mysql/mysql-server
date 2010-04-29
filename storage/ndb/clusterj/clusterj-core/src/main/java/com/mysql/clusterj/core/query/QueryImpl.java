@@ -46,7 +46,7 @@ public class QueryImpl<E> implements Query<E> {
     /** My query execution context. */
     protected QueryExecutionContextImpl context = null;
 
-public QueryImpl(SessionImpl session, QueryDomainTypeImpl<E> dobj) {
+    public QueryImpl(SessionImpl session, QueryDomainTypeImpl<E> dobj) {
         this.session = session;
         context = new QueryExecutionContextImpl(session);
         this.dobj = dobj;
@@ -73,7 +73,7 @@ public QueryImpl(SessionImpl session, QueryDomainTypeImpl<E> dobj) {
 
     public List<E> getResultList() {
         List<E> results = dobj.getResultList(context);
-        // create new context for another execution
+        // create new context, copying the parameters, for another execution
         context = new QueryExecutionContextImpl(context);
         return results;
     }
@@ -83,7 +83,12 @@ public QueryImpl(SessionImpl session, QueryDomainTypeImpl<E> dobj) {
      * @return the data about the execution of this query
      */
     public Map<String, Object> explain() {
-        return dobj.explain();
+        Map<String, Object> result = context.getExplain();
+        if (result == null) {
+            dobj.explain(context);
+            return context.getExplain();
+        }
+        return result;
     }
 
 }

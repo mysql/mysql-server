@@ -173,7 +173,7 @@ public class PartitionKeyTest extends AbstractClusterJTest {
         try {
             session = sessionFactory.getSession();
             // key can contain nulls if not part of partition key
-            Object[] key = new Object[] { 1000L, 1000, null };
+            Object[] key = new Object[] { 1000L, 1000, null};
             LongIntStringPK instance = session
                     .newInstance(LongIntStringPK.class);
             instance.setLongpk(1000L);

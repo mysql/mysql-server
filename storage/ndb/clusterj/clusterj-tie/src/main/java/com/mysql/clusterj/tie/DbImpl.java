@@ -22,9 +22,11 @@ import java.nio.ByteBuffer;
 import java.util.List;
 
 import com.mysql.ndbjtie.ndbapi.Ndb;
+import com.mysql.ndbjtie.ndbapi.Ndb.Key_part_ptr;
+import com.mysql.ndbjtie.ndbapi.Ndb.Key_part_ptrArray;
+
 import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
-import com.mysql.ndbjtie.ndbapi.Ndb.Key_part_ptr;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
@@ -58,10 +60,19 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** The partition key scratch buffer */
     private ByteBuffer partitionKeyScratchBuffer = ByteBuffer.allocateDirect(10000);
 
+    /** The NdbDictionary for this Ndb */
+    private Dictionary ndbDictionary;
+
+    /** The Dictionary for this DbImpl */
+    private DictionaryImpl dictionary;
+
     public DbImpl(Ndb ndb, int maxTransactions) {
         this.ndb = ndb;
         int returnCode = ndb.init(maxTransactions);
         handleError(returnCode, ndb);
+        ndbDictionary = ndb.getDictionary();
+        handleError(ndbDictionary, ndb);
+        this.dictionary = new DictionaryImpl(ndbDictionary);
     }
 
     public void close() {
@@ -69,13 +80,11 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     }
 
     public com.mysql.clusterj.core.store.Dictionary getDictionary() {
-        Dictionary ndbDictionary = ndb.getDictionary();
-        handleError(ndbDictionary, ndb);
-        return new DictionaryImpl(ndbDictionary);
+        return dictionary;
     }
 
     public ClusterTransaction startTransaction() {
-        return new ClusterTransactionImpl(this);
+        return new ClusterTransactionImpl(this, ndbDictionary);
     }
 
     protected void handleError(int returnCode, Ndb ndb) {
@@ -113,37 +122,47 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
      * @param keyParts the list of partition key parts
      * @return the ndbTransaction
      */
-    public NdbTransaction enlist(TableConst table, List<KeyPart> keyParts) {
-        if (keyParts == null || keyParts.size() == 0) {
+    public NdbTransaction enlist(String tableName, List<KeyPart> keyParts) {
+        if (keyParts == null || keyParts.size() <= 0) {
             throw new ClusterJFatalInternalException(
                     local.message("ERR_Key_Parts_Must_Not_Be_Null_Or_Zero_Length",
-                            table.getName()));
-        } else if (keyParts.size() > 1) {
-            // TODO enable this code once startTransaction with multiple key parts supported
-            // allocate one extra for null-terminated array (initialized to null)
-//            Key_part_ptr[] parts = new Key_part_ptr[keyParts.size() + 1];
-//            for (int i = 0; i < keyParts.size(); ++i) {
-//                parts[i] = Key_part_ptr.create(); // delete these below
-//                keyParts.get(i).get(parts[i]);
-//            }
-//            NdbTransaction ndbTransaction = ndb.startTransaction(
-//                table, parts, partitionKeyScratchBuffer, partitionKeyScratchBuffer.capacity());
-//            // even if error, delete all the key parts to avoid memory leaks
-//            for (int i = 0; i < keyParts.size(); ++i) {
-//                Key_part_ptr.delete(parts[i]);
-//            }
-//            handleError (ndbTransaction, ndb);
-//            return ndbTransaction;
-            if (logger.isDebugEnabled()) logger.debug("Multiple key parts are not supported... yet.");
-            NdbTransaction result = ndb.startTransaction(null, null, 0);
-            handleError (result, ndb);
-            return result;
-        } else {
-            // extract the ByteBuffer from the keyPart
-            NdbTransaction ndbTransaction = ndb.startTransaction(
-                    table, keyParts.get(0).getBuffer(), keyParts.get(0).getLength());
+                            tableName));
+        }
+        int keyPartsSize = keyParts.size();
+        NdbTransaction ndbTransaction = null;
+        TableConst table = ndbDictionary.getTable(tableName);
+        handleError(table, ndb);
+        Key_part_ptrArray key_part_ptrArray = null;
+        if (keyPartsSize == 1) {
+            // extract the ByteBuffer and length from the keyPart
+            ndbTransaction = ndb.startTransaction(
+                    table, keyParts.get(0).buffer, keyParts.get(0).length);
             handleError (ndbTransaction, ndb);
             return ndbTransaction;
+        }
+        key_part_ptrArray = Key_part_ptrArray.create(keyPartsSize + 1);
+        try {
+            // the key part pointer array has one entry for each key part
+            // plus one extra for "null-terminated array concept"
+            Key_part_ptr key_part_ptr;
+            for (int i = 0; i < keyPartsSize; ++i) {
+                // each key part ptr consists of a ByteBuffer (char *) and length
+                key_part_ptr = key_part_ptrArray.at(i);
+                key_part_ptr.ptr(keyParts.get(i).buffer);
+                key_part_ptr.len(keyParts.get(i).length);
+            }
+            // the last key part needs to be initialized to (char *)null
+            key_part_ptr = key_part_ptrArray.at(keyPartsSize);
+            key_part_ptr.ptr(null);
+            key_part_ptr.len(0);
+            ndbTransaction = ndb.startTransaction(
+                table, key_part_ptrArray, 
+                partitionKeyScratchBuffer, partitionKeyScratchBuffer.capacity());
+            handleError (ndbTransaction, ndb);
+            return ndbTransaction;
+        } finally {
+            // even if error, delete the key part array to avoid memory leaks
+            Key_part_ptrArray.delete(key_part_ptrArray);
         }
     }
 
@@ -155,11 +174,12 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
      * @param keyParts the list of partition key parts
      * @return the ndbTransaction
      */
-    public NdbTransaction enlist(TableConst table, int partitionId) {
+    public NdbTransaction enlist(String tableName, int partitionId) {
         NdbTransaction result = null;
-        if (table == null) {
+        if (tableName == null) {
             result = ndb.startTransaction(null, null, 0);
         } else {
+            TableConst table= ndbDictionary.getTable(tableName);
             result = ndb.startTransaction(table, partitionId);
         }
         handleError (result, ndb);
