@@ -122,20 +122,20 @@
 %endif
 %if %{distro_specific}
   %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-    %define redhatver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-    %if "%redhatver" == "4"
-      %define distro_description        Red Hat Enterprise Linux 4
-      %define distro_releasetag         rhel4
+    %define elver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+    %if "%elver" == "4"
+      %define distro_description        Enterprise Linux 4
+      %define distro_releasetag         el4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %else
-      %if "%redhatver" == "5"
-        %define distro_description      Red Hat Enterprise Linux 5
-        %define distro_releasetag       rhel5
+      %if "%elver" == "5"
+        %define distro_description      Enterprise Linux 5
+        %define distro_releasetag       el5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %{error:Red Hat %{redhatver} is unsupported}
+        %{error:Enterprise Linux %{elver} is unsupported}
       %endif
     %endif
   %else
@@ -577,7 +577,7 @@ if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 # use insserv for older SuSE Linux versions
 if [ -x /sbin/insserv ] ; then
         /sbin/insserv %{_sysconfdir}/init.d/mysql
-# use chkconfig on Red Hat and newer SuSE releases
+# use chkconfig on Enterprise Linux and newer SuSE releases
 elif [ -x /sbin/chkconfig ] ; then
         /sbin/chkconfig --add mysql
 fi
@@ -638,7 +638,7 @@ if [ $1 = 0 ] ; then
                 # For older SuSE Linux versions
                 if [ -x /sbin/insserv ] ; then
                         /sbin/insserv -r %{_sysconfdir}/init.d/mysql
-                # use chkconfig on Red Hat and newer SuSE releases
+                # use chkconfig on Enterprise Linux and newer SuSE releases
                 elif [ -x /sbin/chkconfig ] ; then
                         /sbin/chkconfig --del mysql
                 fi
