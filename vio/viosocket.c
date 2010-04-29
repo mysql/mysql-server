@@ -27,7 +27,7 @@
 
 int vio_errno(Vio *vio __attribute__((unused)))
 {
-  return my_socket_errno();
+  return socket_errno;         /* On Win32 this mapped to WSAGetLastError() */
 }
 
 
@@ -35,21 +35,17 @@ size_t vio_read(Vio * vio, uchar* buf, size_t size)
 {
   size_t r;
   DBUG_ENTER("vio_read");
-  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT "  buf: 0x%lx  size: %u",
-                       MY_SOCKET_FORMAT_VALUE(vio->sd), (long) buf,
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
 
   /* Ensure nobody uses vio_read_buff and vio_read simultaneously */
   DBUG_ASSERT(vio->read_end == vio->read_pos);
-
-  /*
-    Callers of 'vio_read' checks "errno" even if no system function
-    failed, to avoid false positives "errno" must be reset
-  */
-  my_socket_set_errno(0);
-
-  r = my_recv(vio->sd, buf, size, 0);
-
+#ifdef __WIN__
+  r = recv(vio->sd, buf, size,0);
+#else
+  errno=0;                                     /* For linux */
+  r = read(vio->sd, buf, size);
+#endif /* __WIN__ */
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
   {
@@ -71,8 +67,7 @@ size_t vio_read_buff(Vio *vio, uchar* buf, size_t size)
   size_t rc;
 #define VIO_UNBUFFERED_READ_MIN_SIZE 2048
   DBUG_ENTER("vio_read_buff");
-  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT "  buf: 0x%lx  size: %u",
-                       MY_SOCKET_FORMAT_VALUE(vio->sd), (long) buf,
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
                        (uint) size));
 
   if (vio->read_pos < vio->read_end)
@@ -111,11 +106,13 @@ size_t vio_write(Vio * vio, const uchar* buf, size_t size)
 {
   size_t r;
   DBUG_ENTER("vio_write");
-  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT "  buf: 0x%lx  size: %u",
-                       MY_SOCKET_FORMAT_VALUE(vio->sd), (long)buf, (uint)size));
-
-  r = my_send(vio->sd, buf, size, 0);
-
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd, (long) buf,
+                       (uint) size));
+#ifdef __WIN__
+  r = send(vio->sd, buf, size,0);
+#else
+  r = write(vio->sd, buf, size);
+#endif /* __WIN__ */
 #ifndef DBUG_OFF
   if (r == (size_t) -1)
   {
@@ -138,7 +135,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
 
 #if !defined(__WIN__)
 #if !defined(NO_FCNTL_NONBLOCK)
-  if (my_socket_valid(vio->sd))
+  if (vio->sd >= 0)
   {
     int old_fcntl=vio->fcntl_mode;
     if (set_blocking_mode)
@@ -147,10 +144,10 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
       vio->fcntl_mode |= O_NONBLOCK; /* set bit */
     if (old_fcntl != vio->fcntl_mode)
     {
-      r= my_socket_nonblock(vio->sd, (vio->fcntl_mode & O_NONBLOCK));
-      if (r!=0)
+      r= fcntl(vio->sd, F_SETFL, vio->fcntl_mode);
+      if (r == -1)
       {
-        DBUG_PRINT("info", ("fcntl failed, errno %d", r));
+        DBUG_PRINT("info", ("fcntl failed, errno %d", errno));
         vio->fcntl_mode= old_fcntl;
       }
     }
@@ -174,7 +171,7 @@ int vio_blocking(Vio * vio __attribute__((unused)), my_bool set_blocking_mode,
       vio->fcntl_mode |= O_NONBLOCK; /* set bit */
     }
     if (old_fcntl != vio->fcntl_mode)
-      r = ioctlsocket(vio->sd.s,FIONBIO,(void*) &arg);
+      r = ioctlsocket(vio->sd,FIONBIO,(void*) &arg);
   }
   else
     r=  test(!(vio->fcntl_mode & O_NONBLOCK)) != set_blocking_mode;
@@ -202,7 +199,7 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
 #if defined(IPTOS_THROUGHPUT)
   {
     int tos = IPTOS_THROUGHPUT;
-    r= my_setsockopt(vio->sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos));
+    r= setsockopt(vio->sd, IPPROTO_IP, IP_TOS, (void *) &tos, sizeof(tos));
   }
 #endif                                    /* IPTOS_THROUGHPUT */
   if (!r)
@@ -213,8 +210,9 @@ int vio_fastsend(Vio * vio __attribute__((unused)))
     int nodelay = 1;
 #endif
 
-    r= my_setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY,
-                  &nodelay, sizeof(nodelay));
+    r= setsockopt(vio->sd, IPPROTO_TCP, TCP_NODELAY,
+                  IF_WIN(const char*, void*) &nodelay,
+                  sizeof(nodelay));
 
   }
   if (r)
@@ -231,13 +229,13 @@ int vio_keepalive(Vio* vio, my_bool set_keep_alive)
   int r=0;
   uint opt = 0;
   DBUG_ENTER("vio_keepalive");
-  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT "  set_keep_alive: %d",
-                       MY_SOCKET_FORMAT_VALUE(vio->sd), (int)set_keep_alive));
+  DBUG_PRINT("enter", ("sd: %d  set_keep_alive: %d", vio->sd, (int)
+                      set_keep_alive));
   if (vio->type != VIO_TYPE_NAMEDPIPE)
   {
     if (set_keep_alive)
       opt = 1;
-    r = my_setsockopt(vio->sd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt,
+    r = setsockopt(vio->sd, SOL_SOCKET, SO_KEEPALIVE, (char *) &opt,
 		   sizeof(opt));
   }
   DBUG_RETURN(r);
@@ -273,10 +271,10 @@ int vio_close(Vio * vio)
       vio->type == VIO_TYPE_SOCKET ||
       vio->type == VIO_TYPE_SSL);
 
-    DBUG_ASSERT(my_socket_valid(vio->sd));
-    if (my_shutdown(vio->sd, SHUT_RDWR))
+    DBUG_ASSERT(vio->sd >= 0);
+    if (shutdown(vio->sd, SHUT_RDWR))
       r= -1;
-    if (my_socket_close(vio->sd))
+    if (closesocket(vio->sd))
       r= -1;
   }
   if (r)
@@ -285,7 +283,7 @@ int vio_close(Vio * vio)
     /* FIXME: error handling (not critical for MySQL) */
   }
   vio->type= VIO_CLOSED;
-  my_socket_invalidate(&(vio->sd));
+  vio->sd=   -1;
   DBUG_RETURN(r);
 }
 
@@ -397,8 +395,8 @@ my_bool vio_peer_addr(Vio * vio, char *ip_buffer, uint16 *port,
                       size_t ip_buffer_size)
 {
   DBUG_ENTER("vio_peer_addr");
-  DBUG_PRINT("enter", ("Client socket fd: " MY_SOCKET_FORMAT,
-                       MY_SOCKET_FORMAT_VALUE(vio->sd)));
+  DBUG_PRINT("enter", ("Client socket fd: %d", (int) vio->sd));
+
   if (vio->localhost)
   {
     /*
@@ -429,7 +427,7 @@ my_bool vio_peer_addr(Vio * vio, char *ip_buffer, uint16 *port,
 
     /* Get sockaddr by socked fd */
 
-    err_code= my_getpeername(vio->sd, addr, &addr_length);
+    err_code= getpeername(vio->sd, addr, &addr_length);
 
     if (err_code)
     {
@@ -476,7 +474,7 @@ my_bool vio_poll_read(Vio *vio,uint timeout)
   struct pollfd fds;
   int res;
   DBUG_ENTER("vio_poll");
-  fds.fd=vio->sd.fd; /* FIXME: Vista has WSAPoll(), can emulate elsewhere */
+  fds.fd=vio->sd;
   fds.events=POLLIN;
   fds.revents=0;
   if ((res=poll(&fds,1,(int) timeout*1000)) <= 0)
@@ -505,8 +503,9 @@ void vio_timeout(Vio *vio, uint which, uint timeout)
   wait_timeout.tv_usec= 0;
 #endif
 
-  r= my_setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
-                   &wait_timeout, sizeof(wait_timeout));
+  r= setsockopt(vio->sd, SOL_SOCKET, which ? SO_SNDTIMEO : SO_RCVTIMEO,
+                IF_WIN(const char*, const void*)&wait_timeout,
+                sizeof(wait_timeout));
 
   }
 
@@ -632,7 +631,7 @@ int vio_close_pipe(Vio * vio)
     /* FIXME: error handling (not critical for MySQL) */
   }
   vio->type= VIO_CLOSED;
-  my_socket_invalidate(&(vio->sd));
+  vio->sd=   -1;
   DBUG_RETURN(r);
 }
 
@@ -824,7 +823,7 @@ int vio_close_shared_memory(Vio * vio)
     }
   }
   vio->type= VIO_CLOSED;
-  my_socket_invalidate(&(vio->sd));
+  vio->sd=   -1;
   DBUG_RETURN(error_count);
 }
 #endif /* HAVE_SMEM */

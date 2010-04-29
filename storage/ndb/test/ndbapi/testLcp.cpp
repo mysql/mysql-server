@@ -361,7 +361,7 @@ static int pause_lcp(int error)
 
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
 
-  my_socket my_fd;
+  NDB_SOCKET_TYPE my_fd;
 #ifdef NDB_WIN
   SOCKET fd= ndb_mgm_listen_event(g_restarter.handle, filter);
   my_fd.s= fd;
@@ -460,7 +460,7 @@ static int do_op(int row)
 static int continue_lcp(int error)
 {
   int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_INFO, 0 };
-  my_socket my_fd;
+  NDB_SOCKET_TYPE my_fd;
   my_socket_invalidate(&my_fd);
 #ifdef NDB_WIN
   SOCKET fd;
