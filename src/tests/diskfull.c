@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
-#include <sys/wait.h>
 
 #define DOERR(r) do { if (r!=0) { did_fail=1; fprintf(error_file, "%s:%d error %d (%s)\n", __FILE__, __LINE__, r, db_strerror(r)); }} while (0)
 
@@ -142,7 +141,7 @@ pwrite_counting_and_failing (int fd, const void *buf, size_t size, toku_off_t of
 {
     write_count++;
     if (write_count>fail_at) {
-        if (verbose) fprintf(stderr, "Failure imminent at %d:\n", fail_at);
+        if (verbose>1) { printf("Failure imminent at %d:\n", fail_at); fflush(stdout); }
 	errno = ENOSPC;
 	return -1;
     } else {
@@ -155,7 +154,7 @@ write_counting_and_failing (int fd, const void *buf, size_t size)
 {
     write_count++;
     if (write_count>fail_at) {
-        if (verbose) fprintf(stderr, "Failure imminent at %d:\n", fail_at);
+        if (verbose>1) { printf("Failure imminent at %d:\n", fail_at); fflush(stdout); }
 	errno = ENOSPC;
 	return -1;
     } else {
@@ -165,13 +164,13 @@ write_counting_and_failing (int fd, const void *buf, size_t size)
 
 static void
 do_writes_that_fail (void) {
-    if (verbose) fprintf(stderr, "About to fail at %d:\n", fail_at);
+    if (verbose) { printf("About to fail at %d:\n", fail_at); fflush(stdout); }
     toku_set_assert_on_write_enospc(TRUE);
     db_env_set_func_pwrite(pwrite_counting_and_failing);
     db_env_set_func_write (write_counting_and_failing);
     write_count=0;
     do_db_work();
-    printf("%d\n", write_count);
+    printf("%d", write_count);
 }
 
 static void
