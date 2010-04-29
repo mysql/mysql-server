@@ -7,7 +7,7 @@ AC_PREREQ(2.59)
 # Remember to also update version.c in ndb.
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AC_INIT([MariaDB Server], [5.1.44-MariaDB], [], [mysql])
+AC_INIT([MariaDB Server], [5.1.44a-MariaDB], [], [mysql])
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
 # USTAR format gives us the possibility to store longer path names in

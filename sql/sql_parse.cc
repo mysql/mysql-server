@@ -1304,10 +1304,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
 #else
   {
-    char *fields, *packet_end= packet + packet_length, *arg_end;
+    char *fields, *packet_end= packet + packet_length, *wildcard;
     /* Locked closure of all tables */
     TABLE_LIST table_list;
-    LEX_STRING conv_name;
+    char db_buff[NAME_LEN+1];
+    uint32 db_length;
+    uint dummy_errors;
 
     /* used as fields initializator */
     lex_start(thd);
@@ -1319,11 +1321,22 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     /*
       We have name + wildcard in packet, separated by endzero
     */
-    arg_end= strend(packet);
-    thd->convert_string(&conv_name, system_charset_info,
-			packet, (uint) (arg_end - packet), thd->charset());
-    table_list.alias= table_list.table_name= conv_name.str;
-    packet= arg_end + 1;
+    wildcard= strend(packet);
+    db_length= wildcard - packet;
+    wildcard++;
+    uint query_length= (uint) (packet_end - wildcard); // Don't count end \0
+    if (db_length > NAME_LEN || query_length > NAME_LEN)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      break;
+    }
+    db_length= copy_and_convert(db_buff, sizeof(db_buff)-1,
+                                system_charset_info, packet, db_length,
+                                thd->charset(), &dummy_errors);
+    db_buff[db_length]= '\0';
+    table_list.alias= table_list.table_name= db_buff;
+    if (!(fields= (char *) thd->memdup(wildcard, query_length + 1)))
+      break;
 
     if (is_schema_db(table_list.db, table_list.db_length))
     {
@@ -1332,9 +1345,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         table_list.schema_table= schema_table;
     }
 
-    uint query_length= (uint) (packet_end - packet); // Don't count end \0
-    if (!(fields= (char *) thd->memdup(packet, query_length + 1)))
-      break;
     thd->set_query(fields, query_length);
     general_log_print(thd, command, "%s %s", table_list.table_name, fields);
     if (lower_case_table_names)

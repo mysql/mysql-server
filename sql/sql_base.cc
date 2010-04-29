@@ -233,8 +233,12 @@ static void check_unused(void)
 uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
                           bool tmp_table)
 {
-  uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
-                                  table_list->table_name)-key)+1;
+  char *db_end= strnmov(key, table_list->db, MAX_DBKEY_LENGTH - 2);
+  *db_end++= '\0';
+  char *table_end= strnmov(db_end, table_list->table_name,
+                           key + MAX_DBKEY_LENGTH - 1 - db_end);
+  *table_end++= '\0';
+  uint key_length= (uint) (table_end-key);
   if (tmp_table)
   {
     int4store(key + key_length, thd->server_id);
