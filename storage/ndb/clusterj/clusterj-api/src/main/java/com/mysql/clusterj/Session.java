@@ -38,6 +38,18 @@ public interface Session {
     <T> Query<T> createQuery(QueryDefinition<T> qd);
 
     /** Find a specific instance by its primary key.
+     * The key must be of the same type as the primary key defined
+     * by the table corresponding to the cls parameter. 
+     * The key parameter is the wrapped version of the
+     * primitive type of the key, e.g. Integer for INT key types,
+     * Long for BIGINT key types, or String for char and varchar types.
+     * 
+     * For multi-column primary keys, the key parameter is an Object[],
+     * each element of which is a component of the primary key.
+     * The elements must be in the order of declaration of the columns
+     * (not necessarily the order defined in the CONSTRAINT ... PRIMARY KEY 
+     * clause) of the CREATE TABLE statement.
+     * 
      * @param cls the class to find an instance of
      * @param key the key of the instance to find
      * @return the instance of the class with the specified key
@@ -144,13 +156,16 @@ public interface Session {
 
     /** Set the partition key for the next transaction. 
      * The key must be of the same type as the primary key defined
-     * by the table. The key parameter is the wrapped version of the
+     * by the table corresponding to the cls parameter. 
+     * The key parameter is the wrapped version of the
      * primitive type of the key, e.g. Integer for INT key types,
      * Long for BIGINT key types, or String for char and varchar types.
      * 
      * For multi-column primary keys, the key parameter is an Object[],
      * each element of which is a component of the primary key.
-     * The elements must be in the order of primary key declaration.
+     * The elements must be in the order of declaration of the columns
+     * (not necessarily the order defined in the CONSTRAINT ... PRIMARY KEY 
+     * clause) of the CREATE TABLE statement.
      * 
      * @throws ClusterJUserException if a transaction is enlisted
      * @throws ClusterJUserException if a partition key is null
@@ -158,7 +173,7 @@ public interface Session {
      * @throws ClusterJUserException if a partition key is the wrong type
      * @param key the primary key of the mapped table
      */
-    void setPartitionKey(Class<?> domainClass, Object key);
+    void setPartitionKey(Class<?> cls, Object key);
 
     /** Mark the field in the object as modified so it is flushed.
      *

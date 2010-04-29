@@ -408,7 +408,7 @@ public abstract class AbstractClusterJModelTest extends AbstractClusterJTest {
             buffer.append(columnDescriptor.getColumnName());
         }
         buffer.append(") VALUES (?");
-        for (@SuppressWarnings("unused") ColumnDescriptor columnDescriptor: columnDescriptors) {
+        for (ColumnDescriptor columnDescriptor: columnDescriptors) {
             buffer.append(", ?");
         }
         buffer.append(")");

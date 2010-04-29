@@ -46,6 +46,7 @@ clusterj_jpatest_java = \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/Driver.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/EmbeddedTest.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/JpaLoad.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/LazyTest.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/A.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/B0.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/BigIntegerTypes.java \
@@ -73,6 +74,7 @@ clusterj_jpatest_java = \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimeAsUtilDateTypes.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimestampAsSqlTimestampTypes.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/TimestampAsUtilDateTypes.java \
+  $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/model/LazyEmployee.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/PersistenceTestCase.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/SingleEMFTestCase.java \
   $(clusterj_jpatest_src)/com/mysql/clusterj/jpatest/SingleEMTestCase.java \

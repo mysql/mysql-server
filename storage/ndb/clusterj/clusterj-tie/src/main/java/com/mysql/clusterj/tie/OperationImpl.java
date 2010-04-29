@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.mysql.clusterj.core.store.Blob;
@@ -92,6 +93,18 @@ class OperationImpl implements Operation {
         handleError(returnCode, ndbOperation);
     }
 
+    public void equalDouble(Column storeColumn, double value) {
+        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        int returnCode = ndbOperation.equal(storeColumn.getName(), buffer);
+        handleError(returnCode, ndbOperation);
+    }
+
+    public void equalFloat(Column storeColumn, float value) {
+        ByteBuffer buffer = Utility.convertValue(storeColumn, value);
+        int returnCode = ndbOperation.equal(storeColumn.getName(), buffer);
+        handleError(returnCode, ndbOperation);
+    }
+
     public void equalInt(Column storeColumn, int value) {
         int returnCode = ndbOperation.equal(storeColumn.getName(), value);
         handleError(returnCode, ndbOperation);
@@ -143,6 +156,7 @@ class OperationImpl implements Operation {
      * 
      */
     public ResultData resultData() {
+        if (logger.isDetailEnabled()) logger.detail("storeColumns: " + Arrays.toString(storeColumns.toArray()));
         ResultDataImpl result;
         result = new ResultDataImpl(ndbOperation, storeColumns);
         clusterTransaction.executeNoCommit(false, false);

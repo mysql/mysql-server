@@ -21,6 +21,8 @@ package com.mysql.clusterj.tie;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst.ListConst.Element;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst.ListConst.ElementArray;
 
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.Table;
@@ -54,13 +56,23 @@ class DictionaryImpl implements com.mysql.clusterj.core.store.Dictionary {
             // try the lower case table name
             ndbTable = ndbDictionary.getTable(tableName.toLowerCase());
         }
-        handleError(ndbTable, ndbDictionary, tableName);
-        IndexConst primaryKeyIndex = ndbDictionary.getIndex("PRIMARY", tableName);
-        // no need to handle error if the PRIMARY index doesn't exist
-        return new TableImpl(ndbTable, primaryKeyIndex);
+        if (ndbTable == null) {
+            return null;
+        }
+        return new TableImpl(ndbTable, getIndexNames(ndbTable.getName()));
     }
 
     public Index getIndex(String indexName, String tableName, String indexAlias) {
+        if ("PRIMARY$KEY".equals(indexName)) {
+            // create a pseudo index for the primary key hash
+            TableConst ndbTable = ndbDictionary.getTable(tableName);
+            if (ndbTable == null) {
+                // try the lower case table name
+                ndbTable = ndbDictionary.getTable(tableName.toLowerCase());
+            }
+            handleError(ndbTable, ndbDictionary, "");
+            return new IndexImpl(ndbTable);
+        }
         IndexConst ndbIndex = ndbDictionary.getIndex(indexName, tableName);
         if (ndbIndex == null) {
             // try the lower case table name
@@ -68,6 +80,31 @@ class DictionaryImpl implements com.mysql.clusterj.core.store.Dictionary {
         }
         handleError(ndbIndex, ndbDictionary, indexAlias);
         return new IndexImpl(ndbIndex, indexAlias);
+    }
+
+    public String[] getIndexNames(String tableName) {
+        // get all indexes for this table including ordered PRIMARY
+        com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst.List indexList = 
+            com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst.List.create();
+        final String[] result;
+        try {
+            int returnCode = ndbDictionary.listIndexes(indexList, tableName);
+            handleError(returnCode, ndbDictionary, tableName);
+            int count = indexList.count();
+            result = new String[count];
+            if (logger.isDetailEnabled()) logger.detail("Found " + count + " indexes for " + tableName);
+            ElementArray elementArray = indexList.elements();
+            for (int i = 0; i < count; ++i) {
+                Element element = elementArray.at(i);
+                handleError(element, ndbDictionary, String.valueOf(i));
+                String indexName = element.name();
+                result[i] = indexName;
+            }
+        } finally {
+            // free the list memory even if error
+            com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst.List.delete(indexList);
+        }
+        return result;
     }
 
     protected static void handleError(int returnCode, DictionaryConst ndbDictionary, String extra) {

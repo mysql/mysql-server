@@ -27,6 +27,7 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 
 import java.sql.SQLException;
+import java.sql.Types;
 import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -162,14 +163,17 @@ public class NdbOpenJPAResult extends AbstractResult implements Result {
                 result = resultData.getObjectBoolean(columnName);
                 break;
             default:
-                if (logger.isDetailEnabled()) {
-                    logger.detail("Unsupported Meta Type: " + metaType);
+                if (obj instanceof Column) {
+                    Column col = (Column) obj;
+                    if (col.getType() == Types.BLOB
+                        || col.getType() == Types.VARBINARY) {
+                        result = resultData.getBytes(columnName);
+                    }
                 }
-                throw new UnsupportedOperationException(
-                        local.message("ERR_Unsupported_Meta_Type", metaType));
+                result = resultData.getInt(columnName);
         }
         if (logger.isDetailEnabled()) {
-            logger.detail("obj: " + obj + " arg: " + arg + " joins: " + joins + "metaType: " + metaType + " result: " + result);
+            logger.detail("obj: " + obj + " arg: " + arg + " joins: " + joins + " metaType: " + metaType + " result: " + result);
         }
         return result;
     }
@@ -199,19 +203,23 @@ public class NdbOpenJPAResult extends AbstractResult implements Result {
     }
 
     protected com.mysql.clusterj.core.store.Column resolve(Object obj) {
+        String key = null;
+        com.mysql.clusterj.core.store.Column result = null;
         if (logger.isDetailEnabled()) {
             logger.detail("resolving object of type: " + obj.getClass().getName());
         }
         if (obj instanceof String) {
-            String key = (String)obj;
-            return columnMap.get(key);
+            key = (String)obj;
+            result = columnMap.get(key);
         } else if (obj instanceof Column) {
-            String key = ((Column)obj).getName();
-            return columnMap.get(key);
+            key = ((Column)obj).getName();
+            result = columnMap.get(key);
         } else {
             throw new UnsupportedOperationException(
                     local.message("ERR_Unsupported_Object_Type_For_Resolve", obj.getClass().getName()));
         }
+        if (logger.isDetailEnabled()) logger.detail("key: " + key + " column: " + ((result==null)?"<null>":result.getName()));
+        return result;
     }
 
     public Set<String> getColumnNames() {

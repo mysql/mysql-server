@@ -87,9 +87,9 @@ class ResultDataImpl implements ResultData {
         initializeColumns(ndbOperation, storeColumns);
     }
 
-    /**
-     * @param ndbScanOperation
-     * @param storeColumns
+    /** Initialize the operation using the columns that are requested.
+     * @param ndbOperation the operation
+     * @param storeColumns the columns to be retrieved
      */
     private void initializeColumns(NdbOperation ndbOperation,
             List<Column> storeColumns) {

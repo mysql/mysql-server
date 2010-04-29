@@ -43,6 +43,7 @@ import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation;
 import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 import com.mysql.ndbjtie.ndbapi.NdbOperationConst.AbortOption;
@@ -71,8 +72,12 @@ class ClusterTransactionImpl implements ClusterTransaction {
     /** The partition key; by default it doesn't do anything */
     protected PartitionKeyImpl partitionKey = PartitionKeyImpl.getInstance();
 
-    public ClusterTransactionImpl(DbImpl db) {
+    /** The NdbDictionary */
+    private Dictionary ndbDictionary;
+
+    public ClusterTransactionImpl(DbImpl db, Dictionary ndbDictionary) {
         this.db = db;
+        this.ndbDictionary = ndbDictionary;
     }
 
     public void close() {
@@ -142,7 +147,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public Operation getDeleteOperation(Table storeTable) {
         enlist();
-        TableConst ndbTable = ((TableImpl)storeTable).getNdbTable();
+        TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
+        handleError(ndbTable, ndbDictionary);
         NdbOperation ndbOperation = ndbTransaction.getNdbOperation(ndbTable);
         handleError(ndbOperation, ndbTransaction);
         int returnCode = ndbOperation.deleteTuple();
@@ -153,7 +159,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public Operation getInsertOperation(Table storeTable) {
         enlist();
-        TableConst ndbTable = ((TableImpl)storeTable).getNdbTable();
+        TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
+        handleError(ndbTable, ndbDictionary);
         NdbOperation ndbOperation = ndbTransaction.getNdbOperation(ndbTable);
         handleError(ndbOperation, ndbTransaction);
         int returnCode = ndbOperation.insertTuple();
@@ -164,7 +171,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public IndexScanOperation getSelectIndexScanOperation(Index storeIndex, Table storeTable) {
         enlist();
-        IndexConst ndbIndex = ((IndexImpl)storeIndex).getNdbIndex();
+        IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
+        handleError(ndbIndex, ndbDictionary);
         NdbIndexScanOperation ndbOperation = ndbTransaction.getNdbIndexScanOperation(ndbIndex);
         handleError(ndbOperation, ndbTransaction);
         int lockMode = 0;
@@ -179,7 +187,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public Operation getSelectOperation(Table storeTable) {
         enlist();
-        TableConst ndbTable = ((TableImpl)storeTable).getNdbTable();
+        TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
+        handleError(ndbTable, ndbDictionary);
         NdbOperation ndbOperation = ndbTransaction.getNdbOperation(ndbTable);
         handleError(ndbOperation, ndbTransaction);
         int lockMode = LockMode.LM_Read;
@@ -191,7 +200,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public ScanOperation getSelectScanOperation(Table storeTable) {
         enlist();
-        TableConst ndbTable = ((TableImpl)storeTable).getNdbTable();
+        TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
+        handleError(ndbTable, ndbDictionary);
         NdbScanOperation ndbScanOperation = ndbTransaction.getNdbScanOperation(ndbTable);
         handleError(ndbScanOperation, ndbTransaction);
         int lockMode = LockMode.LM_Read;
@@ -206,7 +216,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public ScanOperation getSelectScanOperationLockModeExclusiveScanFlagKeyInfo(Table storeTable) {
         enlist();
-        TableConst ndbTable = ((TableImpl)storeTable).getNdbTable();
+        TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
+        handleError(ndbTable, ndbDictionary);
         NdbScanOperation ndbScanOperation = ndbTransaction.getNdbScanOperation(ndbTable);
         handleError(ndbScanOperation, ndbTransaction);
         int lockMode = LockMode.LM_Exclusive;
@@ -221,8 +232,9 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public IndexOperation getSelectUniqueOperation(Index storeIndex, Table storeTable) {
         enlist();
-        IndexConst index = ((IndexImpl)storeIndex).getNdbIndex();
-        NdbIndexOperation ndbIndexOperation = ndbTransaction.getNdbIndexOperation(index);
+        IndexConst ndbIndex = ndbDictionary.getIndex(storeIndex.getInternalName(), storeTable.getName());
+        handleError(ndbIndex, ndbDictionary);
+        NdbIndexOperation ndbIndexOperation = ndbTransaction.getNdbIndexOperation(ndbIndex);
         handleError(ndbIndexOperation, ndbTransaction);
         int lockMode = LockMode.LM_Read;
         int returnCode = ndbIndexOperation.readTuple(lockMode);
@@ -233,7 +245,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public Operation getUpdateOperation(Table storeTable) {
         enlist();
-        TableConst ndbTable = ((TableImpl)storeTable).getNdbTable();
+        TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
+        handleError(ndbTable, ndbDictionary);
         NdbOperation ndbOperation = ndbTransaction.getNdbOperation(ndbTable);
         handleError(ndbOperation, ndbTransaction);
         int returnCode = ndbOperation.updateTuple();
@@ -244,7 +257,8 @@ class ClusterTransactionImpl implements ClusterTransaction {
 
     public Operation getWriteOperation(Table storeTable) {
         enlist();
-        TableConst ndbTable = ((TableImpl)storeTable).getNdbTable();
+        TableConst ndbTable = ndbDictionary.getTable(storeTable.getName());
+        handleError(ndbTable, ndbDictionary);
         NdbOperation ndbOperation = ndbTransaction.getNdbOperation(ndbTable);
         handleError(ndbOperation, ndbTransaction);
         int returnCode = ndbOperation.writeTuple();
@@ -312,6 +326,16 @@ class ClusterTransactionImpl implements ClusterTransaction {
             return;
         } else {
             NdbErrorConst ndbError = ndbTransaction.getNdbError();
+            String detail = db.getNdbErrorDetail(ndbError);
+            Utility.throwError(null, ndbError, detail);
+        }
+    }
+
+    protected void handleError(Object object, Dictionary ndbDictionary) {
+        if (object != null) {
+            return;
+        } else {
+            NdbErrorConst ndbError = ndbDictionary.getNdbError();
             String detail = db.getNdbErrorDetail(ndbError);
             Utility.throwError(null, ndbError, detail);
         }

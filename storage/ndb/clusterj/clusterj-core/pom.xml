@@ -22,7 +22,7 @@
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-core</artifactId>
   <packaging>bundle</packaging>
-  <version>1.0-SNAPSHOT</version>
+  <version>7.1.4-SNAPSHOT</version>
   <name>ClusterJ Core</name>
   <description>The core implementation of ClusterJ</description>
   <build>
@@ -44,7 +44,7 @@
           <systemProperties>
             <property>
               <name>java.util.logging.config.file</name>
-              <value>${logging.properties}</value>
+              <value>logging.properties</value>
             </property>
           </systemProperties>
         </configuration>
@@ -89,7 +89,7 @@
     <dependency>
       <groupId>com.mysql.clusterj</groupId>
       <artifactId>clusterj-api</artifactId>
-      <version>1.0-SNAPSHOT</version>
+      <version>7.1.4-SNAPSHOT</version>
       <scope>compile</scope>
     </dependency>
     <dependency>

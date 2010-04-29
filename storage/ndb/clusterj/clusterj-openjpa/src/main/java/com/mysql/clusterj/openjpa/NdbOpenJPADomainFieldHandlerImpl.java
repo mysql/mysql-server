@@ -18,6 +18,7 @@
 
 package com.mysql.clusterj.openjpa;
 
+import com.mysql.clusterj.ClusterJException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.ClusterJUserException;
 
@@ -171,6 +172,11 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 this.column = columns[0];
                 this.columnName = column.getName();
                 Table table = domainTypeHandler.getTable();
+                if (table == null) {
+                    message = local.message("ERR_No_Mapped_Table", domainTypeHandler.getName());
+                    setUnsupported(message);
+                    return;                    
+                }
                 this.storeColumn = table.getColumn(columnName);
                 if (storeColumn == null) {
                     message = local.message("ERR_No_Column", name, table.getName(), columnName);
@@ -444,12 +450,14 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                             try {
                                 NdbOpenJPAResult queryResult = queryRelated(sm, store);
                                 while (queryResult.next()) {
+                                    if (logger.isDetailEnabled()) logger.detail("loading related instance of type: " + relatedTypeMapping.getDescribedType().getName());
                                     store.load(relatedTypeMapping, fetch, (BitSet) null, queryResult);
                                 }
                                 fieldMapping.load(sm, store, fetch);
                                 session.endAutoTransaction();
                             } catch (Exception e) {
                                 session.failAutoTransaction();
+                                throw new ClusterJException(local.message("ERR_Exception_While_Loading"), e);
                             }
                     }
                 };
@@ -592,7 +600,7 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
                 JDBCFetchConfiguration fetch) throws SQLException ;
     }
 
-    /** Load the value of this field. This will be done here only for relationship fields,
+    /** Load the value of this field. This will be done here for relationship 
      * since basic fields are loaded when the instance is first initialized.
      *  
      * @param sm the openjpa state manager for the instance
@@ -602,11 +610,12 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
      */
     public void load(OpenJPAStateManager sm, NdbOpenJPAStoreManager store, JDBCFetchConfiguration fetch)
             throws SQLException {
-        if (!isRelation) {
+        if (isRelation) {
+            relatedFieldLoadManager.load(sm, store, fetch);
+        } else {
             throw new ClusterJFatalInternalException("load called for non-relationship field "
                     + this.getName() + " mapped to column " + this.columnName);
         }
-        relatedFieldLoadManager.load(sm, store, fetch);
     }
 
     /** Query the related type for instance(s) whose related field refers to this instance.
@@ -631,14 +640,10 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
         if (logger.isDetailEnabled()) {
             DomainTypeHandler<?> handler = queryResult.domainTypeHandler;
             Set<String> columnNames = queryResult.getColumnNames();
-            StringBuffer buffer = new StringBuffer("Executed query against ");
+            StringBuffer buffer = new StringBuffer("Executed query for ");
             buffer.append(handler.getName());
             buffer.append(" returned columns: ");
             buffer.append(Arrays.toString(columnNames.toArray()));
-            buffer.append(" using strategy ");
-            buffer.append(((QueryDomainTypeImpl<?>)queryDomainType).explain().get("ScanType"));
-            buffer.append(" with index ");
-            buffer.append(((QueryDomainTypeImpl<?>)queryDomainType).explain().get("IndexUsed"));
             logger.detail(buffer.toString());
         }
         return queryResult;
@@ -1197,6 +1202,10 @@ public class NdbOpenJPADomainFieldHandlerImpl extends AbstractDomainFieldHandler
 
     public boolean isSupported() {
         return supported;
+    }
+
+    public boolean isRelation() {
+        return isRelation;
     }
 
     public String getReason() {

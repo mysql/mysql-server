@@ -26,8 +26,6 @@ package com.mysql.clusterj.core.store;
  */
 public interface PartitionKey {
 
-    public void setTable(Table table);
-
     public void addIntKey(Column storeColumn, int key);
 
     public void addLongKey(Column storeColumn, long key);

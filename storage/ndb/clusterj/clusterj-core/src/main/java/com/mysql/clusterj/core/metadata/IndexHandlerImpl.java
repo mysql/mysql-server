@@ -18,8 +18,6 @@
 
 package com.mysql.clusterj.core.metadata;
 
-import com.mysql.clusterj.ClusterJDatastoreException;
-import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.query.CandidateIndexImpl;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.store.Dictionary;
@@ -80,10 +78,7 @@ public class IndexHandlerImpl {
     protected Index storeIndex;
 
     /** This is a unique index? */
-    protected boolean unique;
-
-    /** This is a hash index? */
-    boolean hash = false;
+    protected boolean unique = true;
 
     /** The fields (corresponding to the columnNames) in the index. */
     protected AbstractDomainFieldHandlerImpl[] fields;
@@ -91,28 +86,31 @@ public class IndexHandlerImpl {
     /** The columnNames in the index. */
     protected final String[] columnNames;
 
-    /** Construct an IndexHandlerImpl from an index name and column names. This is called
-     * for an index annotation on a class, where the fields are not yet known.
-     * Each column is mapped to a single field.
-     *
+    /** This index is usable (all fields are mapped) */
+    private boolean usable = true;
+
+    /** The reason the index is not usable */
+    private String reason = null;
+
+    /** Construct an IndexHandlerImpl from an index name and column names.
+     * This constructor is used when the column handlers are not yet known.
      * @param domainTypeHandler the domain type handler
      * @param dictionary the dictionary for validation
      * @param indexName the index name
      * @param columnNames the column names for the index
+     * @param unique if the index is a unique index
      */
     public IndexHandlerImpl(DomainTypeHandler<?> domainTypeHandler,
-            Dictionary dictionary, String indexName, String[] columnNames) {
+            Dictionary dictionary, Index storeIndex, String[] columnNames) {
         this.className = domainTypeHandler.getName();
-        this.indexName = indexName;
+        this.storeIndex = storeIndex;
+        this.indexName = storeIndex.getName();
         this.tableName = domainTypeHandler.getTableName();
-        this.storeIndex = getIndex(dictionary,
-                tableName, indexName);
-        this.unique = isUnique(storeIndex);
         this.columnNames = columnNames;
         int numberOfColumns = columnNames.length;
         // the fields are not yet known; will be filled later 
         this.fields = new DomainFieldHandlerImpl[numberOfColumns];
-        this.hash = isHash(storeIndex);
+        this.unique = storeIndex.isUnique();
         if (logger.isDebugEnabled()) logger.debug(toString());
     }
 
@@ -133,32 +131,6 @@ public class IndexHandlerImpl {
         this.unique = isUnique(storeIndex);
         this.columnNames = fmd.getColumnNames();
         this.fields = new AbstractDomainFieldHandlerImpl[]{fmd};
-        this.hash = isHash(storeIndex);
-        fmd.validateIndexType(indexName, hash);
-        if (logger.isDebugEnabled()) logger.debug(toString());
-    }
-
-    /** Create an instance of IndexHandlerImpl from its twin.
-     * Twins are instances that represent a single index name but can be used
-     * for either unique lookups via the hash index, or ordered scans via
-     * the btree index. Both instances have the same index name; the twin
-     * instance created here represents the hash component.
-     * @param dictionary the dictionary to use to validate
-     * @param twin the IndexHandlerImpl that represents the ordered index
-     */
-    public IndexHandlerImpl(Dictionary dictionary, IndexHandlerImpl twin) {
-        this.className = twin.className;
-        this.tableName = twin.tableName;
-        this.columnNames = twin.columnNames;
-        this.fields = twin.fields;
-        this.hash = true;
-        this.indexName = twin.indexName;
-        this.unique = true;
-        if ("PRIMARY".equals(this.indexName)) {
-            this.storeIndex = twin.storeIndex;
-        } else {
-            this.storeIndex =getIndex(dictionary, tableName, indexName + UNIQUE_SUFFIX, indexName);
-        }
         if (logger.isDebugEnabled()) logger.debug(toString());
     }
 
@@ -167,8 +139,12 @@ public class IndexHandlerImpl {
      *
      */
     public CandidateIndexImpl toCandidateIndexImpl() {
-        return new CandidateIndexImpl(
-                className, storeIndex, unique, hash, fields);
+        if (!usable) {
+            return CandidateIndexImpl.getIndexForNullWhereClause();
+        } else {
+            return new CandidateIndexImpl(
+                    className, storeIndex, unique, fields);
+        }
     }
 
     @Override
@@ -180,8 +156,6 @@ public class IndexHandlerImpl {
         buffer.append(indexName);
         buffer.append(" unique: ");
         buffer.append(unique);
-        buffer.append(" hash: ");
-        buffer.append(hash);
         buffer.append(" columns: ");
         buffer.append(Arrays.toString(columnNames));
         return buffer.toString();
@@ -194,7 +168,7 @@ public class IndexHandlerImpl {
      */
     protected void setDomainFieldHandlerFor(int i, AbstractDomainFieldHandlerImpl fmd) {
         fields[i] = fmd;
-        fmd.validateIndexType(indexName, hash);
+        fmd.validateIndexType(indexName, unique);
     }
 
     /** Accessor for columnNames. */
@@ -209,9 +183,9 @@ public class IndexHandlerImpl {
         for (int i = 0; i < columnNames.length; ++i) {
             AbstractDomainFieldHandlerImpl fmd = fields[i];
             if (fmd == null || !(columnNames[i].equals(fmd.getColumnName()))) {
-                throw new ClusterJUserException(
-                        local.message(
-                        "ERR_Index_Mismatch", className, indexName, columnNames[i]));
+                usable = false;
+                reason = local.message(
+                        "ERR_Index_Mismatch", className, indexName, columnNames[i]);
             }
         }
     }
@@ -220,53 +194,17 @@ public class IndexHandlerImpl {
         return storeIndex.isUnique();
     }
 
-    protected boolean isHash(Index storeIndex) {
-        return storeIndex.isHash();
+    public boolean isUsable() {
+        return usable;
+    }
+
+    public String getReason() {
+        return reason;
     }
 
     protected Index getIndex(Dictionary dictionary,
             String tableName, String indexName) {
-        try {
-            return dictionary.getIndex(indexName, tableName, indexName);
-        } catch (Exception ex) {
-            try {
-                return dictionary.getIndex(indexName + UNIQUE_SUFFIX, tableName, indexName);
-            } catch (Exception ex2) {
-            throw new ClusterJDatastoreException(
-                    local.message("ERR_Get_Ndb_Index", tableName, indexName), ex2);
-            }
-        }
+        return dictionary.getIndex(indexName, tableName, indexName);
     }
 
-    /** Look up a twinned index. Use the alias name with the database.
-     * 
-     * @param dictionary the dictionary
-     * @param tableName the table name
-     * @param indexName the index name (might have $unique suffix)
-     * @param aliasName the alias (for $unique, no suffix)
-     * @return
-     */
-    private Index getIndex(Dictionary dictionary,
-            String tableName, String indexName, String aliasName) {
-        try {
-            return dictionary.getIndex(indexName, tableName, aliasName);
-        } catch (Exception ex) {
-            throw new ClusterJDatastoreException(
-                    local.message("ERR_Get_Ndb_Index", tableName, indexName), ex);
-        }
-    }
-
-    protected boolean isTwinned(Dictionary dictionary) {
-        // TODO save the twin index and return it later
-        // only non-unique, non-hash indices can be twinned
-        if (unique || hash) {
-            return false;
-        }
-        try {
-            dictionary.getIndex(indexName + UNIQUE_SUFFIX, tableName, indexName);
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
-    }
 }

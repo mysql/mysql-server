@@ -138,7 +138,11 @@ clusterj_test_java = \
   $(clusterj_test_src)/testsuite/clusterj/FindByPrimaryKey2Test.java \
   $(clusterj_test_src)/testsuite/clusterj/QueryStringTypesTest.java \
   $(clusterj_test_src)/testsuite/clusterj/model/Employee2.java \
-  $(clusterj_test_src)/testsuite/clusterj/model/StringTypes.java 
+  $(clusterj_test_src)/testsuite/clusterj/model/StringTypes.java \
+  $(clusterj_test_src)/testsuite/clusterj/HashOnlyLongIntStringPKTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/QueryExplainTest.java \
+  $(clusterj_test_src)/testsuite/clusterj/model/HashOnlyLongIntStringPK.java 
+  
 
 EXTRA_DIST = \
   src/main/resources/clusterj.properties \

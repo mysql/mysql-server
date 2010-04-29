@@ -18,7 +18,12 @@
 
 package com.mysql.clusterj.openjpa;
 
+import java.util.BitSet;
+
 import org.apache.openjpa.jdbc.meta.JavaSQLTypes;
+import org.apache.openjpa.kernel.OpenJPAStateManager;
+import org.apache.openjpa.meta.ClassMetaData;
+import org.apache.openjpa.meta.FieldMetaData;
 
 /** Grab bag of utility methods
  *
@@ -75,6 +80,26 @@ public class NdbOpenJPAUtility {
                 default: return "unsupported";
             }
         }
+    }
+
+    public static String printBitSet(OpenJPAStateManager sm, BitSet fields) {
+        ClassMetaData classMetaData = sm.getMetaData();
+        FieldMetaData[] fieldMetaDatas = classMetaData.getFields();
+        StringBuffer buffer = new StringBuffer("[");
+        if (fields != null) {
+            String separator = "";
+            for (int i = 0; i < fields.size(); ++i) {
+                if (fields.get(i)) {
+                    buffer.append(separator);
+                    buffer.append(i);
+                    buffer.append(" ");
+                    buffer.append(fieldMetaDatas[i].getName());
+                    separator = ";";
+                }
+            }
+        }
+        buffer.append("] ");
+        return buffer.toString();
     }
 
 }

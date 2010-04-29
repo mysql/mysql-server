@@ -20,7 +20,6 @@ package com.mysql.clusterj.tie;
 
 import com.mysql.ndbjtie.mysql.CharsetMap;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.ColumnConst;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
@@ -47,9 +46,6 @@ class ColumnImpl implements Column {
     /** The CharsetMap */
     static final CharsetMap charsetMap = Utility.getCharsetMap();
 
-    /** The ndb column metadata instance */
-    private ColumnConst ndbColumn;
-
     /** The native charset name */
     private String nativeCharsetName;
 
@@ -57,13 +53,10 @@ class ColumnImpl implements Column {
     private String charsetName;
 
     /** The charset number */
-    private int charsetNumber;
+    private int charsetNumber = 0;
 
     /** The ndb column type for the column */
     private Column.Type columnType;
-
-    /** The table this column belongs to */
-    private TableConst ndbTable;
 
     /** The prefix length for variable size columns */
     private int prefixLength = -1;
@@ -93,12 +86,10 @@ class ColumnImpl implements Column {
 
     private int size;
 
-    public ColumnImpl(TableConst ndbTable, ColumnConst ndbColumn) {
-        this.ndbColumn = ndbColumn;
+    public ColumnImpl(String tableName, ColumnConst ndbColumn) {
         this.columnName = ndbColumn.getName();
         this.columnId = ndbColumn.getColumnNo();
-        this.ndbTable = ndbTable;
-        this.tableName = ndbTable.getName();
+        this.tableName = tableName;
         int ndbType = ndbColumn.getType();
         this.columnType = convertType(ndbType);
         this.primaryKey = ndbColumn.getPrimaryKey();
@@ -108,7 +99,6 @@ class ColumnImpl implements Column {
         this.precision = ndbColumn.getPrecision();
         this.scale = ndbColumn.getScale();
         this.size = ndbColumn.getSize();
-        // TODO get the charset name and don't fake it!
         switch(ndbColumn.getType()) {
             case ColumnConst.Type.Tinyint:
             case ColumnConst.Type.Tinyunsigned:
@@ -153,11 +143,13 @@ class ColumnImpl implements Column {
             case ColumnConst.Type.Char:
                 this.prefixLength = 0;
                 this.columnSpace = length;
+                this.charsetNumber = ndbColumn.getCharsetNumber();
                 mapCharsetName();
                 break;
             case ColumnConst.Type.Varchar:
                 prefixLength = 1;
                 this.columnSpace = alignTo4(length + prefixLength);
+                this.charsetNumber = ndbColumn.getCharsetNumber();
                 mapCharsetName();
                 break;
             case ColumnConst.Type.Binary:
@@ -183,6 +175,7 @@ class ColumnImpl implements Column {
             case ColumnConst.Type.Text:
                 this.prefixLength = 0;
                 this.columnSpace = inlineSize;
+                this.charsetNumber = ndbColumn.getCharsetNumber();
                 mapCharsetName();
                 break;
             case ColumnConst.Type.Bit:
@@ -192,11 +185,13 @@ class ColumnImpl implements Column {
             case ColumnConst.Type.Longvarchar:
                 this.prefixLength = 2;
                 this.columnSpace = alignTo4(length + prefixLength);
+                this.charsetNumber = ndbColumn.getCharsetNumber();
                 mapCharsetName();
                 break;
             case ColumnConst.Type.Longvarbinary:
                 this.prefixLength = 2;
                 this.columnSpace = alignTo4(length + prefixLength);
+                this.charsetNumber = ndbColumn.getCharsetNumber();
                 mapCharsetName();
                 break;
             case ColumnConst.Type.Time:
@@ -213,7 +208,7 @@ class ColumnImpl implements Column {
                 break;
             default: throw new ClusterJFatalInternalException(
                     local.message("ERR_Unknown_Column_Type",
-                    ndbTable.getName(), ndbColumn.getName(), ndbType));
+                    tableName, ndbColumn.getName(), ndbType));
         }
         if (logger.isDetailEnabled()) logger.detail("Column " + columnName
                 + " columnSpace: " + columnSpace + " prefixLength: " + prefixLength
@@ -229,13 +224,12 @@ class ColumnImpl implements Column {
     }
 
     private void mapCharsetName() {
-        this.charsetNumber = ndbColumn.getCharsetNumber();
         this.nativeCharsetName = charsetMap.getName(charsetNumber);
         this.charsetName = charsetMap.getMysqlName(charsetNumber);
         if (charsetName == null) {
             throw new ClusterJDatastoreException(
                     local.message("ERR_Unknown_Charset_Name",
-                    ndbTable.getName(), ndbColumn.getName(), nativeCharsetName));
+                    tableName, columnName, nativeCharsetName));
         }
     }
 
@@ -278,7 +272,7 @@ class ColumnImpl implements Column {
             case ColumnConst.Type.Year: return Column.Type.Year;
             default: throw new ClusterJFatalInternalException(
                     local.message("ERR_Unknown_Column_Type",
-                    ndbTable.getName(), ndbColumn.getName(), type));
+                    tableName, columnName, type));
         }
     }
 
@@ -307,10 +301,6 @@ class ColumnImpl implements Column {
         return columnId;
     }
 
-    public ColumnConst getColumnConst() {
-        return ndbColumn;
-    }
-
     public int getColumnSpace() {
         return columnSpace;
     }
@@ -333,6 +323,11 @@ class ColumnImpl implements Column {
 
     public byte[] encode(String string) {
         return Utility.encode(string, charsetNumber);
+    }
+
+    @Override
+    public String toString() {
+        return columnName;
     }
 
 }

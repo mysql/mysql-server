@@ -57,8 +57,8 @@ create unique index idx_double_null_both on doubletypes(double_null_both);
  */
     public void test() {
         btreeIndexScanDouble();
-//        hashIndexScanDouble();
-//        bothIndexScanDouble();
+        hashIndexScanDouble();
+        bothIndexScanDouble();
         noneIndexScanDouble();
         failOnError();
     }

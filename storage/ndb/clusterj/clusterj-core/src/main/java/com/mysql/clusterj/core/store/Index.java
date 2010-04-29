@@ -23,10 +23,32 @@ package com.mysql.clusterj.core.store;
  */
 public interface Index {
 
-    public boolean isHash();
-
+    /** Is this index unique?
+     * 
+     * @return true if the index is unique
+     */
     public boolean isUnique();
 
+    /** Get the external name of the index,
+     * i.e the name used to create the index.
+     * 
+     * @return the name
+     */
     public String getName();
+
+    /** Get the actual name of the index,
+     * e.g. idx_name_hash$unique.
+     * 
+     * @return the actual name of the index
+     */
+    public String getInternalName();
+
+    /** Get the names of the columns in this index, in the order
+     * they are declared in the KEY clause of the CREATE TABLE
+     * statement.
+     * 
+     * @return the column names
+     */
+    public String[] getColumnNames();
 
 }
