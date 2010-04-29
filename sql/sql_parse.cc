@@ -493,6 +493,13 @@ int check_user(THD *thd, enum enum_server_command command,
       }
       send_ok(thd);
       thd->password= test(passwd_len);          // remember for error messages 
+      /*
+        Allow the network layer to skip big packets. Although a malicious
+        authenticated session might use this to trick the server to read
+        big packets indefinitely, this is a previously established behavior
+        that needs to be preserved as to not break backwards compatibility.
+      */
+      thd->net.skip_big_packet= TRUE;
       /* Ready to handle queries */
       DBUG_RETURN(0);
     }
