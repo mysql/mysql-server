@@ -619,6 +619,7 @@ private:
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,
                            KEY *key_info, uint index_no);
+  int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const char* path);
   void release_metadata(THD *thd, Ndb *ndb);
   NDB_INDEX_TYPE get_index_type(uint idx_no) const;

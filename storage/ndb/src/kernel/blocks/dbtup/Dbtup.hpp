@@ -241,6 +241,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZAI_INCONSISTENCY_ERROR 829
 #define ZNO_ILLEGAL_NULL_ATTR 839
 #define ZNOT_NULL_ATTR 840
+#define ZBAD_DEFAULT_VALUE_LEN 850
 #define ZNO_INSTRUCTION_ERROR 871
 #define ZOUTSIDE_OF_PROGRAM_ERROR 876
 #define ZSTORED_PROC_ID_ERROR 877
@@ -1100,6 +1101,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
       } m_dropTable;
       struct {
         Uint32 m_fragOpPtrI;
+        Uint32 defValSectionI;
       } m_createTable;
       struct {
         Uint32 m_gci_hi;
@@ -1107,6 +1109,7 @@ ArrayPool<TupTriggerData> c_triggerPool;
     };
 
     State tableStatus;
+    Local_key m_default_value_location;
   };  
 
   /*
@@ -2507,6 +2510,8 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
 
+  int  store_default_record(const TablerecPtr& regTabPtr);
+  bool  receive_defvalue(Signal* signal, const TablerecPtr& regTabPtr);
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void bufferTRANSID_AI(Signal* signal, BlockReference aRef, Uint32 Tlen);
@@ -2836,6 +2841,7 @@ private:
   void initializeTablerec();
   void initializeTabDescr();
   void initializeUndoPage();
+  void initializeDefaultValuesFrag();
 
   void initTab(Tablerec* regTabPtr);
 
@@ -2979,6 +2985,7 @@ private:
 #endif
 
   Uint32 calculate_free_list_impl(Uint32) const ;
+  Uint64 calculate_used_var_words(Fragrecord* fragPtr);
   void remove_free_page(Fragrecord*, Var_page*, Uint32);
   void insert_free_page(Fragrecord*, Var_page*, Uint32);
 
@@ -2991,6 +2998,7 @@ private:
   Uint32* alloc_var_rec(Uint32 * err,
                         Fragrecord*, Tablerec*, Uint32, Local_key*, Uint32*);
   void free_var_rec(Fragrecord*, Tablerec*, Local_key*, Ptr<Page>);
+  void free_var_part(Fragrecord*, Tablerec*, Local_key*);
   Uint32* alloc_var_part(Uint32*err,Fragrecord*, Tablerec*, Uint32, Local_key*);
   Uint32 *realloc_var_part(Uint32 * err, Fragrecord*, Tablerec*,
                            PagePtr, Var_part_ref*, Uint32, Uint32);
@@ -3044,6 +3052,15 @@ private:
   Uint32 cnoOfFragrec;
   RSS_OP_COUNTER(cnoOfFreeFragrec);
   RSS_OP_SNAPSHOT(cnoOfFreeFragrec);
+  /*
+   * DefaultValuesFragment is a normal struct Fragrecord.
+   * It is TUP block-variable.
+   * There is only ONE DefaultValuesFragment shared
+   * among all table fragments stored by this TUP block.
+  */
+  FragrecordPtr DefaultValuesFragment;
+  RSS_OP_SNAPSHOT(defaultValueWordsHi);
+  RSS_OP_SNAPSHOT(defaultValueWordsLo);
 
   AlterTabOperation *alterTabOperRec;
   Uint32 cfirstfreeAlterTabOp;
@@ -3125,6 +3142,7 @@ private:
   Uint32* get_ptr(PagePtr*, Var_part_ref);
   Uint32* get_ptr(PagePtr*, const Local_key*, const Tablerec*);
   Uint32* get_dd_ptr(PagePtr*, const Local_key*, const Tablerec*);
+  Uint32* get_default_ptr(const Tablerec*, Uint32&);
   Uint32 get_len(Ptr<Page>* pagePtr, Var_part_ref ref);
 
   Tuple_header* alloc_copy_tuple(const Tablerec* tabPtrP, Local_key* ptr){
@@ -3389,6 +3407,20 @@ Dbtup::get_ptr(PagePtr* pagePtr,
 
   return ((Fix_page*)tmp.p)->
     get_ptr(key->m_page_idx, regTabPtr->m_offsets[MM].m_fix_header_size);
+}
+
+inline
+Uint32*
+Dbtup::get_default_ptr(const Tablerec* regTabPtr, Uint32& default_len)
+{
+  Var_part_ref ref;
+  ref.assign(&regTabPtr->m_default_value_location);
+  Ptr<Page> page;
+
+  Uint32* default_data = get_ptr(&page, ref);
+  default_len = get_len(&page, ref);
+
+  return default_data;
 }
 
 inline

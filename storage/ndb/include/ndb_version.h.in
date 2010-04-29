@@ -386,4 +386,21 @@ ndb_route_exec_frag(Uint32 x)
   return x >= NDBD_ROUTE_EXEC_FRAG;
 }
 
+#define NDBD_NATIVE_DEFAULT_SUPPORT_70 NDB_MAKE_VERSION(7,0,15)
+#define NDBD_NATIVE_DEFAULT_SUPPORT_71 NDB_MAKE_VERSION(7,1,4)
+
+static
+inline
+int
+ndb_native_default_support(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor == 0)
+    return x >= NDBD_NATIVE_DEFAULT_SUPPORT_70;
+  
+  return x >= NDBD_NATIVE_DEFAULT_SUPPORT_71;
+}
+
 #endif

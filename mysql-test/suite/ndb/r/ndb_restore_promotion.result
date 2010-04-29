@@ -197,3 +197,40 @@ a	c	d	e
 3	c	D	e
 4	c	d	E
 drop table t1;
+create table subject(pk int primary key, band varchar(50), pos int) engine=ndb;
+insert into subject values (1, 'Elbow', 1), (2, 'Franz Ferdinand', 2), (3, 'Proclaimers', 3);
+insert into subject values (4, 'David Bowie', 4), (5, 'Rufus Wainwright', 1);
+select * from subject order by pk;
+pk	band	pos
+1	Elbow	1
+2	Franz Ferdinand	2
+3	Proclaimers	3
+4	David Bowie	4
+5	Rufus Wainwright	1
+**************************
+Performing backup of table
+**************************
+******************
+Throwing away data
+******************
+delete from subject;
+select * from subject order by pk;
+pk	band	pos
+*******************************************************
+Modifying table to include new, native defaulted column
+*******************************************************
+alter table subject add column song varchar(50) default 'Unknown';
+***********************************************************
+Restoring data back into table and picking up default value
+***********************************************************
+****************************************************
+All restored entries should have song name 'Unknown'
+****************************************************
+select * from subject order by pk;
+pk	band	pos	song
+1	Elbow	1	Unknown
+2	Franz Ferdinand	2	Unknown
+3	Proclaimers	3	Unknown
+4	David Bowie	4	Unknown
+5	Rufus Wainwright	1	Unknown
+drop table subject;

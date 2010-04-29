@@ -832,8 +832,9 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     
     ConstRope def(c_rope_pool, attrPtr.p->defaultValue);
     def.copy(defaultValue);
-    w.add(DictTabInfo::AttributeDefaultValue, defaultValue);
-    
+
+    w.add(DictTabInfo::AttributeDefaultValueLen, def.size());
+    w.add(DictTabInfo::AttributeDefaultValue, defaultValue, def.size());
     w.add(DictTabInfo::AttributeEnd, 1);
   }
   
@@ -5235,7 +5236,8 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     attrPtr.p->autoIncrement = attrDesc.AttributeAutoIncrement;
     {
       Rope defaultValue(c_rope_pool, attrPtr.p->defaultValue);
-      defaultValue.assign(attrDesc.AttributeDefaultValue);
+      defaultValue.assign((const char*)attrDesc.AttributeDefaultValue,
+                          attrDesc.AttributeDefaultValueLen);
     }
     
     keyCount += attrDesc.AttributeKeyFlag;
@@ -6115,6 +6117,9 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
 
   LqhAddAttrReq * const req = (LqhAddAttrReq*)signal->getDataPtrSend();
   Uint32 i = 0;
+  Uint32 startIndex = 25;
+  Uint32 *defVal_dst = &signal->theData[startIndex];
+  Uint32 defVal_length = 0;
   for(i = 0; i<LqhAddAttrReq::MAX_ATTRIBUTES && attributePtrI != RNIL; i++){
     jam();
     AttributeRecordPtr attrPtr;
@@ -6125,6 +6130,14 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
     entry.extTypeInfo = 0;
     // charset number passed to TUP, TUX in upper half
     entry.extTypeInfo |= (attrPtr.p->extPrecision & ~0xFFFF);
+
+    ConstRope def(c_rope_pool, attrPtr.p->defaultValue);
+    def.copy((char*)defVal_dst);
+
+    Uint32 defValueLen = def.size();
+    defVal_length += (defValueLen + 3)/4;
+    defVal_dst += (defValueLen + 3)/4;
+
     if (tabPtr.p->isIndex()) {
       Uint32 primaryAttrId;
       if (attrPtr.p->nextList != RNIL) {
@@ -6165,8 +6178,18 @@ Dbdict::sendLQHADDATTRREQ(Signal* signal,
   req->senderAttrPtr = attributePtrI;
   req->noOfAttributes = i;
 
-  sendSignal(DBLQH_REF, GSN_LQHADDATTREQ, signal,
-	     LqhAddAttrReq::HeaderLength + LqhAddAttrReq::EntryLength * i, JBB);
+  if (defVal_length != 0)
+  {
+    LinearSectionPtr ptr[3];
+    ptr[0].p= &signal->theData[startIndex];
+    ptr[0].sz= defVal_length;
+
+    sendSignal(DBLQH_REF, GSN_LQHADDATTREQ, signal,
+       	       LqhAddAttrReq::HeaderLength + LqhAddAttrReq::EntryLength * i, JBB, ptr, 1);
+  }
+  else
+    sendSignal(DBLQH_REF, GSN_LQHADDATTREQ, signal,
+               LqhAddAttrReq::HeaderLength + LqhAddAttrReq::EntryLength * i, JBB);
 }
 
 void

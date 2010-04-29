@@ -123,6 +123,7 @@ class TupAddAttrReq {
   friend class Dbtux;
 public:
   STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( DEFAULT_VALUE_SECTION_NUM = 0 );
 private:
   Uint32 tupConnectPtr;
   Uint32 notused1;

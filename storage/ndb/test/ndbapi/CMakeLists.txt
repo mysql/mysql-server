@@ -66,6 +66,7 @@ ADD_EXECUTABLE(DbAsyncGenerator bench/mainAsyncGenerator.cpp bench/asyncGenerato
 ADD_EXECUTABLE(testSRBank testSRBank.cpp)
 ADD_EXECUTABLE(test_event_merge test_event_merge.cpp)
 Add_EXECUTABLE(testNdbinfo testNdbinfo.cpp)
+ADD_EXECUTABLE(testNativeDefault testNativeDefault.cpp)
 ##testDict_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
 ##testIndex_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
 ##testSystemRestart_INCLUDES = $(INCLUDES) -I$(top_srcdir)/ndb/include/kernel
