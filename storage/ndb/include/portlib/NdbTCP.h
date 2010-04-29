@@ -21,9 +21,9 @@
 
 #include <ndb_global.h>
 #include <ndb_net.h>
-#include <my_socket.h>
+#include <ndb_socket.h>
 
-#define NDB_SOCKET_TYPE my_socket
+#define NDB_SOCKET_TYPE ndb_socket_t
 #define _NDB_CLOSE_SOCKET(x) my_socket_close(x)
 
 #ifdef	__cplusplus
@@ -46,7 +46,7 @@ int Ndb_getInAddr(struct in_addr * dst, const char *address);
 #ifdef DBUG_OFF
 #define NDB_CLOSE_SOCKET(fd) _NDB_CLOSE_SOCKET(fd)
 #else
-int NDB_CLOSE_SOCKET(my_socket fd);
+int NDB_CLOSE_SOCKET(NDB_SOCKET_TYPE fd);
 #endif
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);

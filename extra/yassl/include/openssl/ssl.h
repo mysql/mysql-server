@@ -192,17 +192,10 @@ enum {  /* ERR Constants */
 };
 
 /*
-  Use platform default type for sockets except
-  if user explicitly request use of "int" to be
-  OpenSSL compatible
-*/
-#if !defined(YASSL_SET_FD_INT) && defined(_WIN32)
-#if defined(_WIN64)
-typedef unsigned __int64 YASSL_SOCKET_T;
-#else
-typedef unsigned int YASSL_SOCKET_T;
-#endif
-#else
+  Allow type used by SSL_set_fd to be changed, default to int
+  in order to be compatible with OpenSSL
+ */
+#ifndef YASSL_SOCKET_T_DEFINED
 typedef int YASSL_SOCKET_T;
 #endif
 
