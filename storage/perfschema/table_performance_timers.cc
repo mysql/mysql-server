@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -76,7 +76,7 @@ PFS_engine_table* table_performance_timers::create(void)
 }
 
 table_performance_timers::table_performance_timers()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
     m_row(NULL), m_pos(0), m_next_pos(0)
 {
   int index;

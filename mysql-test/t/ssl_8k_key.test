@@ -1,6 +1,8 @@
--- source include/have_ssl.inc
+-- source include/have_ssl_communication.inc
 #
 # Bug#29784 YaSSL assertion failure when reading 8k key.
 #
 --exec $MYSQL --ssl --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem -e "SHOW STATUS LIKE 'ssl_Cipher'" 2>&1
 
+##  This test file is for testing encrypted communication only, not other
+##  encryption routines that the SSL library happens to provide!

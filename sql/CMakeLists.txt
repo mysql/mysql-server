@@ -41,7 +41,7 @@ ENDIF()
 SET (SQL_SOURCE
               ../sql-common/client.c derror.cc des_key_file.cc
                discover.cc ../libmysql/errmsg.c field.cc  field_conv.cc 
-               filesort.cc gstream.cc
+               filesort.cc gstream.cc sha2.cc
                ha_partition.cc
                handler.cc hash_filo.cc hash_filo.h sql_plugin_services.h
                hostname.cc init.cc item.cc item_buff.cc item_cmpfunc.cc 
@@ -281,7 +281,8 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     ALL
     DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
   )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data/mysql DESTINATION data)
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
+    PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
