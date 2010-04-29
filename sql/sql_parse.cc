@@ -2025,8 +2025,16 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (thd->copy_db_to(&table_list.db, &table_list.db_length))
       break;
     pend= strend(packet);
+    uint arg_length= pend - packet;
+    
+    /* Check given table name length. */
+    if (arg_length >= packet_length || arg_length > NAME_LEN)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      break;
+    }
     thd->convert_string(&conv_name, system_charset_info,
-			packet, (uint) (pend-packet), thd->charset());
+			packet, arg_length, thd->charset());
     table_list.alias= table_list.table_name= conv_name.str;
     packet= pend+1;
 
