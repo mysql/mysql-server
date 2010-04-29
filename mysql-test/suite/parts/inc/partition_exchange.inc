@@ -13,17 +13,39 @@ SHOW CREATE TABLE tp;
 SHOW CREATE TABLE t;
 INSERT INTO tp (b) VALUES ("One"), ("Two"), ("Three"), ("Four"), ("Five"),
 ("Six"), ("Seven"), ("Eight"), ("Nine"), ("Ten"), ("Eleven"), ("Twelwe");
-INSERT INTO tp VALUES (97, "Ninety seven"), (111, "One hundred eleven"), (101, "One hundred one");
-SET INSERT_ID = 13;
-INSERT INTO t (b) VALUES ("Thirteen");
-SET INSERT_ID = 21;
-INSERT INTO t (b) VALUES ("Twenty one");
-SET INSERT_ID = 25;
-INSERT INTO t (b) VALUES ("Twenty five");
-SET INSERT_ID = 55;
-INSERT INTO t (b) VALUES ("Fifty five");
+if ($no_update)
+{
+# Archive handles auto inc by only allowing increasing values,
+# so this must be inserted before a higher value is inserted.
+INSERT INTO tp VALUES (41, "One hundred one");
+}
+INSERT INTO tp VALUES (97, "Ninety seven");
 if (!$no_delete)
 {
+INSERT INTO tp VALUES (111, "One hundred eleven");
+}
+if (!$no_update)
+{
+INSERT INTO tp VALUES (101, "One hundred one");
+}
+SET INSERT_ID = 13;
+INSERT INTO t (b) VALUES ("Thirteen");
+if ($no_update)
+{
+SET INSERT_ID = 17;
+INSERT INTO t (b) VALUES ("Twenty five");
+}
+SET INSERT_ID = 21;
+INSERT INTO t (b) VALUES ("Twenty one");
+if (!$no_update)
+{
+SET INSERT_ID = 25;
+INSERT INTO t (b) VALUES ("Twenty five");
+}
+if (!$no_delete)
+{
+SET INSERT_ID = 55;
+INSERT INTO t (b) VALUES ("Fifty five");
 DELETE FROM tp WHERE a = 111;
 DELETE FROM t WHERE a = 55;
 }
@@ -299,7 +321,7 @@ DELETE FROM t WHERE a = 59;
 }
 if (!$no_update)
 {
-UPDATE tp SET a = 33, b = "Fifty three, was three" WHERE a = 3;
+UPDATE tp SET a = 53, b = "Fifty three, was three" WHERE a = 3;
 }
 INSERT INTO tp VALUES (63, "Sixty three, new"), (59, "To be deleted");
 if (!$no_delete)

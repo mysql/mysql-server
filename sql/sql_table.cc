@@ -6509,8 +6509,8 @@ static bool compare_table_with_partition(THD *thd, TABLE *table,
                                 table_create_info.auto_increment_value;
 
   /*
-    NOTE: ha_archive does not support check_if_compatible_data,
-    so this always fail for archive tables.
+    NOTE: ha_blackhole does not support check_if_compatible_data,
+    so this always fail for blackhole tables.
   */
   if (compare_tables(table, &part_alter_info, &part_create_info,
                      0, &alter_change_level, &key_info_buffer,
