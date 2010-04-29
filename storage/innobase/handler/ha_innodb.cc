@@ -4435,7 +4435,7 @@ ha_innobase::unlock_row(void)
 	case ROW_READ_WITH_LOCKS:
 		if (!srv_locks_unsafe_for_binlog
 		    && prebuilt->trx->isolation_level
-		    != TRX_ISO_READ_COMMITTED) {
+		    > TRX_ISO_READ_COMMITTED) {
 			break;
 		}
 		/* fall through */
@@ -4472,7 +4472,7 @@ ha_innobase::try_semi_consistent_read(bool yes)
 
 	if (yes
 	    && (srv_locks_unsafe_for_binlog
-		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
+		|| prebuilt->trx->isolation_level <= TRX_ISO_READ_COMMITTED)) {
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 	} else {
 		prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
@@ -7768,7 +7768,7 @@ ha_innobase::store_lock(
 		isolation_level = trx->isolation_level;
 
 		if ((srv_locks_unsafe_for_binlog
-		     || isolation_level == TRX_ISO_READ_COMMITTED)
+		     || isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && isolation_level != TRX_ISO_SERIALIZABLE
 		    && (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
 		    && (sql_command == SQLCOM_INSERT_SELECT
