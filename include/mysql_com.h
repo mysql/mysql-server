@@ -219,6 +219,16 @@ typedef struct st_net {
 
   my_bool report_error; /* We should report error (we have unreported error) */
   my_bool return_errno;
+#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+  /*
+    Controls whether a big packet should be skipped.
+
+    Initially set to FALSE by default. Unauthenticated sessions must have
+    this set to FALSE so that the server can't be tricked to read packets
+    indefinitely.
+  */
+  my_bool skip_big_packet;
+#endif
 } NET;
 
 #define packet_error (~(unsigned long) 0)
