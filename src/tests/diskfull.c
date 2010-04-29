@@ -142,6 +142,7 @@ pwrite_counting_and_failing (int fd, const void *buf, size_t size, toku_off_t of
 {
     write_count++;
     if (write_count>fail_at) {
+        if (verbose) fprintf(stderr, "Failure imminent at %d:\n", fail_at);
 	errno = ENOSPC;
 	return -1;
     } else {
@@ -154,6 +155,7 @@ write_counting_and_failing (int fd, const void *buf, size_t size)
 {
     write_count++;
     if (write_count>fail_at) {
+        if (verbose) fprintf(stderr, "Failure imminent at %d:\n", fail_at);
 	errno = ENOSPC;
 	return -1;
     } else {
@@ -163,44 +165,45 @@ write_counting_and_failing (int fd, const void *buf, size_t size)
 
 static void
 do_writes_that_fail (void) {
+    if (verbose) fprintf(stderr, "About to fail at %d:\n", fail_at);
     toku_set_assert_on_write_enospc(TRUE);
     db_env_set_func_pwrite(pwrite_counting_and_failing);
     db_env_set_func_write (write_counting_and_failing);
     write_count=0;
     do_db_work();
-    if (verbose) fprintf(stderr, "Write_count=%d\n", write_count);
+    printf("%d\n", write_count);
+}
 
-    int count = write_count;
-    
-    // fail_at=83; write_count=0; do_db_work();
-
-    for (fail_at = 0; fail_at<count; fail_at++) {
-	if (verbose) fprintf(stderr, "About to fail at %d:\n", fail_at);
-	write_count=0;
-	pid_t child;
-	if ((child=fork())==0) {
-	    int devnul = open(DEV_NULL_FILE, O_WRONLY);
-	    assert(devnul>=0);
-	    { int r = toku_dup2(devnul, fileno(stderr)); 	    assert(r==fileno(stderr)); }
-	    { int r = close(devnul);                          assert(r==0);              }
-	    do_db_work();
+static void
+diskfull_parse_args (int argc, char * const argv[]) {
+    int c;
+    char *argv0 = argv[0];
+    while ((c = getopt(argc, (char * const *)argv, "cC:vq")) != -1) {
+	switch(c) {
+        case 'C':
+            fail_at =  atoi(optarg);
+	    break;
+	case 'v':
+	    verbose++;
+            break;
+	case 'q':
+	    verbose--;
+	    if (verbose<0) verbose=0;
+            break;
+	default:
+do_usage:
+	    fprintf(stderr, "Usage:\n%s [-v|-q] [-C number]\n", argv0);
 	    exit(1);
-	} else {
-	    int status;
-	    pid_t r = waitpid(child, &status, 0);
-	    assert(r==child);
-	    assert(WIFSIGNALED(status));
-	    assert(WTERMSIG(status)==SIGABRT);
 	}
     }
-
-   // fail_at = FAIL_NEVER;  write_count=0;
-   // do_db_work();
+    if (argc!=optind) {
+        goto do_usage;
+    }
 }
 
 int
 test_main (int argc, char * const argv[]) {
-    parse_args(argc, argv);
+    diskfull_parse_args(argc, argv);
     do_writes_that_fail();
     return 0;
 }

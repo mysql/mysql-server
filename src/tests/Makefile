@@ -510,6 +510,23 @@ checkpoint_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	test `grep -l 'HAPPY CRASH' dir.checkpoint_stress.c.tdb/error.* |wc -l` = $$(($(STRESS_RUNS)-1)) \
 	) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
+ifeq ($(OS_CHOICE),windows)
+DISKFULL_ABORTCODE=137
+else
+DISKFULL_ABORTCODE=134
+endif
+
+diskfull.tdbrun: SHELL=/bin/bash
+diskfull.tdbrun: diskfull.tdb$(BINSUF) $(PTHREAD_LOCAL)
+	NUM_WRITES=$$($(VGRIND) ./$< -q) && \
+	(for (( i = 0; i < $$NUM_WRITES; i++ )); do \
+		{ ./$< -C $$i 2>/dev/null; } 2>/dev/null; \
+		if [ $$? -ne $(DISKFULL_ABORTCODE) ] ; then \
+		    echo "Diskfull (iteration $$i) did not abort" ; \
+		    exit 1; \
+		fi; \
+	done; ) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
 recover_stress.tdbrun: SHELL=/bin/bash
 recover_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< -C -n $(STRESS_SIZE) -l $(VERBVERBOSE) && \
