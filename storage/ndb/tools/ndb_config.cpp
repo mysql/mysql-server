@@ -32,6 +32,7 @@
 #include <mgmapi_configuration.hpp>
 #include <ConfigInfo.hpp>
 #include <NdbAutoPtr.hpp>
+#include <NdbTCP.h>
 
 static int g_verbose = 0;
 static int try_reconnect = 3;

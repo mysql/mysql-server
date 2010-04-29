@@ -244,7 +244,7 @@ TCP_Transporter::setSocketOptions(NDB_SOCKET_TYPE socket)
   }
 }
 
-bool TCP_Transporter::setSocketNonBlocking(my_socket socket)
+bool TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket)
 {
   if(my_socket_nonblock(socket, true)==0)
     return true;
