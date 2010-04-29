@@ -24,7 +24,9 @@ t	CREATE TABLE `t` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 INSERT INTO tp (b) VALUES ("One"), ("Two"), ("Three"), ("Four"), ("Five"),
 ("Six"), ("Seven"), ("Eight"), ("Nine"), ("Ten"), ("Eleven"), ("Twelwe");
-INSERT INTO tp VALUES (97, "Ninety seven"), (111, "One hundred eleven"), (101, "One hundred one");
+INSERT INTO tp VALUES (97, "Ninety seven");
+INSERT INTO tp VALUES (111, "One hundred eleven");
+INSERT INTO tp VALUES (101, "One hundred one");
 SET INSERT_ID = 13;
 INSERT INTO t (b) VALUES ("Thirteen");
 SET INSERT_ID = 21;
@@ -304,7 +306,7 @@ a	b
 UPDATE t SET a = 53, b = "Fifty three, was sixty three" WHERE a = 63;
 INSERT INTO t VALUES (63, "Sixty three, new"), (59, "To be deleted");
 DELETE FROM t WHERE a = 59;
-UPDATE tp SET a = 33, b = "Fifty three, was three" WHERE a = 3;
+UPDATE tp SET a = 53, b = "Fifty three, was three" WHERE a = 3;
 INSERT INTO tp VALUES (63, "Sixty three, new"), (59, "To be deleted");
 DELETE FROM tp WHERE a = 3;
 ALTER TABLE t ENGINE = 'InnoDB';
@@ -346,8 +348,8 @@ a	b
 163	163
 164	164
 200	Two hundred, end of values
-33	Fifty three, was three
 5	Five
+53	Fifty three, was three
 59	To be deleted
 63	Sixty three, new
 99	End of values

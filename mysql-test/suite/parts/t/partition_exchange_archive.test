@@ -1,21 +1,10 @@
 --source include/have_archive.inc
 --source include/have_partition.inc
 
-let $engine= 'Archive';
---echo # Archive has not implemented check_if_incompatible_data,
---echo # so it cannot support EXCHANGE PARTITION
-CREATE TABLE t (a int, b varchar(55)) ENGINE = 'Archive';
-CREATE TABLE tp (a int, b varchar(55)) ENGINE = 'Archive'
-PARTITION BY RANGE (a)
-(PARTITION p0 VALUES LESS THAN (100),
- PARTITION p1 VALUES LESS THAN MAXVALUE);
---error ER_TABLES_DIFFERENT_METADATA
-ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t;
-DROP TABLE t, tp;
 
-# to use when check_if_incompatible_data is implemented in ha_archive
-#--echo # Archive does not support keys, update or delete
-#let $no_keys= 1;
-#let $no_update= 1;
-#let $no_delete= 1;
-#--source suite/parts/inc/partition_exchange.inc
+--echo # Archive does not support keys, update or delete
+let $engine= 'Archive';
+let $no_keys= 1;
+let $no_update= 1;
+let $no_delete= 1;
+--source suite/parts/inc/partition_exchange.inc
