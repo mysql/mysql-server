@@ -631,7 +631,7 @@ fil_node_open_file(
 	fil_system_t*	system,	/*!< in: tablespace memory cache */
 	fil_space_t*	space)	/*!< in: space */
 {
-	ib_int64_t	size_bytes;
+	ib_uint64_t	size_bytes;
 	ulint		size_low;
 	ulint		size_high;
 	ibool		ret;
@@ -672,8 +672,8 @@ fil_node_open_file(
 
 		os_file_get_size(node->handle, &size_low, &size_high);
 
-		size_bytes = (((ib_int64_t)size_high) << 32)
-			+ (ib_int64_t)size_low;
+		size_bytes = (((ib_uint64_t)size_high) << 32)
+			+ (ib_uint64_t)size_low;
 #ifdef UNIV_HOTBACKUP
 		if (space->id == 0) {
 			node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
@@ -3443,7 +3443,7 @@ fil_load_single_table_tablespace(
 	ulint		flags;
 	ulint		size_low;
 	ulint		size_high;
-	ib_int64_t	size;
+	ib_uint64_t	size;
 #ifdef UNIV_HOTBACKUP
 	fil_space_t*	space;
 #endif
@@ -3563,7 +3563,7 @@ fil_load_single_table_tablespace(
 	/* Every .ibd file is created >= 4 pages in size. Smaller files
 	cannot be ok. */
 
-	size = (((ib_int64_t)size_high) << 32) + (ib_int64_t)size_low;
+	size = (((ib_uint64_t)size_high) << 32) + (ib_uint64_t)size_low;
 #ifndef UNIV_HOTBACKUP
 	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 		fprintf(stderr,
@@ -4789,13 +4789,16 @@ ibool
 fil_area_is_exist(
 /*==============*/
 	ulint	space_id,	/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes;
+	ulint	zip_size __attribute__((unused)),
+				/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */
 	ulint	block_offset,	/*!< in: offset in number of blocks */
-	ulint	byte_offset,	/*!< in: remainder of offset in bytes; in
+	ulint	byte_offset __attribute__((unused)),
+				/*!< in: remainder of offset in bytes; in
 				aio this must be divisible by the OS block
 				size */
-	ulint	len)		/*!< in: how many bytes to read or write; this
+	ulint	len __attribute__((unused)))
+				/*!< in: how many bytes to read or write; this
 				must not cross a file boundary; in aio this
 				must be a block size multiple */
 {
