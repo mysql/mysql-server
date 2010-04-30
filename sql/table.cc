@@ -1633,10 +1633,11 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (share->db_create_options & HA_OPTION_TEXT_CREATE_OPTIONS)
   {
     DBUG_ASSERT(options_len);
-    if (engine_table_options_frm_read(options, options_len, share) ||
-        parse_engine_table_options(thd, handler_file->ht, share))
+    if (engine_table_options_frm_read(options, options_len, share))
       goto free_and_err;
   }
+  if (parse_engine_table_options(thd, handler_file->ht, share))
+    goto free_and_err;
   my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
 
   if (share->found_next_number_field)

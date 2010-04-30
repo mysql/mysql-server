@@ -367,6 +367,15 @@ int ha_example::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(1);
   thr_lock_data_init(&share->lock,&lock,NULL);
 
+  example_table_options_struct *options=
+    (example_table_options_struct *)table->s->option_struct;
+
+  DBUG_ASSERT(options);
+  DBUG_PRINT("info", ("strparam: '%-.64s'  ullparam: %llu  enumparam: %u  "\
+                      "boolparam: %u",
+                      (options->strparam ? options->strparam : "<NULL>"),
+                      options->ullparam, options->enumparam, options->boolparam));
+
   DBUG_RETURN(0);
 }
 
