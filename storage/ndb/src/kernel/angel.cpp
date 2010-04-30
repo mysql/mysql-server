@@ -287,7 +287,7 @@ spawn_process(const char* progname, const BaseString& args)
     return pid;
   }
 
-  // Conunt number of arguments
+  // Count number of arguments
   int argc = 0;
   while(argv[argc])
     argc++;
@@ -397,7 +397,7 @@ angel_run(const BaseString& original_args,
 
   const int alloc_retries = 2;
   const int alloc_delay = 3;
-  Uint32 nodeid = retriever.allocNodeId(alloc_retries, alloc_delay);
+  const Uint32 nodeid = retriever.allocNodeId(alloc_retries, alloc_delay);
   if (nodeid == 0)
   {
     g_eventLogger->error("Failed to allocate nodeid, error: '%s'",
@@ -614,6 +614,44 @@ angel_run(const BaseString& original_args,
                    initial,
                    child_error, child_signal, child_sphase);
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
+
+    g_eventLogger->debug("Angel reconnecting to management server");
+    (void)retriever.disconnect();
+
+    const int connnect_retries = 12;
+    const int connect_delay = 5;
+    const int verbose = 1;
+    if (retriever.do_connect(connnect_retries, connect_delay, verbose) != 0)
+    {
+      g_eventLogger->error("Could not connect to management server, "
+                           "error: '%s'", retriever.getErrorString());
+      angel_exit(1);
+    }
+    g_eventLogger->info("Angel reconnected to '%s:%d'",
+                        retriever.get_mgmd_host(),
+                        retriever.get_mgmd_port());
+
+    // Tell retriver to allocate the same nodeid again
+    retriever.setNodeId(nodeid);
+
+    g_eventLogger->debug("Angel reallocating nodeid %d", nodeid);
+    const int alloc_retries = 10;
+    const int alloc_delay = 3;
+    const Uint32 realloced = retriever.allocNodeId(alloc_retries, alloc_delay);
+    if (realloced == 0)
+    {
+      g_eventLogger->error("Angel failed to allocate nodeid, error: '%s'",
+                           retriever.getErrorString());
+      angel_exit(1);
+    }
+    if (realloced != nodeid)
+    {
+      g_eventLogger->error("Angel failed to reallocate nodeid %d, got %d",
+                           nodeid, realloced);
+      angel_exit(1);
+    }
+    g_eventLogger->info("Angel reallocated nodeid: %u", nodeid);
+
   }
 
   abort(); // Never reached
