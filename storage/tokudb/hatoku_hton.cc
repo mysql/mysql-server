@@ -84,6 +84,14 @@ static MYSQL_THDVAR_UINT(pk_insert_mode,
   1 // blocksize
   );
 
+static MYSQL_THDVAR_BOOL(load_save_space,
+  0,
+  "if on, intial loads are slower but take less space",
+  NULL, 
+  NULL, 
+  FALSE
+  );
+
 
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer);
 static void tokudb_cleanup_log_files(void);
@@ -484,6 +492,10 @@ ulonglong get_read_lock_wait_time (THD* thd) {
 
 uint get_pk_insert_mode(THD* thd) {
     return THDVAR(thd, pk_insert_mode);
+}
+
+bool get_load_save_space(THD* thd) {
+    return (THDVAR(thd, load_save_space) != 0);
 }
 
 
@@ -1159,6 +1171,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(write_lock_wait),
     MYSQL_SYSVAR(read_lock_wait),
     MYSQL_SYSVAR(pk_insert_mode),
+    MYSQL_SYSVAR(load_save_space),
     MYSQL_SYSVAR(version),
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(checkpointing_period),

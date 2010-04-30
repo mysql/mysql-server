@@ -2814,16 +2814,17 @@ cleanup:
 }
 
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::start_bulk_insert");
+    THD* thd = ha_thd();
     delay_updating_ai_metadata = true;
     ai_metadata_update_required = false;
     abort_loader = false;
     if (share->try_table_lock) {
         if (tokudb_prelock_empty && may_table_be_empty()) {
-            if (using_ignore) {
+            if (using_ignore || get_load_save_space(thd)) {
                 acquire_table_lock(transaction, lock_write);
             }
             else {
-                THD* thd = ha_thd();
                 u_int32_t mult_put_flags[MAX_KEY + 1] = {DB_YESOVERWRITE};
                 u_int32_t mult_dbt_flags[MAX_KEY + 1] = {DB_DBT_REALLOC};
                 uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
@@ -2858,6 +2859,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
         share->try_table_lock = false;
         pthread_mutex_unlock(&share->mutex);
     }
+    DBUG_VOID_RETURN;
 }
 
 //
@@ -2866,6 +2868,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
 // this is guaranteed to be called.
 //
 int ha_tokudb::end_bulk_insert() {
+    TOKUDB_DBUG_ENTER("ha_tokudb::end_bulk_insert");
     int error = 0;
     if (ai_metadata_update_required) {
         pthread_mutex_lock(&share->mutex);
@@ -2916,7 +2919,7 @@ cleanup:
     if (error || loader_error) {
         my_errno = error ? error : loader_error;
     }
-    return error ? error : loader_error;
+    TOKUDB_DBUG_RETURN(error ? error : loader_error);
 }
 
 
@@ -6239,6 +6242,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     DB_TXN* txn = NULL;
     THD* thd = ha_thd(); 
     DB_LOADER* loader = NULL;
+    u_int32_t loader_flags = (get_load_save_space(thd)) ? LOADER_USE_PUTS : 0;
     u_int32_t mult_put_flags[MAX_KEY + 1] = {DB_YESOVERWRITE};
     u_int32_t mult_dbt_flags[MAX_KEY + 1] = {DB_DBT_REALLOC};
     struct loader_context lc = {0};
@@ -6352,7 +6356,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         &share->key_file[curr_num_DBs], 
         mult_put_flags,
         mult_dbt_flags,
-        0
+        loader_flags
         );
     if (error) { goto cleanup; }
 

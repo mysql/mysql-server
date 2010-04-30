@@ -14,6 +14,7 @@ extern DB *metadata_db;
 ulonglong get_write_lock_wait_time (THD* thd);
 ulonglong get_read_lock_wait_time (THD* thd);
 uint get_pk_insert_mode(THD* thd);
+bool get_load_save_space(THD* thd);
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
