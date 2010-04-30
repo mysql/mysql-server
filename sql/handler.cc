@@ -4107,6 +4107,12 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
     Calculate estimated cost and other information about an MRR scan for given
     sequence of ranges.
 
+  NOTES
+    This method (or an overriding one in a derived class) must check for
+    thd->killed and return HA_POS_ERROR if it is not zero. This is required
+    for a user to be able to interrupt the calculation by killing the
+    connection/query.
+
   RETURN
     HA_POS_ERROR -  Error or the engine is unable to perform the requested 
                     scan. Values of OUT parameters are undefined.
@@ -4123,6 +4129,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   range_seq_t seq_it;
   ha_rows rows, total_rows= 0;
   uint n_ranges=0;
+  THD *thd= current_thd;
   
   /* Default MRR implementation doesn't need buffer */
   *bufsz= 0;
@@ -4130,6 +4137,9 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
   seq_it= seq->init(seq_init_param, n_ranges, *flags);
   while (!seq->next(seq_it, &range))
   {
+    if (unlikely(thd->killed != 0))
+      return HA_POS_ERROR;
+    
     n_ranges++;
     key_range *min_endp, *max_endp;
     if (range.range_flag & GEOM_FLAG)
