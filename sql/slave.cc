@@ -2383,7 +2383,10 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       last_master_timestamp.
      */
     if (!(ev->is_artificial_event() || ev->is_relay_log_event() || (ev->when == 0)))
-      rli->last_master_timestamp= ev->when;
+    {
+      rli->last_master_timestamp= ev->when + (time_t) ev->exec_time;
+      DBUG_ASSERT(rli->last_master_timestamp >= 0);
+    }
 
     /*
       This tests if the position of the beginning of the current event
