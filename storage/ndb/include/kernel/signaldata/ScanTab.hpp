@@ -39,6 +39,7 @@ class ScanTabReq {
   friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
   friend class NdbQueryImpl;
+  friend class NdbScanFilterImpl;
 
   /**
    * For printing

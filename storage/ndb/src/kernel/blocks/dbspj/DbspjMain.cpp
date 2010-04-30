@@ -828,12 +828,6 @@ Dbspj::cleanup_common(Ptr<Request> requestPtr, Ptr<TreeNode> treeNodePtr)
     jam();
     releaseSection(treeNodePtr.p->m_send.m_attrInfoPtrI);
   }
-
-  if (treeNodePtr.p->m_send.m_attrInfoParamPtrI != RNIL)
-  {
-    jam();
-    releaseSection(treeNodePtr.p->m_send.m_attrInfoParamPtrI);
-  }
 }
 
 /**
@@ -1200,6 +1194,12 @@ Dbspj::lookup_build(Build_context& ctx,
       break;
     }
 
+    if (treeNodePtr.p->m_bits & TreeNode::T_ATTR_INTERPRETED)
+    {
+      jam();
+      LqhKeyReq::setInterpretedFlag(dst->requestInfo, 1);
+    }
+
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
 
     return 0;
@@ -1354,7 +1354,7 @@ Dbspj::lookup_send(Signal* signal,
   getSection(handle.m_ptr[1], attrInfoPtrI);
   handle.m_cnt = 2;
 
-#ifdef DEBUG_LQHKEYREQ
+#if defined DEBUG_LQHKEYREQ
   ndbout_c("LQHKEYREQ to %x", ref);
   printLQHKEYREQ(stdout, signal->getDataPtrSend(),
 		 NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
@@ -1589,6 +1589,38 @@ Dbspj::lookup_start_child(Signal* signal,
     if (unlikely(err != 0))
       break;
 
+    Uint32 attrInfoPtrI = treeNodePtr.p->m_send.m_attrInfoPtrI;
+    if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+    {
+      jam();
+      Uint32 tmp = RNIL;
+      ndbrequire(dupSection(tmp, attrInfoPtrI)); // TODO handle error
+
+      Uint32 org_size;
+      {
+        SegmentedSectionPtr ptr;
+        getSection(ptr, tmp);
+        org_size = ptr.sz;
+      }
+
+      LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+      Local_pattern_store pattern(pool, treeNodePtr.p->m_attrParamPattern);
+      err = expand(tmp, pattern, rowRef.m_row_data.m_section);
+      if (unlikely(err != 0))
+        break;
+
+      /**
+       * Update size of subsrouting section, which contains arguments
+       */
+      SegmentedSectionPtr ptr;
+      getSection(ptr, tmp);
+      Uint32 new_size = ptr.sz;
+      Uint32 * sectionptrs = ptr.p->theData;
+      sectionptrs[4] = new_size - org_size;
+
+      treeNodePtr.p->m_send.m_attrInfoPtrI = tmp;
+    }
+
     /**
      * Now send...
      */
@@ -1619,6 +1651,13 @@ Dbspj::lookup_start_child(Signal* signal,
       LqhKeyReq::setDistributionKey(attrLen, tmp.fragDistKey);
       dst->attrLen = attrLen;
       lookup_send(signal, requestPtr, treeNodePtr);
+
+      if (treeNodePtr.p->m_bits & TreeNode::T_ATTRINFO_CONSTRUCTED)
+      {
+        jam();
+        // restore
+        treeNodePtr.p->m_send.m_attrInfoPtrI = attrInfoPtrI;
+      }
     }
     return;
   } while (0);
@@ -2582,7 +2621,7 @@ Dbspj::appendToPattern(Local_pattern_store & pattern,
 }
 
 Uint32
-Dbspj::appendColToPattern(Local_pattern_store& dst,
+Dbspj::appendParamToPattern(Local_pattern_store& dst,
                           const RowRef::Linear & row, Uint32 col)
 {
   /**
@@ -2687,6 +2726,46 @@ Dbspj::appendColToSection(Uint32 & dst, const RowRef::Linear & row, Uint32 col)
   const Uint32 * ptr = row.m_data + offset;
   Uint32 len = AttributeHeader::getDataSize(* ptr ++);
   return appendToSection(dst, ptr, len) ? 0 : DbspjErr::InvalidPattern;
+}
+
+Uint32
+Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowRef::Linear & row, 
+                               Uint32 col)
+{
+  /**
+   * TODO handle errors
+   */
+  const Uint32 * header = (const Uint32*)row.m_header->m_headers;
+  Uint32 offset = 0;
+  for (Uint32 i = 0; i<col; i++)
+  {
+    offset += 1 + AttributeHeader::getDataSize(* header++);
+  }
+  const Uint32 * ptr = row.m_data + offset;
+  Uint32 len = AttributeHeader::getDataSize(* ptr);
+  return appendToSection(dst, ptr, 1 + len) ? 0 : DbspjErr::InvalidPattern;
+}
+
+Uint32
+Dbspj::appendAttrinfoToSection(Uint32 & dst, const RowRef::Section & row, 
+                               Uint32 col)
+{
+  /**
+   * TODO handle errors
+   */
+  const Uint32 * header = (const Uint32*)row.m_header->m_headers;
+  SegmentedSectionPtr ptr(row.m_dataPtr);
+  SectionReader reader(ptr, getSectionSegmentPool());
+  Uint32 offset = 0;
+  for (Uint32 i = 0; i<col; i++)
+  {
+    offset += 1 + AttributeHeader::getDataSize(* header++);
+  }
+  ndbrequire(reader.step(offset));
+  Uint32 tmp;
+  ndbrequire(reader.peekWord(&tmp));
+  Uint32 len = AttributeHeader::getDataSize(tmp);
+  return appendTreeToSection(dst, reader, 1 + len);
 }
 
 /**
@@ -2847,12 +2926,17 @@ Dbspj::expand(Uint32 & _dst, Local_pattern_store& pattern,
       jam();
       err = appendPkColToSection(dst, row, val);
       break;
+    case QueryPattern::P_ATTRINFO:
+      jam();
+      err = appendAttrinfoToSection(dst, row, val);
+      break;
     case QueryPattern::P_DATA:
       jam();
       err = appendDataToSection(dst, pattern, it, val);
       break;
     // PARAM's converted to DATA by ::expand(pattern...)
     case QueryPattern::P_PARAM:
+    case QueryPattern::P_PARAM_HEADER:
     default:
       jam();
       err = DbspjErr::InvalidPattern;
@@ -2902,6 +2986,11 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
       ndbassert(val < paramCnt);
       err = appendColToSection(dst, row, val);
       break;
+    case QueryPattern::P_PARAM_HEADER:
+      jam();
+      ndbassert(val < paramCnt);
+      err = appendAttrinfoToSection(dst, row, val);
+      break;
     case QueryPattern::P_DATA:
       if (likely(appendToSection(dst, ptr, val)))
       {
@@ -2916,9 +3005,11 @@ Dbspj::expand(Uint32 & ptrI, DABuffer& pattern, Uint32 len,
       ptr += val;
       break;
     case QueryPattern::P_COL: // (linked) COL's not expected here
+    case QueryPattern::P_ATTRINFO:
     case QueryPattern::P_UNQ_PK:
     default:
       jam();
+      jamLine(type);
       err = DbspjErr::InvalidPattern;
       DEBUG_CRASH();
     }
@@ -2975,6 +3066,7 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
     switch(type){
     case QueryPattern::P_COL:
     case QueryPattern::P_UNQ_PK:
+    case QueryPattern::P_ATTRINFO:
       jam();
       err = appendToPattern(dst, pattern, 1);
       break;
@@ -2986,8 +3078,19 @@ Dbspj::expand(Local_pattern_store& dst, DABuffer& pattern, Uint32 len,
       jam();
       // NOTE: Converted to P_DATA by appendColToPattern
       ndbassert(val < paramCnt);
-      err = appendColToPattern(dst, row, val);
+      err = appendParamToPattern(dst, row, val);
       pattern.ptr++;
+      break;
+    case QueryPattern::P_PARAM_HEADER:
+      jam();
+#if 0
+      // NOTE: Converted to P_DATA by appendParamToPattern
+      ndbassert(val < paramCnt);
+      err = appendParamHeadToPattern(dst, row, val);
+      pattern.ptr++;
+#else
+      ndbrequire(false);
+#endif
       break;
    default:
       jam();
@@ -3062,8 +3165,13 @@ Dbspj::parseDA(Build_context& ctx,
         break;
     }
 
-    ndbrequire(((treeBits  & DABits::NI_KEY_PARAMS)==0)
-            == ((paramBits & DABits::PI_KEY_PARAMS)==0));
+    err = DbspjErr::InvalidTreeParametersSpecificationKeyParamBitsMissmatch;
+    if (unlikely(! (((treeBits  & DABits::NI_KEY_PARAMS)==0) ==
+                    ((paramBits & DABits::PI_KEY_PARAMS)==0))))
+    {
+      DEBUG_CRASH();
+      break;
+    }
 
     if (treeBits & (DABits::NI_KEY_PARAMS 
 		    | DABits::NI_KEY_LINKED 
@@ -3085,8 +3193,13 @@ Dbspj::parseDA(Build_context& ctx,
       LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
       Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
 
-      ndbrequire((cnt==0) == ((treeBits & DABits::NI_KEY_PARAMS) ==0));
-      ndbrequire((cnt==0) == ((paramBits & DABits::PI_KEY_PARAMS)==0));
+      err = DbspjErr::InvalidTreeParametersSpecificationIncorrectKeyParamCount;
+      if (unlikely(!(((cnt==0) == ((treeBits & DABits::NI_KEY_PARAMS) == 0)) &&
+                     ((cnt==0) == ((paramBits & DABits::PI_KEY_PARAMS) == 0)))))
+      {
+        DEBUG_CRASH();
+        break;
+      }
 
       if (treeBits & DABits::NI_KEY_LINKED)
       {
@@ -3148,7 +3261,7 @@ Dbspj::parseDA(Build_context& ctx,
        *   DATA1..N     = PARAM-0...PARAM-M
        *
        * IF PI_ATTR_INTERPRET
-       *   DATA0[LO] = Length of program
+       *   DATA0[LO/HI] = Length of program / Length of subroutine-part
        *   DATA1..N     = Program (scan filter)
        *
        * IF NI_ATTR_LINKED
@@ -3161,8 +3274,9 @@ Dbspj::parseDA(Build_context& ctx,
 
       bool interpreted =
         (treeBits & DABits::NI_ATTR_INTERPRET) ||
+        (paramBits & DABits::PI_ATTR_INTERPRET) ||
         (treeNodePtr.p->m_bits & TreeNode::T_ATTR_INTERPRETED);
-
+      
       if (interpreted)
       {
         /**
@@ -3184,62 +3298,58 @@ Dbspj::parseDA(Build_context& ctx,
         if (treeBits & DABits::NI_ATTR_INTERPRET)
         {
           jam();
+
           /** 
            * Having two interpreter programs is an error.
            */
-          ndbrequire(!(paramBits & DABits::PI_ATTR_INTERPRET));
-          Uint32 cnt_len = * tree.ptr++;
-          Uint32 len = cnt_len & 0xFFFF; // Length of interpret program
-          Uint32 cnt = cnt_len >> 16;    // #Arguments to program
-          err = DbspjErr::OutOfSectionMemory;
-          if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len)))
+          err = DbspjErr::BothTreeAndParametersContainInterpretedProgram;
+          if (unlikely(paramBits & DABits::PI_ATTR_INTERPRET))
           {
             DEBUG_CRASH();
             break;
           }
 
-          tree.ptr += len;
-          sectionptrs[1] = len; // size of interpret program
-
-          if (cnt)
+          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
+          Uint32 len2 = * tree.ptr++;
+          Uint32 len_prg = len2 & 0xFFFF; // Length of interpret program
+          Uint32 len_pattern = len2 >> 16;// Length of attr param pattern
+          err = DbspjErr::OutOfSectionMemory;
+          if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len_prg)))
           {
-            jam();
-            err = DbspjErr::InvalidTreeNodeSpecification;
-            const Uint32 check = DABits::NI_ATTR_PARAMS|DABits::NI_ATTR_LINKED;
-            if (unlikely((treeBits & check) == 0))
-            {
-              /**
-               * If program has arguments, it must either has
-               *   DABits::NI_ATTR_PARAMS - i.e parameters
-               *   DABits::NI_ATTR_LINKED - i.e linked
-               */
-              DEBUG_CRASH();
-              break;
-            }
-
-            /**
-             * Prepare directory for parameters
-             */
-            err = zeroFill(attrParamPtrI, cnt);
-            if (unlikely(err != 0))
-            {
-              DEBUG_CRASH();
-              break;
-            }
-
-            /**
-             * TODO...continue here :-(
-             */
-            ndbrequire(false);
+            DEBUG_CRASH();
+            break;
           }
+
+          tree.ptr += len_prg;
+          sectionptrs[1] = len_prg; // size of interpret program
+
+          Uint32 tmp = * tree.ptr ++; // attr-pattern header
+          Uint32 cnt = tmp & 0xFFFF;
 
           if (treeBits & DABits::NI_ATTR_LINKED)
           {
             jam();
             /**
-             * The parameter section is recreated prior to each send...
+             * Expand pattern into a new pattern (with linked values)
+             */
+            LocalArenaPoolImpl pool(requestPtr.p->m_arena, 
+                                    m_dependency_map_pool);
+            Local_pattern_store pattern(pool,treeNodePtr.p->m_attrParamPattern);
+            err = expand(pattern, tree, len_pattern, param, cnt);
+            
+            /**
+             * This node constructs a new attr-info for each send
              */
             treeNodePtr.p->m_bits |= TreeNode::T_ATTRINFO_CONSTRUCTED;
+          }
+          else
+          {
+            jam();
+            /**
+             * Expand pattern directly into attr-info param
+             *   This means a "fixed" attr-info param from here on
+             */
+            err = expand(attrParamPtrI, tree, len_pattern, param, cnt);
           }
         }
         else // if (treeBits & DABits::NI_ATTR_INTERPRET)
@@ -3252,9 +3362,10 @@ Dbspj::parseDA(Build_context& ctx,
           ndbrequire((paramBits & DABits::PI_ATTR_PARAMS) == 0);
           ndbrequire((treeBits & DABits::NI_ATTR_LINKED) == 0);
 
-          ndbassert((treeNodePtr.p->m_bits & TreeNode::T_ATTR_INTERPRETED)!= 0);
+          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
 
-          if (!(paramBits & DABits::PI_ATTR_INTERPRET)){
+          if (! (paramBits & DABits::PI_ATTR_INTERPRET))
+          {
             jam();
 
             /**
@@ -3281,26 +3392,35 @@ Dbspj::parseDA(Build_context& ctx,
         /**
          * Add the interpreted code that represents the scan filter.
          */
-        const Uint32 len = * param.ptr++;
-        ndbassert(len <= 0xFFFF);
-        ndbassert(len > 0);
+        const Uint32 len2 = * param.ptr++;
+        Uint32 program_len = len2 & 0xFFFF;
+        Uint32 subroutine_len = len2 >> 16;
         err = DbspjErr::OutOfSectionMemory;
-        if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, len)))
+        if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, program_len)))
         {
           DEBUG_CRASH();
           break;
         }
-        DEBUG("Dbspj::parseDA() adding interpreter program of " 
-              << len << " words.");
-        
-        param.ptr += len;
         /**
          * The interpreted code is added is in the "Interpreted execute region"
          * of the attrinfo (see Dbtup::interpreterStartLab() for details).
          * It will thus execute before reading the attributes that constitutes
          * the projections.
          */
-        sectionptrs[1] = len; 
+        sectionptrs[1] = program_len;
+        param.ptr += program_len;
+        
+        if (subroutine_len)
+        {
+          if (unlikely(!appendToSection(attrParamPtrI, 
+                                        param.ptr, subroutine_len)))
+          {
+            DEBUG_CRASH();
+            break;
+          }
+          sectionptrs[4] = subroutine_len;
+          param.ptr += subroutine_len;
+        }
       }
 
       Uint32 sum_read = 0;
@@ -3379,9 +3499,28 @@ Dbspj::parseDA(Build_context& ctx,
          *   i.e in "final read"-section
          */
         sectionptrs[3] = sum_read;
+
+        if (attrParamPtrI != RNIL)
+        {
+          jam();
+          ndbrequire(!(treeNodePtr.p->m_bits&TreeNode::T_ATTRINFO_CONSTRUCTED));
+
+          SegmentedSectionPtr ptr;
+          getSection(ptr, attrParamPtrI);
+          {
+            SectionReader r0(ptr, getSectionSegmentPool());
+            err = appendTreeToSection(attrInfoPtrI, r0, ptr.sz);
+            sectionptrs[4] = ptr.sz;
+            if (unlikely(err != 0))
+            {
+              DEBUG_CRASH();
+              break;
+            }
+          }
+          releaseSection(attrParamPtrI);
+        }
       }
 
-      treeNodePtr.p->m_send.m_attrInfoParamPtrI = attrParamPtrI;
       treeNodePtr.p->m_send.m_attrInfoPtrI = attrInfoPtrI;
     } // if (((treeBits & mask) | (paramBits & DABits::PI_ATTR_LIST)) != 0)
 

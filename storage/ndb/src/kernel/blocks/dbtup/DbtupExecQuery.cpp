@@ -2147,29 +2147,29 @@ Dbtup::lookupInterpreterParameter(Uint32 paramNo,
   /**
    * The parameters...are stored in the subroutine section
    *
-   * WORD0      WORD1      WORD2         WORD3       WORD4         WORD5
-   * [ P0-pos ] [ P1-pos ] [ P0 HEADER ] [ P0 DATA ] [ P1 HEADER ] [ P1 DATA ]
+   * WORD2         WORD3       WORD4         WORD5
+   * [ P0 HEADER ] [ P0 DATA ] [ P1 HEADER ] [ P1 DATA ]
    *
-   * e.g
-   * pos=2      pos=4      [ no=0 len=4]             [ no=1 len=4]
    *
    * len=4 <=> 1 word
    */
-  if (likely(paramNo < sublen))
+  Uint32 pos = 0;
+  while (paramNo)
   {
-    jam();
-    Uint32 pos = subptr[paramNo];
-    if (likely(pos < sublen))
-    {
-      jam();
-      const Uint32 * ptr = subptr + pos;
-      Uint32 len = AttributeHeader::getDataSize(* ptr);
-      Uint32 no = AttributeHeader::getAttributeId(* ptr);
-      if (likely(no == paramNo && (pos + 1 + len) < sublen))
-        return ptr;
-    }
+    const Uint32 * head = subptr + pos;
+    Uint32 len = AttributeHeader::getDataSize(* head);
+    paramNo --;
+    pos += 1 + len;
+    if (unlikely(pos >= sublen))
+      return 0;
   }
-  return 0;
+
+  const Uint32 * head = subptr + pos;
+  Uint32 len = AttributeHeader::getDataSize(* head);
+  if (unlikely(pos + 1 + len > sublen))
+    return 0;
+
+  return head;
 }
 
 int Dbtup::interpreterNextLab(Signal* signal,
