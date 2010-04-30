@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ int table_file_summary_by_event_name::delete_all_rows(void)
 }
 
 table_file_summary_by_event_name::table_file_summary_by_event_name()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
   m_pos(1), m_next_pos(1)
 {}
 
@@ -251,7 +251,7 @@ int table_file_summary_by_instance::delete_all_rows(void)
 }
 
 table_file_summary_by_instance::table_file_summary_by_instance()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
   m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
