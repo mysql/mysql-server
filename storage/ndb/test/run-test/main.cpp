@@ -82,7 +82,7 @@ char * g_env_path = 0;
 const char* g_mysqld_host = 0;
 
 /** Dummy, extern declared in ndb_opts.h */
-int g_print_full_config = 0, opt_ndb_shm;
+int g_print_full_config = 0;
 my_bool opt_core;
 
 static struct my_option g_options[] =
