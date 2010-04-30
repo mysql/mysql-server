@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@
 #include "pfs_global.h"
 
 table_all_instr::table_all_instr(const PFS_engine_table_share *share)
-  : PFS_readonly_table(share, &m_pos),
+  : PFS_engine_table(share, &m_pos),
     m_pos(), m_next_pos()
 {}
 
@@ -154,7 +154,7 @@ int table_all_instr::rnd_pos(const void *pos)
 
 table_all_instr_class::table_all_instr_class
 (const PFS_engine_table_share *share)
-  : PFS_readonly_table(share, &m_pos),
+  : PFS_engine_table(share, &m_pos),
     m_pos(), m_next_pos()
 {}
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -121,7 +121,7 @@ struct pos_events_waits_history : public PFS_double_index
   Adapter, for table sharing the structure of
   PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
 */
-class table_events_waits_common : public PFS_readonly_table
+class table_events_waits_common : public PFS_engine_table
 {
 protected:
   virtual int read_row_values(TABLE *table,
