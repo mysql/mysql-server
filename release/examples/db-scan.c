@@ -1,6 +1,13 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+
 /* Scan the bench.tokudb/bench.db over and over. */
 #define DONT_DEPRECATE_MALLOC
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdint.h>
 #include <inttypes.h>
 #ifdef BDB
 #include <db.h>
@@ -11,12 +18,11 @@
 #endif
 #include <assert.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <unistd.h>
+#include <sys/time.h>
 
 const char *pname;
 enum run_mode { RUN_HWC, RUN_LWC, RUN_VERIFY, RUN_HEAVI, RUN_RANGE} run_mode = RUN_HWC;
@@ -36,8 +42,9 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --prelockflag       pass DB_PRELOCKED to the the cursor get operation whenever the locks have been acquired\n");
     fprintf(stderr, "  --prelockwriteflag  pass DB_PRELOCKED_WRITE to the cursor get operation\n");
     fprintf(stderr, "  --nox               no transactions (no locking)\n");
-    fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
-    fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
+    fprintf(stderr, "  --count COUNT       read the first COUNT rows and then  stop.\n");
+    fprintf(stderr, "  --cachesize N       set the env cachesize to N bytes\n");
+    fprintf(stderr, "  --srandom N         srandom(N)\n");
     fprintf(stderr, "  --env DIR           put db files in DIR instead of default\n");
     return 1;
 }
@@ -100,6 +107,9 @@ static void parse_args (int argc, const char *argv[]) {
         } else if (strcmp(*argv, "--experiments") == 0 && argc > 1) {
             argc--; argv++;
             n_experiments = strtol(*argv, NULL, 10);
+        } else if (strcmp(*argv, "--srandom") == 0 && argc > 1) {
+	    argc--; argv++;
+            srandom(atoi(*argv));
 	} else {
             exit(print_usage(pname));
 	}
@@ -223,40 +233,68 @@ static void scanscan_lwc (void) {
 
 static void scanscan_range (void) {
     int r;
-    double tstart = gettime();
-    DBC *dbc;
-    r = db->cursor(db, tid, &dbc, 0); assert(r==0);
 
+    double texperiments[n_experiments];
+    u_int64_t k = 0;
+    char kv[8];
+    DBT key, val;
+  
     int counter;
-    for (counter=0; counter<n_experiments; counter++) {
+    for (counter = 0; counter < n_experiments; counter++) {
 
-        // generate a random key in the key range
-        u_int64_t k = (start_range + (random() % (end_range - start_range))) * (1<<6);
-        char kv[8];
-        int i;
-        for (i=0; i<8; i++)
-            kv[i] = k >> (56-8*i);
-        DBT key; memset(&key, 0, sizeof key); key.data = &kv, key.size = sizeof kv;
-        DBT val; memset(&val, 0, sizeof val);
+        if (1) { //if ((counter&1) == 0) {   
+   	makekey:
+	    // generate a random key in the key range
+	    k = (start_range + (random() % (end_range - start_range))) * (1<<6);
+            int i;
+	    for (i = 0; i < 8; i++)
+                kv[i] = k >> (56-8*i);
+	}
+	memset(&key, 0, sizeof key); key.data = &kv, key.size = sizeof kv;
+	memset(&val, 0, sizeof val);
+
+        double tstart = gettime();
+
+        DBC *dbc;
+        r = db->cursor(db, tid, &dbc, 0); assert(r==0);
 
         // set the cursor to the random key
-        r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag); assert(r==0);
+        r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag);
+        if (r != 0) {
+            assert(r == DB_NOTFOUND);
+            printf("%s:%d %"PRIu64"\n", __FUNCTION__, __LINE__, k);
+            goto makekey;
+        }
 
-#if 0
-	long rowcounter=0;
-	while (0 == (r = dbc->c_getf_next(dbc, f_flags, counttotalbytes, &e))) {
+#ifdef TOKUDB
+        // do the range scan
+	long rowcounter = 0;
+	struct extra_count e = {0,0};
+        while (limitcount > 0 && rowcounter < limitcount) {
+            r = dbc->c_getf_next(dbc, prelockflag ? lock_flag : 0, counttotalbytes, &e);
+            if (r != 0)
+                break;
 	    rowcounter++;
-	    if (limitcount>0 && rowcounter>=limitcount) break;
 	}
 #endif
+
+        r = dbc->c_close(dbc);                                      
+        assert(r==0);
+
+        texperiments[counter] = gettime() - tstart;
+        printf("%"PRIu64" %f\n", k, texperiments[counter]); fflush(stdout);
     }
 
-    r = dbc->c_close(dbc);                                      
-    assert(r==0);	
-
-    double tend = gettime();
-    double tdiff = tend-tstart;
-    printf("Range %d %f\n", n_experiments, tdiff);
+    // print the times
+    double tsum = 0.0, tmin = 0.0, tmax = 0.0;
+    for (counter = 0; counter < n_experiments; counter++) {
+        if (counter==0 || texperiments[counter] < tmin)
+            tmin = texperiments[counter];
+        if (counter==0 || texperiments[counter] > tmax)
+            tmax = texperiments[counter];
+        tsum += texperiments[counter];
+    }
+    printf("%f %f %f/%d = %f\n", tmin, tmax, tsum, n_experiments, tsum / n_experiments);
 }
 
 #ifdef TOKUDB
