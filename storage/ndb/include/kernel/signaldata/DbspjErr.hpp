@@ -30,6 +30,9 @@ struct DbspjErr
     ,OutOfQueryMemory = 20008
     ,QueryNodeTooBig = 20009
     ,QueryNodeParametersTooBig = 20010
+    ,BothTreeAndParametersContainInterpretedProgram = 20011
+    ,InvalidTreeParametersSpecificationKeyParamBitsMissmatch = 20012
+    ,InvalidTreeParametersSpecificationIncorrectKeyParamCount = 20013
   };
 };
 
