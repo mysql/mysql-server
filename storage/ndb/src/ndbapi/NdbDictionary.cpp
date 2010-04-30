@@ -2786,7 +2786,7 @@ NdbDictionary::printFormattedValue(NdbOut& out,
         out << format.start_array_enclosure;
       out << *(const Uint32*)val;
       for (j = 1; j < length; j++)
-        out << " " << *((const Uint32*)val) + j;
+        out << " " << *(((const Uint32*)val) + j);
       if (length > 1)
         out << format.end_array_enclosure;
       break;
