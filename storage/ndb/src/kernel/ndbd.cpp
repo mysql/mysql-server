@@ -335,6 +335,10 @@ get_multithreaded_config(EmulatorData& ed)
 static void
 ndbd_exit(int code)
 {
+  // Don't allow negative return code
+  if (code < 0)
+    code = 255;
+
 // gcov will not produce results when using _exit
 #ifdef HAVE_gcov
   exit(code);
