@@ -65,6 +65,7 @@
    toku_set_assert_on_write_enospc;
 
    toku_test_db_redirect_dictionary;
+   toku_test_get_latest_lsn;
 
  local: *;
 };

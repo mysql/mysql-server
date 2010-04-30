@@ -5698,3 +5698,14 @@ toku_test_db_redirect_dictionary(DB * db, char * dname_of_new_file, DB_TXN *dbtx
     toku_free(new_iname_in_env);
     return r;
 }
+
+//Tets only function
+uint64_t
+toku_test_get_latest_lsn(DB_ENV *env) {
+    LSN rval = ZERO_LSN;
+    if (env && env->i->logger) {
+        rval = toku_logger_last_lsn(env->i->logger);
+    }
+    return rval.lsn;
+}
+
