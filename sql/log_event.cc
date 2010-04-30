@@ -693,7 +693,7 @@ Log_event::Log_event()
 
 Log_event::Log_event(const char* buf,
                      const Format_description_log_event* description_event)
-  :temp_buf(0), cache_type(Log_event::EVENT_INVALID_CACHE)
+  :temp_buf(0), exec_time(0), cache_type(Log_event::EVENT_INVALID_CACHE)
 {
 #ifndef MYSQL_CLIENT
   thd = 0;
@@ -916,6 +916,10 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
   if (DBUG_EVALUATE_IF("inc_event_time_by_1_hour",1,0)  &&
       DBUG_EVALUATE_IF("dec_event_time_by_1_hour",1,0))
   {
+    /** 
+       This assertion guarantees that these debug flags are not
+       used at the same time (they would cancel each other).
+    */
     DBUG_ASSERT(0);
   } 
   else
