@@ -33,8 +33,7 @@ static void vio_init(Vio* vio, enum enum_vio_type type,
                      my_socket sd, HANDLE hPipe, uint flags)
 {
   DBUG_ENTER("vio_init");
-  DBUG_PRINT("enter", ("type: %d  sd: " MY_SOCKET_FORMAT "  flags: %d",
-                       type, MY_SOCKET_FORMAT_VALUE(sd), flags));
+  DBUG_PRINT("enter", ("type: %d  sd: %d  flags: %d", type, sd, flags));
 
 #ifndef HAVE_VIO_READ_BUFF
   flags&= ~VIO_BUFFERED_READ;
@@ -147,14 +146,13 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
 {
   Vio *vio;
   DBUG_ENTER("vio_new");
-  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT, MY_SOCKET_FORMAT_VALUE(sd)));
+  DBUG_PRINT("enter", ("sd: %d", sd));
   if ((vio = (Vio*) my_malloc(sizeof(*vio),MYF(MY_WME))))
   {
     vio_init(vio, type, sd, 0, flags);
     sprintf(vio->desc,
-	    (vio->type == VIO_TYPE_SOCKET ? "socket (" MY_SOCKET_FORMAT ")"
-             : "TCP/IP (" MY_SOCKET_FORMAT ")"),
-	    MY_SOCKET_FORMAT_VALUE(vio->sd));
+           (vio->type == VIO_TYPE_SOCKET ? "socket (%d)" : "TCP/IP (%d)"),
+           vio->sd);
 #if !defined(__WIN__)
 #if !defined(NO_FCNTL_NONBLOCK)
     /*
@@ -167,18 +165,18 @@ Vio *vio_new(my_socket sd, enum enum_vio_type type, uint flags)
       reports that the socket is set for non-blocking when it really will
       block.
     */
-    fcntl(sd.fd, F_SETFL, 0);
-    vio->fcntl_mode= fcntl(sd.fd, F_GETFL);
+    fcntl(sd, F_SETFL, 0);
+    vio->fcntl_mode= fcntl(sd, F_GETFL);
 #elif defined(HAVE_SYS_IOCTL_H)			/* hpux */
     /* Non blocking sockets doesn't work good on HPUX 11.0 */
-    (void) ioctl(sd.fd,FIOSNBIO,0);
+    (void) ioctl(sd,FIOSNBIO,0);
     vio->fcntl_mode &= ~O_NONBLOCK;
 #endif
 #else /* !defined(__WIN__) */
     {
       /* set to blocking mode by default */
       ulong arg=0, r;
-      r = ioctlsocket(sd.s,FIONBIO,(void*) &arg);
+      r = ioctlsocket(sd,FIONBIO,(void*) &arg);
       vio->fcntl_mode &= ~O_NONBLOCK;
     }
 #endif
@@ -195,9 +193,7 @@ Vio *vio_new_win32pipe(HANDLE hPipe)
   DBUG_ENTER("vio_new_handle");
   if ((vio = (Vio*) my_malloc(sizeof(Vio),MYF(MY_WME))))
   {
-    my_socket s;
-	my_socket_invalidate(&s);
-    vio_init(vio, VIO_TYPE_NAMEDPIPE, s, hPipe, VIO_LOCALHOST);
+    vio_init(vio, VIO_TYPE_NAMEDPIPE, 0, hPipe, VIO_LOCALHOST);
     strmov(vio->desc, "named pipe");
   }
   DBUG_RETURN(vio);
@@ -213,9 +209,7 @@ Vio *vio_new_win32shared_memory(HANDLE handle_file_map, HANDLE handle_map,
   DBUG_ENTER("vio_new_win32shared_memory");
   if ((vio = (Vio*) my_malloc(sizeof(Vio),MYF(MY_WME))))
   {
-    my_socket s;
-	my_socket_invalidate(&s);
-    vio_init(vio, VIO_TYPE_SHARED_MEMORY, s, 0, VIO_LOCALHOST);
+    vio_init(vio, VIO_TYPE_SHARED_MEMORY, 0, 0, VIO_LOCALHOST);
     vio->handle_file_map= handle_file_map;
     vio->handle_map= handle_map;
     vio->event_server_wrote= event_server_wrote;

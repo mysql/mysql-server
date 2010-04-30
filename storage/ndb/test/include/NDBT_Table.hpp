@@ -33,7 +33,9 @@ public:
 		 bool _nullable = false,
 		 CHARSET_INFO *cs= 0,
 		 NdbDictionary::Column::StorageType storage = NdbDictionary::Column::StorageTypeMemory,
-                 bool dynamic = false):
+                 bool dynamic = false,
+                 const void* defaultVal = NULL,
+                 Uint32 defaultValBytes = 0):
     NdbDictionary::Column(_name)
   {
     assert(_name != 0);
@@ -48,6 +50,7 @@ public:
     }
     setStorageType(storage);
     setDynamic(dynamic);
+    setDefaultValue(defaultVal, defaultValBytes);
   }
 };
 

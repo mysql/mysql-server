@@ -2,7 +2,7 @@ Next QMGR 938
 Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
-Next DBTUP 4032
+Next DBTUP 4035
 Next DBLQH 5055
 Next DBDICT 6025
 Next DBDIH 7221
@@ -531,6 +531,9 @@ Failed Create Table:
 4010 12004: Fail create last attribute in 1st fragment
 4011 12005: Fail create 1st attribute in 2nd fragment
 4012 12006: Fail create last attribute in 2nd fragment
+4032 : Fail to receive first default value
+4033 : Fail to receive last default value
+4034 : Fail to store default values in def values fragment
 
 Drop Table/Index:
 -----------------

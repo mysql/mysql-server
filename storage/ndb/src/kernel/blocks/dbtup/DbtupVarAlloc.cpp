@@ -139,6 +139,39 @@ Dbtup::alloc_var_part(Uint32 * err,
 }
 
 /*
+  free_var_part is used to free the variable length storage associated
+  with the passed local key.
+  It is not assumed that there is a corresponding fixed-length part.
+  // TODO : Any need for tabPtr?
+*/
+void Dbtup::free_var_part(Fragrecord* fragPtr,
+                          Tablerec* tabPtr,
+                          Local_key* key)
+{
+  Ptr<Page> pagePtr;
+  if (key->m_page_no != RNIL)
+  {
+    c_page_pool.getPtr(pagePtr, key->m_page_no);
+    ((Var_page*)pagePtr.p)->free_record(key->m_page_idx, Var_page::CHAIN);
+
+    ndbassert(pagePtr.p->free_space <= Var_page::DATA_WORDS);
+    if (pagePtr.p->free_space == Var_page::DATA_WORDS - 1)
+    {
+      jam();
+      Uint32 idx = pagePtr.p->list_index;
+      LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[idx]);
+      list.remove(pagePtr);
+      returnCommonArea(pagePtr.i, 1);
+      fragPtr->noOfVarPages --;
+    } else {
+      jam();
+      update_free_page_list(fragPtr, pagePtr);
+    }
+  }
+  return;
+}
+
+/*
   Deallocator for variable sized segments
   Part of the external interface for variable sized segments
 
@@ -472,6 +505,30 @@ Uint32 Dbtup::calculate_free_list_impl(Uint32 free_space_size) const
   }
   ndbrequire(false);
   return 0;
+}
+
+Uint64 Dbtup::calculate_used_var_words(Fragrecord* fragPtr)
+{
+  /* Loop over all VarSize pages in this fragment, summing
+   * their used space
+   */
+  Uint64 totalUsed= 0;
+  for (Uint32 freeList= 0; freeList <= MAX_FREE_LIST; freeList++)
+  {
+    LocalDLList<Page> list(c_page_pool, 
+                           fragPtr->free_var_page_array[freeList]);
+    Ptr<Page> pagePtr;
+
+    if (list.first(pagePtr))
+    {
+      do
+      {
+        totalUsed+= (Tup_varsize_page::DATA_WORDS - pagePtr.p->free_space);
+      } while (list.next(pagePtr));
+    };
+  };
+
+  return totalUsed;
 }
 
 Uint32* 

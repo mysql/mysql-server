@@ -18,7 +18,7 @@
 
 #include "my_global.h"
 #include "m_string.h"
-#include "my_socket.h"
+#include "ndb_socket.h"
 
 
 /*
@@ -27,11 +27,11 @@
 
 #if defined _WIN32
 
-int my_socketpair(my_socket s[2])
+int my_socketpair(ndb_socket_t s[2])
 {
   struct sockaddr_in addr;
   SOCKET_SIZE_TYPE addrlen = sizeof(addr);
-  my_socket listener;
+  ndb_socket_t listener;
 
   my_socket_invalidate(&listener);
   my_socket_invalidate(&s[0]);
@@ -96,7 +96,7 @@ err:
 
 #else
 
-int my_socketpair(my_socket s[2])
+int my_socketpair(ndb_socket_t s[2])
 {
   int ret;
   int sock[2];

@@ -48,6 +48,7 @@
 
 #include <mysql/plugin.h>
 #include <abstract_query_plan.h>
+#include <ndb_version.h>
 
 #ifdef ndb_dynamite
 #undef assert
@@ -2206,6 +2207,7 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
       ERR_RETURN(ndb_op->getNdbError());
     if (field->is_null_in_record_with_offset(row_offset))
     {
+      DBUG_PRINT("info", ("Setting Blob %d to NULL", field_no));
       if (ndb_blob->setNull() != 0)
         ERR_RETURN(ndb_op->getNdbError());
     }
@@ -2393,6 +2395,108 @@ int cmp_frm(const NDBTAB *ndbtab, const void *pack_data,
   DBUG_RETURN(0);
 }
 
+/*
+  Does type support a default value?
+*/
+static bool
+type_supports_default_value(enum_field_types mysql_type)
+{
+  bool ret = (mysql_type != MYSQL_TYPE_BLOB &&
+              mysql_type != MYSQL_TYPE_TINY_BLOB &&
+              mysql_type != MYSQL_TYPE_MEDIUM_BLOB &&
+              mysql_type != MYSQL_TYPE_LONG_BLOB &&
+              mysql_type != MYSQL_TYPE_GEOMETRY);
+
+  return ret;
+}
+
+/**
+   Check that Ndb data dictionary has the same default values
+   as MySQLD for the current table.
+   Called as part of a DBUG check as part of table open
+   
+   Returns
+     0  - Defaults are ok
+     -1 - Some default(s) are bad
+*/
+int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
+{
+  /* Debug only method for checking table defaults aligned
+     between MySQLD and Ndb
+  */
+  bool defaults_aligned= true;
+
+  if (ndbtab->hasDefaultValues())
+  {
+    /* Ndb supports native defaults for non-pk columns */
+    my_bitmap_map *old_map= tmp_use_all_columns(table, table->read_set);
+
+    for (uint f=0; f < table_share->fields; f++)
+    {
+      Field* field= table->field[f]; // Use Field struct from MySQLD table rep
+      const NdbDictionary::Column* ndbCol= ndbtab->getColumn(field->field_index); 
+      if ((! (field->flags & (PRI_KEY_FLAG |
+                              NO_DEFAULT_VALUE_FLAG))) &&
+          (type_supports_default_value(field->real_type())))
+      {
+        /* We expect Ndb to have a native default for this
+         * column
+         */
+        my_ptrdiff_t src_offset= table_share->default_values - 
+          field->table->record[0];
+
+        /* Move field by offset to refer to default value */
+        field->move_field_offset(src_offset);
+        
+        const uchar* ndb_default= (const uchar*) ndbCol->getDefaultValue();
+
+        if (ndb_default == NULL)
+          /* MySQLD default must also be NULL */
+          defaults_aligned= field->is_null();
+        else
+        {
+          if (field->type() != MYSQL_TYPE_BIT)
+          {
+            defaults_aligned= (0 == field->cmp(ndb_default));
+          }
+          else
+          {
+            longlong value= (static_cast<Field_bit*>(field))->val_int();
+            defaults_aligned= (0 == memcmp(ndb_default, 
+                                           &value, 
+                                           field->used_length()));
+          }
+        }
+        
+        field->move_field_offset(-src_offset);
+
+        if (unlikely(!defaults_aligned))
+        {
+          DBUG_PRINT("info", ("Default values differ for column %u",
+                              field->field_index));
+          break;
+        }
+      }
+      else
+      {
+        /* We don't expect Ndb to have a native default for this column */
+        if (unlikely(ndbCol->getDefaultValue()))
+        {
+          /* Didn't expect that */
+          DBUG_PRINT("info", ("Column %u has native default, but shouldn't."
+                              " Flags=%u, type=%u",
+                              field->field_index, field->flags, field->real_type()));
+          defaults_aligned= false;
+          break;
+        }
+      }
+    } 
+    tmp_restore_column_map(table->read_set, old_map);
+  }
+
+  return (defaults_aligned? 0: -1);
+}
+
 int ha_ndbcluster::get_metadata(THD *thd, const char *path)
 {
   Ndb *ndb= get_thd_ndb(thd)->ndb;
@@ -2437,6 +2541,11 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   }
   my_free((char*)data, MYF(0));
   my_free((char*)pack_data, MYF(0));
+
+  /* Now check that any Ndb native defaults are aligned 
+     with MySQLD defaults
+  */
+  DBUG_ASSERT(check_default_values(tab) == 0);
 
   if (error)
     goto err;
@@ -3515,7 +3624,20 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
   {
     DBUG_RETURN(error);
   }
+
+  /*
+    We are mapping a MySQLD PK changing update to an NdbApi delete 
+    and insert.
+    The original PK changing update may not have written new values
+    to all columns, so the write set may be partial.
+    We set the write set to be all columns so that all values are
+    copied from the old row to the new row.
+  */
+  my_bitmap_map *old_map=
+    tmp_use_all_columns(table, table->write_set);
   error= ndb_write_row(new_data, TRUE, batched_update);
+  tmp_restore_column_map(table->write_set, old_map);
+
   if (error)
   {
     DBUG_PRINT("info", ("insert failed"));
@@ -4974,7 +5096,10 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   if (options.optionsPresent != 0)
     poptions=&options;
 
-  const MY_BITMAP *user_cols_written_bitmap;
+  const Uint32 bitmapSz= (NDB_MAX_ATTRIBUTES_IN_TABLE + 31)/32;
+  uint32 tmpBitmapSpace[bitmapSz];
+  MY_BITMAP tmpBitmap;
+  MY_BITMAP *user_cols_written_bitmap;
 #ifdef HAVE_NDB_BINLOG
   uchar* ex_data_buffer= NULL;
 #endif
@@ -4987,8 +5112,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 #endif
       )
   {
-    uchar *mask;
-    
     /* Should we use the supplied table writeset or not?
      * For a REPLACE command, we should ignore it, and write
      * all columns to get correct REPLACE behaviour.
@@ -5005,6 +5128,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
      */
     useWriteSet |= thd->slave_thread;
 #endif
+    uchar* mask;
 
     if (useWriteSet)
     {
@@ -5092,10 +5216,54 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       poptions=&options;
     }
 #endif
-    /* Using insert, we write all user visible columns */
-    user_cols_written_bitmap= NULL;
+    uchar *mask;
+
+    /* Check whether Ndb table definition includes any default values. */
+    if (m_table->hasDefaultValues())
+    {
+      DBUG_PRINT("info", ("Not sending values for native defaulted columns"));
+
+      /*
+        If Ndb is unaware of the table's defaults, we must provide all column values to the insert.  
+        This is done using a NULL column mask.
+        If Ndb is aware of the table's defaults, we only need to provide 
+        the columns explicitly mentioned in the write set, 
+        plus any extra columns required due to bug#41616. 
+        plus the primary key columns required due to bug#42238.
+      */
+      /*
+        The following code for setting user_cols_written_bitmap
+        should be removed after BUG#41616 and Bug#42238 are fixed
+      */
+      /* Copy table write set so that we can add to it */
+      user_cols_written_bitmap= &tmpBitmap;
+      bitmap_init(user_cols_written_bitmap, tmpBitmapSpace,
+                  table->write_set->n_bits, false);
+      bitmap_copy(user_cols_written_bitmap, table->write_set);
+
+      for (uint i= 0; i < table->s->fields; i++)
+      {
+        Field *field= table->field[i];
+        if (field->flags & (NO_DEFAULT_VALUE_FLAG | // bug 41616
+                            PRI_KEY_FLAG))          // bug 42238
+        {
+          bitmap_set_bit(user_cols_written_bitmap, field->field_index);
+        }
+      }
+
+      mask= (uchar *)(user_cols_written_bitmap->bitmap);
+    }
+    else
+    {
+      /* No defaults in kernel, provide all columns ourselves */
+      DBUG_PRINT("info", ("No native defaults, sending all values"));
+      user_cols_written_bitmap= NULL;
+      mask = NULL;
+    }
+      
+    /* Using insert, we write all non default columns */
     op= trans->insertTuple(key_rec, (const char *)key_row, m_ndb_record,
-                           (char *)record, NULL, // No mask
+                           (char *)record, mask, // Default value should be masked
                            poptions, sizeof(NdbOperation::OperationOptions));
   }
   if (!(op))
@@ -6124,6 +6292,58 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
         }
         else
           field->move_field_offset(-src_offset);
+        /* No action needed for a NULL field. */
+      }
+    }
+  }
+}
+
+
+/**
+  Get the default value of the field from default_values of the table.
+*/
+static void get_default_value(void *def_val, Field *field)
+{
+  DBUG_ASSERT(field != NULL);
+
+  my_ptrdiff_t src_offset= field->table->s->default_values - field->table->record[0];
+
+  {
+    if (bitmap_is_set(field->table->read_set, field->field_index))
+    {
+      if (field->type() == MYSQL_TYPE_BIT)
+      {
+        Field_bit *field_bit= static_cast<Field_bit*>(field);
+        if (!field->is_null_in_record_with_offset(src_offset))
+        {
+          field->move_field_offset(src_offset);
+          longlong value= field_bit->val_int();
+          memcpy(def_val, &value, sizeof(longlong));
+         field->move_field_offset(-src_offset);
+        }
+      }
+      else if (field->flags & BLOB_FLAG)
+      {
+        assert(false);
+      }
+      else
+      {
+        field->move_field_offset(src_offset);
+        /* Normal field (not blob or bit type). */
+        if (!field->is_null())
+        {
+          /* Only copy actually used bytes of varstrings. */
+          uint32 actual_length= field->used_length();
+          uchar *src_ptr= field->ptr;
+          field->set_notnull();
+          memcpy(def_val, src_ptr, actual_length);
+#ifdef HAVE_purify
+          if (actual_length < field->pack_length())
+            bzero(((char*)def_val) + actual_length,
+                  field->pack_length() - actual_length);
+#endif
+        }
+        field->move_field_offset(-src_offset);
         /* No action needed for a NULL field. */
       }
     }
@@ -7975,6 +8195,7 @@ static int create_ndb_column(THD *thd,
   NDBCOL::StorageType type= NDBCOL::StorageTypeMemory;
   bool dynamic= FALSE;
 
+  char buf[MAX_ATTR_DEFAULT_VALUE_SIZE];
   DBUG_ENTER("create_ndb_column");
   // Set name
   if (col.setName(field->field_name))
@@ -7985,6 +8206,40 @@ static int create_ndb_column(THD *thd,
   CHARSET_INFO *cs= field->charset();
   // Set type and sizes
   const enum enum_field_types mysql_type= field->real_type();
+
+  {
+    /* Clear default value (col obj is reused for whole table def) */
+    col.setDefaultValue(NULL, 0); 
+
+    /* If the data nodes are capable then set native 
+     * default.
+     */
+    bool nativeDefaults =
+      ! (thd &&
+         (! ndb_native_default_support(get_thd_ndb(thd)->
+                                       ndb->getMinDbNodeVersion())));
+
+    if (likely( nativeDefaults ))
+    {
+      if ((!(field->flags & PRI_KEY_FLAG) ) &&
+          type_supports_default_value(mysql_type))
+      {
+        if (!(field->flags & NO_DEFAULT_VALUE_FLAG))
+        {
+          my_ptrdiff_t src_offset= field->table->s->default_values 
+            - field->table->record[0];
+          if ((! field->is_null_in_record_with_offset(src_offset)) ||
+              ((field->flags & NOT_NULL_FLAG)))
+          {
+            /* Set a non-null native default */
+            memset(buf, 0, MAX_ATTR_DEFAULT_VALUE_SIZE);
+            get_default_value(buf, field);
+            col.setDefaultValue(buf, field->used_length());
+          }
+        }
+      }
+    }
+  }
   switch (mysql_type) {
   // Numeric types
   case MYSQL_TYPE_TINY:        
@@ -8596,6 +8851,12 @@ int ha_ndbcluster::create(const char *name,
   /*
     Setup columns
   */
+  my_bitmap_map *old_map;
+  {
+    restore_record(form, s->default_values);
+    old_map= tmp_use_all_columns(form, form->read_set);
+  }
+
   for (i= 0; i < form->s->fields; i++) 
   {
     Field *field= form->field[i];
@@ -8621,6 +8882,7 @@ int ha_ndbcluster::create(const char *name,
       pk_length += (field->pack_length() + 3) / 4;
   }
 
+  tmp_restore_column_map(form->read_set, old_map);
   if (use_disk)
   { 
     tab.setLogging(TRUE);
@@ -8686,6 +8948,7 @@ int ha_ndbcluster::create(const char *name,
     col.setNullable(FALSE);
     col.setPrimaryKey(TRUE);
     col.setAutoIncrement(TRUE);
+    col.setDefaultValue(NULL, 0);
     if (tab.addColumn(col))
     {
       my_errno= errno;

@@ -407,16 +407,42 @@ const
 NDBT_Table D1("D1", sizeof(D1Attribs)/sizeof(NDBT_Attribute), D1Attribs);
 
 static
+const char* BigVarDefault =
+  "\x80\x1"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2"
+  "KOL7 default in table D2";
+
+static unsigned smallUintDefault = 77;
+
+static
 const
 NDBT_Attribute D2Attribs[] = {
   NDBT_Attribute("KOL1", NdbDictionary::Column::Varbinary, 127, true), 
-  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, false, false, 0, NdbDictionary::Column::StorageTypeDisk, false,
+                 &smallUintDefault, sizeof(unsigned)),
   NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133, false, true, 0, MM, true),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133, false, true, 0, MM, true, 
+                 "\x1E" "A default value for KOL4 in D2", 31),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Char, 199, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL6", NdbDictionary::Column::Bit, 21, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
-  NDBT_Attribute("KOL7", NdbDictionary::Column::Longvarbinary, 384, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
-  NDBT_Attribute("KOL8", NdbDictionary::Column::Varbinary, 88, false, true, 0, NdbDictionary::Column::StorageTypeDisk)
+  NDBT_Attribute("KOL7", NdbDictionary::Column::Longvarbinary, 384, false, true, 0, NdbDictionary::Column::StorageTypeDisk, false, 
+                 BigVarDefault, 386),
+  NDBT_Attribute("KOL8", NdbDictionary::Column::Varbinary, 88, false, true, 0, NdbDictionary::Column::StorageTypeDisk, false, 
+                 "\x1E""A default value for KOL8 in D2", 31)
 
 };
 static
