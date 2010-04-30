@@ -2781,10 +2781,11 @@ NdbDictInterface::parseTableInfo(NdbTableImpl ** ret,
     col->m_nullable = attrDesc.AttributeNullableFlag;
     col->m_autoIncrement = (attrDesc.AttributeAutoIncrement != 0);
     col->m_autoIncrementInitialValue = ~0;
-    AttributeHeader ah(*(Uint32*)attrDesc.AttributeDefaultValue);
+    const char* defPtr = (const char*) attrDesc.AttributeDefaultValue;
+    AttributeHeader ah(* (const Uint32*) defPtr);
     Uint32 bytesize = ah.getByteSize();
 
-    if (col->m_defaultValue.assign((const char*)(attrDesc.AttributeDefaultValue + 4), bytesize))
+    if (col->m_defaultValue.assign(defPtr + 4, bytesize))
     {
       delete col;
       delete impl;
