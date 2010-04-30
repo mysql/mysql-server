@@ -258,7 +258,7 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
 
     // skip put if error already found
     if ( loader->i->err_errno != 0 ) {
-        return 0;
+        return -1;
     }
 
     if ( loader->i->loader_flags & LOADER_USE_PUTS ) {
@@ -292,7 +292,7 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
         
         // deliberately return content free value
         //   - must call error_callback to get error info
-        return -1;  
+        return -1;
     }
     return 0;
 }
@@ -304,7 +304,12 @@ int toku_loader_close(DB_LOADER *loader)
         if ( loader->i->error_callback != NULL ) {
             loader->i->error_callback(loader->i->dbs[loader->i->err_i], loader->i->err_i, loader->i->err_errno, &loader->i->err_key, &loader->i->err_val, loader->i->error_extra);
         }
-        r = toku_brt_loader_abort(loader->i->brt_loader, TRUE);
+        if ( !(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
+            r = toku_brt_loader_abort(loader->i->brt_loader, TRUE);
+        }
+        else {
+            r = loader->i->err_errno;
+        }
     } 
     else { // no error outstanding 
         if ( !(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
