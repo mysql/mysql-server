@@ -2065,7 +2065,7 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_pages_latched
 		= buf_get_latched_pages_number();
 #endif /* UNIV_DEBUG */
-	export_vars.innodb_buffer_pool_pages_total = buf_pool_get_curr_size();
+	export_vars.innodb_buffer_pool_pages_total = buf_pool_get_n_pages();
 
 	export_vars.innodb_buffer_pool_pages_misc = buf_pool_get_curr_size();
 #ifdef HAVE_ATOMIC_BUILTINS
