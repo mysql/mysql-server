@@ -69,7 +69,7 @@ main(int argc, char** argv){
   Ndb* pNdb;
   pNdb = new Ndb(&con, _dbname);  
   pNdb->init();
-  while (pNdb->waitUntilReady() != 0);
+  while (pNdb->waitUntilReady() != 0) {};
 
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
@@ -130,7 +130,9 @@ create_random_table(Ndb* pNdb)
   do {
     NdbDictionary::Table tab;
     Uint32 cols = 1 + (rand() % (NDB_MAX_ATTRIBUTES_IN_TABLE - 1));
-    Uint32 length = 4090;
+    const Uint32 maxLength = 4090;
+    Uint32 length = maxLength;
+    Uint8  defbuf[(maxLength + 7)/8];
     
     BaseString name; 
     name.assfmt("TAB_%d", rand() & 65535);
@@ -153,6 +155,10 @@ create_random_table(Ndb* pNdb)
       col.setType(NdbDictionary::Column::Bit);
       
       Uint32 len = 1 + (rand() % (length - 1));
+      memset(defbuf, 0, (length + 7)/8);
+      for (Uint32 j = 0; j < len/8; j++)
+        defbuf[j] = 0x63;
+      col.setDefaultValue(defbuf, (len + 7)/8);
       col.setLength(len); length -= len;
       int nullable = (rand() >> 16) & 1;
       col.setNullable(nullable); length -= nullable;

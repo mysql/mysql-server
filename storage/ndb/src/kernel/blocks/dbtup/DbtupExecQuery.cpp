@@ -1469,7 +1469,27 @@ int Dbtup::handleInsertReq(Signal* signal,
     terrorCode = ZAI_INCONSISTENCY_ERROR;
     goto update_error;
   }
-
+  
+  if (!regTabPtr->m_default_value_location.isNull())
+  {
+    jam();
+    Uint32 default_values_len;
+    /* Get default values ptr + len for this table */
+    Uint32* default_values = get_default_ptr(regTabPtr, default_values_len);
+    ndbrequire(default_values_len != 0 && default_values != NULL);
+    /*
+     * Update default values into row first,
+     * next update with data received from the client.
+     */
+    if(unlikely((res = updateAttributes(req_struct, default_values,
+                                        default_values_len)) < 0))
+    {
+      jam();
+      terrorCode = Uint32(-res);
+      goto update_error;
+    }
+  }
+  
   if(unlikely((res = updateAttributes(req_struct, &cinBuffer[0],
                                       req_struct->attrinfo_len)) < 0))
   {

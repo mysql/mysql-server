@@ -157,14 +157,8 @@ typedef unsigned int size_t;
 typedef uint rf_SetTimer;
 #endif
 
-#define ssize_t SSIZE_T
-
 #define Socket_defined
-#ifndef __cplusplus
-#define bool BOOL
-#define true ((BOOL)1)
-#define false ((BOOL)0)
-#endif
+#define my_socket SOCKET
 #define SIGPIPE SIGINT
 #define RETQSORTTYPE void
 #define QSORT_TYPE_IS_VOID

@@ -1432,6 +1432,21 @@ void Dblqh::execLQHADDATTREQ(Signal* signal)
   addfragptr.p->m_addAttrReq = * req;
 
   const Uint32 tnoOfAttr = req->noOfAttributes;
+  const Uint32 numSections = signal->getNoOfSections();
+  bool isLongReq= ( numSections != 0 );
+  addfragptr.p->defValSectionI = RNIL;
+  addfragptr.p->defValNextPos = 0;
+
+  if (isLongReq)
+  {
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr defValSection;
+    handle.getSection(defValSection, LqhAddAttrReq::DEFAULT_VALUE_SECTION_NUM);
+    addfragptr.p->defValSectionI = defValSection.i;
+    addfragptr.p->defValNextPos = 0;
+    //Don't free Section here. Section is freed after default values are trasfered to TUP
+    handle.clear();
+  }
 
   ndbrequire(addfragptr.p->addfragStatus == AddFragRecord::WAIT_ADD_ATTR);
   ndbrequire((tnoOfAttr != 0) && (tnoOfAttr <= LqhAddAttrReq::MAX_ATTRIBUTES));
@@ -1504,6 +1519,13 @@ void Dblqh::execTUP_ADD_ATTCONF(Signal* signal)
       return;
     }
 
+    if (addfragptr.p->defValSectionI != RNIL)
+    {
+      releaseSection(addfragptr.p->defValSectionI);
+      addfragptr.p->defValNextPos = 0;
+      addfragptr.p->defValSectionI = RNIL;
+    }
+
     { // Reply
       LqhAddAttrConf *const conf = (LqhAddAttrConf*)signal->getDataPtrSend();
       conf->senderData = addfragptr.p->m_addAttrReq.senderData;
@@ -1562,6 +1584,13 @@ void Dblqh::execTUP_ADD_ATTRREF(Signal* signal)
     break;
   }
 
+  if (addfragptr.p->defValSectionI != RNIL)
+  {
+    releaseSection(addfragptr.p->defValSectionI);
+    addfragptr.p->defValNextPos = 0;
+    addfragptr.p->defValSectionI = RNIL;
+  }
+
   const Uint32 Ref = addfragptr.p->m_createTabReq.senderRef;
   const Uint32 senderData = addfragptr.p->m_addAttrReq.senderData;
 
@@ -1608,13 +1637,49 @@ Dblqh::sendAddAttrReq(Signal* signal)
       jam();
       TupAddAttrReq* const tupreq = (TupAddAttrReq*)signal->getDataPtrSend();
       tupreq->tupConnectPtr = addfragptr.p->tupConnectptr;
-      tupreq->notused1 = 0;
       tupreq->attrId = attrId;
       tupreq->attrDescriptor = entry.attrDescriptor;
       tupreq->extTypeInfo = entry.extTypeInfo;
       BlockReference tupRef = calcInstanceBlockRef(DBTUP);
-      sendSignal(tupRef, GSN_TUP_ADD_ATTRREQ,
-                 signal, TupAddAttrReq::SignalLength, JBB);
+
+      Uint32 sectionLen = 0;
+      Uint32 startIndex = TupAddAttrReq::SignalLength;
+      if (addfragptr.p->defValSectionI != RNIL)
+      {
+        SegmentedSectionPtr defValSection;
+        getSection(defValSection, addfragptr.p->defValSectionI);
+
+        SectionReader defValueReader(defValSection, getSectionSegmentPool());
+        Uint32 defSectionWords = defValueReader.getSize();
+
+        ndbrequire(defValueReader.step(addfragptr.p->defValNextPos));
+
+        Uint32 defValueHeader;
+        ndbrequire(defValueReader.peekWord(&defValueHeader));
+
+        AttributeHeader ah(defValueHeader);
+        Uint32 defValueLen = ah.getByteSize();
+        Uint32 defValueWords = ((defValueLen +3)/4) + 1;
+        Uint32 *dst = &signal->theData[startIndex];
+        ndbassert(defSectionWords >= (addfragptr.p->defValNextPos + defValueWords));
+        ndbrequire(defValueReader.getWords(dst, defValueWords));
+        addfragptr.p->defValNextPos += defValueWords;
+        sectionLen = defValueWords;
+      }
+
+      //A long section is attached when a default value is sent.
+      if (sectionLen != 0)
+      {
+        LinearSectionPtr ptr[3];
+        ptr[0].p= &signal->theData[startIndex];
+        ptr[0].sz= sectionLen;
+        sendSignal(tupRef, GSN_TUP_ADD_ATTRREQ,
+                   signal, TupAddAttrReq::SignalLength, JBB, ptr, 1);
+      }
+      else
+        sendSignal(tupRef, GSN_TUP_ADD_ATTRREQ,
+                   signal, TupAddAttrReq::SignalLength, JBB);
+
       return;
     }
     if (DictTabInfo::isOrderedIndex(tabptr.p->tableType) &&
@@ -20549,6 +20614,8 @@ void Dblqh::seizeAddfragrec(Signal* signal)
   addfragptr.p->accConnectptr = RNIL;
   addfragptr.p->tupConnectptr = RNIL;
   addfragptr.p->tuxConnectptr = RNIL;
+  addfragptr.p->defValSectionI = RNIL;
+  addfragptr.p->defValNextPos = 0;
   bzero(&addfragptr.p->m_createTabReq, sizeof(addfragptr.p->m_createTabReq));
   bzero(&addfragptr.p->m_lqhFragReq, sizeof(addfragptr.p->m_lqhFragReq));
   bzero(&addfragptr.p->m_addAttrReq, sizeof(addfragptr.p->m_addAttrReq));

@@ -23,7 +23,7 @@ IF(WIN32)
  SET(EXTRA_LIB wsock32 ws2_32)
 ENDIF(WIN32)
 ADD_LIBRARY(ndbportlib STATIC
-            NdbCondition.c NdbMutex.c
+            NdbCondition.c NdbMutex.c ndb_socket.cpp
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
             NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp NdbDaemon.c
             my_daemon.cc ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc

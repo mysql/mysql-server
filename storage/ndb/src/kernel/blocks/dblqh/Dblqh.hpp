@@ -454,6 +454,8 @@ public:
     Uint16 attrReceived;
     Uint16 totalAttrReceived;
     Uint16 fragCopyCreation;
+    Uint16 defValNextPos;
+    Uint32 defValSectionI;
   };
   typedef Ptr<AddFragRecord> AddFragRecordPtr;
   

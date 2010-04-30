@@ -847,11 +847,14 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
   ndbout << "done" << endl;
 
 
-  if (ctx->getProperty("NoDDL", Uint32(0)) == 0)
+  if ((ctx->getProperty("NoDDL", Uint32(0)) == 0) &&
+      (ctx->getProperty("KeepFS", Uint32(0)) != 0))
   {
     /**
      * Bug48227
-     *   
+     * Upgrade with FS 6.3->7.0, followed by table
+     * create, followed by Sys restart resulted in 
+     * table loss.
      */
     Ndb* pNdb = GETNDB(step);
     NdbDictionary::Dictionary *pDict = pNdb->getDictionary();
@@ -915,6 +918,17 @@ runWait(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+bool versionsSpanBoundary(int verA, int verB, int incBoundaryVer)
+{
+  int minPeerVer = MIN(verA, verB);
+  int maxPeerVer = MAX(verA, verB);
+
+  return ( (minPeerVer <  incBoundaryVer) &&
+           (maxPeerVer >= incBoundaryVer) );
+}
+
+#define SchemaTransVersion NDB_MAKE_VERSION(6,4,0)
+
 int runPostUpgradeDecideDDL(NDBT_Context* ctx, NDBT_Step* step)
 {
   /* We are running post-upgrade, now examine the versions
@@ -923,10 +937,11 @@ int runPostUpgradeDecideDDL(NDBT_Context* ctx, NDBT_Step* step)
    */
   /* DDL should be ok as long as
    *  1) All data nodes have the same version
-   *  2) We are at the same version as the data nodes
+   *  2) There is not some version specific exception
    */
   bool useDDL = true;
 
+  Ndb* pNdb = GETNDB(step);
   NdbRestarter restarter;
   int minNdbVer = 0;
   int maxNdbVer = 0;
@@ -945,13 +960,52 @@ int runPostUpgradeDecideDDL(NDBT_Context* ctx, NDBT_Step* step)
     useDDL = false;
     ndbout << "Ndbd nodes have mixed versions, DDL not supported" << endl;
   }
-  if (myVer != minNdbVer)
+  if (versionsSpanBoundary(myVer, minNdbVer, SchemaTransVersion))
   {
     useDDL = false;
-    ndbout << "Api has different version to Ndbd nodes, DDL not supported" << endl;
+    ndbout << "Api and Ndbd versions span schema-trans boundary, DDL not supported" << endl;
   }
 
   ctx->setProperty("NoDDL", useDDL?0:1);
+
+  if (useDDL)
+  {
+    ndbout << "Dropping and recreating tables..." << endl;
+    
+    for (int i=0; i < NDBT_Tables::getNumTables(); i++)
+    {  
+      /* Drop table (ignoring rc if it doesn't exist etc...) */
+      pNdb->getDictionary()->dropTable(NDBT_Tables::getTable(i)->getName());
+      int ret= NDBT_Tables::createTable(pNdb, 
+                                        NDBT_Tables::getTable(i)->getName(),
+                                        false,   // temp
+                                        false);  // exists ok
+      if(ret)
+      {
+        NdbError err = pNdb->getDictionary()->getNdbError();
+
+        g_err << "Failed to create table "
+              << NDBT_Tables::getTable(i)->getName()
+              << " error : " 
+              << err
+              << endl;
+
+        /* Check for allowed exceptions during upgrade */
+        if (err.code == 794)
+        {
+          /* Schema feature requires data node upgrade */
+          if (minNdbVer >= myVer)
+          {
+            g_err << "Error 794 received, but data nodes are upgraded" << endl;
+            // TODO : Dump versions here
+            return NDBT_FAILED;
+          }
+          g_err << "Create table failure due to old version NDBDs, continuing" << endl;
+        }
+      }
+    }
+    ndbout << "Done" << endl;
+  }
 
   return NDBT_OK;
 }

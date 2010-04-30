@@ -89,10 +89,8 @@ size_t vio_ssl_read(Vio *vio, uchar* buf, size_t size)
 {
   size_t r;
   DBUG_ENTER("vio_ssl_read");
-  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT "  buf: 0x%lx  size: %u  "
-                       "ssl: 0x%lx",
-		       MY_SOCKET_FORMAT_VALUE(vio->sd), (long) buf,
-                       (uint) size, (long) vio->ssl_arg));
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u  ssl: 0x%lx",
+                      vio->sd, (long) buf, (uint) size, (long) vio->ssl_arg));
 
   r= SSL_read((SSL*) vio->ssl_arg, buf, size);
 #ifndef DBUG_OFF
@@ -108,8 +106,7 @@ size_t vio_ssl_write(Vio *vio, const uchar* buf, size_t size)
 {
   size_t r;
   DBUG_ENTER("vio_ssl_write");
-  DBUG_PRINT("enter", ("sd: " MY_SOCKET_FORMAT "  buf: 0x%lx  size: %u",
-                       MY_SOCKET_FORMAT_VALUE(vio->sd),
+  DBUG_PRINT("enter", ("sd: %d  buf: 0x%lx  size: %u", vio->sd,
                        (long) buf, (uint) size));
 
   r= SSL_write((SSL*) vio->ssl_arg, buf, size);
@@ -187,9 +184,8 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   my_bool was_blocking;
 
   DBUG_ENTER("ssl_do");
-  DBUG_PRINT("enter", ("ptr: 0x%lx, sd: " MY_SOCKET_FORMAT "  ctx: 0x%lx",
-                       (long) ptr, MY_SOCKET_FORMAT_VALUE(vio->sd),
-                       (long) ptr->ssl_context));
+  DBUG_PRINT("enter", ("ptr: 0x%lx, sd: %d  ctx: 0x%lx",
+                       (long) ptr, vio->sd, (long) ptr->ssl_context));
 
   /* Set socket to blocking if not already set */
   vio_blocking(vio, 1, &was_blocking);
@@ -204,7 +200,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   DBUG_PRINT("info", ("ssl: 0x%lx timeout: %ld", (long) ssl, timeout));
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
-  SSL_set_fd(ssl, my_socket_get_fd(vio->sd));
+  SSL_set_fd(ssl, vio->sd);
 
   if (connect_accept_func(ssl) < 1)
   {
@@ -220,7 +216,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     change type, set sd to the fd used when connecting
     and set pointer to the SSL structure
   */
-  vio_reset(vio, VIO_TYPE_SSL, vio->sd, 0, 0);
+  vio_reset(vio, VIO_TYPE_SSL, SSL_get_fd(ssl), 0, 0);
   vio->ssl_arg= (void*)ssl;
 
 #ifndef DBUG_OFF

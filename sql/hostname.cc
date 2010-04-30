@@ -37,6 +37,7 @@ extern "C" {					// Because of SCO 3.2V4.2
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
+#include <netdb.h>
 #include <sys/utsname.h>
 #endif // __WIN__
 #ifdef	__cplusplus

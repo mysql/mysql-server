@@ -1497,19 +1497,19 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table * tab = ctx->getTab();
-  NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
-  bool null = false;
+  bool hasDefault = false;
   for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
-    if (tab->getColumn(i)->getNullable())
+    if (tab->getColumn(i)->getNullable() ||
+        tab->getColumn(i)->getDefaultValue())
     {
-      null = true;
+      hasDefault = true;
       break;
     }
   }
   
-  if (!null)
+  if (!hasDefault)
     return NDBT_OK;
 
   HugoTransactions hugoTrans(* tab);
@@ -1528,7 +1528,8 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
-        !tab->getColumn(i)->getNullable())
+        !tab->getColumn(i)->getNullable() &&
+        !tab->getColumn(i)->getDefaultValue())
     {
       hugoTrans.setValueForAttr(pOp, i, 0, 1);
     }
@@ -1547,7 +1548,8 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
   {
     if (!tab->getColumn(i)->getPrimaryKey() &&
-        tab->getColumn(i)->getNullable())
+        (tab->getColumn(i)->getNullable() ||
+         tab->getColumn(i)->getDefaultValue()))
     {
       values.push_back(pOp->getValue(i));
     }
@@ -1556,19 +1558,48 @@ runBug20535(NDBT_Context* ctx, NDBT_Step* step)
   if (pTrans->execute(Commit) != 0)
     return NDBT_FAILED;
 
-  null = true;
+  bool defaultOk = true;
   for (unsigned int i = 0; i<values.size(); i++)
   {
-    if (!values[i]->isNULL())
+    const NdbRecAttr* recAttr = values[i];
+    const NdbDictionary::Column* col = recAttr->getColumn();
+    unsigned int defaultLen = 0;
+    const char* def = (const char*) col->getDefaultValue(&defaultLen);
+      
+    if (def)
     {
-      null = false;
-      ndbout_c("column %s is not NULL", values[i]->getColumn()->getName());
+      /* Column has a native default, check that it was set */
+
+      if (!recAttr->isNULL())
+      {
+        if (memcmp(def, recAttr->aRef(), defaultLen) != 0)
+        {
+          defaultOk = false;
+          ndbout_c("column %s does not have correct default value",
+                   recAttr->getColumn()->getName());
+        }
+      }
+      else
+      {
+        defaultOk = false;
+        ndbout_c("column %s is null, should have default value",
+                 recAttr->getColumn()->getName());
+      }
+    }
+    else
+    {
+      /* Column has Null as its default */      
+      if (!recAttr->isNULL())
+      {
+        defaultOk = false;
+        ndbout_c("column %s is not NULL", recAttr->getColumn()->getName());
+      }
     }
   }
   
   pTrans->close();  
   
-  if (null)
+  if (defaultOk)
     return NDBT_OK;
   else
     return NDBT_FAILED;

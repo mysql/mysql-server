@@ -278,7 +278,7 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	NULL
 Master_SSL_Verify_Server_Cert	No
-Last_IO_Errno	2004
+Last_IO_Errno	2003
 Last_IO_Error	error connecting to master 'root@127.0.0.1:MASTER_PORT' - retry-time: 1  retries: 10
 Last_SQL_Errno	0
 Last_SQL_Error	
