@@ -142,6 +142,7 @@ BDB_DONTRUN_TESTS = \
 	loader-stress-test \
 	loader-dup-test \
 	loader-no-puts \
+	loader-cleanup-test \
 	recover-lsn-filter-multiple \
 	recover-put-multiple-fdelete-all \
 	recover-put-multiple-fdelete-some \
