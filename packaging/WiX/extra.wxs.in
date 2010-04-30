@@ -10,15 +10,18 @@
           Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@">
           <Directory Id="DATADIR" Name=".">
             <Component Id="component.datadir" Guid="d3491319-5dbc-4477-95f3-4f809ef1dd2d">
-            <CreateFolder>
-              <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
-            </CreateFolder>
+              <CreateFolder>
+                <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+              </CreateFolder>
             </Component>
             <Directory Id="datadir.mysql.mysqlserver.data" Name="data">
               <Directory Id="datadir.mysql.mysqlserver.data.mysql" Name="mysql">
                 <Component Id="component.datadir.mysql"
                   Guid="19ec0f1f-1a7f-424e-a788-b09346c0a709"
                   Permanent="yes" NeverOverwrite="yes">
+                  <CreateFolder>
+                    <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+                  </CreateFolder>
                   @DATADIR_MYSQL_FILES@
                 </Component>
               </Directory>
@@ -27,6 +30,9 @@
                 <Component Id="component.datadir.performance_schema"
                   Guid="af2a6776-2655-431f-a748-9e9f4645acc3"
                   Permanent="yes" NeverOverwrite="yes">
+                  <CreateFolder>
+                    <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+                  </CreateFolder>
                   @DATADIR_PERFORMANCE_SCHEMA_FILES@
                 </Component>
               </Directory>
