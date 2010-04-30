@@ -122,20 +122,20 @@
 %endif
 %if %{distro_specific}
   %if %(test -f /etc/redhat-release && echo 1 || echo 0)
-    %define redhatver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
-    %if "%redhatver" == "4"
-      %define distro_description        Red Hat Enterprise Linux 4
-      %define distro_releasetag         rhel4
+    %define elver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+    %if "%elver" == "4"
+      %define distro_description        Enterprise Linux 4
+      %define distro_releasetag         el4
       %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
       %define distro_requires           chkconfig coreutils grep procps shadow-utils
     %else
-      %if "%redhatver" == "5"
-        %define distro_description      Red Hat Enterprise Linux 5
-        %define distro_releasetag       rhel5
+      %if "%elver" == "5"
+        %define distro_description      Enterprise Linux 5
+        %define distro_releasetag       el5
         %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
         %define distro_requires         chkconfig coreutils grep procps shadow-utils
       %else
-        %{error:Red Hat %{redhatver} is unsupported}
+        %{error:Enterprise Linux %{elver} is unsupported}
       %endif
     %endif
   %else
@@ -167,6 +167,13 @@
   %define distro_buildreq               gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
+
+# Avoid debuginfo RPMs, leaves binaries unstripped
+%define debug_package   %{nil}
+
+# Hack to work around bug in RHEL5 __os_install_post macro, wrong inverted
+# test for __debug_package
+%define __strip         /bin/true
 
 # ----------------------------------------------------------------------------
 # Support optional "tcmalloc" library (experimental)
@@ -389,7 +396,7 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
-  make VERBOSE=1 mysqld mysqlserver
+  make VERBOSE=1
 )
 # Build full release
 mkdir release
@@ -570,7 +577,7 @@ if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 # use insserv for older SuSE Linux versions
 if [ -x /sbin/insserv ] ; then
         /sbin/insserv %{_sysconfdir}/init.d/mysql
-# use chkconfig on Red Hat and newer SuSE releases
+# use chkconfig on Enterprise Linux and newer SuSE releases
 elif [ -x /sbin/chkconfig ] ; then
         /sbin/chkconfig --add mysql
 fi
@@ -631,7 +638,7 @@ if [ $1 = 0 ] ; then
                 # For older SuSE Linux versions
                 if [ -x /sbin/insserv ] ; then
                         /sbin/insserv -r %{_sysconfdir}/init.d/mysql
-                # use chkconfig on Red Hat and newer SuSE releases
+                # use chkconfig on Enterprise Linux and newer SuSE releases
                 elif [ -x /sbin/chkconfig ] ; then
                         /sbin/chkconfig --del mysql
                 fi
@@ -723,6 +730,9 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -810,7 +820,6 @@ fi
 # ----------------------------------------------------------------------------
 %files -n MySQL-embedded%{product_suffix}
 %defattr(-, root, root, 0755)
-%attr(755, root, root) %{_bindir}/mysql_embedded
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 

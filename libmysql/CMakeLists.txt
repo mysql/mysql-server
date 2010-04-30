@@ -177,10 +177,18 @@ ENDIF()
 IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} COMPONENT SharedLibraries)
   IF(UNIX)
+    # libtool compatability
+    IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)
+      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
+    ELSEIF(CMAKE_SYSTEM_NAME MATCHES "HP-UX")
+      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}.0")
+    ELSE()
+      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}.0.0")
+    ENDIF()
     # Name of shared library is mysqlclient on Unix
     SET_TARGET_PROPERTIES(libmysql PROPERTIES 
       OUTPUT_NAME mysqlclient 
-      VERSION "${SHARED_LIB_MAJOR_VERSION}.0.0" 
+      VERSION "${OS_SHARED_LIB_VERSION}" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
     IF(LINK_FLAG_NO_UNDEFINED)
       GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
@@ -195,15 +203,22 @@ IF(NOT DISABLE_SHARED)
     SET_TARGET_PROPERTIES(mysqlclient PROPERTIES CLEAN_DIRECT_OUTPUT 1)
     SET_TARGET_PROPERTIES(libmysql PROPERTIES CLEAN_DIRECT_OUTPUT 1)
 
-    # Install 3 links to libmysqlclient.so (client_r)
-    FOREACH(ver "" "${SHARED_LIB_MAJOR_VERSION}"
-                "${SHARED_LIB_MAJOR_VERSION}.0.0")
-       GET_VERSIONED_LIBNAME(
-         "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
-         "${CMAKE_SHARED_LIBRARY_SUFFIX}"
-         "${ver}"
-         linkname)
-      INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR} COMPONENT SharedLibraries)
+    # Install links to libmysqlclient.so (client_r)
+    GET_VERSIONED_LIBNAME(
+      "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
+      "${CMAKE_SHARED_LIBRARY_SUFFIX}"
+      ""
+      linkname)
+    INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR})
+    SET(OS_SHARED_LIB_SYMLINKS "${SHARED_LIB_MAJOR_VERSION}" "${OS_SHARED_LIB_VERSION}")
+    LIST(REMOVE_DUPLICATES OS_SHARED_LIB_SYMLINKS)
+    FOREACH(ver ${OS_SHARED_LIB_SYMLINKS})
+      GET_VERSIONED_LIBNAME(
+        "${CMAKE_SHARED_LIBRARY_PREFIX}mysqlclient_r"
+        "${CMAKE_SHARED_LIBRARY_SUFFIX}"
+        "${ver}"
+        linkname)
+      INSTALL_SYMLINK(${linkname} libmysql ${INSTALL_LIBDIR})
     ENDFOREACH()
   ENDIF()
 ENDIF()
