@@ -15,9 +15,10 @@
 
 AM_CPPFLAGS     = -I$(srcdir) -I$(top_builddir)/include -I$(srcdir)/.. -I$(top_srcdir)/include
 
-AM_LDFLAGS      = -L$(top_builddir)/unittest/mytap
-
-LDADD           = -lmytap $(top_builddir)/mysys/libmysys.a
+LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
+		  $(top_builddir)/mysys/libmysys.a \
+		  $(top_builddir)/dbug/libdbug.a \
+		  $(top_builddir)/strings/libmystrings.a
 
 noinst_PROGRAMS = basic-t
 
