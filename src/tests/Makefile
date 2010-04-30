@@ -32,6 +32,8 @@ endif
 
 SRCS = $(sort $(wildcard *.c))
 RECOVER_SRCS = $(wildcard recover-*.c)
+LOADER_SRCS = $(wildcard loader-*.c)
+NONSTANDARD_SRCS=$(RECOVER_SRCS) $(LOADER_SRCS)
 
 #Tests that don't compile in windows.  SHould
 WINDOWS_NOT_PORTED_TESTS = \
@@ -64,10 +66,10 @@ WINDOWS_BDB_DONTRUN_TESTS += \
 
 ifeq ($(OS_CHOICE),windows)
     TDB_BINS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(SRCS)))
-    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(filter-out $(RECOVER_SRCS),$(SRCS))))
+    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(filter-out $(NONSTANDARD_SRCS),$(SRCS))))
 else
     TDB_BINS = $(patsubst %.c,%.tdb$(BINSUF),$(SRCS))
-    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(RECOVER_SRCS),$(SRCS)))
+    TDB_TESTS = $(patsubst %.c,%.tdb$(BINSUF),$(filter-out $(NONSTANDARD_SRCS),$(SRCS)))
 endif
 
 # For diskfull.bdb: db-4.6 seems OK, but db-4.3 segfaults
@@ -238,11 +240,14 @@ EXTRA_TDB_TESTS = \
 endif
 
 RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(RECOVER_SRCS))
+LOADER_TESTS= $(patsubst %.c,%.loader,$(LOADER_SRCS))
 ifeq ($(OS_CHOICE),windows)
 RECOVER_TESTS = $(patsubst %.c,%.abortrecover,$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(RECOVER_SRCS)))
+LOADER_TESTS = $(patsubst %.c,%.loader,$(filter-out $(patsubst %,%.c,$(WINDOWS_DONTRUN_TESTS)),$(LOADER_SRCS)))
 endif
 
-RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TESTS) $(RECOVER_TESTS)
+
+RUN_TDB_TESTS = $(patsubst %.tdb$(BINSUF),%.tdbrun,$(TDB_TESTS))  $(EXTRA_TDB_TESTS) $(RECOVER_TESTS) $(LOADER_TESTS)
 RUN_BDB_TESTS  = $(patsubst %.bdb$(BINSUF),%.bdbrun,$(BDB_TESTS))
 RUN_ALL_TESTS  = $(RUN_BDB_TESTS) $(RUN_TDB_TESTS)
 
@@ -317,8 +322,6 @@ endif
 endif
 #empty on purpose
 
-
-
 # Use -s on the command line to make things quiet.
 # Use -s on the command line to make things quiet.
 %.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(WINDOWS_BDB_LIB_NAME)
@@ -369,6 +372,13 @@ ABORTCODE=137
 		$(VGRIND) ./$< --recover; \
 	fi \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+.PHONY: %.loader
+%.loader: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
+	echo doing ./$< fastloader && \
+	$(TDBVGRIND) ./$< $(VERBVERBOSE) && \
+	echo doing ./$< putloader && \
+	$(TDBVGRIND) ./$< -p $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 .PHONY: %.recover
 all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) $(PTHREAD_LOCAL) ;
@@ -633,3 +643,4 @@ dumpit: $(TDBBRTDUMP)
 test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 	./$< -a -thread_stack 16384         && \
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
+

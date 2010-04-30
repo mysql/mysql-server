@@ -242,7 +242,8 @@ static void test_loader(DB **dbs)
     printf(" done\n");
     CKERR(r);
 
-    assert(poll_count>0);
+    if (!USE_PUTS)
+        assert(poll_count>0);
 
     r = txn->commit(txn, 0);
     CKERR(r);

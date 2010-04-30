@@ -240,7 +240,13 @@ static void test_loader(DB **dbs)
         dbt_init(&key, &k, sizeof(unsigned int));
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
-        CKERR(r);
+        if (USE_PUTS) {
+            //PUT loader can return -1 if it finds an error during the puts.
+            CKERR2s(r, 0,-1);
+        }
+        else {
+            CKERR(r);
+        }
         if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
     }
     if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
@@ -273,7 +279,7 @@ static void run_test(void)
     r = env->set_default_dup_compare(env, uint_dbt_cmp);                                                      CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
-    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
+    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOG | DB_CREATE | DB_PRIVATE;
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     //Disable auto-checkpointing
@@ -322,6 +328,8 @@ int test_main(int argc, char * const *argv) {
 	run_test();
     else {
 	int sizes[]={1,4000000,-1};
+        //Make PUT loader take about the same amount of time:
+        if (USE_PUTS) sizes[1] /= 25;
 	for (int i=0; sizes[i]>=0; i++) {
 	    if (verbose) printf("Doing %d\n", sizes[i]);
 	    NUM_ROWS = sizes[i];
