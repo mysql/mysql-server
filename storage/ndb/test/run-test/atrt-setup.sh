@@ -10,8 +10,10 @@ then
     verbose=1
 fi
 
+name="`uname -n | sed 's!\..*!!g'`"
+
 # Local copy
-if [ "$MACHINE" = "`uname -n`" -o "$MACHINE" = "localhost" ]
+if [ "$MACHINE" = "$name" -o "$MACHINE" = "localhost" ]
 then
     if [ "$REMOTE_DIR" = "$LOCAL_DIR" -o "$REMOTE_DIR/" = "$LOCAL_DIR" ]
     then
