@@ -60,11 +60,13 @@ static void free_loader_resources(DB_LOADER *loader)
     if ( loader->i ) {
         for (int i=0; i<loader->i->N; i++) {
             if (loader->i->ekeys &&
-                loader->i->ekeys[i].data) {
+                loader->i->ekeys[i].data &&
+                loader->i->ekeys[i].flags == DB_DBT_REALLOC) {
                 toku_free(loader->i->ekeys[i].data);
             }
             if (loader->i->evals &&
-                loader->i->evals[i].data) {
+                loader->i->evals[i].data &&
+                loader->i->evals[i].flags == DB_DBT_REALLOC) {
                 toku_free(loader->i->evals[i].data);
             }
         }
