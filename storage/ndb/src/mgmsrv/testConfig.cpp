@@ -23,7 +23,6 @@
 #include "Config.hpp"
 
 my_bool opt_core= 1;
-my_bool opt_ndb_shm= 0;
 
 
 #define CHECK(x) \

@@ -39,15 +39,6 @@
 #include <sys/prctl.h>
 #endif
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-#if defined(NOT_ENOUGH_TESTED) \
-  && defined(NDB_SHM_TRANSPORTER) && MYSQL_VERSION_ID >= 50000
-#define OPT_NDB_SHM_DEFAULT 1
-#else
-#define OPT_NDB_SHM_DEFAULT 0
-#endif
-#endif
-
 #ifndef DEFAULT_SKIP_THREAD_PRIORITY
 #define DEFAULT_SKIP_THREAD_PRIORITY 0
 #endif
@@ -476,7 +467,6 @@ my_bool opt_ndb_log_empty_epochs= FALSE;
 
 
 extern "C" char opt_ndb_constrbuf[1024];
-extern "C" my_bool opt_ndb_shm;
 extern "C" const char *opt_ndb_connectstring;
 extern "C" unsigned opt_ndb_constrbuf_len;
 extern "C" const char *opt_ndb_mgmd;
@@ -5676,7 +5666,7 @@ enum options_mysqld
   OPT_ENGINE_CONDITION_PUSHDOWN, OPT_NDB_CONNECTSTRING, 
   OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
-  OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
+  OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
   OPT_NDB_BATCH_SIZE,
   OPT_NDB_OPTIMIZATION_DELAY,
   OPT_NDB_TABLE_TEMPORARY,
@@ -6344,11 +6334,6 @@ master-ssl",
    (uchar**) &global_system_variables.ndb_use_transactions,
    (uchar**) &global_system_variables.ndb_use_transactions,
    0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb-shm", OPT_NDB_SHM,
-   "Use shared memory connections when available.",
-   (uchar**) &opt_ndb_shm,
-   (uchar**) &opt_ndb_shm,
-   0, GET_BOOL, OPT_ARG, OPT_NDB_SHM_DEFAULT, 0, 0, 0, 0, 0},
   {"ndb-optimized-node-selection", OPT_NDB_OPTIMIZED_NODE_SELECTION,
    "Select nodes for transactions in a more optimal way.",
    (uchar**) &global_system_variables.ndb_optimized_node_selection,
