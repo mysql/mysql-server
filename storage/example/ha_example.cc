@@ -151,7 +151,7 @@ ha_create_table_option example_table_option_list[]=
     range of values 0..UINT_MAX32, and a "block size" of 10
     (any value must be divisible by 10).
   */
-  HA_TOPTION_ULL("ULL", ullparam, UINT_MAX32, 0, UINT_MAX32, 10),
+  HA_TOPTION_NUMBER("ULL", ullparam, UINT_MAX32, 0, UINT_MAX32, 10),
   /*
     one option that takes an arbitrary string
   */

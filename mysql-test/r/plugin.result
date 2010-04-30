@@ -101,6 +101,17 @@ drop table t1;
 SET SQL_MODE='';
 CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
 ERROR HY000: Incorrect value '10000000000000000000' for option 'ULL'
+CREATE TABLE t1 (a int) ENGINE=example ULL=10.00;
+ERROR 42000: Only integers allowed as number here near '10.00' at line 1
+CREATE TABLE t1 (a int) ENGINE=example ULL=1e2;
+ERROR 42000: Only integers allowed as number here near '1e2' at line 1
+CREATE TABLE t1 (a int) ENGINE=example ULL=0x1234;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ULL`=4660
+DROP TABLE t1;
 SET @@SQL_MODE=@OLD_SQL_MODE;
 select 1;
 1

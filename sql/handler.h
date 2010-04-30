@@ -555,19 +555,19 @@ struct handler_log_file_data {
 /*
   Definitions for engine-specific table/field/index options in the CREATE TABLE.
 
-  Options are declared with HA_*OPTION_* macros (HA_TOPTION_ULL, HA_FOPTION_ENUM,
-  HA_KOPTION_STRING, etc).
+  Options are declared with HA_*OPTION_* macros (HA_TOPTION_NUMBER,
+  HA_FOPTION_ENUM, HA_IOPTION_STRING, etc).
 
   Every macros takes the option name, and the name of the underlying field of
   the appropriate C structure. The "appropriate C structure" is
   ha_table_option_struct for table level options,
   ha_field_option_struct for field level options,
-  ha_key_option_struct for key level options. The engine either
+  ha_index_option_struct for key level options. The engine either
   defines a structure of this name, or uses #define's to map
   these "appropriate" names to the actual structure type name.
 
   ULL options use a ulonglong as the backing store.
-  HA_*OPTION_ULL() takes the option name, the structure field name,
+  HA_*OPTION_NUMBER() takes the option name, the structure field name,
   the default value for the option, min, max, and blk_siz values.
 
   STRING options use a char* as a backing store.
@@ -595,7 +595,7 @@ enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
                       HA_OPTION_TYPE_ENUM,   /* uint */
                       HA_OPTION_TYPE_BOOL};  /* bool */
 
-#define HA_xOPTION_ULL(name, struc, field, def, min, max, blk_siz)   \
+#define HA_xOPTION_NUMBER(name, struc, field, def, min, max, blk_siz)   \
   { HA_OPTION_TYPE_ULL, name, sizeof(name)-1,                        \
     offsetof(struc, field), def, min, max, blk_siz, 0 }
 #define HA_xOPTION_STRING(name, struc, field)                        \
@@ -610,8 +610,8 @@ enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
     offsetof(struc, field), def, 0, 1, 0, 0 }
 #define HA_xOPTION_END { HA_OPTION_TYPE_ULL, 0, 0, 0, 0, 0, 0, 0, 0 }
 
-#define HA_TOPTION_ULL(name, field, def, min, max, blk_siz)          \
-  HA_xOPTION_ULL(name, ha_table_option_struct, field, def, min, max, blk_siz)
+#define HA_TOPTION_NUMBER(name, field, def, min, max, blk_siz)          \
+  HA_xOPTION_NUMBER(name, ha_table_option_struct, field, def, min, max, blk_siz)
 #define HA_TOPTION_STRING(name, field)                               \
   HA_xOPTION_STRING(name, ha_table_option_struct, field)
 #define HA_TOPTION_ENUM(name, field, values, def)                    \
@@ -620,8 +620,8 @@ enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
   HA_xOPTION_BOOL(name, ha_table_option_struct, field, def)
 #define HA_TOPTION_END HA_xOPTION_END
 
-#define HA_FOPTION_ULL(name, field, def, min, max, blk_siz)          \
-  HA_xOPTION_ULL(name, ha_field_option_struct, field, def, min, max, blk_siz)
+#define HA_FOPTION_NUMBER(name, field, def, min, max, blk_siz)          \
+  HA_xOPTION_NUMBER(name, ha_field_option_struct, field, def, min, max, blk_siz)
 #define HA_FOPTION_STRING(name, field)                               \
   HA_xOPTION_STRING(name, ha_field_option_struct, field)
 #define HA_FOPTION_ENUM(name, field, values, def)                    \
@@ -630,15 +630,15 @@ enum ha_option_type { HA_OPTION_TYPE_ULL,    /* unsigned long long */
   HA_xOPTION_BOOL(name, ha_field_option_struct, field, def)
 #define HA_FOPTION_END HA_xOPTION_END
 
-#define HA_KOPTION_ULL(name, field, def, min, max, blk_siz)          \
-  HA_xOPTION_ULL(name, ha_key_option_struct, field, def, min, max, blk_siz)
-#define HA_KOPTION_STRING(name, field)                               \
-  HA_xOPTION_STRING(name, ha_key_option_struct, field)
-#define HA_KOPTION_ENUM(name, field, values, def)                    \
-  HA_xOPTION_ENUM(name, ha_key_option_struct, field, values, def)
-#define HA_KOPTION_BOOL(name, field, values, def)                    \
-  HA_xOPTION_BOOL(name, ha_key_option_struct, field, values, def)
-#define HA_KOPTION_END HA_xOPTION_END
+#define HA_IOPTION_NUMBER(name, field, def, min, max, blk_siz)          \
+  HA_xOPTION_NUMBER(name, ha_index_option_struct, field, def, min, max, blk_siz)
+#define HA_IOPTION_STRING(name, field)                               \
+  HA_xOPTION_STRING(name, ha_index_option_struct, field)
+#define HA_IOPTION_ENUM(name, field, values, def)                    \
+  HA_xOPTION_ENUM(name, ha_index_option_struct, field, values, def)
+#define HA_IOPTION_BOOL(name, field, values, def)                    \
+  HA_xOPTION_BOOL(name, ha_index_option_struct, field, values, def)
+#define HA_IOPTION_END HA_xOPTION_END
 
 typedef struct st_ha_create_table_option {
   enum ha_option_type type;
@@ -1060,7 +1060,7 @@ typedef struct st_ha_create_information
   /* the following three are only for ALTER TABLE, check_if_incompatible_data() */
   void *option_struct;           ///< structure with parsed table options
   void **fileds_option_struct;   ///< array of field option structures
-  void **keys_option_struct;     ///< array of key option structures
+  void **indexes_option_struct;  ///< array of index option structures
 } HA_CREATE_INFO;
 
 

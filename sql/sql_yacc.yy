@@ -4769,7 +4769,7 @@ create_table_option:
               engine_option_value($1, $3, false, &Lex->create_info.option_list,
                                   &Lex->option_list_last);
           }
-        | IDENT_sys equal ulonglong_num
+        | IDENT_sys equal real_ulonglong_num
           {
             new (YYTHD->mem_root)
               engine_option_value($1, $3, &Lex->create_info.option_list,
@@ -5434,7 +5434,7 @@ attribute:
               engine_option_value($1, $3, false, &Lex->option_list,
                                   &Lex->option_list_last);
           }
-        | IDENT_sys equal ulonglong_num
+        | IDENT_sys equal real_ulonglong_num
           {
             new (YYTHD->mem_root)
               engine_option_value($1, $3, &Lex->option_list,
@@ -5746,7 +5746,7 @@ all_key_opt:
               engine_option_value($1, $3, false, &Lex->option_list,
                                   &Lex->option_list_last);
           }
-        | IDENT_sys equal ulonglong_num
+        | IDENT_sys equal real_ulonglong_num
           {
             new (YYTHD->mem_root)
               engine_option_value($1, $3, &Lex->option_list,
@@ -9472,6 +9472,7 @@ ulonglong_num:
 real_ulonglong_num:
           NUM           { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
         | ULONGLONG_NUM { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
+        | HEX_NUM       { $$= strtoull($1.str, (char**) 0, 16); }
         | LONG_NUM      { int error; $$= (ulonglong) my_strtoll10($1.str, (char**) 0, &error); }
         | dec_num_error { MYSQL_YYABORT; }
         ;

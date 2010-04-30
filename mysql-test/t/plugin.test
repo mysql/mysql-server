@@ -110,6 +110,17 @@ drop table t1;
 SET SQL_MODE='';
 --error ER_BAD_OPTION_VALUE
 CREATE TABLE t1 (a int) ENGINE=example ULL=10000000000000000000 one_or_two='ttt' YESNO=SSS;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (a int) ENGINE=example ULL=10.00;
+
+--error ER_PARSE_ERROR
+CREATE TABLE t1 (a int) ENGINE=example ULL=1e2;
+
+CREATE TABLE t1 (a int) ENGINE=example ULL=0x1234;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
 SET @@SQL_MODE=@OLD_SQL_MODE;
 
 #

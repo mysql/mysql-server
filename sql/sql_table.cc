@@ -5783,7 +5783,7 @@ compare_tables(TABLE *table,
 
   if ((create_info->fileds_option_struct=
        (void**)thd->calloc(sizeof(void*) * table->s->fields)) == NULL ||
-      (create_info->keys_option_struct=
+      (create_info->indexes_option_struct=
        (void**)thd->calloc(sizeof(void*) * table->s->keys)) == NULL)
     DBUG_RETURN(1);
 
@@ -5984,7 +5984,7 @@ compare_tables(TABLE *table,
     else
     {
       DBUG_ASSERT(i < table->s->keys);
-      create_info->keys_option_struct[i]= new_key->option_struct;
+      create_info->indexes_option_struct[i]= new_key->option_struct;
     }
   }
 
