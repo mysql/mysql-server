@@ -18,7 +18,6 @@ FILE(GLOB all_files
 ${CMAKE_SOURCE_DIR}/sql-bench/* 
 ${CMAKE_SOURCE_DIR}/sql-bench/Data/ATIS/*
 ${CMAKE_SOURCE_DIR}/sql-bench/Data/Wisconsin/*
-${CMAKE_SOURCE_DIR}/sql-bench/Comments/*
 ${CMAKE_SOURCE_DIR}/sql-bench/limits/*
 )
 
@@ -34,7 +33,7 @@ ENDIF()
 
 GET_FILENAME_COMPONENT(basedir ${CMAKE_SOURCE_DIR} ABSOLUTE)
 FOREACH(file ${all_files})
-  IF(NOT IS_DIRECTORY ${file} AND NOT ${file} MATCHES "Make" )
+  IF(NOT IS_DIRECTORY ${file} AND NOT ${file} MATCHES "Make|as3ap|/example$" )
   FILE(RELATIVE_PATH relpath ${basedir} ${file})
   SET(target_relpath ${relpath})
   GET_FILENAME_COMPONENT(ext ${file} EXT)
