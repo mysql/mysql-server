@@ -292,20 +292,10 @@ spawn_process(const char* progname, const BaseString& args)
   while(argv[argc])
     argc++;
 
-#ifdef VM_TRACE
-#define NDB_USE_FORK_AND_EXEC
-#endif
-#ifdef NDB_USE_FORK_AND_EXEC
-  // Start program from beginning using execv which is
-  // as close as possible to the Windows implementation
-  if (execv(argv[0], argv) == -1)
-    g_eventLogger->error("Failed to execv, errno: %d", errno);
-#else
   // Calling 'main' to start program from beginning
   // without loading (possibly new version) from disk
   (void)main(argc, argv);
   assert(false); // main should never return
-#endif
   exit(1);
   return -1; // Never reached
 #endif
