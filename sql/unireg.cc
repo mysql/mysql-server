@@ -197,6 +197,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     create_info->table_options|= HA_OPTION_TEXT_CREATE_OPTIONS;
     create_info->extra_size+= (options_len + 4);
   }
+  else
+    create_info->table_options&= ~HA_OPTION_TEXT_CREATE_OPTIONS;
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys)) < 0)
