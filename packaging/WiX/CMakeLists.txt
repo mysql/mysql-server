@@ -1,3 +1,17 @@
+# Copyright 2010, Oracle and/or its affiliates. All rights reserved.
+# 
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 IF(NOT WIN32)
   RETURN()
@@ -17,6 +31,8 @@ IF(NOT WIX_DIR)
   ENDIF()
   RETURN()
 ENDIF()
+
+ADD_SUBDIRECTORY(ca)
 
 # extra.wxs.in needs DATADIR_MYSQL_FILES and DATADIR_PERFORMANCE_SCHEMA_FILES, i.e
 # Wix-compatible file lists for ${builddir}\sql\data\{mysql,performance_schema}
@@ -43,15 +59,34 @@ FIND_PROGRAM(LIGHT_EXECUTABLE light ${WIX_DIR})
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
   @ONLY)
+
+IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  SET(WixWin64 " Win64='yes'")
+ELSE()
+  SET(WixWin64)
+ENDIF()
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/extra.wxs.in
-  ${CMAKE_CURRENT_BINARY_DIR}/extra.wxs
-  @ONLY
-  )
+  ${CMAKE_CURRENT_BINARY_DIR}/extra.wxs)
 
 IF(CMAKE_GENERATOR MATCHES "Visual Studio")
  SET(CONFIG_PARAM "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_CFG_INTDIR}")
 ENDIF()
 
+# WiX wants the license text as rtf; if there is no rtf license, 
+# we create a fake one from the plain text COPYING file.
+IF(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/COPYING.rtf")
+  MESSAGE("copying COPYING.rtf")
+  FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/COPYING.rtf" CONTENTS)
+  FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf" "${CONTENTS}")
+ELSE()
+  MESSAGE("creating COPYING.rtf")
+  FILE(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../COPYING" CONTENTS)
+  STRING(REGEX REPLACE "\n" "\\\\par\n" CONTENTS "${CONTENTS}")
+  STRING(REGEX REPLACE "\t" "\\\\tab" CONTENTS "${CONTENTS}")
+  FILE(WRITE "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf" "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0\\fnil\\fcharset0 Courier New;}}\\viewkind4\\uc1\\pard\\lang1031\\f0\\fs15")
+  FILE(APPEND "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf" "${CONTENTS}")
+  FILE(APPEND "${CMAKE_CURRENT_BINARY_DIR}/COPYING.rtf" "\n}\n")
+ENDIF()
 
 ADD_CUSTOM_TARGET(
   MSI
@@ -62,6 +97,7 @@ ADD_CUSTOM_TARGET(
   ${CONFIG_PARAM} 
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
+ADD_DEPENDENCIES(MSI wixca)
 
 ADD_CUSTOM_TARGET(
   MSI_ESSENTIALS
@@ -72,4 +108,5 @@ ADD_CUSTOM_TARGET(
   ${CONFIG_PARAM}
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
+ADD_DEPENDENCIES(MSI wixca)
 

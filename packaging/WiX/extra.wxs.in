@@ -1,34 +1,5 @@
 <Include xmlns="http://schemas.microsoft.com/wix/2006/wi"
          xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
-  <DirectoryRef Id='TARGETDIR'>
-    <Component Id="RegKeys" Guid="*">
-      <RegistryKey
-        Id='MySQLKey'
-        Root='HKLM'
-        Key='SOFTWARE\MySQL AB\[ProductName]'
-        Action='createAndRemoveOnUninstall'>
-        <RegistryValue
-          Type='string'
-          Name='Location'
-          Value='[INSTALLDIR]'/>
-        <RegistryValue
-          Type="string"
-          Name="Version"
-          Value="[ProductVersion]"/>
-        <RegistryValue
-          Type="string"
-          Name="DataLocation"
-          Value="[DATADIR]"/>
-      </RegistryKey>
-    </Component>
-  </DirectoryRef>
-
-  <Feature
-    Id='RegKeys'
-    Display='hidden'
-    Level='1'>
-    <ComponentRef Id='RegKeys'/>
-  </Feature>
 
   <!-- Datafiles that installation will copy to CommonAppData (initial database)
   They are declared Permanent and NeverOverwrite since it is user data -->
@@ -43,7 +14,6 @@
               <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
             </CreateFolder>
             </Component>
-
             <Directory Id="datadir.mysql.mysqlserver.data" Name="data">
               <Directory Id="datadir.mysql.mysqlserver.data.mysql" Name="mysql">
                 <Component Id="component.datadir.mysql"
@@ -72,9 +42,8 @@
     </Directory>
   </DirectoryRef>
 
-
   <Feature Id="UserEditableDatafiles" Level='1' Display='hidden'  ConfigurableDirectory="DATADIR">
-   <ComponentRef Id="component.datadir"/>
+    <ComponentRef Id="component.datadir"/>
     <ComponentRef Id="component.datadir.mysql"/>
     <ComponentRef Id="component.datadir.performance_schema"/>
     <ComponentRef Id="component.datadir.test"/>
