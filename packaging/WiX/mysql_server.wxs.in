@@ -6,12 +6,12 @@
     Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" 
     Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH@" 
     Language="1033" 
-    Manufacturer="MySQL AB">
+    Manufacturer="@MANUFACTURER@">
     
     <Package Id='*'
        Keywords='Installer'
        Description="MySQL Database Server"
-       Manufacturer='MySQL AB'
+       Manufacturer='@MANUFACTURER@'
        InstallerVersion='200'
        Languages='1033'
        Compressed='yes'
@@ -57,6 +57,34 @@
       Id="ARPPRODUCTICON"
       Value="icon.ico" />
     
+    <!-- License -->
+    <WixVariable
+      Id="WixUILicenseRtf"
+      Value="@CMAKE_CURRENT_BINARY_DIR@/COPYING.rtf"/>
+
+    <!-- How to remove the service on uninstall -->
+    <Binary Id='wixca.dll' SourceFile='@CMAKE_CURRENT_BINARY_DIR@/ca/RelWithDebInfo/wixca.dll' />
+    <CustomAction Id="UnregisterProperty" Property="UnregisterService" Value="[INSTALLDIR]" Return="check" />
+    <CustomAction Id="UnregisterPropertySilent" Property="UnregisterServiceSilently" Value="[INSTALLDIR]" Return="check" />
+    <CustomAction Id="UnregisterService"
+                  BinaryKey="wixca.dll"
+                  DllEntry="RemoveService"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="check" />
+    <CustomAction Id="UnregisterServiceSilently"
+                  BinaryKey="wixca.dll"
+                  DllEntry="RemoveServiceNoninteractive"
+                  Execute="deferred"
+                  Impersonate="no"
+                  Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="UnregisterProperty" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE</Custom>
+      <Custom Action="UnregisterPropertySilent" After="InstallInitialize">Installed And Not UPGRADINGPRODUCTCODE</Custom>
+      <Custom Action="UnregisterService" After="UnregisterProperty">Installed And Not UPGRADINGPRODUCTCODE And UILevel&gt;2</Custom>
+      <Custom Action="UnregisterServiceSilently" After="UnregisterPropertySilent">Installed And Not UPGRADINGPRODUCTCODE And UILevel&lt;=2</Custom>
+    </InstallExecuteSequence>
+
     <!-- Installation root-->
     <Directory Id='TARGETDIR' Name='SourceDir'>
       <Directory Id='@PlatformProgramFilesFolder@'>
