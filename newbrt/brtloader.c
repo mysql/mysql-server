@@ -877,9 +877,8 @@ static int loader_do_i (BRTLOADER bl,
     
     
     { // clean up this stuff early, to save memory
-        //s(key,val).data might be NULL if flags==0 (see above)
-	if (skey.data) toku_free(skey.data);
-	if (sval.data) toku_free(sval.data);
+	toku_free(skey.data);
+	toku_free(sval.data);
 	toku_free (pkey.data);
 	toku_free (pval.data);
 	skey.data = sval.data = pkey.data = pval.data = NULL; // set to NULL so that the final cleanup won't free them again.
