@@ -25,9 +25,6 @@ extern "C" {
 #include <ndb_global.h>
 #include <my_sys.h>
 #include <my_getopt.h>
-#include <mysql_version.h>
-#include <ndb_version.h>
-#include <ndbapi/ndb_opt_defaults.h>
 
 #ifdef OPTEXPORT
 #define OPT_EXTERN(T,V,I) T V I
@@ -38,7 +35,6 @@ extern "C" {
 #define NONE
 OPT_EXTERN(int,opt_ndb_nodeid,NONE);
 OPT_EXTERN(my_bool,opt_ndb_endinfo,=0);
-OPT_EXTERN(my_bool,opt_ndb_shm,NONE);
 OPT_EXTERN(my_bool,opt_core,NONE);
 OPT_EXTERN(my_bool,opt_ndb_optimized_node_selection,NONE);
 OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
@@ -51,7 +47,6 @@ OPT_EXTERN(unsigned,opt_ndb_constrbuf_len,=0);
 OPT_EXTERN(const char *,opt_debug,= 0);
 #endif
 
-#define OPT_NDB_CONNECTSTRING 'c'
 #if defined VM_TRACE
 #define OPT_WANT_CORE_DEFAULT 1
 #else
@@ -80,11 +75,7 @@ OPT_EXTERN(const char *,opt_debug,= 0);
     "Set node id for this node.", \
     (uchar**) &opt_ndb_nodeid, (uchar**) &opt_ndb_nodeid, 0, \
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "ndb-shm", OPT_NDB_SHM,\
-    "Allow optimizing using shared memory connections when available",\
-    (uchar**) &opt_ndb_shm, (uchar**) &opt_ndb_shm, 0,\
-    GET_BOOL, NO_ARG, OPT_NDB_SHM_DEFAULT, 0, 0, 0, 0, 0 },\
-  {"ndb-optimized-node-selection", OPT_NDB_OPTIMIZED_NODE_SELECTION,\
+  {"ndb-optimized-node-selection", NDB_OPT_NOSHORT,\
     "Select nodes for transactions in a more optimal way",\
     (uchar**) &opt_ndb_optimized_node_selection,\
     (uchar**) &opt_ndb_optimized_node_selection, 0,\
@@ -92,10 +83,10 @@ OPT_EXTERN(const char *,opt_debug,= 0);
   { "connect-string", OPT_NDB_CONNECTSTRING, "same as --ndb-connectstring",\
     (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, \
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "core-file", OPT_WANT_CORE, "Write core on errors.",\
+  { "core-file", NDB_OPT_NOSHORT, "Write core on errors.",\
     (uchar**) &opt_core, (uchar**) &opt_core, 0,\
     GET_BOOL, NO_ARG, OPT_WANT_CORE_DEFAULT, 0, 0, 0, 0, 0},\
-  {"character-sets-dir", OPT_CHARSETS_DIR,\
+  {"character-sets-dir", NDB_OPT_NOSHORT,\
      "Directory where character sets are.", (uchar**) &charsets_dir,\
      (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0}\
 
@@ -112,14 +103,30 @@ OPT_EXTERN(const char *,opt_debug,= 0);
 void ndb_std_print_version();
 
 enum ndb_std_options {
-  OPT_NDB_SHM= 256,
-  OPT_NDB_SHM_SIGNUM,
-  OPT_NDB_OPTIMIZED_NODE_SELECTION,
-  OPT_WANT_CORE,
+  /*
+    --ndb-connectstring=<connectstring> has short form 'c'
+    and special processing
+  */
+  OPT_NDB_CONNECTSTRING = 'c',
+
+  /*
+    For arguments that have neither a short form option or need
+    special processing in 'get_one_option' callback
+  */
+  NDB_OPT_NOSHORT = 256,
+
+  /* --ndb-mgmd=<connectstring> has special processing */
   OPT_NDB_MGMD,
+
+  /* --ndb-nodeid=<nodeid> has special processing */
   OPT_NDB_NODEID,
-  OPT_CHARSETS_DIR,
-  NDB_STD_OPTIONS_LAST /* should always be last in this enum */
+
+ /*
+   should always be last in this enum and will be used as the
+   start value by programs which use 'ndb_std_get_one_option' and
+   need to define their own arguments with special processing
+ */
+  NDB_STD_OPTIONS_LAST
 };
 
 void ndb_opt_set_usage_funcs(const char* my_progname,

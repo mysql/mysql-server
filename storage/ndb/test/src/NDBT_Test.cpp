@@ -1270,14 +1270,6 @@ int NDBT_TestSuite::reportAllTables(const char* _testname){
   return result;
 }
 
-enum test_options {
-  OPT_INTERACTIVE = NDB_STD_OPTIONS_LAST,
-  OPT_PRINT,
-  OPT_PRINT_HTML,
-  OPT_PRINT_CASES
-  
-};
-
 static int opt_print = false;
 static int opt_print_html = false;
 static int opt_print_cases = false;
@@ -1295,13 +1287,13 @@ static int opt_forceShort = 0;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS(""),
-  { "print", OPT_PRINT, "Print execution tree",
+  { "print", NDB_OPT_NOSHORT, "Print execution tree",
     (uchar **) &opt_print, (uchar **) &opt_print, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "print_html", OPT_PRINT_HTML, "Print execution tree in html table format",
+  { "print_html", NDB_OPT_NOSHORT, "Print execution tree in html table format",
     (uchar **) &opt_print_html, (uchar **) &opt_print_html, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "print_cases", OPT_PRINT_CASES, "Print list of test cases",
+  { "print_cases", NDB_OPT_NOSHORT, "Print list of test cases",
     (uchar **) &opt_print_cases, (uchar **) &opt_print_cases, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "records", 'r', "Number of records", 
@@ -1310,7 +1302,7 @@ static struct my_option my_long_options[] =
   { "loops", 'l', "Number of loops",
     (uchar **) &opt_loops, (uchar **) &opt_loops, 0,
     GET_INT, REQUIRED_ARG, 5, 0, 0, 0, 0, 0 },
-  { "seed", 1024, "Random seed",
+  { "seed", NDB_OPT_NOSHORT, "Random seed",
     (uchar **) &opt_seed, (uchar **) &opt_seed, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "testname", 'n', "Name of test to run",
@@ -1325,13 +1317,14 @@ static struct my_option my_long_options[] =
   { "temporary-tables", 'T', "Create temporary table(s)",
     (uchar **) &opt_temporary, (uchar **) &opt_temporary, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "nologging", 0, "Create table(s) wo/ logging",
+  { "nologging", NDB_OPT_NOSHORT, "Create table(s) wo/ logging",
     (uchar **) &opt_nologging, (uchar **) &opt_nologging, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "noddl", 0, "Don't create/drop tables as part of running tests",
+  { "noddl", NDB_OPT_NOSHORT,
+    "Don't create/drop tables as part of running tests",
     (uchar**) &opt_noddl, (uchar**) &opt_noddl, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "forceshortreqs", 0, "Use short signals for NdbApi requests",
+  { "forceshortreqs", NDB_OPT_NOSHORT, "Use short signals for NdbApi requests",
     (uchar**) &opt_forceShort, (uchar**) &opt_forceShort, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}

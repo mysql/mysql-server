@@ -551,7 +551,6 @@ public:
                      NodeBitmask &exact_nodes,
                      Vector<nodeid_and_host> &nodes_info,
                      int &error_code, BaseString &error_string);
-  int match_hostname(const struct sockaddr *, const char *) const;
   int try_alloc(unsigned id,  const char *, enum ndb_mgm_node_type type,
                 const struct sockaddr *client_addr, Uint32 timeout_ms);
 

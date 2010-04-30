@@ -43,10 +43,10 @@ static struct my_option my_long_options[] =
   { "transactional", 't', "Single transaction (may run out of operations)",
     (uchar**) &_transactional, (uchar**) &_transactional, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "tupscan", 999, "Run tupscan",
+  { "tupscan", NDB_OPT_NOSHORT, "Run tupscan",
     (uchar**) &_tupscan, (uchar**) &_tupscan, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "diskscan", 999, "Run diskcan",
+  { "diskscan", NDB_OPT_NOSHORT, "Run diskcan",
     (uchar**) &_diskscan, (uchar**) &_diskscan, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}

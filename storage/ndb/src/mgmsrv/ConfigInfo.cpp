@@ -18,7 +18,6 @@
 
 #include <ndb_global.h>
 #ifndef NDB_MGMAPI
-#include <ndb_opt_defaults.h>
 
 #include <NdbTCP.h>
 #include "ConfigInfo.hpp"
@@ -4217,10 +4216,9 @@ fixShmKey(InitConfigFileParser::Context & ctx, const char *)
   DBUG_ENTER("fixShmKey");
   {
     static int last_signum= -1;
-    Uint32 signum;
+    Uint32 signum = 0;
     if(!ctx.m_currentSection->get("Signum", &signum))
     {
-      signum= OPT_NDB_SHM_SIGNUM_DEFAULT;
       if (signum <= 0)
       {
 	  ctx.reportError("Unable to set default parameter for [SHM]Signum"
@@ -4811,7 +4809,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
       if(!p_db_nodes.get("", j, &nodeId2)) break;
       if(!p_connections2.get("", nodeId1+(nodeId2<<16), &dummy)) 
       {
-	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,opt_ndb_shm))
+	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,false))
 	  goto err;
       }
     }
@@ -4822,7 +4820,7 @@ add_node_connections(Vector<ConfigInfo::ConfigRuleSection>&sections,
     if(!p_connections.get("", nodeId1, &dummy)) {
       for (Uint32 j= 0;; j++){
 	if(!p_db_nodes.get("", j, &nodeId2)) break;
-	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,opt_ndb_shm))
+	if (!add_a_connection(sections,ctx,nodeId1,nodeId2,false))
 	  goto err;
       }
     }

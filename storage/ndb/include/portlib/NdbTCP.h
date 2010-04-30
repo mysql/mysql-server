@@ -26,8 +26,6 @@
 #define NDB_SOCKET_TYPE ndb_socket_t
 #define _NDB_CLOSE_SOCKET(x) my_socket_close(x)
 
-#define NDB_SOCKLEN_T SOCKET_SIZE_TYPE
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -52,13 +50,6 @@ int NDB_CLOSE_SOCKET(NDB_SOCKET_TYPE fd);
 #endif
 
 int Ndb_check_socket_hup(NDB_SOCKET_TYPE sock);
-
-#ifdef NDB_WIN
-#define NONBLOCKERR(E) (E!=SOCKET_EAGAIN && E!=SOCKET_EWOULDBLOCK)
-#else
-#define NONBLOCKERR(E) (E!=EINPROGRESS)
-#endif
-
 
 #ifdef	__cplusplus
 }
