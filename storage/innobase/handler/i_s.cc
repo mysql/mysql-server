@@ -1311,9 +1311,9 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 	STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	STRUCT_FLD(value,		0),
-	STRUCT_FLD(field_flags,	0),
+	STRUCT_FLD(field_flags,		0),
 	STRUCT_FLD(old_name,		"Buffer Pool Id"),
-	STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+	STRUCT_FLD(open_method,		SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"pages_used"),
 	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
@@ -1345,7 +1345,7 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		"Total Duration of Relocations,"
-		    " in Seconds"),
+		    			" in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	END_OF_ST_FIELD_INFO
