@@ -1,0 +1,8 @@
+LIBRARY "wixca"
+VERSION 1.0
+
+EXPORTS
+
+RemoveService
+RemoveServiceNoninteractive
+TestService

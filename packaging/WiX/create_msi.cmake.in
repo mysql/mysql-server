@@ -8,6 +8,7 @@ SET(MAJOR_VERSION "@MAJOR_VERSION@")
 SET(MINOR_VERSION "@MINOR_VERSION@")
 SET(PATCH "@PATCH@")
 SET(CMAKE_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@)
+SET(MANUFACTURER "@MANUFACTURER@")
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(Win64 " Win64='yes'")
@@ -97,6 +98,7 @@ FOREACH(f ${WIX_FEATURES})
    <Feature  Id='${f_upper}'
      Title='${TITLE}'
      Description='${DESCRIPTION}'
+     ConfigurableDirectory='INSTALLDIR'
      Level='${Level}' ${DISPLAY} >"
   )
  FOREACH(c ${${f}_COMPONENTS})
@@ -127,6 +129,7 @@ FOREACH(f ${WIX_FEATURES})
     <Feature Id='${c}' 
        Title='${TITLE}'
        Description='${DESCRIPTION}'
+       ConfigurableDirectory='INSTALLDIR'
        Level='${Level}'>
        <ComponentGroupRef Id='componentgroup.${c}'/>
     </Feature>")
@@ -286,12 +289,23 @@ ENDFOREACH()
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server.wxs.in 
  ${CMAKE_CURRENT_BINARY_DIR}/mysql_server.wxs)
 
+SET(EXTRA_CANDLE_ARGS)
+IF("$ENV{EXTRA_CANDLE_ARGS}")
+	SET(EXTRA_CANDLE_ARGS "$ENV{EXTRA_CANDLE_ARGS}")
+ENDIF()
+
+SET(EXTRA_LIGHT_ARGS)
+IF("$ENV{EXTRA_LIGHT_ARGS}")
+	SET(EXTRA_LIGHT_ARGS "$ENV{EXTRA_LIGHT_ARGS}")
+ENDIF()
+
 FILE(REMOVE mysql_server.wixobj)
 EXECUTE_PROCESS(
- COMMAND ${CANDLE_EXECUTABLE} -ext WixUtilExtension  mysql_server.wxs 
+ COMMAND ${CANDLE_EXECUTABLE} -ext WixUtilExtension  mysql_server.wxs ${EXTRA_CANDLE_ARGS}
 )
 EXECUTE_PROCESS(
- COMMAND ${LIGHT_EXECUTABLE} -ext WixUIExtension  -ext WixUtilExtension
+ COMMAND ${LIGHT_EXECUTABLE} -ext WixUIExtension -ext WixUtilExtension
   mysql_server.wixobj  -out  ${CPACK_PACKAGE_FILE_NAME}.msi
+  ${EXTRA_LIGHT_ARGS}
 )
 
