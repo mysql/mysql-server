@@ -1,0 +1,43 @@
+-- source include/have_innodb_plugin.inc
+# embedded server ignores 'delayed', so skip this
+-- source include/not_embedded.inc
+
+let $innodb_file_format_check_orig=`select @@innodb_file_format_check`;
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#
+# 44030: Error: (1500) Couldn't read the MAX(ID) autoinc value from
+# the index (PRIMARY)
+# This test requires a restart of the server
+SET @@SESSION.AUTO_INCREMENT_INCREMENT=1, @@SESSION.AUTO_INCREMENT_OFFSET=1;
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (null);
+INSERT INTO t1 VALUES (null);
+ALTER TABLE t1 CHANGE c1 d1 INT NOT NULL AUTO_INCREMENT;
+SELECT * FROM t1;
+# Restart the server
+-- source include/restart_mysqld.inc
+# The MySQL and InnoDB data dictionaries should now be out of sync.
+# The select should print message to the error log
+SELECT * FROM t1;
+# MySQL have made a change (http://lists.mysql.com/commits/75268) that no
+# longer results in the two data dictionaries being out of sync. If they
+# revert their changes then this check for ER_AUTOINC_READ_FAILED will need
+# to be enabled. Also, see http://bugs.mysql.com/bug.php?id=47621.
+# -- error ER_AUTOINC_READ_FAILED,1467
+INSERT INTO t1 VALUES(null);
+ALTER TABLE t1 AUTO_INCREMENT = 3;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(null);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+#
+# restore environment to the state it was before this test execution
+#
+
+-- disable_query_log
+eval set global innodb_file_format_check=$innodb_file_format_check_orig;

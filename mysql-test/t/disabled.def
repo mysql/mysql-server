@@ -11,4 +11,5 @@
 ##############################################################################
 kill                     : Bug#37780 2008-12-03 HHunger need some changes to be robust enough for pushbuild.
 query_cache_28249        : Bug#43861 2009-03-25 main.query_cache_28249 fails sporadically
-innodb-autoinc-44030     : BUG#47621 2009-01-22 svoj MySQL and InnoDB dicts getting out of sync
+partition_innodb_plugin  : Bug#53307 2010-04-30 VasilDimov valgrind warnings
+ps_3innodb               : Bug#53309 2010-04-30 VasilDimov valgrind warnings

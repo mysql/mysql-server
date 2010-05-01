@@ -1,0 +1,29 @@
+-- source include/have_innodb_plugin.inc
+
+select @@innodb_file_format;
+select @@innodb_file_format_check;
+set global innodb_file_format=antelope;
+set global innodb_file_format=barracuda;
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format=cheetah;
+select @@innodb_file_format;
+set global innodb_file_format=default;
+select @@innodb_file_format;
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format=on;
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format=off;
+select @@innodb_file_format;
+set global innodb_file_format_check=antelope;
+set global innodb_file_format_check=barracuda;
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format_check=cheetah;
+select @@innodb_file_format_check;
+set global innodb_file_format_check=default;
+select @@innodb_file_format_check;
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format=on;
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format=off;
+select @@innodb_file_format_check;
+set global innodb_file_format_check=antelope;

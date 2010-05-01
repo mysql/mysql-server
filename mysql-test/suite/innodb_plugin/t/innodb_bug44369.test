@@ -1,0 +1,17 @@
+# This is the test for bug 44369. We should
+# block table creation with columns match
+# some innodb internal reserved key words,
+# both case sensitively and insensitely.
+
+-- source include/have_innodb_plugin.inc
+
+# This create table operation should fail.
+--error ER_WRONG_COLUMN_NAME
+create table bug44369 (DB_ROW_ID int) engine=innodb;
+
+# This create should fail as well
+--error ER_WRONG_COLUMN_NAME
+create table bug44369 (db_row_id int) engine=innodb;
+
+--error ER_WRONG_COLUMN_NAME
+create table bug44369 (db_TRX_Id int) engine=innodb;
