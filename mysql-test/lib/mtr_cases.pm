@@ -70,10 +70,19 @@ my $skip_test_reg;
 
 # Related to adding InnoDB plugin combinations
 my $lib_innodb_plugin;
-my $do_innodb_plugin;
 
 # If "Quick collect", set to 1 once a test to run has been found.
 my $some_test_found;
+
+sub find_innodb_plugin {
+  $lib_innodb_plugin=
+    my_find_file($::basedir,
+		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
+		  "lib/mysql/plugin", "lib/plugin"],
+		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
+		  "ha_innodb_plugin.sl"],
+		 NOT_REQUIRED);
+}
 
 sub init_pattern {
   my ($from, $what)= @_;
@@ -107,16 +116,7 @@ sub collect_test_cases ($$$) {
   $do_test_reg= init_pattern($do_test, "--do-test");
   $skip_test_reg= init_pattern($skip_test, "--skip-test");
 
-  $lib_innodb_plugin=
-    my_find_file($::basedir,
-		 ["storage/innodb_plugin", "storage/innodb_plugin/.libs",
-		  "lib/mysql/plugin", "lib/plugin"],
-		 ["ha_innodb_plugin.dll", "ha_innodb_plugin.so",
-		  "ha_innodb_plugin.sl"],
-		 NOT_REQUIRED);
-  $do_innodb_plugin= ($::mysql_version_id >= 50100 &&
-		      !(IS_WINDOWS && $::opt_embedded_server) &&
-		      $lib_innodb_plugin);
+  &find_innodb_plugin;
 
   # If not reordering, we also shouldn't group by suites, unless
   # no test cases were named.
@@ -504,73 +504,6 @@ sub collect_one_suite($)
     }
   }
 
-  # ----------------------------------------------------------------------
-  # Testing InnoDB plugin.
-  # ----------------------------------------------------------------------
-  if ($do_innodb_plugin)
-  {
-    my @new_cases;
-    my $sep= (IS_WINDOWS) ? ';' : ':';
-
-    foreach my $test (@cases)
-    {
-      next if (!$test->{'innodb_test'});
-      # If skipped due to no builtin innodb, we can still run it with plugin
-      next if ($test->{'skip'} && $test->{comment} ne "No innodb support");
-      # Exceptions
-      next if ($test->{'name'} eq 'main.innodb'); # Failed with wrong errno (fk)
-      next if ($test->{'name'} eq 'main.index_merge_innodb'); # Explain diff
-      # innodb_file_per_table is rw with innodb_plugin
-      next if ($test->{'name'} eq 'sys_vars.innodb_file_per_table_basic');
-      # innodb_lock_wait_timeout is rw with innodb_plugin
-      next if ($test->{'name'} eq 'sys_vars.innodb_lock_wait_timeout_basic');
-      # Diff around innodb_thread_concurrency variable
-      next if ($test->{'name'} eq 'sys_vars.innodb_thread_concurrency_basic');
-      # Can't work with InnoPlug. Test framework needs to be re-designed.
-      next if ($test->{'name'} eq 'main.innodb_bug46000');
-      # Fails with innodb plugin
-      next if ($test->{'name'} eq 'main.innodb-autoinc');
-      # Fails with innodb plugin: r6185 Testcases changes not included
-      next if ($test->{'name'} eq 'main.innodb_bug44369');
-      # Fix for BUG47621 is not in InnoDB plugin
-      next if ($test->{'name'} eq 'main.innodb_bug21704');
-      next if ($test->{'name'} eq 'main.innodb_bug47621');
-      # Copy test options
-      my $new_test= My::Test->new();
-      while (my ($key, $value) = each(%$test))
-      {
-        if (ref $value eq "ARRAY")
-        {
-          push(@{$new_test->{$key}}, @$value);
-        }
-        else
-        {
-          $new_test->{$key}= $value unless ($key eq 'skip');
-        }
-      }
-      my $plugin_filename= basename($lib_innodb_plugin);
-      my $plugin_list= "innodb=$plugin_filename" . $sep . "innodb_locks=$plugin_filename";
-      push(@{$new_test->{master_opt}}, '--ignore-builtin-innodb');
-      push(@{$new_test->{master_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{master_opt}}, "--plugin_load=$plugin_list");
-      push(@{$new_test->{slave_opt}}, '--ignore-builtin-innodb');
-      push(@{$new_test->{slave_opt}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
-      push(@{$new_test->{slave_opt}}, "--plugin_load=$plugin_list");
-      if ($new_test->{combination})
-      {
-        $new_test->{combination}.= '+innodb_plugin';
-      }
-      else
-      {
-        $new_test->{combination}= 'innodb_plugin';
-      }
-      push(@new_cases, $new_test);
-    }
-    push(@cases, @new_cases);
-  }
-  # ----------------------------------------------------------------------
-  # End of testing InnoDB plugin.
-  # ----------------------------------------------------------------------
   optimize_cases(\@cases);
   #print_testcases(@cases);
 
@@ -1005,11 +938,38 @@ sub collect_one_test_case {
     {
       # innodb is not supported, skip it
       $tinfo->{'skip'}= 1;
-      # This comment is checked for running with innodb plugin (see above),
-      # please keep that in mind if changing the text.
       $tinfo->{'comment'}= "No innodb support";
-      # But continue processing if we may run it with innodb plugin
-      return $tinfo unless $do_innodb_plugin;
+      return $tinfo;
+    }
+  }
+  elsif ( $tinfo->{'innodb_plugin_test'} )
+  {
+    # This is a test that needs the innodb plugin
+    if (!&find_innodb_plugin)
+    {
+      # innodb plugin is not supported, skip it
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "No innodb plugin support";
+      return $tinfo;
+    }
+
+    my $sep= (IS_WINDOWS) ? ';' : ':';
+    my $plugin_filename= basename($lib_innodb_plugin);
+    my $plugin_list=
+      "innodb=$plugin_filename$sep" .
+      "innodb_trx=$plugin_filename$sep" .
+      "innodb_locks=$plugin_filename$sep" .
+      "innodb_lock_waits=$plugin_filename$sep" .
+      "innodb_cmp=$plugin_filename$sep" .
+      "innodb_cmp_reset=$plugin_filename$sep" .
+      "innodb_cmpmem=$plugin_filename$sep" .
+      "innodb_cmpmem_reset=$plugin_filename";
+
+    foreach my $k ('master_opt', 'slave_opt') 
+    {
+      push(@{$tinfo->{$k}}, '--ignore-builtin-innodb');
+      push(@{$tinfo->{$k}}, '--plugin-dir=' . dirname($lib_innodb_plugin));
+      push(@{$tinfo->{$k}}, "--plugin-load=$plugin_list");
     }
   }
   else
@@ -1137,6 +1097,7 @@ my @tags=
  ["include/have_log_bin.inc", "need_binlog", 1],
 
  ["include/have_innodb.inc", "innodb_test", 1],
+ ["include/have_innodb_plugin.inc", "innodb_plugin_test", 1],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],

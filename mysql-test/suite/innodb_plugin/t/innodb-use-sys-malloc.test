@@ -1,0 +1,48 @@
+-- source include/have_innodb_plugin.inc
+
+#display current value of innodb_use_sys_malloc
+SELECT @@GLOBAL.innodb_use_sys_malloc;
+--echo 1 Expected
+
+#try changing it. Should fail.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_use_sys_malloc=0;
+--echo Expected error 'Read only variable'
+
+SELECT @@GLOBAL.innodb_use_sys_malloc;
+--echo 1 Expected
+
+
+#do some stuff to see if it works.
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2),(3),(4),(5),(6),(7);
+select * from t1;
+drop table t1;
+-- source include/have_innodb_plugin.inc
+
+#display current value of innodb_use_sys_malloc
+SELECT @@GLOBAL.innodb_use_sys_malloc;
+--echo 1 Expected
+
+#try changing it. Should fail.
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_use_sys_malloc=0;
+--echo Expected error 'Read only variable'
+
+SELECT @@GLOBAL.innodb_use_sys_malloc;
+--echo 1 Expected
+
+
+#do some stuff to see if it works.
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+create table t1(a int not null) engine=innodb DEFAULT CHARSET=latin1;
+insert into t1 values (1),(2),(3),(4),(5),(6),(7);
+select * from t1;
+drop table t1;
