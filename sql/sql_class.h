@@ -2663,9 +2663,9 @@ private:
     To raise a SQL condition, the code should use the public
     raise_error() or raise_warning() methods provided by class THD.
   */
-  friend class Signal_common;
-  friend class Signal_statement;
-  friend class Resignal_statement;
+  friend class Sql_cmd_common_signal;
+  friend class Sql_cmd_signal;
+  friend class Sql_cmd_resignal;
   friend void push_warning(THD*, MYSQL_ERROR::enum_warning_level, uint, const char*);
   friend void my_message_sql(uint, const char *, myf);
 

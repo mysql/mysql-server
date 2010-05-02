@@ -95,6 +95,43 @@ explain extended select * from t1 where a in (select pk from t10 where pk<3);
 drop table t0, t1, t2;
 drop table t10, t11, t12;
 
+--echo #
+--echo # Check that subqueries with outer joins or straight_join work for 
+--echo # different permutations of const and non-const tables.  (Ref. Bug#46692)
+--echo #
+CREATE TABLE t1 (i INTEGER);
+CREATE TABLE t2 (i INTEGER);
+CREATE TABLE t3 (i INTEGER);
+let $i=3;
+while ($i)
+{
+   let $j=3;
+   while ($j)
+   {
+       let $k=3;
+       while ($k)
+       {
+#        TODO: LEFT JOIN queries are disabled due to Bug#48868
+#        SELECT * FROM t1 WHERE (11) IN 
+#          (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+         SELECT * FROM t1 WHERE (11) IN 
+          (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+         SELECT * FROM t1 WHERE (11) IN 
+           (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+         SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+	 dec $k;
+	 eval INSERT INTO t3 VALUES ($k);
+       }
+       DELETE FROM t3;
+       dec $j;
+       eval INSERT INTO t2 VALUES ($j);	
+   }
+   DELETE FROM t2;
+   dec $i;
+   eval INSERT INTO t1 VALUES ($i);
+}
+DROP TABLE t1, t2, t3;
+
 --echo
 --echo BUG#37120 optimizer_switch allowable values not according to specification
 --echo
@@ -225,4 +262,557 @@ WHERE
 HAVING X > '2012-12-12';
 drop table t1, t2;
 
+
+--echo
+--echo Bug#46797 "Crash in fix_semijoin_strategies_for_picked_join_order 
+--echo with semijoin=on"
+--echo
+CREATE TABLE t1 (
+  varchar_key varchar(1) DEFAULT NULL,
+  KEY varchar_key (varchar_key)
+);
+
+CREATE TABLE t2 (
+  varchar_key varchar(1) DEFAULT NULL,
+  KEY varchar_key (varchar_key)
+);
+INSERT INTO t2 VALUES
+  (NULL),(NULL),(NULL),(NULL),('a'),('a'),('a'),('b'),('b'),('b'),('b'),('c'),
+  ('c'),('c'),('c'),('c'),('c'),('c'),('d'),('d'),('d'),('d'),('d'),('d'),('e'),
+  ('e'),('e'),('e'),('e'),('e'),('f'),('f'),('f'),('g'),('g'),('h'),('h'),('h'),
+  ('h'),('i'),('j'),('j'),('j'),('k'),('k'),('l'),('l'),('m'),('m'),('m'),('m'),
+  ('n'),('n'),('n'),('o'),('o'),('o'),('p'),('p'),('p'),('q'),('q'),('q'),('r'),
+  ('r'),('r'),('r'),('s'),('s'),('s'),('s'),('t'),('t'),('t'),('t'),('u'),('u'),
+  ('u'),('u'),('v'),('v'),('v'),('v'),('w'),('w'),('w'),('w'),('w'),('w'),('x'),
+  ('x'),('x'),('y'),('y'),('y'),('y'),('z'),('z'),('z'),('z');
+
+CREATE TABLE t3 (
+  varchar_key varchar(1) DEFAULT NULL,
+  KEY varchar_key (varchar_key)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+INSERT INTO t3 VALUES
+  (NULL),('c'),('d'),('e'),('f'),('h'),('j'),('k'),('k'),('m'),('m'),('m'),
+  ('n'),('o'),('r'),('t'),('t'),('u'),('w'),('y');
+ 
+SELECT varchar_key FROM t3 
+WHERE (SELECT varchar_key FROM t3 
+       WHERE (varchar_key,varchar_key) 
+         IN (SELECT t1.varchar_key, t2 .varchar_key 
+             FROM t1 RIGHT JOIN t2 ON t1.varchar_key  
+            )  
+      );
+
+DROP TABLE t1, t2, t3;
+
+
+--echo #
+--echo # Bug#46556 Returning incorrect, empty results for some IN subqueries 
+--echo #           w/semijoin=on
+--echo #
+
+CREATE TABLE t0 (
+  pk INTEGER,
+  vkey VARCHAR(1),
+  vnokey VARCHAR(1),
+  PRIMARY KEY (pk),
+  KEY vkey(vkey)
+);
+
+INSERT INTO t0 
+VALUES (1,'g','g'), (2,'v','v'), (3,'t','t'), (4,'u','u'), (5,'n','n');
+
+EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN 
+  (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
+
+SELECT vkey FROM t0 WHERE pk IN 
+  (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
+
+DROP TABLE t0;
+
+--echo # End of bug#46556
+
+--echo
+--echo Bug#48834: Procedure with view + subquery + semijoin=on 
+--echo            crashes on second call.
+--echo
+
+SET SESSION optimizer_switch ='semijoin=on';
+
+CREATE TABLE t1 ( t1field integer, primary key (t1field));
+CREATE TABLE t2 ( t2field integer, primary key (t2field));
+
+CREATE VIEW v1 AS 
+  SELECT t1field as v1field
+  FROM t1 A 
+  WHERE A.t1field IN (SELECT t1field FROM t2 );
+
+CREATE VIEW v2 AS 
+  SELECT t2field as v2field
+  FROM t2 A 
+  WHERE A.t2field IN (SELECT t2field FROM t2 );
+
+DELIMITER |;
+CREATE PROCEDURE p1 () 
+  BEGIN 
+    SELECT v1field
+    FROM v1 
+    WHERE v1field IN ( SELECT v2field as vf_inner FROM v2 );
+  END|
+DELIMITER ;|
+
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (2),(3),(4);
+
+CALL p1;
+CALL p1;
+
+DROP TABLE t1,t2;
+DROP VIEW v1,v2;
+DROP PROCEDURE p1;
+
+set SESSION optimizer_switch='default';
+
+--echo # End of BUG#48834
+
+--echo #
+--echo # Bug#46692 "Crash occurring on queries with nested FROM subqueries 
+--echo # using materialization."
+--echo #
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  int_key INTEGER,
+  KEY int_key(int_key)
+);
+INSERT INTO t1 VALUES (10,186),(11,NULL),(12,2),(13,3),(14,0),(15,133),(16,1);
+
+CREATE TABLE t2 (
+  pk INTEGER PRIMARY KEY,
+  int_key INTEGER,
+  KEY int_key(int_key)
+);
+INSERT INTO t2 VALUES (1,7),(2,2);
+
+SELECT * FROM t1 WHERE (140, 4) IN 
+  (SELECT t2.int_key, t2 .pk FROM t2 STRAIGHT_JOIN t1 ON t2.int_key);
+
+DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#42353 "SELECT ... WHERE oe IN (SELECT w/ LEFT JOIN) query
+--echo # causes crash."
+--echo #
+CREATE TABLE t1 (
+  pk INTEGER PRIMARY KEY,
+  int_nokey INTEGER,
+  int_key INTEGER,
+  date_key DATE,
+  datetime_nokey DATETIME,
+  varchar_nokey VARCHAR(1)
+);
+
+CREATE TABLE t2 (
+  date_nokey DATE
+);
+
+CREATE TABLE t3 (
+  pk INTEGER PRIMARY KEY,
+  int_nokey INTEGER,
+  date_key date,
+  varchar_key VARCHAR(1),
+  varchar_nokey VARCHAR(1),
+  KEY date_key (date_key)
+);
+
+SELECT date_key FROM t1
+WHERE (int_key, int_nokey)
+  IN (SELECT  t3.int_nokey, t3.pk
+      FROM t2 LEFT JOIN t3 ON (t2.date_nokey < t3.date_key) 
+      WHERE t3.varchar_key <= t3.varchar_nokey OR t3.int_nokey <= t3.pk
+     )
+  AND (varchar_nokey <> 'f' OR NOT int_key < 7); 
+
+
+--echo #
+--echo # Bug#45933 "Crash in optimize_semijoin_nests on JOIN in subquery 
+--echo # + AND in outer query".
+--echo #
+INSERT INTO t1 VALUES (10,7,5,'2009-06-16','2002-04-10 14:25:30','w'),
+                      (11,7,0,'0000-00-00','0000-00-00 00:00:00','s'), 
+		      (12,4,0,'2003-07-14','2006-09-14 04:01:02','y'), 
+		      (13,0,4,'2002-07-25','0000-00-00 00:00:00','c'), 
+		      (14,1,8,'2007-07-03','0000-00-00 00:00:00','q'), 
+		      (15,6,5,'2001-11-12','0000-00-00 00:00:00',''), 
+		      (16,2,9,'0000-00-00','0000-00-00 00:00:00','j'), 
+		      (29,9,1,'0000-00-00','2003-08-11 00:00:00','m');
+INSERT INTO t3 VALUES (1,9,'0000-00-00','b','b'),
+                      (2,2,'2002-09-17','h','h');
+
+SELECT t1.varchar_nokey FROM t1 JOIN t3 ON t1.datetime_nokey
+WHERE t1.varchar_nokey 
+  IN (SELECT varchar_nokey FROM t1 
+      WHERE (pk) 
+        IN (SELECT t3.int_nokey
+            FROM t3 LEFT JOIN t1 ON t1.varchar_nokey
+            WHERE t3.date_key BETWEEN '2008-06-07' AND '2006-06-26'
+           )  
+     );
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#45219 "Crash on SELECT DISTINCT query containing a  
+--echo # LEFT JOIN in subquery"
+--echo #
+
+CREATE TABLE t1 (
+  pk INTEGER NOT NULL,
+  int_nokey INTEGER NOT NULL,
+  datetime_key DATETIME NOT NULL,
+  varchar_key VARCHAR(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY datetime_key (datetime_key),
+  KEY varchar_key (varchar_key)
+);
+INSERT INTO t1 VALUES
+(1,9,'0000-00-00 00:00:00','p'),(2,0,'2002-02-09 07:38:13','v'),
+(3,8,'2001-05-03 12:08:14','t'),(4,3,'0000-00-00 00:00:00','u'),
+(5,7,'2009-07-28 03:43:30','n'),(6,0,'2009-08-04 00:00:00','l'),
+(7,1,'0000-00-00 00:00:00','h'),(8,9,'0000-00-00 00:00:00','u'),
+(9,0,'2005-08-02 17:16:54','n'),(10,9,'2002-12-21 00:00:00','j'),
+(11,0,'2005-08-15 12:37:35','k'),(12,5,'0000-00-00 00:00:00','e'),
+(13,0,'2006-03-10 00:00:00','i'),(14,8,'2005-05-16 11:02:36','u'),
+(15,8,'2008-11-02 00:00:00','n'),(16,5,'2006-03-15 00:00:00','b'),
+(17,1,'0000-00-00 00:00:00','x'),(18,7,'0000-00-00 00:00:00',''),
+(19,0,'2008-12-17 20:15:40','q'),(20,9,'0000-00-00 00:00:00','u');
+
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 VALUES 
+(10,0,'2006-07-07 07:26:28','q'),(11,5,'2002-09-23 00:00:00','m'),
+(12,7,'0000-00-00 00:00:00','j'),(13,1,'2006-06-07 00:00:00','z'),
+(14,8,'2000-09-16 12:15:34','a'),(15,2,'2007-08-05 15:47:52',''),
+(16,1,'0000-00-00 00:00:00','e'),(17,8,'2005-12-02 19:34:26','t'),
+(18,5,'0000-00-00 00:00:00','q'),(19,4,'0000-00-00 00:00:00','b'),
+(20,5,'2007-12-28 00:00:00','w'),(21,3,'2004-08-02 11:48:43','m'),
+(22,0,'0000-00-00 00:00:00','x'),(23,8,'2004-04-19 12:18:43',''),
+(24,0,'2009-04-27 00:00:00','w'),(25,4,'2006-10-20 14:52:15','x'),
+(26,0,'0000-00-00 00:00:00','e'),(27,0,'2002-03-22 11:48:37','e'),
+(28,2,'0000-00-00 00:00:00','p'),(29,0,'2001-01-04 03:55:07','x');
+
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 VALUES
+(10,8,'2007-08-19 08:08:38','i'),(11,0,'2000-05-21 03:51:51','');
+ 
+SELECT DISTINCT datetime_key FROM t1
+WHERE (int_nokey, pk)  
+  IN (SELECT t3.pk, t3.pk FROM t2 LEFT JOIN t3 ON t3.varchar_key)  
+  AND pk = 9;
+
+DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#46550 Azalea returning duplicate results for some IN subqueries
+--echo # w/ semijoin=on
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t0, t1, t2;
+--enable_warnings
+
+CREATE TABLE t0 (
+  int_key int(11) DEFAULT NULL,
+  varchar_key varchar(1) DEFAULT NULL,
+  varchar_nokey varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY varchar_key (varchar_key,int_key)
+);
+
+INSERT INTO t0 VALUES
+(1,'m','m'),
+(40,'h','h'),
+(1,'r','r'),
+(1,'h','h'),
+(9,'x','x'),
+(NULL,'q','q'),
+(NULL,'k','k'),
+(7,'l','l'),
+(182,'k','k'),
+(202,'a','a'),
+(7,'x','x'),
+(6,'j','j'),
+(119,'z','z'),
+(4,'d','d'),
+(5,'h','h'),
+(1,'u','u'),
+(3,'q','q'),
+(7,'a','a'),
+(3,'e','e'),
+(6,'l','l');
+
+CREATE TABLE t1 (
+  int_key int(11) DEFAULT NULL,
+  varchar_key varchar(1) DEFAULT NULL,
+  varchar_nokey varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY varchar_key (varchar_key,int_key)
+);
+INSERT INTO t1 VALUES (7,NULL,NULL),(4,'x','x');
+
+CREATE TABLE t2 (
+  int_key int(11) DEFAULT NULL,
+  varchar_key varchar(1) DEFAULT NULL,
+  varchar_nokey varchar(1) DEFAULT NULL,
+  KEY int_key (int_key),
+  KEY varchar_key (varchar_key,int_key)
+);
+INSERT INTO t2 VALUES (123,NULL,NULL);
+
+SELECT int_key  
+FROM t0  
+WHERE varchar_nokey  IN (  
+  SELECT t1 .varchar_key  from t1
+);
+
+SELECT t0.int_key  
+FROM t0
+WHERE t0.varchar_nokey  IN (  
+  SELECT t1_1 .varchar_key  
+  FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
+);
+
+SELECT t0.int_key  
+FROM t0, t2
+WHERE t0.varchar_nokey  IN (  
+  SELECT t1_1 .varchar_key  
+  FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key  
+);
+
+DROP TABLE t0, t1, t2;
+
+--echo # End of bug#46550
+
+--echo #
+--echo # Bug #46744 Crash in optimize_semijoin_nests on empty view
+--echo # with limit and procedure.
+--echo #
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+DROP PROCEDURE IF EXISTS p1;
+--enable_warnings
+
+CREATE TABLE t1 ( f1 int );
+CREATE TABLE t2 ( f1 int );
+
+insert into t2 values (5), (7);
+
+CREATE OR REPLACE VIEW v1 AS SELECT * FROM t1 LIMIT 2;
+
+create procedure p1() 
+select COUNT(*) 
+FROM v1 WHERE f1 IN 
+(SELECT f1 FROM t2 WHERE f1 = ANY (SELECT f1 FROM v1));
+
+SET SESSION optimizer_switch = 'semijoin=on';
+CALL p1();
+SET SESSION optimizer_switch = 'semijoin=off';
+CALL p1();
+
+drop table t1, t2;
+drop view v1;
+drop procedure p1;
+
+set SESSION optimizer_switch='default';
+
+--echo # End of bug#46744
+
+
+--echo
+--echo Bug #48073 Subquery on char columns from view crashes Mysql
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE TABLE t1 (
+  city VARCHAR(50) NOT NULL,
+  country_id SMALLINT UNSIGNED NOT NULL
+);
+
+INSERT INTO t1 VALUES 
+('Batna',2),
+('Bchar',2),
+('Skikda',2),
+('Tafuna',3),
+('Algeria',2) ;
+
+CREATE TABLE t2 (
+  country_id SMALLINT UNSIGNED NOT NULL,
+  country VARCHAR(50) NOT NULL
+);
+
+INSERT INTO t2 VALUES
+(2,'Algeria'),
+(3,'American Samoa') ;
+
+CREATE VIEW v1 AS 
+SELECT country_id, country 
+FROM t2
+WHERE LEFT(country,1) = "A" 
+; 
+
+SELECT city, country_id
+FROM t1
+WHERE city IN (
+  SELECT country 
+  FROM t2
+  WHERE LEFT(country, 1) = "A" 
+);
+
+SELECT city, country_id
+FROM t1
+WHERE city IN (
+  SELECT country 
+  FROM v1
+);
+
+drop table t1, t2;
+drop view v1;
+
+--echo # End of bug#48073
+
+--echo
+--echo Bug#49097 subquery with view generates wrong result with
+--echo           non-prepared statement
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+CREATE TABLE t1 (
+  city VARCHAR(50) NOT NULL,
+  country_id SMALLINT UNSIGNED NOT NULL
+);
+
+INSERT INTO t1 VALUES 
+('Batna',2),
+('Bchar',2),
+('Skikda',2),
+('Tafuna',3),
+('Algeria',2) ;
+
+CREATE TABLE t2 (
+  country_id SMALLINT UNSIGNED NOT NULL,
+  country VARCHAR(50) NOT NULL
+);
+
+INSERT INTO t2 VALUES
+(2,'Algeria'),
+(3,'XAmerican Samoa') ;
+
+CREATE VIEW v1 AS 
+SELECT country_id, country 
+FROM t2
+WHERE LEFT(country,1) = "A" 
+; 
+
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (
+  SELECT country_id 
+  FROM t2
+  WHERE LEFT(country,1) = "A" 
+);
+
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (
+  SELECT country_id 
+  FROM v1
+);
+
+PREPARE stmt FROM
+"
+SELECT city, country_id
+FROM t1
+WHERE country_id IN (
+  SELECT country_id 
+  FROM v1
+);
+";
+
+execute stmt;
+
+deallocate prepare stmt;
+drop table t1, t2;
+drop view v1;
+
+--echo # End of Bug#49097
+
+--echo # 
+--echo # Bug#49198 Wrong result for second call of procedure
+--echo #           with view in subselect.
+--echo # 
+
+CREATE TABLE t1 (t1field integer, primary key (t1field));
+CREATE TABLE t2 (t2field integer, primary key (t2field));
+CREATE TABLE t3 (t3field integer, primary key (t3field));
+
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE VIEW v3 AS SELECT * FROM t3;
+
+INSERT INTO t1 VALUES(1),(2);
+INSERT INTO t2 VALUES(1),(2);
+INSERT INTO t3 VALUES(1),(2);
+
+PREPARE stmt FROM
+"
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT * FROM v2);
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+PREPARE stmt FROM
+"
+EXPLAIN
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT * FROM v2)
+  AND t1field IN (SELECT * FROM v3)
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1, t2, t3;
+DROP VIEW v2, v3;
+
+--echo # End of Bug#49198
+
+--echo # 
+--echo # Bug #51487 Assertion failure when semi-join flattening occurs
+--echo #            for a subquery in HAVING 
+--echo # 
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,10),(2,11),(1,13);
+
+CREATE TABLE t2 AS SELECT * FROM t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+
+SELECT COUNT(*) FROM t1
+GROUP BY t1.a 
+HAVING t1.a IN (SELECT t3.a FROM t3
+                WHERE t3.b IN (SELECT b FROM t2 WHERE t2.a=t1.a));
+
+DROP TABLE t1, t2, t3;
+
+--echo # End of Bug#51487
 

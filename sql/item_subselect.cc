@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2246,21 +2246,8 @@ int subselect_single_select_engine::exec()
       thd->lex->current_select= save_select;
       DBUG_RETURN(join->error ? join->error : 1);
     }
-    if (!select_lex->uncacheable && thd->lex->describe && 
-        !(join->select_options & SELECT_DESCRIBE) && 
-        join->need_tmp && item->const_item())
-    {
-      /*
-        Force join->join_tmp creation, because this subquery will be replaced
-        by a simple select from the materialization temp table by optimize()
-        called by EXPLAIN and we need to preserve the initial query structure
-        so we can display it.
-       */
-      select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
-      select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
-      if (join->init_save_join_tab())
-        DBUG_RETURN(1);                        /* purecov: inspected */
-    }
+    if (save_join_if_explain())
+      DBUG_RETURN(1);                        /* purecov: inspected */
     if (item->engine_changed)
     {
       DBUG_RETURN(1);
@@ -2777,6 +2764,51 @@ table_map subselect_engine::calc_const_tables(TABLE_LIST *table)
   return map;
 }
 
+/**
+  Save the JOIN to join->tmp_join if it is needed by EXPLAIN to
+  display the query plan.
+
+  @retval
+    FALSE OK
+  @retval
+    TRUE  error
+*/
+bool 
+subselect_single_select_engine::save_join_if_explain()
+{
+  /*
+    Save this JOIN to join->tmp_join since the original layout will be
+    replaced when JOIN::exec() calls make_simple_join() if:
+     1) We are executing an EXPLAIN query
+     2) An uncacheable flag has not been set for the select_lex. If
+        set, JOIN::optimize() has already saved the JOIN
+     3) Call does not come from select_describe()). If it does,
+        JOIN::exec() will not call make_simple_join() and the JOIN we
+        plan to save will not be replaced anyway.
+     4) A temp table is needed. This is what triggers JOIN::exec() to
+        make a replacement JOIN by calling make_simple_join(). 
+     5) The Item_subselect is cacheable
+  */
+  if (thd->lex->describe &&                              // 1
+      !select_lex->uncacheable &&                        // 2
+      !(join->select_options & SELECT_DESCRIBE) &&       // 3
+      join->need_tmp &&                                  // 4
+      item->const_item())                                // 5
+  {
+    /*
+      Save this JOIN to join->tmp_join since the original layout will
+      be replaced when JOIN::exec() calls make_simple_join() due to
+      need_tmp==TRUE. The original layout is needed so we can describe
+      the query. No need to do this if uncacheable != 0 since in this
+      case the JOIN has already been saved during JOIN::optimize()
+    */
+    select_lex->uncacheable|= UNCACHEABLE_EXPLAIN;
+    select_lex->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
+    if (join->init_save_join_tab())
+      return TRUE;
+  }
+  return FALSE;
+}
 
 table_map subselect_single_select_engine::upper_select_const_tables()
 {
@@ -3271,6 +3303,10 @@ int subselect_hash_sj_engine::exec()
     thd->lex->current_select= materialize_engine->select_lex;
     if ((res= materialize_join->optimize()))
       goto err; /* purecov: inspected */
+
+    if (materialize_engine->save_join_if_explain())
+      goto err;
+
     materialize_join->exec();
     if ((res= test(materialize_join->error || thd->is_fatal_error)))
       goto err;

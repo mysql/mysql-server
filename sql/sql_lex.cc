@@ -358,6 +358,7 @@ void lex_start(THD *thd)
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
   lex->sql_command= SQLCOM_END;
+  lex->m_sql_cmd= NULL;
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->spname= NULL;
