@@ -4586,8 +4586,8 @@ create_sp_error:
   }
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
-    DBUG_ASSERT(lex->m_stmt != NULL);
-    res= lex->m_stmt->execute(thd);
+    DBUG_ASSERT(lex->m_sql_cmd != NULL);
+    res= lex->m_sql_cmd->execute(thd);
     break;
   default:
 #ifndef EMBEDDED_LIBRARY
@@ -4680,7 +4680,11 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         return 1;                               /* purecov: inspected */
       thd->send_explain_fields(result);
       res= mysql_explain_union(thd, &thd->lex->unit, result);
-      if (lex->describe & DESCRIBE_EXTENDED)
+      /*
+        The code which prints the extended description is not robust
+        against malformed queries, so skip it if we have an error.
+      */
+      if (!res && (lex->describe & DESCRIBE_EXTENDED))
       {
         char buff[1024];
         String str(buff,(uint32) sizeof(buff), system_charset_info);

@@ -2592,6 +2592,7 @@ public:
     :Item_direct_ref(thd, item) {}
 
   bool fix_fields(THD *, Item **);
+  void fix_after_pullout(st_select_lex *new_parent, Item **ref);
   bool eq(const Item *item, bool binary_cmp) const;
   Item *get_tmp_table_item(THD *thd)
   {

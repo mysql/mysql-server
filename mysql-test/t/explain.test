@@ -1,5 +1,5 @@
 #
-# Test of different EXPLAIN's
+# Test of different EXPLAINs
 
 --disable_warnings
 drop table if exists t1;
@@ -177,7 +177,7 @@ CREATE TABLE t1 (f1 INT);
 SELECT @@session.sql_mode INTO @old_sql_mode;
 SET SESSION sql_mode='ONLY_FULL_GROUP_BY';
 
-# EXPLAIN EXTENDED (with subselect). used to crash. should give NOTICE.
+# EXPLAIN EXTENDED (with subselect). used to crash.
 --error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
 EXPLAIN EXTENDED SELECT 1 FROM t1
                           WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
@@ -200,3 +200,18 @@ explain extended select * from t1 join t2 on f1=f2 where f1=1;
 drop table t1,t2;
 
 --echo End of 5.1 tests.
+
+--echo #
+--echo # Bug#46860: 
+--echo # Crash/segfault using EXPLAIN EXTENDED on query using UNION in subquery.
+--echo #
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table `t1` (`a` int);
+--error ER_NON_UNIQ_ERROR
+explain extended select 1 from `t1`, `t1` as `t2`
+where `t1`.`a`  > all ( (select `a` from `t1` ) union (select `a`) );
+drop table t1;
+
+--echo End of 6.0 tests.
