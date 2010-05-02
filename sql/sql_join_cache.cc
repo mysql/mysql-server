@@ -1800,24 +1800,33 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
       Do not look for matches if the last read record of the joined table
       does not meet the conditions that have been pushed to this table
     */
-    if (rc == NESTED_LOOP_OK && (!select || !select->skip_record()))
+    if (rc == NESTED_LOOP_OK)
     {
-      /* Prepare to read records from the join buffer */
-      reset(FALSE);
+      bool consider_record= (!select || !select->skip_record());
+      if (select && join->thd->is_error())
+      {
+        rc= NESTED_LOOP_ERROR;
+        goto finish;
+      }
+      if (consider_record)
+      {
+        /* Prepare to read records from the join buffer */
+        reset(FALSE);
 
-      /* Read each record from the join buffer and look for matches */
-      for (cnt= records - test(skip_last) ; cnt; cnt--)
-      { 
-        /* 
-          If only the first match is needed and it has been already found for
-          the next record read from the join buffer then the record is skipped.
-	*/
-        if (!check_only_first_match || !skip_record_if_match())
-        {
-	  get_record();
-          rc= generate_full_extensions(get_curr_rec());
-          if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
-	    goto finish;   
+        /* Read each record from the join buffer and look for matches */
+        for (cnt= records - test(skip_last) ; cnt; cnt--)
+        { 
+          /* 
+            If only the first match is needed and it has been already found for
+            the next record read from the join buffer then the record is skipped.
+          */
+          if (!check_only_first_match || !skip_record_if_match())
+          {
+            get_record();
+            rc= generate_full_extensions(get_curr_rec());
+            if (rc != NESTED_LOOP_OK && rc != NESTED_LOOP_NO_MORE_ROWS)
+              goto finish;   
+          }
         }
       }
     }

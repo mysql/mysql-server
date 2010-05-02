@@ -274,15 +274,7 @@ private:
   uint first_range_in_batch;
   uint first_unstarted_range;
   int multi_range_start_retrievals(int first_range);
-  /* TRUE <=> need range association */
-  bool mrr_need_range_assoc;
-
 public:
-
-  bool null_value_index_search(KEY_MULTI_RANGE *ranges,
-			       KEY_MULTI_RANGE *end_range,
-			       HANDLER_BUFFER *buffer);
-
   bool get_error_message(int error, String *buf);
   ha_rows records();
   ha_rows estimate_rows_upper_bound()
@@ -574,8 +566,6 @@ private:
   ha_ndbcluster_cond *m_cond;
   bool m_disable_multi_read;
   uchar *m_multi_range_result_ptr;
-  KEY_MULTI_RANGE *m_multi_ranges;
-  KEY_MULTI_RANGE *m_multi_range_defined;
   const NdbOperation *m_current_multi_operation;
   NdbIndexScanOperation *m_multi_cursor;
   uchar *m_multi_range_cursor_result_ptr;
