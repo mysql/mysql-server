@@ -63,7 +63,7 @@ a	b	pk1	pk2	pk3
 set @save_max_heap_table_size= @@max_heap_table_size;
 set max_heap_table_size=16384;
 set @save_join_buffer_size = @@join_buffer_size;
-set join_buffer_size= 8000;
+set join_buffer_size= 8192;
 drop table t3;
 create table t3 (
 a int, 
@@ -79,6 +79,8 @@ explain select * from t3 where b in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Materialize; Scan
 1	PRIMARY	t3	ref	b	b	5	test.t0.a	1	Using join buffer
+set @save_ecp= @@optimizer_switch;
+set optimizer_switch='engine_condition_pushdown=off';
 select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
 a	b	pk1	pk2
 0	0	0	0
@@ -95,6 +97,7 @@ a	b	pk1	pk2
 11	11	11	11
 12	12	12	12
 13	13	13	13
+set optimizer_switch=@save_ecp;
 set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;
 explain select * from t1 where a in (select b from t2);
@@ -113,7 +116,7 @@ a	b
 2	2
 drop table t1, t2, t3;
 set @save_join_buffer_size = @@join_buffer_size;
-set join_buffer_size= 8000;
+set join_buffer_size= 8192;
 create table t1 (a int, filler1 binary(200), filler2 binary(200));
 insert into t1 select a, 'filler123456', 'filler123456' from t0;
 insert into t1 select a+10, 'filler123456', 'filler123456' from t0;
@@ -352,61 +355,6 @@ Canada
 China
 Czech Republic
 drop table t1, t2;
-CREATE TABLE t1(a INT);
-CREATE TABLE t2(c INT);
-CREATE PROCEDURE p1(v1 int)
-BEGIN
-SELECT 1 FROM t1 WHERE a = v1 AND a IN (SELECT c FROM t2);
-END
-//
-CREATE PROCEDURE p2(v1 int)
-BEGIN
-SELECT 1 FROM t1 WHERE a IN (SELECT c FROM t2);
-END
-//
-CREATE PROCEDURE p3(v1 int)
-BEGIN
-SELECT 1 
-FROM 
-t1 t01,t1 t02,t1 t03,t1 t04,t1 t05,t1 t06,t1 t07,t1 t08,
-t1 t09,t1 t10,t1 t11,t1 t12,t1 t13,t1 t14,t1 t15,t1 t16,
-t1 t17,t1 t18,t1 t19,t1 t20,t1 t21,t1 t22,t1 t23,t1 t24,
-t1 t25,t1 t26,t1 t27,t1 t28,t1 t29,t1 t30,t1 t31,t1 t32,
-t1 t33,t1 t34,t1 t35,t1 t36,t1 t37,t1 t38,t1 t39,t1 t40,
-t1 t41,t1 t42,t1 t43,t1 t44,t1 t45,t1 t46,t1 t47,t1 t48,
-t1 t49,t1 t50,t1 t51,t1 t52,t1 t53,t1 t54,t1 t55,t1 t56,
-t1 t57,t1 t58,t1 t59,t1 t60
-WHERE t01.a IN (SELECT c FROM t2);
-END
-//
-CREATE PROCEDURE p4(v1 int)
-BEGIN
-SELECT 1 
-FROM 
-t1 t01,t1 t02,t1 t03,t1 t04,t1 t05,t1 t06,t1 t07,t1 t08,
-t1 t09,t1 t10,t1 t11,t1 t12,t1 t13,t1 t14,t1 t15,t1 t16,
-t1 t17,t1 t18,t1 t19,t1 t20,t1 t21,t1 t22,t1 t23,t1 t24,
-t1 t25,t1 t26,t1 t27,t1 t28,t1 t29,t1 t30,t1 t31,t1 t32,
-t1 t33,t1 t34,t1 t35,t1 t36,t1 t37,t1 t38,t1 t39,t1 t40,
-t1 t41,t1 t42,t1 t43,t1 t44,t1 t45,t1 t46,t1 t47,t1 t48,
-t1 t49,t1 t50,t1 t51,t1 t52,t1 t53,t1 t54,t1 t55,t1 t56,
-t1 t57,t1 t58,t1 t59,t1 t60
-WHERE t01.a = v1 AND t01.a IN (SELECT c FROM t2);
-END
-//
-CALL p1(1);
-1
-CALL p2(1);
-1
-CALL p3(1);
-1
-CALL p4(1);
-1
-DROP TABLE t1, t2;
-DROP PROCEDURE p1;
-DROP PROCEDURE p2;
-DROP PROCEDURE p3;
-DROP PROCEDURE p4;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4);
 create table t1 (a int, b int, key(a));
@@ -579,7 +527,7 @@ a	b	c	filler1
 set join_buffer_size=default;
 drop table t1, t2;
 create table t1 (a int not null);
-drop procedure if exists p1;
+drop procedure if exists p1|
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE EXIT HANDLER FOR SQLEXCEPTION select a from t1;
@@ -681,6 +629,15 @@ select count(a) from t2 where a in ( SELECT  a FROM t3);
 count(a)
 1000
 drop table t0,t1,t2,t3;
+
+BUG#42740: crash in optimize_semijoin_nests
+
+create table t1 (c6 timestamp,key (c6)) engine=innodb;
+create table t2 (c2 double) engine=innodb;
+explain select 1 from t2 where c2 = any (select log10(null) from t1 where c6 <null)  ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+drop table t1, t2;
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value

@@ -843,9 +843,9 @@ select t1.a, count(t2.p) as count
   from t1 left join t2 on t1.a=t2.a and t2.p % 2 = 1 group by t1.a;
 drop table t1, t2;
 
-#
-# Bug #40134: outer join with not exists optimization and join buffer
-#
+--echo #
+--echo # Bug #40134: outer join with not exists optimization and join buffer
+--echo #
 
 set join_cache_level=default;
 set join_buffer_size=default;

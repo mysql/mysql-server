@@ -73,7 +73,7 @@ Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t10`
 subqueries within outer joins go into ON expr.
 explAin extended
 select * from t1 left join (t2 A, t2 B) on ( A.A= t1.A And B.A in (select pk from t10));
-id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer
@@ -201,47 +201,144 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where; Using join buffer
 Warnings:
 Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t10` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t10`.`pk`) and (`test`.`t10`.`pk` < 3))
+drop table t0, t1, t2;
+drop table t10, t11, t12;
 
 BUG#37120 optimizer_switch allowable values not according to specification
 
 select @@optimizer_switch;
 @@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on
+set optimizer_switch='default';
+set optimizer_switch='materialization=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=on,loosescan=on,firstmatch=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=off,loosescan=on,firstmatch=on
+set optimizer_switch='default';
+set optimizer_switch='loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=off,firstmatch=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,materialization=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=on,firstmatch=on
+set optimizer_switch='default';
+set optimizer_switch='materialization=off,semijoin=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=on,firstmatch=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,materialization=off,loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=off,loosescan=off,firstmatch=on
+set optimizer_switch='default';
+set optimizer_switch='semijoin=off,loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=off,loosescan=off,firstmatch=on
+set optimizer_switch='default';
+set optimizer_switch='materialization=off,loosescan=off';
+select @@optimizer_switch;
+@@optimizer_switch
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=on,loosescan=off,firstmatch=on
+set optimizer_switch='default';
 
-set optimizer_switch='no_materialization';
-select @@optimizer_switch;
-@@optimizer_switch
-no_materialization
-set optimizer_switch='no_semijoin';
-select @@optimizer_switch;
-@@optimizer_switch
-no_semijoin
-set optimizer_switch='no_loosescan';
-select @@optimizer_switch;
-@@optimizer_switch
-no_loosescan
-set optimizer_switch='no_semijoin,no_materialization';
-select @@optimizer_switch;
-@@optimizer_switch
-no_materialization,no_semijoin
-set optimizer_switch='no_materialization,no_semijoin';
-select @@optimizer_switch;
-@@optimizer_switch
-no_materialization,no_semijoin
-set optimizer_switch='no_semijoin,no_materialization,no_loosescan';
-select @@optimizer_switch;
-@@optimizer_switch
-no_materialization,no_semijoin,no_loosescan
-set optimizer_switch='no_semijoin,no_loosescan';
-select @@optimizer_switch;
-@@optimizer_switch
-no_semijoin,no_loosescan
-set optimizer_switch='no_materialization,no_loosescan';
-select @@optimizer_switch;
-@@optimizer_switch
-no_materialization,no_loosescan
-set optimizer_switch='';
-drop table t0, t1;
-drop table t10, t11, t12;
+Bug#37899: Wrongly checked optimization prerequisite caused failed
+assertion.
+
+CREATE TABLE t1 (
+`pk` int(11),
+`varchar_nokey` varchar(5)
+);
+INSERT INTO t1 VALUES
+(1,'qk'),(2,'j'),(3,'aew');
+SELECT *
+FROM t1
+WHERE varchar_nokey IN (
+SELECT
+varchar_nokey
+FROM
+t1
+) XOR pk = 30;
+pk	varchar_nokey
+1	qk
+2	j
+3	aew
+drop table t1;
+#
+# BUG#41842: Semi-join materialization strategy crashes when the upper query has HAVING
+#
+CREATE TABLE t1 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+int_nokey int(11) NOT NULL,
+time_key time NOT NULL,
+datetime_key datetime NOT NULL,
+datetime_nokey datetime NOT NULL,
+varchar_key varchar(1) NOT NULL,
+varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY time_key (time_key),
+KEY datetime_key (datetime_key),
+KEY varchar_key (varchar_key)
+);
+INSERT INTO t1 VALUES 
+(1,0, '00:16:10','2008-09-03 14:25:40','2008-09-03 14:25:40','h','h'),
+(2,7, '00:00:00','2001-01-13 00:00:00','2001-01-13 00:00:00','',''),
+(3,0, '00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','x','x'),
+(4,2, '16:29:24','2000-10-16 01:39:08','2000-10-16 01:39:08','w','w'),
+(5,1, '09:23:32','0000-00-00 00:00:00','0000-00-00 00:00:00','p','p'),
+(6,3, '00:00:00','2007-12-02 00:00:00','2007-12-02 00:00:00','o','o'),
+(7,3, '00:00:00','2008-09-11 00:00:00','2008-09-11 00:00:00','',''),
+(8,0, '13:59:04','0000-00-00 00:00:00','0000-00-00 00:00:00','s','s'),
+(9,7, '09:01:06','0000-00-00 00:00:00','0000-00-00 00:00:00','d','d'),
+(10,5,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','n','n'),
+(11,0,'21:06:46','0000-00-00 00:00:00','0000-00-00 00:00:00','o','o'),
+(12,2,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','',''),
+(13,6,'14:45:34','2003-07-28 02:34:08','2003-07-28 02:34:08','w','w'),
+(14,1,'15:04:12','0000-00-00 00:00:00','0000-00-00 00:00:00','o','o'),
+(15,0,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','x','x'),
+(16,0,'15:55:23','2004-03-17 00:32:27','2004-03-17 00:32:27','p','p'),
+(17,1,'16:30:00','2004-12-27 19:20:00','2004-12-27 19:20:00','d','d'),
+(18,0,'00:00:00','0000-00-00 00:00:00','0000-00-00 00:00:00','h','h'),
+(19,0,'14:13:26','2008-11-09 05:53:48','2008-11-09 05:53:48','o','o'),
+(20,0,'00:00:00','2009-10-11 06:58:04','2009-10-11 06:58:04','k','k');
+CREATE TABLE t2 (
+pk int(11) NOT NULL AUTO_INCREMENT,
+int_nokey int(11) NOT NULL,
+time_key time NOT NULL,
+datetime_key datetime NOT NULL,
+datetime_nokey datetime NOT NULL,
+varchar_key varchar(1) NOT NULL,
+varchar_nokey varchar(1) NOT NULL,
+PRIMARY KEY (pk),
+KEY time_key (time_key),
+KEY datetime_key (datetime_key),
+KEY varchar_key (varchar_key)
+);
+INSERT INTO t2 VALUES 
+(10,0,'19:39:13','0000-00-00 00:00:00','0000-00-00 00:00:00','g','g'),
+(11,8,'03:43:53','0000-00-00 00:00:00','0000-00-00 00:00:00','b','b');
+SELECT OUTR.datetime_nokey AS X FROM t1 AS OUTR 
+WHERE 
+OUTR.varchar_nokey IN (SELECT 
+INNR . varchar_nokey AS Y 
+FROM t2 AS INNR 
+WHERE
+INNR . datetime_key >= INNR . time_key OR 
+INNR . pk = INNR . int_nokey  
+) 
+AND OUTR . varchar_nokey <= 'w' 
+HAVING X > '2012-12-12';
+X
+drop table t1, t2;
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value

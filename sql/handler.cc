@@ -4087,37 +4087,35 @@ bool key_uses_partial_cols(TABLE *table, uint keyno)
  * Default MRR implementation (MRR to non-MRR converter)
  ***************************************************************************/
 
-/*
+/**
   Get cost and other information about MRR scan over a known list of ranges
 
-  SYNOPSIS
-    multi_range_read_info_const()
-      keyno           Index number
-      seq             Range sequence to be traversed
-      seq_init_param  First parameter for seq->init()
-      n_ranges_arg    Number of ranges in the sequence, or 0 if the caller
-                      can't efficiently determine it
-      bufsz    INOUT  IN:  Size of the buffer available for use
-                      OUT: Size of the buffer that is expected to be actually
-                           used, or 0 if buffer is not needed.
-      flags    INOUT  A combination of HA_MRR_* flags
-      cost     OUT    Estimated cost of MRR access
+  Calculate estimated cost and other information about an MRR scan for given
+  sequence of ranges.
 
-  DESCRIPTION
-    Calculate estimated cost and other information about an MRR scan for given
-    sequence of ranges.
+  @param keyno           Index number
+  @param seq             Range sequence to be traversed
+  @param seq_init_param  First parameter for seq->init()
+  @param n_ranges_arg    Number of ranges in the sequence, or 0 if the caller
+                         can't efficiently determine it
+  @param bufsz    INOUT  IN:  Size of the buffer available for use
+                         OUT: Size of the buffer that is expected to be actually
+                              used, or 0 if buffer is not needed.
+  @param flags    INOUT  A combination of HA_MRR_* flags
+  @param cost     OUT    Estimated cost of MRR access
 
-  NOTES
+  @note
     This method (or an overriding one in a derived class) must check for
     thd->killed and return HA_POS_ERROR if it is not zero. This is required
     for a user to be able to interrupt the calculation by killing the
     connection/query.
 
-  RETURN
-    HA_POS_ERROR -  Error or the engine is unable to perform the requested 
-                    scan. Values of OUT parameters are undefined.
-    other        -  OK, *cost contains cost of the scan, *bufsz and *flags
-                    contain scan parameters.
+  @retval
+    HA_POS_ERROR  Error or the engine is unable to perform the requested
+                  scan. Values of OUT parameters are undefined.
+  @retval
+    other         OK, *cost contains cost of the scan, *bufsz and *flags
+                  contain scan parameters.
 */
 
 ha_rows 
@@ -4185,40 +4183,38 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
 }
 
 
-/*
+/**
   Get cost and other information about MRR scan over some sequence of ranges
 
-  SYNOPSIS
-    multi_range_read_info()
-      keyno           Index number
-      n_ranges        Estimated number of ranges (i.e. intervals) in the 
-                      range sequence.
-      n_rows          Estimated total number of records contained within all 
-                      of the ranges
-      bufsz    INOUT  IN:  Size of the buffer available for use
-                      OUT: Size of the buffer that will be actually used, or 
-                           0 if buffer is not needed.
-      flags    INOUT  A combination of HA_MRR_* flags
-      cost     OUT    Estimated cost of MRR access
+  Calculate estimated cost and other information about an MRR scan for some
+  sequence of ranges.
 
-  DESCRIPTION
-    Calculate estimated cost and other information about an MRR scan for some
-    sequence of ranges.
+  The ranges themselves will be known only at execution phase. When this
+  function is called we only know number of ranges and a (rough) E(#records)
+  within those ranges.
 
-    The ranges themselves will be known only at execution phase. When this 
-    function is called we only know number of ranges and a (rough) E(#records)
-    within those ranges.
+  Currently this function is only called for "n-keypart singlepoint" ranges,
+  i.e. each range is "keypart1=someconst1 AND ... AND keypartN=someconstN"
 
-    Currently this function is only called for "n-keypart singlepoint" ranges,
-    i.e. each range is "keypart1=someconst1 AND ... AND keypartN=someconstN"
+  The flags parameter is a combination of those flags: HA_MRR_SORTED,
+  HA_MRR_INDEX_ONLY, HA_MRR_NO_ASSOCIATION, HA_MRR_LIMITS.
 
-    The flags parameter is a combination of those flags: HA_MRR_SORTED, 
-    HA_MRR_INDEX_ONLY, HA_MRR_NO_ASSOCIATION, HA_MRR_LIMITS.
+  @param keyno           Index number
+  @param n_ranges        Estimated number of ranges (i.e. intervals) in the
+                         range sequence.
+  @param n_rows          Estimated total number of records contained within all
+                         of the ranges
+  @param bufsz    INOUT  IN:  Size of the buffer available for use
+                         OUT: Size of the buffer that will be actually used, or
+                              0 if buffer is not needed.
+  @param flags    INOUT  A combination of HA_MRR_* flags
+  @param cost     OUT    Estimated cost of MRR access
 
-  RETURN
-    0     - OK, *cost contains cost of the scan, *bufsz and *flags contain scan
-            parameters.
-    other - Error or can't perform the requested scan
+  @retval
+    0     OK, *cost contains cost of the scan, *bufsz and *flags contain scan
+          parameters.
+  @retval
+    other Error or can't perform the requested scan
 */
 
 ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
@@ -4240,28 +4236,25 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 }
 
 
-/*
+/**
   Initialize the MRR scan
 
-  SYNOPSIS
-    multi_range_read_init()
-      seq             Range sequence to be traversed
-      seq_init_param  First parameter for seq->init()
-      n_ranges        Number of ranges in the sequence
-      mode            Flags, see the description section for the details
-      buf             INOUT: memory buffer to be used
+  Initialize the MRR scan. This function may do heavyweight scan 
+  initialization like row prefetching/sorting/etc (NOTE: but better not do
+  it here as we may not need it, e.g. if we never satisfy WHERE clause on
+  previous tables. For many implementations it would be natural to do such
+  initializations in the first multi_read_range_next() call)
 
-  DESCRIPTION
-    Initialize the MRR scan. This function may do heavyweight scan 
-    initialization like row prefetching/sorting/etc (NOTE: but better not do
-    it here as we may not need it, e.g. if we never satisfy WHERE clause on
-    previous tables. For many implementations it would be natural to do such
-    initializations in the first multi_read_range_next() call)
+  mode is a combination of the following flags: HA_MRR_SORTED,
+  HA_MRR_INDEX_ONLY, HA_MRR_NO_ASSOCIATION 
 
-    mode is a combination of the following flags: HA_MRR_SORTED,
-    HA_MRR_INDEX_ONLY, HA_MRR_NO_ASSOCIATION 
+  @param seq             Range sequence to be traversed
+  @param seq_init_param  First parameter for seq->init()
+  @param n_ranges        Number of ranges in the sequence
+  @param mode            Flags, see the description section for the details
+  @param buf             INOUT: memory buffer to be used
 
-  NOTES
+  @note
     One must have called index_init() before calling this function. Several
     multi_range_read_init() calls may be made in course of one query.
 
@@ -4280,9 +4273,8 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
     call is made, all records have been read, or until index_end() call is
     made, whichever comes first.
 
-  RETURN
-    0 - OK
-    1 - Error
+  @retval 0  OK
+  @retval 1  Error
 */
 
 int
@@ -4298,20 +4290,17 @@ handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs, void *seq_init_param,
 }
 
 
-/*
+/**
   Get next record in MRR scan
 
-  SYNOPSIS
-    multi_range_read_next()
-       range_info  OUT  Undefined if HA_MRR_NO_ASSOCIATION flag is in effect
-                        Otherwise, the opaque value associated with the range
-                        that contains the returned record.
-  DESCRIPTION
-    Default MRR implementation: read the next record
+  Default MRR implementation: read the next record
 
-  RETURN
-    0      OK
-    other  Error code
+  @param range_info  OUT  Undefined if HA_MRR_NO_ASSOCIATION flag is in effect
+                          Otherwise, the opaque value associated with the range
+                          that contains the returned record.
+
+  @retval 0      OK
+  @retval other  Error code
 */
 
 int handler::multi_range_read_next(char **range_info)
@@ -4375,26 +4364,22 @@ scan_it_again:
  * DS-MRR implementation 
  ***************************************************************************/
 
-/*
+/**
   DS-MRR: Initialize and start MRR scan
 
-  SYNOPSIS
-    DsMrr_impl::dsmrr_init()
-      h               Table handler to be used
-      key             Index to be used
-      seq_funcs       Interval sequence enumeration functions
-      seq_init_param  Interval sequence enumeration parameter
-      n_ranges        Number of ranges in the sequence.
-      mode            HA_MRR_* modes to use
-      buf             INOUT Buffer to use
+  Initialize and start the MRR scan. Depending on the mode parameter, this
+  may use default or DS-MRR implementation.
 
-  DESCRIPTION
-    Initialize and start the MRR scan. Depending on the mode parameter, this
-    may use default or DS-MRR implementation.
+  @param h               Table handler to be used
+  @param key             Index to be used
+  @param seq_funcs       Interval sequence enumeration functions
+  @param seq_init_param  Interval sequence enumeration parameter
+  @param n_ranges        Number of ranges in the sequence.
+  @param mode            HA_MRR_* modes to use
+  @param buf             INOUT Buffer to use
 
-  RETURN   
-    0     - Ok, Scan started.
-    other - Error
+  @retval 0     Ok, Scan started.
+  @retval other Error
 */
 
 int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs, 
@@ -4443,7 +4428,12 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   {
     /* Create a separate handler object to do rndpos() calls. */
     THD *thd= current_thd;
-
+    /*
+      ::clone() takes up a lot of stack, especially on 64 bit platforms.
+      The constant 5 is an empiric result.
+    */
+    if (check_stack_overrun(thd, 5*STACK_MIN_SIZE, (uchar*) &new_h2))
+      DBUG_RETURN(1);
     DBUG_ASSERT(h->active_index != MAX_KEY);
     uint mrr_keyno= h->active_index;
 
@@ -4471,19 +4461,23 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
     table->prepare_for_position();
     h2->extra(HA_EXTRA_KEYREAD);
 
-    if (h2->ha_index_init(mrr_keyno, FALSE) || 
-        h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
-                                           mode, buf))
+    if (h2->ha_index_init(mrr_keyno, FALSE))
       goto error;
+
     use_default_impl= FALSE;
-    
     if (pushed_cond)
       h2->idx_cond_push(mrr_keyno, pushed_cond);
   }
   else
   {
-    /* if we call h->index_end() will invoke this->dsmrr_close(), which will  Do not let it delete h2. */
-    // psergey-todo: WTF??
+    /*
+      We get here when the access alternates betwen MRR scan(s) and non-MRR
+      scans.
+
+      Calling h->index_end() will invoke dsmrr_close() for this object,
+      which will delete h2. We need to keep it, so save put it away and dont
+      let it be deleted:
+    */
     handler *save_h2= h2;
     h2= NULL;
     int res= (h->inited == handler::INDEX && h->ha_index_end());
@@ -4493,7 +4487,9 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
       goto error;
   }
 
-  if (dsmrr_fill_buffer())
+  if (h2->handler::multi_range_read_init(seq_funcs, seq_init_param, n_ranges,
+                                          mode, buf) ||
+      dsmrr_fill_buffer())
     goto error;
 
   /*
@@ -4521,6 +4517,7 @@ error:
   h2->ha_external_lock(current_thd, F_UNLCK);
   h2->close();
   delete h2;
+  h2= NULL;
   DBUG_RETURN(1);
 }
 
@@ -4547,24 +4544,21 @@ static int rowid_cmp(void *h, uchar *a, uchar *b)
 }
 
 
-/*
+/**
   DS-MRR: Fill the buffer with rowids and sort it by rowid
+
+  {This is an internal function of DiskSweep MRR implementation}
+  Scan the MRR ranges and collect ROWIDs (or {ROWID, range_id} pairs) into 
+  buffer. When the buffer is full or scan is completed, sort the buffer by 
+  rowid and return.
   
-  SYNOPSIS
-    DsMrr_impl::dsmrr_fill_buffer()
-      h  Table handler
+  The function assumes that rowids buffer is empty when it is invoked. 
+  
+  @param h  Table handler
 
-  DESCRIPTION
-    {This is an internal function of DiskSweep MRR implementation}
-    Scan the MRR ranges and collect ROWIDs (or {ROWID, range_id} pairs) into 
-    buffer. When the buffer is full or scan is completed, sort the buffer by 
-    rowid and return.
-    
-    The function assumes that rowids buffer is empty when it is invoked. 
-
-  RETURN 
-    0     - OK, the next portion of rowids is in the buffer, properly ordered
-    other - Error
+  @retval 0      OK, the next portion of rowids is in the buffer,
+                 properly ordered
+  @retval other  Error
 */
 
 int DsMrr_impl::dsmrr_fill_buffer()
@@ -4598,20 +4592,6 @@ int DsMrr_impl::dsmrr_fill_buffer()
     DBUG_RETURN(res); 
   dsmrr_eof= test(res == HA_ERR_END_OF_FILE);
 
-//psergey-pmerge{: not needed: 
-#if 0
-  if (!res && (h->mrr_cur_range.range_flag != (UNIQUE_RANGE | EQ_RANGE)))
-  {
-    /* Save the index position: search tuple + rowid */
-    key_copy(last_idx_tuple, h->table->record[0], mrr_key,
-             mrr_key->key_length);
-    key_zero_nulls(last_idx_tuple, mrr_key);
-
-    memcpy(last_idx_tuple + mrr_key->key_length, h->ref, h->ref_length);
-    h->mrr_restore_scan= TRUE;
-  }
-#endif
-//}psergey-pmerge
   /* Sort the buffer contents by rowid */
   uint elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);
   uint n_rowids= (rowids_buf_cur - rowids_buf) / elem_size;
@@ -4757,28 +4737,24 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
 /**
   DS-MRR Internals: Choose between Default MRR implementation and DS-MRR
 
-  SYNOPSIS
-    choose_mrr_impl()
-      keyno       Index number
-      rows        E(full rows to be retrieved)
-      flags  IN   MRR flags provided by the MRR user
-             OUT  If DS-MRR is choosen, flags of DS-MRR implementation
-                  else the value is not modified
-      bufsz  IN   If DS-MRR is choosen, buffer use of DS-MRR implementation
-                  else the value is not modified
-      cost   IN   Cost of default MRR implementation
-             OUT  If DS-MRR is choosen, cost of DS-MRR scan 
-                  else the value is not modified
+  Make the choice between using Default MRR implementation and DS-MRR.
+  This function contains common functionality factored out of dsmrr_info()
+  and dsmrr_info_const(). The function assumes that the default MRR
+  implementation's applicability requirements are satisfied.
 
-  DESCRIPTION
-    Make the choice between using Default MRR implementation and DS-MRR.
-    This function contains common functionality factored out of dsmrr_info()
-    and dsmrr_info_const(). The function assumes that the default MRR
-    implementation's applicability requirements are satisfied.
+  @param keyno       Index number
+  @param rows        E(full rows to be retrieved)
+  @param flags  IN   MRR flags provided by the MRR user
+                OUT  If DS-MRR is choosen, flags of DS-MRR implementation
+                     else the value is not modified
+  @param bufsz  IN   If DS-MRR is choosen, buffer use of DS-MRR implementation
+                     else the value is not modified
+  @param cost   IN   Cost of default MRR implementation
+                OUT  If DS-MRR is choosen, cost of DS-MRR scan
+                     else the value is not modified
 
-  RETURN
-    TRUE   Default MRR implementation should be used
-    FALSE  DS-MRR implementation should be used
+  @retval TRUE   Default MRR implementation should be used
+  @retval FALSE  DS-MRR implementation should be used
 */
 
 bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
@@ -4832,21 +4808,18 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
 static void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost);
 
 
-/*
+/**
   Get cost of DS-MRR scan
 
-  SYNOPSIS
-    get_disk_sweep_mrr_cost()
-      keynr              Index to be used
-      rows               E(Number of rows to be scanned)
-      flags              Scan parameters (HA_MRR_* flags)
-      buffer_size INOUT  Buffer size
-      cost        OUT    The cost
+  @param keynr              Index to be used
+  @param rows               E(Number of rows to be scanned)
+  @param flags              Scan parameters (HA_MRR_* flags)
+  @param buffer_size INOUT  Buffer size
+  @param cost        OUT    The cost
 
-  RETURN
-    FALSE  OK
-    TRUE   Error, DS-MRR cannot be used (the buffer is too small for even 1
-           rowid)
+  @retval FALSE  OK
+  @retval TRUE   Error, DS-MRR cannot be used (the buffer is too small
+                 for even 1 rowid)
 */
 
 bool DsMrr_impl::get_disk_sweep_mrr_cost(uint keynr, ha_rows rows, uint flags,
@@ -4936,52 +4909,47 @@ void get_sort_and_sweep_cost(TABLE *table, ha_rows nrows, COST_VECT *cost)
 }
 
 
-/*
+/**
   Get cost of reading nrows table records in a "disk sweep"
 
-  SYNOPSIS
-    get_sweep_read_cost()
-      table             Table to be accessed
-      nrows             Number of rows to retrieve
-      interrupted       TRUE <=> Assume that the disk sweep will be
-                        interrupted by other disk IO. FALSE - otherwise.
-      cost         OUT  The cost.
+  A disk sweep read is a sequence of handler->rnd_pos(rowid) calls that made
+  for an ordered sequence of rowids.
 
-  DESCRIPTION
-    Get cost of reading nrows table records in a "disk sweep".
-    
-    A disk sweep read is a sequence of handler->rnd_pos(rowid) calls that made
-    for an ordered sequence of rowids.
-    
-    We assume hard disk IO. The read is performed as follows:
- 
-     1. The disk head is moved to the needed cylinder
-     2. The controller waits for the plate to rotate
-     3. The data is transferred
-    
-    Time to do #3 is insignificant compared to #2+#1.
+  We assume hard disk IO. The read is performed as follows:
 
-    Time to move the disk head is proportional to head travel distance.
+   1. The disk head is moved to the needed cylinder
+   2. The controller waits for the plate to rotate
+   3. The data is transferred
 
-    Time to wait for the plate to rotate depends on whether the disk head
-    was moved or not. 
+  Time to do #3 is insignificant compared to #2+#1.
 
-    If disk head wasn't moved, the wait time is proportional to distance
-    between the previous block and the block we're reading.
+  Time to move the disk head is proportional to head travel distance.
 
-    If the head was moved, we don't know how much we'll need to wait for the
-    plate to rotate. We assume the wait time to be a variate with a mean of
-    0.5 of full rotation time.
+  Time to wait for the plate to rotate depends on whether the disk head
+  was moved or not. 
 
-    Our cost units are "random disk seeks". The cost of random disk seek is
-    actually not a constant, it depends one range of cylinders we're going
-    to access. We make it constant by introducing a fuzzy concept of "typical 
-    datafile length" (it's fuzzy as it's hard to tell whether it should
-    include index file, temp.tables etc). Then random seek cost is:
+  If disk head wasn't moved, the wait time is proportional to distance
+  between the previous block and the block we're reading.
 
-      1 = half_rotation_cost + move_cost * 1/3 * typical_data_file_length
+  If the head was moved, we don't know how much we'll need to wait for the
+  plate to rotate. We assume the wait time to be a variate with a mean of
+  0.5 of full rotation time.
 
-    We define half_rotation_cost as DISK_SEEK_BASE_COST=0.9.
+  Our cost units are "random disk seeks". The cost of random disk seek is
+  actually not a constant, it depends one range of cylinders we're going
+  to access. We make it constant by introducing a fuzzy concept of "typical 
+  datafile length" (it's fuzzy as it's hard to tell whether it should
+  include index file, temp.tables etc). Then random seek cost is:
+
+    1 = half_rotation_cost + move_cost * 1/3 * typical_data_file_length
+
+  We define half_rotation_cost as DISK_SEEK_BASE_COST=0.9.
+
+  @param table             Table to be accessed
+  @param nrows             Number of rows to retrieve
+  @param interrupted       TRUE <=> Assume that the disk sweep will be
+                           interrupted by other disk IO. FALSE - otherwise.
+  @param cost         OUT  The cost.
 */
 
 void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted, 
@@ -4992,7 +4960,7 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   cost->zero();
   if (table->file->primary_key_is_clustered())
   {
-    cost->io_count= table->file->read_time(table->s->primary_key, nrows, 
+    cost->io_count= table->file->read_time(table->s->primary_key, (uint)nrows, 
                                            nrows);
   }
   else

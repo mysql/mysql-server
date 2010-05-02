@@ -619,6 +619,20 @@ SELECT 1 FROM t1 WHERE t1.a NOT IN (SELECT 1 FROM t1, t2 WHERE 0);
 DROP TABLE t1, t2;
 
 #
+# Bug 2198
+#
+
+create table t1 (a int, b decimal(13, 3)); 
+insert into t1 values (1, 0.123);
+select a, (select max(b) from t1) into outfile "subselect.out.file.1" from t1;
+delete from t1;
+load data infile "subselect.out.file.1" into table t1;
+select * from t1;
+drop table t1;
+let $datadir=`select @@datadir`;
+--remove_file $datadir/test/subselect.out.file.1
+
+#
 # Bug #37894: Assertion in init_read_record_seq in handler.h line 1444
 #
 

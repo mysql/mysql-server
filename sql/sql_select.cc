@@ -1312,6 +1312,8 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           if (!(sjtbl= (SJ_TMP_TABLE*)thd->alloc(sizeof(SJ_TMP_TABLE))) ||
               !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
             DBUG_RETURN(TRUE); /* purecov: inspected */
+          memcpy(sjtbl->tabs, sjtabs, tabs_size);
+          sjtbl->is_confluent= FALSE;
           sjtbl->tabs_end= sjtbl->tabs + (last_tab - sjtabs);
           sjtbl->rowid_len= jt_rowid_offset;
           sjtbl->null_bits= jt_null_bits;
@@ -8884,7 +8886,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 
       }
       if (tmp || !cond || tab->type == JT_REF || tab->type == JT_REF_OR_NULL ||
-          tab->type == JT_EQ_REF)
+          tab->type == JT_EQ_REF || first_inner_tab)
       {
         DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= new (thd->mem_root) SQL_SELECT;
@@ -9854,7 +9856,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
 
   switch (tab->type) {
   case JT_ALL:
-    if (cache_level <= 2 && (tab->first_inner))
+    if (cache_level <= 2 && (tab->first_inner || tab->first_sj_inner_tab))
       goto no_join_cache;
     if ((options & SELECT_DESCRIBE) ||
         ((tab->cache= new JOIN_CACHE_BNL(join, tab, prev_cache))) &&
@@ -10336,12 +10338,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       }
       delete tab->quick;
       tab->quick=0;
-      if (check_join_cache_usage(tab, join, options, no_jbuf_after,
-                                 &icp_other_tables_ok))
-      {
-        tab->use_join_cache= TRUE;
-        tab[-1].next_select= sub_select_cache;
-      }
       /* fall through */
     case JT_SYSTEM: 
     case JT_CONST:
@@ -18678,12 +18674,12 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       */
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
+      if (tab->pre_idx_push_select_cond)
       {
+        tab->select_cond= tab->pre_idx_push_select_cond;
         if (tab->select)
           tab->select->cond= tab->select_cond;
       }
-      if (tab->pre_idx_push_select_cond)
-        tab->select_cond= tab->pre_idx_push_select_cond;
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
       {

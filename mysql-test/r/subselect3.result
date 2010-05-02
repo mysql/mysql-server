@@ -779,6 +779,15 @@ SELECT 1 FROM t1 WHERE t1.a NOT IN (SELECT 1 FROM t1, t2 WHERE 0);
 1
 1
 DROP TABLE t1, t2;
+create table t1 (a int, b decimal(13, 3));
+insert into t1 values (1, 0.123);
+select a, (select max(b) from t1) into outfile "subselect.out.file.1" from t1;
+delete from t1;
+load data infile "subselect.out.file.1" into table t1;
+select * from t1;
+a	b
+1	0.123
+drop table t1;
 CREATE TABLE t1 (
 pk INT PRIMARY KEY,
 int_key INT,
@@ -1055,7 +1064,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	8	Using where; Using temporary; Using filesort; Start materialize; Scan
 1	PRIMARY	t12	ALL	NULL	NULL	NULL	NULL	8	Using where; End materialize; Using join buffer
 1	PRIMARY	t21	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer
-1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer
+1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	32	Using where; Using join buffer
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
@@ -1158,7 +1167,7 @@ insert into t4 select a from t3;
 explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
 and t4.pk=t1.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using where; LooseScan
+1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using index condition; Using MRR; LooseScan
 1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index; FirstMatch(t1)
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer
 drop table t1, t3, t4;
@@ -1192,7 +1201,7 @@ insert into t3 select A.a + 10*B.a, 'filler' from t0 A, t0 B;
 explain select * from t3 where a in (select a from t2) and (a > 5 or a < 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	Using where
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	1	
 select * from t3 where a in (select a from t2);
 a	filler
 1	filler
@@ -1240,7 +1249,7 @@ explain select * from t1, t3 where t3.a in (select a from t2) and (t3.a < 10 or 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using where
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	
 explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	Using where
@@ -1269,7 +1278,7 @@ explain select * from t0, t3 where t3.a in (select a from t2) and (t3.a < 10 or 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	system	NULL	NULL	NULL	NULL	1	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	10	Using where; Materialize; Scan
-1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	Using where
+1	PRIMARY	t3	ref	a	a	5	test.t2.a	10	
 create table t4 as select a as x, a as y from t1;
 explain select * from t0, t3 where (t3.a, t3.b) in (select x,y from t4) and (t3.a < 10 or t3.a >30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1350,21 +1359,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	Z	ALL	NULL	NULL	NULL	NULL	6	End materialize; Using join buffer
 drop table t0,t1,t2;
 
-BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
-
-CREATE TABLE t1 (
-`pk` int(11) NOT NULL AUTO_INCREMENT,
-`int_key` int(11) DEFAULT NULL,
-PRIMARY KEY (`pk`),
-KEY `int_key` (`int_key`)
-) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1,9),(2,3),(3,8),(4,6),(5,9),(6,5),(7,5),(8,9),(9,1),(10,10);
-SELECT `pk` FROM t1 AS OUTR WHERE `int_key` = ALL (
-SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
-);
-pk
-DROP TABLE t1;
-
 BUG#40118 Crash when running Batched Key Access and requiring one match for each key
 
 create table t0(a int);
@@ -1437,9 +1431,4 @@ SELECT `pk` FROM t1 AS OUTR WHERE `int_key` = ALL (
 SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
 );
 pk
-2
-4
-6
-8
-10
 DROP TABLE t1;

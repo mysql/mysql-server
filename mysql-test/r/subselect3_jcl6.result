@@ -792,6 +792,95 @@ select * from t1;
 a	b
 1	0.123
 drop table t1;
+CREATE TABLE t1 (
+pk INT PRIMARY KEY,
+int_key INT,
+varchar_key VARCHAR(5) UNIQUE,
+varchar_nokey VARCHAR(5)
+);
+INSERT INTO t1 VALUES (9, 7,NULL,NULL), (10,8,'p' ,'p');
+SELECT varchar_nokey
+FROM t1
+WHERE NULL NOT IN (
+SELECT INNR.pk FROM t1 AS INNR2
+LEFT JOIN t1 AS INNR ON ( INNR2.int_key = INNR.int_key )
+WHERE INNR.varchar_key > 'n{'
+);
+varchar_nokey
+DROP TABLE t1;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1), (2), (11);
+# 2nd and 3rd columns should be same
+SELECT a, ROW(11, 12) = (SELECT a, 22), ROW(11, 12) IN (SELECT a, 22) FROM t1 GROUP BY t1.a;
+a	ROW(11, 12) = (SELECT a, 22)	ROW(11, 12) IN (SELECT a, 22)
+1	0	0
+2	0	0
+11	0	0
+SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1 GROUP BY t1.a;
+a	ROW(11, 12) = (SELECT a, 12)	ROW(11, 12) IN (SELECT a, 12)
+1	0	0
+2	0	0
+11	1	1
+SELECT a, ROW(11, 12) = (SELECT a, 22), ROW(11, 12) IN (SELECT a, 22) FROM t1;
+a	ROW(11, 12) = (SELECT a, 22)	ROW(11, 12) IN (SELECT a, 22)
+1	0	0
+2	0	0
+11	0	0
+SELECT a, ROW(11, 12) = (SELECT a, 12), ROW(11, 12) IN (SELECT a, 12) FROM t1;
+a	ROW(11, 12) = (SELECT a, 12)	ROW(11, 12) IN (SELECT a, 12)
+1	0	0
+2	0	0
+11	1	1
+SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 22), ROW(11, 12) IN (SELECT MAX(x), 22) FROM t1;
+x	ROW(11, 12) = (SELECT MAX(x), 22)	ROW(11, 12) IN (SELECT MAX(x), 22)
+1	0	0
+2	0	0
+11	0	0
+# 2nd and 3rd columns should be same for x == 11 only
+SELECT a AS x, ROW(11, 12) = (SELECT MAX(x), 12), ROW(11, 12) IN (SELECT MAX(x), 12) FROM t1;
+x	ROW(11, 12) = (SELECT MAX(x), 12)	ROW(11, 12) IN (SELECT MAX(x), 12)
+1	0	1
+2	0	1
+11	1	1
+DROP TABLE t1;
+# both columns should be same
+SELECT ROW(1,2) = (SELECT NULL, NULL), ROW(1,2) IN (SELECT NULL, NULL);
+ROW(1,2) = (SELECT NULL, NULL)	ROW(1,2) IN (SELECT NULL, NULL)
+NULL	NULL
+SELECT ROW(1,2) = (SELECT   1,  NULL), ROW(1,2) IN (SELECT    1, NULL);
+ROW(1,2) = (SELECT   1,  NULL)	ROW(1,2) IN (SELECT    1, NULL)
+NULL	NULL
+SELECT ROW(1,2) = (SELECT NULL,    2), ROW(1,2) IN (SELECT NULL,    2);
+ROW(1,2) = (SELECT NULL,    2)	ROW(1,2) IN (SELECT NULL,    2)
+NULL	NULL
+SELECT ROW(1,2) = (SELECT NULL,    1), ROW(1,2) IN (SELECT NULL,    1);
+ROW(1,2) = (SELECT NULL,    1)	ROW(1,2) IN (SELECT NULL,    1)
+0	0
+SELECT ROW(1,2) = (SELECT    1,    1), ROW(1,2) IN (SELECT    1,    1);
+ROW(1,2) = (SELECT    1,    1)	ROW(1,2) IN (SELECT    1,    1)
+0	0
+SELECT ROW(1,2) = (SELECT    1,    2), ROW(1,2) IN (SELECT    1,    2);
+ROW(1,2) = (SELECT    1,    2)	ROW(1,2) IN (SELECT    1,    2)
+1	1
+CREATE TABLE t1 (a INT, b INT, c INT);
+INSERT INTO t1 VALUES (1,1,1), (1,1,1);
+EXPLAIN EXTENDED 
+SELECT c FROM 
+( SELECT 
+(SELECT COUNT(a) FROM 
+(SELECT COUNT(b) FROM t1) AS x GROUP BY c
+) FROM t1 GROUP BY b
+) AS y;
+ERROR 42S22: Unknown column 'c' in 'field list'
+SHOW WARNINGS;
+Level	Code	Message
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #2
+Note	1276	Field or reference 'test.t1.c' of SELECT #3 was resolved in SELECT #2
+Error	1054	Unknown column 'c' in 'field list'
+Note	1003	select `c` AS `c` from (select (select count(`test`.`t1`.`a`) AS `COUNT(a)` from dual group by `c`) AS `(SELECT COUNT(a) FROM 
+(SELECT COUNT(b) FROM t1) AS x GROUP BY c
+)` from `test`.`t1` group by `test`.`t1`.`b`) `y`
+DROP TABLE t1;
 End of 5.0 tests
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -819,6 +908,132 @@ t1.a < (select t4.a+10
 from t4, t5 limit 2));
 ERROR 21000: Subquery returns more than 1 row
 drop table t0, t1, t2, t3, t4, t5;
+# 
+# BUG#48177 - SELECTs with NOT IN subqueries containing NULL 
+#             values return too many records
+# 
+CREATE TABLE t1 (
+i1 int DEFAULT NULL,
+i2 int DEFAULT NULL
+) ;
+INSERT INTO t1 VALUES (1,    NULL);
+INSERT INTO t1 VALUES (2,    3);
+INSERT INTO t1 VALUES (4,    NULL);
+INSERT INTO t1 VALUES (4,    0);
+INSERT INTO t1 VALUES (NULL, NULL);
+CREATE TABLE t2 (
+i1 int DEFAULT NULL,
+i2 int DEFAULT NULL
+) ;
+INSERT INTO t2 VALUES (4, NULL);
+INSERT INTO t2 VALUES (5, 0);
+
+Data in t1
+SELECT i1, i2 FROM t1;
+i1	i2
+1	NULL
+2	3
+4	NULL
+4	0
+NULL	NULL
+
+Data in subquery (should be filtered out)
+SELECT i1, i2 FROM t2 ORDER BY i1;
+i1	i2
+4	NULL
+5	0
+FLUSH STATUS;
+
+SELECT i1, i2
+FROM t1
+WHERE (i1, i2) 
+NOT IN (SELECT i1, i2 FROM t2);
+i1	i2
+1	NULL
+2	3
+
+# Check that the subquery only has to be evaluated once 
+# for all-NULL values even though there are two (NULL,NULL) records
+# Baseline:
+SHOW STATUS LIKE '%Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	17
+
+INSERT INTO t1 VALUES (NULL, NULL);
+FLUSH STATUS;
+
+SELECT i1, i2
+FROM t1
+WHERE (i1, i2) 
+NOT IN (SELECT i1, i2 FROM t2);
+i1	i2
+1	NULL
+2	3
+
+# Handler_read_rnd_next should be one more than baseline 
+# (read record from t1, but do not read from t2)
+SHOW STATUS LIKE '%Handler_read_rnd_next';
+Variable_name	Value
+Handler_read_rnd_next	18
+DROP TABLE t1,t2;
+End of 5.1 tests
+#
+# BUG#48920: COUNT DISTINCT returns 1 for NULL values when in a subquery 
+#            in the select list
+#
+
+CREATE TABLE t1 (
+i int(11) DEFAULT NULL,
+v varchar(1) DEFAULT NULL
+);
+
+INSERT INTO t1 VALUES (8,'v');
+INSERT INTO t1 VALUES (9,'r');
+INSERT INTO t1 VALUES (NULL,'y');
+
+CREATE TABLE t2 (
+i int(11) DEFAULT NULL,
+v varchar(1) DEFAULT NULL,
+KEY i_key (i)
+);
+
+INSERT INTO t2 VALUES (NULL,'r');
+INSERT INTO t2 VALUES (0,'c');
+INSERT INTO t2 VALUES (0,'o');
+INSERT INTO t2 VALUES (2,'v');
+INSERT INTO t2 VALUES (7,'c');
+
+SELECT i, v, (SELECT COUNT(DISTINCT i)
+FROM t1
+WHERE v  = t2.v) as subsel
+FROM t2;
+i	v	subsel
+NULL	r	1
+0	c	0
+0	o	0
+2	v	1
+7	c	0
+
+EXPLAIN EXTENDED
+SELECT i, v, (SELECT COUNT(DISTINCT i)
+FROM t1
+WHERE v  = t2.v) as subsel
+FROM t2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	
+2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+Warnings:
+Note	1276	Field or reference 'test.t2.v' of SELECT #2 was resolved in SELECT #1
+Note	1003	select `test`.`t2`.`i` AS `i`,`test`.`t2`.`v` AS `v`,(select count(distinct `test`.`t1`.`i`) AS `COUNT(DISTINCT i)` from `test`.`t1` where (`test`.`t1`.`v` = `test`.`t2`.`v`)) AS `subsel` from `test`.`t2`
+DROP TABLE t1,t2;
+End of 5.6 tests
+#  
+# BUG#36896: Server crash on SELECT FROM DUAL
+# 
+create table t1 (a int);
+select 1 as res from dual where (1) in (select * from t1);
+res
+drop table t1;
 CREATE TABLE t1 (
 a int(11) NOT NULL,
 b int(11) NOT NULL,
@@ -858,11 +1073,10 @@ select t21.* from t21,t22 where t21.a = t22.a and
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
 256	67	NULL
-256	67	NULL
 drop table t1, t11, t12, t21, t22;
 create table t1(a int);
 insert into t1 values (0),(1);
-set @@optimizer_switch='no_firstmatch';
+set @@optimizer_switch='firstmatch=off';
 explain 
 select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) as subq from t1 X;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -873,13 +1087,13 @@ select (select max(Y.a) from t1 Y where a in (select a from t1 Z) and a < X.a) a
 subq
 NULL
 0
-set @@optimizer_switch='';
+set @@optimizer_switch='default';
 drop table t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t1 as select * from t0;
 insert into t1 select a+10 from t0;
-set @@optimizer_switch='no_firstmatch,no_materialization';
+set @@optimizer_switch='firstmatch=off,materialization=off';
 insert into t0 values(2);
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -907,7 +1121,7 @@ a
 17
 18
 19
-set @@optimizer_switch='no_materialization';
+set @@optimizer_switch='default,materialization=off';
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	11	Using where; FirstMatch
@@ -934,7 +1148,7 @@ a
 17
 18
 19
-set @@optimizer_switch='';
+set @@optimizer_switch='default';
 explain select * from (select a from t0) X where a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	11	
@@ -963,7 +1177,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 drop table t1, t3, t4;
 create table t1 (a int) as select * from t0 where a < 5;
 set @save_max_heap_table_size=@@max_heap_table_size;
-set @@optimizer_switch='no_firstmatch,no_materialization';
+set @@optimizer_switch='default,firstmatch=off,materialization=off';
 set @@max_heap_table_size= 16384;
 explain select count(*) from t0 A, t0 B, t0 C, t0 D where D.a in (select a from t1 E);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -980,7 +1194,7 @@ show status like 'Created_tmp_disk_tables';
 Variable_name	Value
 Created_tmp_disk_tables	1
 set @save_max_heap_table_size=@@max_heap_table_size;
-set @@optimizer_switch=default;
+set @@optimizer_switch='default';
 drop table t0, t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -997,7 +1211,7 @@ a	filler
 1	filler
 2	filler
 drop table t0, t2, t3;
-set @@optimizer_switch='no_firstmatch,no_materialization';
+set @@optimizer_switch='default,firstmatch=off,materialization=off';
 create table t1 (a date);
 insert into t1 values ('2008-01-01'),('2008-01-01'),('2008-02-01'),('2008-02-01');
 create table t2 (a int);
@@ -1029,7 +1243,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Start temporary
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer
 drop table t1;
-set @@optimizer_switch=default;
+set @@optimizer_switch='default';
 create table t1 (a int);
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 as select * from t1;
@@ -1094,19 +1308,21 @@ create table t1 (a int, b int);
 insert into t1 select a,a from t0;
 create table t2 (a int, b int);
 insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
-set @@optimizer_switch='no_firstmatch';
+set @@optimizer_switch='default,firstmatch=off';
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Materialize
 set @save_optimizer_search_depth=@@optimizer_search_depth;
 set @@optimizer_search_depth=63;
+Warnings:
+Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
 explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Materialize
 set @@optimizer_search_depth=@save_optimizer_search_depth;
-set @@optimizer_switch='';
+set @@optimizer_switch='default';
 drop table t0, t1, t2;
 create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);
@@ -1134,21 +1350,18 @@ a
 2008-01-01
 2008-02-02
 drop table t0, t1;
-
-BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
-
-CREATE TABLE t1 (
-`pk` int(11) NOT NULL AUTO_INCREMENT,
-`int_key` int(11) DEFAULT NULL,
-PRIMARY KEY (`pk`),
-KEY `int_key` (`int_key`)
-) ENGINE=MyISAM;
-INSERT INTO t1 VALUES (1,9),(2,3),(3,8),(4,6),(5,9),(6,5),(7,5),(8,9),(9,1),(10,10);
-SELECT `pk` FROM t1 AS OUTR WHERE `int_key` = ALL (
-SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
-);
-pk
-DROP TABLE t1;
+create table t0(a int);
+insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t1 as select a as a, a as b, a as c from t0 where a < 3;
+create table t2 as select a as a, a as b from t0 where a < 3;
+insert into t2 select * from t2;
+explain select * from t1 where (a,b,c) in (select X.a, Y.a, Z.a from t2 X, t2 Y, t2 Z where X.b=33);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	
+1	PRIMARY	X	ALL	NULL	NULL	NULL	NULL	6	Using where; Start materialize
+1	PRIMARY	Y	ALL	NULL	NULL	NULL	NULL	6	Using join buffer
+1	PRIMARY	Z	ALL	NULL	NULL	NULL	NULL	6	End materialize; Using join buffer
+drop table t0,t1,t2;
 
 BUG#40118 Crash when running Batched Key Access and requiring one match for each key
 
@@ -1208,6 +1421,21 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Note	1003	select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` semi join (`test`.`t3` `cona` join `test`.`t2` `c`) where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`a`.`idIndividual` = `test`.`c`.`idObj`) and (`test`.`cona`.`postalStripped` = 'T2H3B2'))
 drop table t1,t2,t3;
+
+BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
+
+CREATE TABLE t1 (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`int_key` int(11) DEFAULT NULL,
+PRIMARY KEY (`pk`),
+KEY `int_key` (`int_key`)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1,9),(2,3),(3,8),(4,6),(5,9),(6,5),(7,5),(8,9),(9,1),(10,10);
+SELECT `pk` FROM t1 AS OUTR WHERE `int_key` = ALL (
+SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
+);
+pk
+DROP TABLE t1;
 set join_cache_level=default;
 show variables like 'join_cache_level';
 Variable_name	Value
