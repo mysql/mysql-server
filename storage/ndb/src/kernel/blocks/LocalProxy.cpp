@@ -860,12 +860,19 @@ LocalProxy::sendTIME_SIGNAL(Signal* signal, Uint32 ssId, SectionHandle* handle)
 void
 LocalProxy::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
+  if (!assembleFragments(signal))
+    return;
+
   if (ssQueue<Ss_CREATE_TRIG_IMPL_REQ>(signal))
     return;
   const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
   Ss_CREATE_TRIG_IMPL_REQ& ss = ssSeize<Ss_CREATE_TRIG_IMPL_REQ>();
   ss.m_req = *req;
-  ndbrequire(signal->getLength() <= CreateTrigImplReq::SignalLengthLocal);
+  ndbrequire(signal->getLength() <= CreateTrigImplReq::SignalLength);
+
+  SectionHandle handle(this, signal);
+  saveSections(ss, handle);
+
   sendREQ(signal, ss);
 }
 
@@ -880,7 +887,7 @@ LocalProxy::sendCREATE_TRIG_IMPL_REQ(Signal* signal, Uint32 ssId,
   req->senderRef = reference();
   req->senderData = ssId;
   sendSignalNoRelease(workerRef(ss.m_worker), GSN_CREATE_TRIG_IMPL_REQ,
-                      signal, CreateTrigImplReq::SignalLengthLocal, JBB,
+                      signal, CreateTrigImplReq::SignalLength, JBB,
                       handle);
 }
 

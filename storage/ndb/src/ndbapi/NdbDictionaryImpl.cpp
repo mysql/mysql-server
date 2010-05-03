@@ -4372,6 +4372,9 @@ NdbDictInterface::createEvent(class Ndb & ndb,
   req->setUserRef(m_reference);
   req->setUserData(0);
 
+  Uint32 seccnt = 1;
+  LinearSectionPtr ptr[2];
+
   if (getFlag) {
     // getting event from Dictionary
     req->setRequestType(CreateEvntReq::RT_USER_GET);
@@ -4390,6 +4393,9 @@ NdbDictInterface::createEvent(class Ndb & ndb,
       req->setReportAll();
     if (evnt.m_rep & NdbDictionary::Event::ER_SUBSCRIBE)
       req->setReportSubscribe();
+    ptr[1].p = evnt.m_attrListBitmask.rep.data;
+    ptr[1].sz = evnt.m_attrListBitmask.getSizeInWords();
+    seccnt++;
   }
 
   UtilBufferWriter w(m_buffer);
@@ -4410,11 +4416,10 @@ NdbDictInterface::createEvent(class Ndb & ndb,
 	 internal_tabname.c_str());
   }
 
-  LinearSectionPtr ptr[1];
   ptr[0].p = (Uint32*)m_buffer.get_data();
   ptr[0].sz = (m_buffer.length()+3) >> 2;
 
-  int ret = dictSignal(&tSignal,ptr, 1,
+  int ret = dictSignal(&tSignal,ptr, seccnt,
 		       0, // master
 		       WAIT_CREATE_INDX_REQ,
 		       DICT_WAITFOR_TIMEOUT, 100,
@@ -4441,15 +4446,36 @@ NdbDictInterface::createEvent(class Ndb & ndb,
     evnt.m_attrListBitmask = evntConf->getAttrListBitmask();
     evnt.mi_type           = evntConf->getEventType();
     evnt.setTable(dataPtr);
+    if (!m_tableData.empty())
+    {
+      Uint32 len = m_tableData.length();
+      assert((len & 3) == 0);
+      len /= 4;
+      if (len <= evnt.m_attrListBitmask.getSizeInWords())
+      {
+        evnt.m_attrListBitmask.clear();
+        memcpy(evnt.m_attrListBitmask.rep.data, m_tableData.get_data(), 4*len);
+      }
+      else
+      {
+        memcpy(evnt.m_attrListBitmask.rep.data, m_tableData.get_data(),
+               4*evnt.m_attrListBitmask.getSizeInWords());
+      }
+    }
   } else {
     if ((Uint32) evnt.m_tableImpl->m_id         != evntConf->getTableId() ||
 	evnt.m_tableImpl->m_version    != evntConf->getTableVersion() ||
 	//evnt.m_attrListBitmask != evntConf->getAttrListBitmask() ||
 	evnt.mi_type           != evntConf->getEventType()) {
       ndbout_c("ERROR*************");
+      m_buffer.clear();
+      m_tableData.clear();
       ERR_RETURN(getNdbError(), 1);
     }
   }
+
+  m_buffer.clear();
+  m_tableData.clear();
 
   DBUG_RETURN(0);
 }
@@ -4686,12 +4712,17 @@ NdbDictInterface::execCREATE_EVNT_CONF(NdbApiSignal * signal,
   DBUG_ENTER("NdbDictInterface::execCREATE_EVNT_CONF");
 
   m_buffer.clear();
+  m_tableData.clear();
   unsigned int len = signal->getLength() << 2;
   m_buffer.append((char *)&len, sizeof(len));
   m_buffer.append(signal->getDataPtr(), len);
 
   if (signal->m_noOfSections > 0) {
     m_buffer.append((char *)ptr[0].p, strlen((char *)ptr[0].p)+1);
+  }
+  if (signal->m_noOfSections > 1)
+  {
+    m_tableData.append(ptr[1].p, 4 * ptr[1].sz);
   }
 
   const CreateEvntConf * const createEvntConf=

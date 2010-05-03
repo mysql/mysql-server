@@ -83,9 +83,6 @@ printCREATE_TRIG_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
   fprintf(output, "\n");
   fprintf(output, " receiverRef: 0x%x", sig->receiverRef);
   fprintf(output, "\n");
-  char buf[MAXNROFATTRIBUTESINWORDS * 8 + 1];
-  fprintf(output, " attributeMask: %s", sig->attributeMask.getText(buf));
-  fprintf(output, "\n");  
   return true;
 }
 

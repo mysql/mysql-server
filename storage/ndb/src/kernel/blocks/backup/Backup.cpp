@@ -1793,7 +1793,7 @@ Backup::sendCreateTrig(Signal* signal,
 
   Bitmask<MAXNROFATTRIBUTESINWORDS> attrMask;
   createAttributeMask(tabPtr, attrMask);
-  req->attributeMask = attrMask;
+
   req->tableId = tabPtr.p->tableId;
   req->tableVersion = 0;
   req->indexId = RNIL;
@@ -1826,8 +1826,12 @@ Backup::sendCreateTrig(Signal* signal,
     TriggerInfo::setTriggerEvent(ti2, triggerEventValues[i]);
     req->triggerInfo = ti2;
 
+    LinearSectionPtr ptr[3];
+    ptr[0].p = attrMask.rep.data;
+    ptr[0].sz = attrMask.getSizeInWords();
+
     sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ,
-	       signal, CreateTrigImplReq::SignalLength, JBB);
+	       signal, CreateTrigImplReq::SignalLength, JBB, ptr ,1);
   }
 }
 

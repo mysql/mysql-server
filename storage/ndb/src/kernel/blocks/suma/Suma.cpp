@@ -2930,10 +2930,12 @@ Suma::create_triggers(Signal* signal, SubscriptionPtr subPtr)
     req->tableVersion = 0; // not used
     req->indexId = ~(Uint32)0;
     req->indexVersion = 0;
-    req->attributeMask = attrMask;
-    
+
+    LinearSectionPtr ptr[3];
+    ptr[0].p = attrMask.rep.data;
+    ptr[0].sz = attrMask.getSizeInWords();
     sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ, 
-               signal, CreateTrigImplReq::SignalLength, JBB);
+               signal, CreateTrigImplReq::SignalLength, JBB, ptr, 1);
   }
 }
 
