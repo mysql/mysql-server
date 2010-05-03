@@ -350,7 +350,7 @@ static int poll_function (void *extra, float progress) {
     assert(extra==expect_poll_void);
     assert(0.0<=progress && progress<=1.0);
     poll_count++;
-    return 0;
+    return abort_on_poll;
 }
 
 static void test_loader(enum test_type t, DB **dbs)
@@ -416,7 +416,12 @@ static void test_loader(enum test_type t, DB **dbs)
 	if (!USE_PUTS)
 	    assert(poll_count>0);
     }
-
+    else if (t == abort_via_poll) {
+	assert(!USE_PUTS);  // test makes no sense with USE_PUTS
+	printf("closing, but expecting abort via poll\n");
+	r = loader->close(loader);
+	assert(r);  // not defined what close() returns when poll function returns non-zero
+    }
     else {
 	printf("aborting loader"); fflush(stdout);
 	r = loader->abort(loader);
@@ -505,8 +510,10 @@ int test_main(int argc, char * const *argv) {
     run_test(commit);
     if (verbose) printf("\n\nTesting loader with loader abort and txn abort\n");
     run_test(abort_loader);
-    if (verbose) printf("\n\nTesting loader with loader abort_via_poll and txn abort\n");
-    run_test(abort_via_poll);
+    if (!USE_PUTS) {
+	if (verbose) printf("\n\nTesting loader with loader abort_via_poll and txn abort\n");
+	run_test(abort_via_poll);
+    }
     if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
     run_test(abort_txn);
     return 0;
