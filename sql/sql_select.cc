@@ -5214,7 +5214,7 @@ greedy_search(JOIN      *join,
         'join->best_positions' contains a complete optimal extension of the
         current partial QEP.
       */
-      DBUG_EXECUTE("opt", print_plan(join, join->tables,
+      DBUG_EXECUTE("opt", print_plan(join, n_tables,
                                      record_count, read_time, read_time,
                                      "optimal"););
       DBUG_RETURN(FALSE);
