@@ -1,0 +1,45 @@
+# This is the unit test for bug *47167.
+# It tests setting the global variable
+# "innodb_file_format_check" with a
+# user-Defined Variable.
+
+-- source include/have_innodb_plugin.inc
+
+# Save the value (Antelope) in 'innodb_file_format_check' to
+# 'old_innodb_file_format_check'
+set @old_innodb_file_format_check=@@innodb_file_format_check;
+
+# @old_innodb_file_format_check shall have the value of 'Antelope'
+select @old_innodb_file_format_check;
+
+# Reset the value in 'innodb_file_format_check' to 'Barracuda'
+set global innodb_file_format_check = Barracuda;
+
+select @@innodb_file_format_check;
+
+# Set 'innodb_file_format_check' to its default value, which
+# is the latest file format supported in the current release.
+set global innodb_file_format_check = DEFAULT;
+
+select @@innodb_file_format_check;
+
+# Put the saved value back to 'innodb_file_format_check'
+set global innodb_file_format_check = @old_innodb_file_format_check;
+
+# Check whether 'innodb_file_format_check' get its original value.
+select @@innodb_file_format_check;
+
+# Following are negative tests, all should fail.
+--disable_warnings
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format_check = cheetah;
+
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format_check = Bear;
+
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format_check = on;
+
+--error ER_WRONG_ARGUMENTS
+set global innodb_file_format_check = off;
+--enable_warnings

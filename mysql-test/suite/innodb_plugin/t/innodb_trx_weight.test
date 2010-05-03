@@ -1,0 +1,108 @@
+#
+# Ensure that the number of locks (SELECT FOR UPDATE for example) is
+# added to the number of altered rows when choosing the smallest
+# transaction to kill as a victim when a deadlock is detected.
+# Also transactions what had edited non-transactional tables should
+# be heavier than ones that had not.
+#
+
+-- source include/have_innodb_plugin.inc
+
+SET storage_engine=InnoDB;
+
+# we do not really care about what gets printed, we are only
+# interested in getting the deadlock resolved according to our
+# expectations
+-- disable_query_log
+-- disable_result_log
+
+# we want to use "-- eval statement1; statement2" which does not work with
+# prepared statements. Because this test should not behave differently with
+# or without prepared statements we disable them so the test does not fail
+# if someone runs ./mysql-test-run.pl --ps-protocol
+-- disable_ps_protocol
+
+-- disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3, t4, t5_nontrans;
+-- enable_warnings
+
+# we will create a simple deadlock with t1, t2 and two connections
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+
+# auxiliary table with a bulk of rows which will be locked by a
+# transaction to increase its weight
+CREATE TABLE t3 (a INT);
+
+# auxiliary empty table which will be inserted by a
+# transaction to increase its weight
+CREATE TABLE t4 (a INT);
+
+# auxiliary non-transactional table which will be edited by a
+# transaction to tremendously increase its weight
+CREATE TABLE t5_nontrans (a INT) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1);
+INSERT INTO t2 VALUES (1);
+# insert a lot of rows in t3
+INSERT INTO t3 VALUES (1);
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+INSERT INTO t3 SELECT * FROM t3;
+
+# test locking weight
+
+-- let $con1_extra_sql =
+-- let $con1_extra_sql_present = 0
+-- let $con2_extra_sql = SELECT * FROM t3 FOR UPDATE
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 1
+-- source suite/innodb_plugin/include/innodb_trx_weight.inc
+
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql = SELECT * FROM t3 FOR UPDATE
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 1
+-- source suite/innodb_plugin/include/innodb_trx_weight.inc
+
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1), (1), (1), (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql = SELECT * FROM t3 FOR UPDATE
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 0
+-- source suite/innodb_plugin/include/innodb_trx_weight.inc
+
+# test weight when non-transactional tables are edited
+
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql =
+-- let $con2_extra_sql_present = 0
+-- let $con1_should_be_rolledback = 0
+-- source suite/innodb_plugin/include/innodb_trx_weight.inc
+
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql = INSERT INTO t5_nontrans VALUES (1)
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 1
+-- source suite/innodb_plugin/include/innodb_trx_weight.inc
+
+-- let $con1_extra_sql = INSERT INTO t4 VALUES (1), (1), (1)
+-- let $con1_extra_sql = $con1_extra_sql; INSERT INTO t5_nontrans VALUES (1)
+-- let $con1_extra_sql_present = 1
+-- let $con2_extra_sql = INSERT INTO t5_nontrans VALUES (1)
+-- let $con2_extra_sql_present = 1
+-- let $con1_should_be_rolledback = 0
+-- source suite/innodb_plugin/include/innodb_trx_weight.inc
+
+DROP TABLE t1, t2, t3, t4, t5_nontrans;
