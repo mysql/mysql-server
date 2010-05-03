@@ -1,1 +1,12 @@
-innodb-index: InnoDB: Error: table `test`.`t1#1` already exists in InnoDB internal
+##############################################################################
+#
+#  List the test cases that are to be disabled temporarily.
+#
+#  Separate the test case name and the comment with ':'.
+#
+#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
+#
+#  Do not use any TAB characters for whitespace.
+#
+##############################################################################
+innodb : Bug#53306 2010-04-30 VasilDimov valgrind warnings
