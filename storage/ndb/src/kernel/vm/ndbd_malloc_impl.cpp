@@ -306,15 +306,25 @@ Ndbd_mem_manager::init(Uint32 *watchCounter, bool alloc_less_memory)
     m_resource_limit[0].m_min = pages;
   }
   
-  g_eventLogger->info("Ndbd_mem_manager::init(%d) min: %ldMb initial: %ldMb",
+  const Uint64 pg = Uint64(sizeof(Alloc_page));
+  g_eventLogger->info("Ndbd_mem_manager::init(%d) min: %lluMb initial: %lluMb",
                       alloc_less_memory,
-                      (sizeof(Alloc_page)*m_resource_limit[0].m_min)>>20,
-                      (sizeof(Alloc_page)*pages)>>20);
+                      (pg*m_resource_limit[0].m_min)>>20,
+                      (pg*pages) >> 20);
 
   if (pages == 0)
   {
-    return 0;
+    return false;
   }
+
+#if SIZEOF_CHARP == 4
+  Uint64 sum = (pg*pages); 
+  if (sum >= (Uint64(1) << 32))
+  {
+    g_eventLogger->error("Trying to allocate more that 4Gb with 32-bit binary!!");
+    return false;
+  }
+#endif
 
   /**
    * Do malloc
