@@ -177,6 +177,8 @@ BitmaskImpl::parseMask(unsigned size, Uint32 data[], const char * src)
   return cnt;
 }
 
+template struct BitmaskPOD<16>;
+
 #ifdef TEST_BITMASK
 #include <NdbTap.hpp>
 

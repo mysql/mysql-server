@@ -39,9 +39,9 @@ struct CreateTrigReq
     TriggerSrc = 2  // LQH "producing" block(s)
   };
 
-  STATIC_CONST( SignalLength = 13 + MAXNROFATTRIBUTESINWORDS);
+  STATIC_CONST( SignalLength = 13 );
   SECTION( TRIGGER_NAME_SECTION = 0 );
-  SECTION( ATTRIBUTE_MASK_SECTION = 1 );        // not yet in use
+  SECTION( ATTRIBUTE_MASK_SECTION = 1 );
 
   static Uint32 getOnlineFlag(Uint32 i) { return i & 3; }
   static void setOnlineFlag(Uint32 & i, Uint32 v) { i |= (v & 3); }
@@ -62,7 +62,6 @@ struct CreateTrigReq
   Uint32 forceTriggerId;// only for NR/SR
   Uint32 triggerInfo;   // type | timing | event | flags
   Uint32 receiverRef;   // receiver for subscription trigger
-  AttributeMask attributeMask;
 };
 
 struct CreateTrigConf {
@@ -91,7 +90,8 @@ struct CreateTrigRef
     BadRequestType = 4247,
     InvalidName = 4248,
     InvalidTable = 4249,
-    OutOfStringBuffer = 773
+    OutOfStringBuffer = 773,
+    OutOfSectionMemory = 795
   };
 
   STATIC_CONST( SignalLength = 10 );

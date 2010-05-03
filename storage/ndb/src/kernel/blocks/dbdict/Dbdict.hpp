@@ -142,7 +142,8 @@
 /**
  * Systable NDB$EVENTS_0
  */
-#define EVENT_SYSTEM_TABLE_LENGTH 8
+#define EVENT_SYSTEM_TABLE_LENGTH 9
+#define EVENT_SYSTEM_TABLE_ATTRIBUTE_MASK2_ID 8
 
 struct sysTab_NDBEVENTS_0 {
   char   NAME[MAX_TAB_NAME_SIZE];
@@ -150,9 +151,12 @@ struct sysTab_NDBEVENTS_0 {
   Uint32 TABLEID;
   Uint32 TABLEVERSION;
   char   TABLE_NAME[MAX_TAB_NAME_SIZE];
-  Uint32 ATTRIBUTE_MASK[MAXNROFATTRIBUTESINWORDS];
+  Uint32 ATTRIBUTE_MASK[MAXNROFATTRIBUTESINWORDS_OLD];
   Uint32 SUBID;
   Uint32 SUBKEY;
+
+  // +1 to allow var size header to be received
+  Uint32 ATTRIBUTE_MASK2[(MAX_ATTRIBUTES_IN_TABLE / 32) + 1];
 };
 
 /**
@@ -2895,8 +2899,6 @@ private:
     RequestTracker m_reqTracker;
   };
   typedef Ptr<OpSubEvent> OpSubEventPtr;
-
-  static const Uint32 sysTab_NDBEVENTS_0_szs[];
 
   /**
    * Operation record for create event.

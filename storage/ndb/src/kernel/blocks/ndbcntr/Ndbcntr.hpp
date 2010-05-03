@@ -144,7 +144,7 @@ public:
   static const unsigned g_sysTableCount;
   // the system tables
   static const SysTable g_sysTable_SYSTAB_0;
-  static const SysTable g_sysTable_NDBEVENTS_0;
+  static SysTable g_sysTable_NDBEVENTS_0;
   // schema trans
   Uint32 c_schemaTransId;
   Uint32 c_schemaTransKey;

@@ -297,7 +297,6 @@ public:
     KeyInfoBuffer                        keyInfo;
     AttrInfoBuffer                       attrInfo;
     ResultSetBuffer                      rs;
-    ResultSetBuffer::DataBufferIterator  rsIterator;
     
     Uint32 transPtrI;
     

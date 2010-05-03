@@ -2525,7 +2525,7 @@ private:
                   TriggerActionTime::Value ttime,
                   TriggerEvent::Value tevent);
 
-  bool createTrigger(Tablerec*, const CreateTrigImplReq* req);
+  bool createTrigger(Tablerec*, const CreateTrigImplReq*, const AttributeMask&);
 
   Uint32 dropTrigger(Tablerec* table,
 		     const DropTrigImplReq* req,
