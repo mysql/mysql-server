@@ -21,8 +21,8 @@
 #include <string.h>
 
 #include "my_global.h"
-#include "sql_priv.h"
 #include "my_sys.h"
+#include "pfs.h"
 #include "pfs_stat.h"
 #include "pfs_instr.h"
 #include "pfs_global.h"
