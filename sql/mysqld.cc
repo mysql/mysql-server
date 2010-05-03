@@ -8776,6 +8776,45 @@ fn_format_relative_to_data_home(char * to, const char *name,
 }
 
 
+/**
+  Test a file path to determine if the path is compatible with the secure file
+  path restriction.
+ 
+  @param path null terminated character string
+
+  @return
+    @retval TRUE The path is secure
+    @retval FALSE The path isn't secure
+*/
+
+bool is_secure_file_path(char *path)
+{
+  char buff1[FN_REFLEN], buff2[FN_REFLEN];
+  /*
+    All paths are secure if opt_secure_file_path is 0
+  */
+  if (!opt_secure_file_priv)
+    return TRUE;
+
+  if (my_realpath(buff1, path, 0))
+  {
+    /*
+      The supplied file path might have been a file and not a directory.
+    */
+    int length= (int)dirname_length(path);
+    if (length >= FN_REFLEN)
+      return FALSE;
+    memcpy(buff2, path, length);
+    buff2[length]= '\0';
+    if (length == 0 || my_realpath(buff1, buff2, 0))
+      return FALSE;
+  }
+  convert_dirname(buff2, buff1, NullS);
+  if (strncmp(opt_secure_file_priv, buff2, strlen(opt_secure_file_priv)))
+    return FALSE;
+  return TRUE;
+}
+
 static int fix_paths(void)
 {
   char buff[FN_REFLEN],*pos;
@@ -8843,14 +8882,13 @@ static int fix_paths(void)
     }
     else
     {
-      convert_dirname(buff, opt_secure_file_priv, NullS);
-      char *secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
-      if (secure_file_real_path == 0 ||
-          my_realpath(secure_file_real_path, buff, 0))
+      if (my_realpath(buff, opt_secure_file_priv, 0))
       {
         sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
         return 1;
       }
+      char *secure_file_real_path= (char *)my_malloc(FN_REFLEN, MYF(MY_FAE));
+      convert_dirname(secure_file_real_path, buff, NullS);
       my_free(opt_secure_file_priv, MYF(0));
       opt_secure_file_priv= secure_file_real_path;
     }

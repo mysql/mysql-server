@@ -1832,6 +1832,12 @@ void sql_perror(const char *message);
 
 bool fn_format_relative_to_data_home(char * to, const char *name,
 				     const char *dir, const char *extension);
+/**
+  Test a file path to determine if the path is compatible with the secure file
+  path restriction.
+*/
+bool is_secure_file_path(char *path);
+
 #ifdef MYSQL_SERVER
 File open_binlog(IO_CACHE *log, const char *log_file_name,
                  const char **errmsg);
