@@ -24,6 +24,9 @@
 #include <NodeBitmask.hpp>
 #include <signaldata/DictTabInfo.hpp>
 #include <AttributeList.hpp>
+
+typedef Bitmask<MAXNROFATTRIBUTESINWORDS_OLD> AttributeMask_OLD;
+
 /**
  * DropEvntReq.
  */
@@ -184,10 +187,11 @@ struct CreateEvntReq {
     EF_ALL = 0xFFFF << 16
   };
   STATIC_CONST( SignalLengthGet = 3 );
-  STATIC_CONST( SignalLengthCreate = 6+MAXNROFATTRIBUTESINWORDS );
-  STATIC_CONST( SignalLength = 8+MAXNROFATTRIBUTESINWORDS );
-  //  SECTION( ATTRIBUTE_LIST_SECTION = 0 );
+  STATIC_CONST( SignalLengthCreate = 6+MAXNROFATTRIBUTESINWORDS_OLD );
+  STATIC_CONST( SignalLength = 8+MAXNROFATTRIBUTESINWORDS_OLD );
+
   SECTION( EVENT_NAME_SECTION = 0 );
+  SECTION( ATTRIBUTE_MASK = 1 );
 
   union {
     Uint32 m_userRef;             // user block reference
@@ -200,7 +204,7 @@ struct CreateEvntReq {
   Uint32 m_requestInfo;
   Uint32 m_tableId;             // table to event
   Uint32 m_tableVersion;        // table version
-  AttributeMask::Data m_attrListBitmask;
+  AttributeMask_OLD::Data m_attrListBitmask;
   Uint32 m_eventType;           // EventFlags (16 bits) + from DictTabInfo::TableType (16 bits)
   Uint32 m_eventId;             // event table id set by DICT/SUMA
   Uint32 m_eventKey;            // event table key set by DICT/SUMA
@@ -242,13 +246,27 @@ struct CreateEvntReq {
   void setTableVersion(Uint32 val) {
     m_tableVersion = val;
   }
-  AttributeMask getAttrListBitmask() const {
-    AttributeMask tmp;
+  AttributeMask_OLD getAttrListBitmask() const {
+    AttributeMask_OLD tmp;
     tmp.assign(m_attrListBitmask);
     return tmp;
   }
   void setAttrListBitmask(const AttributeMask & val) {
-    AttributeMask::assign(m_attrListBitmask.data, val);
+    setAttrListBitmask(val.getSizeInWords(), val.rep.data);
+  }
+  void setAttrListBitmask(const AttributeMask_OLD & val) {
+    setAttrListBitmask(val.getSizeInWords(), val.rep.data);
+  }
+  void setAttrListBitmask(Uint32 sz, const Uint32 data[]){
+    bzero(m_attrListBitmask.data, sizeof(m_attrListBitmask.data));
+    if (sz >= AttributeMask_OLD::Size)
+    {
+      AttributeMask_OLD::assign(m_attrListBitmask.data, data);
+    }
+    else
+    {
+      BitmaskImpl::assign(sz, m_attrListBitmask.data, data);
+    }
   }
   Uint32 getEventType() const {
     return m_eventType & ~EF_ALL;
@@ -299,7 +317,7 @@ class CreateEvntConf {
 
 public:
   //  STATIC_CONST( InternalLength = 3 );
-  STATIC_CONST( SignalLength = 8+MAXNROFATTRIBUTESINWORDS );
+  STATIC_CONST( SignalLength = 8+MAXNROFATTRIBUTESINWORDS_OLD );
 
   union {
     Uint32 m_userRef;             // user block reference
@@ -312,7 +330,7 @@ public:
   Uint32 m_requestInfo;
   Uint32 m_tableId;
   Uint32 m_tableVersion;        // table version
-  AttributeMask m_attrListBitmask;
+  AttributeMask_OLD m_attrListBitmask;
   Uint32 m_eventType;
   Uint32 m_eventId;
   Uint32 m_eventKey;
@@ -347,10 +365,10 @@ public:
   void setTableVersion(Uint32 val) {
     m_tableVersion = val;
   }
-  AttributeMask getAttrListBitmask() const {
+  AttributeMask_OLD getAttrListBitmask() const {
     return m_attrListBitmask;
   }
-  void setAttrListBitmask(const AttributeMask & val) {
+  void setAttrListBitmask(const AttributeMask_OLD & val) {
     m_attrListBitmask = val;
   }
   Uint32 getEventType() const {

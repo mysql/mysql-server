@@ -8492,7 +8492,6 @@ Dbdict::alterTable_toCreateTrigger(Signal* signal,
   TriggerInfo::packTriggerInfo(req->triggerInfo, triggerTmpl.triggerInfo);
 
   req->receiverRef = 0;
-  bzero(&req->attributeMask, sizeof(req->attributeMask));
 
   char triggerName[MAX_TAB_NAME_SIZE];
   sprintf(triggerName, triggerTmpl.nameFormat, impl_req->tableId);
@@ -8506,8 +8505,13 @@ Dbdict::alterTable_toCreateTrigger(Signal* signal,
   lsPtr[0].p = buffer;
   lsPtr[0].sz = w.getWordsUsed();
 
+  AttributeMask mask;
+  mask.clear();
+  lsPtr[1].p = mask.rep.data;
+  lsPtr[1].sz = mask.getSizeInWords();
+
   sendSignal(reference(), GSN_CREATE_TRIG_REQ, signal,
-             CreateTrigReq::SignalLength, JBB, lsPtr, 1);
+             CreateTrigReq::SignalLength, JBB, lsPtr, 2);
 }
 
 void
@@ -11887,7 +11891,6 @@ Dbdict::alterIndex_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr)
   TriggerInfo::packTriggerInfo(req->triggerInfo, triggerTmpl.triggerInfo);
 
   req->receiverRef = 0;
-  req->attributeMask = alterIndexPtr.p->m_attrMask;
 
   char triggerName[MAX_TAB_NAME_SIZE];
   sprintf(triggerName, triggerTmpl.nameFormat, impl_req->indexId);
@@ -11901,8 +11904,11 @@ Dbdict::alterIndex_toCreateTrigger(Signal* signal, SchemaOpPtr op_ptr)
   lsPtr[0].p = buffer;
   lsPtr[0].sz = w.getWordsUsed();
 
+  lsPtr[1].p = alterIndexPtr.p->m_attrMask.rep.data;
+  lsPtr[1].sz = alterIndexPtr.p->m_attrMask.getSizeInWords();
+
   sendSignal(reference(), GSN_CREATE_TRIG_REQ, signal,
-             CreateTrigReq::SignalLength, JBB, lsPtr, 1);
+             CreateTrigReq::SignalLength, JBB, lsPtr, 2);
 }
 
 void
@@ -12804,7 +12810,6 @@ Dbdict::buildIndex_toCreateConstraint(Signal* signal, SchemaOpPtr op_ptr)
   TriggerInfo::packTriggerInfo(req->triggerInfo, triggerTmpl.triggerInfo);
 
   req->receiverRef = 0;
-  req->attributeMask = buildIndexPtr.p->m_attrMask;
 
   char triggerName[MAX_TAB_NAME_SIZE];
   sprintf(triggerName, triggerTmpl.nameFormat, impl_req->indexId);
@@ -12818,8 +12823,11 @@ Dbdict::buildIndex_toCreateConstraint(Signal* signal, SchemaOpPtr op_ptr)
   ls_ptr[0].p = buffer;
   ls_ptr[0].sz = w.getWordsUsed();
 
+  ls_ptr[1].p = buildIndexPtr.p->m_attrMask.rep.data;
+  ls_ptr[1].sz = buildIndexPtr.p->m_attrMask.getSizeInWords();
+
   sendSignal(reference(), GSN_CREATE_TRIG_REQ, signal,
-             CreateTrigReq::SignalLength, JBB, ls_ptr, 1);
+             CreateTrigReq::SignalLength, JBB, ls_ptr, 2);
 }
 
 void
@@ -13776,7 +13784,10 @@ void Dbdict::execUTIL_RELEASE_REF(Signal *signal)
  *
  */
 
-const Uint32 Dbdict::sysTab_NDBEVENTS_0_szs[EVENT_SYSTEM_TABLE_LENGTH] = {
+static const
+Uint32
+sysTab_NDBEVENTS_0_szs[] =
+{
   sizeof(((sysTab_NDBEVENTS_0*)0)->NAME),
   sizeof(((sysTab_NDBEVENTS_0*)0)->EVENT_TYPE),
   sizeof(((sysTab_NDBEVENTS_0*)0)->TABLEID),
@@ -13784,7 +13795,23 @@ const Uint32 Dbdict::sysTab_NDBEVENTS_0_szs[EVENT_SYSTEM_TABLE_LENGTH] = {
   sizeof(((sysTab_NDBEVENTS_0*)0)->TABLE_NAME),
   sizeof(((sysTab_NDBEVENTS_0*)0)->ATTRIBUTE_MASK),
   sizeof(((sysTab_NDBEVENTS_0*)0)->SUBID),
-  sizeof(((sysTab_NDBEVENTS_0*)0)->SUBKEY)
+  sizeof(((sysTab_NDBEVENTS_0*)0)->SUBKEY),
+  sizeof(((sysTab_NDBEVENTS_0*)0)->ATTRIBUTE_MASK2)
+};
+
+static const
+UintPtr
+sysTab_NDBEVENTS_0_offsets[] =
+{
+  (UintPtr)&(((sysTab_NDBEVENTS_0*)0)->NAME),
+  (UintPtr)&(((sysTab_NDBEVENTS_0*)0)->EVENT_TYPE),
+  (UintPtr)&(((sysTab_NDBEVENTS_0*)0)->TABLEID),
+  (UintPtr)&(((sysTab_NDBEVENTS_0*)0)->TABLEVERSION),
+  (UintPtr)&(((sysTab_NDBEVENTS_0*)0)->TABLE_NAME),
+  (UintPtr)&(((sysTab_NDBEVENTS_0*)0)->ATTRIBUTE_MASK),
+  (UintPtr)&(((sysTab_NDBEVENTS_0*)0)->SUBID),
+  (UintPtr)&(((sysTab_NDBEVENTS_0*)0)->SUBKEY),
+  (UintPtr)&(((sysTab_NDBEVENTS_0*)0)->ATTRIBUTE_MASK2)
 };
 
 void
@@ -13804,8 +13831,12 @@ Dbdict::prepareTransactionEventSysTable (Callback *pcallback,
   
   Uint32 tableId = tablePtr.p->tableId; /* System table */
   Uint32 noAttr = tablePtr.p->noOfAttributes;
-  ndbrequire(noAttr == EVENT_SYSTEM_TABLE_LENGTH);
-  
+  if (noAttr > EVENT_SYSTEM_TABLE_LENGTH)
+  {
+    jam();
+    noAttr = EVENT_SYSTEM_TABLE_LENGTH;
+  }
+
   switch (prepReq) {
   case UtilPrepareReq::Update:
   case UtilPrepareReq::Insert:
@@ -14139,12 +14170,14 @@ Dbdict::createEvent_RT_USER_CREATE(Signal* signal,
       (r0.getValueType() != SimpleProperties::StringValue) ||
       (r0.getValueLen() <= 0)) {
     jam();
-    releaseSections(handle);
     
     evntRecPtr.p->m_errorCode = 1;
+sendref:
     evntRecPtr.p->m_errorLine = __LINE__;
     evntRecPtr.p->m_errorNode = reference();
     
+    releaseSections(handle);
+
     createEvent_sendReply(signal, evntRecPtr);
     DBUG_VOID_RETURN;
   }
@@ -14152,6 +14185,40 @@ Dbdict::createEvent_RT_USER_CREATE(Signal* signal,
   {
     int len = strlen(evntRecPtr.p->m_eventRec.TABLE_NAME);
     memset(evntRecPtr.p->m_eventRec.TABLE_NAME+len, 0, MAX_TAB_NAME_SIZE-len);
+  }
+
+  if (handle.m_cnt >= CreateEvntReq::ATTRIBUTE_MASK)
+  {
+    jam();
+    handle.getSection(ssPtr, CreateEvntReq::ATTRIBUTE_MASK);
+    if (ssPtr.sz >= NDB_ARRAY_SIZE(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2))
+    {
+      jam();
+      evntRecPtr.p->m_errorCode = 1;
+      goto sendref;
+    }
+    bzero(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
+          sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2));
+    copy(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2, ssPtr);
+    memcpy(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK,
+           evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
+           sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK));
+  }
+  else
+  {
+    jam();
+    AttributeMask_OLD m = evntRecPtr.p->m_request.getAttrListBitmask();
+    Uint32 sz0 = m.getSizeInWords();
+    Uint32 sz1 = NDB_ARRAY_SIZE(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK);
+    ndbrequire(sz1 == sz0);
+    bzero(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK,
+          sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK));
+    bzero(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
+          sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2));
+    BitmaskImpl::assign(sz0, evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK,
+                        m.rep.data);
+    BitmaskImpl::assign(sz0, evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2,
+                        m.rep.data);
   }
 
   releaseSections(handle);
@@ -14314,9 +14381,6 @@ Dbdict::createEventUTIL_PREPARE(Signal* signal,
           evntRecPtr.p->m_request.getEventType() | evntRecPtr.p->m_request.getReportFlags();
 	evntRecPtr.p->m_eventRec.TABLEID  = evntRecPtr.p->m_request.getTableId();
 	evntRecPtr.p->m_eventRec.TABLEVERSION=evntRecPtr.p->m_request.getTableVersion();
-	AttributeMask m = evntRecPtr.p->m_request.getAttrListBitmask();
-	memcpy(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK, &m,
-	       sizeof(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK));
 	evntRecPtr.p->m_eventRec.SUBID  = evntRecPtr.p->m_request.getEventId();
 	evntRecPtr.p->m_eventRec.SUBKEY = evntRecPtr.p->m_request.getEventKey();
 	DBUG_PRINT("info",
@@ -14358,6 +14422,15 @@ Dbdict::createEventUTIL_PREPARE(Signal* signal,
   }
 }
 
+static
+Uint32
+countPrefixBytes(Uint32 len, const Uint8 * mask)
+{
+  while (len && mask[len - 1] == 0)
+    len--;
+  return len;
+}
+
 void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
 				       const Uint32 ptrI,
 				       sysTab_NDBEVENTS_0& m_eventRec,
@@ -14365,17 +14438,39 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
 				       UtilPrepareReq::OperationTypeValue prepReq)
 {
   jam();
-  const Uint32 noAttr = EVENT_SYSTEM_TABLE_LENGTH;
+
+  DictObject * opj_ptr_p = get_object(EVENT_SYSTEM_TABLE_NAME,
+				      sizeof(EVENT_SYSTEM_TABLE_NAME));
+
+  ndbrequire(opj_ptr_p != 0);
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, opj_ptr_p->m_id);
+  ndbrequire(tablePtr.i != RNIL); // system table must exist
+
+  Uint32 noAttr = tablePtr.p->noOfAttributes;
+  if (noAttr > EVENT_SYSTEM_TABLE_LENGTH)
+  {
+    jam();
+    noAttr = EVENT_SYSTEM_TABLE_LENGTH;
+  }
+
   Uint32 total_len = 0;
 
   Uint32* attrHdr = signal->theData + 25;
   Uint32* attrPtr = attrHdr;
+  Uint32* dataPtr = attrHdr + noAttr;
 
   Uint32 id=0;
   // attribute 0 event name: Primary Key
   {
-    AttributeHeader::init(attrPtr, id, sysTab_NDBEVENTS_0_szs[id]);
-    total_len += sysTab_NDBEVENTS_0_szs[id];
+    char *base = (char*)&m_eventRec;
+    Uint32 sz = sysTab_NDBEVENTS_0_szs[id];
+    const Uint32 *src = (const Uint32*)(base +sysTab_NDBEVENTS_0_offsets[id]);
+    memcpy(dataPtr, src, sz);
+    dataPtr += (sz / 4);
+
+    AttributeHeader::init(attrPtr, id, sz);
+    total_len += sz;
     attrPtr++; id++;
   }
 
@@ -14383,21 +14478,55 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
   case UtilPrepareReq::Read:
     jam();
     EVENT_TRACE;
+
+    // clear it, since NDB$EVENTS_0.ATTRIBUTE_MASK2 might not be present
+    bzero(m_eventRec.ATTRIBUTE_MASK2, sizeof(m_eventRec.ATTRIBUTE_MASK2));
+
     // no more
     while ( id < noAttr )
       AttributeHeader::init(attrPtr++, id++, 0);
-    ndbrequire(id == (Uint32) noAttr);
+    ndbrequire(id == noAttr);
     break;
   case UtilPrepareReq::Insert:
+  {
     jam();
     EVENT_TRACE;
-    while ( id < noAttr ) {
-      AttributeHeader::init(attrPtr, id, sysTab_NDBEVENTS_0_szs[id]);
-      total_len += sysTab_NDBEVENTS_0_szs[id];
+    char *base = (char*)&m_eventRec;
+    while ( id < noAttr )
+    {
+      if (id != EVENT_SYSTEM_TABLE_ATTRIBUTE_MASK2_ID)
+      {
+        jam();
+        Uint32 sz = sysTab_NDBEVENTS_0_szs[id];
+        AttributeHeader::init(attrPtr, id, sz);
+        const Uint32 *src = (const Uint32*)(base +sysTab_NDBEVENTS_0_offsets[id]);
+        memcpy(dataPtr, src, sz);
+        dataPtr += (sz / 4);
+        total_len += sysTab_NDBEVENTS_0_szs[id];
+      }
+      else
+      {
+        jam();
+        Uint32 szBytes = countPrefixBytes(sizeof(m_eventRec.ATTRIBUTE_MASK2) - 4,
+                                          (Uint8*)m_eventRec.ATTRIBUTE_MASK2);
+        AttributeHeader::init(attrPtr, id, 2 + szBytes);
+
+        Uint8 * lenbytes = (Uint8*)dataPtr;
+        lenbytes[0] = (szBytes & 0xFF);
+        lenbytes[1] = (szBytes / 256);
+        memcpy(lenbytes + 2, m_eventRec.ATTRIBUTE_MASK2, szBytes);
+        if (szBytes & 3)
+        {
+          bzero(lenbytes + 2 + szBytes, 4 - (szBytes & 3));
+        }
+        szBytes += 2;
+        dataPtr += (szBytes + 3) / 4;
+        total_len += 4 * ((szBytes + 3) / 4);
+      }
       attrPtr++; id++;
     }
-    ndbrequire(id == (Uint32) noAttr);
     break;
+  }
   case UtilPrepareReq::Delete:
     ndbrequire(id == 1);
     break;
@@ -14406,16 +14535,13 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
   }
     
   LinearSectionPtr headerPtr;
-  LinearSectionPtr dataPtr;
+  LinearSectionPtr lsdataPtr;
     
   headerPtr.p = attrHdr;
-  headerPtr.sz = noAttr;
+  headerPtr.sz = id;
     
-  dataPtr.p = (Uint32*)&m_eventRec;
-  dataPtr.sz = total_len/4;
-
-  ndbrequire((total_len == sysTab_NDBEVENTS_0_szs[0]) ||
-	     (total_len == sizeof(sysTab_NDBEVENTS_0)));
+  lsdataPtr.p = attrHdr + noAttr;
+  lsdataPtr.sz = total_len/4;
 
 #if 0
     printf("Header size %u\n", headerPtr.sz);
@@ -14423,8 +14549,8 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
       printf("H'%.8x ", attrHdr[i]);
     printf("\n");
     
-    printf("Data size %u\n", dataPtr.sz);
-    for(int i = 0; i < (int)dataPtr.sz; i++)
+    printf("Data size %u\n", lsdataPtr.sz);
+    for(int i = 0; i < (int)lsdataPtr.sz; i++)
       printf("H'%.8x ", dataPage[i]);
     printf("\n");
 #endif
@@ -14434,7 +14560,7 @@ void Dbdict::executeTransEventSysTable(Callback *pcallback, Signal *signal,
 		     prepareId,
 		     id,
 		     headerPtr,
-		     dataPtr);
+		     lsdataPtr);
 }
 
 void Dbdict::executeTransaction(Callback *pcallback,
@@ -14491,21 +14617,54 @@ void Dbdict::parseReadEventSys(Signal* signal, sysTab_NDBEVENTS_0& m_eventRec)
   handle.getSection(dataPtr, UtilExecuteReq::DATA_SECTION);
   SectionReader dataReader(dataPtr, getSectionSegmentPool());
   
-  AttributeHeader header;
-  Uint32 *dst = (Uint32*)&m_eventRec;
+  char *base = (char*)&m_eventRec;
 
-  for (int i = 0; i < EVENT_SYSTEM_TABLE_LENGTH; i++) {
-    headerReader.getWord((Uint32 *)&header);
-    int sz = header.getDataSize();
-    for (int i=0; i < sz; i++)
+  DictObject * opj_ptr_p = get_object(EVENT_SYSTEM_TABLE_NAME,
+				      sizeof(EVENT_SYSTEM_TABLE_NAME));
+
+  ndbrequire(opj_ptr_p != 0);
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, opj_ptr_p->m_id);
+  ndbrequire(tablePtr.i != RNIL); // system table must exist
+
+  Uint32 noAttr = tablePtr.p->noOfAttributes;
+  if (noAttr > EVENT_SYSTEM_TABLE_LENGTH)
+  {
+    jam();
+    noAttr = EVENT_SYSTEM_TABLE_LENGTH;
+  }
+
+  for (Uint32 i = 0; i < noAttr; i++)
+  {
+    jam();
+    Uint32 headerWord;
+    headerReader.getWord(&headerWord);
+    Uint32 sz = AttributeHeader::getDataSize(headerWord);
+    ndbrequire(4 * sz <= sysTab_NDBEVENTS_0_szs[i]);
+    Uint32 * dst = (Uint32*)(base + sysTab_NDBEVENTS_0_offsets[i]);
+    for (Uint32 j = 0; j < sz; j++)
       dataReader.getWord(dst++);
   }
 
-  ndbrequire( ((char*)dst-(char*)&m_eventRec) == sizeof(m_eventRec) );
-
   releaseSections(handle);
+
+  if (noAttr < EVENT_SYSTEM_TABLE_LENGTH)
+  {
+    jam();
+    bzero(m_eventRec.ATTRIBUTE_MASK2, sizeof(m_eventRec.ATTRIBUTE_MASK2));
+    memcpy(m_eventRec.ATTRIBUTE_MASK2, m_eventRec.ATTRIBUTE_MASK,
+           sizeof(m_eventRec.ATTRIBUTE_MASK));
+  }
+  else
+  {
+    jam();
+    Uint8* lenbytes = (Uint8*)m_eventRec.ATTRIBUTE_MASK2;
+    Uint32 szBytes  = lenbytes[0] + (lenbytes[1] * 256);
+    memmove(lenbytes, lenbytes + 2, szBytes);
+    bzero(lenbytes + szBytes, sizeof(m_eventRec.ATTRIBUTE_MASK2) - szBytes);
+  }
 }
-    
+
 void Dbdict::createEventUTIL_EXECUTE(Signal *signal, 
 				     Uint32 callbackData,
 				     Uint32 returnCode)
@@ -14530,8 +14689,8 @@ void Dbdict::createEventUTIL_EXECUTE(Signal *signal,
       evntRec->m_request.setReportFlags(evntRecPtr.p->m_eventRec.EVENT_TYPE);
       evntRec->m_request.setTableId(evntRecPtr.p->m_eventRec.TABLEID);
       evntRec->m_request.setTableVersion(evntRecPtr.p->m_eventRec.TABLEVERSION);
-      evntRec->m_request.setAttrListBitmask(*(AttributeMask*)
-					    evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK);
+      Uint32 sz = NDB_ARRAY_SIZE(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK);
+      evntRec->m_request.setAttrListBitmask(sz, evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK);
       evntRec->m_request.setEventId(evntRecPtr.p->m_eventRec.SUBID);
       evntRec->m_request.setEventKey(evntRecPtr.p->m_eventRec.SUBKEY);
 
@@ -14719,7 +14878,7 @@ void Dbdict::execCREATE_EVNT_REF(Signal* signal)
   ndbout_c("DBDICT(Coordinator) got GSN_CREATE_EVNT_REF evntRecPtr.i = (%d)", evntRecPtr.i);
 #endif
 
-  LinearSectionPtr ptr[1];
+  LinearSectionPtr ptr[2];
 
   int noLSP = 0;
   LinearSectionPtr *ptr0 = NULL;
@@ -14744,8 +14903,10 @@ void Dbdict::execCREATE_EVNT_REF(Signal* signal)
        */
       ptr[0].p = (Uint32 *)evntRecPtr.p->m_eventRec.TABLE_NAME;
       ptr[0].sz = Uint32((strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4);
+      ptr[1].p = evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2;
+      ptr[1].sz = NDB_ARRAY_SIZE(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2) - 1;
       ptr0 = ptr;
-      noLSP = 1;
+      noLSP = 2;
     }
   }
   else 
@@ -14780,13 +14941,15 @@ void Dbdict::execCREATE_EVNT_CONF(Signal* signal)
 
   // we will only have a valid tablename if it the master DICT sending this
   // but that's ok
-  LinearSectionPtr ptr[1];
+  LinearSectionPtr ptr[2];
   ptr[0].p = (Uint32 *)evntRecPtr.p->m_eventRec.TABLE_NAME;
   ptr[0].sz =
     Uint32(strlen(evntRecPtr.p->m_eventRec.TABLE_NAME)+4)/4; // to make sure we have a null
+  ptr[1].p = evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2;
+  ptr[1].sz = NDB_ARRAY_SIZE(evntRecPtr.p->m_eventRec.ATTRIBUTE_MASK2) - 1;
 
-  createEvent_sendReply(signal, evntRecPtr, ptr, 1);
-    
+  createEvent_sendReply(signal, evntRecPtr, ptr, 2);
+
   return;
 }
 
@@ -16181,7 +16344,6 @@ Dbdict::execCREATE_TRIG_REQ(Signal* signal)
     impl_req->triggerId = req->forceTriggerId;
     impl_req->triggerInfo = req->triggerInfo;
     impl_req->receiverRef = req->receiverRef;
-    impl_req->attributeMask = req->attributeMask;
 
     handleClientReq(signal, op_ptr, handle);
     return;
@@ -16364,8 +16526,35 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
   triggerPtr.p->indexId = RNIL; // feedback method connects to index
   triggerPtr.p->triggerInfo = impl_req->triggerInfo;
   triggerPtr.p->receiverRef = impl_req->receiverRef;
-  triggerPtr.p->attributeMask = impl_req->attributeMask;
   triggerPtr.p->triggerState = TriggerRecord::TS_DEFINING;
+
+  if (handle.m_cnt >= 2)
+  {
+    jam();
+    SegmentedSectionPtr mask_ptr;
+    handle.getSection(mask_ptr, CreateTrigReq::ATTRIBUTE_MASK_SECTION);
+    if (mask_ptr.sz > triggerPtr.p->attributeMask.getSizeInWords())
+    {
+      jam();
+      setError(error, CreateTrigRef::BadRequestType, __LINE__);
+      return;
+    }
+    ::copy(triggerPtr.p->attributeMask.rep.data, mask_ptr);
+    if (mask_ptr.sz < triggerPtr.p->attributeMask.getSizeInWords())
+    {
+      jam();
+      Uint32 len = triggerPtr.p->attributeMask.getSizeInWords() - mask_ptr.sz;
+      bzero(triggerPtr.p->attributeMask.rep.data + mask_ptr.sz,
+            4 * len);
+    }
+  }
+  else
+  {
+    jam();
+    setError(error, CreateTrigRef::BadRequestType, __LINE__);
+    return;
+  }
+
   {
     Rope name(c_rope_pool, triggerPtr.p->triggerName);
     if (!name.assign(createTriggerPtr.p->m_triggerName)) {
@@ -16962,7 +17151,6 @@ Dbdict::send_create_trig_req(Signal* signal,
   req->triggerId = triggerPtr.p->triggerId;
   req->triggerInfo = triggerPtr.p->triggerInfo;
   req->receiverRef = triggerPtr.p->receiverRef;
-  req->attributeMask = triggerPtr.p->attributeMask;
 
   {
     /**
@@ -16991,9 +17179,13 @@ Dbdict::send_create_trig_req(Signal* signal,
     req->upgradeExtra[2] = tmp[2];
   }
 
+  LinearSectionPtr ptr[3];
+  ptr[0].p = triggerPtr.p->attributeMask.rep.data;
+  ptr[0].sz = triggerPtr.p->attributeMask.getSizeInWords();
+
   BlockReference ref = createTriggerPtr.p->m_block_list[0];
   sendSignal(ref, GSN_CREATE_TRIG_IMPL_REQ, signal,
-             CreateTrigImplReq::SignalLengthLocal, JBB);
+             CreateTrigImplReq::SignalLength, JBB, ptr, 1);
 }
 
 // CreateTrigger: MISC
