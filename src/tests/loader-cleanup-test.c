@@ -9,7 +9,9 @@
  *
  *  Decide how to test on recovery (using checkpoint_stress technique?), implement.
  *
- *  Consider USE_PUTS
+ *  Consider USE_PUTS:
+ *   - no new inames
+ *   - no test for old names deleted
  *
  */
 
@@ -367,7 +369,7 @@ static void test_loader(enum test_type t, DB **dbs)
         db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = 0; //USE_PUTS; // set with -p option
+    uint32_t loader_flags = USE_PUTS; // set with -p option
 
     if (verbose) printf("old inames:\n");
     get_inames(old_inames, dbs);
@@ -382,6 +384,7 @@ static void test_loader(enum test_type t, DB **dbs)
     r = loader->set_poll_function(loader, poll_function, expect_poll_void);
     CKERR(r);
 
+    printf("USE_PUTS = %d\n", USE_PUTS);
     if (verbose) printf("new inames:\n");
     get_inames(new_inames, dbs);
 
@@ -427,19 +430,21 @@ static void test_loader(enum test_type t, DB **dbs)
     printf(" done\n");
 
     if (t == commit) {
-	if (verbose) printf("Testing commit\n");
 	r = txn->commit(txn, 0);
 	CKERR(r);
-	assert_inames_missing(old_inames);
+	if (!USE_PUTS) {
+	    assert_inames_missing(old_inames);
+	}
 	if ( CHECK_RESULTS ) {
 	    check_results(dbs);
 	}
     }
     else {
-	if (verbose) printf("Testing abort\n");
 	r = txn->abort(txn);
 	CKERR(r);
-	assert_inames_missing(new_inames);
+	if (!USE_PUTS) {
+	    assert_inames_missing(new_inames);
+	}
     }
 
 }
@@ -541,7 +546,8 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-c")==0) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-p")==0) {
-            USE_PUTS = 1;
+            USE_PUTS = LOADER_USE_PUTS;
+	    printf("Using puts\n");
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
