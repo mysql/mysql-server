@@ -153,10 +153,16 @@ select * from t1;
 #
 # It should not be possible to load from a file outside of vardir
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-show variables like "secure_file_pri%";
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-select @@secure_file_priv;
+## The following lines were disabled because of patch for
+## bug 50373. MYSQLTEST_VARDIR doesn't rewrite symlinks
+## to real paths, but this is done for secure_file_priv.
+## Because of this the result can't be replaced if the
+## test suite runs with the --mem option which creates
+## symlinks to the ramdisk.
+#--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+#show variables like "secure_file_pri%";
+#--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+#select @@secure_file_priv;
 --error 1238
 set @@secure_file_priv= 0;
 
