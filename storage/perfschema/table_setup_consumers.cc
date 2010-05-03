@@ -18,7 +18,8 @@
   Table SETUP_CONSUMERS (implementation).
 */
 
-#include "sql_priv.h"
+#include "my_global.h"
+#include "my_pthread.h"
 #include "table_setup_consumers.h"
 #include "pfs_instr.h"
 #include "pfs_events_waits.h"
