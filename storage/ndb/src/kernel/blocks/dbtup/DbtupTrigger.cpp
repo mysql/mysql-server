@@ -124,6 +124,12 @@ void
 Dbtup::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
+  if (!assembleFragments(signal))
+  {
+    jam();
+    return;
+  }
+
   const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
@@ -133,38 +139,64 @@ Dbtup::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 
   CreateTrigRef::ErrorCode error = CreateTrigRef::NoError;
 
-  // Find table
-  TablerecPtr tabPtr;
-  tabPtr.i = req->tableId;
-  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-
-  if (tabPtr.p->tableStatus != DEFINED )
+  AttributeMask mask;
+  SectionHandle handle(this, signal);
+  if (handle.m_cnt <= CreateTrigImplReq::ATTRIBUTE_MASK_SECTION)
   {
     jam();
-    error = CreateTrigRef::InvalidTable;
-  }
-  // Create trigger and associate it with the table
-  else if (createTrigger(tabPtr.p, req))
-  {
-    jam();
-    // Send conf
-    CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
-    conf->senderRef = reference();
-    conf->senderData = senderData;
-    conf->tableId = tableId;
-    conf->triggerId = triggerId;
-    conf->triggerInfo = triggerInfo;
-
-    sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_CONF, 
-               signal, CreateTrigImplConf::SignalLength, JBB);
-    return;
+    ndbassert(false);
+    error = CreateTrigRef::BadRequestType;
   }
   else
   {
-    jam();
-    error = CreateTrigRef::TooManyTriggers;
+    SegmentedSectionPtr ptr;
+    handle.getSection(ptr, CreateTrigImplReq::ATTRIBUTE_MASK_SECTION);
+    ndbrequire(ptr.sz == mask.getSizeInWords());
+    ::copy(mask.rep.data, ptr);
   }
 
+  releaseSections(handle);
+
+  if (error != CreateTrigRef::NoError)
+  {
+    goto err;
+  }
+
+  {
+    // Find table
+    TablerecPtr tabPtr;
+    tabPtr.i = req->tableId;
+    ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+
+    if (tabPtr.p->tableStatus != DEFINED )
+    {
+      jam();
+      error = CreateTrigRef::InvalidTable;
+    }
+    // Create trigger and associate it with the table
+    else if (createTrigger(tabPtr.p, req, mask))
+    {
+      jam();
+      // Send conf
+      CreateTrigImplConf* conf = (CreateTrigImplConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->senderData = senderData;
+      conf->tableId = tableId;
+      conf->triggerId = triggerId;
+      conf->triggerInfo = triggerInfo;
+
+      sendSignal(senderRef, GSN_CREATE_TRIG_IMPL_CONF,
+                 signal, CreateTrigImplConf::SignalLength, JBB);
+      return;
+    }
+    else
+    {
+      jam();
+      error = CreateTrigRef::TooManyTriggers;
+    }
+  }
+
+err:
   ndbassert(error != CreateTrigRef::NoError);
   // Send ref
   CreateTrigImplRef* ref = (CreateTrigImplRef*)signal->getDataPtrSend();
@@ -244,7 +276,8 @@ Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 /* ---------------------------------------------------------------- */
 bool
 Dbtup::createTrigger(Tablerec* table,
-                     const CreateTrigImplReq* req)
+                     const CreateTrigImplReq* req,
+                     const AttributeMask& mask)
 {
   if (ERROR_INSERTED(4003)) {
     CLEAR_ERROR_INSERT_VALUE;
@@ -352,7 +385,7 @@ Dbtup::createTrigger(Tablerec* table,
     {
       jam();
       // Set attribute mask
-      tptr.p->attributeMask = req->attributeMask;
+      tptr.p->attributeMask = mask;
     }
   }
   return true;

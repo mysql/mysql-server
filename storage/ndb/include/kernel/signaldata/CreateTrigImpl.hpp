@@ -28,10 +28,8 @@ struct CreateTrigImplReq
     CreateTriggerOffline = 2
   };
 
-  STATIC_CONST( SignalLength = 11 + MAXNROFATTRIBUTESINWORDS);
-  STATIC_CONST( SignalLengthLocal = 11 + MAXNROFATTRIBUTESINWORDS + 3);
-  SECTION( TRIGGER_NAME_SECTION = 0 );
-  SECTION( ATTRIBUTE_MASK_SECTION = 1 );        // not yet in use
+  STATIC_CONST( SignalLength = 11 + 3);
+  SECTION( ATTRIBUTE_MASK_SECTION = 0 );
 
   // tableVersion, indexVersion, name section used only within DICT
 
@@ -46,7 +44,6 @@ struct CreateTrigImplReq
   Uint32 triggerId;
   Uint32 triggerInfo;
   Uint32 receiverRef;
-  AttributeMask attributeMask;
   Uint32 upgradeExtra[3]; // Send TriggerId's as defined in 6.3 here
 };
 

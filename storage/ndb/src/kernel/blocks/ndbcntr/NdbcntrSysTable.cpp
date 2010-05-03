@@ -68,7 +68,7 @@ column_NDBEVENTS_0[] = {
     false, false
   },
   { 5, "ATTRIBUTE_MASK",
-    DictTabInfo::ExtUnsigned, MAXNROFATTRIBUTESINWORDS,
+    DictTabInfo::ExtUnsigned, MAXNROFATTRIBUTESINWORDS_OLD,
     false, false
   },
   { 6, "SUBID",
@@ -79,9 +79,13 @@ column_NDBEVENTS_0[] = {
     DictTabInfo::ExtUnsigned, 1,
     false, false
   },
+  { 8, "ATTRIBUTE_MASK2",
+    DictTabInfo::ExtLongvarbinary, MAX_ATTRIBUTES_IN_TABLE_NDB_EVENTS_0 / 8,
+    false, true
+  }
 };
 
-const Ndbcntr::SysTable
+Ndbcntr::SysTable
 Ndbcntr::g_sysTable_NDBEVENTS_0 = {
   "sys/def/NDB$EVENTS_0",
   arrayLength(column_NDBEVENTS_0), column_NDBEVENTS_0,

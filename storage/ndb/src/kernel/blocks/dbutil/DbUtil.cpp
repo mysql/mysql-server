@@ -1805,7 +1805,6 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
   OperationPtr opPtr;
   ndbrequire(transPtr.p->operations.seize(opPtr));
   
-  ndbrequire(opPtr.p->rs.seize(prepOp->rsLen));
   ndbrequire(opPtr.p->keyInfo.seize(1));
 
   transPtr.p->gci_hi = 0;
@@ -1879,7 +1878,7 @@ DbUtil::getResultSet(Signal* signal, const Transaction * transP,
   // extract headers
   for(rs.first(it); it.curr.i != RNIL; ) {
     *tmpBuf++ = it.data[0];
-    rs.next(it, ((AttributeHeader*)&it.data[0])->getDataSize() + 1);
+    rs.next(it, AttributeHeader::getDataSize(it.data[0]) + 1);
     noAttr++;
   }
 
@@ -1889,10 +1888,13 @@ DbUtil::getResultSet(Signal* signal, const Transaction * transP,
   const Uint32* dataBuffer = tmpBuf;
 
   // extract data
-  for(rs.first(it); it.curr.i != RNIL; ) {
-    int sz = ((AttributeHeader*)&it.data[0])->getDataSize();
+  for(rs.first(it); it.curr.i != RNIL; )
+  {
+    jam();
+    int sz = AttributeHeader::getDataSize(it.data[0]);
     rs.next(it,1);
-    for (int i = 0; i < sz; i++) {
+    for (int i = 0; i < sz; i++)
+    {
       *tmpBuf++ = *it.data;
       rs.next(it,1);
       dataSz++;
@@ -2079,11 +2081,6 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   opPtr.p->prepOp_i = prepOpPtr.i;
   opPtr.p->m_scanTakeOver = scanTakeOver;
 
-#if 0 //def EVENT_DEBUG
-  printf("opPtr.p->rs.seize( %u )\n", prepOpPtr.p->rsLen);
-#endif
-  ndbrequire(opPtr.p->rs.seize(prepOpPtr.p->rsLen));
-  
  /***********************************************************
    * Store signal data on linear memory in Transaction record 
    ***********************************************************/
@@ -2225,8 +2222,6 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   /**
    * Init operation w.r.t result set
    */
-  initResultSet(op->rs, pop->rsInfo);
-  op->rs.first(op->rsIterator);
   op->rsRecv = 0;
 #if 0 //def EVENT_DEBUG
   printf("pop->rsLen %u\n", pop->rsLen);
@@ -2359,27 +2354,6 @@ DbUtil::sendAttrInfo(Signal* signal,
 }
 
 void
-DbUtil::initResultSet(ResultSetBuffer & rs, 
-		      const ResultSetInfoBuffer & rsi){
-  
-  ResultSetBuffer::DataBufferIterator rsit;
-  rs.first(rsit);
-  
-  ResultSetInfoBuffer::ConstDataBufferIterator rsiit;
-  for(rsi.first(rsiit); rsiit.curr.i != RNIL; rsi.next(rsiit)){
-    ndbrequire(rsit.curr.i != RNIL);
-    
-    rsit.data[0] = rsiit.data[0];
-#if 0 //def EVENT_DEBUG
-    printf("Init resultset %u, sz %d\n",
-	   rsit.curr.i,
-	   ((AttributeHeader*)&rsit.data[0])->getDataSize() + 1);
-#endif
-    rs.next(rsit, ((AttributeHeader*)&rsit.data[0])->getDataSize() + 1);
-  }
-}
-
-void
 DbUtil::getTransId(Transaction * transP){
 
   Uint32 tmp[2];
@@ -2446,30 +2420,24 @@ DbUtil::execTRANSID_AI(Signal* signal){
   /**
    * Save result
    */
-  ResultSetBuffer::DataBufferIterator rs = opP->rsIterator;
-
   if (longSignal)
   {
     SectionSegment * ptrP = dataPtr.p;
     while (dataLen > NDB_SECTION_SEGMENT_SZ)
     {
-      ndbrequire(opP->rs.import(rs, &ptrP->theData[0], NDB_SECTION_SEGMENT_SZ));
-      opP->rs.next(rs, NDB_SECTION_SEGMENT_SZ);
+      ndbrequire(opP->rs.append(ptrP->theData, NDB_SECTION_SEGMENT_SZ));
       dataLen -= NDB_SECTION_SEGMENT_SZ;
       ptrP = g_sectionSegmentPool.getPtr(ptrP->m_nextSegment);
     }
-    ndbrequire(opP->rs.import(rs, &ptrP->theData[0], dataLen));
-    opP->rs.next(rs, dataLen);
+    ndbrequire(opP->rs.append(ptrP->theData, dataLen));
 
     releaseSections(handle);
   }
   else
   {
     const Uint32 *src = &signal->theData[3];
-    ndbrequire(opP->rs.import(rs,src,dataLen));
-    opP->rs.next(rs, dataLen);
+    ndbrequire(opP->rs.append(src, dataLen));
   }
-  opP->rsIterator = rs;
 
   if(!opP->complete()){
    jam();

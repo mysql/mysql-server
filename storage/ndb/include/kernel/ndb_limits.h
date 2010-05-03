@@ -75,7 +75,7 @@
 #define MAX_TAB_NAME_SIZE 128
 #define MAX_ATTR_NAME_SIZE NAME_LEN       /* From mysql_com.h */
 #define MAX_ATTR_DEFAULT_VALUE_SIZE ((MAX_TUPLE_SIZE_IN_WORDS + 1) * 4)  //Add 1 word for AttributeHeader
-#define MAX_ATTRIBUTES_IN_TABLE 128
+#define MAX_ATTRIBUTES_IN_TABLE 512
 #define MAX_ATTRIBUTES_IN_INDEX 32
 #define MAX_TUPLE_SIZE_IN_WORDS 2013
 #define MAX_KEY_SIZE_IN_WORDS 1023
@@ -191,5 +191,15 @@
 #define MAX_NDBMT_LQH_THREADS 4
 
 #define NDB_FILE_BUFFER_SIZE (256*1024)
+
+/**
+ * MAX_ATTRIBUTES_IN_TABLE old handling
+ */
+#define MAXNROFATTRIBUTESINWORDS_OLD (128 / 32)
+
+/**
+ * No of bits available for attribute mask in NDB$EVENTS_0
+ */
+#define MAX_ATTRIBUTES_IN_TABLE_NDB_EVENTS_0 4096
 
 #endif
