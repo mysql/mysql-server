@@ -1831,8 +1831,7 @@ static File create_file(THD *thd, char *path, sql_exchange *exchange,
   else
     (void) fn_format(path, exchange->file_name, mysql_real_data_home, "", option);
 
-  if (opt_secure_file_priv &&
-      strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
+  if (!is_secure_file_path(path))
   {
     /* Write only allowed to dir or subdir specified by secure_file_priv */
     my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--secure-file-priv");
