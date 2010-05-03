@@ -591,4 +591,35 @@ ALTER TABLE t1 DROP INDEX k, ADD UNIQUE INDEX k (a,b);
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #53334: wrong result for outer join with impossible ON condition
+--echo # (see the same test case for MyISAM in join.test)
+--echo #
+
+create table t1 (id int primary key);
+create table t2 (id int);
+
+insert into t1 values (75);
+insert into t1 values (79);
+insert into t1 values (78);
+insert into t1 values (77);
+replace into t1 values (76);
+replace into t1 values (76);
+insert into t1 values (104);
+insert into t1 values (103);
+insert into t1 values (102);
+insert into t1 values (101);
+insert into t1 values (105);
+insert into t1 values (106);
+insert into t1 values (107);
+
+insert into t2 values (107),(75),(1000);
+
+select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0
+  where t2.id=75 and t1.id is null;
+explain select t1.id,t2.id from t2 left join t1 on t1.id>=74 and t1.id<=0
+  where t2.id=75 and t1.id is null;
+
+drop table t1,t2;
+
 --echo End of 5.1 tests
