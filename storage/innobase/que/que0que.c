@@ -225,6 +225,8 @@ que_thr_create(
 	thr->resource = 0;
 	thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
+	thr->slot = NULL;
+
 	UT_LIST_ADD_LAST(thrs, parent->thrs, thr);
 
 	return(thr);
