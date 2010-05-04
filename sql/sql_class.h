@@ -370,7 +370,7 @@ typedef struct system_variables
       1 - force MRR when the storage engine is capable of doing it
       2 - disable MRR.
   */
-  ulong optimizer_use_mrr; 
+  uint  optimizer_use_mrr; 
   ulong preload_buff_size;
   ulong profiling_history_size;
   ulong read_buff_size;
