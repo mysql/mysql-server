@@ -152,7 +152,7 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
       {
         info->lastpos= HA_OFFSET_ERROR;
         if (share->concurrent_insert)
-          rw_unlock(&share->key_root_lock[inx]);
+          mysql_rwlock_unlock(&share->key_root_lock[inx]);
         DBUG_RETURN((my_errno= HA_ERR_KEY_NOT_FOUND));
       }
       /*
