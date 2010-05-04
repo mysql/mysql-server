@@ -6,6 +6,7 @@ information_schema
 d5
 mtr
 mysql
+performance_schema
 test
 DROP DATABASE nond5;
 ERROR HY000: Can't drop database 'nond5'; database doesn't exist
@@ -15,4 +16,5 @@ Database
 information_schema
 mtr
 mysql
+performance_schema
 test

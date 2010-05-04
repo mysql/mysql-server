@@ -6,6 +6,7 @@ information_schema
 d1
 mtr
 mysql
+performance_schema
 test
 SHOW DATABASES LIKE 'd%';
 Database (d%)
@@ -16,6 +17,7 @@ information_schema
 d1
 mtr
 mysql
+performance_schema
 test
 USE d1;
 DROP DATABASE d1;
@@ -26,6 +28,7 @@ information_schema
 d1
 mtr
 mysql
+performance_schema
 test
 SHOW SCHEMAS LIKE 'd%';
 Database (d%)
@@ -36,6 +39,7 @@ information_schema
 d1
 mtr
 mysql
+performance_schema
 test
 USE d1;
 DROP SCHEMA d1;
