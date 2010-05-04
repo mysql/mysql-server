@@ -309,12 +309,12 @@ recv_sys_init(
 	flush_list during recovery process.
 	As this initialization is done while holding the buffer pool
 	mutex we perform it before acquiring recv_sys->mutex. */
+#ifndef UNIV_HOTBACKUP
 	buf_flush_init_flush_rbt();
 #endif /* !UNIV_HOTBACKUP */
 
 	mutex_enter(&(recv_sys->mutex));
 
-#ifndef UNIV_HOTBACKUP
 	recv_sys->heap = mem_heap_create_in_buffer(256);
 #else /* !UNIV_HOTBACKUP */
 	recv_sys->heap = mem_heap_create(256);
