@@ -247,7 +247,11 @@ static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FIDX streami, BRTLOAD
     FILE *stream = bl_fidx2file(bl, streami);
     size_t r = do_fwrite(ptr, size, nmemb, stream);
     if (r!=nmemb) {
-	int e = ferror(stream);
+	int e;
+	if (os_fwrite_fun)    // if using hook to induce artificial errors (for testing) ...
+	    e = errno;        // ... then there is no error in the stream, but there is one in errno
+	else
+	    e = ferror(stream);
 	assert(e!=0);
 	bl->panic       = 1;
 	bl->panic_errno = e;

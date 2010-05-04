@@ -7,7 +7,6 @@
  *
  *  Improve enospc testing
  *   - fail only after n calls to write()
- *   - capture stream write() calls
  *
  *  Decide how to test on recovery (using checkpoint_stress technique?), implement.
  *
@@ -53,8 +52,12 @@
 
 #include "ydb-internal.h"
 
-
-enum test_type {commit, abort_loader, abort_via_poll, enospc, abort_txn};
+enum test_type {commit,                  // close loader, commit txn
+		abort_txn,               // close loader, abort txn
+		abort_loader,            // abort loader, abort txn
+		abort_via_poll,          // close loader, but poll function returns non-zero, abort txn
+		enospc_w,                // close loader, but close fails due to enospc return from toku_os_write
+		enospc_f};               // either loader->put() or loader->close() fails due to enospc return from do_fwrite()
 
 int abort_on_poll = 0;  // set when test_loader() called with test_type of abort_via_poll
 
@@ -78,6 +81,22 @@ void get_inames(DBT* inames, DB** dbs);
 int verify_file(char * dirname, char * filename);
 void assert_inames_missing(DBT* inames);
 ssize_t bad_write(int, const void *, size_t);
+
+int fwrite_count = 0;
+int fwrite_count_nominal = 0;  // number of fwrite calls for normal operation, initially zero
+int fwrite_count_trigger = 0;  // sequence number of fwrite call that will fail (zero disables induced failure)
+
+static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    fwrite_count++;
+    size_t r;
+    if (fwrite_count_trigger == fwrite_count) {
+	errno = ENOSPC;
+	r = -1;
+    } else {
+	r = fwrite(ptr, size, nmemb, stream);
+    }
+    return r;
+}
 
 
 
@@ -148,10 +167,15 @@ assert_inames_missing(DBT* inames) {
     }
 }
 
+int write_calls = 0;
+
 ssize_t 
-bad_write(int UU(fd), const void * UU(src), size_t UU(n)) {
+bad_write(int UU(fd), const void * UU(bp), size_t UU(len)) {
+    ssize_t r;
+    write_calls++;
     errno= ENOSPC;
-    return -1;
+    r = -1;
+    return r;
 }
 
 
@@ -362,6 +386,8 @@ static int poll_function (void *extra, float progress) {
 
 static void test_loader(enum test_type t, DB **dbs)
 {
+    int failed_put = 0;
+
     if (t == abort_via_poll)
 	abort_on_poll = 1;
     else
@@ -398,13 +424,16 @@ static void test_loader(enum test_type t, DB **dbs)
     // using loader->put, put values into DB
     DBT key, val;
     unsigned int k, v;
-    for(int i=1;i<=NUM_ROWS;i++) {
+    for(int i=1;i<=NUM_ROWS && !failed_put;i++) {
         k = i;
         v = generate_val(i, 0);
         dbt_init(&key, &k, sizeof(unsigned int));
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
-        CKERR(r);
+	if (t == enospc_f)
+	    failed_put = r;
+	else
+	    CKERR(r);
         if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
     }
     if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
@@ -429,12 +458,21 @@ static void test_loader(enum test_type t, DB **dbs)
 	r = loader->close(loader);
 	assert(r);  // not defined what close() returns when poll function returns non-zero
     }
-    else if (t == enospc) {
+    else if (t == enospc_w) {
 	r = db_env_set_func_write(bad_write);
 	CKERR(r);
 	printf("closing, but expecting failure from enospc\n");
 	r = loader->close(loader);
-	assert(r);  
+	printf("write_calls = %d\n", write_calls);
+	//	assert(r);  
+    }
+    else if (t == enospc_f && !failed_put) {
+	printf("closing, but expecting failure from enospc\n");
+	r = loader->close(loader);
+	if (!USE_PUTS)
+	    assert(r);
+	else
+	    CKERR(r);  // if using puts, "outer" loader should close just fine
     }
     else {
 	printf("aborting loader"); fflush(stdout);
@@ -449,6 +487,8 @@ static void test_loader(enum test_type t, DB **dbs)
     printf(" done\n");
 
     if (t == commit) {
+	fwrite_count_nominal = fwrite_count;  // capture how many fwrites were required for normal operation
+	if (verbose) printf("Calls to fwrite nominal: %d\n", fwrite_count_nominal);
 	r = txn->commit(txn, 0);
 	CKERR(r);
 	if (!USE_PUTS) {
@@ -457,6 +497,7 @@ static void test_loader(enum test_type t, DB **dbs)
 	if ( CHECK_RESULTS ) {
 	    check_results(dbs);
 	}
+
     }
     else {
 	r = txn->abort(txn);
@@ -469,9 +510,10 @@ static void test_loader(enum test_type t, DB **dbs)
 }
 
 
-static void run_test(enum test_type t) 
+static void run_test(enum test_type t, int trigger) 
 {
     int r;
+
     r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
     r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
@@ -505,6 +547,11 @@ static void run_test(enum test_type t)
 
     generate_permute_tables();
 
+    fwrite_count = 0;
+    fwrite_count_trigger = trigger;
+
+    db_env_set_func_loader_fwrite(bad_fwrite);
+
     test_loader(t, dbs);
 
     for(int i=0;i<NUM_DBS;i++) {
@@ -521,18 +568,26 @@ static void do_args(int argc, char * const argv[]);
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
     if (verbose) printf("\n\nTesting loader with close and commit (normal)\n");
-    run_test(commit);
+    run_test(commit, 0);
     if (verbose) printf("\n\nTesting loader with loader abort and txn abort\n");
-    run_test(abort_loader);
+    run_test(abort_loader, 0);
     if (!USE_PUTS) {
 	if (verbose) printf("\n\nTesting loader with loader abort_via_poll and txn abort\n");
-	run_test(abort_via_poll);
+	run_test(abort_via_poll, 0);
     }
     if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
-    run_test(abort_txn);
+    run_test(abort_txn, 0);
     if (INDUCE_ENOSPC) {
 	if (verbose) printf("\n\nTesting loader with enospc induced during loader close\n");
-	run_test(enospc);
+	run_test(enospc_w, 0);
+    }
+    {
+	int i;
+	for (i = 1; i < 5; i++) {
+	    int trigger = fwrite_count_nominal / i;
+	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
+	    run_test(enospc_f, trigger);
+	}
     }
     return 0;
 }
@@ -575,7 +630,7 @@ static void do_args(int argc, char * const argv[]) {
 	    printf("Using puts\n");
         } else if (strcmp(argv[0], "-e")==0) {
 	    INDUCE_ENOSPC = 1;
-	    printf("Using puts\n");
+	    printf("Using enospc\n");
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
