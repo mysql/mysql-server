@@ -38,10 +38,6 @@ OPT_EXTERN(my_bool,opt_ndb_endinfo,=0);
 OPT_EXTERN(my_bool,opt_core,NONE);
 OPT_EXTERN(my_bool,opt_ndb_optimized_node_selection,NONE);
 OPT_EXTERN(const char *,opt_ndb_connectstring,=0);
-OPT_EXTERN(const char *,opt_connect_str,=0);
-OPT_EXTERN(const char *,opt_ndb_mgmd,=0);
-OPT_EXTERN(char,opt_ndb_constrbuf[1024],={0});
-OPT_EXTERN(unsigned,opt_ndb_constrbuf_len,=0);
 
 #ifndef DBUG_OFF
 OPT_EXTERN(const char *,opt_debug,= 0);
@@ -66,13 +62,13 @@ OPT_EXTERN(const char *,opt_debug,= 0);
     "Overrides specifying entries in NDB_CONNECTSTRING and my.cnf", \
     (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, \
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "ndb-mgmd-host", OPT_NDB_MGMD, \
-    "Set host and port for connecting to ndb_mgmd. " \
-    "Syntax: <hostname>[:<port>].", \
-    (uchar**) &opt_ndb_mgmd, (uchar**) &opt_ndb_mgmd, 0, \
+  { "ndb-mgmd-host", NDB_OPT_NOSHORT, \
+    "same as --ndb-connectstring", \
+    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, 0, \
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
-  { "ndb-nodeid", OPT_NDB_NODEID, \
-    "Set node id for this node.", \
+  { "ndb-nodeid", NDB_OPT_NOSHORT, \
+    "Set node id for this node. Overrides node id specified " \
+    "in --ndb-connectstring.", \
     (uchar**) &opt_ndb_nodeid, (uchar**) &opt_ndb_nodeid, 0, \
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },\
   {"ndb-optimized-node-selection", NDB_OPT_NOSHORT,\
@@ -105,7 +101,6 @@ void ndb_std_print_version();
 enum ndb_std_options {
   /*
     --ndb-connectstring=<connectstring> has short form 'c'
-    and special processing
   */
   OPT_NDB_CONNECTSTRING = 'c',
 
@@ -114,12 +109,6 @@ enum ndb_std_options {
     special processing in 'get_one_option' callback
   */
   NDB_OPT_NOSHORT = 256,
-
-  /* --ndb-mgmd=<connectstring> has special processing */
-  OPT_NDB_MGMD,
-
-  /* --ndb-nodeid=<nodeid> has special processing */
-  OPT_NDB_NODEID,
 
  /*
    should always be last in this enum and will be used as the

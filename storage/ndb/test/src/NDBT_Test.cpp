@@ -1477,7 +1477,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
     return 0;
   }
 
-  Ndb_cluster_connection con;
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   if(m_connect_cluster && con.connect(12, 5, 1))
   {
     return NDBT_ProgramExit(NDBT_FAILED);

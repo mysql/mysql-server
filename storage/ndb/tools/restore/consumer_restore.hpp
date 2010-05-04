@@ -50,12 +50,16 @@ struct PromotionRules {
 class BackupRestore : public BackupConsumer 
 {
 public:
-  BackupRestore(NODE_GROUP_MAP *ng_map,
+  BackupRestore(const char* ndb_connectstring,
+                int ndb_nodeid,
+                NODE_GROUP_MAP *ng_map,
                 uint ng_map_len,
-                Uint32 parallelism=1)
+                Uint32 parallelism=1) :
+    m_ndb(NULL),
+    m_cluster_connection(NULL),
+    m_ndb_connectstring(ndb_connectstring),
+    m_ndb_nodeid(ndb_nodeid)
   {
-    m_ndb = 0;
-    m_cluster_connection = 0;
     m_nodegroup_map = ng_map;
     m_nodegroup_map_len = ng_map_len;
     m_n_tablespace = 0;
@@ -168,6 +172,8 @@ public:
 
   Ndb * m_ndb;
   Ndb_cluster_connection * m_cluster_connection;
+  const char* m_ndb_connectstring;
+  int m_ndb_nodeid;
   bool m_restore;
   bool m_restore_meta;
   bool m_no_restore_disk;

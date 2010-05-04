@@ -60,7 +60,7 @@ public:
   bool init(int _no_start, int _initial,
             int _initialstart, int _daemon);
 
-  void fetch_configuration(const char* _connect_string,
+  void fetch_configuration(const char* _connect_string, int force_nodeid,
                            const char* _bind_adress);
   void setupConfiguration();
   void closeConfiguration(bool end_session= true);

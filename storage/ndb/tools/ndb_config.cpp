@@ -508,7 +508,7 @@ fetch_configuration()
 
   ndb_mgm_set_error_stream(mgm, stderr);
   
-  if (ndb_mgm_set_connectstring(mgm, opt_connect_str))
+  if (ndb_mgm_set_connectstring(mgm, opt_ndb_connectstring))
   {
     fprintf(stderr, "* %5d: %s\n", 
 	    ndb_mgm_get_latest_error(mgm),
