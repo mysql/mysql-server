@@ -4618,7 +4618,8 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
 int
 ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
                       const char *type_str,
-                      const char *event_name_prefix)
+                      const char *dbname,
+                      const char *tabname)
 {
   DBUG_ENTER("ndbcluster_drop_event");
   /*
@@ -4626,12 +4627,12 @@ ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
     which ones are supposed to be there as they may have been created
     differently for different mysqld's.  So we drop both
   */
-  for (uint i= 0; event_name_prefix && i < 2; i++)
+  for (uint i= 0; i < 2; i++)
   {
     NDBDICT *dict= ndb->getDictionary();
     String event_name(INJECTOR_EVENT_LEN);
-    ndb_rep_event_name(&event_name, event_name_prefix, 0, i);
-
+    ndb_rep_event_name(&event_name, dbname, tabname, i);
+    
     if (!dict->dropEvent(event_name.c_ptr()))
       continue;
 
@@ -4707,12 +4708,15 @@ ndbcluster_handle_alter_table(THD *thd, NDB_SHARE *share, const char *type_str)
 int
 ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                              const char *type_str,
-                             const char *event_name_prefix)
+                             const char * dbname, const char * tabname)
 {
   DBUG_ENTER("ndbcluster_handle_drop_table");
 
-  if (ndbcluster_drop_event(thd, ndb, share, type_str, event_name_prefix))
-    DBUG_RETURN(-1);
+  if (dbname && tabname)
+  {
+    if (ndbcluster_drop_event(thd, ndb, share, type_str, dbname, tabname))
+      DBUG_RETURN(-1);
+  }
 
   if (share == 0 || share->op == 0)
   {
