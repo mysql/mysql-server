@@ -23,6 +23,10 @@
 #include <brttypes.h>
 #include <db.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 struct __toku_point;
 #if !defined(__TOKU_POINT)
 #define __TOKU_POINT
@@ -236,5 +240,10 @@ int toku_rt_successor(toku_range_tree* tree, toku_point* point,
 int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size);
 
 int toku_rt_iterate(toku_range_tree* tree, int (*f)(toku_range*,void*), void* extra);
+
+#if defined(__cplusplus)
+}
+#endif
+
 
 #endif  /* #if !defined(TOKU_RANGE_TREE_H) */

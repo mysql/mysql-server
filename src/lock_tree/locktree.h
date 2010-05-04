@@ -27,6 +27,10 @@
 
 #include "toku_assert.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /** Errors returned by lock trees */
 typedef enum {
     TOKU_LT_INCONSISTENT=-1,  /**< The member data are in an inconsistent 
@@ -533,5 +537,9 @@ int toku__lt_point_cmp(const toku_point* x, const toku_point* y);
 toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
 
 toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

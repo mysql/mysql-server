@@ -16,6 +16,10 @@
 #include <brttypes.h>
 #include <rangetree.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if !defined(TOKU_LOCKTREE_DEFINE)
 #define TOKU_LOCKTREE_DEFINE
 typedef struct __toku_lock_tree toku_lock_tree;
@@ -71,5 +75,10 @@ int             toku_idlth_insert     (toku_idlth* table, DICTIONARY_ID dict_id)
 void            toku_idlth_clear      (toku_idlth* idlth);
 
 BOOL            toku_idlth_is_empty   (toku_idlth* idlth);
+
+#if defined(__cplusplus)
+}
+#endif
+
 
 #endif

@@ -17,6 +17,9 @@
 #include <brttypes.h>
 #include <locktree.h>
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !defined(TOKU_LOCKTREE_DEFINE)
 #define TOKU_LOCKTREE_DEFINE
@@ -74,5 +77,10 @@ void            toku_lth_delete     (toku_lth* table, toku_lock_tree* key);
 void            toku_lth_close      (toku_lth* table);
 
 int             toku_lth_insert     (toku_lth* table, toku_lock_tree* key);
+
+#if defined(__cplusplus)
+}
+#endif
+
 #endif
 
