@@ -7409,17 +7409,6 @@ int ha_ndbcluster::final_drop_index(TABLE *table_arg)
   DBUG_RETURN(error);
 }
 
-/*
-  Find the base name in the format "<database>/<table>"
-*/
-static const char *get_base_name(const char *ptr)
-{
-  ptr+= strlen(ptr);
-  while (*(--ptr) != '/');
-  while (*(--ptr) != '/');
-  return ptr+1;
-}
-
 /**
   Rename a table in NDB Cluster.
 */
@@ -7541,8 +7530,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
   /* handle old table */
   if (!is_old_table_tmpfile)
   {
-    const char *ptr= get_base_name(from);
-    ndbcluster_drop_event(thd, ndb, share, "rename table", ptr);
+    ndbcluster_drop_event(thd, ndb, share, "rename table", 
+                          old_dbname, m_tabname);
   }
 
   if (!result && !is_new_table_tmpfile)
@@ -7556,8 +7545,8 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
 #endif
     /* always create an event for the table */
     String event_name(INJECTOR_EVENT_LEN);
-    const char *ptr= get_base_name(to);
-    ndb_rep_event_name(&event_name, ptr, 0, get_binlog_full(share));
+    ndb_rep_event_name(&event_name, new_dbname, new_tabname, 
+                       get_binlog_full(share));
 
     if (!ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share,
                                  share && ndb_binlog_running ? 2 : 1/* push warning */))
@@ -7775,9 +7764,19 @@ retry_temporary_error1:
   int table_dropped= dict->getNdbError().code != 709;
 
   {
-    const char *ptr= get_base_name(path);
-    ndbcluster_handle_drop_table(thd, ndb, share, "delete table",
-                                 table_dropped ? ptr : 0);
+    if (table_dropped)
+    {
+      ndbcluster_handle_drop_table(thd, ndb, share, "delete table", 
+                                   db, table_name);
+    }
+    else
+    {
+      /**
+       * Setting 0,0 will cause ndbcluster_drop_event *not* to be called
+       */
+      ndbcluster_handle_drop_table(thd, ndb, share, "delete table", 
+                                   0, 0);
+    }
   }
 
   if (!IS_TMP_PREFIX(table_name) && share &&
