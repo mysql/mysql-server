@@ -271,6 +271,17 @@ buf_flush_insert_into_flush_list(
 	block->page.oldest_modification = lsn;
 	UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
 
+#ifdef UNIV_DEBUG_VALGRIND
+	{
+		ulint	zip_size = buf_block_get_zip_size(block);
+
+		if (UNIV_UNLIKELY(zip_size)) {
+			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
+		} else {
+			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
+		}
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -319,6 +330,18 @@ buf_flush_insert_sorted_into_flush_list(
 	ut_ad(!block->page.in_flush_list);
 	ut_d(block->page.in_flush_list = TRUE);
 	block->page.oldest_modification = lsn;
+
+#ifdef UNIV_DEBUG_VALGRIND
+	{
+		ulint	zip_size = buf_block_get_zip_size(block);
+
+		if (UNIV_UNLIKELY(zip_size)) {
+			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
+		} else {
+			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
+		}
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
 
 	prev_b = NULL;
 
@@ -890,6 +913,7 @@ try_again:
 	zip_size = buf_page_get_zip_size(bpage);
 
 	if (UNIV_UNLIKELY(zip_size)) {
+		UNIV_MEM_ASSERT_RW(bpage->zip.data, zip_size);
 		/* Copy the compressed page and clear the rest. */
 		memcpy(trx_doublewrite->write_buf
 		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
@@ -899,6 +923,8 @@ try_again:
 		       + zip_size, 0, UNIV_PAGE_SIZE - zip_size);
 	} else {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+		UNIV_MEM_ASSERT_RW(((buf_block_t*) bpage)->frame,
+				   UNIV_PAGE_SIZE);
 
 		memcpy(trx_doublewrite->write_buf
 		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
