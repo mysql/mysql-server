@@ -7004,7 +7004,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     into the main table list, like open_tables does).
     This code is wrong and will be removed, please do not copy.
   */
-  frm_type= mysql_frm_type(thd, new_name_buff, &table_type);
+  frm_type= mysql_frm_type(thd, reg_path, &table_type);
   /* Rename a view */
   /* Sic: there is a race here */
   if (frm_type == FRMTYPE_VIEW && !(alter_info->flags & ~ALTER_RENAME))
