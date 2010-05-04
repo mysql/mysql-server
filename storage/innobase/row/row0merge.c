@@ -2094,7 +2094,7 @@ row_merge_drop_temp_indexes(void)
 		field = rec_get_nth_field_old(rec, DICT_SYS_INDEXES_NAME_FIELD,
 					      &len);
 		if (len == UNIV_SQL_NULL || len == 0
-		    || mach_read_from_1(field) != (ulint) TEMP_INDEX_PREFIX) {
+		    || (char) *field != TEMP_INDEX_PREFIX) {
 			continue;
 		}
 
