@@ -1,3 +1,8 @@
+2010-05-04	The InnoDB Team
+
+	* fsp/fsp0fsp.c:
+	Fix Bug#53306 valgrind: warnings in innodb.innodb
+
 2010-05-03	The InnoDB Team
 
 	* buf0buf.c:
