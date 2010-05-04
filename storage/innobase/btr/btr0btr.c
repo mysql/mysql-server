@@ -2003,9 +2003,13 @@ func_start:
 			split_rec = NULL;
 			goto insert_empty;
 		}
+	} else if (UNIV_UNLIKELY(insert_left)) {
+		first_rec = page_rec_get_next(page_get_infimum_rec(page));
+		move_limit = page_rec_get_next(btr_cur_get_rec(cursor));
 	} else {
 insert_empty:
 		ut_ad(!split_rec);
+		ut_ad(!insert_left);
 		buf = mem_alloc(rec_get_converted_size(cursor->index,
 						       tuple, n_ext));
 
@@ -2029,7 +2033,11 @@ insert_empty:
 			&& btr_page_insert_fits(cursor, split_rec,
 						offsets, tuple, n_ext, heap);
 	} else {
-		mem_free(buf);
+		if (!insert_left) {
+			mem_free(buf);
+			buf = NULL;
+		}
+
 		insert_will_fit = !new_page_zip
 			&& btr_page_insert_fits(cursor, NULL,
 						NULL, tuple, n_ext, heap);
