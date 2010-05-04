@@ -235,12 +235,12 @@ int ndbcluster_log_schema_op(THD *thd,
                              int have_lock_open);
 int ndbcluster_drop_event(THD *thd, Ndb *ndb, NDB_SHARE *share,
                           const char *type_str,
-                          const char *event_name_prefix);
+                          const char * dbname, const char * tabname);
 int ndbcluster_handle_alter_table(THD *thd, NDB_SHARE *share,
                                   const char *type_str);
 int ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                                  const char *type_str,
-                                 const char *event_name_prefix);
+                                 const char * db, const char * tabname);
 void ndb_rep_event_name(String *event_name,
                         const char *db, const char *tbl, my_bool full);
 #ifdef HAVE_NDB_BINLOG
