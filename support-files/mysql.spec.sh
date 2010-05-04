@@ -472,7 +472,7 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 touch $RBR%{_sysconfdir}/my.cnf
 
 # Install SELinux files in datadir
-install -m 600 $MBD/support-files/RHEL4-SElinux/mysql.{fc,te} \
+install -m 600 $MBD/release/support-files/RHEL4-SElinux/mysql.{fc,te} \
   $RBR%{_datadir}/mysql/SELinux/RHEL4
 
 %if %{WITH_TCMALLOC}
