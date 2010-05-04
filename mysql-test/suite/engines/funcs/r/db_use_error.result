@@ -6,6 +6,7 @@ information_schema
 d6
 mtr
 mysql
+performance_schema
 test
 USE DATABASE nond6;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'DATABASE nond6' at line 1
@@ -15,4 +16,5 @@ Database
 information_schema
 mtr
 mysql
+performance_schema
 test
