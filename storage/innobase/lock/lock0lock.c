@@ -2400,7 +2400,7 @@ lock_rec_inherit_to_gap(
 		if (!lock_rec_get_insert_intention(lock)
 		    && !((srv_locks_unsafe_for_binlog
 			  || lock->trx->isolation_level
-			  == TRX_ISO_READ_COMMITTED)
+			  <= TRX_ISO_READ_COMMITTED)
 			 && lock_get_mode(lock) == LOCK_X)) {
 
 			lock_rec_add_to_queue(LOCK_REC | LOCK_GAP
