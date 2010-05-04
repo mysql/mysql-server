@@ -3374,20 +3374,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -9011,20 +9003,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -14753,20 +14737,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -20600,20 +20576,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -26522,20 +26490,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -255 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> -255 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -32315,7 +32275,7 @@ total_rows	min_value	max(c1)
 23	0	18446744073709551615
 SELECT * FROM t2 WHERE c2 = -9223372036854775809;
 c1	c2	c3	c4	c5	c6	c7
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 Warnings:
 SELECT c1,c6 FROM t2;
 c1	c6
@@ -32377,20 +32337,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 SELECT * FROM t2 WHERE c1 = -128 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -128 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -128 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = -128 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> -128 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -34161,19 +34113,19 @@ c1	c2	c3	c4	c5	c6	c7
 SELECT * FROM t3 WHERE c2 = -9223372036854775809 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 = -9223372036854775809 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 = -9223372036854775809 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 = -9223372036854775809 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <> -9223372036854775809 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
@@ -34198,13 +34150,13 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	26	27	28	29	30
 18446744073709551615	9223372036854775807	36	37	38	39	40
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <> -9223372036854775809 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 > -9223372036854775809 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
@@ -34229,13 +34181,13 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	26	27	28	29	30
 18446744073709551615	9223372036854775807	36	37	38	39	40
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 > -9223372036854775809 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 >= -9223372036854775809 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
@@ -34260,37 +34212,37 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	26	27	28	29	30
 18446744073709551615	9223372036854775807	36	37	38	39	40
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 >= -9223372036854775809 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 < -9223372036854775809 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 < -9223372036854775809 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <= -9223372036854775809 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <= -9223372036854775809 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <=> -9223372036854775809 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <=> -9223372036854775809 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 BETWEEN -9223372036854775809 AND 9223372036854775808 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
@@ -34315,13 +34267,13 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	26	27	28	29	30
 18446744073709551615	9223372036854775807	36	37	38	39	40
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 BETWEEN -9223372036854775809 AND 9223372036854775808 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 IN (-9223372036854775809,9223372036854775808) ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
@@ -34334,12 +34286,12 @@ SELECT * FROM t3 WHERE c2 >= -9223372036854775809 AND c2 < 9223372036854775808 A
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 >= -9223372036854775809 AND c2 < 9223372036854775808 AND c7 = 35 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 IS NULL ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 105	NULL	102	103	104	105	106
@@ -34397,13 +34349,13 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	36	37	38	39	40
 18446744073709551615	9223372036854775807	26	27	28	29	30
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <> -9223372036854775809 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 0	-9223372036854775808	1	2	3	4	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 > -9223372036854775809 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
@@ -34428,13 +34380,13 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	36	37	38	39	40
 18446744073709551615	9223372036854775807	26	27	28	29	30
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 > -9223372036854775809 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 0	-9223372036854775808	1	2	3	4	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 >= -9223372036854775809 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
@@ -34459,37 +34411,37 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	36	37	38	39	40
 18446744073709551615	9223372036854775807	26	27	28	29	30
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 >= -9223372036854775809 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 0	-9223372036854775808	1	2	3	4	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 < -9223372036854775809 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 < -9223372036854775809 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <= -9223372036854775809 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <= -9223372036854775809 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <=> -9223372036854775809 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 <=> -9223372036854775809 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 BETWEEN -9223372036854775809 AND 9223372036854775808 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
@@ -34514,13 +34466,13 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	36	37	38	39	40
 18446744073709551615	9223372036854775807	26	27	28	29	30
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 BETWEEN -9223372036854775809 AND 9223372036854775808 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 0	-9223372036854775808	1	2	3	4	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 IN (-9223372036854775809,9223372036854775808) ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
@@ -34533,12 +34485,12 @@ SELECT * FROM t3 WHERE c2 >= -9223372036854775809 AND c2 < 9223372036854775808 A
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 >= -9223372036854775809 AND c2 < 9223372036854775808 AND c7 = 35 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 IS NULL ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 105	NULL	102	103	104	105	106
@@ -34782,13 +34734,13 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	26	27	28	29	30
 18446744073709551615	9223372036854775807	36	37	38	39	40
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 BETWEEN -9223372036854775809 AND 9223372036854775808 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 IN (-9223372036854775809,9223372036854775808) ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5
@@ -34801,12 +34753,12 @@ SELECT * FROM t3 WHERE c2 >= -9223372036854775809 AND c2 < 9223372036854775808 A
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 >= -9223372036854775809 AND c2 < 9223372036854775808 AND c7 = 35 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 IS NULL ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 105	NULL	102	103	104	105	106
@@ -34957,13 +34909,13 @@ c1	c2	c3	c4	c5	c6	c7
 18446744073709551615	9223372036854775807	36	37	38	39	40
 18446744073709551615	9223372036854775807	26	27	28	29	30
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 BETWEEN -9223372036854775809 AND 9223372036854775808 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 0	-9223372036854775808	1	2	3	4	5
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 IN (-9223372036854775809,9223372036854775808) ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
@@ -34976,12 +34928,12 @@ SELECT * FROM t3 WHERE c2 >= -9223372036854775809 AND c2 < 9223372036854775808 A
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 >= -9223372036854775809 AND c2 < 9223372036854775808 AND c7 = 35 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 Warnings:
-Error	1292	Truncated incorrect DECIMAL value: ''
+Warning	1292	Truncated incorrect DECIMAL value: ''
 SELECT * FROM t3 WHERE c2 IS NULL ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
 105	NULL	102	103	104	105	106
