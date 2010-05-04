@@ -29,6 +29,9 @@ update performance_schema.SETUP_CONSUMERS
 
 truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
 
+# Reset lost counters to a known state
+flush status;
+
 # Code to test
 
 --disable_warnings
