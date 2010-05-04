@@ -4310,12 +4310,6 @@ NdbDictionaryImpl::createEvent(NdbEventImpl & evnt)
       ERR_RETURN(getNdbError(), -1);
     }
   }
-  
-#ifdef EVENT_DEBUG
-  char buf[128] = {0};
-  evnt.m_attrListBitmask.getText(buf);
-  ndbout_c("createEvent: mask = %s", buf);
-#endif
 
   // NdbDictInterface m_receiver;
   if (m_receiver.createEvent(m_ndb, evnt, 0 /* getFlag unset */) != 0)
@@ -4647,14 +4641,7 @@ NdbDictionaryImpl::getEvent(const char * eventName, NdbTableImpl* tab)
     delete ev;
     DBUG_RETURN(NULL);
   }
-#ifndef DBUG_OFF
-  char buf[128] = {0};
-  mask.getText(buf);
-  DBUG_PRINT("info",("attributeList_sz= %d, mask= %s", 
-                     attributeList_sz, buf));
-#endif
 
-  
   if ( attributeList_sz > (uint) table.getNoOfColumns() )
   {
     m_error.code = 241;
