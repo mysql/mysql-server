@@ -110,7 +110,6 @@ static ulong commit_threads = 0;
 static mysql_mutex_t commit_threads_m;
 static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
-static mysql_mutex_t analyze_mutex;
 static bool innodb_inited = 0;
 
 #define INSIDE_HA_INNOBASE_CC
@@ -213,7 +212,6 @@ static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-        {&analyze_mutex_key, "analyze_mutex", 0},
         {&commit_threads_m_key, "commit_threads_m", 0},
         {&commit_cond_mutex_key, "commit_cond_mutex", 0},
         {&innobase_share_mutex_key, "innobase_share_mutex", 0},
@@ -2430,8 +2428,6 @@ innobase_change_buffering_inited_ok:
 			 &commit_threads_m, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
-	mysql_mutex_init(analyze_mutex_key,
-			  &analyze_mutex, MY_MUTEX_INIT_FAST);
 	mysql_cond_init(commit_cond_key, &commit_cond, NULL);
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
@@ -2486,7 +2482,6 @@ innobase_end(
 		mysql_mutex_destroy(&prepare_commit_mutex);
 		mysql_mutex_destroy(&commit_threads_m);
 		mysql_mutex_destroy(&commit_cond_m);
-		mysql_mutex_destroy(&analyze_mutex);
 		mysql_cond_destroy(&commit_cond);
 	}
 
@@ -7801,6 +7796,8 @@ ha_innobase::info(
 					break;
 				}
 
+				dict_index_stat_mutex_enter(index);
+
 				if (index->stat_n_diff_key_vals[j + 1] == 0) {
 
 					rec_per_key = stats.records;
@@ -7808,6 +7805,8 @@ ha_innobase::info(
 					rec_per_key = (ha_rows)(stats.records /
 					 index->stat_n_diff_key_vals[j + 1]);
 				}
+
+				dict_index_stat_mutex_exit(index);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
@@ -7863,14 +7862,8 @@ ha_innobase::analyze(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
-	/* Serialize ANALYZE TABLE inside InnoDB, see
-	Bug#38996 Race condition in ANALYZE TABLE */
-	mysql_mutex_lock(&analyze_mutex);
-
 	/* Simply call ::info() with all the flags */
 	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
-
-	mysql_mutex_unlock(&analyze_mutex);
 
 	return(0);
 }
