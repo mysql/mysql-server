@@ -5,9 +5,6 @@
 
 /* TODO:
  *
- *  Improve enospc testing
- *   - fail only after n calls to write()
- *
  *  Decide how to test on recovery (using checkpoint_stress technique?), implement.
  *
  */
@@ -86,6 +83,10 @@ int fwrite_count = 0;
 int fwrite_count_nominal = 0;  // number of fwrite calls for normal operation, initially zero
 int fwrite_count_trigger = 0;  // sequence number of fwrite call that will fail (zero disables induced failure)
 
+int write_count = 0;
+int write_count_nominal = 0;  // number of write calls for normal operation, initially zero
+int write_count_trigger = 0;  // sequence number of write call that will fail (zero disables induced failure)
+
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
     fwrite_count++;
     size_t r;
@@ -94,6 +95,20 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
 	r = -1;
     } else {
 	r = fwrite(ptr, size, nmemb, stream);
+    }
+    return r;
+}
+
+
+ssize_t 
+bad_write(int fd, const void * bp, size_t len) {
+    ssize_t r;
+    write_count++;
+    if (write_count_trigger == write_count) {
+	errno = ENOSPC;
+	r = -1;
+    } else {
+	r = write(fd, bp, len);
     }
     return r;
 }
@@ -165,17 +180,6 @@ assert_inames_missing(DBT* inames) {
 	assert(r == 0);
 	if (verbose) printf("File has been properly deleted: %s\n", iname);
     }
-}
-
-int write_calls = 0;
-
-ssize_t 
-bad_write(int UU(fd), const void * UU(bp), size_t UU(len)) {
-    ssize_t r;
-    write_calls++;
-    errno= ENOSPC;
-    r = -1;
-    return r;
 }
 
 
@@ -430,7 +434,7 @@ static void test_loader(enum test_type t, DB **dbs)
         dbt_init(&key, &k, sizeof(unsigned int));
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
-	if (t == enospc_f)
+	if (t == enospc_f || t == enospc_w)
 	    failed_put = r;
 	else
 	    CKERR(r);
@@ -458,15 +462,8 @@ static void test_loader(enum test_type t, DB **dbs)
 	r = loader->close(loader);
 	assert(r);  // not defined what close() returns when poll function returns non-zero
     }
-    else if (t == enospc_w) {
-	r = db_env_set_func_write(bad_write);
-	CKERR(r);
-	printf("closing, but expecting failure from enospc\n");
-	r = loader->close(loader);
-	printf("write_calls = %d\n", write_calls);
-	//	assert(r);  
-    }
-    else if (t == enospc_f && !failed_put) {
+    else if ((t == enospc_f || t == enospc_w)
+	     && !failed_put) {
 	printf("closing, but expecting failure from enospc\n");
 	r = loader->close(loader);
 	if (!USE_PUTS)
@@ -488,7 +485,8 @@ static void test_loader(enum test_type t, DB **dbs)
 
     if (t == commit) {
 	fwrite_count_nominal = fwrite_count;  // capture how many fwrites were required for normal operation
-	if (verbose) printf("Calls to fwrite nominal: %d\n", fwrite_count_nominal);
+	write_count_nominal  = write_count;   // capture how many  writes were required for normal operation
+	if (verbose) printf("Calls to fwrite nominal: %d, calls to write nominal: %d\n", fwrite_count_nominal, write_count_nominal);
 	r = txn->commit(txn, 0);
 	CKERR(r);
 	if (!USE_PUTS) {
@@ -548,9 +546,18 @@ static void run_test(enum test_type t, int trigger)
     generate_permute_tables();
 
     fwrite_count = 0;
-    fwrite_count_trigger = trigger;
+    write_count  = 0;
+    if (t == enospc_f)
+	fwrite_count_trigger = trigger;
+    else
+	fwrite_count_trigger = 0;
+    if (t == enospc_w)
+	write_count_trigger = trigger;
+    else
+	write_count_trigger = 0;
 
     db_env_set_func_loader_fwrite(bad_fwrite);
+    db_env_set_func_write(bad_write);
 
     test_loader(t, dbs);
 
@@ -578,8 +585,12 @@ int test_main(int argc, char * const *argv) {
     if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
     run_test(abort_txn, 0);
     if (INDUCE_ENOSPC) {
-	if (verbose) printf("\n\nTesting loader with enospc induced during loader close\n");
-	run_test(enospc_w, 0);
+	int i;
+	for (i = 1; i < 5; i++) {
+	    int trigger = write_count_nominal / i;
+	    if (verbose) printf("\n\nTesting loader with enospc induced at write count %d\n", trigger);
+	    run_test(enospc_w, trigger);
+	}
     }
     {
 	int i;

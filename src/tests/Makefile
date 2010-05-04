@@ -456,7 +456,7 @@ libs:
 
 
 
-diskfull.tdb$(BINSUF): CPPFLAGS+=-DDONT_DEPRECATE_WRITES
+loader-cleanup-test.tdb$(BINSUF) diskfull.tdb$(BINSUF): CPPFLAGS+=-DDONT_DEPRECATE_WRITES
 test_db_curs4.tdb$(BINSUF): trace.h
 test_db_curs4.bdb$(BINSUF): trace.h
 # a bunch of little tests designed to run in parallel
