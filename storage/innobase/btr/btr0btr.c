@@ -2050,17 +2050,7 @@ insert_empty:
 	}
 
 	/* 5. Move then the records to the new page */
-	if (direction == FSP_DOWN
-#ifdef UNIV_BTR_AVOID_COPY
-	    && page_rec_is_supremum(move_limit)) {
-		/* Instead of moving all records, make the new page
-		the empty page. */
-
-		left_block = block;
-		right_block = new_block;
-	} else if (direction == FSP_DOWN
-#endif /* UNIV_BTR_AVOID_COPY */
-		   ) {
+	if (direction == FSP_DOWN) {
 		/*		fputs("Split left\n", stderr); */
 
 		if (0
@@ -2103,14 +2093,6 @@ insert_empty:
 		right_block = block;
 
 		lock_update_split_left(right_block, left_block);
-#ifdef UNIV_BTR_AVOID_COPY
-	} else if (!split_rec) {
-		/* Instead of moving all records, make the new page
-		the empty page. */
-
-		left_block = new_block;
-		right_block = block;
-#endif /* UNIV_BTR_AVOID_COPY */
 	} else {
 		/*		fputs("Split right\n", stderr); */
 
