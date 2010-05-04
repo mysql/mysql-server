@@ -802,12 +802,7 @@ fsp_init_file_page_low(
 
 	buf_block_align(page)->check_index_page_at_flush = FALSE;
 
-#ifdef UNIV_BASIC_LOG_DEBUG
-	memset(page, 0xff, UNIV_PAGE_SIZE);
-#endif
-	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
-			ut_dulint_zero);
-	mach_write_to_8(page + FIL_PAGE_LSN, ut_dulint_zero);
+	memset(page, 0, UNIV_PAGE_SIZE);
 }
 
 /***************************************************************
