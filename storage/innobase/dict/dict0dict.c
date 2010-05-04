@@ -685,7 +685,8 @@ dict_init(void)
 		     &dict_foreign_err_mutex, SYNC_ANY_LATCH);
 
 	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
-		mutex_create(&dict_index_stat_mutex[i], SYNC_INDEX_TREE);
+		mutex_create(PFS_NOT_INSTRUMENTED,
+			     &dict_index_stat_mutex[i], SYNC_INDEX_TREE);
 	}
 }
 
