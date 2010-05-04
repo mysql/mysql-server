@@ -54,16 +54,6 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-#if 0
-static void usage()
-{
-  char desc[] =  "This program connects to ndbd, and then disconnects\n";
-  ndb_std_print_version();
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
-}
-#endif
-
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
 
@@ -79,7 +69,7 @@ int main(int argc, char** argv){
 
   for (int i = 0; i<_loop; i++)
   {
-    Ndb_cluster_connection con(opt_connect_str);
+    Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
     if(con.connect(12, 5, 1) != 0)
     {
       ndbout << "Unable to connect to management server." << endl;

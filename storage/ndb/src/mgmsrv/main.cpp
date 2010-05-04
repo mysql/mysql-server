@@ -250,7 +250,7 @@ static int mgmd_main(int argc, char** argv)
     g_eventLogger->info("NDB Cluster Management Server. %s",
                         NDB_VERSION_STRING);
 
-    mgm= new MgmtSrvr(opts, opt_connect_str);
+    mgm= new MgmtSrvr(opts);
     if (mgm == NULL) {
       g_eventLogger->critical("Out of memory, couldn't create MgmtSrvr");
       mgmd_exit(1);

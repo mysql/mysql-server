@@ -290,8 +290,7 @@ public:
 
   TableS& operator=(TableS& org) ;
 
-  inline
-  const bool isSYSTAB_0() const {
+  bool isSYSTAB_0() const {
     return m_isSYSTAB_0;
   } 
 }; // TableS;

@@ -223,8 +223,7 @@ translateStopRef(Uint32 errCode)
 }
 
 
-MgmtSrvr::MgmtSrvr(const MgmtOpts& opts,
-                   const char* connect_str) :
+MgmtSrvr::MgmtSrvr(const MgmtOpts& opts) :
   m_opts(opts),
   _blockNumber(-1),
   _ownNodeId(0),

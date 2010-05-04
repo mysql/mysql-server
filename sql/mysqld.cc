@@ -466,10 +466,7 @@ my_bool opt_ndb_log_bin= FALSE;
 my_bool opt_ndb_log_empty_epochs= FALSE;
 
 
-extern "C" char opt_ndb_constrbuf[1024];
 extern "C" const char *opt_ndb_connectstring;
-extern "C" unsigned opt_ndb_constrbuf_len;
-extern "C" const char *opt_ndb_mgmd;
 extern "C" ulong opt_ndb_nodeid;
 extern const char *ndb_distribution_names[];
 extern TYPELIB ndb_distribution_typelib;
@@ -6229,12 +6226,13 @@ master-ssl",
    (uchar**) &opt_ndb_connectstring,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ndb-mgmd-host", OPT_NDB_MGMD,
-   "Set host and port for ndb_mgmd. Syntax: hostname[:port]",
-   (uchar**) &opt_ndb_mgmd,
-   (uchar**) &opt_ndb_mgmd,
+   "same as --ndb-connectstring.",
+   (uchar**) &opt_ndb_connectstring,
+   (uchar**) &opt_ndb_connectstring,
    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"ndb-nodeid", OPT_NDB_NODEID,
-   "Nodeid for this mysqlserver in the cluster.",
+   "Set node id for this node. Overrides node id specified "
+   "in --ndb-connectstring.",
    (uchar**) &opt_ndb_nodeid,
    (uchar**) &opt_ndb_nodeid,
    0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -8512,29 +8510,6 @@ mysqld_get_one_option(int optid,
     break;
   }
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  case OPT_NDB_MGMD:
-  case OPT_NDB_NODEID:
-  {
-    int len= my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-			 sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-			 "%s%s%s",opt_ndb_constrbuf_len > 0 ? ",":"",
-			 optid == OPT_NDB_NODEID ? "nodeid=" : "",
-			 argument);
-    opt_ndb_constrbuf_len+= len;
-  }
-  /* fall through to add the connectstring to the end
-   * and set opt_ndb_connectstring
-   */
-  case OPT_NDB_CONNECTSTRING:
-    if (opt_ndb_connectstring && opt_ndb_connectstring[0])
-      my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-		  sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-		  "%s%s", opt_ndb_constrbuf_len > 0 ? ",":"",
-		  opt_ndb_connectstring);
-    else
-      opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
-    opt_ndb_connectstring= opt_ndb_constrbuf;
-    break;
   case OPT_NDB_DISTRIBUTION:
     int id;
     id= find_type_or_exit(argument, &ndb_distribution_typelib, opt->name);

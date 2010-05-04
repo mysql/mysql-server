@@ -45,7 +45,7 @@ const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_waiter"),
   { "no-contact", 'n', "Wait for cluster no contact",
     (uchar**) &_no_contact, (uchar**) &_no_contact, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
@@ -83,7 +83,6 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
-  const char* _hostName = NULL;
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_waiter.trace";
@@ -93,10 +92,9 @@ int main(int argc, char** argv){
                      ndb_std_get_one_option))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  _hostName = argv[0];
-
-  if (_hostName == 0)
-    _hostName= opt_connect_str;
+  const char* connect_string = argv[0];
+  if (connect_string == 0)
+    connect_string = opt_ndb_connectstring;
 
   enum ndb_mgm_node_status wait_status;
   if (_no_contact)
@@ -159,7 +157,7 @@ int main(int argc, char** argv){
     nowait_nodes_bitmask.bitNOT();
   }
 
-  if (waitClusterStatus(_hostName, wait_status) != 0)
+  if (waitClusterStatus(connect_string, wait_status) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
   return NDBT_ProgramExit(NDBT_OK);
 }

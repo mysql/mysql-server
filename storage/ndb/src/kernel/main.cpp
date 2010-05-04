@@ -144,7 +144,8 @@ int main(int argc, char** argv)
   DBUG_PRINT("info", ("initial=%d", opt_initial));
   DBUG_PRINT("info", ("daemon=%d", opt_daemon));
   DBUG_PRINT("info", ("foreground=%d", opt_foreground));
-  DBUG_PRINT("info", ("connect_str=%s", opt_connect_str));
+  DBUG_PRINT("info", ("ndb_connectstring=%s", opt_ndb_connectstring));
+  DBUG_PRINT("info", ("ndb_nodeid=%d", opt_ndb_nodeid));
 
   if (opt_nowait_nodes)
   {
@@ -183,7 +184,9 @@ int main(int argc, char** argv)
     globalData.ownId= z;
   }
   { // Do configuration
-    theConfig->fetch_configuration(opt_connect_str, opt_bind_address);
+    theConfig->fetch_configuration(opt_ndb_connectstring,
+                                   opt_ndb_nodeid,
+                                   opt_bind_address);
   }
 
   my_setwd(NdbConfig_get_path(0), MYF(0));
@@ -191,7 +194,7 @@ int main(int argc, char** argv)
 #ifndef NDB_WIN32
   if (!opt_foreground)
   {
-    if (angel_run(opt_connect_str,
+    if (angel_run(opt_ndb_connectstring,
                   opt_bind_address,
                   opt_initialstart,
                   opt_daemon))

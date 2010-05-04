@@ -44,7 +44,7 @@ main(int argc, char** argv){
       return NDBT_ProgramExit(res);
   }
   
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   if(con.connect(12, 5, 1))
   {
     return NDBT_ProgramExit(NDBT_FAILED);

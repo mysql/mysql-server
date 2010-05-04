@@ -120,7 +120,7 @@ static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_restore"),
   { "connect", 'c', "same as --connect-string",
-    (uchar**) &opt_connect_str, (uchar**) &opt_connect_str, 0,
+    (uchar**) &opt_ndb_connectstring, (uchar**) &opt_ndb_connectstring, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "nodeid", 'n', "Backup files from node with id",
     (uchar**) &ga_nodeId, (uchar**) &ga_nodeId, 0,
@@ -549,7 +549,9 @@ o verify nodegroup mapping
   if (g_printer == NULL)
     return false;
 
-  BackupRestore* restore = new BackupRestore(opt_nodegroup_map,
+  BackupRestore* restore = new BackupRestore(opt_ndb_connectstring,
+                                             opt_ndb_nodeid,
+                                             opt_nodegroup_map,
                                              opt_nodegroup_map_len,
                                              ga_nParallelism);
   if (restore == NULL) 
@@ -984,7 +986,6 @@ free_data_callback()
     g_consumers[i]->tuple_free();
 }
 
-const char * g_connect_string = 0;
 static void exitHandler(int code)
 {
   NDBT_ProgramExit(code);
@@ -1061,8 +1062,6 @@ main(int argc, char** argv)
   if (ga_rebuild_indexes)
     g_options.append(" --rebuild-indexes");
   g_options.appfmt(" -p %d", ga_nParallelism);
-
-  g_connect_string = opt_connect_str;
 
   init_progress();
 

@@ -78,29 +78,6 @@ ndb_std_get_one_option(int optid,
   case '?':
     (*g_ndb_opt_usage)();
     exit(0);
-  case OPT_NDB_MGMD:
-  case OPT_NDB_NODEID:
-  {
-    int len= my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-                         sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-                         "%s%s%s",opt_ndb_constrbuf_len > 0 ? ",":"",
-                         optid == OPT_NDB_NODEID ? "nodeid=" : "",
-                         argument);
-    opt_ndb_constrbuf_len+= len;
-  }
-  /* fall through to add the connectstring to the end
-   * and set opt_ndb_connectstring
-   */
-  case OPT_NDB_CONNECTSTRING:
-    if (opt_ndb_connectstring && opt_ndb_connectstring[0])
-      my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-                  sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-                  "%s%s", opt_ndb_constrbuf_len > 0 ? ",":"",
-                  opt_ndb_connectstring);
-    else
-      opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
-    opt_connect_str= opt_ndb_constrbuf;
-    break;
   }
   return 0;
 }

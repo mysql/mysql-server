@@ -53,7 +53,7 @@ static int use_gci = 0;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_select_all"),
   { "database", 'd', "Name of database table is in",
     (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -124,7 +124,7 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_all");
   if(con.connect(12, 5, 1) != 0)
   {
