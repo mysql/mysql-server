@@ -1708,7 +1708,7 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
     res= select_like_stmt_test(stmt, 0, 0);
 
-    lex->link_first_table_back(create_table, &link_to_local);
+    lex->link_first_table_back(create_table, link_to_local);
   }
   else
   {
