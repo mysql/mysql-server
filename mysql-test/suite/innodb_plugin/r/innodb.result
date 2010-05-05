@@ -1184,82 +1184,6 @@ a	b
 8	8
 9	9
 drop table t1;
-CREATE TABLE t1 (a int not null primary key, b int not null, key (b)) engine=innodb;
-CREATE TABLE t2 (a int not null primary key, b int not null, key (b)) engine=innodb;
-INSERT INTO t1 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9),(10,10),(11,11),(12,12);
-INSERT INTO t2 values (1,1),(2,2),(3,3),(4,4),(5,5),(6,6),(7,7),(8,8),(9,9);
-update t1,t2 set t1.a=t1.a+100;
-select * from t1;
-a	b
-101	1
-102	2
-103	3
-104	4
-105	5
-106	6
-107	7
-108	8
-109	9
-110	10
-111	11
-112	12
-update t1,t2 set t1.a=t1.a+100 where t1.a=101;
-select * from t1;
-a	b
-201	1
-102	2
-103	3
-104	4
-105	5
-106	6
-107	7
-108	8
-109	9
-110	10
-111	11
-112	12
-update t1,t2 set t1.b=t1.b+10 where t1.b=2;
-select * from t1;
-a	b
-201	1
-103	3
-104	4
-105	5
-106	6
-107	7
-108	8
-109	9
-110	10
-111	11
-102	12
-112	12
-update t1,t2 set t1.b=t1.b+2,t2.b=t1.b+10 where t1.b between 3 and 5 and t1.a=t2.a+100;
-select * from t1;
-a	b
-201	1
-103	5
-104	6
-106	6
-105	7
-107	7
-108	8
-109	9
-110	10
-111	11
-102	12
-112	12
-select * from t2;
-a	b
-1	1
-2	2
-6	6
-7	7
-8	8
-9	9
-3	13
-4	14
-5	15
-drop table t1,t2;
 CREATE TABLE t2 (   NEXT_T         BIGINT NOT NULL PRIMARY KEY) ENGINE=MyISAM;
 CREATE TABLE t1 (  B_ID           INTEGER NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 SET AUTOCOMMIT=0;
@@ -1752,10 +1676,10 @@ variable_value - @innodb_rows_deleted_orig
 71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1087
+1066
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
-885
+865
 SELECT variable_value - @innodb_row_lock_waits_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_row_lock_waits';
 variable_value - @innodb_row_lock_waits_orig
 0
