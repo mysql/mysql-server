@@ -1172,6 +1172,8 @@ fetch_data_into_cache(
 	to each transaction into innodb_locks' and innodb_lock_waits'
 	caches. */
 
+	trx_sys_mutex_enter();
+
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 	     trx != NULL;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
@@ -1180,7 +1182,7 @@ fetch_data_into_cache(
 						     &requested_lock_row)) {
 
 			cache->is_truncated = TRUE;
-			return;
+			goto func_exit;
 		}
 
 		trx_row = (i_s_trx_row_t*)
@@ -1191,7 +1193,7 @@ fetch_data_into_cache(
 		if (trx_row == NULL) {
 
 			cache->is_truncated = TRUE;
-			return;
+			goto func_exit;
 		}
 
 		if (!fill_trx_row(trx_row, trx, requested_lock_row, cache)) {
@@ -1199,11 +1201,14 @@ fetch_data_into_cache(
 			/* memory could not be allocated */
 			cache->innodb_trx.rows_used--;
 			cache->is_truncated = TRUE;
-			return;
+			goto func_exit;
 		}
 	}
 
 	cache->is_truncated = FALSE;
+
+func_exit:
+	trx_sys_mutex_exit();
 }
 
 /*******************************************************************//**

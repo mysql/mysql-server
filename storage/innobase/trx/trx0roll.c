@@ -541,11 +541,13 @@ trx_rollback_or_clean_recovered(
 {
 	trx_t*	trx;
 
-	mutex_enter(&kernel_mutex);
+	trx_sys_mutex_enter();
 
 	if (!UT_LIST_GET_FIRST(trx_sys->trx_list)) {
 		goto leave_function;
 	}
+
+	trx_sys_mutex_exit();
 
 	if (all) {
 		fprintf(stderr,
@@ -553,10 +555,8 @@ trx_rollback_or_clean_recovered(
 			" of uncommitted transactions\n");
 	}
 
-	mutex_exit(&kernel_mutex);
-
 loop:
-	mutex_enter(&kernel_mutex);
+	trx_sys_mutex_enter();
 
 	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list); trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
@@ -570,7 +570,7 @@ loop:
 			continue;
 
 		case TRX_COMMITTED_IN_MEMORY:
-			mutex_exit(&kernel_mutex);
+			trx_sys_mutex_exit();
 			fprintf(stderr,
 				"InnoDB: Cleaning up trx with id "
 				TRX_ID_FMT "\n",
@@ -581,7 +581,9 @@ loop:
 		case TRX_ACTIVE:
 			if (all || trx_get_dict_operation(trx)
 			    != TRX_DICT_OP_NONE) {
-				mutex_exit(&kernel_mutex);
+
+				trx_sys_mutex_exit();
+
 				trx_rollback_active(trx);
 				goto loop;
 			}
@@ -596,7 +598,7 @@ loop:
 	}
 
 leave_function:
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 }
 
 /*******************************************************************//**

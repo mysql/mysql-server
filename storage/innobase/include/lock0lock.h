@@ -593,9 +593,7 @@ lock_check_trx_id_sanity(
 	trx_id_t	trx_id,		/*!< in: trx id */
 	const rec_t*	rec,		/*!< in: user record */
 	dict_index_t*	index,		/*!< in: clustered index */
-	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
-	ibool		has_kernel_mutex);/*!< in: TRUE if the caller owns the
-					kernel mutex */
+	const ulint*	offsets);	/*!< in: rec_get_offsets(rec, index) */
 /*********************************************************************//**
 Prints info of a table lock. */
 UNIV_INTERN
