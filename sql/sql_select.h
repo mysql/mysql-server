@@ -334,12 +334,12 @@ typedef struct st_join_table
   bool check_only_first_match()
   {
     return  last_sj_inner_tab == this ||
-           first_inner && first_inner->last_inner == this &&
-           table->reginfo.not_exists_optimize;
+           (first_inner && first_inner->last_inner == this &&
+            table->reginfo.not_exists_optimize);
   }
   bool is_last_inner_table()
   {
-    return first_inner && first_inner->last_inner == this ||
+    return (first_inner && first_inner->last_inner == this) ||
            last_sj_inner_tab == this;
   }
   struct st_join_table *get_first_inner_table()
