@@ -1558,7 +1558,7 @@ void close_thread_tables(THD *thd)
     - If in autocommit mode, or outside a transactional context,
     automatically release metadata locks of the current statement.
   */
-  if (! thd->in_multi_stmt_transaction() &&
+  if (! thd->in_multi_stmt_transaction_mode() &&
       ! (thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
   {
     thd->mdl_context.release_transactional_locks();
@@ -3783,7 +3783,7 @@ end_with_lock_open:
 Open_table_context::Open_table_context(THD *thd, ulong timeout)
   :m_action(OT_NO_ACTION),
    m_start_of_statement_svp(thd->mdl_context.mdl_savepoint()),
-   m_has_locks((thd->in_multi_stmt_transaction() &&
+   m_has_locks((thd->in_multi_stmt_transaction_mode() &&
                 thd->mdl_context.has_locks()) ||
                 thd->mdl_context.trans_sentinel()),
    m_global_mdl_request(NULL),
