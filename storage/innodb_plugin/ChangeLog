@@ -1,5 +1,11 @@
 2010-05-05	The InnoDB Team
 
+	* row/row0merge.c:
+	Fix Bug#53256 in a stress test, assert dict/dict0dict.c:815
+	table2 == NULL
+
+2010-05-05	The InnoDB Team
+
 	* handler/ha_innodb.cc:
 	Fix Bug#53165 Setting innodb_change_buffering=DEFAULT produces
 	incorrect result
