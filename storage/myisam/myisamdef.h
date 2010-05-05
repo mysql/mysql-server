@@ -706,7 +706,7 @@ extern uint _mi_rec_pack(MI_INFO *info,uchar *to,const uchar *from);
 extern uint _mi_pack_get_block_info(MI_INFO *myisam, MI_BIT_BUFF *bit_buff,
                                     MI_BLOCK_INFO *info, uchar **rec_buff_p,
                                     File file, my_off_t filepos);
-extern void _my_store_blob_length(uchar *pos,uint pack_length,uint length);
+extern void _mi_store_blob_length(uchar *pos,uint pack_length,uint length);
 extern void _myisam_log(enum myisam_log_commands command,MI_INFO *info,
 		       const uchar *buffert,uint length);
 extern void _myisam_log_command(enum myisam_log_commands command,
