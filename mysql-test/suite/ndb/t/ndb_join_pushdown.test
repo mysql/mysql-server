@@ -1002,6 +1002,15 @@ from t1 where b in
   (select x.a from t1 as x join t1 as y on (y.a = x.b))
 xor c > 5;
 
+##############
+## Subqueries with EQ_REFs in subquery containing an outer referrences
+## to 't1.b' should not be pushed as outer referrences are outside
+## the scope of our JOIN_TAB's
+##############
+explain
+select t1.a, (select straight_join X.a from t1 as X join t1 as Y on X.a=Y.b where Y.a = t1.b) from t1;
+select t1.a, (select straight_join X.a from t1 as X join t1 as Y on X.a=Y.b where Y.a = t1.b) from t1;
+
 drop table t1;
 
 # mixed engines
