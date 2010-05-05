@@ -171,29 +171,24 @@ int Rpl_info_file::do_reset_info()
 
 bool Rpl_info_file::do_set_info(const int pos, const char *value)
 {
-  bool error= FALSE;
-  if (pos >= ninfo && pos != cursor && !prv_error)
+  if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
-  if (!(error= 
-      (my_b_printf(&info_file, "%s\n", value) > (size_t) 0 ? FALSE : TRUE)))
-    cursor++;
-  return error;
+  
+  return (my_b_printf(&info_file, "%s\n", value) > (size_t) 0 ?
+          FALSE : TRUE);
 }
 
 bool Rpl_info_file::do_set_info(const int pos, const int value)
 {
-  bool error= FALSE;
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
-  if (!(error= 
-      (my_b_printf(&info_file, "%d\n", value) > (size_t) 0 ? FALSE : TRUE)))
-    cursor++;
-  return error;
+ 
+  return (my_b_printf(&info_file, "%d\n", value) > (size_t) 0 ?
+          FALSE : TRUE);
 }
 
 bool Rpl_info_file::do_set_info(const int pos, const float value)
 {
-  bool error= FALSE;
   /* This is enough to handle the float conversion */
   char buffer[sizeof(value) * 4];
 
@@ -202,15 +197,12 @@ bool Rpl_info_file::do_set_info(const int pos, const float value)
 
   my_sprintf(buffer, (buffer, "%.3f", value));
 
-  if (!(error=
-      (my_b_printf(&info_file, "%s\n", buffer) > (size_t) 0 ? FALSE : TRUE)))
-    cursor++;
-  return error;
+  return (my_b_printf(&info_file, "%s\n", buffer) > (size_t) 0 ?
+          FALSE : TRUE);
 }
 
 bool Rpl_info_file::do_set_info(const int pos, const my_off_t value)
 {
-  bool error= FALSE;
   /* This is enough to handle the my_off_t conversion */
   char buffer[22];
 
@@ -219,20 +211,17 @@ bool Rpl_info_file::do_set_info(const int pos, const my_off_t value)
 
   llstr(value, buffer);
 
-  if (!(error= 
-      (my_b_printf(&info_file, "%s\n", buffer) > (size_t) 0 ? FALSE : TRUE)))
-    cursor++;
-  return error;
+  return (my_b_printf(&info_file, "%s\n", buffer) > (size_t) 0 ?
+          FALSE : TRUE);
 }
 
 bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
 {
-  bool error;
+  bool error= TRUE;
 
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
 
-  error= prv_error = TRUE;
   /*
     produce a line listing the total number and all the server_ids
   */
@@ -240,9 +229,8 @@ bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
 
   if (server_ids_buffer)
   {
-    if (!(error= (my_b_printf(&info_file, "%s\n", server_ids_buffer) >
-                 (size_t) 0 ? FALSE : TRUE)))
-      cursor++;
+    error= (my_b_printf(&info_file, "%s\n", server_ids_buffer) >
+            (size_t) 0 ? FALSE : TRUE);
     my_free((void *)const_cast<const char*>(server_ids_buffer), MYF(0));
   }
 
@@ -252,48 +240,41 @@ bool Rpl_info_file::do_set_info(const int pos, const Server_ids *value)
 bool Rpl_info_file::do_get_info(const int pos, char *value, const size_t size,
                                 const char *default_value)
 {
-  bool error= FALSE;
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
-  if (!(error= 
-      init_strvar_from_file(value, size, &info_file, default_value)))
-    cursor++;
-  return error;
+      
+  return (init_strvar_from_file(value, size, &info_file,
+                                default_value));
 }
 
 bool Rpl_info_file::do_get_info(const int pos, int *value,
                                 const int default_value)
 {
-  bool error= FALSE;
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
-  if (!(error= init_intvar_from_file(value, &info_file, default_value)))
-    cursor++;
-  return error;
+
+  return (init_intvar_from_file(value, &info_file, 
+                                default_value));
 }
 
 bool Rpl_info_file::do_get_info(const int pos, float *value,
                                 const float default_value)
 {
-  bool error= FALSE;
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
-  if (!(error= 
-       init_floatvar_from_file(value, &info_file, default_value)))
-    cursor++;
-  return error;
+
+  return (init_floatvar_from_file(value, &info_file,
+                                  default_value));
 }
 
 bool Rpl_info_file::do_get_info(const int pos, my_off_t *value,
                                 const my_off_t default_value)
 {
-  bool error= FALSE;
   if (pos >= ninfo || pos != cursor || prv_error)
     return TRUE;
-  if (!(error= 
-      init_intvar_from_file((int *)value, &info_file, (int) default_value)))
-    cursor++;
-  return error;
+
+  return (init_intvar_from_file((int *)value, &info_file,
+                                (int) default_value));
 }
 
 bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
@@ -311,10 +292,7 @@ bool Rpl_info_file::do_get_info(const int pos, Server_ids *value,
   bool error= init_dynarray_intvar_from_file(buffer, &buffer_act,
                                                        &info_file);
   if (!error)
-  {
     value->unpack_server_ids(buffer_act);
-    cursor++;
-  }
 
   if (buffer != buffer_act)
   {
