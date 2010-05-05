@@ -33,12 +33,6 @@
 static int
 waitClusterStatus(const char* _addr, ndb_mgm_node_status _status);
 
-enum ndb_waiter_options {
-  OPT_WAIT_STATUS_NOT_STARTED = NDB_STD_OPTIONS_LAST,
-  OPT_WAIT_STATUS_SINGLE_USER
-  ,OPT_NOWAIT_NODES
-};
-
 static int _no_contact = 0;
 static int _not_started = 0;
 static int _single_user = 0;
@@ -51,14 +45,14 @@ const char *load_default_groups[]= { "mysql_cluster",0 };
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_waiter"),
   { "no-contact", 'n', "Wait for cluster no contact",
     (uchar**) &_no_contact, (uchar**) &_no_contact, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "not-started", OPT_WAIT_STATUS_NOT_STARTED, "Wait for cluster not started",
+  { "not-started", NDB_OPT_NOSHORT, "Wait for cluster not started",
     (uchar**) &_not_started, (uchar**) &_not_started, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "single-user", OPT_WAIT_STATUS_SINGLE_USER,
+  { "single-user", NDB_OPT_NOSHORT,
     "Wait for cluster to enter single user mode",
     (uchar**) &_single_user, (uchar**) &_single_user, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
@@ -68,7 +62,7 @@ static struct my_option my_long_options[] =
   { "wait-nodes", 'w', "Node ids to wait on, e.g. '1,2-4'",
     (uchar**) &_wait_nodes, (uchar**) &_wait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "nowait-nodes", OPT_NOWAIT_NODES, 
+  { "nowait-nodes", NDB_OPT_NOSHORT,
     "Nodes that will not be waited for, e.g. '2,3,4-7'",
     (uchar**) &_nowait_nodes, (uchar**) &_nowait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -89,7 +83,6 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   ndb_opt_set_usage_funcs(NULL, short_usage_sub, usage);
   load_defaults("my",load_default_groups,&argc,&argv);
-  const char* _hostName = NULL;
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_waiter.trace";
@@ -99,10 +92,9 @@ int main(int argc, char** argv){
                      ndb_std_get_one_option))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  _hostName = argv[0];
-
-  if (_hostName == 0)
-    _hostName= opt_connect_str;
+  const char* connect_string = argv[0];
+  if (connect_string == 0)
+    connect_string = opt_ndb_connectstring;
 
   enum ndb_mgm_node_status wait_status;
   if (_no_contact)
@@ -165,7 +157,7 @@ int main(int argc, char** argv){
     nowait_nodes_bitmask.bitNOT();
   }
 
-  if (waitClusterStatus(_hostName, wait_status) != 0)
+  if (waitClusterStatus(connect_string, wait_status) != 0)
     return NDBT_ProgramExit(NDBT_FAILED);
   return NDBT_ProgramExit(NDBT_OK);
 }

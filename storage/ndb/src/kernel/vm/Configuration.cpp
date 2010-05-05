@@ -116,6 +116,7 @@ Configuration::closeConfiguration(bool end_session){
 
 void
 Configuration::fetch_configuration(const char* _connect_string,
+                                   int force_nodeid,
                                    const char* _bind_address){
   /**
    * Fetch configuration from management server
@@ -125,6 +126,7 @@ Configuration::fetch_configuration(const char* _connect_string,
   }
 
   m_config_retriever= new ConfigRetriever(_connect_string,
+                                          force_nodeid,
                                           NDB_VERSION,
                                           NDB_MGM_NODE_TYPE_NDB,
 					  _bind_address);
@@ -152,14 +154,6 @@ Configuration::fetch_configuration(const char* _connect_string,
   }
 
   ConfigRetriever &cr= *m_config_retriever;
-  
-  /**
-   * if we have a nodeid set (e.g in a restart situation)
-   * reuse it
-   */
-  if (globalData.ownId)
-    cr.setNodeId(globalData.ownId);
-
   globalData.ownId = cr.allocNodeId(globalData.ownId ? 10 : 2 /*retry*/,
                                     3 /*delay*/);
   

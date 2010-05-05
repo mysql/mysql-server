@@ -2874,10 +2874,9 @@ int testApiFailReqImpl(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
   
-  const Uint32 MaxConnectStringSize= 256;
-  char connectString[ MaxConnectStringSize ];
-  ctx->m_cluster_connection.get_connectstring(connectString, 
-                                              MaxConnectStringSize);
+  char connectString[256];
+  ctx->m_cluster_connection.get_connectstring(connectString,
+                                              sizeof(connectString));
   
   otherConnection= new Ndb_cluster_connection(connectString);
   
@@ -3286,10 +3285,9 @@ int testFragmentedApiFailImpl(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
   
-  const Uint32 MaxConnectStringSize= 256;
-  char connectString[ MaxConnectStringSize ];
-  ctx->m_cluster_connection.get_connectstring(connectString, 
-                                              MaxConnectStringSize);
+  char connectString[256];
+  ctx->m_cluster_connection.get_connectstring(connectString,
+                                              sizeof(connectString));
   
   otherConnection= new Ndb_cluster_connection(connectString);
   
