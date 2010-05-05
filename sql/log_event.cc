@@ -2485,13 +2485,13 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
       implicit_commit= TRUE;
       break;
     case SQLCOM_DROP_TABLE:
-      force_trans= lex->drop_temporary && thd->in_multi_stmt_transaction();
+      force_trans= lex->drop_temporary && thd->in_multi_stmt_transaction_mode();
       implicit_commit= !force_trans;
       break;
     case SQLCOM_ALTER_TABLE:
     case SQLCOM_CREATE_TABLE:
       force_trans= (lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) &&
-                    thd->in_multi_stmt_transaction();
+                    thd->in_multi_stmt_transaction_mode();
       implicit_commit= !force_trans &&
                        !(lex->select_lex.item_list.elements &&
                          thd->is_current_stmt_binlog_format_row());

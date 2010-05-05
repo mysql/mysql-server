@@ -1686,7 +1686,7 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
   DBUG_PRINT("debug",
              ("all: %d, in_transaction: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
               all,
-              YESNO(thd->in_multi_stmt_transaction()),
+              YESNO(thd->in_multi_stmt_transaction_mode()),
               YESNO(thd->transaction.all.modified_non_trans_table),
               YESNO(thd->transaction.stmt.modified_non_trans_table)));
 
@@ -4267,7 +4267,7 @@ bool use_trans_cache(const THD* thd, bool is_transactional)
 */
 bool ending_trans(THD* thd, const bool all)
 {
-  return (all || (!all && !thd->in_multi_stmt_transaction()));
+  return (all || (!all && !thd->in_multi_stmt_transaction_mode()));
 }
 
 /**
@@ -4370,7 +4370,7 @@ THD::binlog_start_trans_and_stmt()
       cache_mngr->trx_cache.get_prev_position() == MY_OFF_T_UNDEF)
   {
     this->binlog_set_stmt_begin();
-    if (in_multi_stmt_transaction())
+    if (in_multi_stmt_transaction_mode())
       trans_register_ha(this, TRUE, binlog_hton);
     trans_register_ha(this, FALSE, binlog_hton);
     /*

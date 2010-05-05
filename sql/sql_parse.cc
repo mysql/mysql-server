@@ -2765,7 +2765,7 @@ end_with_restore_list:
     client thread has locked tables
   */
   if (thd->locked_tables_mode ||
-      thd->active_transaction() || thd->global_read_lock.is_acquired())
+      thd->in_active_multi_stmt_transaction() || thd->global_read_lock.is_acquired())
   {
     my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -3273,7 +3273,7 @@ end_with_restore_list:
       Don't allow this within a transaction because we want to use
       re-generate table
     */
-    if (thd->active_transaction())
+    if (thd->in_active_multi_stmt_transaction())
     {
       my_message(ER_LOCK_OR_ACTIVE_TRANSACTION,
                  ER(ER_LOCK_OR_ACTIVE_TRANSACTION), MYF(0));
@@ -4711,6 +4711,9 @@ finish:
     thd->global_read_lock.start_waiting_global_read_lock(thd);
   }
 
+  DBUG_ASSERT(!thd->in_active_multi_stmt_transaction() ||
+               thd->in_multi_stmt_transaction_mode());
+
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END))
   {
     /* If commit fails, we should be able to reset the OK status. */
@@ -5524,7 +5527,7 @@ void THD::reset_for_next_command()
     OPTION_STATUS_NO_TRANS_UPDATE | OPTION_KEEP_LOG to not get warnings
     in ha_rollback_trans() about some tables couldn't be rolled back.
   */
-  if (!thd->in_multi_stmt_transaction())
+  if (!thd->in_multi_stmt_transaction_mode())
   {
     thd->variables.option_bits&= ~OPTION_KEEP_LOG;
     thd->transaction.all.modified_non_trans_table= FALSE;
