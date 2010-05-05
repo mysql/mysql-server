@@ -2498,6 +2498,7 @@ row_sel_field_store_in_mysql_format(
 	byte*	pad_ptr;
 
 	ut_ad(len != UNIV_SQL_NULL);
+	UNIV_MEM_ASSERT_RW(data, len);
 
 	switch (templ->type) {
 	case DATA_INT:
@@ -2746,6 +2747,9 @@ row_sel_store_mysql_rec(
 			/* MySQL assumes that the field for an SQL
 			NULL value is set to the default value. */
 
+			UNIV_MEM_ASSERT_RW(prebuilt->default_rec
+					   + templ->mysql_col_offset,
+					   templ->mysql_col_len);
 			mysql_rec[templ->mysql_null_byte_offset]
 				|= (byte) templ->mysql_null_bit_mask;
 			memcpy(mysql_rec + templ->mysql_col_offset,
@@ -3070,6 +3074,11 @@ row_sel_pop_cached_row_for_mysql(
 
 		for (i = 0; i < prebuilt->n_template; i++) {
 			templ = prebuilt->mysql_template + i;
+#if 0 /* Some of the cached_rec may legitimately be uninitialized. */
+			UNIV_MEM_ASSERT_RW(cached_rec
+					   + templ->mysql_col_offset,
+					   templ->mysql_col_len);
+#endif
 			ut_memcpy(buf + templ->mysql_col_offset,
 				  cached_rec + templ->mysql_col_offset,
 				  templ->mysql_col_len);
@@ -3084,6 +3093,11 @@ row_sel_pop_cached_row_for_mysql(
 		}
 	}
 	else {
+#if 0 /* Some of the cached_rec may legitimately be uninitialized. */
+		UNIV_MEM_ASSERT_RW(prebuilt->fetch_cache
+				   [prebuilt->fetch_cache_first],
+				   prebuilt->mysql_prefix_len);
+#endif
 		ut_memcpy(buf,
 			  prebuilt->fetch_cache[prebuilt->fetch_cache_first],
 			  prebuilt->mysql_prefix_len);
@@ -3134,6 +3148,8 @@ row_sel_push_cache_row_for_mysql(
 	}
 
 	ut_ad(prebuilt->fetch_cache_first == 0);
+	UNIV_MEM_INVALID(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
+			 prebuilt->mysql_row_len);
 
 	if (UNIV_UNLIKELY(!row_sel_store_mysql_rec(
 				  prebuilt->fetch_cache[
