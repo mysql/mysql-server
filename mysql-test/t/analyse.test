@@ -133,3 +133,26 @@ DROP TABLE t1;
 
 
 --echo End of 5.0 tests
+
+--echo #
+--echo # Bug #47338 assertion in handler::ha_external_lock
+--echo #
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TEMPORARY TABLE t1 (f2 INT, f1 INT, PRIMARY KEY (f1)) ENGINE = MyISAM;
+
+INSERT t1 ( f1 ) VALUES ( 5 );
+INSERT t1 ( f1 ) VALUES ( 6 );
+
+ALTER TABLE t1 ENGINE = MyISAM;
+ANALYZE TABLE t1;
+
+# Bug #48859 nor reproducible here (was in 6.0)
+# Keeping this test case anyways.
+
+SELECT f1,f2 FROM t1 A WHERE f1 BETWEEN 0 AND 1; 
+
+drop table t1;

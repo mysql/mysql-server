@@ -123,3 +123,17 @@ CREATE TABLE t2 SELECT 1 FROM t1, t1 t3 GROUP BY t3.a PROCEDURE ANALYSE();
 ERROR HY000: Incorrect usage of PROCEDURE and non-SELECT
 DROP TABLE t1;
 End of 5.0 tests
+#
+# Bug #47338 assertion in handler::ha_external_lock
+#
+drop table if exists t1;
+CREATE TEMPORARY TABLE t1 (f2 INT, f1 INT, PRIMARY KEY (f1)) ENGINE = MyISAM;
+INSERT t1 ( f1 ) VALUES ( 5 );
+INSERT t1 ( f1 ) VALUES ( 6 );
+ALTER TABLE t1 ENGINE = MyISAM;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+SELECT f1,f2 FROM t1 A WHERE f1 BETWEEN 0 AND 1;
+f1	f2
+drop table t1;

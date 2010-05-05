@@ -4412,8 +4412,10 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   if (mode & HA_MRR_USE_DEFAULT_IMPL || mode & HA_MRR_SORTED)
   {
     use_default_impl= TRUE;
-    DBUG_RETURN(h->handler::multi_range_read_init(seq_funcs, seq_init_param,
-                                                  n_ranges, mode, buf));
+    const int retval=
+      h->handler::multi_range_read_init(seq_funcs, seq_init_param,
+                                        n_ranges, mode, buf);
+    DBUG_RETURN(retval);
   }
   rowids_buf= buf->buffer;
 
@@ -5527,7 +5529,8 @@ int handler::ha_reset()
   free_io_cache(table);
   /* reset the bitmaps to point to defaults */
   table->default_column_bitmaps();
-  DBUG_RETURN(reset());
+  const int retval= reset();
+  DBUG_RETURN(retval);
 }
 
 
