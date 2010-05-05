@@ -1578,7 +1578,6 @@ public:
   const char *func_name() const { return "inet_aton"; }
   void fix_length_and_dec()
     { decimals= 0; max_length= 21; maybe_null= 1; unsigned_flag= 1;}
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
