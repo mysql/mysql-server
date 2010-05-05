@@ -732,12 +732,16 @@ fi
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
+%attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/libdaemon_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
