@@ -1,3 +1,9 @@
+2010-05-05	The InnoDB Team
+
+	* handler/ha_innodb.cc:
+	Fix Bug#53165 Setting innodb_change_buffering=DEFAULT produces
+	incorrect result
+
 2010-05-04	The InnoDB Team
 
 	* fsp/fsp0fsp.c:
