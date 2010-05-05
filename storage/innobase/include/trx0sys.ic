@@ -80,7 +80,6 @@ trx_sys_get_nth_rseg(
 	trx_sys_t*	sys,	/*!< in: trx system */
 	ulint		n)	/*!< in: index of slot */
 {
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(n < TRX_SYS_N_RSEGS);
 
 	return(sys->rseg_array[n]);
@@ -137,7 +136,6 @@ trx_sysf_rseg_get_space(
 	ulint		i,		/*!< in: slot index == rseg id */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(sys_header);
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
@@ -159,7 +157,6 @@ trx_sysf_rseg_get_page_no(
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ut_ad(sys_header);
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
 	return(mtr_read_ulint(sys_header + TRX_SYS_RSEGS
@@ -179,7 +176,6 @@ trx_sysf_rseg_set_space(
 	ulint		space,		/*!< in: space id */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(sys_header);
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
@@ -203,7 +199,6 @@ trx_sysf_rseg_set_page_no(
 					slot is reset to unused */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ut_ad(mutex_own(&(kernel_mutex)));
 	ut_ad(sys_header);
 	ut_ad(i < TRX_SYS_N_RSEGS);
 
@@ -261,18 +256,22 @@ trx_get_on_id(
 {
 	trx_t*	trx;
 
-	ut_ad(mutex_own(&(kernel_mutex)));
+	trx_sys_mutex_enter();
 
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (trx != NULL) {
 		if (0 == ut_dulint_cmp(trx_id, trx->id)) {
 
+			trx_sys_mutex_exit();
+
 			return(trx);
 		}
 
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
+
+	trx_sys_mutex_exit();
 
 	return(NULL);
 }
@@ -288,18 +287,22 @@ trx_id_t
 trx_list_get_min_trx_id(void)
 /*=========================*/
 {
+	dulint	id;
 	trx_t*	trx;
 
-	ut_ad(mutex_own(&(kernel_mutex)));
+	trx_sys_mutex_enter();
 
 	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
 
 	if (trx == NULL) {
-
-		return(trx_sys->max_trx_id);
+		id = trx_sys->max_trx_id;
+	} else {
+		id = trx->id;
 	}
 
-	return(trx->id);
+	trx_sys_mutex_exit();
+
+	return(id);
 }
 
 /****************************************************************//**
@@ -313,12 +316,12 @@ trx_is_active(
 {
 	trx_t*	trx;
 
-	ut_ad(mutex_own(&(kernel_mutex)));
-
 	if (ut_dulint_cmp(trx_id, trx_list_get_min_trx_id()) < 0) {
 
 		return(FALSE);
 	}
+
+	trx_sys_mutex_enter();
 
 	if (ut_dulint_cmp(trx_id, trx_sys->max_trx_id) >= 0) {
 
@@ -327,10 +330,15 @@ trx_is_active(
 		and row_vers_impl_x_locked_off_kernel() and they have
 		diagnostic prints in this case */
 
+		trx_sys_mutex_exit();
+
 		return(TRUE);
 	}
 
+	trx_sys_mutex_exit();
+
 	trx = trx_get_on_id(trx_id);
+
 	if (trx && (trx->conc_state == TRX_ACTIVE
 		    || trx->conc_state == TRX_PREPARED)) {
 
@@ -350,7 +358,7 @@ trx_sys_get_new_trx_id(void)
 {
 	trx_id_t	id;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	trx_sys_mutex_enter();
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the following if
@@ -369,6 +377,8 @@ trx_sys_get_new_trx_id(void)
 
 	UT_DULINT_INC(trx_sys->max_trx_id);
 
+	trx_sys_mutex_exit();
+
 	return(id);
 }
 
@@ -380,8 +390,6 @@ trx_id_t
 trx_sys_get_new_trx_no(void)
 /*========================*/
 {
-	ut_ad(mutex_own(&kernel_mutex));
-
 	return(trx_sys_get_new_trx_id());
 }
 #endif /* !UNIV_HOTBACKUP */

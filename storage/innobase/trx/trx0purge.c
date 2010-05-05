@@ -225,7 +225,7 @@ void
 trx_purge_sys_create(void)
 /*======================*/
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	ibool	success;
 
 	purge_sys = mem_alloc(sizeof(trx_purge_t));
 
@@ -253,12 +253,16 @@ trx_purge_sys_create(void)
 
 	purge_sys->trx->is_purge = 1;
 
-	ut_a(trx_start_low(purge_sys->trx, ULINT_UNDEFINED));
+	success = trx_start_low(purge_sys->trx, ULINT_UNDEFINED);
+	ut_a(success);
 
 	purge_sys->query = trx_purge_graph_build();
 
-	purge_sys->view = read_view_oldest_copy_or_open_new(ut_dulint_zero,
-							    purge_sys->heap);
+	trx_sys_mutex_enter();
+
+	purge_sys->view = read_view_open_now(ut_dulint_zero, purge_sys->heap);
+
+	trx_sys_mutex_exit();
 }
 
 /************************************************************************
@@ -1125,18 +1129,20 @@ trx_purge(
 
 	rw_lock_x_lock(&(purge_sys->latch));
 
-	mutex_enter(&kernel_mutex);
-
 	/* Close and free the old purge view */
 
 	read_view_close(purge_sys->view);
+
 	purge_sys->view = NULL;
+
 	mem_heap_empty(purge_sys->heap);
 
 	/* Determine how much data manipulation language (DML) statements
 	need to be delayed in order to reduce the lagging of the purge
 	thread. */
 	srv_dml_needed_delay = 0; /* in microseconds; default: no delay */
+
+	trx_sys_mutex_enter();
 
 	/* If we cannot advance the 'purge view' because of an old
 	'consistent read view', then the DML statements cannot be delayed.
@@ -1157,9 +1163,10 @@ trx_purge(
 		}
 	}
 
-	purge_sys->view = read_view_oldest_copy_or_open_new(ut_dulint_zero,
-							    purge_sys->heap);
-	mutex_exit(&kernel_mutex);
+	purge_sys->view = read_view_oldest_copy_or_open_new(
+		ut_dulint_zero, purge_sys->heap);
+
+	trx_sys_mutex_exit();
 
 	rw_lock_x_unlock(&(purge_sys->latch));
 

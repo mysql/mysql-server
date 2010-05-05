@@ -180,7 +180,7 @@ read_view_oldest_copy_or_open_new(
 	ulint		n;
 	ulint		i;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	old_view = UT_LIST_GET_LAST(trx_sys->view_list);
 
@@ -261,7 +261,7 @@ read_view_open_now(
 	trx_t*		trx;
 	ulint		n;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list), heap);
 
@@ -326,9 +326,11 @@ read_view_close(
 /*============*/
 	read_view_t*	view)	/*!< in: read view */
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	trx_sys_mutex_enter();
 
 	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
+
+	trx_sys_mutex_exit();
 }
 
 /*********************************************************************//**
@@ -342,16 +344,12 @@ read_view_close_for_mysql(
 {
 	ut_a(trx->global_read_view);
 
-	mutex_enter(&kernel_mutex);
-
 	read_view_close(trx->global_read_view);
 
 	mem_heap_empty(trx->global_read_view_heap);
 
 	trx->read_view = NULL;
 	trx->global_read_view = NULL;
-
-	mutex_exit(&kernel_mutex);
 }
 
 /*********************************************************************//**
