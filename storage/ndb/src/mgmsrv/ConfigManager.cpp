@@ -28,7 +28,8 @@
 #include <ndb_version.h>
 
 
-extern "C" const char* opt_connect_str;
+extern "C" const char* opt_ndb_connectstring;
+extern "C" int opt_ndb_nodeid;
 
 ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
                              const char* configdir) :
@@ -39,7 +40,8 @@ ConfigManager::ConfigManager(const MgmtSrvr::MgmtOpts& opts,
   m_config_mutex(NULL),
   m_config(NULL),
   m_new_config(NULL),
-  m_config_retriever(opt_connect_str,
+  m_config_retriever(opt_ndb_connectstring,
+                     opt_ndb_nodeid,
                      NDB_VERSION,
                      NDB_MGM_NODE_TYPE_MGM,
                      opts.bind_address),
@@ -2316,7 +2318,7 @@ ConfigManager::ConfigChecker::ConfigChecker(ConfigManager& manager,
                                             NodeId nodeid) :
   MgmtThread("ConfigChecker"),
   m_manager(manager),
-  m_config_retriever(connect_string, NDB_VERSION,
+  m_config_retriever(opt_ndb_connectstring, opt_ndb_nodeid, NDB_VERSION,
                      NDB_MGM_NODE_TYPE_MGM, bindaddress),
   m_connect_string(connect_string),
   m_nodeid(nodeid)

@@ -2,6 +2,9 @@
 #define OPTEXPORT
 #include <ndb_opts.h>
 
+#include <mysql_version.h>
+#include <ndb_version.h>
+
 static const char* g_ndb_opt_progname= "ndbapi_program";
 
 static void default_ndb_opt_short(void)
@@ -54,10 +57,11 @@ void ndb_usage(void (*usagefunc)(void), const char *load_default_groups[],
   my_print_variables(my_long_options);
 }
 
+
 my_bool
 ndb_std_get_one_option(int optid,
                        const struct my_option *opt __attribute__((unused)),
-                       char *argument)
+                       char *argument __attribute__((unused)))
 {
   switch (optid) {
 #ifndef DBUG_OFF
@@ -74,39 +78,6 @@ ndb_std_get_one_option(int optid,
   case '?':
     (*g_ndb_opt_usage)();
     exit(0);
-  case OPT_NDB_SHM:
-    if (opt_ndb_shm)
-    {
-#ifndef NDB_SHM_TRANSPORTER
-      printf("Warning: binary not compiled with shared memory support,\n"
-             "Tcp connections will now be used instead\n");
-      opt_ndb_shm= 0;
-#endif
-    }
-    break;
-  case OPT_NDB_MGMD:
-  case OPT_NDB_NODEID:
-  {
-    int len= my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-                         sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-                         "%s%s%s",opt_ndb_constrbuf_len > 0 ? ",":"",
-                         optid == OPT_NDB_NODEID ? "nodeid=" : "",
-                         argument);
-    opt_ndb_constrbuf_len+= len;
-  }
-  /* fall through to add the connectstring to the end
-   * and set opt_ndb_connectstring
-   */
-  case OPT_NDB_CONNECTSTRING:
-    if (opt_ndb_connectstring && opt_ndb_connectstring[0])
-      my_snprintf(opt_ndb_constrbuf+opt_ndb_constrbuf_len,
-                  sizeof(opt_ndb_constrbuf)-opt_ndb_constrbuf_len,
-                  "%s%s", opt_ndb_constrbuf_len > 0 ? ",":"",
-                  opt_ndb_connectstring);
-    else
-      opt_ndb_constrbuf[opt_ndb_constrbuf_len]= 0;
-    opt_connect_str= opt_ndb_constrbuf;
-    break;
   }
   return 0;
 }

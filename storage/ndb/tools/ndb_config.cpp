@@ -57,25 +57,25 @@ typedef ndb_mgm_configuration_iterator Iter;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndb_config"),
-  { "nodes", 256, "Print nodes",
+  { "nodes", NDB_OPT_NOSHORT, "Print nodes",
     (uchar**) &g_nodes, (uchar**) &g_nodes,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "connections", 256, "Print connections",
+  { "connections", NDB_OPT_NOSHORT, "Print connections",
     (uchar**) &g_connections, (uchar**) &g_connections,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { "query", 'q', "Query option(s)",
     (uchar**) &g_query, (uchar**) &g_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "host", 256, "Host",
+  { "host", NDB_OPT_NOSHORT, "Host",
     (uchar**) &g_host, (uchar**) &g_host,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "type", 258, "Type of node/connection",
+  { "type", NDB_OPT_NOSHORT, "Type of node/connection",
     (uchar**) &g_type, (uchar**) &g_type,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "id", 258, "Nodeid",
+  { "id", NDB_OPT_NOSHORT, "Nodeid",
     (uchar**) &g_nodeid, (uchar**) &g_nodeid,
     0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "nodeid", 258, "Nodeid",
+  { "nodeid", NDB_OPT_NOSHORT, "Nodeid",
     (uchar**) &g_nodeid, (uchar**) &g_nodeid,
     0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "fields", 'f', "Field separator",
@@ -84,16 +84,16 @@ static struct my_option my_long_options[] =
   { "rows", 'r', "Row separator",
     (uchar**) &g_row_delimiter, (uchar**) &g_row_delimiter,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "config-file", 256, "Path to config.ini",
+  { "config-file", NDB_OPT_NOSHORT, "Path to config.ini",
     (uchar**) &g_config_file, (uchar**) &g_config_file,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  { "mycnf", 256, "Read config from my.cnf",
+  { "mycnf", NDB_OPT_NOSHORT, "Read config from my.cnf",
     (uchar**) &g_mycnf, (uchar**) &g_mycnf,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "configinfo", 256, "Print configinfo",
+  { "configinfo", NDB_OPT_NOSHORT, "Print configinfo",
     (uchar**) &g_configinfo, (uchar**) &g_configinfo,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "xml", 256, "Print configinfo in xml format",
+  { "xml", NDB_OPT_NOSHORT, "Print configinfo in xml format",
     (uchar**) &g_xml, (uchar**) &g_xml,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -508,7 +508,7 @@ fetch_configuration()
 
   ndb_mgm_set_error_stream(mgm, stderr);
   
-  if (ndb_mgm_set_connectstring(mgm, opt_connect_str))
+  if (ndb_mgm_set_connectstring(mgm, opt_ndb_connectstring))
   {
     fprintf(stderr, "* %5d: %s\n", 
 	    ndb_mgm_get_latest_error(mgm),

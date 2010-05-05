@@ -9,15 +9,6 @@ static struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-#if 0
-static void usage()
-{
-  ndb_std_print_version();
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
-}
-#endif
-
 int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_BACKUP,
 		 15, NDB_MGM_EVENT_CATEGORY_CONNECTION,
 		 15, NDB_MGM_EVENT_CATEGORY_NODE_RESTART,
@@ -44,7 +35,7 @@ main(int argc, char** argv)
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
   NdbMgmHandle handle= ndb_mgm_create_handle();
-  ndb_mgm_set_connectstring(handle, opt_connect_str);
+  ndb_mgm_set_connectstring(handle, opt_ndb_connectstring);
   
   while (true)
   {

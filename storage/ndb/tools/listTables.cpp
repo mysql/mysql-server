@@ -255,10 +255,6 @@ list(const char * tabname,
 static const char* _dbname = "TEST_DB";
 static int _loops;
 static int _type;
-enum options_ndb_show_tables
-{
-  OPT_SHOW_TMP_STATUS=256
-};
 
 static struct my_option my_long_options[] =
 {
@@ -278,7 +274,7 @@ static struct my_option my_long_options[] =
   { "parsable", 'p', "Return output suitable for mysql LOAD DATA INFILE",
     (uchar**) &_parsable, (uchar**) &_parsable, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "show-temp-status", OPT_SHOW_TMP_STATUS, "Show table temporary flag",
+  { "show-temp-status", NDB_OPT_NOSHORT, "Show table temporary flag",
     (uchar**) &show_temp_status, (uchar**) &show_temp_status, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -308,7 +304,11 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   _tabname = argv[0];
 
-  ndb_cluster_connection = new Ndb_cluster_connection(opt_connect_str);
+  ndb_cluster_connection = new Ndb_cluster_connection(opt_ndb_connectstring,
+                                                      opt_ndb_nodeid);
+  if (ndb_cluster_connection == NULL)
+    fatal("Unable to create cluster connection");
+
   ndb_cluster_connection->set_name("ndb_show_tables");
   if (ndb_cluster_connection->connect(12,5,1))
     fatal("Unable to connect to management server.");

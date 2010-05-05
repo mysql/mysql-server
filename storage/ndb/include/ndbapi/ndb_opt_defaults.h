@@ -19,7 +19,4 @@
 #ifndef NDB_OPT_DEFAULTS_H
 #define NDB_OPT_DEFAULTS_H
 
-#define OPT_NDB_SHM_SIGNUM_DEFAULT 0
-#define OPT_NDB_SHM_DEFAULT 0
-
 #endif

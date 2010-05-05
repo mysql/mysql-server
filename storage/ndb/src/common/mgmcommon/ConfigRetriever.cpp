@@ -34,6 +34,7 @@
 //****************************************************************************
 
 ConfigRetriever::ConfigRetriever(const char * _connect_string,
+                                 int force_nodeid,
 				 Uint32 version,
                                  ndb_mgm_node_type node_type,
 				 const char * _bindaddress,
@@ -43,7 +44,8 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
   m_node_type(node_type)
 {
   DBUG_ENTER("ConfigRetriever::ConfigRetriever");
-  DBUG_PRINT("enter", ("connect_string: '%s'", _connect_string));
+  DBUG_PRINT("enter", ("connect_string: '%s', force_nodeid: %d",
+                       _connect_string, force_nodeid));
   DBUG_PRINT("enter", ("version: %d, node_type: %d, bind: %s, timeout: %d",
                        version, node_type,_bindaddress, timeout_ms));
 
@@ -62,6 +64,13 @@ ConfigRetriever::ConfigRetriever(const char * _connect_string,
     tmp.append(" : ");
     tmp.append(ndb_mgm_get_latest_error_desc(m_handle));
     setError(CR_ERROR, tmp.c_str());
+    DBUG_VOID_RETURN;
+  }
+
+  if (force_nodeid &&
+      ndb_mgm_set_configuration_nodeid(m_handle, force_nodeid))
+  {
+    setError(CR_ERROR, "Failed to set forced nodeid");
     DBUG_VOID_RETURN;
   }
 

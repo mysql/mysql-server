@@ -29,6 +29,7 @@
 
 /* options from from mysqld.cc */
 extern "C" const char *opt_ndb_connectstring;
+extern "C" int opt_ndb_nodeid;
 extern ulong opt_ndb_wait_connected;
 
 Ndb* g_ndb= NULL;
@@ -65,7 +66,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
   if (opt_ndb_connectstring != 0)
     DBUG_PRINT("connectstring", ("%s", opt_ndb_connectstring));
   if ((g_ndb_cluster_connection=
-       new Ndb_cluster_connection(opt_ndb_connectstring)) == 0)
+       new Ndb_cluster_connection(opt_ndb_connectstring, opt_ndb_nodeid)) == 0)
   {
     sql_print_error("NDB: failed to allocate global "
                     "ndb cluster connection object");

@@ -56,6 +56,18 @@ public:
    *                      management server
    */
   Ndb_cluster_connection(const char * connectstring = 0);
+
+  /**
+   * Create a connection to a cluster of storage nodes
+   *
+   * @param connectstring The connectstring for where to find the
+   *                      management server
+   * @param force_api_node The nodeid to use for this API node, will
+   *                       override any nodeid=<nodeid> specified in
+   *                       connectstring
+   */
+  Ndb_cluster_connection(const char * connectstring, int force_api_nodeid);
+
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   Ndb_cluster_connection(const char * connectstring,
                          Ndb_cluster_connection *main_connection);
