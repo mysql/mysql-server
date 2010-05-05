@@ -2042,6 +2042,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     thd->convert_string(&conv_name, system_charset_info,
 			packet, arg_length, thd->charset());
+    if (check_table_name (conv_name.str, conv_name.length))
+    {
+      /* this is OK due to convert_string() null-terminating the string */
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), conv_name.str);
+      break;
+    }
+
     table_list.alias= table_list.table_name= conv_name.str;
     packet= pend+1;
 
