@@ -53,7 +53,7 @@ static int use_gci = 0;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_select_all"),
   { "database", 'd', "Name of database table is in",
     (uchar**) &_dbname, (uchar**) &_dbname, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -78,19 +78,19 @@ static struct my_option my_long_options[] =
   { "delimiter", 'D', "Column delimiter",
     (uchar**) &_delimiter, (uchar**) &_delimiter, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "disk", 256, "Dump disk ref",
+  { "disk", NDB_OPT_NOSHORT, "Dump disk ref",
     (uchar**) &_dumpDisk, (uchar**) &_dumpDisk, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "rowid", 256, "Dump rowid",
+  { "rowid", NDB_OPT_NOSHORT, "Dump rowid",
     (uchar**) &use_rowid, (uchar**) &use_rowid, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "gci", 256, "Dump gci",
+  { "gci", NDB_OPT_NOSHORT, "Dump gci",
     (uchar**) &use_gci, (uchar**) &use_gci, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { "tupscan", 't', "Scan in tup order",
     (uchar**) &_tup, (uchar**) &_tup, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
-  { "nodata", 256, "Dont print data",
+  { "nodata", NDB_OPT_NOSHORT, "Dont print data",
     (uchar**) &nodata, (uchar**) &nodata, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
@@ -124,7 +124,7 @@ int main(int argc, char** argv){
     return NDBT_ProgramExit(NDBT_WRONGARGS);
   }
 
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_select_all");
   if(con.connect(12, 5, 1) != 0)
   {

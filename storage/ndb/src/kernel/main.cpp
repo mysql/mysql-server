@@ -48,7 +48,7 @@ extern NdbNodeBitmask g_nowait_nodes;
 static struct my_option my_long_options[] =
 {
   NDB_STD_OPTS("ndbd"),
-  { "initial", 256,
+  { "initial", NDB_OPT_NOSHORT,
     "Perform initial start of ndbd, including cleaning the file system. "
     "Consult documentation before using this",
     (uchar**) &opt_initial, (uchar**) &opt_initial, 0,
@@ -60,25 +60,25 @@ static struct my_option my_long_options[] =
   { "daemon", 'd', "Start ndbd as daemon (default)",
     (uchar**) &opt_daemon, (uchar**) &opt_daemon, 0,
     GET_BOOL, NO_ARG, IF_WIN(0,1), 0, 0, 0, 0, 0 },
-  { "nodaemon", 256,
+  { "nodaemon", NDB_OPT_NOSHORT,
     "Do not start ndbd as daemon, provided for testing purposes",
     (uchar**) &opt_no_daemon, (uchar**) &opt_no_daemon, 0,
     GET_BOOL, NO_ARG, IF_WIN(1,0), 0, 0, 0, 0, 0 },
-  { "foreground", 256,
+  { "foreground", NDB_OPT_NOSHORT,
     "Run real ndbd in foreground, provided for debugging purposes"
     " (implies --nodaemon)",
     (uchar**) &opt_foreground, (uchar**) &opt_foreground, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "nowait-nodes", 256,
+  { "nowait-nodes", NDB_OPT_NOSHORT,
     "Nodes that will not be waited for during start",
     (uchar**) &opt_nowait_nodes, (uchar**) &opt_nowait_nodes, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "initial-start", 256,
+  { "initial-start", NDB_OPT_NOSHORT,
     "Perform a partial initial start of the cluster.  "
     "Each node should be started with this option, as well as --nowait-nodes",
     (uchar**) &opt_initialstart, (uchar**) &opt_initialstart, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "bind-address", 256,
+  { "bind-address", NDB_OPT_NOSHORT,
     "Local bind address",
     (uchar**) &opt_bind_address, (uchar**) &opt_bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -144,7 +144,8 @@ int main(int argc, char** argv)
   DBUG_PRINT("info", ("initial=%d", opt_initial));
   DBUG_PRINT("info", ("daemon=%d", opt_daemon));
   DBUG_PRINT("info", ("foreground=%d", opt_foreground));
-  DBUG_PRINT("info", ("connect_str=%s", opt_connect_str));
+  DBUG_PRINT("info", ("ndb_connectstring=%s", opt_ndb_connectstring));
+  DBUG_PRINT("info", ("ndb_nodeid=%d", opt_ndb_nodeid));
 
   if (opt_nowait_nodes)
   {
@@ -183,7 +184,9 @@ int main(int argc, char** argv)
     globalData.ownId= z;
   }
   { // Do configuration
-    theConfig->fetch_configuration(opt_connect_str, opt_bind_address);
+    theConfig->fetch_configuration(opt_ndb_connectstring,
+                                   opt_ndb_nodeid,
+                                   opt_bind_address);
   }
 
   my_setwd(NdbConfig_get_path(0), MYF(0));
@@ -191,7 +194,7 @@ int main(int argc, char** argv)
 #ifndef NDB_WIN32
   if (!opt_foreground)
   {
-    if (angel_run(opt_connect_str,
+    if (angel_run(opt_ndb_connectstring,
                   opt_bind_address,
                   opt_initialstart,
                   opt_daemon))

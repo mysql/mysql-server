@@ -68,7 +68,7 @@
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 extern ulong ndb_cache_check_time;
-extern "C" char opt_ndb_constrbuf[];
+extern "C" char *opt_ndb_connectstring;
 extern ulong ndb_extra_logging;
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;
@@ -741,7 +741,7 @@ sys_ndb_batch_size(&vars, "ndb_batch_size", &SV::ndb_batch_size);
 static sys_var_long_ptr
 sys_ndb_cache_check_time(&vars, "ndb_cache_check_time", &ndb_cache_check_time);
 static sys_var_const_str
-sys_ndb_connectstring(&vars, "ndb_connectstring", opt_ndb_constrbuf);
+sys_ndb_connectstring(&vars, "ndb_connectstring", opt_ndb_connectstring);
 static sys_var_thd_bool
 sys_ndb_index_stat_enable(&vars, "ndb_index_stat_enable",
                           &SV::ndb_index_stat_enable);

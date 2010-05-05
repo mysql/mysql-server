@@ -29,7 +29,7 @@
  */
 class ConfigRetriever {
 public:
-  ConfigRetriever(const char * _connect_string,
+  ConfigRetriever(const char * _connect_string, int force_nodeid,
                   Uint32 version, ndb_mgm_node_type nodeType,
 		  const char * _bind_address = 0,
                   int timeout_ms = 30000);
