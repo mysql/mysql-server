@@ -45,7 +45,6 @@ struct XTIndex;
 #define XT_DD_KEY_PRIMARY			2
 #define XT_DD_KEY_FOREIGN			3
 
-#define XT_KEY_ACTION_DEFAULT		0
 #define XT_KEY_ACTION_RESTRICT		1
 #define XT_KEY_ACTION_CASCADE		2
 #define XT_KEY_ACTION_SET_NULL		3

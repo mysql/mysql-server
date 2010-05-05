@@ -1,6 +1,107 @@
 PBXT Release Notes
 ==================
 
++------- 1.0.11 Pre-GA - Not released yet
+
+RN320: All tests now run with MySQL 5.1.46.
+
+------- 1.0.10n RC4 - 2010-04-28
+
+RN319: Fix RN1/3 and RN1/4 back-ported from 1.1: Fixed a deadlock that could occur during low index cache situations and added some checks for index corruption, and added the try lock variation for R/W locks.
+
+RN318: Fixed a bug in the atomic R/W lock. This bug occurred on multi-core Linux when under extrem load. The affect was that an index lookup could fail. The index was not corrupted.
+
+------- 1.0.10m RC4 - 2010-03-29
+
+RN317: This change prevents a unscheduled checkpoint from occurring when the sweeper has work to do. Checkpoint required due to the Checkpoint threshold reached are done as usual.
+
+------- 1.0.10k RC4 - 2010-03-29
+
+RN316: Set the maximum delay, while waiting for previous transactions to commit to 1/100s. This situation occurs when cleanup begins of a long running transaction.
+
+RN315: Fixed a bug that could lead to a data log error, for example: Data log not found: '.../dlog-129602.xt'. This error occurred after a duplicate key error, dending on the table structure, because the row buffer was not restored after writing an extended record.
+
+RN314: Server startup time could be very long when data logs become large because the log size was not save in the header when a data log is full.
+
+------- 1.0.10j RC4 - 2010-03-24
+
+RN313: Fixed an error in the calculation of the handle data record (.xtd files) size when AVG_ROW_LENGTH is set explicitly to a value less than 12. For example:
+
+CREATE TABLE objs (
+  id int(10)  unsigned   NOT NULL,
+  objdata     mediumblob NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=PBXT AVG_ROW_LENGTH=10
+
+This table definition previously lead to corruption of the table because the handle data record was set to 24 (14+10), which is less than the minimum (for variable length records) handle data record size of 26.
+
+This minimum consists of 14 byte record header and 12 bytes reference to the extended record data (the part of the record in the data log).
+
+Tip: when setting AVG_ROW_LENGTH you should normally add 12 to the average row length estimate to ensure that the average length part of the record is always in the handle data file. This is important, for example if you wish to make sure that the rows used to build indexes are in the handle data file. CHECK TABLE tells you how many rows are in the "fixed length part" of the record (output in MySQL error log). In the example above, this would be AVG_ROW_LENGTH=17.
+
+The maximum size of a field can be calculated adding the maximum byte size as described here: http://dev.mysql.com/doc/refman/5.1/en/storage-requirements.html, and then add the following values, depending on the byte size:
+
+byte size <= 240, add 1
+byte size < 2^16 (65536), add 3
+byte size < 2^24 (16777216), add 4
+byte size > 2^24, add 5
+
+------- 1.0.10i RC4 - 2010-03-17
+
+RN312: Fixed bug #534361: Valgrind error: write of uninitialised bytes in xt_flush_indices()
+
+RN311: Fixed ilog corruption when running out of disk space during an index flush operation, which lead to corruption of the index.
+
+------- 1.0.10h RC4 - 2010-02-25
+
+RN310: Fixed Windows atomic INC/DEC operations, which lead to atomic R/W lock not working correctly. The result was that some index entries were not foound.
+
+RN309: Fixed a bug that caused a crash when the index was corrupted. The crash occurs if the index page in not completely written, and an item in the index has a bad length.
+
+RN308: Fixed bug #509803: can't run tpcc (cannot compare FKs that rely on indexes of different length).
+
+------- 1.0.10g RC4 - 2010-02-11
+
+RN307:  2010-02-15: Set the internal version number 1.0.10g.
+
+RN306: All tests now run with MySQL 5.1.42.
+
+RN305: Fixed a bug that could cause a crash in filesort. The problem was that the return row estimate was incorrect, which caused the result of estimate_rows_upper_bound() to overflow to zero. Row estimate has been changed, and no longer takes into account deleted rows (so the row estimate is now a maximum).
+
+RN304: Fixed bug #513012: On a table with a trigger the same record is updated more than once in one statement
+
+------- 1.0.10f RC4 - 2010-01-29
+
+RN303: Fix RN1/10 back-ported from 1.1: Fixed a bug in the record cache that caused PBXT to think it had run out of cache memory. The effect was that PBXT used less and less cache over time. The bug occurs during heavy concurrent access on the record cache. The affect is the PBXT gets slower and slower.
+
+RN302: Fix RN1/11 back-ported from 1.1: Corrected a problem that sometimes caused a pause in activity when the record cache was full.
+
+------- 1.0.10e RC4 - 2010-01-25
+
+RN301: Fixed index statistics calculation. This bug lead to the wrong indices being selected by the optimizer because all indices returned the same cost. 
+
+RN300: Fixed bug #509968: START TRANSACTION WITH CONSISTENT SNAPSHOT breaks transactional flow.
+
+RN299: Fixed bug #509218: Server asserts with Assertion `mutex->__data.__owner == 0' failed on high concurrency OLTP test.
+
+------- 1.0.10d RC4 - 2010-01-11
+
+RN298: Fixed a bug that caused huge amounts of transaction log to be written when pbxt_flush_log_at_trx_commit = 2.
+
+------- 1.0.10c RC4 - 2009-12-29
+
+RN297: Updated "LOCK TABLES ... READ LOCAL" behavior to be more restrictive and compatible with InnoDB 
+
+RN296: Fixed bug #499026: START TRANSACTION WITH CONSISTENT SNAPSHOT does not work for PBXT
+
+------- 1.0.10 RC4 - 2009-12-18
+
+RN295: PBXT tests now all run with MySQL 5.1.41.
+
+RN294: Fixed bug #483714: a broken table can prevent other tables from opening
+
+RN293: Added system variable pbxt_flush_log_at_trx_commit. The value of this variable determines whether the transaction log is written and/or flushed when a transaction is ended. A value of 0 means don't write or flush the transaction log, 1 means write and flush and 2 means write, but do not flush. No matter what the setting is choosen, the transaction log is written and flushed at least once per second.
+
 ------- 1.0.09g RC3 - 2009-12-16
 
 RN292: Fixed a bug that resulted in 2-phase commit not being used between PBXT and the binlog. This bug was a result of a hack which as added to solve a problem in an pre-release version of MySQL 5.1. The hack was removed. 

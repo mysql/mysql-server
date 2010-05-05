@@ -60,6 +60,7 @@ extern int				xt_db_log_file_count;
 extern int				xt_db_auto_increment_mode;
 extern int				xt_db_offline_log_function;
 extern int				xt_db_sweeper_priority;
+extern int				xt_db_flush_log_at_trx_commit;
 
 extern XTSortedListPtr	xt_db_open_db_by_id;
 extern XTHashTabPtr		xt_db_open_databases;
@@ -187,6 +188,10 @@ typedef struct XTDatabase : public XTHeap {
 	xt_mutex_type			db_cp_lock;
 	xt_cond_type			db_cp_cond;								/* Writer condition when idle (must bw woken by log flush! */
 	XTCheckPointStateRec	db_cp_state;							/* The checkpoint state. */
+
+	/* The "flusher" thread (used when pbxt_flush_log_at_trx_commit = 0 or 2) */
+	struct XTThread			*db_fl_thread;							/* The flusher thread (flushes the transation log). */
+	xt_mutex_type			db_fl_lock;
 } XTDatabaseRec, *XTDatabaseHPtr;		/* Heap pointer */
 
 #define XT_FOR_USER					0

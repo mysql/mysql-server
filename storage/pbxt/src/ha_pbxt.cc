@@ -113,6 +113,7 @@ static int		pbxt_prepare(handlerton *hton, THD *thd, bool all);
 static int		pbxt_recover(handlerton *hton, XID *xid_list, uint len);
 static int		pbxt_commit_by_xid(handlerton *hton, XID *xid);
 static int		pbxt_rollback_by_xid(handlerton *hton, XID *xid);
+static int		pbxt_start_consistent_snapshot(handlerton *hton, THD *thd);
 #endif
 static void		ha_aquire_exclusive_use(XTThreadPtr self, XTSharePtr share, ha_pbxt *mine);
 static void		ha_release_exclusive_use(XTThreadPtr self, XTSharePtr share);
@@ -286,7 +287,7 @@ static void ha_trace_function(const char *function, char *table)
 	char		func_buf[50], *ptr;
 	XTThreadPtr	thread = xt_get_self(); 
 
-	if ((ptr = strchr(function, '('))) {
+	if ((ptr = const_cast<char *>(strchr(function, '(')))) {
 		ptr--;
 		while (ptr > function) {
 			if (!(isalnum(*ptr) || *ptr == '_'))
@@ -345,13 +346,13 @@ static xtHashValue ha_hash_ci(xtBool is_key, void *key_data)
 	return xt_ht_casehash(share->sh_table_path->ps_path);
 }
 
-static void ha_open_share(XTThreadPtr self, XTShareRec *share, xtBool *tabled_opened)
+static void ha_open_share(XTThreadPtr self, XTShareRec *share)
 {
 	xt_lock_mutex(self, (xt_mutex_type *) share->sh_ex_mutex);
 	pushr_(xt_unlock_mutex, share->sh_ex_mutex);
 
 	if (!share->sh_table) {
-		share->sh_table = xt_use_table(self, share->sh_table_path, FALSE, FALSE, tabled_opened);
+		share->sh_table = xt_use_table(self, share->sh_table_path, FALSE, FALSE);
 		share->sh_dic_key_count = share->sh_table->tab_dic.dic_key_count;
 		share->sh_dic_keys = share->sh_table->tab_dic.dic_keys;
 		share->sh_recalc_selectivity = FALSE;
@@ -411,7 +412,7 @@ static void ha_hash_free(XTThreadPtr self, void *data)
  * This structure contains information that is common to all handles.
  * (i.e. it is table specific).
  */
-static XTSharePtr ha_get_share(XTThreadPtr self, const char *table_path, bool open_table, xtBool *tabled_opened)
+static XTSharePtr ha_get_share(XTThreadPtr self, const char *table_path, bool open_table)
 {
 	XTShareRec	*share;
 
@@ -433,7 +434,7 @@ static XTSharePtr ha_get_share(XTThreadPtr self, const char *table_path, bool op
 		share->sh_table_path = (XTPathStrPtr) xt_dup_string(self, table_path);
 
 		if (open_table)
-			ha_open_share(self, share, tabled_opened);
+			ha_open_share(self, share);
 
 		popr_(); // Discard ha_cleanup_share(share);
 
@@ -474,6 +475,25 @@ static xtBool ha_unget_share_removed(XTThreadPtr self, XTSharePtr share)
 
 	freer_(); // xt_ht_unlock(pbxt_share_tables)
 	return removed;
+}
+
+static inline void thd_init_xact(THD *thd, XTThreadPtr self, bool set_table_trans)
+{
+	self->st_xact_mode = thd_tx_isolation(thd) <= ISO_READ_COMMITTED ? XT_XACT_COMMITTED_READ : XT_XACT_REPEATABLE_READ;
+	self->st_ignore_fkeys = (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) != 0;
+	self->st_auto_commit = (thd_test_options(thd,(OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) == 0;
+	if (set_table_trans) {
+#ifdef DRIZZLED
+		self->st_table_trans = FALSE;
+#else
+		self->st_table_trans = thd_sql_command(thd) == SQLCOM_LOCK_TABLES;
+#endif
+	}
+	self->st_abort_trans = FALSE;
+	self->st_stat_ended = FALSE;
+	self->st_stat_trans = FALSE;
+	XT_PRINT0(self, "xt_xn_begin\n");
+	xt_xres_wait_for_recovery(self, XT_RECOVER_SWEPT);
 }
 
 /*
@@ -1146,6 +1166,7 @@ static int pbxt_init(void *p)
 		pbxt_hton->show_status = pbxt_show_status;
 		pbxt_hton->flags = HTON_NO_FLAGS; /* HTON_CAN_RECREATE - Without this flags TRUNCATE uses delete_all_rows() */
 		pbxt_hton->slot = (uint)-1; /* assign invald value, so we know when it's inited later */
+		pbxt_hton->start_consistent_snapshot = pbxt_start_consistent_snapshot;
 #if defined(MYSQL_SUPPORTS_BACKUP) && defined(XT_ENABLE_ONLINE_BACKUP)
 		pbxt_hton->get_backup_engine = pbxt_backup_engine;
 #endif
@@ -1175,13 +1196,8 @@ static int pbxt_init(void *p)
 		 * +1 Temporary thread (e.g. TempForClose, TempForEnd)
 		 */
 #ifndef DRIZZLED
-		if (pbxt_max_threads == 0) {
-			// Embedded server sets max_connections=1
-			if (max_connections > 1)
-				pbxt_max_threads = max_connections + 7;
-			else
-				pbxt_max_threads = 100;
-		}
+		if (pbxt_max_threads == 0)
+			pbxt_max_threads = max_connections + 7;
 #endif
 		self = xt_init_threading(pbxt_max_threads);				/* Create the main self: */
 		if (!self)
@@ -1294,7 +1310,7 @@ static int pbxt_init(void *p)
 				#6	0x000debe1 in THD::THD at sql_class.cc:631
 				#7	0x00e207a4 in myxt_create_thread at myxt_xt.cc:2666
 				#8	0x00e3134b in tabc_fr_run_thread at tabcache_xt.cc:982
-				#9	0x00e422ca in thr_main_pbxt at thread_xt.cc:1006
+				#9	0x00e422ca in xt_thread_main at thread_xt.cc:1006
 				#10	0x91ff7c55 in _pthread_start
 				#11	0x91ff7b12 in thread_start
 			 *
@@ -1427,7 +1443,42 @@ static void pbxt_drop_database(handlerton *XT_UNUSED(hton), char *XT_UNUSED(path
  * 
  * 3. If in BEGIN/END we must call ha_rollback() if we abort the transaction
  *    internally.
+ *
+ * NOTE ON CONSISTENT SNAPSHOTS:
+ * 
+ * PBXT itself doesn't need this functiona as its transaction mechanism provides
+ * consistent snapshots for all transactions by default. This function is needed
+ * only for multi-engine cases like this:
+ *
+ * CREATE TABLE t1 ... ENGINE=INNODB
+ * CREATE TABLE t2 ... ENGINE=PBXT
+ * START TRANSACTION WITH CONSISTENT SNAPSHOT
+ * SELECT * FROM t1 <-- at this point we need to know about the snapshot
  */
+
+static int pbxt_start_consistent_snapshot(handlerton *hton, THD *thd)
+{
+	int err          = 0;
+	XTThreadPtr self = ha_set_current_thread(thd, &err);
+
+	if (!self->st_database && pbxt_database) {
+		xt_ha_open_database_of_table(self, (XTPathStrPtr) NULL);
+	}
+
+	thd_init_xact(thd, self, true);
+
+	if (xt_xn_begin(self)) {
+		trans_register_ha(thd, TRUE, hton);	
+	} else {
+		err = xt_ha_pbxt_thread_error_for_mysql(thd, self, FALSE);
+	}
+
+	/*
+	 * As of MySQL 5.1.41 the return value is not checked, so the server might assume 
+	 * everything is fine even it isn't. InnoDB returns 0 on success.
+	 */
+	return err;
+}
 
 /*
  * Commit the PBXT transaction of the given thread.
@@ -1557,7 +1608,7 @@ static int pbxt_prepare(handlerton *hton, THD *thd, bool all)
 	return err;
 }
 
-static XTThreadPtr ha_temp_open_global_database(handlerton *hton, THD **ret_thd, int *temp_thread, const char *thread_name, int *err)
+static XTThreadPtr ha_temp_open_global_database(handlerton *hton, THD **ret_thd, int *temp_thread, char *thread_name, int *err)
 {
 	THD			*thd;
 	XTThreadPtr	self = NULL;
@@ -1870,7 +1921,6 @@ xtPublic int ha_pbxt::reopen()
 	THD				*thd = current_thd;
 	int				err = 0;
 	XTThreadPtr		self;	
-	xtBool			tabled_opened = FALSE;
 
 	if (!(self = ha_set_current_thread(thd, &err)))
 		return xt_ha_pbxt_to_mysql_error(err);
@@ -1878,24 +1928,30 @@ xtPublic int ha_pbxt::reopen()
 	try_(a) {
 		xt_ha_open_database_of_table(self, pb_share->sh_table_path);
 
-		ha_open_share(self, pb_share, &tabled_opened);
+		ha_open_share(self, pb_share);
 
 		if (!(pb_open_tab = xt_db_open_table_using_tab(pb_share->sh_table, self)))
 			xt_throw(self);
 		pb_open_tab->ot_thread = self;
 
-		if (tabled_opened) {
+		/* {TABLE-STATS}
+		 * We no longer use the information that a table
+		 * was opened in order to know when to calculate
+		 * statistics.
+		 */
+		if (!pb_open_tab->ot_table->tab_ind_stat_calc_time) {
 #ifdef LOAD_TABLE_ON_OPEN
 			xt_tab_load_table(self, pb_open_tab);
 #else
 			xt_tab_load_row_pointers(self, pb_open_tab);
 #endif
-			xt_ind_set_index_selectivity(self, pb_open_tab);
+			xt_ind_set_index_selectivity(pb_open_tab, self);
 			/* If the number of rows is less than 150 we will recalculate the
 			 * selectity of the indices, as soon as the number of rows
 			 * exceeds 200 (see [**])
 			 */
-			pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 - pb_share->sh_table->tab_row_fnum) < 150;
+			/* {FREE-ROWS-BAD} */
+			pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 /* - pb_share->sh_table->tab_row_fnum */) < 150;
 		}
 
 		/* I am not doing this anymore because it was only required
@@ -2269,7 +2325,6 @@ int ha_pbxt::open(const char *table_path, int XT_UNUSED(mode), uint XT_UNUSED(te
 	THD			*thd = current_thd;
 	int			err = 0;
 	XTThreadPtr	self;
-	xtBool		tabled_opened = FALSE;
 
 	ref_length = XT_RECORD_OFFS_SIZE;
 
@@ -2282,28 +2337,30 @@ int ha_pbxt::open(const char *table_path, int XT_UNUSED(mode), uint XT_UNUSED(te
 	try_(a) {
 		xt_ha_open_database_of_table(self, (XTPathStrPtr) table_path);
 
-		pb_share = ha_get_share(self, table_path, true, &tabled_opened);
+		pb_share = ha_get_share(self, table_path, false);
 		ha_add_to_handler_list(self, pb_share, this);
 		if (pb_share->sh_table_lock) {
 			if (!ha_wait_for_shared_use(this, pb_share))
 				xt_throw(self);
 		}
 
-		ha_open_share(self, pb_share, &tabled_opened);
+		ha_open_share(self, pb_share);
 
 		thr_lock_data_init(&pb_share->sh_lock, &pb_lock, NULL);
 		if (!(pb_open_tab = xt_db_open_table_using_tab(pb_share->sh_table, self)))
 			xt_throw(self);
 		pb_open_tab->ot_thread = self;
 
-		if (tabled_opened) {
+		/* {TABLE-STATS} */
+		if (!pb_open_tab->ot_table->tab_ind_stat_calc_time) {
 #ifdef LOAD_TABLE_ON_OPEN
 			xt_tab_load_table(self, pb_open_tab);
 #else
 			xt_tab_load_row_pointers(self, pb_open_tab);
 #endif
-			xt_ind_set_index_selectivity(self, pb_open_tab);
-			pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 - pb_share->sh_table->tab_row_fnum) < 150;
+			xt_ind_set_index_selectivity(pb_open_tab, self);
+			/* {FREE-ROWS-BAD} */
+			pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 /* - pb_share->sh_table->tab_row_fnum */) < 150;
 		}
 
 		init_auto_increment(0);
@@ -2411,7 +2468,7 @@ void ha_pbxt::init_auto_increment(xtWord8 min_auto_inc)
 			self->st_abort_trans = FALSE;
 			self->st_stat_ended = FALSE;
 			self->st_stat_trans = FALSE;
-			self->st_is_update = FALSE;
+			self->st_is_update = NULL;
 			if (!xt_xn_begin(self)) {
 				xt_spinlock_unlock(&tab->tab_ainc_lock);
 				xt_throw(self);
@@ -2651,8 +2708,14 @@ int ha_pbxt::write_row(byte *buf)
 		 * and if it gets dup-key error it tries UPDATE, so the same row can be overwriten multiple 
 		 * times within the same statement
 		 */
-		if (err == HA_ERR_FOUND_DUPP_KEY && pb_open_tab->ot_thread->st_is_update)
-			pb_open_tab->ot_thread->st_update_id++;
+		if (err == HA_ERR_FOUND_DUPP_KEY && pb_open_tab->ot_thread->st_is_update) {
+			/* Pop the update stack: */
+			//pb_open_tab->ot_thread->st_update_id++;
+			XTOpenTablePtr curr = pb_open_tab->ot_thread->st_is_update;
+
+			pb_open_tab->ot_thread->st_is_update = curr->ot_prev_update;
+			curr->ot_prev_update = NULL;
+		}
 	}
 
 	done:
@@ -2720,9 +2783,12 @@ int ha_pbxt::update_row(const byte * old_data, byte * new_data)
 
 	xt_xlog_check_long_writer(self);
 
-	if (!self->st_is_update) {
-		self->st_is_update = TRUE;
-		self->st_update_id++;
+	/* {UPDATE-STACK} */
+	if (self->st_is_update != pb_open_tab) {
+		/* Push the update stack: */
+		pb_open_tab->ot_prev_update = self->st_is_update;
+		self->st_is_update = pb_open_tab;
+		pb_open_tab->ot_update_id++;
 	}
 
 	if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
@@ -3120,6 +3186,7 @@ int ha_pbxt::index_init(uint idx, bool XT_UNUSED(sorted))
 	active_index = idx;
 
 	if (pb_open_tab->ot_table->tab_dic.dic_disable_index) {
+		active_index = MAX_KEY;
 		xt_tab_set_index_error(pb_open_tab->ot_table);
 		return ha_log_pbxt_thread_error_for_mysql(pb_ignore_dup_key);
 	}
@@ -3270,6 +3337,10 @@ int ha_pbxt::index_read_xt(byte * buf, uint idx, const byte *key, uint key_len, 
 	int					prefix = 0;
 	XTIdxSearchKeyRec	search_key;
 
+	if (idx == MAX_KEY) {
+		err = HA_ERR_WRONG_INDEX;
+		goto done;
+	}
 #ifdef XT_TRACK_RETURNED_ROWS
 	ha_start_scan(pb_open_tab, idx);
 #endif
@@ -3320,6 +3391,7 @@ int ha_pbxt::index_read_xt(byte * buf, uint idx, const byte *key, uint key_len, 
 		ha_return_row(pb_open_tab, idx);
 #endif
 	XT_DISABLED_TRACE(("search tx=%d val=%d err=%d\n", (int) pb_open_tab->ot_thread->st_xact_data->xd_start_xn_id, (int) XT_GET_DISK_4(key), err));
+	done:
 	if (err)
 		table->status = STATUS_NOT_FOUND;
 	else {
@@ -3364,6 +3436,10 @@ int ha_pbxt::index_next(byte * buf)
 	//statistic_increment(ha_read_next_count,&LOCK_status);
 	ASSERT_NS(pb_ex_in_use);
 
+	if (active_index == MAX_KEY) {
+		err = HA_ERR_WRONG_INDEX;
+		goto done;
+	}
 	ind = (XTIndexPtr) pb_share->sh_dic_keys[active_index];
 
 	if (!xt_idx_next(pb_open_tab, ind, NULL))
@@ -3376,6 +3452,7 @@ int ha_pbxt::index_next(byte * buf)
 	if (!err)
 		ha_return_row(pb_open_tab, active_index);
 #endif
+	done:
 	if (err)
 		table->status = STATUS_NOT_FOUND;
 	else {
@@ -3406,6 +3483,10 @@ int ha_pbxt::index_next_same(byte * buf, const byte *key, uint length)
 	//statistic_increment(ha_read_next_count,&LOCK_status);
 	ASSERT_NS(pb_ex_in_use);
 
+	if (active_index == MAX_KEY) {
+		err = HA_ERR_WRONG_INDEX;
+		goto done;
+	}
 	ind = (XTIndexPtr) pb_share->sh_dic_keys[active_index];
 
 	search_key.sk_key_value.sv_flags = HA_READ_KEY_EXACT;
@@ -3425,6 +3506,7 @@ int ha_pbxt::index_next_same(byte * buf, const byte *key, uint length)
 	if (!err)
 		ha_return_row(pb_open_tab, active_index);
 #endif
+	done:
 	if (err)
 		table->status = STATUS_NOT_FOUND;
 	else {
@@ -3446,6 +3528,10 @@ int ha_pbxt::index_prev(byte * buf)
 	//statistic_increment(ha_read_prev_count,&LOCK_status);
 	ASSERT_NS(pb_ex_in_use);
 
+	if (active_index == MAX_KEY) {
+		err = HA_ERR_WRONG_INDEX;
+		goto done;
+	}
 	ind = (XTIndexPtr) pb_share->sh_dic_keys[active_index];
 
 	if (!xt_idx_prev(pb_open_tab, ind, NULL))
@@ -3458,6 +3544,7 @@ int ha_pbxt::index_prev(byte * buf)
 	if (!err)
 		ha_return_row(pb_open_tab, active_index);
 #endif
+	done:
 	if (err)
 		table->status = STATUS_NOT_FOUND;
 	else {
@@ -3480,6 +3567,18 @@ int ha_pbxt::index_first(byte * buf)
 	//statistic_increment(ha_read_first_count,&LOCK_status);
 	ASSERT_NS(pb_ex_in_use);
 
+	/* This is required because MySQL ignores the error returned
+	 * init init_index sometimes, for example:
+	 *
+     * if (!table->file->inited)
+     *    table->file->ha_index_init(tab->index, tab->sorted);
+     *  if ((error=tab->table->file->index_first(tab->table->record[0])))
+	 */
+	if (active_index == MAX_KEY) {
+		err = HA_ERR_WRONG_INDEX;
+		goto done;
+	}
+
 #ifdef XT_TRACK_RETURNED_ROWS
 	ha_start_scan(pb_open_tab, active_index);
 #endif
@@ -3498,6 +3597,7 @@ int ha_pbxt::index_first(byte * buf)
 	if (!err)
 		ha_return_row(pb_open_tab, active_index);
 #endif
+	done:
 	if (err)
 		table->status = STATUS_NOT_FOUND;
 	else {
@@ -3520,6 +3620,11 @@ int ha_pbxt::index_last(byte * buf)
 	//statistic_increment(ha_read_last_count,&LOCK_status);
 	ASSERT_NS(pb_ex_in_use);
 
+	if (active_index == MAX_KEY) {
+		err = HA_ERR_WRONG_INDEX;
+		goto done;
+	}
+
 #ifdef XT_TRACK_RETURNED_ROWS
 	ha_start_scan(pb_open_tab, active_index);
 #endif
@@ -3538,6 +3643,7 @@ int ha_pbxt::index_last(byte * buf)
 	if (!err)
 		ha_return_row(pb_open_tab, active_index);
 #endif
+	done:
 	if (err)
 		table->status = STATUS_NOT_FOUND;
 	else {
@@ -3825,8 +3931,34 @@ int ha_pbxt::info(uint flag)
 
 	if ((ot = pb_open_tab)) {
 		if (flag & HA_STATUS_VARIABLE) {
-			stats.deleted = ot->ot_table->tab_row_fnum;
-			stats.records = (ha_rows) (ot->ot_table->tab_row_eof_id - 1 - stats.deleted);
+			/* {FREE-ROWS-BAD}
+			 * Free row count is not reliable, so ignore it.
+			 * The problem is if tab_row_fnum > tab_row_eof_id - 1 then
+			 * we have a very bad result.
+			 *
+			 * If stats.records+EXTRA_RECORDS == 0 as returned by 
+			 * estimate_rows_upper_bound(), then filesort will crash here:
+			 *
+			 * make_sortkey(param,sort_keys[idx++],ref_pos);
+			 * 
+			 * #0	0x000bf69c in Field_long::sort_string at field.cc:3766
+			 * #1	0x0022e1f1 in make_sortkey at filesort.cc:769
+			 * #2	0x0022f1cf in find_all_keys at filesort.cc:619
+			 * #3	0x00230eec in filesort at filesort.cc:243
+			 * #4	0x001b9d89 in mysql_update at sql_update.cc:415
+			 * #5	0x0010db12 in mysql_execute_command at sql_parse.cc:2959
+			 * #6	0x0011480d in mysql_parse at sql_parse.cc:5787
+			 * #7	0x00115afb in dispatch_command at sql_parse.cc:1200
+			 * #8	0x00116de2 in do_command at sql_parse.cc:857
+			 * #9	0x00101ee4 in handle_one_connection at sql_connect.cc:1115
+			 *
+			 * The problem is that sort_keys is allocated to handle just 1 vector.
+			 * Sorting one vector crashes. Although I could not find a check for
+			 * the actual number of vectors. But it must assume that it has at
+			 * least EXTRA_RECORDS vectors.
+			 */
+			stats.deleted = /* ot->ot_table->tab_row_fnum */ 0;
+			stats.records = (ha_rows) (ot->ot_table->tab_row_eof_id - 1 /* - stats.deleted */);
 			stats.data_file_length = xt_rec_id_to_rec_offset(ot->ot_table, ot->ot_table->tab_rec_eof_id);
 			stats.index_file_length = xt_ind_node_to_offset(ot->ot_table, ot->ot_table->tab_ind_eof);
 			stats.delete_length = ot->ot_table->tab_rec_fnum * ot->ot_rec_size;
@@ -4454,11 +4586,13 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 				}
 
 				if (pb_share->sh_recalc_selectivity) {
-					if ((pb_share->sh_table->tab_row_eof_id - 1 - pb_share->sh_table->tab_row_fnum) >= 200) {
+					/* {FREE-ROWS-BAD} */
+					if ((pb_share->sh_table->tab_row_eof_id - 1 /* - pb_share->sh_table->tab_row_fnum */) >= 200) {
 						/* [**] */
 						pb_share->sh_recalc_selectivity = FALSE;
-						xt_ind_set_index_selectivity(self, pb_open_tab);
-						pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 - pb_share->sh_table->tab_row_fnum) < 150;
+						xt_ind_set_index_selectivity(pb_open_tab, self);
+						/* {FREE-ROWS-BAD} */
+						pb_share->sh_recalc_selectivity = (pb_share->sh_table->tab_row_eof_id - 1 /* - pb_share->sh_table->tab_row_fnum */) < 150;
 					}
 				}
 			}
@@ -4497,7 +4631,7 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 				if (!pb_share->sh_table) {
 					xt_ha_open_database_of_table(self, pb_share->sh_table_path);
 
-					ha_open_share(self, pb_share, NULL);
+					ha_open_share(self, pb_share);
 				}
 			}
 			catch_(a) {
@@ -4603,8 +4737,8 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 			cont_(b);
 		}
 
-		/* See {IS-UPDATE-STAT} */
-		self->st_is_update = FALSE;
+		/* See {IS-UPDATE-STAT} nad {UPDATE-STACK} */
+		self->st_is_update = NULL;
 
 		/* Auto begin a transaction (if one is not already running): */
 		if (!self->st_xact_data) {
@@ -4612,19 +4746,8 @@ xtPublic int ha_pbxt::external_lock(THD *thd, int lock_type)
 			(void) ASSERT_NS(ISO_READ_UNCOMMITTED == XT_XACT_UNCOMMITTED_READ);
 			(void) ASSERT_NS(ISO_SERIALIZABLE == XT_XACT_SERIALIZABLE);
 
-			self->st_xact_mode = thd_tx_isolation(thd) <= ISO_READ_COMMITTED ? XT_XACT_COMMITTED_READ : XT_XACT_REPEATABLE_READ;
-			self->st_ignore_fkeys = (thd_test_options(thd,OPTION_NO_FOREIGN_KEY_CHECKS)) != 0;
-			self->st_auto_commit = (thd_test_options(thd, (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) == 0;
-#ifdef DRIZZLED
-			self->st_table_trans = FALSE;
-#else
-			self->st_table_trans = thd_sql_command(thd) == SQLCOM_LOCK_TABLES;
-#endif
-			self->st_abort_trans = FALSE;
-			self->st_stat_ended = FALSE;
-			self->st_stat_trans = FALSE;
-			XT_PRINT0(self, "xt_xn_begin\n");
-			xt_xres_wait_for_recovery(self, XT_RECOVER_SWEPT);
+			thd_init_xact(thd, self, true);
+
 			if (!xt_xn_begin(self)) {
 				err = xt_ha_pbxt_thread_error_for_mysql(thd, self, pb_ignore_dup_key);
 				pb_ex_in_use = 0;
@@ -4847,19 +4970,27 @@ int ha_pbxt::start_stmt(THD *thd, thr_lock_type lock_type)
 	 * are nested within an open close of the select t1
 	 * statement.
 	 */
-	self->st_is_update = FALSE;
+	/* {UPDATE-STACK}
+	 * Add to this I add the following:
+	 * A trigger in the middle of an update also causes nested
+	 * statements. If I reset st_is_update, then then
+	 * when the trigger returns the system thinks we
+	 * are in a different update statement, and may
+	 * update the same row again.
+	 */
+	if (self->st_is_update == pb_open_tab) {
+		/* Pop the update stack: */
+		XTOpenTablePtr curr = pb_open_tab->ot_thread->st_is_update;
+
+		pb_open_tab->ot_thread->st_is_update = curr->ot_prev_update;
+		curr->ot_prev_update = NULL;
+	}
 
 	/* See comment {START-TRANS} */
 	if (!self->st_xact_data) {
-		self->st_xact_mode = thd_tx_isolation(thd) <= ISO_READ_COMMITTED ? XT_XACT_COMMITTED_READ : XT_XACT_REPEATABLE_READ;
-		self->st_ignore_fkeys = (thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS)) != 0;
-		self->st_auto_commit = (thd_test_options(thd,(OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) == 0;
-		/* self->st_table_trans = not set here! */
-		self->st_abort_trans = FALSE;
-		self->st_stat_ended = FALSE;
-		self->st_stat_trans = FALSE;
-		XT_PRINT0(self, "xt_xn_begin\n");
-		xt_xres_wait_for_recovery(self, XT_RECOVER_SWEPT);
+
+		thd_init_xact(thd, self, false);
+
 		if (!xt_xn_begin(self)) {
 			err = xt_ha_pbxt_thread_error_for_mysql(thd, self, pb_ignore_dup_key);
 			goto complete;
@@ -4915,6 +5046,18 @@ int ha_pbxt::start_stmt(THD *thd, thr_lock_type lock_type)
  */
 THR_LOCK_DATA **ha_pbxt::store_lock(THD *thd, THR_LOCK_DATA **to, enum thr_lock_type lock_type)
 {
+	/*
+	 * TL_READ means concurrent INSERTs are allowed. This is a problem as in this mode
+	 * PBXT is not compatible with MyISAM which allows INSERTs but isolates them from
+	 * current "transaction" (started by LOCK TABLES, ended by UNLOCK TABLES). PBXT 
+	 * used to allow INSERTs and made them visible to the locker (on commit). 
+	 * While MySQL manual doesn't state anything regarding row visibility limitations 
+	 * we choose to convert local locks into normal read locks for better compatibility 
+	 * with MyISAM.
+	 */
+	if (lock_type == TL_READ)
+		lock_type = TL_READ_NO_INSERT;
+
 	if (lock_type != TL_IGNORE && pb_lock.type == TL_UNLOCK) {
 		/* Set to TRUE for operations that require a table lock: */
 		switch (thd_sql_command(thd)) {
@@ -5112,7 +5255,7 @@ int ha_pbxt::delete_table(const char *table_path)
 			 * We also cannot use pb_share because the handler used
 			 * to delete a table is not openned correctly.
 			 */
-			share = ha_get_share(self, table_path, false, NULL);
+			share = ha_get_share(self, table_path, false);
 			pushr_(ha_unget_share, share);
 			ha_aquire_exclusive_use(self, share, NULL);
 			pushr_(ha_release_exclusive_use, share);
@@ -5271,7 +5414,7 @@ int ha_pbxt::rename_table(const char *from, const char *to)
 		 * called without correctly initializing
 		 * the handler!
 		 */
-		share = ha_get_share(self, from, true, NULL);
+		share = ha_get_share(self, from, true);
 		pushr_(ha_unget_share, share);
 		ha_aquire_exclusive_use(self, share, NULL);
 		pushr_(ha_release_exclusive_use, share);
@@ -5837,20 +5980,19 @@ static MYSQL_SYSVAR_INT(max_threads, pbxt_max_threads,
 	NULL, NULL, 0, 0, 20000, 1);
 #endif
 
-#ifndef DEBUG
+/* In MySQL 5.1.46 this assertion:  (total_ha_2pc == (ulong) opt_bin_log+1),
+ * in function ha_recover, file handler.cc, line 1557, has been removed.
+ * So enable XA by default.
+ */
 static MYSQL_SYSVAR_BOOL(support_xa, pbxt_support_xa,
 	PLUGIN_VAR_OPCMDARG,
 	"Enable PBXT support for the XA two-phase commit, default is enabled",
 	NULL, NULL, TRUE);
-#else
-static MYSQL_SYSVAR_BOOL(support_xa, pbxt_support_xa,
+
+static MYSQL_SYSVAR_INT(flush_log_at_trx_commit, xt_db_flush_log_at_trx_commit,
 	PLUGIN_VAR_OPCMDARG,
-	"Enable PBXT support for the XA two-phase commit, default is disabled (due to assertion failure in MySQL)",
-	/* The problem is, in MySQL an assertion fails in debug mode: 
-	 * Assertion failed: (total_ha_2pc == (ulong) opt_bin_log+1), function ha_recover, file handler.cc, line 1557.
-     */
-	NULL, NULL, FALSE);
-#endif
+	"Determines whether the transaction log is written and/or flushed when a transaction is committed (no matter what the setting the log is written and flushed once per second), 0 = no write & no flush, 1 = write & flush (default), 2 = write & no flush.",
+	NULL, NULL, 1, 0, 2, 1);
 
 static struct st_mysql_sys_var* pbxt_system_variables[] = {
   MYSQL_SYSVAR(index_cache_size),
@@ -5870,6 +6012,7 @@ static struct st_mysql_sys_var* pbxt_system_variables[] = {
   MYSQL_SYSVAR(sweeper_priority),
   MYSQL_SYSVAR(max_threads),
   MYSQL_SYSVAR(support_xa),
+  MYSQL_SYSVAR(flush_log_at_trx_commit),
   NULL
 };
 #endif

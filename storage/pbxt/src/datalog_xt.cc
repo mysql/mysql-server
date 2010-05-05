@@ -1148,6 +1148,11 @@ void XTDataLogBuffer::dlb_exit(XTThreadPtr self)
 xtBool XTDataLogBuffer::dlb_close_log(XTThreadPtr thread)
 {
 	if (dlb_data_log) {
+		if (dlb_data_log->dlf_log_file) {
+			if (!dl_write_log_header(dlb_data_log, dlb_data_log->dlf_log_file, 0, thread))
+				return FAILED;
+		}
+
 		/* Flush and commit the data in the old log: */
 		if (!dlb_flush_log(TRUE, thread))
 			return FAILED;
@@ -1952,7 +1957,7 @@ static xtBool dl_collect_garbage(XTThreadPtr self, XTDatabaseHPtr db, XTDataLogF
 	log_rec.xl_status_1 = XT_LOG_ENT_DEL_LOG;
 	log_rec.xl_checksum_1 = XT_CHECKSUM_1(data_log->dlf_log_id);
 	XT_SET_DISK_4(log_rec.xl_log_id_4, data_log->dlf_log_id);
-	if (!xt_xlog_log_data(self, sizeof(XTXactNewLogEntryDRec), (XTXactLogBufferDPtr) &log_rec, TRUE)) {
+	if (!xt_xlog_log_data(self, sizeof(XTXactNewLogEntryDRec), (XTXactLogBufferDPtr) &log_rec, XT_XLOG_WRITE_AND_FLUSH)) {
 		db->db_datalogs.dls_set_log_state(data_log, XT_DL_TO_COMPACT);
 		xt_throw(self);
 	}

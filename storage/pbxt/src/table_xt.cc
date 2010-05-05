@@ -217,6 +217,7 @@ static void tab_finalize(XTThreadPtr self, void *x)
 		xt_spinlock_free(self, &tab->tab_ainc_lock);
 		xt_free_mutex(&tab->tab_rec_flush_lock);
 		xt_free_mutex(&tab->tab_ind_flush_lock);
+		xt_free_mutex(&tab->tab_ind_stat_lock);
 		xt_free_mutex(&tab->tab_dic_field_lock);
 		xt_free_mutex(&tab->tab_row_lock);
 		xt_free_mutex(&tab->tab_ind_lock);
@@ -499,13 +500,24 @@ xtPublic void xt_tab_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 	 * 
 	 * Cannot open tables in the loop above because db->db_table_by_id which is built 
 	 * above is used by xt_use_table_no_lock() 
+	 *
+	 * {TABLE-STATS}
+	 * NOTE: The code also lead to the statistics failing to work because 
+	 * the tables were already open when the handler was opened.
+	 * Previously we only caclulated statistics when a handler was opened
+	 * and the underlying table was also opened.
 	 */
 	xt_enum_tables_init(&edx);
 	while ((te_ptr = xt_enum_tables_next(self, db, &edx))) {
 		xt_strcpy(PATH_MAX, pbuf, te_ptr->te_tab_path->tp_path);
 		xt_add_dir_char(PATH_MAX, pbuf);
 		xt_strcat(PATH_MAX, pbuf, te_ptr->te_tab_name);
-		xt_heap_release(self, xt_use_table_no_lock(self, db, (XTPathStrPtr)pbuf, FALSE, FALSE, NULL, NULL));
+		try_(a) {
+			xt_heap_release(self, xt_use_table_no_lock(self, db, (XTPathStrPtr)pbuf, FALSE, FALSE, NULL));
+		} catch_(a) {
+			/* ignore errors */
+			xt_log_and_clear_warning(self);
+		} cont_(a);
 	}
 
 	popr_(); // Discard xt_tab_exit_db(db)
@@ -651,7 +663,7 @@ xtPublic void xt_check_tables(XTThreadPtr self)
 			xt_strcpy(PATH_MAX, path, te_ptr->te_tab_path->tp_path);
 			xt_add_dir_char(PATH_MAX, path);
 			xt_strcat(PATH_MAX, path, te_ptr->te_tab_name);
-			tab = xt_use_table(self, (XTPathStrPtr) path, FALSE, FALSE, NULL);
+			tab = xt_use_table(self, (XTPathStrPtr) path, FALSE, FALSE);
 			tab_check_table(self, tab);
 			xt_heap_release(self, tab);
 			tab = NULL;
@@ -1009,6 +1021,7 @@ xtPublic xtBool xt_tab_write_min_auto_inc(XTOpenTablePtr ot)
 /* a helper function to remove table from the open tables hash on exception
  * used in tab_new_handle() below
  */
+ #ifdef NO_LONGER_REQ
 static void xt_del_from_db_tables_ht(XTThreadPtr self, XTTableHPtr tab)
 {
 	XTTableEntryPtr	te_ptr;
@@ -1024,6 +1037,7 @@ static void xt_del_from_db_tables_ht(XTThreadPtr self, XTTableHPtr tab)
 	if ((te_ptr = (XTTableEntryPtr) xt_sl_find(self, db->db_table_by_id, &tab_id)))
 		te_ptr->te_table = NULL;
 }
+#endif
 
 /*
  * Create a new table handle (i.e. open a table).
@@ -1067,6 +1081,7 @@ static int tab_new_handle(XTThreadPtr self, XTTableHPtr *r_tab, XTDatabaseHPtr d
 	xt_spinlock_init_with_autoname(self, &tab->tab_ainc_lock);
 	xt_init_mutex_with_autoname(self, &tab->tab_rec_flush_lock);
 	xt_init_mutex_with_autoname(self, &tab->tab_ind_flush_lock);
+	xt_init_mutex_with_autoname(self, &tab->tab_ind_stat_lock);
 	xt_init_mutex_with_autoname(self, &tab->tab_dic_field_lock);
 	xt_init_mutex_with_autoname(self, &tab->tab_row_lock);
 	xt_init_mutex_with_autoname(self, &tab->tab_ind_lock);
@@ -1148,9 +1163,12 @@ static int tab_new_handle(XTThreadPtr self, XTTableHPtr *r_tab, XTDatabaseHPtr d
      * will work if we have cyclic foreign key references.
      */ 
 	if (tab->tab_dic.dic_table) {
-		pushr_(xt_del_from_db_tables_ht, tab);
-		tab->tab_dic.dic_table->attachReferences(self, db);
-		popr_();
+		try_(a) {
+			tab->tab_dic.dic_table->attachReferences(self, db);
+		} catch_(a) {
+			/* ignore problems of referenced tables */
+			xt_log_and_clear_warning(self);
+		} cont_(a);
 	}
 
 	*r_tab = tab;
@@ -1162,7 +1180,7 @@ static int tab_new_handle(XTThreadPtr self, XTTableHPtr *r_tab, XTDatabaseHPtr d
  * Get a reference to a table in the current database. The table reference is valid,
  * as long as the thread is using the database!!!
  */
-xtPublic XTTableHPtr xt_use_table_no_lock(XTThreadPtr self, XTDatabaseHPtr db, XTPathStrPtr name, xtBool no_load, xtBool missing_ok, XTDictionaryPtr dic, xtBool *opened)
+xtPublic XTTableHPtr xt_use_table_no_lock(XTThreadPtr self, XTDatabaseHPtr db, XTPathStrPtr name, xtBool no_load, xtBool missing_ok, XTDictionaryPtr dic)
 {
 	XTTableHPtr tab;
 
@@ -1181,9 +1199,6 @@ xtPublic XTTableHPtr xt_use_table_no_lock(XTThreadPtr self, XTDatabaseHPtr db, X
 
 		if (tab_new_handle(self, &tab, db, tab_id, name, FALSE, dic) == XT_TAB_NO_DICTIONARY)
 			xt_throw_taberr(XT_CONTEXT, XT_ERR_NO_DICTIONARY, name);
-
-		if (opened)
-			*opened = TRUE;
 	}
 	
 	if (tab)
@@ -1297,7 +1312,7 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 	XTSortedListInfoRec	li_undo;
 
 #ifdef TRACE_CREATE_TABLES
-	fprintf(stderr, "CREATE %s\n", name->ps_path);
+	printf("CREATE %s\n", name->ps_path);
 #endif
 	enter_();
 	if (strlen(xt_last_name_of_path(name->ps_path)) > XT_TABLE_NAME_SIZE-1)
@@ -1528,7 +1543,7 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 		 * as well.
 		 */
 		if (!old_tab_id) {
-			tab = xt_use_table_no_lock(self, db, name, FALSE, FALSE, NULL, NULL);
+			tab = xt_use_table_no_lock(self, db, name, FALSE, FALSE, NULL);
 			xt_heap_release(self, tab);
 		}
 	}
@@ -1556,7 +1571,7 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 			/* Same purpose as above {LOAD-FOR-FKS} (although this should work, 
 			 * beacuse this is a TRUNCATE TABLE.
 			 */
-			tab = xt_use_table_no_lock(self, db, name, FALSE, FALSE, NULL, NULL);
+			tab = xt_use_table_no_lock(self, db, name, FALSE, FALSE, NULL);
 			xt_heap_release(self, tab);
 		}
 		catch_(b) {
@@ -1599,7 +1614,7 @@ xtPublic void xt_create_table(XTThreadPtr self, XTPathStrPtr name, XTDictionaryP
 	/* this code is not needed anymore as we open tables referred by FKs as necessary during checks
 	xt_ht_lock(self, db->db_tables);
 	pushr_(xt_ht_unlock, db->db_tables);
-	tab = xt_use_table_no_lock(self, db, name, FALSE, FALSE, NULL, NULL);
+	tab = xt_use_table_no_lock(self, db, name, FALSE, FALSE, NULL);
 	freer_(); // xt_ht_unlock(db->db_tables)
 	xt_heap_release(self, tab);
 	* CHANGED see {LOAD-FOR-FKS} above.
@@ -1619,7 +1634,7 @@ xtPublic void xt_drop_table(XTThreadPtr self, XTPathStrPtr tab_name, xtBool drop
 	enter_();
 
 #ifdef TRACE_CREATE_TABLES
-	fprintf(stderr, "DROP %s\n", tab_name->ps_path);
+	printf("DROP %s\n", tab_name->ps_path);
 #endif
 
 	table_pool = tab_lock_table(self, tab_name, FALSE, TRUE, TRUE, &tab);
@@ -1777,7 +1792,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	u_llong					ext_data_len = 0;
 
 #if defined(DUMP_CHECK_TABLE) || defined(CHECK_TABLE_STATS)
-	fprintf(stderr, "\nCHECK TABLE: %s\n", tab->tab_name->ps_path);
+	printf("\nCHECK TABLE: %s\n", tab->tab_name->ps_path);
 #endif
 
 	xt_lock_mutex(self, &tab->tab_db->db_co_ext_lock);
@@ -1787,38 +1802,38 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	pushr_(xt_unlock_mutex, &tab->tab_rec_lock);
 
 #ifdef CHECK_TABLE_STATS
-	fprintf(stderr, "Record buffer size      = %lu\n", (u_long) tab->tab_dic.dic_mysql_buf_size);
-	fprintf(stderr, "Fixed length rec. len.  = %lu\n", (u_long) tab->tab_dic.dic_mysql_rec_size);
-	fprintf(stderr, "Handle data record size = %lu\n", (u_long) tab->tab_dic.dic_rec_size);
-	fprintf(stderr, "Min/max header size     = %d/%d\n", (int) offsetof(XTTabRecFix, rf_data), tab->tab_dic.dic_rec_fixed ? (int) offsetof(XTTabRecFix, rf_data) : (int) offsetof(XTTabRecExtDRec, re_data));
-	fprintf(stderr, "Min/avg/max record size = %llu/%llu/%llu\n", (u_llong) tab->tab_dic.dic_min_row_size, (u_llong) tab->tab_dic.dic_ave_row_size, (u_llong) tab->tab_dic.dic_max_row_size);
+	printf("Record buffer size      = %lu\n", (u_long) tab->tab_dic.dic_mysql_buf_size);
+	printf("Fixed length rec. len.  = %lu\n", (u_long) tab->tab_dic.dic_mysql_rec_size);
+	printf("Handle data record size = %lu\n", (u_long) tab->tab_dic.dic_rec_size);
+	printf("Min/max header size     = %d/%d\n", (int) offsetof(XTTabRecFix, rf_data), tab->tab_dic.dic_rec_fixed ? (int) offsetof(XTTabRecFix, rf_data) : (int) offsetof(XTTabRecExtDRec, re_data));
+	printf("Min/avg/max record size = %llu/%llu/%llu\n", (u_llong) tab->tab_dic.dic_min_row_size, (u_llong) tab->tab_dic.dic_ave_row_size, (u_llong) tab->tab_dic.dic_max_row_size);
 	if (tab->tab_dic.dic_def_ave_row_size)
-		fprintf(stderr, "Avg row len set for tab = %lu\n", (u_long) tab->tab_dic.dic_def_ave_row_size);
+		printf("Avg row len set for tab = %lu\n", (u_long) tab->tab_dic.dic_def_ave_row_size);
 	else
-		fprintf(stderr, "Avg row len set for tab = not specified\n");
-	fprintf(stderr, "Rows fixed length       = %s\n", tab->tab_dic.dic_rec_fixed ? "YES" : "NO");
+		printf("Avg row len set for tab = not specified\n");
+	printf("Rows fixed length       = %s\n", tab->tab_dic.dic_rec_fixed ? "YES" : "NO");
 	if (tab->tab_dic.dic_tab_flags & XT_TAB_FLAGS_TEMP_TAB)
-		fprintf(stderr, "Table type              = TEMP\n");
+		printf("Table type              = TEMP\n");
 	if (tab->tab_dic.dic_def_ave_row_size)
-		fprintf(stderr, "Maximum fixed size      = %lu\n", (u_long) XT_TAB_MAX_FIX_REC_LENGTH_SPEC);
+		printf("Maximum fixed size      = %lu\n", (u_long) XT_TAB_MAX_FIX_REC_LENGTH_SPEC);
 	else
-		fprintf(stderr, "Maximum fixed size      = %lu\n", (u_long) XT_TAB_MAX_FIX_REC_LENGTH);
-	fprintf(stderr, "Minimum variable size   = %lu\n", (u_long) XT_TAB_MIN_VAR_REC_LENGTH);
-	fprintf(stderr, "Minimum auto-increment  = %llu\n", (u_llong) tab->tab_dic.dic_min_auto_inc);
-	fprintf(stderr, "Number of columns       = %lu\n", (u_long) tab->tab_dic.dic_no_of_cols);
-	fprintf(stderr, "Number of fixed columns = %lu\n", (u_long) tab->tab_dic.dic_fix_col_count);
-	fprintf(stderr, "Columns req. for index  = %lu\n", (u_long) tab->tab_dic.dic_ind_cols_req);
+		printf("Maximum fixed size      = %lu\n", (u_long) XT_TAB_MAX_FIX_REC_LENGTH);
+	printf("Minimum variable size   = %lu\n", (u_long) XT_TAB_MIN_VAR_REC_LENGTH);
+	printf("Minimum auto-increment  = %llu\n", (u_llong) tab->tab_dic.dic_min_auto_inc);
+	printf("Number of columns       = %lu\n", (u_long) tab->tab_dic.dic_no_of_cols);
+	printf("Number of fixed columns = %lu\n", (u_long) tab->tab_dic.dic_fix_col_count);
+	printf("Columns req. for index  = %lu\n", (u_long) tab->tab_dic.dic_ind_cols_req);
 	if (tab->tab_dic.dic_ind_rec_len)
-		fprintf(stderr, "Rec len req. for index  = %llu\n", (u_llong) tab->tab_dic.dic_ind_rec_len);
-	fprintf(stderr, "Columns req. for blobs  = %lu\n", (u_long) tab->tab_dic.dic_blob_cols_req);
-	fprintf(stderr, "Number of blob columns  = %lu\n", (u_long) tab->tab_dic.dic_blob_count);
-	fprintf(stderr, "Number of indices       = %lu\n", (u_long) tab->tab_dic.dic_key_count);
+		printf("Rec len req. for index  = %llu\n", (u_llong) tab->tab_dic.dic_ind_rec_len);
+	printf("Columns req. for blobs  = %lu\n", (u_long) tab->tab_dic.dic_blob_cols_req);
+	printf("Number of blob columns  = %lu\n", (u_long) tab->tab_dic.dic_blob_count);
+	printf("Number of indices       = %lu\n", (u_long) tab->tab_dic.dic_key_count);
 #endif
 
 #ifdef DUMP_CHECK_TABLE
-	fprintf(stderr, "Records:-\n");
-	fprintf(stderr, "Free list: %llu (%llu)\n", (u_llong) tab->tab_rec_free_id, (u_llong) tab->tab_rec_fnum);
-	fprintf(stderr, "EOF:       %llu\n", (u_llong) tab->tab_rec_eof_id);
+	printf("Records:-\n");
+	printf("Free list: %llu (%llu)\n", (u_llong) tab->tab_rec_free_id, (u_llong) tab->tab_rec_fnum);
+	printf("EOF:       %llu\n", (u_llong) tab->tab_rec_eof_id);
 #endif
 
 	rec_size = XT_REC_EXT_HEADER_SIZE;
@@ -1830,24 +1845,24 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 			xt_throw(self);
 
 #ifdef DUMP_CHECK_TABLE
-		fprintf(stderr, "%-4llu ", (u_llong) rec_id);
+		printf("%-4llu ", (u_llong) rec_id);
 #endif
 		switch (rec_buf->tr_rec_type_1 & XT_TAB_STATUS_MASK) {
 			case XT_TAB_STATUS_FREED:
 #ifdef DUMP_CHECK_TABLE
-				fprintf(stderr, "======== ");
+				printf("======== ");
 #endif
 				free_rec_count++;
 				break;
 			case XT_TAB_STATUS_DELETE:
 #ifdef DUMP_CHECK_TABLE
-				fprintf(stderr, "delete   ");
+				printf("delete   ");
 #endif
 				delete_rec_count++;
 				break;
 			case XT_TAB_STATUS_FIXED:
 #ifdef DUMP_CHECK_TABLE
-				fprintf(stderr, "record-F ");
+				printf("record-F ");
 #endif
 				alloc_rec_count++;
 				row_size = myxt_store_row_length(ot, (char *) ot->ot_row_rbuffer + XT_REC_FIX_HEADER_SIZE);
@@ -1859,7 +1874,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				break;
 			case XT_TAB_STATUS_VARIABLE:
 #ifdef DUMP_CHECK_TABLE
-				fprintf(stderr, "record-V ");
+				printf("record-V ");
 #endif
 				alloc_rec_count++;
 				row_size = myxt_load_row_length(ot, tab->tab_dic.dic_rec_size, ot->ot_row_rbuffer + XT_REC_FIX_HEADER_SIZE, NULL);
@@ -1871,7 +1886,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				break;
 			case XT_TAB_STATUS_EXT_DLOG:
 #ifdef DUMP_CHECK_TABLE
-				fprintf(stderr, "record-X ");
+				printf("record-X ");
 #endif
 				alloc_rec_count++;
 				ext_data_len += XT_GET_DISK_4(rec_buf->re_log_dat_siz_4);
@@ -1885,9 +1900,9 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 		}
 #ifdef DUMP_CHECK_TABLE
 		if (rec_buf->tr_rec_type_1 & XT_TAB_STATUS_CLEANED_BIT)
-			fprintf(stderr, "C");
+			printf("C");
 		else
-			fprintf(stderr, " ");
+			printf(" ");
 #endif
 		prev_rec_id = XT_GET_DISK_4(rec_buf->tr_prev_rec_id_4);
 		xn_id = XT_GET_DISK_4(rec_buf->tr_xact_id_4);
@@ -1895,12 +1910,12 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 		switch (rec_buf->tr_rec_type_1 & XT_TAB_STATUS_MASK) {
 			case XT_TAB_STATUS_FREED:
 #ifdef DUMP_CHECK_TABLE
-				fprintf(stderr, " prev=%-3llu (xact=%-3llu row=%lu)\n", (u_llong) prev_rec_id, (u_llong) xn_id, (u_long) row_id);
+				printf(" prev=%-3llu (xact=%-3llu row=%lu)\n", (u_llong) prev_rec_id, (u_llong) xn_id, (u_long) row_id);
 #endif
 				break;
 			case XT_TAB_STATUS_EXT_DLOG:
 #ifdef DUMP_CHECK_TABLE
-				fprintf(stderr, " prev=%-3llu  xact=%-3llu row=%lu  Xlog=%lu Xoff=%llu Xsiz=%lu\n", (u_llong) prev_rec_id, (u_llong) xn_id, (u_long) row_id, (u_long) XT_GET_DISK_2(rec_buf->re_log_id_2), (u_llong) XT_GET_DISK_6(rec_buf->re_log_offs_6), (u_long) XT_GET_DISK_4(rec_buf->re_log_dat_siz_4));
+				printf(" prev=%-3llu  xact=%-3llu row=%lu  Xlog=%lu Xoff=%llu Xsiz=%lu\n", (u_llong) prev_rec_id, (u_llong) xn_id, (u_long) row_id, (u_long) XT_GET_DISK_2(rec_buf->re_log_id_2), (u_llong) XT_GET_DISK_6(rec_buf->re_log_offs_6), (u_long) XT_GET_DISK_4(rec_buf->re_log_dat_siz_4));
 #endif
 
 				log_size = XT_GET_DISK_4(rec_buf->re_log_dat_siz_4);
@@ -1922,7 +1937,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				break;
 			default:
 #ifdef DUMP_CHECK_TABLE
-				fprintf(stderr, " prev=%-3llu  xact=%-3llu row=%lu\n", (u_llong) prev_rec_id, (u_llong) xn_id, (u_long) row_id);
+				printf(" prev=%-3llu  xact=%-3llu row=%lu\n", (u_llong) prev_rec_id, (u_llong) xn_id, (u_long) row_id);
 #endif
 				break;
 		}
@@ -1931,16 +1946,16 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	
 #ifdef CHECK_TABLE_STATS
 	if (!tab->tab_dic.dic_rec_fixed)
-		fprintf(stderr, "Extendend data length   = %llu\n", ext_data_len);
+		printf("Extendend data length   = %llu\n", ext_data_len);
 	
 	if (alloc_rec_count) {
-		fprintf(stderr, "Minumum comp. rec. len. = %llu\n", (u_llong) min_comp_rec_len);
-		fprintf(stderr, "Average comp. rec. len. = %llu\n", (u_llong) ((double) alloc_rec_bytes / (double) alloc_rec_count + (double) 0.5));
-		fprintf(stderr, "Maximum comp. rec. len. = %llu\n", (u_llong) max_comp_rec_len);
+		printf("Minumum comp. rec. len. = %llu\n", (u_llong) min_comp_rec_len);
+		printf("Average comp. rec. len. = %llu\n", (u_llong) ((double) alloc_rec_bytes / (double) alloc_rec_count + (double) 0.5));
+		printf("Maximum comp. rec. len. = %llu\n", (u_llong) max_comp_rec_len);
 	}
-	fprintf(stderr, "Free record count       = %llu\n", (u_llong) free_rec_count);
-	fprintf(stderr, "Deleted record count    = %llu\n", (u_llong) delete_rec_count);
-	fprintf(stderr, "Allocated record count  = %llu\n", (u_llong) alloc_rec_count);
+	printf("Free record count       = %llu\n", (u_llong) free_rec_count);
+	printf("Deleted record count    = %llu\n", (u_llong) delete_rec_count);
+	printf("Allocated record count  = %llu\n", (u_llong) alloc_rec_count);
 #endif
 	if (tab->tab_rec_fnum != free_rec_count)
 		xt_logf(XT_INFO, "Table %s: incorrect number of free blocks, %llu, should be: %llu\n", tab->tab_name, (u_llong) free_rec_count, (u_llong) tab->tab_rec_fnum);
@@ -1978,9 +1993,9 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	pushr_(xt_unlock_mutex, &tab->tab_row_lock);
 
 #ifdef DUMP_CHECK_TABLE
-	fprintf(stderr, "Rows:-\n");
-	fprintf(stderr, "Free list: %llu (%llu)\n", (u_llong) tab->tab_row_free_id, (u_llong) tab->tab_row_fnum);
-	fprintf(stderr, "EOF:       %llu\n", (u_llong) tab->tab_row_eof_id);
+	printf("Rows:-\n");
+	printf("Free list: %llu (%llu)\n", (u_llong) tab->tab_row_free_id, (u_llong) tab->tab_row_fnum);
+	printf("EOF:       %llu\n", (u_llong) tab->tab_row_eof_id);
 #endif
 
 	rec_id = 1;
@@ -1988,13 +2003,13 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 		if (!tab->tab_rows.xt_tc_read_4(ot->ot_row_file, rec_id, &ref_id, self))
 			xt_throw(self);
 #ifdef DUMP_CHECK_TABLE
-		fprintf(stderr, "%-3llu ", (u_llong) rec_id);
+		printf("%-3llu ", (u_llong) rec_id);
 #endif
 #ifdef DUMP_CHECK_TABLE
 		if (ref_id == 0)
-			fprintf(stderr, "====== 0\n");
+			printf("====== 0\n");
 		else
-			fprintf(stderr, "in use %llu\n", (u_llong) ref_id);
+			printf("in use %llu\n", (u_llong) ref_id);
 #endif
 		rec_id++;
 	}
@@ -2026,7 +2041,7 @@ xtPublic void xt_rename_table(XTThreadPtr self, XTPathStrPtr old_name, XTPathStr
 	memset(&dic, 0, sizeof(dic));
 
 #ifdef TRACE_CREATE_TABLES
-	fprintf(stderr, "RENAME %s --> %s\n", old_name->ps_path, new_name->ps_path);
+	printf("RENAME %s --> %s\n", old_name->ps_path, new_name->ps_path);
 #endif
 	if (strlen(xt_last_name_of_path(new_name->ps_path)) > XT_TABLE_NAME_SIZE-1)
 		xt_throw_taberr(XT_CONTEXT, XT_ERR_NAME_TOO_LONG, new_name);
@@ -2100,7 +2115,7 @@ xtPublic void xt_rename_table(XTThreadPtr self, XTPathStrPtr old_name, XTPathStr
 	popr_(); // Discard tab_free_table_path(te_new_path);
 	popr_(); // Discard xt_free(te_new_name);
 
-	tab = xt_use_table_no_lock(self, db, new_name, FALSE, FALSE, &dic, NULL);
+	tab = xt_use_table_no_lock(self, db, new_name, FALSE, FALSE, &dic);
 	/* All renamed tables are considered repaired! */
 	xt_tab_table_repaired(tab);
 	xt_heap_release(self, tab);
@@ -2110,14 +2125,14 @@ xtPublic void xt_rename_table(XTThreadPtr self, XTPathStrPtr old_name, XTPathStr
 	freer_(); // xt_db_unlock_table_pool(table_pool)
 }
 
-xtPublic XTTableHPtr xt_use_table(XTThreadPtr self, XTPathStrPtr name, xtBool no_load, xtBool missing_ok, xtBool *opened)
+xtPublic XTTableHPtr xt_use_table(XTThreadPtr self, XTPathStrPtr name, xtBool no_load, xtBool missing_ok)
 {
 	XTTableHPtr		tab;
 	XTDatabaseHPtr	db = self->st_database;
 
 	xt_ht_lock(self, db->db_tables);
 	pushr_(xt_ht_unlock, db->db_tables);
-	tab = xt_use_table_no_lock(self, db, name, no_load, missing_ok, NULL, opened);
+	tab = xt_use_table_no_lock(self, db, name, no_load, missing_ok, NULL);
 	freer_();
 	return tab;
 }
@@ -2221,7 +2236,7 @@ xtPublic xtBool xt_flush_record_row(XTOpenTablePtr ot, off_t *bytes_flushed, xtB
 	xt_tab_store_header(ot, &rec_head);
 
 #ifdef TRACE_FLUSH
-	fprintf(stderr, "FLUSH rec/row %d %s\n", (int) tab->tab_bytes_to_flush, tab->tab_name->ps_path);
+	printf("FLUSH rec/row %d %s\n", (int) tab->tab_bytes_to_flush, tab->tab_name->ps_path);
 	fflush(stdout);
 #endif
 	/* Write the table header: */
@@ -2276,7 +2291,7 @@ xtPublic xtBool xt_flush_record_row(XTOpenTablePtr ot, off_t *bytes_flushed, xtB
 	xt_unlock_mutex_ns(&cp->cp_state_lock);
 
 #ifdef TRACE_FLUSH
-	fprintf(stderr, "FLUSH --end-- %s\n", tab->tab_name->ps_path);
+	printf("FLUSH --end-- %s\n", tab->tab_name->ps_path);
 	fflush(stdout);
 #endif
 	xt_unlock_mutex_ns(&tab->tab_rec_flush_lock);
@@ -2858,7 +2873,7 @@ static int tab_visible(register XTOpenTablePtr ot, XTTabRecHeadDPtr rec_head, xt
 				/* This is a record written by this transaction. */
 				if (thread->st_is_update) {
 					/* Check that it was not written by the current update statement: */
-					if (XT_STAT_ID_MASK(thread->st_update_id) == rec_head->tr_stat_id_1) {
+					if (XT_STAT_ID_MASK(ot->ot_update_id) == rec_head->tr_stat_id_1) {
 #ifdef TRACE_VARIATIONS
 						if (len <= 450)
 							len += sprintf(t_buf+len, "MY UPDATE IN THIS STATEMENT T%d\n", (int) xn_id);
@@ -3139,7 +3154,7 @@ static int tab_visible(register XTOpenTablePtr ot, XTTabRecHeadDPtr rec_head, xt
 		}
 		if (lw.lw_curr_lock != XT_NO_LOCK) {
 #ifdef TRACE_VARIATIONS
-			xt_ttracef(thread, "T%d WAIT FOR LOCK(%D) T%d\n", (int) thread->st_xact_data->xd_start_xn_id, (int) lock_type, (int) xn_id);
+			xt_ttracef(thread, "T%d WAIT FOR LOCK(%s) T%d\n", (int) thread->st_xact_data->xd_start_xn_id, (int) lw.lw_curr_lock == XT_TEMP_LOCK ? "temp" : "perm", (int) xn_id);
 #endif
 			if (!xt_xn_wait_for_xact(thread, NULL, &lw)) {
 #ifdef DEBUG_LOCK_QUEUE
@@ -3950,6 +3965,21 @@ static void tab_free_row_on_fail(XTOpenTablePtr ot, XTTableHPtr tab, xtRowID row
 	tab_restore_exception(&e);
 }
 
+static xtBool tab_write_ext_record(XTOpenTablePtr ot, XTTabRecInfoPtr rec_info, xtTableID tab_id, xtRecordID rec_id, xtLogID log_id, xtLogOffset log_offset, XTThreadPtr thread)
+{
+	xtWord1 tmp_buffer[offsetof(XTactExtRecEntryDRec, er_data)];
+	xtBool	ok;
+
+	memcpy(tmp_buffer, rec_info->ri_log_buf, sizeof(tmp_buffer));
+	rec_info->ri_log_buf->er_status_1 = XT_LOG_ENT_EXT_REC_OK;
+	XT_SET_DISK_4(rec_info->ri_log_buf->er_data_size_4, rec_info->ri_log_data_size);
+	XT_SET_DISK_4(rec_info->ri_log_buf->er_tab_id_4, tab_id);
+	XT_SET_DISK_4(rec_info->ri_log_buf->er_rec_id_4, rec_id);
+	ok = thread->st_dlog_buf.dlb_append_log(log_id, log_offset, offsetof(XTactExtRecEntryDRec, er_data) + rec_info->ri_log_data_size, (xtWord1 *) rec_info->ri_log_buf, thread);
+	memcpy(rec_info->ri_log_buf, tmp_buffer, sizeof(tmp_buffer));
+	return ok;
+}
+
 static xtBool tab_add_record(XTOpenTablePtr ot, XTTabRecInfoPtr rec_info, u_int status)
 {
 	register XTTableHPtr	tab = ot->ot_table;
@@ -4007,26 +4037,19 @@ static xtBool tab_add_record(XTOpenTablePtr ot, XTTabRecInfoPtr rec_info, u_int 
 		 */
 		read = ((rec_id - 1) % tab->tab_recs.tci_rows_per_page) != 0;
 
-		if (!tab->tab_recs.xt_tc_write(ot->ot_rec_file, rec_id, 0, rec_info->ri_rec_buf_size, (xtWord1 *) rec_info->ri_fix_rec_buf, &op_seq, read, ot->ot_thread)) {
+		if (!tab->tab_recs.xt_tc_write(ot->ot_rec_file, rec_id, 0, rec_info->ri_rec_buf_size, (xtWord1 *) rec_info->ri_fix_rec_buf, &op_seq, read, thread)) {
 			xt_unlock_mutex_ns(&tab->tab_rec_lock);
 			return FAILED;
 		}
 	}
 	xt_unlock_mutex_ns(&tab->tab_rec_lock);
 
-	if (!xt_xlog_modify_table(tab->tab_id, status, op_seq, next_rec_id, rec_id,  rec_info->ri_rec_buf_size, (xtWord1 *) rec_info->ri_fix_rec_buf, ot->ot_thread))
+	if (!xt_xlog_modify_table(tab->tab_id, status, op_seq, next_rec_id, rec_id,  rec_info->ri_rec_buf_size, (xtWord1 *) rec_info->ri_fix_rec_buf, thread))
 		return FAILED;
 
 	if (rec_info->ri_ext_rec) {
-		/* Write the log buffer overflow: */		
-		rec_info->ri_log_buf->er_status_1 = XT_LOG_ENT_EXT_REC_OK;
-		XT_SET_DISK_4(rec_info->ri_log_buf->er_data_size_4, rec_info->ri_log_data_size);
-		XT_SET_DISK_4(rec_info->ri_log_buf->er_tab_id_4, tab->tab_id);
-		XT_SET_DISK_4(rec_info->ri_log_buf->er_rec_id_4, rec_id);
-		if (!thread->st_dlog_buf.dlb_append_log(log_id, log_offset, offsetof(XTactExtRecEntryDRec, er_data) + rec_info->ri_log_data_size, (xtWord1 *) rec_info->ri_log_buf, ot->ot_thread)) {
-			/* Failed to write the overflow, free the record allocated above: */
+		if (!tab_write_ext_record(ot, rec_info, tab->tab_id, rec_id, log_id, log_offset, thread))
 			return FAILED;
-		}
 	}
 
 	XT_DISABLED_TRACE(("new rec tx=%d val=%d\n", (int) thread->st_xact_data->xd_start_xn_id, (int) rec_id));
@@ -4062,8 +4085,11 @@ static void tab_delete_record_on_fail(XTOpenTablePtr ot, xtRowID row_id, xtRecor
 		}
 	}
 
+	/* This is not required because the extended record will be free
+	 * later when the record is freed!
 	if (row_ptr->tr_rec_type_1 == XT_TAB_STATUS_EXT_DLOG || row_ptr->tr_rec_type_1 == XT_TAB_STATUS_EXT_CLEAN)
 		tab_free_ext_record_on_fail(ot, rec_id, (XTTabRecExtDPtr) row_ptr, log_err);
+	 */
 
 	rec_info.ri_fix_rec_buf = (XTTabRecFixDPtr) ot->ot_row_wbuffer;
 	rec_info.ri_rec_buf_size = offsetof(XTTabRecFixDRec, rf_data);
@@ -4369,7 +4395,7 @@ xtPublic xtBool xt_tab_new_record(XTOpenTablePtr ot, xtWord1 *rec_buf)
 	if (!(row_id = tab_new_row(ot, tab)))
 		goto failed_0;
 
-	rec_info.ri_fix_rec_buf->tr_stat_id_1 = self->st_update_id;
+	rec_info.ri_fix_rec_buf->tr_stat_id_1 = ot->ot_update_id;
 	XT_SET_DISK_4(rec_info.ri_fix_rec_buf->tr_row_id_4, row_id);
 	XT_SET_DISK_4(rec_info.ri_fix_rec_buf->tr_prev_rec_id_4, 0);
 	XT_SET_DISK_4(rec_info.ri_fix_rec_buf->tr_xact_id_4, self->st_xact_data->xd_start_xn_id);
@@ -4458,7 +4484,7 @@ static xtBool tab_overwrite_record_on_fail(XTOpenTablePtr ot, XTTabRecInfoPtr re
 		 * order to do this we'd need to read the before-image of the 
 		 * record before modifying it.
 		 */
-		if (!ot->ot_thread->t_exception.e_xt_err)
+		if (!thread->t_exception.e_xt_err)
 			xt_register_xterr(XT_REG_CONTEXT, XT_ERR_NO_BEFORE_IMAGE);
 		return FAILED;
 	}
@@ -4471,7 +4497,7 @@ static xtBool tab_overwrite_record_on_fail(XTOpenTablePtr ot, XTTabRecInfoPtr re
 
 	if (rec_info->ri_ext_rec) {
 		/* Determine where the overflow will go... */
-		if (!thread->st_dlog_buf.dlb_get_log_offset(&log_id, &log_offset, rec_info->ri_log_data_size + offsetof(XTactExtRecEntryDRec, er_data), ot->ot_thread))
+		if (!thread->st_dlog_buf.dlb_get_log_offset(&log_id, &log_offset, rec_info->ri_log_data_size + offsetof(XTactExtRecEntryDRec, er_data), thread))
 			return FAILED;
 		XT_SET_LOG_REF(rec_info->ri_ext_rec, log_id, log_offset);
 	}
@@ -4481,11 +4507,7 @@ static xtBool tab_overwrite_record_on_fail(XTOpenTablePtr ot, XTTabRecInfoPtr re
 
 	if (rec_info->ri_ext_rec) {
 		/* Write the log buffer overflow: */		
-		rec_info->ri_log_buf->er_status_1 = XT_LOG_ENT_EXT_REC_OK;
-		XT_SET_DISK_4(rec_info->ri_log_buf->er_data_size_4, rec_info->ri_log_data_size);
-		XT_SET_DISK_4(rec_info->ri_log_buf->er_tab_id_4, tab->tab_id);
-		XT_SET_DISK_4(rec_info->ri_log_buf->er_rec_id_4, rec_id);
-		if (!thread->st_dlog_buf.dlb_append_log(log_id, log_offset, offsetof(XTactExtRecEntryDRec, er_data) + rec_info->ri_log_data_size, (xtWord1 *) rec_info->ri_log_buf, ot->ot_thread))
+		if (!tab_write_ext_record(ot, rec_info, tab->tab_id, rec_id, log_id, log_offset, thread))
 			return FAILED;
 	}
 
@@ -4529,12 +4551,12 @@ static xtBool tab_overwrite_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtWor
 
 	if (rec_info.ri_ext_rec) {
 		/* Determine where the overflow will go... */
-		if (!self->st_dlog_buf.dlb_get_log_offset(&log_id, &log_offset, offsetof(XTactExtRecEntryDRec, er_data) + rec_info.ri_log_data_size, ot->ot_thread))
+		if (!self->st_dlog_buf.dlb_get_log_offset(&log_id, &log_offset, offsetof(XTactExtRecEntryDRec, er_data) + rec_info.ri_log_data_size, self))
 			goto failed_0;
 		XT_SET_LOG_REF(rec_info.ri_ext_rec, log_id, log_offset);
 	}
 
-	rec_info.ri_fix_rec_buf->tr_stat_id_1 = self->st_update_id;
+	rec_info.ri_fix_rec_buf->tr_stat_id_1 = ot->ot_update_id;
 	XT_SET_DISK_4(rec_info.ri_fix_rec_buf->tr_row_id_4, row_id);
 	XT_COPY_DISK_4(rec_info.ri_fix_rec_buf->tr_prev_rec_id_4, prev_rec_head.tr_prev_rec_id_4);
 	XT_SET_DISK_4(rec_info.ri_fix_rec_buf->tr_xact_id_4, self->st_xact_data->xd_start_xn_id);
@@ -4555,11 +4577,7 @@ static xtBool tab_overwrite_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtWor
 
 	if (rec_info.ri_ext_rec) {
 		/* Write the log buffer overflow: */		
-		rec_info.ri_log_buf->er_status_1 = XT_LOG_ENT_EXT_REC_OK;
-		XT_SET_DISK_4(rec_info.ri_log_buf->er_data_size_4, rec_info.ri_log_data_size);
-		XT_SET_DISK_4(rec_info.ri_log_buf->er_tab_id_4, tab->tab_id);
-		XT_SET_DISK_4(rec_info.ri_log_buf->er_rec_id_4, rec_id);
-		if (!self->st_dlog_buf.dlb_append_log(log_id, log_offset, offsetof(XTactExtRecEntryDRec, er_data) + rec_info.ri_log_data_size, (xtWord1 *) rec_info.ri_log_buf, ot->ot_thread))
+		if (!tab_write_ext_record(ot, &rec_info, tab->tab_id, rec_id, log_id, log_offset, self))
 			goto failed_1;
 	}
 
@@ -4678,7 +4696,7 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 	if (!myxt_store_row(ot, &rec_info, (char *) after_buf))
 		goto failed_0;
 
-	rec_info.ri_fix_rec_buf->tr_stat_id_1 = self->st_update_id;
+	rec_info.ri_fix_rec_buf->tr_stat_id_1 = ot->ot_update_id;
 	XT_SET_DISK_4(rec_info.ri_fix_rec_buf->tr_row_id_4, row_id);
 	XT_SET_DISK_4(rec_info.ri_fix_rec_buf->tr_prev_rec_id_4, ot->ot_curr_rec_id);
 	XT_SET_DISK_4(rec_info.ri_fix_rec_buf->tr_xact_id_4, self->st_xact_data->xd_start_xn_id);
@@ -4688,7 +4706,7 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 		goto failed_0;
 
 	/* Link the new variation into the list: */
-	XT_TAB_ROW_WRITE_LOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], ot->ot_thread);
+	XT_TAB_ROW_WRITE_LOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], self);
 
 	if (!xt_tab_get_row(ot, row_id, &curr_var_rec_id))
 		goto failed_1;
@@ -4714,7 +4732,7 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 		goto failed_1;
 	XT_DISABLED_TRACE(("set upd tx=%d row=%d rec=%d\n", (int) self->st_xact_data->xd_start_xn_id, (int) row_id, (int) rec_info.ri_rec_id));
 
-	XT_TAB_ROW_UNLOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], ot->ot_thread);
+	XT_TAB_ROW_UNLOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], self);
 
 	/* Add the index references: */
 	for (idx_cnt=0, ind=tab->tab_dic.dic_keys; idx_cnt<tab->tab_dic.dic_key_count; idx_cnt++, ind++) {
@@ -4729,7 +4747,7 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 			goto failed_2;
 	}
 
-	ot->ot_thread->st_statistics.st_row_update++;
+	self->st_statistics.st_row_update++;
 	return OK;
 
 	failed_2:
@@ -4737,7 +4755,7 @@ xtPublic xtBool xt_tab_update_record(XTOpenTablePtr ot, xtWord1 *before_buf, xtW
 	goto failed_0;
 
 	failed_1:
-	XT_TAB_ROW_UNLOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], ot->ot_thread);
+	XT_TAB_ROW_UNLOCK(&tab->tab_row_rwlock[row_id % XT_ROW_RWLOCKS], self);
 
 	failed_0:
 	return FAILED;

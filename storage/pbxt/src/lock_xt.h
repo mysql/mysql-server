@@ -109,7 +109,8 @@ inline xtWord1 xt_atomic_dec1(volatile xtWord1 *mptr)
 inline void xt_atomic_inc2(volatile xtWord2 *mptr)
 {
 #ifdef XT_ATOMIC_WIN32_X86
-	__asm LOCK INC	WORD PTR mptr
+	__asm MOV  ECX, mptr
+	__asm LOCK INC	WORD PTR [ECX]
 #elif defined(XT_ATOMIC_GNUC_X86)
 	asm volatile ("lock; incw %0" : : "m" (*mptr) : "memory");
 #elif defined(XT_ATOMIC_GCC_OPS)
@@ -125,7 +126,8 @@ inline void xt_atomic_inc2(volatile xtWord2 *mptr)
 inline void xt_atomic_dec2(volatile xtWord2 *mptr)
 {
 #ifdef XT_ATOMIC_WIN32_X86
-	__asm LOCK DEC	WORD PTR mptr
+	__asm MOV  ECX, mptr
+	__asm LOCK DEC	WORD PTR [ECX]
 #elif defined(XT_ATOMIC_GNUC_X86)
 	asm volatile ("lock; decw %0" : : "m" (*mptr) : "memory");
 #elif defined(XT_ATOMIC_GCC_OPS)
@@ -427,6 +429,7 @@ inline void xt_fastlock_unlock(XTFastLockPtr fal, struct XTThread *XT_UNUSED(thr
 
 typedef struct XTSpinXSLock {
 	volatile xtWord2			sxs_xlocked;
+	volatile xtWord2			sxs_xwaiter;
 	volatile xtWord2			sxs_rlock_count;
 	volatile xtWord2			sxs_wait_count;			/* The number of readers waiting for the xlocker. */
 #ifdef DEBUG
@@ -446,7 +449,7 @@ void xt_spinxslock_init(struct XTThread *self, XTSpinXSLockPtr sxs, const char *
 void xt_spinxslock_init(struct XTThread *self, XTSpinXSLockPtr sxs);
 #endif
 void xt_spinxslock_free(struct XTThread *self, XTSpinXSLockPtr sxs);
-xtBool xt_spinxslock_xlock(XTSpinXSLockPtr sxs, xtThreadID thd_id);
+xtBool xt_spinxslock_xlock(XTSpinXSLockPtr sxs, xtBool try_lock, xtThreadID thd_id);
 xtBool xt_spinxslock_slock(XTSpinXSLockPtr sxs);
 xtBool xt_spinxslock_unlock(XTSpinXSLockPtr sxs, xtBool xlocked);
 
@@ -500,7 +503,7 @@ void xt_atomicrwlock_init(struct XTThread *self, XTAtomicRWLockPtr xsl, const ch
 void xt_atomicrwlock_init(struct XTThread *self, XTAtomicRWLockPtr xsl);
 #endif
 void xt_atomicrwlock_free(struct XTThread *self, XTAtomicRWLockPtr xsl);
-xtBool xt_atomicrwlock_xlock(XTAtomicRWLockPtr xsl, xtThreadID thr_id);
+xtBool xt_atomicrwlock_xlock(XTAtomicRWLockPtr xsl, xtBool try_lock, xtThreadID thr_id);
 xtBool xt_atomicrwlock_slock(XTAtomicRWLockPtr xsl);
 xtBool xt_atomicrwlock_unlock(XTAtomicRWLockPtr xsl, xtBool xlocked);
 
@@ -525,7 +528,7 @@ void xt_skewrwlock_init(struct XTThread *self, XTSkewRWLockPtr xsl, const char *
 void xt_skewrwlock_init(struct XTThread *self, XTSkewRWLockPtr xsl);
 #endif
 void xt_skewrwlock_free(struct XTThread *self, XTSkewRWLockPtr xsl);
-xtBool xt_skewrwlock_xlock(XTSkewRWLockPtr xsl, xtThreadID thr_id);
+xtBool xt_skewrwlock_xlock(XTSkewRWLockPtr xsl, xtBool try_lock, xtThreadID thr_id);
 xtBool xt_skewrwlock_slock(XTSkewRWLockPtr xsl);
 xtBool xt_skewrwlock_unlock(XTSkewRWLockPtr xsl, xtBool xlocked);
 

@@ -96,7 +96,7 @@ xtPublic xtBool xt_init_logging(void)
 {
 	int err;
 
-	log_file = stderr;
+	log_file = stdout;
 	log_level = XT_LOG_TRACE;
 	err = xt_p_mutex_init_with_autoname(&log_mutex, NULL);
 	if (err) {
@@ -413,7 +413,8 @@ static void thr_save_error_va(XTExceptionPtr e, XTThreadPtr self, xtBool throw_i
 	vsnprintf(e->e_err_msg, XT_ERR_MSG_SIZE, fmt, ap);
 
 	/* Make the first character of the message upper case: */
-	if (isalpha(e->e_err_msg[0]) && islower(e->e_err_msg[0]))
+	/* This did not work for foreign languages! */
+	if (e->e_err_msg[0] >= 'a' && e->e_err_msg[0] <= 'z')
 		e->e_err_msg[0] = (char) toupper(e->e_err_msg[0]);
 
 	if (func && *func && *func != '-')
@@ -1013,7 +1014,7 @@ static xtBool thr_setup_signals(void)
 
 typedef void *(*ThreadMainFunc)(XTThreadPtr self);
 
-extern "C" void *thr_main_pbxt(void *data)
+extern "C" void *xt_thread_main(void *data)
 {
 	ThreadDataPtr	td = (ThreadDataPtr) data;
 	XTThreadPtr		self = td->td_thr;
@@ -1167,6 +1168,14 @@ xtPublic XTThreadPtr xt_init_threading(u_int max_threads)
 
 	/* Align the number of threads: */
 	xt_thr_maximum_threads = xt_align_size(max_threads, XT_XS_LOCK_ALIGN);
+
+#ifdef XT_TRACK_CONNECTIONS
+	if (xt_thr_maximum_threads > XT_TRACK_MAX_CONNS) {
+		xt_log_error(XT_NS_CONTEXT, XT_LOG_FATAL, XT_ERR_TOO_MANY_THREADS, 0, 
+			"XT_TRACK_CONNECTIONS is enabled and xt_thr_maximum_threads > XT_TRACK_MAX_CONNS");
+		goto failed;
+	}
+#endif
 
 #ifdef HANDLE_SIGNALS
 	if (!thr_setup_signals())
@@ -1503,10 +1512,10 @@ xtPublic pthread_t xt_run_thread(XTThreadPtr self, XTThreadPtr child, void *(*st
 		pthread_attr_t	attr = { 0, 0, 0 };
 
 		attr.priority = THREAD_PRIORITY_NORMAL;
-		err = pthread_create(&child_thread, &attr, thr_main_pbxt, &data);
+		err = pthread_create(&child_thread, &attr, xt_thread_main, &data);
 	}
 #else
-	err = pthread_create(&child_thread, NULL, thr_main_pbxt, &data);
+	err = pthread_create(&child_thread, NULL, xt_thread_main, &data);
 #endif
 	if (err) {
 		xt_free_thread(child);

@@ -1142,8 +1142,8 @@ u_int XTParseTable::columnList(XTThreadPtr self, bool index_cols)
 
 void XTParseTable::parseReferenceDefinition(XTThreadPtr self, u_int req_cols)
 {
-	int		on_delete = XT_KEY_ACTION_DEFAULT;
-	int		on_update = XT_KEY_ACTION_DEFAULT;
+	int		on_delete = XT_KEY_ACTION_RESTRICT;
+	int		on_update = XT_KEY_ACTION_RESTRICT;
 	char	name[XT_IDENTIFIER_NAME_SIZE];
 	char	parent_name[XT_IDENTIFIER_NAME_SIZE];
 	u_int	cols = 0;
@@ -1437,7 +1437,7 @@ void XTCreateTable::setTableName(XTThreadPtr self, char *name, bool alterTable)
 		XTTableHPtr	tab;
 
 		/* Find the table... */
-		pushsr_(tab, xt_heap_release, xt_use_table(self, (XTPathStrPtr) path, FALSE, TRUE, NULL));
+		pushsr_(tab, xt_heap_release, xt_use_table(self, (XTPathStrPtr) path, FALSE, TRUE));
 
 		/* Clone the foreign key definitions: */
 		if (tab && tab->tab_dic.dic_table) {
@@ -2027,24 +2027,52 @@ bool XTDDTableRef::modifyRow(XTOpenTablePtr XT_UNUSED(ref_ot), xtWord1 *before_b
 void XTDDTableRef::deleteAllRows(XTThreadPtr self)
 {
 	XTOpenTablePtr	ot;
-	xtInt8			row_count;
+	xtBool			eof;
+	xtWord1			*buffer;
 
 	if (!tr_fkey->getReferenceIndexPtr())
-		throw_();
+		xt_throw(self);
 
 	if (!tr_fkey->getIndexPtr())
-		throw_();
+		xt_throw(self);
 
 	if (!(ot = xt_db_open_table_using_tab(tr_fkey->co_table->dt_table, self)))
-		throw_();
+		xt_throw(self);
 
+	/* {FREE-ROWS-BAD} */
+	/*
 	row_count = ((xtInt8) ot->ot_table->tab_row_eof_id) - 1;
 	row_count -= (xtInt8) ot->ot_table->tab_row_fnum;
+	*/
+	/* Check if there are any rows in the referencing table: */
+	if (!xt_tab_seq_init(ot))
+		goto failed;
+
+	if (!(buffer = (xtWord1 *) xt_malloc(self, ot->ot_table->tab_dic.dic_mysql_buf_size)))
+		goto failed_1;
+
+	if (!xt_tab_seq_next(ot, buffer, &eof))
+		goto failed_2;
+
+	xt_free(self, buffer);
+
+	xt_tab_seq_exit(ot);
 
 	xt_db_return_table_to_pool_ns(ot);
 
-	if (row_count > 0)
+	if (!eof)
 		xt_throw_ixterr(XT_CONTEXT, XT_ERR_ROW_IS_REFERENCED, tr_fkey->co_name);
+	return;
+
+	failed_2:
+	xt_free(self, buffer);
+
+	failed_1:
+	xt_tab_seq_exit(ot);
+
+	failed:
+	xt_db_return_table_to_pool_ns(ot);
+	xt_throw(self);
 }
 
 void  XTDDIndex::init(XTThreadPtr self, XTObject *obj)
@@ -2117,7 +2145,7 @@ void XTDDForeignKey::loadString(XTThreadPtr self, XTStringBufferPtr sb)
 	}
 	xt_sb_concat(self, sb, "`)");
 	
-	if (fk_on_delete != XT_KEY_ACTION_DEFAULT && fk_on_delete != XT_KEY_ACTION_RESTRICT) {
+	if (fk_on_delete != XT_KEY_ACTION_RESTRICT) {
 		xt_sb_concat(self, sb, " ON DELETE ");
 		switch (fk_on_delete) {
 			case XT_KEY_ACTION_CASCADE:		xt_sb_concat(self, sb, "CASCADE"); break;
@@ -2126,10 +2154,9 @@ void XTDDForeignKey::loadString(XTThreadPtr self, XTStringBufferPtr sb)
 			case XT_KEY_ACTION_NO_ACTION:	xt_sb_concat(self, sb, "NO ACTION"); break;
 		}
 	}
-	if (fk_on_update != XT_KEY_ACTION_DEFAULT && fk_on_update != XT_KEY_ACTION_RESTRICT) {
+	if (fk_on_update != XT_KEY_ACTION_RESTRICT) {
 		xt_sb_concat(self, sb, " ON UPDATE ");
 		switch (fk_on_update) {
-			case XT_KEY_ACTION_DEFAULT:		xt_sb_concat(self, sb, "RESTRICT"); break;
 			case XT_KEY_ACTION_RESTRICT:	xt_sb_concat(self, sb, "RESTRICT"); break;
 			case XT_KEY_ACTION_CASCADE:		xt_sb_concat(self, sb, "CASCADE"); break;
 			case XT_KEY_ACTION_SET_NULL:	xt_sb_concat(self, sb, "SET NULL"); break;
@@ -2389,7 +2416,6 @@ const char *XTDDForeignKey::actionTypeToString(int action)
 {
 	switch (action)
 	{
-	case XT_KEY_ACTION_DEFAULT:
 	case XT_KEY_ACTION_RESTRICT:
 		return "RESTRICT";
 	case XT_KEY_ACTION_CASCADE:
@@ -2626,7 +2652,7 @@ void XTDDTable::attachReferences(XTThreadPtr self, XTDatabaseHPtr db)
 			/* get pointer to the referenced table, load it if needed
 			 * cyclic references are being handled, absent table is ignored
 			 */
-			tab = xt_use_table_no_lock(self, db, fk->fk_ref_tab_name, /*TRUE*/FALSE, /*FALSE*/TRUE, NULL, NULL);
+			tab = xt_use_table_no_lock(self, db, fk->fk_ref_tab_name, /*TRUE*/FALSE, /*FALSE*/TRUE, NULL);
 
 			if (tab) {
 				pushr_(xt_heap_release, tab);
@@ -2727,7 +2753,7 @@ void XTDDTable::checkForeignKeys(XTThreadPtr self, bool temp_table)
 		// TODO: dont close table immediately so it can be possibly reused in this loop
 		XTTable *ref_tab;
 
-		pushsr_(ref_tab, xt_heap_release, xt_use_table(self, fk->fk_ref_tab_name, FALSE, TRUE, NULL));
+		pushsr_(ref_tab, xt_heap_release, xt_use_table(self, fk->fk_ref_tab_name, FALSE, TRUE));
 		if (ref_tab && !fk->checkReferencedTypes(ref_tab->tab_dic.dic_table))
 			throw_();
 		freer_();

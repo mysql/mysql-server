@@ -1326,7 +1326,7 @@ static xtBool xn_end_xact(XTThreadPtr thread, u_int status)
 			}
 
 			/* Write and flush the transaction log: */
-			if (!xt_xlog_log_data(thread, sizeof(XTXactEndEntryDRec), (XTXactLogBufferDPtr) &entry, TRUE)) {
+			if (!xt_xlog_log_data(thread, sizeof(XTXactEndEntryDRec), (XTXactLogBufferDPtr) &entry, xt_db_flush_log_at_trx_commit)) {
 				ok = FALSE;
 				status = XT_LOG_ENT_ABORT;
 				/* Make sure this is done, if we failed to log
@@ -1440,16 +1440,23 @@ static xtBool xn_end_xact(XTThreadPtr thread, u_int status)
 		/* Don't get too far ahead of the sweeper! */
 		if (writer) {
 #ifdef XT_WAIT_FOR_CLEANUP
-			xtXactID	wait_xn_id;
-			
-			/* This is the transaction that was committed 3 transactions ago: */
-			wait_xn_id = thread->st_prev_xact[thread->st_last_xact];
-			thread->st_prev_xact[thread->st_last_xact] = xn_id;
-			/* This works because XT_MAX_XACT_BEHIND == 2! */
-			ASSERT_NS((thread->st_last_xact + 1) % XT_MAX_XACT_BEHIND == (thread->st_last_xact ^ 1));
-			thread->st_last_xact ^= 1;
-			while (xt_xn_is_before(db->db_xn_to_clean_id, wait_xn_id) && (db->db_sw_faster & XT_SW_TOO_FAR_BEHIND)) {
-				xt_critical_wait();
+			if (db->db_sw_faster & XT_SW_TOO_FAR_BEHIND) {
+				/* Set a maximum wait time (1/100s) */
+				xtWord8		then = xt_trace_clock() + (xtWord8) 100000;
+				xtXactID	wait_xn_id;
+				
+				/* This is the transaction that was committed 3 transactions ago: */
+				wait_xn_id = thread->st_prev_xact[thread->st_last_xact];
+				thread->st_prev_xact[thread->st_last_xact] = xn_id;
+				/* This works because XT_MAX_XACT_BEHIND == 2! */
+				ASSERT_NS((thread->st_last_xact + 1) % XT_MAX_XACT_BEHIND == (thread->st_last_xact ^ 1));
+				thread->st_last_xact ^= 1;
+
+				while (xt_xn_is_before(db->db_xn_to_clean_id, wait_xn_id) && (db->db_sw_faster & XT_SW_TOO_FAR_BEHIND)) {
+					if (xt_trace_clock() >= then)
+						break;
+					xt_critical_wait();
+				}
 			}
 #else
 			if ((db->db_sw_faster & XT_SW_TOO_FAR_BEHIND) != 0) {
@@ -1486,7 +1493,7 @@ xtPublic xtBool xt_xn_log_tab_id(XTThreadPtr self, xtTableID tab_id)
 	entry.xt_status_1 = XT_LOG_ENT_NEW_TAB;
 	entry.xt_checksum_1 = XT_CHECKSUM_1(tab_id);
 	XT_SET_DISK_4(entry.xt_tab_id_4, tab_id);
-	return xt_xlog_log_data(self, sizeof(XTXactNewTabEntryDRec), (XTXactLogBufferDPtr) &entry, TRUE);
+	return xt_xlog_log_data(self, sizeof(XTXactNewTabEntryDRec), (XTXactLogBufferDPtr) &entry, XT_XLOG_WRITE_AND_FLUSH);
 }
 
 xtPublic int xt_xn_status(XTOpenTablePtr ot, xtXactID xn_id, xtRecordID XT_UNUSED(rec_id))
@@ -2266,6 +2273,7 @@ static xtBool xn_sw_cleanup_variation(XTThreadPtr self, XNSweeperStatePtr ss, XT
 				xt_log_and_clear_exception(self);
 				break;
 			}
+			
 			prev_rec_id = next_rec_id;
 			next_rec_id = XT_GET_DISK_4(prev_rec_head.tr_prev_rec_id_4);
 		}
@@ -2461,7 +2469,7 @@ static xtBool xn_sw_cleanup_xact(XTThreadPtr self, XNSweeperStatePtr ss, XTXactD
 	cu.xc_checksum_1 = XT_CHECKSUM_1(XT_CHECKSUM4_XACT(xact->xd_start_xn_id));
 	XT_SET_DISK_4(cu.xc_xact_id_4, xact->xd_start_xn_id);
 
-	if (!xt_xlog_log_data(self, sizeof(XTXactCleanupEntryDRec), (XTXactLogBufferDPtr) &cu, FALSE))
+	if (!xt_xlog_log_data(self, sizeof(XTXactCleanupEntryDRec), (XTXactLogBufferDPtr) &cu, XT_XLOG_NO_WRITE_NO_FLUSH))
 		return FAILED;
 
 	ss->ss_flush_pending = TRUE;
@@ -2656,7 +2664,9 @@ static void xn_sw_main(XTThreadPtr self)
 				 * we flush the log.
 				 */
 				if (now >= idle_start + 2) {
-					if (!xt_xlog_flush_log(db, self))
+					/* Don't do this if flusher is active! */
+					if (!db->db_fl_thread &&
+						!xt_xlog_flush_log(db, self))
 						xt_throw(self);
 					ss->ss_flush_pending = FALSE;
 				}
