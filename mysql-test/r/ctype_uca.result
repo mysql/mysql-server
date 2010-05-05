@@ -3709,5 +3709,16 @@ select hex(weight_string(cast(_latin1 0xDF6368 as char),25, 4,0xC0));
 hex(weight_string(cast(_latin1 0xDF6368 as char),25, 4,0xC0))
 0FEA0FEA0EE202090209020902090209020902090209020902
 #
+# Bug#53064 garbled data when using utf8_german2_ci collation
+#
+CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8_german2_ci);
+INSERT INTO t1 VALUES ('a'),('ae'),('af');
+SELECT s1,hex(s1),hex(weight_string(s1)) FROM t1 ORDER BY s1;
+s1	hex(s1)	hex(weight_string(s1))
+a	61	0E33
+ae	6165	0E330E8B
+af	6166	0E330EB9
+DROP TABLE t1;
+#
 # End of 5.6 tests
 #

@@ -573,5 +573,13 @@ set @@collation_connection=ucs2_czech_ci;
 --source include/weight_string_chde.inc
 
 --echo #
+--echo # Bug#53064 garbled data when using utf8_german2_ci collation
+--echo #
+CREATE TABLE t1 (s1 VARCHAR(10) COLLATE utf8_german2_ci); 
+INSERT INTO t1 VALUES ('a'),('ae'),('af');                 
+SELECT s1,hex(s1),hex(weight_string(s1)) FROM t1 ORDER BY s1; 
+DROP TABLE t1;
+
+--echo #
 --echo # End of 5.6 tests
 --echo #
