@@ -396,6 +396,7 @@ mkdir debug
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
   make VERBOSE=1
 )
 # Build full release
@@ -410,6 +411,7 @@ mkdir release
            -DFEATURE_SET="%{feature_set}" \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
   make VERBOSE=1
 )
 
