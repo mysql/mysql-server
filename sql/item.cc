@@ -1796,6 +1796,24 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
                                   &dummy_offset))
       continue;
 
+    /*
+      No needs to add converter if an "arg" is NUMERIC or DATETIME
+      value (which is pure ASCII) and at the same time target DTCollation
+      is ASCII-compatible. For example, no needs to rewrite:
+        SELECT * FROM t1 WHERE datetime_field = '2010-01-01';
+      to
+        SELECT * FROM t1 WHERE CONVERT(datetime_field USING cs) = '2010-01-01';
+      
+      TODO: avoid conversion of any values with
+      repertoire ASCII and 7bit-ASCII-compatible,
+      not only numeric/datetime origin.
+    */
+    if ((*arg)->collation.derivation == DERIVATION_NUMERIC &&
+        (*arg)->collation.repertoire == MY_REPERTOIRE_ASCII &&
+        !((*arg)->collation.collation->state & MY_CS_NONASCII) &&
+        !(coll.collation->state & MY_CS_NONASCII))
+      continue;
+
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
       conv= new Item_func_conv_charset(*arg, coll.collation, 1);
