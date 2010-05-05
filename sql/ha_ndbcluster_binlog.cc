@@ -39,11 +39,10 @@
 extern my_bool opt_ndb_log_orig;
 extern my_bool opt_ndb_log_bin;
 extern my_bool opt_ndb_log_empty_epochs;
-
 extern my_bool opt_ndb_log_update_as_write;
 extern my_bool opt_ndb_log_updated_only;
-
-extern my_bool ndb_log_binlog_index;
+extern my_bool opt_ndb_log_binlog_index;
+extern ulong ndb_extra_logging;
 
 /*
   defines for cluster replication table names
@@ -58,14 +57,14 @@ static char reptable[]= NDB_REP_TABLE;
   Timeout for syncing schema events between
   mysql servers, and between mysql server and the binlog
 */
-const int opt_ndb_sync_timeout= 120;
+static const int DEFAULT_SYNC_TIMEOUT= 120;
 
 /*
   Flag showing if the ndb injector thread is running, if so == 1
   -1 if it was started but later stopped for some reason
    0 if never started
 */
-int ndb_binlog_thread_running= 0;
+static int ndb_binlog_thread_running= 0;
 /*
   Flag showing if the ndb binlog should be created, if so == TRUE
   FALSE if not
@@ -2111,7 +2110,7 @@ end:
       if (bitmap_is_set(&schema_subscribers, node_id))
         ndbcluster_update_slock(thd, db, table_name);
     }
-    int max_timeout= opt_ndb_sync_timeout;
+    int max_timeout= DEFAULT_SYNC_TIMEOUT;
     (void) pthread_mutex_lock(&ndb_schema_object->mutex);
     if (have_lock_open)
     {
@@ -4667,7 +4666,7 @@ ndbcluster_handle_alter_table(THD *thd, NDB_SHARE *share, const char *type_str)
   const char *save_proc_info= thd->proc_info;
   thd->proc_info= "Syncing ndb table schema operation and binlog";
   (void) pthread_mutex_lock(&share->mutex);
-  int max_timeout= opt_ndb_sync_timeout;
+  int max_timeout= DEFAULT_SYNC_TIMEOUT;
   while (share->state == NSS_ALTERED)
   {
     struct timespec abstime;
@@ -4737,7 +4736,7 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
   (void) pthread_mutex_lock(&share->mutex);
   safe_mutex_assert_owner(&LOCK_open);
   (void) pthread_mutex_unlock(&LOCK_open);
-  int max_timeout= opt_ndb_sync_timeout;
+  int max_timeout= DEFAULT_SYNC_TIMEOUT;
   while (share->op)
   {
     struct timespec abstime;
@@ -5489,8 +5488,8 @@ enum Binlog_thread_state
   BCCC_restart= 2
 };
 
-extern ulong ndb_report_thresh_binlog_epoch_slip;
-extern ulong ndb_report_thresh_binlog_mem_usage;
+extern ulong opt_ndb_report_thresh_binlog_epoch_slip;
+extern ulong opt_ndb_report_thresh_binlog_mem_usage;
 
 pthread_handler_t ndb_binlog_thread_func(void *arg)
 {
@@ -5874,9 +5873,9 @@ restart_cluster_failure:
       thd->proc_info= "Processing events from schema table";
       g_ndb_log_slave_updates= opt_log_slave_updates;
       s_ndb->
-        setReportThreshEventGCISlip(ndb_report_thresh_binlog_epoch_slip);
+        setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
       s_ndb->
-        setReportThreshEventFreeMem(ndb_report_thresh_binlog_mem_usage);
+        setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
       NdbEventOperation *pOp= s_ndb->nextEvent();
       while (pOp != NULL)
       {
@@ -6032,8 +6031,8 @@ restart_cluster_failure:
         /* initialize some variables for this epoch */
         g_ndb_log_slave_updates= opt_log_slave_updates;
         i_ndb->
-          setReportThreshEventGCISlip(ndb_report_thresh_binlog_epoch_slip);
-        i_ndb->setReportThreshEventFreeMem(ndb_report_thresh_binlog_mem_usage);
+          setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
+        i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
 
         bzero((char*)&_row, sizeof(_row));
         thd->variables.character_set_client= &my_charset_latin1;
@@ -6259,7 +6258,7 @@ restart_cluster_failure:
           rows->master_log_pos= start.file_pos();
 
           DBUG_PRINT("info", ("COMMIT gci: %lu", (ulong) gci));
-          if (ndb_log_binlog_index)
+          if (opt_ndb_log_binlog_index)
           {
             ndb_add_ndb_binlog_index(thd, rows);
           }
