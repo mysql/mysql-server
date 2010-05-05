@@ -9,3 +9,4 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+innodb_multi_update: Bug #38999 2010-05-05 mmakela Valgrind warnings
