@@ -65,19 +65,6 @@
 
 #include "events.h"
 
-/* WITH_NDBCLUSTER_STORAGE_ENGINE */
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-extern ulong ndb_cache_check_time;
-extern "C" char *opt_ndb_connectstring;
-extern ulong ndb_extra_logging;
-extern ulong ndb_report_thresh_binlog_epoch_slip;
-extern ulong ndb_report_thresh_binlog_mem_usage;
-extern my_bool ndb_log_binlog_index;
-extern my_bool opt_ndb_log_update_as_write;
-extern my_bool opt_ndb_log_updated_only;
-extern my_bool opt_ndb_log_empty_epochs;
-#endif
-
 extern CHARSET_INFO *character_set_filesystem;
 
 
@@ -704,61 +691,6 @@ static sys_var_thd_ulong	sys_net_wait_timeout(&vars, "wait_timeout",
 static sys_var_thd_bool
 sys_engine_condition_pushdown(&vars, "engine_condition_pushdown",
 			      &SV::engine_condition_pushdown);
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-/* ndb thread specific variable settings */
-static sys_var_thd_ulong
-sys_ndb_autoincrement_prefetch_sz(&vars, "ndb_autoincrement_prefetch_sz",
-				  &SV::ndb_autoincrement_prefetch_sz);
-static sys_var_thd_bool
-sys_ndb_force_send(&vars, "ndb_force_send", &SV::ndb_force_send);
-static sys_var_long_ptr
-sys_ndb_report_thresh_binlog_epoch_slip(&vars, "ndb_report_thresh_binlog_epoch_slip",
-                                        &ndb_report_thresh_binlog_epoch_slip);
-static sys_var_long_ptr
-sys_ndb_report_thresh_binlog_mem_usage(&vars, "ndb_report_thresh_binlog_mem_usage",
-                                       &ndb_report_thresh_binlog_mem_usage);
-static sys_var_bool_ptr
-sys_ndb_log_binlog_index(&vars, "ndb_log_binlog_index", &ndb_log_binlog_index);
-static sys_var_bool_ptr
-sys_ndb_log_update_as_write(&vars, "ndb_log_update_as_write", &opt_ndb_log_update_as_write);
-static sys_var_bool_ptr
-sys_ndb_log_updated_only(&vars, "ndb_log_updated_only", &opt_ndb_log_updated_only);
-static sys_var_bool_ptr
-sys_ndb_log_empty_epochs(&vars, "ndb_log_empty_epochs", &opt_ndb_log_empty_epochs);
-static sys_var_thd_bool
-sys_ndb_use_exact_count(&vars, "ndb_use_exact_count", &SV::ndb_use_exact_count);
-static sys_var_thd_bool
-sys_ndb_use_transactions(&vars, "ndb_use_transactions", &SV::ndb_use_transactions);
-static sys_var_thd_ulong
-sys_ndb_optimize_level(&vars, "ndb_optimization_delay", &SV::ndb_optimization_delay);
-static sys_var_thd_bool
-sys_ndb_table_no_logging(&vars, "ndb_table_no_logging", &SV::ndb_table_no_logging);
-static sys_var_thd_bool
-sys_ndb_table_temporary(&vars, "ndb_table_temporary", &SV::ndb_table_temporary);
-static sys_var_thd_ulong
-sys_ndb_batch_size(&vars, "ndb_batch_size", &SV::ndb_batch_size);
-static sys_var_long_ptr
-sys_ndb_cache_check_time(&vars, "ndb_cache_check_time", &ndb_cache_check_time);
-static sys_var_const_str
-sys_ndb_connectstring(&vars, "ndb_connectstring", opt_ndb_connectstring);
-static sys_var_thd_bool
-sys_ndb_index_stat_enable(&vars, "ndb_index_stat_enable",
-                          &SV::ndb_index_stat_enable);
-static sys_var_thd_ulong
-sys_ndb_index_stat_cache_entries(&vars, "ndb_index_stat_cache_entries",
-                                 &SV::ndb_index_stat_cache_entries);
-static sys_var_thd_ulong
-sys_ndb_index_stat_update_freq(&vars, "ndb_index_stat_update_freq",
-                               &SV::ndb_index_stat_update_freq);
-static sys_var_long_ptr
-sys_ndb_extra_logging(&vars, "ndb_extra_logging", &ndb_extra_logging);
-static sys_var_thd_bool
-sys_ndb_use_copying_alter_table(&vars, "ndb_use_copying_alter_table", &SV::ndb_use_copying_alter_table);
-static sys_var_thd_ulong
-sys_ndb_optimized_node_selection(&vars, "ndb_optimized_node_selection",
-                                 &SV::ndb_optimized_node_selection);
-#endif //WITH_NDBCLUSTER_STORAGE_ENGINE
 
 /* Time/date/datetime formats */
 

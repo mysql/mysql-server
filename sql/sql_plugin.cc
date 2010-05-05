@@ -2986,6 +2986,12 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
 
   options+= 2;
 
+  if (!my_strcasecmp(&my_charset_latin1, plugin_name_ptr, "NDBCLUSTER"))
+  {
+    plugin_name_ptr= const_cast<char*>("ndb"); // Use legacy "ndb" prefix
+    plugin_name_len= 3;
+  }
+
   /*
     Two passes as the 2nd pass will take pointer addresses for use
     by my_getopt and register_var() in the first pass uses realloc
@@ -3298,18 +3304,27 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
     DBUG_RETURN(1);
   }
 
+  LEX_STRING plugin_name;
+  if (!my_strcasecmp(&my_charset_latin1, tmp->name.str, "NDBCLUSTER"))
+  {
+    plugin_name.str= const_cast<char*>("ndb"); // Use legacy "ndb" prefix
+    plugin_name.length= 3;
+  }
+  else
+    plugin_name= tmp->name;
+
   error= 1;
   for (opt= tmp->plugin->system_vars; opt && *opt; opt++)
   {
     if (((o= *opt)->flags & PLUGIN_VAR_NOSYSVAR))
       continue;
-    if ((var= find_bookmark(tmp->name.str, o->name, o->flags)))
+    if ((var= find_bookmark(plugin_name.str, o->name, o->flags)))
       v= new (mem_root) sys_var_pluginvar(var->key + 1, o);
     else
     {
-      len= tmp->name.length + strlen(o->name) + 2;
+      len= plugin_name.length + strlen(o->name) + 2;
       varname= (char*) alloc_root(mem_root, len);
-      strxmov(varname, tmp->name.str, "-", o->name, NullS);
+      strxmov(varname, plugin_name.str, "-", o->name, NullS);
       my_casedn_str(&my_charset_latin1, varname);
       convert_dash_to_underscore(varname, len-1);
       v= new (mem_root) sys_var_pluginvar(varname, o);

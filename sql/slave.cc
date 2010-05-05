@@ -3026,7 +3026,7 @@ int check_temp_dir(char* tmp_file)
 }
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-extern wait_cond_timed_func ndb_wait_setup_func;
+extern int(*ndb_wait_setup_func)(ulong);
 extern ulong opt_ndb_wait_setup;
 #endif
 

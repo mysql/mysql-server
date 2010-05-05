@@ -12,7 +12,7 @@ Variable_name	Value
 ndb_optimized_node_selection	0
 set session ndb_optimized_node_selection=4;
 Warnings:
-Warning	1292	Truncated incorrect ndb_optimized_node_selection value: '4'
+Warning	1292	Truncated incorrect optimized_node_selection value: '4'
 show variables like 'ndb_optimized_node_selection';
 Variable_name	Value
 ndb_optimized_node_selection	3
