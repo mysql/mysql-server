@@ -2683,9 +2683,11 @@ bugs.\n");
 
 end:
 #ifndef __WIN__
+  /* Terminate */
   exit(1);
 #else
-  /* On Windows, do not terminate, but pass control to the exception filter */;
+  /* On Windows, do not terminate, but pass control to exception filter */
+  ;
 #endif
 }
 

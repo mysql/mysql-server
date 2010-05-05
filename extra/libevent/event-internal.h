@@ -74,7 +74,6 @@ struct event_base {
    Copyright (c) 1991, 1993, The Regents of the University of California.
    All rights reserved.
 */
-#define	TAILQ_EMPTY(head)		((head)->tqh_first == NULL)
 #define	TAILQ_FIRST(head)		((head)->tqh_first)
 #define	TAILQ_END(head)			NULL
 #define	TAILQ_NEXT(elm, field)		((elm)->field.tqe_next)

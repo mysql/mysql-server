@@ -241,4 +241,9 @@ void pbms_completed(TABLE *table, bool ok)
 	 return ;
 }
 
+#elif defined(__WIN__)
+
+// Remove linker warning 4221 about empty file
+namespace { char dummy; };
+
 #endif // PBMS_ENABLED

@@ -1835,6 +1835,11 @@ int init_replication_sys_vars()
   return 0;
 }
 
+#elif defined(__WIN__)
+
+// Remove linker warning 4221 about empty file
+namespace { char dummy; };
+
 #endif /* HAVE_REPLICATION */
 
 
