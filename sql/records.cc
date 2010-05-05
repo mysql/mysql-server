@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -164,7 +164,7 @@ void init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
   rr_sequential:
   --------------
     This is the most basic access method of a table using rnd_init,
-    rnd_next and rnd_end. No indexes are used.
+    ha_rnd_next and rnd_end. No indexes are used.
 */
 void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
 		      SQL_SELECT *select,
@@ -356,7 +356,7 @@ static int rr_quick(READ_RECORD *info)
 
 static int rr_index_first(READ_RECORD *info)
 {
-  int tmp= info->file->index_first(info->record);
+  int tmp= info->file->ha_index_first(info->record);
   info->read_record= rr_index;
   if (tmp)
     tmp= rr_handle_error(info, tmp);
@@ -382,7 +382,7 @@ static int rr_index_first(READ_RECORD *info)
 
 static int rr_index(READ_RECORD *info)
 {
-  int tmp= info->file->index_next(info->record);
+  int tmp= info->file->ha_index_next(info->record);
   if (tmp)
     tmp= rr_handle_error(info, tmp);
   return tmp;
@@ -392,10 +392,10 @@ static int rr_index(READ_RECORD *info)
 int rr_sequential(READ_RECORD *info)
 {
   int tmp;
-  while ((tmp=info->file->rnd_next(info->record)))
+  while ((tmp=info->file->ha_rnd_next(info->record)))
   {
     /*
-      rnd_next can return RECORD_DELETED for MyISAM when one thread is
+      ha_rnd_next can return RECORD_DELETED for MyISAM when one thread is
       reading and another deleting without locks.
     */
     if (info->thd->killed || (tmp != HA_ERR_RECORD_DELETED))

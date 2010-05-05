@@ -11,8 +11,8 @@ count(*)
 select count(*) from performance_schema.SETUP_CONSUMERS;
 count(*)
 8
-select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS;
-count(*) > 0
+select count(*) > 1 from performance_schema.SETUP_INSTRUMENTS;
+count(*) > 1
 1
 select count(*) from performance_schema.SETUP_TIMERS;
 count(*)

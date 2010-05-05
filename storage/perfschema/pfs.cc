@@ -27,9 +27,6 @@
 #include "pfs_timer.h"
 #include "pfs_events_waits.h"
 
-/* Pending WL#4895 PERFORMANCE_SCHEMA Instrumenting Table IO */
-#undef HAVE_TABLE_WAIT
-
 /**
   @page PAGE_PERFORMANCE_SCHEMA The Performance Schema main page
   MySQL PERFORMANCE_SCHEMA implementation.
@@ -722,6 +719,20 @@ static enum_operation_type file_operation_map[]=
 };
 
 /**
+  Conversion map from PSI_table_operation to enum_operation_type.
+  Indexed by enum PSI_table_operation.
+*/
+static enum_operation_type table_operation_map[]=
+{
+  OPERATION_TYPE_TABLE_LOCK,
+  OPERATION_TYPE_TABLE_EXTERNAL_LOCK,
+  OPERATION_TYPE_TABLE_FETCH,
+  OPERATION_TYPE_TABLE_WRITE_ROW,
+  OPERATION_TYPE_TABLE_UPDATE_ROW,
+  OPERATION_TYPE_TABLE_DELETE_ROW
+};
+
+/**
   Build the prefix name of a class of instruments in a category.
   For example, this function builds the string 'wait/sync/mutex/sql/' from
   a prefix 'wait/sync/mutex' and a category 'sql'.
@@ -904,39 +915,52 @@ static void destroy_cond_v1(PSI_cond* cond)
 }
 
 static PSI_table_share*
-get_table_share_v1(const char *schema_name, int schema_name_length,
-                   const char *table_name, int table_name_length,
-                   const void *identity)
+get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 {
-#ifdef HAVE_TABLE_WAIT
   PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
   if (unlikely(pfs_thread == NULL))
     return NULL;
-  PFS_table_share* share;
-  share= find_or_create_table_share(pfs_thread,
-                                    schema_name, schema_name_length,
-                                    table_name, table_name_length);
-  return reinterpret_cast<PSI_table_share*> (share);
-#else
-  return NULL;
-#endif
+  if (! global_table_class.m_enabled)
+    return NULL;
+  PFS_table_share* pfs_share;
+  pfs_share= find_or_create_table_share(pfs_thread, temporary, share);
+  return reinterpret_cast<PSI_table_share*> (pfs_share);
 }
 
 static void release_table_share_v1(PSI_table_share* share)
 {
-  /*
-    To be implemented by WL#4895 PERFORMANCE_SCHEMA Instrumenting Table IO.
-  */
+  DBUG_ASSERT(share != NULL);
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(pfs_thread == NULL))
+    return;
+  PFS_table_share* pfs;
+  pfs= reinterpret_cast<PFS_table_share*> (share);
+  purge_table_share(pfs_thread, pfs);
+}
+
+static void
+drop_table_share_v1(const char *schema_name, int schema_name_length,
+                    const char *table_name, int table_name_length)
+{
+  PFS_thread *pfs_thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(pfs_thread == NULL))
+    return;
+  /* TODO: temporary tables */
+  drop_table_share(pfs_thread, false, schema_name, schema_name_length,
+                   table_name, table_name_length);
 }
 
 static PSI_table*
 open_table_v1(PSI_table_share *share, const void *identity)
 {
+  PFS_thread *thread= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  if (unlikely(thread == NULL))
+    return NULL;
   PFS_table_share *pfs_table_share=
     reinterpret_cast<PFS_table_share*> (share);
   PFS_table *pfs_table;
   DBUG_ASSERT(pfs_table_share);
-  pfs_table= create_table(pfs_table_share, identity);
+  pfs_table= create_table(pfs_table_share, thread, identity);
   return reinterpret_cast<PSI_table *> (pfs_table);
 }
 
@@ -1112,6 +1136,14 @@ get_thread_mutex_locker_v1(PSI_mutex *mutex, PSI_mutex_operation op)
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
   pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_mutex= pfs_mutex;
@@ -1157,6 +1189,14 @@ get_thread_rwlock_locker_v1(PSI_rwlock *rwlock, PSI_rwlock_operation op)
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
   pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_rwlock= pfs_rwlock;
@@ -1215,6 +1255,14 @@ get_thread_cond_locker_v1(PSI_cond *cond, PSI_mutex * /* unused: mutex */,
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
   pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_cond= pfs_cond;
@@ -1238,11 +1286,20 @@ get_thread_cond_locker_v1(PSI_cond *cond, PSI_mutex * /* unused: mutex */,
 }
 
 static PSI_table_locker*
-get_thread_table_locker_v1(PSI_table *table)
+get_thread_table_locker_v1(PSI_table *table, PSI_table_operation op, ulong flags)
 {
+  DBUG_ASSERT(static_cast<int> (op) >= 0);
+  DBUG_ASSERT(static_cast<uint> (op) < array_elements(table_operation_map));
   PFS_table *pfs_table= reinterpret_cast<PFS_table*> (table);
   DBUG_ASSERT(pfs_table != NULL);
   DBUG_ASSERT(pfs_table->m_share != NULL);
+
+  /*
+    See the handler::external_lock() API design,
+    there is no handler::external_unlock().
+  */
+  if ((op == PSI_TABLE_EXTERNAL_LOCK) && (flags == F_UNLCK))
+    return NULL;
   if (! flag_events_waits_current)
     return NULL;
   if (! pfs_table->m_share->m_enabled)
@@ -1259,6 +1316,14 @@ get_thread_table_locker_v1(PSI_table *table)
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
   pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_table= pfs_table;
@@ -1273,6 +1338,9 @@ get_thread_table_locker_v1(PSI_table *table)
     pfs_locker->m_waits_current.m_timer_state= TIMER_STATE_UNTIMED;
   pfs_locker->m_waits_current.m_object_instance_addr= pfs_table->m_identity;
   pfs_locker->m_waits_current.m_event_id= pfs_thread->m_event_id++;
+  pfs_locker->m_waits_current.m_operation=
+    table_operation_map[static_cast<int> (op)];
+  pfs_locker->m_waits_current.m_flags= flags;
   pfs_locker->m_waits_current.m_wait_class= WAIT_CLASS_TABLE;
 
   pfs_thread->m_wait_locker_count++;
@@ -1311,6 +1379,14 @@ get_thread_file_name_locker_v1(PSI_file_key key,
 
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
   pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_file= pfs_file;
@@ -1362,6 +1438,14 @@ get_thread_file_stream_locker_v1(PSI_file *file, PSI_file_operation op)
   }
   PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
     [pfs_thread->m_wait_locker_count];
+  if (likely(pfs_thread->m_wait_locker_count == 0))
+    pfs_locker->m_waits_current.m_nesting_event_id= 0;
+  else
+  {
+    PFS_wait_locker *parent_locker= pfs_locker-1;
+    pfs_locker->m_waits_current.m_nesting_event_id=
+      parent_locker->m_waits_current.m_event_id;
+  }
   pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
   pfs_locker->m_target.m_file= pfs_file;
@@ -1430,6 +1514,14 @@ get_thread_file_descriptor_locker_v1(File file, PSI_file_operation op)
       }
       PFS_wait_locker *pfs_locker= &pfs_thread->m_wait_locker_stack
         [pfs_thread->m_wait_locker_count];
+      if (likely(pfs_thread->m_wait_locker_count == 0))
+        pfs_locker->m_waits_current.m_nesting_event_id= 0;
+      else
+      {
+        PFS_wait_locker *parent_locker= pfs_locker-1;
+        pfs_locker->m_waits_current.m_nesting_event_id=
+          parent_locker->m_waits_current.m_event_id;
+      }
       pfs_locker->m_waits_current.m_wait_class= NO_WAIT_CLASS;
 
       pfs_locker->m_target.m_file= pfs_file;
@@ -1633,7 +1725,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
     aggregate_single_stat_chain(&mutex->m_wait_stat, wait_time);
     stat= find_per_thread_mutex_class_wait_stat(wait->m_thread,
                                                 mutex->m_class);
-   aggregate_single_stat_chain(stat, wait_time);
+    aggregate_single_stat_chain(stat, wait_time);
   }
   wait->m_thread->m_wait_locker_count--;
 }
@@ -1785,7 +1877,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
       Not thread safe, race conditions will occur.
       A first race condition is:
       - thread 1 waits on cond A
-      - thread 2 waits on cond B
+      - thread 2 waits on cond A
       threads 1 and 2 compete when updating the same cond A
       statistics, possibly missing a min / max / sum / count.
       A second race condition is:
@@ -1808,7 +1900,7 @@ static void end_cond_wait_v1(PSI_cond_locker* locker, int rc)
   wait->m_thread->m_wait_locker_count--;
 }
 
-static void start_table_wait_v1(PSI_table_locker* locker,
+static void start_table_wait_v1(PSI_table_locker* locker, uint index,
                                 const char *src_file, uint src_line)
 {
   PFS_wait_locker *pfs_locker= reinterpret_cast<PFS_wait_locker*> (locker);
@@ -1822,12 +1914,17 @@ static void start_table_wait_v1(PSI_table_locker* locker,
   }
   wait->m_source_file= src_file;
   wait->m_source_line= src_line;
-  wait->m_operation= OPERATION_TYPE_LOCK;
   PFS_table_share *share= pfs_locker->m_target.m_table->m_share;
+  wait->m_object_type= share->get_object_type();
   wait->m_schema_name= share->m_schema_name;
   wait->m_schema_name_length= share->m_schema_name_length;
   wait->m_object_name= share->m_table_name;
   wait->m_object_name_length= share->m_table_name_length;
+  /* FIXME: revise this */
+  if (share->get_object_type() == OBJECT_TYPE_TEMPORARY_TABLE)
+    wait->m_index= MAX_KEY;
+  else
+    wait->m_index= index;
 }
 
 static void end_table_wait_v1(PSI_table_locker* locker)
@@ -1845,10 +1942,6 @@ static void end_table_wait_v1(PSI_table_locker* locker)
     insert_events_waits_history(wait->m_thread, wait);
   if (flag_events_waits_history_long)
     insert_events_waits_history_long(wait);
-
-  PFS_table *table= pfs_locker->m_target.m_table;
-  ulonglong wait_time= wait->m_timer_end - wait->m_timer_start;
-  aggregate_single_stat_chain(&table->m_wait_stat, wait_time);
 
   /*
     There is currently no per table and per thread aggregation.
@@ -2005,6 +2098,7 @@ PSI_v1 PFS_v1=
   destroy_cond_v1,
   get_table_share_v1,
   release_table_share_v1,
+  drop_table_share_v1,
   open_table_v1,
   close_table_v1,
   create_file_v1,

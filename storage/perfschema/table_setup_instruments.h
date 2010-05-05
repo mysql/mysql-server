@@ -51,6 +51,7 @@ struct pos_setup_instruments : public PFS_double_index
   /** Reverved for WL#4674, PERFORMANCE_SCHEMA Setup For Actors. */
   static const uint VIEW_THREAD= 4;
   static const uint VIEW_FILE= 5;
+  static const uint VIEW_TABLE= 6;
 
   pos_setup_instruments()
     : PFS_double_index(VIEW_MUTEX, 1)
@@ -63,7 +64,7 @@ struct pos_setup_instruments : public PFS_double_index
   }
 
   inline bool has_more_view(void)
-  { return (m_index_1 <= VIEW_FILE); }
+  { return (m_index_1 <= VIEW_TABLE); }
 
   inline void next_view(void)
   {

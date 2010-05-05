@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@
 #include "transaction.h"
 #include <errno.h>
 #include "probes_mysql.h"
+#include <mysql/psi/mysql_table.h>
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
 #include "ha_partition.h"
@@ -2034,6 +2035,12 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
                 ha_delete_table_error_handler.buff);
   }
   delete file;
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely((error == 0) && (PSI_server != NULL)))
+    PSI_server->drop_table_share(db, strlen(db), alias, strlen(alias));
+#endif
+
   DBUG_RETURN(error);
 }
 
@@ -2118,6 +2125,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
   }
   else
   {
+    psi_open();
     if (table->s->db_options_in_use & HA_OPTION_READ_ONLY_DATA)
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
@@ -2126,6 +2134,7 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
     if (!ref && !(ref= (uchar*) alloc_root(&table->mem_root, 
                                           ALIGN_SIZE(ref_length)*2)))
     {
+      psi_close();
       close();
       error=HA_ERR_OUT_OF_MEM;
     }
@@ -3575,8 +3584,18 @@ int ha_create_table(THD *thd, const char *path,
   DBUG_ENTER("ha_create_table");
   
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
-  if (open_table_def(thd, &share, 0) ||
-      open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
+  if (open_table_def(thd, &share, 0))
+    goto err;
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server != NULL))
+  {
+    my_bool temp= (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
+    share.m_psi= PSI_server->get_table_share(temp, &share);
+  }
+#endif
+
+  if (open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
                             TRUE))
     goto err;
 
@@ -3646,6 +3665,15 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   {
     DBUG_RETURN(3);
   }
+
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Table discovery is not instrumented.
+    Once discovered, the table will be opened normally,
+    and instrumented normally.
+  */
+#endif
+
   if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE))
   {
     free_table_share(&share);
@@ -4618,11 +4646,15 @@ int handler::ha_external_lock(THD *thd, int lock_type)
     }
   }
 
+  struct PSI_table_locker *locker;
+  locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_EXTERNAL_LOCK, MAX_KEY, lock_type);
   /*
     We cache the table flags if the locking succeeded. Otherwise, we
     keep them as they were when they were fetched in ha_open().
   */
   int error= external_lock(thd, lock_type);
+
+  MYSQL_END_TABLE_WAIT(locker);
 
   if (error == 0)
     cached_table_flags= table_flags();
@@ -4678,8 +4710,12 @@ int handler::ha_write_row(uchar *buf)
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
+  struct PSI_table_locker *locker;
+  locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_WRITE_ROW, MAX_KEY, 0);
 
   error= write_row(buf);
+
+  MYSQL_END_TABLE_WAIT(locker);
   MYSQL_INSERT_ROW_DONE(error);
   if (unlikely(error))
     DBUG_RETURN(error);
@@ -4704,7 +4740,12 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  struct PSI_table_locker *locker;
+  locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_UPDATE_ROW, MAX_KEY, 0);
+
   error= update_row(old_data, new_data);
+
+  MYSQL_END_TABLE_WAIT(locker);
   MYSQL_UPDATE_ROW_DONE(error);
   if (unlikely(error))
     return error;
@@ -4721,7 +4762,12 @@ int handler::ha_delete_row(const uchar *buf)
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
+  struct PSI_table_locker *locker;
+  locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_DELETE_ROW, MAX_KEY, 0);
+
   error= delete_row(buf);
+
+  MYSQL_END_TABLE_WAIT(locker);
   MYSQL_DELETE_ROW_DONE(error);
   if (unlikely(error))
     return error;
