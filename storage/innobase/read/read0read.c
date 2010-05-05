@@ -180,6 +180,8 @@ read_view_oldest_copy_or_open_new(
 	ulint		n;
 	ulint		i;
 
+	// FIXME:
+	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx_sys_mutex_own());
 
 	old_view = UT_LIST_GET_LAST(trx_sys->view_list);
@@ -261,6 +263,8 @@ read_view_open_now(
 	trx_t*		trx;
 	ulint		n;
 
+	// FIXME:
+	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx_sys_mutex_own());
 
 	view = read_view_create_low(UT_LIST_GET_LEN(trx_sys->trx_list), heap);
