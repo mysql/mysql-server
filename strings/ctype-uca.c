@@ -6527,8 +6527,8 @@ page0FCdata,page0FDdata,page0FEdata,page0FFdata
   German Phonebook
 */
 static const char german2[]=
-    "&AE << \\u00E4 <<< \\u00C4 "
-    "&OE << \\u00F6 <<< \\u00D6 "
+    "&AE << \\u00E6 <<< \\u00C6 << \\u00E4 <<< \\u00C4 "
+    "&OE << \\u0153 <<< \\u0152 << \\u00F6 <<< \\u00D6 "
     "&UE << \\u00FC <<< \\u00DC ";
 
 
