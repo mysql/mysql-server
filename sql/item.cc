@@ -5366,13 +5366,25 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
+Item_hex_string::Item_hex_string()
+{
+  hex_string_init("", 0);
+}
 
 Item_hex_string::Item_hex_string(const char *str, uint str_length)
+{
+  hex_string_init(str, str_length);
+}
+
+void Item_hex_string::hex_string_init(const char *str, uint str_length)
 {
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
+  {
+    str_value.set("", 0, &my_charset_bin);
     return;
+  }
   str_value.set(ptr,max_length,&my_charset_bin);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
