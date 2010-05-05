@@ -1279,5 +1279,5 @@ err:
 
 size_t Relay_log_info::get_number_info_rli_fields() 
 { 
-  return sizeof(info_rli_fields);
+  return sizeof(info_rli_fields)/sizeof(info_rli_fields[0]);
 }

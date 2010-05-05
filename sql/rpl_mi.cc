@@ -348,7 +348,7 @@ err:
 }
 
 size_t Master_info::get_number_info_mi_fields()
-{ 
-  return sizeof(info_mi_fields);
+{
+  return sizeof(info_mi_fields)/sizeof(info_mi_fields[0]); 
 }
 #endif /* HAVE_REPLICATION */
