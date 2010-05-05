@@ -59,10 +59,10 @@ static const int DEFAULT_PARALLELISM= 0;
 static const ha_rows DEFAULT_AUTO_PREFETCH= 32;
 static const ulong ONE_YEAR_IN_SECONDS= (ulong) 3600L*24L*365L;
 
-ulong ndb_extra_logging;
+ulong opt_ndb_extra_logging;
 static ulong opt_ndb_wait_connected;
 extern ulong opt_ndb_wait_setup;
-static ulong ndb_cache_check_time;
+static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
@@ -833,7 +833,7 @@ Thd_ndb::Thd_ndb()
 
 Thd_ndb::~Thd_ndb()
 {
-  if (ndb_extra_logging > 1)
+  if (opt_ndb_extra_logging > 1)
   {
     /*
       print some stats about the connection at disconnect
@@ -6075,7 +6075,7 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
                                           &thd->transaction.mem_root);
       }
 
-      if (ndb_cache_check_time)
+      if (opt_ndb_cache_check_time)
       {
         pthread_mutex_lock(&m_share->mutex);
         DBUG_PRINT("info", ("Invalidating commit_count"));
@@ -7498,7 +7498,7 @@ cleanup_failed:
       if (!ndbcluster_create_event(thd, ndb, m_table, event_name.c_ptr(), share,
                                    share && do_event_op ? 2 : 1/* push warning */))
       {
-        if (ndb_extra_logging)
+        if (opt_ndb_extra_logging)
           sql_print_information("NDB Binlog: CREATE TABLE Event: %s",
                                 event_name.c_ptr());
         if (share && 
@@ -7914,7 +7914,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     if (!ndbcluster_create_event(thd, ndb, ndbtab, event_name.c_ptr(), share,
                                  share && ndb_binlog_running ? 2 : 1/* push warning */))
     {
-      if (ndb_extra_logging)
+      if (opt_ndb_extra_logging)
         sql_print_information("NDB Binlog: RENAME Event: %s",
                               event_name.c_ptr());
       if (share && (share->op == 0) &&
@@ -10105,7 +10105,7 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   pthread_mutex_unlock(&ndbcluster_mutex);
 
   pthread_mutex_lock(&share->mutex);
-  if (ndb_cache_check_time > 0)
+  if (opt_ndb_cache_check_time > 0)
   {
     if (share->commit_count != 0)
     {
@@ -10427,7 +10427,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
 
   /* ndb_share reference temporary, free below */
   ++share->use_count;
-  if (ndb_extra_logging > 9)
+  if (opt_ndb_extra_logging > 9)
     sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
   DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                            share->key, share->use_count));
@@ -10451,9 +10451,9 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
                            share->key, share->use_count));
   if (!--share->use_count)
   {
-    if (ndb_extra_logging > 9)
+    if (opt_ndb_extra_logging > 9)
       sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
-    if (ndb_extra_logging)
+    if (opt_ndb_extra_logging)
       sql_print_information("NDB_SHARE: trailing share "
                             "%s(connect_count: %u) "
                             "released by close_cached_tables at "
@@ -10464,7 +10464,7 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
     ndbcluster_real_free_share(&share);
     DBUG_RETURN(0);
   }
-  if (ndb_extra_logging > 9)
+  if (opt_ndb_extra_logging > 9)
     sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
 
   /*
@@ -10478,12 +10478,12 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share, int have_lock_open)
     DBUG_PRINT("NDB_SHARE", ("%s create free  use_count: %u",
                              share->key, share->use_count));
     --share->use_count;
-    if (ndb_extra_logging > 9)
+    if (opt_ndb_extra_logging > 9)
       sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
 
     if (share->use_count == 0)
     {
-      if (ndb_extra_logging)
+      if (opt_ndb_extra_logging)
         sql_print_information("NDB_SHARE: trailing share "
                               "%s(connect_count: %u) "
                               "released after NSS_DROPPED check "
@@ -10641,7 +10641,7 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share, int have_lock_open)
   share->old_names= old_key;
   // ToDo free old_names after ALTER EVENT
 
-  if (ndb_extra_logging > 9)
+  if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_rename_share: %s-%s use_count: %u", old_key, share->key, share->use_count);
 
   pthread_mutex_unlock(&ndbcluster_mutex);
@@ -10659,7 +10659,7 @@ NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 
   dbug_print_open_tables();
   dbug_print_share("ndbcluster_get_share:", share);
-  if (ndb_extra_logging > 9)
+  if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_get_share: %s use_count: %u", share->key, share->use_count);
   pthread_mutex_unlock(&ndbcluster_mutex);
   return share;
@@ -10754,7 +10754,7 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
     }
   }
   share->use_count++;
-  if (ndb_extra_logging > 9)
+  if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_get_share: %s use_count: %u", share->key, share->use_count);
 
   dbug_print_open_tables();
@@ -10770,7 +10770,7 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   DBUG_ENTER("ndbcluster_real_free_share");
   dbug_print_share("ndbcluster_real_free_share:", *share);
 
-  if (ndb_extra_logging > 9)
+  if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_real_free_share: %s use_count: %u", (*share)->key, (*share)->use_count);
 
   hash_delete(&ndbcluster_open_tables, (uchar*) *share);
@@ -10806,13 +10806,13 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
     pthread_mutex_lock(&ndbcluster_mutex);
   if (!--(*share)->use_count)
   {
-    if (ndb_extra_logging > 9)
+    if (opt_ndb_extra_logging > 9)
       sql_print_information ("ndbcluster_free_share: %s use_count: %u", (*share)->key, (*share)->use_count);
     ndbcluster_real_free_share(share);
   }
   else
   {
-    if (ndb_extra_logging > 9)
+    if (opt_ndb_extra_logging > 9)
       sql_print_information ("ndbcluster_free_share: %s use_count: %u", (*share)->key, (*share)->use_count);
     dbug_print_open_tables();
     dbug_print_share("ndbcluster_free_share:", *share);
@@ -11799,7 +11799,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
 
   my_thread_init();
   DBUG_ENTER("ndb_util_thread");
-  DBUG_PRINT("enter", ("ndb_cache_check_time: %lu", ndb_cache_check_time));
+  DBUG_PRINT("enter", ("cache_check_time: %lu", opt_ndb_cache_check_time));
  
    pthread_mutex_lock(&LOCK_ndb_util_thread);
 
@@ -11879,7 +11879,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
   set_thd_ndb(thd, thd_ndb);
   thd_ndb->options|= TNO_NO_LOG_SCHEMA_OP;
 
-  if (ndb_extra_logging && ndb_binlog_running)
+  if (opt_ndb_extra_logging && ndb_binlog_running)
     sql_print_information("NDB Binlog: Ndb tables initially read only.");
   /* create tables needed by the replication */
   ndbcluster_setup_binlog_table_shares(thd);
@@ -11896,8 +11896,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       goto ndb_util_thread_end;
     pthread_mutex_unlock(&LOCK_ndb_util_thread);
 #ifdef NDB_EXTRA_DEBUG_UTIL_THREAD
-    DBUG_PRINT("ndb_util_thread", ("Started, ndb_cache_check_time: %lu",
-                                   ndb_cache_check_time));
+    DBUG_PRINT("ndb_util_thread", ("Started, cache_check_time: %lu",
+                                   opt_ndb_cache_check_time));
 #endif
 
     /*
@@ -11920,7 +11920,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
       }
     }
 
-    if (ndb_cache_check_time == 0)
+    if (opt_ndb_cache_check_time == 0)
     {
       /* Wake up in 1 second to check if value has changed */
       set_timespec(abstime, 1);
@@ -12039,7 +12039,7 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
     }
 next:
     /* Calculate new time to wake up */
-    set_timespec_nsec(abstime, ndb_cache_check_time * 1000000ULL);
+    set_timespec_nsec(abstime, opt_ndb_cache_check_time * 1000000ULL);
   }
 
   pthread_mutex_lock(&LOCK_ndb_util_thread);
@@ -13867,7 +13867,7 @@ SHOW_VAR ndb_status_variables_export[]= {
 
 static MYSQL_SYSVAR_ULONG(
   cache_check_time,                  /* name */
-  ndb_cache_check_time,              /* var */
+  opt_ndb_cache_check_time,              /* var */
   PLUGIN_VAR_RQCMDARG,
   "A dedicated thread is created to, at the given "
   "millisecond interval, invalidate the query cache "
@@ -13884,7 +13884,7 @@ static MYSQL_SYSVAR_ULONG(
 
 static MYSQL_SYSVAR_ULONG(
   extra_logging,                     /* name */
-  ndb_extra_logging,                 /* var */
+  opt_ndb_extra_logging,                 /* var */
   PLUGIN_VAR_OPCMDARG,
   "Turn on more logging in the error log.",
   NULL,                              /* check func. */
