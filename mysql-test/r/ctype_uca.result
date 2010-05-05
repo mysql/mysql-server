@@ -2121,6 +2121,112 @@ Z,z,Ź,ź,Ż,ż,Ž,ž
 ǁ
 ǂ
 ǃ
+select group_concat(c1 order by c1) from t1 group by c1 collate utf8_german2_ci;
+group_concat(c1 order by c1)
+÷
+×
+A,a,À,Á,Â,Ã,Å,à,á,â,ã,å,Ā,ā,Ă,ă,Ą,ą,Ǎ,ǎ,Ǟ,ǟ,Ǡ,ǡ,Ǻ,ǻ
+AA,Aa,aA,aa
+Ä,Æ,ä,æ
+Ǣ,ǣ,Ǽ,ǽ
+B,b
+ƀ
+Ɓ
+Ƃ,ƃ
+C,c,Ç,ç,Ć,ć,Ĉ,ĉ,Ċ,ċ,Č,č
+CH,Ch,cH,ch
+Ƈ,ƈ
+D,d,Ď,ď
+DZ,Dz,dZ,dz,Ǆ,ǅ,ǆ,Ǳ,ǲ,ǳ
+Đ,đ
+Ɖ
+Ɗ
+Ƌ,ƌ
+Ð,ð
+E,e,È,É,Ê,Ë,è,é,ê,ë,Ē,ē,Ĕ,ĕ,Ė,ė,Ę,ę,Ě,ě
+Ǝ,ǝ
+Ə
+Ɛ
+F,f
+Ƒ,ƒ
+G,g,Ĝ,ĝ,Ğ,ğ,Ġ,ġ,Ģ,ģ,Ǧ,ǧ,Ǵ,ǵ
+Ǥ,ǥ
+Ɠ
+Ɣ
+Ƣ,ƣ
+H,h,Ĥ,ĥ
+ƕ,Ƕ
+Ħ,ħ
+I,i,Ì,Í,Î,Ï,ì,í,î,ï,Ĩ,ĩ,Ī,ī,Ĭ,ĭ,Į,į,İ,Ǐ,ǐ
+IJ,Ij,iJ,ij,Ĳ,ĳ
+ı
+Ɨ
+Ɩ
+J,j,Ĵ,ĵ,ǰ
+K,k,Ķ,ķ,Ǩ,ǩ
+Ƙ,ƙ
+L,l,Ĺ,ĺ,Ļ,ļ,Ľ,ľ
+Ŀ,ŀ
+LJ,Lj,lJ,lj,Ǉ,ǈ,ǉ
+LL,Ll,lL,ll
+Ł,ł
+ƚ
+ƛ
+M,m
+N,n,Ñ,ñ,Ń,ń,Ņ,ņ,Ň,ň,Ǹ,ǹ
+NJ,Nj,nJ,nj,Ǌ,ǋ,ǌ
+Ɲ
+ƞ
+Ŋ,ŋ
+O,o,Ò,Ó,Ô,Õ,ò,ó,ô,õ,Ō,ō,Ŏ,ŏ,Ő,ő,Ơ,ơ,Ǒ,ǒ,Ǫ,ǫ,Ǭ,ǭ
+OE,Oe,oE,oe,Ö,ö,Œ,œ
+Ø,ø,Ǿ,ǿ
+Ɔ
+Ɵ
+P,p
+Ƥ,ƥ
+Q,q
+ĸ
+R,r,Ŕ,ŕ,Ŗ,ŗ,Ř,ř
+RR,Rr,rR,rr
+Ʀ
+S,s,Ś,ś,Ŝ,ŝ,Ş,ş,Š,š,ſ
+SS,Ss,sS,ss,ß
+Ʃ
+ƪ
+T,t,Ţ,ţ,Ť,ť
+ƾ
+Ŧ,ŧ
+ƫ
+Ƭ,ƭ
+Ʈ
+U,u,Ù,Ú,Û,ù,ú,û,Ũ,ũ,Ū,ū,Ŭ,ŭ,Ů,ů,Ű,ű,Ų,ų,Ư,ư,Ǔ,ǔ,Ǖ,ǖ,Ǘ,ǘ,Ǚ,ǚ,Ǜ,ǜ
+Ü,ü
+Ɯ
+Ʊ
+V,v
+Ʋ
+W,w,Ŵ,ŵ
+X,x
+Y,y,Ý,ý,ÿ,Ŷ,ŷ,Ÿ
+Ƴ,ƴ
+Z,z,Ź,ź,Ż,ż,Ž,ž
+ƍ
+Ƶ,ƶ
+Ʒ,Ǯ,ǯ
+Ƹ,ƹ
+ƺ
+Þ,þ
+ƿ,Ƿ
+ƻ
+Ƨ,ƨ
+Ƽ,ƽ
+Ƅ,ƅ
+ŉ
+ǀ
+ǁ
+ǂ
+ǃ
 drop table t1;
 SET NAMES utf8;
 CREATE TABLE t1 (c varchar(255) NOT NULL COLLATE utf8_general_ci, INDEX (c));
@@ -2681,6 +2787,8 @@ insert into t1 values ('a'),('ae'),(_latin1 0xE4);
 insert into t1 values ('o'),('oe'),(_latin1 0xF6);
 insert into t1 values ('s'),('ss'),(_latin1 0xDF);
 insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+INSERT INTO t1 VALUES (_latin1 0xE6), (_latin1 0xC6);
+INSERT INTO t1 VALUES (_latin1 0x9C), (_latin1 0x8C);
 select s1, hex(s1) from t1 order by s1, binary s1;
 s1	hex(s1)
 a	61
@@ -2688,11 +2796,15 @@ a	61
 ad	6164
 ae	6165
 af	6166
+Æ	C386
+æ	C3A6
 e	65
 o	6F
 ö	C3B6
 od	6F64
 oe	6F65
+Œ	C592
+œ	C593
 of	6F66
 s	73
 ss	7373
@@ -2708,10 +2820,11 @@ a,ä
 ad
 ae
 af
+Æ,æ
 e
 o,ö
 od
-oe
+oe,Œ,œ
 of
 s
 ss,ß
@@ -2726,11 +2839,15 @@ a	61	0E33
 ad	6164	0E330E6D
 ae	6165	0E330E8B
 af	6166	0E330EB9
+Æ	C386	0E38
+æ	C3A6	0E38
 e	65	0E8B
 o	6F	0F82
 ö	C3B6	0F82
 od	6F64	0F820E6D
 oe	6F65	0F820E8B
+Œ	C592	0F820E8B
+œ	C593	0F820E8B
 of	6F66	0F820EB9
 s	73	0FEA
 ss	7373	0FEA0FEA

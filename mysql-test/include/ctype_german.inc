@@ -38,6 +38,11 @@ insert into t1 values ('o'),('oe'),(_latin1 0xF6);
 insert into t1 values ('s'),('ss'),(_latin1 0xDF);
 insert into t1 values ('u'),('ue'),(_latin1 0xFC);
 
+# LIGATURE AE
+INSERT INTO t1 VALUES (_latin1 0xE6), (_latin1 0xC6);
+# LIGATURE OE
+INSERT INTO t1 VALUES (_latin1 0x9C), (_latin1 0x8C);
+
 #
 # Check order
 #

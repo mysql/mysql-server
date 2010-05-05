@@ -2726,18 +2726,24 @@ insert into t1 values ('a'),('ae'),(_latin1 0xE4);
 insert into t1 values ('o'),('oe'),(_latin1 0xF6);
 insert into t1 values ('s'),('ss'),(_latin1 0xDF);
 insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+INSERT INTO t1 VALUES (_latin1 0xE6), (_latin1 0xC6);
+INSERT INTO t1 VALUES (_latin1 0x9C), (_latin1 0x8C);
 select s1, hex(s1) from t1 order by s1, binary s1;
 s1	hex(s1)
 a	00000061
 ad	0000006100000064
 ae	0000006100000065
+Æ	000000C6
 ä	000000E4
+æ	000000E6
 af	0000006100000066
 e	00000065
 o	0000006F
 od	0000006F00000064
 oe	0000006F00000065
 ö	000000F6
+Œ	00000152
+œ	00000153
 of	0000006F00000066
 s	00000073
 ss	0000007300000073
@@ -2751,12 +2757,12 @@ select group_concat(s1 order by binary s1) from t1 group by s1;
 group_concat(s1 order by binary s1)
 a
 ad
-ae,ä
+ae,Æ,ä,æ
 af
 e
 o
 od
-oe,ö
+oe,ö,Œ,œ
 of
 s
 ss,ß
@@ -2769,13 +2775,17 @@ s1	hex(s1)	hex(weight_string(s1))
 a	00000061	0E33
 ad	0000006100000064	0E330E6D
 ae	0000006100000065	0E330E8B
+Æ	000000C6	0E330E8B
 ä	000000E4	0E330E8B
+æ	000000E6	0E330E8B
 af	0000006100000066	0E330EB9
 e	00000065	0E8B
 o	0000006F	0F82
 od	0000006F00000064	0F820E6D
 oe	0000006F00000065	0F820E8B
 ö	000000F6	0F820E8B
+Œ	00000152	0F820E8B
+œ	00000153	0F820E8B
 of	0000006F00000066	0F820EB9
 s	00000073	0FEA
 ss	0000007300000073	0FEA0FEA
@@ -2788,7 +2798,9 @@ uf	0000007500000066	101F0EB9
 SELECT s1, hex(s1) FROM t1 WHERE s1='ae' ORDER BY s1, BINARY(s1);
 s1	hex(s1)
 ae	0000006100000065
+Æ	000000C6
 ä	000000E4
+æ	000000E6
 drop table t1;
 "END ctype_german.inc"
 #

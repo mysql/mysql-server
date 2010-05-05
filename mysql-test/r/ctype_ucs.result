@@ -741,6 +741,8 @@ insert into t1 values ('a'),('ae'),(_latin1 0xE4);
 insert into t1 values ('o'),('oe'),(_latin1 0xF6);
 insert into t1 values ('s'),('ss'),(_latin1 0xDF);
 insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+INSERT INTO t1 VALUES (_latin1 0xE6), (_latin1 0xC6);
+INSERT INTO t1 VALUES (_latin1 0x9C), (_latin1 0x8C);
 select s1, hex(s1) from t1 order by s1, binary s1;
 s1	hex(s1)
 a	0061
@@ -762,6 +764,10 @@ u	0075
 ud	00750064
 ue	00750065
 uf	00750066
+Æ	00C6
+æ	00E6
+Œ	0152
+œ	0153
 select group_concat(s1 order by binary s1) from t1 group by s1;
 group_concat(s1 order by binary s1)
 a,ä
@@ -779,6 +785,8 @@ u,ü
 ud
 ue
 uf
+Æ,æ
+Œ,œ
 SELECT s1, hex(s1), hex(weight_string(s1)) FROM t1 ORDER BY s1, BINARY(s1);
 s1	hex(s1)	hex(weight_string(s1))
 a	0061	0041
@@ -800,6 +808,10 @@ u	0075	0055
 ud	00750064	00550044
 ue	00750065	00550045
 uf	00750066	00550046
+Æ	00C6	00C6
+æ	00E6	00C6
+Œ	0152	0152
+œ	0153	0152
 SELECT s1, hex(s1) FROM t1 WHERE s1='ae' ORDER BY s1, BINARY(s1);
 s1	hex(s1)
 ae	00610065
