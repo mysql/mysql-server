@@ -12,3 +12,148 @@ LET $ENGINE_TYPE= MyISAM;
 source extra/rpl_tests/rpl_tmp_table_and_DDL.test;
 sync_slave_with_master;
 
+#
+# BUG #51839
+# The test makes sure the binlog format is not changed 
+# after a execution of DDL with a table locked, so that
+# the following DML statements will not cause the slave 
+# to stop.
+#
+
+--disable_abort_on_error
+
+CREATE TABLE t1 (a CHAR(30));
+CREATE TEMPORARY TABLE t2 (b CHAR(60));
+
+# CREATE FUNCTION when a table is locked.
+LOCK TABLE t1 WRITE;
+CREATE FUNCTION f1 () RETURNS TINYINT RETURN 13;
+INSERT INTO t2 VALUES ("CREATE FUNCTION f1 with table locked");
+
+UNLOCK TABLE;
+CREATE FUNCTION f2 () RETURNS TINYINT RETURN 13;
+
+# ALTER FUNCTION when a table is locked.
+LOCK TABLE t1 WRITE;
+ALTER FUNCTION f2 SQL SECURITY INVOKER;
+INSERT INTO t2 VALUES ("ALTER FUNCTION f2 with table locked");
+
+# DROP FUNCTION when a table is locked.
+LOCK TABLE t1 WRITE;
+DROP FUNCTION f2;
+INSERT INTO t2 VALUES ("DROP FUNCTION f2 with table locked");
+
+
+# CREATE PROCEDURE when a table is locked.
+CREATE PROCEDURE p1() SELECT 1;
+INSERT INTO t2 VALUES ("CREATE PROCEDURE p1 with table locked");
+
+UNLOCK TABLE;
+CREATE PROCEDURE p2() SELECT 1;
+
+# ALTER PROCEDURE when a table is locked.
+LOCK TABLE t1 WRITE;
+ALTER PROCEDURE p2 SQL SECURITY INVOKER;
+INSERT INTO t2 VALUES ("ALTER PROCEDURE P2 with table locked");
+
+# DROP PROCEDURE when a table is locked.
+DROP PROCEDURE p2;
+INSERT INTO t2 VALUES ("DROP PROCEDURE p2 with table locked");
+
+
+# CREATE EVENT when a table is locked.
+CREATE EVENT e1 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+INSERT INTO t2 VALUES ("CREATE EVENT e1 with table locked");
+
+UNLOCK TABLE;
+CREATE EVENT e2 ON SCHEDULE EVERY 10 HOUR DO SELECT 1;
+
+# ALTER EVENT when a table is locked.
+LOCK TABLE t1 WRITE;
+ALTER EVENT e2 ON SCHEDULE EVERY 20 HOUR DO SELECT 1;
+INSERT INTO t2 VALUES ("ALTER EVENT e2 with table locked");
+
+# DROP EVENT when a table is locked.
+DROP EVENT e2;
+INSERT INTO t2 VALUES ("DROP EVENT e2 with table locked");
+
+
+# CREATE DATABASE when a table is locked.
+CREATE DATABASE mysqltest1;
+INSERT INTO t2 VALUES ("CREATE DATABASE mysqltest1 with table locked");
+
+UNLOCK TABLE;
+CREATE DATABASE mysqltest2;
+
+# DROP DATABASE when a table is locked.
+LOCK TABLE t1 WRITE;
+DROP DATABASE mysqltest2;
+INSERT INTO t2 VALUES ("DROP DATABASE mysqltest2 with table locked");
+
+UNLOCK TABLE;
+DROP DATABASE mysqltest2;
+
+# CREATE USER when a table is locked.
+LOCK TABLE t1 WRITE;
+CREATE USER test_1@localhost;
+INSERT INTO t2 VALUES ("CREATE USER test_1@localhost with table locked");
+
+UNLOCK TABLE;
+CREATE USER test_2@localhost;
+
+# GRANT select on table to user when a table is locked.
+LOCK TABLE t1 WRITE;
+GRANT SELECT ON t1 TO test_2@localhost;
+INSERT INTO t2 VALUES ("GRANT select on table to user with table locked");
+
+# GRANT all on function to user when a table is locked.
+GRANT ALL ON f2 TO test_2@localhost;
+INSERT INTO t2 VALUES ("GRANT ALL ON f2 TO test_2 with table locked");
+
+# GRANT all on procdure to user when a table is locked.
+GRANT ALL ON p2 TO test_2@localhost;
+INSERT INTO t2 VALUES ("GRANT ALL ON p2 TO test_2 with table locked");
+
+# GRANT USAGE ON *.* to user when a table is locked.
+GRANT USAGE ON *.* TO test_2@localhost;
+INSERT INTO t2 VALUES ("GRANT USAGE ON *.* TO test_2 with table locked");
+
+
+# REVOKE ALL PRIVILEGES on function to user when a table is locked.
+REVOKE ALL PRIVILEGES ON f2 FROM test_2@localhost;
+INSERT INTO t2 VALUES ("REVOKE ALL PRIVILEGES on function to user with table locked");
+
+# REVOKE ALL PRIVILEGES on procedure to user when a table is locked.
+REVOKE ALL PRIVILEGES ON p2 FROM test_2@localhost;
+INSERT INTO t2 VALUES ("REVOKE ALL PRIVILEGES on procedure to user with table locked");
+
+# REVOKE ALL PRIVILEGES on table to user when a table is locked.
+REVOKE ALL PRIVILEGES ON t1 FROM test_2@localhost;
+INSERT INTO t2 VALUES ("REVOKE ALL PRIVILEGES on table to user with table locked");
+
+# REVOKE USAGE ON *.* to user when a table is locked.
+REVOKE USAGE ON *.* FROM test_2@localhost;
+INSERT INTO t2 VALUES ("REVOKE USAGE ON *.* TO test_2 with table locked");
+
+
+# RENAME USER when a table is locked.
+RENAME USER test_2@localhost TO test_3@localhost;
+INSERT INTO t2 VALUES ("RENAME USER test_2 TO test_3 with table locked");
+
+UNLOCK TABLE;
+RENAME USER test_2@localhost TO test_3@localhost;
+
+# DROP USER when a table is locked.
+LOCK TABLE t1 WRITE;
+DROP USER test_3@localhost;
+INSERT INTO t2 VALUES ("DROP USER test_3@localhost with table locked");
+
+UNLOCK TABLE;
+DROP USER test_3@localhost;
+DROP FUNCTION f2;
+DROP PROCEDURE p2;
+DROP EVENT e2;
+DROP TABLE t1, t2;
+
+--source include/master-slave-end.inc
+

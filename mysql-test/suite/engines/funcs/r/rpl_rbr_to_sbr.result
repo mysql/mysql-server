@@ -4,12 +4,6 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-set @saved_binlog_format = @@global.binlog_format;
-SET BINLOG_FORMAT=MIXED;
-SET GLOBAL BINLOG_FORMAT=MIXED;
-SELECT @@GLOBAL.BINLOG_FORMAT, @@SESSION.BINLOG_FORMAT;
-@@GLOBAL.BINLOG_FORMAT	@@SESSION.BINLOG_FORMAT
-MIXED	MIXED
 **** On Master ****
 CREATE TABLE t1 (a INT, b LONG);
 INSERT INTO t1 VALUES (1,1), (2,2);
@@ -55,6 +49,7 @@ Last_IO_Errno	0
 Last_IO_Error	
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 SHOW BINLOG EVENTS;
 DROP TABLE IF EXISTS t1;
-SET GLOBAL BINLOG_FORMAT=@saved_binlog_format;
