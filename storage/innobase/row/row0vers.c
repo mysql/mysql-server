@@ -128,7 +128,7 @@ row_vers_impl_x_locked_off_kernel(
 	}
 
 	if (!lock_check_trx_id_sanity(trx_id, clust_rec, clust_index,
-				      clust_offsets, TRUE)) {
+				      clust_offsets)) {
 		/* Corruption noticed: try to avoid a crash by returning */
 		goto exit_func;
 	}

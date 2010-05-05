@@ -218,13 +218,9 @@ trx_allocate_for_mysql(void)
 
 	trx_n_mysql_transactions++;
 
-	trx_sys_mutex_exit();
-
-	mutex_enter(&kernel_mutex);
-
 	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 
 	trx->mysql_thread_id = os_thread_get_curr_id();
 
@@ -250,13 +246,13 @@ trx_search_latch_release_if_reserved(
 
 /********************************************************************//**
 Frees a transaction object. */
-UNIV_INTERN
+static
 void
 trx_free(
 /*=====*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	if (trx->declared_to_be_inside_innodb) {
 		ut_print_timestamp(stderr);
@@ -342,7 +338,7 @@ trx_free_for_mysql(
 /*===============*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	mutex_enter(&kernel_mutex);
+	trx_sys_mutex_enter();
 
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
@@ -352,7 +348,7 @@ trx_free_for_mysql(
 
 	trx_n_mysql_transactions--;
 
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 }
 
 /********************************************************************//**
@@ -363,11 +359,11 @@ trx_free_for_background(
 /*====================*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	mutex_enter(&kernel_mutex);
+	trx_sys_mutex_enter();
 
 	trx_free(trx);
 
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 }
 
 /****************************************************************//**
@@ -382,8 +378,6 @@ trx_list_insert_ordered(
 	trx_t*	trx)	/*!< in: trx handle */
 {
 	trx_t*	trx2;
-
-	ut_ad(mutex_own(&kernel_mutex));
 
 	trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
@@ -946,7 +940,11 @@ trx_commit_off_kernel(
 	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
 	ut_ad(UT_LIST_GET_LEN(trx->trx_locks) == 0);
 
+	trx_sys_mutex_enter();
+
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+
+	trx_sys_mutex_exit();
 }
 
 /****************************************************************//**
@@ -969,7 +967,11 @@ trx_cleanup_at_db_startup(
 	trx->undo_no = ut_dulint_zero;
 	trx->last_sql_stat_start.least_undo_no = ut_dulint_zero;
 
+	trx_sys_mutex_enter();
+
 	UT_LIST_REMOVE(trx_list, trx_sys->trx_list, trx);
+
+	trx_sys_mutex_exit();
 }
 
 /********************************************************************//**
@@ -989,16 +991,23 @@ trx_assign_read_view(
 		return(trx->read_view);
 	}
 
+	// FIXME: This is required to check the trx->conc_state in
+	// read_view_open_now(). We should get rid of this requirement.
+	mutex_enter(&kernel_mutex);
+
+	trx_sys_mutex_enter();
+
 	if (!trx->read_view) {
-		trx_sys_mutex_enter();
 
 		trx->read_view = read_view_open_now(
 			trx->id, trx->global_read_view_heap);
 
 		trx->global_read_view = trx->read_view;
-
-		trx_sys_mutex_exit();
 	}
+
+	mutex_exit(&kernel_mutex);
+
+	trx_sys_mutex_exit();
 
 	return(trx->read_view);
 }
@@ -1961,7 +1970,7 @@ trx_recover_for_mysql(
 	/* We should set those transactions which are in the prepared state
 	to the xid_list */
 
-	mutex_enter(&kernel_mutex);
+	trx_sys_mutex_enter();
 
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
@@ -1999,7 +2008,7 @@ trx_recover_for_mysql(
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 
 	if (count > 0){
 		ut_print_timestamp(stderr);
@@ -2029,7 +2038,7 @@ trx_get_trx_by_xid(
 		return (NULL);
 	}
 
-	mutex_enter(&kernel_mutex);
+	trx_sys_mutex_enter();
 
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
@@ -2049,7 +2058,7 @@ trx_get_trx_by_xid(
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 
 	if (trx) {
 		if (trx->conc_state != TRX_PREPARED) {
@@ -2058,7 +2067,7 @@ trx_get_trx_by_xid(
 		}
 
 		return(trx);
-	} else {
-		return(NULL);
 	}
+
+	return(NULL);
 }

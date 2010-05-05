@@ -363,9 +363,10 @@ trx_purge_add_update_undo_to_history(
 	/* Add the log as the first in the history list */
 	flst_add_first(rseg_header + TRX_RSEG_HISTORY,
 		       undo_header + TRX_UNDO_HISTORY_NODE, mtr);
-	mutex_enter(&kernel_mutex);
+
+	trx_sys_mutex_enter();
 	trx_sys->rseg_history_len++;
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 
 	if (!(trx_sys->rseg_history_len % srv_purge_batch_size)) {
 		/* Inform the purge thread that there is work to do. */
@@ -463,10 +464,10 @@ loop:
 	flst_cut_end(rseg_hdr + TRX_RSEG_HISTORY,
 		     log_hdr + TRX_UNDO_HISTORY_NODE, n_removed_logs, &mtr);
 
-	mutex_enter(&kernel_mutex);
+	trx_sys_mutex_enter();
 	ut_ad(trx_sys->rseg_history_len >= n_removed_logs);
 	trx_sys->rseg_history_len -= n_removed_logs;
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 
 	freed = FALSE;
 
@@ -552,10 +553,10 @@ loop:
 	}
 
 	if (cmp >= 0) {
-		mutex_enter(&kernel_mutex);
+		trx_sys_mutex_enter();
 		ut_a(trx_sys->rseg_history_len >= n_removed_logs);
 		trx_sys->rseg_history_len -= n_removed_logs;
-		mutex_exit(&kernel_mutex);
+		trx_sys_mutex_exit();
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
 				  log_hdr + TRX_UNDO_HISTORY_NODE,
@@ -712,7 +713,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		mutex_enter(&kernel_mutex);
+		trx_sys_mutex_enter();
 
 		/* Add debug code to track history list corruption reported
 		on the MySQL mailing list on Nov 9, 2004. The fut0lst.c
@@ -734,7 +735,7 @@ trx_purge_rseg_get_next_history_log(
 				(ulong) trx_sys->rseg_history_len);
 		}
 
-		mutex_exit(&kernel_mutex);
+		trx_sys_mutex_exit();
 
 		return;
 	}
@@ -1145,6 +1146,10 @@ trx_purge(
 	thread. */
 	srv_dml_needed_delay = 0; /* in microseconds; default: no delay */
 
+	// FIXME: We need this to cover the trx->conc_state that is checked
+	// in read_view_*() functions.
+	mutex_enter(&kernel_mutex);
+
 	trx_sys_mutex_enter();
 
 	/* If we cannot advance the 'purge view' because of an old
@@ -1168,6 +1173,8 @@ trx_purge(
 
 	purge_sys->view = read_view_oldest_copy_or_open_new(
 		ut_dulint_zero, purge_sys->heap);
+
+	mutex_exit(&kernel_mutex);
 
 	trx_sys_mutex_exit();
 
