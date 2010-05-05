@@ -8796,6 +8796,9 @@ bool is_secure_file_path(char *path)
   if (!opt_secure_file_priv)
     return TRUE;
 
+  if (strlen(path) >= FN_REFLEN)
+    return FALSE;
+
   if (my_realpath(buff1, path, 0))
   {
     /*
@@ -8882,6 +8885,8 @@ static int fix_paths(void)
     }
     else
     {
+      if (strlen(opt_secure_file_priv) >= FN_REFLEN)
+        opt_secure_file_priv[FN_REFLEN-1]= '\0';
       if (my_realpath(buff, opt_secure_file_priv, 0))
       {
         sql_print_warning("Failed to normalize the argument for --secure-file-priv.");
