@@ -2087,7 +2087,7 @@ row_merge_drop_temp_indexes(void)
 		btr_pcur_store_position(&pcur, &mtr);
 		btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
-		table = dict_load_table_on_id(table_id);
+		table = dict_table_get_on_id_low(table_id);
 
 		if (table) {
 			dict_index_t*	index;
