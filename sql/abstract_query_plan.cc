@@ -85,10 +85,16 @@ namespace AQP
     DBUG_ASSERT(start_tab >= m_table_accesses &&
                 start_tab < m_table_accesses+get_access_count());
 
+    table_map used_tables = field_item->used_tables();
+
+    /* Early elimination of outer referrences. */
+//  if (used_tables & OUTER_REF_TABLE_BIT)
+//    return NULL;
+
     const Table_access* end_tab= m_table_accesses+get_access_count();
     for (const Table_access* tab= start_tab; tab < end_tab; tab++)
     {
-      if (tab->get_join_tab()->table->map == field_item->field->table->map)
+      if (tab->get_join_tab()->table->map == used_tables)
         return tab;
     }
     return NULL;
