@@ -319,18 +319,16 @@ read_view_open_now(
 }
 
 /*********************************************************************//**
-Closes a read view. */
+Remove a read view from the trx_sys->view_list. */
 UNIV_INTERN
 void
-read_view_close(
+read_view_remove(
 /*============*/
 	read_view_t*	view)	/*!< in: read view */
 {
-	trx_sys_mutex_enter();
+	ut_ad(trx_sys_mutex_own());
 
 	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
-
-	trx_sys_mutex_exit();
 }
 
 /*********************************************************************//**
@@ -342,14 +340,18 @@ read_view_close_for_mysql(
 /*======================*/
 	trx_t*	trx)	/*!< in: trx which has a read view */
 {
+	trx_sys_mutex_enter();
+
 	ut_a(trx->global_read_view);
 
-	read_view_close(trx->global_read_view);
+	read_view_remove(trx->global_read_view);
 
 	mem_heap_empty(trx->global_read_view_heap);
 
 	trx->read_view = NULL;
 	trx->global_read_view = NULL;
+
+	trx_sys_mutex_exit();
 }
 
 /*********************************************************************//**
@@ -425,7 +427,10 @@ read_cursor_view_create_for_mysql(
 	curview->n_mysql_tables_in_use = cr_trx->n_mysql_tables_in_use;
 	cr_trx->n_mysql_tables_in_use = 0;
 
+	// FIXME: See next FIXME
 	mutex_enter(&kernel_mutex);
+
+	trx_sys_mutex_enter();
 
 	curview->read_view = read_view_create_low(
 		UT_LIST_GET_LEN(trx_sys->trx_list), curview->heap);
@@ -447,6 +452,11 @@ read_cursor_view_create_for_mysql(
 
 	while (trx) {
 
+		// FIXME: This can change behind our back, in fact this
+		// transaction change state needs careful consideration
+		// as it ties in with locking. Quick fix for now is to
+		// acquire the kernel mutex before the trx_sys->mutex
+		// but that is a sub-optimal fix.
 		if (trx->conc_state == TRX_ACTIVE
 		    || trx->conc_state == TRX_PREPARED) {
 
@@ -482,6 +492,8 @@ read_cursor_view_create_for_mysql(
 
 	mutex_exit(&kernel_mutex);
 
+	trx_sys_mutex_exit();
+
 	return(curview);
 }
 
@@ -503,12 +515,13 @@ read_cursor_view_close_for_mysql(
 	belong to this transaction */
 	trx->n_mysql_tables_in_use += curview->n_mysql_tables_in_use;
 
-	mutex_enter(&kernel_mutex);
+	trx_sys_mutex_enter();
 
-	read_view_close(curview->read_view);
+	read_view_remove(curview->read_view);
+
 	trx->read_view = trx->global_read_view;
 
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 
 	mem_heap_free(curview->heap);
 }
@@ -526,7 +539,7 @@ read_cursor_set_for_mysql(
 {
 	ut_a(trx);
 
-	mutex_enter(&kernel_mutex);
+	trx_sys_mutex_enter();
 
 	if (UNIV_LIKELY(curview != NULL)) {
 		trx->read_view = curview->read_view;
@@ -534,5 +547,5 @@ read_cursor_set_for_mysql(
 		trx->read_view = trx->global_read_view;
 	}
 
-	mutex_exit(&kernel_mutex);
+	trx_sys_mutex_exit();
 }

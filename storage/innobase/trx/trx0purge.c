@@ -282,14 +282,13 @@ trx_purge_sys_close(void)
 	purge_sys->sess = NULL;
 
 	if (purge_sys->view != NULL) {
-		/* Because acquiring the kernel mutex is a pre-condition
-		of read_view_close(). We don't really need it here. */
-		mutex_enter(&kernel_mutex);
+		trx_sys_mutex_enter();
 
-		read_view_close(purge_sys->view);
+		read_view_remove(purge_sys->view);
+
+		trx_sys_mutex_exit();
+
 		purge_sys->view = NULL;
-
-		mutex_exit(&kernel_mutex);
 	}
 
 	trx_undo_arr_free(purge_sys->arr);
@@ -1131,7 +1130,11 @@ trx_purge(
 
 	/* Close and free the old purge view */
 
-	read_view_close(purge_sys->view);
+	trx_sys_mutex_enter();
+
+	read_view_remove(purge_sys->view);
+
+	trx_sys_mutex_exit();
 
 	purge_sys->view = NULL;
 
