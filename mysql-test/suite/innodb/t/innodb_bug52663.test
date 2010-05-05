@@ -1,4 +1,4 @@
---source include/have_innodb_plugin.inc
+--source include/have_innodb.inc
 
 set session transaction isolation level read committed;
 
