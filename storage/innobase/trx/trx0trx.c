@@ -252,7 +252,7 @@ trx_free(
 /*=====*/
 	trx_t*	trx)	/*!< in, own: trx object */
 {
-	ut_ad(trx_sys_mutex_own());
+	ut_ad(mutex_own(&kernel_mutex));
 
 	if (trx->declared_to_be_inside_innodb) {
 		ut_print_timestamp(stderr);
@@ -331,6 +331,21 @@ trx_free(
 }
 
 /********************************************************************//**
+Frees a transaction object of a background operation of the master thread. */
+UNIV_INTERN
+void
+trx_free_for_background(
+/*====================*/
+	trx_t*	trx)	/*!< in, own: trx object */
+{
+	mutex_enter(&kernel_mutex);
+
+	trx_free(trx);
+
+	mutex_exit(&kernel_mutex);
+}
+
+/********************************************************************//**
 Frees a transaction object for MySQL. */
 UNIV_INTERN
 void
@@ -342,28 +357,11 @@ trx_free_for_mysql(
 
 	UT_LIST_REMOVE(mysql_trx_list, trx_sys->mysql_trx_list, trx);
 
-	trx_free(trx);
-
 	ut_a(trx_n_mysql_transactions > 0);
 
 	trx_n_mysql_transactions--;
 
-	trx_sys_mutex_exit();
-}
-
-/********************************************************************//**
-Frees a transaction object of a background operation of the master thread. */
-UNIV_INTERN
-void
-trx_free_for_background(
-/*====================*/
-	trx_t*	trx)	/*!< in, own: trx object */
-{
-	trx_sys_mutex_enter();
-
-	trx_free(trx);
-
-	trx_sys_mutex_exit();
+	trx_free_for_background(trx);
 }
 
 /****************************************************************//**
