@@ -1643,6 +1643,8 @@ trx_sys_close(void)
 		trx_rseg_mem_free(prev_rseg);
 	}
 
+	trx_sys_mutex_enter();
+
 	view = UT_LIST_GET_FIRST(trx_sys->view_list);
 
 	while (view != NULL) {
@@ -1660,9 +1662,12 @@ trx_sys_close(void)
 	ut_a(UT_LIST_GET_LEN(trx_sys->view_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 
+	trx_sys_mutex_exit();
+
 	mem_free(trx_sys);
 
 	trx_sys = NULL;
+
 	mutex_exit(&kernel_mutex);
 }
 #endif /* !UNIV_HOTBACKUP */
