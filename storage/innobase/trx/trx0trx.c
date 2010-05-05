@@ -852,11 +852,15 @@ trx_commit_off_kernel(
 
 	lock_release_off_kernel(trx);
 
+	trx_sys_mutex_enter();
+
 	if (trx->global_read_view) {
-		read_view_close(trx->global_read_view);
+		read_view_remove(trx->global_read_view);
 		mem_heap_empty(trx->global_read_view_heap);
 		trx->global_read_view = NULL;
 	}
+
+	trx_sys_mutex_exit();
 
 	trx->read_view = NULL;
 
@@ -991,9 +995,9 @@ trx_assign_read_view(
 		trx->read_view = read_view_open_now(
 			trx->id, trx->global_read_view_heap);
 
-		trx_sys_mutex_exit();
-
 		trx->global_read_view = trx->read_view;
+
+		trx_sys_mutex_exit();
 	}
 
 	return(trx->read_view);

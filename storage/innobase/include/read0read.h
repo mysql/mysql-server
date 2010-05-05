@@ -61,11 +61,11 @@ read_view_oldest_copy_or_open_new(
 	mem_heap_t*	heap);		/*!< in: memory heap from which
 					allocated */
 /*********************************************************************//**
-Closes a read view. */
+Remove read view from the trx_sys->view_list. */
 UNIV_INTERN
 void
-read_view_close(
-/*============*/
+read_view_remove(
+/*=============*/
 	read_view_t*	view);	/*!< in: read view */
 /*********************************************************************//**
 Closes a consistent read view for MySQL. This function is called at an SQL
