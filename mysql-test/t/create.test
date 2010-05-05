@@ -1690,3 +1690,44 @@ DROP TEMPORARY TABLE t1, t2, t3, t4;
 DROP TABLE t1, t3, t4;
 DROP VIEW t2;
 
+--echo #
+--echo # Bug #49193 CREATE TABLE reacts differently depending 
+--echo #            on whether data is selected or not
+--echo #
+
+CREATE TEMPORARY TABLE t2 (ID INT);
+INSERT INTO t2 VALUES (1),(2),(3);
+
+# Case 1 -- did not fail
+CREATE TEMPORARY TABLE t1 (ID INT);
+CREATE TABLE IF NOT EXISTS t1 (ID INT);
+INSERT INTO t1 SELECT * FROM t2;
+SELECT * FROM t1;
+DROP TEMPORARY TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Case 2 -- The DROP TABLE t1 failed with 
+#  Table 'test.t1' doesn't exist in the SELECT *
+# as the (permanent) table was not created
+CREATE TEMPORARY TABLE t1 (ID INT);
+CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
+SELECT * FROM t1;
+DROP TEMPORARY TABLE t1;
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+# Case 3 -- The CREATE TABLE failed with
+#  Table 't1' already exists
+CREATE TEMPORARY TABLE t1 (ID INT);
+CREATE TABLE t1 SELECT * FROM t2;
+SELECT * FROM t1;
+DROP TEMPORARY TABLE t1;
+SELECT * FROM t1;
+ 
+DROP TABLE t1;
+ 
+DROP TEMPORARY TABLE t2;
+
