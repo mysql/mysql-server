@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -589,7 +589,7 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
       }
       else
       {
-	error=file->rnd_next(sort_form->record[0]);
+	error=file->ha_rnd_next(sort_form->record[0]);
 	if (!flag)
 	{
 	  my_store_ptr(ref_pos,ref_length,record); // Position to row

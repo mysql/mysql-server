@@ -39,6 +39,8 @@ struct row_events_waits
   ulong m_thread_internal_id;
   /** Column EVENT_ID. */
   ulonglong m_event_id;
+  /** Column NESTING_EVENT_ID. */
+  ulonglong m_nesting_event_id;
   /** Column EVENT_NAME. */
   const char *m_name;
   /** Length in bytes of @c m_name. */

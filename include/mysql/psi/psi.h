@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2010 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 #endif
 
 C_MODE_START
+
+struct TABLE_SHARE;
 
 /**
   @file mysql/psi/psi.h
@@ -79,6 +81,12 @@ struct PSI_thread;
   This is an opaque structure.
 */
 struct PSI_file;
+
+/**
+  Interface for an instrumented table operation.
+  This is an opaque structure.
+*/
+struct PSI_table_locker;
 
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
@@ -229,11 +237,16 @@ enum PSI_file_operation
   PSI_FILE_SYNC= 16
 };
 
-/**
-  Interface for an instrumented table operation.
-  This is an opaque structure.
-*/
-struct PSI_table_locker;
+/** Operation performed on an instrumented table. */
+enum PSI_table_operation
+{
+  PSI_TABLE_LOCK= 0,
+  PSI_TABLE_EXTERNAL_LOCK= 1,
+  PSI_TABLE_FETCH_ROW= 2,
+  PSI_TABLE_WRITE_ROW= 3,
+  PSI_TABLE_UPDATE_ROW= 4,
+  PSI_TABLE_DELETE_ROW= 5
+};
 
 /**
   Instrumented mutex key.
@@ -515,23 +528,23 @@ typedef struct PSI_cond* (*init_cond_v1_t)
 typedef void (*destroy_cond_v1_t)(struct PSI_cond *cond);
 
 /**
-  Acquire a table info by name.
-  @param schema_name name of the table schema
-  @param schema_name_length length of schema_name
-  @param table_name name of the table
-  @param table_name_length length of table_name
-  @param identity table identity pointer, typically the table share
-  @return a table info, or NULL if the table is not instrumented
+  Acquire a table share instrumentation.
+  @param temporary True for temporary tables
+  @param share The SQL layer table share
+  @return a table share instrumentation, or NULL
 */
 typedef struct PSI_table_share* (*get_table_share_v1_t)
-  (const char *schema_name, int schema_name_length, const char *table_name,
-   int table_name_length, const void *identity);
+  (my_bool temporary, struct TABLE_SHARE *share);
 
 /**
   Release a table share.
   @param info the table share to release
 */
 typedef void (*release_table_share_v1_t)(struct PSI_table_share *share);
+
+typedef void (*drop_table_share_v1_t)
+  (const char *schema_name, int schema_name_length,
+   const char *table_name, int table_name_length);
 
 /**
   Open an instrumentation table handle.
@@ -646,10 +659,12 @@ typedef struct PSI_cond_locker* (*get_thread_cond_locker_v1_t)
 /**
   Get a table instrumentation locker.
   @param table the instrumented table to lock
+  @param op the operation to be performed
+  @param flags Per operation flags
   @return a table locker, or NULL
 */
 typedef struct PSI_table_locker* (*get_thread_table_locker_v1_t)
-  (struct PSI_table *table);
+  (struct PSI_table *table, enum PSI_table_operation op, ulong flags);
 
 /**
   Get a file instrumentation locker, for opening or creating a file.
@@ -779,11 +794,12 @@ typedef void (*end_cond_wait_v1_t)
 /**
   Record a table instrumentation wait start event.
   @param locker a table locker for the running thread
+  @param index the index used if any, or MAX_KEY
   @param file the source file name
   @param line the source line number
 */
 typedef void (*start_table_wait_v1_t)
-  (struct PSI_table_locker *locker, const char *src_file, uint src_line);
+  (struct PSI_table_locker *locker, uint index, const char *src_file, uint src_line);
 
 /**
   Record a table instrumentation wait end event.
@@ -875,6 +891,8 @@ struct PSI_v1
   get_table_share_v1_t get_table_share;
   /** @sa release_table_share_v1_t. */
   release_table_share_v1_t release_table_share;
+  /** @sa drop_table_share_v1_t. */
+  drop_table_share_v1_t drop_table_share;
   /** @sa open_table_v1_t. */
   open_table_v1_t open_table;
   /** @sa close_table_v1_t. */

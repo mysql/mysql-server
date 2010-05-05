@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,7 +49,8 @@ select event_name,
   operation, number_of_bytes,
   substring(object_name, locate("no_index_tab", object_name)) as short_name
   from performance_schema.EVENTS_WAITS_HISTORY_LONG
-  where operation not like "tell"
+  where event_name like 'wait/io/file/%'
+  and operation not like "tell"
   order by thread_id, event_id;
 
 # In case of failures, this will tell if file io are lost.

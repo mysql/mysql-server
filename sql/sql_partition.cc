@@ -1,4 +1,4 @@
-/* Copyright 2005-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6314,7 +6314,7 @@ static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
 	!strcmp(table->s->db.str, share->db.str))
     {
       mysql_lock_remove(thd, thd->lock, table);
-      table->file->close();
+      table->file->ha_close();
       table->db_stat= 0;                        // Mark file closed
       /*
         Ensure that we won't end up with a crippled table instance

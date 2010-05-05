@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -441,6 +441,12 @@ void free_table_share(TABLE_SHARE *share)
       key_info->flags= 0;
     }
   }
+
+#ifdef HAVE_PSI_INTERFACE
+  if (likely(PSI_server && share->m_psi))
+    PSI_server->release_table_share(share->m_psi);
+#endif
+
   /* We must copy mem_root from share because share is allocated through it */
   memcpy((char*) &mem_root, (char*) &share->mem_root, sizeof(mem_root));
   free_root(&mem_root, MYF(0));                 // Free's share
@@ -2016,7 +2022,7 @@ int closefrm(register TABLE *table, bool free_share)
   DBUG_PRINT("enter", ("table: 0x%lx", (long) table));
 
   if (table->db_stat)
-    error=table->file->close();
+    error=table->file->ha_close();
   my_free((char*) table->alias, MYF(MY_ALLOW_ZERO_PTR));
   table->alias= 0;
   if (table->field)

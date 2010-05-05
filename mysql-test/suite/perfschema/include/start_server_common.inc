@@ -19,7 +19,8 @@ show databases;
 
 select count(*) from performance_schema.PERFORMANCE_TIMERS;
 select count(*) from performance_schema.SETUP_CONSUMERS;
-select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS;
+# wait/io/table/sql/handler is a native instrument
+select count(*) > 1 from performance_schema.SETUP_INSTRUMENTS;
 select count(*) from performance_schema.SETUP_TIMERS;
 
 # Make sure we don't crash, no matter what the starting parameters are

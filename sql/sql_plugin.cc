@@ -1,4 +1,4 @@
-/* Copyright (C) 2005 MySQL AB, 2009 Sun Microsystems, Inc.
+/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1866,8 +1866,8 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   table->field[0]->store(name->str, name->length, system_charset_info);
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
-  if (! table->file->index_read_idx_map(table->record[0], 0, user_key,
-                                        HA_WHOLE_KEY, HA_READ_KEY_EXACT))
+  if (! table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                           HA_WHOLE_KEY, HA_READ_KEY_EXACT))
   {
     int error;
     /*

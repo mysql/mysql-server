@@ -1,7 +1,7 @@
 #ifndef HANDLER_INCLUDED
 #define HANDLER_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
 #include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
+#include <mysql/psi/mysql_table.h>
 
 #ifndef NO_HASH
 #define NO_HASH				/* Not yet implemented */
@@ -1262,9 +1263,14 @@ public:
   {
     cached_table_flags= table_flags();
   }
-  /* ha_ methods: pubilc wrappers for private virtual API */
+  /* ha_ methods: public wrappers for private virtual API */
 
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
+  int ha_close(void)
+  {
+    psi_close();
+    return close();
+  }
   int ha_index_init(uint idx, bool sorted)
   {
     int result;
@@ -1295,6 +1301,15 @@ public:
     DBUG_ASSERT(inited==RND);
     inited=NONE;
     DBUG_RETURN(rnd_end());
+  }
+  int ha_rnd_next(uchar *buf)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0);
+    result= rnd_next(buf);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
   }
   int ha_reset();
   /* this is necessary in many places, e.g. in HANDLER command */
@@ -1434,7 +1449,6 @@ public:
   */
   virtual void column_bitmaps_signal();
   uint get_index(void) const { return active_index; }
-  virtual int close(void)=0;
 
   /**
     @retval  0   Bulk update used by handler
@@ -1478,6 +1492,74 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
+  int ha_index_read_map(uchar *buf, const uchar *key,
+                        key_part_map keypart_map,
+                        enum ha_rkey_function find_flag)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+    result= index_read_map(buf, key, keypart_map, find_flag);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
+  }
+  int ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
+                           key_part_map keypart_map,
+                           enum ha_rkey_function find_flag)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0);
+    result= index_read_idx_map(buf, index, key, keypart_map, find_flag);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
+  }
+  int ha_index_next(uchar * buf)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+    result= index_next(buf);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
+  }
+  int ha_index_prev(uchar * buf)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+    result= index_prev(buf);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
+  }
+  int ha_index_first(uchar * buf)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+    result= index_first(buf);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
+  }
+  int ha_index_last(uchar * buf)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+    result= index_last(buf);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
+  }
+  int ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+    result= index_next_same(buf, key, keylen);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
+  }
+protected:
   /**
      @brief
      Positions an index cursor to the index specified in the handle. Fetches the
@@ -1509,6 +1591,7 @@ public:
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
+public:
   /**
      @brief
      The following functions works like index_read, but it find the last
@@ -1534,7 +1617,9 @@ public:
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
+protected:
   virtual int rnd_next(uchar *buf)=0;
+public:
   virtual int rnd_pos(uchar * buf, uchar *pos)=0;
   /**
     One has to use this method when to find
@@ -1861,10 +1946,10 @@ protected:
     DBUG_ASSERT(m_psi == NULL);
     DBUG_ASSERT(table_share != NULL);
 #ifdef HAVE_PSI_INTERFACE
-    if (PSI_server)
+    if (likely(PSI_server != NULL))
     {
       PSI_table_share *share_psi= ha_table_share_psi(table_share);
-      if (share_psi)
+      if (likely(share_psi != NULL))
         m_psi= PSI_server->open_table(share_psi, this);
     }
 #endif
@@ -1873,7 +1958,7 @@ protected:
   inline void psi_close()
   {
 #ifdef HAVE_PSI_INTERFACE
-    if (PSI_server && m_psi)
+    if (likely(PSI_server && m_psi))
     {
       PSI_server->close_table(m_psi);
       m_psi= NULL; /* instrumentation handle, invalid after close_table() */
@@ -1906,6 +1991,7 @@ private:
   */
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
+  virtual int close(void)=0;
   virtual int index_init(uint idx, bool sorted) { active_index= idx; return 0; }
   virtual int index_end() { active_index= MAX_KEY; return 0; }
   /**
@@ -1982,11 +2068,32 @@ private:
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual void start_bulk_insert(ha_rows rows) {}
   virtual int end_bulk_insert() { return 0; }
+  int ha_index_read(uchar *buf, const uchar *key, uint key_len,
+                    enum ha_rkey_function find_flag)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+    result= index_read(buf, key, key_len, find_flag);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
+  }
+  int ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
+  {
+    int result;
+    struct PSI_table_locker *locker;
+    locker= MYSQL_START_TABLE_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0);
+    result= index_read_last(buf, key, key_len);
+    MYSQL_END_TABLE_WAIT(locker);
+    return result;
+  }
+protected:
   virtual int index_read(uchar * buf, const uchar * key, uint key_len,
                          enum ha_rkey_function find_flag)
    { return  HA_ERR_WRONG_COMMAND; }
   virtual int index_read_last(uchar * buf, const uchar * key, uint key_len)
    { return (my_errno= HA_ERR_WRONG_COMMAND); }
+public:
   /**
     This method is similar to update_row, however the handler doesn't need
     to execute the updates at this point in time. The handler can be certain
