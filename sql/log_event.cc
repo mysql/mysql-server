@@ -679,7 +679,7 @@ Log_event::Log_event(THD* thd_arg, uint16 flags_arg, bool using_trans)
   server_id=	thd->server_id;
   when=		thd->start_time;
   cache_type= (using_trans || stmt_has_updated_trans_table(thd)
-               || thd->thread_specific_used
+               || thd->thread_temporary_used
                ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                Log_event::EVENT_STMT_CACHE);
 }
@@ -2553,7 +2553,7 @@ Query_log_event::Query_log_event(THD* thd_arg, const char* query_arg,
   else
   {
     cache_type= ((using_trans || stmt_has_updated_trans_table(thd) ||
-                 force_trans || thd->thread_specific_used)
+                 force_trans || thd->thread_temporary_used)
                  ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                  Log_event::EVENT_STMT_CACHE);
   }
@@ -7533,7 +7533,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
           having severe errors which should not be skiped.
         */
         rli->report(ERROR_LEVEL, actual_error,
-                    "Error '%s' on opening tables",
+                    "Error executing row event: '%s'",
                     (actual_error ? thd->stmt_da->message() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;

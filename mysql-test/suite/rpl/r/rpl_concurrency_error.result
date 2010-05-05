@@ -4,7 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 ########################################################################
 #                             Environment
 ########################################################################
@@ -22,7 +22,7 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 UPDATE t SET f = 'yellow 2' WHERE i = 3;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 SET AUTOCOMMIT = 1;
 BEGIN;
 UPDATE t SET f = 'magenta 2' WHERE f = 'red';
@@ -30,7 +30,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (5 + (2 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 ROLLBACK;
 Warnings:
@@ -51,7 +51,7 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 UPDATE t SET f = 'gray 2' WHERE i = 3;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 SET AUTOCOMMIT = 1;
 BEGIN;
 UPDATE t SET f = 'dark blue 2' WHERE f = 'red';
@@ -59,7 +59,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (6 + (2 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 COMMIT;
 show binlog events from <binlog_start>;
@@ -77,14 +77,14 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 SET AUTOCOMMIT = 0;
 UPDATE t SET f = 'yellow 1' WHERE i = 3;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 SET AUTOCOMMIT = 0;
 UPDATE t SET f = 'magenta 1' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (5 + (1 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 ROLLBACK;
 Warnings:
@@ -104,14 +104,14 @@ master-bin.000001	#	Query	#	#	ROLLBACK
 SET AUTOCOMMIT = 0;
 UPDATE t SET f = 'gray 1' WHERE i = 3;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 SET AUTOCOMMIT = 0;
 UPDATE t SET f = 'dark blue 1' WHERE f = 'red';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t VALUES (6 + (1 * 10),"brown");
 INSERT INTO n VALUES (now(),"brown");
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 COMMIT;
 COMMIT;
 show binlog events from <binlog_start>;
