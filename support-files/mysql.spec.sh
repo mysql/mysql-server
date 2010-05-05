@@ -363,9 +363,14 @@ touch optional-files-devel
 # not require C++ features such as exceptions, and may need to be removed at
 # a later date.
 #
+
+# This is a hack, $RPM_OPT_FLAGS on ia64 hosts contains flags which break
+# the compile in cmd-line-utils/readline - needs investigation, but for now
+# we simply unset it and use those specified directly in cmake.
 %if "%{_arch}" == "ia64"
 RPM_OPT_FLAGS=
 %endif
+
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
 export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
