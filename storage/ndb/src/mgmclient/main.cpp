@@ -33,7 +33,6 @@ extern "C" int write_history(const char *command);
 }
 
 #include <NdbMain.h>
-#include <NdbHost.h>
 #include <BaseString.hpp>
 #include <NdbOut.hpp>
 #include <mgmapi.h>
@@ -126,13 +125,11 @@ int main(int argc, char** argv){
 			       ndb_std_get_one_option)))
     exit(ho_error);
 
-  char buf[MAXHOSTNAMELEN+10];
+  BaseString connect_str(opt_ndb_connectstring);
   if(argc == 1) {
-    BaseString::snprintf(buf, sizeof(buf), "%s",  argv[0]);
-    opt_connect_str= buf;
+    connect_str.assfmt("%s", argv[0]);
   } else if (argc >= 2) {
-    BaseString::snprintf(buf, sizeof(buf), "%s:%s",  argv[0], argv[1]);
-    opt_connect_str= buf;
+    connect_str.assfmt("%s:%s", argv[0], argv[1]);
   }
 
   if (!isatty(0) || opt_execute_str)
@@ -140,7 +137,7 @@ int main(int argc, char** argv){
     prompt= 0;
   }
 
-  com = new Ndb_mgmclient(opt_connect_str,opt_verbose);
+  com = new Ndb_mgmclient(connect_str.c_str(), opt_verbose);
   int ret= 0;
   BaseString histfile;
   if (!opt_execute_str)

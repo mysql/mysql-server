@@ -16,21 +16,6 @@ struct my_option my_long_options[] =
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
-#if 0
-static void usage()
-{
-  ndb_std_print_version();
-}
-
-static my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       const char *argument)
-{
-  return ndb_std_get_one_option(optid, opt, argument ? argument :
-				"d:t:O,/tmp/testBitfield.trace");
-}
-#endif
-
 static const NdbDictionary::Table* create_random_table(Ndb*);
 static int transactions(Ndb*, const NdbDictionary::Table* tab);
 static int unique_indexes(Ndb*, const NdbDictionary::Table* tab);
@@ -59,7 +44,7 @@ main(int argc, char** argv){
       return NDBT_ProgramExit(res);
   }
   
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   if(con.connect(12, 5, 1))
   {
     return NDBT_ProgramExit(NDBT_FAILED);
