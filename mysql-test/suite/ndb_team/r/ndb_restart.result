@@ -1,0 +1,41 @@
+create table t1(a int primary key, b int) engine = ndb;
+insert into t1 values (1, 2);
+Node 1 is being restarted
+
+Database node 1 is being started.
+
+select * from t1 order by a;
+a	b
+1	2
+insert into t1 values (2, 3);
+Node 1 is being restarted
+
+Database node 1 is being started.
+
+select * from t1 order by a;
+a	b
+1	2
+2	3
+insert into t1 values (3, 4);
+Executing RESTART on all nodes.
+Starting shutdown. This may take a while. Please wait...
+All DB nodes are being restarted.
+
+NDB Cluster is being started.
+NDB Cluster is being started.
+
+select * from t1 order by a;
+a	b
+1	2
+2	3
+3	4
+insert into t1 values (4, 5);
+Executing RESTART on all nodes.
+Starting shutdown. This may take a while. Please wait...
+All DB nodes are being restarted.
+
+NDB Cluster is being started.
+NDB Cluster is being started.
+
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist

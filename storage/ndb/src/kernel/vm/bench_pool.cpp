@@ -553,21 +553,6 @@ Uint32 g_currentStartPhase;
 Uint32 g_start_type;
 NdbNodeBitmask g_nowait_nodes;
 
-void childExit(int code, Uint32 currentStartPhase)
-{
-  abort();
-}
-
-void childAbort(int code, Uint32 currentStartPhase)
-{
-  abort();
-}
-
-void childReportError(int error)
-{
-  abort();
-}
-
 void
 UpgradeStartup::sendCmAppChg(Ndbcntr& cntr, Signal* signal, Uint32 startLevel){
 }
