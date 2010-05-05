@@ -131,6 +131,8 @@ static const ulint	FILE_FORMAT_NAME_N
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_doublewrite_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
+/* Key to register the trx_sys->mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	trx_sys_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifndef UNIV_HOTBACKUP
@@ -655,10 +657,10 @@ void
 trx_sys_flush_max_trx_id(void)
 /*==========================*/
 {
-	trx_sysf_t*	sys_header;
 	mtr_t		mtr;
+	trx_sysf_t*	sys_header;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	mtr_start(&mtr);
 
@@ -843,15 +845,13 @@ trx_sysf_rseg_find_free(
 /*====================*/
 	mtr_t*	mtr)	/*!< in: mtr */
 {
-	trx_sysf_t*	sys_header;
-	ulint		page_no;
 	ulint		i;
-
-	ut_ad(mutex_own(&(kernel_mutex)));
+	trx_sysf_t*	sys_header;
 
 	sys_header = trx_sysf_get(mtr);
 
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+		ulint	page_no;
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
 
@@ -935,6 +935,7 @@ trx_sysf_create(
 	slot_no = trx_sysf_rseg_find_free(mtr);
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
 					 mtr);
+
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
 
@@ -952,16 +953,9 @@ trx_sys_init_at_db_start(void)
 	trx_sysf_t*	sys_header;
 	ib_int64_t	rows_to_undo	= 0;
 	const char*	unit		= "";
-	trx_t*		trx;
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
-
-	ut_ad(trx_sys == NULL);
-
-	mutex_enter(&kernel_mutex);
-
-	trx_sys = mem_alloc(sizeof(trx_sys_t));
 
 	sys_header = trx_sysf_get(&mtr);
 
@@ -984,15 +978,19 @@ trx_sys_init_at_db_start(void)
 		2 * TRX_SYS_TRX_ID_WRITE_MARGIN);
 
 	UT_LIST_INIT(trx_sys->mysql_trx_list);
+
 	trx_dummy_sess = sess_open();
+
 	trx_lists_init_at_db_start();
 
 	if (UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
+		trx_t*	trx;
+
 		trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 		for (;;) {
 
-			if ( trx->conc_state != TRX_PREPARED) {
+			if (trx->conc_state != TRX_PREPARED) {
 				rows_to_undo += ut_conv_dulint_to_longlong(
 					trx->undo_no);
 			}
@@ -1024,17 +1022,29 @@ trx_sys_init_at_db_start(void)
 
 	trx_purge_sys_create();
 
-	mutex_exit(&kernel_mutex);
-
 	mtr_commit(&mtr);
+}
+
+/*****************************************************************//**
+Creates the trx_sys instance and initializes its mutex only. */
+UNIV_INTERN
+void
+trx_sys_create(void)
+/*================*/
+{
+	ut_ad(trx_sys == NULL);
+
+	trx_sys = mem_zalloc(sizeof(*trx_sys));
+
+	mutex_create(trx_sys_mutex_key, &trx_sys->mutex, SYNC_TRX_SYS);
 }
 
 /*****************************************************************//**
 Creates and initializes the transaction system at the database creation. */
 UNIV_INTERN
 void
-trx_sys_create(void)
-/*================*/
+trx_sys_create_sys_pages(void)
+/*==========================*/
 {
 	mtr_t	mtr;
 
@@ -1043,8 +1053,6 @@ trx_sys_create(void)
 	trx_sysf_create(&mtr);
 
 	mtr_commit(&mtr);
-
-	trx_sys_init_at_db_start();
 }
 
 /*****************************************************************//**

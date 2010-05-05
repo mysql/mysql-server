@@ -1531,6 +1531,8 @@ innobase_start_or_create_for_mysql(void)
 
 	trx_sys_file_format_init();
 
+	trx_sys_create();
+
 	if (create_new_db) {
 		mtr_start(&mtr);
 
@@ -1542,7 +1544,9 @@ innobase_start_or_create_for_mysql(void)
 		the first rollback segment before the double write buffer.
 		All the remaining rollback segments will be created later,
 		after the double write buffer has been created. */
-		trx_sys_create();
+		trx_sys_create_sys_pages();
+
+		trx_sys_init_at_db_start();
 
 		dict_create();
 
