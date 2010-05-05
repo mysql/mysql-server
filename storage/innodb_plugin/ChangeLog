@@ -77,6 +77,10 @@
 	* mysql-test/innodb_bug38231.test:
 	Remove non-determinism in the test case.
 
+2010-03-29	The InnoDB Team
+
+	InnoDB Plugin 1.0.7 released
+
 2010-03-18	The InnoDB Team
 
 	* CMakeLists.txt:
