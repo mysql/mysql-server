@@ -1,7 +1,15 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
-#ident "$Id: loader-stress-test.c 19683 2010-04-30 18:19:17Z yfogel $"
+#ident "$Id$"
 
+
+/* NOTE:
+ *
+ * Someday figure out a better way to verify inames that should not be 
+ * in data dir after recovery.  Currently, they are just hard-coded in
+ * the new_iname_str[] array.  This will break when something changes,
+ * such as the xid of the transaction that creates the loader.
+ */
 
 
 /* Purpose is to verify that when a loader crashes:
@@ -20,7 +28,7 @@
  *  - crash
  *  - recover
  *  - verify absence of temp files
- *  - verify absence of unwanted iname files (old inames if committed, new inames if aborted)
+ *  - verify absence of unwanted iname files (new inames) - how?
  *
  *  
  */
@@ -38,27 +46,31 @@
 
 static const int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
 
-BOOL do_test=FALSE, do_recover=FALSE;
+#define NUM_DBS 5
 
-DB_ENV *env;
+static BOOL do_test=FALSE, do_recover=FALSE;
+
+static DB_ENV *env;
+static int NUM_ROWS=100000;
+static int USE_PUTS=0;
+
 enum {MAX_NAME=128};
-enum {MAX_DBS=256};
-int NUM_DBS=5;
-int NUM_ROWS=100000;
-int CHECK_RESULTS=0;
-int USE_PUTS=0;
-int INDUCE_ENOSPC=0;
 enum {MAGIC=311};
 
+static DBT old_inames[NUM_DBS];
+static DBT new_inames[NUM_DBS];
 
-DBT old_inames[MAX_DBS];
-DBT new_inames[MAX_DBS];
+
+static char const * const new_iname_str[NUM_DBS] = {"qo_0000_35_c_L_0.tokudb",
+						    "qo_0001_35_c_L_1.tokudb",
+						    "qo_0002_35_c_L_2.tokudb",
+						    "qo_0003_35_c_L_3.tokudb",
+						    "qo_0004_35_c_L_4.tokudb"};
 
 
 int count_temp(char * dirname);
 void get_inames(DBT* inames, DB** dbs);
-int verify_file(char * dirname, char * filename);
-void assert_inames_missing(DBT* inames);
+int verify_file(char const * const dirname, char const * const filename);
 int print_dir(char * dirname);
 
 // return number of temp files
@@ -100,7 +112,7 @@ print_dir(char * dirname) {
 
 // return non-zero if file exists
 int 
-verify_file(char * dirname, char * filename) {
+verify_file(char const * const dirname, char const * const filename) {
     int n = 0;
     DIR * dir = opendir(dirname);
     
@@ -126,23 +138,8 @@ get_inames(DBT* inames, DB** dbs) {
 	int r = env->get_iname(env, &dname, &inames[i]);
 	CKERR(r);
 	char * iname_str = (char*) (inames[i].data);
-	if (verbose) printf("dname = %s, iname = %s\n", dname_str, iname_str);
-    }
-}
-
-
-void 
-assert_inames_missing(DBT* inames) {
-    int i;
-    char * dir = env->i->real_data_dir;
-    for (i=0; i<NUM_DBS; i++) {
-	char * iname = inames[i].data;
-	int r = verify_file(dir, iname);
-	if (r) {
-	    printf("File %s exists, but it should not\n", iname);
-	}
-	assert(r == 0);
-	if (verbose) printf("File has been properly deleted: %s\n", iname);
+	//	if (verbose) 
+	    printf("dname = %s, iname = %s\n", dname_str, iname_str);
     }
 }
 
@@ -177,8 +174,8 @@ print_inames(DB** dbs) {
 
 //   a is the bit-wise permute table.  For DB[i], permute bits as described in a[i] using 'twiddle32'
 // inv is the inverse bit-wise permute of a[].  To get the original value from a twiddled value, twiddle32 (again) with inv[]
-int   a[MAX_DBS][32];
-int inv[MAX_DBS][32];
+int   a[NUM_DBS][32];
+int inv[NUM_DBS][32];
 
 #if defined(__cilkplusplus) || defined (__cplusplus)
 extern "C" {
@@ -196,7 +193,7 @@ static inline unsigned int rotl32(const unsigned int x, const unsigned int num) 
 
 static void generate_permute_tables(void) {
     int i, j, tmp;
-    for(int db=0;db<MAX_DBS;db++) {
+    for(int db=0;db<NUM_DBS;db++) {
         for(i=0;i<32;i++) {
             a[db][i] = i;
         }
@@ -295,9 +292,9 @@ static void test_loader(DB **dbs)
     int r;
     DB_TXN    *txn;
     DB_LOADER *loader;
-    uint32_t db_flags[MAX_DBS];
-    uint32_t dbt_flags[MAX_DBS];
-    for(int i=0;i<MAX_DBS;i++) { 
+    uint32_t db_flags[NUM_DBS];
+    uint32_t dbt_flags[NUM_DBS];
+    for(int i=0;i<NUM_DBS;i++) { 
         db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
@@ -333,9 +330,9 @@ static void test_loader(DB **dbs)
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
 	CKERR(r);
-        if ( CHECK_RESULTS || verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
+        if (verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
     }
-    if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
+    if( verbose) {printf("\n"); fflush(stdout);}        
         
     printf("Data dir is %s\n", env->i->real_data_dir);
     n = count_temp(env->i->real_data_dir);
@@ -377,7 +374,7 @@ static void run_test(void)
 
     DB **dbs = (DB**)toku_malloc(sizeof(DB*) * NUM_DBS);
     assert(dbs != NULL);
-    int idx[MAX_DBS];
+    int idx[NUM_DBS];
     for(int i=0;i<NUM_DBS;i++) {
         idx[i] = i;
         r = db_create(&dbs[i], env, 0);                                                                       CKERR(r);
@@ -400,6 +397,7 @@ static void do_args(int argc, char * const argv[]);
 
 
 static void run_recover (void) {
+    int i;
 
     // Recovery starts from oldest_living_txn, which is older than any inserts done in run_test,
     // so recovery always runs over the entire log.
@@ -415,6 +413,17 @@ static void run_recover (void) {
     int n = count_temp(env->i->real_data_dir);
     printf("Num temp files = %d\n", n);
     assert(n==0);  // There should be no temp files remaining after recovery
+
+    for (i = 0; i < NUM_DBS; i++) {
+	char const * const iname = new_iname_str[i];
+	r = verify_file(env->i->real_data_dir, iname);
+	if (r) {
+	    printf("File %s exists, but it should not\n", iname);
+	}
+	assert(r == 0);
+	if (verbose) 
+	    printf("File has been properly deleted: %s\n", iname);	
+    }
 
     r = env->close(env, 0);                                                             CKERR(r);
     exit(0);
@@ -456,26 +465,12 @@ static void do_args(int argc, char * const argv[]) {
 	do_usage:
 	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows>\n%s\n", cmd);
 	    exit(resultcode);
-        } else if (strcmp(argv[0], "-d")==0) {
-            argc--; argv++;
-            NUM_DBS = atoi(argv[0]);
-            if ( NUM_DBS > MAX_DBS ) {
-                fprintf(stderr, "max value for -d field is %d\n", MAX_DBS);
-                resultcode=1;
-                goto do_usage;
-            }
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);
-        } else if (strcmp(argv[0], "-c")==0) {
-            CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = LOADER_USE_PUTS;
 	    printf("Using puts\n");
-        } else if (strcmp(argv[0], "-e")==0) {
-	    INDUCE_ENOSPC = 1;
-	    printf("Using enospc\n");
-
 	} else if (strcmp(argv[0], "--test")==0) {
 	    do_test=TRUE;
         } else if (strcmp(argv[0], "--recover") == 0) {
