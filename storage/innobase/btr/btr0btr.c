@@ -1936,6 +1936,7 @@ func_start:
 	/* 1. Decide the split record; split_rec == NULL means that the
 	tuple to be inserted should be the first record on the upper
 	half-page */
+	insert_left = FALSE;
 
 	if (n_iterations > 0) {
 		direction = FSP_UP;
@@ -1949,7 +1950,6 @@ func_start:
 	} else if (btr_page_get_split_rec_to_right(cursor, &split_rec)) {
 		direction = FSP_UP;
 		hint_page_no = page_no + 1;
-		insert_left = FALSE;
 
 	} else if (btr_page_get_split_rec_to_left(cursor, &split_rec)) {
 		direction = FSP_DOWN;
@@ -1972,12 +1972,8 @@ func_start:
 				page_get_infimum_rec(page));
 		} else {
 			split_rec = NULL;
-			insert_left = FALSE;
 		}
 	}
-
-	/* At this point, insert_left is initialized if split_rec == NULL
-	and may be uninitialized otherwise. */
 
 	/* 2. Allocate a new page to the index */
 	new_block = btr_page_alloc(cursor->index, hint_page_no, direction,
@@ -2007,9 +2003,13 @@ func_start:
 			split_rec = NULL;
 			goto insert_empty;
 		}
+	} else if (UNIV_UNLIKELY(insert_left)) {
+		first_rec = page_rec_get_next(page_get_infimum_rec(page));
+		move_limit = page_rec_get_next(btr_cur_get_rec(cursor));
 	} else {
 insert_empty:
 		ut_ad(!split_rec);
+		ut_ad(!insert_left);
 		buf = mem_alloc(rec_get_converted_size(cursor->index,
 						       tuple, n_ext));
 
@@ -2033,7 +2033,11 @@ insert_empty:
 			&& btr_page_insert_fits(cursor, split_rec,
 						offsets, tuple, n_ext, heap);
 	} else {
-		mem_free(buf);
+		if (!insert_left) {
+			mem_free(buf);
+			buf = NULL;
+		}
+
 		insert_will_fit = !new_page_zip
 			&& btr_page_insert_fits(cursor, NULL,
 						NULL, tuple, n_ext, heap);
@@ -2046,17 +2050,7 @@ insert_empty:
 	}
 
 	/* 5. Move then the records to the new page */
-	if (direction == FSP_DOWN
-#ifdef UNIV_BTR_AVOID_COPY
-	    && page_rec_is_supremum(move_limit)) {
-		/* Instead of moving all records, make the new page
-		the empty page. */
-
-		left_block = block;
-		right_block = new_block;
-	} else if (direction == FSP_DOWN
-#endif /* UNIV_BTR_AVOID_COPY */
-		   ) {
+	if (direction == FSP_DOWN) {
 		/*		fputs("Split left\n", stderr); */
 
 		if (0
@@ -2099,14 +2093,6 @@ insert_empty:
 		right_block = block;
 
 		lock_update_split_left(right_block, left_block);
-#ifdef UNIV_BTR_AVOID_COPY
-	} else if (!split_rec) {
-		/* Instead of moving all records, make the new page
-		the empty page. */
-
-		left_block = new_block;
-		right_block = block;
-#endif /* UNIV_BTR_AVOID_COPY */
 	} else {
 		/*		fputs("Split right\n", stderr); */
 
