@@ -92,7 +92,7 @@ else
 my @java_paths = ($ENV{MTR_JAVA}, $ENV{JAVA_HOME}, $ENV{JDK_HOME});
 
 push(@java_paths, @arch_paths);
-push(@java_paths, ""); # empty path for "java on PATH variable"
+push(@java_paths, "*"); # empty path for "java on PATH variable"
 
 my $java_loc = "";
 
@@ -105,25 +105,27 @@ sub java_exists {
    my $devnull = "/dev/null";
    $devnull = "NUL" if IS_WINDOWS;
 
-   if( -e $exists)
-   {
-     system($exists . " -version > " . $devnull);
-     $exists = "" if ($? != 0); 
-   }
-
-   # Debug:
-   # print STDERR "Check if java exists: path: '$path', exists: '$exists'\n";
-
-   return $exists;
+   system($exists . " -version > " . $devnull);
+   my $ret =  $exists if ($? == 0);
+   return $ret; 
 }
 
 foreach my $path (@java_paths) 
 {
-  if (defined $path && $path ne '') 
-  {
+  if (!defined $path || $path eq '') {
+    next;
+  }
+  if ($path eq "*" ) {
+    # java on PATH env case
+    $path = "";
+  } else {
+    # std case
     $path .= $pathsep . "bin";
   }
-  if (my $tmp = java_exists($path, "java")) 
+
+  my $tmp = java_exists($path, "java");
+
+  if ($tmp ne "") 
   {
      $java_loc = $tmp;
      last;
