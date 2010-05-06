@@ -358,7 +358,7 @@ trx_sys_get_new_trx_id(void)
 {
 	trx_id_t	id;
 
-	trx_sys_mutex_enter();
+	ut_ad(trx_sys_mutex_own());
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the following if
@@ -377,19 +377,7 @@ trx_sys_get_new_trx_id(void)
 
 	UT_DULINT_INC(trx_sys->max_trx_id);
 
-	trx_sys_mutex_exit();
-
 	return(id);
 }
 
-/*****************************************************************//**
-Allocates a new transaction number.
-@return	new, allocated trx number */
-UNIV_INLINE
-trx_id_t
-trx_sys_get_new_trx_no(void)
-/*========================*/
-{
-	return(trx_sys_get_new_trx_id());
-}
 #endif /* !UNIV_HOTBACKUP */

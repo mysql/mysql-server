@@ -137,6 +137,33 @@ TODO: proof this
 
 */
 
+#ifdef UNIV_DEBUG
+/*********************************************************************//**
+Validates a read view object. */
+static
+void
+read_view_validate(
+/*===============*/
+	const read_view_t*	view)	/*!< in: view to validate */
+{
+	ulint	i;
+
+	ut_ad(trx_sys_mutex_own());
+
+	/* Check that the view->trx_ids array is in descending order. */
+	for (i = 1; i < view->n_trx_ids; ++i) {
+		trx_id_t	id;
+		trx_id_t	prev_id;
+
+		id = read_view_get_nth_trx_id(view, i);
+		prev_id = read_view_get_nth_trx_id(view, i - 1);
+
+		ut_a(ut_dulint_cmp(id, prev_id) < 0);
+	}
+}
+
+#endif
+
 /*********************************************************************//**
 Creates a read view object.
 @return	own: read view struct */
@@ -165,84 +192,86 @@ with ..._close. This is used in purge.
 @return	own: read view struct */
 UNIV_INTERN
 read_view_t*
-read_view_oldest_copy_or_open_new(
-/*==============================*/
-	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
-					transaction, or ut_dulint_zero
-					used in purge */
+read_view_purge_open(
+/*=================*/
 	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
 {
-	read_view_t*	old_view;
-	read_view_t*	view_copy;
-	ibool		needs_insert	= TRUE;
-	ulint		insert_done	= 0;
-	ulint		n;
 	ulint		i;
+	ulint		n;
+	read_view_t*	view;
+	read_view_t*	oldest_view;
+	trx_id_t	creator_trx_id;
+	ulint		insert_done	= 0;
 
 	// FIXME:
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(trx_sys_mutex_own());
 
-	old_view = UT_LIST_GET_LAST(trx_sys->view_list);
+	oldest_view = UT_LIST_GET_LAST(trx_sys->view_list);
 
-	if (old_view == NULL) {
+	if (oldest_view == NULL) {
 
-		return(read_view_open_now(cr_trx_id, heap));
+		return(read_view_open_now(ut_dulint_zero, heap));
 	}
 
-	n = old_view->n_trx_ids;
+#ifdef UNIV_DEBUG
+	read_view_validate(oldest_view);
+#endif /* UNIV_DEBUG */
 
-	if (!ut_dulint_is_zero(old_view->creator_trx_id)) {
-		n++;
-	} else {
-		needs_insert = FALSE;
-	}
+	n = oldest_view->n_trx_ids + 1;
+	creator_trx_id = oldest_view->creator_trx_id;
 
-	view_copy = read_view_create_low(n, heap);
+	ut_a(!ut_dulint_is_zero(creator_trx_id));
+
+	view = read_view_create_low(n, heap);
 
 	/* Insert the id of the creator in the right place of the descending
 	array of ids, if needs_insert is TRUE: */
 
-	i = 0;
-	while (i < n) {
-		if (needs_insert
-		    && (i >= old_view->n_trx_ids
-			|| ut_dulint_cmp(old_view->creator_trx_id,
-					 read_view_get_nth_trx_id(old_view, i))
-			> 0)) {
+	for (i = 0; i < oldest_view->n_trx_ids; ++i) {
+		trx_id_t	id;
 
-			read_view_set_nth_trx_id(view_copy, i,
-						 old_view->creator_trx_id);
-			needs_insert = FALSE;
+		id = read_view_get_nth_trx_id(oldest_view, i - insert_done);
+
+		if (insert_done == 0 && ut_dulint_cmp(creator_trx_id, id) > 0) {
+			id = creator_trx_id;
 			insert_done = 1;
-		} else {
-			read_view_set_nth_trx_id(view_copy, i,
-						 read_view_get_nth_trx_id(
-							 old_view,
-							 i - insert_done));
 		}
 
-		i++;
+		read_view_set_nth_trx_id(view, i, id);
 	}
 
-	view_copy->creator_trx_id = cr_trx_id;
+	if (insert_done == 0) {
+		read_view_set_nth_trx_id(view, i, creator_trx_id);
+	} else {
+		trx_id_t	id;
 
-	view_copy->low_limit_no = old_view->low_limit_no;
-	view_copy->low_limit_id = old_view->low_limit_id;
+		id = read_view_get_nth_trx_id(oldest_view, i - 1);
+		read_view_set_nth_trx_id( view, i, id);
+	}
+
+#ifdef UNIV_DEBUG
+	read_view_validate(view);
+#endif /* UNIV_DEBUG */
+
+	view->creator_trx_id = ut_dulint_zero;
+
+	view->low_limit_no = oldest_view->low_limit_no;
+	view->low_limit_id = oldest_view->low_limit_id;
 
 
 	if (n > 0) {
 		/* The last active transaction has the smallest id: */
-		view_copy->up_limit_id = read_view_get_nth_trx_id(
-			view_copy, n - 1);
+		view->up_limit_id = read_view_get_nth_trx_id(
+			view, n - 1);
 	} else {
-		view_copy->up_limit_id = old_view->up_limit_id;
+		view->up_limit_id = oldest_view->up_limit_id;
 	}
 
-	UT_LIST_ADD_LAST(view_list, trx_sys->view_list, view_copy);
+	UT_LIST_ADD_LAST(view_list, trx_sys->view_list, view);
 
-	return(view_copy);
+	return(view);
 }
 
 /*********************************************************************//**
@@ -315,7 +344,9 @@ read_view_open_now(
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}
-
+#ifdef UNIV_DEBUG
+	read_view_validate(view);
+#endif /* UNIV_DEBUG */
 
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
 
@@ -331,6 +362,10 @@ read_view_remove(
 	read_view_t*	view)	/*!< in: read view */
 {
 	ut_ad(trx_sys_mutex_own());
+
+#ifdef UNIV_DEBUG
+	read_view_validate(view);
+#endif /* UNIV_DEBUG */
 
 	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
 }
@@ -492,6 +527,10 @@ read_cursor_view_create_for_mysql(
 		view->up_limit_id = view->low_limit_id;
 	}
 
+#ifdef UNIV_DEBUG
+	read_view_validate(view);
+#endif /* UNIV_DEBUG */
+
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
 
 	mutex_exit(&kernel_mutex);
@@ -550,6 +589,10 @@ read_cursor_set_for_mysql(
 	} else {
 		trx->read_view = trx->global_read_view;
 	}
+
+#ifdef UNIV_DEBUG
+	read_view_validate(trx->read_view);
+#endif /* UNIV_DEBUG */
 
 	trx_sys_mutex_exit();
 }

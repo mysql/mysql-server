@@ -227,13 +227,6 @@ UNIV_INLINE
 trx_id_t
 trx_sys_get_new_trx_id(void);
 /*========================*/
-/*****************************************************************//**
-Allocates a new transaction number.
-@return	new, allocated trx number */
-UNIV_INLINE
-trx_id_t
-trx_sys_get_new_trx_no(void);
-/*========================*/
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
 Writes a trx id to an index page. In case that the id size changes in
@@ -605,7 +598,9 @@ struct trx_doublewrite_struct{
 kernel mutex */
 struct trx_sys_struct{
 	mutex_t		mutex;		/*!< mutex protecting all the fields
-					in this structure */
+					in this structure except rseg_list.
+					That is protected by the purge_sys
+					mutex */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
