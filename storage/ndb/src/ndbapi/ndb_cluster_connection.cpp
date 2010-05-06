@@ -47,16 +47,23 @@ static int g_ndb_connection_count = 0;
 /*
  * Ndb_cluster_connection
  */
-
 Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
-  : m_impl(* new Ndb_cluster_connection_impl(connect_string, 0))
+  : m_impl(* new Ndb_cluster_connection_impl(connect_string, 0, 0))
+{
+}
+
+Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string,
+                                               int force_api_nodeid)
+  : m_impl(* new Ndb_cluster_connection_impl(connect_string, 0,
+                                             force_api_nodeid))
 {
 }
 
 Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string,
                                                Ndb_cluster_connection *
                                                main_connection)
-  : m_impl(* new Ndb_cluster_connection_impl(connect_string, main_connection))
+  : m_impl(* new Ndb_cluster_connection_impl(connect_string,
+                                             main_connection, 0))
 {
 }
 
@@ -286,7 +293,8 @@ const char *Ndb_cluster_connection::get_latest_error_msg() const
 
 Ndb_cluster_connection_impl::
 Ndb_cluster_connection_impl(const char * connect_string,
-                            Ndb_cluster_connection *main_connection)
+                            Ndb_cluster_connection *main_connection,
+                            int force_api_nodeid)
   : Ndb_cluster_connection(*this),
     m_main_connection(main_connection),
     m_optimized_node_selection(1),
@@ -326,7 +334,8 @@ Ndb_cluster_connection_impl(const char * connect_string,
     ndb_print_state_mutex= NdbMutex_Create();
 #endif
   m_config_retriever=
-    new ConfigRetriever(connect_string, NDB_VERSION, NDB_MGM_NODE_TYPE_API);
+    new ConfigRetriever(connect_string, force_api_nodeid,
+                        NDB_VERSION, NDB_MGM_NODE_TYPE_API);
   if (m_config_retriever->hasError())
   {
     m_latest_error= 1;

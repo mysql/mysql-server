@@ -89,7 +89,7 @@ int main(int argc, char** argv){
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  Ndb_cluster_connection con(opt_connect_str);
+  Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
   con.set_name("ndb_desc");
   if(con.connect(12, 5, 1) != 0)
   {

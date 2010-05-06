@@ -128,7 +128,7 @@ public:
 
   MgmtSrvr(); // Not implemented
   MgmtSrvr(const MgmtSrvr&); // Not implemented
-  MgmtSrvr(const MgmtOpts&, const char* connect_str);
+  MgmtSrvr(const MgmtOpts&);
 
   ~MgmtSrvr();
 

@@ -466,6 +466,13 @@ Ndbcntr::execREAD_CONFIG_REQ(Signal* signal)
   empty.type = ~0;
   f_dd.push_back(empty);
 
+  if (true)
+  {
+    // TODO: add config parameter
+    // remove ATTRIBUTE_MASK2
+    g_sysTable_NDBEVENTS_0.columnCount--;
+  }
+
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
@@ -2321,8 +2328,23 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
     w.add(DictTabInfo::AttributeKeyFlag, (Uint32)column.keyFlag);
     w.add(DictTabInfo::AttributeStorageType, 
 	  (Uint32)NDB_STORAGETYPE_MEMORY);
-    w.add(DictTabInfo::AttributeArrayType, 
-	  (Uint32)NDB_ARRAYTYPE_FIXED);
+    switch(column.type){
+    case DictTabInfo::ExtVarbinary:
+      jam();
+      w.add(DictTabInfo::AttributeArrayType,
+            (Uint32)NDB_ARRAYTYPE_SHORT_VAR);
+      break;
+    case DictTabInfo::ExtLongvarbinary:
+      jam();
+      w.add(DictTabInfo::AttributeArrayType,
+            (Uint32)NDB_ARRAYTYPE_MEDIUM_VAR);
+      break;
+    default:
+      jam();
+      w.add(DictTabInfo::AttributeArrayType,
+            (Uint32)NDB_ARRAYTYPE_FIXED);
+      break;
+    }
     w.add(DictTabInfo::AttributeNullableFlag, (Uint32)column.nullable);
     w.add(DictTabInfo::AttributeExtType, (Uint32)column.type);
     w.add(DictTabInfo::AttributeExtLength, (Uint32)column.length);

@@ -22295,11 +22295,18 @@ Dblqh::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
+  if (!assembleFragments(signal))
+  {
+    jam();
+    return;
+  }
+
   CreateTrigImplReq* req = (CreateTrigImplReq*)signal->getDataPtrSend();
+  SectionHandle handle(this, signal);
   req->senderRef = reference();
   BlockReference tupRef = calcInstanceBlockRef(DBTUP);
   sendSignal(tupRef, GSN_CREATE_TRIG_IMPL_REQ, signal,
-             CreateTrigImplReq::SignalLengthLocal, JBB);
+             signal->getLength(), JBB, &handle);
 }
 
 void

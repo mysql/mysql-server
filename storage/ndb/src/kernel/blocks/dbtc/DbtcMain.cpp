@@ -12988,9 +12988,18 @@ void Dbtc::checkAbortAllTimeout(Signal* signal, Uint32 sleepTime)
 void Dbtc::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
+  if (!assembleFragments(signal))
+  {
+    jam();
+    return;
+  }
+
   const CreateTrigImplReq* req = (const CreateTrigImplReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
+
+  SectionHandle handle(this, signal);
+  releaseSections(handle); // Not using mask
 
   TcDefinedTriggerData* triggerData;
   DefinedTriggerPtr triggerPtr;

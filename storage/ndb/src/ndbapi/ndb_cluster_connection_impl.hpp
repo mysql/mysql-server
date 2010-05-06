@@ -40,7 +40,8 @@ extern "C" {
 class Ndb_cluster_connection_impl : public Ndb_cluster_connection
 {
   Ndb_cluster_connection_impl(const char *connectstring,
-                              Ndb_cluster_connection *main_connection);
+                              Ndb_cluster_connection *main_connection,
+                              int force_api_nodeid);
   ~Ndb_cluster_connection_impl();
 
   void do_test();

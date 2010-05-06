@@ -628,7 +628,10 @@ NdbOperation::repack_read(Uint32 len)
      * or READ_PACKED
      * (Correct NdbRecAttrs will be used when data is received)
      */
-    assert(1+ MAXNROFATTRIBUTESINWORDS <= TcKeyReq::MaxAttrInfo);
+    if (all == false && ((1 + newlen) > TcKeyReq::MaxAttrInfo))
+    {
+      return save;
+    }
     
     theNdb->releaseSignals(cnt, theFirstATTRINFO, theCurrentATTRINFO);
     theFirstATTRINFO = 0;
@@ -642,7 +645,7 @@ NdbOperation::repack_read(Uint32 len)
     else  
     {
       AttributeHeader::init(ptr, AttributeHeader::READ_PACKED, 4*newlen);
-      memcpy(ptr + 1, &mask, 4*MAXNROFATTRIBUTESINWORDS);
+      memcpy(ptr + 1, &mask, 4*newlen);
       return 1+newlen;
     }
   }
