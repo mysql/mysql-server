@@ -226,16 +226,15 @@ private:
     // Return 0 if ok, else errorcode
     int prepare(int capacity);
 
-    NdbRootFragment* top() const { 
-      return m_current>=0 ? m_array[m_current] : NULL; 
-    }
-
     NdbRootFragment* pop() { 
-      assert(m_current>=0);
-      return m_array[m_current--];
+      return m_current>=0 ? m_array[m_current--] : NULL;
     }
     
     void push(NdbRootFragment& frag);
+
+    int size() const {
+      return (m_current+1);
+    }
 
     void clear() {
       m_current = -1;
