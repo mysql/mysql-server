@@ -108,8 +108,8 @@ PFS_table_share *table_share_array= NULL;
 
 PFS_instr_class global_table_class=
 {
-  "wait/table", /* name */
-  10, /* name length */
+  "wait/io/table/sql/handler", /* name */
+  25, /* name length */
   0, /* flags */
   true, /* enabled */
   true, /* timed */

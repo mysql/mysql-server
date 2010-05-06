@@ -1,4 +1,6 @@
 UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'NO'
+  where NAME='wait/io/table/sql/handler';
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
 ENGINE=MyISAM;
@@ -95,3 +97,4 @@ t_ps_func(0) = @p_id
 DROP PROCEDURE t_ps_proc;
 DROP FUNCTION t_ps_func;
 DROP TABLE t1;
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
