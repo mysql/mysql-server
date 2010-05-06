@@ -1,15 +1,13 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
-#ident "$Id: loader-stress-test.c 19683 2010-04-30 18:19:17Z yfogel $"
+#ident "$Id$"
 
 
 /* TODO:
  *
- *  Decide how to test on recovery (using checkpoint_stress technique?), implement.
- *
+ * When loader is fixed to not crash on failed call to toku_os_write(),
+ * get rid of INDUCE_ENOSPC and -e argument, just make regular part of test.
  */
-
-
 
 
 /* Purpose is to verify that when a loader fails:
