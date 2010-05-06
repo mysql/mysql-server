@@ -716,4 +716,57 @@ void			xt_exit_row_lock_list(XTRowLockListPtr rl);
 #define XT_HAVE_LOCK			2
 #define XT_WAITING				3
 
+/*
+ * -----------------------------------------------------------------------
+ * RECURSIVE MUTEX (allows lockers to lock again)
+ */
+
+typedef struct XTRecursiveMutex {
+	struct XTThread				*rm_locker;
+	u_int						rm_lock_count;
+	xt_mutex_type				rm_mutex;
+
+#ifdef XT_THREAD_LOCK_INFO
+	XTThreadLockInfoRec			rm_lock_info;
+	const char				    *rm_name;
+#endif
+} XTRecursiveMutexRec, *XTRecursiveMutexPtr;
+
+#ifdef XT_THREAD_LOCK_INFO
+#define xt_recursivemutex_init_with_autoname(a,b) xt_recursivemutex_init(a,b,LOCKLIST_ARG_SUFFIX(b))
+void xt_recursivemutex_init(struct XTThread *self, XTRecursiveMutexPtr rm, const char *name);
+#else
+#define xt_recursivemutex_init_with_autoname(a,b) xt_recursivemutex_init(a,b)
+void xt_recursivemutex_init(struct XTThread *self, XTRecursiveMutexPtr rm);
+#endif
+void xt_recursivemutex_free(XTRecursiveMutexPtr rm);
+void xt_recursivemutex_lock(struct XTThread *self, XTRecursiveMutexPtr rm);
+void xt_recursivemutex_unlock(struct XTThread *self, XTRecursiveMutexPtr rm);
+
+typedef struct XTRecurRWLock {
+	struct XTThread				*rrw_locker;
+	u_int						rrw_lock_count;
+	xt_rwlock_type				rrw_lock;
+
+#ifdef XT_THREAD_LOCK_INFO
+	XTThreadLockInfoRec			rrw_lock_info;
+	const char				    *rrw_name;
+#endif
+} XTRecurRWLockRec, *XTRecurRWLockPtr;
+
+#ifdef XT_THREAD_LOCK_INFO
+#define xt_recurrwlock_init_with_autoname(a,b) xt_recurrwlock_init(a,b,LOCKLIST_ARG_SUFFIX(b))
+void xt_recurrwlock_init(struct XTThread *self, XTRecurRWLockPtr rrw, const char *name);
+#else
+#define xt_recurrwlock_init_with_autoname(a,b) xt_recurrwlock_init(a,b)
+void xt_recurrwlock_init(struct XTThread *self, XTRecurRWLockPtr rrw);
+#endif
+void xt_recurrwlock_free(XTRecurRWLockPtr rrw);
+void xt_recurrwlock_xlock(struct XTThread *self, XTRecurRWLockPtr rrw);
+void xt_recurrwlock_slock(struct XTThread *self, XTRecurRWLockPtr rrw);
+void xt_recurrwlock_slock_ns(XTRecurRWLockPtr rrw);
+void xt_recurrwlock_unxlock(struct XTThread *self, XTRecurRWLockPtr rrw);
+void xt_recurrwlock_unslock(struct XTThread *self, XTRecurRWLockPtr rrw);
+void xt_recurrwlock_unslock_ns(XTRecurRWLockPtr rrw);
+
 #endif

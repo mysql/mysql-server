@@ -60,6 +60,8 @@
 #define DEBUG_FAST_MAC
 #endif
 
+#define DEBUG_FAST_MAC
+
 #ifdef DEBUG_TRACE_FILES
 //#define PRINTF		xt_ftracef
 #define PRINTF		xt_trace
