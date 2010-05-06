@@ -278,17 +278,17 @@ static inline bool is_replace_into(THD* thd) {
 
 }
 
-static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, uint curr_num_DBs) {
+static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_eligible) {
     uint pk_insert_mode = get_pk_insert_mode(thd);
     return ( 
         (is_replace_into(thd) || is_insert_ignore(thd)) && 
-        curr_num_DBs <=1 && 
+        opt_eligible && 
         ((!table->triggers && pk_insert_mode < 2) || pk_insert_mode == 0)
         );
 }
 
 ulonglong ha_tokudb::table_flags() const {
-    return (table && do_ignore_flag_optimization(ha_thd(),table,table->s->keys + test(hidden_primary_key)) ? 
+    return (table && do_ignore_flag_optimization(ha_thd(), table, share->replace_into_fast) ? 
         int_table_flags | HA_BINLOG_STMT_CAPABLE : 
         int_table_flags | HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE);
 }
@@ -1427,7 +1427,7 @@ int initialize_key_and_col_info(TABLE_SHARE* table_share, TABLE* table, KEY_AND_
                     true
                     );
             }
-            if (table_share->key_info[i].flags & HA_CLUSTERING) {
+            else {
                 set_key_filter(
                     &kc_info->key_filters[i],
                     &table_share->key_info[i],
@@ -1456,6 +1456,32 @@ exit:
     return error;
 }
 
+bool ha_tokudb::can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_INFO* kc_info, uint pk) {
+    uint curr_num_DBs = table_share->keys + test(hidden_primary_key);
+    return (curr_num_DBs == 1);
+#if 0
+    bool ret_val = true;
+    for (uint curr_index = 0; curr_index < table_share->keys; curr_index++) {
+        if (curr_index == pk) continue;
+        KEY* curr_key_info = &table_share->key_info[curr_index];
+        for (uint i = 0; i < curr_key_info->key_parts; i++) {
+            uint16 curr_field_index = curr_key_info->key_part[i].field->field_index;
+            if (!bitmap_is_set(&kc_info->key_filters[curr_index],curr_field_index)) {
+                ret_val = false;
+                goto exit;
+            }
+            if (bitmap_is_set(&kc_info->key_filters[curr_index], curr_field_index) &&
+                !bitmap_is_set(&kc_info->key_filters[pk], curr_field_index)) {
+                ret_val = false;
+                goto exit;
+            }
+            
+        }
+    }
+exit:
+    return ret_val;
+#endif
+}
 
 int ha_tokudb::initialize_share(
     const char* name,
@@ -1508,12 +1534,14 @@ int ha_tokudb::initialize_share(
             if (error) {
                 goto exit;
             }
-            share->mult_put_flags[i] = DB_YESOVERWRITE;
-        }
-        else {
-            share->mult_put_flags[i] = DB_NOOVERWRITE;
         }
     }
+    share->replace_into_fast = can_replace_into_be_fast(
+        table_share, 
+        &share->kc_info, 
+        primary_key
+        );
+        
     if (!hidden_primary_key) {
         //
         // We need to set the ref_length to start at 5, to account for
@@ -3256,39 +3284,60 @@ cleanup:
     return error;
 }
 
-int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn) {
-    int error = 0;
-    u_int32_t put_flags;
-    THD *thd = ha_thd();
-    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
-    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
-    bool do_ignore_opt = do_ignore_flag_optimization(thd,table,curr_num_DBs);
-
-    assert(curr_num_DBs == 1);
-    
-    put_flags = hidden_primary_key ? DB_YESOVERWRITE : DB_NOOVERWRITE;
+//
+// set the put flags for the main dictionary
+//
+void ha_tokudb::set_main_dict_put_flags(THD* thd, u_int32_t* put_flags) {
     //
     // optimization for "REPLACE INTO..." (and "INSERT IGNORE") command
     // if the command is "REPLACE INTO" and the only table
-    // is the main table, then we can simply insert the element
+    // is the main table (or all indexes are a subset of the pk), 
+    // then we can simply insert the element
     // with DB_YESOVERWRITE. If the element does not exist,
     // it will act as a normal insert, and if it does exist, it 
     // will act as a replace, which is exactly what REPLACE INTO is supposed
-    // to do. We cannot do this if curr_num_DBs > 1, because then we lose
+    // to do. We cannot do this if otherwise, because then we lose
     // consistency between indexes
     //
-    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && 
+    if (hidden_primary_key){
+        *put_flags = DB_YESOVERWRITE;
+    }
+    else if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && 
         !is_replace_into(thd) && 
-        !is_insert_ignore(thd)) 
+        !is_insert_ignore(thd)
+        ) 
     {
-        put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
+        *put_flags = DB_YESOVERWRITE;
     }
-    else if (do_ignore_opt && is_replace_into(thd)) {
-        put_flags = DB_YESOVERWRITE; // original put_flags can only be DB_YESOVERWRITE or DB_NOOVERWRITE
+    else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
+        is_replace_into(thd)
+        ) 
+    {
+        *put_flags = DB_YESOVERWRITE;
     }
-    else if (do_ignore_opt && is_insert_ignore(thd)) {
-        put_flags = DB_NOOVERWRITE_NO_ERROR;
+    else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
+        is_insert_ignore(thd)
+        ) 
+    {
+        *put_flags = DB_NOOVERWRITE_NO_ERROR;
     }
+    else 
+    {
+        *put_flags = DB_NOOVERWRITE;
+    }
+}
+
+int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn) {
+    int error = 0;
+    u_int32_t put_flags = 0;
+    THD *thd = ha_thd();
+    uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
+    ulonglong wait_lock_time = get_write_lock_wait_time(thd);
+    bool do_ignore_opt = do_ignore_flag_optimization(thd,table,share->replace_into_fast);
+
+    assert(curr_num_DBs == 1);
+    
+    set_main_dict_put_flags(thd,&put_flags);
 
     lockretryN(wait_lock_time){
         error = share->file->put(
@@ -3312,17 +3361,13 @@ cleanup:
 
 int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd) {
     int error = 0;
-    bool is_replace;
+    bool is_replace = is_replace_into(thd);
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
-    is_replace = is_replace_into(thd);
+    bool do_ignore_opt = do_ignore_flag_optimization(thd,table,share->replace_into_fast);
+    u_int32_t mult_put_flags[MAX_KEY + 1] = {DB_YESOVERWRITE};
 
-    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && !is_replace && !is_insert_ignore(thd)) {
-        share->mult_put_flags[primary_key] = DB_YESOVERWRITE;
-    }
-    else {
-        share->mult_put_flags[primary_key] = DB_NOOVERWRITE;
-    }
+    set_main_dict_put_flags(thd, &mult_put_flags[primary_key]);
     
     lockretryN(wait_lock_time){
         error = db_env->put_multiple(
@@ -3335,7 +3380,7 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
             share->key_file, 
             mult_key_dbt,
             mult_rec_dbt,
-            share->mult_put_flags, 
+            mult_put_flags, 
             NULL
             );
         lockretry_wait;
@@ -3425,7 +3470,7 @@ int ha_tokudb::write_row(uchar * record) {
         goto cleanup;
     }
 
-    create_sub_trans = (using_ignore && !(do_ignore_flag_optimization(thd,table,curr_num_DBs)));
+    create_sub_trans = (using_ignore && !(do_ignore_flag_optimization(thd,table,share->replace_into_fast)));
     if (create_sub_trans) {
         error = db_env->txn_begin(db_env, transaction, &sub_trans, DB_INHERIT_ISOLATION);
         if (error) {
