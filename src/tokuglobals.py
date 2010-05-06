@@ -53,6 +53,7 @@ def main():
                "db_env_set_func_realloc", 
                "db_env_set_func_pwrite", 
                "db_env_set_func_write", 
+               "db_env_set_func_loader_fwrite", 
                "db_env_set_checkpoint_callback", 
                "db_env_set_checkpoint_callback2",
                "db_env_set_recover_callback", 
