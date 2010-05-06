@@ -250,9 +250,7 @@ static uint make_join_orderinfo(JOIN *join);
 static int
 join_read_record_no_init(JOIN_TAB *tab);
 static
-bool subquery_types_allow_materialization(THD *thd, 
-                                          Item_in_subselect *in_subs,
-                                          bool *scan_allowed);
+bool subquery_types_allow_materialization(Item_in_subselect *in_subs);
 int do_sj_reset(SJ_TMP_TABLE *sj_tbl);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);
@@ -593,6 +591,45 @@ JOIN::prepare(Item ***rref_pointer_array,
     Item_in_subselect *in_subs= NULL;
     if (subselect->substype() == Item_subselect::IN_SUBS)
       in_subs= (Item_in_subselect*)subselect;
+
+    /* Resolve expressions and perform semantic analysis for IN query */
+    if (in_subs != NULL)
+      /*
+        TODO: Add the condition below to this if statement when we have proper
+        support for is_correlated handling for materialized semijoins.
+        If we were to add this condition now, the fix_fields() call in
+        convert_subq_to_sj() would force the flag is_correlated to be set
+        erroneously for prepared queries.
+
+        thd->stmt_arena->state != Query_arena::PREPARED)
+      */
+    {
+      /*
+        Check if the left and right expressions have the same # of
+        columns, i.e. we don't have a case like 
+          (oe1, oe2) IN (SELECT ie1, ie2, ie3 ...)
+
+        TODO why do we have this duplicated in IN->EXISTS transformers?
+        psergey-todo: fix these: grep for duplicated_subselect_card_check
+      */
+      if (select_lex->item_list.elements != in_subs->left_expr->cols())
+      {
+        my_error(ER_OPERAND_COLUMNS, MYF(0), in_subs->left_expr->cols());
+        DBUG_RETURN(-1);
+      }
+
+      SELECT_LEX *current= thd->lex->current_select;
+      thd->lex->current_select= current->return_after_parsing();
+      char const *save_where= thd->where;
+      thd->where= "IN/ALL/ANY subquery";
+        
+      bool failure= !in_subs->left_expr->fixed &&
+                     in_subs->left_expr->fix_fields(thd, &in_subs->left_expr);
+      thd->lex->current_select= current;
+      thd->where= save_where;
+      if (failure)
+        DBUG_RETURN(-1); /* purecov: deadcode */
+    }
     DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
     /*
       Check if we're in subquery that is a candidate for flattening into a
@@ -623,39 +660,10 @@ JOIN::prepare(Item ***rref_pointer_array,
           & SELECT_STRAIGHT_JOIN))                                    // 10
     {
       DBUG_PRINT("info", ("Subquery is semi-join conversion candidate"));
-      in_subs->types_allow_materialization= 
-        subquery_types_allow_materialization(thd, in_subs,
-                                             &in_subs->sjm_scan_allowed);
 
-      if (thd->stmt_arena->state != Query_arena::PREPARED)
-      {
-        SELECT_LEX *current= thd->lex->current_select;
-        thd->lex->current_select= current->return_after_parsing();
-        char const *save_where= thd->where;
-        thd->where= "IN/ALL/ANY subquery";
-        
-        bool failure= !in_subs->left_expr->fixed &&
-                       in_subs->left_expr->fix_fields(thd, 
-                                                      &in_subs->left_expr);
-        thd->lex->current_select= current;
-        thd->where= save_where;
-        in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
-        if (failure)
-          DBUG_RETURN(-1); /* purecov: deadcode */
-        /*
-          Check if the left and right expressions have the same # of
-          columns, i.e. we don't have a case like 
-            (oe1, oe2) IN (SELECT ie1, ie2, ie3 ...)
+      (void)subquery_types_allow_materialization(in_subs);
 
-          TODO why do we have this duplicated in IN->EXISTS transformers?
-          psergey-todo: fix these: grep for duplicated_subselect_card_check
-        */
-        if (select_lex->item_list.elements != in_subs->left_expr->cols())
-        {
-          my_error(ER_OPERAND_COLUMNS, MYF(0), in_subs->left_expr->cols());
-          DBUG_RETURN(-1);
-        }
-      }
+      in_subs->emb_on_expr_nest= thd->thd_marker.emb_on_expr_nest;
 
       /* Register the subquery for further processing in flatten_subqueries() */
       select_lex->
@@ -700,7 +708,7 @@ JOIN::prepare(Item ***rref_pointer_array,
           select_lex->master_unit()->first_select()->leaf_tables &&     // 3
           thd->lex->sql_command == SQLCOM_SELECT &&                     // *
           select_lex->outer_select()->leaf_tables &&                    // 3A
-          subquery_types_allow_materialization(thd, in_subs, NULL))
+          subquery_types_allow_materialization(in_subs))
       {
         // psergey-todo: duplicated_subselect_card_check: where it's done?
         if (in_subs->is_top_level_item() &&                             // 4
@@ -879,19 +887,19 @@ err:
 }
 
 
-/*
-  Check if subquery's compared types allow materialization.
+/**
+  @brief Check if subquery's compared types allow materialization.
 
-  SYNOPSIS
-    subquery_types_allow_materialization()
-      thd               Thread handle
-      in_subs           Subquery predicate
-      scan_allowed  OUT If the return value is TRUE: 
-                          indicates whether it is possible to use subquery
-                          materialization and scan the materialized table
-                        Else
-                          undefined
-  DESCRIPTION
+  @param in_subs Subquery predicate, updated as follows:
+    types_allow_materialization TRUE if subquery materialization is allowed.
+    sjm_scan_allowed            If types_allow_materialization is TRUE,
+                                indicates whether it is possible to use subquery
+                                materialization and scan the materialized table.
+
+  @retval TRUE   If subquery types allow materialization.
+  @retval FALSE  Otherwise.
+
+  @details
     This is a temporary fix for BUG#36752.
     
     There are two subquery materialization strategies:
@@ -927,38 +935,20 @@ err:
           details)
         * require that compared columns have exactly the same type. This is
           a temporary measure to avoid BUG#36752-type problems.
-
-  RETURN 
-    TRUE   Yes, subquery types allow materialization
-    FALSE  No, or this is an invalid subquery
 */
 
 static 
-bool subquery_types_allow_materialization(THD *thd,  
-                                          Item_in_subselect *in_subs,
-                                          bool *scan_allowed)
+bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
 {
   DBUG_ENTER("subquery_types_allow_materialization");
-  
-  /* Fix the left expression if it is not yet fixed */
-  if (!in_subs->left_expr->fixed)
-  {
-    SELECT_LEX *save_lex= thd->lex->current_select;
-    thd->lex->current_select= save_lex->outer_select();
-    char const *save_where= thd->where;
-    thd->where= "IN/ALL/ANY subquery";
-    bool res= in_subs->left_expr->fix_fields(thd, &in_subs->left_expr);
-    thd->where= save_where;
-    thd->lex->current_select=save_lex;
-    if (res)
-      DBUG_RETURN(FALSE);
-  }
+
+  DBUG_ASSERT(in_subs->left_expr->fixed);
 
   List_iterator<Item> it(in_subs->unit->first_select()->item_list);
   uint elements= in_subs->unit->first_select()->item_list.elements;
-  // psergey: duplicated_subselect_card_check
-  if (in_subs->left_expr->cols() != elements)
-    DBUG_RETURN(FALSE);
+
+  in_subs->types_allow_materialization= FALSE;  // Assign default values
+  in_subs->sjm_scan_allowed= FALSE;
   
   bool all_are_fields= TRUE;
   for (uint i= 0; i < elements; i++)
@@ -984,8 +974,8 @@ bool subquery_types_allow_materialization(THD *thd,
       ;/* suitable for materialization */
     }
   }
-  if (scan_allowed)
-    *scan_allowed= all_are_fields;
+  in_subs->types_allow_materialization= TRUE;
+  in_subs->sjm_scan_allowed= all_are_fields;
   DBUG_PRINT("info",("subquery_types_allow_materialization: ok, allowed"));
   DBUG_RETURN(TRUE);
 }
