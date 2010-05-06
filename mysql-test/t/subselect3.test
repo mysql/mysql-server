@@ -1168,6 +1168,7 @@ WHERE a.idIndividual IN
 		WHERE cona.postalStripped='T2H3B2'
 	);
 drop table t1,t2,t3;
+
 --echo
 --echo BUG#37842: Assertion in DsMrr_impl::dsmrr_init, at handler.cc:4307
 --echo
@@ -1184,3 +1185,32 @@ SELECT `pk` FROM t1 AS OUTR WHERE `int_key` = ALL (
  SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
 );
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#47367 Crash in Name_resolution_context::process_error
+--echo #
+
+SET SESSION optimizer_switch = 'default,semijoin=off';
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TABLE t2 LIKE t1;
+delimiter |;
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t1 WHERE f1 IN (SELECT f1 FROM t2); END|
+delimiter ;|
+CALL p1;
+ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
+CALL p1;
+DROP PROCEDURE p1;
+--echo # Restore the original column list of table t2:
+ALTER TABLE t2 CHANGE COLUMN my_column f1 INT;
+
+SET SESSION optimizer_switch = 'semijoin=on';
+delimiter |;
+--echo # Recreate procedure so that we eliminate any caching effects
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t1 WHERE f1 IN (SELECT f1 FROM t2); END|
+delimiter ;|
+CALL p1;
+ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
+--error ER_BAD_FIELD_ERROR
+CALL p1;
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
