@@ -725,6 +725,17 @@ BackupRestore::object(Uint32 type, const void * ptr)
       {
         info << "Created hashmap: " << old.getName() << endl;
       }
+      else
+      {
+        NdbError errobj = dict->getNdbError();
+        // We ignore schema already exists, this is fine
+        if (errobj.code != 721)
+        {
+          err << "Could not create hashmap \"" << old.getName() << "\": "
+              << errobj << endl;
+          return false;
+        }
+      }
     }
 
     NdbDictionary::HashMap curr;
