@@ -659,7 +659,6 @@ trx_start_low(
 
 	rseg = trx_sys_get_nth_rseg(trx_sys, rseg_id);
 
-	trx->id = trx_sys_get_new_trx_id();
 
 	/* The initial value for trx->no: ut_dulint_max is used in
 	read_view_open_now: */
@@ -672,6 +671,8 @@ trx_start_low(
 	trx->start_time = ut_time();
 
 	trx_sys_mutex_enter();
+
+	trx->id = trx_sys_get_new_trx_id();
 
 	UT_LIST_ADD_FIRST(trx_list, trx_sys->trx_list, trx);
 
@@ -749,7 +750,11 @@ trx_commit_off_kernel(
 		undo = trx->update_undo;
 
 		if (undo) {
+			trx_sys_mutex_enter();
+
 			trx->no = trx_sys_get_new_trx_id();
+
+			trx_sys_mutex_exit();
 
 			/* It is not necessary to obtain trx->undo_mutex here
 			because only a single OS thread is allowed to do the

@@ -1135,11 +1135,13 @@ trx_purge(
 
 	/* Close and free the old purge view */
 
+	// FIXME: We need this to cover the trx->conc_state that is checked
+	// in read_view_*() functions.
+	mutex_enter(&kernel_mutex);
+
 	trx_sys_mutex_enter();
 
 	read_view_remove(purge_sys->view);
-
-	trx_sys_mutex_exit();
 
 	purge_sys->view = NULL;
 
@@ -1149,12 +1151,6 @@ trx_purge(
 	need to be delayed in order to reduce the lagging of the purge
 	thread. */
 	srv_dml_needed_delay = 0; /* in microseconds; default: no delay */
-
-	// FIXME: We need this to cover the trx->conc_state that is checked
-	// in read_view_*() functions.
-	mutex_enter(&kernel_mutex);
-
-	trx_sys_mutex_enter();
 
 	/* If we cannot advance the 'purge view' because of an old
 	'consistent read view', then the DML statements cannot be delayed.
@@ -1175,8 +1171,7 @@ trx_purge(
 		}
 	}
 
-	purge_sys->view = read_view_oldest_copy_or_open_new(
-		ut_dulint_zero, purge_sys->heap);
+	purge_sys->view = read_view_purge_open(purge_sys->heap);
 
 	mutex_exit(&kernel_mutex);
 
