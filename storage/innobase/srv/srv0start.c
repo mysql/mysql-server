@@ -1719,8 +1719,6 @@ innobase_start_or_create_for_mysql(void)
 	os_thread_create(&srv_monitor_thread, NULL,
 			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
 
-	srv_is_being_started = FALSE;
-
 	if (trx_doublewrite == NULL) {
 		/* Create the doublewrite buffer to a new tablespace */
 
@@ -1740,6 +1738,8 @@ innobase_start_or_create_for_mysql(void)
 	if (err != DB_SUCCESS) {
 		return((int)DB_ERROR);
 	}
+
+	srv_is_being_started = FALSE;
 
 	/* Create the master thread which does purge and other utility
 	operations */

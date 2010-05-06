@@ -377,6 +377,8 @@ trx_list_insert_ordered(
 {
 	trx_t*	trx2;
 
+	ut_a(srv_is_being_started);
+
 	trx2 = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (trx2 != NULL) {
@@ -416,6 +418,8 @@ trx_lists_init_at_db_start(void)
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
 	trx_t*		trx;
+
+	ut_a(srv_is_being_started);
 
 	UT_LIST_INIT(trx_sys->trx_list);
 
@@ -595,7 +599,7 @@ Assigns a rollback segment to a transaction in a round-robin fashion.
 Skips the SYSTEM rollback segment if another is available.
 @return	assigned rollback segment id */
 UNIV_INLINE
-ulint
+trx_rseg_t*
 trx_assign_rseg(void)
 /*=================*/
 {
@@ -624,7 +628,7 @@ trx_assign_rseg(void)
 
 	trx_sys_mutex_exit();
 
-	return(rseg->id);
+	return(rseg);
 }
 
 /****************************************************************//**
@@ -653,12 +657,10 @@ trx_start_low(
 	ut_ad(trx->conc_state != TRX_ACTIVE);
 
 	if (rseg_id == ULINT_UNDEFINED) {
-
-		rseg_id = trx_assign_rseg();
+		rseg = trx_assign_rseg();
+	} else {
+		rseg = trx_sys_get_nth_rseg(trx_sys, rseg_id);
 	}
-
-	rseg = trx_sys_get_nth_rseg(trx_sys, rseg_id);
-
 
 	/* The initial value for trx->no: ut_dulint_max is used in
 	read_view_open_now: */
@@ -2063,11 +2065,7 @@ trx_get_trx_by_xid(
 
 	trx_sys_mutex_exit();
 
-	if (trx) {
-		if (trx->conc_state != TRX_PREPARED) {
-
-			return(NULL);
-		}
+	if (trx && trx->conc_state == TRX_PREPARED) {
 
 		return(trx);
 	}

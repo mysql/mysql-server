@@ -258,22 +258,15 @@ trx_get_on_id(
 
 	trx_sys_mutex_enter();
 
-	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	for (trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
+	     trx != NULL && ut_dulint_cmp(trx_id, trx->id) != 0;
+	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-	while (trx != NULL) {
-		if (0 == ut_dulint_cmp(trx_id, trx->id)) {
-
-			trx_sys_mutex_exit();
-
-			return(trx);
-		}
-
-		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
 
 	trx_sys_mutex_exit();
 
-	return(NULL);
+	return(trx);
 }
 
 /****************************************************************//**
@@ -294,11 +287,7 @@ trx_list_get_min_trx_id(void)
 
 	trx = UT_LIST_GET_LAST(trx_sys->trx_list);
 
-	if (trx == NULL) {
-		id = trx_sys->max_trx_id;
-	} else {
-		id = trx->id;
-	}
+	id = (trx == NULL) ? trx_sys->max_trx_id : trx->id;
 
 	trx_sys_mutex_exit();
 
