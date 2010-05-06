@@ -122,13 +122,6 @@ case $MACHINE_TYPE in
   i?86) BASE_MACHINE_TYPE=i386 ;;
 esac
 
-if test "$CFLAGS" = "-g -O2" ; then
-	CFLAGS=""
-fi
-if test "$CXXFLAGS" = "-g -O2" ; then
-	CXXFLAGS=""
-fi
-
 # Save some variables and the command line options for mysqlbug
 SAVE_CC="$CC"
 SAVE_CXX="$CXX"
