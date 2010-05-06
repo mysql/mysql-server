@@ -1,7 +1,7 @@
 PBXT Release Notes
 ==================
 
-+------- 1.0.11 Pre-GA - Not released yet
++------- 1.0.11 Pre-GA - 2010-05-11
 
 RN322: Creating a table the references a non-existing table can now only be done if you set: foreign_key_checks = 0. Also fixed a failure when creating tables with recursive foreign key declarations.
 
