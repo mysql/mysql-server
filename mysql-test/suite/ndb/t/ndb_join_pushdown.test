@@ -1009,6 +1009,7 @@ xor c > 5;
 ##############
 explain
 select t1.a, (select straight_join X.a from t1 as X join t1 as Y on X.a=Y.b where Y.a = t1.b) from t1;
+--sorted_result
 select t1.a, (select straight_join X.a from t1 as X join t1 as Y on X.a=Y.b where Y.a = t1.b) from t1;
 
 drop table t1;
