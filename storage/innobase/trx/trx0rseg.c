@@ -272,6 +272,8 @@ trx_rseg_create_instance(
 			ulint		zip_size;
 			trx_rseg_t*	rseg = NULL;
 
+			ut_a(!trx_rseg_get_on_id(i));
+
 			space = trx_sysf_rseg_get_space(sys_header, i, mtr);
 
 			zip_size = space ? fil_space_get_zip_size(space) : 0;

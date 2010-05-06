@@ -141,7 +141,7 @@ TODO: proof this
 /*********************************************************************//**
 Validates a read view object. */
 static
-void
+ibool
 read_view_validate(
 /*===============*/
 	const read_view_t*	view)	/*!< in: view to validate */
@@ -160,8 +160,9 @@ read_view_validate(
 
 		ut_a(ut_dulint_cmp(id, prev_id) < 0);
 	}
-}
 
+	return(TRUE);
+}
 #endif
 
 /*********************************************************************//**
@@ -215,9 +216,7 @@ read_view_purge_open(
 		return(read_view_open_now(ut_dulint_zero, heap));
 	}
 
-#ifdef UNIV_DEBUG
-	read_view_validate(oldest_view);
-#endif /* UNIV_DEBUG */
+	ut_ad(read_view_validate(oldest_view));
 
 	n = oldest_view->n_trx_ids + 1;
 	creator_trx_id = oldest_view->creator_trx_id;
@@ -251,9 +250,7 @@ read_view_purge_open(
 		read_view_set_nth_trx_id( view, i, id);
 	}
 
-#ifdef UNIV_DEBUG
-	read_view_validate(view);
-#endif /* UNIV_DEBUG */
+	ut_ad(read_view_validate(view));
 
 	view->creator_trx_id = ut_dulint_zero;
 
@@ -344,9 +341,8 @@ read_view_open_now(
 	} else {
 		view->up_limit_id = view->low_limit_id;
 	}
-#ifdef UNIV_DEBUG
-	read_view_validate(view);
-#endif /* UNIV_DEBUG */
+
+	ut_ad(read_view_validate(view));
 
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
 
@@ -363,9 +359,7 @@ read_view_remove(
 {
 	ut_ad(trx_sys_mutex_own());
 
-#ifdef UNIV_DEBUG
-	read_view_validate(view);
-#endif /* UNIV_DEBUG */
+	ut_ad(read_view_validate(view));
 
 	UT_LIST_REMOVE(view_list, trx_sys->view_list, view);
 }
@@ -527,9 +521,7 @@ read_cursor_view_create_for_mysql(
 		view->up_limit_id = view->low_limit_id;
 	}
 
-#ifdef UNIV_DEBUG
-	read_view_validate(view);
-#endif /* UNIV_DEBUG */
+	ut_ad(read_view_validate(view));
 
 	UT_LIST_ADD_FIRST(view_list, trx_sys->view_list, view);
 
@@ -590,9 +582,7 @@ read_cursor_set_for_mysql(
 		trx->read_view = trx->global_read_view;
 	}
 
-#ifdef UNIV_DEBUG
-	read_view_validate(trx->read_view);
-#endif /* UNIV_DEBUG */
+	ut_ad(read_view_validate(trx->read_view));
 
 	trx_sys_mutex_exit();
 }
