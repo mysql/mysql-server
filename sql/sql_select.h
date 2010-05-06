@@ -1456,7 +1456,8 @@ public:
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
   bool     sort_and_group; 
-  bool     first_record,full_join,group, no_field_update;
+  bool     first_record,full_join, no_field_update;
+  bool	   group;          /**< If query contains GROUP BY clause */
   bool	   do_send_rows;
   /**
     TRUE when we want to resume nested loop iterations when
@@ -1784,11 +1785,12 @@ public:
   void cache_const_exprs();
   /* 
     Return the table for which an index scan can be used to satisfy 
-    the sort order needed by the ORDER BY/GROUP BY clause 
+    the sort order needed by the ORDER BY/(implicit) GROUP BY clause 
   */
   JOIN_TAB *get_sort_by_join_tab()
   {
-    return (need_tmp || !sort_by_table || skip_sort_order) ?
+    return (need_tmp || !sort_by_table || skip_sort_order ||
+            ((group || tmp_table_param.sum_func_count) && !group_list)) ?
               NULL : join_tab+const_tables;
   }
 private:
