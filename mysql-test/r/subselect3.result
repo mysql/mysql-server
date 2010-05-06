@@ -1429,3 +1429,28 @@ SELECT `int_key` FROM t1 AS INNR WHERE INNR . `pk` >= 9
 );
 pk
 DROP TABLE t1;
+#
+# BUG#47367 Crash in Name_resolution_context::process_error
+#
+SET SESSION optimizer_switch = 'default,semijoin=off';
+CREATE TABLE t1 (f1 INTEGER);
+CREATE TABLE t2 LIKE t1;
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t1 WHERE f1 IN (SELECT f1 FROM t2); END|
+CALL p1;
+f1
+ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
+CALL p1;
+f1
+DROP PROCEDURE p1;
+# Restore the original column list of table t2:
+ALTER TABLE t2 CHANGE COLUMN my_column f1 INT;
+SET SESSION optimizer_switch = 'semijoin=on';
+# Recreate procedure so that we eliminate any caching effects
+CREATE PROCEDURE p1 () BEGIN SELECT f1 FROM t1 WHERE f1 IN (SELECT f1 FROM t2); END|
+CALL p1;
+f1
+ALTER TABLE t2 CHANGE COLUMN f1 my_column INT;
+CALL p1;
+ERROR 42S22: Unknown column 'f1' in 'where clause'
+DROP PROCEDURE p1;
+DROP TABLE t1, t2;
