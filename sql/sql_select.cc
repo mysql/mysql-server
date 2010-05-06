@@ -16579,11 +16579,18 @@ int do_sj_reset(SJ_TMP_TABLE *sj_tbl)
 }
 
 /**
-  Process one record of the nested loop join.
+  @brief Process one row of the nested loop join.
 
-    This function will evaluate parts of WHERE/ON clauses that are
-    applicable to the partial record on hand and in case of success
-    submit this record to the next level of the nested loop.
+  This function will evaluate parts of WHERE/ON clauses that are
+  applicable to the partial row on hand and in case of success
+  submit this row to the next level of the nested loop.
+
+  @param  join     - The join object
+  @param  join_tab - The most inner join_tab being processed
+  @param  error > 0: Error, terminate processing
+                = 0: (Partial) row is available
+                < 0: No more rows available at this level
+  @return Nested loop state (Ok, No_more_rows, Error, Killed)
 */
 
 static enum_nested_loop_state
@@ -16593,7 +16600,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
   bool not_used_in_distinct=join_tab->not_used_in_distinct;
   ha_rows found_records=join->found_records;
   COND *select_cond= join_tab->select_cond;
-  bool select_cond_result= TRUE;
+  bool found= TRUE;
 
   DBUG_ENTER("evaluate_join_record");
 
@@ -16610,20 +16617,18 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 
   if (select_cond)
   {
-    select_cond_result= test(select_cond->val_int());
+    found= test(select_cond->val_int());
 
     /* check for errors evaluating the condition */
     if (join->thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR);
   }
-
-  if (!select_cond || select_cond_result)
+  if (found)
   {
     /*
       There is no select condition or the attached pushed down
       condition is true => a match is found.
     */
-    bool found= 1;
     while (join_tab->first_unmatched && found)
     {
       /*
@@ -16675,13 +16680,14 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 
     JOIN_TAB *return_tab= join->return_tab;
     join_tab->found_match= TRUE;
-    if (join_tab->check_weed_out_table)
+
+    if (join_tab->check_weed_out_table && found)
     {
       int res= do_sj_dups_weedout(join->thd, join_tab->check_weed_out_table);
       if (res == -1)
         DBUG_RETURN(NESTED_LOOP_ERROR);
-      if (res == 1)
-        DBUG_RETURN(NESTED_LOOP_OK);
+      else if (res == 1)
+        found= FALSE;
     }
     else if (join_tab->do_firstmatch)
     {

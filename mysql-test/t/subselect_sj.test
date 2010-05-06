@@ -816,3 +816,54 @@ DROP TABLE t1, t2, t3;
 
 --echo # End of Bug#51487
 
+--echo # 
+--echo # BUG#38075: Wrong result: rows matching a subquery with outer join not returned
+--echo # 
+
+--disable_warnings
+DROP TABLE IF EXISTS ot1, it1, it2;
+--enable_warnings
+
+CREATE TABLE it2 (
+  int_key int(11) NOT NULL,
+  datetime_key datetime NOT NULL,
+  KEY int_key (int_key),
+  KEY datetime_key (datetime_key)
+);
+INSERT INTO it2 VALUES
+  (5,'2002-04-10 14:25:30'), (0,'0000-00-00 00:00:00'),
+  (0,'2006-09-14 04:01:02'), (4,'0000-00-00 00:00:00'),
+  (8,'0000-00-00 00:00:00'), (5,'0000-00-00 00:00:00'),
+  (9,'0000-00-00 00:00:00'), (8,'2007-04-01 11:04:17'),
+  (1,'0000-00-00 00:00:00'), (7,'2009-01-12 00:00:00'),
+  (0,'2009-06-05 00:00:00'), (3,'2006-02-14 18:06:35'),
+  (5,'2006-02-21 07:08:16'), (0,'0000-00-00 00:00:00'),
+  (7,'0000-00-00 00:00:00'), (0,'0000-00-00 00:00:00'),
+  (0,'2007-02-13 00:00:00'), (1,'0000-00-00 00:00:00'),
+  (0,'0000-00-00 00:00:00'), (1,'2003-08-11 00:00:00');
+CREATE TABLE ot1 (
+  int_nokey int(11) NOT NULL,
+  int_key int(11) NOT NULL,
+  KEY int_key (int_key)
+);
+INSERT INTO ot1 VALUES
+  (5,0), (3,0), (0,2), (3,0), (1,3), (0,0), (1,7), (7,0), (1,7), (0,7),
+  (0,9), (8,2), (4,4), (9,3), (0,9), (2,5), (0,5), (8,0), (5,8), (1,5);
+CREATE TABLE it1 (
+  int_nokey int(11) NOT NULL,
+  int_key int(11) NOT NULL,
+  KEY int_key (int_key)
+);
+INSERT INTO it1 VALUES
+  (9,5), (0,4);
+--sorted_result
+SELECT int_key FROM ot1
+WHERE int_nokey IN (SELECT it2.int_key
+                    FROM it1 LEFT JOIN it2 ON it2.datetime_key);
+EXPLAIN
+SELECT int_key FROM ot1
+WHERE int_nokey IN (SELECT it2.int_key
+                    FROM it1 LEFT JOIN it2 ON it2.datetime_key);
+DROP TABLE ot1, it1, it2;
+
+--echo # End of BUG#38075
