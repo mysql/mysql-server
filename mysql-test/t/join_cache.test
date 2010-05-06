@@ -1686,3 +1686,42 @@ set join_cache_level=default;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Regression test for
+--echo # Bug#46733 - NULL value not returned for aggregate on empty result 
+--echo #             set w/ semijoin on
+CREATE TABLE t1 (
+  i int(11) NOT NULL,
+  v varchar(1) DEFAULT NULL,
+  PRIMARY KEY (i)
+);
+
+INSERT INTO t1 VALUES (10,'a'),(11,'b'),(12,'c'),(13,'d');
+
+CREATE TABLE t2 (
+  i int(11) NOT NULL,
+  v varchar(1) DEFAULT NULL,
+  PRIMARY KEY (i)
+);
+
+INSERT INTO t2 VALUES (1,'x'),(2,'y');
+
+--echo
+
+SELECT MAX(t1.i) 
+FROM t1 JOIN t2 ON t2.v
+ORDER BY t2.v;
+
+--echo
+
+EXPLAIN
+SELECT MAX(t1.i) 
+FROM t1 JOIN t2 ON t2.v
+ORDER BY t2.v;
+
+--echo
+
+DROP TABLE t1,t2;
+
+
+
