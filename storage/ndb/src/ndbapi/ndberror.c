@@ -411,6 +411,7 @@ ErrorBundle ErrorCodes[] = {
   { 749,  HA_WRONG_CREATE_OPTION, IE, "Primary Table in wrong state" },
   { 779,  HA_WRONG_CREATE_OPTION, SE, "Invalid undo buffer size" },
   { 791,  HA_WRONG_CREATE_OPTION, SE, "Too many total bits in bitfields" },
+  { 795,  DMEC, IE, "Out of LongMessageBuffer in DICT" },
   { 764,  HA_WRONG_CREATE_OPTION, SE, "Invalid extent size" },
   { 789,  HA_WRONG_CREATE_OPTION, AE, "Logfile group not found" },
   { 765,  DMEC, SE, "Out of filegroup records" },

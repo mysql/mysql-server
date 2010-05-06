@@ -390,7 +390,9 @@ angel_run(const char* connect_str,
     failed_startup_flag=false;
     reportShutdown(theConfig, error_exit, 1);
     g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
-    theConfig->fetch_configuration(connect_str, bind_address);
+    theConfig->fetch_configuration(connect_str,
+                                   globalData.ownId, // Force same nodeid again
+                                   bind_address);
   }
 
   if (child >= 0)

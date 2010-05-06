@@ -301,10 +301,11 @@ protected:
     SsPool<Ss>& sp = Ss::pool(this);
     if (sp.m_usage < Ss::poolSize)
       return false;
-    ndbrequire(signal->getNoOfSections() == 0);
+
+    SectionHandle handle(this, signal);
     GlobalSignalNumber gsn = signal->header.theVerId_signalNumber & 0xFFFF;
     sendSignalWithDelay(reference(), gsn,
-                        signal, 10, signal->length());
+                        signal, 10, signal->length(), &handle);
     return true;
   }
 
