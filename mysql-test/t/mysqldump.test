@@ -2132,6 +2132,35 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 SET NAMES default;
 
 DROP TABLE t1, t2;
+###########################################################################
+
+--echo #
+--echo # Bug #53088: mysqldump with -T & --default-character-set set
+--echo #             truncates text/blob to 766 chars
+--echo #
+--echo # Also see outfile_loaddata.test
+--echo #
+
+CREATE TABLE t1 (a BLOB) CHARSET latin1;
+CREATE TABLE t2 LIKE t1;
+
+let $table= t1;
+let $dir= $MYSQLTEST_VARDIR/tmp;
+let $file= $dir/$table.txt;
+let $length= 800;
+
+--eval INSERT INTO t1 VALUES (REPEAT('.', $length))
+
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --default-character-set=latin1 --tab=$dir/ test $table
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+
+--eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET latin1
+--remove_file $file
+
+--echo # should be $length
+SELECT LENGTH(a) FROM t2;
+
+DROP TABLE t1, t2;
 
 ###########################################################################
 --echo #
