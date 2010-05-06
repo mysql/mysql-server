@@ -1619,6 +1619,48 @@ set join_cache_level=default;
 DROP TABLE t1,t2,t3,t4,t5;
 
 --echo #
+--echo # Bug #46328: Use of aggregate function without GROUP BY clause 
+--echo #             returns many rows (vs. one )
+--echo #             
+
+CREATE TABLE t1 (
+  int_key int(11) NOT NULL,
+  KEY int_key (int_key)
+);
+
+INSERT INTO t1 VALUES
+(0),(2),(2),(2),(3),(4),(5),(5),(6),(6),(8),(8),(9),(9);
+
+CREATE TABLE t2 (
+  int_key int(11) NOT NULL,
+  KEY int_key (int_key)
+);
+
+INSERT INTO t2 VALUES (2),(3);
+
+--echo
+
+--echo # The query shall return 1 record with a max value 9 and one of the 
+--echo # int_key values inserted above (undefined which one). A changed 
+--echo # execution plan may change the value in the second column
+SELECT  MAX(t1.int_key), t1.int_key
+FROM t1 STRAIGHT_JOIN t2  
+ORDER BY t1.int_key;
+
+--echo
+
+explain 
+SELECT  MAX(t1.int_key), t1.int_key
+FROM t1 STRAIGHT_JOIN t2  
+ORDER BY t1.int_key;
+
+--echo
+
+DROP TABLE t1,t2;
+
+SET join_cache_level=default;
+
+--echo #
 --echo # Bug #45019: join buffer contains two blob columns one of which is
 --echo #             used in the key employed to access the joined table
 --echo #
@@ -1643,3 +1685,4 @@ SELECT t1.*, t2.*, LENGTH(t2.c1), LENGTH(t2.c2) FROM t1,t2
 set join_cache_level=default;
 
 DROP TABLE t1,t2;
+

@@ -3966,6 +3966,41 @@ set join_buffer_size=default;
 set join_cache_level=default;
 DROP TABLE t1,t2,t3,t4,t5;
 #
+# Bug #46328: Use of aggregate function without GROUP BY clause 
+#             returns many rows (vs. one )
+#             
+CREATE TABLE t1 (
+int_key int(11) NOT NULL,
+KEY int_key (int_key)
+);
+INSERT INTO t1 VALUES
+(0),(2),(2),(2),(3),(4),(5),(5),(6),(6),(8),(8),(9),(9);
+CREATE TABLE t2 (
+int_key int(11) NOT NULL,
+KEY int_key (int_key)
+);
+INSERT INTO t2 VALUES (2),(3);
+
+# The query shall return 1 record with a max value 9 and one of the 
+# int_key values inserted above (undefined which one). A changed 
+# execution plan may change the value in the second column
+SELECT  MAX(t1.int_key), t1.int_key
+FROM t1 STRAIGHT_JOIN t2  
+ORDER BY t1.int_key;
+MAX(t1.int_key)	int_key
+9	0
+
+explain 
+SELECT  MAX(t1.int_key), t1.int_key
+FROM t1 STRAIGHT_JOIN t2  
+ORDER BY t1.int_key;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	int_key	4	NULL	14	Using index
+1	SIMPLE	t2	index	NULL	int_key	4	NULL	2	Using index; Using join buffer
+
+DROP TABLE t1,t2;
+SET join_cache_level=default;
+#
 # Bug #45019: join buffer contains two blob columns one of which is
 #             used in the key employed to access the joined table
 #
