@@ -110,7 +110,6 @@ static ulong commit_threads = 0;
 static mysql_mutex_t commit_threads_m;
 static mysql_cond_t commit_cond;
 static mysql_mutex_t commit_cond_m;
-static mysql_mutex_t analyze_mutex;
 static bool innodb_inited = 0;
 
 #define INSIDE_HA_INNOBASE_CC
@@ -208,12 +207,10 @@ performance schema */
 static mysql_pfs_key_t	innobase_share_mutex_key;
 static mysql_pfs_key_t	prepare_commit_mutex_key;
 static mysql_pfs_key_t	commit_threads_m_key;
-static mysql_pfs_key_t	analyze_mutex_key;
 static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-        {&analyze_mutex_key, "analyze_mutex", 0},
         {&commit_threads_m_key, "commit_threads_m", 0},
         {&commit_cond_mutex_key, "commit_cond_mutex", 0},
         {&innobase_share_mutex_key, "innobase_share_mutex", 0},
@@ -2430,8 +2427,6 @@ innobase_change_buffering_inited_ok:
 			 &commit_threads_m, MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
-	mysql_mutex_init(analyze_mutex_key,
-			  &analyze_mutex, MY_MUTEX_INIT_FAST);
 	mysql_cond_init(commit_cond_key, &commit_cond, NULL);
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
@@ -2486,7 +2481,6 @@ innobase_end(
 		mysql_mutex_destroy(&prepare_commit_mutex);
 		mysql_mutex_destroy(&commit_threads_m);
 		mysql_mutex_destroy(&commit_cond_m);
-		mysql_mutex_destroy(&analyze_mutex);
 		mysql_cond_destroy(&commit_cond);
 	}
 
@@ -5344,7 +5338,7 @@ ha_innobase::unlock_row(void)
 	case ROW_READ_WITH_LOCKS:
 		if (!srv_locks_unsafe_for_binlog
 		    && prebuilt->trx->isolation_level
-		    != TRX_ISO_READ_COMMITTED) {
+		    > TRX_ISO_READ_COMMITTED) {
 			break;
 		}
 		/* fall through */
@@ -5383,7 +5377,7 @@ ha_innobase::try_semi_consistent_read(bool yes)
 
 	if (yes
 	    && (srv_locks_unsafe_for_binlog
-		|| prebuilt->trx->isolation_level == TRX_ISO_READ_COMMITTED)) {
+		|| prebuilt->trx->isolation_level <= TRX_ISO_READ_COMMITTED)) {
 		prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;
 	} else {
 		prebuilt->row_read_type = ROW_READ_WITH_LOCKS;
@@ -7801,6 +7795,8 @@ ha_innobase::info(
 					break;
 				}
 
+				dict_index_stat_mutex_enter(index);
+
 				if (index->stat_n_diff_key_vals[j + 1] == 0) {
 
 					rec_per_key = stats.records;
@@ -7808,6 +7804,8 @@ ha_innobase::info(
 					rec_per_key = (ha_rows)(stats.records /
 					 index->stat_n_diff_key_vals[j + 1]);
 				}
+
+				dict_index_stat_mutex_exit(index);
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
@@ -7863,14 +7861,8 @@ ha_innobase::analyze(
 	THD*		thd,		/*!< in: connection thread handle */
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
-	/* Serialize ANALYZE TABLE inside InnoDB, see
-	Bug#38996 Race condition in ANALYZE TABLE */
-	mysql_mutex_lock(&analyze_mutex);
-
 	/* Simply call ::info() with all the flags */
 	info(HA_STATUS_TIME | HA_STATUS_CONST | HA_STATUS_VARIABLE);
-
-	mysql_mutex_unlock(&analyze_mutex);
 
 	return(0);
 }
@@ -9300,7 +9292,7 @@ ha_innobase::store_lock(
 		isolation_level = trx->isolation_level;
 
 		if ((srv_locks_unsafe_for_binlog
-		     || isolation_level == TRX_ISO_READ_COMMITTED)
+		     || isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && isolation_level != TRX_ISO_SERIALIZABLE
 		    && (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
 		    && (sql_command == SQLCOM_INSERT_SELECT
@@ -10551,7 +10543,35 @@ innodb_old_blocks_pct_update(
 }
 
 /*************************************************************//**
-Check if it is a valid value of innodb_change_buffering.  This function is
+Find the corresponding ibuf_use_t value that indexes into
+innobase_change_buffering_values[] array for the input
+change buffering option name.
+@return	corresponding IBUF_USE_* value for the input variable
+name, or IBUF_USE_COUNT if not able to find a match */
+static
+ibuf_use_t
+innodb_find_change_buffering_value(
+/*===============================*/
+	const char*	input_name)	/*!< in: input change buffering
+					option name */
+{
+	ulint	use;
+
+	for (use = 0; use < UT_ARR_SIZE(innobase_change_buffering_values);
+	     use++) {
+		/* found a match */
+		if (!innobase_strcasecmp(
+			input_name, innobase_change_buffering_values[use])) {
+			return((ibuf_use_t)use);
+		}
+	}
+
+	/* Did not find any match */
+	return(IBUF_USE_COUNT);
+}
+
+/*************************************************************//**
+Check if it is a valid value of innodb_change_buffering. This function is
 registered as a callback with MySQL.
 @return	0 for valid innodb_change_buffering */
 static
@@ -10575,19 +10595,22 @@ innodb_change_buffering_validate(
 	change_buffering_input = value->val_str(value, buff, &len);
 
 	if (change_buffering_input != NULL) {
-		ulint	use;
+		ibuf_use_t	use;
 
-		for (use = 0; use < UT_ARR_SIZE(innobase_change_buffering_values);
-		     use++) {
-			if (!innobase_strcasecmp(
-				    change_buffering_input,
-				    innobase_change_buffering_values[use])) {
-				*(ibuf_use_t*) save = (ibuf_use_t) use;
-				return(0);
-			}
+		use = innodb_find_change_buffering_value(
+			change_buffering_input);
+
+		if (use != IBUF_USE_COUNT) {
+			/* Find a matching change_buffering option value. */
+			*static_cast<const char**>(save) =
+				innobase_change_buffering_values[use];
+
+			return(0);
 		}
 	}
 
+	/* No corresponding change buffering option for user supplied
+	"change_buffering_input" */
 	return(1);
 }
 
@@ -10598,21 +10621,27 @@ static
 void
 innodb_change_buffering_update(
 /*===========================*/
-	THD*				thd,		/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,		/*!< in: pointer to
-							system variable */
-	void*				var_ptr,	/*!< out: where the
-							formal string goes */
-	const void*			save)		/*!< in: immediate result
-							from check function */
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
 {
+	ibuf_use_t	use;
+
 	ut_a(var_ptr != NULL);
 	ut_a(save != NULL);
-	ut_a((*(ibuf_use_t*) save) < IBUF_USE_COUNT);
 
-	ibuf_use = *(const ibuf_use_t*) save;
+	use = innodb_find_change_buffering_value(
+		*static_cast<const char*const*>(save));
 
-	*(const char**) var_ptr = innobase_change_buffering_values[ibuf_use];
+	ut_a(use < IBUF_USE_COUNT);
+
+	ibuf_use = use;
+	*static_cast<const char**>(var_ptr) =
+		 *static_cast<const char*const*>(save);
 }
 
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
@@ -10967,7 +10996,7 @@ static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   "Buffer changes to reduce random access: "
   "OFF, ON, inserting, deleting, changing, or purging.",
   innodb_change_buffering_validate,
-  innodb_change_buffering_update, NULL);
+  innodb_change_buffering_update, "all");
 
 static MYSQL_SYSVAR_ULONG(read_ahead_threshold, srv_read_ahead_threshold,
   PLUGIN_VAR_RQCMDARG,

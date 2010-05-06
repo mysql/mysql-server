@@ -852,7 +852,7 @@ row_sel_get_clust_rec(
 		trx = thr_get_trx(thr);
 
 		if (srv_locks_unsafe_for_binlog
-		    || trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
 			lock_type = LOCK_REC_NOT_GAP;
 		} else {
 			lock_type = LOCK_ORDINARY;
@@ -1465,7 +1465,7 @@ rec_loop:
 
 			if (srv_locks_unsafe_for_binlog
 			    || trx->isolation_level
-			    == TRX_ISO_READ_COMMITTED) {
+			    <= TRX_ISO_READ_COMMITTED) {
 
 				if (page_rec_is_supremum(next_rec)) {
 
@@ -1522,7 +1522,7 @@ skip_lock:
 		trx = thr_get_trx(thr);
 
 		if (srv_locks_unsafe_for_binlog
-		    || trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
 
 			if (page_rec_is_supremum(rec)) {
 
@@ -2498,6 +2498,7 @@ row_sel_field_store_in_mysql_format(
 	byte*	pad_ptr;
 
 	ut_ad(len != UNIV_SQL_NULL);
+	UNIV_MEM_ASSERT_RW(data, len);
 
 	switch (templ->type) {
 	case DATA_INT:
@@ -2746,6 +2747,9 @@ row_sel_store_mysql_rec(
 			/* MySQL assumes that the field for an SQL
 			NULL value is set to the default value. */
 
+			UNIV_MEM_ASSERT_RW(prebuilt->default_rec
+					   + templ->mysql_col_offset,
+					   templ->mysql_col_len);
 			mysql_rec[templ->mysql_null_byte_offset]
 				|= (byte) templ->mysql_null_bit_mask;
 			memcpy(mysql_rec + templ->mysql_col_offset,
@@ -3070,6 +3074,11 @@ row_sel_pop_cached_row_for_mysql(
 
 		for (i = 0; i < prebuilt->n_template; i++) {
 			templ = prebuilt->mysql_template + i;
+#if 0 /* Some of the cached_rec may legitimately be uninitialized. */
+			UNIV_MEM_ASSERT_RW(cached_rec
+					   + templ->mysql_col_offset,
+					   templ->mysql_col_len);
+#endif
 			ut_memcpy(buf + templ->mysql_col_offset,
 				  cached_rec + templ->mysql_col_offset,
 				  templ->mysql_col_len);
@@ -3084,6 +3093,11 @@ row_sel_pop_cached_row_for_mysql(
 		}
 	}
 	else {
+#if 0 /* Some of the cached_rec may legitimately be uninitialized. */
+		UNIV_MEM_ASSERT_RW(prebuilt->fetch_cache
+				   [prebuilt->fetch_cache_first],
+				   prebuilt->mysql_prefix_len);
+#endif
 		ut_memcpy(buf,
 			  prebuilt->fetch_cache[prebuilt->fetch_cache_first],
 			  prebuilt->mysql_prefix_len);
@@ -3134,6 +3148,8 @@ row_sel_push_cache_row_for_mysql(
 	}
 
 	ut_ad(prebuilt->fetch_cache_first == 0);
+	UNIV_MEM_INVALID(prebuilt->fetch_cache[prebuilt->n_fetch_cached],
+			 prebuilt->mysql_row_len);
 
 	if (UNIV_UNLIKELY(!row_sel_store_mysql_rec(
 				  prebuilt->fetch_cache[
@@ -3665,7 +3681,7 @@ shortcut_fails_too_big_rec:
 		    && !page_rec_is_supremum(rec)
 		    && set_also_gap_locks
 		    && !(srv_locks_unsafe_for_binlog
-			 || trx->isolation_level == TRX_ISO_READ_COMMITTED)
+			 || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && prebuilt->select_lock_type != LOCK_NONE) {
 
 			/* Try to place a gap lock on the next index record
@@ -3761,7 +3777,7 @@ rec_loop:
 
 		if (set_also_gap_locks
 		    && !(srv_locks_unsafe_for_binlog
-			 || trx->isolation_level == TRX_ISO_READ_COMMITTED)
+			 || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && prebuilt->select_lock_type != LOCK_NONE) {
 
 			/* Try to place a lock on the index record */
@@ -3895,7 +3911,7 @@ wrong_offs:
 			if (set_also_gap_locks
 			    && !(srv_locks_unsafe_for_binlog
 				 || trx->isolation_level
-				 == TRX_ISO_READ_COMMITTED)
+				 <= TRX_ISO_READ_COMMITTED)
 			    && prebuilt->select_lock_type != LOCK_NONE) {
 
 				/* Try to place a gap lock on the index
@@ -3931,7 +3947,7 @@ wrong_offs:
 			if (set_also_gap_locks
 			    && !(srv_locks_unsafe_for_binlog
 				 || trx->isolation_level
-				 == TRX_ISO_READ_COMMITTED)
+				 <= TRX_ISO_READ_COMMITTED)
 			    && prebuilt->select_lock_type != LOCK_NONE) {
 
 				/* Try to place a gap lock on the index
@@ -3979,7 +3995,7 @@ wrong_offs:
 
 		if (!set_also_gap_locks
 		    || srv_locks_unsafe_for_binlog
-		    || trx->isolation_level == TRX_ISO_READ_COMMITTED
+		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED
 		    || (unique_search
 			&& !UNIV_UNLIKELY(rec_get_deleted_flag(rec, comp)))) {
 
@@ -4018,7 +4034,7 @@ no_gap_lock:
 			const rec_t*	old_vers;
 		case DB_SUCCESS:
 			if (srv_locks_unsafe_for_binlog
-			    || trx->isolation_level == TRX_ISO_READ_COMMITTED) {
+			    || trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
 				/* Note that a record of
 				prebuilt->index was locked. */
 				prebuilt->new_rec_locks = 1;
@@ -4027,6 +4043,7 @@ no_gap_lock:
 		case DB_LOCK_WAIT:
 			if (UNIV_LIKELY(prebuilt->row_read_type
 					!= ROW_READ_TRY_SEMI_CONSISTENT)
+			    || unique_search
 			    || index != clust_index) {
 
 				goto lock_wait_or_error;
@@ -4150,7 +4167,7 @@ no_gap_lock:
 		/* The record is delete-marked: we can skip it */
 
 		if ((srv_locks_unsafe_for_binlog
-		     || trx->isolation_level == TRX_ISO_READ_COMMITTED)
+		     || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && prebuilt->select_lock_type != LOCK_NONE
 		    && !did_semi_consistent_read) {
 
@@ -4217,7 +4234,7 @@ requires_clust_rec:
 		}
 
 		if ((srv_locks_unsafe_for_binlog
-		     || trx->isolation_level == TRX_ISO_READ_COMMITTED)
+		     || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && prebuilt->select_lock_type != LOCK_NONE) {
 			/* Note that both the secondary index record
 			and the clustered index record were locked. */
@@ -4230,7 +4247,7 @@ requires_clust_rec:
 			/* The record is delete marked: we can skip it */
 
 			if ((srv_locks_unsafe_for_binlog
-			     || trx->isolation_level == TRX_ISO_READ_COMMITTED)
+			     || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
 			    && prebuilt->select_lock_type != LOCK_NONE) {
 
 				/* No need to keep a lock on a delete-marked
@@ -4441,7 +4458,7 @@ lock_wait_or_error:
 					       moves_up, &mtr);
 
 		if ((srv_locks_unsafe_for_binlog
-		     || trx->isolation_level == TRX_ISO_READ_COMMITTED)
+		     || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
 		    && !same_user_rec) {
 
 			/* Since we were not able to restore the cursor

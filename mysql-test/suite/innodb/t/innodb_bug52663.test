@@ -1,0 +1,34 @@
+--source include/have_innodb.inc
+
+set session transaction isolation level read committed;
+
+create table innodb_bug52663 (what varchar(5), id integer, count integer, primary key
+(what, id)) engine=innodb;
+insert into innodb_bug52663 values ('total', 0, 0);
+begin;
+
+connect (addconroot, localhost, root,,);
+connection addconroot;
+set session transaction isolation level read committed;
+begin;
+
+connection default;
+update innodb_bug52663 set count = count + 1 where what = 'total' and id = 0;
+select * from innodb_bug52663;
+
+connection addconroot;
+--error ER_LOCK_WAIT_TIMEOUT
+update innodb_bug52663 set count = count + 1 where what = 'total' and id = 0;
+select * from innodb_bug52663;
+
+connection default;
+commit;
+
+connection addconroot;
+update innodb_bug52663 set count = count + 1 where what = 'total' and id = 0;
+commit;
+select * from innodb_bug52663;
+
+connection default;
+select * from innodb_bug52663;
+drop table innodb_bug52663;
