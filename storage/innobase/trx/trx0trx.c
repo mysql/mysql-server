@@ -38,6 +38,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "read0read.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "thr0loc.h"
 #include "btr0sea.h"
 #include "os0proc.h"
