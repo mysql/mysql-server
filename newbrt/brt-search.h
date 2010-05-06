@@ -1,9 +1,13 @@
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #ifndef BRT_SEARCH_H
 #define BRT_SEARCH_H
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 enum brt_search_direction_e {
     BRT_SEARCH_LEFT = 1,  /* search left -> right, finds min xy as defined by the compare function */
@@ -24,15 +28,19 @@ typedef int (*brt_search_compare_func_t)(struct brt_search */*so*/, DBT */*x*/, 
 typedef struct brt_search {
     brt_search_compare_func_t compare;
     enum brt_search_direction_e direction;
-    DBT *k;
-    DBT *v;
+    const DBT *k;
+    const DBT *v;
     void *context;
 } brt_search_t;
 
 /* initialize the search compare object */
-static inline brt_search_t *brt_search_init(brt_search_t *so, brt_search_compare_func_t compare, enum brt_search_direction_e direction, DBT *k, DBT *v, void *context) {
+static inline brt_search_t *brt_search_init(brt_search_t *so, brt_search_compare_func_t compare, enum brt_search_direction_e direction, const DBT *k, const DBT *v, void *context) {
     so->compare = compare; so->direction = direction; so->k = k; so->v = v; so->context = context;
     return so;
 }
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif

@@ -45,6 +45,11 @@ else
 $(UTILS): DLINK_FILES=$(TOKUROOT)lib/libtokudb.$(SOEXT)
 $(STATIC_UTILS): LINK_FILES+=$(TOKUROOT)lib/libtokudb.$(AEXT)
 
+ifeq ($(BRTLOADER),cilk)
+	DLINK_FILES += cilkrts stdc++
+	RPATH_DIRS +=  $(CILKROOT)lib64
+endif
+
 $(UTILS) $(STATIC_UTILS): RPATH_DIRS+=$(TOKUROOT)lib
 endif
 

@@ -1,7 +1,14 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
+#ifndef TOKU_CHECKPOINT_H
+#define TOKU_CHECKPOINT_H
+
+#ident "Copyright (c) 2009-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 int toku_set_checkpoint_period(CACHETABLE ct, u_int32_t new_period);
 u_int32_t toku_get_checkpoint_period(CACHETABLE ct);
@@ -75,3 +82,8 @@ typedef struct {
 
 void toku_checkpoint_get_status(CHECKPOINT_STATUS stat);
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
+#endif

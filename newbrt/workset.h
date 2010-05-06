@@ -4,6 +4,11 @@
 #include <toku_list.h>
 #include <toku_pthread.h>
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
+
 // the work struct is the base class for work to be done by some threads
 struct work {
     struct toku_list next;
@@ -79,5 +84,9 @@ static inline void threadset_join(toku_pthread_t tids[], int ntids) {
         int r = toku_pthread_join(tids[i], &ret); assert(r == 0);
     }
 }
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif

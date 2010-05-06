@@ -1,3 +1,8 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "$Id: pqueue.c$"
+#ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+
 #include "test.h"
 #include <toku_assert.h>
 #include <string.h>
@@ -5,6 +10,10 @@
 #include <unistd.h>
 #include "brtloader-internal.h"
 #include "memory.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 static int qsort_compare_ints (const void *a, const void *b) {
     int avalue = *(int*)a;
@@ -26,6 +35,7 @@ static void err_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *
     fprintf(stderr, "error in test");
     abort();
 }
+
 BOOL founddup;
 static void expect_dups_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *val UU(), void *extra UU()) {
     founddup=TRUE;
@@ -53,15 +63,12 @@ static void test_merge_internal (int a[], int na, int b[], int nb, BOOL dups) {
     }
     struct row *MALLOC_N(na+nb, cr);
     DB *dest_db = NULL;
-    struct error_callback_s cb;
-    if (dups) {
-	cb.error_callback = expect_dups_cb;
-	founddup=FALSE;
-    } else {
-	cb.error_callback = err_cb;
-    }
+    struct brtloader_s bl;
+    brt_loader_init_error_callback(&bl);
+    brt_loader_set_error_function(&bl, dups ? expect_dups_cb : err_cb, NULL);
     struct rowset rs = {.data=(char*)ab};
-    merge(cr, ar, na, br, nb, dest_db, compare_ints, &cb, &rs);
+    merge_row_arrays_base(cr, ar, na, br, nb, 0, dest_db, compare_ints, &bl, &rs);
+    brt_loader_call_error_function(&bl);
     if (dups) {
 	assert(founddup);
     } else {
@@ -88,6 +95,7 @@ static void test_merge_internal (int a[], int na, int b[], int nb, BOOL dups) {
     toku_free(ar);
     toku_free(br);
     toku_free(ab);
+    brt_loader_destroy_error_callback(&bl);
 }
 
 /* Test the basic merger. */
@@ -120,7 +128,7 @@ static void test_internal_mergesort_row_array (int a[], int n) {
 	ar[i].vlen = 0;
     }
     struct rowset rs = {.data=(char*)a};
-    mergesort_row_array (ar, n, NULL, compare_ints, NULL, &rs);
+    brt_loader_mergesort_row_array (ar, n, 0, NULL, compare_ints, NULL, &rs);
     int *MALLOC_N(n, tmp);
     for (int i=0; i<n; i++) {
 	tmp[i]=a[i];
@@ -232,7 +240,42 @@ static void fill_rowset (struct rowset *rows,
     }
 }
 
-static void test_merge_files (char *template) {
+static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], const char *name) {
+    int r;
+
+    CACHETABLE ct;
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+
+    TOKUTXN const null_txn = NULL;
+    BRT t = NULL;
+    r = toku_brt_create(&t); assert(r == 0);
+    r = toku_brt_set_bt_compare(t, compare_ints); assert(r == 0);
+    r = toku_brt_open(t, name, 0, 0, ct, null_txn, 0); assert(r==0);
+
+    BRT_CURSOR cursor = NULL;
+    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE); assert(r == 0);
+
+    int i;
+    for (i=0; i<n; i++) {
+	struct check_pair pair = {sizeof sorted_keys[i], &sorted_keys[i], strlen(sorted_vals[i]), sorted_vals[i], 0};
+        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+        if (r != 0) {
+	    assert(pair.call_count ==0);
+	    break;
+	}
+	assert(pair.call_count==1);
+    }
+    
+    struct check_pair pair; memset(&pair, 0, sizeof pair);
+    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+    assert(r != 0);
+
+    r = toku_brt_cursor_close(cursor); assert(r == 0);
+    r = toku_close_brt(t, 0); assert(r==0);
+    r = toku_cachetable_close(&ct);assert(r==0);
+}
+
+    static void test_merge_files (const char *template, const char *output_name) {
     DB *dest_db = NULL;
     struct brtloader_s bl = {.panic              = 0,
 			     .temp_file_template = template};
@@ -242,46 +285,48 @@ static void test_merge_files (char *template) {
     init_merge_fileset(&fs);
 
     int a_keys[] = {   1,    3,    5,    7, 8, 9};
-    int b_keys[] = {      2,    4,    6         };
+    int b_keys[] = { 0,   2,    4,    6         };
     const char *a_vals[] = {"a", "c", "e", "g", "h", "i"};
-    const char *b_vals[] = {"b", "d", "f"};
+    const char *b_vals[] = {"0", "b", "d", "f"};
+    int sorted_keys[] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+    const char *sorted_vals[] = { "0", "a", "b", "c", "d", "e", "f", "g", "h", "i" };
     struct rowset aset, bset;
     fill_rowset(&aset, a_keys, a_vals, 6);
-    fill_rowset(&bset, b_keys, b_vals, 3);
+    fill_rowset(&bset, b_keys, b_vals, 4);
+    toku_brt_loader_set_n_rows(&bl, 6+3);
 
-    struct error_callback_s cb;
-    cb.error_callback = err_cb;
-    r = sort_and_write_rows(&aset, &fs, &bl, dest_db, compare_ints, &cb, 0);  CKERR(r);
-    bl.n_rows += 6;
-    r = sort_and_write_rows(&bset, &fs, &bl, dest_db, compare_ints, &cb, 0);  CKERR(r);
-    bl.n_rows += 3;
+    brt_loader_set_error_function(&bl, err_cb, NULL);
+    r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
+    r = brt_loader_sort_and_write_rows(&bset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
     assert(fs.n_temp_files==2 && fs.n_temp_files_limit >= fs.n_temp_files);
     destroy_rowset(&aset);
     destroy_rowset(&bset);
     for (int i=0; i<2; i++) assert(fs.data_fidxs[i].idx != -1);
 
-    r = merge_files(&fs, &bl, dest_db, compare_ints, &cb, 0); CKERR(r);
+    QUEUE q;
+    r = queue_create(&q, 0xFFFFFFFF); // infinite queue.
+    assert(r==0);
 
-    assert(fs.n_temp_files==1);
+    r = merge_files(&fs, &bl, 0, dest_db, compare_ints, 0, q); CKERR(r);
 
-    FIDX inf = fs.data_fidxs[0];
-    r = brtloader_fi_reopen(&bl.file_infos, inf, "r");
-    CKERR(r);
-    char *name = toku_strdup(template);
-    int   fd  = mkstemp(name);
-    fprintf(stderr, "Final data in %s\n", name);
-    assert(r>=0);
+    assert(fs.n_temp_files==0);
+
     struct descriptor desc = {.version = 1, .dbt = (DBT){.size = 4, .data="abcd"}};
-    r = write_file_to_dbfile(fd, inf, &bl, &desc, 1);
-    CKERR(r);
-    r = brtloader_fi_close(&bl.file_infos, inf);
-    CKERR(r);
-    r = brtloader_fi_unlink(&bl.file_infos, fs.data_fidxs[0]);
-    CKERR(r);
+
+    int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
+    assert(fd>=0);
     
+    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q);
+    assert(r==0);
+
     destroy_merge_fileset(&fs);
     brtloader_fi_destroy(&bl.file_infos, FALSE);
-    toku_free(name);
+
+    // verify the dbfile
+    verify_dbfile(10, sorted_keys, sorted_vals, output_name);
+
+    r = queue_destroy(q);
+    assert(r==0);
 }
 
 /* Test to see if we can open temporary files. */
@@ -309,13 +354,23 @@ int test_main (int argc, const char *argv[]) {
 
     int  templen = strlen(directory)+15;
     char template[templen];
-    int n = snprintf(template, templen, "%s/tempXXXXXX", directory);
-    assert (n>0 && n<templen);
-
+    {
+	int n = snprintf(template, templen, "%s/tempXXXXXX", directory);
+	assert (n>0 && n<templen);
+    }
+    char output_name[templen];
+    {
+	int n = snprintf(output_name, templen, "%s/data.tokudb", directory);
+	assert (n>0 && n<templen);
+    }
     test_read_write_rows(template);
     test_merge();
     test_mergesort_row_array();
-    test_merge_files(template);
+    test_merge_files(template, output_name);
     
     return 0;
 }
+
+#if defined(__cplusplus)
+};
+#endif

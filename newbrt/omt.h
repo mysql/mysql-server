@@ -1,9 +1,13 @@
-#if !defined(OMT_H)
-#define OMT_H
+#if !defined(TOKU_OMT_H)
+#define TOKU_OMT_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 // Order Maintenance Tree (OMT)
 //
@@ -504,5 +508,9 @@ void toku_omt_cursor_associate(OMT omt, OMTCURSOR c);
 //  We do not want to grab two locks (one for omt, and one for the old
 //  associated omt).
 
-#endif  /* #ifndef OMT_H */
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
+#endif  /* #ifndef TOKU_OMT_H */
 

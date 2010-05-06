@@ -1,7 +1,7 @@
 #ifndef LEAFENTRY_H
 #define LEAFENTRY_H
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 
@@ -33,6 +33,10 @@
 #include <toku_portability.h>
 #include "rbuf.h"
 #include "x1764.h"
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 #if 0
     Memory format of packed nodup leaf entry
@@ -141,6 +145,10 @@ void le_full_promotion(LEAFENTRY le, size_t *new_leafentry_memorysize, size_t *n
 //Requires: le is not a provdel
 //Requires: le is not marked committed
 //Requires: The outermost uncommitted xid in le has actually committed (le was not yet updated to reflect that)
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif
 

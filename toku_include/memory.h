@@ -1,14 +1,15 @@
 #ifndef MEMORY_H
 #define MEMORY_H
 
-#if defined __cplusplus
-extern "C" {
-#endif
-
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include <stdlib.h>
 #include <toku_portability.h>
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
 
 /* Tokutek memory allocation functions and macros.
  * These are functions for malloc and free */
@@ -56,27 +57,27 @@ void *toku_realloc(void *, size_t size)  __attribute__((__visibility__("default"
  *    struct foo *MALLOC(x);
  * and you cannot go wrong.
  */
-#define MALLOC(v) v = toku_malloc(sizeof(*v))
+#define MALLOC(v) v = (__typeof__(v)) toku_malloc(sizeof(*v))
 /* MALLOC_N is like calloc(Except no 0ing of data):  It makes an array.  Write
  *   int *MALLOC_N(5,x);
  * to make an array of 5 integers.
  */
-#define MALLOC_N(n,v) v = toku_malloc((n)*sizeof(*v))
+#define MALLOC_N(n,v) v = (__typeof__(v)) toku_malloc((n)*sizeof(*v))
 
 //CALLOC_N is like calloc with auto-figuring out size of members
-#define CALLOC_N(n,v) v = toku_calloc((n), sizeof(*v)) 
+#define CALLOC_N(n,v) v = (__typeof__(v)) toku_calloc((n), sizeof(*v)) 
 
 #define CALLOC(v) CALLOC_N(1,v)
 
-#define REALLOC_N(n,v) v = toku_realloc(v, (n)*sizeof(*v))
+#define REALLOC_N(n,v) v = (__typeof__(v)) toku_realloc(v, (n)*sizeof(*v))
 
 // XMALLOC macros are like MALLOC except they abort if the operation fails
-#define XMALLOC(v) v = toku_xmalloc(sizeof(*v))
-#define XMALLOC_N(n,v) v = toku_xmalloc((n)*sizeof(*v))
-#define XCALLOC_N(n,v) v = toku_xcalloc((n), (sizeof(*v)))
+#define XMALLOC(v) v = (__typeof__(v)) toku_xmalloc(sizeof(*v))
+#define XMALLOC_N(n,v) v = (__typeof__(v)) toku_xmalloc((n)*sizeof(*v))
+#define XCALLOC_N(n,v) v = (__typeof__(v)) toku_xcalloc((n), (sizeof(*v)))
 
 #define XCALLOC(v) XCALLOC_N(1,(v))
-#define XREALLOC_N(n,v) v = toku_xrealloc(v, (n)*sizeof(*v))
+#define XREALLOC_N(n,v) v = (__typeof__(v)) toku_xrealloc(v, (n)*sizeof(*v))
 
 /* If you have a type such as 
  *    struct pma *PMA;
@@ -120,7 +121,7 @@ extern int toku_realloc_counter;
 extern int toku_calloc_counter;
 extern int toku_free_counter;
 
-#if defined __cplusplus
+#if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif
 

@@ -1,5 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
 /* Purpose of this file is to provide the world with everything necessary
  * to use the xids and nothing else.  
@@ -16,10 +16,14 @@
 #define XIDS_H
 
 #include "x1764.h"
-
 #include "rbuf.h"
 #include "wbuf.h"
 #include "tokuconst.h"
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
 //Retrieve an XIDS representing the root transaction.
 XIDS xids_get_root_xids(void);
 
@@ -53,5 +57,10 @@ void wbuf_xids(struct wbuf *wb, XIDS xids);
 void wbuf_nocrc_xids(struct wbuf *wb, XIDS xids);
 
 void xids_fprintf(FILE* fp, XIDS xids);
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
 
 #endif 

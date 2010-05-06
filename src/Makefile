@@ -27,7 +27,9 @@ NOIPO_YDB     = static_libtokudb.$(AEXT)
 LIBNAME=libtokudb
 
 LIBRARY=$(LIBNAME).$(SOEXT)
+
 LIBRARY_S=$(LIBNAME).$(AEXT)
+
 OBJS_RAW = \
 	ydb_lib \
 	ydb \

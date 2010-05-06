@@ -1,7 +1,7 @@
 #ifndef WBUF_H
 #define WBUF_H
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "x1764.h"
@@ -9,6 +9,10 @@
 #include "toku_assert.h"
 #include <errno.h>
 #include <string.h>
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 #define CRC_INCR
 
@@ -25,9 +29,9 @@ struct wbuf {
 };
 
 static inline void wbuf_nocrc_init (struct wbuf *w, void *buf, DISKOFF size) {
-    w->buf=buf;
-    w->size=size;
-    w->ndone=0;
+    w->buf = (unsigned char *) buf;
+    w->size = size;
+    w->ndone = 0;
 }
 
 static inline void wbuf_init (struct wbuf *w, void *buf, DISKOFF size) {
@@ -99,7 +103,7 @@ static inline void wbuf_uint (struct wbuf *w, u_int32_t i) {
 }
 
 static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, bytevec bytes_bv, u_int32_t nbytes) {
-    const unsigned char *bytes=bytes_bv;
+    const unsigned char *bytes = (const unsigned char *) bytes_bv;
 #if 0
     { int i; for (i=0; i<nbytes; i++) wbuf_nocrc_char(w, bytes[i]); }
 #else
@@ -214,5 +218,8 @@ static inline void wbuf_FILENUMS (struct wbuf *w, FILENUMS v) {
     }
 }
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif

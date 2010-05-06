@@ -336,7 +336,7 @@ CFLAGS += $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
 CFLAGS += $(SYMBOLS) $(SKIP_WARNING) $(C99) $(CCQUIET)
 
 LDFLAGS_NOLIB = $(OPTFLAGS) $(SYMBOLS) $(GCOV_FLAGS) $(PROF_FLAGS)
-LDFLAGS = $(LDFLAGS_NOLIB) $(LINK_FILES) $(ALWAYS_LINK) $(LINK_DLINK_FILES) $(LINK_RPATH) $(LINK_LPATH)
+LDFLAGS = $(LDFLAGS_NOLIB) $(LINK_LPATH) $(LINK_FILES) $(ALWAYS_LINK) $(LINK_DLINK_FILES) $(LINK_RPATH)
 
 ifneq ($(CRUNTIME),)
 LDFLAGS += -$(CRUNTIME)
@@ -492,13 +492,15 @@ BIN_FROM_O_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS_NOLIB) $(BINOUTPUT)$@
 %.$(OEXT):%.c        $(DEPEND_COMPILE)
 	$(CC) $< -c $(CPPFLAGS) $(CFLAGS) $(OOUTPUT)$@
 
-CILKPP=/usr/local/cilk/bin/cilk++
+CILKROOT=/usr/local/cilk/
+CILKPP=$(CILKROOT)bin/cilk++
 CILKFLAGS=$(filter-out -Wbad-function-cast -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -std=c99,$(CFLAGS)) $(CPPFLAGS)
 %$(BINSUF):%.cilk   $(DEPEND_COMPILE)
 	$(CILKPP) $(CILKFLAGS) $< $(LOADLIBES) -o $@
 %.serial$(BINSUF): %.cilk
 	$(CILKPP) -fcilk-stub $(CILKFLAGS) $^ $(LOADLIBES) -o $@
 
+CXXFLAGS=$(filter-out -Wbad-function-cast -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations -std=c99,$(CFLAGS)) $(CPPFLAGS)
 
 %.$(AEXT):
 	$(AR) $(ARFLAGS) $(AROUTPUT)$@ $(filter %.$(OEXT),$^) $(patsubst %.bundle, %.bundle/*.$(OEXT), $(filter-out %.$(OEXT),$^))
@@ -532,7 +534,11 @@ endif
 
 SO_FLAGS=$(SHARED) $(BIN_FROM_O_FLAGS) $(EXPORTMAP)
 %.$(SOEXT): $(EXPORTMAPFILE)
+ifeq ($(BRTLOADER),cilk)
+	$(CILKPP) $(SO_FLAGS)
+else
 	$(CC) $(SO_FLAGS)
+endif
 
 #Testing tools
 ifeq ($(SUMMARIZE),1)

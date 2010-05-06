@@ -2,7 +2,7 @@
 #define TOKURECOVER_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
@@ -12,6 +12,10 @@
 #include "brttypes.h"
 #include "memory.h"
 #include "x1764.h"
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 // Run tokudb recovery from the log
 // Returns 0 if success
@@ -36,5 +40,9 @@ void toku_recover_set_callback (void (*)(void*), void*);
 void toku_recover_set_callback2 (void (*)(void*), void*);
 
 extern int tokudb_recovery_trace;
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif // TOKURECOVER_H

@@ -1,7 +1,7 @@
 #ifndef _TOKU_MEMPOOL_H
 #define _TOKU_MEMPOOL_H
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 /* a memory pool is a contiguous region of memory that supports single
@@ -10,6 +10,10 @@
    must be relocated by the application to a new memory pool. */
 
 #include <sys/types.h>
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 struct mempool;
 
@@ -48,5 +52,10 @@ void toku_mempool_mfree(struct mempool *mp, void *vp, size_t size);
 static inline int toku_mempool_inrange(struct mempool *mp, void *vp, size_t size) {
     return (mp->base <= vp) && ((char *)vp + size <= (char *)mp->base + mp->size);
 }
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
 
 #endif

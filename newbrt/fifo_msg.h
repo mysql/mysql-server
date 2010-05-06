@@ -1,6 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
-#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
 
 /* The purpose of this file is to provide access to the fifo_msg,
@@ -9,11 +9,12 @@
  * NOTE: Accessor functions return all values in host byte order.
  */
 
+#ifndef TOKU_FIFO_MSG_H
+#define TOKU_FIFO_MSG_H
 
-
-
-#ifndef FIFO_MSG_H
-#define FIFO_MSG_H
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 u_int32_t fifo_msg_get_keylen(FIFO_MSG fifo_msg);
 
@@ -32,6 +33,10 @@ u_int32_t fifo_msg_get_size(FIFO_MSG fifo_msg);
 // Return number of bytes required for a fifo_msg created from
 // the given brt_msg
 u_int32_t fifo_msg_get_size_required(BRT_MSG brt_msg);
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
 
 #endif
 

@@ -1,5 +1,5 @@
 #ident "$Id$"
-#ident "Copyright (c) 2007, 2008, 2009 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 /* Tell me the diff between two brt files. */
@@ -7,7 +7,6 @@
 #include "includes.h"
 
 static int dump_data = 1;
-
 
 static CACHETABLE ct;
 
@@ -204,23 +203,17 @@ get_unaligned_uint32(unsigned char *p) {
     return *(u_int32_t *)p;
 }
 
-#define SUB_BLOCK_XSUM 1
-
 struct sub_block {
   u_int32_t compressed_size;
   u_int32_t uncompressed_size;
-#if SUB_BLOCK_XSUM
   u_int32_t xsum;
-#endif
 };
 
 static void
 sub_block_deserialize(struct sub_block *sb, unsigned char *sub_block_header) {
     sb->compressed_size = toku_dtoh32(get_unaligned_uint32(sub_block_header+0));
     sb->uncompressed_size = toku_dtoh32(get_unaligned_uint32(sub_block_header+4));
-#if SUB_BLOCK_XSUM
     sb->xsum = toku_dtoh32(get_unaligned_uint32(sub_block_header+8));
-#endif
 }
 
 static void
@@ -230,21 +223,17 @@ verify_block(unsigned char *cp, u_int64_t size) {
     unsigned char *sub_block_header = &cp[node_header];
     u_int32_t n_sub_blocks = toku_dtoh32(get_unaligned_uint32(&sub_block_header[0]));
     u_int32_t header_length = node_header + n_sub_blocks * sizeof (struct sub_block);
-#if SUB_BLOCK_XSUM
     header_length += sizeof (u_int32_t); // CRC
-#endif
     if (header_length > size) {
         printf("header length too big: %u\n", header_length);
         return;
     }
-#if SUB_BLOCK_XSUM
     u_int32_t header_xsum = x1764_memory(cp, header_length);
     u_int32_t expected_xsum = toku_dtoh32(get_unaligned_uint32(&cp[header_length]));
     if (header_xsum != expected_xsum) {
         printf("header checksum failed: %u %u\n", header_xsum, expected_xsum);
         return;
     }
-#endif
 
     // deserialize the sub block header
     struct sub_block sub_block[n_sub_blocks];
@@ -257,14 +246,10 @@ verify_block(unsigned char *cp, u_int64_t size) {
     // verify the sub block header
     u_int32_t offset = header_length + 4;
     for (u_int32_t i = 0 ; i < n_sub_blocks; i++) {
-#if SUB_BLOCK_XSUM
         u_int32_t xsum = x1764_memory(cp + offset, sub_block[i].compressed_size);
         printf("%u: %u %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size, sub_block[i].xsum);
         if (xsum != sub_block[i].xsum)
             printf(" fail %u", xsum);
-#else
-        printf("%u: %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size);
-#endif
         printf("\n");
         offset += sub_block[i].compressed_size;
     }
@@ -286,23 +271,6 @@ dump_block(int f, BLOCKNUM blocknum, struct brt_header *h) {
     }
     toku_free(vp);
 }
-
-#if 0
-static void
-hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {
-    u_int64_t i;
-    for (i=0; i<size; i++) {
-        if ((i % 32) == 0)
-            printf("%"PRIu64": ", offset+i);
-        printf("%2.2X", vp[i]);
-        if (((i+1) % 4) == 0)
-            printf(" ");
-        if (((i+1) % 32) == 0)
-            printf("\n");
-    }
-    printf("\n");
-}
-#endif
 
 static void
 hex_dump(unsigned char *vp, u_int64_t offset, u_int64_t size) {

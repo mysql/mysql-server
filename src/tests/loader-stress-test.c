@@ -4,6 +4,7 @@
 
 #include "test.h"
 #include "toku_pthread.h"
+#include "toku_atomic.h"
 #include <db.h>
 #include <sys/stat.h>
 
@@ -14,6 +15,8 @@ int NUM_DBS=5;
 int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
+int CACHESIZE=1024; // MB
+int ALLOW_DUPS=0;
 enum {MAGIC=311};
 
 //
@@ -178,7 +181,8 @@ static void check_results(DB **dbs)
 }
 
 static void *expect_poll_void = &expect_poll_void;
-static int poll_count=0;
+static uint64_t poll_count=0;
+static uint64_t bomb_after_poll_count=UINT64_MAX;
 static int poll_function (void *extra, float progress) {
     if (0) {
 	static int did_one=0;
@@ -193,19 +197,32 @@ static int poll_function (void *extra, float progress) {
     }
     assert(extra==expect_poll_void);
     assert(0.0<=progress && progress<=1.0);
-    poll_count++;
-    return 0;
+    poll_count++; // Calls to poll_function() are protected by a lock, so we don't have to do this atomically.
+    if (poll_count>bomb_after_poll_count)
+	return ECANCELED;
+    else
+	return 0;
+}
+
+static struct timeval starttime;
+static double elapsed_time (void) {
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    return now.tv_sec - starttime.tv_sec + 1e-6*(now.tv_usec - starttime.tv_usec);
 }
 
 static void test_loader(DB **dbs)
 {
+    gettimeofday(&starttime, NULL);
     int r;
     DB_TXN    *txn;
     DB_LOADER *loader;
     uint32_t db_flags[MAX_DBS];
     uint32_t dbt_flags[MAX_DBS];
+    uint32_t flags = DB_NOOVERWRITE;
+    if ( (USE_PUTS == 1) && (ALLOW_DUPS == 1) ) flags = DB_YESOVERWRITE;
     for(int i=0;i<MAX_DBS;i++) { 
-        db_flags[i] = DB_NOOVERWRITE; 
+        db_flags[i] = flags;
         dbt_flags[i] = 0;
     }
     uint32_t loader_flags = USE_PUTS; // set with -p option
@@ -240,33 +257,51 @@ static void test_loader(DB **dbs)
     poll_count=0;
 
     // close the loader
-    printf("closing"); fflush(stdout);
+    printf("%9.6fs closing", elapsed_time()); fflush(stdout);
     r = loader->close(loader);
     printf(" done\n");
-    CKERR(r);
+    CKERR2s(r,0,ECANCELED);
 
-    if (!USE_PUTS)
-        assert(poll_count>0);
+    if (r==0) {
 
-    r = txn->commit(txn, 0);
-    CKERR(r);
+	if ( USE_PUTS == 0 ) {
+	    if (poll_count == 0) printf("%s:%d\n", __FILE__, __LINE__);
+	    assert(poll_count>0);
+	}
 
-    // verify the DBs
-    if ( CHECK_RESULTS ) {
-        check_results(dbs);
+	r = txn->commit(txn, 0);
+	CKERR(r);
+
+	// verify the DBs
+	if ( CHECK_RESULTS ) {
+	    check_results(dbs);
+	}
+    } else {
+	r = txn->abort(txn);
+	CKERR(r);
     }
 }
 
 
+char *free_me = NULL;
+char *env_dir = ENVDIR; // the default env_dir.
+
 static void run_test(void) 
 {
     int r;
-    r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    {
+	int len = strlen(env_dir) + 20;
+	char syscmd[len];
+	r = snprintf(syscmd, len, "rm -rf %s", env_dir);
+	assert(r<len);
+	r = system(syscmd);                                                                                   CKERR(r);
+    }
+    r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
     r = env->set_default_dup_compare(env, uint_dbt_cmp);                                                      CKERR(r);
+    r = env->set_cachesize(env, CACHESIZE / 1024, (CACHESIZE % 1024)*1024*1024, 1);                           CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
 //    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
@@ -314,6 +349,7 @@ static void do_args(int argc, char * const argv[]);
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
     run_test();
+    if (free_me) toku_free(free_me);
     return 0;
 }
 
@@ -330,7 +366,9 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows>\n%s\n", cmd);
+	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows> [ -b <num_calls> ]\n%s\n", cmd);
+	    fprintf(stderr, "  where -b <num_calls>   causes the poll function to return nonzero after <num_calls>\n");
+	    fprintf(stderr, "        -e <env>         uses <env> to construct the directory (so that different tests of loader-stress-test can run concurrently)\n");
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-d")==0) {
             argc--; argv++;
@@ -340,6 +378,14 @@ static void do_args(int argc, char * const argv[]) {
                 resultcode=1;
                 goto do_usage;
             }
+	} else if (strcmp(argv[0], "-e")==0) {
+            argc--; argv++;
+	    if (free_me) toku_free(free_me);
+	    int len = strlen(ENVDIR) + strlen(argv[0]) + 2;
+	    char full_env_dir[len];
+	    int r = snprintf(full_env_dir, len, "%s.%s", ENVDIR, argv[0]);
+	    assert(r<len);
+	    free_me = env_dir = toku_strdup(full_env_dir);
         } else if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
 	} else if (strcmp(argv[0],"-q")==0) {
@@ -352,6 +398,18 @@ static void do_args(int argc, char * const argv[]) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = 1;
+        } else if (strcmp(argv[0], "-m")==0) {
+            argc--; argv++;
+            CACHESIZE = atoi(argv[0]);
+        } else if (strcmp(argv[0], "-y")==0) {
+            ALLOW_DUPS = 1;
+	} else if (strcmp(argv[0], "-b")==0) {
+	    argc--; argv++;
+	    char *end;
+	    errno=0;
+	    bomb_after_poll_count = strtoll(argv[0], &end, 10);
+	    assert(errno==0);
+	    assert(*end==0); // make sure we consumed the whole integer.
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;

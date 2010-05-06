@@ -66,6 +66,8 @@ BRT_SOURCES = \
   merger \
   minicron \
   omt \
+  pqueue \
+  queue \
   recover \
   roll \
   rollback \
@@ -99,6 +101,15 @@ NEWBRT_O_FILES = newbrt.o
 endif
 
 NEWBRT_O_FILES += brtloader.$(OEXT)
+
+ifeq ($(BRTLOADER),cilk)
+brtloader.$(OEXT): brtloader.c
+	$(CILKPP) -DTOKU_ALLOW_DEPRECATED $(CILKFLAGS) -c $< 
+endif
+ifeq ($(BRTLOADER),cxx)
+brtloader.$(OEXT): brtloader.c
+	$(CXX) -DTOKU_ALLOW_DEPRECATED $(CXXFLAGS) -c $<
+endif
 
 $(NEWBRT): $(NEWBRT_O_FILES)
 
@@ -158,3 +169,9 @@ clean-local:
 # After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
 testdump: brtdump$(BINSUF)
 	./brtdump  ../src/tests/dir.test_log5.c.tdb.recover/foo.db > dump.r && ./brtdump  ../src/tests/dir.test_log5.c.tdb/foo.db > dump.$(OEXT) && diff dump.$(OEXT) dump.r
+
+foo:
+	@echo CILKROOT $(CILKROOT)
+	@echo CILKPP $(CILKPP)
+	@echo BRTLOADER $(BRTLOADER)
+	@echo BDBDIR $(BDBDIR)

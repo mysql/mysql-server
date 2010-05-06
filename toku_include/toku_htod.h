@@ -19,10 +19,8 @@
  *       HOST AND A LITTLE-ENDIAN DISK.
  */
 
-#ifndef HTOD_H
-#define HTOD_H
-
-static const int64_t toku_byte_order_host = 0x0102030405060708LL;
+#ifndef _TOKU_HTOD_H
+#define _TOKU_HTOD_H
 
 #include <endian.h>
 #if !defined(__BYTE_ORDER) || \
@@ -30,6 +28,12 @@ static const int64_t toku_byte_order_host = 0x0102030405060708LL;
     !defined(__BIG_ENDIAN)
 #error Standard endianness things not all defined
 #endif
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
+
+static const int64_t toku_byte_order_host = 0x0102030405060708LL;
 
 #define NETWORK_BYTE_ORDER  (__BIG_ENDIAN)
 #define INTEL_BYTE_ORDER    (__LITTLE_ENDIAN)
@@ -69,6 +73,11 @@ toku_htod32(uint32_t i) {
 #else
 #error Not supported
 #endif
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
 
 #endif
 
