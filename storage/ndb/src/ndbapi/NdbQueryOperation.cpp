@@ -1381,8 +1381,8 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
       /* m_fullFrags contains any fragments that are complete (for this batch)
        * but have not yet been moved (under mutex protection) to 
        * m_applFrags.*/
-      if(m_fullFrags.top()==NULL){
-        if(isBatchComplete()){
+      if (m_fullFrags.size()==0) {
+        if (isBatchComplete()) {
           // Request another scan batch, may already be at EOF
           const int sent = sendFetchMore(m_transaction.getConnectedNodeId());
           if (sent==0) {  // EOF reached?
@@ -1404,9 +1404,9 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
         }
       } // if (m_fullFrags.top()==NULL)
 
-      while (m_fullFrags.top()!=NULL) {
-        m_applFrags.add(*m_fullFrags.top());
-        m_fullFrags.pop();
+      NdbRootFragment* frag;
+      while ((frag=m_fullFrags.pop()) != NULL) {
+        m_applFrags.add(*frag);
       }
 
       if (m_applFrags.getCurrent() != NULL) {
@@ -1428,8 +1428,11 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
     /* The root operation is a lookup. Lookups are guaranteed to be complete
      * before NdbTransaction::execute() returns. Therefore we do not set
      * the lock, because we know that the signal receiver thread will not
-     * be accessing  m_fullFrags at this time.*/
-    if(m_fullFrags.top()==NULL){
+     * be accessing  m_fullFrags at this time.
+     */
+    NdbRootFragment* frag = m_fullFrags.pop();
+    if (frag==NULL)
+    {
       /* Getting here means that either:
        *  - No results was returned (TCKEYREF)
        *  - or, the application called nextResult() twice for a lookup query.
@@ -1437,11 +1440,13 @@ NdbQueryImpl::fetchMoreResults(bool forceSend){
       m_state = EndOfData;
       postFetchRelease();
       return FetchResult_scanComplete;
-    }else{
+    }
+    else
+    {
       /* Move fragment from receiver thread's container to application 
        *  thread's container.*/
-      m_applFrags.add(*m_fullFrags.pop());
-      assert(m_fullFrags.top()==NULL); // Only one stream for lookups.
+      m_applFrags.add(*frag);
+      assert(m_fullFrags.pop()==NULL); // Only one stream for lookups.
       assert(m_applFrags.getCurrent()->getResultStream(0)
              .getReceiver().hasResults());
       return FetchResult_ok;
@@ -2308,6 +2313,8 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
   assert(m_pendingFrags==0 || m_error.code != 0);
   m_error.code = 0;  // Ignore possible errorcode caused by previous fetching
 
+  /* Discard pending result in order to not confuse later counting of m_finalBatchFrags */
+  m_fullFrags.clear();
 
   if (m_finalBatchFrags<getRootFragCount())  // TC has an open scan cursor.
   {
@@ -2330,14 +2337,14 @@ NdbQueryImpl::closeTcCursor(bool forceSend)
           setErrorCode(m_error.code);
           return -1;
         }
-        while(m_fullFrags.top()!=NULL)
+        NdbRootFragment* frag;
+        while ((frag=m_fullFrags.pop()) != NULL)
         {
-          if(m_fullFrags.top()->finalBatchReceived())
+          if (frag->finalBatchReceived())
           {
             // This was the final batch for that root fragment.
             m_finalBatchFrags++;
           }
-          m_fullFrags.pop();
         }
         break;
       case FetchResult_nodeFail:
@@ -3821,7 +3828,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
   NdbResultStream& resultStream = *m_resultStreams[fragNo];
   resultStream.getReceiver().m_tcPtrI = tcPtrI;  
 
-  if (getQuery().m_rootFrags[fragNo].finalBatchReceived())
+  if (rootFrag.finalBatchReceived())
   {
     m_queryImpl.m_finalBatchFrags++;
   }
