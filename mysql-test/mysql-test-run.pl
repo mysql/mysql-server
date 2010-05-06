@@ -126,7 +126,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,maria,parts,vcol";
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,maria,parts,vcol,oqgraph";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -1908,6 +1908,33 @@ sub detect_plugins {
 
     $ENV{'HA_EXAMPLE_SO'}="'".$plugin_filename."'";
     $ENV{'EXAMPLE_PLUGIN_LOAD'}="--plugin_load=EXAMPLE=".$plugin_filename;
+  }
+
+  # --------------------------------------------------------------------------
+  # Add the path where mysqld will find graph_engine.so
+  # --------------------------------------------------------------------------
+  if ($mysql_version_id >= 50100 && !(IS_WINDOWS && $opt_embedded_server)) {
+    my $plugin_filename;
+    if (IS_WINDOWS)
+    {
+       $plugin_filename = "oqgraph_engine.dll";
+    }
+    else
+    {
+       $plugin_filename = "oqgraph_engine.so";
+    }
+    my $lib_oqgraph_plugin=
+      mtr_file_exists(vs_config_dirs('storage/oqgraph',$plugin_filename),
+                      "$basedir/storage/oqgraph/.libs/".$plugin_filename,
+                      "$basedir/lib/mariadb/plugin/".$plugin_filename,
+                      "$basedir/lib/mysql/plugin/".$plugin_filename);
+    $ENV{'OQGRAPH_PLUGIN'}=
+      ($lib_oqgraph_plugin ? basename($lib_oqgraph_plugin) : "");
+    $ENV{'OQGRAPH_PLUGIN_OPT'}= "--plugin-dir=".
+      ($lib_oqgraph_plugin ? dirname($lib_oqgraph_plugin) : "");
+
+    $ENV{'GRAPH_ENGINE_SO'}="'".$plugin_filename."'";
+    $ENV{'OQGRAPH_PLUGIN_LOAD'}="--plugin_load=;OQGRAPH=".$plugin_filename.";";
   }
 }
 
