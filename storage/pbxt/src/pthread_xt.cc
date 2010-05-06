@@ -39,25 +39,25 @@
 
 #ifdef XT_WIN
 
-void xt_p_init_threading(void)
+xtPublic void xt_p_init_threading(void)
 {
 }
 
-int xt_p_set_normal_priority(pthread_t thr)
+xtPublic int xt_p_set_normal_priority(pthread_t thr)
 {
 	if (!SetThreadPriority (thr, THREAD_PRIORITY_NORMAL))
 		return GetLastError();
 	return 0;
 }
 
-int xt_p_set_low_priority(pthread_t thr)
+xtPublic int xt_p_set_low_priority(pthread_t thr)
 {
 	if (!SetThreadPriority (thr, THREAD_PRIORITY_LOWEST))
 		return GetLastError();
 	return 0;
 }
 
-int xt_p_set_high_priority(pthread_t thr)
+xtPublic int xt_p_set_high_priority(pthread_t thr)
 {
 	if (!SetThreadPriority (thr, THREAD_PRIORITY_HIGHEST))
 		return GetLastError();
@@ -67,9 +67,9 @@ int xt_p_set_high_priority(pthread_t thr)
 #define XT_RWLOCK_MAGIC 0x78AC390E
 
 #ifdef XT_THREAD_LOCK_INFO
-int xt_p_mutex_init(xt_mutex_type *mutex, const pthread_mutexattr_t *attr, const char *n)
+xtPublic int xt_p_mutex_init(xt_mutex_type *mutex, const pthread_mutexattr_t *attr, const char *n)
 #else
-int xt_p_mutex_init(xt_mutex_type *mutex, const pthread_mutexattr_t *attr)
+xtPublic int xt_p_mutex_init(xt_mutex_type *mutex, const pthread_mutexattr_t *attr)
 #endif
 {
 	InitializeCriticalSection(&mutex->mt_cs);
@@ -80,7 +80,7 @@ int xt_p_mutex_init(xt_mutex_type *mutex, const pthread_mutexattr_t *attr)
 	return 0;
 }
 
-int xt_p_mutex_destroy(xt_mutex_type *mutex)
+xtPublic int xt_p_mutex_destroy(xt_mutex_type *mutex)
 {
 	DeleteCriticalSection(&mutex->mt_cs);
 #ifdef XT_THREAD_LOCK_INFO
@@ -89,7 +89,7 @@ int xt_p_mutex_destroy(xt_mutex_type *mutex)
 	return 0;
 }
 
-int xt_p_mutex_lock(xt_mutex_type *mx)
+xtPublic int xt_p_mutex_lock(xt_mutex_type *mx)
 {
 	EnterCriticalSection(&mx->mt_cs);
 #ifdef XT_THREAD_LOCK_INFO
@@ -98,7 +98,7 @@ int xt_p_mutex_lock(xt_mutex_type *mx)
 	return 0;
 }
 
-int xt_p_mutex_unlock(xt_mutex_type *mx)
+xtPublic int xt_p_mutex_unlock(xt_mutex_type *mx)
 {
 	LeaveCriticalSection(&mx->mt_cs);
 #ifdef XT_THREAD_LOCK_INFO
@@ -107,7 +107,7 @@ int xt_p_mutex_unlock(xt_mutex_type *mx)
 	return 0;
 }
 
-int xt_p_mutex_trylock(xt_mutex_type *mutex)
+xtPublic int xt_p_mutex_trylock(xt_mutex_type *mutex)
 {
 #if(_WIN32_WINNT >= 0x0400)
 	/* NOTE: MySQL bug! was using?!
@@ -130,9 +130,9 @@ int xt_p_mutex_trylock(xt_mutex_type *mutex)
 }
 
 #ifdef XT_THREAD_LOCK_INFO
-int xt_p_rwlock_init(xt_rwlock_type *rwl, const pthread_condattr_t *attr, const char *n)
+xtPublic int xt_p_rwlock_init(xt_rwlock_type *rwl, const pthread_condattr_t *attr, const char *n)
 #else
-int xt_p_rwlock_init(xt_rwlock_type *rwl, const pthread_condattr_t *attr)
+xtPublic int xt_p_rwlock_init(xt_rwlock_type *rwl, const pthread_condattr_t *attr)
 #endif
 {
 	int result;
@@ -173,7 +173,7 @@ int xt_p_rwlock_init(xt_rwlock_type *rwl, const pthread_condattr_t *attr)
 	return result;
 }
 
-int xt_p_rwlock_destroy(xt_rwlock_type *rwl)
+xtPublic int xt_p_rwlock_destroy(xt_rwlock_type *rwl)
 {
 	int result = 0, result1 = 0, result2 = 0;
 
@@ -225,7 +225,7 @@ int xt_p_rwlock_destroy(xt_rwlock_type *rwl)
 }
 
 
-int xt_p_rwlock_rdlock(xt_rwlock_type *rwl)
+xtPublic int xt_p_rwlock_rdlock(xt_rwlock_type *rwl)
 {
 	int result;
 
@@ -262,7 +262,7 @@ int xt_p_rwlock_rdlock(xt_rwlock_type *rwl)
 	return (xt_p_mutex_unlock (&(rwl->rw_ex_lock)));
 }
 
-int xt_p_rwlock_wrlock(xt_rwlock_type *rwl)
+xtPublic int xt_p_rwlock_wrlock(xt_rwlock_type *rwl)
 {
 	int result;
 
@@ -309,7 +309,54 @@ int xt_p_rwlock_wrlock(xt_rwlock_type *rwl)
 	return result;
 }
 
-int xt_p_rwlock_unlock(xt_rwlock_type *rwl)
+xtPublic xtBool xt_p_rwlock_try_wrlock(xt_rwlock_type *rwl)
+{
+	int result;
+
+	if (rwl == NULL)
+		return FALSE;
+
+	if (rwl->rw_magic != XT_RWLOCK_MAGIC)
+		return FALSE;
+
+	if ((result = xt_p_mutex_trylock(&rwl->rw_ex_lock)) != 0)
+		return FALSE;
+
+	if ((result = xt_p_mutex_lock(&rwl->rw_sh_lock)) != 0) {
+		(void) xt_p_mutex_unlock(&rwl->rw_ex_lock);
+		return FALSE;
+	}
+
+	if (rwl->rw_ex_count == 0) {
+		if (rwl->rw_sh_complete_count > 0) {
+			rwl->rw_sh_count -= rwl->rw_sh_complete_count;
+			rwl->rw_sh_complete_count = 0;
+		}
+
+		if (rwl->rw_sh_count > 0) {
+			rwl->rw_sh_complete_count = -rwl->rw_sh_count;
+
+			do {
+				result = pthread_cond_wait (&rwl->rw_sh_cond, &rwl->rw_sh_lock.mt_cs);
+			}
+			while (result == 0 && rwl->rw_sh_complete_count < 0);
+
+			if (result == 0)
+				rwl->rw_sh_count = 0;
+		}
+	}
+
+	if (result == 0)
+		rwl->rw_ex_count++;
+
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_add_owner(&rwl->rw_lock_info);
+#endif
+
+	return TRUE;
+}
+
+xtPublic int xt_p_rwlock_unlock(xt_rwlock_type *rwl)
 {
 	int result, result1;
 
@@ -342,12 +389,12 @@ int xt_p_rwlock_unlock(xt_rwlock_type *rwl)
 	return ((result != 0) ? result : result1);
 }
 
-int xt_p_cond_wait(xt_cond_type *cond, xt_mutex_type *mutex)
+xtPublic int xt_p_cond_wait(xt_cond_type *cond, xt_mutex_type *mutex)
 {
 	return xt_p_cond_timedwait(cond, mutex, NULL);
 }
 
-int xt_p_cond_timedwait(xt_cond_type *cond, xt_mutex_type *mt, struct timespec *abstime)
+xtPublic int xt_p_cond_timedwait(xt_cond_type *cond, xt_mutex_type *mt, struct timespec *abstime)
 {
 	pthread_mutex_t	*mutex = &mt->mt_cs;
 	int				result;
@@ -393,7 +440,7 @@ int xt_p_cond_timedwait(xt_cond_type *cond, xt_mutex_type *mt, struct timespec *
 	return result == WAIT_TIMEOUT ? ETIMEDOUT : 0;
 }
 
-int xt_p_join(pthread_t thread, void **value)
+xtPublic int xt_p_join(pthread_t thread, void **value)
 {
 	DWORD exitcode;
 
@@ -674,6 +721,23 @@ xtPublic int xt_p_rwlock_wrlock(xt_rwlock_type *rwlock)
 	xt_thread_lock_info_add_owner(&rwlock->rw_lock_info);
 #endif
 	return r;
+}
+
+xtPublic xtBool xt_p_rwlock_try_wrlock(xt_rwlock_type *rwlock)
+{
+	XTThreadPtr self = xt_get_self();
+	int			r;
+
+	ASSERT_NS(rwlock->rw_init == 67890);
+	r = pthread_rwlock_trywrlock(&rwlock->rw_plock);
+	if (r == 0) {
+		ASSERT_NS(!rwlock->rw_locker);
+		rwlock->rw_locker = self;
+#ifdef XT_THREAD_LOCK_INFO
+		xt_thread_lock_info_add_owner(&rwlock->rw_lock_info);
+#endif
+	}
+	return r == 0;
 }
 
 xtPublic int xt_p_rwlock_unlock(xt_rwlock_type *rwlock)

@@ -180,6 +180,10 @@ void xt_trace_thread_locks(XTThread *self)
 				lock_type = "XTAtomicRWLock";
 				lock_name = li->li_atomic_rwlock->arw_name;
 				break;
+			case XTThreadLockInfo::SKEW_RW_LOCK:
+				lock_type = "XTSkewRWLock";
+				lock_name = li->li_skew_rwlock->srw_name;
+				break;
 		}
 
 		xt_ttracef(self, "  #lock#%d: type: %s name: %s \n", count, lock_type, lock_name);

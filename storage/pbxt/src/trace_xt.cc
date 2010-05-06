@@ -36,6 +36,7 @@
 #ifdef DEBUG
 //#define PRINT_TRACE
 //#define RESET_AFTER_DUMP
+//#define DUMP_TO_STDOUT
 #endif
 
 static xtBool			trace_initialized = FALSE;
@@ -109,10 +110,10 @@ xtPublic void xt_print_trace(void)
 		xt_lock_mutex_ns(&trace_mutex);
 		if (trace_log_end > trace_log_offset+1) {
 			trace_log_buffer[trace_log_end] = 0;
-			fprintf(stderr, "%s", trace_log_buffer + trace_log_offset + 1);
+			printf("%s", trace_log_buffer + trace_log_offset + 1);
 		}
 		trace_log_buffer[trace_log_offset] = 0;
-		fprintf(stderr, "%s", trace_log_buffer);
+		printf("%s", trace_log_buffer);
 		trace_log_offset = 0;
 		trace_log_end = 0;
 		xt_unlock_mutex_ns(&trace_mutex);
@@ -121,9 +122,18 @@ xtPublic void xt_print_trace(void)
 
 xtPublic void xt_dump_trace(void)
 {
-	FILE *fp;
-
 	if (trace_log_offset) {
+#ifdef DUMP_TO_STDOUT
+		if (trace_log_end > trace_log_offset+1) {
+			trace_log_buffer[trace_log_end] = 0;
+			printf("%s", trace_log_buffer + trace_log_offset + 1);
+		}
+		trace_log_buffer[trace_log_offset] = 0;
+		printf("%s", trace_log_buffer);
+		printf("\n");
+#else
+		FILE *fp;
+
 		fp = fopen("pbxt.log", "w");
 
 		xt_lock_mutex_ns(&trace_mutex);
@@ -136,6 +146,7 @@ xtPublic void xt_dump_trace(void)
 			fprintf(fp, "%s", trace_log_buffer);
 			fclose(fp);
 		}
+#endif
 
 #ifdef RESET_AFTER_DUMP
 		trace_log_offset = 0;
@@ -379,9 +390,9 @@ xtPublic void xt_dump_conn_tracking(void)
 	ptr = conn_info;
 	for (int i=0; i<XT_TRACK_MAX_CONNS; i++) {
 		if (ptr->ci_curr_xact_id || ptr->ci_prev_xact_id) {
-			fprintf(stderr, "%3d curr=%d prev=%d prev-time=%ld\n", (int) ptr->cu_t_id, (int) ptr->ci_curr_xact_id, (int) ptr->ci_prev_xact_id, (long) ptr->ci_prev_xact_time);
+			printf("%3d curr=%d prev=%d prev-time=%ld\n", (int) ptr->cu_t_id, (int) ptr->ci_curr_xact_id, (int) ptr->ci_prev_xact_id, (long) ptr->ci_prev_xact_time);
 			if (i+1<XT_TRACK_MAX_CONNS) {
-				fprintf(stderr, "    diff=%d\n", (int) (ptr+1)->ci_curr_xact_id - (int) ptr->ci_curr_xact_id);
+				printf("    diff=%d\n", (int) (ptr+1)->ci_curr_xact_id - (int) ptr->ci_curr_xact_id);
 			}
 		}
 		ptr++;

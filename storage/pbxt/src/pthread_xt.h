@@ -101,13 +101,14 @@ int xt_p_rwlock_init(xt_rwlock_type *rwlock, const pthread_condattr_t *attr, con
 #else
 int xt_p_rwlock_init(xt_rwlock_type *rwlock, const pthread_condattr_t *attr);
 #endif
-int xt_p_rwlock_destroy(xt_rwlock_type *rwlock);
-int xt_p_rwlock_rdlock(xt_rwlock_type *mx);
-int xt_p_rwlock_wrlock(xt_rwlock_type *mx);
-int xt_p_rwlock_unlock(xt_rwlock_type *mx);
+int		xt_p_rwlock_destroy(xt_rwlock_type *rwlock);
+int		xt_p_rwlock_rdlock(xt_rwlock_type *mx);
+int		xt_p_rwlock_wrlock(xt_rwlock_type *mx);
+xtBool	xt_p_rwlock_try_wrlock(xt_rwlock_type *rwl);
+int		xt_p_rwlock_unlock(xt_rwlock_type *mx);
 
-int xt_p_cond_wait(xt_cond_type *cond, xt_mutex_type *mutex);
-int xt_p_cond_timedwait(xt_cond_type *cond, xt_mutex_type *mutex, struct timespec *abstime);
+int		xt_p_cond_wait(xt_cond_type *cond, xt_mutex_type *mutex);
+int		xt_p_cond_timedwait(xt_cond_type *cond, xt_mutex_type *mutex, struct timespec *abstime);
 
 int xt_p_join(pthread_t thread, void **value);
 
@@ -125,6 +126,7 @@ int xt_p_join(pthread_t thread, void **value);
 
 #define xt_slock_rwlock_ns		xt_p_rwlock_rdlock
 #define xt_xlock_rwlock_ns		xt_p_rwlock_wrlock
+#define xt_xlock_try_rwlock_ns	xt_p_rwlock_try_wrlock
 #define xt_unlock_rwlock_ns		xt_p_rwlock_unlock
 
 #ifdef XT_THREAD_LOCK_INFO
@@ -225,9 +227,10 @@ typedef struct xt_rwlock_struct {
 #endif
 } xt_rwlock_type;
 
-int xt_p_rwlock_rdlock(xt_rwlock_type *mx);
-int xt_p_rwlock_wrlock(xt_rwlock_type *mx);
-int xt_p_rwlock_unlock(xt_rwlock_type *mx);
+int		xt_p_rwlock_rdlock(xt_rwlock_type *mx);
+int		xt_p_rwlock_wrlock(xt_rwlock_type *mx);
+xtBool	xt_p_rwlock_try_wrlock(xt_rwlock_type *mx);
+int		xt_p_rwlock_unlock(xt_rwlock_type *mx);
 
 int xt_p_mutex_lock(xt_mutex_type *mx, u_int line, const char *file);
 int xt_p_mutex_unlock(xt_mutex_type *mx);
@@ -251,37 +254,39 @@ int xt_p_cond_timedwait(xt_cond_type *cond, xt_mutex_type *mutex, const struct t
 }
 #endif
 
-#define xt_slock_rwlock_ns		xt_p_rwlock_rdlock
-#define xt_xlock_rwlock_ns		xt_p_rwlock_wrlock
-#define xt_unlock_rwlock_ns		xt_p_rwlock_unlock
+#define xt_slock_rwlock_ns			xt_p_rwlock_rdlock
+#define xt_xlock_rwlock_ns			xt_p_rwlock_wrlock
+#define xt_xlock_try_rwlock_ns		xt_p_rwlock_try_wrlock
+#define xt_unlock_rwlock_ns			xt_p_rwlock_unlock
 
-#define xt_lock_mutex_ns(x)		xt_p_mutex_lock(x, __LINE__, __FILE__)
-#define xt_unlock_mutex_ns		xt_p_mutex_unlock
-#define xt_mutex_trylock		xt_p_mutex_trylock
+#define xt_lock_mutex_ns(x)			xt_p_mutex_lock(x, __LINE__, __FILE__)
+#define xt_unlock_mutex_ns			xt_p_mutex_unlock
+#define xt_mutex_trylock			xt_p_mutex_trylock
 
 #else // DEBUG_LOCKING
 
-#define xt_rwlock_struct		_opaque_pthread_rwlock_t
-#define xt_mutex_struct			_opaque_pthread_mutex_t
+#define xt_rwlock_struct			_opaque_pthread_rwlock_t
+#define xt_mutex_struct				_opaque_pthread_mutex_t
 
-#define xt_rwlock_type			pthread_rwlock_t
-#define xt_mutex_type			pthread_mutex_t
+#define xt_rwlock_type				pthread_rwlock_t
+#define xt_mutex_type				pthread_mutex_t
 
-#define xt_slock_rwlock_ns		pthread_rwlock_rdlock
-#define xt_xlock_rwlock_ns		pthread_rwlock_wrlock
-#define xt_unlock_rwlock_ns		pthread_rwlock_unlock
+#define xt_slock_rwlock_ns			pthread_rwlock_rdlock
+#define xt_xlock_rwlock_ns			pthread_rwlock_wrlock
+#define xt_xlock_try_rwlock_ns(x)	(pthread_rwlock_trywrlock(x) == 0)
+#define xt_unlock_rwlock_ns			pthread_rwlock_unlock
 
-#define xt_lock_mutex_ns		pthread_mutex_lock
-#define xt_unlock_mutex_ns		pthread_mutex_unlock
-#define xt_mutex_trylock		pthread_mutex_trylock
+#define xt_lock_mutex_ns			pthread_mutex_lock
+#define xt_unlock_mutex_ns			pthread_mutex_unlock
+#define xt_mutex_trylock			pthread_mutex_trylock
 
-#define xt_p_mutex_trylock		pthread_mutex_trylock
-#define xt_p_mutex_destroy		pthread_mutex_destroy
-#define xt_p_mutex_init			pthread_mutex_init
-#define xt_p_rwlock_destroy		pthread_rwlock_destroy
-#define xt_p_rwlock_init		pthread_rwlock_init
-#define xt_p_cond_wait			pthread_cond_wait
-#define xt_p_cond_timedwait		pthread_cond_timedwait
+#define xt_p_mutex_trylock			pthread_mutex_trylock
+#define xt_p_mutex_destroy			pthread_mutex_destroy
+#define xt_p_mutex_init				pthread_mutex_init
+#define xt_p_rwlock_destroy			pthread_rwlock_destroy
+#define xt_p_rwlock_init			pthread_rwlock_init
+#define xt_p_cond_wait				pthread_cond_wait
+#define xt_p_cond_timedwait			pthread_cond_timedwait
 
 #endif // DEBUG_LOCKING
 

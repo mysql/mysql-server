@@ -58,7 +58,8 @@ struct XTIdxReadBuffer;
 #define XT_IPAGE_INIT_LOCK(s, i)		xt_atomicrwlock_init_with_autoname(s, i)
 #define XT_IPAGE_FREE_LOCK(s, i)		xt_atomicrwlock_free(s, i)	
 #define XT_IPAGE_READ_LOCK(i)			xt_atomicrwlock_slock(i)
-#define XT_IPAGE_WRITE_LOCK(i, o)		xt_atomicrwlock_xlock(i, o)
+#define XT_IPAGE_WRITE_LOCK(i, o)		xt_atomicrwlock_xlock(i, FALSE, o)
+#define XT_IPAGE_WRITE_TRY_LOCK(i, o)	xt_atomicrwlock_xlock(i, TRUE, o)
 #define XT_IPAGE_UNLOCK(i, x)			xt_atomicrwlock_unlock(i, x)
 #elif defined(XT_IPAGE_USE_PTHREAD_RW)
 #define XT_IPAGE_LOCK_TYPE				xt_rwlock_type
@@ -66,20 +67,23 @@ struct XTIdxReadBuffer;
 #define XT_IPAGE_FREE_LOCK(s, i)		xt_free_rwlock(i)	
 #define XT_IPAGE_READ_LOCK(i)			xt_slock_rwlock_ns(i)
 #define XT_IPAGE_WRITE_LOCK(i, s)		xt_xlock_rwlock_ns(i)
+#define XT_IPAGE_WRITE_TRY_LOCK(i, s)	xt_xlock_try_rwlock_ns(i)
 #define XT_IPAGE_UNLOCK(i, x)			xt_unlock_rwlock_ns(i)
 #elif defined(XT_IPAGE_USE_SPINXSLOCK)
 #define XT_IPAGE_LOCK_TYPE				XTSpinXSLockRec
 #define XT_IPAGE_INIT_LOCK(s, i)		xt_spinxslock_init_with_autoname(s, i)
 #define XT_IPAGE_FREE_LOCK(s, i)		xt_spinxslock_free(s, i)	
 #define XT_IPAGE_READ_LOCK(i)			xt_spinxslock_slock(i)
-#define XT_IPAGE_WRITE_LOCK(i, o)		xt_spinxslock_xlock(i, o)
+#define XT_IPAGE_WRITE_LOCK(i, o)		xt_spinxslock_xlock(i, FALSE, o)
+#define XT_IPAGE_WRITE_TRY_LOCK(i, o)	xt_spinxslock_xlock(i, TRUE, o)
 #define XT_IPAGE_UNLOCK(i, x)			xt_spinxslock_unlock(i, x)
 #else // XT_IPAGE_USE_SKEW_RW
 #define XT_IPAGE_LOCK_TYPE				XTSkewRWLockRec
 #define XT_IPAGE_INIT_LOCK(s, i)		xt_skewrwlock_init_with_autoname(s, i)
 #define XT_IPAGE_FREE_LOCK(s, i)		xt_skewrwlock_free(s, i)	
 #define XT_IPAGE_READ_LOCK(i)			xt_skewrwlock_slock(i)
-#define XT_IPAGE_WRITE_LOCK(i, o)		xt_skewrwlock_xlock(i, o)
+#define XT_IPAGE_WRITE_LOCK(i, o)		xt_skewrwlock_xlock(i, FALSE, o)
+#define XT_IPAGE_WRITE_TRY_LOCK(i, o)	xt_skewrwlock_xlock(i, TRUE, o)
 #define XT_IPAGE_UNLOCK(i, x)			xt_skewrwlock_unlock(i, x)
 #endif
 
@@ -103,10 +107,10 @@ typedef struct XTIndBlock {
 	struct XTIndBlock	*cb_lr_used;					/* Less recently used blocks. */
 	/* Protected by cb_lock: */
 	XT_IPAGE_LOCK_TYPE	cb_lock;
-	xtWord1				cb_state;						/* Block status. */
+	xtWord4				cp_flush_seq;
 	xtWord2				cb_handle_count;				/* TRUE if this page is referenced by a handle. */
-	xtWord2				cp_flush_seq;
 	xtWord2				cp_del_count;					/* Number of deleted entries. */
+	xtWord1				cb_state;						/* Block status. */
 #ifdef XT_USE_DIRECT_IO_ON_INDEX
 	xtWord1				*cb_data;
 #else
