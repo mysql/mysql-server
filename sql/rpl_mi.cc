@@ -495,7 +495,7 @@ int flush_master_info(Master_info* mi, bool flush_relay_log_cache)
               mi->password, mi->port, mi->connect_retry,
               (int)(mi->ssl), mi->ssl_ca, mi->ssl_capath, mi->ssl_cert,
               mi->ssl_cipher, mi->ssl_key, mi->ssl_verify_server_cert,
-              mi->bind_addr, heartbeat_buf,
+              heartbeat_buf, mi->bind_addr, 
               ignore_server_ids_buf);
   my_free(ignore_server_ids_buf, MYF(0));
   DBUG_RETURN(-flush_io_cache(file));
