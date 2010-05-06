@@ -3,6 +3,10 @@ PBXT Release Notes
 
 +------- 1.0.11 Pre-GA - Not released yet
 
+RN322: Creating a table the references a non-existing table can now only be done if you set: foreign_key_checks = 0. Also fixed a failure when creating tables with recursive foreign key declarations.
+
+RN321: Added "Extended record count" to the CHECK TABLE output. This indicates the number of records that have a data log component.
+
 RN320: All tests now run with MySQL 5.1.46.
 
 ------- 1.0.10n RC4 - 2010-04-28

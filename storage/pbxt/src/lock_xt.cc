@@ -1896,6 +1896,124 @@ xtPublic xtBool xt_skewrwlock_unlock(XTSkewRWLockPtr srw, xtBool xlocked)
 
 /*
  * -----------------------------------------------------------------------
+ * RECURSIVE R/W LOCK (allows X lockers to lock again)
+ */
+
+#ifdef XT_THREAD_LOCK_INFO
+void xt_recursivemutex_init(XTThreadPtr self, XTRecursiveMutexPtr rm, const char *name)
+{
+	rm->rm_locker = NULL;
+	rm->rm_lock_count = 0;
+	xt_init_mutex(self, &rm->rm_mutex, name);
+}
+#else
+xtPublic void xt_recursivemutex_init(XTThreadPtr self, XTRecursiveMutexPtr rm)
+{
+	rm->rm_locker = NULL;
+	rm->rm_lock_count = 0;
+	xt_init_mutex(self, &rm->rm_mutex);
+}
+#endif
+
+xtPublic void xt_recursivemutex_free(XTRecursiveMutexPtr rm)
+{
+	xt_free_mutex(&rm->rm_mutex);
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_free(&rm->rm_lock_info);
+#endif
+}
+
+xtPublic void xt_recursivemutex_lock(XTThreadPtr self, XTRecursiveMutexPtr rm)
+{
+	if (self != rm->rm_locker) {
+		xt_lock_mutex(self, &rm->rm_mutex);
+		rm->rm_locker = self;
+	}
+	rm->rm_lock_count++;
+}
+
+xtPublic void xt_recursivemutex_unlock(XTThreadPtr self, XTRecursiveMutexPtr rm)
+{
+	ASSERT(self == rm->rm_locker);
+	ASSERT(rm->rm_lock_count > 0);
+	rm->rm_lock_count--;
+	if (!rm->rm_lock_count) {
+		rm->rm_locker = NULL;
+		xt_unlock_mutex(self, &rm->rm_mutex);
+	}
+}
+
+/*
+ * -----------------------------------------------------------------------
+ * RECURSIVE MUTEX (allows lockers to lock again)
+ */
+
+#ifdef XT_THREAD_LOCK_INFO
+void xt_recurrwlock_init(struct XTThread *self, XTRecurRWLockPtr rrw, const char *name)
+{
+	rrw->rrw_locker = NULL;
+	rrw->rrw_lock_count = 0;
+	xt_init_rwlock(self, &rrw->rrw_lock, name);
+}
+#else
+void xt_recurrwlock_init(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	rrw->rrw_locker = NULL;
+	rrw->rrw_lock_count = 0;
+	xt_init_rwlock(self, &rrw->rrw_lock);
+}
+#endif
+
+void xt_recurrwlock_free(XTRecurRWLockPtr rrw)
+{
+	xt_free_rwlock(&rrw->rrw_lock);
+#ifdef XT_THREAD_LOCK_INFO
+	xt_thread_lock_info_free(&rrw->rrw_lock_info);
+#endif
+}
+
+void xt_recurrwlock_xlock(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	if (self != rrw->rrw_locker) {
+		xt_xlock_rwlock(self, &rrw->rrw_lock);
+		rrw->rrw_locker = self;
+	}
+	rrw->rrw_lock_count++;
+}
+
+void xt_recurrwlock_slock(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	xt_slock_rwlock(self, &rrw->rrw_lock);
+}
+
+void xt_recurrwlock_slock_ns(XTRecurRWLockPtr rrw)
+{
+	xt_slock_rwlock_ns(&rrw->rrw_lock);
+}
+
+void xt_recurrwlock_unxlock(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	ASSERT(self == rrw->rrw_locker);
+	ASSERT(rrw->rrw_lock_count > 0);
+	rrw->rrw_lock_count--;
+	if (!rrw->rrw_lock_count) {
+		rrw->rrw_locker = NULL;
+		xt_unlock_rwlock(self, &rrw->rrw_lock);
+	}
+}
+
+void xt_recurrwlock_unslock(struct XTThread *self, XTRecurRWLockPtr rrw)
+{
+	xt_unlock_rwlock(self, &rrw->rrw_lock);
+}
+
+void xt_recurrwlock_unslock_ns(XTRecurRWLockPtr rrw)
+{
+	xt_unlock_rwlock_ns(&rrw->rrw_lock);
+}
+
+/*
+ * -----------------------------------------------------------------------
  * UNIT TESTS
  */
 

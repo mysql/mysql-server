@@ -5980,14 +5980,20 @@ static MYSQL_SYSVAR_INT(max_threads, pbxt_max_threads,
 	NULL, NULL, 0, 0, 20000, 1);
 #endif
 
-/* In MySQL 5.1.46 this assertion:  (total_ha_2pc == (ulong) opt_bin_log+1),
- * in function ha_recover, file handler.cc, line 1557, has been removed.
- * So enable XA by default.
- */
+#ifndef DEBUG
 static MYSQL_SYSVAR_BOOL(support_xa, pbxt_support_xa,
 	PLUGIN_VAR_OPCMDARG,
 	"Enable PBXT support for the XA two-phase commit, default is enabled",
 	NULL, NULL, TRUE);
+#else
+static MYSQL_SYSVAR_BOOL(support_xa, pbxt_support_xa,
+	PLUGIN_VAR_OPCMDARG,
+	"Enable PBXT support for the XA two-phase commit, default is disabled (due to assertion failure in MySQL)",
+	/* The problem is, in MySQL an assertion fails in debug mode: 
+	 * Assertion failed: (total_ha_2pc == (ulong) opt_bin_log+1), function ha_recover, file handler.cc, line 1557.
+     */
+	NULL, NULL, FALSE);
+#endif
 
 static MYSQL_SYSVAR_INT(flush_log_at_trx_commit, xt_db_flush_log_at_trx_commit,
 	PLUGIN_VAR_OPCMDARG,

@@ -258,7 +258,7 @@ class XTDDTable : public XTObject {
 	XTList<XTDDColumn>		dt_cols;
 	XTList<XTDDIndex>		dt_indexes;
 
-	xt_rwlock_type			dt_ref_lock;			/* The lock for adding and using references. */
+	XTRecurRWLockRec		dt_ref_lock;			/* The lock for adding and using references. */
 	XTList<XTDDForeignKey>	dt_fkeys;				/* The foreign keys on this table. */
 	XTDDTableRef			*dt_trefs;				/* A list of tables that reference this table. */
 

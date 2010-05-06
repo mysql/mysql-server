@@ -794,11 +794,9 @@ xtPublic void xt_register_tabcolerr(c_char *func, c_char *file, u_int line, int 
 
 	xt_2nd_last_name_of_path(sizeof(buffer), buffer, tab_item->ps_path);
 	xt_strcat(sizeof(buffer), buffer, ".");
-	xt_strcpy(sizeof(buffer), buffer, xt_last_name_of_path(tab_item->ps_path));
-	xt_strcat(sizeof(buffer), buffer, ".");
-	xt_strcat(sizeof(buffer), buffer, item2);
+	xt_strcat(sizeof(buffer), buffer, xt_last_name_of_path(tab_item->ps_path));
 
-	xt_register_ixterr(func, file, line, xt_err, buffer);
+	xt_register_i2xterr(func, file, line, xt_err, buffer, item2);
 }
 
 xtPublic void xt_register_taberr(c_char *func, c_char *file, u_int line, int xt_err, XTPathStrPtr tab_item)
@@ -807,7 +805,7 @@ xtPublic void xt_register_taberr(c_char *func, c_char *file, u_int line, int xt_
 
 	xt_2nd_last_name_of_path(sizeof(buffer), buffer, tab_item->ps_path);
 	xt_strcat(sizeof(buffer), buffer, ".");
-	xt_strcpy(sizeof(buffer), buffer, xt_last_name_of_path(tab_item->ps_path));
+	xt_strcat(sizeof(buffer), buffer, xt_last_name_of_path(tab_item->ps_path));
 
 	xt_register_ixterr(func, file, line, xt_err, buffer);
 }

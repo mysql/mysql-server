@@ -61,6 +61,11 @@
 
 #define CHECK_TABLE_STATS
 
+/* The problem is that this can take a long time
+ * if the table is very large!
+ */
+//#define CHECK_TABLE_READ_DATA_LOG
+
 #ifdef TRACE_TABLE_IDS
 //#define PRINTF		xt_ftracef
 #define PRINTF		xt_trace
@@ -488,6 +493,12 @@ xtPublic void xt_tab_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 	}
 	freer_(); // xt_describe_tables_exit(&desc)
 
+	/*
+	 * When we open all tables, we ignore problems with foreign keys.
+	 * This must be done or we will not be able to load tables that
+	 * were created with foreign key checks off.
+	 */
+	self->st_ignore_fkeys = 1;
 	/* 
 	 * The purpose of this code is to ensure that all tables are opened and cached,
 	 * which is actually only required if tables have foreign key references.
@@ -513,12 +524,17 @@ xtPublic void xt_tab_init_db(XTThreadPtr self, XTDatabaseHPtr db)
 		xt_add_dir_char(PATH_MAX, pbuf);
 		xt_strcat(PATH_MAX, pbuf, te_ptr->te_tab_name);
 		try_(a) {
-			xt_heap_release(self, xt_use_table_no_lock(self, db, (XTPathStrPtr)pbuf, FALSE, FALSE, NULL));
-		} catch_(a) {
-			/* ignore errors */
+			xt_heap_release(self, xt_use_table_no_lock(self, db, (XTPathStrPtr) pbuf, FALSE, FALSE, NULL));
+		}
+		catch_(a) {
+			/* ignore errors, because we are just loading all
+			 * the tables that we can...
+			 */
 			xt_log_and_clear_warning(self);
-		} cont_(a);
+		}
+		cont_(a);
 	}
+	self->st_ignore_fkeys = 0;
 
 	popr_(); // Discard xt_tab_exit_db(db)
 	exit_();
@@ -1165,10 +1181,14 @@ static int tab_new_handle(XTThreadPtr self, XTTableHPtr *r_tab, XTDatabaseHPtr d
 	if (tab->tab_dic.dic_table) {
 		try_(a) {
 			tab->tab_dic.dic_table->attachReferences(self, db);
-		} catch_(a) {
-			/* ignore problems of referenced tables */
-			xt_log_and_clear_warning(self);
-		} cont_(a);
+		}
+		catch_(a) {
+			/* Errors are thrown when: set foreign_key_checks = 1 */
+			/* Undo everything done above: */
+			xt_ht_del(self, db->db_tables, tab->tab_name);
+			xt_throw(self);
+		}
+		cont_(a);
 	}
 
 	*r_tab = tab;
@@ -1790,6 +1810,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	size_t					rec_size;
 	size_t					row_size;
 	u_llong					ext_data_len = 0;
+	u_llong					ext_rec_count = 0;
 
 #if defined(DUMP_CHECK_TABLE) || defined(CHECK_TABLE_STATS)
 	printf("\nCHECK TABLE: %s\n", tab->tab_name->ps_path);
@@ -1889,6 +1910,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				printf("record-X ");
 #endif
 				alloc_rec_count++;
+				ext_rec_count++;
 				ext_data_len += XT_GET_DISK_4(rec_buf->re_log_dat_siz_4);
 				row_size = XT_GET_DISK_4(rec_buf->re_log_dat_siz_4) + ot->ot_rec_size - XT_REC_EXT_HEADER_SIZE;
 				alloc_rec_bytes += row_size;
@@ -1918,6 +1940,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 				printf(" prev=%-3llu  xact=%-3llu row=%lu  Xlog=%lu Xoff=%llu Xsiz=%lu\n", (u_llong) prev_rec_id, (u_llong) xn_id, (u_long) row_id, (u_long) XT_GET_DISK_2(rec_buf->re_log_id_2), (u_llong) XT_GET_DISK_6(rec_buf->re_log_offs_6), (u_long) XT_GET_DISK_4(rec_buf->re_log_dat_siz_4));
 #endif
 
+#ifdef CHECK_TABLE_READ_DATA_LOG
 				log_size = XT_GET_DISK_4(rec_buf->re_log_dat_siz_4);
 				XT_GET_LOG_REF(log_id, log_offset, rec_buf);
 				if (!self->st_dlog_buf.dlb_read_log(log_id, log_offset, offsetof(XTactExtRecEntryDRec, er_data), (xtWord1 *) &ext_rec, self))
@@ -1934,6 +1957,7 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 						xt_logf(XT_INFO, "Table %s: record %llu, extended record %lu:%llu not valid\n", tab->tab_name, (u_llong) rec_id, (u_long) log_id, (u_llong) log_offset);
 					}
 				}
+#endif
 				break;
 			default:
 #ifdef DUMP_CHECK_TABLE
@@ -1945,8 +1969,10 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	}
 	
 #ifdef CHECK_TABLE_STATS
-	if (!tab->tab_dic.dic_rec_fixed)
-		printf("Extendend data length   = %llu\n", ext_data_len);
+	if (!tab->tab_dic.dic_rec_fixed) {
+		printf("Extended data length    = %llu\n", ext_data_len);
+		printf("Extended record count   = %llu\n", ext_rec_count);
+	}
 	
 	if (alloc_rec_count) {
 		printf("Minumum comp. rec. len. = %llu\n", (u_llong) min_comp_rec_len);

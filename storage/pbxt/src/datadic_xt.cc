@@ -2286,8 +2286,8 @@ void XTDDForeignKey::removeReference(XTThreadPtr self)
 {
 	XTDDTable *ref_tab;
 
-	xt_xlock_rwlock(self, &co_table->dt_ref_lock);
-	pushr_(xt_unlock_rwlock, &co_table->dt_ref_lock);
+	xt_recurrwlock_xlock(self, &co_table->dt_ref_lock);
+	pushr_(xt_recurrwlock_unxlock, &co_table->dt_ref_lock);
 
 	if ((ref_tab = fk_ref_table)) {			
 		fk_ref_table = NULL;
@@ -2297,7 +2297,7 @@ void XTDDForeignKey::removeReference(XTThreadPtr self)
 
 	fk_ref_index = UINT_MAX;
 
-	freer_(); // xt_unlock_rwlock(&co_table->dt_ref_lock);
+	freer_(); // xt_recurrwlock_unxlock(&co_table->dt_ref_lock);
 }
 
 /*
@@ -2316,7 +2316,7 @@ bool XTDDForeignKey::insertRow(xtWord1 *before_buf, xtWord1 *rec_buf, XTThreadPt
 	/* This lock ensures that the foreign key references are not
 	 * changed.
 	 */
-	xt_slock_rwlock_ns(&co_table->dt_ref_lock);
+	xt_recurrwlock_slock_ns(&co_table->dt_ref_lock);
 
 	if (!(loc_ind = getIndexPtr()))
 		goto failed;
@@ -2401,11 +2401,11 @@ bool XTDDForeignKey::insertRow(xtWord1 *before_buf, xtWord1 *rec_buf, XTThreadPt
 	xt_db_return_table_to_pool_ns(ot);
 
 	failed:
-	xt_unlock_rwlock_ns(&co_table->dt_ref_lock);
+	xt_recurrwlock_unslock_ns(&co_table->dt_ref_lock);
 	return false;
 
 	success:
-	xt_unlock_rwlock_ns(&co_table->dt_ref_lock);
+	xt_recurrwlock_unslock_ns(&co_table->dt_ref_lock);
 	return true;
 }
 
@@ -2433,7 +2433,7 @@ const char *XTDDForeignKey::actionTypeToString(int action)
 
 void XTDDTable::init(XTThreadPtr self)
 {
-	xt_init_rwlock_with_autoname(self, &dt_ref_lock);
+	xt_recurrwlock_init_with_autoname(self, &dt_ref_lock);
 	dt_trefs = NULL;
 }
 
@@ -2470,7 +2470,7 @@ void XTDDTable::finalize(XTThreadPtr self)
 		ptr->release(self);
 	}
 
-	xt_free_rwlock(&dt_ref_lock);
+	xt_recurrwlock_free(&dt_ref_lock);
 }
 
 XTDDColumn *XTDDTable::findColumn(char *name)
@@ -2546,8 +2546,8 @@ void XTDDTable::attachReference(XTThreadPtr self, XTDDForeignKey *fk)
 			throw_();
 	}
 
-	xt_xlock_rwlock(self, &dt_ref_lock);
-	pushr_(xt_unlock_rwlock, &dt_ref_lock);
+	xt_recurrwlock_xlock(self, &dt_ref_lock);
+	pushr_(xt_recurrwlock_unxlock, &dt_ref_lock);
 
 	if (!(tr = new XTDDTableRef()))
 		xt_throw_errno(XT_CONTEXT, XT_ENOMEM);
@@ -2562,7 +2562,7 @@ void XTDDTable::attachReference(XTThreadPtr self, XTDDForeignKey *fk)
 	 */
 	xt_heap_reference(self, fk->co_table->dt_table);
 
-	freer_(); // xt_unlock_rwlock(&dt_ref_lock);
+	freer_(); // xt_recurrwlock_unxlock(&dt_ref_lock);
 }
 
 /*
@@ -2572,8 +2572,8 @@ void XTDDTable::removeReference(XTThreadPtr self, XTDDForeignKey *fk)
 {
 	XTDDTableRef	*tr, *prev_tr = NULL;
 
-	xt_xlock_rwlock(self, &dt_ref_lock);
-	pushr_(xt_unlock_rwlock, &dt_ref_lock);
+	xt_recurrwlock_xlock(self, &dt_ref_lock);
+	pushr_(xt_recurrwlock_unxlock, &dt_ref_lock);
 
 	tr = dt_trefs;
 	while (tr) {
@@ -2587,7 +2587,7 @@ void XTDDTable::removeReference(XTThreadPtr self, XTDDForeignKey *fk)
 		prev_tr = tr;
 		tr = tr->tr_next;
 	}
-	freer_(); // xt_unlock_rwlock(&dt_ref_lock);
+	freer_(); // xt_recurrwlock_unxlock(&dt_ref_lock);
 	if (tr)
 		tr->release(self);
 }
@@ -2614,8 +2614,8 @@ void XTDDTable::attachReference(XTThreadPtr self, XTDDTable *dt)
 
 			dt->attachReference(self, fk);
 
-			xt_xlock_rwlock(self, &dt_ref_lock);
-			pushr_(xt_unlock_rwlock, &dt_ref_lock);
+			xt_recurrwlock_xlock(self, &dt_ref_lock);
+			pushr_(xt_recurrwlock_unxlock, &dt_ref_lock);
 			/* Referenced the table, not the index!
 			 * We do this because we know that if the table is referenced, the
 			 * index will remain valid!
@@ -2625,7 +2625,7 @@ void XTDDTable::attachReference(XTThreadPtr self, XTDDTable *dt)
 			 */
 			xt_heap_reference(self, dt->dt_table);
 			fk->fk_ref_table = dt;
-			freer_(); // xt_unlock_rwlock(&dt_ref_lock);
+			freer_(); // xt_recurrwlock_unxlock(&dt_ref_lock);
 		}
 	}
 }
@@ -2689,8 +2689,8 @@ void XTDDTable::removeReferences(XTThreadPtr self)
 	XTDDTableRef	*tr;
 	XTDDTable		*tab;
 
-	xt_xlock_rwlock(self, &dt_ref_lock);
-	pushr_(xt_unlock_rwlock, &dt_ref_lock);
+	xt_recurrwlock_xlock(self, &dt_ref_lock);
+	pushr_(xt_recurrwlock_unxlock, &dt_ref_lock);
 
 	for (u_int i=0; i<dt_fkeys.size(); i++) {
 		fk = dt_fkeys.itemAt(i);
@@ -2701,13 +2701,13 @@ void XTDDTable::removeReferences(XTThreadPtr self)
 				/* To avoid deadlock we do not hold more than
 				 * one lock at a time!
 				 */
-				freer_(); // xt_unlock_rwlock(&dt_ref_lock);
+				freer_(); // xt_recurrwlock_unxlock(&dt_ref_lock);
 	
 				tab->removeReference(self, fk);
 				xt_heap_release(self, tab->dt_table); /* We referenced the table, not the index! */
 	
-				xt_xlock_rwlock(self, &dt_ref_lock);
-				pushr_(xt_unlock_rwlock, &dt_ref_lock);
+				xt_recurrwlock_xlock(self, &dt_ref_lock);
+				pushr_(xt_recurrwlock_unxlock, &dt_ref_lock);
 			}
 		}
 	}
@@ -2715,13 +2715,13 @@ void XTDDTable::removeReferences(XTThreadPtr self)
 	while (dt_trefs) {
 		tr = dt_trefs;
 		dt_trefs = tr->tr_next;
-		freer_(); // xt_unlock_rwlock(&dt_ref_lock);
+		freer_(); // xt_recurrwlock_unxlock(&dt_ref_lock);
 		tr->release(self);
-		xt_xlock_rwlock(self, &dt_ref_lock);
-		pushr_(xt_unlock_rwlock, &dt_ref_lock);
+		xt_recurrwlock_xlock(self, &dt_ref_lock);
+		pushr_(xt_recurrwlock_unxlock, &dt_ref_lock);
 	}
 
-	freer_(); // xt_unlock_rwlock(&dt_ref_lock);
+	freer_(); // xt_recurrwlock_unxlock(&dt_ref_lock);
 }
 
 void XTDDTable::checkForeignKeys(XTThreadPtr self, bool temp_table)
@@ -2871,7 +2871,7 @@ bool XTDDTable::checkNoAction(XTOpenTablePtr ot, xtRecordID rec_id)
 		return false;
 	rec_ptr = rec_buf.ib_db.db_data;
 
-	xt_slock_rwlock_ns(&dt_ref_lock);
+	xt_recurrwlock_slock_ns(&dt_ref_lock);
 	tr = dt_trefs;
 	while (tr) {
 		if (!tr->checkReference(rec_ptr, ot->ot_thread)) {
@@ -2880,7 +2880,7 @@ bool XTDDTable::checkNoAction(XTOpenTablePtr ot, xtRecordID rec_id)
 		}
 		tr = tr->tr_next;
 	}
-	xt_unlock_rwlock_ns(&dt_ref_lock);
+	xt_recurrwlock_unslock_ns(&dt_ref_lock);
 	xt_ib_free(NULL, &rec_buf);
 	return ok;
 }
@@ -2901,7 +2901,7 @@ bool XTDDTable::deleteRow(XTOpenTablePtr ot, xtWord1 *rec_ptr)
 		rec_ptr = rec_buf.ib_db.db_data;
 		
 	}
-	xt_slock_rwlock_ns(&dt_ref_lock);
+	xt_recurrwlock_slock_ns(&dt_ref_lock);
 	tr = dt_trefs;
 	while (tr) {
 		if (!tr->modifyRow(ot, rec_ptr, NULL, ot->ot_thread)) {
@@ -2910,7 +2910,7 @@ bool XTDDTable::deleteRow(XTOpenTablePtr ot, xtWord1 *rec_ptr)
 		}
 		tr = tr->tr_next;
 	}
-	xt_unlock_rwlock_ns(&dt_ref_lock);
+	xt_recurrwlock_unslock_ns(&dt_ref_lock);
 	xt_ib_free(NULL, &rec_buf);
 	return ok;
 }
@@ -2919,8 +2919,8 @@ void XTDDTable::deleteAllRows(XTThreadPtr self)
 {
 	XTDDTableRef	*tr;
 
-	xt_slock_rwlock(self, &dt_ref_lock);
-	pushr_(xt_unlock_rwlock, &dt_ref_lock);
+	xt_recurrwlock_slock(self, &dt_ref_lock);
+	pushr_(xt_recurrwlock_unslock, &dt_ref_lock);
 
 	tr = dt_trefs;
 	while (tr) {
@@ -2928,7 +2928,7 @@ void XTDDTable::deleteAllRows(XTThreadPtr self)
 		tr = tr->tr_next;
 	}
 
-	freer_(); // xt_unlock_rwlock(&dt_ref_lock);
+	freer_(); // xt_recurrwlock_unslock(&dt_ref_lock);
 }
 
 bool XTDDTable::updateRow(XTOpenTablePtr ot, xtWord1 *before, xtWord1 *after)
@@ -2958,7 +2958,7 @@ bool XTDDTable::updateRow(XTOpenTablePtr ot, xtWord1 *before, xtWord1 *after)
 	ok = true;
 	before_buf.ib_free = FALSE;
 
-	xt_slock_rwlock_ns(&dt_ref_lock);
+	xt_recurrwlock_slock_ns(&dt_ref_lock);
 	if ((tr = dt_trefs)) {
 		if (!before) {
 			if (!xt_tab_load_record(ot, ot->ot_curr_rec_id, &before_buf))
@@ -2974,7 +2974,7 @@ bool XTDDTable::updateRow(XTOpenTablePtr ot, xtWord1 *before, xtWord1 *after)
 			tr = tr->tr_next;
 		}
 	}
-	xt_unlock_rwlock_ns(&dt_ref_lock);
+	xt_recurrwlock_unslock_ns(&dt_ref_lock);
 	
 	xt_ib_free(NULL, &before_buf);
 	return ok;
