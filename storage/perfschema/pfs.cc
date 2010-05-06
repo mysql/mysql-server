@@ -1294,13 +1294,14 @@ get_thread_table_locker_v1(PSI_table *table, PSI_table_operation op, ulong flags
   DBUG_ASSERT(pfs_table != NULL);
   DBUG_ASSERT(pfs_table->m_share != NULL);
 
-  /*
-    See the handler::external_lock() API design,
-    there is no handler::external_unlock().
-  */
-  if ((op == PSI_TABLE_EXTERNAL_LOCK) && (flags == F_UNLCK))
-    return NULL;
   if (! flag_events_waits_current)
+    return NULL;
+  if (! global_table_class.m_enabled)
+    return NULL;
+  /*
+    Table locks will be recorded with WL#5371.
+  */
+  if ((op == PSI_TABLE_EXTERNAL_LOCK) || (op == PSI_TABLE_LOCK))
     return NULL;
   if (! pfs_table->m_share->m_enabled)
     return NULL;

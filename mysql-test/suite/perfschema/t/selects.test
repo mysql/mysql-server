@@ -24,6 +24,12 @@
 
 UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
 
+# Disable ALL table IO, to avoid generating events from the selects
+# To be revised after WL#5342 PERFORMANCE SCHEMA SETUP OBJECTS
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'NO', timed = 'NO'
+  where NAME='wait/io/table/sql/handler';
+
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -154,3 +160,6 @@ DROP FUNCTION t_ps_func;
 
 # Clean up
 DROP TABLE t1;
+
+UPDATE performance_schema.SETUP_INSTRUMENTS SET enabled = 'YES', timed = 'YES';
+
