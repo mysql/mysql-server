@@ -303,6 +303,9 @@ static void test_loader(DB **dbs)
     }
     uint32_t loader_flags = USE_PUTS; // set with -p option
 
+    int n = count_temp(env->i->real_data_dir);
+    assert(n == 0);  // Must be no temp files before loader is run
+    
     if (verbose) printf("old inames:\n");
     get_inames(old_inames, dbs);
     
@@ -335,12 +338,13 @@ static void test_loader(DB **dbs)
     if( CHECK_RESULTS || verbose ) {printf("\n"); fflush(stdout);}        
         
     printf("Data dir is %s\n", env->i->real_data_dir);
-    int n = count_temp(env->i->real_data_dir);
+    n = count_temp(env->i->real_data_dir);
     printf("Num temp files = %d\n", n);
     assert(n);  // test is useless unless at least one temp file is created
-
-    printf("Contents of data dir:\n");
-    print_dir(env->i->real_data_dir);
+    if (verbose) {
+	printf("Contents of data dir:\n");
+	print_dir(env->i->real_data_dir);
+    }
     printf("closing, will crash\n"); fflush(stdout);
     r = loader->close(loader);
     printf("Should never return from loader->close()\n");  fflush(stdout);
@@ -405,7 +409,8 @@ static void run_recover (void) {
     r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);         CKERR(r); 
 
     // now verify contents of data_dir, should be no temp files, no loader-created iname files
-    print_dir(env->i->real_data_dir);
+    if (verbose)
+	print_dir(env->i->real_data_dir);
 
     int n = count_temp(env->i->real_data_dir);
     printf("Num temp files = %d\n", n);
