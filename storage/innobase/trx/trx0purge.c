@@ -258,11 +258,15 @@ trx_purge_sys_create(void)
 
 	purge_sys->query = trx_purge_graph_build();
 
+	mutex_enter(&kernel_mutex);
+
 	trx_sys_mutex_enter();
 
 	purge_sys->view = read_view_open_now(ut_dulint_zero, purge_sys->heap);
 
 	trx_sys_mutex_exit();
+
+	mutex_exit(&kernel_mutex);
 }
 
 /************************************************************************
