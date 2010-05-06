@@ -365,7 +365,7 @@ set foreign_key_checks = 1;
 drop table if exists t2, t1;
 set foreign_key_checks = 1;
 CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1));
-drop table if exists t2;
+ERROR HY000: Can't create table 'test.t2' (errno: 151)
 set foreign_key_checks = 0;
 CREATE TABLE t2 (s1 INT DEFAULT NULL, FOREIGN KEY (s1) REFERENCES t1 (s1));
 set foreign_key_checks = 1;
