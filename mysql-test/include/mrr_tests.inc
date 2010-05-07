@@ -113,3 +113,29 @@ select * from t1 where (a is null or a > 0 and a < 3) and b > 7 limit 3;
 
 select * from t1 where a is null and b=9 or a is null and b=7 limit 3;
 drop table t1, t2;
+
+--echo #
+--echo # Bug#50381 "Assertion failing in handler.h:1283: 
+--echo #            void COST_VECT::add_io(double, double)"
+--echo #
+
+CREATE TABLE t1 (
+  c1 INT NOT NULL,
+  c2 VARCHAR(1) DEFAULT NULL,
+  PRIMARY KEY (c1)
+);
+
+CREATE TABLE t2 (
+  c1 INT NOT NULL,
+  c2 VARCHAR(1) DEFAULT NULL,
+  PRIMARY KEY (c1)
+);
+
+INSERT INTO t2 VALUES (10,'v');
+INSERT INTO t2 VALUES (11,'r');
+ 
+SELECT t1.c2  
+FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1;
+
+DROP TABLE t1, t2;
+
