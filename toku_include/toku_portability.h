@@ -52,6 +52,8 @@ typedef int64_t toku_off_t;
 
 #define UNUSED_WARNING(a) a=a /* To make up for missing attributes */
 
+#define cast_to_typeof(v)
+
 #elif defined(__INTEL_COMPILER)
 
 #if defined(__ICC)
@@ -64,6 +66,7 @@ typedef int64_t toku_off_t;
 
 #endif 
 
+#define cast_to_typeof(v) (__typeof__(v))
 #elif defined(__GNUC__)
 // GCC linux
 
@@ -76,6 +79,7 @@ typedef int64_t toku_off_t;
 #include <stdarg.h>
 #endif
 
+#define cast_to_typeof(v) (__typeof__(v))
 #else
 
 #error Not ICC and not GNUC.  What compiler?
