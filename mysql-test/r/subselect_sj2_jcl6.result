@@ -646,6 +646,22 @@ explain select 1 from t2 where c2 = any (select log10(null) from t1 where c6 <nu
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 drop table t1, t2;
+# 
+# BUG#42742: crash in setup_sj_materialization, Copy_field::set
+# 
+create table t3 ( c1 year) engine=innodb;
+insert into t3 values (2135),(2142);
+create table t2 (c1 tinytext,c2 text,c6 timestamp) engine=innodb;
+# The following must not crash, EXPLAIN should show one SJ strategy, not a mix:
+explain select 1 from t2 where 
+c2 in (select 1 from t3, t2) and
+c1 in (select convert(c6,char(1)) from t2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using join buffer
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	FirstMatch(t2); Using join buffer
+drop table t2, t3;
 set optimizer_join_cache_level=default;
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
