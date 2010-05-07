@@ -359,7 +359,13 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           const_result= 0;
           break;
         }
-        if (!count)
+        /* SPJ MERGE TODO Bug#52051
+         * This is a temp. fix for bug52051, without the code restructure
+         * being part of the proposed patch.
+         * Expect merge conflict here when later merging with a main branch
+         * containing this fix.
+         */
+        if (!count && !outer_tables)
         {
           /* If count == 0, then we know that is_exact_count == TRUE. */
           ((Item_sum_min*) item_sum)->clear(); /* Set to NULL. */
@@ -447,7 +453,13 @@ int opt_sum_query(TABLE_LIST *tables, List<Item> &all_fields,COND *conds)
           const_result= 0;
           break;
         }
-        if (!count)
+        /* SPJ MERGE TODO Bug#52051
+         * This is a temp. fix for bug52051, without the code restructure
+         * being part of the proposed patch.
+         * Expect merge conflict here when later merging with a main branch
+         * containing this fix.
+         */
+        if (!count && !outer_tables)
         {
           /* If count != 1, then we know that is_exact_count == TRUE. */
           ((Item_sum_max*) item_sum)->clear(); /* Set to NULL. */
