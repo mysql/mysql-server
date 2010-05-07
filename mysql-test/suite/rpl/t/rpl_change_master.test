@@ -198,11 +198,16 @@ if (`SELECT $retry_count5 <> $retry_count_expected`)
 CHANGE MASTER TO master_retry_count=3, master_host='dummy', master_connect_retry=1;
 START SLAVE io_thread;
 
-# limit wait timeout to 4 seconds (should be three, but this is not much deterministic,
-# so we set it to a value higher but close to three - keeping in mind slow machines in
-# test environment). Also, see wait_for_slave_param how slave_timeout is used.
--- let $slave_timeout= 40
+# We wait for slave to stop and inspect the number of retries in 
+# the error message.
 -- source include/wait_for_slave_io_to_stop.inc
+-- let $error= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1)
+if (!`SELECT "$error" LIKE "%retries: 3"`)
+{
+  -- echo Unexpected retry count value! Got: $error
+  -- echo Expected number of retries was: 3
+  -- die
+}
 
 ## check that there is a parse error if not using a numerical value
 -- error ER_PARSE_ERROR
