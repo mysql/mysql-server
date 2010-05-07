@@ -55,3 +55,41 @@ INSERT INTO t3
 SELECT c1,c3 FROM t3 WHERE c1 >= 'c-1994=w' and c1 != 'c-1996=w' FOR UPDATE;
 
 DROP TABLE t1,t2,t3;
+
+--echo #
+--echo # Bug#43360 - Server crash with a simple multi-table update
+--echo #
+
+CREATE TABLE t1 (
+  a CHAR(2) NOT NULL PRIMARY KEY, 
+  b VARCHAR(20) NOT NULL,
+  KEY (b)
+);
+
+CREATE TABLE t2 (
+  a CHAR(2) NOT NULL PRIMARY KEY,
+  b VARCHAR(30) NOT NULL,
+  KEY (b)
+);
+
+INSERT INTO t1 VALUES 
+('AB','MySQL AB'),
+('JA','Sun Microsystems'),
+('MS','Microsoft'),
+('IB','IBM- Inc.'),
+('GO','Google Inc.');
+
+INSERT INTO t2 VALUES
+('AB','Sweden'),
+('JA','USA'),
+('MS','United States of America'),
+('IB','North America'),
+('GO','South America');
+ 
+UPDATE t1,t2 SET t1.b=UPPER(t1.b) WHERE t1.b LIKE 'United%';
+
+SELECT * FROM t1 ORDER BY a;
+
+SELECT * FROM t2 ORDER BY a;
+
+DROP TABLE t1,t2;   
