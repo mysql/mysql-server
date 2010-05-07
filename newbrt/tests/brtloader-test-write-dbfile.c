@@ -102,8 +102,8 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
 
     toku_brt_loader_set_n_rows(&bl, n);
 
-    brt_loader_init_error_callback(&bl);
-    brt_loader_set_error_function(&bl, err_cb, NULL);
+    brt_loader_init_error_callback(&bl.error_callback);
+    brt_loader_set_error_function(&bl.error_callback, err_cb, NULL);
     r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
     destroy_rowset(&aset);
 
@@ -163,7 +163,7 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
     // walk a cursor through the dbfile and verify the rows
     verify_dbfile(n, output_name);
 
-    brt_loader_destroy_error_callback(&bl);
+    brt_loader_destroy_error_callback(&bl.error_callback);
 }
 
 /* Test to see if we can open temporary files. */

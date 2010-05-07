@@ -71,14 +71,15 @@ struct poll_callback_s {
     brt_loader_poll_func poll_function;
     void *poll_extra;
 };
+typedef struct poll_callback_s *brtloader_poll_callback;
 
-int brt_loader_init_poll_callback(BRTLOADER);
+int brt_loader_init_poll_callback(brtloader_poll_callback);
 
-void brt_loader_destroy_poll_callback(BRTLOADER);
+void brt_loader_destroy_poll_callback(brtloader_poll_callback);
 
-void brt_loader_set_poll_function(BRTLOADER, brt_loader_poll_func poll_function, void *poll_extra);
+void brt_loader_set_poll_function(brtloader_poll_callback, brt_loader_poll_func poll_function, void *poll_extra);
 
-int brt_loader_call_poll_function(BRTLOADER, float progress);
+int brt_loader_call_poll_function(brtloader_poll_callback, float progress);
 
 struct error_callback_s {
     brt_loader_error_func error_callback;
@@ -90,24 +91,22 @@ struct error_callback_s {
     DBT key;
     DBT val;
     toku_pthread_mutex_t mutex;
-
-    int (*set_error_and_callback)(BRTLOADER, int error, DB *db, int which_db, DBT *key, DBT *val);
-    BRTLOADER bl;
 };
+typedef struct error_callback_s *brtloader_error_callback;
 
-int brt_loader_init_error_callback(BRTLOADER);
+int brt_loader_init_error_callback(brtloader_error_callback);
 
-void brt_loader_destroy_error_callback(BRTLOADER);
+void brt_loader_destroy_error_callback(brtloader_error_callback);
 
-int brt_loader_get_error(BRTLOADER);
+int brt_loader_get_error(brtloader_error_callback);
 
-void brt_loader_set_error_function(BRTLOADER, brt_loader_error_func error_function, void *extra);
+void brt_loader_set_error_function(brtloader_error_callback, brt_loader_error_func error_function, void *extra);
 
-int brt_loader_set_error(BRTLOADER, int error, DB *db, int which_db, DBT *key, DBT *val);
+int brt_loader_set_error(brtloader_error_callback, int error, DB *db, int which_db, DBT *key, DBT *val);
 
-int brt_loader_call_error_function(BRTLOADER);
+int brt_loader_call_error_function(brtloader_error_callback);
 
-int brt_loader_set_error_and_callback(BRTLOADER, int error, DB *db, int which_db, DBT *key, DBT *val);
+int brt_loader_set_error_and_callback(brtloader_error_callback, int error, DB *db, int which_db, DBT *key, DBT *val);
 
 struct brtloader_s {
     int panic;

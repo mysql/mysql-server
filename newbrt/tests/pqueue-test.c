@@ -35,11 +35,6 @@ static void err_cb(DB *db, int which_db, int err, DBT *key, DBT *val, void *extr
     if (verbose) printf("err_cb : key <%d> val <%d>\n", *(int *)key->data, *(int *)val->data);
 }
 
-static int err_cb_set_error_and_callback(BRTLOADER bl, int error, DB *db, int which_db, DBT *key, DBT *val) {
-    bl->error_callback.error_callback(db, which_db, error, key, val, bl->error_callback.extra);
-    return 0;
-}
-
 static int run_test(void) 
 {
     const int n_sources=10;
@@ -49,13 +44,9 @@ static int run_test(void)
     DB *dest_db = NULL;
     brt_compare_func compare = test_compare;
     int r;
-    struct error_callback_s error_callback = {
-	.error_callback = err_cb,
-        .extra = NULL,
-        .db = NULL,
-        .which_db = 0,
-        .set_error_and_callback = err_cb_set_error_and_callback
-    };
+    struct error_callback_s error_callback;
+    brt_loader_init_error_callback(&error_callback);
+    brt_loader_set_error_function(&error_callback, err_cb, NULL);
 
     r = pqueue_init(&pq, n_sources, 0, dest_db, compare, &error_callback);
     if (r) return r;
@@ -84,7 +75,9 @@ static int run_test(void)
     for (int i=0; i<n_sources; i++) {
         r = pqueue_pop(pq, &node);   assert(r==0);
         if (verbose) printf("%d : %d\n", i, *(int*)(node->key->data));
-        if ( *(int*)(node->key->data) != i ) { if (verbose) printf("FAIL\n"); return -1; }
+        if ( *(int*)(node->key->data) != i ) { 
+            if (verbose) printf("FAIL\n"); return -1; 
+        }
     }
     pqueue_free(pq);
     if (verbose) printf("test1 : PASS\n");
@@ -172,8 +165,11 @@ found_duplicate6:
     if ( found_dup != 6 ) { printf("FAIL\n"); return -1; }
     if (verbose) printf("test3 : PASS\n");
     pqueue_free(pq);
+    brt_loader_destroy_error_callback(&error_callback);
 
     // test 4 - find duplicate when inserting
+    brt_loader_init_error_callback(&error_callback);
+    brt_loader_set_error_function(&error_callback, err_cb, NULL);
     r = pqueue_init(&pq, 10, 0, dest_db, compare, &error_callback);        if (r) return r;
 
     found_dup = -1;
@@ -211,6 +207,7 @@ found_duplicate0:
     if (verbose) printf("PASS\n");
     pqueue_free(pq);
     toku_free(pq_nodes);
+    brt_loader_destroy_error_callback(&error_callback);
 
     return 0;
 }
