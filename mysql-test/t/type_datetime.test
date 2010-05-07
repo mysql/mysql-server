@@ -446,3 +446,21 @@ SELECT CAST(CAST('00000002006-000008-0000010 000010:0000011:00000012.012345'  AS
 SELECT CAST(CAST('2008-07-29T10:42:51.1234567' AS DateTime) AS DECIMAL(30,7));
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # Bug#52849 datetime index not work
+--echo #
+CREATE TABLE t1 (Id INT, AtTime DATETIME, KEY AtTime (AtTime));
+SET NAMES CP850;
+INSERT INTO t1 VALUES (1,'2010-04-12 22:30:12'), (2,'2010-04-12 22:30:12'), (3,'2010-04-12 22:30:12');
+EXPLAIN EXTENDED SELECT * FROM t1 FORCE INDEX(attime) WHERE AtTime = '2010-02-22 18:40:07';
+DROP TABLE t1;
+SET NAMES latin1;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
