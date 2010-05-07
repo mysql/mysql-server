@@ -524,6 +524,14 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
+  /* Check nodeid parameter */
+  if (nodeid > MAX_NODES_ID)
+  {
+    m_output->println("result: illegal nodeid %u", nodeid);
+    m_output->println("%s", "");
+    return;
+  }
+
   NodeId tmp= nodeid;
   if(tmp == 0 || !m_allocated_resources->is_reserved(tmp)){
     BaseString error_string;
