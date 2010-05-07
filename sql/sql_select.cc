@@ -619,7 +619,7 @@ JOIN::prepare(Item ***rref_pointer_array,
       }
 
       SELECT_LEX *current= thd->lex->current_select;
-      thd->lex->current_select= current->return_after_parsing();
+      thd->lex->current_select= current->outer_select();
       char const *save_where= thd->where;
       thd->where= "IN/ALL/ANY subquery";
         
