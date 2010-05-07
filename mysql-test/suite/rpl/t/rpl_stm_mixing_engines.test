@@ -3,3 +3,41 @@
 --source include/have_innodb.inc
 
 --source extra/rpl_tests/rpl_mixing_engines.test
+
+#
+# BUG#49522: Replication problem with mixed MyISAM/InnoDB
+#
+
+-- source include/master-slave-reset.inc
+-- connection master
+
+CREATE TABLE `t1` ( 
+  `c1` int(10) unsigned NOT NULL AUTO_INCREMENT, 
+  `c2` tinyint(1) unsigned DEFAULT NULL, 
+  `c3` varchar(300) DEFAULT NULL, 
+  `c4` int(10) unsigned NOT NULL, 
+  `c5` int(10) unsigned DEFAULT NULL, 
+  PRIMARY KEY (`c1`)) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+-- sync_slave_with_master
+ALTER TABLE `t1` Engine=InnoDB;
+
+-- connection master
+SET AUTOCOMMIT=0;
+
+INSERT INTO t1 (c1,c2,c3,c4,c5) VALUES (1, 1, 'X', 1, NULL);
+COMMIT;
+ROLLBACK;
+SET AUTOCOMMIT=1;
+
+-- sync_slave_with_master
+
+-- let $diff_table_1=master:test.t1
+-- let $diff_table_2=slave:test.t1
+-- source include/diff_tables.inc
+
+-- connection master
+DROP TABLE `t1`;
+-- sync_slave_with_master
+
+-- source include/master-slave-end.inc
