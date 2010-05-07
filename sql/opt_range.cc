@@ -7925,11 +7925,20 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     */
     param->is_ror_scan= FALSE;
   }
-  else
+  else if (param->table->s->primary_key == keynr && pk_is_clustered)
   {
     /* Clustered PK scan is always a ROR scan (TODO: same as above) */
-    if (param->table->s->primary_key == keynr && pk_is_clustered)
-      param->is_ror_scan= TRUE;
+    param->is_ror_scan= TRUE;
+  }
+  else if (param->range_count > 1)
+  {
+    /* 
+      Scaning multiple key values in the index: the records are ROR
+      for each value, but not between values. E.g, "SELECT ... x IN
+      (1,3)" returns ROR order for all records with x=1, then ROR
+      order for records with x=3
+    */
+    param->is_ror_scan= FALSE;
   }
   if (param->table->file->index_flags(keynr, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
     param->is_ror_scan= FALSE;
