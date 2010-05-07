@@ -38,7 +38,6 @@
 */
 #define PFS_MAX_FULL_PREFIX_NAME_LENGTH 32
 
-#include <sql_priv.h>
 #include <my_global.h>
 #include <mysql/psi/psi.h>
 #include "pfs_lock.h"

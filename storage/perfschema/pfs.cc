@@ -19,6 +19,8 @@
 */
 
 #include "my_global.h"
+#include "my_pthread.h"
+#include "sql_const.h"
 #include "pfs.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"
