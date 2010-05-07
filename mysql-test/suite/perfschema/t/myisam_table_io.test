@@ -1,0 +1,99 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# Setup
+
+update performance_schema.SETUP_CONSUMERS set enabled='NO';
+
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+  where name like "wait/io/table/%";
+
+truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+
+# Reset lost counters to a known state
+flush status;
+
+# Start recording events
+update performance_schema.SETUP_CONSUMERS set enabled='YES';
+
+# Code to test
+
+--disable_warnings
+drop table if exists test.no_index_tab;
+drop temporary table if exists test.temp_tab;
+--enable_warnings
+
+create table test.no_index_tab ( a varchar(255), b int ) engine=myisam;
+insert into no_index_tab set a = 'foo', b = 1;
+insert into no_index_tab set a = 'foo', b = 2;
+insert into no_index_tab set a = 'foo', b = 3;
+
+select * from test.no_index_tab;
+
+update test.no_index_tab set a = 'bar';
+
+select * from test.no_index_tab limit 2;
+
+delete from test.no_index_tab where b = 3;
+
+select * from test.no_index_tab;
+
+truncate table test.no_index_tab;
+
+create temporary table test.temp_tab ( a varchar(255), b int ) engine=myisam;
+insert into temp_tab set a = 'foo', b = 1;
+insert into temp_tab set a = 'foo', b = 2;
+insert into temp_tab set a = 'foo', b = 3;
+
+select * from test.temp_tab;
+
+update test.temp_tab set a = 'bar';
+
+select * from test.temp_tab limit 2;
+
+delete from test.temp_tab where b = 3;
+
+select * from test.temp_tab;
+
+truncate table test.temp_tab;
+
+# Stop recording events
+update performance_schema.SETUP_CONSUMERS set enabled='NO';
+
+select event_name,
+  left(source, locate(":", source)) as short_source,
+  object_type, object_schema, object_name,
+  operation, number_of_bytes
+  from performance_schema.EVENTS_WAITS_HISTORY_LONG
+  where event_name like 'wait/io/table/%'
+  and object_schema='test'
+  order by thread_id, event_id;
+
+# In case of failures, this will tell if table io are lost.
+show status like 'performance_schema_%';
+
+# Cleanup
+
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+update performance_schema.SETUP_CONSUMERS set enabled='YES';
+
+drop table test.no_index_tab;
+
