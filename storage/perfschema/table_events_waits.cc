@@ -18,7 +18,8 @@
   Table EVENTS_WAITS_xxx (implementation).
 */
 
-#include "sql_priv.h"
+#include "my_global.h"
+#include "my_pthread.h"
 #include "table_events_waits.h"
 #include "pfs_instr_class.h"
 #include "pfs_instr.h"

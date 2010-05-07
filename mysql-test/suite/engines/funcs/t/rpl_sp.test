@@ -3,11 +3,6 @@
 # Test of replication of stored procedures (WL#2146 for MySQL 5.0)
 # Modified by WL#2971.
 
-# Note that in the .opt files we still use the old variable name
-# log-bin-trust-routine-creators so that this test checks that it's
-# still accepted (this test also checks that the new name is
-# accepted). The old name could be removed in 5.1 or 6.0.
-
 source include/have_binlog_format_mixed.inc;
 source include/master-slave.inc;
 
@@ -218,9 +213,6 @@ begin
 end|
 delimiter ;|
 connection master;
-# test old variable name:
-set global log_bin_trust_routine_creators=1;
-# now use new name:
 set global log_bin_trust_function_creators=0;
 set global log_bin_trust_function_creators=1;
 # slave needs it too otherwise will not execute what master allowed:

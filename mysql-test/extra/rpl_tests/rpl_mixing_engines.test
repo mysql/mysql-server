@@ -245,7 +245,7 @@
 --echo #                            CONFIGURATION
 --echo #########################################################################
 
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 SET @commands= 'configure';
 --source extra/rpl_tests/rpl_mixing_engines.inc
