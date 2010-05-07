@@ -7708,6 +7708,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       seq->i--;
       step_down_to(seq, key_tree->next);
       key_tree= key_tree->next;
+      seq->param->is_ror_scan= FALSE;
       break;
     }
   }
@@ -7900,6 +7901,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     *mrr_flags |= HA_MRR_USE_DEFAULT_IMPL;
 
   *bufsize= param->thd->variables.read_rnd_buff_size;
+  // Sets is_ror_scan to false for some queries, e.g. multi-ranges
   rows= file->multi_range_read_info_const(keynr, &seq_if, (void*)&seq, 0,
                                           bufsize, mrr_flags, cost);
   if (rows != HA_POS_ERROR)
@@ -7925,20 +7927,11 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     */
     param->is_ror_scan= FALSE;
   }
-  else if (param->table->s->primary_key == keynr && pk_is_clustered)
+  else
   {
     /* Clustered PK scan is always a ROR scan (TODO: same as above) */
-    param->is_ror_scan= TRUE;
-  }
-  else if (param->range_count > 1)
-  {
-    /* 
-      Scaning multiple key values in the index: the records are ROR
-      for each value, but not between values. E.g, "SELECT ... x IN
-      (1,3)" returns ROR order for all records with x=1, then ROR
-      order for records with x=3
-    */
-    param->is_ror_scan= FALSE;
+    if (param->table->s->primary_key == keynr && pk_is_clustered)
+      param->is_ror_scan= TRUE;
   }
   if (param->table->file->index_flags(keynr, 0, TRUE) & HA_KEY_SCAN_NOT_ROR)
     param->is_ror_scan= FALSE;
