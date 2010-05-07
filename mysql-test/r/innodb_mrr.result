@@ -291,6 +291,26 @@ NULL	7	0
 NULL	9	0
 NULL	9	0
 drop table t1, t2;
+#
+# Bug#50381 "Assertion failing in handler.h:1283: 
+#            void COST_VECT::add_io(double, double)"
+#
+CREATE TABLE t1 (
+c1 INT NOT NULL,
+c2 VARCHAR(1) DEFAULT NULL,
+PRIMARY KEY (c1)
+);
+CREATE TABLE t2 (
+c1 INT NOT NULL,
+c2 VARCHAR(1) DEFAULT NULL,
+PRIMARY KEY (c1)
+);
+INSERT INTO t2 VALUES (10,'v');
+INSERT INTO t2 VALUES (11,'r');
+SELECT t1.c2  
+FROM t2 STRAIGHT_JOIN t1 ON t1.c1 < t2.c1;
+c2
+DROP TABLE t1, t2;
 set storage_engine= @save_storage_engine;
 set @read_rnd_buffer_size_save= @@read_rnd_buffer_size;
 set read_rnd_buffer_size=64;

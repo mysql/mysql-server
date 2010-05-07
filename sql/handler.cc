@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4982,6 +4982,8 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
   {
     double n_blocks=
       ceil(ulonglong2double(table->file->stats.data_file_length) / IO_SIZE);
+    if (n_blocks < 1.0)                         // When data_file_length is 0
+      n_blocks= 1.0;
     double busy_blocks=
       n_blocks * (1.0 - pow(1.0 - 1.0/n_blocks, rows2double(nrows)));
     if (busy_blocks < 1.0)
