@@ -4066,11 +4066,10 @@ DROP FUNCTION f1;
 --echo # BUG#48052: Valgrind warning - uninitialized value in init_read_record()
 --echo # 
 
-# Needed in 6.0 codebase
-#--echo # Disable Index condition pushdown
-#--replace_column 1 #
-#SELECT @old_icp:=@@engine_condition_pushdown;
-#SET SESSION engine_condition_pushdown = 'OFF';
+--echo # Disable Index condition pushdown
+--replace_column 1 #
+SELECT @old_optimizer_switch:=@@optimizer_switch;
+SET SESSION optimizer_switch='index_condition_pushdown=OFF';
 
 CREATE TABLE t1 (
   pk int(11) NOT NULL,
@@ -4088,9 +4087,8 @@ WHERE NOT pk > 0
 HAVING v <= 't' 
 ORDER BY pk;
 
-# Needed in 6.0 codebase
-#--echo # Restore old value for Index condition pushdown
-#SET SESSION engine_condition_pushdown=@old_icp;
+--echo # Restore old value for Index condition pushdown
+SET SESSION optimizer_switch=@old_optimizer_switch;
 
 DROP TABLE t1;
 
@@ -4138,8 +4136,8 @@ INSERT INTO t1 VALUES
 
 --echo # Enable Index condition pushdown
 --replace_column 1 #
-select @old_icp:=@@optimizer_switch;
-set optimizer_switch= 'engine_condition_pushdown=on';
+SELECT @old_optimizer_switch:=@@optimizer_switch;
+set optimizer_switch= 'index_condition_pushdown=on';
 
 --disable_warnings
 
@@ -4164,7 +4162,7 @@ LIMIT 2;
 --enable_warnings
 
 --echo # Restore old value for Index condition pushdown
-set optimizer_switch=@old_icp;
+SET SESSION optimizer_switch=@old_optimizer_switch;
 
 DROP TABLE t1;
 
@@ -4173,7 +4171,7 @@ DROP TABLE t1;
 --echo #
 
 SELECT @old_optimizer_switch:=@@optimizer_switch;
-SET SESSION optimizer_switch='engine_condition_pushdown=ON';
+SET SESSION optimizer_switch='index_condition_pushdown=ON';
 
 CREATE TABLE t1 ( 
   f1 VARCHAR(1024),
