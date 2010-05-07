@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -841,8 +841,13 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     }
     *to++= table;
     if (locks)
+    {
       for ( ; org_locks != locks ; org_locks++)
+      {
 	(*org_locks)->debug_print_param= (void *) table;
+        (*org_locks)->m_psi= table->file->m_psi;
+      }
+    }
   }
   /*
     We do not use 'tables', because there are cases where store_lock()
