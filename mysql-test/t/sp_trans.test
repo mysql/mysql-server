@@ -636,7 +636,15 @@ UPDATE t1_aux SET f2 = 2 WHERE f1 = f1_two_inserts()|
 DROP TABLE t1_aux, t1_not_null|
 DROP FUNCTION f1_two_inserts|
 
+--echo #
+--echo # Bug#53346 completion_type has strange effect in a stored
+--echo # procedure/prepared statement
+--echo #
 
+
+--echo #
+--echo # End of 5.5 tests
+--echo # 
 #
 # BUG#NNNN: New bug synopsis
 #

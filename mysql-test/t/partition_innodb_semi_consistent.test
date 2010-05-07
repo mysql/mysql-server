@@ -31,6 +31,7 @@ set session transaction isolation level repeatable read;
 set autocommit=0;
 -- error ER_LOCK_WAIT_TIMEOUT
 update t1 set a=10 where a=5;
+commit;
 connection a;
 #DELETE FROM t1 WHERE a=5;
 commit;
