@@ -1109,6 +1109,39 @@ DROP TABLE t1, t2, t3;
 DROP VIEW v2, v3;
 # End of Bug#49198
 # 
+# Bug#48623 Multiple subqueries are optimized incorrectly
+# 
+CREATE TABLE ot(val VARCHAR(10));
+CREATE TABLE it1(val VARCHAR(10));
+CREATE TABLE it2(val VARCHAR(10));
+INSERT INTO ot  VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO it1 VALUES('aaa'), ('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO it2 VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+EXPLAIN
+SELECT *
+FROM ot
+WHERE ot.val IN (SELECT it1.val FROM it1
+WHERE  it1.val LIKE 'a%' OR it1.val LIKE 'e%')
+AND ot.val IN (SELECT it2.val FROM it2
+WHERE  it2.val LIKE 'a%' OR it2.val LIKE 'e%');
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	ot	ALL	NULL	NULL	NULL	NULL	5	
+1	PRIMARY	it2	ALL	NULL	NULL	NULL	NULL	5	Using where; FirstMatch(ot); Using join buffer
+1	PRIMARY	it1	ALL	NULL	NULL	NULL	NULL	6	Using where; FirstMatch(it2); Using join buffer
+SELECT *
+FROM ot
+WHERE ot.val IN (SELECT it1.val FROM it1
+WHERE  it1.val LIKE 'a%' OR it1.val LIKE 'e%')
+AND ot.val IN (SELECT it2.val FROM it2
+WHERE  it2.val LIKE 'a%' OR it2.val LIKE 'e%');
+val
+aaa
+eee
+DROP TABLE ot;
+DROP TABLE it1;
+DROP TABLE it2;
+# End of Bug#48623
+# 
 # Bug #51487 Assertion failure when semi-join flattening occurs
 #            for a subquery in HAVING 
 # 
