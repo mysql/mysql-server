@@ -244,10 +244,10 @@ that during a time of heavy update/insert activity. */
 UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
 
 /* the number of purge threads to use from the worker pool (currently 0 or 1).*/
-UNIV_INTERN ulint srv_n_purge_threads = 0;
+UNIV_INTERN ulong srv_n_purge_threads = 0;
 
 /* the number of records to purge in one batch */
-UNIV_INTERN ulint srv_purge_batch_size = 20;
+UNIV_INTERN ulong srv_purge_batch_size = 20;
 
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
