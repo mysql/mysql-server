@@ -1,0 +1,126 @@
+update performance_schema.SETUP_CONSUMERS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='NO';
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
+  where name like "wait/io/table/%";
+truncate table performance_schema.EVENTS_WAITS_HISTORY_LONG;
+flush status;
+update performance_schema.SETUP_CONSUMERS set enabled='YES';
+drop table if exists test.no_index_tab;
+drop temporary table if exists test.temp_tab;
+create table test.no_index_tab ( a varchar(255), b int ) engine=myisam;
+insert into no_index_tab set a = 'foo', b = 1;
+insert into no_index_tab set a = 'foo', b = 2;
+insert into no_index_tab set a = 'foo', b = 3;
+select * from test.no_index_tab;
+a	b
+foo	1
+foo	2
+foo	3
+update test.no_index_tab set a = 'bar';
+select * from test.no_index_tab limit 2;
+a	b
+bar	1
+bar	2
+delete from test.no_index_tab where b = 3;
+select * from test.no_index_tab;
+a	b
+bar	1
+bar	2
+truncate table test.no_index_tab;
+create temporary table test.temp_tab ( a varchar(255), b int ) engine=myisam;
+insert into temp_tab set a = 'foo', b = 1;
+insert into temp_tab set a = 'foo', b = 2;
+insert into temp_tab set a = 'foo', b = 3;
+select * from test.temp_tab;
+a	b
+foo	1
+foo	2
+foo	3
+update test.temp_tab set a = 'bar';
+select * from test.temp_tab limit 2;
+a	b
+bar	1
+bar	2
+delete from test.temp_tab where b = 3;
+select * from test.temp_tab;
+a	b
+bar	1
+bar	2
+truncate table test.temp_tab;
+update performance_schema.SETUP_CONSUMERS set enabled='NO';
+select event_name,
+left(source, locate(":", source)) as short_source,
+object_type, object_schema, object_name,
+operation, number_of_bytes
+from performance_schema.EVENTS_WAITS_HISTORY_LONG
+where event_name like 'wait/io/table/%'
+  and object_schema='test'
+  order by thread_id, event_id;
+event_name	short_source	object_type	object_schema	object_name	operation	number_of_bytes
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	insert	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	update	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TABLE	test	no_index_tab	delete	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TABLE	test	no_index_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	temp_tab	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	temp_tab	insert	NULL
+wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	temp_tab	insert	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	temp_tab	update	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	temp_tab	update	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	temp_tab	update	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.cc:	TEMPORARY TABLE	test	temp_tab	delete	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+wait/io/table/sql/handler	handler.h:	TEMPORARY TABLE	test	temp_tab	fetch	NULL
+show status like 'performance_schema_%';
+Variable_name	Value
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+update performance_schema.SETUP_INSTRUMENTS set enabled='YES';
+update performance_schema.SETUP_CONSUMERS set enabled='YES';
+drop table test.no_index_tab;
