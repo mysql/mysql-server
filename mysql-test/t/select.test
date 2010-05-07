@@ -4168,3 +4168,27 @@ set optimizer_switch=@old_icp;
 
 DROP TABLE t1;
 
+--echo #
+--echo # BUG#49906: Assertion failed - Field_varstring::val_str in field.cc
+--echo #
+
+SELECT @old_optimizer_switch:=@@optimizer_switch;
+SET SESSION optimizer_switch='engine_condition_pushdown=ON';
+
+CREATE TABLE t1 ( 
+  f1 VARCHAR(1024),
+  f2 VARCHAR(10),
+  INDEX test_idx USING BTREE (f2,f1(5))
+);
+
+INSERT INTO t1 VALUES  ('a','c'), ('b','d');  
+
+SELECT f1
+FROM t1 
+WHERE f2 LIKE 'd' 
+ORDER BY f1;
+
+DROP TABLE t1;
+
+SET SESSION optimizer_switch=@old_optimizer_switch;
+
