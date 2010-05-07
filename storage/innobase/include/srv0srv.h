@@ -272,10 +272,10 @@ log buffer and have to flush it */
 extern ulint srv_log_waits;
 
 /* the number of purge threads to use from the worker pool (currently 0 or 1) */
-extern ulint srv_n_purge_threads;
+extern ulong srv_n_purge_threads;
 
 /* the number of records to purge in one batch */
-extern ulint srv_purge_batch_size;
+extern ulong srv_purge_batch_size;
 
 /* variable that counts amount of data read in total (in bytes) */
 extern ulint srv_data_read;
