@@ -1061,7 +1061,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t11	ALL	NULL	NULL	NULL	NULL	8	Using where; Using temporary; Using filesort; Start materialize; Scan
 1	PRIMARY	t12	ALL	NULL	NULL	NULL	NULL	8	Using where; End materialize; Using join buffer
 1	PRIMARY	t21	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer
-1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	32	Using where; Using join buffer
+1	PRIMARY	t22	ALL	NULL	NULL	NULL	NULL	26	Using where; Using join buffer
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c

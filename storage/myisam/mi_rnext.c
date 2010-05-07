@@ -89,7 +89,10 @@ int mi_rnext(MI_INFO *info, uchar *buf, int inx)
            (info->index_cond_func &&
            !(res= mi_check_index_cond(info, inx, buf))))
     {
-      /* Skip rows inserted by other threads since we got a lock */
+      /* 
+         Skip rows that are either inserted by other threads since
+         we got a lock or do not match pushed index conditions
+      */
       if  ((error=_mi_search_next(info,info->s->keyinfo+inx,
                                   info->lastkey,
                                   info->lastkey_length,
