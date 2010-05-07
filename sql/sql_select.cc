@@ -8113,7 +8113,11 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     
     uint i_end= first + join->best_positions[first].n_sj_tables;
     for (uint i= first; i < i_end; i++)
+    {
+      if (i != first)
+        join->best_positions[i].sj_strategy= SJ_OPT_NONE;
       handled_tabs |= join->best_positions[i].table->table->map;
+    }
 
     if (tablenr != first)
       pos->sj_strategy= SJ_OPT_NONE;
