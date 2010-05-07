@@ -1,0 +1,22 @@
+#
+# ICP/InnoDB tests (Index Condition Pushdown)
+#
+
+--source include/have_innodb.inc
+
+# Index condition pushdown (ICP) is by default disabled in InnoDB. Support
+# for ICP can be enabled in InnoDB by using the optimizer_innodb_icp
+# debug flag. This will only be available in debug builds. 
+# When/if ICP get enabled by default the following two lines should
+# be removed.
+
+--source include/have_debug.inc
+set session debug="+d,optimizer_innodb_icp";
+
+
+set @save_storage_engine= @@storage_engine;
+set storage_engine=InnoDB;
+
+--source include/icp_tests.inc
+
+set storage_engine= @save_storage_engine;

@@ -4238,7 +4238,18 @@ idx_cond_check:
         if (prebuilt->idx_cond_func)
         {
           int res;
-          ut_ad(prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE);
+
+          /*
+            The current ICP code does not support the case where InnoDB
+            has decided to change from just reading the index entry
+            to reading the entire record. In this situation the
+            mysql_template array is set up to compare fields from
+            record not just the index entry's fields. ICP should not
+            be in use in this case but to detect if this anyway
+            happens the following assert is added.
+          */
+          ut_ad(prebuilt->template_type == ROW_MYSQL_REC_FIELDS);
+
           offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
           row_sel_store_mysql_rec(buf, prebuilt, rec,
                                   offsets, 0, prebuilt->n_index_fields);
