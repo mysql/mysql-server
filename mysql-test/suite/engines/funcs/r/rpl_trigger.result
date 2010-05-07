@@ -898,8 +898,6 @@ s
 @
 root@localhost
 DROP TRIGGER trg1;
-Warnings:
-Warning	1454	No definer attribute for trigger 'test'.'trg1'. The trigger will be activated under the authorization of the invoker, which may have insufficient privileges. Please recreate the trigger.
 DROP TABLE t1;
 DROP TABLE t2;
 STOP SLAVE;
