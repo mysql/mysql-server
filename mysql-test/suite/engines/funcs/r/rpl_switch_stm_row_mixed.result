@@ -75,7 +75,7 @@ STATEMENT	STATEMENT
 set global binlog_format=default;
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format
-MIXED	STATEMENT
+STATEMENT	STATEMENT
 prepare stmt1 from 'insert into t1 select ?';
 set @string="emergency_12_";
 insert into t1 values("work_13_");
@@ -90,7 +90,7 @@ insert into t1 select "yesterday_16_";
 set binlog_format=mixed;
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format
-MIXED	MIXED
+STATEMENT	MIXED
 set global binlog_format=mixed;
 select @@global.binlog_format, @@session.binlog_format;
 @@global.binlog_format	@@session.binlog_format

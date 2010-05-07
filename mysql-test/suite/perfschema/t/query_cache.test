@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Sun Microsystems, Inc
+# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ SET GLOBAL query_cache_size=1355776;
 
 flush query cache;
 reset query cache;
+# Reset Qcache_* to a known state
+flush status;
 
 select * from t1;
 
