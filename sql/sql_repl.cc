@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB & Sasha, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1308,7 +1308,7 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
 
   while ((tmp=it++))
   {
-    if (tmp->command == COM_BINLOG_DUMP &&
+    if (tmp->get_command() == COM_BINLOG_DUMP &&
        tmp->server_id == slave_server_id)
     {
       mysql_mutex_lock(&tmp->LOCK_thd_data);    // Lock from delete

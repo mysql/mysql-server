@@ -44,7 +44,8 @@ noinst_HEADERS = ha_perfschema.h pfs_engine_table.h pfs.h pfs_server.h \
 		table_events_waits_summary.h pfs_stat.h \
 		table_all_instr.h \
 		table_file_instances.h table_file_summary.h \
-		table_setup_objects.h pfs_lock.h pfs_atomic.h
+		table_setup_objects.h pfs_lock.h pfs_atomic.h \
+		pfs_setup_actor.h
 
 PSE_SOURCES = ha_perfschema.cc pfs_engine_table.cc pfs.cc pfs_server.cc \
 		pfs_global.cc pfs_instr_class.cc pfs_instr.cc \
@@ -57,7 +58,8 @@ PSE_SOURCES = ha_perfschema.cc pfs_engine_table.cc pfs.cc pfs_server.cc \
 		table_events_waits_summary.cc \
 		table_all_instr.cc \
 		table_file_instances.cc table_file_summary.cc \
-		table_setup_objects.cc pfs_atomic.cc pfs_check.cc
+		table_setup_objects.cc pfs_atomic.cc pfs_check.cc \
+		pfs_setup_actor.cc
 
 EXTRA_LIBRARIES = libperfschema.a
 noinst_LIBRARIES = @plugin_perfschema_static_target@

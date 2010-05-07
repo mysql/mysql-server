@@ -1,4 +1,4 @@
-/* Copyright (C) 1995-2002 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 1995, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2700,7 +2700,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
 
   stmt->state= Query_arena::PREPARED;
 
-  general_log_print(thd, thd->command, NullS);
+  general_log_print(thd, thd->get_command(), NullS);
 
   my_ok(thd);
 
@@ -2733,7 +2733,7 @@ void mysqld_stmt_close(THD *thd, char *packet)
   */
   DBUG_ASSERT(! stmt->is_in_use());
   stmt->deallocate();
-  general_log_print(thd, thd->command, NullS);
+  general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
 }
@@ -2837,7 +2837,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
 
-  general_log_print(thd, thd->command, NullS);
+  general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
 }

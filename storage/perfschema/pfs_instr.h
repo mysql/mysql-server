@@ -181,12 +181,16 @@ private:
 /** Instrumented thread implementation. @see PSI_thread. */
 struct PFS_thread
 {
+  static PFS_thread* get_current_thread(void);
+
   /** Internal lock. */
   pfs_lock m_lock;
   /** Pins for filename_hash. */
   LF_PINS *m_filename_hash_pins;
   /** Pins for table_share_hash. */
   LF_PINS *m_table_share_hash_pins;
+  /** Pins for setup_actor_hash. */
+  LF_PINS *m_setup_actor_hash_pins;
   /** Event ID counter */
   ulonglong m_event_id;
   /** Thread instrumentation flag. */
@@ -225,6 +229,19 @@ struct PFS_thread
     PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.
   */
   PFS_single_stat_chain *m_instr_class_wait_stats;
+
+  char m_username[USERNAME_LENGTH];
+  uint m_username_length;
+  char m_hostname[HOSTNAME_LENGTH];
+  uint m_hostname_length;
+  char m_dbname[NAME_LEN];
+  uint m_dbname_length;
+  int m_command;
+  time_t m_start_time;
+  const char *m_processlist_state_ptr;
+  uint m_processlist_state_length;
+  const char *m_processlist_info_ptr;
+  uint m_processlist_info_length;
 };
 
 PFS_thread *sanitize_thread(PFS_thread *unsafe);

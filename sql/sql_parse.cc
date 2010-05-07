@@ -882,7 +882,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       thd->security_ctx->priv_user,
                       (char *) thd->security_ctx->host_or_ip);
   
-  thd->command=command;
+  thd->set_command(command);
   /*
     Commands which always take a long time are logged into
     the slow log only if opt_log_slow_admin_statements is set.
@@ -1457,7 +1457,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   thd_proc_info(thd, "cleaning up");
   thd->set_query(NULL, 0);
-  thd->command=COM_SLEEP;
+  thd->set_command(COM_SLEEP);
   dec_thread_running();
   thd_proc_info(thd, 0);
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
@@ -6880,7 +6880,7 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
   I_List_iterator<THD> it(threads);
   while ((tmp=it++))
   {
-    if (tmp->command == COM_DAEMON)
+    if (tmp->get_command() == COM_DAEMON)
       continue;
     if (tmp->thread_id == id)
     {

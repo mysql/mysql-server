@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -36,6 +36,10 @@ void *pfs_malloc(size_t, myf)
 }
 
 void pfs_free(void *)
+{
+}
+
+void pfs_print_error(const char *format, ...)
 {
 }
 
