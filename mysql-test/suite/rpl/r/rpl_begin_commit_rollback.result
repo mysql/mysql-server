@@ -4,8 +4,8 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 SET @@session.binlog_direct_non_transactional_updates= FALSE;
 DROP DATABASE IF EXISTS db1;
 DROP DATABASE IF EXISTS db2;
@@ -73,7 +73,7 @@ INSERT INTO db1.t2 VALUES ('before call db1.p2()');
 BEGIN;
 CALL db1.p2();
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 ROLLBACK;
 INSERT INTO db1.t2 VALUES ('after call db1.p2()');
 SELECT * FROM db1.t1;
@@ -124,13 +124,13 @@ USE db1;
 INSERT INTO db1.t1 VALUES(30);
 INSERT INTO db1.t2 VALUES("in savepoint has_comment");
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 USE db2;
 SavePoint mixed_cases;
 USE db1;
 INSERT INTO db1.t2 VALUES("in savepoint mixed_cases");
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 INSERT INTO db1.t1 VALUES(40);
 USE db2;
 ROLLBACK TO mixed_cases;
@@ -142,7 +142,7 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 USE db1;
 INSERT INTO db1.t2 VALUES("after rollback to");
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 INSERT INTO db1.t1 VALUES(50);
 USE db2;
 COMMIT;

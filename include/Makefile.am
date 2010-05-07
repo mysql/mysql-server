@@ -45,7 +45,7 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
-			atomic/solaris.h
+			atomic/solaris.h mysql/innodb_priv.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base \
 			CMakeLists.txt \

@@ -18,11 +18,11 @@ sync_slave_with_master;
 --replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 stop slave;
-change master to master_log_pos=106;
+change master to master_log_pos=107;
 start slave;
 sleep 5;
 stop slave;
-change master to master_log_pos=106;
+change master to master_log_pos=107;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
@@ -32,7 +32,7 @@ sleep 5;
 --replace_column 1 # 8 # 9 # 23 # 33 #
 show slave status;
 stop slave;
-change master to master_log_pos=177;
+change master to master_log_pos=178;
 start slave;
 sleep 2;
 --replace_result $MASTER_MYPORT MASTER_PORT
@@ -48,7 +48,7 @@ insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
 stop slave;
-change master to master_log_pos=206;
+change master to master_log_pos=207;
 start slave;
 sync_with_master;
 select * from t1 ORDER BY n;

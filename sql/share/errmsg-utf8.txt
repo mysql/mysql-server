@@ -6068,7 +6068,7 @@ ER_SLAVE_INCIDENT
 ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT
         eng "Table has no partition for some existing values"
 ER_BINLOG_UNSAFE_STATEMENT
-        eng "Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: %s"
+        eng "Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. %s"
 ER_SLAVE_FATAL_ERROR
         eng "Fatal error: %s"
 ER_SLAVE_RELAY_LOG_READ_FAILURE
@@ -6258,36 +6258,36 @@ ER_FIELD_TYPE_NOT_ALLOWED_AS_PARTITION_FIELD
 ER_PARTITION_FIELDS_TOO_LONG
   eng "The total length of the partitioning fields is too large"
 ER_BINLOG_ROW_ENGINE_AND_STMT_ENGINE
-  eng "Cannot execute statement: binlogging impossible since both row-incapable engines and statement-incapable engines are involved."
+  eng "Cannot execute statement: impossible to write to binary log since both row-incapable engines and statement-incapable engines are involved."
 ER_BINLOG_ROW_MODE_AND_STMT_ENGINE
-  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging."
+  eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging."
 ER_BINLOG_UNSAFE_AND_STMT_ENGINE
-  eng "Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: %s"
+  eng "Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. %s"
 ER_BINLOG_ROW_INJECTION_AND_STMT_ENGINE
-  eng "Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging."
+  eng "Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging."
 ER_BINLOG_STMT_MODE_AND_ROW_ENGINE
-  eng "Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging.%s"
+  eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging.%s"
 ER_BINLOG_ROW_INJECTION_AND_STMT_MODE
-  eng "Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT."
+  eng "Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT."
 ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
-  eng "Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging."
+  eng "Cannot execute statement: impossible to write to binary log since more than one engine is involved and at least one engine is self-logging."
 
 ER_BINLOG_UNSAFE_LIMIT
-  eng "Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
+  eng "The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
 ER_BINLOG_UNSAFE_INSERT_DELAYED
-  eng "Statement uses INSERT DELAYED. This is unsafe because the time when rows are inserted cannot be predicted."
+  eng "The statement is unsafe because it uses INSERT DELAYED. This is unsafe because the times when rows are inserted cannot be predicted."
 ER_BINLOG_UNSAFE_SYSTEM_TABLE
-  eng "Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave."
+  eng "The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves."
 ER_BINLOG_UNSAFE_AUTOINC_COLUMNS
-  eng "Statement invokes a trigger or a stored function that inserts into AUTO_INCREMENT column which is unsafe to binlog in STATEMENT format because slave may execute it non-deterministically."
+  eng "Statement is unsafe because it invokes a trigger or a stored function that inserts into an AUTO_INCREMENT column. Inserted values cannot be logged correctly."
 ER_BINLOG_UNSAFE_UDF
-  eng "Statement uses a UDF. It cannot be determined if the UDF will return the same value on slave."
+  eng "Statement is unsafe because it uses a UDF which may not return the same value on the slave."
 ER_BINLOG_UNSAFE_SYSTEM_VARIABLE
-  eng "Statement uses a system variable whose value may differ on slave."
+  eng "Statement is unsafe because it uses a system variable that may have a different value on the slave."
 ER_BINLOG_UNSAFE_SYSTEM_FUNCTION
-  eng "Statement uses a system function whose value may differ on slave."
+  eng "Statement is unsafe because it uses a system function that may return a different value on the slave."
 ER_BINLOG_UNSAFE_NONTRANS_AFTER_TRANS
-  eng "Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction."
+  eng "Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction."
 
 ER_MESSAGE_AND_STATEMENT
   eng "%s Statement: %s"
