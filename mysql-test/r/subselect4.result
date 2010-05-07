@@ -308,7 +308,7 @@ INSERT INTO t2 VALUES (9,1);
 SELECT @old_icp:=@@optimizer_switch;
 @old_icp:=@@optimizer_switch
 #
-SET optimizer_switch= 'engine_condition_pushdown=on';
+SET optimizer_switch= 'index_condition_pushdown=on';
 SELECT pk
 FROM t2
 WHERE 

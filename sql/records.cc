@@ -274,8 +274,7 @@ void init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     TODO: Remove this from here as it causes two condition pushdown calls 
     when we're running a SELECT and the condition cannot be pushed down.
   */
-  if ((thd->variables.optimizer_switch &
-       OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) && 
+  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
       select && select->cond && 
       (select->cond->used_tables() & table->map) &&
       !table->file->pushed_cond)
