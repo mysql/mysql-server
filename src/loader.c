@@ -119,6 +119,9 @@ static int verify_empty(DB *db, DB_TXN *txn)
     return r;
 }
 
+static const char *loader_temp_prefix = "temp";
+static const char *loader_temp_suffix = "XXXXXX";
+
 int toku_loader_create_loader(DB_ENV *env, 
                               DB_TXN *txn, 
                               DB_LOADER **blp, 
@@ -145,7 +148,7 @@ int toku_loader_create_loader(DB_ENV *env,
     loader->i->loader_flags       = loader_flags;
     loader->i->temp_file_template = (char *)toku_malloc(MAX_FILE_SIZE);
 
-    int n = snprintf(loader->i->temp_file_template, MAX_FILE_SIZE, "%s/tempXXXXXX", env->i->dir);
+    int n = snprintf(loader->i->temp_file_template, MAX_FILE_SIZE, "%s/%s%s", env->i->dir, loader_temp_prefix, loader_temp_suffix);
     if ( !(n>0 && n<MAX_FILE_SIZE) ) {
         free_loader(loader);
         return -1;
@@ -348,4 +351,38 @@ int toku_loader_abort(DB_LOADER *loader)
     }
     free_loader(loader);
     return r;
+}
+
+// find all of the files in the environments home directory that match the loader temp name and remove them
+int toku_loader_cleanup_temp_files(DB_ENV *env) {
+    int result;
+    struct dirent *de;
+    DIR *d = opendir(env->i->dir);
+    if (d==0) {
+        result = errno; goto exit;
+    }
+
+    result = 0;
+    while ((de = readdir(d))) {
+        int r = memcmp(de->d_name, loader_temp_prefix, strlen(loader_temp_prefix));
+        if (r == 0 && strlen(de->d_name) == strlen(loader_temp_prefix) + strlen(loader_temp_suffix)) {
+            int fnamelen = strlen(env->i->dir) + 1 + strlen(de->d_name) + 1; // One for the slash and one for the trailing NUL.
+            char fname[fnamelen];
+            int l = snprintf(fname, fnamelen, "%s/%s", env->i->dir, de->d_name);
+            assert(l+1 == fnamelen);
+            r = unlink(fname);
+            if (r!=0) {
+                result = errno;
+                perror("Trying to delete a rolltmp file");
+            }
+        }
+    }
+    {
+        int r = closedir(d);
+        if (r == -1) 
+            result = errno;
+    }
+
+exit:
+    return result;
 }

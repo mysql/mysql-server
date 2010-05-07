@@ -782,6 +782,8 @@ toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
             }
         }
     }
+    
+    toku_loader_cleanup_temp_files(env);
 
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
 	assert(env->i->logger);
