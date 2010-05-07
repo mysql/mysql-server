@@ -1230,7 +1230,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
     POSITION *pos= join->best_positions + i;
     uint keylen, keyno;
     switch (pos->sj_strategy) {
-      case SJ_OPT_MATERIALIZE:
+      case SJ_OPT_MATERIALIZE_LOOKUP:
       case SJ_OPT_MATERIALIZE_SCAN:
         /* Do nothing */
         i+= pos->n_sj_tables;
@@ -7984,7 +7984,7 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       continue;
     }
 
-    if (pos->sj_strategy == SJ_OPT_MATERIALIZE)
+    if (pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
     {
       SJ_MATERIALIZATION_INFO *sjm= s->emb_sj_nest->sj_mat_info;
       sjm->is_used= TRUE;
@@ -8008,7 +8008,7 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
              sizeof(POSITION) * sjm->tables);
       first= tablenr - sjm->tables + 1;
       join->best_positions[first].n_sj_tables= sjm->tables;
-      join->best_positions[first].sj_strategy= SJ_OPT_MATERIALIZE;
+      join->best_positions[first].sj_strategy= SJ_OPT_MATERIALIZE_LOOKUP;
     }
     else if (pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN)
     {
@@ -8131,8 +8131,8 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     for (uint i= first; i < i_end; i++)
     {
       /*
-        Eliminate stale strategies. See comment in the SJ_OPT_MATERIALIZE case
-        above.
+        Eliminate stale strategies. See comment in the
+        SJ_OPT_MATERIALIZE_LOOKUP case above.
       */
       if (i != first)
         join->best_positions[i].sj_strategy= SJ_OPT_NONE;
@@ -13359,7 +13359,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
           back when making one step back in join optimization. That's done 
           after the QEP has been chosen.
         */
-        pos->sj_strategy= SJ_OPT_MATERIALIZE;
+        pos->sj_strategy= SJ_OPT_MATERIALIZE_LOOKUP;
         *current_read_time=    mat_read_time;
         *current_record_count= prefix_rec_count;
         join->cur_dups_producing_tables&=
