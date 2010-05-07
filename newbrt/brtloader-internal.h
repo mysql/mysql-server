@@ -149,7 +149,7 @@ struct brtloader_s {
     LSN load_lsn; //LSN of the fsynced 'load' log entry.  Write this LSN (as checkpoint_lsn) in brt headers made by this loader.
 
     QUEUE *fractal_queues; // an array of work queues, one for each secondary index.
-    pthread_t *fractal_threads;
+    toku_pthread_t *fractal_threads;
     BOOL *fractal_threads_live; // an array of bools indicating that fractal_threads[i] is a live thread.  (There is no NULL for a pthread_t, so we have to maintain this separately).
 };
 

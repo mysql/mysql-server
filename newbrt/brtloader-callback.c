@@ -102,7 +102,7 @@ void brt_loader_destroy_poll_callback(brtloader_poll_callback p) {
 void brt_loader_set_poll_function(brtloader_poll_callback p, brt_loader_poll_func poll_function, void *poll_extra) {
     p->poll_function = poll_function;
     p->poll_extra = poll_extra;
-};
+}
 
 int brt_loader_call_poll_function(brtloader_poll_callback p, float progress) {
     int r = 0;

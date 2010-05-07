@@ -1,3 +1,5 @@
+#include <toku_portability.h>
+#include "toku_os.h"
 #include <errno.h>
 #include <toku_assert.h>
 #include "queue.h"
@@ -19,8 +21,8 @@ struct queue {
 
     BOOL eof;
 
-    pthread_mutex_t mutex;
-    pthread_cond_t  cond;
+    toku_pthread_mutex_t mutex;
+    toku_pthread_cond_t  cond;
 };
 
 // Representation invariant:
