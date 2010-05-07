@@ -10519,7 +10519,14 @@ C_MODE_END
 
 Item *ha_innobase::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
 {
-  if (keyno_arg != primary_key)
+  /* Accept to handle the pushed index condition when the following
+     conditions are true:
+     1. The index is not the primary key
+     2. The lock mode is not LOCK_X (since we in build_template
+        will change from using the index to using the clustered index
+        when the lock mode is LOCK_X). */
+  
+  if (keyno_arg != primary_key && prebuilt->select_lock_type != LOCK_X)
   {
     pushed_idx_cond_keyno= keyno_arg;
     pushed_idx_cond= idx_cond_arg;
