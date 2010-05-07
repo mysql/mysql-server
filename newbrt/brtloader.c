@@ -598,7 +598,6 @@ static void* extractor_thread (void *blv) {
 	{
 	    BL_TRACE("extractor");
 	    int r = queue_deq(bl->primary_rowset_queue, &item, NULL, NULL);
-	    printf("deq\n");
 	    BL_TRACE("extractor_deq");
 	    if (r==EOF) break;
 	    assert(r==0); // other errors are arbitrarily bad.
@@ -1818,7 +1817,7 @@ int toku_loader_write_brt_from_q_in_C (BRTLOADER bl,
 #if defined(__cilkplusplus)
     return cilk::run(toku_loader_write_brt_from_q, bl, descriptor, fd, progress_allocation, q);
 #else
-    return toku_loader_write_brt_from_q(bl, descriptor, fd, progress_allocation, q);
+    return           toku_loader_write_brt_from_q (bl, descriptor, fd, progress_allocation, q);
 #endif
 }
 
@@ -1829,7 +1828,7 @@ static void* fractal_thread (void *ftav) {
 #if defined(__cilkplusplus)
     int r = cilk::run(toku_loader_write_brt_from_q, fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q);
 #else
-    int r = toku_loader_write_brt_from_q(fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q);
+    int r =           toku_loader_write_brt_from_q (fta->bl, fta->descriptor, fta->fd, fta->progress_allocation, fta->q);
 #endif
     fta->errno_result = r;
     BL_TRACE("fractal_thread");
@@ -2391,9 +2390,9 @@ CILK_END
 // C function for testing write_file_to_dbfile
 int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, const struct descriptor *descriptor, int progress_allocation) {
 #if defined(__cilkplusplus)
-    return cilk::run(write_file_to_dbfile,outfile, infile, bl, descriptor, progress_allocation);
+    return cilk::run(write_file_to_dbfile, outfile, infile, bl, descriptor, progress_allocation);
 #else
-    return write_file_to_dbfile(outfile, infile, bl, descriptor, progress_allocation);
+    return           write_file_to_dbfile (outfile, infile, bl, descriptor, progress_allocation);
 #endif
 }
 #endif
