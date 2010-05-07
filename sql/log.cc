@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1133,8 +1133,8 @@ bool LOGGER::slow_log_print(THD *thd, const char *query, uint query_length,
     if (!query)
     {
       is_command= TRUE;
-      query= command_name[thd->command].str;
-      query_length= command_name[thd->command].length;
+      query= command_name[thd->get_command()].str;
+      query_length= command_name[thd->get_command()].length;
     }
 
     for (current_handler= slow_log_handler_list; *current_handler ;)

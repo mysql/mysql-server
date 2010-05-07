@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -3674,7 +3674,7 @@ pthread_handler_t ndb_binlog_thread_func(void *arg)
   }
 
   thd->init_for_queries();
-  thd->command= COM_DAEMON;
+  thd->set_command(COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
   thd->version= refresh_version;
   thd->main_security_ctx.host_or_ip= "";

@@ -23,6 +23,7 @@
 #include "my_global.h"
 #include "sql_priv.h"
 #include "my_sys.h"
+#include "pfs.h"
 #include "pfs_stat.h"
 #include "pfs_instr.h"
 #include "pfs_global.h"
@@ -687,6 +688,12 @@ void destroy_cond(PFS_cond *pfs)
   pfs->m_lock.allocated_to_free();
 }
 
+PFS_thread* PFS_thread::get_current_thread()
+{
+  PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+  return pfs;
+}
+
 /**
   Create instrumentation for a thread instance.
   @param klass                        the thread class
@@ -730,6 +737,16 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
             reset_single_stat_link(stat);
           pfs->m_filename_hash_pins= NULL;
           pfs->m_table_share_hash_pins= NULL;
+          pfs->m_setup_actor_hash_pins= NULL;
+
+          pfs->m_username_length= 0;
+          pfs->m_hostname_length= 0;
+          pfs->m_dbname_length= 0;
+          pfs->m_command= 0; /* FIXME: revise this */
+          pfs->m_start_time= 0;
+          pfs->m_processlist_state_length= 0;
+          pfs->m_processlist_info_length= 0;
+
           pfs->m_lock.dirty_to_allocated();
           return pfs;
         }

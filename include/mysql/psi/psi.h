@@ -600,6 +600,20 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
 */
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 
+typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
+
+typedef void (*set_thread_host_v1_t)(const char *host, int host_len);
+
+typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
+
+typedef void (*set_thread_command_v1_t)(int command);
+
+typedef void (*set_thread_start_time_v1_t)(time_t start_time);
+
+typedef void (*set_thread_state_v1_t)(const char* state);
+
+typedef void (*set_thread_info_v1_t)(const char* info, int info_len);
+
 /**
   Attach a thread instrumentation to the running thread.
   In case of thread pools, this method should be called when
@@ -889,6 +903,20 @@ struct PSI_v1
   set_thread_id_v1_t set_thread_id;
   /** @sa get_thread_v1_t. */
   get_thread_v1_t get_thread;
+  /** @sa set_thread_user_v1_t. */
+  set_thread_user_v1_t set_thread_user;
+  /** @sa set_thread_host_v1_t. */
+  set_thread_host_v1_t set_thread_host;
+  /** @sa set_thread_db_v1_t. */
+  set_thread_db_v1_t set_thread_db;
+  /** @sa set_thread_command_v1_t. */
+  set_thread_command_v1_t set_thread_command;
+  /** @sa set_thread_start_time_v1_t. */
+  set_thread_start_time_v1_t set_thread_start_time;
+  /** @sa set_thread_state_v1_t. */
+  set_thread_state_v1_t set_thread_state;
+  /** @sa set_thread_info_v1_t. */
+  set_thread_info_v1_t set_thread_info;
   /** @sa set_thread_v1_t. */
   set_thread_v1_t set_thread;
   /** @sa delete_current_thread_v1_t. */

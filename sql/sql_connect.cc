@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 
 
 /*
-  Functions to autenticate and handle reqests for a connection
+  Functions to authenticate and handle requests for a connection
 */
 
 #include "my_global.h"
@@ -496,6 +496,15 @@ check_user(THD *thd, enum enum_server_command command,
       }
       my_ok(thd);
       thd->password= test(passwd_len);          // remember for error messages 
+#ifdef HAVE_PSI_INTERFACE
+      if (PSI_server)
+      {
+        PSI_server->set_thread_host(thd->main_security_ctx.host_or_ip,
+                                    strlen(thd->main_security_ctx.host_or_ip));
+        PSI_server->set_thread_user(thd->main_security_ctx.user,
+                                    strlen(thd->main_security_ctx.user));
+      }
+#endif
       /* Ready to handle queries */
       DBUG_RETURN(0);
     }
@@ -1078,7 +1087,7 @@ static void prepare_new_connection_state(THD* thd)
   */
   thd->version= refresh_version;
   thd->proc_info= 0;
-  thd->command= COM_SLEEP;
+  thd->set_command(COM_SLEEP);
   thd->set_time();
   thd->init_for_queries();
 

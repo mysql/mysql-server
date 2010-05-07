@@ -33,6 +33,7 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   pfs_lock.h
   pfs_atomic.h
   pfs_server.h
+  pfs_setup_actor.h
   pfs_stat.h
   pfs_engine_table.h
   pfs_timer.h
@@ -56,6 +57,7 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   pfs_instr.cc
   pfs_instr_class.cc
   pfs_server.cc
+  pfs_setup_actor.cc
   pfs_engine_table.cc
   pfs_timer.cc
   table_all_instr.cc
