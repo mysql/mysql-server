@@ -1,5 +1,9 @@
 source include/master-slave.inc;
 
+--disable_query_log
+call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
 create table t1(n int);
 --disable_warnings
 insert into t1 values(get_lock("lock",2));

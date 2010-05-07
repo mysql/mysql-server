@@ -7,7 +7,7 @@ start slave;
 #########################################################################
 #                            CONFIGURATION
 #########################################################################
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 SET @commands= 'configure';
 SET SQL_LOG_BIN=0;
 CREATE TABLE nt_1 (trans_id INT, stmt_id INT, info VARCHAR(64), PRIMARY KEY(trans_id, stmt_id)) ENGINE = MyISAM;
@@ -392,7 +392,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 23, 1, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 23, 1, COUNT(*) FROM tt_1
@@ -408,7 +408,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 24, 1, COUNT(*) FROM nt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 24, 1, COUNT(*) FROM nt_1
@@ -424,7 +424,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 25 --> 1", tt_3.info= "new text 25 --> 1" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE nt_3, tt_3 SET nt_3.info= "new text 25 --> 1", tt_3.info= "new text 25 --> 1" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1
@@ -468,7 +468,7 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 28 --> 1", nt_4.info= "new text 28 --> 1" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE tt_4, nt_4 SET tt_4.info= "new text 28 --> 1", nt_4.info= "new text 28 --> 1" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1
@@ -3608,7 +3608,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (133, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3726,7 +3726,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (137, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3846,7 +3846,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (141, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -3970,7 +3970,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (145, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4230,7 +4230,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (153, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4356,7 +4356,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (157, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4484,7 +4484,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (161, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -4616,7 +4616,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (165, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6053,7 +6053,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 205, 2, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 205, 2, COUNT(*) FROM tt_1
@@ -6087,7 +6087,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 206, 2, COUNT(*) FROM nt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6117,7 +6117,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 207 --> 2", tt_3.info= "new text 207 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6203,7 +6203,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 210 --> 2", nt_4.info= "new text 210 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6487,7 +6487,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 219, 2, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 219, 2, COUNT(*) FROM tt_1
@@ -6523,7 +6523,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 220, 2, COUNT(*) FROM nt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6545,7 +6545,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 221 --> 2", tt_3.info= "new text 221 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6637,7 +6637,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 224 --> 2", nt_4.info= "new text 224 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6934,7 +6934,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 233, 4, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6964,7 +6964,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 234, 4, COUNT(*) FROM nt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -6994,7 +6994,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 235 --> 4", tt_3.info= "new text 235 --> 4" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7080,7 +7080,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 238 --> 4", nt_4.info= "new text 238 --> 4" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7358,7 +7358,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 247, 4, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> tN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7390,7 +7390,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 248, 4, COUNT(*) FROM nt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7412,7 +7412,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 249 --> 4", tt_3.info= "new text 249 --> 4" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7504,7 +7504,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 252 --> 4", nt_4.info= "new text 252 --> 4" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7790,7 +7790,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 261, 2, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 261, 2, COUNT(*) FROM tt_1
@@ -7824,13 +7824,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 262, 2, COUNT(*) FROM nt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (262, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7856,13 +7856,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 263 --> 2", tt_3.info= "new text 263 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (263, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7892,7 +7892,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (264, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7922,7 +7922,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (265, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7948,13 +7948,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 266 --> 2", nt_4.info= "new text 266 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (266, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -7984,7 +7984,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (267, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8014,7 +8014,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (268, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8117,7 +8117,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (271, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8148,7 +8148,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (272, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8179,7 +8179,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (273, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8210,7 +8210,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (274, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8248,7 +8248,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 275, 2, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 275, 2, COUNT(*) FROM tt_1
@@ -8284,13 +8284,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 276, 2, COUNT(*) FROM nt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (276, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8318,13 +8318,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 277 --> 2", tt_3.info= "new text 277 --> 2" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (277, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8356,7 +8356,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (278, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8388,7 +8388,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (279, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8416,13 +8416,13 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 280 --> 2", nt_4.info= "new text 280 --> 2" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (280, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8454,7 +8454,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (281, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8486,7 +8486,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (282, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8595,7 +8595,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (285, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8628,7 +8628,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (286, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8661,7 +8661,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (287, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8694,7 +8694,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (288, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8740,7 +8740,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 289, 4, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 289, 4, COUNT(*) FROM tt_1
@@ -8774,7 +8774,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 290, 4, COUNT(*) FROM nt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8808,7 +8808,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 291 --> 4", tt_3.info= "new text 291 --> 4" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -8906,7 +8906,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 294 --> 4", nt_4.info= "new text 294 --> 4" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> C << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9218,7 +9218,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 303, 4, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 303, 4, COUNT(*) FROM tt_1
@@ -9254,7 +9254,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> nT << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_1(trans_id, stmt_id, info) SELECT 304, 4, COUNT(*) FROM nt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> nT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9290,7 +9290,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> NT << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE nt_3, tt_3 SET nt_3.info= "new text 305 --> 4", tt_3.info= "new text 305 --> 4" where nt_3.trans_id = tt_3.trans_id and tt_3.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> NT << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9394,7 +9394,7 @@ master-bin.000001	#	Query	#	#	COMMIT
 -b-b-b-b-b-b-b-b-b-b-b- >> TN << -b-b-b-b-b-b-b-b-b-b-b-
 UPDATE tt_4, nt_4 SET tt_4.info= "new text 308 --> 4", nt_4.info= "new text 308 --> 4" where nt_4.trans_id = tt_4.trans_id and tt_4.trans_id = 1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> TN << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> R << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9799,7 +9799,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (319, 4);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> S1 << -b-b-b-b-b-b-b-b-b-b-b-
@@ -9853,7 +9853,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id) VALUES (320, 5);
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10046,8 +10046,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-T<-N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_xx_7(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-T<-N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10124,8 +10124,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-T<-N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_xx_7(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-T<-N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10218,7 +10218,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-T<-T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_xx_8(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-T<-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10295,7 +10295,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-T<-T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO tt_xx_8(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-T<-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10388,8 +10388,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10468,8 +10468,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-T << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1;;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_9(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM tt_1
@@ -10572,8 +10572,8 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Non-transactional reads or writes are unsafe if they occur after transactional reads or writes inside a transaction.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it accesses a non-transactional table after accessing a transactional table within the same transaction.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
 -b-b-b-b-b-b-b-b-b-b-b- >> T << -b-b-b-b-b-b-b-b-b-b-b-
@@ -10652,7 +10652,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> IS-N<-N << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1;;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_xx_10(trans_id, stmt_id, info) SELECT trans_id, stmt_id, USER() FROM nt_1
@@ -10879,7 +10879,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -b-b-b-b-b-b-b-b-b-b-b- >> tN << -b-b-b-b-b-b-b-b-b-b-b-
 INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 357, 2, COUNT(*) FROM tt_1;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statements that read from both transactional (or a temporary table of any engine type) and non-transactional tables and write to any of them are unsafe.
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO nt_1(trans_id, stmt_id, info) SELECT 357, 2, COUNT(*) FROM tt_1
