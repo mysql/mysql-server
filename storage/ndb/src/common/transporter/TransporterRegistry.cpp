@@ -106,7 +106,6 @@ TransporterRegistry::TransporterRegistry(void * callback,
  {
    /* Failure to allocate data or get epoll socket, abort */
    perror("Failed to alloc epoll-array or calling epoll_create... falling back to select!");
-   ndbout_c("Falling back to select");
    if (m_epoll_fd != -1)
    {
      close(m_epoll_fd);
