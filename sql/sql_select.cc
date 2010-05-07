@@ -9509,8 +9509,13 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
            ~(tab->table->map | tab->join->const_table_map)))
         tab->cache_idx_cond= idx_cond;
       else
+      {
         idx_remainder_cond= tab->table->file->idx_cond_push(keyno, idx_cond);
-
+        tab->select->icp_cond= idx_cond;
+        DBUG_EXECUTE("where",
+                     print_where(tab->select->icp_cond, "icp cond", 
+                                 QT_ORDINARY););
+      }
       /*
         Disable eq_ref's "lookup cache" if we've pushed down an index
         condition. 
