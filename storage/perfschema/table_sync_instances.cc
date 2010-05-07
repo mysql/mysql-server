@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -73,7 +73,7 @@ PFS_engine_table* table_mutex_instances::create(void)
 }
 
 table_mutex_instances::table_mutex_instances()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
   m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
@@ -241,7 +241,7 @@ PFS_engine_table* table_rwlock_instances::create(void)
 }
 
 table_rwlock_instances::table_rwlock_instances()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
   m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
@@ -406,7 +406,7 @@ PFS_engine_table* table_cond_instances::create(void)
 }
 
 table_cond_instances::table_cond_instances()
-  : PFS_readonly_table(&m_share, &m_pos),
+  : PFS_engine_table(&m_share, &m_pos),
   m_row_exists(false), m_pos(0), m_next_pos(0)
 {}
 
