@@ -35,7 +35,7 @@ AAAAAAAAAAAAAAAAAADWBFVKEzgNAAgAEgAEBAQEEgAAUwAEGggAAAAICAgC
 * Modify tables of more than one engine, one of which is self-logging
 CREATE TRIGGER trig_1 AFTER INSERT ON t_self_logging FOR EACH ROW BEGIN INSERT INTO t VALUES (1); END;
 INSERT INTO t_self_logging VALUES (1);
-ERROR HY000: Cannot execute statement: binlogging impossible since more than one engine is involved and at least one engine is self-logging.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since more than one engine is involved and at least one engine is self-logging.
 DROP trigger trig_1;
 SELECT * FROM t_self_logging /* Should be empty */;
 a
@@ -43,21 +43,21 @@ SELECT * FROM t /* Should be empty */;
 a
 * Modify both row-only and stmt-only table
 CREATE TRIGGER trig_2 AFTER INSERT ON t_stmt FOR EACH ROW BEGIN INSERT INTO t_row VALUES(1); END;
-ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging.
 INSERT INTO t_stmt VALUES (1);
-ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging.
 SELECT * FROM t_stmt /* should be empty */;
 a
 * Stmt-only table and binlog_format=row
 INSERT INTO t_stmt VALUES (1);
-ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-logging.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = ROW and at least one table uses a storage engine limited to statement-based logging.
 SELECT * FROM t_stmt /* should be empty */;
 a
 * Row injection and stmt-only table: in slave sql thread
 INSERT INTO t_slave_stmt VALUES (1);
 [on slave]
 --source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging.' on opening tables
+Last_SQL_Error = Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging.'
 set global sql_slave_skip_counter=1;
 include/start_slave.inc
 SELECT * FROM t_slave_stmt /* should be empty */;
@@ -68,7 +68,7 @@ BINLOG '
 1gRVShMBAAAALwAAAEABAAAAABcAAAAAAAAABHRlc3QABnRfc3RtdAABDwJkAAE=
 1gRVShcBAAAAIAAAAGABAAAQABcAAAAAAAEAAf/+ATE=
 ';
-ERROR HY000: Cannot execute row injection: binlogging impossible since at least one table uses a storage engine limited to statement-logging.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is in row format and at least one table uses a storage engine limited to statement-based logging.
 SELECT * FROM t_stmt /* should be empty */;
 a
 ---- binlog_format=mixed ----
@@ -81,10 +81,10 @@ SET @@global.binlog_format = MIXED;
 SET @@session.binlog_format = MIXED;
 * Unsafe statement and stmt-only engine
 INSERT INTO t_stmt VALUES (UUID());
-ERROR HY000: Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
 * Multi-unsafe statement and stmt-only engine
 INSERT DELAYED INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, NULL) FROM mysql.general_log LIMIT 1;
-ERROR HY000: Cannot execute statement: binlogging of unsafe statement is impossible when storage engine is limited to statement-logging and BINLOG_FORMAT = MIXED.  Reason for unsafeness: Statement uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 ---- binlog_format=statement ----
 [on slave]
 include/stop_slave.inc
@@ -95,13 +95,13 @@ SET @@global.binlog_format = STATEMENT;
 SET @@session.binlog_format = STATEMENT;
 * Row-only engine and binlog_format=statement: innodb-specific message
 INSERT INTO t_row VALUES (1);
-ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
 SELECT * FROM t_row /* should be empty */;
 a
 * Row-only engine and binlog_format=statement: generic message
 SET @@session.debug= '+d,no_innodb_binlog_errors';
 INSERT INTO t_row VALUES (1);
-ERROR HY000: Cannot execute statement: binlogging impossible since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-logging.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging.
 SELECT * FROM t_row /* should be empty */;
 a
 * Same statement, but db filtered out - no error
@@ -117,7 +117,7 @@ BINLOG '
 cNpVShMBAAAAKgAAADYBAAAAABcAAAAAAAAABHRlc3QAAXQAAQ8CZAAB
 cNpVShcBAAAAIAAAAFYBAAAQABcAAAAAAAEAAf/+ATE=
 ';
-ERROR HY000: Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT.
+ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT.
 SELECT * FROM t /* should be empty */;
 a
 * Same statement, but db filtered out - no error
@@ -134,7 +134,7 @@ DELETE FROM t;
 * Unsafe statement and binlog_format=statement
 INSERT INTO t VALUES (COALESCE(1, UUID()));
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses a system function whose value may differ on slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the slave.
 SELECT * FROM t /* should contain the value 1 */;
 a
 1
@@ -154,7 +154,7 @@ SET @@session.binlog_format = MIXED;
 INSERT INTO t VALUES (COALESCE(1, UUID()));
 [on slave]
 --source include/wait_for_slave_sql_error_and_skip.inc
-Last_SQL_Error = Error 'Cannot execute row injection: binlogging impossible since BINLOG_FORMAT = STATEMENT.' on opening tables
+Last_SQL_Error = Error executing row event: 'Cannot execute statement: impossible to write to binary log since statement is in row format and BINLOG_FORMAT = STATEMENT.'
 set global sql_slave_skip_counter=1;
 include/start_slave.inc
 SELECT * FROM t /* should be empty */;

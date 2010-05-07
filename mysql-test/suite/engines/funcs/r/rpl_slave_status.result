@@ -29,7 +29,7 @@ Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
-Slave_IO_Running	No
+Slave_IO_Running	Connecting
 Slave_SQL_Running	Yes
 Replicate_Do_DB	
 Replicate_Ignore_DB	
@@ -57,5 +57,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Replicate_Ignore_Server_Ids	
+Master_Server_Id	1
 drop table t1;
 drop table t1;
