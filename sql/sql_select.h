@@ -1422,12 +1422,12 @@ public:
 #define SJ_OPT_DUPS_WEEDOUT 1
 #define SJ_OPT_LOOSE_SCAN   2
 #define SJ_OPT_FIRST_MATCH  3
-#define SJ_OPT_MATERIALIZE  4
+#define SJ_OPT_MATERIALIZE_LOOKUP  4
 #define SJ_OPT_MATERIALIZE_SCAN  5
 
 inline bool sj_is_materialize_strategy(uint strategy)
 {
-  return strategy >= SJ_OPT_MATERIALIZE;
+  return strategy >= SJ_OPT_MATERIALIZE_LOOKUP;
 }
 
 class JOIN :public Sql_alloc
