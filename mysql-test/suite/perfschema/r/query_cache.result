@@ -4,6 +4,7 @@ insert into t1 values (1), (2), (3);
 SET GLOBAL query_cache_size=1355776;
 flush query cache;
 reset query cache;
+flush status;
 select * from t1;
 a
 1
