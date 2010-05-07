@@ -73,3 +73,23 @@ id	text
 line2
 line3
 drop table t1;
+#
+# Bug#51571 load xml infile causes server crash
+#
+CREATE TABLE t1 (a text, b text);
+LOAD XML INFILE '../../std_data/loadxml.dat' INTO TABLE t1
+ROWS IDENTIFIED BY '<row>' (a,@b) SET b=concat('!',@b);
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	!b1
+11	!b11
+111	!b111
+112	!b112 & < > " ' &unknown; -- check entities
+2	!b2
+212	!b212
+213	!b213
+214	!b214
+215	!b215
+216	!&bb b;
+3	!b3
+DROP TABLE t1;
