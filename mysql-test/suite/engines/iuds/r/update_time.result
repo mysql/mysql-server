@@ -1262,7 +1262,7 @@ c1	c2
 838:59:59	838:59:59
 UPDATE t1 SET c1=c1+1,c2=c2-1 WHERE c1 IN (222222,8385955,1500000) ORDER BY c1;
 Warnings:
-Warning	1265	Data truncated for column 'c2' at row 2
+Warning	1264	Out of range value for column 'c2' at row 2
 SELECT * FROM t1;
 c1	c2
 -12:12:12	12:12:12
