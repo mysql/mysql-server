@@ -182,7 +182,11 @@ IF(SIZEOF_PTHREAD_T)
 ENDIF()
 
 IF(MSVC)
- ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
+  # Windows atomics do not perform well. Disable Windows atomics by default.
+  # See bug#52102 for details.
+
+  #ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
+  ADD_DEFINITIONS(-DHAVE_IB_PAUSE_INSTRUCTION)
 ENDIF()
 
 
@@ -240,10 +244,6 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			usr/usr0sess.c
 			ut/ut0byte.c ut/ut0dbg.c ut/ut0list.c ut/ut0mem.c ut/ut0rbt.c ut/ut0rnd.c
 			ut/ut0ut.c ut/ut0vec.c ut/ut0wqueue.c)
-# Windows atomics do not perform well. Disable Windows atomics by default.
-# See bug#52102 for details.
-#ADD_DEFINITIONS(-DHAVE_WINDOWS_ATOMICS -DINNODB_RW_LOCKS_USE_ATOMICS -DHAVE_IB_PAUSE_INSTRUCTION)
-ADD_DEFINITIONS(-DHAVE_IB_PAUSE_INSTRUCTION)
 
 IF(WITH_INNODB)
   # Legacy option
