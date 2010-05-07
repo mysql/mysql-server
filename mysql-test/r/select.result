@@ -4905,7 +4905,7 @@ DROP TABLE t1;
 #
 SELECT @old_optimizer_switch:=@@optimizer_switch;
 @old_optimizer_switch:=@@optimizer_switch
-index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on
+index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
 SET SESSION optimizer_switch='engine_condition_pushdown=ON';
 CREATE TABLE t1 ( 
 f1 VARCHAR(1024),

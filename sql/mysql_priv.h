@@ -640,7 +640,17 @@ protected:
 #define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 6)
 #define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 7)
 #define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 8)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 9)
+/** If this is off, MRR is never used. */
+#define OPTIMIZER_SWITCH_MRR                       (1ULL << 9)
+/**
+   If OPTIMIZER_SWITCH_MRR is on and this is on, MRR is used depending on a
+   cost-based choice ("automatic"). If OPTIMIZER_SWITCH_MRR is on and this is
+   off, MRR is "forced" (i.e. used as long as the storage engine is capable of
+   doing it).
+*/
+#define OPTIMIZER_SWITCH_MRR_COST_BASED            (1ULL << 10)
+#define OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN  (1ULL << 11)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 12)
 
 /* The following must be kept in sync with optimizer_switch_str in mysqld.cc */
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
@@ -651,7 +661,9 @@ protected:
                                   OPTIMIZER_SWITCH_MATERIALIZATION | \
                                   OPTIMIZER_SWITCH_SEMIJOIN | \
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                  OPTIMIZER_SWITCH_FIRSTMATCH)
+                                  OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                  OPTIMIZER_SWITCH_MRR | \
+                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN)
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you

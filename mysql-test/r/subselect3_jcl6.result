@@ -1,7 +1,7 @@
-set join_cache_level=6;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=6;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	6
+optimizer_join_cache_level	6
 drop table if exists t0, t1, t2, t3, t4, t5, t11, t12, t21, t22;
 create table t1 (oref int, grp int, ie int) ;
 insert into t1 (oref, grp, ie) values
@@ -1370,8 +1370,8 @@ insert into t1 select * from t0;
 alter table t1 add b int not null, add filler char(200);
 insert into t1 select * from t1;
 insert into t1 select * from t1;
-set @save_join_cache_level=@@join_cache_level;
-set join_cache_level=6;
+set @save_optimizer_join_cache_level=@@optimizer_join_cache_level;
+set optimizer_join_cache_level=6;
 select * from t0 where t0.a in (select t1.a from t1 where t1.b=0);
 a
 0
@@ -1384,7 +1384,7 @@ a
 7
 8
 9
-set join_cache_level=@save_join_cache_level;
+set optimizer_join_cache_level=@save_optimizer_join_cache_level;
 drop table t0, t1;
 # 
 # BUG#32665 Query with dependent subquery is too slow
@@ -1459,7 +1459,7 @@ CALL p1;
 ERROR 42S22: Unknown column 'f1' in 'where clause'
 DROP PROCEDURE p1;
 DROP TABLE t1, t2;
-set join_cache_level=default;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=default;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	1
+optimizer_join_cache_level	1

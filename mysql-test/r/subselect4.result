@@ -179,9 +179,9 @@ INSERT INTO t3 VALUES  ('E4','P2',20);
 INSERT INTO t3 VALUES  ('E4','P4',40);
 INSERT INTO t3 VALUES  ('E4','P5',80);
 SET @old_optimizer_switch = @@session.optimizer_switch;
-SET @old_join_cache_level = @@session.join_cache_level;
+SET @old_optimizer_join_cache_level = @@session.optimizer_join_cache_level;
 SET SESSION optimizer_switch = 'firstmatch=on,loosescan=on,materialization=on,semijoin=on';
-SET SESSION join_cache_level = 1;
+SET SESSION optimizer_join_cache_level = 1;
 CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
 EXPLAIN SELECT EMPNAME
 FROM t1
@@ -286,7 +286,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	12	Using where; End materialize; Using join buffer
 DEALLOCATE PREPARE stmt;
 SET SESSION optimizer_switch = @old_optimizer_switch;
-SET SESSION join_cache_level = @old_join_cache_level;
+SET SESSION optimizer_join_cache_level = @old_optimizer_join_cache_level;
 DROP TABLE t1, t2, t3;
 #
 # BUG#45221 Query SELECT pk FROM C WHERE pk IN (SELECT int_key) failing
