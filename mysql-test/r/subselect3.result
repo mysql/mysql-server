@@ -1365,8 +1365,8 @@ insert into t1 select * from t0;
 alter table t1 add b int not null, add filler char(200);
 insert into t1 select * from t1;
 insert into t1 select * from t1;
-set @save_join_cache_level=@@join_cache_level;
-set join_cache_level=6;
+set @save_optimizer_join_cache_level=@@optimizer_join_cache_level;
+set optimizer_join_cache_level=6;
 select * from t0 where t0.a in (select t1.a from t1 where t1.b=0);
 a
 0
@@ -1379,7 +1379,7 @@ a
 7
 8
 9
-set join_cache_level=@save_join_cache_level;
+set optimizer_join_cache_level=@save_optimizer_join_cache_level;
 drop table t0, t1;
 # 
 # BUG#32665 Query with dependent subquery is too slow

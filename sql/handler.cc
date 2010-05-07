@@ -4731,7 +4731,8 @@ ha_rows DsMrr_impl::dsmrr_info_const(uint keyno, RANGE_SEQ_IF *seq,
   /*
     If HA_MRR_USE_DEFAULT_IMPL has been passed to us, that is an order to
     use the default MRR implementation (we need it for UPDATE/DELETE).
-    Otherwise, make a choice based on cost and @@optimizer_use_mrr.
+    Otherwise, make a choice based on cost and mrr* flags of
+    @@optimizer_switch.
   */
   if ((*flags & HA_MRR_USE_DEFAULT_IMPL) ||
       choose_mrr_impl(keyno, rows, flags, bufsz, cost))
@@ -4778,7 +4779,8 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   COST_VECT dsmrr_cost;
   bool res;
   THD *thd= current_thd;
-  if (thd->variables.optimizer_use_mrr == 2 || *flags & HA_MRR_INDEX_ONLY ||
+  if (!thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) ||
+      *flags & HA_MRR_INDEX_ONLY ||
       (keyno == table->s->primary_key && h->primary_key_is_clustered()) ||
        key_uses_partial_cols(table, keyno))
   {
@@ -4795,12 +4797,14 @@ bool DsMrr_impl::choose_mrr_impl(uint keyno, ha_rows rows, uint *flags,
   
   bool force_dsmrr;
   /* 
-    If @@optimizer_use_mrr==force, then set cost of DS-MRR to be minimum of
-    DS-MRR and Default implementations cost. This allows one to force use of
-    DS-MRR whenever it is applicable without affecting other cost-based
-    choices.
+    If @@optimizer_switch has "mrr" on and "mrr_cost_based" off, then set cost
+    of DS-MRR to be minimum of DS-MRR and Default implementations cost. This
+    allows one to force use of DS-MRR whenever it is applicable without
+    affecting other cost-based choices.
   */
-  if ((force_dsmrr= (thd->variables.optimizer_use_mrr == 1)) &&
+  if ((force_dsmrr=
+       (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) &&
+        !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED))) &&
       dsmrr_cost.total_cost() > cost->total_cost())
     dsmrr_cost= *cost;
 

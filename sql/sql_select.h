@@ -2016,11 +2016,6 @@ int report_error(TABLE *table, int error);
 int safe_index_read(JOIN_TAB *tab);
 COND *remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value);
 
-inline bool optimizer_flag(THD *thd, uint flag)
-{ 
-  return (thd->variables.optimizer_switch & flag);
-}
-
 int test_if_item_cache_changed(List<Cached_item> &list);
 void calc_used_field_length(THD *thd, JOIN_TAB *join_tab);
 int join_init_read_record(JOIN_TAB *tab);

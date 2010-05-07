@@ -805,12 +805,12 @@ static Sys_var_ulong Sys_join_buffer_size(
        SESSION_VAR(join_buff_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(128, ULONG_MAX), DEFAULT(128*1024), BLOCK_SIZE(128));
 
-static Sys_var_ulong Sys_join_cache_level(
-       "join_cache_level",
+static Sys_var_ulong Sys_optimizer_join_cache_level(
+       "optimizer_join_cache_level",
        "Controls what join operations can be executed with join buffers. "
        "Odd numbers are used for plain join buffers while even numbers "
        "are used for linked buffers",
-       SESSION_VAR(join_cache_level), CMD_LINE(REQUIRED_ARG),
+       SESSION_VAR(optimizer_join_cache_level), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 8), DEFAULT(1), BLOCK_SIZE(1));
 
 static Sys_var_keycache Sys_key_buffer_size(
@@ -1348,23 +1348,13 @@ static Sys_var_ulong Sys_optimizer_search_depth(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_optimizer_search_depth));
 
-static const char *optimizer_use_mrr_names[]= { "AUTO", "FORCE", "DISABLE", NullS };
-static Sys_var_enum Sys_optimizer_use_mrr(
-       "optimizer_use_mrr",
-       "Controls use of Engine-MRR:"
-       " AUTO - based on cost;"
-       " FORCE - force MRR when the storage engine is capable of doing it;"
-       " DISABLE - disable MRR.",
-       SESSION_VAR(optimizer_use_mrr), CMD_LINE(OPT_ARG),
-       optimizer_use_mrr_names, DEFAULT(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(0), ON_UPDATE(0));
-
 static const char *optimizer_switch_names[]=
 {
   "index_merge", "index_merge_union", "index_merge_sort_union",
   "index_merge_intersection", "engine_condition_pushdown",
-  "materialization", "semijoin", "loosescan", "firstmatch", "default", NullS
+  "materialization", "semijoin", "loosescan", "firstmatch",
+  "mrr", "mrr_cost_based", "index_condition_pushdown",
+  "default", NullS
 };
 /** propagates changes to @@engine_condition_pushdown */
 static bool fix_optimizer_switch(sys_var *self, THD *thd,
@@ -1380,8 +1370,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch=option=val[,option=val...], where option is one of "
        "{index_merge, index_merge_union, index_merge_sort_union, "
        "index_merge_intersection, engine_condition_pushdown, materialization, "
-       "semijoin, loosescan, firstmatch}"
-       " and val is one of {on, off, default}",
+       "semijoin, loosescan, firstmatch, mrr, mrr_cost_based, "
+       "index_condition_pushdown} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),

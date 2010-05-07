@@ -1,7 +1,7 @@
-set join_cache_level=6;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=6;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	6
+optimizer_join_cache_level	6
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5,t6,t7,t8,t9;
 CREATE TABLE t0 (a int, b int, c int);
 CREATE TABLE t1 (a int, b int, c int);
@@ -1850,7 +1850,7 @@ a	b	a	b	a	b	a	b
 1	3	NULL	NULL	NULL	NULL	NULL	NULL
 3	2	NULL	NULL	NULL	NULL	NULL	NULL
 DROP TABLE t5,t6,t7,t8;
-set join_cache_level=default;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=default;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	1
+optimizer_join_cache_level	1

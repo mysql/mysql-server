@@ -646,7 +646,7 @@ JOIN::prepare(Item ***rref_pointer_array,
         7. We're not in a confluent table-less subquery, like "SELECT 1".
         9. Parent select is not a confluent table-less select
         10. Neither parent nor child select have STRAIGHT_JOIN option.    */
-    if (optimizer_flag(thd, OPTIMIZER_SWITCH_SEMIJOIN) &&
+    if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
         in_subs &&                                                    // 1
         !select_lex->is_part_of_union() &&                            // 2
         !select_lex->group_list.elements && !order &&                 // 3
@@ -702,7 +702,7 @@ JOIN::prepare(Item ***rref_pointer_array,
         perform the whole transformation or only that part of it which wraps
         Item_in_subselect in an Item_in_optimizer.
       */
-      if (optimizer_flag(thd, OPTIMIZER_SWITCH_MATERIALIZATION)  && 
+      if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION) &&
           in_subs  &&                                                   // 1
           !select_lex->is_part_of_union() &&                            // 2
           select_lex->master_unit()->first_select()->leaf_tables &&     // 3
@@ -4603,8 +4603,8 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
     The statement may have been executed with 'semijoin=on' earlier.
     We need to verify that 'semijoin=on' still holds.
    */
-  if (optimizer_flag(join->thd, OPTIMIZER_SWITCH_SEMIJOIN) &&
-      optimizer_flag(join->thd, OPTIMIZER_SWITCH_MATERIALIZATION))
+  if (join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_SEMIJOIN) &&
+      join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MATERIALIZATION))
   {
     while ((sj_nest= sj_list_it++))
     {
@@ -6101,7 +6101,7 @@ public:
         !(remaining_tables & 
           s->emb_sj_nest->nested_join->sj_corr_tables) &&               // (4)
         remaining_tables & s->emb_sj_nest->nested_join->sj_depends_on &&// (5)
-        optimizer_flag(join->thd, OPTIMIZER_SWITCH_LOOSE_SCAN))
+        join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_LOOSE_SCAN))
     {
       /* This table is an LooseScan scan candidate */
       bound_sj_equalities= get_bound_sj_equalities(s->emb_sj_nest, 
@@ -8931,8 +8931,8 @@ static bool make_join_select(JOIN *join, Item *cond)
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
           tab->table->file->pushed_cond= NULL;
-	  if (thd->variables.optimizer_switch &
-              OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN && !first_inner_tab)
+	  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
+              !first_inner_tab)
           {
             COND *push_cond= 
               make_cond_for_table(tmp, current_map, current_map, 0);
@@ -9479,8 +9479,9 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
 {
   DBUG_ENTER("push_index_cond");
   Item *idx_cond;
-  if (tab->table->file->index_flags(keyno, 0, 1) & HA_DO_INDEX_COND_PUSHDOWN &&
-      tab->join->thd->variables.engine_condition_pushdown)
+  if (tab->table->file->index_flags(keyno, 0, 1) &
+      HA_DO_INDEX_COND_PUSHDOWN &&
+      tab->join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN))
   {
     DBUG_EXECUTE("where", print_where(tab->select_cond, "full cond",
                  QT_ORDINARY););
@@ -9811,7 +9812,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   ha_rows rows;
   uint bufsz= 4096;
   JOIN_CACHE *prev_cache=0;
-  uint cache_level= join->thd->variables.join_cache_level;
+  uint cache_level= join->thd->variables.optimizer_join_cache_level;
   bool force_unlinked_cache= test(cache_level & 1);
   uint i= tab-join->join_tab;
   *icp_other_tables_ok= TRUE;
@@ -13113,7 +13114,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   table_map handled_by_fm_or_ls= 0;
   /* FirstMatch Strategy */
   if (new_join_tab->emb_sj_nest &&
-      optimizer_flag(join->thd, OPTIMIZER_SWITCH_FIRSTMATCH))
+      join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_FIRSTMATCH))
   {
     const table_map outer_corr_tables=
       new_join_tab->emb_sj_nest->nested_join->sj_corr_tables |
@@ -21911,8 +21912,8 @@ void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
           {
             const COND *pushed_cond= tab->table->file->pushed_cond;
 
-            if ((thd->variables.optimizer_switch &
-                 OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) && pushed_cond)
+            if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN) &&
+                pushed_cond)
             {
               extra.append(STRING_WITH_LEN("; Using where with pushed "
                                            "condition"));

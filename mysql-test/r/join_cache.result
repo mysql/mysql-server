@@ -33,9 +33,9 @@ COUNT(*)
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
-show variables like 'join_cache_level';
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	1
+optimizer_join_cache_level	1
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -220,10 +220,10 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-set join_cache_level=2;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=2;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	2
+optimizer_join_cache_level	2
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -408,14 +408,14 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 set join_buffer_size=256;
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	256
-show variables like 'join_cache_level';
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	1
+optimizer_join_cache_level	1
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -600,10 +600,10 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-set join_cache_level=2;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=2;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	2
+optimizer_join_cache_level	2
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -788,14 +788,14 @@ Lancaster	United States	English
 Lafayette	United States	English
 Lowell	United States	English
 Livonia	United States	English
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
-show variables like 'join_cache_level';
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	1
+optimizer_join_cache_level	1
 DROP DATABASE world;
 CREATE DATABASE world;
 use world;
@@ -827,10 +827,10 @@ INDEX (Percentage)
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
-set join_cache_level=5;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=5;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	5
+optimizer_join_cache_level	5
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -1134,10 +1134,10 @@ Belarus	NULL
 Venezuela	NULL
 Russian Federation	NULL
 Vietnam	NULL
-set join_cache_level=6;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=6;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	6
+optimizer_join_cache_level	6
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -1441,10 +1441,10 @@ Belarus	NULL
 Venezuela	NULL
 Russian Federation	NULL
 Vietnam	NULL
-set join_cache_level=7;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=7;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	7
+optimizer_join_cache_level	7
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -1748,10 +1748,10 @@ Belarus	NULL
 Venezuela	NULL
 Russian Federation	NULL
 Vietnam	NULL
-set join_cache_level=8;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=8;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	8
+optimizer_join_cache_level	8
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -2059,10 +2059,10 @@ set join_buffer_size=256;
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	256
-set join_cache_level=5;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=5;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	5
+optimizer_join_cache_level	5
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -2273,10 +2273,10 @@ Kaunas
 Klaipeda
 ?iauliai
 Panevezys
-set join_cache_level=6;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=6;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	6
+optimizer_join_cache_level	6
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -2487,10 +2487,10 @@ Kaunas
 Klaipeda
 ?iauliai
 Panevezys
-set join_cache_level=7;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=7;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	7
+optimizer_join_cache_level	7
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -2701,10 +2701,10 @@ Kaunas
 Klaipeda
 ?iauliai
 Panevezys
-set join_cache_level=8;
-show variables like 'join_cache_level';
+set optimizer_join_cache_level=8;
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	8
+optimizer_join_cache_level	8
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -2915,15 +2915,15 @@ Kaunas
 Klaipeda
 ?iauliai
 Panevezys
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 set join_buffer_size=default;
 show variables like 'join_buffer_size';
 Variable_name	Value
 join_buffer_size	131072
-show variables like 'join_cache_level';
+show variables like 'optimizer_join_cache_level';
 Variable_name	Value
-join_cache_level	1
-set join_cache_level=1;
+optimizer_join_cache_level	1
+set optimizer_join_cache_level=1;
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND City.Population > 3000000;
 Name	Name
@@ -2973,7 +2973,7 @@ St Petersburg	Russian Federation
 Ho Chi Minh City	Vietnam
 New York	United States
 Los Angeles	United States
-set join_cache_level=8;
+set optimizer_join_cache_level=8;
 set join_buffer_size=256;
 EXPLAIN
 SELECT City.Name, Country.Name FROM City,Country
@@ -3031,7 +3031,7 @@ Ho Chi Minh City	Vietnam
 New York	United States
 Los Angeles	United States
 set join_buffer_size=default;
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 ALTER TABLE Country MODIFY Name varchar(52) NOT NULL default '';
 SELECT City.Name, Country.Name FROM City,Country
 WHERE City.Country=Country.Code AND 
@@ -3114,7 +3114,7 @@ Kaunas	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Klaipeda	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ?iauliai	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Panevezys	Lithuania	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 set join_buffer_size=default;
 DROP DATABASE world;
 use test;
@@ -3246,7 +3246,7 @@ PRIMARY KEY  (genreid)
 CREATE INDEX t11_masterclip ON t11( masterclip);
 INSERT INTO t11 VALUES
 (19, "Pop & Dance", 95, 'Y'), (3, "Rock & Alternative", 100, 'Y');
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 EXPLAIN
 SELECT t1.uniquekey, t1.xml AS affiliateXml,
 t8.name AS artistName, t8.artistid, 
@@ -3322,7 +3322,7 @@ INSERT INTO t3 VALUES
 (43,431), (91,916), (62,624), (79,797), (49,494),
 (93,933), (34,347), (82,829), (78,780), (63,634), 
 (32,329), (22,228), (11,114), (74,749), (23,236);
-set join_cache_level=1;
+set optimizer_join_cache_level=1;
 EXPLAIN
 SELECT a1<>a2, a1, a2, b2, b3, c3,
 SUBSTR(filler1,1,1) AS s1, SUBSTR(filler2,1,1) AS s2
@@ -3349,7 +3349,7 @@ a1<>a2	a1	a2	b2	b3	c3	s1	s2
 0	6	6	73	73	738		
 0	6	6	74	74	749		
 0	2	2	61	61	618		
-set join_cache_level=5;
+set optimizer_join_cache_level=5;
 set join_buffer_size=512;
 EXPLAIN
 SELECT a1<>a2, a1, a2, b2, b3, c3,
@@ -3386,7 +3386,7 @@ INSERT INTO t2 VALUES (1,10), (4,20), (3,20), (7,20), (7,10), (1,20);
 set join_buffer_size=32;
 Warnings:
 Warning	1292	Truncated incorrect join_buffer_size value: '32'
-set join_cache_level=8;
+set optimizer_join_cache_level=8;
 EXPLAIN SELECT * FROM t1,t2 WHERE t1.a=t2.a AND t1.b >= 30;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	idx	NULL	NULL	NULL	7	Using where
@@ -3409,8 +3409,8 @@ create table t2 (p int, a int, INDEX i_a(a));
 insert into t2 values
 (103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
 (107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
-set @save_join_cache_level=@@join_cache_level;
-set join_cache_level=6;
+set @save_join_cache_level=@@optimizer_join_cache_level;
+set optimizer_join_cache_level=6;
 The following must not show "using join cache":
 explain
 select t1.a, count(t2.p) as count
@@ -3433,7 +3433,7 @@ drop table t1, t2;
 #
 # Bug #40134: outer join with not exists optimization and join buffer
 #
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 set join_buffer_size=default;
 CREATE TABLE t1 (a int NOT NULL);
 INSERT INTO t1 VALUES (2), (4), (3), (5), (1);
@@ -3449,7 +3449,7 @@ a	a	b
 3	NULL	NULL
 5	NULL	NULL
 1	NULL	NULL
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -3461,7 +3461,7 @@ a	a	b
 5	NULL	NULL
 1	NULL	NULL
 DROP TABLE t1, t2;
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 set join_buffer_size=default;
 #
 # BUG#40268: Nested outer join with not null-rejecting where condition
@@ -3473,7 +3473,7 @@ CREATE TABLE t4 (a int, b int, c int);
 INSERT INTO t2 VALUES (3,3,0), (4,2,0), (5,3,0);
 INSERT INTO t3 VALUES (1,2,0), (2,2,0);
 INSERT INTO t4 VALUES (3,2,0), (4,2,0);
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 SELECT t2.a,t2.b,t3.a,t3.b,t4.a,t4.b
 FROM t2 LEFT JOIN (t3, t4) ON t2.b=t4.b
 WHERE t3.a+2<t2.a OR t3.c IS NULL;
@@ -3482,7 +3482,7 @@ a	b	a	b	a	b
 4	2	1	2	4	2
 3	3	NULL	NULL	NULL	NULL
 5	3	NULL	NULL	NULL	NULL
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 DROP TABLE t2, t3, t4;
 #
 # Bug #40192: outer join with where clause when using BNL 
@@ -3491,7 +3491,7 @@ create table t1 (a int, b int);
 insert into t1 values (2, 20), (3, 30), (1, 10);
 create table t2 (a int, c int);
 insert into t2 values (1, 101), (3, 102), (1, 100);
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 select * from t1 left join t2 on t1.a=t2.a;
 a	b	a	c
 1	10	1	101
@@ -3506,7 +3506,7 @@ select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
 a	b	a	c
 3	30	3	102
 2	20	NULL	NULL
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 drop table t1, t2;
 #
 # Bug #40317: outer join with with constant on expression equal to FALSE
@@ -3515,7 +3515,7 @@ create table t1 (a int);
 insert into t1 values (30), (40), (20);
 create table t2 (b int);
 insert into t2 values (200), (100);
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 select * from t1 left join t2 on (1=0);
 a	b
 30	NULL
@@ -3528,12 +3528,12 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t1 left join t2 on (1=0) where a=40;
 a	b
 40	NULL
-set join_cache_level=1;
+set optimizer_join_cache_level=1;
 explain select * from t1 left join t2 on (1=0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 drop table t1, t2;
 #
 # Bug #41204: small buffer with big rec_per_key for ref access
@@ -3563,7 +3563,7 @@ INSERT INTO t2(b,c) SELECT b,c FROM t2;
 INSERT INTO t2(b,c) SELECT b,c FROM t2;
 INSERT INTO t2(b,c) SELECT b,c FROM t2;
 ANALYZE TABLE t1,t2;
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 set join_buffer_size=1024;
 EXPLAIN SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -3573,7 +3573,7 @@ SELECT AVG(c) FROM t1,t2 WHERE t1.a=t2.b;
 AVG(c)
 5.0000
 set join_buffer_size=default;
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 DROP TABLE t1, t2;
 #
 # Bug #41894: big join buffer of level 7 used to join records
@@ -3600,7 +3600,7 @@ CREATE TABLE t2 (a int NOT NULL PRIMARY KEY, b varchar(127) DEFAULT NULL);
 INSERT INTO t2 SELECT * FROM t1;
 CREATE TABLE t3 (a int NOT NULL PRIMARY KEY, b varchar(127) DEFAULT NULL);
 INSERT INTO t3 SELECT * FROM t1;
-set join_cache_level=7;
+set optimizer_join_cache_level=7;
 set join_buffer_size=1024*1024;
 EXPLAIN
 SELECT COUNT(*) FROM t1,t2,t3
@@ -3616,7 +3616,7 @@ t1.b IS NULL AND t2.b IS NULL AND t3.b IS NULL;
 COUNT(*)
 16384
 set join_buffer_size=default;
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 DROP TABLE t1,t2,t3;
 #
 # Bug #42020: join buffer is used  for outer join with fields of 
@@ -3664,7 +3664,7 @@ a	a	a	b	b	val
 2	2	2	60	60	0
 2	2	2	70	70	0
 2	2	2	80	80	0
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 set join_buffer_size=256;
 EXPLAIN
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
@@ -3690,7 +3690,7 @@ a	a	a	b	b	val
 2	2	2	70	70	0
 2	2	2	80	80	0
 DROP INDEX idx ON t3;
-set join_cache_level=4;
+set optimizer_join_cache_level=4;
 EXPLAIN
 SELECT t1.a, t2.a, t3.a, t2.b, t3.b, t3.val 
 FROM (t1,t2) LEFT JOIN t3 ON (t1.a=t3.a AND t2.b=t3.b) 
@@ -3715,7 +3715,7 @@ a	a	a	b	b	val
 2	2	2	70	70	0
 2	2	2	80	80	0
 set join_buffer_size=default;
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 DROP TABLE t1,t2,t3;
 create table t1(f1 int, f2 int);
 insert into t1 values (1,1),(2,2),(3,3);
@@ -3732,7 +3732,7 @@ insert into t2 values (2,1, 'qwerty'),(2,2, 'qwerty'),(2,3, 'qwerty'),
 insert into t2 values (3,1, 'qwerty'),(3,4, 'qwerty');
 insert into t2 values (4,1, 'qwerty'),(4,2, 'qwerty'),(4,3, 'qwerty'),
 (4,4, 'qwerty');
-set join_cache_level=5;
+set optimizer_join_cache_level=5;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 f1	f2	f3
@@ -3745,7 +3745,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 f1	f2	f3
@@ -3758,7 +3758,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
-set join_cache_level=7;
+set optimizer_join_cache_level=7;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 f1	f2	f3
@@ -3771,7 +3771,7 @@ where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
-set join_cache_level=8;
+set optimizer_join_cache_level=8;
 select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t1.f2 and t2.f2 + 1 >= t1.f1 + 1;
 f1	f2	f3
@@ -3785,7 +3785,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3	
 1	SIMPLE	t2	ref	f1	f1	4	test.t1.f1	3	Using index condition(BKA); Using join buffer
 drop table t1,t2;
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 #
 # Bug #42955: join with GROUP BY/ORDER BY and when BKA is enabled 
 #             
@@ -3796,7 +3796,7 @@ create table t2 (id1 int, id2 int, index idx2 (id1));
 insert into t2 values 
 (20, 100), (30, 400), (20, 400), (30, 200), (10, 300), (10, 200), (40, 100),
 (40, 200), (30, 300), (10, 400), (20, 200), (20, 300);
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 explain
 select t1.id1, sum(t2.id2) from t1 join t2 on t1.id1=t2.id1 
 where t1.d=3 group by t1.id1;
@@ -3826,10 +3826,10 @@ id1
 20
 30
 30
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 drop table t1,t2;
 #
-# Bug #44019: star-like multi-join query executed join_cache_level=6 
+# Bug #44019: star-like multi-join query executed optimizer_join_cache_level=6 
 #             
 create table t1 (a int, b int, c int, d int);
 create table t2 (b int, e varchar(16), index idx(b));
@@ -3852,7 +3852,7 @@ insert into t4 values
 (201, 'cc'), (601, 'cccccc'), (301, 'ccc'), (501, 'ccccc'),
 (202, 'cc'), (602, 'cccccc'), (302, 'ccc'), (502, 'ccccc');
 analyze table t2,t3,t4;
-set join_cache_level=1;
+set optimizer_join_cache_level=1;
 explain 
 select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
@@ -3865,7 +3865,7 @@ select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
 a	b	c	d	e	f	g
 3	30	300	3000	bbb	ddd	ccc
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 explain 
 select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
@@ -3878,7 +3878,7 @@ select t1.a, t1.b, t1.c, t1.d, t2.e, t3.f, t4.g from t1,t2,t3,t4
 where t2.b=t1.b and t3.d=t1.d and t4.c=t1.c;
 a	b	c	d	e	f	g
 3	30	300	3000	bbb	ddd	ccc
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 drop table t1,t2,t3,t4;
 #
 # Bug #44250: Corruption of linked join buffers when using BKA 
@@ -3913,7 +3913,7 @@ id2 bigint(20) NOT NULL DEFAULT '0',
 enum2 enum('Active','Deleted','Paused') DEFAULT NULL,
 PRIMARY KEY (id1,id2)
 );
-set join_cache_level=8;
+set optimizer_join_cache_level=8;
 set join_buffer_size=2048;
 EXPLAIN
 SELECT STRAIGHT_JOIN t1.id1, t1.num3, t3.text1, t3.id4, t2.id3, t4.dummy
@@ -3963,7 +3963,7 @@ id1	num3	text1	id4	id3	dummy
 228808822	28	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 228808822	62	CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC	2381969632	2482416112	0
 set join_buffer_size=default;
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 DROP TABLE t1,t2,t3,t4,t5;
 #
 # Bug #46328: Use of aggregate function without GROUP BY clause 
@@ -3999,7 +3999,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	index	NULL	int_key	4	NULL	2	Using index; Using join buffer
 
 DROP TABLE t1,t2;
-SET join_cache_level=default;
+SET optimizer_join_cache_level=default;
 #
 # Bug #45019: join buffer contains two blob columns one of which is
 #             used in the key employed to access the joined table
@@ -4011,12 +4011,12 @@ CREATE TABLE t2 (c1 text, c2 text);
 INSERT INTO t2 VALUES('tt', 'uu');
 INSERT INTO t2 VALUES('zzzz', 'xxxxxxxxx');
 ANALYZE TABLE t1,t2;
-set join_cache_level=6;
+set optimizer_join_cache_level=6;
 SELECT t1.*, t2.*, LENGTH(t2.c1), LENGTH(t2.c2) FROM t1,t2
 WHERE t1.c2=LENGTH(t2.c2) and t1.c1=LENGTH(t2.c1);
 c1	c2	c1	c2	LENGTH(t2.c1)	LENGTH(t2.c2)
 2	2	tt	uu	2	2
-set join_cache_level=default;
+set optimizer_join_cache_level=default;
 DROP TABLE t1,t2;
 #
 # Regression test for

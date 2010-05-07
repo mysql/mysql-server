@@ -343,7 +343,7 @@ typedef struct system_variables
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
   ulong join_buff_size;
-  ulong join_cache_level;
+  ulong optimizer_join_cache_level;
   ulong lock_wait_timeout;
   ulong max_allowed_packet;
   ulong max_error_count;
@@ -364,13 +364,6 @@ typedef struct system_variables
   ulong net_write_timeout;
   ulong optimizer_prune_level;
   ulong optimizer_search_depth;
-  /*
-    Controls use of Engine-MRR:
-      0 - auto, based on cost
-      1 - force MRR when the storage engine is capable of doing it
-      2 - disable MRR.
-  */
-  uint  optimizer_use_mrr; 
   ulong preload_buff_size;
   ulong profiling_history_size;
   ulong read_buff_size;
@@ -1702,6 +1695,11 @@ public:
     DBUG_ASSERT(current_stmt_binlog_format == BINLOG_FORMAT_STMT ||
                 current_stmt_binlog_format == BINLOG_FORMAT_ROW);
     return current_stmt_binlog_format == BINLOG_FORMAT_ROW;
+  }
+  /** Tells whether the given optimizer_switch flag is on */
+  inline bool optimizer_switch_flag(ulonglong flag)
+  {
+    return (variables.optimizer_switch & flag);
   }
 
 private:
