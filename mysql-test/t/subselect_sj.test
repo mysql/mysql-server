@@ -797,6 +797,39 @@ DROP VIEW v2, v3;
 --echo # End of Bug#49198
 
 --echo # 
+--echo # Bug#48623 Multiple subqueries are optimized incorrectly
+--echo # 
+
+CREATE TABLE ot(val VARCHAR(10));
+CREATE TABLE it1(val VARCHAR(10));
+CREATE TABLE it2(val VARCHAR(10));
+
+INSERT INTO ot  VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO it1 VALUES('aaa'), ('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+INSERT INTO it2 VALUES('aaa'), ('bbb'), ('eee'), ('mmm'), ('ppp');
+
+EXPLAIN
+SELECT *
+FROM ot
+WHERE ot.val IN (SELECT it1.val FROM it1
+                 WHERE  it1.val LIKE 'a%' OR it1.val LIKE 'e%')
+  AND ot.val IN (SELECT it2.val FROM it2
+                 WHERE  it2.val LIKE 'a%' OR it2.val LIKE 'e%');
+
+SELECT *
+FROM ot
+WHERE ot.val IN (SELECT it1.val FROM it1
+                 WHERE  it1.val LIKE 'a%' OR it1.val LIKE 'e%')
+  AND ot.val IN (SELECT it2.val FROM it2
+                 WHERE  it2.val LIKE 'a%' OR it2.val LIKE 'e%');
+
+DROP TABLE ot;
+DROP TABLE it1;
+DROP TABLE it2;
+
+--echo # End of Bug#48623
+
+--echo # 
 --echo # Bug #51487 Assertion failure when semi-join flattening occurs
 --echo #            for a subquery in HAVING 
 --echo # 
