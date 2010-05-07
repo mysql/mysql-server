@@ -900,3 +900,53 @@ WHERE int_nokey IN (SELECT it2.int_key
 DROP TABLE ot1, it1, it2;
 
 --echo # End of BUG#38075
+
+--echo # 
+--echo # BUG#50089: Second call of procedure with view in subselect crashes server
+--echo # 
+
+CREATE TABLE t1(t1field INTEGER, PRIMARY KEY(t1field));
+
+CREATE VIEW v1 AS 
+  SELECT t1field AS v1field
+  FROM t1 A 
+  WHERE A.t1field IN (SELECT t1field FROM t1);
+
+INSERT INTO t1 VALUES(1),(2);
+
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT v1field FROM v1);
+
+EXPLAIN
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT v1field FROM v1);
+
+delimiter |;
+CREATE PROCEDURE p1() 
+  BEGIN 
+    SELECT t1field
+    FROM t1
+    WHERE t1field IN (SELECT v1field FROM v1);
+  END|
+delimiter ;|
+
+CALL p1;
+CALL p1;
+
+PREPARE stmt FROM
+"
+SELECT t1field
+FROM t1
+WHERE t1field IN (SELECT v1field FROM v1);
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP PROCEDURE p1;
+DROP VIEW v1;
+DROP TABLE t1;
+
+--echo # End of BUG#50089

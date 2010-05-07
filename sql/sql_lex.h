@@ -399,7 +399,6 @@ public:
 
   virtual st_select_lex_unit* master_unit()= 0;
   virtual st_select_lex* outer_select()= 0;
-  virtual st_select_lex* return_after_parsing()= 0;
 
   virtual bool set_braces(bool value);
   virtual bool inc_in_sum_expr();
@@ -478,8 +477,6 @@ public:
     global parameters for union
   */
   st_select_lex *global_parameters;
-  //node on wich we should return current_select pointer after parsing subquery
-  st_select_lex *return_to;
   /* LIMIT clause runtime counters */
   ha_rows select_limit_cnt, offset_limit_cnt;
   /* not NULL if unit used in subselect, point to subselect item */
@@ -507,7 +504,6 @@ public:
   {
     return my_reinterpret_cast(st_select_lex_unit*)(next);
   }
-  st_select_lex* return_after_parsing() { return return_to; }
   void exclude_level();
   void exclude_tree();
 
@@ -702,11 +698,6 @@ public:
   {
     return &link_next;
   }
-  st_select_lex* return_after_parsing()
-  {
-    return master_unit()->return_after_parsing();
-  }
-
   void mark_as_dependent(st_select_lex *last);
 
   bool set_braces(bool value);

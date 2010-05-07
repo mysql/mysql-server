@@ -327,8 +327,7 @@ void lex_start(THD *thd)
   lex->view_list.empty();
   lex->prepared_stmt_params.empty();
   lex->auxiliary_table_list.empty();
-  lex->unit.next= lex->unit.master=
-    lex->unit.link_next= lex->unit.return_to= 0;
+  lex->unit.next= lex->unit.master= lex->unit.link_next= 0;
   lex->unit.prev= lex->unit.link_prev= 0;
   lex->unit.slave= lex->unit.global_parameters= lex->current_select=
     lex->all_selects_list= &lex->select_lex;
