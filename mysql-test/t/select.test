@@ -4118,3 +4118,53 @@ DROP TABLE t1;
 
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # BUG#43618: MyISAM&Maria returns wrong results with 'between' 
+--echo #            on timestamp
+--echo #
+
+CREATE TABLE t1(
+   ts TIMESTAMP NOT NULL, 
+   c char NULL,
+   PRIMARY KEY(ts)
+) ENGINE=myisam;
+
+INSERT INTO t1 VALUES
+   ('1971-01-01','a'),
+   ('2007-05-25','b'),
+   ('2008-01-01','c'),
+   ('2038-01-09','d');
+
+--echo # Enable Index condition pushdown
+--replace_column 1 #
+select @old_icp:=@@optimizer_switch;
+set optimizer_switch= 'engine_condition_pushdown=on';
+
+--disable_warnings
+
+--echo
+--echo # Execute select with invalid timestamp, desc ordering
+SELECT *
+FROM t1 
+WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
+ORDER BY ts DESC
+LIMIT 2; 
+
+--echo
+--echo # Should use index condition
+EXPLAIN
+SELECT *
+FROM t1 
+WHERE ts BETWEEN '0000-00-00' AND '2010-00-01 00:00:00' 
+ORDER BY ts DESC
+LIMIT 2; 
+--echo
+
+--enable_warnings
+
+--echo # Restore old value for Index condition pushdown
+set optimizer_switch=@old_icp;
+
+DROP TABLE t1;
+
