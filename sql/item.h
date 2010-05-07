@@ -1302,6 +1302,13 @@ class Item_splocal :public Item_sp_variable,
   Item_result m_result_type;
   enum_field_types m_field_type;
 public:
+  /*
+    Is this variable a parameter in LIMIT clause. 
+    Used only during NAME_CONST substitution, to not append
+    NAME_CONST to the resulting query and thus not break
+    the slave.
+  */
+  bool limit_clause_param;
   /* 
     Position of this reference to SP variable in the statement (the
     statement itself is in sp_instr_stmt::m_query).

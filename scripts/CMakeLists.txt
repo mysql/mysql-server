@@ -261,7 +261,7 @@ IF(WIN32)
   SET(PLIN_FILES mysql_config mysql_secure_installation)
   # Input files with .sh extension
 
-  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow 
+  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow
     mysqlhotcopy)
 
   FOREACH(file ${PLIN_FILES})
