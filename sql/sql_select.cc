@@ -1237,6 +1237,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         break;
       case SJ_OPT_LOOSE_SCAN:
       {
+        DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
         /* We jump from the last table to the first one */
         tab->loosescan_match_tab= tab + pos->n_sj_tables - 1;
 
@@ -1254,6 +1255,7 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       }
       case SJ_OPT_DUPS_WEEDOUT:
       {
+        DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
         /*
           Check for join buffering. If there is one, move the first table
           forwards, but do not destroy other duplicate elimination methods.
@@ -1338,12 +1340,14 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
       case SJ_OPT_FIRST_MATCH:
       {
         JOIN_TAB *j, *jump_to= tab-1;
+        DBUG_ASSERT(tab->emb_sj_nest != NULL); // First table must be inner
         for (j= tab; j != tab + pos->n_sj_tables; j++)
         {
-          if (!tab->emb_sj_nest)
+          if (!tab->emb_sj_nest) /// @todo fix this (BUG#51457)
             jump_to= tab;
           else
           {
+            /* inner table, remember the interval of them */
             tab->first_sj_inner_tab= tab;
             tab->last_sj_inner_tab= tab + pos->n_sj_tables - 1;
           }
@@ -7979,12 +7983,27 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       remaining_tables |= s->table->map;
       continue;
     }
-    
+
     if (pos->sj_strategy == SJ_OPT_MATERIALIZE)
     {
       SJ_MATERIALIZATION_INFO *sjm= s->emb_sj_nest->sj_mat_info;
       sjm->is_used= TRUE;
       sjm->is_sj_scan= FALSE;
+      /*
+        This memcpy() copies a partial QEP produced by
+        optimize_semijoin_nests() (source) into the final top-level QEP
+        (target), in order to re-use the source plan for to-be-materialized
+        inner tables. It is however possible that the source QEP had picked
+        some semijoin strategy (noted SJY), different from
+        materialization. The target QEP rules (it has seen more tables), but
+        this memcpy() is going to copy the source stale strategy SJY,
+        wrongly. Which is why sj_strategy of each table of the
+        duplicate-generating range then becomes temporarily unreliable. It is
+        fixed for the first table of that range right after the memcpy(), and
+        fixed for the rest of that range at the end of this iteration by
+        setting it to SJ_OPT_NONE). But until then, pos->sj_strategy should
+        not be read.
+      */
       memcpy(pos - sjm->tables + 1, sjm->positions, 
              sizeof(POSITION) * sjm->tables);
       first= tablenr - sjm->tables + 1;
@@ -7998,7 +8017,7 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       sjm->is_used= TRUE;
       sjm->is_sj_scan= TRUE;
       first= pos->sjm_scan_last_inner - sjm->tables + 1;
-      memcpy(join->best_positions + first, 
+      memcpy(join->best_positions + first, // stale semijoin strategy here too
              sjm->positions, sizeof(POSITION) * sjm->tables);
       join->best_positions[first].sj_strategy= SJ_OPT_MATERIALIZE_SCAN;
       join->best_positions[first].n_sj_tables= sjm->tables;
@@ -8031,8 +8050,7 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
         rem_tables &= ~join->best_positions[i].table->table->map;
       }
     }
- 
-    if (pos->sj_strategy == SJ_OPT_FIRST_MATCH)
+    else if (pos->sj_strategy == SJ_OPT_FIRST_MATCH)
     {
       first= pos->first_firstmatch_table;
       join->best_positions[first].sj_strategy= SJ_OPT_FIRST_MATCH;
@@ -8064,8 +8082,7 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
         rem_tables &= ~join->best_positions[idx].table->table->map;
       }
     }
-
-    if (pos->sj_strategy == SJ_OPT_LOOSE_SCAN) 
+    else if (pos->sj_strategy == SJ_OPT_LOOSE_SCAN)
     {
       first= pos->first_loosescan_table;
       POSITION *first_pos= join->best_positions + first;
@@ -8099,8 +8116,7 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       first_pos->sj_strategy= SJ_OPT_LOOSE_SCAN;
       first_pos->n_sj_tables= my_count_bits(first_pos->table->emb_sj_nest->sj_inner_tables);
     }
-
-    if (pos->sj_strategy == SJ_OPT_DUPS_WEEDOUT)
+    else if (pos->sj_strategy == SJ_OPT_DUPS_WEEDOUT)
     {
       /* 
         Duplicate Weedout starting at pos->first_dupsweedout_table, ending at
@@ -8114,6 +8130,10 @@ static void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
     uint i_end= first + join->best_positions[first].n_sj_tables;
     for (uint i= first; i < i_end; i++)
     {
+      /*
+        Eliminate stale strategies. See comment in the SJ_OPT_MATERIALIZE case
+        above.
+      */
       if (i != first)
         join->best_positions[i].sj_strategy= SJ_OPT_NONE;
       handled_tabs |= join->best_positions[i].table->table->map;

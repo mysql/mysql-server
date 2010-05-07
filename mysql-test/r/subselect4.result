@@ -322,3 +322,89 @@ pk
 # Restore old value for Index condition pushdown
 SET SESSION optimizer_switch=@old_icp;
 DROP TABLE t1,t2;
+#
+# BUG#50361 Doublenested noncorrelated subquery with FirstMatch and join cache wrong result
+#
+CREATE TABLE t1(
+id INTEGER
+);
+INSERT INTO t1 VALUES(10),(20);
+create table t2 select * from t1;
+create table t3 select * from t1;
+SELECT *
+FROM t1
+WHERE 1 IN(SELECT 1
+FROM t2
+WHERE 1 IN(SELECT 1
+FROM t3));
+id
+10
+20
+explain extended SELECT *
+FROM t1
+WHERE 1 IN(SELECT 1
+FROM t2
+WHERE 1 IN(SELECT 1
+FROM t3));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	End materialize; Using join buffer
+Warnings:
+Note	1003	select `test`.`t1`.`id` AS `id` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where 1
+delete from t2;
+delete from t3;
+INSERT INTO t1 VALUES(30),(40),(50),(60),(70),(80),(90);
+insert into t2 select * from t1;
+insert into t3 select * from t1;
+create table t4 select * from t1;
+SELECT *
+FROM t1
+WHERE 1 IN(SELECT 1
+FROM t2
+WHERE 1 IN(SELECT 1
+FROM t3
+WHERE 1 IN(SELECT 1
+FROM t4)));
+id
+10
+20
+30
+40
+50
+60
+70
+80
+90
+explain SELECT *
+FROM t1
+WHERE 1 IN(SELECT 1
+FROM t2
+WHERE 1 IN(SELECT 1
+FROM t3
+WHERE 1 IN(SELECT 1
+FROM t4)));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	9	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	9	Using join buffer
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	9	End materialize; Using join buffer
+SELECT *
+FROM t1
+WHERE 1 IN(SELECT 1
+FROM t1
+WHERE 1 IN(SELECT 1
+FROM t1
+WHERE 1 IN(SELECT 1
+FROM t1)));
+id
+10
+20
+30
+40
+50
+60
+70
+80
+90
+drop table t1,t2,t3,t4;
