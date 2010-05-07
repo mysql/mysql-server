@@ -505,7 +505,7 @@ THD::THD()
   count_cuted_fields= CHECK_FIELD_IGNORE;
   killed= NOT_KILLED;
   col_access=0;
-  is_slave_error= thread_specific_used= FALSE;
+  is_slave_error= thread_specific_used= thread_temporary_used= FALSE;
   my_hash_clear(&handler_tables_hash);
   tmp_table=0;
   used_tables=0;

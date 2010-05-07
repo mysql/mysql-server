@@ -78,7 +78,7 @@
 # BUG#45825: INSERT DELAYED is not unsafe: logged in statement format
 # BUG#45785: LIMIT in SP does not cause RBL if binlog_format=MIXED
 # BUG#47995: Mark user functions as unsafe
-# BUG#49222: Mare RAND() unsafe
+# BUG#49222: Mark RAND() unsafe
 #
 # ==== Related test cases ====
 #
@@ -90,15 +90,15 @@
 # actually can be replicated safely in statement mode.
 #
 # rpl_ndb.rpl_ndb_binlog_format_errors tests all errors and warnings
-# related to logging format (not just 'Unsafe statement binlogged in
-# statement mode since BINLOG_FORMAT = STATEMENT').
+# related to logging format (not just 'Unsafe statement written to the
+# binary log using statement format since BINLOG_FORMAT = STATEMENT').
 
 --source include/have_udf.inc
 --source include/have_log_bin.inc
 --source include/have_binlog_format_statement.inc
 
 --disable_query_log
-call mtr.add_suppression("Unsafe statement binlogged in statement format");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 --enable_query_log
 
 --echo #### Setup tables ####
