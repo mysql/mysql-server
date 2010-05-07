@@ -909,8 +909,8 @@ CREATE TABLE t1(t1field INTEGER, PRIMARY KEY(t1field));
 
 CREATE VIEW v1 AS 
   SELECT t1field AS v1field
-  FROM t1 A 
-  WHERE A.t1field IN (SELECT t1field FROM t1);
+  FROM t1 a
+  WHERE a.t1field IN (SELECT t1field FROM t1);
 
 INSERT INTO t1 VALUES(1),(2);
 
