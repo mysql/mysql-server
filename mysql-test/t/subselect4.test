@@ -280,3 +280,42 @@ SET SESSION optimizer_switch = @old_optimizer_switch;
 SET SESSION join_cache_level = @old_join_cache_level;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # BUG#45221 Query SELECT pk FROM C WHERE pk IN (SELECT int_key) failing
+--echo #
+
+CREATE TABLE t1 (
+  i1_key INT,
+  i2 INT,
+  i3 INT,
+  KEY i1_index (i1_key)
+);
+
+INSERT INTO t1 VALUES (9,1,2), (9,2,1);
+
+CREATE TABLE t2 (
+  pk INT NOT NULL,
+  i1 INT,
+  PRIMARY KEY (pk)
+);
+
+INSERT INTO t2 VALUES (9,1);
+
+--echo # Enable Index condition pushdown
+--replace_column 1 #
+SELECT @old_icp:=@@optimizer_switch;
+SET optimizer_switch= 'engine_condition_pushdown=on';
+SELECT pk
+FROM t2
+WHERE 
+   pk IN ( 
+     SELECT i1_key
+     FROM t1
+     WHERE t1.i2 < t1.i3 XOR t2.i1 > 1
+     ORDER BY t1.i2 desc);
+
+--echo # Restore old value for Index condition pushdown
+SET SESSION optimizer_switch=@old_icp;
+
+DROP TABLE t1,t2;
