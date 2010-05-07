@@ -133,6 +133,9 @@ my_bool my_net_init(NET *net, Vio* vio)
   net->where_b = net->remain_in_buf=0;
   net->last_errno=0;
   net->unused= 0;
+#if defined(MYSQL_SERVER) && !defined(EMBEDDED_LIBRARY)
+  net->skip_big_packet= FALSE;
+#endif
 
   if (vio != 0)					/* If real connection */
   {
@@ -967,6 +970,7 @@ my_real_read(NET *net, size_t *complen)
 	  {
 #if defined(MYSQL_SERVER) && !defined(NO_ALARM)
 	    if (!net->compress &&
+                net->skip_big_packet &&
 		!my_net_skip_rest(net, (uint32) len, &alarmed, &alarm_buff))
 	      net->error= 3;		/* Successfully skiped packet */
 #endif
