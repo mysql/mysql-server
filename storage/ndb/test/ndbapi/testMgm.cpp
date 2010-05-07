@@ -929,8 +929,6 @@ check_get_nodeid_invalid_nodetype1(NdbMgmd& mgmd)
                                     "unknown nodetype 37");
 }
 
-
-#if 0
 static bool
 check_get_nodeid_invalid_nodeid(NdbMgmd& mgmd)
 {
@@ -940,13 +938,12 @@ check_get_nodeid_invalid_nodeid(NdbMgmd& mgmd)
     Properties args;
     args.put("nodeid", nodeId);
     BaseString expected;
-    expected.assfmt("No node defined with id=%d", nodeId);
+    expected.assfmt("illegal nodeid %d", nodeId);
     if (!get_nodeid_result_contains(mgmd, args, expected.c_str()))
       return false;
   }
   return true;
 }
-#endif
 
 static bool
 check_get_nodeid_dynamic_nodeid(NdbMgmd& mgmd)
@@ -1104,7 +1101,7 @@ int runTestGetNodeId(NDBT_Context* ctx, NDBT_Step* step)
       check_get_nodeid_invalid_endian1(mgmd) &&
       check_get_nodeid_invalid_endian2(mgmd) &&
       check_get_nodeid_invalid_nodetype1(mgmd) &&
-//      check_get_nodeid_invalid_nodeid(mgmd) &&
+      check_get_nodeid_invalid_nodeid(mgmd) &&
       check_get_nodeid_dynamic_nodeid(mgmd) &&
       check_get_nodeid_nonode(mgmd) &&
 //      check_get_nodeid_nodeid1(mgmd) &&
