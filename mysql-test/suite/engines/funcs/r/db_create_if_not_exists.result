@@ -9,6 +9,7 @@ information_schema
 d2
 mtr
 mysql
+performance_schema
 test
 USE d2;
 DROP DATABASE d2;
@@ -25,6 +26,7 @@ information_schema
 d2
 mtr
 mysql
+performance_schema
 test
 USE d2;
 DROP SCHEMA d2;
