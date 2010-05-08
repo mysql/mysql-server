@@ -463,10 +463,10 @@ struct sql_ex_info
 #define LOG_EVENT_SUPPRESS_USE_F    0x8
 
 /*
-  The table map version internal to the log should be increased after
-  the event has been written to the binary log.
+  Note: this is a place holder for the flag
+  LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F (0x10), which is not used any
+  more, please do not reused this value for other flags.
  */
-#define LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F 0x10
 
 /**
    @def LOG_EVENT_ARTIFICIAL_F
