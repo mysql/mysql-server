@@ -2453,7 +2453,11 @@ uint JOIN_CACHE_BKA::get_next_key(uchar ** key)
   uchar *init_pos;
   JOIN_CACHE *cache;
   
-  if (pos > last_rec_pos || !records)
+  /*
+    '>=' (unlike '>' in JOIN_CACHE::record()) because we are not at fields'
+    start, and previous record's fields might be empty.
+  */
+  if (pos >= last_rec_pos || !records)
     return 0;
 
   /* Any record in a BKA cache is prepended with its length */

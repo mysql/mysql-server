@@ -1723,5 +1723,22 @@ ORDER BY t2.v;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # BUG#52394 Segfault in JOIN_CACHE::get_offset () at sql_select.h:445
+--echo #
 
+SET optimizer_join_cache_level = 6;
 
+CREATE TABLE C(a int);
+INSERT INTO C VALUES(1),(2),(3),(4),(5);
+
+CREATE TABLE D (a int(11), b varchar(1));
+INSERT INTO D VALUES (6,'r'),(27,'o');
+
+CREATE TABLE E (a int(11) primary key, b varchar(1));
+INSERT INTO E VALUES
+(14,'d'),(15,'z'),(16,'e'),(17,'h'),(18,'b'),(19,'s'),(20,'e'),(21,'j'),(22,'e'),(23,'f'),(24,'v'),(25,'x'),(26,'m'),(27,'c');
+
+SELECT 1 FROM C,D,E WHERE D.a = E.a AND D.b = E.b;
+DROP TABLE C,D,E;
+SET optimizer_join_cache_level=default;
