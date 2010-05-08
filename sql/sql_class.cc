@@ -3825,7 +3825,6 @@ int THD::binlog_flush_pending_rows_event(bool stmt_end)
     if (stmt_end)
     {
       pending->set_flags(Rows_log_event::STMT_END_F);
-      pending->flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       binlog_table_maps= 0;
     }
 
@@ -3953,7 +3952,6 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     {
       Query_log_event qinfo(this, query_arg, query_len, is_trans, suppress_use,
                             errcode);
-      qinfo.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
       /*
         Binlog table maps will be irrelevant after a Query_log_event
         (they are just removed on the slave side) so after the query
