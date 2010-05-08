@@ -1,4 +1,4 @@
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 set sql_mode=no_engine_substitution;
 set storage_engine = InnoDB;
 set autocommit=1;

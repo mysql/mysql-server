@@ -108,3 +108,11 @@ load xml infile '../../std_data/loadxml2.dat' into table t1;
 select * from t1;
 drop table t1;
 
+--echo #
+--echo # Bug#51571 load xml infile causes server crash
+--echo #
+CREATE TABLE t1 (a text, b text);
+LOAD XML INFILE '../../std_data/loadxml.dat' INTO TABLE t1
+ROWS IDENTIFIED BY '<row>' (a,@b) SET b=concat('!',@b);
+SELECT * FROM t1 ORDER BY a;
+DROP TABLE t1;
