@@ -95,6 +95,8 @@ BDB_DONTRUN_TESTS = \
         keyrange-dupsort-unflat \
         keyrange-unflat \
         loader-cleanup-test \
+	loader-create-abort \
+	loader-create-close \
         loader-dup-test \
         loader-no-puts \
         loader-reference-test \
