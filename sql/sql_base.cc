@@ -5183,6 +5183,16 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
                         thd->variables.binlog_format));
     DBUG_PRINT("info", ("multi_engine: %s",
                         multi_engine ? "TRUE" : "FALSE"));
+    /*
+      Reading from a self-logging engine and updating another engine
+      generates changes that are written to the binary log in the
+      statement format and may make slaves to diverge. In the mixed
+      mode, such changes should be written to the binary log in the
+      row format.
+    */
+    if (multi_engine &&
+        (flags_some_set & HA_HAS_OWN_BINLOGGING))
+      thd->lex->set_stmt_unsafe();
 
     int error= 0;
     if (flags_all_set == 0)
