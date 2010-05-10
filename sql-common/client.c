@@ -2455,6 +2455,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     goto error;
   }
 
+  /*
+     Using init_commands is not supported when connecting from within the
+     server.
+  */
+#ifndef MYSQL_SERVER
   if (mysql->options.init_commands)
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
@@ -2466,18 +2471,26 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
     for (; ptr < end_command; ptr++)
     {
-      MYSQL_RES *res;
+      int status;
+
       if (mysql_real_query(mysql,*ptr, (ulong) strlen(*ptr)))
 	goto error;
-      if (mysql->fields)
-      {
-	if (!(res= cli_use_result(mysql)))
-	  goto error;
-	mysql_free_result(res);
-      }
+
+      do {
+        if (mysql->fields)
+        {
+          MYSQL_RES *res;
+          if (!(res= cli_use_result(mysql)))
+            goto error;
+          mysql_free_result(res);
+        }
+        if ((status= mysql_next_result(mysql)) > 0)
+          goto error;
+      } while (status == 0);
     }
     mysql->reconnect=reconnect;
   }
+#endif
 
 #ifndef TO_BE_DELETED
   if (mysql->options.rpl_probe && mysql_rpl_probe(mysql))
