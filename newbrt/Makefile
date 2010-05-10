@@ -103,6 +103,7 @@ endif
 
 NEWBRT_O_FILES += brtloader.$(OEXT)
 
+brtloader.$(OEXT): $(DEPEND_COMPILE)
 ifeq ($(BRTLOADER),cilk)
 brtloader.$(OEXT): brtloader.c
 	$(CILKPP) -DTOKU_ALLOW_DEPRECATED $(CILKFLAGS) -c $< 

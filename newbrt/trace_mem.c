@@ -9,6 +9,54 @@
 #include "rdtsc.h"
 #include "trace_mem.h"
 
+#if BL_DO_TRACE && BL_SIMPLE_TRACE
+
+static double saved_scale_factor = 1e-9; // approximate until we get the actual scale factor
+static unsigned long long first_time = 0;
+static __thread unsigned long long prev_time = 0;
+static unsigned long long trace_hist[BLT_LIMIT];
+
+unsigned long long bl_trace (const BL_TRACE_ENUM l, const int quiet) {
+    assert(l<BLT_LIMIT);
+    unsigned long long t = rdtsc();
+    if (first_time==0) {
+	first_time = t;
+    }
+    if (prev_time != 0) {
+	unsigned long long diff = t-prev_time;
+	if (l==blt_calibrate_done) {
+	    saved_scale_factor = 1/(double)diff;
+	}
+	if (!quiet)
+	    printf("-> %30s %21llu %21llu %13.6fs\n", blt_to_string(l), trace_hist[l], t, (t-first_time)*saved_scale_factor);
+	trace_hist[l] += diff;
+    }
+    prev_time = t;
+    return t;
+}
+
+bl_time_t bl_time_now(void) {
+    return rdtsc();
+}
+double bl_time_diff(const bl_time_t a, const bl_time_t b) {
+    return (a-b)*saved_scale_factor;
+}
+
+
+void bl_trace_end(void) {
+    double scale_factor = trace_hist[blt_calibrate_done];
+    unsigned long long total = 0;
+    for (BL_TRACE_ENUM i=0; i<BLT_LIMIT; i++) {
+	total+=trace_hist[i];
+    }
+    for (BL_TRACE_ENUM i=0; i<BLT_LIMIT; i++) {
+	printf("%25s %20lld %8.3fs %5.1f%%\n", blt_to_string(i), trace_hist[i], trace_hist[i]/scale_factor, 100.0*trace_hist[i]/(double)total);
+    }
+}
+
+
+#elif BL_DO_TRACE && !BL_SIMPLE_TRACE
+
 // customize this as required
 #define NTRACE 0
 #if NTRACE
@@ -94,6 +142,7 @@ void bl_trace(const char *func __attribute__((unused)),
 
 void bl_trace_end(void)
 {
+#error
 #if BL_DO_TRACE
     char bltracefile[128];
     sprintf(bltracefile, "brtloader_%d.trace", toku_os_getpid());;
@@ -113,3 +162,4 @@ void bl_trace_end(void)
 #endif
 }
 
+#endif

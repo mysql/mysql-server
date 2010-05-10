@@ -257,9 +257,9 @@ static void test_loader(DB **dbs)
     poll_count=0;
 
     // close the loader
-    printf("%9.6fs closing", elapsed_time()); fflush(stdout);
+    printf("%9.6fs closing\n", elapsed_time());
     r = loader->close(loader);
-    printf(" done\n");
+    printf("%9.6fs done\n",    elapsed_time());
     CKERR2s(r,0,TOKUDB_CANCELED);
 
     if (r==0) {
