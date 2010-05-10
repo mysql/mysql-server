@@ -2559,18 +2559,24 @@ srv_inc_activity_count(void)
 }
 
 /**********************************************************************//**
-Check whether the master thread is active.
-@return FALSE is it is not active. */
+Check whether any background thread is active.
+@return FALSE if all are are suspended or have exited. */
 UNIV_INTERN
 ibool
-srv_is_master_thread_active(void)
-/*=============================*/
+srv_is_any_background_thread_active(void)
+/*=====================================*/
 {
-	ibool	ret;
+	ulint	i;
+	ibool	ret = FALSE;
 
 	srv_sys_mutex_enter();
 
-	ret = srv_sys->n_threads_active[SRV_MASTER] != 0;
+	for (i = SRV_COM; i <= SRV_MASTER; ++i) {
+		if (srv_sys->n_threads_active[i] != 0) {
+			ret = TRUE;
+			break;
+		}
+	}
 
 	srv_sys_mutex_exit();
 
