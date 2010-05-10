@@ -220,7 +220,7 @@ private:
     // if non-zero (not necessarily 1), primary key is hidden
     //
     uint hidden_primary_key;
-    bool key_read, using_ignore;
+    bool key_read, using_ignore, write_can_replace;
 
     //
     // After a cursor encounters an error, the cursor will be unusable
