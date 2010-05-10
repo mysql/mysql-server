@@ -114,7 +114,6 @@ static COND* substitute_for_best_equal_field(COND *cond,
 static COND *simplify_joins(JOIN *join, List<TABLE_LIST> *join_list,
                             COND *conds, bool top, bool in_sj);
 static bool check_interleaving_with_nj(JOIN_TAB *next);
-static void restore_prev_nj_state(JOIN_TAB *last);
 static void reset_nj_counters(List<TABLE_LIST> *join_list);
 static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                           uint first_unused);
@@ -124,9 +123,8 @@ void advance_sj_state(JOIN *join, const table_map remaining_tables,
                       const JOIN_TAB *new_join_tab, uint idx, 
                       double *current_record_count, double *current_read_time,
                       POSITION *loose_scan_pos);
-
-static void restore_prev_sj_state(const table_map remaining_tables, 
-                                  const JOIN_TAB *tab, uint idx);
+static void backout_nj_sj_state(const table_map remaining_tables,
+                                const JOIN_TAB *tab);
 
 static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
@@ -6038,7 +6036,7 @@ ulonglong get_bound_sj_equalities(TABLE_LIST *sj_nest,
 
 class Loose_scan_opt
 {
-public:
+private:
   /* All methods must check this before doing anything else */
   bool try_loosescan;
 
@@ -6069,19 +6067,26 @@ public:
 
   uint best_max_loose_keypart;
 
-  Loose_scan_opt():
+public:
+  Loose_scan_opt() :
     try_loosescan(FALSE),
-    bound_sj_equalities(0),
     quick_uses_applicable_index(FALSE)
   {
-    LINT_INIT(quick_max_loose_keypart); /* Protected by quick_uses_applicable_index */
-    /* The following are protected by best_loose_scan_cost!= DBL_MAX */
-    LINT_INIT(best_loose_scan_key);
-    LINT_INIT(best_loose_scan_records);
-    LINT_INIT(best_max_loose_keypart);
-    LINT_INIT(best_loose_scan_start_key);
+    /*
+      We needn't initialize:
+      bound_sj_equalities - protected by try_loosescan
+      quick_max_loose_keypart - protected by quick_uses_applicable_index
+      best_loose_scan_key - protected by best_loose_scan_cost != DBL_MAX
+      best_loose_scan_records - same
+      best_max_loose_keypart - same
+      best_loose_scan_start_key - same
+      Not initializing them causes compiler warnings, but using UNINIT_VAR()
+      would cause a 2% CPU time loss in a 20-table plan search.
+      So, until UNINIT_VAR(x) doesn't do x=0 for any C++ code, it's not used
+      here.
+    */
   }
-  
+
   void init(JOIN *join, JOIN_TAB *s, table_map remaining_tables)
   {
     /*
@@ -6097,7 +6102,7 @@ public:
            FirstMatch strategy)
     */
     best_loose_scan_cost= DBL_MAX;
-    if (!join->emb_sjm_nest && s->emb_sj_nest &&                        // (1)
+    if (s->emb_sj_nest && !join->emb_sjm_nest &&                        // (1)
         s->emb_sj_nest->sj_in_exprs < 64 && 
         ((remaining_tables & s->emb_sj_nest->sj_inner_tables) ==        // (2)
          s->emb_sj_nest->sj_inner_tables) &&                            // (2)
@@ -6321,7 +6326,6 @@ best_access_path(JOIN      *join,
   double records=           DBL_MAX;
   table_map best_ref_depends_map= 0;
   double tmp;
-  ha_rows rec;
   bool best_uses_jbuf= FALSE;
 
   Loose_scan_opt loose_scan_opt;
@@ -6329,15 +6333,20 @@ best_access_path(JOIN      *join,
   
   loose_scan_opt.init(join, s, remaining_tables);
   
-  if (s->keyuse)
+  /*
+    This isn't unlikely at all, but unlikely() cuts 6% CPU time on a 20-table
+    search when s->keyuse==0, and has no cost when s->keyuse!=0.
+  */
+  if (unlikely(s->keyuse))
   {                                            /* Use key if possible */
     TABLE *table= s->table;
-    KEYUSE *keyuse,*start_key=0;
+    KEYUSE *keyuse;
     double best_records= DBL_MAX;
     uint max_key_part=0;
 
     /* Test how we can use keys */
-    rec= s->records/MATCHING_ROWS_IN_OTHER_TABLE;  // Assumed records/key
+    ha_rows rec=
+      s->records/MATCHING_ROWS_IN_OTHER_TABLE;  // Assumed records/key
     for (keyuse=s->keyuse ; keyuse->table == table ;)
     {
       key_part_map found_part= 0;
@@ -6351,7 +6360,7 @@ best_access_path(JOIN      *join,
       key_part_map ref_or_null_part= 0;
 
       /* Calculate how many key segments of the current key we can use */
-      start_key= keyuse;
+      KEYUSE *start_key= keyuse;
 
       loose_scan_opt.next_ref_key();
       DBUG_PRINT("info", ("Considering ref access on key %s",
@@ -6786,10 +6795,14 @@ best_access_path(JOIN      *join,
       }
       else
       {
-        /* We read the table as many times as join buffer becomes full. */
-        tmp*= (1.0 + floor((double) cache_record_length(join,idx) *
-                           record_count /
-                           (double) thd->variables.join_buff_size));
+        /*
+          We read the table as many times as join buffer becomes full.
+          It would be more exact to round the result of the division with
+          floor(), but that takes 5% of time in a 20-table query plan search.
+        */
+        tmp*= (1.0 + ((double) cache_record_length(join,idx) *
+                      record_count /
+                      (double) thd->variables.join_buff_size));
         /* 
             We don't make full cartesian product between rows in the scanned
            table and existing records because we skip all rows from the
@@ -7568,6 +7581,8 @@ best_extension_by_limited_search(JOIN      *join,
   if (join->emb_sjm_nest)
     allowed_tables= join->emb_sjm_nest->sj_inner_tables;
 
+  bool has_sj= !join->select_lex->sj_nests.is_empty();
+
   for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
   {
     table_map real_table_bit= s->table->map;
@@ -7589,8 +7604,20 @@ best_extension_by_limited_search(JOIN      *join,
       current_record_count= record_count * position->records_read;
       current_read_time=    read_time + position->read_time;
 
-      advance_sj_state(join, remaining_tables, s, idx, &current_record_count,
-                       &current_read_time, &loose_scan_pos);
+      if (has_sj)
+      {
+        /*
+          Even if there are no semijoins, advance_sj_state() has a significant
+          cost (takes 9% of time in a 20-table plan search), hence the if()
+          above, which is also more efficient than the same if() inside
+          advance_sj_state() would be.
+        */
+        advance_sj_state(join, remaining_tables, s, idx,
+                         &current_record_count, &current_read_time,
+                         &loose_scan_pos);
+      }
+      else
+        join->positions[idx].sj_strategy= SJ_OPT_NONE;
 
       /* Expand only partial plans with lower cost than the best QEP so far */
       if ((current_read_time +
@@ -7603,8 +7630,7 @@ best_extension_by_limited_search(JOIN      *join,
                                         current_record_count / 
                                         (double) TIME_FOR_COMPARE),
                                        "prune_by_cost"););
-        restore_prev_nj_state(s);
-        restore_prev_sj_state(remaining_tables, s, idx);
+        backout_nj_sj_state(remaining_tables, s);
         continue;
       }
 
@@ -7636,8 +7662,7 @@ best_extension_by_limited_search(JOIN      *join,
                                          read_time,
                                          current_read_time,
                                          "pruned_by_heuristic"););
-          restore_prev_nj_state(s);
-          restore_prev_sj_state(remaining_tables, s, idx);
+          backout_nj_sj_state(remaining_tables, s);
           continue;
         }
       }
@@ -7678,8 +7703,7 @@ best_extension_by_limited_search(JOIN      *join,
                                        current_read_time,
                                        "full_plan"););
       }
-      restore_prev_nj_state(s);
-      restore_prev_sj_state(remaining_tables, s, idx);
+      backout_nj_sj_state(remaining_tables, s);
     }
   }
   DBUG_RETURN(FALSE);
@@ -7764,8 +7788,7 @@ find_best(JOIN *join,table_map rest_tables,uint idx,double record_count,
           DBUG_RETURN(TRUE);
 	swap_variables(JOIN_TAB*, join->best_ref[idx], *pos);
       }
-      restore_prev_nj_state(s);
-      restore_prev_sj_state(rest_tables, s, idx);
+      backout_nj_sj_state(rest_tables, s);
       if (join->select_options & SELECT_STRAIGHT_JOIN)
 	break;				// Don't test all combinations
     }
@@ -12787,7 +12810,8 @@ static void reset_nj_counters(List<TABLE_LIST> *join_list)
   extension table.
 
     Check if table next_tab can be added to current partial join order, and 
-    if yes, record that it has been added.
+    if yes, record that it has been added. This recording can be rolled back
+    with backout_nj_sj_state().
 
     The function assumes that both current partial join order and its
     extension with next_tab are valid wrt table dependencies.
@@ -12914,39 +12938,6 @@ static bool check_interleaving_with_nj(JOIN_TAB *next_tab)
     join->cur_embedding_map &= ~next_emb->nested_join->nj_map;
   }
   return FALSE;
-}
-
-
-/**
-  Nested joins perspective: Remove the last table from the join order.
-
-    Remove the last table from the partial join order and update the nested
-    joins counters and join->cur_embedding_map. It is ok to call this 
-    function for the first table in join order (for which 
-    check_interleaving_with_nj has not been called)
-
-  @param last  join table to remove, it is assumed to be the last in current
-               partial join order.
-*/
-
-static void restore_prev_nj_state(JOIN_TAB *last)
-{
-  TABLE_LIST *last_emb= last->table->pos_in_table_list->embedding;
-  JOIN *join= last->join;
-  while (last_emb)
-  {
-    if (!(--last_emb->nested_join->counter_))
-      join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
-    else if (last_emb->nested_join->join_list.elements-1 ==
-             last_emb->nested_join->counter_) 
-    {
-      join->cur_embedding_map|= last_emb->nested_join->nj_map;
-      break;
-    }
-    else
-      break;
-    last_emb= last_emb->embedding;
-  }
 }
 
 
@@ -13080,7 +13071,7 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
 
     Most of the new state is saved join->positions[idx] (and hence no undo
     is necessary). Several members of class JOIN are updated also, these
-    changes can be rolled back with restore_prev_sj_state().
+    changes can be rolled back with backout_nj_sj_state().
 
     See setup_semijoin_dups_elimination() for a description of what kinds of
     join prefixes each strategy can handle.
@@ -13541,19 +13532,51 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
 }
 
 
-/*
-  Remove the last join tab from from join->cur_sj_inner_tables bitmap
-  we assume remaining_tables doesnt contain @tab.
+/**
+  This function rolls back changes done by:
+  - check_interleaving_with_nj(): removes the last table from the partial join
+  order and update the nested joins counters and join->cur_embedding_map. It
+  is ok to call this for the first table in join order (for which
+  check_interleaving_with_nj() has not been called).
+  - advance_sj_state(): removes the last table from join->cur_sj_inner_tables
+  bitmap.
+
+  @param remaining_tables remaining tables to optimize, assumed to not contain
+                          tab (@todo but this assumption is violated in practice)
+  @param tab              join table to remove, assumed to be the last in
+                          current partial join order.
 */
 
-static void restore_prev_sj_state(const table_map remaining_tables, 
-                                  const JOIN_TAB *tab, uint idx)
+static void backout_nj_sj_state(const table_map remaining_tables,
+                                const JOIN_TAB *tab)
 {
+  /* Restore the nested join state */
+  TABLE_LIST *last_emb= tab->table->pos_in_table_list->embedding;
+  JOIN *join= tab->join;
+  while (last_emb)
+  {
+    if (last_emb->on_expr)
+    {
+      if (!(--last_emb->nested_join->counter_))
+        join->cur_embedding_map&= ~last_emb->nested_join->nj_map;
+      else if ((last_emb->nested_join->join_list.elements - 1) ==
+               last_emb->nested_join->counter_)
+      {
+        join->cur_embedding_map|= last_emb->nested_join->nj_map;
+        break;
+      }
+      else
+        break;
+    }
+    last_emb= last_emb->embedding;
+  }
+
+  /* Restore the semijoin state */
   TABLE_LIST *emb_sj_nest;
   if ((emb_sj_nest= tab->emb_sj_nest))
   {
     /* If we're removing the last SJ-inner table, remove the sj-nest */
-    if ((remaining_tables & emb_sj_nest->sj_inner_tables) == 
+    if ((remaining_tables & emb_sj_nest->sj_inner_tables) ==
         (emb_sj_nest->sj_inner_tables & ~tab->table->map))
     {
       tab->join->cur_sj_inner_tables &= ~emb_sj_nest->sj_inner_tables;
