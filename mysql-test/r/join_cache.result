@@ -4054,6 +4054,49 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 
 DROP TABLE t1,t2;
 #
+# Bug#51092: Linked join buffer gives wrong result 
+#            for 3-way cross join
+#
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(2,2);
+CREATE TABLE t2 (a INT, b INT);
+INSERT INTO t2 VALUES (1,1),(2,2);
+CREATE TABLE t3 (a INT, b INT);
+INSERT INTO t3 VALUES (1,1),(2,2);
+EXPLAIN SELECT t1.* FROM t1,t2,t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+SELECT t1.* FROM t1,t2,t3;
+a	b
+1	1
+2	2
+1	1
+2	2
+1	1
+2	2
+1	1
+2	2
+SET optimizer_join_cache_level=2;
+EXPLAIN SELECT t1.* FROM t1,t2,t3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+SELECT t1.* FROM t1,t2,t3;
+a	b
+1	1
+2	2
+1	1
+2	2
+1	1
+2	2
+1	1
+2	2
+SET optimizer_join_cache_level=default;
+DROP TABLE t1,t2,t3;
+#
 # BUG#52394 Segfault in JOIN_CACHE::get_offset () at sql_select.h:445
 #
 SET optimizer_join_cache_level = 6;
@@ -4067,7 +4110,6 @@ INSERT INTO E VALUES
 SELECT 1 FROM C,D,E WHERE D.a = E.a AND D.b = E.b;
 1
 DROP TABLE C,D,E;
-SET optimizer_join_cache_level=default;
 #
 # BUG#52540 Crash in JOIN_CACHE::set_match_flag_if_none () at sql_join_cache.cc:1883
 #
