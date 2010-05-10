@@ -5027,13 +5027,14 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
       found_records= check_quick_select(param, idx, read_index_only, *key,
                                         update_tbl_stats, &mrr_flags,
                                         &buf_size, &cost);
-      found_read_time= cost.total_cost();
+
       if ((found_records != HA_POS_ERROR) && param->is_ror_scan)
       {
         tree->n_ror_scans++;
         tree->ror_scans_map.set_bit(idx);
       }
-      if (read_time > found_read_time && found_records != HA_POS_ERROR)
+      if (found_records != HA_POS_ERROR &&
+          read_time > (found_read_time= cost.total_cost()))
       {
         read_time=    found_read_time;
         best_records= found_records;
