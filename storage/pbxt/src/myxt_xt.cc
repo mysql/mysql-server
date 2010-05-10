@@ -255,6 +255,11 @@ xtPublic u_int myxt_create_key_from_row(XTIndexPtr ind, xtWord1 *key, xtWord1 *r
 	xtWord1					*end;
 	xtWord1					*start;
 
+#ifdef HAVE_valgrind
+       if (ind->mi_fix_key)
+               memset((byte*) key, 0,(size_t) (ind->mi_key_size) );
+#endif
+
 	start = key;
  	for (u_int i=0; i<ind->mi_seg_count; i++, keyseg++)
 	{
@@ -531,7 +536,7 @@ xtPublic u_int myxt_create_foreign_key_from_row(XTIndexPtr ind, xtWord1 *key, xt
 		key += length;
 	}
 
-	return fkey_ind->mi_fix_key ? fkey_ind->mi_key_size : (u_int) (key - start);		/* Return keylength */
+	return (u_int) (key - start);
 }
 
 /* I may be overcautious here, but can I assume that
@@ -2132,10 +2137,10 @@ static void my_deref_index_data(struct XTThread *self, XTIndexPtr mi)
 {
 	enter_();
 	/* The dirty list of cache pages should be empty here! */
-	ASSERT(!mi->mi_dirty_list);
+	/* This is not the case if we were not able to flush data. E.g. when running out of disk space */
+	//ASSERT(!mi->mi_dirty_list);
 	ASSERT(!mi->mi_free_list);
 
-	xt_free_mutex(&mi->mi_flush_lock);
 	xt_spinlock_free(self, &mi->mi_dirty_lock);
 	XT_INDEX_FREE_LOCK(self, mi);
 	myxt_bitmap_free(self, &mi->mi_col_map);
@@ -2174,7 +2179,6 @@ static XTIndexPtr my_create_index(XTThreadPtr self, TABLE *table_arg, u_int idx,
 	pushsr_(ind, my_deref_index_data, (XTIndexPtr) xt_calloc(self, MX_OFFSETOF(XTIndexRec, mi_seg) + sizeof(XTIndexSegRec) * index->key_parts));
 
 	XT_INDEX_INIT_LOCK(self, ind);
-	xt_init_mutex_with_autoname(self, &ind->mi_flush_lock);
 	xt_spinlock_init_with_autoname(self, &ind->mi_dirty_lock);
 	ind->mi_index_no = idx;
 	ind->mi_flags = (index->flags & (HA_NOSAME | HA_NULL_ARE_EQUAL | HA_UNIQUE_CHECK));
@@ -2556,8 +2560,12 @@ xtPublic void myxt_setup_dictionary(XTThreadPtr self, XTDictionaryPtr dic)
 			ave_row_size += 3 + ave_data_size;
 
 		/* This is the length of the record required for all indexes: */
-		if (field_count + 1 == dic->dic_ind_cols_req)
-			dic->dic_ind_rec_len = max_data_size;
+		/* This was calculated incorrectly. Not a serius bug because it
+		 * is only used in the case of fixed length row, and in this
+		 * case the dic_ind_rec_len is set correctly below.
+		 */
+		if (field_count == dic->dic_ind_cols_req)
+			dic->dic_ind_rec_len = max_row_size;
  	}
 
 	dic->dic_min_row_size = min_row_size;
@@ -2623,6 +2631,20 @@ xtPublic void myxt_setup_dictionary(XTThreadPtr self, XTDictionaryPtr dic)
 				dic_rec_size = XT_TAB_MAX_FIX_REC_LENGTH;
 		}
 	}
+
+	/* Ensure that handle data record size is big enough to
+	 * include the extended record reference, in the case of
+	 * variable length rows
+	 */
+	if (!dic_rec_fixed) {
+		if (dic_rec_size < offsetof(XTTabRecExtDRec, re_data))
+			dic_rec_size = offsetof(XTTabRecExtDRec, re_data);
+	}
+#ifdef DEBUG
+	else {
+		ASSERT_NS(dic_rec_size > offsetof(XTTabRecFix, rf_data));
+	}
+#endif
 
 	if (!dic->dic_rec_size) {
 		dic->dic_rec_size = dic_rec_size;
@@ -2861,6 +2883,7 @@ static void ha_create_dd_index(XTThreadPtr self, XTDDIndex *ind, KEY *key)
 	for (key_part = key->key_part; key_part != key_part_end; key_part++) {
 		if (!(cref = new XTDDColumnRef()))
 			xt_throw_errno(XT_CONTEXT, XT_ENOMEM);
+		cref->init(self);
 		ind->co_cols.append(self, cref);
 		cref->cr_col_name = xt_dup_string(self, (char *) key_part->field->field_name);
 	}

@@ -90,7 +90,7 @@
 #define IDX_CAC_INIT_LOCK(s, i)			xt_spinxslock_init_with_autoname(s, &(i)->cs_lock)
 #define IDX_CAC_FREE_LOCK(s, i)			xt_spinxslock_free(s, &(i)->cs_lock)	
 #define IDX_CAC_READ_LOCK(i, s)			xt_spinxslock_slock(&(i)->cs_lock, (s)->t_id)
-#define IDX_CAC_WRITE_LOCK(i, s)		xt_spinxslock_xlock(&(i)->cs_lock, (s)->t_id)
+#define IDX_CAC_WRITE_LOCK(i, s)		xt_spinxslock_xlock(&(i)->cs_lock, FALSE, (s)->t_id)
 #define IDX_CAC_UNLOCK(i, s)			xt_spinxslock_unlock(&(i)->cs_lock, (s)->t_id)
 #endif
 
@@ -178,6 +178,7 @@ static DcGlobalsRec	ind_cac_globals;
 KEY_CACHE my_cache;
 #undef	pthread_rwlock_rdlock
 #undef	pthread_rwlock_wrlock
+#undef	pthread_rwlock_try_wrlock
 #undef	pthread_rwlock_unlock
 #undef	pthread_mutex_lock
 #undef	pthread_mutex_unlock
@@ -410,7 +411,7 @@ xtPublic void xt_ind_release_handle(XTIndHandlePtr handle, xtBool have_lock, XTT
 	/* Because of the lock order, I have to release the
 	 * handle before I get a lock on the cache block.
 	 *
-	 * But, by doing this, thie cache block may be gone!
+	 * But, by doing this, this cache block may be gone!
 	 */
 	if (block) {
 		IDX_CAC_READ_LOCK(seg, thread);
@@ -420,6 +421,11 @@ xtPublic void xt_ind_release_handle(XTIndHandlePtr handle, xtBool have_lock, XTT
 				/* Found the block... 
 				 * {HANDLE-COUNT-SLOCK}
 				 * 04.05.2009, changed to slock.
+				 * The xlock causes too much contention
+				 * on the cache block for read only loads.
+				 *
+				 * Is it safe?
+				 * See below...
 				 */
 				XT_IPAGE_READ_LOCK(&block->cb_lock);
 				goto block_found;
@@ -691,6 +697,9 @@ xtPublic void xt_ind_exit(XTThreadPtr self)
 		}
 	}
 
+	/* Must be done before freeing the blocks! */
+	ind_handle_exit(self);
+
 	if (ind_cac_globals.cg_blocks) {
 		xt_free(self, ind_cac_globals.cg_blocks);
 		ind_cac_globals.cg_blocks = NULL;
@@ -702,7 +711,6 @@ xtPublic void xt_ind_exit(XTThreadPtr self)
 		ind_cac_globals.cg_buffer = NULL;
 	}
 #endif
-	ind_handle_exit(self);
 
 	memset(&ind_cac_globals, 0, sizeof(ind_cac_globals));
 }
@@ -882,7 +890,58 @@ static xtBool ind_free_block(XTOpenTablePtr ot, XTIndBlockPtr block)
 	while (xblock) {
 		if (block == xblock) {
 			/* Found the block... */
-			XT_IPAGE_WRITE_LOCK(&block->cb_lock, ot->ot_thread->t_id);
+			/* It is possible that a thread enters this code holding a
+			 * lock on a page. This can cause a deadlock:
+			 *
+			 * #0	0x91faa2ce in semaphore_wait_signal_trap
+			 * #1	0x91fb1da5 in pthread_mutex_lock
+			 * #2	0x00e2ec13 in xt_p_mutex_lock at pthread_xt.cc:544
+			 * #3	0x00e6c30a in xt_xsmutex_xlock at lock_xt.cc:1547
+			 * #4	0x00dee402 in ind_free_block at cache_xt.cc:879
+			 * #5	0x00dee76a in ind_cac_free_lru_blocks at cache_xt.cc:1033
+			 * #6	0x00def8d1 in xt_ind_reserve at cache_xt.cc:1513
+			 * #7	0x00e22118 in xt_idx_insert at index_xt.cc:2047
+			 * #8	0x00e4d7ee in xt_tab_new_record at table_xt.cc:4702
+			 * #9	0x00e0ff0b in ha_pbxt::write_row at ha_pbxt.cc:2340
+			 * #10	0x0023a00f in handler::ha_write_row at handler.cc:4570
+			 * #11	0x001a32c8 in write_record at sql_insert.cc:1568
+			 * #12	0x001ab635 in mysql_insert at sql_insert.cc:812
+			 * #13	0x0010e068 in mysql_execute_command at sql_parse.cc:3066
+			 * #14	0x0011480d in mysql_parse at sql_parse.cc:5787
+			 * #15	0x00115afb in dispatch_command at sql_parse.cc:1200
+			 * #16	0x00116de2 in do_command at sql_parse.cc:857
+			 * #17	0x00101ee4 in handle_one_connection at sql_connect.cc:1115
+			 * #18	0x91fdb155 in _pthread_start
+			 * #19	0x91fdb012 in thread_start
+			 * 
+			 * #0	0x91fb146e in __semwait_signal
+			 * #1	0x91fb12ef in nanosleep$UNIX2003
+			 * #2	0x91fb1236 in usleep$UNIX2003
+			 * #3	0x00e52112 in xt_yield at thread_xt.cc:1274
+			 * #4	0x00e6c0eb in xt_spinxslock_xlock at lock_xt.cc:1456
+			 * #5	0x00dee444 in ind_free_block at cache_xt.cc:886
+			 * #6	0x00dee76a in ind_cac_free_lru_blocks at cache_xt.cc:1033
+			 * #7	0x00deeaf0 in ind_cac_fetch at cache_xt.cc:1130
+			 * #8	0x00def604 in xt_ind_fetch at cache_xt.cc:1386
+			 * #9	0x00e2159a in xt_idx_update_row_id at index_xt.cc:2489
+			 * #10	0x00e603c8 in xn_sw_clean_indices at xaction_xt.cc:1932
+			 * #11	0x00e606d4 in xn_sw_cleanup_variation at xaction_xt.cc:2056
+			 * #12	0x00e60e29 in xn_sw_cleanup_xact at xaction_xt.cc:2276
+			 * #13	0x00e615ed in xn_sw_main at xaction_xt.cc:2433
+			 * #14	0x00e61919 in xn_sw_run_thread at xaction_xt.cc:2564
+			 * #15	0x00e53f80 in thr_main at thread_xt.cc:1017
+			 * #16	0x91fdb155 in _pthread_start
+			 * #17	0x91fdb012 in thread_start
+			 *
+			 * So we back off if a lock is held!
+			 */
+			if (!XT_IPAGE_WRITE_TRY_LOCK(&block->cb_lock, ot->ot_thread->t_id)) {
+				IDX_CAC_UNLOCK(seg, ot->ot_thread);
+#ifdef DEBUG_CHECK_IND_CACHE
+				xt_ind_check_cache(NULL);
+#endif
+				return FALSE;
+			}
 			if (block->cb_state != IDX_CAC_BLOCK_CLEAN) {
 				/* This block cannot be freeed: */
 				XT_IPAGE_UNLOCK(&block->cb_lock, TRUE);
@@ -1376,6 +1435,7 @@ xtPublic xtBool xt_ind_fetch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 	register XTIndBlockPtr	block;
 	DcSegmentPtr			seg;
 	xtWord2					branch_size;
+	u_int					rec_size;
 	xtBool					xlock = FALSE;
 
 #ifdef DEBUG
@@ -1386,10 +1446,24 @@ xtPublic xtBool xt_ind_fetch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 		return FAILED;
 
 	branch_size = XT_GET_DISK_2(((XTIdxBranchDPtr) block->cb_data)->tb_size_2);
-	if (XT_GET_INDEX_BLOCK_LEN(branch_size) < 2 || XT_GET_INDEX_BLOCK_LEN(branch_size) > XT_INDEX_PAGE_SIZE) {
-		IDX_CAC_UNLOCK(seg, ot->ot_thread);
-		xt_register_taberr(XT_REG_CONTEXT, XT_ERR_INDEX_CORRUPTED, ot->ot_table->tab_name);
-		return FAILED;
+	rec_size = XT_GET_INDEX_BLOCK_LEN(branch_size);
+	if (rec_size < 2 || rec_size > XT_INDEX_PAGE_SIZE)
+		goto failed_corrupt;
+	if (ind->mi_fix_key) {
+		rec_size -= 2;
+		if (XT_IS_NODE(branch_size)) {
+			if (rec_size != 0) {
+				if (rec_size < XT_NODE_REF_SIZE)
+					goto failed_corrupt;
+				rec_size -= XT_NODE_REF_SIZE;
+				if ((rec_size % (ind->mi_key_size + XT_RECORD_REF_SIZE + XT_NODE_REF_SIZE)) != 0)
+					goto failed_corrupt;
+			}
+		}
+		else {
+			if ((rec_size % (ind->mi_key_size + XT_RECORD_REF_SIZE)) != 0)
+				goto failed_corrupt;
+		}
 	}
 
 	switch (ltype) {
@@ -1450,6 +1524,11 @@ xtPublic xtBool xt_ind_fetch(XTOpenTablePtr ot, XTIndexPtr ind, xtIndexNodeID ad
 	iref->ir_block = block;
 	iref->ir_branch = (XTIdxBranchDPtr) block->cb_data;
 	return OK;
+
+	failed_corrupt:
+	IDX_CAC_UNLOCK(seg, ot->ot_thread);
+	xt_register_taberr(XT_REG_CONTEXT, XT_ERR_INDEX_CORRUPTED, ot->ot_table->tab_name);
+	return FAILED;
 }
 
 xtPublic xtBool xt_ind_release(XTOpenTablePtr ot, XTIndexPtr ind, XTPageUnlockType XT_NDEBUG_UNUSED(utype), XTIndReferencePtr iref)
