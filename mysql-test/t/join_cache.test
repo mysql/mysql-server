@@ -1742,3 +1742,33 @@ INSERT INTO E VALUES
 SELECT 1 FROM C,D,E WHERE D.a = E.a AND D.b = E.b;
 DROP TABLE C,D,E;
 SET optimizer_join_cache_level=default;
+
+--echo #
+--echo # BUG#52540 Crash in JOIN_CACHE::set_match_flag_if_none () at sql_join_cache.cc:1883
+--echo #
+
+SET optimizer_join_cache_level=4;
+
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (2);
+CREATE TABLE t2 (a varchar(10));
+INSERT INTO t2 VALUES ('f'),('x');
+CREATE TABLE t3 (pk int(11) PRIMARY KEY);
+INSERT INTO t3 VALUES (2);
+CREATE TABLE t4 (a varchar(10));
+
+EXPLAIN SELECT 1
+FROM t2 LEFT JOIN
+       ((t1 JOIN t3 ON t1.a = t3.pk)
+        LEFT JOIN t4 ON 1 )
+     ON 1 ;
+
+SELECT 1
+FROM t2 LEFT JOIN
+       ((t1 JOIN t3 ON t1.a = t3.pk)
+        LEFT JOIN t4 ON 1 )
+     ON 1 ;
+
+SET optimizer_join_cache_level=default;
+DROP TABLE t1,t2,t3,t4;
+--echo

@@ -9944,7 +9944,7 @@ uint check_join_cache_usage(JOIN_TAB *tab,
   case JT_REF:
   case JT_EQ_REF:
     if (cache_level <= 4)
-      return 0;
+      goto no_join_cache;
     flags= HA_MRR_NO_NULL_ENDPOINTS;
     if (tab->table->covering_keys.is_set(tab->ref.key))
       flags|= HA_MRR_INDEX_ONLY;
