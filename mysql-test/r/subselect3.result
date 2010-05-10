@@ -1306,16 +1306,7 @@ explain select * from t1 where (a,b) in (select a,b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Materialize
-set @save_optimizer_search_depth=@@optimizer_search_depth;
-set @@optimizer_search_depth=63;
-Warnings:
-Warning	1287	'optimizer-search-depth=63' is deprecated and will be removed in a future release. Please use a search depth less than 63 instead
-explain select * from t1 where (a,b) in (select a,b from t2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	10	
-1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	100	Materialize
-set @@optimizer_search_depth=@save_optimizer_search_depth;
-set @@optimizer_switch='default';
+set @@optimizer_switch=default;
 drop table t0, t1, t2;
 create table t0 (a decimal(4,2));
 insert into t0 values (10.24), (22.11);
