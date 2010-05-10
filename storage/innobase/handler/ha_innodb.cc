@@ -4529,7 +4529,7 @@ no_commit:
 			will be 0 if get_auto_increment() was not called.*/
 
 			if (auto_inc <= col_max_value
-			    && auto_inc >= prebuilt->autoinc_last_value) {
+			    && auto_inc > prebuilt->autoinc_last_value) {
 set_max_autoinc:
 				ut_a(prebuilt->autoinc_increment > 0);
 
