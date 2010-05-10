@@ -1724,6 +1724,32 @@ ORDER BY t2.v;
 DROP TABLE t1,t2;
 
 --echo #
+--echo # Bug#51092: Linked join buffer gives wrong result 
+--echo #            for 3-way cross join
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(2,2);
+
+CREATE TABLE t2 (a INT, b INT);
+INSERT INTO t2 VALUES (1,1),(2,2);
+
+CREATE TABLE t3 (a INT, b INT);
+INSERT INTO t3 VALUES (1,1),(2,2);
+
+EXPLAIN SELECT t1.* FROM t1,t2,t3;
+SELECT t1.* FROM t1,t2,t3;
+
+SET optimizer_join_cache_level=2;
+
+EXPLAIN SELECT t1.* FROM t1,t2,t3;
+SELECT t1.* FROM t1,t2,t3;
+
+SET optimizer_join_cache_level=default;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
 --echo # BUG#52394 Segfault in JOIN_CACHE::get_offset () at sql_select.h:445
 --echo #
 
@@ -1741,7 +1767,6 @@ INSERT INTO E VALUES
 
 SELECT 1 FROM C,D,E WHERE D.a = E.a AND D.b = E.b;
 DROP TABLE C,D,E;
-SET optimizer_join_cache_level=default;
 
 --echo #
 --echo # BUG#52540 Crash in JOIN_CACHE::set_match_flag_if_none () at sql_join_cache.cc:1883
@@ -1772,3 +1797,4 @@ FROM t2 LEFT JOIN
 SET optimizer_join_cache_level=default;
 DROP TABLE t1,t2,t3,t4;
 --echo
+
