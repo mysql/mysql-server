@@ -122,14 +122,9 @@ static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
 			   Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
-static bool
-create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
-                                     ENGINE_COLUMNDEF *start_recinfo,
-                                     ENGINE_COLUMNDEF **recinfo, 
-                                     int error,
-                                     bool ignore_last_dupp_key_error,
-                                     handlerton *hton,
-                                     const char *proc_info);
+static bool create_internal_tmp_table_from_heap2(THD *, TABLE *,
+                                     ENGINE_COLUMNDEF *, ENGINE_COLUMNDEF **, 
+                                     int, bool, handlerton *, const char *);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -11916,10 +11911,10 @@ bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
 
 /* Create internal MyISAM temporary table */
 
-static bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
-                                      ENGINE_COLUMNDEF *start_recinfo,
-                                      ENGINE_COLUMNDEF **recinfo,
-                                      ulonglong options)
+bool create_internal_tmp_table(TABLE *table, KEY *keyinfo, 
+                               ENGINE_COLUMNDEF *start_recinfo,
+                               ENGINE_COLUMNDEF **recinfo,
+                               ulonglong options)
 {
   int error;
   MI_KEYDEF keydef;
@@ -11950,7 +11945,7 @@ static bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
       uniquedef.null_are_equal=1;
 
       /* Create extra column for hash value */
-      bzero((uchar*) param->recinfo,sizeof(*param->recinfo));
+      bzero((uchar*) *recinfo,sizeof(**recinfo));
       (*recinfo)->type= FIELD_CHECK;
       (*recinfo)->length=MI_UNIQUE_HASH_LENGTH;
       (*recinfo)++;
@@ -12033,11 +12028,13 @@ static bool create_internal_tmp_table(TABLE *table, KEY *keyinfo,
 */
 
 bool create_internal_tmp_table_from_heap(THD *thd, TABLE *table,
-                                         TMP_TABLE_PARAM *param,
+                                         ENGINE_COLUMNDEF *start_recinfo,
+                                         ENGINE_COLUMNDEF **recinfo, 
                                          int error,
                                          bool ignore_last_dupp_key_error)
 {
-  return create_internal_tmp_table_from_heap2(thd, table, param, error,
+  return create_internal_tmp_table_from_heap2(thd, table, 
+                                              start_recinfo, recinfo, error,
                                               ignore_last_dupp_key_error,
                                               myisam_hton,
                                               "converting HEAP to MyISAM");
