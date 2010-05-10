@@ -92,6 +92,10 @@ UNIV_INTERN mysql_pfs_key_t	dict_foreign_err_mutex_key;
 /** Identifies generated InnoDB foreign key names */
 static char	dict_ibfk[] = "_ibfk_";
 
+/** array of mutexes protecting dict_index_t::stat_n_diff_key_vals[] */
+#define DICT_INDEX_STAT_MUTEX_SIZE	32
+mutex_t	dict_index_stat_mutex[DICT_INDEX_STAT_MUTEX_SIZE];
+
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
 index.
@@ -249,6 +253,45 @@ dict_mutex_exit_for_mysql(void)
 /*===========================*/
 {
 	mutex_exit(&(dict_sys->mutex));
+}
+
+/** Get the mutex that protects index->stat_n_diff_key_vals[] */
+#define GET_INDEX_STAT_MUTEX(index) \
+	(&dict_index_stat_mutex[ut_fold_dulint(index->id) \
+	 			% DICT_INDEX_STAT_MUTEX_SIZE])
+
+/**********************************************************************//**
+Lock the appropriate mutex to protect index->stat_n_diff_key_vals[].
+index->id is used to pick the right mutex and it should not change
+before dict_index_stat_mutex_exit() is called on this index. */
+UNIV_INTERN
+void
+dict_index_stat_mutex_enter(
+/*========================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index != NULL);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+	ut_ad(index->cached);
+	ut_ad(!index->to_be_dropped);
+
+	mutex_enter(GET_INDEX_STAT_MUTEX(index));
+}
+
+/**********************************************************************//**
+Unlock the appropriate mutex that protects index->stat_n_diff_key_vals[]. */
+UNIV_INTERN
+void
+dict_index_stat_mutex_exit(
+/*=======================*/
+	const dict_index_t*	index)	/*!< in: index */
+{
+	ut_ad(index != NULL);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+	ut_ad(index->cached);
+	ut_ad(!index->to_be_dropped);
+
+	mutex_exit(GET_INDEX_STAT_MUTEX(index));
 }
 
 /********************************************************************//**
@@ -617,6 +660,8 @@ void
 dict_init(void)
 /*===========*/
 {
+	int	i;
+
 	dict_sys = mem_alloc(sizeof(dict_sys_t));
 
 	mutex_create(dict_sys_mutex_key, &dict_sys->mutex, SYNC_DICT);
@@ -639,6 +684,11 @@ dict_init(void)
 
 	mutex_create(dict_foreign_err_mutex_key,
 		     &dict_foreign_err_mutex, SYNC_ANY_LATCH);
+
+	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
+		mutex_create(PFS_NOT_INSTRUMENTED,
+			     &dict_index_stat_mutex[i], SYNC_INDEX_TREE);
+	}
 }
 
 /**********************************************************************//**
@@ -4278,12 +4328,16 @@ dict_index_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
+	dict_index_stat_mutex_enter(index);
+
 	if (index->n_user_defined_cols > 0) {
 		n_vals = index->stat_n_diff_key_vals[
 			index->n_user_defined_cols];
 	} else {
 		n_vals = index->stat_n_diff_key_vals[1];
 	}
+
+	dict_index_stat_mutex_exit(index);
 
 	if (dict_index_is_clust(index)) {
 		type_string = "clustered index";
@@ -4780,5 +4834,9 @@ dict_close(void)
 
 	mem_free(dict_sys);
 	dict_sys = NULL;
+
+	for (i = 0; i < DICT_INDEX_STAT_MUTEX_SIZE; i++) {
+		mutex_free(&dict_index_stat_mutex[i]);
+	}
 }
 #endif /* !UNIV_HOTBACKUP */

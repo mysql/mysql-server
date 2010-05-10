@@ -111,8 +111,12 @@ dict_stats_update_transient(
 
 	index = dict_table_get_first_index(table);
 
+	dict_index_stat_mutex_enter(index);
+
 	table->stat_n_rows = index->stat_n_diff_key_vals[
 		dict_index_get_n_unique(index)];
+
+	dict_index_stat_mutex_exit(index);
 
 	table->stat_clustered_index_size = index->stat_index_size;
 

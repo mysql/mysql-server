@@ -1184,7 +1184,6 @@ btr_cur_optimistic_insert(
 	ibool		inherit;
 	ulint		zip_size;
 	ulint		rec_size;
-	mem_heap_t*	heap		= NULL;
 	ulint		err;
 
 	*big_rec = NULL;
@@ -1264,10 +1263,6 @@ btr_cur_optimistic_insert(
 					index, entry, big_rec_vec);
 			}
 
-			if (heap) {
-				mem_heap_free(heap);
-			}
-
 			return(DB_TOO_BIG_RECORD);
 		}
 	}
@@ -1290,15 +1285,11 @@ fail_err:
 			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
 		}
 
-		if (UNIV_LIKELY_NULL(heap)) {
-			mem_heap_free(heap);
-		}
-
 		return(err);
 	}
 
 	if (UNIV_UNLIKELY(max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT
-	     || max_size < rec_size)
+			  || max_size < rec_size)
 	    && UNIV_LIKELY(page_get_n_recs(page) > 1)
 	    && page_get_max_insert_size(page, 1) < rec_size) {
 
@@ -1362,10 +1353,6 @@ fail_err:
 				(ulong) max_size);
 			ut_error;
 		}
-	}
-
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
 	}
 
 #ifdef BTR_CUR_HASH_ADAPT
@@ -3492,6 +3479,8 @@ btr_estimate_number_of_different_key_vals(
 	also the pages used for external storage of fields (those pages are
 	included in index->stat_n_leaf_pages) */
 
+	dict_index_stat_mutex_enter(index);
+
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
@@ -3522,6 +3511,8 @@ btr_estimate_number_of_different_key_vals(
 
 		index->stat_n_sample_sizes[j] = n_sample_pages;
 	}
+
+	dict_index_stat_mutex_exit(index);
 
 	mem_free(n_diff);
 	if (UNIV_LIKELY_NULL(heap)) {

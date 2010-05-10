@@ -115,7 +115,7 @@ if we are compiling on Windows. */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.c */
 # include <sys/stat.h>
-# if !defined(__NETWARE__) && !defined(__WIN__) 
+# if !defined(__NETWARE__) && !defined(__WIN__)
 #  include <sys/mman.h> /* mmap() for os0proc.c */
 # endif
 
@@ -182,6 +182,9 @@ command. Not tested on Windows. */
 #define UNIV_COMPILE_TEST_FUNCS
 */
 
+#ifdef HAVE_purify
+# define UNIV_DEBUG_VALGRIND
+#endif /* HAVE_purify */
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */

@@ -271,6 +271,17 @@ buf_flush_insert_into_flush_list(
 	block->page.oldest_modification = lsn;
 	UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
 
+#ifdef UNIV_DEBUG_VALGRIND
+	{
+		ulint	zip_size = buf_block_get_zip_size(block);
+
+		if (UNIV_UNLIKELY(zip_size)) {
+			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
+		} else {
+			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
+		}
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -319,6 +330,18 @@ buf_flush_insert_sorted_into_flush_list(
 	ut_ad(!block->page.in_flush_list);
 	ut_d(block->page.in_flush_list = TRUE);
 	block->page.oldest_modification = lsn;
+
+#ifdef UNIV_DEBUG_VALGRIND
+	{
+		ulint	zip_size = buf_block_get_zip_size(block);
+
+		if (UNIV_UNLIKELY(zip_size)) {
+			UNIV_MEM_ASSERT_RW(block->page.zip.data, zip_size);
+		} else {
+			UNIV_MEM_ASSERT_RW(block->frame, UNIV_PAGE_SIZE);
+		}
+	}
+#endif /* UNIV_DEBUG_VALGRIND */
 
 	prev_b = NULL;
 
@@ -890,6 +913,7 @@ try_again:
 	zip_size = buf_page_get_zip_size(bpage);
 
 	if (UNIV_UNLIKELY(zip_size)) {
+		UNIV_MEM_ASSERT_RW(bpage->zip.data, zip_size);
 		/* Copy the compressed page and clear the rest. */
 		memcpy(trx_doublewrite->write_buf
 		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
@@ -899,6 +923,8 @@ try_again:
 		       + zip_size, 0, UNIV_PAGE_SIZE - zip_size);
 	} else {
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+		UNIV_MEM_ASSERT_RW(((buf_block_t*) bpage)->frame,
+				   UNIV_PAGE_SIZE);
 
 		memcpy(trx_doublewrite->write_buf
 		       + UNIV_PAGE_SIZE * trx_doublewrite->first_free,
@@ -1748,6 +1774,7 @@ buf_flush_list(
 {
 	ulint		i;
 	ulint		total_page_count = 0;
+	ibool		skipped = FALSE;
 
 	if (min_n != ULINT_MAX) {
 		/* Ensure that flushing is spread evenly amongst the
@@ -1758,10 +1785,6 @@ buf_flush_list(
 			 / srv_buf_pool_instances;
 	}
 
-	/* We use buffer pool instance 0 to control start and end of
-	flushing of the flush list since we always flush all instances
-	at once in this case. */
-
 	/* Flush to lsn_limit in all buffer pool instances */
 	for (i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
@@ -1770,6 +1793,18 @@ buf_flush_list(
 		buf_pool = buf_pool_from_array(i);
 
 		if (!buf_flush_start(buf_pool, BUF_FLUSH_LIST)) {
+			/* We have two choices here. If lsn_limit was
+			specified then skipping an instance of buffer
+			pool means we cannot guarantee that all pages
+			up to lsn_limit has been flushed. We can
+			return right now with failure or we can try
+			to flush remaining buffer pools up to the
+			lsn_limit. We attempt to flush other buffer
+			pools based on the assumption that it will
+			help in the retry which will follow the
+			failure. */
+			skipped = TRUE;
+
 			continue;
 		}
 
@@ -1783,7 +1818,8 @@ buf_flush_list(
 		total_page_count += page_count;
 	}
 
-	return(total_page_count);
+	return(lsn_limit != IB_ULONGLONG_MAX && skipped
+	       ? ULINT_UNDEFINED : total_page_count);
 }
  
 /******************************************************************//**
