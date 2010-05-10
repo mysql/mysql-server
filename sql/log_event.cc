@@ -1954,7 +1954,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   }
 
   /* If the write rows event contained no values for the AI */
-  if ((type_code == WRITE_ROWS_EVENT) && (m_rows_buf==m_rows_end))
+  if (((type_code == WRITE_ROWS_EVENT) && (m_rows_buf==m_rows_end)))
   {
     my_b_printf(file, "### INSERT INTO `%s`.`%s` VALUES ()\n", 
                       map->get_db_name(), map->get_table_name());
@@ -8710,7 +8710,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
     ulong estimated_rows;
     if (m_curr_row < m_curr_row_end)
       estimated_rows= (m_rows_end - m_curr_row) / (m_curr_row_end - m_curr_row);
-    else if (m_curr_row = m_curr_row_end)
+    else if (m_curr_row == m_curr_row_end)
       estimated_rows= 1;
 
     m_table->file->ha_start_bulk_insert(estimated_rows);
