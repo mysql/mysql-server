@@ -910,7 +910,7 @@ dict_stats_analyze_index_for_n_prefix(
 		     n_prefix, n_diff_for_this_prefix);
 #endif
 
-	/* if some of those is 0 then this means that there is exactlty one
+	/* if some of those is 0 then this means that there is exactly one
 	page in the B-tree and it is empty and we should have done full scan
 	and should not be here */
 	ut_ad(total_recs_on_level > 0);
