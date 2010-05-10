@@ -370,5 +370,5 @@ int rewrite_to_index_subquery_engine(JOIN *join);
 void get_temptable_params(Item_in_subselect *item, ha_rows *out_rows,
                           ha_rows *scan_time);
 
-int do_jtbm_materialization_if_needed(JOIN_TAB *tab);
+bool do_jtbm_materialization_if_needed(JOIN_TAB *tab);
 

@@ -16,7 +16,6 @@
 
 #include <my_bit.h>
 
-// Our own:
 static
 bool subquery_types_allow_materialization(Item_in_subselect *in_subs);
 static bool replace_where_subcondition(JOIN *join, Item **expr, 
@@ -52,17 +51,22 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where);
 /*
   Check if we need JOIN::prepare()-phase subquery rewrites and if yes, do them
 
+  SYNOPSIS
+     check_and_do_in_subquery_rewrites()
+       join  Subquery's join
+
   DESCRIPTION
     Check if we need to do
-     - subquery->semi-join rewrite
+     - subquery -> mergeable semi-join rewrite
      - if the subquery can be handled with materialization
      - 'substitution' rewrite for table-less subqueries like "(select 1)"
-
-    and mark appropriately
+     - IN->EXISTS rewrite
+    and, depending on the rewrite, either do it, or record it to be done at a
+    later phase.
 
   RETURN
-     0  - OK
-    -1  - Some sort of query error
+    0      - OK
+    Other  - Some sort of query error
 */
 
 int check_and_do_in_subquery_rewrites(JOIN *join)
@@ -387,7 +391,7 @@ static bool make_in_exists_conversion(THD *thd, JOIN *join, Item_in_subselect *i
     TODO: what about delaying that rewrite until here?
   */
   if (!item->convert_to_semi_join)
-  {
+  { //psergey-jtbm-fix: this branch is always taken??
     replace_me= item->optimizer;
   }
 
@@ -1019,6 +1023,20 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
 }
 
 
+/*
+  Convert subquery predicate into non-mergeable semi-join nest.
+
+  TODO: 
+    why does this do IN-EXISTS conversion? Can't we unify it with mergeable
+    semi-joins? currently, convert_subq_to_sj() cannot fail to convert (unless
+    fatal errors)
+
+    
+  RETURN 
+    FALSE - Ok
+    TRUE  - Fatal error
+*/
+
 static bool convert_subq_to_jtbm(JOIN *parent_join, 
                                  Item_in_subselect *subq_pred, 
                                  bool *remove_item)
@@ -1058,24 +1076,15 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
   /* jtbm->next_leaf= jtbm->next_local= jtbm->next_global == NULL*/
   emb_join_list->push_back(jtbm);
   
-  /* Inject ourselves into next-leaf list */
   /* 
-    JTBM: Inject us into next_leaf and lext_local chains.. 
-     so that make_join_statistics et al find us.
-  */
-       
-  /*
-    Reconnect the next_leaf chain.
-    TODO: Do we have to put subquery's tables at the end of the chain?
-          Inserting them at the beginning would be a bit faster.
-    NOTE: We actually insert them at the front! That's because the order is
-          reversed in this list.
+    Inject the jtbm table into TABLE_LIST::next_leaf list, so that 
+    make_join_statistics() and co. can find it.
   */
   for (tl= parent_lex->leaf_tables; tl->next_leaf; tl= tl->next_leaf) ;
   tl->next_leaf= jtbm;
 
   /*
-    Same as above for next_local chain
+    Same as above for TABLE_LIST::next_local chain
     (a theory: a next_local chain always starts with ::leaf_tables
      because view's tables are inserted after the view)
   */
@@ -1540,7 +1549,7 @@ static uint get_tmp_table_rec_length(List<Item> &items)
   return len;
 }
 
-//psergey-todo: is the below a kind of table elimination??
+
 /*
   Check if table's KEYUSE elements have an eq_ref(outer_tables) candidate
 
@@ -1556,6 +1565,8 @@ static uint get_tmp_table_rec_length(List<Item> &items)
   TODO
     Check again if it is feasible to factor common parts with constant table
     search
+
+    Also check if it's feasible to factor common parts with table elimination
 
   RETURN
     TRUE  - There exists an eq_ref(outer-tables) candidate
@@ -3744,7 +3755,7 @@ static void remove_subq_pushed_predicates(JOIN *join, Item **where)
 }
 
 
-int do_jtbm_materialization_if_needed(JOIN_TAB *tab)
+bool do_jtbm_materialization_if_needed(JOIN_TAB *tab)
 {
   Item_in_subselect *in_subs;
   if (tab->table->pos_in_table_list && 
@@ -3761,9 +3772,9 @@ int do_jtbm_materialization_if_needed(JOIN_TAB *tab)
       hash_sj_engine->is_materialized= TRUE; 
 
       if (hash_sj_engine->materialize_join->error || tab->join->thd->is_fatal_error)
-        return 1;
+        return TRUE;
     }
   }
-  return 0;
+  return FALSE;
 }
 

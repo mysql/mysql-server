@@ -12858,8 +12858,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     }
     join->thd->row_count= 0;
     
-    //jtbm-todo: error handling!
-    do_jtbm_materialization_if_needed(join_tab);
+    if (do_jtbm_materialization_if_needed(join_tab))
+      DBUG_RETURN(NESTED_LOOP_ERROR);
+
     error= (*join_tab->read_first_record)(join_tab);
 
     if (join_tab->keep_current_rowid)

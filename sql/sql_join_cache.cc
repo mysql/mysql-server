@@ -33,8 +33,6 @@
 
 #define NO_MORE_RECORDS_IN_BUFFER  (uint)(-1)
 
-int do_jtbm_materialization_if_needed(JOIN_TAB *tab);
-
 /*****************************************************************************
  *  Join cache module
 ******************************************************************************/
@@ -1780,8 +1778,11 @@ enum_nested_loop_state JOIN_CACHE_BNL::join_matching_records(bool skip_last)
 
   /* Start retrieving all records of the joined table */
   
-  //jtbm-todo: error handling!
-  do_jtbm_materialization_if_needed(join_tab);
+  if (do_jtbm_materialization_if_needed(join_tab))
+  {
+    rc= NESTED_LOOP_ERROR;
+    goto finish;
+  }
 
   if ((error= join_init_read_record(join_tab))) 
   {

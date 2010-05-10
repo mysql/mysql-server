@@ -188,7 +188,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
   {
     // all transformation is done (used by prepared statements)
     changed= 1;
-  inside_first_fix_fields= FALSE;
+    inside_first_fix_fields= FALSE;
 
 
     // all transformation is done (used by prepared statements)
@@ -217,13 +217,13 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
       if (!(*ref)->fixed)
 	res= (*ref)->fix_fields(thd, ref);
       goto end;
-//psergey-merge:  done_first_fix_fields= FALSE;
+
     }
     // Is it one field subselect?
     if (engine->cols() > max_columns)
     {
       my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-//psergey-merge:  done_first_fix_fields= FALSE;
+
       goto end;
     }
     fix_length_and_dec();
@@ -241,6 +241,7 @@ bool Item_subselect::fix_fields(THD *thd_param, Item **ref)
 
 end:
   done_first_fix_fields= FALSE;
+  inside_first_fix_fields= FALSE;
   thd->where= save_where;
   return res;
 }
