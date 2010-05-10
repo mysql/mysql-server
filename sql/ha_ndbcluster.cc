@@ -9021,7 +9021,8 @@ ha_ndbcluster::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     if (*flags & HA_MRR_USE_DEFAULT_IMPL ||
         uses_blob_value() ||
         ((get_index_type(keyno) ==  UNIQUE_INDEX &&
-         has_null_in_unique_index(keyno)) && null_ranges))
+         has_null_in_unique_index(keyno)) && null_ranges) ||
+        TRUE) // Disable MRR implementation for NDB.
     {
       /* Use default MRR implementation */
       *flags |= HA_MRR_USE_DEFAULT_IMPL;
@@ -9073,6 +9074,8 @@ ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
     *flags &= ~HA_MRR_USE_DEFAULT_IMPL;
     *bufsz= min(save_bufsize, keys * table_share->reclength);
   }
+  // Disable MRR imeplementation for NDB.
+  *flags |= HA_MRR_USE_DEFAULT_IMPL;
   return res;
 }
 
@@ -9097,7 +9100,10 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
   Thd_ndb *thd_ndb= get_thd_ndb(current_thd);
   DBUG_ENTER("ha_ndbcluster::multi_range_read_init");
 
+  /*
+    Disable MRR implementation for NDB.
   if (mode & HA_MRR_USE_DEFAULT_IMPL)
+  */
   {
     m_disable_multi_read= TRUE;
     DBUG_RETURN(handler::multi_range_read_init(seq_funcs, seq_init_param,
