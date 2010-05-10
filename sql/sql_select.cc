@@ -16159,7 +16159,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       /* Initialize full scan */
       JOIN_TAB *last_tab= join_tab + (sjm->tables - 1);
       init_read_record(&last_tab->read_record, join->thd, 
-                       sjm->table, NULL, 1, 1, FALSE);
+                       sjm->table, NULL, TRUE, TRUE, FALSE);
 
       DBUG_ASSERT(last_tab->read_record.read_record= rr_sequential);
       last_tab->read_first_record= join_read_record_no_init;
@@ -18192,6 +18192,10 @@ make_cond_for_table_from_pred(COND *root_cond, COND *cond,
   if (cond->marker == 2 || cond->eq_cmp_result() == Item::COND_OK)
     return cond;				// Not boolean op
 
+  /* 
+    Remove equalities that are guaranteed to be true by use of 'ref' access
+    method
+  */
   if (cond->type() == Item::FUNC_ITEM &&
       ((Item_func*) cond)->functype() == Item_func::EQ_FUNC)
   {

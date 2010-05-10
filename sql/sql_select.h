@@ -243,6 +243,7 @@ typedef struct st_join_table
   */
   TABLE_LIST    *emb_sj_nest;
 
+  /* FirstMatch variables (final QEP) */
   struct st_join_table *first_sj_inner_tab;
   struct st_join_table *last_sj_inner_tab;
 

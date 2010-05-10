@@ -7971,6 +7971,8 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     key being scanned. This function assumes that the index flags do not
     include HA_KEY_SCAN_NOT_ROR flag (that is checked elsewhere).
 
+    Check (1) is made in quick_range_seq_next()
+
   RETURN
     TRUE   The scan is ROR-scan
     FALSE  Otherwise
