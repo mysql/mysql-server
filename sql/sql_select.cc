@@ -5076,10 +5076,16 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     We use null_rejecting in add_not_null_conds() to add
     'othertbl.field IS NOT NULL' to tab->select_cond.
   */
-  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC ||
-                                   cond->functype() == Item_func::MULT_EQUAL_FUNC) &&
-                                  ((*value)->type() == Item::FIELD_ITEM) &&
-                                  ((Item_field*)*value)->field->maybe_null());
+  {
+    Item *real= (*value)->real_item();
+    if (((cond->functype() == Item_func::EQ_FUNC) ||
+         (cond->functype() == Item_func::MULT_EQUAL_FUNC)) &&
+        (real->type() == Item::FIELD_ITEM) &&
+        ((Item_field*)real)->field->maybe_null())
+      (*key_fields)->null_rejecting= true;
+    else
+      (*key_fields)->null_rejecting= false;
+  }
   (*key_fields)->cond_guard= NULL;
   
   (*key_fields)->sj_pred_no= get_semi_join_select_list_index(field);
@@ -8638,8 +8644,9 @@ static void add_not_null_conds(JOIN *join)
         {
           Item *item= tab->ref.items[keypart];
           Item *notnull;
-          DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
-          Item_field *not_null_item= (Item_field*)item;
+          Item *real= item->real_item();
+          DBUG_ASSERT(real->type() == Item::FIELD_ITEM);
+          Item_field *not_null_item= (Item_field*)real;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
           /*
             For UPDATE queries such as:
