@@ -92,8 +92,10 @@ SELECT @@session.query_alloc_block_size;
 SET @@session.query_alloc_block_size = 1025;
 SELECT @@session.query_alloc_block_size;
 SET @@session.query_alloc_block_size = 4294967295;
+--error 5,0
 SELECT @@session.query_alloc_block_size;
 SET @@session.query_alloc_block_size = 4294967294;
+--error 5,0
 SELECT @@session.query_alloc_block_size;
 SET @@session.query_alloc_block_size = 655536;
 SELECT @@session.query_alloc_block_size;
