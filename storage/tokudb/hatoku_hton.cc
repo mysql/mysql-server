@@ -668,6 +668,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
         goto cleanup;
     }
     while (error == 0) {
+        DB_TXN* tmp_txn = NULL;
         //
         // here, and in other places, check if process has been killed
         // if so, get out of function so user is not stalled
@@ -675,7 +676,11 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
         if (thd->killed) {
             break;
         }
-        
+        error = db_env->txn_begin(db_env, 0, &tmp_txn, DB_READ_UNCOMMITTED);
+        if (error) {
+            goto cleanup;
+        }
+
         //
         // do not need this to be super fast, so use old simple API
         //
@@ -705,7 +710,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
             error = db_create(&curr_db, db_env, 0);
             if (error) { goto cleanup; }
             
-            error = curr_db->open(curr_db, txn, newname, NULL, DB_BTREE, DB_THREAD, 0);
+            error = curr_db->open(curr_db, tmp_txn, newname, NULL, DB_BTREE, DB_THREAD, 0);
             if (error == ENOENT) { error = 0; continue; }
             if (error) { goto cleanup; }
 
@@ -714,7 +719,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
                 // flatten if exact is required
                 //
                 uint curr_num_items = 0;                
-                error = curr_db->cursor(curr_db, txn, &tmp_table_cursor, 0);
+                error = curr_db->cursor(curr_db, tmp_txn, &tmp_table_cursor, 0);
                 if (error) {
                     tmp_table_cursor = NULL;
                     goto cleanup;
@@ -739,7 +744,7 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
 
             error = curr_db->stat64(
                 curr_db, 
-                txn, 
+                tmp_txn, 
                 &dict_stats
                 );
             if (error) { goto cleanup; }
@@ -769,6 +774,11 @@ static bool tokudb_show_data_size(THD * thd, stat_print_fn * stat_print, bool ex
                 curr_db = NULL;
             }
             my_free(newname,MYF(MY_ALLOW_ZERO_PTR));
+        }
+
+        if (tmp_txn) {
+            commit_txn(tmp_txn, 0);
+            tmp_txn = NULL;
         }
     }
 
