@@ -348,6 +348,12 @@ typedef struct st_join_table
       return first_inner;
     return first_sj_inner_tab; 
   }
+  void set_select_cond(COND *to, uint line)
+  {
+    DBUG_PRINT("info", ("select_cond changes %p -> %p at line %u tab %p",
+                        select_cond, to, line, this));
+    select_cond= to;
+  }
 } JOIN_TAB;
 
 /* 
