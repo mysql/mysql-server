@@ -10986,6 +10986,11 @@ create_internal_tmp_table_from_heap2(THD *thd, TABLE *table,
   if (table->s->db_type() != heap_hton || 
       error != HA_ERR_RECORD_FILE_FULL)
   {
+    /*
+      We don't want this error to be converted to a warning, e.g. in case of
+      INSERT IGNORE ... SELECT.
+    */
+    thd->fatal_error();
     table->file->print_error(error,MYF(0));
     DBUG_RETURN(1);
   }
