@@ -25,3 +25,15 @@ ADD_CUSTOM_TARGET(
   test-unit
   COMMAND perl unit.pl run ${unittests}
 )
+
+# Create whitespace separated list.
+FOREACH(arg ${unittests})
+  SET(testdirs "${testdirs} ${arg}")
+ENDFOREACH()
+
+CONFIGURE_FILE(run-unit-tests.in
+  ${CMAKE_CURRENT_BINARY_DIR}/run-unit-tests @ONLY)
+IF(UNIX)
+  EXECUTE_PROCESS(
+    COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/run-unit-tests)
+ENDIF()
