@@ -82,7 +82,7 @@ static char	dict_ibfk[] = "_ibfk_";
 
 /** array of mutexes protecting dict_index_t::stat_n_diff_key_vals[] */
 #define DICT_INDEX_STAT_MUTEX_SIZE	32
-mutex_t	dict_index_stat_mutex[DICT_INDEX_STAT_MUTEX_SIZE];
+static mutex_t	dict_index_stat_mutex[DICT_INDEX_STAT_MUTEX_SIZE];
 
 /*******************************************************************//**
 Tries to find column names for the index and sets the col field of the
