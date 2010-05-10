@@ -16107,7 +16107,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 
   if (!join_tab->emb_sj_nest)
   {
-    /* 
+    /*
       We're handling GROUP BY/ORDER BY, this is the first table, and we've
       actually executed the join already and now we're just reading the
       result of the join from the temporary table.
@@ -16129,27 +16129,27 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   }
   if (!sjm->materialized)
   {
-    /* 
+    /*
       Do the materialization. First, put end_sj_materialize after the last
       inner table so we can catch record combinations of sj-inner tables.
-    */ 
+    */
     Next_select_func next_func= join_tab[sjm->tables - 1].next_select;
     join_tab[sjm->tables - 1].next_select= end_sj_materialize;
-    
+
     /*
       Now run the join for the inner tables. The first call is to run the
       join, the second one is to signal EOF (this is essential for some
       join strategies, e.g. it will make join buffering flush the records)
     */
-    if ((rc= sub_select(join, join_tab, FALSE)) < 0 || 
+    if ((rc= sub_select(join, join_tab, FALSE)) < 0 ||
         (rc= sub_select(join, join_tab, TRUE/*EOF*/)) < 0)
     {
       join_tab[sjm->tables - 1].next_select= next_func;
       DBUG_RETURN(rc); /* it's NESTED_LOOP_(ERROR|KILLED)*/
     }
     join_tab[sjm->tables - 1].next_select= next_func;
-     
-    /* 
+
+    /*
       Ok, materialization finished. Initialize the access to the temptable
     */
     sjm->materialized= TRUE;
@@ -16158,10 +16158,10 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     {
       /* Initialize full scan */
       JOIN_TAB *last_tab= join_tab + (sjm->tables - 1);
-      init_read_record(&last_tab->read_record, join->thd, 
+      init_read_record(&last_tab->read_record, join->thd,
                        sjm->table, NULL, TRUE, TRUE, FALSE);
 
-      DBUG_ASSERT(last_tab->read_record.read_record= rr_sequential);
+      DBUG_ASSERT(last_tab->read_record.read_record == rr_sequential);
       last_tab->read_first_record= join_read_record_no_init;
       last_tab->read_record.copy_field= sjm->copy_field;
       last_tab->read_record.copy_field_end= sjm->copy_field +
@@ -16169,7 +16169,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       last_tab->read_record.read_record= rr_sequential_and_unpack;
     }
   }
-  
+
   if (sjm->is_sj_scan)
   {
     /* Do full scan of the materialized table */
@@ -16177,7 +16177,7 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
 
     Item *save_cond= last_tab->select_cond;
     last_tab->select_cond= sjm->join_cond;
-       
+
     rc= sub_select(join, last_tab, end_of_records);
     last_tab->select_cond= save_cond;
     DBUG_RETURN(rc);
