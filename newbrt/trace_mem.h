@@ -13,7 +13,7 @@ extern "C" {
 // print the trace
 void toku_print_trace_mem(void) __attribute__((__visibility__("default")));
 
-#define BL_DO_TRACE 1
+#define BL_DO_TRACE 0
 // BL_SIMPLE_TRACE 1 is Bradley's in-memory trace analysis.
 // BL_SIMPLE_TRACE 0 is Dave's post-processing analysis.
 #define BL_SIMPLE_TRACE 1
