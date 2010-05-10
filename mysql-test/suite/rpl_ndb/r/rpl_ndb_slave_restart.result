@@ -36,9 +36,7 @@ master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 set SQL_LOG_BIN=1;
-SELECT @the_pos:=Position,@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
-FROM mysql.ndb_binlog_index WHERE epoch = <the_epoch> ;
-@the_pos:=Position	@the_file:=SUBSTRING_INDEX(FILE, '/', -1)
+@the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
 107	master-bin.000001
 CHANGE MASTER TO
 master_port=<MASTER_PORT1>,
