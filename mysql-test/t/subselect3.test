@@ -1077,13 +1077,7 @@ insert into t2 select A.a + 10*B.a, A.a + 10*B.a from t0 A, t0 B;
 set @@optimizer_switch='default,firstmatch=off';
 explain select * from t1 where (a,b) in (select a,b from t2);
 
-# A smallish test if find_best() still works for semi-join optimization:
-set @save_optimizer_search_depth=@@optimizer_search_depth;
-set @@optimizer_search_depth=63;
-explain select * from t1 where (a,b) in (select a,b from t2);
-set @@optimizer_search_depth=@save_optimizer_search_depth;
-set @@optimizer_switch='default';
-
+set @@optimizer_switch=default;
 drop table t0, t1, t2;
 
 
