@@ -1668,7 +1668,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
 CILK_END
 static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int keylen, unsigned char *val, int vallen);
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
-static void write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn);
+static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn);
 
 CILK_BEGIN
 static int toku_loader_write_brt_from_q (BRTLOADER bl,
@@ -1696,7 +1696,9 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     sts.n_subtrees_limit = 1;
     XMALLOC_N(sts.n_subtrees_limit, sts.subtrees);
     if (sts.subtrees == NULL) {
-        r = errno; goto error;
+        r = errno;
+        subtrees_info_destroy(&sts);
+        return r;
     }
 
     struct dbout out;
@@ -1707,7 +1709,10 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     out.n_translations_limit = 4;
     MALLOC_N(out.n_translations_limit, out.translation);
     if (out.translation == NULL) {
-        r = errno; goto error;
+        r = errno;
+        subtrees_info_destroy(&sts);
+        dbout_destroy(&out);
+        return r;
     }
 
     out.translation[0].off = -2LL; out.translation[0].size = 0; // block 0 is NULL
@@ -1818,8 +1823,9 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     
 	long long off_of_translation;
 	r = write_translation_table(&out, &off_of_translation);
-	assert(r==0); // RFP2578
-	write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn); // RFP2578
+	assert(r == 0); // RFP2578
+	r = write_header(&out, off_of_translation, (out.n_translations+1)*16+4, root_block, bl->load_lsn); 
+        assert(r == 0); // RFP2578
 	r = update_progress(progress_allocation, bl, "wrote tdb file");
     }
 
@@ -2179,7 +2185,7 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 }
 
 
-static void write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn) {
+static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn) {
     struct brt_header h; memset(&h, 0, sizeof h);
     h.layout_version   = BRT_LAYOUT_VERSION;
     h.checkpoint_count = 1;
@@ -2197,6 +2203,7 @@ static void write_header (struct dbout *out, long long translation_location_on_d
     assert(wbuf.ndone==size);
     toku_os_full_pwrite(out->fd, wbuf.buf, wbuf.ndone, 0); // RFP2578 use the version that returns error codes?
     toku_free(buf);
+    return 0;
 }
 
 static int read_some_pivots (FIDX pivots_file, int n_to_read, BRTLOADER bl,
