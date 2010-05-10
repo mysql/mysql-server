@@ -639,12 +639,12 @@ srv_que_task_enqueue_low(
 	que_thr_t*	thr);	/*!< in: query thread */
 
 /**********************************************************************//**
-Check whether the master thread is active.
-@return FALSE is it is not active. */
+Check whether any background thread is active.
+@return FALSE if all are are suspended or have exited. */
 UNIV_INTERN
 ibool
-srv_is_master_thread_active(void);
-/*==============================*/
+srv_is_any_background_thread_active(void);
+/*======================================*/
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{

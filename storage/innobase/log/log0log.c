@@ -3133,9 +3133,9 @@ loop:
 
 	mutex_exit(&kernel_mutex);
 
-	/* Check that the master thread is suspended */
+	/* Check that the background threads are suspended */
 
-	if (srv_is_master_thread_active()) {
+	if (srv_is_any_background_thread_active()) {
 		goto loop;
 	}
 
@@ -3196,10 +3196,10 @@ loop:
 
 	mutex_exit(&(log_sys->mutex));
 
-	/* Check that the master thread has stayed suspended */
-	if (srv_is_master_thread_active()) {
+	/* Check that the background threads stay suspended */
+	if (srv_is_any_background_thread_active()) {
 		fprintf(stderr,
-			"InnoDB: Warning: the master thread woke up"
+			"InnoDB: Warning: some background thread woke up"
 			" during shutdown\n");
 
 		goto loop;
@@ -3221,7 +3221,7 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	ut_a(!srv_is_master_thread_active());
+	ut_a(!srv_is_any_background_thread_active());
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
@@ -3243,7 +3243,7 @@ loop:
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	ut_a(!srv_is_master_thread_active());
+	ut_a(!srv_is_any_background_thread_active());
 
 	ut_a(buf_all_freed());
 	ut_a(lsn == log_sys->lsn);
