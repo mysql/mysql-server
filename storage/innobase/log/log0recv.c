@@ -309,12 +309,12 @@ recv_sys_init(
 	flush_list during recovery process.
 	As this initialization is done while holding the buffer pool
 	mutex we perform it before acquiring recv_sys->mutex. */
+#ifndef UNIV_HOTBACKUP
 	buf_flush_init_flush_rbt();
 #endif /* !UNIV_HOTBACKUP */
 
 	mutex_enter(&(recv_sys->mutex));
 
-#ifndef UNIV_HOTBACKUP
 	recv_sys->heap = mem_heap_create_in_buffer(256);
 #else /* !UNIV_HOTBACKUP */
 	recv_sys->heap = mem_heap_create(256);
@@ -331,7 +331,7 @@ recv_sys_init(
 	recv_sys->len = 0;
 	recv_sys->recovered_offset = 0;
 
-	recv_sys->addr_hash = hash_create(available_memory / 64);
+	recv_sys->addr_hash = hash_create(available_memory / 512);
 	recv_sys->n_addrs = 0;
 
 	recv_sys->apply_log_recs = FALSE;
@@ -371,7 +371,7 @@ recv_sys_empty_hash(void)
 	hash_table_free(recv_sys->addr_hash);
 	mem_heap_empty(recv_sys->heap);
 
-	recv_sys->addr_hash = hash_create(buf_pool_get_curr_size() / 256);
+	recv_sys->addr_hash = hash_create(buf_pool_get_curr_size() / 512);
 }
 
 #ifndef UNIV_HOTBACKUP

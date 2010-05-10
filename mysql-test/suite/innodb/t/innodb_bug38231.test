@@ -43,7 +43,7 @@ UNLOCK TABLES;
 
 # clean up
 
-# do not clean up - we do not know which of the tree has been released
+# do not clean up - we do not know which of the three has been released
 # so the --reap command may hang because the executing command is still
 # running/waiting
 #-- connection lock_wait1

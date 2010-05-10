@@ -391,6 +391,14 @@ ibool
 trx_is_interrupted(
 /*===============*/
 	trx_t*	trx);	/*!< in: transaction */
+/**********************************************************************//**
+Determines if the currently running transaction is in strict mode.
+@return	TRUE if strict */
+UNIV_INTERN
+ibool
+trx_is_strict(
+/*==========*/
+	trx_t*	trx);	/*!< in: transaction */
 #else /* !UNIV_HOTBACKUP */
 #define trx_is_interrupted(trx) FALSE
 #endif /* !UNIV_HOTBACKUP */
