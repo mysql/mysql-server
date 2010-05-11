@@ -629,6 +629,7 @@ MgmtSrvr::setClusterLog(const Config* config)
   const char *datadir;
   require(iter.get(CFG_NODE_DATADIR, &datadir) == 0);
   NdbConfig_SetPath(datadir);
+  my_setwd(NdbConfig_get_path(0), MYF(0));
 
   // Get log destination from config
   const char *value;
