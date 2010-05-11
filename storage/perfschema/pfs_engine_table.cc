@@ -19,7 +19,6 @@
   Performance schema tables (implementation).
 */
 
-#include "sql_priv.h"
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"

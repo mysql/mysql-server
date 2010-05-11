@@ -18,8 +18,8 @@
   Table SETUP_OBJECTS (implementation).
 */
 
-#include "sql_priv.h"
-#include "unireg.h"
+#include "my_global.h"
+#include "my_pthread.h"
 #include "pfs_instr_class.h"
 #include "pfs_column_types.h"
 #include "pfs_column_values.h"
