@@ -46,6 +46,7 @@ public:
           < child_join->prepare
         < engine->prepare
         *ref= substitution;
+        substitution= NULL;
       < Item_subselect::fix_fields
   */
   Item *substitution;
@@ -390,6 +391,7 @@ public:
     
     We can't remove it altogether as it is used to classify contents in
     join->sj_subselects.
+    jtbm-todo: option 1: let sj_subselects list pairs.
   */
   bool convert_to_semi_join;
   
