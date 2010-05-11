@@ -3028,8 +3028,8 @@ Istanbul	Turkey
 St Petersburg	Russian Federation
 Moscow	Russian Federation
 Ho Chi Minh City	Vietnam
-New York	United States
 Los Angeles	United States
+New York	United States
 set join_buffer_size=default;
 set optimizer_join_cache_level=6;
 ALTER TABLE Country MODIFY Name varchar(52) NOT NULL default '';
