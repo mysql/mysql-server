@@ -235,6 +235,37 @@ do_next:
   return 0;
 }
 
+
+/*
+  retry failed fork after sleep until fork suceeds or
+  max number of retries occurs
+*/
+
+static pid_t
+retry_fork(void)
+{
+  const unsigned max_retries = 10;
+  unsigned retry_counter = 0;
+  while(true)
+  {
+    pid_t pid = fork();
+    if (pid == -1)
+    {
+      g_eventLogger->warning("Angel failed to fork, errno: %d", errno);
+
+      if (retry_counter++ == max_retries)
+      {
+        g_eventLogger->error("Angel failed to fork %d times, giving up",
+                             retry_counter);
+        exit(-1);
+      }
+      NdbSleep_SecSleep(1);
+      continue;
+    }
+    return pid;
+  }
+}
+
 extern int g_ndb_init_need_monotonic;
 
 int main(int argc, char** argv)
@@ -308,8 +339,10 @@ int main(int argc, char** argv)
       }
     }
 
-    if ((child = fork()) <= 0)
-      break; // child or error
+    child = retry_fork();
+    if (child == 0)
+      break; // child
+    assert(child > 0);
 
     /**
      * Parent
