@@ -1239,6 +1239,18 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         /* We jump from the last table to the first one */
         tab->loosescan_match_tab= tab + pos->n_sj_tables - 1;
 
+        /* For LooseScan, duplicate elimination is based on rows being sorted 
+           on key. We need to make sure that range select keep the sorted index
+           order. (When using MRR it may not.)  
+
+           Note: need_sorted_output() implementations for range select classes 
+           that do not support sorted output, will trigger an assert. This 
+           should happen since LooseScan strategy will not be picked if sorted 
+           output is not supported.
+        */
+        if (tab->select && tab->select->quick)
+          tab->select->quick->need_sorted_output();
+
         /* Calculate key length */
         keylen= 0;
         keyno= pos->loosescan_key;
