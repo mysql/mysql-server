@@ -25,18 +25,18 @@ update performance_schema.SETUP_CONSUMERS set enabled='YES';
 
 connect (con1, localhost, root, , );
 
-let $con1_THREAD_ID=`select thread_id from performance_schema.PROCESSLIST
-  where ID in (select connection_id())`;
+let $con1_THREAD_ID=`select thread_id from performance_schema.THREADS
+  where PROCESSLIST_ID = connection_id()`;
 
 connect (con2, localhost, root, , );
 
-let $con2_THREAD_ID=`select thread_id from performance_schema.PROCESSLIST
-  where ID in (select connection_id())`;
+let $con2_THREAD_ID=`select thread_id from performance_schema.THREADS
+  where PROCESSLIST_ID = connection_id()`;
 
 connect (con3, localhost, root, , );
 
-let $con3_THREAD_ID=`select thread_id from performance_schema.PROCESSLIST
-  where ID in (select connection_id())`;
+let $con3_THREAD_ID=`select thread_id from performance_schema.THREADS
+  where PROCESSLIST_ID = connection_id()`;
 
 connection default;
 
@@ -49,6 +49,6 @@ prepare stmt_dump_events from
   where thread_id=? order by event_id;";
 
 prepare stmt_dump_thread from
-  "select name from performance_schema.PROCESSLIST where thread_id=? ;";
+  "select name from performance_schema.THREADS where thread_id=? ;";
 --enable_query_log
 

@@ -60,6 +60,7 @@ table_mutex_instances::m_share=
   &table_mutex_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,
@@ -228,6 +229,7 @@ table_rwlock_instances::m_share=
   &table_rwlock_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,
@@ -393,6 +395,7 @@ table_cond_instances::m_share=
   &table_cond_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(PFS_simple_index),
   &m_table_lock,

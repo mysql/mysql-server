@@ -197,6 +197,14 @@ static Sys_var_ulong Sys_pfs_max_thread_instances(
        DEFAULT(PFS_MAX_THREAD),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
+static Sys_var_ulong Sys_pfs_setup_actors_size(
+       "performance_schema_setup_actors_size",
+       "Maximum number of rows in SETUP_ACTORS.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_setup_actor_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 1024),
+       DEFAULT(PFS_MAX_SETUP_ACTOR),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 static Sys_var_ulong Sys_auto_increment_increment(

@@ -275,7 +275,6 @@ void lookup_setup_actor(PFS_thread *thread,
                         const char *host, uint host_length,
                         bool *enabled)
 {
-#ifdef PORTME
   PFS_setup_actor_key key;
   PFS_setup_actor **entry;
   int i;
@@ -317,7 +316,6 @@ void lookup_setup_actor(PFS_thread *thread,
       return;
     }
   }
-#endif
   *enabled= false;
   return;
 }

@@ -395,23 +395,6 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE PROCESSLIST
---
-
-SET @l1="CREATE TABLE performance_schema.PROCESSLIST(";
-SET @l2="THREAD_ID INTEGER not null,";
-SET @l3="ID INTEGER not null,";
-SET @l4="NAME VARCHAR(64) not null";
-SET @l5=")ENGINE=PERFORMANCE_SCHEMA;";
-
-SET @cmd=concat(@l1,@l2,@l3,@l4,@l5);
-
-SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
---
 -- TABLE RWLOCK_INSTANCES
 --
 
@@ -492,6 +475,34 @@ SET @l3="TIMER_NAME ENUM ('CYCLE', 'NANOSECOND', 'MICROSECOND', 'MILLISECOND', '
 SET @l4=")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @cmd=concat(@l1,@l2,@l3,@l4);
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE THREADS
+--
+
+SET @l1="CREATE TABLE performance_schema.THREADS(";
+SET @l2="THREAD_ID INTEGER not null,";
+SET @l3="NAME VARCHAR(128) not null,";
+SET @l4="TYPE VARCHAR(10) not null,";
+SET @l5="PROCESSLIST_ID INTEGER,";
+SET @l6="PROCESSLIST_USER VARCHAR(16),";
+SET @l7="PROCESSLIST_HOST VARCHAR(60),";
+SET @l8="PROCESSLIST_DB VARCHAR(64),";
+SET @l9="PROCESSLIST_COMMAND VARCHAR(16),";
+SET @l10="PROCESSLIST_TIME BIGINT,";
+SET @l11="PROCESSLIST_STATE VARCHAR(64),";
+SET @l12="PROCESSLIST_INFO LONGTEXT,";
+SET @l13="PARENT_THREAD_ID INTEGER,";
+SET @l14="ROLE VARCHAR(64),";
+SET @l15="INSTRUMENTED ENUM ('YES', 'NO') not null";
+SET @l16=")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @cmd=concat(@l1,@l2,@l3,@l4,@l5,@l6,@l7,@l8,@l9,@l10,@l11,@l12,@l13,@l14,@l15,@l16);
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
 PREPARE stmt FROM @str;

@@ -74,6 +74,7 @@ table_setup_objects::m_share=
   &table_setup_objects::create,
   table_setup_objects::write_row,
   table_setup_objects::delete_all_rows,
+  NULL, /* get_row_count */
   1000, /* records */
   sizeof(pos_setup_objects),
   &m_table_lock,

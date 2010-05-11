@@ -31,7 +31,7 @@ select variable_value > 0 from information_schema.global_status
   where variable_name like 'PERFORMANCE_SCHEMA_THREAD_CLASSES_LOST';
 
 # Expect no instances
-select count(*) from performance_schema.PROCESSLIST;
+select count(*) from performance_schema.THREADS;
 
 # Expect no instances lost
 show status like "performance_schema_thread_instances_lost";
