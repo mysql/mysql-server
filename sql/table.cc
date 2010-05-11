@@ -311,13 +311,6 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->version=       refresh_version;
 
     /*
-      This constant is used to mark that no table map version has been
-      assigned.  No arithmetic is done on the value: it will be
-      overwritten with a value taken from MYSQL_BIN_LOG.
-    */
-    share->table_map_version= ~(ulonglong)0;
-
-    /*
       Since alloc_table_share() can be called without any locking (for
       example, ha_create_table... functions), we do not assign a table
       map id here.  Instead we assign a value that is not used
@@ -383,11 +376,6 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
   share->path.length= share->normalized_path.length= strlen(path);
   share->frm_version= 		 FRM_VER_TRUE_VARCHAR;
 
-  /*
-    Temporary tables are not replicated, but we set up these fields
-    anyway to be able to catch errors.
-   */
-  share->table_map_version= ~(ulonglong)0;
   share->cached_row_logging_check= -1;
 
   /*
