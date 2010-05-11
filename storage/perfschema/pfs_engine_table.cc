@@ -27,11 +27,11 @@
 #include "table_setup_objects.h"
 #include "table_setup_timers.h"
 #include "table_performance_timers.h"
-#include "table_processlist.h"
 #include "table_events_waits_summary.h"
 #include "table_sync_instances.h"
 #include "table_file_instances.h"
 #include "table_file_summary.h"
+#include "table_threads.h"
 
 /* For show status */
 #include "pfs_column_values.h"
@@ -55,7 +55,6 @@ static PFS_engine_table_share *all_shares[]=
   &table_setup_objects::m_share,
   &table_setup_timers::m_share,
   &table_performance_timers::m_share,
-  &table_processlist::m_share,
   &table_events_waits_summary_by_thread_by_event_name::m_share,
   &table_events_waits_summary_by_event_name::m_share,
   &table_events_waits_summary_by_instance::m_share,
@@ -65,6 +64,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_rwlock_instances::m_share,
   &table_cond_instances::m_share,
   &table_file_instances::m_share,
+  &table_threads::m_share,
   NULL
 };
 
@@ -165,6 +165,45 @@ void PFS_engine_table_share::delete_all_locks(void)
 
   for (current= &all_shares[0]; (*current) != NULL; current++)
     thr_lock_delete((*current)->m_thr_lock_ptr);
+}
+
+ha_rows PFS_engine_table_share::get_row_count(void) const
+{
+  /* If available, count the exact number or records */
+  if (m_get_row_count)
+    return m_get_row_count();
+  /* Otherwise, return an estimate */
+  return m_records;
+}
+
+int PFS_engine_table_share::write_row(TABLE *table, unsigned char *buf,
+                                      Field **fields) const
+{
+  my_bitmap_map *org_bitmap;
+
+  /*
+    Make sure the table structure is as expected before mapping
+    hard wired columns in m_write_row.
+  */
+  if (! m_checked)
+  {
+    my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
+             PERFORMANCE_SCHEMA_str.str, m_name);
+    return HA_ERR_TABLE_NEEDS_UPGRADE;
+  }
+
+  if (m_write_row == NULL)
+  {
+    my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
+    return HA_ERR_WRONG_COMMAND;
+  }
+
+  /* We internally read from Fields to support the write interface */
+  org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
+  int result= m_write_row(table, buf, fields);
+  dbug_tmp_restore_column_map(table->read_set, org_bitmap);
+
+  return result;
 }
 
 static int compare_table_names(const char *name1, const char *name2)
@@ -278,6 +317,39 @@ int PFS_engine_table::update_row(TABLE *table,
   return result;
 }
 
+int PFS_engine_table::delete_row(TABLE *table,
+                                 const unsigned char *buf,
+                                 Field **fields)
+{
+  my_bitmap_map *org_bitmap;
+
+  /*
+    Make sure the table structure is as expected before mapping
+    hard wired columns in delete_row_values.
+  */
+  if (! m_share_ptr->m_checked)
+  {
+    my_error(ER_WRONG_NATIVE_TABLE_STRUCTURE, MYF(0),
+             PERFORMANCE_SCHEMA_str.str, m_share_ptr->m_name.str);
+    return HA_ERR_TABLE_NEEDS_UPGRADE;
+  }
+
+  /* We internally read from Fields to support the delete interface */
+  org_bitmap= dbug_tmp_use_all_columns(table, table->read_set);
+  int result= delete_row_values(table, buf, fields);
+  dbug_tmp_restore_column_map(table->read_set, org_bitmap);
+
+  return result;
+}
+
+int PFS_engine_table::delete_row_values(TABLE *,
+                                        const unsigned char *,
+                                        Field **)
+{
+  my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
+  return HA_ERR_WRONG_COMMAND;
+}
+
 /**
   Get the position of the current row.
   @param [out] ref        position
@@ -310,11 +382,27 @@ void PFS_engine_table::set_field_ulonglong(Field *f, ulonglong value)
   f2->store(value, true);
 }
 
+void PFS_engine_table::set_field_char_utf8(Field *f, const char* str,
+                                           uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
+  Field_string *f2= (Field_string*) f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
 void PFS_engine_table::set_field_varchar_utf8(Field *f, const char* str,
                                               uint len)
 {
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2= (Field_varstring*) f;
+  f2->store(str, len, &my_charset_utf8_bin);
+}
+
+void PFS_engine_table::set_field_longtext_utf8(Field *f, const char* str,
+                                               uint len)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
+  Field_blob *f2= (Field_blob*) f;
   f2->store(str, len, &my_charset_utf8_bin);
 }
 
@@ -330,6 +418,24 @@ ulonglong PFS_engine_table::get_field_enum(Field *f)
   DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
   Field_enum *f2= (Field_enum*) f;
   return f2->val_int();
+}
+
+String*
+PFS_engine_table::get_field_char_utf8(Field *f, String *val)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
+  Field_string *f2= (Field_string*) f;
+  val= f2->val_str(NULL, val);
+  return val;
+}
+
+String*
+PFS_engine_table::get_field_varchar_utf8(Field *f, String *val)
+{
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
+  Field_varstring *f2= (Field_varstring*) f;
+  val= f2->val_str(NULL, val);
+  return val;
 }
 
 int PFS_engine_table::update_row_values(TABLE *,

@@ -45,7 +45,7 @@ LIMIT 1;
 --replace_column 1 [EVENT_ID]
 SELECT EVENT_ID FROM performance_schema.EVENTS_WAITS_CURRENT
 WHERE THREAD_ID IN
-  (SELECT THREAD_ID FROM performance_schema.PROCESSLIST)
+  (SELECT THREAD_ID FROM performance_schema.THREADS)
 AND EVENT_NAME IN
   (SELECT NAME FROM performance_schema.SETUP_INSTRUMENTS
    WHERE NAME LIKE "wait/synch/%")
@@ -121,33 +121,33 @@ DROP TRIGGER t_ps_trigger;
 
 delimiter |;
 
-CREATE PROCEDURE t_ps_proc(IN tid INT, OUT pid INT)
+CREATE PROCEDURE t_ps_proc(IN conid INT, OUT pid INT)
 BEGIN
-   SELECT id FROM performance_schema.PROCESSLIST
-   WHERE THREAD_ID = tid INTO pid;
+   SELECT thread_id FROM performance_schema.THREADS
+   WHERE PROCESSLIST_ID = conid INTO pid;
 END;
 
 |
 
 delimiter ;|
 
-CALL t_ps_proc(0, @p_id);
+CALL t_ps_proc(connection_id(), @p_id);
 
 # FUNCTION
 
 delimiter |;
 
-CREATE FUNCTION t_ps_func(tid INT) RETURNS int
+CREATE FUNCTION t_ps_func(conid INT) RETURNS int
 BEGIN
-   return (SELECT id FROM performance_schema.PROCESSLIST
-           WHERE THREAD_ID = tid);
+   return (SELECT thread_id FROM performance_schema.THREADS
+           WHERE PROCESSLIST_ID = conid);
 END;
 
 |
 
 delimiter ;|
 
-SELECT t_ps_func(0) = @p_id;
+SELECT t_ps_func(connection_id()) = @p_id;
 
 DROP PROCEDURE t_ps_proc;
 DROP FUNCTION t_ps_func;

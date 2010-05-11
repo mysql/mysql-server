@@ -37,12 +37,12 @@ select * from performance_schema.FILE_SUMMARY_BY_EVENT_NAME;
 select * from performance_schema.FILE_SUMMARY_BY_INSTANCE;
 select * from performance_schema.MUTEX_INSTANCES;
 select * from performance_schema.PERFORMANCE_TIMERS;
-select * from performance_schema.PROCESSLIST;
 select * from performance_schema.RWLOCK_INSTANCES;
 select * from performance_schema.SETUP_CONSUMERS;
 select * from performance_schema.SETUP_INSTRUMENTS;
 select * from performance_schema.SETUP_OBJECTS;
 select * from performance_schema.SETUP_TIMERS;
+select * from performance_schema.THREADS;
 --enable_result_log
 
 # This has a stable output, printing the result:

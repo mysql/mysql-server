@@ -1,0 +1,37 @@
+select * from performance_schema.THREADS
+where name like 'Thread/%' limit 1;
+THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED
+#	#	#	#	#	#	#	#	#	#	#	#	#	#
+select * from performance_schema.THREADS
+where name='FOO';
+THREAD_ID	NAME	TYPE	PROCESSLIST_ID	PROCESSLIST_USER	PROCESSLIST_HOST	PROCESSLIST_DB	PROCESSLIST_COMMAND	PROCESSLIST_TIME	PROCESSLIST_STATE	PROCESSLIST_INFO	PARENT_THREAD_ID	ROLE	INSTRUMENTED
+insert into performance_schema.THREADS
+set name='FOO', thread_id=1, processlist_id=2;
+ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'THREADS'
+update performance_schema.THREADS
+set thread_id=12;
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.THREADS
+set thread_id=12 where PROCESSLIST_ID=connection_id();
+ERROR HY000: Invalid performance_schema usage.
+update performance_schema.THREADS
+set instrumented= 'NO' where PROCESSLIST_ID=connection_id();
+select instrumented from performance_schema.THREADS
+where PROCESSLIST_ID=connection_id();
+instrumented
+NO
+update performance_schema.THREADS
+set instrumented= 'YES' where PROCESSLIST_ID=connection_id();
+select instrumented from performance_schema.THREADS
+where PROCESSLIST_ID=connection_id();
+instrumented
+YES
+delete from performance_schema.THREADS
+where id=1;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'THREADS'
+delete from performance_schema.THREADS;
+ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'THREADS'
+LOCK TABLES performance_schema.THREADS READ;
+UNLOCK TABLES;
+LOCK TABLES performance_schema.THREADS WRITE;
+UNLOCK TABLES;

@@ -37,10 +37,10 @@ show create table FILE_SUMMARY_BY_EVENT_NAME;
 show create table FILE_SUMMARY_BY_INSTANCE;
 show create table MUTEX_INSTANCES;
 show create table PERFORMANCE_TIMERS;
-show create table PROCESSLIST;
 show create table RWLOCK_INSTANCES;
 show create table SETUP_CONSUMERS;
 show create table SETUP_INSTRUMENTS;
 show create table SETUP_OBJECTS;
 show create table SETUP_TIMERS;
+show create table THREADS;
 

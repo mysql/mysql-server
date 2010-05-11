@@ -13,13 +13,8 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef TABLE_PROCESSIST_H
-#define TABLE_PROCESSIST_H
-
-/**
-  @file storage/perfschema/table_processlist.h
-  Table PROCESSLIST (declarations).
-*/
+#ifndef TABLE_THREADS_H
+#define TABLE_THREADS_H
 
 #include "pfs_column_types.h"
 #include "pfs_engine_table.h"
@@ -27,29 +22,46 @@
 struct PFS_thread;
 
 /**
-  @addtogroup Performance_schema_tables
+  \addtogroup Performance_schema_tables
   @{
 */
 
-/** A row of PERFORMANCE_SCHEMA.PROCESSLIST. */
-struct row_processlist
+/**
+  A row of PERFORMANCE_SCHEMA.THREADS.
+*/
+struct row_threads
 {
   /** Column THREAD_ID. */
   ulong m_thread_internal_id;
   /** Column ID. */
   ulong m_thread_id;
   /** Column NAME. */
-  const char *m_name;
+  const char* m_name;
   /** Length in bytes of @c m_name. */
   uint m_name_length;
+
+  char m_username[USERNAME_LENGTH];
+  uint m_username_length;
+  char m_hostname[HOSTNAME_LENGTH];
+  uint m_hostname_length;
+  char m_dbname[NAME_LEN];
+  uint m_dbname_length;
+  int m_command;
+  time_t m_start_time;
+  const char* m_processlist_state_ptr;
+  uint m_processlist_state_length;
+  const char* m_processlist_info_ptr;
+  uint m_processlist_info_length;
+  bool *m_enabled_ptr;
 };
 
-/** Table PERFORMANCE_SCHEMA.PROCESSLIST. */
-class table_processlist : public PFS_engine_table
+/** Table PERFORMANCE_SCHEMA.THREADS. */
+class table_threads : public PFS_engine_table
 {
 public:
-  /** Table share. */
+  /** Table share */
   static PFS_engine_table_share m_share;
+  /** Table builder */
   static PFS_engine_table* create();
 
   virtual int rnd_next();
@@ -62,11 +74,17 @@ protected:
                               Field **fields,
                               bool read_all);
 
+
+  virtual int update_row_values(TABLE *table,
+                                const unsigned char *old_buf,
+                                unsigned char *new_buf,
+                                Field **fields);
+
 protected:
-  table_processlist();
+  table_threads();
 
 public:
-  ~table_processlist()
+  ~table_threads()
   {}
 
 private:
@@ -78,7 +96,7 @@ private:
   static TABLE_FIELD_DEF m_field_def;
 
   /** Current row. */
-  row_processlist m_row;
+  row_threads m_row;
   /** True is the current row exists. */
   bool m_row_exists;
   /** Current position. */
