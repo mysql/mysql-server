@@ -293,14 +293,15 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     struct rowset aset, bset;
     fill_rowset(&aset, a_keys, a_vals, 6);
     fill_rowset(&bset, b_keys, b_vals, 4);
-    toku_brt_loader_set_n_rows(&bl, 6+3);
+
+    toku_brt_loader_set_n_rows(&bl, 6+4);
 
     brt_loader_set_error_function(&bl.error_callback, err_cb, NULL);
     r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
     r = brt_loader_sort_and_write_rows(&bset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
     assert(fs.n_temp_files==2 && fs.n_temp_files_limit >= fs.n_temp_files);
-    destroy_rowset(&aset);
-    destroy_rowset(&bset);
+    // destroy_rowset(&aset);
+    // destroy_rowset(&bset);
     for (int i=0; i<2; i++) assert(fs.data_fidxs[i].idx != -1);
 
     QUEUE q;
