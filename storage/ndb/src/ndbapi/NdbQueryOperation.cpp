@@ -859,15 +859,6 @@ int NdbQueryParamValue::getValue(const NdbParamOperandImpl& param,
       {
         len  = maxSize;
         addr = m_value.raw;
-
-        if (column->getType() == NdbDictionary::Column::Char ||
-            column->getType() == NdbDictionary::Column::Binary)
-        { 
-          DBUG_ASSERT(static_cast<Uint32>(column->getLength()) == maxSize);
-          if (unlikely(strlen(m_value.string) 
-                       != static_cast<Uint32>(column->getLength())))
-            return QRY_PARAMETER_HAS_WRONG_TYPE;
-        }
       }
       else if (column->m_arrayType == NDB_ARRAYTYPE_SHORT_VAR)
       {
