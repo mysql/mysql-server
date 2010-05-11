@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -349,6 +349,12 @@ typedef struct st_join_table
       return first_inner;
     return first_sj_inner_tab; 
   }
+  void set_select_cond(COND *to, uint line)
+  {
+    DBUG_PRINT("info", ("select_cond changes %p -> %p at line %u tab %p",
+                        select_cond, to, line, this));
+    select_cond= to;
+  }
 } JOIN_TAB;
 
 /* 
@@ -652,7 +658,7 @@ protected:
   virtual bool skip_record_if_match();
 
   /*  Read all flag and data fields of a record from the join buffer */
-  uint read_all_record_fields();
+  int read_all_record_fields();
   
   /* Read all flag fields of a record from the join buffer */
   uint read_flag_fields();

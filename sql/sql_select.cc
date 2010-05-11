@@ -2848,7 +2848,7 @@ JOIN::exec()
 	    DBUG_VOID_RETURN;
 	  curr_table->select->cond->fix_fields(thd, 0);
 	}
-	curr_table->select_cond= curr_table->select->cond;
+        curr_table->set_select_cond(curr_table->select->cond, __LINE__);
 	curr_table->select_cond->top_level_item();
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
 					 "select and having",
@@ -3636,7 +3636,7 @@ bool JOIN::flatten_subqueries()
   */
   sj_subselects.sort(subq_sj_candidate_cmp);
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
-  /* Replace all subqueries to be flattened for Item_int(1) */
+  /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
   for (in_subq= sj_subselects.front(); 
        in_subq != in_subq_end && 
@@ -4556,7 +4556,8 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     join->best_read=1.0;
   }
   /* Generate an execution plan from the found optimal join order. */
-  DBUG_RETURN(join->thd->killed || get_best_combination(join));
+  error= join->thd->killed || get_best_combination(join);
+  DBUG_RETURN(error);
 
 error:
   /*
@@ -5076,10 +5077,16 @@ add_key_field(KEY_FIELD **key_fields,uint and_level, Item_func *cond,
     We use null_rejecting in add_not_null_conds() to add
     'othertbl.field IS NOT NULL' to tab->select_cond.
   */
-  (*key_fields)->null_rejecting= ((cond->functype() == Item_func::EQ_FUNC ||
-                                   cond->functype() == Item_func::MULT_EQUAL_FUNC) &&
-                                  ((*value)->type() == Item::FIELD_ITEM) &&
-                                  ((Item_field*)*value)->field->maybe_null());
+  {
+    Item *real= (*value)->real_item();
+    if (((cond->functype() == Item_func::EQ_FUNC) ||
+         (cond->functype() == Item_func::MULT_EQUAL_FUNC)) &&
+        (real->type() == Item::FIELD_ITEM) &&
+        ((Item_field*)real)->field->maybe_null())
+      (*key_fields)->null_rejecting= true;
+    else
+      (*key_fields)->null_rejecting= false;
+  }
   (*key_fields)->cond_guard= NULL;
   
   (*key_fields)->sj_pred_no= get_semi_join_select_list_index(field);
@@ -8640,8 +8647,9 @@ static void add_not_null_conds(JOIN *join)
         {
           Item *item= tab->ref.items[keypart];
           Item *notnull;
-          DBUG_ASSERT(item->type() == Item::FIELD_ITEM);
-          Item_field *not_null_item= (Item_field*)item;
+          Item *real= item->real_item();
+          DBUG_ASSERT(real->type() == Item::FIELD_ITEM);
+          Item_field *not_null_item= (Item_field*)real;
           JOIN_TAB *referred_tab= not_null_item->field->table->reginfo.join_tab;
           /*
             For UPDATE queries such as:
@@ -8663,7 +8671,9 @@ static void add_not_null_conds(JOIN *join)
           DBUG_EXECUTE("where",print_where(notnull,
                                            referred_tab->table->alias,
                                            QT_ORDINARY););
-          add_cond_and_fix(&referred_tab->select_cond, notnull);
+          COND *new_cond= referred_tab->select_cond;
+          add_cond_and_fix(&new_cond, notnull);
+          referred_tab->set_select_cond(new_cond, __LINE__);
         }
       }
     }
@@ -8850,9 +8860,9 @@ static bool make_join_select(JOIN *join, Item *cond)
             if (!tmp)
               DBUG_RETURN(1);
             tmp->quick_fix_field();
-            cond_tab->select_cond= !cond_tab->select_cond ? tmp :
-	                            new Item_cond_and(cond_tab->select_cond,
-                                                      tmp);
+            COND *new_cond= !cond_tab->select_cond ? tmp :
+              new Item_cond_and(cond_tab->select_cond, tmp);
+            cond_tab->set_select_cond(new_cond, __LINE__);
             if (!cond_tab->select_cond)
 	      DBUG_RETURN(1);
             cond_tab->select_cond->quick_fix_field();
@@ -8976,7 +8986,8 @@ static bool make_join_select(JOIN *join, Item *cond)
           */
           if (!(tmp= add_found_match_trig_cond(first_inner_tab, tmp, 0)))
             DBUG_RETURN(1);
-          tab->select_cond=sel->cond=tmp;
+          sel->cond= tmp;
+          tab->set_select_cond(tmp, __LINE__);
           /* Push condition to storage engine if this is enabled
              and the condition is not guarded */
           tab->table->file->pushed_cond= NULL;
@@ -8994,7 +9005,10 @@ static bool make_join_select(JOIN *join, Item *cond)
           }
         }
         else
-          tab->select_cond= sel->cond= NULL;
+        {
+          sel->cond= NULL;
+          tab->set_select_cond(NULL, __LINE__);
+        }
 
 	sel->head=tab->table;
         DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
@@ -9148,8 +9162,9 @@ static bool make_join_select(JOIN *join, Item *cond)
           if (!tmp)
             DBUG_RETURN(1);
           tmp->quick_fix_field();
-          cond_tab->select_cond= !cond_tab->select_cond ? tmp :
-	                            new Item_cond_and(cond_tab->select_cond,tmp);
+          COND *new_cond= !cond_tab->select_cond ? tmp :
+            new Item_cond_and(cond_tab->select_cond, tmp);
+          cond_tab->set_select_cond(new_cond, __LINE__);
           if (!cond_tab->select_cond)
 	    DBUG_RETURN(1);
           cond_tab->select_cond->update_used_tables();
@@ -9202,11 +9217,9 @@ static bool make_join_select(JOIN *join, Item *cond)
               tmp_cond->quick_fix_field();
 	    /* Add the predicate to other pushed down predicates */
             DBUG_PRINT("info", ("Item_cond_and"));
-            cond_tab->select_cond= !cond_tab->select_cond ? tmp_cond :
-	                          new Item_cond_and(cond_tab->select_cond,
-                                                    tmp_cond);
-            DBUG_PRINT("info", ("Item_cond_and 0x%lx",
-                                (ulong)cond_tab->select_cond));
+            COND *new_cond= !cond_tab->select_cond ? tmp_cond :
+              new Item_cond_and(cond_tab->select_cond, tmp_cond);
+            cond_tab->set_select_cond(new_cond, __LINE__);
             if (!cond_tab->select_cond)
 	      DBUG_RETURN(1);
             cond_tab->select_cond->update_used_tables();
@@ -9585,17 +9598,18 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok)
       if (row_cond)
       {
         if (!idx_remainder_cond)
-          tab->select_cond= row_cond;
+          tab->set_select_cond(row_cond, __LINE__);
         else
         {
-          tab->select_cond= new Item_cond_and(row_cond, idx_remainder_cond);
+          COND *new_cond= new Item_cond_and(row_cond, idx_remainder_cond);
+          tab->set_select_cond(new_cond, __LINE__);
 	  tab->select_cond->quick_fix_field();
           ((Item_cond_and*)tab->select_cond)->used_tables_cache= 
             row_cond->used_tables() | idx_remainder_cond->used_tables();
         }
       }
       else
-        tab->select_cond= idx_remainder_cond;
+        tab->set_select_cond(idx_remainder_cond, __LINE__);
       if (tab->select)
       {
         DBUG_EXECUTE("where", print_where(tab->select->cond, "select_cond",
@@ -9724,6 +9738,19 @@ void set_join_cache_denial(JOIN_TAB *join_tab)
 {
   if (join_tab->cache)
   {
+    /* 
+      If there is a previous cache linked to this cache through the
+      next_cache pointer: remove the link. 
+    */
+    if (join_tab->cache->prev_cache)
+      join_tab->cache->prev_cache->next_cache= 0;
+    /*
+      No need to do the same for next_cache since cache denial is done
+      backwards starting from the latest cache in the linked list (see
+      revise_cache_usage()).
+    */
+    DBUG_ASSERT(!join_tab->cache->next_cache);
+
     join_tab->cache->free();
     join_tab->cache= 0;
   }
@@ -15082,6 +15109,48 @@ err:
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
+/**
+   @brief Replaces an expression destructively inside the expression tree of
+   the WHERE clase.
+
+   @note Because of current requirements for semijoin flattening, we do not
+   need to recurse here, hence this function will only examine the top-level
+   AND conditions. (see JOIN::prepare, comment above the line 
+   'if (do_materialize)'
+   
+   @param join The top-level query.
+   @param old_cond The expression to be replaced.
+   @param new_cond The expression to be substituted.
+   @param do_fix_fields If true, Item::fix_fields(THD*, Item**) is called for
+   the new expression.
+   @return <code>true</code> if there was an error, <code>false</code> if
+   successful.
+*/
+static bool replace_where_subcondition(JOIN *join, Item *old_cond, 
+                                       Item *new_cond, bool do_fix_fields)
+{
+  if (join->conds == old_cond) {
+    join->conds= new_cond;
+    if (do_fix_fields)
+      new_cond->fix_fields(join->thd, &join->conds);
+    return FALSE;
+  }
+  
+  if (join->conds->type() == Item::COND_ITEM) {
+    List_iterator<Item> li(*((Item_cond*)join->conds)->argument_list());
+    Item *item;
+    while ((item= li++))
+      if (item == old_cond) 
+      {
+        li.replace(new_cond);
+        if (do_fix_fields)
+          new_cond->fix_fields(join->thd, li.ref());
+        return FALSE;
+      }
+  }
+
+  return TRUE;
+}
 
 /*
   Create a temporary table to weed out duplicate rowid combinations
@@ -16078,7 +16147,8 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     DBUG_PRINT("error",("Error: do_select() failed"));
   }
 #endif
-  DBUG_RETURN(join->thd->is_error() ? -1 : rc);
+  rc= join->thd->is_error() ? -1 : rc;
+  DBUG_RETURN(rc);
 }
 
 
@@ -16201,10 +16271,9 @@ sub_select_sjm(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
     JOIN_TAB *last_tab= join_tab + (sjm->tables - 1);
 
     Item *save_cond= last_tab->select_cond;
-    last_tab->select_cond= sjm->join_cond;
-
+    last_tab->set_select_cond(sjm->join_cond, __LINE__);
     rc= sub_select(join, last_tab, end_of_records);
-    last_tab->select_cond= save_cond;
+    last_tab->set_select_cond(save_cond, __LINE__);
     DBUG_RETURN(rc);
   }
   else
@@ -16660,6 +16729,9 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
 
   DBUG_ENTER("evaluate_join_record");
 
+  DBUG_PRINT("enter",
+             ("evaluate_join_record join: %p join_tab: %p"
+              " cond: %p error: %d", join, join_tab, select_cond, error));
   if (error > 0 || (join->thd->is_error()))     // Fatal error
     DBUG_RETURN(NESTED_LOOP_ERROR);
   if (error < 0)
@@ -16760,7 +16832,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
       (See above join->return_tab= tab).
     */
     join->examined_rows++;
-    DBUG_PRINT("counts", ("join->examined_rows++: %lu",
+    DBUG_PRINT("counts", ("evaluate_join_record join->examined_rows++: %lu",
                           (ulong) join->examined_rows));
 
     if (found)
@@ -17209,7 +17281,10 @@ join_read_always_key(JOIN_TAB *tab)
   for (uint i= 0 ; i < tab->ref.key_parts ; i++)
   {
     if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
-        return -1;
+    {
+      DBUG_PRINT("info", ("join_read_always_key null rejected"));
+      return -1;
+    }
   }
 
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
@@ -18813,7 +18888,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 	usable_keys.intersect(table->covering_keys);
       if (tab->pre_idx_push_select_cond)
       {
-        tab->select_cond= tab->pre_idx_push_select_cond;
+        tab->set_select_cond(tab->pre_idx_push_select_cond, __LINE__);
         if (tab->select)
           tab->select->cond= tab->select_cond;
       }
@@ -19102,7 +19177,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->set_keyread(TRUE);
           if (tab->pre_idx_push_select_cond)
           {
-            tab->select_cond= tab->pre_idx_push_select_cond;
+            tab->set_select_cond(tab->pre_idx_push_select_cond, __LINE__);
             if (tab->select)
               tab->select->cond= tab->select_cond;
           }
@@ -19331,7 +19406,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     table->quick_keys.clear_all();  // as far as we cleanup select->quick
     table->sort.io_cache= tablesort_result_cache;
   }
-  tab->select_cond=0;
+  tab->set_select_cond(NULL, __LINE__);
   tab->last_inner= 0;
   tab->first_unmatched= 0;
   tab->type=JT_ALL;				// Read with normal read_record
@@ -19368,7 +19443,7 @@ static bool fix_having(JOIN *join, Item **having)
 						   sort_table_cond)) ||
 	  table->select->cond->fix_fields(join->thd, &table->select->cond))
 	return 1;
-    table->select_cond=table->select->cond;
+    table->set_select_cond(table->select->cond, __LINE__);
     table->select_cond->top_level_item();
     DBUG_EXECUTE("where",print_where(table->select_cond, "select and having",
                                      QT_ORDINARY););
@@ -21087,11 +21162,12 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   {
     if (join_tab->select->cond)
       error=(int) cond->add(join_tab->select->cond);
-    join_tab->select_cond=join_tab->select->cond=cond;
+    join_tab->select->cond= cond;
+    join_tab->set_select_cond(cond, __LINE__);
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
                                           &error)))
-    join_tab->select_cond=cond;
+    join_tab->set_select_cond(cond, __LINE__);
 
   DBUG_RETURN(error ? TRUE : FALSE);
 }
