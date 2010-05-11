@@ -40,6 +40,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "pars0types.h" /* pars_info_t */
 #include "que0que.h" /* que_eval_sql() */
 #include "rem0cmp.h" /* cmp_rec_rec_with_match() */
+#include "rem0types.h" /* REC_MAX_N_FIELDS */
 #include "row0sel.h" /* sel_node_struct */
 #include "row0types.h" /* sel_node_t */
 #include "trx0trx.h" /* trx_create() */
@@ -1044,11 +1045,15 @@ dict_stats_analyze_index_for_n_prefix(
 		n_diff_sum_of_all_analyzed_pages += n_diff_on_leaf;
 	}
 
+	dict_index_stat_mutex_enter(index);
+
 	index->stat_n_diff_key_vals[n_prefix]
 		= total_recs_on_level * n_diff_sum_of_all_analyzed_pages
 		/ n_recs_to_dive_below;
 
 	index->stat_n_sample_sizes[n_prefix] = n_recs_to_dive_below;
+
+	dict_index_stat_mutex_exit(index);
 
 	DEBUG_PRINTF("    %s(): n_diff=%llu for n_prefix=%lu\n",
 		     __func__, index->stat_n_diff_key_vals[n_prefix],
@@ -1129,6 +1134,8 @@ dict_stats_analyze_index(
 		/* do full scan of level 0; save results directly
 		into the index */
 
+		dict_index_stat_mutex_enter(index);
+
 		dict_stats_analyze_index_level(index,
 					       0 /* leaf level */,
 					       index->stat_n_diff_key_vals,
@@ -1139,6 +1146,8 @@ dict_stats_analyze_index(
 		for (i = 1; i <= n_uniq; i++) {
 			index->stat_n_sample_sizes[i] = total_pages;
 		}
+
+		dict_index_stat_mutex_exit(index);
 
 		return(DB_SUCCESS);
 	}
@@ -1560,7 +1569,13 @@ dict_stats_save(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
-		ulint	i;
+		/* on stack copies of index members to minimize the
+		scope of dict_index_stat_mutex; the maximum number
+		of elements is the max value of index->n_uniq */
+		ib_uint64_t	stat_n_diff_key_vals[REC_MAX_N_FIELDS];
+		ib_uint64_t	stat_n_sample_sizes[REC_MAX_N_FIELDS];
+		ulint		n_uniq;
+		ulint		i;
 
 		ret = dict_stats_save_index_stat(index, now, "size",
 						 index->stat_index_size,
@@ -1582,7 +1597,23 @@ dict_stats_save(
 			goto end_rollback;
 		}
 
-		for (i = 1; i <= dict_index_get_n_unique(index); i++) {
+		n_uniq = dict_index_get_n_unique(index);
+
+		dict_index_stat_mutex_enter(index);
+
+		ut_ad(n_uniq + 1 <= UT_ARR_SIZE(stat_n_diff_key_vals));
+
+		memcpy(stat_n_diff_key_vals, index->stat_n_diff_key_vals,
+		       (n_uniq + 1) * sizeof(index->stat_n_diff_key_vals[0]));
+
+		ut_ad(n_uniq + 1 <= UT_ARR_SIZE(stat_n_sample_sizes));
+
+		memcpy(stat_n_sample_sizes, index->stat_n_sample_sizes,
+		       (n_uniq + 1) * sizeof(index->stat_n_sample_sizes[0]));
+
+		dict_index_stat_mutex_exit(index);
+
+		for (i = 1; i <= n_uniq; i++) {
 
 			char	stat_name[16];
 			char	stat_description[1024];
@@ -1607,8 +1638,8 @@ dict_stats_save(
 
 			ret = dict_stats_save_index_stat(
 				index, now, stat_name,
-				index->stat_n_diff_key_vals[i],
-				&index->stat_n_sample_sizes[i],
+				stat_n_diff_key_vals[i],
+				&stat_n_sample_sizes[i],
 				stat_description, trx);
 
 			if (ret != DB_SUCCESS) {
@@ -1929,6 +1960,8 @@ dict_stats_fetch_index_stats_step(
 		}
 		/* else */
 
+		dict_index_stat_mutex_enter(index);
+
 		index->stat_n_diff_key_vals[n_pfx] = stat_value;
 
 		if (sample_size != (ib_uint64_t) -1) {
@@ -1938,6 +1971,8 @@ dict_stats_fetch_index_stats_step(
 			table manually and SET sample_size = NULL */
 			index->stat_n_sample_sizes[n_pfx] = 0;
 		}
+
+		dict_index_stat_mutex_exit(index);
 	} else {
 		/* silently ignore rows with unknown stat_name, the
 		user may have developed her own stats */
