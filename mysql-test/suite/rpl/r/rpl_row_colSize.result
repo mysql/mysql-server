@@ -56,9 +56,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -112,9 +113,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'decimal(27,18)' to type 'decimal(27,9)'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'decimal(27,18)' to type 'decimal(27,9)'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -168,9 +170,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'decimal(20,10)' to type 'decimal(5,2)'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -225,9 +228,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'double' to type 'float'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'double' to type 'float'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -282,9 +286,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(64)' to type 'bit(5)'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'bit(64)' to type 'bit(5)'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -338,9 +343,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'bit(12)' to type 'bit(11)'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'bit(12)' to type 'bit(11)'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -395,9 +401,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'set' to type 'set('4')'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'set' to type 'set('4')'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -452,9 +459,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'char(20)' to type 'char(10)'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'char(20)' to type 'char(10)'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -540,9 +548,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'enum' to type 'enum('44','54')'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'enum' to type 'enum('44','54')'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -597,9 +606,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(100)'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(100)'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -653,9 +663,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'varchar(200)' to type 'varchar(10)'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'varchar(200)' to type 'varchar(10)'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -709,9 +720,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(1000)'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'varchar(2000)' to type 'varchar(1000)'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -766,9 +778,10 @@ Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1658
-Last_SQL_Error	Column 0 of table 'test.t1' cannot be converted from type 'tinyblob' to type 'tinyblob'
+Last_SQL_Error	YYMMDD HH:MM:SS Column 0 of table 'test.t1' cannot be converted from type 'tinyblob' to type 'tinyblob'
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Retry_Count	10
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0

@@ -134,7 +134,19 @@ public:
   */
   bool set_info(const char *value);
   /**
-    Sets the value of a integer field to @c value.
+    Sets the value of an ulong field to @c value.
+    Any call must be done in the right order which
+    is defined by the caller that wants to persist
+    the information.
+
+    @param[in] value Value to be set.
+
+    @retval FALSE No error
+    @retval TRUE Failure
+  */
+  bool set_info(ulong const value);
+  /**
+    Sets the value of an integer field to @c value.
     Any call must be done in the right order which
     is defined by the caller that wants to persist
     the information.
@@ -199,7 +211,22 @@ public:
   bool get_info(char *value, const size_t size,
                 const char *default_value);
   /**
-    Returns the value of a integer field.
+    Returns the value of an ulong field.
+    Any call must be done in the right order which
+    is defined by the caller that wants to return
+    the information.
+
+    @param[in] value Value to be set.
+    @param[in] default_value Returns a default value
+                             if the field is empty.
+
+    @retval FALSE No error
+    @retval TRUE Failure
+  */
+  bool get_info(ulong *value,
+                ulong const default_value);
+  /**
+    Returns the value of an integer field.
     Any call must be done in the right order which
     is defined by the caller that wants to return
     the information.
@@ -307,12 +334,15 @@ private:
   virtual int do_prepare_info_for_write()= 0;
 
   virtual bool do_set_info(const int pos, const char *value)= 0;
+  virtual bool do_set_info(const int pos, const ulong value)= 0;
   virtual bool do_set_info(const int pos, const int value)= 0;
   virtual bool do_set_info(const int pos, const float value)= 0;
   virtual bool do_set_info(const int pos, const my_off_t value)= 0;
   virtual bool do_set_info(const int pos, const Server_ids *value)= 0;
   virtual bool do_get_info(const int pos, char *value, const size_t size,
                            const char *default_value)= 0;
+  virtual bool do_get_info(int pos, ulong *value,
+                           const ulong default_value)= 0;
   virtual bool do_get_info(int pos, int *value,
                            const int default_value)= 0;
   virtual bool do_get_info(const int pos, float *value,

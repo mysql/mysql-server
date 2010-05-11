@@ -93,6 +93,7 @@ class Master_info : public Rpl_info
   ulonglong received_heartbeats;  // counter of received heartbeat events
   Server_ids *ignore_server_ids;
   ulong master_id;
+  ulong retry_count;
 
   int init_info();
   void end_info();

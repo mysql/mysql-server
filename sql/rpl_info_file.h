@@ -51,6 +51,7 @@ private:
   int do_prepare_info_for_write();
   bool do_set_info(const int pos, const char *value);
   bool do_set_info(const int pos, const int value);
+  bool do_set_info(const int pos, const ulong value);
   bool do_set_info(const int pos, const float value);
   bool do_set_info(const int pos, const my_off_t value);
   bool do_set_info(const int pos, const Server_ids *value);
@@ -58,6 +59,8 @@ private:
                    const char *default_value);
   bool do_get_info(const int pos, int *value,
                    const int default_value);
+  bool do_get_info(const int pos, ulong *value,
+                   const ulong default_value);
   bool do_get_info(const int pos, float *value,
                    const float default_value);
   bool do_get_info(const int pos, my_off_t *value,
