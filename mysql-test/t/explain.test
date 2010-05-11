@@ -198,4 +198,19 @@ INSERT INTO t2 VALUES (NULL), (0);
 EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) FROM t1;
 DROP TABLE t1, t2;
 
+
+--echo #
+--echo # Bug #48419: another explain crash..
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b BLOB, KEY b(b(100)));
+INSERT INTO t2 VALUES ('1'), ('2'), ('3');
+
+FLUSH TABLES;
+
+EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT 1 FROM t1 t JOIN t2 WHERE b <= 1 AND t.a);
+
+DROP TABLE t1, t2;
+
 --echo End of 5.1 tests.

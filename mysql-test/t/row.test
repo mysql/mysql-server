@@ -255,3 +255,14 @@ select * from t1,t2 where (a,b) = (c,d);
 
 select host,user from mysql.user where (host,user) = ('localhost','test');
 drop table t1,t2;
+
+--echo #
+--echo # Bug#52124 memory leaks like a sieve in datetime, timestamp, time, date fields + warnings
+--echo #
+CREATE TABLE t1 (a DATETIME NOT NULL, b TINYINT);
+INSERT INTO t1 VALUES (0, 0),(0, 0);
+--disable_warnings
+SELECT 1 FROM t1 WHERE ROW(a, b) >=
+ROW('1', (SELECT 1 FROM t1 WHERE a > 1234));
+--enable_warnings
+DROP TABLE t1;

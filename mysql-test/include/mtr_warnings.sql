@@ -182,6 +182,8 @@ INSERT INTO global_suppressions VALUES
  ("==[0-9]*== For more details"),
  /* This comes with innodb plugin tests */
  ("==[0-9]*== Warning: set address range perms: large range"),
+ /* valgrind-3.5.0 dumps this */
+ ("==[0-9]*== Command: "),
 
  /* valgrind warnings: invalid file descriptor -1 in syscall
     write()/read(). Bug #50414 */

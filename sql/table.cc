@@ -494,6 +494,26 @@ inline bool is_system_table_name(const char *name, uint length)
 }
 
 
+/**
+  Check if a string contains path elements
+*/  
+
+static inline bool has_disabled_path_chars(const char *str)
+{
+  for (; *str; str++)
+    switch (*str)
+    {
+      case FN_EXTCHAR:
+      case '/':
+      case '\\':
+      case '~':
+      case '@':
+        return TRUE;
+    }
+  return FALSE;
+}
+
+
 /*
   Read table definition from a binary / text based .frm file
   
@@ -549,7 +569,8 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
         This kind of tables must have been opened only by the
         my_open() above.
     */
-    if (strchr(share->table_name.str, '@') ||
+    if (has_disabled_path_chars(share->table_name.str) ||
+        has_disabled_path_chars(share->db.str) ||
         !strncmp(share->db.str, MYSQL50_TABLE_NAME_PREFIX,
                  MYSQL50_TABLE_NAME_PREFIX_LENGTH) ||
         !strncmp(share->table_name.str, MYSQL50_TABLE_NAME_PREFIX,
@@ -2711,7 +2732,6 @@ bool check_db_name(LEX_STRING *org_name)
             (name_length > NAME_CHAR_LEN)); /* purecov: inspected */
 }
 
-
 /*
   Allow anything as a table name, as long as it doesn't contain an
   ' ' at the end
@@ -2719,7 +2739,7 @@ bool check_db_name(LEX_STRING *org_name)
 */
 
 
-bool check_table_name(const char *name, uint length)
+bool check_table_name(const char *name, uint length, bool check_for_path_chars)
 {
   uint name_length= 0;  // name length in symbols
   const char *end= name+length;
@@ -2746,6 +2766,9 @@ bool check_table_name(const char *name, uint length)
         continue;
       }
     }
+    if (check_for_path_chars &&
+        (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
+      return 1;
 #endif
     name++;
     name_length++;
