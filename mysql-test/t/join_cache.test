@@ -1724,6 +1724,32 @@ ORDER BY t2.v;
 DROP TABLE t1,t2;
 
 --echo #
+--echo # Bug#51092: Linked join buffer gives wrong result 
+--echo #            for 3-way cross join
+--echo #
+
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES (1,1),(2,2);
+
+CREATE TABLE t2 (a INT, b INT);
+INSERT INTO t2 VALUES (1,1),(2,2);
+
+CREATE TABLE t3 (a INT, b INT);
+INSERT INTO t3 VALUES (1,1),(2,2);
+
+EXPLAIN SELECT t1.* FROM t1,t2,t3;
+SELECT t1.* FROM t1,t2,t3;
+
+SET optimizer_join_cache_level=2;
+
+EXPLAIN SELECT t1.* FROM t1,t2,t3;
+SELECT t1.* FROM t1,t2,t3;
+
+SET optimizer_join_cache_level=default;
+
+DROP TABLE t1,t2,t3;
+
+--echo #
 --echo # BUG#52394 Segfault in JOIN_CACHE::get_offset () at sql_select.h:445
 --echo #
 
@@ -1741,7 +1767,6 @@ INSERT INTO E VALUES
 
 SELECT 1 FROM C,D,E WHERE D.a = E.a AND D.b = E.b;
 DROP TABLE C,D,E;
-SET optimizer_join_cache_level=default;
 
 --echo #
 --echo # BUG#52540 Crash in JOIN_CACHE::set_match_flag_if_none () at sql_join_cache.cc:1883
@@ -1770,5 +1795,54 @@ FROM t2 LEFT JOIN
      ON 1 ;
 
 SET optimizer_join_cache_level=default;
+
 DROP TABLE t1,t2,t3,t4;
+
+--echo #
+--echo # Bug#51084: Batched key access crashes for SELECT with
+--echo #            derived table and LEFT JOIN 
+--echo #
+
+CREATE TABLE t1 (
+  carrier int,
+  id int PRIMARY KEY
+);
+INSERT INTO t1 VALUES (1,11),(1,12),(2,13);
+
+CREATE TABLE t2 (
+  scan_date int,
+  package_id int
+);
+INSERT INTO t2 VALUES (2008,21),(2008,22);
+
+CREATE TABLE t3 (
+  carrier int PRIMARY KEY,
+  id int
+);
+INSERT INTO t3 VALUES (1,31);
+
+CREATE TABLE t4 (
+  carrier_id int,
+  INDEX carrier_id(carrier_id)
+);
+INSERT INTO t4 VALUES (31),(32);
+
+SET optimizer_join_cache_level=8;
+
 --echo
+SELECT COUNT(*)
+  FROM (t2 JOIN t1) LEFT JOIN (t3 JOIN t4 ON t3.id = t4.carrier_id)
+       ON t3.carrier = t1.carrier;
+
+--echo
+EXPLAIN
+SELECT COUNT(*)
+  FROM (t2 JOIN t1) LEFT JOIN (t3 JOIN t4 ON t3.id = t4.carrier_id)
+       ON t3.carrier = t1.carrier;
+
+--echo
+SET optimizer_join_cache_level=default;
+
+DROP TABLE t1,t2,t3,t4;
+
+

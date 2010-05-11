@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1243,8 +1243,9 @@ bool JOIN_CACHE::get_record()
     prev_rec_ptr= prev_cache->get_rec_ref(pos);
   }
   curr_rec_pos= pos;
-  if (!(res= read_all_record_fields() == 0))
-  {
+  res= (read_all_record_fields() == -1);
+  if (!res) 
+  { // There are more records to read
     pos+= referenced_fields*size_of_fld_ofs;
     if (prev_cache)
       prev_cache->get_record_by_pos(prev_rec_ptr);
@@ -1332,15 +1333,16 @@ bool JOIN_CACHE::get_match_flag_by_pos(uchar *rec_ptr)
     read data. 
 
   RETURN
-    length of the data read from the join buffer
+    (-1) - if there are no more records in the join buffer
+    length of the data read from the join buffer - otherwise
 */
 
-uint JOIN_CACHE::read_all_record_fields()
+int JOIN_CACHE::read_all_record_fields()
 {
   uchar *init_pos= pos;
   
   if (pos > last_rec_pos || !records)
-    return 0;
+    return -1;
 
   /* First match flag, read null bitmaps and null_row flag for each table */
   read_flag_fields();

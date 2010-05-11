@@ -81,6 +81,34 @@ DROP TABLE t1;
 
 --echo End of 5.5 tests.
 
+
+--echo #
+--echo # BUG#46743 "Azalea processing correlated, aggregate SELECT
+--echo # subqueries incorrectly"
+--echo #
+# To see the bug, one would have to undo both the fix for BUG#46743
+# and the one for BUG#47123.
+CREATE TABLE t1 (c int);
+INSERT INTO t1 VALUES (NULL);
+CREATE TABLE t2 (d int , KEY (d)); # index is needed for bug
+INSERT INTO t2 VALUES (NULL),(NULL); # two rows needed for bug
+# we see that subquery returns 0 rows
+--echo 0 rows in subquery
+SELECT 1 AS RESULT FROM t2,t1 WHERE d = c;
+# so here it ends up as NULL
+--echo base query
+SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 ;
+--echo first equivalent variant
+SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c ;
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = IFNULL(c,NULL)) AS RESULT FROM t1 GROUP BY c;
+--echo second equivalent variant
+# used to fail with 1242: Subquery returns more than 1 row
+SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
+EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP BY c ;
+
+DROP TABLE t1,t2;
+
 --echo #
 --echo # BUG#49630: Segfault in select_describe() with double 
 --echo #            nested subquery and materialization

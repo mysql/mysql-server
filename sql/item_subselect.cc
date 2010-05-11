@@ -1785,7 +1785,6 @@ void Item_in_subselect::print(String *str, enum_query_type query_type)
 bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 {
   bool result = 0;
-  ref_ptr= ref;
 
   if (exec_method == SEMI_JOIN)
     return !( (*ref)= new Item_int(1));
