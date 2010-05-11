@@ -327,3 +327,44 @@ INSERT INTO t1 VALUES (1);
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+#
+# Bug#50511: Sometimes wrong handling of user variables containing NULL.
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+CREATE TABLE t1(f1 INT AUTO_INCREMENT, PRIMARY KEY(f1));
+
+INSERT INTO t1 SET f1 = NULL ;
+
+SET @aux = NULL ;
+INSERT INTO t1 SET f1 = @aux ;
+
+SET @aux1 = 0.123E-1;
+SET @aux1 = NULL;
+INSERT INTO t1 SET f1 = @aux1 ;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1(f1 VARCHAR(257) , f2 INT, PRIMARY KEY(f2));
+CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW SET @aux = 1;
+
+SET @aux = 1; # INT
+SET @aux = NULL;
+INSERT INTO test.t1 (f1, f2) VALUES (1, 1), (@aux, 2);
+
+SET @aux = 'text'; # STRING
+SET @aux = NULL;
+INSERT INTO t1(f1, f2) VALUES (1, 3), (@aux, 4);
+
+SELECT f1, f2 FROM t1 ORDER BY f2;
+
+DROP TRIGGER trg1;
+DROP TABLE t1;
+
+--echo End of 5.5 tests

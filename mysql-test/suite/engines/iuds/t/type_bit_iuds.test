@@ -2068,11 +2068,11 @@ SELECT BIN(c1) FROM t1;
 SELECT BIN(c1),BIN(c2),BIN(c3) FROM t2;
 --sorted_result
 SELECT HEX(c1),OCT(c2),BIN(c3) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT HEX(c1+0),HEX(c2+1),HEX(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT OCT(c1+0),OCT(c2+1),OCT(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT BIN(c1+0),BIN(c2+1),BIN(c3+2) FROM t2;
 --sorted_result
 SELECT CONCAT(HEX(c1),HEX(c2),HEX(c3)) FROM t2;
@@ -4372,11 +4372,11 @@ SELECT BIN(c1) FROM t1;
 SELECT BIN(c1),BIN(c2),BIN(c3) FROM t2;
 --sorted_result
 SELECT HEX(c1),OCT(c2),BIN(c3) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT HEX(c1+0),HEX(c2+1),HEX(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT OCT(c1+0),OCT(c2+1),OCT(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT BIN(c1+0),BIN(c2+1),BIN(c3+2) FROM t2;
 --sorted_result
 SELECT CONCAT(HEX(c1),HEX(c2),HEX(c3)) FROM t2;
@@ -6676,11 +6676,11 @@ SELECT BIN(c1) FROM t1;
 SELECT BIN(c1),BIN(c2),BIN(c3) FROM t2;
 --sorted_result
 SELECT HEX(c1),OCT(c2),BIN(c3) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT HEX(c1+0),HEX(c2+1),HEX(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT OCT(c1+0),OCT(c2+1),OCT(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT BIN(c1+0),BIN(c2+1),BIN(c3+2) FROM t2;
 --sorted_result
 SELECT CONCAT(HEX(c1),HEX(c2),HEX(c3)) FROM t2;
@@ -8980,11 +8980,11 @@ SELECT BIN(c1) FROM t1;
 SELECT BIN(c1),BIN(c2),BIN(c3) FROM t2;
 --sorted_result
 SELECT HEX(c1),OCT(c2),BIN(c3) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT HEX(c1+0),HEX(c2+1),HEX(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT OCT(c1+0),OCT(c2+1),OCT(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT BIN(c1+0),BIN(c2+1),BIN(c3+2) FROM t2;
 --sorted_result
 SELECT CONCAT(HEX(c1),HEX(c2),HEX(c3)) FROM t2;
@@ -11284,11 +11284,11 @@ SELECT BIN(c1) FROM t1;
 SELECT BIN(c1),BIN(c2),BIN(c3) FROM t2;
 --sorted_result
 SELECT HEX(c1),OCT(c2),BIN(c3) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT HEX(c1+0),HEX(c2+1),HEX(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT OCT(c1+0),OCT(c2+1),OCT(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT BIN(c1+0),BIN(c2+1),BIN(c3+2) FROM t2;
 --sorted_result
 SELECT CONCAT(HEX(c1),HEX(c2),HEX(c3)) FROM t2;
@@ -13588,11 +13588,11 @@ SELECT BIN(c1) FROM t1;
 SELECT BIN(c1),BIN(c2),BIN(c3) FROM t2;
 --sorted_result
 SELECT HEX(c1),OCT(c2),BIN(c3) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT HEX(c1+0),HEX(c2+1),HEX(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT OCT(c1+0),OCT(c2+1),OCT(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT BIN(c1+0),BIN(c2+1),BIN(c3+2) FROM t2;
 --sorted_result
 SELECT CONCAT(HEX(c1),HEX(c2),HEX(c3)) FROM t2;
@@ -15900,11 +15900,11 @@ SELECT BIN(c1) FROM t1;
 SELECT BIN(c1),BIN(c2),BIN(c3) FROM t2;
 --sorted_result
 SELECT HEX(c1),OCT(c2),BIN(c3) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT HEX(c1+0),HEX(c2+1),HEX(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT OCT(c1+0),OCT(c2+1),OCT(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT BIN(c1+0),BIN(c2+1),BIN(c3+2) FROM t2;
 --sorted_result
 SELECT CONCAT(HEX(c1),HEX(c2),HEX(c3)) FROM t2;
@@ -18212,11 +18212,11 @@ SELECT BIN(c1) FROM t1;
 SELECT BIN(c1),BIN(c2),BIN(c3) FROM t2;
 --sorted_result
 SELECT HEX(c1),OCT(c2),BIN(c3) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT HEX(c1+0),HEX(c2+1),HEX(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT OCT(c1+0),OCT(c2+1),OCT(c3+2) FROM t2;
---sorted_result
+--error ER_DATA_OUT_OF_RANGE
 SELECT BIN(c1+0),BIN(c2+1),BIN(c3+2) FROM t2;
 --sorted_result
 SELECT CONCAT(HEX(c1),HEX(c2),HEX(c3)) FROM t2;
