@@ -1821,5 +1821,17 @@ let $new_pruned_scan_count = query_get_value(SHOW STATUS LIKE 'Ndb_pruned_scan_c
 --eval SELECT $new_pruned_scan_count - $old_pruned_scan_count AS pruned_scan_count
 --enable_query_log
 
+create table t1 (a binary(10) primary key, b binary(10) not null) engine = ndb;
+insert into t1 values ('\0123456789', '1234567890');
+insert into t1 values ('1234567890', '\0123456789');
+
+explain
+select count(*)
+from t1 join t1 as t2 on t2.a = t1.b
+where t1.a = '\0123456789';
+select count(*)
+from t1 join t1 as t2 on t2.a = t1.b
+where t1.a = '\0123456789';
+drop table t1;
 
 set ndb_join_pushdown = @save_ndb_join_pushdown;
