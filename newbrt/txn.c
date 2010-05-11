@@ -3,9 +3,23 @@
 #ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+
 #include "includes.h"
 #include "txn.h"
 #include "checkpoint.h"
+
+
+// accountability
+static TXN_STATUS_S status = {.begin  = 0, 
+                              .commit = 0,
+                              .abort  = 0,
+                              .close  = 0};
+
+
+void 
+toku_txn_get_status(TXN_STATUS s) {
+    *s = status;
+}
 
 int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger) {
     return toku_txn_begin_with_xid(parent_tokutxn, tokutxn, logger, 0);
@@ -73,6 +87,7 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     result->recovered_from_checkpoint = FALSE;
     toku_list_init(&result->checkpoint_before_commit);
     *tokutxn = result;
+    status.begin++;
     return 0;
 
 died:
@@ -184,6 +199,7 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
     if (r!=0)
         return r;
     r = toku_rollback_commit(txn, yield, yieldv, oplsn);
+    status.commit++;
     return r;
 }
 
@@ -207,11 +223,13 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     if (r!=0) 
         return r;
     r = toku_rollback_abort(txn, yield, yieldv, oplsn);
+    status.abort++;
     return r;
 }
 
 void toku_txn_close_txn(TOKUTXN txn) {
     toku_rollback_txn_close(txn);
+    status.close++;
     return;
 }
 

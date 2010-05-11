@@ -38,6 +38,16 @@ BOOL toku_txnid_newer(TXNID a, TXNID b);
 // Force fsync on commit
 void toku_txn_force_fsync_on_commit(TOKUTXN txn);
 
+
+typedef struct txn_status {
+    u_int64_t   begin;       // total number of transactions begun (does not include recovered txns)
+    u_int64_t   commit;      // successful commits
+    u_int64_t   abort;
+    u_int64_t   close;       // should be sum of aborts and commits
+} TXN_STATUS_S, *TXN_STATUS;
+
+void toku_txn_get_status(TXN_STATUS s);
+
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

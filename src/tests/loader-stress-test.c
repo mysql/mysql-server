@@ -263,7 +263,6 @@ static void test_loader(DB **dbs)
     CKERR2s(r,0,TOKUDB_CANCELED);
 
     if (r==0) {
-
 	if ( USE_PUTS == 0 ) {
 	    if (poll_count == 0) printf("%s:%d\n", __FILE__, __LINE__);
 	    assert(poll_count>0);

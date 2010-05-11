@@ -78,6 +78,9 @@ typedef struct {
     time_t time_last_checkpoint_begin_complete;
     time_t time_last_checkpoint_begin;
     time_t time_last_checkpoint_end;
+    uint64_t last_lsn;
+    uint32_t checkpoint_count;
+    uint32_t checkpoint_count_fail;
 } CHECKPOINT_STATUS_S, *CHECKPOINT_STATUS;
 
 void toku_checkpoint_get_status(CHECKPOINT_STATUS stat);

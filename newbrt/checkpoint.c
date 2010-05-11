@@ -57,11 +57,8 @@
 #include "logger.h"
 #include "checkpoint.h"
 
-// for debugging/accountability and status reporting only
-static u_int32_t checkpoint_footprint = 0;
-static time_t time_last_checkpoint_begin_complete;
-static time_t time_last_checkpoint_begin;
-static time_t time_last_checkpoint_end;
+static CHECKPOINT_STATUS_S status;
+static LSN last_completed_checkpoint_lsn;
 
 static toku_pthread_rwlock_t checkpoint_safe_lock;
 static toku_pthread_rwlock_t multi_operation_lock;
@@ -164,12 +161,8 @@ toku_checkpoint_safe_client_unlock(void) {
 
 void
 toku_checkpoint_get_status(CHECKPOINT_STATUS s) {
-    s->footprint = checkpoint_footprint;
-    s->time_last_checkpoint_begin_complete = time_last_checkpoint_begin_complete;
-    s->time_last_checkpoint_begin = time_last_checkpoint_begin;
-    s->time_last_checkpoint_end   = time_last_checkpoint_end;
+    *s = status;
 }
-
 
 
 
@@ -207,37 +200,42 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 		void (*callback2_f)(void*), void * extra2) {
     int r;
 
-    checkpoint_footprint = 10;
+    status.footprint = 10;
     assert(initialized);
     multi_operation_checkpoint_lock();
-    checkpoint_footprint = 20;
+    status.footprint = 20;
     checkpoint_safe_checkpoint_lock();
-    checkpoint_footprint = 30;
+    status.footprint = 30;
     ydb_lock();
     
-    checkpoint_footprint = 40;
-    time_last_checkpoint_begin = time(NULL);
+    status.footprint = 40;
+    status.time_last_checkpoint_begin = time(NULL);
     r = toku_cachetable_begin_checkpoint(ct, logger);
 
     multi_operation_checkpoint_unlock();
     ydb_unlock();
 
-    checkpoint_footprint = 50;
+    status.footprint = 50;
     if (r==0) {
 	if (callback_f) 
 	    callback_f(extra);      // callback is called with checkpoint_safe_lock still held
 	r = toku_cachetable_end_checkpoint(ct, logger, ydb_lock, ydb_unlock, callback2_f, extra2);
     }
     if (r==0 && logger) {
-        LSN trim_lsn = logger->last_completed_checkpoint_lsn;
-        r = toku_logger_maybe_trim_log(logger, trim_lsn);
+        last_completed_checkpoint_lsn = logger->last_completed_checkpoint_lsn;
+        r = toku_logger_maybe_trim_log(logger, last_completed_checkpoint_lsn);
+	status.last_lsn                   = last_completed_checkpoint_lsn.lsn;
     }
 
-    checkpoint_footprint = 60;
-    time_last_checkpoint_end = time(NULL);
-    time_last_checkpoint_begin_complete = time_last_checkpoint_begin;
+    status.footprint = 60;
+    status.time_last_checkpoint_end = time(NULL);
+    status.time_last_checkpoint_begin_complete = status.time_last_checkpoint_begin;
     checkpoint_safe_checkpoint_unlock();
-    checkpoint_footprint = 0;
+    status.footprint = 0;
 
+    if (r == 0)
+	status.checkpoint_count++;
+    else
+	status.checkpoint_count_fail++;
     return r;
 }

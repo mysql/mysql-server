@@ -130,6 +130,21 @@ struct __toku_lock_tree {
     BOOL               table_is_locked;
 };
 
+
+// accountability
+typedef struct ltm_status {
+    uint32_t   lock_escalation_successes;  // number of times lock escalation succeeded 
+    uint32_t   lock_escalation_failures;   // number of times lock escalation failed
+    uint64_t   read_lock;                  // number of times read lock taken successfully
+    uint64_t   read_lock_fail;             // number of times read lock denied
+    uint64_t   out_of_read_locks;          // number of times read lock denied for out_of_locks
+    uint64_t   write_lock;                 // number of times write lock taken successfully
+    uint64_t   write_lock_fail;            // number of times write lock denied
+    uint64_t   out_of_write_locks;         // number of times write lock denied for out_of_locks
+} LTM_STATUS_S, *LTM_STATUS;
+
+
+
 struct __toku_ltm {
     /** The maximum number of locks allowed for the environment. */
     u_int32_t          max_locks;
@@ -137,10 +152,8 @@ struct __toku_ltm {
     u_int32_t          curr_locks;
     /** The maximum number of locks allowed for the db. */
     u_int32_t          max_locks_per_db;
-    /** The number of times lock escalation succeeded */
-    u_int32_t          lock_escalation_successes;
-    /** The number of times lock escalation failed */
-    u_int32_t          lock_escalation_failures;
+    /** Status / accountability information */
+    LTM_STATUS_S       status;
     /** The list of lock trees it manages. */
     toku_lth*          lth;
     /** List of lock-tree DB mappings. Upon a request for a lock tree given
@@ -514,15 +527,7 @@ int toku_ltm_set_max_locks_per_db(toku_ltm* mgr, u_int32_t max_locks);
     - EINVAL if any parameter is NULL.
 */
 
-typedef struct ltm_status {
-    uint32_t   max_locks;
-    uint32_t   max_locks_per_db;
-    uint32_t   curr_locks;
-    uint32_t   lock_escalation_successes;
-    uint32_t   lock_escalation_failures;
-} LTM_STATUS_S, *LTM_STATUS;
-
-void toku_ltm_get_status(toku_ltm* mgr, LTM_STATUS s);
+void toku_ltm_get_status(toku_ltm* mgr, uint32_t * max_locks, uint32_t * curr_locks, uint32_t * max_locks_per_db, LTM_STATUS s);
 
 int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks);
 

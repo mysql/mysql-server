@@ -46,11 +46,15 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
 
 // Accountability: operation counters available for debugging and for "show engine status"
 static u_int64_t num_inserts;
+static u_int64_t num_inserts_fail;
 static u_int64_t num_deletes;
-static u_int64_t num_commits;
-static u_int64_t num_aborts;
+static u_int64_t num_deletes_fail;
 static u_int64_t num_point_queries;
 static u_int64_t num_sequential_queries;
+static u_int64_t logsuppress;                // number of times logs are suppressed for empty table (2440)
+static u_int64_t logsuppressfail;            // number of times unable to suppress logs for empty table (2440)
+static time_t    startuptime;                // timestamp of system startup
+    
 
 const char * environmentdictionary = "tokudb.environment";
 const char * fileopsdirectory = "tokudb.directory";
@@ -76,6 +80,7 @@ ydb_set_brt(DB *db, BRT brt) {
 
 int toku_ydb_init(void) {
     int r = 0;
+    startuptime = time(NULL);
     //Lower level must be initialized first.
     if (r==0) 
         r = toku_brt_init(toku_ydb_lock, toku_ydb_unlock, ydb_set_brt);
@@ -173,7 +178,7 @@ env_fs_poller(void *arg) {
 #endif
 
     int in_yellow; // set true to issue warning to user
-    int in_red;    // set true to seal off certain operations (returning ENOSPC)
+    int in_red;    // set true to prevent certain operations (returning ENOSPC)
 
     // get the fs sizes for the home dir
     uint64_t avail_size, total_size;
@@ -276,7 +281,7 @@ env_fs_destroy(DB_ENV *env) {
 static inline int 
 env_check_avail_fs_space(DB_ENV *env) {
     int r = env->i->fs_state == FS_RED ? ENOSPC : 0; 
-    if (r) env->i->enospc_seal_ctr++;
+    if (r) env->i->enospc_redzone_ctr++;
     return r;
 }
 
@@ -1518,7 +1523,7 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
     else {
 	time_t now = time(NULL);
         format_time(&now, engstat->now);
-
+        format_time(&startuptime, engstat->startuptime);
 	{
 	    SCHEDULE_STATUS_S schedstat;
 	    toku_ydb_lock_get_status(&schedstat);
@@ -1545,6 +1550,28 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    format_time(&cpstat.time_last_checkpoint_begin_complete, engstat->checkpoint_time_begin_complete);
 	    format_time(&cpstat.time_last_checkpoint_begin,          engstat->checkpoint_time_begin);
 	    format_time(&cpstat.time_last_checkpoint_end,            engstat->checkpoint_time_end);
+	    engstat->checkpoint_last_lsn   = cpstat.last_lsn;
+	    engstat->checkpoint_count      = cpstat.checkpoint_count;
+	    engstat->checkpoint_count_fail = cpstat.checkpoint_count_fail;
+	}
+	{
+	    TXN_STATUS_S txnstat;
+	    toku_txn_get_status(&txnstat);
+	    engstat->txn_begin   = txnstat.begin;
+	    engstat->txn_commit  = txnstat.commit;
+	    engstat->txn_abort   = txnstat.abort;
+	    engstat->txn_close   = txnstat.close;
+	    {
+		uint64_t oldest_xid = 0;
+		uint64_t next_lsn   = 0;
+		TOKULOGGER logger = env->i->logger;
+		if (logger) {
+		    oldest_xid = toku_logger_get_oldest_living_xid(env->i->logger);
+		    next_lsn   = (toku_logger_get_next_lsn(env->i->logger)).lsn;
+		}
+		engstat->txn_oldest_live = oldest_xid;
+		engstat->next_lsn = next_lsn;
+	    }
 	}
 	{
 	    CACHETABLE_STATUS_S ctstat;
@@ -1566,22 +1593,32 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->cachetable_size_limit    = ctstat.size_limit;
 	    engstat->cachetable_size_writing  = ctstat.size_writing;
 	    engstat->get_and_pin_footprint    = ctstat.get_and_pin_footprint;
+	    engstat->local_checkpoint         = ctstat.local_checkpoint;
+	    engstat->local_checkpoint_files   = ctstat.local_checkpoint_files;
+	    engstat->local_checkpoint_during_checkpoint = ctstat.local_checkpoint_during_checkpoint;
 	}
 	{
 	    toku_ltm* ltm = env->i->ltm;
 	    LTM_STATUS_S ltmstat;
-	    toku_ltm_get_status(ltm, &ltmstat);
-	    engstat->range_locks_max                 = ltmstat.max_locks;
-	    engstat->range_locks_max_per_index       = ltmstat.max_locks_per_db;
-	    engstat->range_locks_curr                = ltmstat.curr_locks;
+	    uint32_t max_locks, curr_locks, max_locks_per_db;
+	    toku_ltm_get_status(ltm, &max_locks, &curr_locks, &max_locks_per_db, &ltmstat);
+	    engstat->range_locks_max                 = max_locks;
+	    engstat->range_locks_max_per_index       = max_locks_per_db;
+	    engstat->range_locks_curr                = curr_locks;
 	    engstat->range_lock_escalation_successes = ltmstat.lock_escalation_successes;
 	    engstat->range_lock_escalation_failures  = ltmstat.lock_escalation_failures;
+	    engstat->range_read_locks                = ltmstat.read_lock;
+	    engstat->range_read_locks_fail           = ltmstat.read_lock_fail;
+	    engstat->range_out_of_read_locks         = ltmstat.out_of_read_locks;
+	    engstat->range_write_locks               = ltmstat.write_lock;
+	    engstat->range_write_locks_fail          = ltmstat.write_lock_fail;
+	    engstat->range_out_of_write_locks        = ltmstat.out_of_write_locks;
 	}
 	{
 	    engstat->inserts            = num_inserts;
+	    engstat->inserts_fail       = num_inserts_fail;
 	    engstat->deletes            = num_deletes;
-	    engstat->commits            = num_commits;
-	    engstat->aborts             = num_aborts;
+	    engstat->deletes_fail       = num_deletes_fail;
 	    engstat->point_queries      = num_point_queries;
 	    engstat->sequential_queries = num_sequential_queries;
 	}
@@ -1601,15 +1638,30 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	}
 	{
 	    time_t    enospc_most_recent_timestamp;
-	    u_int64_t enospc_threads_blocked, enospc_total;
-	    toku_fs_get_write_info(&enospc_most_recent_timestamp, &enospc_threads_blocked, &enospc_total);
+	    u_int64_t enospc_threads_blocked, enospc_ctr;
+	    toku_fs_get_write_info(&enospc_most_recent_timestamp, &enospc_threads_blocked, &enospc_ctr);
 	    format_time(&enospc_most_recent_timestamp, engstat->enospc_most_recent);	    
 	    engstat->enospc_threads_blocked = enospc_threads_blocked;
-	    engstat->enospc_total = enospc_total;
+	    engstat->enospc_ctr = enospc_ctr;
 	}
 	{
-	    engstat->enospc_seal_ctr   = env->i->enospc_seal_ctr;             // number of operations rejected by enospc seal (red zone)
-	    engstat->enospc_seal_state = env->i->fs_state;
+	    engstat->enospc_redzone_ctr   = env->i->enospc_redzone_ctr;   // number of operations rejected by enospc prevention (red zone)
+	    engstat->enospc_state         = env->i->fs_state;
+	}
+	{
+	    LOADER_STATUS_S loader_stat;
+	    toku_loader_get_status(&loader_stat);
+	    engstat->loader_create         = loader_stat.create;
+	    engstat->loader_create_fail    = loader_stat.create_fail;
+	    engstat->loader_put            = loader_stat.put;
+	    engstat->loader_close          = loader_stat.close;
+	    engstat->loader_close_fail     = loader_stat.close_fail;
+	    engstat->loader_abort          = loader_stat.abort;
+	    engstat->loader_current        = loader_stat.current;
+	    engstat->loader_max            = loader_stat.max;
+	    
+	    engstat->logsuppress     = logsuppress;
+	    engstat->logsuppressfail = logsuppressfail;
 	}
     }
     return r;
@@ -1623,6 +1675,7 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     int r = env_get_engine_status(env, &engstat);    
     int n = 0;  // number of characters printed so far
 
+    n += snprintf(buff + n, bufsiz - n, "startuptime                      %s \n", engstat.startuptime);
     n += snprintf(buff + n, bufsiz - n, "now                              %s \n", engstat.now);
     n += snprintf(buff + n, bufsiz - n, "ydb_lock_ctr                     %"PRIu64"\n", engstat.ydb_lock_ctr);
     n += snprintf(buff + n, bufsiz - n, "max_possible_sleep               %"PRIu64"\n", engstat.max_possible_sleep);
@@ -1642,6 +1695,15 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin            %s \n", engstat.checkpoint_time_begin);
     n += snprintf(buff + n, bufsiz - n, "checkpoint_time_begin_complete   %s \n", engstat.checkpoint_time_begin_complete);
     n += snprintf(buff + n, bufsiz - n, "checkpoint_time_end              %s \n", engstat.checkpoint_time_end);
+    n += snprintf(buff + n, bufsiz - n, "checkpoint_last_lsn              %"PRIu64"\n", engstat.checkpoint_last_lsn);
+    n += snprintf(buff + n, bufsiz - n, "checkpoint_count                 %"PRIu32"\n", engstat.checkpoint_count);
+    n += snprintf(buff + n, bufsiz - n, "checkpoint_count_fail            %"PRIu32"\n", engstat.checkpoint_count_fail);
+    n += snprintf(buff + n, bufsiz - n, "txn_begin                        %"PRIu64"\n", engstat.txn_begin);
+    n += snprintf(buff + n, bufsiz - n, "txn_commit                       %"PRIu64"\n", engstat.txn_commit);
+    n += snprintf(buff + n, bufsiz - n, "txn_abort                        %"PRIu64"\n", engstat.txn_abort);
+    n += snprintf(buff + n, bufsiz - n, "txn_close                        %"PRIu64"\n", engstat.txn_close);
+    n += snprintf(buff + n, bufsiz - n, "txn_oldest_live                  %"PRIu64"\n", engstat.txn_oldest_live);
+    n += snprintf(buff + n, bufsiz - n, "next_lsn                         %"PRIu64"\n", engstat.next_lsn);
     n += snprintf(buff + n, bufsiz - n, "cachetable_lock_taken            %"PRIu64"\n", engstat.cachetable_lock_taken);
     n += snprintf(buff + n, bufsiz - n, "cachetable_lock_released         %"PRIu64"\n", engstat.cachetable_lock_released);
     n += snprintf(buff + n, bufsiz - n, "cachetable_hit                   %"PRIu64"\n", engstat.cachetable_hit);
@@ -1658,15 +1720,24 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "cachetable_size_limit            %"PRId64"\n", engstat.cachetable_size_limit);
     n += snprintf(buff + n, bufsiz - n, "cachetable_size_writing          %"PRId64"\n", engstat.cachetable_size_writing);
     n += snprintf(buff + n, bufsiz - n, "get_and_pin_footprint            %"PRId64"\n", engstat.get_and_pin_footprint);
+    n += snprintf(buff + n, bufsiz - n, "local_checkpoint                 %"PRId64"\n", engstat.local_checkpoint);
+    n += snprintf(buff + n, bufsiz - n, "local_checkpoint_files           %"PRId64"\n", engstat.local_checkpoint_files);
+    n += snprintf(buff + n, bufsiz - n, "local_checkpoint_during_checkpoint  %"PRId64"\n", engstat.local_checkpoint_during_checkpoint);
     n += snprintf(buff + n, bufsiz - n, "range_locks_max                  %"PRIu32"\n", engstat.range_locks_max);
     n += snprintf(buff + n, bufsiz - n, "range_locks_max_per_index        %"PRIu32"\n", engstat.range_locks_max_per_index);
     n += snprintf(buff + n, bufsiz - n, "range_locks_curr                 %"PRIu32"\n", engstat.range_locks_curr);
     n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_successes %"PRIu32"\n", engstat.range_lock_escalation_successes);
     n += snprintf(buff + n, bufsiz - n, "range_locks_escalation_failures  %"PRIu32"\n", engstat.range_lock_escalation_failures);
+    n += snprintf(buff + n, bufsiz - n, "range_read_locks                 %"PRIu64"\n", engstat.range_read_locks);
+    n += snprintf(buff + n, bufsiz - n, "range_read_locks_fail            %"PRIu64"\n", engstat.range_read_locks_fail);
+    n += snprintf(buff + n, bufsiz - n, "range_out_of_read_locks          %"PRIu64"\n", engstat.range_out_of_read_locks);
+    n += snprintf(buff + n, bufsiz - n, "range_write_locks                %"PRIu64"\n", engstat.range_write_locks);
+    n += snprintf(buff + n, bufsiz - n, "range_write_locks_fail           %"PRIu64"\n", engstat.range_write_locks_fail);
+    n += snprintf(buff + n, bufsiz - n, "range_out_of_write_locks         %"PRIu64"\n", engstat.range_out_of_write_locks);
     n += snprintf(buff + n, bufsiz - n, "inserts                          %"PRIu64"\n", engstat.inserts);
+    n += snprintf(buff + n, bufsiz - n, "inserts_fail                     %"PRIu64"\n", engstat.inserts_fail);
     n += snprintf(buff + n, bufsiz - n, "deletes                          %"PRIu64"\n", engstat.deletes);
-    n += snprintf(buff + n, bufsiz - n, "commits                          %"PRIu64"\n", engstat.commits);
-    n += snprintf(buff + n, bufsiz - n, "aborts                           %"PRIu64"\n", engstat.aborts);
+    n += snprintf(buff + n, bufsiz - n, "deletes_fail                     %"PRIu64"\n", engstat.deletes_fail);
     n += snprintf(buff + n, bufsiz - n, "point_queries                    %"PRIu64"\n", engstat.point_queries);
     n += snprintf(buff + n, bufsiz - n, "sequential_queries               %"PRIu64"\n", engstat.sequential_queries);
     n += snprintf(buff + n, bufsiz - n, "fsync_count                      %"PRIu64"\n", engstat.fsync_count);
@@ -1676,10 +1747,19 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "logger swap count                %"PRIu64"\n", engstat.logger_swap_ctr);
     n += snprintf(buff + n, bufsiz - n, "enospc_most_recent               %s \n", engstat.enospc_most_recent);
     n += snprintf(buff + n, bufsiz - n, "enospc threads blocked           %"PRIu64"\n", engstat.enospc_threads_blocked);
-    n += snprintf(buff + n, bufsiz - n, "enospc total                     %"PRIu64"\n", engstat.enospc_total);
-    n += snprintf(buff + n, bufsiz - n, "enospc seal ctr                  %"PRIu64"\n", engstat.enospc_seal_ctr);
-    n += snprintf(buff + n, bufsiz - n, "enospc seal state                %"PRIu64"\n", engstat.enospc_seal_state);
-
+    n += snprintf(buff + n, bufsiz - n, "enospc count                     %"PRIu64"\n", engstat.enospc_ctr);
+    n += snprintf(buff + n, bufsiz - n, "enospc redzone ctr               %"PRIu64"\n", engstat.enospc_redzone_ctr);
+    n += snprintf(buff + n, bufsiz - n, "enospc state                     %"PRIu64"\n", engstat.enospc_state);
+    n += snprintf(buff + n, bufsiz - n, "loader_create                    %"PRIu64"\n", engstat.loader_create);
+    n += snprintf(buff + n, bufsiz - n, "loader_createf_fail              %"PRIu64"\n", engstat.loader_create_fail);
+    n += snprintf(buff + n, bufsiz - n, "loader_put                       %"PRIu64"\n", engstat.loader_put);
+    n += snprintf(buff + n, bufsiz - n, "loader_close                     %"PRIu64"\n", engstat.loader_close);
+    n += snprintf(buff + n, bufsiz - n, "loader_close_fail                %"PRIu64"\n", engstat.loader_close_fail);
+    n += snprintf(buff + n, bufsiz - n, "loader_abort                     %"PRIu64"\n", engstat.loader_abort);
+    n += snprintf(buff + n, bufsiz - n, "loader_current                   %"PRIu32"\n", engstat.loader_current);
+    n += snprintf(buff + n, bufsiz - n, "loader_max                       %"PRIu32"\n", engstat.loader_max);
+    n += snprintf(buff + n, bufsiz - n, "logsuppress                      %"PRIu64"\n", engstat.logsuppress);
+    n += snprintf(buff + n, bufsiz - n, "logsuppressfail                  %"PRIu64"\n", engstat.logsuppressfail);
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
 	int len = strlen(errmsg) + 1;
@@ -1915,7 +1995,6 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags,
     toku_free(db_txn_struct_i(txn));
 #endif
     toku_free(txn);
-    num_commits++;      // accountability
     if (flags!=0) return EINVAL;
     return r;
 }
@@ -1968,7 +2047,6 @@ static int toku_txn_abort(DB_TXN * txn,
     toku_free(db_txn_struct_i(txn));
 #endif
     toku_free(txn);
-    num_aborts++;    // accountability
     return r;
 }
 
@@ -3912,6 +3990,8 @@ toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
         //Do the actual deleting.
         r = toku_brt_delete(db->i->brt, key, txn ? db_txn_struct_i(txn)->tokutxn : 0);
     }
+    if (r)
+	num_deletes_fail++;
     return r;
 }
 
@@ -4576,6 +4656,8 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
             type = BRT_INSERT_NO_OVERWRITE;
         r = toku_brt_maybe_insert(db->i->brt, key, val, ttxn, FALSE, ZERO_LSN, TRUE, type);
     }
+    if (r)
+	num_inserts_fail++;
     return r;
 }
 
@@ -5019,14 +5101,14 @@ static int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_lef
     //READ_UNCOMMITTED and READ_COMMITTED transactions do not need read locks.
     if (db_txn_struct_i(txn)->flags&(DB_READ_UNCOMMITTED|DB_READ_COMMITTED)) return 0;
 
-    DB_TXN* txn_anc = toku_txn_ancestor(txn);
     int r;
-    if ((r=toku_txn_add_lt(txn_anc, db->i->lt))) return r;
-    TXNID id_anc = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
-
-    r = toku_lt_acquire_range_read_lock(db->i->lt, db, id_anc,
-                                        key_left,  val_left,
-                                        key_right, val_right);
+    {
+	RANGE_LOCK_REQUEST_S request;
+	read_lock_request_init(&request, txn, db,
+			       key_left,  val_left,
+			       key_right, val_right);
+        r = grab_range_lock(&request);
+    }
     return r;
 }
 
@@ -5036,14 +5118,16 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
 
-    DB_TXN* txn_anc = toku_txn_ancestor(txn);
     int r;
-    if ((r=toku_txn_add_lt(txn_anc, db->i->lt))) return r;
-    TXNID id_anc = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
 
-    r = toku_lt_acquire_range_write_lock(db->i->lt, db, id_anc,
-                                         toku_lt_neg_infinity, toku_lt_neg_infinity,
-                                         toku_lt_infinity,     toku_lt_infinity);
+    {
+	RANGE_LOCK_REQUEST_S request;
+	write_lock_request_init(&request, txn, db,
+				toku_lt_neg_infinity, toku_lt_neg_infinity,
+				toku_lt_infinity,     toku_lt_infinity);
+        r = grab_range_lock(&request);
+    }
+
     if (r==0 && !just_lock &&
         !toku_brt_is_recovery_logging_suppressed(db->i->brt) &&
         toku_brt_is_empty(db->i->brt) &&
@@ -5084,16 +5168,16 @@ int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn, BOOL just_lock) {
             assert(r==0);
             r = r_loader;
         }
-
 	if (r_loader == 0) { // commit
 	    r = locked_txn_commit(child, 0);
 	    assert(r==0);
+	    logsuppress++;
 	}
 	else {  // abort
 	    r = locked_txn_abort(child);
 	    assert(r==0);
+	    logsuppressfail++;
 	}
-
         toku_ydb_lock(); //Reaquire ydb lock.
     }
 
