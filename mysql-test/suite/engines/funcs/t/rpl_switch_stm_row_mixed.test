@@ -4,6 +4,13 @@
 connection default;
 set @saved_binlog_format = @@global.binlog_format;
 
+# Since this test generates row-based events in the binary log, the
+# slave SQL thread cannot be in STATEMENT mode to execute this test,
+# so we only execute it for MIXED and ROW as default value of
+# BINLOG_FORMAT.
+
+connection slave;
+-- source include/have_binlog_format_mixed_or_row.inc
 
 connection master;
 --disable_warnings
@@ -124,7 +131,9 @@ create table t3 select 1 union select UUID();
 create table t4 select * from t1 where 3 in (select 1 union select 2 union select UUID() union select 3);
 create table t5 select * from t1 where 3 in (select 1 union select 2 union select curdate() union select 3);
 # what if UUID() is first:
+--disable_warnings
 insert into t5 select UUID() from t1 where 3 in (select 1 union select 2 union select 3 union select * from t4);
+--enable_warnings
 
 # inside a stored procedure
 

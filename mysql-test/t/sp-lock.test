@@ -893,6 +893,68 @@ disconnect con3;
 --source include/wait_until_disconnected.inc
 --echo # --> connection default
 connection default;
+
+
+--echo #
+--echo # SHOW CREATE PROCEDURE p1 called from p1, after p1 was altered
+--echo #
+--echo # We are just covering the existing behaviour with tests. The
+--echo # results are not necessarily correct."
+--echo #
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  SELECT get_lock("test", 10);
+  SHOW CREATE PROCEDURE p1;
+END|
+delimiter ;|
+
+connect (con2, localhost, root);
+connect (con3, localhost, root);
+
+--echo # Connection default
+connection default;
+SELECT get_lock("test", 10);
+
+--echo # Connection 2
+connection con2;
+--echo # Will halt before executing SHOW CREATE PROCEDURE p1
+--echo # Sending:
+--send CALL p1()
+
+--echo # Connection 3
+connection con3;
+let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist 
+  WHERE state='User lock' and info='SELECT get_lock("test", 10)';
+--source include/wait_condition.inc
+--echo # Alter p1
+DROP PROCEDURE p1;
+CREATE PROCEDURE p1() BEGIN END;
+
+--echo # Connection default
+connection default;
+--echo # Resume CALL p1, now with new p1
+SELECT release_lock("test");
+
+--echo # Connection 2
+connection con2;
+--echo # Reaping: CALL p1()
+--reap
+
+--echo # Connection 3
+connection con3;
+disconnect con3;
+--source include/wait_until_disconnected.inc
+--echo # Connection 2
+connection con2;
+disconnect con2;
+--source include/wait_until_disconnected.inc
+--echo # Connection default;
+connection default;
+DROP PROCEDURE p1;
+
+
 --echo #
 --echo # End of 5.5 tests
 --echo #

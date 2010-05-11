@@ -2,7 +2,7 @@ source include/master-slave.inc;
 
 # Init for restoration of variable values
 set @my_slave_net_timeout         =@@global.slave_net_timeout;
-
+set @my_sql_slave_skip_counter    =@@global.sql_slave_skip_counter;
 set global slave_net_timeout=100;
 set global sql_slave_skip_counter=100;
 
@@ -17,5 +17,5 @@ show variables like 'slave_load_tmpdir';
 show variables like 'slave_skip_errors';
 
 # Cleanup
-#set global slave_net_timeout=default;
 set global slave_net_timeout=@my_slave_net_timeout;
+set global sql_slave_skip_counter=@my_sql_slave_skip_counter;

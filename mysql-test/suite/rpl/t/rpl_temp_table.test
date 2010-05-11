@@ -4,18 +4,25 @@
 -- source include/have_binlog_format_mixed_or_statement.inc
 -- source include/master-slave.inc
 
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
 
 create table t2 (n int, PRIMARY KEY(n));
 create temporary table t1 (n int);
 create temporary table t3 (n int not null);
 
 insert into t1 values(1),(2),(3),(100),(25),(26),(200),(300);
+--disable_warnings
 insert into t2 select * from t1;
+--enable_warnings
 alter table t3 add primary key(n);
 
 flush logs;
 insert into t3 values (1010);
+--disable_warnings
 insert into t2 select * from t3;
+--enable_warnings
 
 drop table if exists t3;
 insert into t2 values (1012);
@@ -23,7 +30,9 @@ insert into t2 values (1012);
 connection master1;
 create temporary table t1 (n int);
 insert into t1 values (4),(5);
+--disable_warnings
 insert into t2 select * from t1;
+--enable_warnings
 
 save_master_pos;
 disconnect master;
