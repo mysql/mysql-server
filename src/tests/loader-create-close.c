@@ -8,6 +8,8 @@
 #include "test.h"
 #include <db.h>
 
+static int loader_flags = 0;
+
 static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT *UU(dest_key), DBT *UU(dest_val), const DBT *UU(src_key), const DBT *UU(src_val), void *UU(extra)) {
     return ENOMEM;
 }
@@ -30,7 +32,7 @@ static void loader_open_abort(void) {
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
 
     DB_LOADER *loader;
-    r = env->create_loader(env, txn, &loader, NULL, 0, NULL, NULL, NULL, 0); CKERR(r);
+    r = env->create_loader(env, txn, &loader, NULL, 0, NULL, NULL, NULL, loader_flags); CKERR(r);
     
     r = loader->close(loader); CKERR(r);
 
@@ -44,16 +46,18 @@ static void do_args(int argc, char * const argv[]) {
     char *cmd = argv[0];
     argc--; argv++;
     while (argc>0) {
-	if (strcmp(argv[0], "-v")==0) {
-	    verbose++;
-	} else if (strcmp(argv[0],"-q")==0) {
-	    verbose--;
-	    if (verbose<0) verbose=0;
-        } else if (strcmp(argv[0], "-h")==0) {
+        if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
 	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows>\n%s\n", cmd);
 	    exit(resultcode);
+	} else if (strcmp(argv[0], "-v")==0) {
+	    verbose++;
+	} else if (strcmp(argv[0],"-q")==0) {
+	    verbose--;
+	    if (verbose<0) verbose=0;
+        } else if (strcmp(argv[0], "-p") == 0) {
+            loader_flags = LOADER_USE_PUTS;
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
