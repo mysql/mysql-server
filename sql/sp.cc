@@ -931,6 +931,11 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
 
+  /* Grab an exclusive MDL lock. */
+  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
+                        sp->m_db.str, sp->m_name.str))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
   /* Reset sql_mode during data dictionary operations. */
   thd->variables.sql_mode= 0;
 
@@ -941,11 +946,6 @@ sp_create_routine(THD *thd, int type, sp_head *sp)
   */
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
-
-  /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        sp->m_db.str, sp->m_name.str))
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
   saved_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields= CHECK_FIELD_WARN;
@@ -1190,6 +1190,14 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   DBUG_ASSERT(type == TYPE_ENUM_PROCEDURE ||
               type == TYPE_ENUM_FUNCTION);
 
+  /* Grab an exclusive MDL lock. */
+  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
+                        name->m_db.str, name->m_name.str))
+    DBUG_RETURN(SP_DELETE_ROW_FAILED);
+
+  if (!(table= open_proc_table_for_update(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication.  The flag will be reset at the end of the
@@ -1198,13 +1206,6 @@ sp_drop_routine(THD *thd, int type, sp_name *name)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  /* Grab an exclusive MDL lock. */
-  if (lock_routine_name(thd, type == TYPE_ENUM_FUNCTION,
-                        name->m_db.str, name->m_name.str))
-    DBUG_RETURN(SP_DELETE_ROW_FAILED);
-
-  if (!(table= open_proc_table_for_update(thd)))
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     if (table->file->ha_delete_row(table->record[0]))
@@ -1276,6 +1277,9 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
                         name->m_db.str, name->m_name.str))
     DBUG_RETURN(SP_OPEN_TABLE_FAILED);
 
+  if (!(table= open_proc_table_for_update(thd)))
+    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
+
   /*
     This statement will be replicated as a statement, even when using
     row-based replication. The flag will be reset at the end of the
@@ -1284,8 +1288,6 @@ sp_update_routine(THD *thd, int type, sp_name *name, st_sp_chistics *chistics)
   if ((save_binlog_row_based= thd->is_current_stmt_binlog_format_row()))
     thd->clear_current_stmt_binlog_format_row();
 
-  if (!(table= open_proc_table_for_update(thd)))
-    DBUG_RETURN(SP_OPEN_TABLE_FAILED);
   if ((ret= db_find_routine_aux(thd, type, name, table)) == SP_OK)
   {
     if (type == TYPE_ENUM_FUNCTION && ! trust_function_creators &&

@@ -92,3 +92,23 @@ COMMIT;
 # Connection default
 # Reaping ALTER TABLE t1 ADD COLUMN j INT
 DROP TABLE t1, t2;
+#
+# Bug#51391 Deadlock involving events during rqg_info_schema test
+#
+CREATE EVENT e1 ON SCHEDULE EVERY 5 HOUR DO SELECT 1;
+CREATE EVENT e2 ON SCHEDULE EVERY 5 HOUR DO SELECT 2;
+# Connection con1
+SET DEBUG_SYNC="before_lock_tables_takes_lock SIGNAL drop WAIT_FOR query";
+# Sending:
+DROP EVENT e1;;
+# Connection default
+SET DEBUG_SYNC="now WAIT_FOR drop";
+SELECT name FROM mysql.event, INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE definer = VARIABLE_VALUE;
+name
+SET DEBUG_SYNC="now SIGNAL query";
+# Connection con1
+# Reaping: DROP EVENT t1
+# Connection default
+DROP EVENT e2;
+SET DEBUG_SYNC="RESET";

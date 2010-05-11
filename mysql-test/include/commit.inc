@@ -640,9 +640,9 @@ call p_verify_status_increment(2, 0, 1, 0);
 --echo # 25. DDL: DROP TEMPORARY TABLE, does not start a transaction
 --echo #
 drop temporary table t2;
-call p_verify_status_increment(1, 0, 0, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 commit;
-call p_verify_status_increment(1, 0, 0, 0);
+call p_verify_status_increment(1, 0, 1, 0);
 
 --echo # 26. Verify that SET AUTOCOMMIT issues an implicit commit
 --echo #

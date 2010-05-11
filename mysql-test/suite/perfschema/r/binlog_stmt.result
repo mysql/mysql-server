@@ -1,5 +1,5 @@
 set binlog_format=statement;
-call mtr.add_suppression("Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT");
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 RESET MASTER;
 select count(*) > 0 from performance_schema.SETUP_INSTRUMENTS;
 count(*) > 0
@@ -7,7 +7,7 @@ count(*) > 0
 update performance_schema.SETUP_INSTRUMENTS set enabled='NO'
   where name like "wait/synch/rwlock/%";
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
 select count(*) > 0 from performance_schema.EVENTS_WAITS_CURRENT;
 count(*) > 0
 1
@@ -18,18 +18,18 @@ create table test.t2 (name varchar(128));
 insert into test.t1
 select thread_id from performance_schema.EVENTS_WAITS_CURRENT;
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
 insert into test.t2
 select name from performance_schema.SETUP_INSTRUMENTS
 where name like "wait/synch/rwlock/%";
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
 drop table test.t1;
 drop table test.t2;
 update performance_schema.SETUP_INSTRUMENTS set enabled='YES'
   where name like "wait/synch/rwlock/%";
 Warnings:
-Note	1592	Unsafe statement binlogged in statement format since BINLOG_FORMAT = STATEMENT. Reason for unsafeness: Statement uses the general_log, slow_log or performance_schema table(s). This is unsafe because system tables may differ on slave.
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves.
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
