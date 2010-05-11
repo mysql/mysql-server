@@ -208,7 +208,7 @@ typedef struct st_lex_master_info
   uint port, connect_retry;
   float heartbeat_period;
   ulonglong pos;
-  ulong server_id;
+  ulong server_id, retry_count;
   /*
     Enum is used for making it possible to detect if the user
     changed variable or if it should be left at old value

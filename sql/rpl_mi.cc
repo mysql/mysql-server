@@ -32,8 +32,11 @@ enum {
   /* 5.5 added value of master_ignore_server_id */
   LINE_FOR_REPLICATE_IGNORE_SERVER_IDS= 17,
 
+  /* line for master_retry_count */
+  LINE_FOR_MASTER_RETRY_COUNT= 18,
+
   /* Number of lines currently used when saving master info file */
-  LINES_IN_MASTER_INFO= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS
+  LINES_IN_MASTER_INFO= LINE_FOR_MASTER_RETRY_COUNT
 };
 
 /*
@@ -59,7 +62,8 @@ const char *info_mi_fields []=
   "ssl_key",
   "ssl_verify_server_cert",
   "heartbeat_period",
-  "ignore_server_ids"
+  "ignore_server_ids",
+  "retry_count"
 };
 
 Master_info::Master_info()
@@ -67,7 +71,7 @@ Master_info::Master_info()
    ssl(0), ssl_verify_server_cert(0),
    port(MYSQL_PORT), connect_retry(DEFAULT_CONNECT_RETRY),
    heartbeat_period(min(SLAVE_MAX_HEARTBEAT_PERIOD, (slave_net_timeout/2.0))),
-   received_heartbeats(0), master_id(0)
+   received_heartbeats(0), master_id(0), retry_count(master_retry_count)
 {
   host[0] = 0; user[0] = 0; password[0] = 0;
   ssl_ca[0]= 0; ssl_capath[0]= 0; ssl_cert[0]= 0;
@@ -192,7 +196,8 @@ int Master_info::flush_info(bool force)
       handler->set_info(ssl_key) ||
       handler->set_info(ssl_verify_server_cert) ||
       handler->set_info(heartbeat_period) ||
-      handler->set_info(ignore_server_ids))
+      handler->set_info(ignore_server_ids) ||
+      handler->set_info(retry_count))
     goto err;
 
   if (handler->flush_info(force))
@@ -214,7 +219,6 @@ int Master_info::init_info()
 {
   int lines;
   char *first_non_digit;
-  int pos= 0;
 
   DBUG_ENTER("Master_info::init_info");
 
@@ -327,6 +331,14 @@ int Master_info::init_info()
      if (handler->get_info(ignore_server_ids, NULL))
        goto err;
   }
+
+  /* Starting from 5.5 the master_retry_count may be in the repository. */
+  if (lines >= LINE_FOR_MASTER_RETRY_COUNT)
+  {
+    if (handler->get_info(&retry_count, master_retry_count))
+      goto err;
+  }
+
 
 #ifndef HAVE_OPENSSL
   if (ssl)

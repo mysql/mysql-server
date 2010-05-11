@@ -1110,6 +1110,25 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
   DBUG_RETURN(1);
 }
 
+int init_longvar_from_file(long* var, IO_CACHE* f, long default_val)
+{
+  char buf[32];
+  DBUG_ENTER("init_longvar_from_file");
+
+
+  if (my_b_gets(f, buf, sizeof(buf)))
+  {
+    *var = atol(buf);
+    DBUG_RETURN(0);
+  }
+  else if (default_val)
+  {
+    *var = default_val;
+    DBUG_RETURN(0);
+  }
+  DBUG_RETURN(1);
+}
+
 int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
 {
   char buf[16];
@@ -1808,6 +1827,8 @@ bool show_master_info(THD* thd, Master_info* mi)
                                              FN_REFLEN));
   field_list.push_back(new Item_return_int("Master_Server_Id", sizeof(ulong),
                                            MYSQL_TYPE_LONG));
+  field_list.push_back(new Item_return_int("Master_Retry_Count", 10,
+                                           MYSQL_TYPE_LONGLONG));
 
   if (protocol->send_fields(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -1926,11 +1947,30 @@ bool show_master_info(THD* thd, Master_info* mi)
     // Last_IO_Errno
     protocol->store(mi->last_error().number);
     // Last_IO_Error
-    protocol->store(mi->last_error().message, &my_charset_bin);
+    if (*mi->last_error().message != '\0')
+    {
+      String msg_buf;
+      msg_buf.append(mi->last_error().timestamp);
+      msg_buf.append(" ");
+      msg_buf.append(mi->last_error().message);
+      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
+    }
+    else
+      protocol->store(mi->last_error().message, &my_charset_bin);
     // Last_SQL_Errno
     protocol->store(mi->rli->last_error().number);
     // Last_SQL_Error
-    protocol->store(mi->rli->last_error().message, &my_charset_bin);
+    if (*mi->rli->last_error().message != '\0')
+    {
+      String msg_buf;
+      msg_buf.append(mi->rli->last_error().timestamp);
+      msg_buf.append(" ");
+      msg_buf.append(mi->rli->last_error().message);
+      protocol->store(msg_buf.c_ptr_safe(), &my_charset_bin);
+    }
+    else
+      protocol->store(mi->rli->last_error().message, &my_charset_bin);
+
     // Replicate_Ignore_Server_Ids
     {
       char buff[FN_REFLEN];
@@ -1957,6 +1997,9 @@ bool show_master_info(THD* thd, Master_info* mi)
     }
     // Master_Server_id
     protocol->store((uint32) mi->master_id);
+
+    // Master_Retry_Count
+    protocol->store((ulonglong) mi->retry_count);
 
     pthread_mutex_unlock(&mi->rli->err_lock);
     pthread_mutex_unlock(&mi->err_lock);
@@ -2621,11 +2664,11 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info)
   @details Terminates current connection to master, sleeps for
   @c mi->connect_retry msecs and initiates new connection with
   @c safe_reconnect(). Variable pointed by @c retry_count is increased -
-  if it exceeds @c master_retry_count then connection is not re-established
+  if it exceeds @c mi->retry_count then connection is not re-established
   and function signals error.
   Unless @c suppres_warnings is TRUE, a warning is put in the server error log
   when reconnecting. The warning message and messages used to report errors
-  are taken from @c messages array. In case @c master_retry_count is exceeded,
+  are taken from @c messages array. In case @c mi->retry_count is exceeded,
   no messages are added to the log.
 
   @param[in]     thd                 Thread context.
@@ -2653,7 +2696,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   end_server(mysql);
   if ((*retry_count)++)
   {
-    if (*retry_count > master_retry_count)
+    if (*retry_count > mi->retry_count)
       return 1;                             // Don't retry forever
     safe_sleep(thd, mi->connect_retry, (CHECK_KILLED_FUNC) io_slave_killed,
                (void *) mi);
@@ -4098,7 +4141,7 @@ static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi)
 
   IMPLEMENTATION
     Try to connect until successful or slave killed or we have retried
-    master_retry_count times
+    mi->retry_count times
 */
 
 static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
@@ -4153,15 +4196,15 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
                  " - retry-time: %d  retries: %lu",
                  (reconnect ? "reconnecting" : "connecting"),
                  mi->user, mi->host, mi->port,
-                 mi->connect_retry, master_retry_count);
+                 mi->connect_retry, mi->retry_count);
     }
     /*
       By default we try forever. The reason is that failure will trigger
-      master election, so if the user did not set master_retry_count we
+      master election, so if the user did not set mi->retry_count we
       do not want to have election triggered on the first failure to
       connect
     */
-    if (++err_count == master_retry_count)
+    if (++err_count == mi->retry_count)
     {
       slave_was_killed=1;
       if (reconnect)
@@ -4205,7 +4248,7 @@ replication resumed in log '%s' at position %s", mi->user,
 
   IMPLEMENTATION
     Try to connect until successful or slave killed or we have retried
-    master_retry_count times
+    mi->retry_count times
 */
 
 static int safe_reconnect(THD* thd, MYSQL* mysql, Master_info* mi,

@@ -19,6 +19,7 @@
 #include "rpl_info_file.h"
 
 /* These functions are defined in slave.cc */
+int init_longvar_from_file(long* var, IO_CACHE* f, long default_val);
 int init_strvar_from_file(char *var, int max_size, IO_CACHE *f,
                           const char *default_val);
 int init_intvar_from_file(int* var, IO_CACHE* f, int default_val);
@@ -178,6 +179,15 @@ bool Rpl_info_file::do_set_info(const int pos, const char *value)
           FALSE : TRUE);
 }
 
+bool Rpl_info_file::do_set_info(const int pos, const ulong value)
+{
+  if (pos >= ninfo || pos != cursor || prv_error)
+    return TRUE;
+ 
+  return (my_b_printf(&info_file, "%ld\n", value) > (size_t) 0 ?
+          FALSE : TRUE);
+}
+
 bool Rpl_info_file::do_set_info(const int pos, const int value)
 {
   if (pos >= ninfo || pos != cursor || prv_error)
@@ -245,6 +255,16 @@ bool Rpl_info_file::do_get_info(const int pos, char *value, const size_t size,
       
   return (init_strvar_from_file(value, size, &info_file,
                                 default_value));
+}
+
+bool Rpl_info_file::do_get_info(const int pos, ulong *value,
+                                const ulong default_value)
+{
+  if (pos >= ninfo || pos != cursor || prv_error)
+    return TRUE;
+
+  return (init_longvar_from_file((long *) value, &info_file, 
+                                 (long) default_value));
 }
 
 bool Rpl_info_file::do_get_info(const int pos, int *value,

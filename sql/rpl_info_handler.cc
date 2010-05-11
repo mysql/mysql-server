@@ -33,6 +33,17 @@ bool Rpl_info_handler::set_info(const char *value)
   return(prv_error);
 }
 
+bool Rpl_info_handler::set_info(ulong const value)
+{
+  if (cursor >= ninfo || prv_error)
+    return TRUE;
+
+  if (!(prv_error= do_set_info(cursor, value)))
+    cursor++;
+
+  return(prv_error);
+}
+
 bool Rpl_info_handler::set_info(int const value)
 {
   if (cursor >= ninfo || prv_error)
@@ -84,6 +95,18 @@ bool Rpl_info_handler::get_info(char *value, const size_t size,
     return TRUE;
 
   if (!(prv_error= do_get_info(cursor, value, size, default_value)))
+    cursor++;
+
+  return(prv_error);
+}
+
+bool Rpl_info_handler::get_info(ulong *value,
+                                ulong const default_value)
+{
+  if (cursor >= ninfo || prv_error)
+    return TRUE;
+
+  if (!(prv_error= do_get_info(cursor, value, default_value)))
     cursor++;
 
   return(prv_error);
