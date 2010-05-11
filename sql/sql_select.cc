@@ -7819,7 +7819,9 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
       if (flags & BLOB_FLAG)
 	blobs++;
       if (!(flags & NOT_NULL_FLAG))
-	null_fields++;
+        null_fields++;
+      if (field->type() == MYSQL_TYPE_BIT &&
+          ((Field_bit*)field)->bit_len)
         uneven_bit_fields++;
     }
   }
