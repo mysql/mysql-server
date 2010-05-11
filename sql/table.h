@@ -617,7 +617,6 @@ struct TABLE_SHARE
   bool crashed;
   bool is_view;
   ulong table_map_id;                   /* for row-based replication */
-  ulonglong table_map_version;
 
   /*
     Cache for row-based replication table share checks that does not
