@@ -244,10 +244,10 @@ that during a time of heavy update/insert activity. */
 UNIV_INTERN ulong	srv_max_buf_pool_modified_pct	= 75;
 
 /* the number of purge threads to use from the worker pool (currently 0 or 1).*/
-UNIV_INTERN ulint srv_n_purge_threads = 0;
+UNIV_INTERN ulong srv_n_purge_threads = 0;
 
 /* the number of records to purge in one batch */
-UNIV_INTERN ulint srv_purge_batch_size = 20;
+UNIV_INTERN ulong srv_purge_batch_size = 20;
 
 /* variable counts amount of data read in total (in bytes) */
 UNIV_INTERN ulint srv_data_read = 0;
@@ -2559,18 +2559,24 @@ srv_inc_activity_count(void)
 }
 
 /**********************************************************************//**
-Check whether the master thread is active.
-@return FALSE is it is not active. */
+Check whether any background thread is active.
+@return FALSE if all are are suspended or have exited. */
 UNIV_INTERN
 ibool
-srv_is_master_thread_active(void)
-/*=============================*/
+srv_is_any_background_thread_active(void)
+/*=====================================*/
 {
-	ibool	ret;
+	ulint	i;
+	ibool	ret = FALSE;
 
 	srv_sys_mutex_enter();
 
-	ret = srv_sys->n_threads_active[SRV_MASTER] != 0;
+	for (i = SRV_COM; i <= SRV_MASTER; ++i) {
+		if (srv_sys->n_threads_active[i] != 0) {
+			ret = TRUE;
+			break;
+		}
+	}
 
 	srv_sys_mutex_exit();
 
