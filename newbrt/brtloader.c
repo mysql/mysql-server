@@ -1098,33 +1098,54 @@ int sort_and_write_rows (struct rowset rows, struct merge_fileset *fs, BRTLOADER
     //printf(" sort_and_write use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
     FIDX sfile = FIDX_NULL;
     u_int64_t soffset=0;
+
     // TODO: erase the files, and deal with all the cleanup on error paths
     //printf("%s:%d sort_rows n_rows=%ld\n", __FILE__, __LINE__, rows->n_rows);
     //bl_time_t before_sort = bl_time_now();
+
+    int result = 0;
     int r = sort_rows(&rows, which_db, dest_db, compare, bl);
-    if (r!=0) {
-	return r;
-    }
+    if (r != 0) result = r;
+
     //bl_time_t after_sort = bl_time_now();
-    r = update_progress(progress_allocation/2, bl, "sorted rows");
-    progress_allocation -= progress_allocation/2;
-    if (r!=0) return r;
-
-    r = extend_fileset(bl, fs, &sfile);
-    FILE *sstream = toku_bl_fidx2file(bl, sfile);
-
-    if (r!=0) return r;
-    for (size_t i=0; i<rows.n_rows; i++) {
-	DBT skey = make_dbt(rows.data + rows.rows[i].off,                     rows.rows[i].klen);
-	DBT sval = make_dbt(rows.data + rows.rows[i].off + rows.rows[i].klen, rows.rows[i].vlen);
-
-	r = loader_write_row(&skey, &sval, sfile, sstream, &soffset, bl);
-	if (r!=0) return r;
+    if (result == 0) {
+        r = update_progress(progress_allocation/2, bl, "sorted rows");
+        progress_allocation -= progress_allocation/2;
+        if (r != 0) result = r;
     }
-    r = brtloader_fi_close(&bl->file_infos, sfile);  if (r!=0) return r;
+
+    if (result == 0) {
+        r = extend_fileset(bl, fs, &sfile);
+        if (r != 0) 
+            result = r;
+        else {
+
+            FILE *sstream = toku_bl_fidx2file(bl, sfile);
+            for (size_t i=0; i<rows.n_rows; i++) {
+                DBT skey = make_dbt(rows.data + rows.rows[i].off,                     rows.rows[i].klen);
+                DBT sval = make_dbt(rows.data + rows.rows[i].off + rows.rows[i].klen, rows.rows[i].vlen);
+
+                r = loader_write_row(&skey, &sval, sfile, sstream, &soffset, bl);
+                if (r != 0) {
+                    result = r;
+                    break;
+                }
+            }
+            
+            r = brtloader_fi_close(&bl->file_infos, sfile);
+            if (r != 0) result = r;
+        }
+    }
+
     destroy_rowset(&rows);
+
     //bl_time_t after_write = bl_time_now();
-    return update_progress(progress_allocation, bl, "wrote sorted");
+    if (result == 0) {
+        r = update_progress(progress_allocation, bl, "wrote sorted");
+        if (r != 0) result = r;
+    }
+    
+    return result;
 }
 CILK_END
 
