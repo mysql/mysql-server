@@ -2325,10 +2325,10 @@ srv_lock_check_wait(
 			/* If the slot has been freed and is not being reused
 			then the slot->thr entry should be NULL. */
 			if (slot->thr != NULL) {
-				ut_a(slot->in_use)
+				ut_a(slot->in_use);
 				slot_trx = thr_get_trx(slot->thr);
 			} else {
-				ut_a(!slot->in_use)
+				ut_a(!slot->in_use);
 				slot_trx = NULL;
 			}
 
