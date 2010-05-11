@@ -16,7 +16,7 @@
 
 EXTRA_DIST = CMakeLists.txt
 
-ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect spj_sanity_test spj_performance_test test_spj
+ndbtest_PROGRAMS = hugoLoad hugoFill hugoLockRecords hugoPkDelete hugoPkRead hugoPkReadRecord  hugoPkUpdate hugoScanRead hugoScanUpdate restart verify_index copy_tab create_index  ndb_cpcc listen_event eventlog rep_latency ndb_connect spj_sanity_test spj_performance_test test_spj hugoJoin
 
 # transproxy 
 
@@ -29,6 +29,8 @@ hugoPkReadRecord_SOURCES = hugoPkReadRecord.cpp
 hugoPkUpdate_SOURCES = hugoPkUpdate.cpp
 hugoScanRead_SOURCES = hugoScanRead.cpp
 hugoScanUpdate_SOURCES = hugoScanUpdate.cpp
+hugoJoin_SOURCES = hugoJoin.cpp
+
 restart_SOURCES = restart.cpp
 # transproxy_SOURCES = transproxy.cpp
 verify_index_SOURCES = verify_index.cpp

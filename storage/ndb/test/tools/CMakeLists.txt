@@ -37,5 +37,6 @@ ADD_EXECUTABLE(verify_index verify_index.cpp)
 ADD_EXECUTABLE(copy_tab copy_tab.cpp)
 ADD_EXECUTABLE(create_index create_index.cpp)
 ADD_EXECUTABLE(ndb_cpcc cpcc.cpp)
+ADD_EXECUTABLE(hugoJoin hugoJoin.coo)
 
 INSTALL(TARGETS ndb_cpcc DESTINATION bin)

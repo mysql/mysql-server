@@ -459,6 +459,25 @@ NdbDictionary::Column::getIndexSourced() const {
   return m_impl.m_indexSourced;
 }
 
+int
+NdbDictionary::Column::isBindable(const NdbDictionary::Column & col) const
+{
+  const NdbColumnImpl& parentColumn = col.m_impl;
+
+  if (m_impl.m_type      != parentColumn.m_type ||
+      m_impl.m_precision != parentColumn.m_precision ||
+      m_impl.m_scale     != parentColumn.m_scale ||
+      m_impl.m_length    != parentColumn.m_length ||
+      m_impl.m_cs        != parentColumn.m_cs)
+    return -1;
+
+  if (m_impl.m_type == NdbDictionary::Column::Blob ||
+      m_impl.m_type == NdbDictionary::Column::Text)
+    return -1;
+
+  return 0; // ok
+}
+
 /*****************************************************************
  * Table facade
  */

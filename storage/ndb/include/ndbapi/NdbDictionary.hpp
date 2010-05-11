@@ -615,6 +615,12 @@ public:
 
     int getBlobVersion() const; // NDB_BLOB_V1 or NDB_BLOB_V2
     void setBlobVersion(int blobVersion); // default NDB_BLOB_V2
+
+    /**
+     * 0 = yes
+     * -1 = no
+     */
+    int isBindable(const Column&) const;
 #endif
     
   private:
