@@ -706,7 +706,9 @@ cmp_rec_rec_simple(
 	const rec_t*		rec2,	/*!< in: physical record */
 	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
 	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
-	const dict_index_t*	index)	/*!< in: data dictionary index */
+	const dict_index_t*	index,	/*!< in: data dictionary index */
+	ibool*			null_eq)/*!< out: set to TRUE if
+					found matching null values */
 {
 	ulint		rec1_f_len;	/*!< length of current field in rec1 */
 	const byte*	rec1_b_ptr;	/*!< pointer to the current byte
@@ -753,6 +755,9 @@ cmp_rec_rec_simple(
 		    || rec2_f_len == UNIV_SQL_NULL) {
 
 			if (rec1_f_len == rec2_f_len) {
+				if (null_eq) {
+					*null_eq = TRUE;
+				}
 
 				goto next_field;
 
