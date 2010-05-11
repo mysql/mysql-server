@@ -2439,4 +2439,35 @@ UPDATE t1 SET id=NULL;
 DROP TRIGGER t1_bu;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Bug#50755: Crash if stored routine def contains version comments
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS db1;
+DROP TRIGGER IF EXISTS trg1;
+DROP TABLE IF EXISTS t1, t2;
+--enable_warnings
+
+CREATE DATABASE db1;
+USE db1;
+
+CREATE TABLE t1 (b INT);
+CREATE TABLE t2 (a INT);
+
+CREATE TRIGGER trg1 BEFORE INSERT ON t2 FOR EACH ROW INSERT/*!INTO*/t1 VALUES (1);
+--echo # Used to crash
+SHOW TRIGGERS IN db1;
+--error ER_PARSE_ERROR
+INSERT INTO t2 VALUES (1);
+SELECT * FROM t1;
+
+--echo # Work around Bug#45235
+let $MYSQLD_DATADIR = `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/db1/t2.TRG
+--remove_file $MYSQLD_DATADIR/db1/trg1.TRN
+
+DROP DATABASE db1;
+USE test;
+
 --echo End of 5.1 tests.

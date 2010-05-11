@@ -242,4 +242,18 @@ GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION
 DROP TABLE t1;
 DROP PROCEDURE p1;
 DROP USER 'user49119'@'localhost';
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+grant all on *.* to foo@"1.2.3.4";
+revoke all privileges, grant option from "foo";
+ERROR HY000: Can't revoke all privileges for one or more of the requested users
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; grant all on *.* to foo@"1.2.3.4"
+master-bin.000001	#	Query	#	#	use `test`; revoke all privileges, grant option from "foo"
+DROP USER foo@"1.2.3.4";
 "End of test"

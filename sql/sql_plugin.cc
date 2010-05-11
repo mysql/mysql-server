@@ -1006,9 +1006,14 @@ void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
 
 static int plugin_initialize(struct st_plugin_int *plugin)
 {
+  int ret= 1;
   DBUG_ENTER("plugin_initialize");
 
   safe_mutex_assert_owner(&LOCK_plugin);
+  uint state= plugin->state;
+  DBUG_ASSERT(state == PLUGIN_IS_UNINITIALIZED);
+
+  pthread_mutex_unlock(&LOCK_plugin);
   if (plugin_type_initialize[plugin->plugin->type])
   {
     if ((*plugin_type_initialize[plugin->plugin->type])(plugin))
@@ -1027,8 +1032,7 @@ static int plugin_initialize(struct st_plugin_int *plugin)
       goto err;
     }
   }
-
-  plugin->state= PLUGIN_IS_READY;
+  state= PLUGIN_IS_READY; // plugin->init() succeeded
 
   if (plugin->plugin->status_vars)
   {
@@ -1047,7 +1051,8 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     if (add_status_vars(array)) // add_status_vars makes a copy
       goto err;
 #else
-    add_status_vars(plugin->plugin->status_vars); // add_status_vars makes a copy
+    if (add_status_vars(plugin->plugin->status_vars))
+      goto err;
 #endif /* FIX_LATER */
   }
 
@@ -1067,9 +1072,12 @@ static int plugin_initialize(struct st_plugin_int *plugin)
     }
   }
 
-  DBUG_RETURN(0);
+  ret= 0;
+
 err:
-  DBUG_RETURN(1);
+  pthread_mutex_lock(&LOCK_plugin);
+  plugin->state= state;
+  DBUG_RETURN(ret);
 }
 
 
@@ -1657,6 +1665,12 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   struct st_plugin_int *tmp;
   DBUG_ENTER("mysql_install_plugin");
 
+  if (opt_noacl)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(TRUE);
+  }
+
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";
   tables.table_name= tables.alias= (char *)"plugin";
@@ -1732,6 +1746,12 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   TABLE_LIST tables;
   struct st_plugin_int *plugin;
   DBUG_ENTER("mysql_uninstall_plugin");
+
+  if (opt_noacl)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(TRUE);
+  }
 
   bzero(&tables, sizeof(tables));
   tables.db= (char *)"mysql";

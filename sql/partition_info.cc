@@ -972,7 +972,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           part_elem->engine_type= default_engine_type;
         }
         if (check_table_name(part_elem->partition_name,
-                             strlen(part_elem->partition_name)))
+                             strlen(part_elem->partition_name), FALSE))
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
           goto end;
@@ -990,7 +990,7 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
         {
           sub_elem= sub_it++;
           if (check_table_name(sub_elem->partition_name,
-                               strlen(sub_elem->partition_name)))
+                               strlen(sub_elem->partition_name), FALSE))
           {
             my_error(ER_WRONG_PARTITION_NAME, MYF(0));
             goto end;

@@ -2123,7 +2123,7 @@ public:
 class Item_hex_string: public Item_basic_constant
 {
 public:
-  Item_hex_string() {}
+  Item_hex_string();
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
@@ -2143,6 +2143,8 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+private:
+  void hex_string_init(const char *str, uint str_length);
 };
 
 
