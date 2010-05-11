@@ -1,0 +1,31 @@
+install plugin example soname 'ha_example.so';
+create table t1 (a int not null)
+engine=example
+partition by list (a)
+(partition p0 values in (1), partition p1 values in (2));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (1) ENGINE = EXAMPLE,
+ PARTITION p1 VALUES IN (2) ENGINE = EXAMPLE) */
+drop table t1;
+create table t1 (a int not null)
+engine=example ull=12340
+partition by list (a)
+(partition p0 values in (1), partition p1 values in (2));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL
+) ENGINE=EXAMPLE DEFAULT CHARSET=latin1 `ull`=12340
+/*!50100 PARTITION BY LIST (a)
+(PARTITION p0 VALUES IN (1) ENGINE = EXAMPLE,
+ PARTITION p1 VALUES IN (2) ENGINE = EXAMPLE) */
+drop table t1;
+select 1;
+1
+1
+uninstall plugin example;

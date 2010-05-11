@@ -1636,7 +1636,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     if (engine_table_options_frm_read(options, options_len, share))
       goto free_and_err;
   }
-  if (parse_engine_table_options(thd, handler_file->ht, share))
+  if (parse_engine_table_options(thd, handler_file->partition_ht(), share))
     goto free_and_err;
   my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
 

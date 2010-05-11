@@ -2230,6 +2230,10 @@ private:
   virtual int rename_partitions(const char *path)
   { return HA_ERR_WRONG_COMMAND; }
   friend class ha_partition;
+public:
+  /* XXX to be removed, see ha_partition::partition_ht() */
+  virtual handlerton *partition_ht() const
+  { return ht; }
 };
 
 

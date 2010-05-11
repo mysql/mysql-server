@@ -1113,4 +1113,27 @@ public:
     -------------------------------------------------------------------------
     virtual void append_create_info(String *packet)
   */
+
+  /*
+    the following heavily relies on the fact that all partitions
+    are in the same storage engine.
+
+    When this limitation is lifted, the following hack should go away,
+    and a proper interface for engines needs to be introduced:
+
+      an PARTITION_SHARE structure that has a pointer to the TABLE_SHARE.
+      is given to engines everywhere where TABLE_SHARE is used now
+      has members like option_struct, ha_data
+      perhaps TABLE needs to be split the same way too...
+
+    this can also be done before partition will support a mix of engines,
+    but preferably together with other incompatible API changes.
+  */
+  virtual handlerton *partition_ht() const
+  {
+    handlerton *h= m_file[0]->ht;
+    for (int i=1; i < m_tot_parts; i++)
+      DBUG_ASSERT(h == m_file[i]->ht);
+    return h;
+  }
 };

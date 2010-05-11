@@ -131,7 +131,7 @@ SET @@SQL_MODE=@OLD_SQL_MODE;
 # The only preparable statement above was CREATE TABLE. 
 # We need to prepare another statement here to force the
 # previous one to be deallocated (mysqltest reuses the same handle)
-# and to unlock all thread-local plugin locks. Otherwise it won't
+# and to unlock all thread-local plugin locks. Otherwise the plugin won't
 # uninstall.
 #
 select 1;

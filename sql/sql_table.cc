@@ -3445,7 +3445,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 
   if (parse_option_list(thd, &create_info->option_struct,
                           create_info->option_list,
-                          create_info->db_type->table_options, FALSE,
+                          file->partition_ht()->table_options, FALSE,
                           thd->mem_root))
       DBUG_RETURN(TRUE);
 

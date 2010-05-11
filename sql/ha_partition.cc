@@ -1219,9 +1219,7 @@ int ha_partition::prepare_new_partition(TABLE *tbl,
   DBUG_ENTER("prepare_new_partition");
 
   if ((error= set_up_table_before_create(tbl, part_name, create_info,
-                                         0, p_elem)) ||
-      parse_engine_table_options(ha_thd(), file->ht,
-                                 file->table_share))
+                                         0, p_elem)))
     goto error_create;
   if ((error= file->ha_create(part_name, tbl, create_info)))
   {
