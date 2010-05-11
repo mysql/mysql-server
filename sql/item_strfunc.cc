@@ -2959,8 +2959,7 @@ String *Item_load_file::val_str(String *str)
 		   MY_RELATIVE_PATH | MY_UNPACK_FILENAME);
 
   /* Read only allowed from within dir specified by secure_file_priv */
-  if (opt_secure_file_priv &&
-      strncmp(opt_secure_file_priv, path, strlen(opt_secure_file_priv)))
+  if (!is_secure_file_path(path))
     goto err;
 
   if (!my_stat(path, &stat_info, MYF(0)))

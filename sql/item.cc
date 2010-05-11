@@ -1713,7 +1713,16 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
 
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
         ((*arg)->collation.repertoire == MY_REPERTOIRE_ASCII))
-      conv= new Item_func_conv_charset(*arg, coll.collation, 1);
+    {
+      /*
+        We should disable const subselect item evaluation because
+        subselect transformation does not happen in view_prepare_mode
+        and thus val_...() methods can not be called for const items.
+      */
+      bool resolve_const= ((*arg)->type() == Item::SUBSELECT_ITEM &&
+                           thd->lex->view_prepare_mode) ? FALSE : TRUE;
+      conv= new Item_func_conv_charset(*arg, coll.collation, resolve_const);
+    }
 
     if (!conv)
     {
@@ -5357,13 +5366,25 @@ inline uint char_val(char X)
 		 X-'a'+10);
 }
 
+Item_hex_string::Item_hex_string()
+{
+  hex_string_init("", 0);
+}
 
 Item_hex_string::Item_hex_string(const char *str, uint str_length)
+{
+  hex_string_init(str, str_length);
+}
+
+void Item_hex_string::hex_string_init(const char *str, uint str_length)
 {
   max_length=(str_length+1)/2;
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
+  {
+    str_value.set("", 0, &my_charset_bin);
     return;
+  }
   str_value.set(ptr,max_length,&my_charset_bin);
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
