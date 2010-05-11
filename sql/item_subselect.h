@@ -341,7 +341,6 @@ public:
      - (TABLE_LIST*)1 if the predicate is in the WHERE.
   */
   TABLE_LIST *expr_join_nest;
-  Item **ref_ptr;
 
   bool *get_cond_guard(int i)
   {

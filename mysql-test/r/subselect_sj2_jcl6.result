@@ -662,6 +662,64 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	FirstMatch(t2); Using join buffer
 drop table t2, t3;
+#
+# Bug#33062: subquery in stored routine cause crash
+#
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(c INT);
+CREATE PROCEDURE p1(v1 int)
+BEGIN
+SELECT 1 FROM t1 WHERE a = v1 AND a IN (SELECT c FROM t2);
+END
+//
+CREATE PROCEDURE p2(v1 int)
+BEGIN
+SELECT 1 FROM t1 WHERE a IN (SELECT c FROM t2);
+END
+//
+CREATE PROCEDURE p3(v1 int)
+BEGIN
+SELECT 1 
+FROM 
+t1 t01,t1 t02,t1 t03,t1 t04,t1 t05,t1 t06,t1 t07,t1 t08,
+t1 t09,t1 t10,t1 t11,t1 t12,t1 t13,t1 t14,t1 t15,t1 t16,
+t1 t17,t1 t18,t1 t19,t1 t20,t1 t21,t1 t22,t1 t23,t1 t24,
+t1 t25,t1 t26,t1 t27,t1 t28,t1 t29,t1 t30,t1 t31,t1 t32,
+t1 t33,t1 t34,t1 t35,t1 t36,t1 t37,t1 t38,t1 t39,t1 t40,
+t1 t41,t1 t42,t1 t43,t1 t44,t1 t45,t1 t46,t1 t47,t1 t48,
+t1 t49,t1 t50,t1 t51,t1 t52,t1 t53,t1 t54,t1 t55,t1 t56,
+t1 t57,t1 t58,t1 t59,t1 t60
+WHERE t01.a IN (SELECT c FROM t2);
+END
+//
+CREATE PROCEDURE p4(v1 int)
+BEGIN
+SELECT 1 
+FROM 
+t1 t01,t1 t02,t1 t03,t1 t04,t1 t05,t1 t06,t1 t07,t1 t08,
+t1 t09,t1 t10,t1 t11,t1 t12,t1 t13,t1 t14,t1 t15,t1 t16,
+t1 t17,t1 t18,t1 t19,t1 t20,t1 t21,t1 t22,t1 t23,t1 t24,
+t1 t25,t1 t26,t1 t27,t1 t28,t1 t29,t1 t30,t1 t31,t1 t32,
+t1 t33,t1 t34,t1 t35,t1 t36,t1 t37,t1 t38,t1 t39,t1 t40,
+t1 t41,t1 t42,t1 t43,t1 t44,t1 t45,t1 t46,t1 t47,t1 t48,
+t1 t49,t1 t50,t1 t51,t1 t52,t1 t53,t1 t54,t1 t55,t1 t56,
+t1 t57,t1 t58,t1 t59,t1 t60
+WHERE t01.a = v1 AND t01.a IN (SELECT c FROM t2);
+END
+//
+CALL p1(1);
+1
+CALL p2(1);
+1
+CALL p3(1);
+1
+CALL p4(1);
+1
+DROP TABLE t1, t2;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+DROP PROCEDURE p3;
+DROP PROCEDURE p4;
 set optimizer_join_cache_level=default;
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
