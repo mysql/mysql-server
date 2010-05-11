@@ -109,11 +109,6 @@ time_t			MYSQL_TYPE_DATETIME
 ---------------------------------
 */
 
-/* XXX these are defined in mysql_priv.h inside #ifdef MYSQL_SERVER */
-bool schema_table_store_record(THD *thd, TABLE *table);
-void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
-bool check_global_access(THD *thd, ulong want_access);
-
 /*******************************************************************//**
 Common function to fill any of the dynamic tables:
 INFORMATION_SCHEMA.innodb_trx

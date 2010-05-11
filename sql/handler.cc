@@ -57,7 +57,8 @@ static handlerton *installed_htons[128];
 
 #define BITMAP_STACKBUF_SIZE (128/8)
 
-KEY_CREATE_INFO default_key_create_info= { HA_KEY_ALG_UNDEF, 0, {NullS,0} };
+KEY_CREATE_INFO default_key_create_info=
+  { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0} };
 
 /* number of entries in handlertons[] */
 ulong total_ha= 0;

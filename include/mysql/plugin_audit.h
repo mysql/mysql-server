@@ -24,7 +24,7 @@
 
 #define MYSQL_AUDIT_CLASS_MASK_SIZE 1
 
-#define MYSQL_AUDIT_INTERFACE_VERSION 0x0100
+#define MYSQL_AUDIT_INTERFACE_VERSION 0x0200
 
 /*
   The first word in every event class struct indicates the specific
@@ -32,7 +32,7 @@
 */
 struct mysql_event
 {
-  int event_class;
+  unsigned int event_class;
 };
 
 
@@ -52,7 +52,8 @@ struct mysql_event
 
 struct mysql_event_general
 {
-  int event_class;
+  unsigned int event_class;
+  unsigned int event_subclass;
   int general_error_code;
   unsigned long general_thread_id;
   const char *general_user;

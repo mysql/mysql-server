@@ -33,10 +33,9 @@
   (zlib format), rfc1951.txt (deflate format) and rfc1952.txt (gzip format).
 */
 
-#include <zlib.h>
-
 #include "../../mysys/mysys_priv.h"
 #include <my_dir.h>
+#include <zlib.h>
 
 #ifdef  __cplusplus
 extern "C" {

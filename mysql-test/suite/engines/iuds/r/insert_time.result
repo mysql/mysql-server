@@ -5029,7 +5029,7 @@ SELECT CAST(0.2359591234567e+30 AS TIME);
 CAST(0.2359591234567e+30 AS TIME)
 NULL
 Warnings:
-Warning	1292	Truncated incorrect time value: '2.359591234567e+29'
+Warning	1292	Truncated incorrect time value: '2.359591234567e29'
 select cast('100:55:50' as time) < cast('24:00:00' as time);
 cast('100:55:50' as time) < cast('24:00:00' as time)
 0

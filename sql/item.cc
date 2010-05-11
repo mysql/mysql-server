@@ -1186,7 +1186,9 @@ Item_splocal::Item_splocal(const LEX_STRING &sp_var_name,
                            enum_field_types sp_var_type,
                            uint pos_in_q, uint len_in_q)
   :Item_sp_variable(sp_var_name.str, sp_var_name.length),
-   m_var_idx(sp_var_idx), pos_in_query(pos_in_q), len_in_query(len_in_q)
+   m_var_idx(sp_var_idx),
+   limit_clause_param(FALSE),
+   pos_in_query(pos_in_q), len_in_query(len_in_q)
 {
   maybe_null= TRUE;
 
@@ -1792,6 +1794,24 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
     if (!String::needs_conversion(1, (*arg)->collation.collation,
                                   coll.collation,
                                   &dummy_offset))
+      continue;
+
+    /*
+      No needs to add converter if an "arg" is NUMERIC or DATETIME
+      value (which is pure ASCII) and at the same time target DTCollation
+      is ASCII-compatible. For example, no needs to rewrite:
+        SELECT * FROM t1 WHERE datetime_field = '2010-01-01';
+      to
+        SELECT * FROM t1 WHERE CONVERT(datetime_field USING cs) = '2010-01-01';
+      
+      TODO: avoid conversion of any values with
+      repertoire ASCII and 7bit-ASCII-compatible,
+      not only numeric/datetime origin.
+    */
+    if ((*arg)->collation.derivation == DERIVATION_NUMERIC &&
+        (*arg)->collation.repertoire == MY_REPERTOIRE_ASCII &&
+        !((*arg)->collation.collation->state & MY_CS_NONASCII) &&
+        !(coll.collation->state & MY_CS_NONASCII))
       continue;
 
     if (!(conv= (*arg)->safe_charset_converter(coll.collation)) &&
@@ -5403,7 +5423,7 @@ int Item::save_in_field(Field *field, bool no_conversions)
   {
     double nr= val_real();
     if (null_value)
-      return set_field_to_null(field);
+      return set_field_to_null_with_conversions(field, no_conversions);
     field->set_notnull();
     error=field->store(nr);
   }

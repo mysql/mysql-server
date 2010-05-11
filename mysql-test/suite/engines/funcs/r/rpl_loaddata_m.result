@@ -24,6 +24,7 @@ information_schema
 mtr
 mysql
 mysqltest
+performance_schema
 test
 USE test;
 SHOW TABLES;
