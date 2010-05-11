@@ -54,6 +54,7 @@ extern pthread_key_t THR_Session;
 #include "database_xt.h"
 #include "cache_xt.h"
 #include "datalog_xt.h"
+#include "memory_xt.h"
 
 static void		myxt_bitmap_init(XTThreadPtr self, MX_BITMAP *map, u_int n_bits);
 static void		myxt_bitmap_free(XTThreadPtr self, MX_BITMAP *map);

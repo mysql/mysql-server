@@ -128,4 +128,8 @@ const int max_connections = 500;
 #endif
 #endif
 
+#if defined(DBUG_ON) && !defined(DBUG_OFF) && !defined(DEBUG)
+#define DEBUG
+#endif // DBUG_ON
+
 #endif
