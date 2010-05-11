@@ -2004,6 +2004,7 @@ func_start:
 			goto insert_empty;
 		}
 	} else if (UNIV_UNLIKELY(insert_left)) {
+		ut_a(n_iterations > 0);
 		first_rec = page_rec_get_next(page_get_infimum_rec(page));
 		move_limit = page_rec_get_next(btr_cur_get_rec(cursor));
 	} else {
