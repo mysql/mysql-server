@@ -563,7 +563,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	  else
 	  {
 	    Delete_file_log_event d(thd, db, transactional_table);
-            d.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
 	    (void) mysql_bin_log.write(&d);
 	  }
 	}
@@ -744,7 +743,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
-  e.flags|= LOG_EVENT_UPDATE_TABLE_MAP_VERSION_F;
   return mysql_bin_log.write(&e);
 }
 
