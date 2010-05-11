@@ -3636,7 +3636,7 @@ bool JOIN::flatten_subqueries()
   */
   sj_subselects.sort(subq_sj_candidate_cmp);
   // #tables-in-parent-query + #tables-in-subquery < MAX_TABLES
-  /* Replace all subqueries to be flattened for Item_int(1) */
+  /* Replace all subqueries to be flattened with Item_int(1) */
   arena= thd->activate_stmt_arena_if_needed(&backup);
   for (in_subq= sj_subselects.front(); 
        in_subq != in_subq_end && 
@@ -15107,6 +15107,48 @@ err:
   DBUG_RETURN(NULL);				/* purecov: inspected */
 }
 
+/**
+   @brief Replaces an expression destructively inside the expression tree of
+   the WHERE clase.
+
+   @note Because of current requirements for semijoin flattening, we do not
+   need to recurse here, hence this function will only examine the top-level
+   AND conditions. (see JOIN::prepare, comment above the line 
+   'if (do_materialize)'
+   
+   @param join The top-level query.
+   @param old_cond The expression to be replaced.
+   @param new_cond The expression to be substituted.
+   @param do_fix_fields If true, Item::fix_fields(THD*, Item**) is called for
+   the new expression.
+   @return <code>true</code> if there was an error, <code>false</code> if
+   successful.
+*/
+static bool replace_where_subcondition(JOIN *join, Item *old_cond, 
+                                       Item *new_cond, bool do_fix_fields)
+{
+  if (join->conds == old_cond) {
+    join->conds= new_cond;
+    if (do_fix_fields)
+      new_cond->fix_fields(join->thd, &join->conds);
+    return FALSE;
+  }
+  
+  if (join->conds->type() == Item::COND_ITEM) {
+    List_iterator<Item> li(*((Item_cond*)join->conds)->argument_list());
+    Item *item;
+    while ((item= li++))
+      if (item == old_cond) 
+      {
+        li.replace(new_cond);
+        if (do_fix_fields)
+          new_cond->fix_fields(join->thd, li.ref());
+        return FALSE;
+      }
+  }
+
+  return TRUE;
+}
 
 /*
   Create a temporary table to weed out duplicate rowid combinations
