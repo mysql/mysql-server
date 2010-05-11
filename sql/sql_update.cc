@@ -908,8 +908,9 @@ reopen_tables:
       items from 'fields' list, so the cleanup above is necessary to.
     */
     cleanup_items(thd->free_list);
-
+    cleanup_items(thd->stmt_arena->free_list);
     close_tables_for_reopen(thd, &table_list);
+
     goto reopen_tables;
   }
 
