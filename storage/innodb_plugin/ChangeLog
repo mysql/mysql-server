@@ -1,5 +1,11 @@
 2010-05-12	The InnoDB Team
 
+	* handler/handler0alter.cc:
+	Fix Bug#53591 crash with fast alter table and text/blob prefix
+	primary key
+
+2010-05-12	The InnoDB Team
+
 	* row/row0merge.c:
 	Fix Bug#53471 row_merge_drop_temp_indexes() refers freed memory, SEGVs
 
