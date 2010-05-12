@@ -35,7 +35,7 @@ extern const char *myisam_recover_names[];
 extern ulonglong myisam_recover_options;
 
 C_MODE_START
-my_bool index_cond_func_myisam(void *arg);
+ICP_RESULT index_cond_func_myisam(void *arg);
 C_MODE_END
 
 class ha_myisam: public handler
@@ -166,6 +166,6 @@ public:
   Item *idx_cond_push(uint keyno, Item* idx_cond);
 private:
   DsMrr_impl ds_mrr;
-  friend my_bool index_cond_func_myisam(void *arg);
+  friend ICP_RESULT index_cond_func_myisam(void *arg);
 };
 
