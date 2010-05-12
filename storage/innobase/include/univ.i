@@ -245,9 +245,6 @@ by one. */
 #define UNIV_SET_MEM_TO_ZERO
 #endif
 
-#define UNIV_DEBUG
-#define UNIV_SYNC_DEBUG
-
 /*
 #define UNIV_SQL_DEBUG
 #define UNIV_LOG_DEBUG
