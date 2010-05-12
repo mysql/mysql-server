@@ -61,6 +61,7 @@ enum {MAX_NAME=128};
 enum {MAX_DBS=256};
 int NUM_DBS=5;
 int NUM_ROWS=100000;
+//static int NUM_ROWS=50000000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
 int INDUCE_ENOSPC=0;
@@ -458,8 +459,10 @@ static void test_loader(enum test_type t, DB **dbs)
 	printf("closing\n"); fflush(stdout);
 	r = loader->close(loader);
 	CKERR(r);
-	if (!USE_PUTS)
+	if (!USE_PUTS) {
 	    assert(poll_count>0);
+	    //	    assert(n);  // test is not complete unless temp files are created
+	}
     }
     else if (t == abort_via_poll) {
 	assert(!USE_PUTS);  // test makes no sense with USE_PUTS
@@ -614,7 +617,7 @@ int test_main(int argc, char * const *argv) {
 	}
 	// induce write error at end of process
 	for (i = 1; i < 5 * NUM_DBS; i++) {
-	    trigger = 5 * NUM_DBS - i;
+	    trigger =  fwrite_count_nominal - i;
             assert(trigger > 0);
 	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
 	    run_test(enospc_f, trigger);
