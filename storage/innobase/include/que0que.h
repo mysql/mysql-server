@@ -344,6 +344,18 @@ que_eval_sql(
 				dict_sys->mutex around call to pars_sql. */
 	trx_t*		trx);	/*!< in: trx */
 
+/**********************************************************************//**
+Round robin scheduler.
+@return a query thread of the graph moved to QUE_THR_RUNNING state, or
+NULL; the query thread should be executed by que_run_threads by the
+caller */
+UNIV_INTERN
+que_thr_t*
+que_fork_scheduler_round_robin(
+/*===========================*/
+	que_fork_t*	fork,		/*!< in: a query fork */
+	que_thr_t*	thr);		/*!< in: current pos */
+
 /* Query graph query thread node: the fields are protected by the kernel
 mutex with the exceptions named below */
 
@@ -353,21 +365,12 @@ struct que_thr_struct{
 					corruption */
 	que_node_t*	child;		/*!< graph child node */
 	que_t*		graph;		/*!< graph where this node belongs */
+	ulint		state;		/*!< state of the query thread */
 	ibool		is_active;	/*!< TRUE if the thread has been set
 					to the run state in
 					que_thr_move_to_run_state, but not
 					deactivated in
 					que_thr_dec_reference_count */
-	ulint		state;		/*!< state of the query thread */
-	UT_LIST_NODE_T(que_thr_t)
-			thrs;		/*!< list of thread nodes of the fork
-					node */
-	UT_LIST_NODE_T(que_thr_t)
-			trx_thrs;	/*!< lists of threads in wait list of
-					the trx */
-	UT_LIST_NODE_T(que_thr_t)
-			queue;		/*!< list of runnable thread nodes in
-					the server task queue */
 	/*------------------------------*/
 	/* The following fields are private to the OS thread executing the
 	query thread, and are not protected by the kernel mutex: */
@@ -384,6 +387,18 @@ struct que_thr_struct{
 	struct srv_slot_struct*
 			slot;		/* The thread slot in the wait
 					array in srv_sys_t */
+	/*------------------------------*/
+	/* The following fields are links for the various lists that
+	this type can be on. */
+	UT_LIST_NODE_T(que_thr_t)
+			thrs;		/*!< list of thread nodes of the fork
+					node */
+	UT_LIST_NODE_T(que_thr_t)
+			trx_thrs;	/*!< lists of threads in wait list of
+					the trx */
+	UT_LIST_NODE_T(que_thr_t)
+			queue;		/*!< list of runnable thread nodes in
+					the server task queue */
 };
 
 #define QUE_THR_MAGIC_N		8476583

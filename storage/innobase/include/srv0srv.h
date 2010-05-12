@@ -404,6 +404,7 @@ enum srv_thread_type {
 	SRV_CONSOLE,	/**< thread serving console */
 	SRV_WORKER,	/**< threads serving parallelized queries and
 			queries released from lock wait */
+	SRV_PURGE,	/**< Purge coordinator thread */
 #if 0
 	/* Utility threads */
 	SRV_BUFFER,	/**< thread flushing dirty buffer blocks */
@@ -645,6 +646,52 @@ UNIV_INTERN
 ibool
 srv_is_any_background_thread_active(void);
 /*======================================*/
+
+/*********************************************************************//**
+Purge coordinator thread that schedules the purge tasks.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_purge_coordinator_thread(
+/*=========================*/
+	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
+						required by os_thread_create */
+
+/*********************************************************************//**
+Worker thread that reads tasks from the work queue and executes them.
+@return	a dummy parameter */
+UNIV_INTERN
+os_thread_ret_t
+srv_worker_thread(
+/*==============*/
+	void*	arg __attribute__((unused)));	/*!< in: a dummy parameter
+						required by os_thread_create */
+
+/*******************************************************************//**
+Wakes up the worker threads. */
+UNIV_INTERN
+void
+srv_wake_worker_threads(
+/*====================*/
+	ulint	n_workers);			/*!< number or workers to
+						wake up */
+
+/**********************************************************************//**
+Get count of tasks in the queue.
+@return number of tasks in queue  */
+UNIV_INTERN
+ulint
+srv_get_task_queue_length(void);
+/*===========================*/
+
+/*********************************************************************//**
+Suspends the calling thread to wait for the event in its thread slot.
+NOTE! The server mutex has to be reserved by the caller!
+@return	event for the calling thread to wait */
+UNIV_INTERN
+os_event_t
+srv_suspend_thread(void);
+/*====================*/
 
 /** Status variables to be passed to MySQL */
 struct export_var_struct{

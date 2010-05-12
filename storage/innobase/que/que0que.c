@@ -275,7 +275,7 @@ que_thr_end_wait(
 	if (next_thr && *next_thr == NULL) {
 		*next_thr = thr;
 	} else {
-		ut_a(0);
+		ut_error;
 		srv_que_task_enqueue_low(thr);
 	}
 }
@@ -331,6 +331,53 @@ que_thr_init_command(
 	thr->prev_node = thr->common.parent;
 
 	que_thr_move_to_run_state(thr);
+}
+
+/**********************************************************************//**
+Round robin scheduler.
+@return a query thread of the graph moved to QUE_THR_RUNNING state, or
+NULL; the query thread should be executed by que_run_threads by the
+caller */
+UNIV_INTERN
+que_thr_t*
+que_fork_scheduler_round_robin(
+/*===========================*/
+	que_fork_t*	fork,		/*!< in: a query fork */
+	que_thr_t*	thr)		/*!< in: current pos */
+{
+	mutex_enter(&kernel_mutex);
+
+	/* If no current, start first available. */
+	if (thr == NULL) {
+		thr = UT_LIST_GET_FIRST(fork->thrs);
+	} else {
+		thr = UT_LIST_GET_NEXT(thrs, thr);
+	}
+
+	if (thr) {
+
+		fork->state = QUE_FORK_ACTIVE;
+
+		fork->last_sel_node = NULL;
+
+		switch (thr->state) {
+		case QUE_THR_COMMAND_WAIT:
+		case QUE_THR_COMPLETED:
+			ut_a(!thr->is_active);
+			que_thr_init_command(thr);
+			break;
+
+		case QUE_THR_SUSPENDED:
+		case QUE_THR_LOCK_WAIT:
+		default:
+			ut_error;
+
+		}
+	}
+
+	mutex_exit(&kernel_mutex);
+
+	return(thr);
 }
 
 /**********************************************************************//**
@@ -416,6 +463,8 @@ que_fork_start_command(
 
 		thr = completed_thr;
 		que_thr_init_command(thr);
+	} else {
+		ut_error;
 	}
 
 	return(thr);
@@ -458,7 +507,7 @@ que_fork_error_handle(
 
 	que_thr_move_to_run_state(thr);
 
-	ut_a(0);
+	ut_error;
 	srv_que_task_enqueue_low(thr);
 }
 
@@ -766,14 +815,12 @@ que_thr_move_to_run_state(
 
 	if (!thr->is_active) {
 
-		(thr->graph)->n_active_thrs++;
+		thr->graph->n_active_thrs++;
 
 		trx->n_active_thrs++;
 
 		thr->is_active = TRUE;
 
-		ut_ad((thr->graph)->n_active_thrs == 1);
-		ut_ad(trx->n_active_thrs == 1);
 	}
 
 	thr->state = QUE_THR_RUNNING;
@@ -819,8 +866,8 @@ que_thr_dec_refer_count(
 			already canceled before we came here: continue
 			running the thread */
 
-			/* fputs("!!!!!!!! Wait already ended: continue thr\n",
-			stderr); */
+			fputs("!!!!!!!! Wait already ended: continue thr\n",
+				stderr);
 
 			if (next_thr && *next_thr == NULL) {
 				/* Normally srv_suspend_mysql_thread resets
@@ -840,9 +887,6 @@ que_thr_dec_refer_count(
 			return;
 		}
 	}
-
-	ut_ad(fork->n_active_thrs == 1);
-	ut_ad(trx->n_active_thrs == 1);
 
 	fork->n_active_thrs--;
 	trx->n_active_thrs--;
@@ -964,6 +1008,8 @@ que_thr_stop_for_mysql(
 
 	trx = thr_get_trx(thr);
 
+	ut_a(!trx->is_purge);
+
 	mutex_enter(&kernel_mutex);
 
 	if (thr->state == QUE_THR_RUNNING) {
@@ -1040,6 +1086,7 @@ que_thr_stop_for_mysql_no_error(
 	trx_t*		trx)	/*!< in: transaction */
 {
 	ut_ad(thr->state == QUE_THR_RUNNING);
+	ut_ad(!thr->is_purge);
 	ut_ad(thr->is_active == TRUE);
 	ut_ad(trx->n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);

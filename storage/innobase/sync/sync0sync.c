@@ -366,6 +366,7 @@ func_exit:
 #ifdef UNIV_DEBUG
 	mutex->magic_n = 0;
 #endif /* UNIV_DEBUG */
+	return;
 }
 
 /********************************************************************//**

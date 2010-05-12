@@ -4417,8 +4417,8 @@ lock_print_info_summary(
 	fprintf(file,
 		"Purge done for trx's n:o < " TRX_ID_FMT
 		" undo n:o < " TRX_ID_FMT "\n",
-		TRX_ID_PREP_PRINTF(purge_sys->purge_trx_no),
-		TRX_ID_PREP_PRINTF(purge_sys->purge_undo_no));
+		TRX_ID_PREP_PRINTF(purge_sys->iter.trx_no),
+		TRX_ID_PREP_PRINTF(purge_sys->iter.undo_no));
 
 	fprintf(file,
 		"History list length %lu\n",

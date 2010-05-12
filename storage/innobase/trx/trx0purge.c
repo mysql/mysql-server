@@ -61,6 +61,18 @@ UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
 UNIV_INTERN mysql_pfs_key_t	purge_sys_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+/********************************************************************//**
+Fetches the next undo log record from the history list to purge. It must be
+released with the corresponding release function.
+@return copy of an undo log record or pointer to trx_purge_dummy_rec,
+if the whole undo log can skipped in purge; NULL if none left */
+static
+trx_undo_rec_t*
+trx_purge_fetch_next_rec(
+/*=====================*/
+	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
+	mem_heap_t*	heap);		/*!< in: memory heap where copied */
+
 /*****************************************************************//**
 Checks if trx_id is >= purge_view: then it is guaranteed that its update
 undo log still exists in the system.
@@ -87,132 +99,33 @@ trx_purge_update_undo_must_exist(
 
 /*=================== PURGE RECORD ARRAY =============================*/
 
-/*******************************************************************//**
-Stores info of an undo log record during a purge.
-@return	pointer to the storage cell */
-static
-trx_undo_inf_t*
-trx_purge_arr_store_info(
-/*=====================*/
-	trx_id_t	trx_no,	/*!< in: transaction number */
-	undo_no_t	undo_no)/*!< in: undo number */
-{
-	trx_undo_inf_t*	cell;
-	trx_undo_arr_t*	arr;
-	ulint		i;
-
-	arr = purge_sys->arr;
-
-	for (i = 0;; i++) {
-		cell = trx_undo_arr_get_nth_info(arr, i);
-
-		if (!(cell->in_use)) {
-			/* Not in use, we may store here */
-			cell->undo_no = undo_no;
-			cell->trx_no = trx_no;
-			cell->in_use = TRUE;
-
-			arr->n_used++;
-
-			return(cell);
-		}
-	}
-}
-
-/*******************************************************************//**
-Removes info of an undo log record during a purge. */
-UNIV_INLINE
-void
-trx_purge_arr_remove_info(
-/*======================*/
-	trx_undo_inf_t*	cell)	/*!< in: pointer to the storage cell */
-{
-	trx_undo_arr_t*	arr;
-
-	arr = purge_sys->arr;
-
-	cell->in_use = FALSE;
-
-	ut_ad(arr->n_used > 0);
-
-	arr->n_used--;
-}
-
-/*******************************************************************//**
-Gets the biggest pair of a trx number and an undo number in a purge array. */
-static
-void
-trx_purge_arr_get_biggest(
-/*======================*/
-	trx_undo_arr_t*	arr,	/*!< in: purge array */
-	trx_id_t*	trx_no,	/*!< out: transaction number: ut_dulint_zero
-				if array is empty */
-	undo_no_t*	undo_no)/*!< out: undo number */
-{
-	trx_undo_inf_t*	cell;
-	trx_id_t	pair_trx_no;
-	undo_no_t	pair_undo_no;
-	int		trx_cmp;
-	ulint		n_used;
-	ulint		i;
-	ulint		n;
-
-	n = 0;
-	n_used = arr->n_used;
-	pair_trx_no = ut_dulint_zero;
-	pair_undo_no = ut_dulint_zero;
-
-	for (i = 0;; i++) {
-		cell = trx_undo_arr_get_nth_info(arr, i);
-
-		if (cell->in_use) {
-			n++;
-			trx_cmp = ut_dulint_cmp(cell->trx_no, pair_trx_no);
-
-			if ((trx_cmp > 0)
-			    || ((trx_cmp == 0)
-				&& (ut_dulint_cmp(cell->undo_no,
-						  pair_undo_no) >= 0))) {
-
-				pair_trx_no = cell->trx_no;
-				pair_undo_no = cell->undo_no;
-			}
-		}
-
-		if (n == n_used) {
-			*trx_no = pair_trx_no;
-			*undo_no = pair_undo_no;
-
-			return;
-		}
-	}
-}
-
 /****************************************************************//**
 Builds a purge 'query' graph. The actual purge is performed by executing
 this query graph.
 @return	own: the query graph */
 static
 que_t*
-trx_purge_graph_build(void)
-/*=======================*/
+trx_purge_graph_build(
+/*==================*/
+	trx_t*		trx,			/*!< in: transaction */
+	ulint		n_purge_threads)	/*!< in: number of purge
+						threads */
 {
+	ulint		i;
 	mem_heap_t*	heap;
 	que_fork_t*	fork;
-	que_thr_t*	thr;
-	/*	que_thr_t*	thr2; */
 
 	heap = mem_heap_create(512);
 	fork = que_fork_create(NULL, NULL, QUE_FORK_PURGE, heap);
-	fork->trx = purge_sys->trx;
+	fork->trx = trx;
 
-	thr = que_thr_create(fork, heap);
+	for (i = 0; i < n_purge_threads; ++i) {
+		que_thr_t*	thr;
 
-	thr->child = row_purge_node_create(thr, heap);
+		thr = que_thr_create(fork, heap);
 
-	/*	thr2 = que_thr_create(fork, fork, heap);
-
-	thr2->child = row_purge_node_create(fork, thr2, heap);	 */
+		thr->child = row_purge_node_create(thr, heap);
+	}
 
 	return(fork);
 }
@@ -222,20 +135,13 @@ Creates the global purge system control structure and inits the history
 mutex. */
 UNIV_INTERN
 void
-trx_purge_sys_create(void)
-/*======================*/
+trx_purge_sys_create(
+/*=================*/
+	ulint	n_purge_threads)	/*!< in: number of purge threads */
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	mutex_enter(&kernel_mutex);
 
-	purge_sys = mem_alloc(sizeof(trx_purge_t));
-
-	purge_sys->state = TRX_STOP_PURGE;
-
-	purge_sys->n_pages_handled = 0;
-
-	purge_sys->purge_trx_no = ut_dulint_zero;
-	purge_sys->purge_undo_no = ut_dulint_zero;
-	purge_sys->next_stored = FALSE;
+	purge_sys = mem_zalloc(sizeof(*purge_sys));
 
 	rw_lock_create(trx_purge_latch_key,
 		       &purge_sys->latch, SYNC_PURGE_LATCH);
@@ -245,7 +151,10 @@ trx_purge_sys_create(void)
 
 	purge_sys->heap = mem_heap_create(256);
 
-	purge_sys->arr = trx_undo_arr_create();
+	/* Handle the case for the traditional mode. */
+	if (n_purge_threads == 0) {
+		n_purge_threads = 1;
+	}
 
 	purge_sys->sess = sess_open();
 
@@ -253,12 +162,15 @@ trx_purge_sys_create(void)
 
 	purge_sys->trx->is_purge = 1;
 
+	purge_sys->query = trx_purge_graph_build(
+		purge_sys->trx, n_purge_threads);
+
+	purge_sys->view = read_view_oldest_copy_or_open_new(
+		ut_dulint_zero, purge_sys->heap);
+
 	ut_a(trx_start_low(purge_sys->trx, ULINT_UNDEFINED));
 
-	purge_sys->query = trx_purge_graph_build();
-
-	purge_sys->view = read_view_oldest_copy_or_open_new(ut_dulint_zero,
-							    purge_sys->heap);
+	mutex_exit(&kernel_mutex);
 }
 
 /************************************************************************
@@ -273,8 +185,11 @@ trx_purge_sys_close(void)
 	que_graph_free(purge_sys->query);
 
 	ut_a(purge_sys->sess->trx->is_purge);
+
 	purge_sys->sess->trx->conc_state = TRX_NOT_STARTED;
+
 	sess_close(purge_sys->sess);
+
 	purge_sys->sess = NULL;
 
 	if (purge_sys->view != NULL) {
@@ -287,8 +202,6 @@ trx_purge_sys_close(void)
 
 		mutex_exit(&kernel_mutex);
 	}
-
-	trx_undo_arr_free(purge_sys->arr);
 
 	rw_lock_free(&purge_sys->latch);
 	mutex_free(&purge_sys->mutex);
@@ -360,14 +273,14 @@ trx_purge_add_update_undo_to_history(
 	/* Add the log as the first in the history list */
 	flst_add_first(rseg_header + TRX_RSEG_HISTORY,
 		       undo_header + TRX_UNDO_HISTORY_NODE, mtr);
-	mutex_enter(&kernel_mutex);
-	trx_sys->rseg_history_len++;
-	mutex_exit(&kernel_mutex);
 
-	if (!(trx_sys->rseg_history_len % srv_purge_batch_size)) {
+	os_atomic_inc_ulint(&kernel_mutex, &trx_sys->rseg_history_len, 1);
+
+	//if (trx_sys->rseg_history_len > 10000) {
+
 		/* Inform the purge thread that there is work to do. */
-		srv_wake_purge_thread_if_not_active();
-	}
+		//srv_wake_purge_thread_if_not_active();
+	//}
 
 	/* Write the trx number to the undo log header */
 	mlog_write_dulint(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
@@ -460,10 +373,8 @@ loop:
 	flst_cut_end(rseg_hdr + TRX_RSEG_HISTORY,
 		     log_hdr + TRX_UNDO_HISTORY_NODE, n_removed_logs, &mtr);
 
-	mutex_enter(&kernel_mutex);
-	ut_ad(trx_sys->rseg_history_len >= n_removed_logs);
-	trx_sys->rseg_history_len -= n_removed_logs;
-	mutex_exit(&kernel_mutex);
+	os_atomic_dec_ulint(
+		&kernel_mutex, &trx_sys->rseg_history_len, n_removed_logs);
 
 	freed = FALSE;
 
@@ -499,12 +410,8 @@ static
 void
 trx_purge_truncate_rseg_history(
 /*============================*/
-	trx_rseg_t*	rseg,		/*!< in: rollback segment */
-	trx_id_t	limit_trx_no,	/*!< in: remove update undo logs whose
-					trx number is < limit_trx_no */
-	undo_no_t	limit_undo_no)	/*!< in: if transaction number is equal
-					to limit_trx_no, truncate undo records
-					with undo number < limit_undo_no */
+	trx_rseg_t*		rseg,		/*!< in: rollback segment */
+	const purge_iter_t*	limit)		/*!< in: truncate offset */
 {
 	fil_addr_t	hdr_addr;
 	fil_addr_t	prev_hdr_addr;
@@ -542,17 +449,17 @@ loop:
 	log_hdr = undo_page + hdr_addr.boffset;
 
 	cmp = ut_dulint_cmp(mach_read_from_8(log_hdr + TRX_UNDO_TRX_NO),
-			    limit_trx_no);
+			    limit->trx_no);
 	if (cmp == 0) {
 		trx_undo_truncate_start(rseg, rseg->space, hdr_addr.page,
-					hdr_addr.boffset, limit_undo_no);
+					hdr_addr.boffset, limit->undo_no);
 	}
 
 	if (cmp >= 0) {
-		mutex_enter(&kernel_mutex);
-		ut_a(trx_sys->rseg_history_len >= n_removed_logs);
-		trx_sys->rseg_history_len -= n_removed_logs;
-		mutex_exit(&kernel_mutex);
+
+		os_atomic_dec_ulint(
+			&kernel_mutex, &trx_sys->rseg_history_len,
+		       	n_removed_logs);
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
 				  log_hdr + TRX_UNDO_HISTORY_NODE,
@@ -602,63 +509,32 @@ Removes unnecessary history data from rollback segments. NOTE that when this
 function is called, the caller must not have any latches on undo log pages! */
 static
 void
-trx_purge_truncate_history(void)
-/*============================*/
+trx_purge_truncate_history(
+/*========================*/
+	purge_iter_t*		limit,		/*!< in: truncate limit */
+	const read_view_t*	view)		/* !< purge view */
 {
 	trx_rseg_t*	rseg;
-	trx_id_t	limit_trx_no;
-	undo_no_t	limit_undo_no;
 
-	ut_ad(mutex_own(&(purge_sys->mutex)));
-
-	trx_purge_arr_get_biggest(purge_sys->arr, &limit_trx_no,
-				  &limit_undo_no);
-
-	if (ut_dulint_is_zero(limit_trx_no)) {
-
-		limit_trx_no = purge_sys->purge_trx_no;
-		limit_undo_no = purge_sys->purge_undo_no;
-	}
+	ut_ad(purge_mutex_own());
 
 	/* We play safe and set the truncate limit at most to the purge view
 	low_limit number, though this is not necessary */
 
-	if (ut_dulint_cmp(limit_trx_no, purge_sys->view->low_limit_no) >= 0) {
-		limit_trx_no = purge_sys->view->low_limit_no;
-		limit_undo_no = ut_dulint_zero;
+	if (ut_dulint_cmp(limit->trx_no, view->low_limit_no) >= 0) {
+		limit->trx_no = view->low_limit_no;
+		limit->undo_no = ut_dulint_zero;
 	}
 
-	ut_ad((ut_dulint_cmp(limit_trx_no,
-			     purge_sys->view->low_limit_no) <= 0));
+	ut_ad((ut_dulint_cmp(limit->trx_no, view->low_limit_no) <= 0));
 
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
 
 	while (rseg) {
-		trx_purge_truncate_rseg_history(rseg, limit_trx_no,
-						limit_undo_no);
+		trx_purge_truncate_rseg_history(rseg, limit);
+
 		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
 	}
-}
-
-/********************************************************************//**
-Does a truncate if the purge array is empty. NOTE that when this function is
-called, the caller must not have any latches on undo log pages!
-@return	TRUE if array empty */
-UNIV_INLINE
-ibool
-trx_purge_truncate_if_arr_empty(void)
-/*=================================*/
-{
-	ut_ad(mutex_own(&(purge_sys->mutex)));
-
-	if (purge_sys->arr->n_used == 0) {
-
-		trx_purge_truncate_history();
-
-		return(TRUE);
-	}
-
-	return(FALSE);
 }
 
 /***********************************************************************//**
@@ -684,8 +560,8 @@ trx_purge_rseg_get_next_history_log(
 
 	ut_a(rseg->last_page_no != FIL_NULL);
 
-	purge_sys->purge_trx_no = ut_dulint_add(rseg->last_trx_no, 1);
-	purge_sys->purge_undo_no = ut_dulint_zero;
+	purge_sys->iter.trx_no = ut_dulint_add(rseg->last_trx_no, 1);
+	purge_sys->iter.undo_no = ut_dulint_zero;
 	purge_sys->next_stored = FALSE;
 
 	mtr_start(&mtr);
@@ -844,18 +720,17 @@ trx_purge_choose_next_log(void)
 	purge_sys->hdr_page_no = page_no;
 	purge_sys->hdr_offset = offset;
 
-	purge_sys->purge_trx_no = min_trx_no;
+	purge_sys->iter.trx_no = min_trx_no;
 
 	if (rec == &trx_purge_dummy_rec) {
 
-		purge_sys->purge_undo_no = ut_dulint_zero;
-		purge_sys->page_no = page_no;
 		purge_sys->offset = 0;
+		purge_sys->page_no = page_no;
+		purge_sys->iter.undo_no = ut_dulint_zero;
 	} else {
-		purge_sys->purge_undo_no = trx_undo_rec_get_undo_no(rec);
-
-		purge_sys->page_no = page_get_page_no(page_align(rec));
 		purge_sys->offset = page_offset(rec);
+		purge_sys->page_no = page_get_page_no(page_align(rec));
+		purge_sys->iter.undo_no = trx_undo_rec_get_undo_no(rec);
 	}
 
 	mtr_commit(&mtr);
@@ -873,15 +748,12 @@ trx_purge_get_next_rec(
 	trx_undo_rec_t*	rec;
 	trx_undo_rec_t*	rec_copy;
 	trx_undo_rec_t*	rec2;
-	trx_undo_rec_t*	next_rec;
 	page_t*		undo_page;
 	page_t*		page;
 	ulint		offset;
 	ulint		page_no;
 	ulint		space;
 	ulint		zip_size;
-	ulint		type;
-	ulint		cmpl_info;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(purge_sys->mutex)));
@@ -914,6 +786,10 @@ trx_purge_get_next_rec(
 	rec2 = rec;
 
 	for (;;) {
+		ulint		type;
+		trx_undo_rec_t*	next_rec;
+		ulint		cmpl_info;
+
 		/* Try first to find the next record which requires a purge
 		operation from the same page of the same undo log */
 
@@ -959,16 +835,16 @@ trx_purge_get_next_rec(
 
 		mtr_start(&mtr);
 
-		undo_page = trx_undo_page_get_s_latched(space, zip_size,
-							page_no, &mtr);
+		undo_page = trx_undo_page_get_s_latched(
+			space, zip_size, page_no, &mtr);
 
 		rec = undo_page + offset;
 	} else {
 		page = page_align(rec2);
 
-		purge_sys->purge_undo_no = trx_undo_rec_get_undo_no(rec2);
-		purge_sys->page_no = page_get_page_no(page);
 		purge_sys->offset = rec2 - page;
+		purge_sys->page_no = page_get_page_no(page);
+		purge_sys->iter.undo_no = trx_undo_rec_get_undo_no(rec2);
 
 		if (undo_page != page) {
 			/* We advance to a new page of the undo log: */
@@ -988,34 +864,22 @@ Fetches the next undo log record from the history list to purge. It must be
 released with the corresponding release function.
 @return copy of an undo log record or pointer to trx_purge_dummy_rec,
 if the whole undo log can skipped in purge; NULL if none left */
-UNIV_INTERN
+static
 trx_undo_rec_t*
 trx_purge_fetch_next_rec(
 /*=====================*/
-	roll_ptr_t*	roll_ptr,/*!< out: roll pointer to undo record */
-	trx_undo_inf_t** cell,	/*!< out: storage cell for the record in the
-				purge array */
-	mem_heap_t*	heap)	/*!< in: memory heap where copied */
+	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
+	mem_heap_t*	heap)		/*!< in: memory heap where copied */
 {
-	trx_undo_rec_t*	undo_rec;
+	const read_view_t*	view = purge_sys->view;
+	const purge_iter_t	iter = purge_sys->iter;
 
-	mutex_enter(&(purge_sys->mutex));
-
-	if (purge_sys->state == TRX_STOP_PURGE) {
-		trx_purge_truncate_if_arr_empty();
-
-		mutex_exit(&(purge_sys->mutex));
-
-		return(NULL);
-	}
+	ut_ad(mutex_own(&purge_sys->mutex));
 
 	if (!purge_sys->next_stored) {
 		trx_purge_choose_next_log();
 
 		if (!purge_sys->next_stored) {
-			purge_sys->state = TRX_STOP_PURGE;
-
-			trx_purge_truncate_if_arr_empty();
 
 			if (srv_print_thread_releases) {
 				fprintf(stderr,
@@ -1024,119 +888,142 @@ trx_purge_fetch_next_rec(
 					(ulong) purge_sys->n_pages_handled);
 			}
 
-			mutex_exit(&(purge_sys->mutex));
 
 			return(NULL);
 		}
 	}
 
-	if (purge_sys->n_pages_handled >= purge_sys->handle_limit) {
-
-		purge_sys->state = TRX_STOP_PURGE;
-
-		trx_purge_truncate_if_arr_empty();
-
-		mutex_exit(&(purge_sys->mutex));
-
-		return(NULL);
-	}
-
-	if (ut_dulint_cmp(purge_sys->purge_trx_no,
-			  purge_sys->view->low_limit_no) >= 0) {
-		purge_sys->state = TRX_STOP_PURGE;
-
-		trx_purge_truncate_if_arr_empty();
-
-		mutex_exit(&(purge_sys->mutex));
+	if (ut_dulint_cmp(iter.trx_no, view->low_limit_no) >= 0) {
 
 		return(NULL);
 	}
 
 	/*	fprintf(stderr, "Thread %lu purging trx %lu undo record %lu\n",
 	os_thread_get_curr_id(),
-	ut_dulint_get_low(purge_sys->purge_trx_no),
-	ut_dulint_get_low(purge_sys->purge_undo_no)); */
+	ut_dulint_get_low(iter->trx_no),
+	ut_dulint_get_low(iter->undo_no)); */
 
-	*roll_ptr = trx_undo_build_roll_ptr(FALSE, (purge_sys->rseg)->id,
-					    purge_sys->page_no,
-					    purge_sys->offset);
+	*roll_ptr = trx_undo_build_roll_ptr(
+		FALSE, purge_sys->rseg->id,
+		purge_sys->page_no, purge_sys->offset);
 
-	*cell = trx_purge_arr_store_info(purge_sys->purge_trx_no,
-					 purge_sys->purge_undo_no);
+	ut_ad(ut_dulint_cmp(iter.trx_no, view->low_limit_no) < 0);
 
-	ut_ad(ut_dulint_cmp(purge_sys->purge_trx_no,
-			    (purge_sys->view)->low_limit_no) < 0);
+	/* The following call will advance the stored values of the
+	purge iterator. */
 
-	/* The following call will advance the stored values of purge_trx_no
-	and purge_undo_no, therefore we had to store them first */
-
-	undo_rec = trx_purge_get_next_rec(heap);
-
-	mutex_exit(&(purge_sys->mutex));
-
-	return(undo_rec);
+	return(trx_purge_get_next_rec(heap));
 }
 
-/*******************************************************************//**
-Releases a reserved purge undo record. */
-UNIV_INTERN
+/***********************************************************//**
+Fetches an undo log record into the purge nodes in the query graph. */
+static
 void
-trx_purge_rec_release(
-/*==================*/
-	trx_undo_inf_t*	cell)	/*!< in: storage cell */
-{
-	trx_undo_arr_t*	arr;
-
-	mutex_enter(&(purge_sys->mutex));
-
-	arr = purge_sys->arr;
-
-	trx_purge_arr_remove_info(cell);
-
-	mutex_exit(&(purge_sys->mutex));
-}
-
-/*******************************************************************//**
-This function runs a purge batch.
-@return	number of undo log pages handled in the batch */
-UNIV_INTERN
-ulint
-trx_purge(
-/*======*/
-	ulint	limit)		/*!< in: the maximum number of records to
-				purge in one batch */
+trx_purge_attach_undo_recs(
+/*=======================*/
+	trx_purge_t*	purge_sys,	/*!< purge instance */
+	purge_iter_t*	limit,		/*!< records read up to */
+	ulint		batch_size)	/*!< no. of records to purge */
 {
 	que_thr_t*	thr;
-	/*	que_thr_t*	thr2; */
-	ulint		old_pages_handled;
+	ulint		i = 0;
+	ulint		n_thrs = UT_LIST_GET_LEN(purge_sys->query->thrs);
 
-	mutex_enter(&(purge_sys->mutex));
+	ut_ad(mutex_own(&purge_sys->mutex));
 
-	if (purge_sys->trx->n_active_thrs > 0) {
+	*limit = purge_sys->iter;
 
-		mutex_exit(&(purge_sys->mutex));
+	/* Debug code to validate some pre-requisites. */
+	for (thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
+	     thr != NULL;
+	     thr = UT_LIST_GET_NEXT(thrs, thr), ++i) {
 
-		/* Should not happen */
+		purge_node_t*		node;
 
-		ut_error;
+		/* Get the purge node. */
+		node = (purge_node_t*) thr->child;
 
-		return(0);
+		ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
+		ut_a(node->undo_recs == NULL);
+		ut_a(node->done);
+
+		node->done = FALSE;
 	}
 
-	rw_lock_x_lock(&(purge_sys->latch));
+	ut_a(i == srv_n_purge_threads);
 
-	mutex_enter(&kernel_mutex);
+	/* Fetch and parse the UNDO records. The UNDO records are added
+	to a per purge node vector. */
+	thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
+	ut_a(n_thrs > 0 && thr != NULL);
 
-	/* Close and free the old purge view */
+	do {
+		int			cmp;
+		purge_node_t*		node;
+		trx_purge_rec_t*	purge_rec;
+		const purge_iter_t	iter = purge_sys->iter;
 
-	read_view_close(purge_sys->view);
-	purge_sys->view = NULL;
-	mem_heap_empty(purge_sys->heap);
+		ut_a(!thr->is_active);
 
+		/* Get the purge node. */
+		node = (purge_node_t*) thr->child;
+		ut_a(que_node_get_type(node) == QUE_NODE_PURGE);
+
+		purge_rec = mem_heap_zalloc(node->heap, sizeof(*purge_rec));
+
+		/* Track the max {trx_id, undo_no} for truncating the
+		UNDO logs once we have purged the records. */
+		cmp = ut_dulint_cmp(iter.trx_no, limit->trx_no);
+
+		if (cmp > 0
+		    || (cmp == 0
+			&& ut_dulint_cmp(iter.undo_no, limit->undo_no)) >= 0) {
+
+			*limit = iter;
+		}
+
+		/* Fetch the next record, and advance the purge_sys->iter. */
+		purge_rec->undo_rec = trx_purge_fetch_next_rec(
+		       	&purge_rec->roll_ptr, node->heap);
+
+		if (purge_rec->undo_rec != NULL) {
+
+			if (node->undo_recs == NULL) {
+				node->undo_recs = ib_vector_create(
+					node->heap, batch_size);
+			} else {
+				ut_a(!ib_vector_is_empty(node->undo_recs));
+			}
+
+			ib_vector_push(node->undo_recs, purge_rec);
+
+			if (ib_vector_size(node->undo_recs) >= batch_size) {
+				break;
+			}
+		} else {
+			break;
+		}
+
+		thr = UT_LIST_GET_NEXT(thrs, thr);
+
+		if (thr == NULL) {
+			thr = UT_LIST_GET_FIRST(purge_sys->query->thrs);
+		}
+	} while (thr);
+}
+
+/*******************************************************************//**
+Calculate the DML delay required.
+@return delay in microseconds or ULINT_MAX */
+static
+ulint
+trx_purge_dml_delay(void)
+/*=====================*/
+{
 	/* Determine how much data manipulation language (DML) statements
 	need to be delayed in order to reduce the lagging of the purge
 	thread. */
-	srv_dml_needed_delay = 0; /* in microseconds; default: no delay */
+	ulint	delay = 0; /* in microseconds; default: no delay */
 
 	/* If we cannot advance the 'purge view' because of an old
 	'consistent read view', then the DML statements cannot be delayed.
@@ -1147,60 +1034,157 @@ trx_purge(
 			/ srv_max_purge_lag;
 		if (ratio > ULINT_MAX / 10000) {
 			/* Avoid overflow: maximum delay is 4295 seconds */
-			srv_dml_needed_delay = ULINT_MAX;
+			delay = ULINT_MAX;
 		} else if (ratio > 1) {
 			/* If the history list length exceeds the
 			innodb_max_purge_lag, the
 			data manipulation statements are delayed
 			by at least 5000 microseconds. */
-			srv_dml_needed_delay = (ulint) ((ratio - .5) * 10000);
+			delay = (ulint) ((ratio - .5) * 10000);
 		}
 	}
 
-	purge_sys->view = read_view_oldest_copy_or_open_new(ut_dulint_zero,
-							    purge_sys->heap);
+	return(delay);
+}
+
+/*******************************************************************//**
+Wait for pending purge jobs to complete. */
+static
+void
+trx_purge_wait_for_workers_to_complete(
+/*===================================*/
+	trx_purge_t*	purge_sys)	/*!< in: purge instance */ 
+{
+	mutex_enter(&kernel_mutex);
+
+	/* Ensure that the work queue empties out. Note that we also
+	check the active query thread count. This is because the
+	completed count decreases before the query fully completes. */
+	while (purge_sys->n_submitted > purge_sys->n_completed
+	       || purge_sys->query->n_active_thrs > 0
+	       || srv_get_task_queue_length() > 0) {
+
+		os_event_t	event;
+
+		mutex_exit(&kernel_mutex);
+
+		srv_wake_worker_threads(1);
+
+		//event = srv_suspend_thread();
+
+		//os_event_wait(event);
+
+		os_thread_sleep(10000);
+
+		mutex_enter(&kernel_mutex);
+	}
+
 	mutex_exit(&kernel_mutex);
 
-	rw_lock_x_unlock(&(purge_sys->latch));
+	/* There should be no outstanding tasks. */
+	ut_a(srv_get_task_queue_length() == 0);
+}
 
-	purge_sys->state = TRX_PURGE_ON;
+/*******************************************************************//**
+This function runs a purge batch.
+@return	number of undo log pages handled in the batch */
+UNIV_INTERN
+ulint
+trx_purge(
+/*======*/
+	ulint	n_purge_threads,	/*!< in: number of purge tasks
+					to submit to the work queue */
+	ulint	batch_size)		/*!< in: the maximum number of records
+					to purge in one batch */
+{
+	ut_a(purge_sys->n_submitted >= purge_sys->n_completed);
 
-	purge_sys->handle_limit = purge_sys->n_pages_handled + limit;
+	trx_purge_wait_for_workers_to_complete(purge_sys);
 
-	old_pages_handled = purge_sys->n_pages_handled;
+	mutex_enter(&purge_sys->mutex);
 
-	mutex_exit(&(purge_sys->mutex));
+	/* The number of tasks submitted should be completed. */
+	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
+
+	rw_lock_x_lock(&purge_sys->latch);
 
 	mutex_enter(&kernel_mutex);
 
-	thr = que_fork_start_command(purge_sys->query);
+	/* Close and free the old purge view */
 
-	ut_ad(thr);
+	read_view_close(purge_sys->view);
+	purge_sys->view = NULL;
+	mem_heap_empty(purge_sys->heap);
 
-	/*	thr2 = que_fork_start_command(purge_sys->query);
+	srv_dml_needed_delay = trx_purge_dml_delay();
 
-	ut_ad(thr2); */
-
+	purge_sys->view = read_view_oldest_copy_or_open_new(
+		ut_dulint_zero, purge_sys->heap);
 
 	mutex_exit(&kernel_mutex);
 
-	/*	srv_que_task_enqueue(thr2); */
+	purge_sys->n_pages_handled_start = purge_sys->n_pages_handled;
 
-	if (srv_print_thread_releases) {
-
-		fputs("Starting purge\n", stderr);
+	if (ut_dulint_is_zero(purge_sys->limit.trx_no)) {
+		trx_purge_truncate_history(&purge_sys->iter, purge_sys->view);
+	} else {
+		trx_purge_truncate_history(&purge_sys->limit, purge_sys->view);
 	}
 
-	que_run_threads(thr);
+	/* Fetch the UNDO recs that need to be purged. */
+	trx_purge_attach_undo_recs(purge_sys, &purge_sys->limit, batch_size);
 
-	if (srv_print_thread_releases) {
+	rw_lock_x_unlock(&purge_sys->latch);
 
-		fprintf(stderr,
-			"Purge ends; pages handled %lu\n",
-			(ulong) purge_sys->n_pages_handled);
+	purge_sys->handle_limit = purge_sys->n_pages_handled + batch_size;
+
+	mutex_exit(&purge_sys->mutex);
+
+	/* Do we do an asynchronous purge or not ? */
+	if (n_purge_threads > 0) {
+		ulint		i = 0;
+		que_thr_t*	thr = NULL;
+
+		ut_a(purge_sys->n_submitted == purge_sys->n_completed);
+
+		for (i = 0; i < n_purge_threads; ++i) {
+
+			thr = que_fork_scheduler_round_robin(
+				purge_sys->query, thr);
+
+			ut_a(thr != NULL);
+
+			srv_que_task_enqueue_low(thr);
+		}
+
+		purge_sys->n_submitted += n_purge_threads;
+
+	/* Do it synchronously. */
+	} else {
+		que_thr_t*	thr;
+
+		ut_a(purge_sys->n_submitted == purge_sys->n_completed);
+
+		thr = que_fork_start_command(purge_sys->query);
+		ut_ad(thr);
+
+		++purge_sys->n_submitted;
+
+		que_run_threads(thr);
+
+		if (srv_print_thread_releases) {
+			fputs("Starting purge\n", stderr);
+		}
+
+		if (srv_print_thread_releases) {
+
+			fprintf(stderr,
+				"Purge ends; pages handled %lu\n",
+				(ulong) purge_sys->n_pages_handled);
+		}
 	}
 
-	return(purge_sys->n_pages_handled - old_pages_handled);
+	return(purge_sys->n_pages_handled - purge_sys->n_pages_handled_start);
 }
 
 /******************************************************************//**
@@ -1215,8 +1199,8 @@ trx_purge_sys_print(void)
 
 	fprintf(stderr, "InnoDB: Purge trx n:o " TRX_ID_FMT
 		", undo n:o " TRX_ID_FMT "\n",
-		TRX_ID_PREP_PRINTF(purge_sys->purge_trx_no),
-		TRX_ID_PREP_PRINTF(purge_sys->purge_undo_no));
+		TRX_ID_PREP_PRINTF(purge_sys->iter.trx_no),
+		TRX_ID_PREP_PRINTF(purge_sys->iter.undo_no));
 	fprintf(stderr,
 		"InnoDB: Purge next stored %lu, page_no %lu, offset %lu,\n"
 		"InnoDB: Purge hdr_page_no %lu, hdr_offset %lu\n",

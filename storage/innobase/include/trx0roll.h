@@ -56,8 +56,9 @@ trx_savept_take(
 Creates an undo number array. */
 UNIV_INTERN
 trx_undo_arr_t*
-trx_undo_arr_create(void);
-/*=====================*/
+trx_undo_arr_create(
+/*================*/
+	ulint	n_purge_threads);	/*!< in: number of purge threads */
 /*******************************************************************//**
 Frees an undo number array. */
 UNIV_INTERN
@@ -295,10 +296,10 @@ trx_roll_savepoints_free(
 
 /** A cell of trx_undo_arr_struct; used during a rollback and a purge */
 struct	trx_undo_inf_struct{
+	ibool		in_use;	/*!< true if cell is being used */
 	trx_id_t	trx_no;	/*!< transaction number: not defined during
 				a rollback */
 	undo_no_t	undo_no;/*!< undo number of an undo record */
-	ibool		in_use;	/*!< TRUE if the cell is in use */
 };
 
 /** During a rollback and a purge, undo numbers of undo records currently being
@@ -306,7 +307,7 @@ processed are stored in this array */
 
 struct trx_undo_arr_struct{
 	ulint		n_cells;	/*!< number of cells in the array */
-	ulint		n_used;		/*!< number of cells currently in use */
+	ulint		n_used;		/*!< number of cells in use */
 	trx_undo_inf_t*	infos;		/*!< the array of undo infos */
 	mem_heap_t*	heap;		/*!< memory heap from which allocated */
 };
