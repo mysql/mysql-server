@@ -68,6 +68,24 @@ static size_t do_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *strea
     }
 }
 
+
+// 1024 is the right size_factor for production.  
+// Different values for these sizes may be used for testing.
+static uint32_t size_factor = 1024;
+static size_t   data_buffer_limit = 1024*1024*64; 
+static int      nodesize = (1<<22);
+
+
+
+void
+toku_brtloader_set_size_factor(uint32_t factor) {
+// For test purposes only
+    size_factor = factor;
+    data_buffer_limit = 1024*size_factor*64;
+    nodesize = (size_factor==1) ? (1<<15) : (1<<22);
+}
+
+
 static void add_big_buffer(struct file_info *file) {
     if (file->buffer == NULL)
         file->buffer = toku_malloc(file->buffer_size);
@@ -480,10 +498,6 @@ int loader_read_row (FILE *f, DBT *key, DBT *val, BRTLOADER bl)
 }
 
 
-// 1024 is the right number for production.
-//#define SIZE_FACTOR 1
-#define SIZE_FACTOR 1024
-
 int init_rowset (struct rowset *rows)
 /* Effect: Initialize a collection of rows to be empty. */
 {
@@ -494,7 +508,7 @@ int init_rowset (struct rowset *rows)
     rows->n_rows_limit = 100;
     MALLOC_N(rows->n_rows_limit, rows->rows);
     rows->n_bytes = 0;
-    rows->n_bytes_limit = 1024*SIZE_FACTOR*16;
+    rows->n_bytes_limit = 1024*size_factor*16;
     rows->data = (char *) toku_malloc(rows->n_bytes_limit);
     if (rows->rows==NULL || rows->data==NULL) {
 	int r = errno;
@@ -518,7 +532,7 @@ void destroy_rowset (struct rowset *rows) {
     zero_rowset(rows);
 }
 
-const size_t data_buffer_limit = 1024*SIZE_FACTOR*64;
+
 
 static int row_wont_fit (struct rowset *rows, size_t size)
 /* Effect: Return nonzero if adding a row of size SIZE would be too big (bigger than the buffer limit) */ 
@@ -1307,7 +1321,7 @@ static int merge_some_files (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sou
         }
             
         n_rows_done++;
-	const u_int64_t rows_per_report = SIZE_FACTOR*1024;
+	const u_int64_t rows_per_report = size_factor*1024;
 	if (n_rows_done%rows_per_report==0) {
 	    // need to update the progress.
 	    double fraction_of_remaining_we_just_did = (double)rows_per_report / (double)(n_rows - n_rows_done + rows_per_report);
@@ -1363,8 +1377,8 @@ int merge_files (struct merge_fileset *fs,
  */
 {
     //printf(" merge_files use %d progress=%d fin at %d\n", progress_allocation, bl->progress, bl->progress+progress_allocation);
-    const int mergelimit = (SIZE_FACTOR == 1) ? 4 : 256;
-//    const int mergelimit = (SIZE_FACTOR == 1) ? 4 : 16;
+    const int mergelimit = (size_factor == 1) ? 4 : 256;
+//    const int mergelimit = (size_factor == 1) ? 4 : 16;
     int n_passes_left = (fs->n_temp_files==1) ? 1 : n_passes(fs->n_temp_files, mergelimit);
     //printf("%d files, %d per pass, %d passes\n", fs->n_temp_files, mergelimit, n_passes_left);
     int result = 0;
@@ -1514,7 +1528,6 @@ struct leaf_buf {
     int nkeys_p, ndata_p, dsize_p, partitions_p, n_in_buf_p;
 };
 
-const int nodesize = (SIZE_FACTOR==1) ? (1<<15) : (1<<22);
 
 struct translation {
     int64_t off, size;

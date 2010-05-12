@@ -6,7 +6,13 @@
 /* TODO:
  *
  * When loader is fixed to not crash on failed call to toku_os_write(),
- * get rid of INDUCE_ENOSPC and -e argument, just make regular part of test.
+ * get rid of INDUCE_BAD_WRITE and -e argument.
+ *
+ * When loader is fixed to not crash when poll function returns non-zero
+ * value with size_factor=1, get rid of INDUCE_ABORT and -a argument.
+ *
+ * When loader is fixed to not crash on failed call to do_fwrite() with small size factor,
+ * get rid of SIZE_FACTOR and -s argument.
  */
 
 
@@ -64,7 +70,9 @@ int NUM_ROWS=100000;
 //static int NUM_ROWS=50000000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
-int INDUCE_ENOSPC=0;
+int INDUCE_BAD_WRITE=0;
+int INDUCE_ABORT = 0;
+int SIZE_FACTOR = 0;
 enum {MAGIC=311};
 
 
@@ -77,6 +85,7 @@ static void get_inames(DBT* inames, DB** dbs);
 static int verify_file(char * dirname, char * filename);
 static void assert_inames_missing(DBT* inames);
 static ssize_t bad_write(int, const void *, size_t);
+static void run_all_tests(void);
 
 int fwrite_count = 0;
 int fwrite_enospc = 0;
@@ -580,20 +589,23 @@ static void run_test(enum test_type t, int trigger)
 // ------------ infrastructure ----------
 static void do_args(int argc, char * const argv[]);
 
-int test_main(int argc, char * const *argv) {
+static void run_all_tests(void) {
     int trigger;
-    do_args(argc, argv);
+
     if (verbose) printf("\n\nTesting loader with close and commit (normal)\n");
     run_test(commit, 0);
+
     if (verbose) printf("\n\nTesting loader with loader abort and txn abort\n");
     run_test(abort_loader, 0);
-    if (!USE_PUTS) {
+    if (!USE_PUTS && INDUCE_ABORT) {
 	if (verbose) printf("\n\nTesting loader with loader abort_via_poll and txn abort\n");
 	run_test(abort_via_poll, 0);
     }
+
     if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
     run_test(abort_txn, 0);
-    if (INDUCE_ENOSPC) {
+
+    if (INDUCE_BAD_WRITE) {
 	int i;
 	for (i = 1; i < 5; i++) {
 	    trigger = write_count_nominal / i;
@@ -604,24 +616,36 @@ int test_main(int argc, char * const *argv) {
     {
 	int i;
 	// induce write error at beginning of process
-	for (i = 1; i < 5 * NUM_DBS; i++) {
+	for (i = 1; i < 5 * NUM_DBS && i < fwrite_count_nominal; i++) {
 	    trigger = i;
 	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
 	    run_test(enospc_f, trigger);
 	}
 	// induce write error sprinkled through process
-	for (i = 2; i < 5; i++) {
+	for (i = 2; i < 5 && i < fwrite_count_nominal; i++) {
 	    trigger = fwrite_count_nominal / i;
 	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
 	    run_test(enospc_f, trigger);
 	}
 	// induce write error at end of process
-	for (i = 1; i < 5 * NUM_DBS; i++) {
+	for (i = 0; i < 5 * NUM_DBS && i < fwrite_count_nominal; i++) {
 	    trigger =  fwrite_count_nominal - i;
             assert(trigger > 0);
 	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
 	    run_test(enospc_f, trigger);
 	}
+    }
+}
+
+int test_main(int argc, char * const *argv) {
+    do_args(argc, argv);
+
+    if (verbose) printf("\nTesting loader with default size_factor\n");
+    run_all_tests();
+    if (SIZE_FACTOR) {
+	if (verbose) printf("\nTesting loader with size_factor=1\n");
+	db_env_set_loader_size_factor(1);
+	run_all_tests();
     }
     return 0;
 }
@@ -658,8 +682,14 @@ static void do_args(int argc, char * const argv[]) {
             USE_PUTS = LOADER_USE_PUTS;
 	    printf("Using puts\n");
         } else if (strcmp(argv[0], "-e")==0) {
-	    INDUCE_ENOSPC = 1;
+	    INDUCE_BAD_WRITE = 1;
 	    printf("Using enospc\n");
+	} else if (strcmp(argv[0], "-a")==0) {
+	    INDUCE_ABORT = 1;
+	    printf ("Testing abort via poll with smaller size factor\n");
+	} else if (strcmp(argv[0], "-s")==0) {
+	    SIZE_FACTOR = 1;
+	    printf ("Testing abort via poll with smaller size factor\n");
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
