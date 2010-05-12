@@ -833,6 +833,27 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     ConstRope def(c_rope_pool, attrPtr.p->defaultValue);
     def.copy(defaultValue);
 
+    if (def.size())
+    {
+      /* Convert default value to network byte order for storage */
+      /* Attribute header */
+      ndbrequire(def.size() >= sizeof(Uint32));
+      Uint32 a;
+      memcpy(&a, defaultValue, sizeof(Uint32));
+      a = htonl(a);
+      memcpy(defaultValue, &a, sizeof(Uint32));
+      
+      Uint32 remainBytes = def.size() - sizeof(Uint32);
+      
+      if (remainBytes)
+        NdbSqlUtil::convertByteOrder(attrType,
+                                     attrSize,
+                                     arrayType,
+                                     arraySize,
+                                     (uchar*) defaultValue + sizeof(Uint32),
+                                     remainBytes);
+    }
+
     w.add(DictTabInfo::AttributeDefaultValueLen, def.size());
     w.add(DictTabInfo::AttributeDefaultValue, defaultValue, def.size());
     w.add(DictTabInfo::AttributeEnd, 1);
@@ -5235,8 +5256,41 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     attrPtr.p->attributeDescriptor = desc;
     attrPtr.p->autoIncrement = attrDesc.AttributeAutoIncrement;
     {
+      char defaultValueBuf [MAX_ATTR_DEFAULT_VALUE_SIZE];
+      
+      if (attrDesc.AttributeDefaultValueLen)
+      {
+        ndbrequire(attrDesc.AttributeDefaultValueLen >= sizeof(Uint32));
+
+        memcpy(defaultValueBuf, attrDesc.AttributeDefaultValue,
+               attrDesc.AttributeDefaultValueLen);
+        
+        /* Table meta-info is normally stored in network byte order by
+         * SimpleProperties.
+         * For the default value, we convert as necessary here
+         */
+        /* Convert AttrInfoHeader */
+        Uint32 a;
+        memcpy(&a, defaultValueBuf, sizeof(Uint32));
+        a = ntohl(a);
+        memcpy(defaultValueBuf, &a, sizeof(Uint32));
+        
+        Uint32 remainBytes = attrDesc.AttributeDefaultValueLen - sizeof(Uint32);
+        
+        if (remainBytes)
+        {
+          /* Convert attribute */
+          NdbSqlUtil::convertByteOrder(attrDesc.AttributeExtType,
+                                       attrDesc.AttributeSize,
+                                       attrDesc.AttributeArrayType,
+                                       attrDesc.AttributeArraySize,
+                                       (uchar*) defaultValueBuf + sizeof(Uint32),
+                                       remainBytes);
+        }
+      }
+
       Rope defaultValue(c_rope_pool, attrPtr.p->defaultValue);
-      defaultValue.assign((const char*)attrDesc.AttributeDefaultValue,
+      defaultValue.assign(defaultValueBuf,
                           attrDesc.AttributeDefaultValueLen);
     }
     
