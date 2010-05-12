@@ -1845,4 +1845,31 @@ SET optimizer_join_cache_level=default;
 
 DROP TABLE t1,t2,t3,t4;
 
+--echo #
+--echo # Bug#45267: Incomplete check caused wrong result.
+--echo #
+CREATE TABLE t1 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY
+);
+CREATE TABLE t3 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT PRIMARY KEY
+);
+INSERT INTO t3 VALUES
+(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),(11),(12),(13),(14),(15),
+(16),(17),(18),(19),(20);
+CREATE TABLE t2 (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `int_nokey` int(11) NOT NULL,
+  `time_key` time NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `time_key` (`time_key`)
+);
+INSERT INTO t2 VALUES (10,9,'22:36:46'),(11,0,'08:46:46');
 
+SELECT DISTINCT t1.`pk`
+FROM t1 RIGHT JOIN t2 STRAIGHT_JOIN t3 ON t2.`int_nokey`  ON t2.`time_key`
+GROUP BY 1;
+
+DROP TABLE IF EXISTS t1, t2, t3;
+
+--echo #
