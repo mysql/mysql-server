@@ -427,7 +427,7 @@ fill_trx_row(
 /*=========*/
 	i_s_trx_row_t*		row,		/*!< out: result object
 						that's filled */
-	const trx_t*			trx,		/*!< in: transaction to
+	const trx_t*		trx,		/*!< in: transaction to
 						get data from */
 	const i_s_locks_row_t*	requested_lock_row,/*!< in: pointer to the
 						corresponding row in
