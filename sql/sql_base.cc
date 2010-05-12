@@ -1418,6 +1418,12 @@ void close_thread_tables(THD *thd)
                           table->s->table_name.str, (long) table));
 #endif
 
+#if defined(ENABLED_DEBUG_SYNC)
+  /* debug_sync may not be initialized for some slave threads */
+  if (thd->debug_sync_control)
+    DEBUG_SYNC(thd, "before_close_thread_tables");
+#endif
+
   /* Detach MERGE children after every statement. Even under LOCK TABLES. */
   for (table= thd->open_tables; table; table= table->next)
   {
@@ -5242,8 +5248,8 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables,
     thd		- thread handler
     tables	- list of tables for open
     flags       - bitmap of flags to modify how the tables will be open:
-                  MYSQL_OPEN_IGNORE_FLUSH - open table even if someone has
-                  done a flush or namelock on it.
+                  MYSQL_LOCK_IGNORE_FLUSH - open table even if someone has
+                  done a flush on it.
 
   RETURN
     FALSE - ok
@@ -8782,8 +8788,57 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
 
 
 /*
+  Unlock and close table before renaming and dropping partitions
   SYNOPSIS
-    abort_and_upgrade_lock()
+    alter_close_tables()
+    lpt                        Struct carrying parameters
+  RETURN VALUES
+    0
+*/
+
+static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
+{
+  TABLE_SHARE *share= lpt->table->s;
+  THD *thd= lpt->thd;
+  TABLE *table;
+  DBUG_ENTER("alter_close_tables");
+  /*
+    We must keep LOCK_open while manipulating with thd->open_tables.
+    Another thread may be working on it.
+  */
+  mysql_mutex_lock(&LOCK_open);
+  /*
+    We can safely remove locks for all tables with the same name:
+    later they will all be closed anyway in
+    alter_partition_lock_handling().
+  */
+  for (table= thd->open_tables; table ; table= table->next)
+  {
+    if (!strcmp(table->s->table_name.str, share->table_name.str) &&
+	!strcmp(table->s->db.str, share->db.str))
+    {
+      mysql_lock_remove(thd, thd->lock, table);
+      table->file->close();
+      table->db_stat= 0;                        // Mark file closed
+      /*
+        Ensure that we won't end up with a crippled table instance
+        in the table cache if an error occurs before we reach
+        alter_partition_lock_handling() and the table is closed
+        by close_thread_tables() instead.
+      */
+      tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED,
+                       table->s->db.str,
+                       table->s->table_name.str);
+    }
+  }
+  mysql_mutex_unlock(&LOCK_open);
+  DBUG_RETURN(0);
+}
+
+
+/*
+  SYNOPSIS
+    abort_and_upgrade_lock_and_close_table()
     lpt                           Parameter passing struct
     All parameters passed through the ALTER_PARTITION_PARAM_TYPE object
   RETURN VALUE
@@ -8792,7 +8847,7 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     Remember old lock level (for possible downgrade later on), abort all
     waiting threads and ensure that all keeping locks currently are
     completed such that we own the lock exclusively and no other interaction
-    is ongoing.
+    is ongoing. Close the table and hold the name lock.
 
     thd                           Thread object
     table                         Table object
@@ -8801,11 +8856,13 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b)
     old_lock_level                Old lock level
 */
 
-int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+int abort_and_upgrade_lock_and_close_table(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  DBUG_ENTER("abort_and_upgrade_lock");
+  DBUG_ENTER("abort_and_upgrade_lock_and_close_table");
 
   if (wait_while_table_is_used(lpt->thd, lpt->table, HA_EXTRA_FORCE_REOPEN))
+    DBUG_RETURN(1);
+  if (alter_close_tables(lpt))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
