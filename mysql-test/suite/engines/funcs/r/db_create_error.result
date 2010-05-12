@@ -6,6 +6,7 @@ information_schema
 d4
 mtr
 mysql
+performance_schema
 test
 CREATE DATABASE d4;
 ERROR HY000: Can't create database 'd4'; database exists
@@ -15,4 +16,5 @@ Database
 information_schema
 mtr
 mysql
+performance_schema
 test

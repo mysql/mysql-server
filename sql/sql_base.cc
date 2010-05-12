@@ -752,6 +752,7 @@ TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 }  
 
 
+#ifdef DISABLED_UNTIL_GRL_IS_MADE_PART_OF_MDL
 /**
    @brief Mark table share as having one more user (increase its reference
           count).
@@ -769,6 +770,7 @@ static void reference_table_share(TABLE_SHARE *share)
                      (ulong) share, share->ref_count));
   DBUG_VOID_RETURN;
 }
+#endif
 
 
 /*

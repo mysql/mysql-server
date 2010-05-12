@@ -8,6 +8,10 @@
 # This does not work for RBR yet.
 --source include/have_binlog_format_mixed_or_statement.inc
 
+--disable_query_log
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+
 -- source include/have_innodb.inc
 --disable_warnings
 drop table if exists t1, t2;
