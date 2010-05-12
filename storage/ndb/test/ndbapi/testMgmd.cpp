@@ -631,6 +631,39 @@ int runTestBug42015(NDBT_Context* ctx, NDBT_Step* step)
 
 }
 
+/* Test for bug 53008:  --skip-config-cache */
+int runTestNoConfigCache(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Workingdir wd("test_mgmd"); // temporary working directory
+  
+  g_err << "** Create config.ini" << endl;
+  Properties config = ConfigFactory::create();
+  CHECK(ConfigFactory::write_config_ini(config,
+                                        path(wd.path(),
+                                             "config.ini",
+                                             NULL).c_str()));
+  
+  // Start ndb_mgmd  from config.ini
+  Mgmd* mgmd = new Mgmd(1);
+  CHECK(mgmd->start_from_config_ini(wd.path(), "--skip-config-cache", NULL));
+     
+  // Connect the ndb_mgmd(s)
+  CHECK(mgmd->connect(config));
+  
+  // wait for confirmed config
+  CHECK(mgmd->wait_confirmed_config());
+  
+  // Check binary config files *not* created
+  bool bin_conf_file = file_exists(path(wd.path(),
+                                        "ndb_1_config.bin.1", 
+                                        NULL).c_str());
+  CHECK(bin_conf_file == false);
+  
+  mgmd->stop();  
+  return NDBT_OK;
+}  
+
+
 int runTestNowaitNodes(NDBT_Context* ctx, NDBT_Step* step)
 {
   MgmdProcessList mgmds;
@@ -838,6 +871,15 @@ TESTCASE("NowaitNodes2",
 {
   INITIALIZER(runTestNowaitNodes2);
 }
+
+TESTCASE("NoCfgCache",
+         "Test that when an mgmd is started with --skip-config-cache, "
+         "no ndb_xx_config.xx.bin file is created, but you can "
+         "connect to the mgm node and retrieve the config.")
+{
+  INITIALIZER(runTestNoConfigCache);
+}
+
 
 NDBT_TESTSUITE_END(testMgmd);
 
