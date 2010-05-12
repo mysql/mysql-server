@@ -140,7 +140,7 @@ undefined.  Map it to NULL. */
 static struct handlerton* innodb_hton_ptr;
 
 C_MODE_START
-static my_bool index_cond_func_innodb(void *arg);
+static uint index_cond_func_innodb(void *arg);
 C_MODE_END
 
 static const long AUTOINC_OLD_STYLE_LOCKING = 0;
@@ -10501,9 +10501,12 @@ ha_rows ha_innobase::multi_range_read_info(uint keyno, uint n_ranges, uint keys,
 
 C_MODE_START
 
-/* Index condition check function to be called from within Innobase */
+/*
+  Index condition check function to be called from within Innobase
+  See note on ICP_RESULT for return values description.
+*/
 
-static my_bool index_cond_func_innodb(void *arg)
+static uint index_cond_func_innodb(void *arg)
 {
   ha_innobase *h= (ha_innobase*)arg;
   if (h->end_range)
@@ -10511,7 +10514,7 @@ static my_bool index_cond_func_innodb(void *arg)
     if (h->compare_key2(h->end_range) > 0)
       return 2; /* caller should return HA_ERR_END_OF_FILE already */
   }
-  return (my_bool)h->pushed_idx_cond->val_int();
+  return test(h->pushed_idx_cond->val_int());
 }
 
 C_MODE_END

@@ -2342,3 +2342,30 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Bug#43600: Incorrect type conversion caused wrong result.
+#
+CREATE TABLE t1 (
+a int NOT NULL
+) engine= myisam;
+CREATE TABLE t2 (
+a int NOT NULL,
+b int NOT NULL,
+filler char(100) DEFAULT NULL,
+KEY a (a,b)
+) engine= myisam;
+insert into t1 values (0),(1),(2),(3),(4);
+insert into t2 select A.a + 10 *B.a, 1, 'filler' from t1 A, t1 B;
+explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	5	
+1	SIMPLE	t2	ref	a	a	4	test.t1.a	1	Using index condition
+select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+a	a	b	filler
+0	0	1	filler
+1	1	1	filler
+2	2	1	filler
+3	3	1	filler
+4	4	1	filler
+drop table t1,t2;
+# End of test case for the bug#43600

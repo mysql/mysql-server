@@ -1542,15 +1542,15 @@ int ha_myisam::delete_row(const uchar *buf)
 
 C_MODE_START
 
-my_bool index_cond_func_myisam(void *arg)
+ICP_RESULT index_cond_func_myisam(void *arg)
 {
   ha_myisam *h= (ha_myisam*)arg;
   if (h->end_range)
   {
     if (h->compare_key2(h->end_range) > 0)
-      return 2; /* caller should return HA_ERR_END_OF_FILE already */
+      return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
   }
-  return (my_bool)h->pushed_idx_cond->val_int();
+  return (ICP_RESULT) test(h->pushed_idx_cond->val_int());
 }
 
 C_MODE_END

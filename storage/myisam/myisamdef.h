@@ -224,7 +224,6 @@ typedef struct st_mi_isam_share {	/* Shared between opens */
   mysql_rwlock_t mmap_lock;
 } MYISAM_SHARE;
 
-
 typedef uint mi_bit_type;
 
 typedef struct st_mi_bit_buff {		/* Used for packing of record */
@@ -235,7 +234,7 @@ typedef struct st_mi_bit_buff {		/* Used for packing of record */
 } MI_BIT_BUFF;
 
 
-typedef my_bool (*index_cond_func_t)(void *param);
+typedef ICP_RESULT (*index_cond_func_t)(void *param);
 
 struct st_myisam_info {
   MYISAM_SHARE *s;			/* Shared between open:s */
