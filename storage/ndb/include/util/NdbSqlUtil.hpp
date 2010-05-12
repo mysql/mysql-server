@@ -147,6 +147,19 @@ public:
    */
   static int cmp_olddecimal(const uchar* s1, const uchar* s2, unsigned n);
 
+  /**
+   * Convert attribute data to/from network byte order
+   * This method converts the passed data of the passed type
+   * between host and network byte order.
+   * On little-endian (network order) hosts, it has no effect.
+   */
+  static void convertByteOrder(Uint32 typeId, 
+                               Uint32 typeLog2Size, 
+                               Uint32 arrayType, 
+                               Uint32 arraySize,
+                               uchar* data,
+                               Uint32 dataByteSize);
+
 private:
   /**
    * List of all types.  Must match Type::Enum.
