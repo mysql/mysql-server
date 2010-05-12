@@ -1172,6 +1172,7 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   return dstLen;
 }
 
+#if defined(WORDS_BIGENDIAN) || defined (VM_TRACE)
 
 static
 void determineParams(Uint32 typeId,
@@ -1317,6 +1318,7 @@ void doConvert(Uint32 convSize,
     break;
   }
 }
+#endif
 
 /**
  * Convert attribute byte order if necessary
