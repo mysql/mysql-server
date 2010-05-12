@@ -8567,6 +8567,8 @@ inline void add_cond_and_fix(Item **e1, Item *e2)
 {
   if (*e1)
   {
+    if (!e2)
+      return;
     Item *res;
     if ((res= new Item_cond_and(*e1, e2)))
     {
@@ -8844,6 +8846,10 @@ static bool make_join_select(JOIN *join, Item *cond)
 	  make_cond_for_table(cond,
                               join->const_table_map,
                               (table_map) 0, 1);
+        /* Add conditions added by add_not_null_conds(). */
+        for (uint i= 0 ; i < join->const_tables ; i++)
+          add_cond_and_fix(&const_cond, join->join_tab[i].select_cond);
+
         DBUG_EXECUTE("where",print_where(const_cond,"constants", QT_ORDINARY););
         for (JOIN_TAB *tab= join->join_tab+join->const_tables;
              tab < join->join_tab+join->tables ; tab++)
@@ -8940,6 +8946,10 @@ static bool make_join_select(JOIN *join, Item *cond)
       tmp= NULL;
       if (cond)
         tmp= make_cond_for_table(cond,used_tables,current_map, 0);
+      /* Add conditions added by add_not_null_conds(). */
+      if (tab->select_cond)
+        add_cond_and_fix(&tmp, tab->select_cond);
+
       if (cond && !tmp && tab->quick)
       {						// Outer join
         if (tab->type != JT_ALL)

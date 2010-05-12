@@ -173,7 +173,7 @@ INSERT INTO t2 values (1),(2),(3);
 INSERT INTO t3 VALUES (1,'1'),(2,'2'),(1,'1'),(2,'2');
 explain SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	4	Using temporary
+1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	4	Using where; Using temporary
 1	SIMPLE	t3	ref	a	a	5	test.t1.b	2	Using index
 1	SIMPLE	t2	index	a	a	4	NULL	5	Using where; Using index; Distinct; Using join buffer
 SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
