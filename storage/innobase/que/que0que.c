@@ -29,6 +29,7 @@ Created 5/27/1996 Heikki Tuuri
 #include "que0que.ic"
 #endif
 
+#include "srv0que.h"
 #include "usr0sess.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
@@ -225,8 +226,6 @@ que_thr_create(
 	thr->resource = 0;
 	thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
-	thr->slot = NULL;
-
 	UT_LIST_ADD_LAST(thrs, parent->thrs, thr);
 
 	return(thr);
@@ -312,9 +311,7 @@ que_thr_end_wait_no_next_thr(
 	/* In MySQL we let the OS thread (not just the query thread) to wait
 	for the lock to be released: */
 
-	if (thr != NULL) {
-		srv_release_mysql_thread_if_suspended(thr);
-	}
+	srv_release_mysql_thread_if_suspended(thr);
 
 	/* srv_que_task_enqueue_low(thr); */
 }
