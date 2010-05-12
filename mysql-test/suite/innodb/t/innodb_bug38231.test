@@ -49,8 +49,8 @@ UNLOCK TABLES;
 # clean up
 
 # do not clean up - we do not know which of the three has been released
-# so the --reap command may hang because the executing command is still
-# running/waiting
+# so the --reap command may hang because the command that is being executed
+# in that connection is still running/waiting
 #-- connection lock_wait1
 #-- reap
 #UNLOCK TABLES;
