@@ -587,7 +587,12 @@ my_bool engine_table_options_frm_read(const uchar *buff, uint length,
     buff++;
   }
 
-  DBUG_RETURN(buff != buff_end);
+  if (buff < buff_end)
+    sql_print_warning("Table %`s was created in a later MariaDB version - "
+                      "unknown table attributes were ignored",
+                      share->table_name);
+
+  DBUG_RETURN(buff > buff_end);
 }
 
 /**
