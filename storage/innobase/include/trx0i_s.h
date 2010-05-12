@@ -44,6 +44,37 @@ i_s_locks_row_t::lock_data */
 i_s_trx_row_t::trx_query */
 #define TRX_I_S_TRX_QUERY_MAX_LEN	1024
 
+/** The maximum length of a string that can be stored in
+i_s_trx_row_t::trx_operation_state */
+#define TRX_I_S_TRX_OP_STATE_MAX_LEN	64
+
+/** The maximum length of a string that can be stored in
+i_s_trx_row_t::trx_foreign_key_error */
+#define TRX_I_S_TRX_FK_ERROR_MAX_LEN	256
+
+/** The maximum length of a string that can be stored in
+i_s_trx_row_t::trx_isolation_level */
+#define TRX_I_S_TRX_ISOLATION_LEVEL_MAX_LEN	16
+
+/** Safely copy strings in to the INNODB_TRX table's
+string based columns */
+#define TRX_I_S_STRING_COPY(data, field, constraint, tcache)	\
+do {								\
+	if (strlen(data) > constraint) {			\
+		char	buff[constraint + 1];			\
+		strncpy(buff, data, constraint);		\
+		buff[constraint] = '\0';			\
+								\
+		field = ha_storage_put_memlim(			\
+			(tcache)->storage, buff, constraint + 1,\
+			MAX_ALLOWED_FOR_STORAGE(tcache));	\
+	} else {						\
+		field = ha_storage_put_str_memlim(		\
+			(tcache)->storage, data,		\
+			MAX_ALLOWED_FOR_STORAGE(tcache));	\
+	}							\
+} while (0)
+
 /** A row of INFORMATION_SCHEMA.innodb_locks */
 typedef struct i_s_locks_row_struct	i_s_locks_row_t;
 /** A row of INFORMATION_SCHEMA.innodb_trx */
@@ -95,21 +126,49 @@ struct i_s_locks_row_struct {
 
 /** This structure represents INFORMATION_SCHEMA.innodb_trx row */
 struct i_s_trx_row_struct {
-	ullint			trx_id;		/*!< transaction identifier */
-	const char*		trx_state;	/*!< transaction state from
-						trx_get_que_state_str() */
-	ib_time_t		trx_started;	/*!< trx_struct::start_time */
+	ullint		trx_id;		/*!< transaction identifier */
+	const char*	trx_state;	/*!< transaction state from
+					trx_get_que_state_str() */
+	ib_time_t	trx_started;	/*!< trx_struct::start_time */
 	const i_s_locks_row_t*	requested_lock_row;
-						/*!< pointer to a row
-						in innodb_locks if trx
-						is waiting, or NULL */
-	ib_time_t		trx_wait_started;
-						/*!< trx_struct::wait_started */
-	ullint			trx_weight;	/*!< TRX_WEIGHT() */
-	ulint			trx_mysql_thread_id;
-						/*!< thd_get_thread_id() */
-	const char*		trx_query;	/*!< MySQL statement being
-						executed in the transaction */
+					/*!< pointer to a row
+					in innodb_locks if trx
+					is waiting, or NULL */
+	ib_time_t	trx_wait_started; /*!< trx_struct::wait_started */
+	ullint		trx_weight;	/*!< TRX_WEIGHT() */
+	ulint		trx_mysql_thread_id; /*!< thd_get_thread_id() */
+	const char*	trx_query;	/*!< MySQL statement being
+					executed in the transaction */
+	const char*	trx_operation_state; /*!< trx_struct::op_info */
+	ulint		trx_tables_in_use;/*!< n_mysql_tables_in_use in
+					 trx_struct */
+	ulint		trx_tables_locked;
+					/*!< mysql_n_tables_locked in
+					trx_struct */
+	ulint		trx_lock_structs;/*!< list len of trx_locks in
+					trx_struct */
+	ulint		trx_lock_memory_bytes;
+					/*!< mem_heap_get_size(
+					trx->lock_heap) */
+	ulint		trx_rows_locked;/*!< lock_number_of_rows_locked() */
+	ullint		trx_rows_modified;/*!< trx_struct::undo_no */
+	ulint		trx_concurrency_tickets;
+					/*!< n_tickets_to_enter_innodb in
+					trx_struct */
+	const char*	trx_isolation_level;
+					/*!< isolation_level in trx_struct*/
+	ibool		trx_unique_checks;
+					/*!< check_unique_secondary in
+					trx_struct*/
+	ibool		trx_foreign_key_checks;
+					/*!< check_foreigns in trx_struct */
+	const char*	trx_foreign_key_error;
+					/*!< detailed_error in trx_struct */
+	ibool		trx_has_search_latch;
+					/*!< has_search_latch in trx_struct */
+	ulint		trx_search_latch_timeout;
+					/*!< search_latch_timeout in
+					trx_struct */
 };
 
 /** This structure represents INFORMATION_SCHEMA.innodb_lock_waits row */
