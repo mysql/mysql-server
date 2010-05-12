@@ -32,8 +32,6 @@ ELSE()
   SET(HOSTNAME "hostname")
 ENDIF()
 
-# XXX: shouldn't we just have variables for all this stuff and centralise
-# XXX: their configuration in install_layout.cmake?
 IF(WIN32)
   SET(inst_location ${INSTALL_DOCREADMEDIR})
 ELSE()
@@ -47,8 +45,6 @@ FOREACH(inifile my-huge my-innodb-heavy-4G my-large my-medium my-small)
 ENDFOREACH()
 
 IF(UNIX)
-  # XXX: again, used elsewhere (scripts/), should be standardised in
-  # XXX: install_layout.cmake
   IF(INSTALL_LAYOUT MATCHES "STANDALONE")
     SET(prefix ".")
   ELSE()
