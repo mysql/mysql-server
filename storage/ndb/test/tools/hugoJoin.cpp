@@ -179,7 +179,7 @@ int main(int argc, char** argv){
 
   if (_seed == 0)
   {
-    _seed = NdbTick_CurrentMillisecond();
+    _seed = (unsigned)NdbTick_CurrentMillisecond();
   }
   ndbout << "--seed=" << _seed << endl;
 
