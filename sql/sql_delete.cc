@@ -248,6 +248,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
         free_underlaid_joins(thd, &thd->lex->select_lex);
         DBUG_RETURN(TRUE);
       }
+      thd->examined_row_count+= examined_rows;
       /*
         Filesort has already found and selected the rows we want to delete,
         so we don't need the where clause
@@ -304,6 +305,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   while (!(error=info.read_record(&info)) && !thd->killed &&
 	 ! thd->is_error())
   {
+    thd->examined_row_count++;
     // thd->is_error() is tested to disallow delete row on error
     if (!(select && select->skip_record())&& ! thd->is_error() )
     {
