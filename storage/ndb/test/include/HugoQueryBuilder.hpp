@@ -26,6 +26,8 @@
 class HugoQueryBuilder {
 public:
 
+  typedef Uint64 OptionMask;
+
   /**
    * Options that affects what kind of query is built
    */
@@ -64,11 +66,13 @@ public:
     /**
      * If not any options set, random query qill be created
      */
-    O_RANDOM = 0
+    O_RANDOM_OPTIONS = (OptionMask)((~(OptionMask)0) & 
+                                    ~(OptionMask)(O_SCAN | O_LOOKUP))
   };
-  typedef Uint64 OptionMask;
+  static const OptionMask OM_RANDOM_OPTIONS = (OptionMask)O_RANDOM_OPTIONS;
 
-  HugoQueryBuilder(Ndb* ndb, const NdbDictionary::Table**tabptr, OptionMask om){
+  HugoQueryBuilder(Ndb* ndb, const NdbDictionary::Table**tabptr, 
+                   OptionMask om = OM_RANDOM_OPTIONS){
     init();
     for (; * tabptr != 0; tabptr++)
       addTable(ndb, * tabptr);
