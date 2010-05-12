@@ -22,6 +22,7 @@
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"
+#include "table_setup_actors.h"
 #include "table_setup_consumers.h"
 #include "table_setup_instruments.h"
 #include "table_setup_objects.h"
@@ -36,6 +37,8 @@
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
+#include "pfs_setup_actor.h"
+#include "pfs_global.h"
 
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
@@ -50,6 +53,7 @@ static PFS_engine_table_share *all_shares[]=
   &table_events_waits_current::m_share,
   &table_events_waits_history::m_share,
   &table_events_waits_history_long::m_share,
+  &table_setup_actors::m_share,
   &table_setup_consumers::m_share,
   &table_setup_instruments::m_share,
   &table_setup_objects::m_share,
@@ -79,7 +83,7 @@ void PFS_engine_table_share::check_all_tables(THD *thd)
   DBUG_EXECUTE_IF("tampered_perfschema_table1",
                   {
                     /* Hack SETUP_INSTRUMENT, incompatible change. */
-                    all_shares[4]->m_field_def->count++;
+                    all_shares[5]->m_field_def->count++;
                   });
 
   for (current= &all_shares[0]; (*current) != NULL; current++)
@@ -804,6 +808,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
     case 40:
       name= "(PFS_FILE_HANDLE).MEMORY";
       size= file_handle_max * sizeof(PFS_file*);
+      total_memory+= size;
       break;
     case 41:
       name= "EVENTS_WAITS_SUMMARY_BY_THREAD_BY_EVENT_NAME.ROW_SIZE";
@@ -818,11 +823,50 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= thread_max * instr_class_per_thread * sizeof(PFS_single_stat_chain);
       total_memory+= size;
       break;
+    case 44:
+      name= "SETUP_ACTORS.ROW_SIZE";
+      size= sizeof(PFS_setup_actor);
+      break;
+    case 45:
+      name= "SETUP_ACTORS.ROW_COUNT";
+      size= setup_actor_max;
+      break;
+    case 46:
+      name= "SETUP_ACTORS.MEMORY";
+      size= setup_actor_max * sizeof(PFS_setup_actor);
+      total_memory+= size;
+      break;
+    case 47:
+      name= "(PFS_TABLE_SHARE).ROW_SIZE";
+      size= sizeof(PFS_table_share);
+      break;
+    case 48:
+      name= "(PFS_TABLE_SHARE).ROW_COUNT";
+      size= table_share_max;
+      break;
+    case 49:
+      name= "(PFS_TABLE_SHARE).MEMORY";
+      size= table_share_max * sizeof(PFS_table_share);
+      total_memory+= size;
+      break;
+    case 50:
+      name= "(PFS_TABLE).ROW_SIZE";
+      size= sizeof(PFS_table);
+      break;
+    case 51:
+      name= "(PFS_TABLE).ROW_COUNT";
+      size= table_max;
+      break;
+    case 52:
+      name= "(PFS_TABLE).MEMORY";
+      size= table_max * sizeof(PFS_table);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 44:
+    case 53:
       name= "PERFORMANCE_SCHEMA.MEMORY";
       size= total_memory;
       break;
@@ -844,5 +888,4 @@ end:
 }
 
 /** @} */
-
 

@@ -15,10 +15,6 @@
 
 # Tests for PERFORMANCE_SCHEMA
 
---source include/not_embedded.inc
---source include/have_perfschema.inc
---source include/have_lowercase0.inc
-
 show databases;
 
 use performance_schema;
@@ -38,6 +34,7 @@ show create table FILE_SUMMARY_BY_INSTANCE;
 show create table MUTEX_INSTANCES;
 show create table PERFORMANCE_TIMERS;
 show create table RWLOCK_INSTANCES;
+show create table SETUP_ACTORS;
 show create table SETUP_CONSUMERS;
 show create table SETUP_INSTRUMENTS;
 show create table SETUP_OBJECTS;

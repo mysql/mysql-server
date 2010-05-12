@@ -37,7 +37,7 @@ noinst_HEADERS = ha_perfschema.h pfs_engine_table.h pfs.h pfs_server.h \
 		pfs_global.h pfs_instr_class.h pfs_instr.h \
                 pfs_column_types.h pfs_column_values.h \
                 table_setup_instruments.h table_performance_timers.h \
-                table_setup_timers.h \
+                table_setup_actors.h table_setup_timers.h \
                 table_setup_consumers.h table_events_waits.h \
 		pfs_events_waits.h pfs_timer.h table_threads.h
 		table_sync_instances.h \
@@ -51,7 +51,7 @@ PSE_SOURCES = ha_perfschema.cc pfs_engine_table.cc pfs.cc pfs_server.cc \
 		pfs_global.cc pfs_instr_class.cc pfs_instr.cc \
                 pfs_column_values.cc \
                 table_setup_instruments.cc table_performance_timers.cc \
-                table_setup_timers.cc \
+                table_setup_actors.cc table_setup_timers.cc \
                 table_setup_consumers.cc table_events_waits.cc \
 		pfs_events_waits.cc pfs_timer.cc table_threads.cc \
 		table_sync_instances.cc \
