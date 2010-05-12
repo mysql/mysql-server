@@ -1146,6 +1146,16 @@ ROW(t1.b, 1111.11) <=> ROW('','');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 DROP TABLE t1;
+#
+# Bug #50335: Assertion `!(order->used & map)' in eq_ref_table
+# 
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b));
+INSERT INTO t1 VALUES (0,0), (1,1);
+SELECT * FROM t1 STRAIGHT_JOIN t1 t2 ON t1.a=t2.a AND t1.a=t2.b ORDER BY t2.a, t1.a;
+a	b	a	b
+0	0	0	0
+1	1	1	1
+DROP TABLE t1;
 End of 5.0 tests.
 CREATE TABLE t1 (f1 int);
 CREATE TABLE t2 (f1 int);
@@ -1174,14 +1184,4 @@ NULL
 NULL
 1
 DROP TABLE t1, t2, mm1;
-#
-# Bug #50335: Assertion `!(order->used & map)' in eq_ref_table
-# 
-CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a,b));
-INSERT INTO t1 VALUES (0,0), (1,1);
-SELECT * FROM t1 STRAIGHT_JOIN t1 t2 ON t1.a=t2.a AND t1.a=t2.b ORDER BY t2.a, t1.a;
-a	b	a	b
-0	0	0	0
-1	1	1	1
-DROP TABLE t1;
 End of 5.1 tests

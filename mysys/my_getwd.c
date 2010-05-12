@@ -50,16 +50,21 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
   DBUG_PRINT("my",("buf: 0x%lx  size: %u  MyFlags %d",
                    (long) buf, (uint) size, MyFlags));
 
+  if (size < 1)
+    DBUG_RETURN(-1);
+
   if (curr_dir[0])				/* Current pos is saved here */
     (void) strmake(buf,&curr_dir[0],size-1);
   else
   {
 #if defined(HAVE_GETCWD)
+    if (size < 2)
+      DBUG_RETURN(-1);
     if (!getcwd(buf,(uint) (size-2)) && MyFlags & MY_WME)
     {
       my_errno=errno;
       my_error(EE_GETWD,MYF(ME_BELL+ME_WAITTANG),errno);
-      return(-1);
+      DBUG_RETURN(-1);
     }
 #elif defined(HAVE_GETWD)
     {
@@ -68,11 +73,13 @@ int my_getwd(char * buf, size_t size, myf MyFlags)
       strmake(buf,pathname,size-1);
     }
 #elif defined(VMS)
+    if (size < 2)
+      DBUG_RETURN(-1);
     if (!getcwd(buf,size-2,1) && MyFlags & MY_WME)
     {
       my_errno=errno;
       my_error(EE_GETWD,MYF(ME_BELL+ME_WAITTANG),errno);
-      return(-1);
+      DBUG_RETURN(-1);
     }
     intern_filename(buf,buf);
 #else

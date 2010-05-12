@@ -1470,7 +1470,11 @@ struct Ha_data
     @sa trans_register_ha()
   */
   Ha_trx_info ha_info[2];
-
+  /**
+    NULL: engine is not bound to this thread
+    non-NULL: engine is bound to this thread, engine shutdown forbidden
+  */
+  plugin_ref lock;
   Ha_data() :ha_ptr(NULL) {}
 };
 
