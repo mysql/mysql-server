@@ -77,22 +77,18 @@ void engine_option_value::link(engine_option_value **start,
 static bool report_wrong_value(THD *thd, const char *name, const char *val,
                                my_bool suppress_warning)
 {
-  if (!(thd->variables.sql_mode & MODE_IGNORE_BAD_TABLE_OPTIONS))
+  if (suppress_warning)
+    return 0;
+
+  if (!(thd->variables.sql_mode & MODE_IGNORE_BAD_TABLE_OPTIONS) &&
+      !thd->slave_thread)
   {
     my_error(ER_BAD_OPTION_VALUE, MYF(0), val, name);
     return 1;
   }
 
-  /*
-    We may need to suppress warnings to avoid duplicate messages
-    about the same option (option list is parsed more than once during
-    CREATE/ALTER table).
-    Errors are not suppressed, as they abort the execution on the first parsing.
-  */
-  if (!suppress_warning)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_BAD_OPTION_VALUE,
-                        ER(ER_BAD_OPTION_VALUE), val, name);
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN, ER_BAD_OPTION_VALUE,
+                      ER(ER_BAD_OPTION_VALUE), val, name);
   return 0;
 }
 
@@ -100,23 +96,22 @@ static bool report_unknown_option(THD *thd, engine_option_value *val,
                                   my_bool suppress_warning)
 {
   DBUG_ENTER("report_unknown_option");
-  if (val->parsed)
+
+  if (val->parsed || suppress_warning)
   {
     DBUG_PRINT("info", ("parsed => exiting"));
     DBUG_RETURN(FALSE);
   }
 
-  if (!(thd->variables.sql_mode & MODE_IGNORE_BAD_TABLE_OPTIONS))
+  if (!(thd->variables.sql_mode & MODE_IGNORE_BAD_TABLE_OPTIONS) &&
+      !thd->slave_thread)
   {
     my_error(ER_UNKNOWN_OPTION, MYF(0), val->name.str);
     DBUG_RETURN(TRUE);
   }
 
-  if (!suppress_warning)
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_UNKNOWN_OPTION,
-                        ER(ER_UNKNOWN_OPTION),
-                        val->name.str);
+  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                      ER_UNKNOWN_OPTION, ER(ER_UNKNOWN_OPTION), val->name.str);
   DBUG_RETURN(FALSE);
 }
 
