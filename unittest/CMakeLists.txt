@@ -16,6 +16,7 @@
 CONFIGURE_FILE(unit.pl ${CMAKE_CURRENT_BINARY_DIR}/unit.pl COPYONLY)
 
 SET(unittests "")
+LIST(APPEND unittests "examples")
 LIST(APPEND unittests "mysys")
 LIST(APPEND unittests "mytap")
 LIST(APPEND unittests "gunit")
