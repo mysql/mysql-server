@@ -1346,8 +1346,8 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
           else
           {
             /* inner table, remember the interval of them */
-            tab->first_sj_inner_tab= tab;
-            tab->last_sj_inner_tab= tab + pos->n_sj_tables - 1;
+            j->first_sj_inner_tab= tab;
+            j->last_sj_inner_tab= tab + pos->n_sj_tables - 1;
           }
         }
         j[-1].do_firstmatch= jump_to;
@@ -9906,13 +9906,18 @@ uint check_join_cache_usage(JOIN_TAB *tab,
     goto no_join_cache;
   
   /*
+    Use join cache with FirstMatch semi-join strategy only when semi-join
+    contains only one table.
+  */
+  if (tab->is_inner_table_of_semi_join_with_first_match() &&
+      !tab->is_single_inner_of_semi_join_with_first_match())
+    goto no_join_cache;
+  /*
     Non-linked join buffers can't guarantee one match
   */
-  if (force_unlinked_cache && 
-      (tab->is_inner_table_of_semi_join_with_first_match() &&
-       !tab->is_single_inner_of_semi_join_with_first_match() ||
-       tab->is_inner_table_of_outer_join() &&
-       !tab->is_single_inner_of_outer_join()))
+  if (force_unlinked_cache &&
+      tab->is_inner_table_of_outer_join() &&
+      !tab->is_single_inner_of_outer_join())
     goto no_join_cache;
 
   /*
