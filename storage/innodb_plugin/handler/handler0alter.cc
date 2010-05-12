@@ -894,6 +894,8 @@ error:
 		prebuilt->trx->error_info = NULL;
 		/* fall through */
 	default:
+		trx->error_state = DB_SUCCESS;
+
 		if (new_primary) {
 			if (indexed_table != innodb_table) {
 				row_merge_drop_table(trx, indexed_table);
