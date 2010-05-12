@@ -80,6 +80,7 @@ using drizzled::plugin::InfoSchemaMethods;
 #include "systab_xt.h"
 #include "xaction_xt.h"
 #include "backup_xt.h"
+#include "heap_xt.h"
 
 #ifdef DEBUG
 //#define XT_USE_SYS_PAR_DEBUG_SIZES
