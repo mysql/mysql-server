@@ -2586,6 +2586,7 @@ test_dict_stats_save()
 #ifdef UNIV_DEBUG
 	index1.magic_n = DICT_INDEX_MAGIC_N;
 #endif /* UNIV_DEBUG */
+	index1.to_be_dropped = 0;
 	index1.cached = 1;
 	index1.n_uniq = 1;
 	index1.fields = index1_fields;
@@ -2604,6 +2605,7 @@ test_dict_stats_save()
 #ifdef UNIV_DEBUG
 	index2.magic_n = DICT_INDEX_MAGIC_N;
 #endif /* UNIV_DEBUG */
+	index2.to_be_dropped = 0;
 	index2.cached = 1;
 	index2.n_uniq = 4;
 	index2.fields = index2_fields;
