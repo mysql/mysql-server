@@ -5,6 +5,11 @@
 
 -- source include/have_innodb.inc
 
+# skip this test in embedded mode because "TRUNCATE TABLE bug38231_1"
+# hangs in that mode waiting for "lock_wait_timeout" although it is
+# preceded by --send
+-- source include/not_embedded.inc
+
 SET storage_engine=InnoDB;
 
 # we care only that the following SQL commands do not crash the server
@@ -44,8 +49,8 @@ UNLOCK TABLES;
 # clean up
 
 # do not clean up - we do not know which of the three has been released
-# so the --reap command may hang because the executing command is still
-# running/waiting
+# so the --reap command may hang because the command that is being executed
+# in that connection is still running/waiting
 #-- connection lock_wait1
 #-- reap
 #UNLOCK TABLES;

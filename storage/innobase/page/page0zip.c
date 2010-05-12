@@ -571,7 +571,7 @@ page_zip_dir_encode(
 	/* Traverse the list of stored records in the collation order,
 	starting from the first user record. */
 
-	rec = page + PAGE_NEW_INFIMUM, TRUE;
+	rec = page + PAGE_NEW_INFIMUM;
 
 	i = 0;
 

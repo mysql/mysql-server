@@ -381,9 +381,6 @@ struct que_thr_struct{
 					thus far */
 	ulint		lock_state;	/*!< lock state of thread (table or
 					row) */
-	struct srv_slot_struct*
-			slot;		/* The thread slot in the wait
-					array in srv_sys_t */
 };
 
 #define QUE_THR_MAGIC_N		8476583
