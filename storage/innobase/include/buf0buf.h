@@ -66,7 +66,8 @@ Created 11/5/1995 Heikki Tuuri
 #define MAX_BUFFER_POOLS 64		/*!< The maximum number of buffer
 					pools that can be defined */
 
-#define BUF_POOL_WATCH_SIZE 1		/*!< Maximum number of concurrent
+#define BUF_POOL_WATCH_SIZE		(srv_n_purge_threads + 1)
+					/*!< Maximum number of concurrent
 					buffer pool watches */
 
 extern	buf_pool_t*	buf_pool_ptr[MAX_BUFFER_POOLS]; /*!< The buffer pools
@@ -1646,7 +1647,7 @@ struct buf_pool_struct{
 	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES];
 					/*!< buddy free lists */
 
-	buf_page_t			watch[BUF_POOL_WATCH_SIZE];
+	buf_page_t*			watch;
 					/*!< Sentinel records for buffer
 					pool watches. Protected by
 				       	buf_pool->mutex. */

@@ -34,6 +34,8 @@ Created 3/14/1997 Heikki Tuuri
 #include "trx0types.h"
 #include "que0types.h"
 #include "row0types.h"
+#include "row0purge.h"
+#include "ut0vec.h"
 
 /********************************************************************//**
 Creates a purge node to a query graph.
@@ -42,8 +44,9 @@ UNIV_INTERN
 purge_node_t*
 row_purge_node_create(
 /*==================*/
-	que_thr_t*	parent,	/*!< in: parent node, i.e., a thr node */
-	mem_heap_t*	heap);	/*!< in: memory heap where created */
+	que_thr_t*	parent,		/*!< in: parent node, i.e., a
+					thr node */
+	mem_heap_t*	heap);		/*!< in: memory heap where created */
 /***********************************************************//**
 Determines if it is possible to remove a secondary index entry.
 Removal is possible if the secondary index entry does not refer to any
@@ -83,20 +86,16 @@ struct purge_node_struct{
 	/*----------------------*/
 	/* Local storage for this graph node */
 	roll_ptr_t	roll_ptr;/* roll pointer to undo log record */
-	trx_undo_rec_t*	undo_rec;/* undo log record */
-	trx_undo_inf_t*	reservation;/* reservation for the undo log record in
-				the purge array */
+	ib_vector_t*    undo_recs;/*!< Undo recs to purge */
+
 	undo_no_t	undo_no;/* undo number of the record */
+
 	ulint		rec_type;/* undo log record type: TRX_UNDO_INSERT_REC,
 				... */
-	btr_pcur_t	pcur;	/*!< persistent cursor used in searching the
-				clustered index record */
-	ibool		found_clust;/* TRUE if the clustered index record
-				determined by ref was found in the clustered
-				index, and we were able to position pcur on
-				it */
 	dict_table_t*	table;	/*!< table where purge is done */
+
 	ulint		cmpl_info;/* compiler analysis info of an update */
+
 	upd_t*		update;	/*!< update vector for a clustered index
 				record */
 	dtuple_t*	ref;	/*!< NULL, or row reference to the next row to
@@ -109,6 +108,14 @@ struct purge_node_struct{
 	mem_heap_t*	heap;	/*!< memory heap used as auxiliary storage for
 				row; this must be emptied after a successful
 				purge of a row */
+	ibool		found_clust;/* TRUE if the clustered index record
+				determined by ref was found in the clustered
+				index, and we were able to position pcur on
+				it */
+	btr_pcur_t	pcur;	/*!< persistent cursor used in searching the
+				clustered index record */
+	ibool		done;	/* Debug flag */
+
 };
 
 #ifndef UNIV_NONINL

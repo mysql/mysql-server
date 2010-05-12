@@ -127,8 +127,8 @@ static ulint		ios;
 
 /** io_handler_thread parameters for thread identification */
 static ulint		n[SRV_MAX_N_IO_THREADS + 6];
-/** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6];
+/** io_handler_thread identifiers, 32 is the maximum number of purge threads  */
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 6 + 32];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1544,6 +1544,10 @@ innobase_start_or_create_for_mysql(void)
 		after the double write buffer has been created. */
 		trx_sys_create();
 
+		trx_sys_init_at_db_start();
+
+		trx_purge_sys_create(srv_n_purge_threads);
+
 		dict_create();
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
@@ -1564,6 +1568,8 @@ innobase_start_or_create_for_mysql(void)
 		in any disk i/o, first call dict_boot */
 
 		dict_boot();
+
+		trx_purge_sys_create(srv_n_purge_threads);
 
 		trx_sys_init_at_db_start();
 
@@ -1623,6 +1629,8 @@ innobase_start_or_create_for_mysql(void)
 
 		dict_boot();
 		trx_sys_init_at_db_start();
+
+		trx_purge_sys_create(srv_n_purge_threads);
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
@@ -1743,13 +1751,22 @@ innobase_start_or_create_for_mysql(void)
 	os_thread_create(&srv_master_thread, NULL, thread_ids
 			 + (1 + SRV_MAX_N_IO_THREADS));
 
-	/* Currently we allow only a single purge thread. */
-	ut_a(srv_n_purge_threads == 0 || srv_n_purge_threads == 1);
-
 	/* If the user has requested a separate purge thread then
 	start the purge thread. */
-	if (srv_n_purge_threads == 1) {
-		os_thread_create(&srv_purge_thread, NULL, NULL);
+	if (srv_n_purge_threads >= 1) {
+
+		os_thread_create(
+			&srv_purge_coordinator_thread, NULL,
+			thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+
+		ut_a(UT_ARR_SIZE(thread_ids)
+		     > 5 + srv_n_purge_threads + SRV_MAX_N_IO_THREADS);
+
+		for (i = 1; i < srv_n_purge_threads; ++i) {
+			os_thread_create(
+				&srv_worker_thread, NULL,
+				thread_ids + 5 + i + SRV_MAX_N_IO_THREADS);
+		}
 	}
 
 #ifdef UNIV_DEBUG
@@ -2005,8 +2022,11 @@ innobase_shutdown_for_mysql(void)
 		/* c. We wake the master thread so that it exits */
 		srv_wake_master_thread();
 
-		/* d. We wake the purge thread so that it exits */
-		srv_wake_purge_thread();
+		/* d. We wake the purge thread(s) so that they exit */
+		if (srv_n_purge_threads > 0) {
+			srv_wake_purge_thread();
+			srv_wake_worker_threads(srv_n_purge_threads - 1);
+		}
 
 		/* e. Exit the i/o threads */
 

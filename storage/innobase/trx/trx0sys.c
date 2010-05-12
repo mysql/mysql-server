@@ -1022,8 +1022,6 @@ trx_sys_init_at_db_start(void)
 
 	UT_LIST_INIT(trx_sys->view_list);
 
-	trx_purge_sys_create();
-
 	mutex_exit(&kernel_mutex);
 
 	mtr_commit(&mtr);
@@ -1043,8 +1041,6 @@ trx_sys_create(void)
 	trx_sysf_create(&mtr);
 
 	mtr_commit(&mtr);
-
-	trx_sys_init_at_db_start();
 }
 
 /*****************************************************************//**

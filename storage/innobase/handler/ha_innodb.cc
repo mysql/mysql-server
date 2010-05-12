@@ -10735,11 +10735,11 @@ static MYSQL_SYSVAR_ULONG(purge_batch_size, srv_purge_batch_size,
 
 static MYSQL_SYSVAR_ULONG(purge_threads, srv_n_purge_threads,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Purge threads can be either 0 or 1. Default is 0.",
+  "Purge threads can be from 0 to 32. Default is 0.",
   NULL, NULL,
   0,			/* Default setting */
   0,			/* Minimum value */
-  1, 0);		/* Maximum value */
+  32, 0);		/* Maximum value */
 
 static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   PLUGIN_VAR_OPCMDARG,

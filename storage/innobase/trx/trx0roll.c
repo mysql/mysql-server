@@ -633,28 +633,22 @@ Creates an undo number array.
 @return	own: undo number array */
 UNIV_INTERN
 trx_undo_arr_t*
-trx_undo_arr_create(void)
-/*=====================*/
+trx_undo_arr_create(
+/*================*/
+	ulint		n_cells)	/*!< Number of cells */
 {
 	trx_undo_arr_t*	arr;
 	mem_heap_t*	heap;
-	ulint		i;
 
 	heap = mem_heap_create(1024);
 
-	arr = mem_heap_alloc(heap, sizeof(trx_undo_arr_t));
+	arr = mem_heap_zalloc(heap, sizeof(trx_undo_arr_t));
 
-	arr->infos = mem_heap_alloc(heap, sizeof(trx_undo_inf_t)
-				    * UNIV_MAX_PARALLELISM);
-	arr->n_cells = UNIV_MAX_PARALLELISM;
-	arr->n_used = 0;
+	arr->infos = mem_heap_zalloc(heap, sizeof(*arr->infos) * n_cells);
+
+	arr->n_cells = n_cells;
 
 	arr->heap = heap;
-
-	for (i = 0; i < UNIV_MAX_PARALLELISM; i++) {
-
-		(trx_undo_arr_get_nth_info(arr, i))->in_use = FALSE;
-	}
 
 	return(arr);
 }
@@ -667,8 +661,6 @@ trx_undo_arr_free(
 /*==============*/
 	trx_undo_arr_t*	arr)	/*!< in: undo number array */
 {
-	ut_ad(arr->n_used == 0);
-
 	mem_heap_free(arr->heap);
 }
 
@@ -1110,7 +1102,7 @@ trx_rollback(
 	trx->pages_undone = 0;
 
 	if (trx->undo_no_arr == NULL) {
-		trx->undo_no_arr = trx_undo_arr_create();
+		trx->undo_no_arr = trx_undo_arr_create(UNIV_MAX_PARALLELISM);
 	}
 
 	/* Build a 'query' graph which will perform the undo operations */
@@ -1132,6 +1124,7 @@ trx_rollback(
 		*next_thr = thr;
 		/*		srv_que_task_enqueue_low(thr2); */
 	} else {
+		ut_error;
 		srv_que_task_enqueue_low(thr);
 		/*		srv_que_task_enqueue_low(thr2); */
 	}
