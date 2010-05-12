@@ -20,8 +20,12 @@ bin_SCRIPTS= run-unit-tests
 EXTRA_DIST = unit.pl
 CLEANFILES = unit $(bin_SCRIPTS)
 
-unittests = mytap mysys @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@
-unittests += gunit
+unittests = \
+	examples \
+	mysys    \
+	mytap    \
+	gunit    \
+        @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@
 
 run-unit-tests: run-unit-tests.in
 	PWD=`pwd`; \

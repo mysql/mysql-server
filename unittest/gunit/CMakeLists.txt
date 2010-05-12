@@ -70,7 +70,7 @@ LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
 
 OPTION(ENABLE_DOWNLOADS
   "Download and build 3rd party source code components, e.g google test"
-  ON)
+  OFF)
 
 # Download and build gtest if not found
 IF(NOT DOWNLOAD_ROOT)
@@ -84,8 +84,8 @@ ENDIF()
 SET(GTEST_PACKAGE_NAME "gtest-1.5.0")
 SET(GTEST_TARBALL "${GTEST_PACKAGE_NAME}.tar.gz")
 SET(GTEST_DOWNLOAD_URL 
-# "http://googletest.googlecode.com/files/${GTEST_TARBALL}"
-  "https://clustra.norway.sun.com/~td136807/${GTEST_TARBALL}"
+  "http://googletest.googlecode.com/files/${GTEST_TARBALL}"
+# "https://clustra.norway.sun.com/~td136807/${GTEST_TARBALL}"
   )
   
 IF(NOT GTEST_FOUND)
