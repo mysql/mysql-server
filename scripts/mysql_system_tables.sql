@@ -413,6 +413,23 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
+-- TABLE SETUP_ACTORS
+--
+
+SET @l1="CREATE TABLE performance_schema.SETUP_ACTORS(";
+SET @l2="HOST CHAR(60) collate utf8_bin default '%' not null,";
+SET @l3="USER CHAR(16) collate utf8_bin default '%' not null,";
+SET @l4="ROLE CHAR(16) collate utf8_bin default '%' not null";
+SET @l5=")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @cmd=concat(@l1,@l2,@l3,@l4,@l5);
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
 -- TABLE SETUP_CONSUMERS
 --
 

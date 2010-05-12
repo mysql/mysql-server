@@ -44,6 +44,7 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   table_file_instances.h
   table_file_summary.h
   table_performance_timers.h
+  table_setup_actors.h
   table_setup_consumers.h
   table_setup_instruments.h
   table_setup_objects.h
@@ -68,6 +69,7 @@ SET(PERFSCHEMA_SOURCES ha_perfschema.h
   table_file_instances.cc
   table_file_summary.cc
   table_performance_timers.cc
+  table_setup_actors.cc
   table_setup_consumers.cc
   table_setup_instruments.cc
   table_setup_objects.cc
