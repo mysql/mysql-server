@@ -1,3 +1,19 @@
+2010-05-12	The InnoDB Team
+
+	* row/row0merge.c:
+	Fix Bug#53471 row_merge_drop_temp_indexes() refers freed memory, SEGVs
+
+2010-05-11	The InnoDB Team
+
+	* mysql-test/innodb_bug53290.test, mysql-test/innodb_bug53290.result,
+	include/rem0cmp.h, rem/rem0cmp.c, row/row0merge.c:
+	Fix Bug#53290 wrong duplicate key error when adding a unique index
+	via fast alter table
+
+2010-05-11	The InnoDB Team
+	* buf/buf0lru.c, include/buf0buf.ic:
+	Fix Bug#53307 valgrind: warnings in main.partition_innodb_plugin
+
 2010-05-05	The InnoDB Team
 
 	* row/row0merge.c:
