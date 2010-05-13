@@ -685,6 +685,18 @@ srv_get_task_queue_length(void);
 /*===========================*/
 
 /*********************************************************************//**
+Releases threads of the type given from suspension in the thread table.
+NOTE! The server mutex has to be reserved by the caller!
+@return number of threads released: this may be less than n if not
+enough threads were suspended at the moment */
+UNIV_INTERN
+ulint
+srv_release_threads(
+/*================*/
+	enum srv_thread_type	type,	/*!< in: thread type */
+	ulint			n);	/*!< in: number of threads to release */
+
+/*********************************************************************//**
 Suspends the calling thread to wait for the event in its thread slot.
 NOTE! The server mutex has to be reserved by the caller!
 @return	event for the calling thread to wait */

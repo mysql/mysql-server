@@ -775,13 +775,6 @@ row_purge_end(
 	ut_a(thr->run_node != NULL);
 
 	mem_heap_empty(node->heap);
-
-	/* The purge sys mutex is at a higher level than the
-	kernel mutex, make sure that the order is not violated.
-	The code will however work with atomics. */
-	ut_ad(!mutex_own(&kernel_mutex));
-
-	os_atomic_inc_ulint(&purge_sys->mutex, &purge_sys->n_completed, 1);
 }
 
 /***********************************************************//**

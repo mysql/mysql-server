@@ -1417,6 +1417,8 @@ loop:
 
 		srv_suspend_mysql_thread(thr);
 
+		ut_a(!thr_get_trx(thr)->is_purge);
+
 		if (thr_get_trx(thr)->error_state != DB_SUCCESS) {
 			/* thr was chosen as a deadlock victim or there was
 			a lock wait timeout */
