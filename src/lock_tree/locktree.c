@@ -1789,7 +1789,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
 
     r = 0;
 cleanup:
-    {
+    if (tree) {
 	LTM_STATUS s = &(tree->mgr->status);
 	if (r == 0) {
 	    s->read_lock++;
@@ -2015,7 +2015,7 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
 
     r = 0;
 cleanup:
-    {
+    if (tree) {
 	LTM_STATUS s = &(tree->mgr->status);
 	if (r == 0) {
 	    s->write_lock++;
