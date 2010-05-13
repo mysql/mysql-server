@@ -206,6 +206,7 @@ int toku_loader_create_loader(DB_ENV *env,
 		loader->i->evals[i].flags = DB_DBT_REALLOC;
 	    }
 	    loader->i->brt_loader = NULL;
+	    rval = 0;
 	}
 	else {
 	    char **XMALLOC_N(N, new_inames_in_env);
