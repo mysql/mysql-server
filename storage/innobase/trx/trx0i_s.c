@@ -427,7 +427,7 @@ fill_trx_row(
 /*=========*/
 	i_s_trx_row_t*		row,		/*!< out: result object
 						that's filled */
-	const trx_t*		trx,		/*!< in: transaction to
+	const trx_t*			trx,		/*!< in: transaction to
 						get data from */
 	const i_s_locks_row_t*	requested_lock_row,/*!< in: pointer to the
 						corresponding row in
@@ -470,25 +470,8 @@ fill_trx_row(
 
 	if (trx->mysql_query_str != NULL && *trx->mysql_query_str != NULL) {
 
-		if (strlen(*trx->mysql_query_str)
-		    > TRX_I_S_TRX_QUERY_MAX_LEN) {
-
-			char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
-
-			memcpy(query, *trx->mysql_query_str,
-			       TRX_I_S_TRX_QUERY_MAX_LEN);
-			query[TRX_I_S_TRX_QUERY_MAX_LEN] = '\0';
-
-			row->trx_query = ha_storage_put_memlim(
-				cache->storage, query,
-				TRX_I_S_TRX_QUERY_MAX_LEN + 1,
-				MAX_ALLOWED_FOR_STORAGE(cache));
-		} else {
-
-			row->trx_query = ha_storage_put_str_memlim(
-				cache->storage, *trx->mysql_query_str,
-				MAX_ALLOWED_FOR_STORAGE(cache));
-		}
+		TRX_I_S_STRING_COPY(*trx->mysql_query_str, row->trx_query,
+				    TRX_I_S_TRX_QUERY_MAX_LEN, cache);
 
 		if (row->trx_query == NULL) {
 
@@ -498,6 +481,74 @@ fill_trx_row(
 
 		row->trx_query = NULL;
 	}
+
+	if (trx->op_info != NULL && trx->op_info[0] != '\0') {
+
+		TRX_I_S_STRING_COPY(trx->op_info, row->trx_operation_state,
+				    TRX_I_S_TRX_OP_STATE_MAX_LEN, cache);
+
+		if (row->trx_operation_state == NULL) {
+
+			return(FALSE);
+		}
+	} else {
+
+		row->trx_operation_state = NULL;
+	}
+
+	row->trx_tables_in_use = trx->n_mysql_tables_in_use;
+
+	row->trx_tables_locked = trx->mysql_n_tables_locked;
+
+	row->trx_lock_structs = UT_LIST_GET_LEN(trx->trx_locks);
+
+	row->trx_lock_memory_bytes = mem_heap_get_size(trx->lock_heap);
+
+	row->trx_rows_locked = lock_number_of_rows_locked(trx);
+
+	row->trx_rows_modified = ut_conv_dulint_to_longlong(trx->undo_no);
+
+	row->trx_concurrency_tickets = trx->n_tickets_to_enter_innodb;
+
+	switch (trx->isolation_level) {
+	case TRX_ISO_READ_UNCOMMITTED:
+		row->trx_isolation_level = "READ UNCOMMITTED";
+		break;
+	case TRX_ISO_READ_COMMITTED:
+		row->trx_isolation_level = "READ COMMITTED";
+		break;
+	case TRX_ISO_REPEATABLE_READ:
+		row->trx_isolation_level = "REPEATABLE READ";
+		break;
+	case TRX_ISO_SERIALIZABLE:
+		row->trx_isolation_level = "SERIALIZABLE";
+		break;
+	/* Should not happen as TRX_ISO_READ_COMMITTED is default */
+	default:
+		row->trx_isolation_level = "UNKNOWN";
+	}
+
+	row->trx_unique_checks = (ibool) trx->check_unique_secondary;
+
+	row->trx_foreign_key_checks = (ibool) trx->check_foreigns;
+
+	if (trx->detailed_error != NULL && trx->detailed_error[0] != '\0') {
+
+		TRX_I_S_STRING_COPY(trx->detailed_error,
+				    row->trx_foreign_key_error,
+				    TRX_I_S_TRX_FK_ERROR_MAX_LEN, cache);
+
+		if (row->trx_foreign_key_error == NULL) {
+
+			return(FALSE);
+		}
+	} else {
+			row->trx_foreign_key_error = NULL;
+	}
+
+	row->trx_has_search_latch = (ibool) trx->has_search_latch;
+
+	row->trx_search_latch_timeout = trx->search_latch_timeout;
 
 	return(TRUE);
 }

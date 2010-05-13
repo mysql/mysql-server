@@ -3413,8 +3413,12 @@ srv_purge_coordinator_thread(
 		}
 	}
 
+	mutex_enter(&kernel_mutex);
+
 	/* Decrement the active count. */
 	srv_suspend_thread();
+
+	mutex_exit(&kernel_mutex);
 
 	/* Free the thread local memory. */
 	thr_local_free(os_thread_get_curr_id());

@@ -2120,9 +2120,12 @@ row_merge_drop_temp_indexes(void)
 
 		if (table) {
 			dict_index_t*	index;
+			dict_index_t*	next_index;
 
 			for (index = dict_table_get_first_index(table);
-			     index; index = dict_table_get_next_index(index)) {
+			     index; index = next_index) {
+
+				next_index = dict_table_get_next_index(index);
 
 				if (*index->name == TEMP_INDEX_PREFIX) {
 					row_merge_drop_index(index, table, trx);
