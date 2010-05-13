@@ -922,6 +922,7 @@ static
 void
 trx_purge_attach_undo_recs(
 /*=======================*/
+	ulint		n_purge_threads,/*!< number of purge threads */
 	trx_purge_t*	purge_sys,	/*!< purge instance */
 	purge_iter_t*	limit,		/*!< records read up to */
 	ulint		batch_size)	/*!< no. of records to purge */
@@ -951,7 +952,7 @@ trx_purge_attach_undo_recs(
 		node->done = FALSE;
 	}
 
-	ut_a(i == srv_n_purge_threads);
+	ut_a(i == n_purge_threads);
 
 	/* Fetch and parse the UNDO records. The UNDO records are added
 	to a per purge node vector. */
@@ -1121,7 +1122,8 @@ trx_purge(
 	}
 
 	/* Fetch the UNDO recs that need to be purged. */
-	trx_purge_attach_undo_recs(purge_sys, &purge_sys->limit, batch_size);
+	trx_purge_attach_undo_recs(
+		n_purge_threads, purge_sys, &purge_sys->limit, batch_size);
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
