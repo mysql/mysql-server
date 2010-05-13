@@ -276,7 +276,7 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   # Do a install that we later are to pack. Use the same paths as in
   # the build for the relevant directories.
   # ----------------------------------------------------------------------
-  set -x -v
+
   @MAKE@ DESTDIR=$BASE install \
     pkglibdir=@pkglibdir@ \
     pkgincludedir=@pkgincludedir@ \

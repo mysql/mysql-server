@@ -4395,7 +4395,7 @@ void st_table::mark_columns_used_by_index(uint index)
   MY_BITMAP *bitmap= &tmp_set;
   DBUG_ENTER("st_table::mark_columns_used_by_index");
 
-  set_keyread(TRUE);
+  enable_keyread();
   bitmap_clear_all(bitmap);
   mark_columns_used_by_index_no_reset(index, bitmap);
   column_bitmaps_set(bitmap, bitmap);
@@ -4418,7 +4418,7 @@ void st_table::restore_column_maps_after_mark_index()
 {
   DBUG_ENTER("st_table::restore_column_maps_after_mark_index");
 
-  set_keyread(FALSE);
+  disable_keyread();
   default_column_bitmaps();
   file->column_bitmaps_signal();
   DBUG_VOID_RETURN;

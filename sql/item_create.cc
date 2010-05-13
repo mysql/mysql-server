@@ -4185,8 +4185,11 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
     into a table, the order in which the rows are modified may differ
     between master and slave, because the order is undefined.  Hence,
     the statement is unsafe to log in statement format.
+
+    For normal INSERT's this is howevever safe
   */
-  thd->lex->set_stmt_unsafe();
+  if (thd->lex->sql_command != SQLCOM_INSERT)
+    thd->lex->set_stmt_unsafe();
 
   switch (arg_count) {
   case 0:

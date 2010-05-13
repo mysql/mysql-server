@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2010 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009-2010 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6760,7 +6761,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
     case JT_CONST:				// Only happens with left join
       if (table->covering_keys.is_set(tab->ref.key) &&
 	  !table->no_keyread)
-        table->set_keyread(TRUE);
+        table->enable_keyread();
       break;
     case JT_ALL:
       /*
@@ -6827,7 +6828,7 @@ make_join_readinfo(JOIN *join, ulonglong options)
 	  if (tab->select && tab->select->quick &&
               tab->select->quick->index != MAX_KEY && //not index_merge
 	      table->covering_keys.is_set(tab->select->quick->index))
-            table->set_keyread(TRUE);
+            table->enable_keyread();
 	  else if (!table->covering_keys.is_clear_all() &&
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
@@ -6911,7 +6912,7 @@ void JOIN_TAB::cleanup()
   limit= 0;
   if (table)
   {
-    table->set_keyread(FALSE);
+    table->disable_keyread();
     table->file->ha_index_or_rnd_end();
     /*
       We need to reset this for next select
@@ -8275,6 +8276,8 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   Item *item_const= item_equal->get_const();
   Item_equal_iterator it(*item_equal);
   Item *head;
+  DBUG_ASSERT(!cond || cond->type() == Item::COND_ITEM);
+
   if (item_const)
     head= item_const;
   else
@@ -8310,27 +8313,30 @@ static Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
         return 0;
       eq_item->set_cmp_func();
       eq_item->quick_fix_field();
-   }
+    }
   }
 
-  if (!cond && !eq_list.head())
-  {
-    if (!eq_item)
-      return new Item_int((longlong) 1,1);
-    return eq_item;
-  }
-
-  if (eq_item)
-    eq_list.push_back(eq_item);
   if (!cond)
-    cond= new Item_cond_and(eq_list);
+  {
+    if (eq_list.is_empty())
+    {
+      if (eq_item)
+        return eq_item;
+      return new Item_int((longlong) 1, 1);
+    }
+    /* eq_item is always set if list is not empty */
+    DBUG_ASSERT(eq_item);
+    eq_list.push_back(eq_item);
+    if (!(cond= new Item_cond_and(eq_list)))
+      return 0;                                 // Error
+  }
   else
   {
-    DBUG_ASSERT(cond->type() == Item::COND_ITEM);
-    if (eq_list.elements)
+    if (eq_item)
+      eq_list.push_back(eq_item);
+    if (!eq_list.is_empty())
       ((Item_cond *) cond)->add_at_head(&eq_list);
   }
-
   cond->quick_fix_field();
   cond->update_used_tables();
    
@@ -8371,6 +8377,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
                                              void *table_join_idx)
 {
   Item_equal *item_equal;
+  COND *org_cond= cond;                 // Return this in case of fatal error
 
   if (cond->type() == Item::COND_ITEM)
   {
@@ -8394,7 +8401,7 @@ static COND* substitute_for_best_equal_field(COND *cond,
     Item *item;
     while ((item= li++))
     {
-      Item *new_item =substitute_for_best_equal_field(item, cond_equal,
+      Item *new_item= substitute_for_best_equal_field(item, cond_equal,
                                                       table_join_idx);
       /*
         This works OK with PS/SP re-execution as changes are made to
@@ -8413,6 +8420,8 @@ static COND* substitute_for_best_equal_field(COND *cond,
         // This occurs when eliminate_item_equal() founds that cond is
         // always false and substitutes it with Item_int 0.
         // Due to this, value of item_equal will be 0, so just return it.
+        if (!cond)
+          return org_cond;                      // Error
         if (cond->type() != Item::COND_ITEM)
           break;
       }
@@ -8429,7 +8438,8 @@ static COND* substitute_for_best_equal_field(COND *cond,
     item_equal->sort(&compare_fields_by_table_order, table_join_idx);
     if (cond_equal && cond_equal->current_level.head() == item_equal)
       cond_equal= 0;
-    return eliminate_item_equal(0, cond_equal, item_equal);
+    cond= eliminate_item_equal(0, cond_equal, item_equal);
+    return cond ? cond : org_cond;
   }
   else
     cond->transform(&Item::replace_equal_field, 0);
@@ -11981,11 +11991,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 	!table->no_keyread &&
         (int) table->reginfo.lock_type <= (int) TL_READ_HIGH_PRIORITY)
     {
-      table->set_keyread(TRUE);
+      table->enable_keyread();
       tab->index= tab->ref.key;
     }
     error=join_read_const(tab);
-    table->set_keyread(FALSE);
+    table->disable_keyread();
     if (error)
     {
       tab->info="unique row not found";
@@ -12367,8 +12377,9 @@ join_read_first(JOIN_TAB *tab)
 {
   int error= 0;
   TABLE *table=tab->table;
-  if (table->covering_keys.is_set(tab->index) && !table->no_keyread)
-    table->set_keyread(TRUE);
+  if (table->covering_keys.is_set(tab->index) && !table->no_keyread &&
+      !table->key_read)
+    table->enable_keyread();
   tab->table->status=0;
   tab->read_record.read_record=join_read_next;
   tab->read_record.table=table;
@@ -12404,8 +12415,9 @@ join_read_last(JOIN_TAB *tab)
 {
   TABLE *table=tab->table;
   int error= 0;
-  if (table->covering_keys.is_set(tab->index) && !table->no_keyread)
-    table->set_keyread(TRUE);
+  if (table->covering_keys.is_set(tab->index) && !table->no_keyread &&
+      !table->key_read)
+    table->enable_keyread();
   tab->table->status=0;
   tab->read_record.read_record=join_read_prev;
   tab->read_record.table=table;
@@ -13868,7 +13880,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
            and best_key doesn't, then revert the decision.
         */
         if (!table->covering_keys.is_set(best_key))
-          table->set_keyread(FALSE);
+          table->disable_keyread();
         if (!quick_created)
 	{
           tab->index= best_key;
@@ -13880,8 +13892,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             delete select->quick;
             select->quick= 0;
           }
-          if (table->covering_keys.is_set(best_key))
-            table->set_keyread(TRUE);
+          if (table->covering_keys.is_set(best_key) && ! table->key_read)
+            table->enable_keyread();
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
           {
@@ -14056,7 +14068,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
         and in index_merge 'Only index' cannot be used
       */
       if (((uint) tab->ref.key != select->quick->index))
-        table->set_keyread(FALSE);
+        table->disable_keyread();
     }
     else
     {
@@ -14112,7 +14124,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;
   tab->join->examined_rows+=examined_rows;
-  table->set_keyread(FALSE); // Restore if we used indexes
+  table->disable_keyread(); // Restore if we used indexes
   DBUG_RETURN(table->sort.found_records == HA_POS_ERROR);
 err:
   DBUG_RETURN(-1);
@@ -14657,12 +14669,15 @@ store_record_in_cache(JOIN_CACHE *cache)
       {
 	uchar *str,*end;
         Field *field= copy->field;
-        if (field && field->maybe_null() && field->is_null())
+        if (field && field->is_null())
           end= str= copy->str;
         else
+        {
           for (str=copy->str,end= str+copy->length;
                end > str && end[-1] == ' ' ;
-               end--) ;
+               end--)
+            ;
+        }
 	length=(uint) (end-str);
 	memcpy(pos+2, str, length);
         int2store(pos, length);
@@ -17342,7 +17357,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
     else
       str->append(',');
 
-    if (master_unit()->item && item->is_autogenerated_name)
+    if (is_subquery_function() && item->is_autogenerated_name)
     {
       /*
         Do not print auto-generated aliases in subqueries. It has no purpose

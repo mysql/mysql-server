@@ -1927,3 +1927,4 @@ libmysqld/opt_table_elimination.cc
 libmysqld/ha_federatedx.cc
 tmp
 libmysqld/debug_sync.cc
+storage/pbxt/bin/xtstat

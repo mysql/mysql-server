@@ -280,6 +280,8 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I
 {
 protected:
   bool next,dont_free,in_ror_merged_scan;
+  /* true if we enabled key only reads */
+  bool doing_key_read;
 public:
   int error;
 protected:
@@ -623,6 +625,8 @@ private:
   bool have_min;         /* Specify whether we are computing */
   bool have_max;         /*   a MIN, a MAX, or both.         */
   bool seen_first_key;   /* Denotes whether the first key was retrieved.*/
+  bool doing_key_read;   /* true if we enabled key only reads */
+
   KEY_PART_INFO *min_max_arg_part; /* The keypart of the only argument field */
                                    /* of all MIN/MAX functions.              */
   uint min_max_arg_len;  /* The length of the MIN/MAX argument field */

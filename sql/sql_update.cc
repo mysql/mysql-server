@@ -841,7 +841,7 @@ int mysql_update(THD *thd,
 err:
   delete select;
   free_underlaid_joins(thd, select_lex);
-  table->set_keyread(FALSE);
+  table->disable_keyread();
   thd->abort_on_warning= 0;
   DBUG_RETURN(1);
 }

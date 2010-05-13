@@ -744,6 +744,7 @@ public:
   {
     return master_unit()->return_after_parsing();
   }
+  inline bool is_subquery_function() { return master_unit()->item != 0; }
 
   void mark_as_dependent(st_select_lex *last, Item *dependency);
 
