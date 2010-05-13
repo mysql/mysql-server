@@ -3269,7 +3269,7 @@ srv_worker_thread(
 
 		os_event_wait(event);
 
-		/* If there is no task in the queu, wakeup the purge
+		/* If there is no task in the queue, wakeup the purge
 		coordinator thread. */
 		srv_task_execute();
 
@@ -3367,31 +3367,32 @@ srv_purge_coordinator_thread(
 				       	srv_purge_batch_size);
 
 				/* During shutdown the worker threads can
-				exist when they detect a change in state.
+				exit when they detect a change in state.
 				Force the coordinator thread to do the purge
 				tasks from the work queue. */
-				while (srv_get_task_queue_length() > 0) {
+				while (srv_get_task_queue_length() > 0
+				       && !srv_fast_shutdown) {
 					ut_a(srv_shutdown_state);
 					srv_task_execute();
 				}
 
-				/* FIXME: Do some black magic. */
 				/* No point in sleeping during shutdown. */
 				if (srv_shutdown_state == 0) {
 					os_thread_sleep(sleep_ms);
 				}
 
+				/* FIXME: Do some black magic. */
 				if (!srv_check_activity(count)
 				    && trx_sys->rseg_history_len > 100) {
 					sleep_ms = 1;
-				} else if (trx_sys->rseg_history_len > 100000) {
-					sleep_ms -= rnd % 100000;
 				} else if (trx_sys->rseg_history_len > 50000) {
-					sleep_ms -= rnd % 50000;
+					sleep_ms -= rnd % 10000;
 				} else if (trx_sys->rseg_history_len > 25000) {
 					sleep_ms -= rnd % 1000;
+				} else if (trx_sys->rseg_history_len > 15000) {
+					sleep_ms -= rnd % 100;
 				} else {
-					sleep_ms += rnd % 500000;
+					sleep_ms += rnd % 20000;
 				}
 
 				if (sleep_ms > 20000000) {
