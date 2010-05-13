@@ -67,7 +67,7 @@ static char const * const new_iname_str[NUM_DBS] = {"qo_0000_35_c_L_0.tokudb",
 						    "qo_0003_35_c_L_3.tokudb",
 						    "qo_0004_35_c_L_4.tokudb"};
 
-
+static const char *loader_temp_prefix = "tokuld"; // 2536
 static int count_temp(char * dirname);
 static void get_inames(DBT* inames, DB** dbs);
 static int verify_file(char const * const dirname, char const * const filename);
@@ -82,7 +82,7 @@ count_temp(char * dirname) {
     
     struct dirent *ent;
     while ((ent=readdir(dir))) {
-	if (ent->d_type==DT_REG && strncmp(ent->d_name, "temp", 4)==0) {
+	if (ent->d_type==DT_REG && strncmp(ent->d_name, loader_temp_prefix, 6)==0) {
 	    n++;
 	}
     }

@@ -122,7 +122,8 @@ static int verify_empty(DB *db, DB_TXN *txn)
     return r;
 }
 
-static const char *loader_temp_prefix = "temp";
+//static const char *loader_temp_prefix = "temp";
+static const char *loader_temp_prefix = "tokuld"; // 2536
 static const char *loader_temp_suffix = "XXXXXX";
 
 int toku_loader_create_loader(DB_ENV *env, 

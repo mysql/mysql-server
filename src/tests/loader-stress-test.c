@@ -295,7 +295,7 @@ static void run_test(void)
 	assert(r<len);
 	r = system(syscmd);                                                                                   CKERR(r);
     }
-    r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                      CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
@@ -303,12 +303,10 @@ static void run_test(void)
     r = env->set_cachesize(env, CACHESIZE / 1024, (CACHESIZE % 1024)*1024*1024, 1);                           CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
-//    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
-    //Disable auto-checkpointing
-    r = env->checkpointing_set_period(env, 0);                                                                CKERR(r);
+    r = env->checkpointing_set_period(env, 60);                                                                CKERR(r);
 
     DBT desc;
     dbt_init(&desc, "foo", sizeof("foo"));
@@ -328,11 +326,9 @@ static void run_test(void)
 
     generate_permute_tables();
 
-//    printf("running test_loader()\n");
     // -------------------------- //
     test_loader(dbs);
     // -------------------------- //
-//    printf("done    test_loader()\n");
 
     for(int i=0;i<NUM_DBS;i++) {
         dbs[i]->close(dbs[i], 0);                                                                             CKERR(r);

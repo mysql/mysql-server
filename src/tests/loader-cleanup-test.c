@@ -79,7 +79,7 @@ enum {MAGIC=311};
 DBT old_inames[MAX_DBS];
 DBT new_inames[MAX_DBS];
 
-
+static const char *loader_temp_prefix = "tokuld"; // 2536
 static int count_temp(char * dirname);
 static void get_inames(DBT* inames, DB** dbs);
 static int verify_file(char * dirname, char * filename);
@@ -139,7 +139,7 @@ count_temp(char * dirname) {
     
     struct dirent *ent;
     while ((ent=readdir(dir))) {
-	if (ent->d_type==DT_REG && strncmp(ent->d_name, "temp", 4)==0) {
+	if (ent->d_type==DT_REG && strncmp(ent->d_name, loader_temp_prefix, 6)==0) {
 	    n++;
 	}
     }
