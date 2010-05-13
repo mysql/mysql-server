@@ -522,6 +522,7 @@ handle_new_error:
 	case DB_CANNOT_ADD_CONSTRAINT:
 	case DB_TOO_MANY_CONCURRENT_TRXS:
 	case DB_OUT_OF_FILE_SPACE:
+	case DB_INTERRUPTED:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
