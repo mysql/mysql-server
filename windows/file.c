@@ -251,6 +251,30 @@ toku_os_full_pwrite (int fd, const void *org_buf, size_t len, toku_off_t off)
     }
     assert(len == 0);
 }
+
+int
+toku_os_pwrite (int fd, const void *org_buf, size_t len, toku_off_t off)
+{
+    const uint8_t *buf = org_buf;
+    int result = 0;
+    while (len > 0) {
+        ssize_t r;
+        if (t_pwrite) {
+            r = t_pwrite(fd, buf, len, off);
+        } else {
+            r = pwrite(fd, buf, len, off);
+        }
+        if (r < 0) {
+            result = errno;
+            break;
+        }
+        len           -= r;
+        buf           += r;
+        off           += r;
+    }
+    return result;
+}
+
 /*
 {
     ssize_t r;

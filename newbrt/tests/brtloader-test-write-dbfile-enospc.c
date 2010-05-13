@@ -5,6 +5,7 @@
 
 // test the loader write dbfile function
 
+#define DONT_DEPRECATE_WRITES
 #include "includes.h"
 #include "test.h"
 #include "brtloader-internal.h"
@@ -13,10 +14,56 @@
 extern "C" {
 #endif
 
-static void traceit(const char *s) {
-    time_t t = time(NULL);
-    printf("%.24s %s\n", ctime(&t), s);
-    fflush(stdout);
+static int write_count, write_count_trigger, write_enospc;
+
+static void reset_write_counts(void) {
+    write_count = write_count_trigger = write_enospc = 0;
+}
+
+static void count_enospc(void) {
+    write_enospc++;
+}
+
+static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    write_count++;
+    size_t r;
+    if (write_count_trigger == write_count) {
+        count_enospc();
+	errno = ENOSPC;
+	r = -1;
+    } else {
+	r = fwrite(ptr, size, nmemb, stream);
+	if (r!=nmemb) {
+	    errno = ferror(stream);
+	}
+    }
+    return r;
+}
+
+static ssize_t bad_write(int fd, const void * bp, size_t len) {
+    ssize_t r;
+    write_count++;
+    if (write_count_trigger == write_count) {
+        count_enospc();
+	errno = ENOSPC;
+	r = -1;
+    } else {
+	r = write(fd, bp, len);
+    }
+    return r;
+}
+
+static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
+    ssize_t r;
+    write_count++;
+    if (write_count_trigger == write_count) {
+        count_enospc();
+	errno = ENOSPC;
+	r = -1;
+    } else {
+	r = pwrite(fd, bp, len, off);
+    }
+    return r;
 }
 
 static int qsort_compare_ints (const void *a, const void *b) {
@@ -41,7 +88,7 @@ static void err_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *
 }
 
 static void verify_dbfile(int n, const char *name) {
-    if (verbose) traceit("verify");
+    if (verbose) printf("verify\n");
 
     int r;
 
@@ -75,11 +122,11 @@ static void verify_dbfile(int n, const char *name) {
     r = toku_brt_cursor_close(cursor); assert(r == 0);
     r = toku_close_brt(t, 0); assert(r==0);
     r = toku_cachetable_close(&ct);assert(r==0);
-    if (verbose) traceit("verify done");
+    if (verbose) printf("verify done\n");
 }
 
-static void test_write_dbfile (char *template, int n, char *output_name) {
-    if (verbose) traceit("test start");
+static void write_dbfile (char *template, int n, char *output_name, BOOL expect_error) {
+    if (verbose) printf("test start %d %d\n", n, expect_error);
 
     DB *dest_db = NULL;
     struct brtloader_s bl = {.panic              = 0,
@@ -150,18 +197,22 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
 
-    if (verbose) traceit("write to file");
-    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2);
-    assert(r==0);
+    brtloader_set_os_fwrite(bad_fwrite);
+    toku_set_func_write(bad_write);
+    toku_set_func_pwrite(bad_pwrite);
 
+    r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2);
+    assert(expect_error ? r != 0 : r == 0);
+
+    brtloader_set_os_fwrite(NULL);
+    toku_set_func_write(NULL);
+    toku_set_func_pwrite(NULL);
+    
     r = queue_destroy(q2);
     assert(r==0);
    
     destroy_merge_fileset(&fs);
-    brtloader_fi_destroy(&bl.file_infos, FALSE);
-
-    // walk a cursor through the dbfile and verify the rows
-    verify_dbfile(n, output_name);
+    brtloader_fi_destroy(&bl.file_infos, expect_error);
 
     brt_loader_destroy_error_callback(&bl.error_callback);
 }
@@ -193,11 +244,6 @@ int test_main (int argc, const char *argv[]) {
     const char* directory = argv[0];
     char unlink_all[strlen(directory)+20];
     snprintf(unlink_all, strlen(directory)+20, "rm -rf %s", directory);
-    int r;
-    r = system(unlink_all);
-    CKERR(r);
-    r = toku_os_mkdir(directory, 0755);
-    CKERR(r);
 
     int  templen = strlen(directory)+15;
     char template[templen];
@@ -208,8 +254,24 @@ int test_main (int argc, const char *argv[]) {
     int  olen = snprintf(output_name, templen, "%s/test.tokudb", directory);
     assert (olen>0 && olen<templen);
 
-    test_write_dbfile(template, n, output_name);
-    
+    // callibrate
+    int r;
+    r = system(unlink_all); CKERR(r);
+    r = toku_os_mkdir(directory, 0755); CKERR(r);
+    write_dbfile(template, n, output_name, FALSE);
+    if (0) verify_dbfile(n, output_name);
+
+    int write_error_limit = write_count;
+    if (verbose) printf("write_error_limit=%d\n", write_error_limit);
+
+    for (int i = 1; i <= write_error_limit; i++) {
+        reset_write_counts();
+        write_count_trigger = i;
+        r = system(unlink_all); CKERR(r);
+        r = toku_os_mkdir(directory, 0755); CKERR(r);
+        write_dbfile(template, n, output_name, TRUE);
+    }
+
     return 0;
 }
 

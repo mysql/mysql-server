@@ -94,17 +94,11 @@ check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 
 check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.brtloader-test
 
-check_brtloader-test-write-dbfile$(BINSUF): EXTRA_ARGS=-n 1000000 dir.brtloader-test-write-dbfile
+check_brtloader-test-write-dbfile$(BINSUF): EXTRA_ARGS=-s -r 100000 dir.brtloader-test-write-dbfile
 
-brtloader-test$(BINSUF): brtloader-test.$(OEXT)
-ifeq ($(BRTLOADER),cilk)
-	$(CILKPP) $(CILKFLAGS) $< -o $@ $(LDFLAGS)
-endif
-ifeq ($(BRTLOADER),cxx)
-	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
-endif
+check_brtloader-test-write-dbfile-enospc$(BINSUF): EXTRA_ARGS=-s -r 10000 dir.brtloader-test-write-dbfile-enospc
 
-brtloader-test-write-dbfile$(BINSUF): brtloader-test-write-dbfile.$(OEXT)
+brtloader-%$(BINSUF): brtloader-%.$(OEXT)
 ifeq ($(BRTLOADER),cilk)
 	$(CILKPP) $(CILKFLAGS) $< -o $@ $(LDFLAGS)
 endif
