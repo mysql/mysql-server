@@ -8,11 +8,6 @@
  * When loader is fixed to not crash on failed call to toku_os_write(),
  * get rid of INDUCE_BAD_WRITE and -e argument.
  *
- * When loader is fixed to not crash when poll function returns non-zero
- * value with size_factor=1, get rid of INDUCE_ABORT and -a argument.
- *
- * When loader is fixed to not crash on failed call to do_fwrite() with small size factor,
- * get rid of SIZE_FACTOR and -s argument.
  */
 
 
@@ -71,8 +66,7 @@ int NUM_ROWS=100000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
 int INDUCE_BAD_WRITE=0;
-int INDUCE_ABORT = 0;
-int SIZE_FACTOR = 0;
+int assert_temp_files = 0;
 enum {MAGIC=311};
 
 
@@ -478,7 +472,10 @@ static void test_loader(enum test_type t, DB **dbs)
 	CKERR(r);
 	if (!USE_PUTS) {
 	    assert(poll_count>0);
-	    //	    assert(n);  // test is not complete unless temp files are created
+	    if (assert_temp_files && n == 0) {
+		printf("Test is not complete if no temp files are created.\n");
+		assert(0);
+	    }
 	}
     }
     else if (t == abort_via_poll) {
@@ -606,7 +603,7 @@ static void run_all_tests(void) {
 
     if (verbose) printf("\n\nTesting loader with loader abort and txn abort\n");
     run_test(abort_loader, 0);
-    if (!USE_PUTS && INDUCE_ABORT) {
+    if (!USE_PUTS) {
 	if (verbose) printf("\n\nTesting loader with loader abort_via_poll and txn abort\n");
 	run_test(abort_via_poll, 0);
     }
@@ -650,12 +647,14 @@ int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
 
     if (verbose) printf("\nTesting loader with default size_factor\n");
+    assert_temp_files = 0;
     run_all_tests();
-    if (SIZE_FACTOR) {
-	if (verbose) printf("\nTesting loader with size_factor=1\n");
-	db_env_set_loader_size_factor(1);
-	run_all_tests();
-    }
+
+    if (verbose) printf("\nTesting loader with size_factor=1\n");
+    db_env_set_loader_size_factor(1);
+    assert_temp_files = 1;
+    run_all_tests();
+
     return 0;
 }
 
@@ -692,13 +691,7 @@ static void do_args(int argc, char * const argv[]) {
 	    printf("Using puts\n");
         } else if (strcmp(argv[0], "-e")==0) {
 	    INDUCE_BAD_WRITE = 1;
-	    printf("Using enospc\n");
-	} else if (strcmp(argv[0], "-a")==0) {
-	    INDUCE_ABORT = 1;
-	    printf ("Testing abort via poll with smaller size factor\n");
-	} else if (strcmp(argv[0], "-s")==0) {
-	    SIZE_FACTOR = 1;
-	    printf ("Testing abort via poll with smaller size factor\n");
+	    printf("Using enospc return from toku_os_write()\n");
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
