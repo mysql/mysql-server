@@ -5024,7 +5024,7 @@ send_result_message:
         /* Clear the ticket released in close_thread_tables(). */
         table->mdl_request.ticket= NULL;
         DEBUG_SYNC(thd, "ha_admin_open_ltable");
-        if (table->table= open_ltable(thd, table, lock_type, 0))
+        if ((table->table= open_ltable(thd, table, lock_type, 0)))
         {
           result_code= table->table->file->ha_analyze(thd, check_opt);
           if (result_code == HA_ADMIN_ALREADY_DONE)
