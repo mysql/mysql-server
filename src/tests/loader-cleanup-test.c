@@ -86,6 +86,7 @@ static int verify_file(char * dirname, char * filename);
 static void assert_inames_missing(DBT* inames);
 static ssize_t bad_write(int, const void *, size_t);
 static void run_all_tests(void);
+static void free_inames(DBT* inames);
 
 int fwrite_count = 0;
 int fwrite_enospc = 0;
@@ -197,6 +198,13 @@ assert_inames_missing(DBT* inames) {
     }
 }
 
+static 
+void free_inames(DBT* inames) {
+    int i;
+    for (i=0; i<NUM_DBS; i++) {
+	toku_free(inames[i].data);
+    }
+}
 
 #if 0
 void print_inames(DB** dbs);
@@ -521,7 +529,8 @@ static void test_loader(enum test_type t, DB **dbs)
 	    assert_inames_missing(new_inames);
 	}
     }
-
+    free_inames(old_inames);
+    free_inames(new_inames);
 }
 
 
