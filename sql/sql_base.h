@@ -56,9 +56,6 @@ enum enum_resolution_type {
   RESOLVED_AGAINST_ALIAS
 };
 
-enum enum_open_table_action {OT_NO_ACTION= 0, OT_BACK_OFF_AND_RETRY,
-                             OT_DISCOVER, OT_REPAIR};
-
 enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
 				  IGNORE_ERRORS, REPORT_EXCEPT_NON_UNIQUE,
                                   IGNORE_EXCEPT_NON_UNIQUE};
