@@ -2704,16 +2704,18 @@ uint calculate_key_len(TABLE *table, uint key, const uchar *buf,
   SYNPOSIS
     check_db_name()
     org_name		Name of database and length
+    preserve_lettercase Preserve lettercase if true
 
   NOTES
-    If lower_case_table_names is set then database is converted to lower case
+    If lower_case_table_names is true and preserve_lettercase is false then
+    database is converted to lower case
 
   RETURN
     0	ok
     1   error
 */
 
-bool check_db_name(LEX_STRING *org_name)
+bool check_and_convert_db_name(LEX_STRING *org_name, bool preserve_lettercase)
 {
   char *name= org_name->str;
   uint name_length= org_name->length;
@@ -2721,7 +2723,7 @@ bool check_db_name(LEX_STRING *org_name)
   if (!name_length || name_length > NAME_LEN)
     return 1;
 
-  if (lower_case_table_names && name != any_db)
+  if (!preserve_lettercase && lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
 #if defined(USE_MB) && defined(USE_MB_IDENT)
