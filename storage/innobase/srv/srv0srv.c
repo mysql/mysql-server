@@ -936,7 +936,7 @@ Releases threads of the type given from suspension in the thread table.
 NOTE! The server mutex has to be reserved by the caller!
 @return number of threads released: this may be less than n if not
 enough threads were suspended at the moment */
-static
+UNIV_INTERN
 ulint
 srv_release_threads(
 /*================*/
@@ -3226,6 +3226,9 @@ srv_task_execute(void)
 
 		if (thr != NULL) {
 			que_run_threads(thr);
+
+			os_atomic_inc_ulint(
+				&purge_sys->mutex, &purge_sys->n_completed, 1);
 		}
 	}
 
@@ -3258,24 +3261,19 @@ srv_worker_thread(
 
 	srv_sys_mutex_exit();
 
-	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+	while (srv_shutdown_state == 0 && !srv_fast_shutdown) {
 
-		/* We read the task queue length without the covering
-		mutex because in the worst case we will have to wait
-		for a subsequent wakeup. */
-		if (UT_LIST_GET_LEN(srv_sys->tasks) == 0) {
-			os_event_t	event;
+		os_event_t	event;
 
-			event = srv_suspend_thread();
+		event = srv_suspend_thread();
 
-			os_event_wait(event);
-		}
+		os_event_wait(event);
 
 		/* If there is no task in the queu, wakeup the purge
 		coordinator thread. */
-		if (!srv_task_execute()) {
-			srv_wake_purge_thread_if_not_active();
-		}
+		srv_task_execute();
+
+		srv_wake_purge_thread_if_not_active();
 	}
 
 	srv_suspend_thread();
@@ -3318,6 +3316,8 @@ srv_purge_coordinator_thread(
 
 	ut_a(srv_n_purge_threads >= 1);
 
+	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
+
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_purge_thread_key);
 #endif /* UNIV_PFS_THREAD */
@@ -3338,17 +3338,7 @@ srv_purge_coordinator_thread(
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
 
-		/* If there are very few records to purge or the last
-		purge didn't purge any records then wait for activity.
-		We peek at the history len without holding any mutex
-		because in the worst case we will end up waiting for
-		the next purge event. */
-		
-		os_thread_sleep(50000000);
-
-		if (srv_force_recovery >= SRV_FORCE_NO_BACKGROUND
-		    || (srv_shutdown_state != 0 && srv_fast_shutdown)) {
-
+		if (srv_shutdown_state != 0 && srv_fast_shutdown) {
 			break;
 		}
 
@@ -3364,13 +3354,62 @@ srv_purge_coordinator_thread(
 			} while (n_pages_purged > 0 && !srv_fast_shutdown);
 
 		} else {
+			ulint	iterations = 0;
+			ulint	last_time = ut_time();
+			ulint	count = srv_sys->activity_count;
+			ulint	sleep_ms = ut_rnd_gen_ulint() % 10000;
+
 			do {
+				ulint	rnd = ut_rnd_gen_ulint();
+
 				trx_purge(
 					srv_n_purge_threads,
 				       	srv_purge_batch_size);
 
-				srv_task_execute();
-			} while (trx_sys->rseg_history_len > 1000);
+				/* During shutdown the worker threads can
+				exist when they detect a change in state.
+				Force the coordinator thread to do the purge
+				tasks from the work queue. */
+				while (srv_get_task_queue_length() > 0) {
+					ut_a(srv_shutdown_state);
+					srv_task_execute();
+				}
+
+				/* FIXME: Do some black magic. */
+				/* No point in sleeping during shutdown. */
+				if (srv_shutdown_state == 0) {
+					os_thread_sleep(sleep_ms);
+				}
+
+				if (!srv_check_activity(count)
+				    && trx_sys->rseg_history_len > 100) {
+					sleep_ms = 1;
+				} else if (trx_sys->rseg_history_len > 100000) {
+					sleep_ms -= rnd % 100000;
+				} else if (trx_sys->rseg_history_len > 50000) {
+					sleep_ms -= rnd % 50000;
+				} else if (trx_sys->rseg_history_len > 25000) {
+					sleep_ms -= rnd % 1000;
+				} else {
+					sleep_ms += rnd % 500000;
+				}
+
+				if (sleep_ms > 20000000) {
+					sleep_ms = rnd % 10000;
+				}
+
+				++iterations;
+
+				/* Take snapshot to check for user
+			       	activity later every 3 seconds. */
+				if (ut_time() - last_time > 3) {
+					count = srv_sys->activity_count;
+					last_time = ut_time();
+				}
+
+			} while (trx_sys->rseg_history_len > 100
+				 && (srv_shutdown_state == 0
+				     || !srv_fast_shutdown));
 		}
 	}
 
@@ -3409,8 +3448,6 @@ srv_que_task_enqueue_low(
 /*=====================*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ut_ad(thr);
-
 	mutex_enter(&srv_sys->tasks_mutex);
 
 	UT_LIST_ADD_LAST(queue, srv_sys->tasks, thr);

@@ -42,6 +42,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "row0upd.h"
 #include "trx0rec.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 #include "os0thread.h"
 
 /** The global data structure coordinating a purge */
@@ -1055,34 +1056,22 @@ trx_purge_wait_for_workers_to_complete(
 /*===================================*/
 	trx_purge_t*	purge_sys)	/*!< in: purge instance */ 
 {
-	mutex_enter(&kernel_mutex);
-
-	/* Ensure that the work queue empties out. Note that we also
-	check the active query thread count. This is because the
-	completed count decreases before the query fully completes. */
+	/* Ensure that the work queue empties out. */
 	while (purge_sys->n_submitted > purge_sys->n_completed
-	       || purge_sys->query->n_active_thrs > 0
-	       || srv_get_task_queue_length() > 0) {
+	       && srv_shutdown_state == 0) {
 
-		os_event_t	event;
+		srv_release_threads(SRV_WORKER, 1);
 
-		mutex_exit(&kernel_mutex);
-
-		srv_wake_worker_threads(1);
-
-		//event = srv_suspend_thread();
-
-		//os_event_wait(event);
-
-		os_thread_sleep(10000);
-
-		mutex_enter(&kernel_mutex);
+		os_thread_sleep(1000);
 	}
 
-	mutex_exit(&kernel_mutex);
-
-	/* There should be no outstanding tasks. */
-	ut_a(srv_get_task_queue_length() == 0);
+	// FIXME: They could exit after the check too
+	/* If shutdown is signalled then the worker threads can
+	simply exit via os_event_wait(). */
+	if (srv_shutdown_state == 0) {
+		/* There should be no outstanding tasks. */
+		ut_a(srv_get_task_queue_length() == 0);
+	}
 }
 
 /*******************************************************************//**
@@ -1097,9 +1086,9 @@ trx_purge(
 	ulint	batch_size)		/*!< in: the maximum number of records
 					to purge in one batch */
 {
-	ut_a(purge_sys->n_submitted >= purge_sys->n_completed);
+	que_thr_t*	thr = NULL;
 
-	trx_purge_wait_for_workers_to_complete(purge_sys);
+	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
 	mutex_enter(&purge_sys->mutex);
 
@@ -1142,13 +1131,10 @@ trx_purge(
 
 	/* Do we do an asynchronous purge or not ? */
 	if (n_purge_threads > 0) {
-		ulint		i = 0;
-		que_thr_t*	thr = NULL;
+		ulint	i = 0;
 
-		ut_a(purge_sys->n_submitted == purge_sys->n_completed);
-
-		for (i = 0; i < n_purge_threads; ++i) {
-
+		/* Submit the tasks to the work queue. */
+		for (i = 0; i < n_purge_threads - 1; ++i) {
 			thr = que_fork_scheduler_round_robin(
 				purge_sys->query, thr);
 
@@ -1157,20 +1143,25 @@ trx_purge(
 			srv_que_task_enqueue_low(thr);
 		}
 
-		purge_sys->n_submitted += n_purge_threads;
+		thr = que_fork_scheduler_round_robin(purge_sys->query, thr);
+		ut_a(thr != NULL);
+
+		purge_sys->n_submitted += n_purge_threads - 1;
+
+		goto run_synchronously;
 
 	/* Do it synchronously. */
 	} else {
-		que_thr_t*	thr;
-
-		ut_a(purge_sys->n_submitted == purge_sys->n_completed);
-
 		thr = que_fork_start_command(purge_sys->query);
 		ut_ad(thr);
 
+run_synchronously:
 		++purge_sys->n_submitted;
 
 		que_run_threads(thr);
+
+		os_atomic_inc_ulint(
+			&purge_sys->mutex, &purge_sys->n_completed, 1);
 
 		if (srv_print_thread_releases) {
 			fputs("Starting purge\n", stderr);
@@ -1181,6 +1172,10 @@ trx_purge(
 			fprintf(stderr,
 				"Purge ends; pages handled %lu\n",
 				(ulong) purge_sys->n_pages_handled);
+		}
+
+		if (n_purge_threads > 1) {
+			trx_purge_wait_for_workers_to_complete(purge_sys);
 		}
 	}
 
