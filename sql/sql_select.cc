@@ -18860,6 +18860,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   SQL_SELECT *select=tab->select;
   key_map usable_keys;
   QUICK_SELECT_I *save_quick= 0;
+  COND *orig_select_cond= 0;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
 
@@ -18927,11 +18928,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       if (table->covering_keys.is_set(ref_key))
 	usable_keys.intersect(table->covering_keys);
       if (tab->pre_idx_push_select_cond)
-      {
-        tab->set_select_cond(tab->pre_idx_push_select_cond, __LINE__);
-        if (tab->select)
-          tab->select->cond= tab->select_cond;
-      }
+        orig_select_cond= tab->set_cond(tab->pre_idx_push_select_cond, __LINE__);
+
       if ((new_ref_key= test_if_subkey(order, table, ref_key, ref_key_parts,
 				       &usable_keys)) < MAX_KEY)
       {
@@ -18952,7 +18950,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
 
           if (create_ref_for_key(tab->join, tab, keyuse, 
                                  tab->join->const_table_map))
-            DBUG_RETURN(0);
+            goto use_filesort;
 
           pick_table_access_method(tab);
 	}
@@ -18977,7 +18975,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                         tab->join->unit->select_limit_cnt,0,
                                         TRUE) <=
               0)
-            DBUG_RETURN(0);
+            goto use_filesort;
 	}
         ref_key= new_ref_key;
       }
@@ -19177,7 +19175,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
          tab->join->tables > tab->join->const_tables + 1) &&
          ((unsigned) best_key != table->s->primary_key ||
           !table->file->primary_key_is_clustered()))
-      DBUG_RETURN(0);
+      goto use_filesort;
 
     if (best_key >= 0)
     {
@@ -19217,9 +19215,15 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             table->set_keyread(TRUE);
           if (tab->pre_idx_push_select_cond)
           {
-            tab->set_select_cond(tab->pre_idx_push_select_cond, __LINE__);
-            if (tab->select)
-              tab->select->cond= tab->select_cond;
+            COND *tmp_cond= tab->pre_idx_push_select_cond;
+            if (orig_select_cond)
+            {
+              tmp_cond= and_conds(tmp_cond, orig_select_cond);
+              tmp_cond->quick_fix_field();
+            }
+            tab->set_cond(tmp_cond, __LINE__);
+            /* orig_select_cond was merged, no need to restore original one. */
+            orig_select_cond= 0;
           }
           table->file->ha_index_or_rnd_end();
           if (join->select_options & SELECT_DESCRIBE)
@@ -19254,7 +19258,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       order_direction= best_key_direction;
     }
     else
-      DBUG_RETURN(0); 
+      goto use_filesort; 
   } 
 
 check_reverse_order:                  
@@ -19278,7 +19282,7 @@ check_reverse_order:
         {
           tab->limit= 0;
           select->quick= save_quick;
-          DBUG_RETURN(0);                   // Use filesort
+          goto use_filesort;                   // Use filesort
         }
             
         /* ORDER BY range_key DESC */
@@ -19289,7 +19293,7 @@ check_reverse_order:
 	  delete tmp;
           select->quick= save_quick;
           tab->limit= 0;
-	  DBUG_RETURN(0);		// Reverse sort not supported
+	  goto use_filesort;		// Reverse sort not supported
 	}
 	select->quick=tmp;
       }
@@ -19309,7 +19313,14 @@ check_reverse_order:
   }
   else if (select && select->quick)
     select->quick->need_sorted_output();
+  if (orig_select_cond)
+    tab->set_cond(orig_select_cond, __LINE__);
   DBUG_RETURN(1);
+
+use_filesort:
+  if (orig_select_cond)
+    tab->set_cond(orig_select_cond, __LINE__);
+  DBUG_RETURN(0);
 }
 
 
