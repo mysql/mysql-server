@@ -3055,6 +3055,12 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
         if (!has_null1 && !has_null2) {
             cmp = tokudb_prefix_cmp_dbt_key(db, &packed_key1, &packed_key2);
             if (cmp == 0) {
+                memcpy(key_buff, key1.data, key1.size);
+                place_key_into_mysql_buff(
+                    key_info,
+                    table->record[0], 
+                    (uchar *) key_buff + 1
+                    );
                 *is_unique = false;
                 break;
             }
