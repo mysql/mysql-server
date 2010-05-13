@@ -1239,6 +1239,18 @@ int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         /* We jump from the last table to the first one */
         tab->loosescan_match_tab= tab + pos->n_sj_tables - 1;
 
+        /* For LooseScan, duplicate elimination is based on rows being sorted 
+           on key. We need to make sure that range select keep the sorted index
+           order. (When using MRR it may not.)  
+
+           Note: need_sorted_output() implementations for range select classes 
+           that do not support sorted output, will trigger an assert. This 
+           should happen since LooseScan strategy will not be picked if sorted 
+           output is not supported.
+        */
+        if (tab->select && tab->select->quick)
+          tab->select->quick->need_sorted_output();
+
         /* Calculate key length */
         keylen= 0;
         keyno= pos->loosescan_key;
@@ -8537,7 +8549,7 @@ JOIN::make_simple_join(JOIN *parent, TABLE *tmp_table)
   join_tab->cache_select= 0;
   join_tab->table=tmp_table;
   join_tab->select=0;
-  join_tab->select_cond=0;
+  join_tab->select_cond= NULL;
   join_tab->quick=0;
   join_tab->type= JT_ALL;			/* Map through all records */
   join_tab->keys.init();
@@ -8811,6 +8823,111 @@ make_outerjoin_info(JOIN *join)
   }
   DBUG_VOID_RETURN;
 }
+
+static bool extend_select_cond(JOIN_TAB *cond_tab, COND *tmp_cond)
+{
+  DBUG_ENTER("extend_select_cond");
+
+  COND *new_cond= !cond_tab->select_cond ? tmp_cond :
+    new Item_cond_and(cond_tab->select_cond, tmp_cond);
+  cond_tab->set_select_cond(new_cond, __LINE__);
+  if (!cond_tab->select_cond)
+    DBUG_RETURN(1);
+  cond_tab->select_cond->update_used_tables();
+  cond_tab->select_cond->quick_fix_field();
+  if (cond_tab->select)
+    cond_tab->select->cond= cond_tab->select_cond; 
+
+  DBUG_RETURN(0);
+}
+
+
+/**
+   Local helper function for make_join_select().
+
+   Push down conditions from all on expressions.
+   Each of these conditions are guarded by a variable
+   that turns if off just before null complemented row for
+   outer joins is formed. Thus, the condition from an
+   'on expression' are guaranteed not to be checked for
+   the null complemented row.
+*/ 
+static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
+{
+  DBUG_ENTER("pushdown_on_conditions");
+
+  /* First push down constant conditions from on expressions */
+  for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
+       join_tab < join->join_tab+join->tables ; join_tab++)
+  {
+    if (*join_tab->on_expr_ref)
+    {
+      JOIN_TAB *cond_tab= join_tab->first_inner;
+      COND *tmp_cond= make_cond_for_table(*join_tab->on_expr_ref,
+                                          join->const_table_map,
+                                          (table_map) 0, 0);
+      if (!tmp_cond)
+        continue;
+      tmp_cond= new Item_func_trig_cond(tmp_cond, &cond_tab->not_null_compl);
+      if (!tmp_cond)
+        DBUG_RETURN(1);
+      tmp_cond->quick_fix_field();
+
+      if (extend_select_cond(cond_tab, tmp_cond))
+        DBUG_RETURN(1);
+    }       
+  }
+
+  JOIN_TAB *first_inner_tab= last_tab->first_inner; 
+
+  /* Push down non-constant conditions from on expressions */
+  while (first_inner_tab && first_inner_tab->last_inner == last_tab)
+  {  
+    /* 
+       Table last_tab is the last inner table of an outer join.
+       An on expression is always attached to it.
+    */     
+    COND *on_expr= *first_inner_tab->on_expr_ref;
+
+    table_map used_tables= (join->const_table_map |
+                            OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
+    for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
+         join_tab <= last_tab ; join_tab++)
+    {
+      table_map current_map= join_tab->table->map;
+      used_tables|= current_map;
+      COND *tmp_cond= make_cond_for_table(on_expr, used_tables, current_map, 0);
+      if (!tmp_cond)
+        continue;
+
+      JOIN_TAB *cond_tab=
+        join_tab < first_inner_tab ? first_inner_tab : join_tab;
+      /*
+        First add the guards for match variables of
+        all embedding outer join operations.
+      */
+      if (!(tmp_cond= add_found_match_trig_cond(cond_tab->first_inner,
+                                                tmp_cond,
+                                                first_inner_tab)))
+        DBUG_RETURN(1);
+      /* 
+         Now add the guard turning the predicate off for 
+         the null complemented row.
+      */ 
+      tmp_cond= new Item_func_trig_cond(tmp_cond,
+                                        &first_inner_tab->not_null_compl);
+      if (tmp_cond)
+        tmp_cond->quick_fix_field();
+
+      /* Add the predicate to other pushed down predicates */
+      if (extend_select_cond(cond_tab, tmp_cond))
+        DBUG_RETURN(1);
+    }
+    first_inner_tab= first_inner_tab->first_upper;       
+  }
+  DBUG_RETURN(0);
+}
+
 
 static bool make_join_select(JOIN *join, Item *cond)
 {
@@ -9146,100 +9263,8 @@ static bool make_join_select(JOIN *join, Item *cond)
 	}
       }
       
-      /* 
-        Push down conditions from all on expressions.
-        Each of these conditions are guarded by a variable
-        that turns if off just before null complemented row for
-        outer joins is formed. Thus, the condition from an
-        'on expression' are guaranteed not to be checked for
-        the null complemented row.
-      */ 
-      JOIN_TAB *last_tab;
-      /* First push down constant conditions from on expressions */
-      for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
-           join_tab < join->join_tab+join->tables ; join_tab++)
-      {
-        if (*join_tab->on_expr_ref)
-        {
-          JOIN_TAB *cond_tab= join_tab->first_inner;
-          COND *tmp= make_cond_for_table(*join_tab->on_expr_ref,
-                                         join->const_table_map,
-                                         (table_map) 0, 0);
-          if (!tmp)
-            continue;
-            //goto end;
-          tmp= new Item_func_trig_cond(tmp, &cond_tab->not_null_compl);
-          if (!tmp)
-            DBUG_RETURN(1);
-          tmp->quick_fix_field();
-          COND *new_cond= !cond_tab->select_cond ? tmp :
-            new Item_cond_and(cond_tab->select_cond, tmp);
-          cond_tab->set_select_cond(new_cond, __LINE__);
-          if (!cond_tab->select_cond)
-	    DBUG_RETURN(1);
-          cond_tab->select_cond->update_used_tables();
-          cond_tab->select_cond->quick_fix_field();
-          if (cond_tab->select)
-            cond_tab->select->cond= cond_tab->select_cond; 
-        }       
-      }
-
-      /* Push down non-constant conditions from on expressions */
-      last_tab= tab;
-      while (first_inner_tab && first_inner_tab->last_inner == last_tab)
-      {  
-        /* 
-          Table tab is the last inner table of an outer join.
-          An on expression is always attached to it.
-	*/     
-        COND *on_expr= *first_inner_tab->on_expr_ref;
-
-        table_map used_tables2= (join->const_table_map |
-                                 OUTER_REF_TABLE_BIT | RAND_TABLE_BIT);
-	for (tab= join->join_tab+join->const_tables; tab <= last_tab ; tab++)
-        {
-          current_map= tab->table->map;
-          used_tables2|= current_map;
-          COND *tmp_cond= make_cond_for_table(on_expr, used_tables2,
-                                              current_map, 0);
-          if (tmp_cond)
-          {
-            JOIN_TAB *cond_tab= tab < first_inner_tab ? first_inner_tab : tab;
-            /*
-              First add the guards for match variables of
-              all embedding outer join operations.
-	    */
-            if (!(tmp_cond= add_found_match_trig_cond(cond_tab->first_inner,
-                                                     tmp_cond,
-                                                     first_inner_tab)))
-              DBUG_RETURN(1);
-            /* 
-              Now add the guard turning the predicate off for 
-              the null complemented row.
-	    */ 
-            DBUG_PRINT("info", ("Item_func_trig_cond"));
-            tmp_cond= new Item_func_trig_cond(tmp_cond,
-                                              &first_inner_tab->
-                                              not_null_compl);
-            DBUG_PRINT("info", ("Item_func_trig_cond 0x%lx",
-                                (ulong) tmp_cond));
-            if (tmp_cond)
-              tmp_cond->quick_fix_field();
-	    /* Add the predicate to other pushed down predicates */
-            DBUG_PRINT("info", ("Item_cond_and"));
-            COND *new_cond= !cond_tab->select_cond ? tmp_cond :
-              new Item_cond_and(cond_tab->select_cond, tmp_cond);
-            cond_tab->set_select_cond(new_cond, __LINE__);
-            if (!cond_tab->select_cond)
-	      DBUG_RETURN(1);
-            cond_tab->select_cond->update_used_tables();
-            cond_tab->select_cond->quick_fix_field();
-            if (cond_tab->select)
-              cond_tab->select->cond= cond_tab->select_cond; 
-          }              
-        }
-        first_inner_tab= first_inner_tab->first_upper;       
-      }
+      if (pushdown_on_conditions(join, tab))
+        DBUG_RETURN(1);
 
       if (save_used_tables && !(used_tables & 
                                 ~(tab->emb_sj_nest->sj_inner_tables |

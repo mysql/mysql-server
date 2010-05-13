@@ -960,12 +960,15 @@ create table t3 (a int);
 insert into t3 select A.a + 10*B.a from t0 A, t0 B;
 
 explain select * from t3 where a in (select kp1 from t1 where kp1<20);
+select * from t3 where a in (select kp1 from t1 where kp1<20);
 
 create table t4 (pk int primary key);
 insert into t4 select a from t3;
 
-explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
-and t4.pk=t1.c);
+explain select * from t3 where a in 
+          (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
+select * from t3 where a in 
+  (select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 
 drop table t1, t3, t4;
 

@@ -1164,14 +1164,59 @@ explain select * from t3 where a in (select kp1 from t1 where kp1<20);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using where; Using index; LooseScan
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer
+select * from t3 where a in (select kp1 from t1 where kp1<20);
+a
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
 create table t4 (pk int primary key);
 insert into t4 select a from t3;
-explain select * from t3 where a in (select t1.kp1 from t1,t4 where kp1<20
-and t4.pk=t1.c);
+explain select * from t3 where a in 
+(select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using index condition; Using where; Using MRR; LooseScan
+1	PRIMARY	t1	range	kp1	kp1	5	NULL	48	Using index condition; Using where; LooseScan
 1	PRIMARY	t4	eq_ref	PRIMARY	PRIMARY	4	test.t1.c	1	Using index; FirstMatch(t1)
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	100	Using where; Using join buffer
+select * from t3 where a in 
+(select t1.kp1 from t1,t4 where kp1<20 and t4.pk=t1.c);
+a
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
 drop table t1, t3, t4;
 create table t1 (a int) as select * from t0 where a < 5;
 set @save_max_heap_table_size=@@max_heap_table_size;
