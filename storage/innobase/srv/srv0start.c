@@ -102,20 +102,6 @@ static char*	srv_monitor_file_name;
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
 
 
-/* Avoid warnings when using purify */
-
-#ifdef HAVE_purify
-static int inno_bcmp(register const char *s1, register const char *s2,
-	register uint len)
-{
-	while ((len-- != 0) && (*s1++ == *s2++))
-		;
-
-	return(len + 1);
-}
-#define memcmp(A,B,C) inno_bcmp((A),(B),(C))
-#endif
-
 static
 char*
 srv_parse_megabytes(
