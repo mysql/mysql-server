@@ -1137,27 +1137,31 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
 }
 
 
-/*
+/**
   Setup the strategies to eliminate semi-join duplicates.
   
-  SYNOPSIS
-    setup_semijoin_dups_elimination()
-      join           Join to process
-      options        Join options (needed to see if join buffering will be 
-                     used or not)
-      no_jbuf_after  Another bit of information re where join buffering will
-                     be used.
+  @param join           Join to process
+  @param options        Join options (needed to see if join buffering will be 
+                        used or not)
+  @param no_jbuf_after  Another bit of information re where join buffering will
+                        be used.
 
-  DESCRIPTION
-    Setup the strategies to eliminate semi-join duplicates. ATM there are 4
-    strategies:
+  @retval FALSE  OK 
+  @retval TRUE   Out of memory error
+
+  @details
+    Setup the strategies to eliminate semi-join duplicates.
+    At the moment there are 5 strategies:
 
     1. DuplicateWeedout (use of temptable to remove duplicates based on rowids
                          of row combinations)
     2. FirstMatch (pick only the 1st matching row combination of inner tables)
     3. LooseScan (scanning the sj-inner table in a way that groups duplicates
                   together and picking the 1st one)
-    4. SJ-Materialization.
+    4. MaterializeLookup (Materialize inner tables, then setup a scan over
+                          outer correlated tables, lookup in materialized table)
+    5. MaterializeScan (Materialize inner tables, then setup a scan over
+                        materialized tables, perform lookup in outer tables)
     
     The join order has "duplicate-generating ranges", and every range is
     served by one strategy or a combination of FirstMatch with with some
@@ -1197,7 +1201,7 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
       +------+  +==================+  +---+
         (1)             (2)          (3)
 
-      (1) - Prefix of outer and non-correlated tables
+      (1) - Prefix of outer correlated and non-correlated tables
       (2) - The handled range, which may contain only inner and
             non-correlated tables.
       (3) - The suffix of outer non-correlated tables.
@@ -1219,21 +1223,49 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
             application of FirstMatch strategy, with the exception that
             outer IN-correlated tables are considered to be non-correlated.
 
-      (4) - THe suffix of outer and outer non-correlated tables.
+      (4) - The suffix of outer correlated and non-correlated tables.
 
+    MaterializeLookup strategy
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+     (ot|nt)*  [ it (it)* ]  (nt)*
+     +------+  +==========+  +---+
+        (1)         (2)        (3)
+
+      (1) - Prefix of outer correlated and non-correlated tables.
+
+      (2) - The handled range, which may contain only inner tables.
+            The inner tables are materialized in a temporary table that is
+            later used as a lookup structure for the outer correlated tables.
+
+      (3) - The suffix of outer non-correlated tables.
+
+    MaterializeScan strategy
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+     (ot|nt)*  [ it (it)* ]  (ot|nt)*
+     +------+  +==========+  +-----+
+        (1)         (2)         (3)
+
+      (1) - Prefix of outer correlated and non-correlated tables.
+
+      (2) - The handled range, which may contain only inner tables.
+            The inner tables are materialized in a temporary table which is
+            later used to setup a scan.
+
+      (3) - The suffix of outer correlated and non-correlated tables.
+
+  Note that MaterializeLookup and MaterializeScan has overlap in their patterns.
+  It may be possible to consolidate the materialization strategies into one.
   
   The choice between the strategies is made by the join optimizer (see
   advance_sj_state() and fix_semijoin_strategies_for_picked_join_order()).
   This function sets up all fields/structures/etc needed for execution except
   for setup/initialization of semi-join materialization which is done in 
   setup_sj_materialization() (todo: can't we move that to here also?)
-
-  RETURN
-    FALSE  OK 
-    TRUE   Out of memory error
 */
 
-int setup_semijoin_dups_elimination(JOIN *join, ulonglong options, 
+int setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
                                     uint no_jbuf_after)
 {
   uint i;
@@ -7233,58 +7265,75 @@ optimize_straight_join(JOIN *join, table_map join_tables)
 }
 
 
-/*
-  Check if the last tables of the partial join order allow to use
-  sj-materialization strategy for them
+/**
+  Check whether a semijoin materialization strategy is allowed for
+  the current (semi)join table order.
 
-  SYNOPSIS
-    at_sjmat_pos()
-      join              
-      remaining_tables
-      tab                the last table's join tab
-      idx                last table's index
-      loose_scan    OUT  TRUE <=> use LooseScan
+  @param join              Join object
+  @param remaining_tables  Tables that have not yet been added to the join plan
+  @param tab               Join tab of the table being considered
+  @param idx               Index of table with join tab "tab"
 
-  RETURN
-    TRUE   Yes, can apply sj-materialization
-    FALSE  No, some of the requirements are not met
+  @retval SJ_OPT_NONE               - Materialization not applicable
+  @retval SJ_OPT_MATERIALIZE_LOOKUP - Materialization with lookup applicable
+  @retval SJ_OPT_MATERIALIZE_SCAN   - Materialization with scan applicable
+
+  @details
+  The function checks applicability of both MaterializeLookup and
+  MaterializeScan strategies.
+  No checking is made until "tab" is pointing to the last inner table
+  of a semijoin nest that can be executed using materialization -
+  for all other cases SJ_OPT_NONE is returned.
+
+  MaterializeLookup and MaterializeScan are both applicable in the following
+  two cases:
+
+   1. There are no correlated outer tables, or
+   2. There are correlated outer tables within the prefix only.
+
+  In this case, MaterializeLookup is returned based on a heuristic decision.
 */
 
-SJ_MATERIALIZATION_INFO *
-at_sjmat_pos(const JOIN *join, table_map remaining_tables, const JOIN_TAB *tab,
-             uint idx, bool *loose_scan)
+static int
+semijoin_order_allows_materialization(const JOIN *join,
+                                      table_map remaining_tables,
+                                      const JOIN_TAB *tab, uint idx)
 {
+  DBUG_ASSERT(!(remaining_tables & tab->table->map));
   /*
    Check if 
     1. We're in a semi-join nest that can be run with SJ-materialization
-    2. All the tables correlated through the IN subquery are in the prefix
+    2. All the tables from the subquery are in the prefix
   */
-  TABLE_LIST *emb_sj_nest= tab->emb_sj_nest;
-  table_map suffix= remaining_tables & ~tab->table->map;
-  if (emb_sj_nest && emb_sj_nest->sj_mat_info &&
-      !(suffix & emb_sj_nest->sj_inner_tables))
-  {
-    /* 
-      Walk back and check if all immediately preceding tables are from
-      this semi-join.
-    */
-    uint n_tables= my_count_bits(tab->emb_sj_nest->sj_inner_tables);
-    for (uint i= 1; i < n_tables ; i++)
-    {
-      if (join->positions[idx - i].table->emb_sj_nest != tab->emb_sj_nest)
-        return NULL;
-    }
-    *loose_scan= test(remaining_tables & ~tab->table->map &
-                             (emb_sj_nest->sj_inner_tables |
-                              emb_sj_nest->nested_join->sj_depends_on));
-    if (*loose_scan && !emb_sj_nest->sj_subq_pred->sjm_scan_allowed)
-      return NULL;
-    else
-      return emb_sj_nest->sj_mat_info;
-  }
-  return NULL;
-}
+  const TABLE_LIST *emb_sj_nest= tab->emb_sj_nest;
+  if (!emb_sj_nest ||
+      !emb_sj_nest->sj_mat_info ||
+      (remaining_tables & emb_sj_nest->sj_inner_tables))
+    return SJ_OPT_NONE;
 
+  /* 
+    Walk back and check if all immediately preceding tables are from
+    this semi-join.
+  */
+  const uint n_tables= my_count_bits(emb_sj_nest->sj_inner_tables);
+  for (uint i= 1; i < n_tables ; i++)
+  {
+    if (join->positions[idx - i].table->emb_sj_nest != emb_sj_nest)
+      return SJ_OPT_NONE;
+  }
+
+  /*
+    Must use MaterializeScan strategy if there are outer correlated tables
+    among the remaining tables, otherwise use MaterializeLookup.
+  */
+  if (remaining_tables & emb_sj_nest->nested_join->sj_depends_on)
+  {
+    if (emb_sj_nest->sj_subq_pred->sjm_scan_allowed)
+      return SJ_OPT_MATERIALIZE_SCAN;
+    return SJ_OPT_NONE;
+  }
+  return SJ_OPT_MATERIALIZE_LOOKUP;
+}
 
 
 /**
@@ -10368,12 +10417,12 @@ bool setup_sj_materialization(JOIN_TAB *tab)
       Consider the query:
         SELECT * FROM ot WHERE ot.col1 IN (SELECT it.col2 FROM it)
       
-      Suppose it's executed with SJ-Materialization-scan. We choose to do scan
+      Suppose it's executed with MaterializeScan. We choose to do scan
       if we can't do the lookup, i.e. the join order is (it, ot). The plan
       would look as follows:
 
         table    access method      condition
-         it      materialize+scan    -
+         it      MaterializeScan     -
          ot      (whatever)          ot1.col1=it.col2 (C2)
 
       The condition C2 refers to current row of table it. The problem is
@@ -13230,7 +13279,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       MAX_TABLES : pos[-1].first_loosescan_table;
     pos->loosescan_need_tables= pos[-1].loosescan_need_tables;
 
-    // SJ-Materialization Scan
+    // MaterializeScan
     pos->sjm_scan_need_tables=
       (pos[-1].sj_strategy == SJ_OPT_MATERIALIZE_SCAN) ?
       0 : pos[-1].sjm_scan_need_tables;
@@ -13403,74 +13452,71 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   }
   join->cur_dups_producing_tables &= ~handled_by_fm_or_ls;
 
-  /* 4. SJ-Materialization and SJ-Materialization-scan strategy handler */
-  bool sjm_scan;
-  SJ_MATERIALIZATION_INFO *mat_info;
-  if ((mat_info= at_sjmat_pos(join, remaining_tables,
-                              new_join_tab, idx, &sjm_scan)))
+  /* 4. MaterializeLookup and MaterializeScan strategy handler */
+  const int sjm_strategy=
+    semijoin_order_allows_materialization(join, remaining_tables,
+                                          new_join_tab, idx);
+  if (sjm_strategy == SJ_OPT_MATERIALIZE_SCAN)
   {
-    if (sjm_scan)
+    /*
+      We cannot evaluate this option now. This is because we cannot
+      account for fanout of sj-inner tables yet:
+
+        ntX  SJM-SCAN(it1 ... itN) | ot1 ... otN  |
+                                   ^(1)           ^(2)
+
+      we're now at position (1). SJM temptable in general has multiple
+      records, so at point (1) we'll get the fanout from sj-inner tables (ie
+      there will be multiple record combinations).
+
+      The final join result will not contain any semi-join produced
+      fanout, i.e. tables within SJM-SCAN(...) will not contribute to
+      the cardinality of the join output.  Extra fanout produced by 
+      SJM-SCAN(...) will be 'absorbed' into fanout produced by ot1 ...  otN.
+
+      The simple way to model this is to remove SJM-SCAN(...) fanout once
+      we reach the point #2.
+    */
+    pos->sjm_scan_need_tables=
+      new_join_tab->emb_sj_nest->sj_inner_tables | 
+      new_join_tab->emb_sj_nest->nested_join->sj_depends_on |
+      new_join_tab->emb_sj_nest->nested_join->sj_corr_tables;
+    pos->sjm_scan_last_inner= idx;
+  }
+  else if (sjm_strategy == SJ_OPT_MATERIALIZE_LOOKUP)
+  {
+    COST_VECT prefix_cost; 
+    SJ_MATERIALIZATION_INFO *mat_info= emb_sj_nest->sj_mat_info;
+    signed int first_tab= (int)idx - mat_info->tables;
+    double prefix_rec_count;
+    if (first_tab < (int)join->const_tables)
     {
-      /*
-        We can't yet evaluate this option yet. This is because we can't
-        accout for fanout of sj-inner tables yet:
-
-          ntX  SJM-SCAN(it1 ... itN) | ot1 ... otN  |
-                                     ^(1)           ^(2)
-
-        we're now at position (1). SJM temptable in general has multiple
-        records, so at point (1) we'll get the fanout from sj-inner tables (ie
-        there will be multiple record combinations).
-
-        The final join result will not contain any semi-join produced
-        fanout, i.e. tables within SJM-SCAN(...) will not contribute to
-        the cardinality of the join output.  Extra fanout produced by 
-        SJM-SCAN(...) will be 'absorbed' into fanout produced by ot1 ...  otN.
-
-        The simple way to model this is to remove SJM-SCAN(...) fanout once
-        we reach the point #2.
-      */
-      pos->sjm_scan_need_tables=
-        new_join_tab->emb_sj_nest->sj_inner_tables | 
-        new_join_tab->emb_sj_nest->nested_join->sj_depends_on |
-        new_join_tab->emb_sj_nest->nested_join->sj_corr_tables;
-      pos->sjm_scan_last_inner= idx;
+      prefix_cost.zero();
+      prefix_rec_count= 1.0;
     }
     else
     {
-      /* This is SJ-Materialization with lookups */
-      COST_VECT prefix_cost; 
-      signed int first_tab= (int)idx - mat_info->tables;
-      double prefix_rec_count;
-      if (first_tab < (int)join->const_tables)
-      {
-        prefix_cost.zero();
-        prefix_rec_count= 1.0;
-      }
-      else
-      {
-        prefix_cost= join->positions[first_tab].prefix_cost;
-        prefix_rec_count= join->positions[first_tab].prefix_record_count;
-      }
+      prefix_cost= join->positions[first_tab].prefix_cost;
+      prefix_rec_count= join->positions[first_tab].prefix_record_count;
+    }
 
-      double mat_read_time= prefix_cost.total_cost();
-      mat_read_time += mat_info->materialization_cost.total_cost() +
-                       prefix_rec_count * mat_info->lookup_cost.total_cost();
+    double mat_read_time= prefix_cost.total_cost();
+    mat_read_time += mat_info->materialization_cost.total_cost() +
+                     prefix_rec_count * mat_info->lookup_cost.total_cost();
 
-      if (mat_read_time < *current_read_time || join->cur_dups_producing_tables)
-      {
-        /*
-          NOTE: When we pick to use SJM[-Scan] we don't memcpy its POSITION
-          elements to join->positions as that makes it hard to return things
-          back when making one step back in join optimization. That's done 
-          after the QEP has been chosen.
-        */
-        pos->sj_strategy= SJ_OPT_MATERIALIZE_LOOKUP;
-        *current_read_time=    mat_read_time;
-        *current_record_count= prefix_rec_count;
-        join->cur_dups_producing_tables&=
-          ~new_join_tab->emb_sj_nest->sj_inner_tables;
-      }
+    if (mat_read_time < *current_read_time || join->cur_dups_producing_tables)
+    {
+      /*
+        NOTE: When we pick to use SJM[-Scan] we don't memcpy its POSITION
+        elements to join->positions as that makes it hard to return things
+        back when making one step back in join optimization. That's done 
+        after the QEP has been chosen.
+      */
+      pos->sj_strategy= SJ_OPT_MATERIALIZE_LOOKUP;
+      *current_read_time=    mat_read_time;
+      *current_record_count= prefix_rec_count;
+      join->cur_dups_producing_tables&=
+        ~new_join_tab->emb_sj_nest->sj_inner_tables;
     }
   }
   
