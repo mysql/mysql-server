@@ -4713,7 +4713,8 @@ static bool optimize_semijoin_nests(JOIN *join, table_map all_table_map)
           consider doing sjm-scan):
         */ 
         sjm->scan_cost.zero();
-        sjm->scan_cost.add_io(sjm->rows, lookup_cost);
+        if (sjm->rows > 0.0)
+          sjm->scan_cost.add_io(sjm->rows, lookup_cost);
 
         sjm->lookup_cost.convert_from_cost(lookup_cost);
         sj_nest->sj_mat_info= sjm;
