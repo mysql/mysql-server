@@ -132,10 +132,11 @@ static COND *optimize_cond(JOIN *join, COND *conds,
                            Item::cond_result *cond_value);
 static bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool open_tmp_table(TABLE *table);
-static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo, 
+static bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                                     MI_COLUMNDEF *start_recinfo,
                                     MI_COLUMNDEF **recinfo,
-				    ulonglong options, my_bool);
+				    ulonglong options,
+                                    my_bool big_tables);
 static int do_select(JOIN *join,List<Item> *fields,TABLE *tmp_table,
 		     Procedure *proc);
 
@@ -10090,7 +10091,8 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
           create_myisam_from_heap(thd, table,
                                   sjm->sjm_table_param.start_recinfo, 
-                                  &sjm->sjm_table_param.recinfo, error, 1))
+                                  &sjm->sjm_table_param.recinfo, error,
+                                  TRUE, NULL))
         DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     }
   }
@@ -15853,14 +15855,42 @@ free_tmp_table(THD *thd, TABLE *entry)
 }
 
 /**
-  If a HEAP table gets full, create a MyISAM table and copy all rows
+  If a MEMORY table gets full, create a disk-based table and copy all rows
   to this.
+
+  @param thd             THD reference
+  @param table           Table reference
+  @param start_recinfo   Engine's column descriptions
+  @param recinfo[in,out] End of engine's column descriptions
+  @param error           Reason why inserting into MEMORY table failed. 
+  @param ignore_last_dup If true, ignore duplicate key error for last
+                         inserted key (see detailed description below).
+  @param is_duplicate[out] if non-NULL and ignore_last_dup is TRUE,
+                         return TRUE if last key was a duplicate,
+                         and FALSE otherwise.
+
+  @detail
+    Function can be called with any error code, but only HA_ERR_RECORD_FILE_FULL
+    will be handled, all other errors cause a fatal error to be thrown.
+    The function creates a disk-based temporary table, copies all records
+    from the MEMORY table into this new table, deletes the old table and
+    switches to use the new table within the table handle.
+    The function uses table->record[1] as a temporary buffer while copying.
+
+    The function assumes that table->record[0] contains the row that caused
+    the error when inserting into the MEMORY table (the "last row").
+    After all existing rows have been copied to the new table, the last row
+    is attempted to be inserted as well. If ignore_last_dup is true,
+    this row can be a duplicate of an existing row without throwing an error.
+    If is_duplicate is non-NULL, an indication of whether the last row was
+    a duplicate is returned.
 */
 
 bool create_myisam_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 
-			     int error, bool ignore_last_dupp_key_error)
+			     int error, bool ignore_last_dup,
+                             bool *is_duplicate)
 {
   TABLE new_table;
   TABLE_SHARE share;
@@ -15940,8 +15970,15 @@ bool create_myisam_from_heap(THD *thd, TABLE *table,
   if ((write_err=new_table.file->ha_write_row(table->record[0])))
   {
     if (new_table.file->is_fatal_error(write_err, HA_CHECK_DUP) ||
-	!ignore_last_dupp_key_error)
+	!ignore_last_dup)
       goto err;
+    if (is_duplicate)
+      *is_duplicate= TRUE;
+  }
+  else
+  {
+    if (is_duplicate)
+      *is_duplicate= FALSE;
   }
 
   /* remove heap table and change to use myisam table */
@@ -16715,14 +16752,21 @@ int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl)
     }
   }
 
-  if ((error= sjtbl->tmp_table->file->ha_write_row(sjtbl->tmp_table->record[0])))
+  error= sjtbl->tmp_table->file->ha_write_row(sjtbl->tmp_table->record[0]);
+  if (error)
   {
-    /* create_myisam_from_heap will generate error if needed */
-    if (sjtbl->tmp_table->file->is_fatal_error(error, HA_CHECK_DUP) &&
-        create_myisam_from_heap(thd, sjtbl->tmp_table, sjtbl->start_recinfo, 
-                                &sjtbl->recinfo, error, 1))
+    /* If this is a duplicate error, return immediately */
+    if (!sjtbl->tmp_table->file->is_fatal_error(error, HA_CHECK_DUP))
+      DBUG_RETURN(1);
+    /*
+      Other error than duplicate error: Attempt to create a temporary table.
+    */
+    bool is_duplicate;
+    if (create_myisam_from_heap(thd, sjtbl->tmp_table,
+                                sjtbl->start_recinfo, &sjtbl->recinfo,
+                                error, TRUE, &is_duplicate))
       DBUG_RETURN(-1);
-    DBUG_RETURN(1);
+    DBUG_RETURN(is_duplicate ? 1 : 0);
   }
   DBUG_RETURN(0);
 }
@@ -17861,7 +17905,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (create_myisam_from_heap(join->thd, table,
                                     join->tmp_table_param.start_recinfo,
                                     &join->tmp_table_param.recinfo,
-				    error, 1))
+				    error, TRUE, NULL))
 	  DBUG_RETURN(NESTED_LOOP_ERROR);        // Not a table_is_full error
 	table->s->uniques=0;			// To ensure rows are the same
       }
@@ -17947,7 +17991,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     if (create_myisam_from_heap(join->thd, table,
                                 join->tmp_table_param.start_recinfo,
                                 &join->tmp_table_param.recinfo,
-				error, 0))
+				error, FALSE, NULL))
       DBUG_RETURN(NESTED_LOOP_ERROR);            // Not a table_is_full error
     /* Change method to update rows */
     table->file->ha_index_init(0, 0);
@@ -18041,10 +18085,11 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
 	if (!join->having || join->having->val_int())
 	{
           int error= table->file->ha_write_row(table->record[0]);
-          if (error && create_myisam_from_heap(join->thd, table,
-                                               join->tmp_table_param.start_recinfo,
-                                                &join->tmp_table_param.recinfo,
-                                               error, 0))
+          if (error &&
+              create_myisam_from_heap(join->thd, table,
+                                      join->tmp_table_param.start_recinfo,
+                                      &join->tmp_table_param.recinfo,
+                                      error, FALSE, NULL))
 	    DBUG_RETURN(NESTED_LOOP_ERROR);
         }
         if (join->rollup.state != ROLLUP::STATE_NONE)
@@ -21677,7 +21722,7 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
 	if (create_myisam_from_heap(thd, table_arg, 
                                     tmp_table_param.start_recinfo,
                                     &tmp_table_param.recinfo,
-                                    write_error, 0))
+                                    write_error, FALSE, NULL))
 	  return 1;		     
       }
     }

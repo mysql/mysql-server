@@ -1843,7 +1843,8 @@ void copy_funcs(Item **func_ptr);
 bool create_myisam_from_heap(THD *thd, TABLE *table,
                              MI_COLUMNDEF *start_recinfo,
                              MI_COLUMNDEF **recinfo, 
-			     int error, bool ignore_last_dupp_key_error);
+                             int error, bool ignore_last_dup,
+                             bool *is_duplicate);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
 Field* create_tmp_field_from_field(THD *thd, Field* org_field,
                                    const char *name, TABLE *table,
