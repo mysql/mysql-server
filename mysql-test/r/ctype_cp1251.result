@@ -854,6 +854,9 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(31) CHARACTER SET cp1251 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+select 1;
+1
+1
 select hex(concat(row_count()));
 hex(concat(row_count()))
 2D31
