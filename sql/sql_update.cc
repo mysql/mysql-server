@@ -1830,7 +1830,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
             create_myisam_from_heap(thd, tmp_table,
                                          tmp_table_param[offset].start_recinfo,
                                          &tmp_table_param[offset].recinfo,
-                                         error, 1))
+                                         error, TRUE, NULL))
         {
           do_update= 0;
 	  DBUG_RETURN(1);			// Not a table_is_full error

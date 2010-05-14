@@ -2350,7 +2350,7 @@ bool schema_table_store_record(THD *thd, TABLE *table)
     TMP_TABLE_PARAM *param= table->pos_in_table_list->schema_table_param;
 
     if (create_myisam_from_heap(thd, table, param->start_recinfo, 
-                                &param->recinfo, error, 0))
+                                &param->recinfo, error, FALSE, NULL))
       return 1;
   }
   return 0;
