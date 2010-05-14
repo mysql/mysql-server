@@ -359,6 +359,14 @@ typedef struct st_join_table
                         select_cond, to, line, this));
     select_cond= to;
   }
+  COND *set_cond(COND *new_cond, uint line)
+  {
+    COND *tmp_select_cond= select_cond;
+    set_select_cond(new_cond, line);
+    if (select)
+      select->cond= new_cond;
+    return tmp_select_cond;
+  }
 } JOIN_TAB;
 
 /* 

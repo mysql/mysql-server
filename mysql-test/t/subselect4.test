@@ -110,6 +110,33 @@ EXPLAIN EXTENDED SELECT (SELECT 1 FROM t2 WHERE d = c) AS RESULT FROM t1 GROUP B
 DROP TABLE t1,t2;
 
 --echo #
+--echo # BUG#45928 "Differing query results depending on MRR and
+--echo # engine_condition_pushdown settings"
+--echo #
+
+CREATE TABLE `t1` (
+  `pk` int(11) NOT NULL AUTO_INCREMENT,
+  `time_nokey` time NOT NULL,
+  `varchar_key` varchar(1) NOT NULL,
+  `varchar_nokey` varchar(1) NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `varchar_key` (`varchar_key`)
+) AUTO_INCREMENT=12 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (10,'00:00:00','i','i'),(11,'00:00:00','','');
+
+set @old_optimizer_switch          = @@session.optimizer_switch;
+
+SET SESSION OPTIMIZER_SWITCH = 'materialization=off,semijoin=off,loosescan=off,firstmatch=off,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
+
+SELECT `time_nokey` G1  FROM t1  WHERE ( `varchar_nokey`  , `varchar_key`  )  IN ( 
+SELECT `varchar_nokey`  , `varchar_nokey`  )  AND `varchar_key`  >= 'c' HAVING G1  ORDER 
+BY `pk`   ;
+
+set @@session.optimizer_switch          = @old_optimizer_switch;
+
+DROP TABLE t1;
+
+--echo #
 --echo # BUG#49630: Segfault in select_describe() with double 
 --echo #            nested subquery and materialization
 --echo #

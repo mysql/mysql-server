@@ -4932,6 +4932,37 @@ f1
 b
 DROP TABLE t1;
 SET SESSION optimizer_switch=@old_optimizer_switch;
+#
+# Bug#45277: Lost HAVING clause led to a wrong result.
+#
+CREATE TABLE `CC` (
+`int_nokey` int(11) NOT NULL,
+`int_key` int(11) NOT NULL,
+`varchar_key` varchar(1) NOT NULL,
+`varchar_nokey` varchar(1) NOT NULL,
+KEY `int_key` (`int_key`),
+KEY `varchar_key` (`varchar_key`)
+);
+INSERT INTO `CC` VALUES
+(0,8,'q','q'),(5,8,'m','m'),(7,3,'j','j'),(1,2,'z','z'),(8,2,'a','a'),(2,6,'',''),(1,8,'e'
+,'e'),(8,9,'t','t'),(5,2,'q','q'),(4,6,'b','b'),(5,5,'w','w'),(3,2,'m','m'),(0,4,'x','x'),
+(8,9,'',''),(0,6,'w','w'),(4,5,'x','x'),(0,0,'e','e'),(0,0,'e','e'),(2,8,'p','p'),(0,0,'x'
+,'x');
+EXPLAIN SELECT `varchar_nokey` G1  FROM CC  WHERE `int_nokey` AND `int_key`  <= 4
+HAVING G1  ORDER  BY `varchar_key` LIMIT  6   ;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	CC	range	int_key	int_key	4	NULL	10	Using index condition; Using where; Using MRR; Using filesort
+SELECT `varchar_nokey` G1  FROM CC  WHERE `int_nokey` AND `int_key`  <= 4
+HAVING G1  ORDER  BY `varchar_key` LIMIT  6   ;
+G1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'j'
+Warning	1292	Truncated incorrect DOUBLE value: 'z'
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'q'
+Warning	1292	Truncated incorrect DOUBLE value: 'm'
+DROP TABLE CC;
+# End of test#45277
 set optimizer_join_cache_level=default;
 show variables like 'optimizer_join_cache_level';
 Variable_name	Value
