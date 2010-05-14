@@ -1793,10 +1793,12 @@ xtPublic void xt_check_table(XTThreadPtr self, XTOpenTablePtr ot)
 	XTTableHPtr				tab = ot->ot_table;
 	xtRecordID				prec_id;
 	XTTabRecExtDPtr			rec_buf = (XTTabRecExtDPtr) ot->ot_row_rbuffer;
+#ifdef CHECK_TABLE_READ_DATA_LOG
 	XTactExtRecEntryDRec	ext_rec;
 	size_t					log_size;
 	xtLogID					log_id;
 	xtLogOffset				log_offset;
+#endif
 	xtRecordID				rec_id;
 	xtRecordID				prev_rec_id;
 	xtXactID				xn_id;

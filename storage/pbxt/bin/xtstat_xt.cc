@@ -93,7 +93,7 @@ struct Options {
 		"Connection protocol to use: default/tcp/socket/pipe/memory", "default", MYSQL_PROTOCOL_DEFAULT, false },
 	{ OPT_DISPLAY,	0, "display",		OPT_HAS_VALUE,
 		"Columns to display: use short names separated by |, partial match allowed", "time-msec,commt,row-ins,rec,ind,ilog,xlog,data,to,dirty", 0, false },
-	{ OPT_NONE,		0, NULL, 0, NULL, 0, false }
+	{ OPT_NONE,		0, NULL, 0, NULL, NULL, 0, false }
 };
 
 #ifdef XT_WIN

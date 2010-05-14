@@ -1609,7 +1609,7 @@ static int pbxt_prepare(handlerton *hton, THD *thd, bool all)
 	return err;
 }
 
-static XTThreadPtr ha_temp_open_global_database(handlerton *hton, THD **ret_thd, int *temp_thread, char *thread_name, int *err)
+static XTThreadPtr ha_temp_open_global_database(handlerton *hton, THD **ret_thd, int *temp_thread, const char *thread_name, int *err)
 {
 	THD			*thd;
 	XTThreadPtr	self = NULL;
