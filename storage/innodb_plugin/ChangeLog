@@ -1,3 +1,11 @@
+2010-05-14	The InnoDB Team
+	* mysql-test/innodb_bug48024.test, mysql-test/innodb_bug48024.result,
+	dict/dict0dict.c, handler/ha_innodb.cc, handler/ha_innodb.h,
+	include/dict0dict.h, include/ha_prototypes.h, include/row0mysql.h,
+	include/trx0trx.h, row/row0mysql.c, trx/trx0i_s.c, trx/trx0trx.c:
+	Fix Bug#48024 Innodb doesn't work with multi-statements
+	Fix Bug#53644 InnoDB thinks that /*/ starts and ends a comment
+
 2010-05-12	The InnoDB Team
 
 	* handler/handler0alter.cc:
