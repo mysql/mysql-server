@@ -2700,7 +2700,7 @@ MYSQL_CHECK_BIG_TABLES
 MYSQL_CHECK_MAX_INDEXES
 MYSQL_CHECK_VIO
 MYSQL_CHECK_SSL
-MYSQL_CHECK_GTEST([1.4.0])
+MYSQL_CHECK_GTEST([1.5.0])
 
 #--------------------------------------------------------------------
 # Declare our plugin modules
