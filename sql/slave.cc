@@ -933,8 +933,10 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
         !mi->rli.replicate_same_server_id)
     {
       errmsg= "The slave I/O thread stops because master and slave have equal "
-              "MySQL server UUIDs; these UUIDs must be different for replication to work.";
-      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR), errmsg);
+              "MySQL server UUIDs; these UUIDs must be different for "
+              "replication to work.";
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
+                 errmsg);
       // Fatal error
       ret= 1;
     }
@@ -952,7 +954,8 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
     if (is_network_error(mysql_errno(mysql)))
     {
       mi->report(WARNING_LEVEL, mysql_errno(mysql),
-                 "Get master SERVER_UUID failed with error: %s", mysql_error(mysql));
+                 "Get master SERVER_UUID failed with error: %s",
+                 mysql_error(mysql));
       ret= 2;
     }
     else
@@ -960,7 +963,8 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
       /* Fatal error */
       errmsg= "The slave I/O thread stops because a fatal error is encountered "
         "when it try to get the value of SERVER_UUID variable from master.";
-      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR), errmsg);
+      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR, ER(ER_SLAVE_FATAL_ERROR),
+                 errmsg);
       ret= 1;
     }
   }

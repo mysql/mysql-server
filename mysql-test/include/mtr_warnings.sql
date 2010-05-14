@@ -166,6 +166,9 @@ INSERT INTO global_suppressions VALUES
  ("The slave I.O thread stops because a fatal error is encountered when it try to get the value of SERVER_ID variable from master."),
  (".SELECT UNIX_TIMESTAMP... failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS"),
 
+ /*It will print a warning if a new UUID of server is generated.*/
+ ("It might be a maiden lunch of the server, for there is no UUID existing.*"),
+
  /* Test case for Bug#31590 in order_by.test produces the following error */
  ("Out of sort memory; increase server sort buffer size"),
 
