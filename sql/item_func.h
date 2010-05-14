@@ -1505,7 +1505,8 @@ class Item_user_var_as_out_param :public Item
   LEX_STRING name;
   user_var_entry *entry;
 public:
-  Item_user_var_as_out_param(LEX_STRING a) : name(a) {}
+  Item_user_var_as_out_param(LEX_STRING a) : name(a)
+  { set_name(a.str, 0, system_charset_info); }
   /* We should return something different from FIELD_ITEM here */
   enum Type type() const { return STRING_ITEM;}
   double val_real();
@@ -1807,5 +1808,15 @@ public:
   { max_length= 21; unsigned_flag=1; }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
+
+Item *get_system_var(THD *thd, enum_var_type var_type, LEX_STRING name,
+                     LEX_STRING component);
+extern bool check_reserved_words(LEX_STRING *name);
+extern enum_field_types agg_field_type(Item **items, uint nitems);
+double my_double_round(double value, longlong dec, bool dec_unsigned,
+                       bool truncate);
+bool eval_const_cond(COND *cond);
+
+extern bool volatile  mqh_used;
 
 #endif /* ITEM_FUNC_INCLUDED */

@@ -20,7 +20,10 @@
   Text .frm files management routines
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "parse_file.h"
+#include "unireg.h"                            // CREATE_MODE
+#include "sql_table.h"                        // build_table_filename
 #include <errno.h>
 #include <m_ctype.h>
 #include <my_sys.h>

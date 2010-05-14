@@ -20,6 +20,9 @@
 
 #ifndef _m_string_h
 #define _m_string_h
+
+#include "my_global.h"                          /* HAVE_* */
+
 #ifndef __USE_GNU
 #define __USE_GNU				/* We want to use stpcpy */
 #endif
@@ -266,13 +269,6 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 #endif
 #define longlong2str(A,B,C) ll2str((A),(B),(C),1)
 
-/* my_vsnprintf.c */
-
-extern size_t my_vsnprintf(char *str, size_t n,
-                           const char *format, va_list ap);
-extern size_t my_snprintf(char *to, size_t n, const char *fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 3, 4);
-
 #if defined(__cplusplus)
 }
 #endif
@@ -363,6 +359,12 @@ static inline const uchar *skip_trailing_space(const uchar *ptr,size_t len)
   while (end > ptr && end[-1] == 0x20)
     end--;
   return (end);
+}
+
+static inline void lex_string_set(LEX_STRING *lex_str, const char *c_str)
+{
+  lex_str->str= (char *) c_str;
+  lex_str->length= strlen(c_str);
 }
 
 #endif

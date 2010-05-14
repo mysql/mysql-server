@@ -1153,10 +1153,6 @@ FROM t2);
 --echo # 3) Test that subquery materialization is setup for query with
 --echo #    premature optimize() exit due to "Select tables optimized away"
 --echo #
---echo # NOTE: The result of this query is actually wrong; it should be NULL
---echo # See BUG#47762. Even so, the test case is still needed to test
---echo # that the HAVING subquery does not crash the server
---echo # 
 SELECT MIN(pk)
 FROM t1
 WHERE pk=NULL
@@ -1221,4 +1217,14 @@ FROM t2);
 DROP TABLE IF EXISTS t1,t2,t3,empty1;
 
 ###
+--echo #
+--echo # Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
+--echo #           file .\item_sum.cc, line 587
+--echo #
+
+CREATE TABLE t1(a int, KEY(a));
+INSERT INTO t1 VALUES (1), (2);
+SELECT 1 FROM t1 ORDER BY AVG(DISTINCT a);
+DROP TABLE t1;
 --echo End of 6.0 tests
+

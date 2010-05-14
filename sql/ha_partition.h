@@ -20,6 +20,9 @@
 #pragma interface				/* gcc class implementation */
 #endif
 
+#include "sql_partition.h"      /* part_id_range, partition_element */
+#include "queues.h"             /* QUEUE */
+
 enum partition_keywords
 { 
   PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR,

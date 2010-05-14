@@ -18,6 +18,16 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
+#include "sql_class.h"     /* Required by sql_lex.h */
+#include "sql_lex.h"       /* enum_view_create_mode, enum_drop_mode */
+
+/* Forward declarations */
+
+class File_parser;
+
+
+/* Function declarations */
+
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
                           enum_view_create_mode mode);
 
@@ -44,5 +54,7 @@ bool mysql_rename_view(THD *thd, const char *new_db, const char *new_name,
                        TABLE_LIST *view);
 
 #define VIEW_ANY_ACL (SELECT_ACL | UPDATE_ACL | INSERT_ACL | DELETE_ACL)
+
+extern const LEX_STRING view_type;
 
 #endif /* SQL_VIEW_INCLUDED */

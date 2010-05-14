@@ -107,7 +107,13 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "key.h"        // is_key_used, key_copy, key_cmp, key_restore
+#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_partition.h"    // get_part_id_func, PARTITION_ITERATOR,
+                              // struct partition_info
+#include "sql_base.h"         // free_io_cache
+#include "records.h"          // init_read_record, end_read_record
 #include <m_ctype.h>
 #include "sql_select.h"
 
@@ -11741,7 +11747,7 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
     tmp.append(STRING_WITH_LEN("(empty)"));
 
   DBUG_PRINT("info", ("SEL_TREE: %p (%s)  scans: %s", tree, msg, tmp.ptr()));
-
+  fprintf(DBUG_FILE,"SEL_TREE: %p (%s)  scans: %s", tree, msg, tmp.ptr());
   DBUG_VOID_RETURN;
 }
 
@@ -11764,6 +11770,8 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
   if (!tmp.length())
     tmp.append(STRING_WITH_LEN("(empty)"));
   DBUG_PRINT("info", ("ROR key scans (%s): %s", msg, tmp.ptr()));
+  fprintf(DBUG_FILE,"ROR key scans (%s): %s", msg, tmp.ptr());
+
   DBUG_VOID_RETURN;
 }
 

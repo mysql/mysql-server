@@ -23,8 +23,8 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
-#include <mysql_priv.h>
 #include <mysqld_error.h>
+#include <sql_acl.h>                            // PROCESS_ACL
 
 #include <m_ctype.h>
 #include <hash.h>
@@ -32,7 +32,8 @@ Created July 18, 2007 Vasil Dimov
 #include <mysys_err.h>
 #include <my_sys.h>
 #include "i_s.h"
-#include <mysql/plugin.h>
+#include <sql_plugin.h>
+#include <mysql/innodb_priv.h>
 
 extern "C" {
 #include "trx0i_s.h"
@@ -107,11 +108,6 @@ time_t			MYSQL_TYPE_DATETIME
 (field_length=0 ignored)
 ---------------------------------
 */
-
-/* XXX these are defined in mysql_priv.h inside #ifdef MYSQL_SERVER */
-bool schema_table_store_record(THD *thd, TABLE *table);
-void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
-bool check_global_access(THD *thd, ulong want_access);
 
 /*******************************************************************//**
 Common function to fill any of the dynamic tables:

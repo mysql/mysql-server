@@ -336,4 +336,13 @@ End of 5.0 tests
 select connection_id() > 0;
 connection_id() > 0
 1
+#
+# Bug #52165: Assertion failed: file .\dtoa.c, line 465
+# 
+CREATE TABLE t1 (a SET('a'), b INT);
+INSERT INTO t1 VALUES ('', 0);
+SELECT COALESCE(a) = COALESCE(b) FROM t1;
+COALESCE(a) = COALESCE(b)
+1
+DROP TABLE t1;
 End of tests

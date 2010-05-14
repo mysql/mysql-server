@@ -51,6 +51,8 @@ class NdbIndexStat;
 class NdbEventOperation;
 class ha_ndbcluster_cond;
 
+#include "sql_partition.h"                      /* part_id_range */
+
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
 

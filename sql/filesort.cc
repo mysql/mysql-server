@@ -21,13 +21,17 @@
   Sorts a database
 */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "filesort.h"
+#include "unireg.h"                      // REQUIRED by other includes
 #ifdef HAVE_STDDEF_H
 #include <stddef.h>			/* for macro offsetof */
 #endif
 #include <m_ctype.h>
 #include "sql_sort.h"
 #include "probes_mysql.h"
+#include "sql_test.h"                           // TEST_filesort
+#include "opt_range.h"                          // SQL_SELECT
 
 #ifndef THREAD
 #define SKIP_DBUG_IN_FILESORT

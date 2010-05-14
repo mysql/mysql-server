@@ -83,10 +83,24 @@ When one supplies long data for a placeholder:
     at statement execute.
 */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_class.h"                          // set_var.h: THD
 #include "set_var.h"
 #include "sql_prepare.h"
+#include "sql_parse.h" // insert_precheck, update_precheck, delete_precheck
+#include "sql_base.h"  // close_thread_tables
+#include "sql_cache.h"                          // query_cache_*
+#include "sql_view.h"                          // create_view_precheck
+#include "sql_delete.h"                        // mysql_prepare_delete
 #include "sql_select.h" // for JOIN
+#include "sql_insert.h" // upgrade_lock_type_for_insert, mysql_prepare_insert
+#include "sql_update.h" // mysql_prepare_update
+#include "sql_db.h"     // mysql_opt_change_db, mysql_change_db
+#include "sql_acl.h"    // *_ACL
+#include "sql_derived.h" // mysql_derived_prepare,
+                         // mysql_handle_derived
 #include "sql_cursor.h"
 #include "sp_head.h"
 #include "sp.h"
@@ -98,6 +112,7 @@ When one supplies long data for a placeholder:
 #else
 #include <mysql_com.h>
 #endif
+#include "lock.h"                               // MYSQL_OPEN_FORCE_SHARED_MDL
 
 /**
   A result class used to send cursor rows using the binary protocol.

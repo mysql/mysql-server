@@ -19,6 +19,9 @@
   also be able to use 32 or 64 bits bitmaps very efficiently
 */
 
+#ifndef SQL_BITMAP_INCLUDED
+#define SQL_BITMAP_INCLUDED
+
 #include <my_bitmap.h>
 
 template <uint default_width> class Bitmap
@@ -165,5 +168,4 @@ public:
   }
   enum { BITMAP_END= 64 };
 };
-
-
+#endif /* SQL_BITMAP_INCLUDED */

@@ -17,7 +17,11 @@
 /* Write some debug info */
 
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_test.h"
+#include "sql_base.h" // table_def_cache, table_cache_count, unused_tables
+#include "sql_show.h" // calc_sum_of_all_status
 #include "sql_select.h"
 #include "keycaches.h"
 #include <hash.h>
