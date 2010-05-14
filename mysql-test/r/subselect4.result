@@ -124,6 +124,27 @@ Note	1276	Field or reference 'test.t1.c' of SELECT #2 was resolved in SELECT #1
 Note	1003	select (select 1 AS `1` from `test`.`t2` where (`test`.`t2`.`d` = '0')) AS `RESULT` from dual group by '0'
 DROP TABLE t1,t2;
 #
+# BUG#45928 "Differing query results depending on MRR and
+# engine_condition_pushdown settings"
+#
+CREATE TABLE `t1` (
+`pk` int(11) NOT NULL AUTO_INCREMENT,
+`time_nokey` time NOT NULL,
+`varchar_key` varchar(1) NOT NULL,
+`varchar_nokey` varchar(1) NOT NULL,
+PRIMARY KEY (`pk`),
+KEY `varchar_key` (`varchar_key`)
+) AUTO_INCREMENT=12 DEFAULT CHARSET=latin1;
+INSERT INTO `t1` VALUES (10,'00:00:00','i','i'),(11,'00:00:00','','');
+set @old_optimizer_switch          = @@session.optimizer_switch;
+SET SESSION OPTIMIZER_SWITCH = 'materialization=off,semijoin=off,loosescan=off,firstmatch=off,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
+SELECT `time_nokey` G1  FROM t1  WHERE ( `varchar_nokey`  , `varchar_key`  )  IN ( 
+SELECT `varchar_nokey`  , `varchar_nokey`  )  AND `varchar_key`  >= 'c' HAVING G1  ORDER 
+BY `pk`   ;
+G1
+set @@session.optimizer_switch          = @old_optimizer_switch;
+DROP TABLE t1;
+#
 # BUG#49630: Segfault in select_describe() with double 
 #            nested subquery and materialization
 #
