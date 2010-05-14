@@ -156,7 +156,6 @@ int toku_loader_create_loader(DB_ENV *env,
 
     int n = snprintf(loader->i->temp_file_template, MAX_FILE_SIZE, "%s/%s%s", env->i->dir, loader_temp_prefix, loader_temp_suffix);
     if ( !(n>0 && n<MAX_FILE_SIZE) ) {
-        free_loader(loader);
         rval = -1;
 	goto create_exit;
     }
@@ -186,7 +185,6 @@ int toku_loader_create_loader(DB_ENV *env,
         if (r!=0) break;
     }
     if ( r!=0 ) {
-        free_loader(loader);
         rval = -1;
 	goto create_exit;
     }
@@ -221,7 +219,6 @@ int toku_loader_create_loader(DB_ENV *env,
 	    if ( r!=0 ) {
 		toku_free(new_inames_in_env);
 		toku_free(descriptors);
-		free_loader(loader);
 		rval = r;
 		goto create_exit;
 	    }
@@ -249,8 +246,10 @@ int toku_loader_create_loader(DB_ENV *env,
 	if (status.current > status.max)
 	    status.max = status.current;   // not worth a lock to make threadsafe, may be inaccurate
     }
-    else
+    else {
 	(void) toku_sync_fetch_and_increment_uint64(&status.create_fail);
+        free_loader(loader);
+    }
     return rval;
 }
 
