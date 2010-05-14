@@ -316,6 +316,19 @@ set_user_salt(ACL_USER *acl_user, const char *password, uint password_len)
     acl_user->salt_len= 0;
 }
 
+static char *fix_plugin_ptr(char *name)
+{
+  if (my_strcasecmp(system_charset_info, name,
+                    native_password_plugin_name.str) == 0)
+    return native_password_plugin_name.str;
+  else
+  if (my_strcasecmp(system_charset_info, name,
+                    old_password_plugin_name.str) == 0)
+    return old_password_plugin_name.str;
+  else
+    return name;
+}
+
 /**
   Fix ACL::plugin pointer to point to a hard-coded string, if appropriate
 
@@ -5475,7 +5488,7 @@ static int handle_grant_struct(uint struct_no, bool drop,
       host= grant_name->host.hostname;
       break;
     default:
-      assert(0);
+      DBUG_ASSERT(0);
     }
     if (! user)
       user= "";
@@ -7140,6 +7153,8 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
     ((st_mysql_auth *)(plugin_decl(mpvio->plugin)->info))->client_auth_plugin;
 
   DBUG_ASSERT(client_auth_plugin);
+  DBUG_ASSERT(my_strcasecmp(system_charset_info, client_auth_plugin,
+                            mpvio->cached_client_reply.plugin));
 
   /*
     we send an old "short 4.0 scramble request", if we need to request a
@@ -7346,6 +7361,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
       return 1;
     }
+    client_plugin= fix_plugin_ptr(client_plugin);
   }
   else
   {
@@ -7539,6 +7555,7 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     if ((client_plugin + strlen(client_plugin)) > 
           (char *)net->read_pos + pkt_len)
       return packet_error;
+    client_plugin= fix_plugin_ptr(client_plugin);
   }
   else
   {
@@ -8143,11 +8160,12 @@ static int native_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   /* generate the scramble, or reuse the old one */
   if (thd->scramble[SCRAMBLE_LENGTH])
+  {
     create_random_string(thd->scramble, SCRAMBLE_LENGTH, &thd->rand);
-
-  /* send it to the client */
-  if (mpvio->write_packet(mpvio, (uchar*)thd->scramble, SCRAMBLE_LENGTH + 1))
-    return CR_ERROR;
+    /* and send it to the client */
+    if (mpvio->write_packet(mpvio, (uchar*)thd->scramble, SCRAMBLE_LENGTH + 1))
+      return CR_ERROR;
+  }
 
   /* reply and authenticate */
 
@@ -8218,11 +8236,12 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
 
   /* generate the scramble, or reuse the old one */
   if (thd->scramble[SCRAMBLE_LENGTH])
+  {
     create_random_string(thd->scramble, SCRAMBLE_LENGTH, &thd->rand);
-
-  /* send it to the client */
-  if (mpvio->write_packet(mpvio, (uchar*)thd->scramble, SCRAMBLE_LENGTH + 1))
-    return CR_ERROR;
+    /* and send it to the client */
+    if (mpvio->write_packet(mpvio, (uchar*)thd->scramble, SCRAMBLE_LENGTH + 1))
+      return CR_ERROR;
+  }
 
   /* read the reply and authenticate */
   if ((pkt_len= mpvio->read_packet(mpvio, &pkt)) < 0)

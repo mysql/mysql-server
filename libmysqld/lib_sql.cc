@@ -583,6 +583,7 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
   thd->mysql= mysql;
   mysql->server_version= server_version;
   mysql->client_flag= client_flag;
+  mysql->server_capabilities= client_flag;
   init_alloc_root(&mysql->field_alloc, 8192, 0);
 }
 
@@ -694,6 +695,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
 
   memset(thd->scramble, 55, SCRAMBLE_LENGTH); // dummy scramble
   thd->scramble[SCRAMBLE_LENGTH]= 0;
+  strcpy(mysql->scramble, thd->scramble);
 
   if (mysql->passwd && mysql->passwd[0])
   {

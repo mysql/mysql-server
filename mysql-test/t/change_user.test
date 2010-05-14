@@ -6,19 +6,30 @@ grant select on test.* to test_nopw;
 grant select on test.* to test_oldpw identified by password "09301740536db389";
 grant select on test.* to test_newpw identified by "newpw";
 
+select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
 #
 # massaging the data for tests to pass in the embedded server,
-# that has authentication completely disabled.
+# that has authentication completely disabled or, if enabled, can
+# only do new auth (20-byte scramble).
 #
-
---replace_result <@> <test_nopw@%> @> @localhost>
-select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 
 change_user test_nopw;
 --replace_result <@> <test_nopw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
+
+#
+# embedded with enabled privilege control cannot do plugin negotiation.
+# that is, it cannot try to authenticate with a new scramble, receive a request
+# to switch to an old scramble, and retry with an old scramble.
+# As a result, it cannot change to a user that has old scramble and
+# and it stays logged as a previous user - test_nopw in this test file.
+# For the embedded with auth we replace nopw with oldpw in the results.
+#
+let $repl = `select if(version() like '%embedded%' and user() like '%nopw%', 'nopw', 'oldpw')`;
+
 change_user test_oldpw, oldpw;
---replace_result <@> <test_oldpw@%> @> @localhost>
+--replace_result <@> <test_oldpw@%> @> @localhost> $repl oldpw
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 change_user test_newpw, newpw;
 --replace_result <@> <test_newpw@%> @> @localhost>
@@ -31,7 +42,7 @@ change_user test_nopw,,test;
 --replace_result <@> <test_nopw@%> @> @localhost>
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 change_user test_oldpw,oldpw,test;
---replace_result <@> <test_oldpw@%> @> @localhost>
+--replace_result <@> <test_oldpw@%> @> @localhost> $repl oldpw
 select concat('<', user(), '>'), concat('<', current_user(), '>'), database();
 change_user test_newpw,newpw,test;
 --replace_result <@> <test_newpw@%> @> @localhost>
