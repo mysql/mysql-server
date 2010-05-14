@@ -1,5 +1,4 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
 
 /* Purpose of this file is to provide the world with everything necessary
  * to use the xids and nothing else.  
@@ -14,6 +13,10 @@
 
 #ifndef XIDS_H
 #define XIDS_H
+
+#ident "$Id$"
+#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "x1764.h"
 #include "rbuf.h"
