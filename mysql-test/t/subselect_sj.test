@@ -114,9 +114,16 @@ while ($i)
          SELECT (SELECT COUNT(*) from t1),
                 (SELECT COUNT(*) from t2),
                 (SELECT COUNT(*) from t3);
-#        TODO: This still crashes when t1 has two rows, t2 and t3 are empty.
-#        SELECT * FROM t1 WHERE (t1.i) IN 
-#          (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+
+#        TODO: The RIGHT join query here generates wrong result for rowcount
+#        (t1 t2 t3) == (2 0 2)   and    (t1 t2 t3) == (2 1 2)
+#        when we execute with join_cache_level=6 
+         SELECT * FROM t1 WHERE (t1.i) IN 
+           (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+         SELECT * FROM t1 WHERE (t1.i) IN 
+           (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+         SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
          SELECT * FROM t1 WHERE (11) IN 

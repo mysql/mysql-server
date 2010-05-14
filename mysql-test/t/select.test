@@ -4190,3 +4190,28 @@ DROP TABLE t1;
 
 SET SESSION optimizer_switch=@old_optimizer_switch;
 
+--echo #
+--echo # Bug#45277: Lost HAVING clause led to a wrong result.
+--echo #
+CREATE TABLE `CC` (
+  `int_nokey` int(11) NOT NULL,
+  `int_key` int(11) NOT NULL,
+  `varchar_key` varchar(1) NOT NULL,
+  `varchar_nokey` varchar(1) NOT NULL,
+  KEY `int_key` (`int_key`),
+  KEY `varchar_key` (`varchar_key`)
+);
+INSERT INTO `CC` VALUES
+(0,8,'q','q'),(5,8,'m','m'),(7,3,'j','j'),(1,2,'z','z'),(8,2,'a','a'),(2,6,'',''),(1,8,'e'
+,'e'),(8,9,'t','t'),(5,2,'q','q'),(4,6,'b','b'),(5,5,'w','w'),(3,2,'m','m'),(0,4,'x','x'),
+(8,9,'',''),(0,6,'w','w'),(4,5,'x','x'),(0,0,'e','e'),(0,0,'e','e'),(2,8,'p','p'),(0,0,'x'
+,'x');
+EXPLAIN SELECT `varchar_nokey` G1  FROM CC  WHERE `int_nokey` AND `int_key`  <= 4
+  HAVING G1  ORDER  BY `varchar_key` LIMIT  6   ;
+
+SELECT `varchar_nokey` G1  FROM CC  WHERE `int_nokey` AND `int_key`  <= 4
+  HAVING G1  ORDER  BY `varchar_key` LIMIT  6   ;
+
+DROP TABLE CC;
+--echo # End of test#45277
+
