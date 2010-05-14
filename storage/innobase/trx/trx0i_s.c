@@ -438,6 +438,8 @@ fill_trx_row(
 						which to copy volatile
 						strings */
 {
+	ut_ad(mutex_own(&kernel_mutex));
+
 	row->trx_id = trx_get_id(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
