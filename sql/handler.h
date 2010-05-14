@@ -1220,7 +1220,6 @@ public:
       avg_io_cost= (io_count * avg_io_cost + 
                     add_io_cnt * add_avg_cost) / io_count_sum;
     DBUG_ASSERT(!isnan(avg_io_cost));
-    DBUG_ASSERT(isfinite(avg_io_cost));
     io_count= io_count_sum;
   }
 
