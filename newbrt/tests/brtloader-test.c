@@ -201,7 +201,7 @@ static void test_read_write_rows (char *template) {
     {
 	int n_read=0;
 	DBT key={.size=0}, val={.size=0};
-	while (0==loader_read_row(toku_bl_fidx2file(&bl, file), &key, &val, &bl)) {
+	while (0==loader_read_row(toku_bl_fidx2file(&bl, file), &key, &val)) {
 	    assert(strlen(keystrings[n_read])==key.size);
 	    assert(strlen(valstrings[n_read])==val.size);
 	    assert(0==memcmp(keystrings[n_read], key.data, key.size));
