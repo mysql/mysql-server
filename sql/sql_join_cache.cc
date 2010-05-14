@@ -27,8 +27,9 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
 #include "sql_select.h"
+#include "key.h"
 
 
 /*****************************************************************************

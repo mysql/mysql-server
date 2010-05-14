@@ -20,9 +20,13 @@
 */
 
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_union.h"
 #include "sql_select.h"
 #include "sql_cursor.h"
+#include "sql_base.h"                           // fill_record
+#include "filesort.h"                           // filesort_free_buffers
 
 bool mysql_union(THD *thd, LEX *lex, select_result *result,
                  SELECT_LEX_UNIT *unit, ulong setup_tables_done_option)

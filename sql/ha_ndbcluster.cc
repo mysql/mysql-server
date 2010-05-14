@@ -26,7 +26,15 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"         // REQUIRED: for other includes
+#include "sql_table.h"                         // build_table_filename,
+                                               // tablename_to_filename,
+                                               // filename_to_tablename
+#include "sql_partition.h"  // HA_CAN_*, partition_info, part_id_range
+#include "sql_base.h"       // close_cached_tables
+#include "discover.h"       // readfrm
+#include "sql_acl.h"        // wild_case_compare
 #include "rpl_mi.h"
 
 /*
@@ -48,8 +56,11 @@ int ha_ndb_dummy;
 #include "ha_ndbcluster_binlog.h"
 #include "ha_ndbcluster_tables.h"
 
-#include <mysql/plugin.h>
+#include "sql_plugin.h"
 #include "probes_mysql.h"
+#include "sql_show.h"                   // init_fill_schema_files_row,
+                                        // schema_table_store_record
+#include "sql_test.h"                   // print_where
 
 #ifdef ndb_dynamite
 #undef assert

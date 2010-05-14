@@ -23,8 +23,19 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"
 #include "rpl_handler.h"
+#include "sql_cache.h"                   // query_cache, query_cache_*
+#include "key.h"     // key_copy, key_unpack, key_cmp_if_same, key_cmp
+#include "sql_table.h"                   // build_table_filename
+#include "lock.h"               // wait_if_global_read_lock,
+                                // start_waiting_global_read_lock
+#include "sql_parse.h"                          // check_stack_overrun
+#include "sql_acl.h"            // SUPER_ACL
+#include "sql_base.h"           // free_io_cache
+#include "discover.h"           // writefrm
+#include "log_event.h"          // *_rows_log_event
 #include "rpl_filter.h"
 #include <myisampack.h>
 #include "transaction.h"

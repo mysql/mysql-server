@@ -16,7 +16,10 @@
 
 /* Functions to handle keys and fields in forms */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "unireg.h"                     // REQUIRED: by includes later
+#include "key.h"                                // key_rec_cmp
+#include "field.h"                              // Field
 
 /*
   Search after a key that starts with 'field'

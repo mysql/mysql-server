@@ -1,0 +1,16 @@
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+test
+CREATE DATABASE mysql;
+ERROR HY000: Can't create database 'mysql'; database exists
+SHOW DATABASES;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+test

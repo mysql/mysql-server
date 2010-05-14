@@ -1,0 +1,10 @@
+# Test of options max_binlog_size and max_relay_log_size and
+# how they act (if max_relay_log_size == 0, use max_binlog_size 
+# for relay logs too).
+# Test of manual relay log rotation with FLUSH LOGS.
+
+# Requires statement logging
+source include/not_ndb_default.inc;
+source include/have_binlog_format_row.inc;
+
+source extra/rpl_tests/rpl_max_relay_size.test;

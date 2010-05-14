@@ -22,7 +22,15 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include "m_ctype.h"                            /* my_charset_bin */
+#include "my_sys.h"              /* alloc_root, my_free, my_realloc */
+#include "m_string.h"                           /* TRASH */
+
 class String;
+typedef struct charset_info_st CHARSET_INFO;
+typedef struct st_io_cache IO_CACHE;
+typedef struct st_mem_root MEM_ROOT;
+
 int sortcmp(const String *a,const String *b, CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
 uint32 copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
@@ -259,6 +267,7 @@ public:
   bool append(const char *s);
   bool append(const char *s,uint32 arg_length);
   bool append(const char *s,uint32 arg_length, CHARSET_INFO *cs);
+  bool append_ulonglong(ulonglong val);
   bool append(IO_CACHE* file, uint32 arg_length);
   bool append_with_prefill(const char *s, uint32 arg_length, 
 			   uint32 full_length, char fill_char);

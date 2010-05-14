@@ -65,7 +65,7 @@ DTRACEPROVIDER = probes_mysql.d
 ha_example_la_DEPENDENCIES = probes_sh_mysql.o $(DTRACESHAREDDEPS) dtrace_providers
 
 CLEANFILES = $(DTRACEPROVIDER) dtrace_files dtrace_providers $(DTRACESHAREDFILES)
-DTRACEFILES = libexample_a-ha_example.c
+DTRACEFILES = libexample_a-ha_example.o
 
 dtrace_files:
 	echo $(DTRACEFILES) > $@

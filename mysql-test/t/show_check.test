@@ -1212,6 +1212,32 @@ DISCONNECT con1;
 
 --echo End of 5.1 tests
 
+
+--echo #
+--echo # Bug#52593 SHOW CREATE TABLE is blocked if table is locked
+--echo #           for write by another connection
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+connect(con1, localhost,root);
+connection default;
+
+CREATE TABLE t1 (i INT PRIMARY KEY);
+LOCK TABLE t1 WRITE;
+--echo # Switching to connection 'con1'.
+connection con1;
+--echo # This statement used to be blocked.
+SHOW CREATE TABLE t1;
+
+--echo # Switching to connection 'default'.
+connection default;
+disconnect con1;
+UNLOCK TABLES;
+DROP TABLE t1;
+
+
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 

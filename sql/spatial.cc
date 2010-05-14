@@ -13,7 +13,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include "mysql_priv.h"
+#include "sql_priv.h"
+#include "my_global.h"                          // REQUIRED for HAVE_* below
+#include "spatial.h"
+#include "gstream.h"                            // Gis_read_stream
+#include "sql_string.h"                         // String
 
 #ifdef HAVE_SPATIAL
 

@@ -16,6 +16,12 @@
 #ifndef _EVENT_PARSE_DATA_H_
 #define _EVENT_PARSE_DATA_H_
 
+#include "sql_list.h"                           /* Sql_alloc */
+
+class Item;
+class THD;
+class sp_name;
+
 #define EVEX_GET_FIELD_FAILED   -2
 #define EVEX_BAD_PARAMS         -5
 #define EVEX_MICROSECOND_UNSUP  -6

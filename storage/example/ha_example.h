@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB, 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2003, 2010 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -34,6 +34,11 @@
 #ifdef USE_PRAGMA_INTERFACE
 #pragma interface			/* gcc class implementation */
 #endif
+
+#include "my_global.h"                   /* ulonglong */
+#include "thr_lock.h"                    /* THR_LOCK, THR_LOCK_DATA */
+#include "handler.h"                     /* handler */
+#include "my_base.h"                     /* ha_rows */
 
 /** @brief
   EXAMPLE_SHARE is a structure that will be shared among all open handlers.
@@ -155,7 +160,8 @@ public:
   /** @brief
     This method will never be called if you do not implement indexes.
   */
-  virtual double read_time(ha_rows rows) { return (double) rows /  20.0+1; }
+  virtual double read_time(uint, uint, ha_rows rows)
+  { return (double) rows /  20.0+1; }
 
   /*
     Everything below are methods that we implement in ha_example.cc.

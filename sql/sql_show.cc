@@ -1,4 +1,4 @@
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright 2000, 2010 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,15 +11,31 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
 /* Function with list databases, tables or fields */
 
-#include "mysql_priv.h"
+#include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
+#include "sql_priv.h"
+#include "unireg.h"
+#include "sql_acl.h"                        // fill_schema_*_privileges
 #include "sql_select.h"                         // For select_describe
+#include "sql_base.h"                       // close_tables_for_reopen
 #include "sql_show.h"
+#include "sql_table.h"                        // filename_to_tablename,
+                                              // primary_key_name,
+                                              // build_table_filename
 #include "repl_failsafe.h"
+#include "sql_view.h"                           // mysql_frm_type
+#include "sql_parse.h"             // check_access, check_table_access
+#include "sql_partition.h"         // partition_element
+#include "sql_db.h"     // check_db_dir_existence, load_db_opt_by_name
+#include "sql_time.h"   // interval_type_to_name
+#include "tztime.h"                             // struct Time_zone
+#include "sql_acl.h"     // TABLE_ACLS, check_grant, DB_ACLS, acl_get,
+                         // check_grant_db
+#include "filesort.h"    // filesort_free_buffers
 #include "sp.h"
 #include "sp_head.h"
 #include "sp_pcontext.h"
@@ -33,6 +49,7 @@
 #include "event_data_objects.h"
 #endif
 #include <my_dir.h>
+#include "lock.h"                           // MYSQL_LOCK_IGNORE_FLUSH
 
 #define STR_OR_NIL(S) ((S) ? (S) : "<nil>")
 
@@ -641,7 +658,9 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   {
     Show_create_error_handler view_error_suppressor(thd, table_list);
     thd->push_internal_handler(&view_error_suppressor);
-    bool error= open_normal_and_derived_tables(thd, table_list, 0);
+    bool error=
+      open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
     thd->pop_internal_handler();
     if (error && (thd->killed || thd->is_error()))
       DBUG_RETURN(TRUE);
@@ -819,7 +838,8 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   DBUG_ENTER("mysqld_list_fields");
   DBUG_PRINT("enter",("table: %s",table_list->table_name));
 
-  if (open_normal_and_derived_tables(thd, table_list, 0))
+  if (open_normal_and_derived_tables(thd, table_list,
+                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
     DBUG_VOID_RETURN;
   table= table_list->table;
 
@@ -5728,7 +5748,7 @@ copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table)
 
   if (et.load_from_row(thd, event_table))
   {
-    my_error(ER_CANNOT_LOAD_FROM_TABLE, MYF(0), event_table->alias);
+    my_error(ER_CANNOT_LOAD_FROM_TABLE_V2, MYF(0), "mysql", "event");
     DBUG_RETURN(1);
   }
 

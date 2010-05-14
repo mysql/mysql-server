@@ -1,4 +1,4 @@
-/* Copyright (C) 2008-2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -11,14 +11,14 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+*/
 
 /**
   @file storage/perfschema/pfs_engine_table.cc
   Performance schema tables (implementation).
 */
 
-#include "mysql_priv.h"
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"
@@ -36,6 +36,9 @@
 /* For show status */
 #include "pfs_column_values.h"
 #include "pfs_instr.h"
+
+#include "sql_base.h"                           // close_thread_tables
+#include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
 /**
   @addtogroup Performance_schema_engine
@@ -105,7 +108,12 @@ void PFS_check_intact::report_error(uint code, const char *fmt, ...)
   my_vsnprintf(buff, sizeof(buff), fmt, args);
   va_end(args);
 
-  my_message(code, buff, MYF(0));
+  /*
+    This is an install/upgrade issue:
+    - do not report it in the user connection, there is none in main(),
+    - report it in the server error log.
+  */
+  sql_print_error("%s", buff);
 }
 
 /**
@@ -324,10 +332,10 @@ ulonglong PFS_engine_table::get_field_enum(Field *f)
   return f2->val_int();
 }
 
-int PFS_readonly_table::update_row_values(TABLE *,
-                                          const unsigned char *,
-                                          unsigned char *,
-                                          Field **)
+int PFS_engine_table::update_row_values(TABLE *,
+                                        const unsigned char *,
+                                        unsigned char *,
+                                        Field **)
 {
   my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0));
   return HA_ERR_WRONG_COMMAND;
@@ -463,7 +471,22 @@ PFS_unknown_acl pfs_unknown_acl;
 ACL_internal_access_result
 PFS_unknown_acl::check(ulong want_access, ulong *save_priv) const
 {
-  return ACL_INTERNAL_ACCESS_DENIED;
+  const ulong always_forbidden= INSERT_ACL | UPDATE_ACL | DELETE_ACL
+    | CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL
+    | CREATE_VIEW_ACL | TRIGGER_ACL | LOCK_TABLES_ACL;
+
+  if (unlikely(want_access & always_forbidden))
+    return ACL_INTERNAL_ACCESS_DENIED;
+
+  /*
+    There is no point in hidding (by enforcing ACCESS_DENIED for SELECT_ACL
+    on performance_schema.*) tables that do not exist anyway.
+    When SELECT_ACL is granted on performance_schema.* or *.*,
+    SELECT * from performance_schema.wrong_table
+    will fail with a more understandable ER_NO_SUCH_TABLE error,
+    instead of ER_TABLEACCESS_DENIED_ERROR.
+  */
+  return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
 /**

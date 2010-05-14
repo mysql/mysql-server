@@ -17,10 +17,18 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
+
 /* The old structures from unireg */
+
+#include "sql_plugin.h"                         /* plugin_ref */
+#include "sql_const.h"                          /* MAX_REFLENGTH */
+#include "my_time.h"                   /* enum_mysql_timestamp_type */
+#include "thr_lock.h"                  /* thr_lock_type */
+#include "my_base.h"                   /* ha_rows, ha_key_alg */
 
 struct TABLE;
 class Field;
+
 class THD;
 
 typedef struct st_date_time_format {

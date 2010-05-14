@@ -1,4 +1,4 @@
-/* Copyright (C) 2009 Sun Microsystems, Inc
+/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -13,12 +13,16 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <mysql_priv.h>
+#include <my_global.h>
+#include <my_pthread.h>
 #include <pfs_server.h>
 #include <pfs_instr_class.h>
 #include <pfs_instr.h>
 #include <pfs_global.h>
 #include <tap.h>
+
+#include <string.h>
+#include <memory.h>
 
 #include "stub_print_error.h"
 

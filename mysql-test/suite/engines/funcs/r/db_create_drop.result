@@ -1,0 +1,45 @@
+DROP DATABASE IF EXISTS d1;
+CREATE DATABASE d1;
+SHOW DATABASES;
+Database
+information_schema
+d1
+mtr
+mysql
+performance_schema
+test
+SHOW DATABASES LIKE 'd%';
+Database (d%)
+d1
+SHOW DATABASES LIKE '%';
+Database (%)
+information_schema
+d1
+mtr
+mysql
+performance_schema
+test
+USE d1;
+DROP DATABASE d1;
+CREATE SCHEMA d1;
+SHOW SCHEMAS;
+Database
+information_schema
+d1
+mtr
+mysql
+performance_schema
+test
+SHOW SCHEMAS LIKE 'd%';
+Database (d%)
+d1
+SHOW SCHEMAS LIKE '%';
+Database (%)
+information_schema
+d1
+mtr
+mysql
+performance_schema
+test
+USE d1;
+DROP SCHEMA d1;

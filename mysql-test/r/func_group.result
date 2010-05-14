@@ -1788,10 +1788,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 # 3) Test that subquery materialization is setup for query with
 #    premature optimize() exit due to "Select tables optimized away"
 #
-# NOTE: The result of this query is actually wrong; it should be NULL
-# See BUG#47762. Even so, the test case is still needed to test
-# that the HAVING subquery does not crash the server
-# 
 SELECT MIN(pk)
 FROM t1
 WHERE pk=NULL
@@ -1799,7 +1795,7 @@ HAVING ('m') IN (
 SELECT v
 FROM t2);
 MIN(pk)
-2
+NULL
 
 EXPLAIN
 SELECT MIN(pk)
@@ -1809,7 +1805,7 @@ HAVING ('m') IN (
 SELECT v
 FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	
 
 #
@@ -1864,4 +1860,14 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 # Cleanup for BUG#46680
 #
 DROP TABLE IF EXISTS t1,t2,t3,empty1;
+#
+# Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
+#           file .\item_sum.cc, line 587
+#
+CREATE TABLE t1(a int, KEY(a));
+INSERT INTO t1 VALUES (1), (2);
+SELECT 1 FROM t1 ORDER BY AVG(DISTINCT a);
+1
+1
+DROP TABLE t1;
 End of 6.0 tests
