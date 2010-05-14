@@ -952,7 +952,7 @@ trx_purge_attach_undo_recs(
 		node->done = FALSE;
 	}
 
-	ut_a(i == n_purge_threads);
+	ut_a(i == n_purge_threads || (n_purge_threads == 0 && i == 1));
 
 	/* Fetch and parse the UNDO records. The UNDO records are added
 	to a per purge node vector. */
