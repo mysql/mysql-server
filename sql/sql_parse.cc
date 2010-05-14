@@ -274,22 +274,20 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_TRIGGER]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_AUTO_COMMIT_TRANS;
 
-  sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE;
@@ -367,8 +365,7 @@ void init_update_queries(void)
     last called (or executed) statement is preserved.
     See mysql_execute_command() for how CF_ROW_COUNT is used.
   */
-  sql_command_flags[SQLCOM_CALL]=      CF_HAS_ROW_COUNT | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_EXECUTE]=   CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_CALL]=      CF_REEXECUTION_FRAGILE;
 
   /*
     The following admin table operations are allowed
@@ -3184,7 +3181,7 @@ end_with_restore_list:
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
-    MYSQL_INSERT_DONE(res, (ulong) thd->row_count_func);
+    MYSQL_INSERT_DONE(res, (ulong) thd->get_row_count_func());
     /*
       If we have inserted into a VIEW, and the base table has
       AUTO_INCREMENT column, but this column is not accessible through
@@ -3250,7 +3247,7 @@ end_with_restore_list:
         delete sel_result;
       }
       /* revert changes for SP */
-      MYSQL_INSERT_SELECT_DONE(res, (ulong) thd->row_count_func);
+      MYSQL_INSERT_SELECT_DONE(res, (ulong) thd->get_row_count_func());
       select_lex->table_list.first= (uchar*) first_table;
     }
     /*
@@ -3296,7 +3293,7 @@ end_with_restore_list:
                        &select_lex->order_list,
                        unit->select_limit_cnt, select_lex->options,
                        FALSE);
-    MYSQL_DELETE_DONE(res, (ulong) thd->row_count_func);
+    MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -4299,8 +4296,9 @@ create_sp_error:
         thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)
-          my_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 :
-                              thd->row_count_func));
+        {
+          my_ok(thd, (thd->get_row_count_func() < 0) ? 0 : thd->get_row_count_func());
+        }
 	else
         {
           DBUG_ASSERT(thd->is_error() || thd->killed);
@@ -4686,15 +4684,6 @@ create_sp_error:
   */
   if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
     reset_one_shot_variables(thd);
-
-  /*
-    The return value for ROW_COUNT() is "implementation dependent" if the
-    statement is not DELETE, INSERT or UPDATE, but -1 is what JDBC and ODBC
-    wants. We also keep the last value in case of SQLCOM_CALL or
-    SQLCOM_EXECUTE.
-  */
-  if (!(sql_command_flags[lex->sql_command] & CF_HAS_ROW_COUNT))
-    thd->row_count_func= -1;
 
   goto finish;
 
