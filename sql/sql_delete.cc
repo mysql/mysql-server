@@ -266,7 +266,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     free_underlaid_joins(thd, select_lex);
     DBUG_RETURN(TRUE);
   }
-  if (usable_index==MAX_KEY)
+  if (usable_index==MAX_KEY || (select && select->quick))
     init_read_record(&info, thd, table, select, 1, 1, FALSE);
   else
     init_read_record_idx(&info, thd, table, 1, usable_index);
