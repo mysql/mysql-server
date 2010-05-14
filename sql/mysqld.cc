@@ -3867,6 +3867,9 @@ static int init_server_auto_options()
     /* server_uuid will be set in the function */
     if (generate_server_uuid())
       goto err;
+    sql_print_warning("It might be a maiden lunch of the server, for there is"
+                      " no UUID existing. A new UUID is generated. it is %s",
+                      server_uuid);
   }
   /*
     The uuid has been copied to server_uuid, so the memory allocated by
