@@ -458,8 +458,20 @@ bool Signal_statement::execute(THD *thd)
 
   DBUG_ENTER("Signal_statement::execute");
 
+  /*
+    WL#2110 SIGNAL specification says:
+
+      When SIGNAL is executed, it has five effects, in the following order:
+
+        (1) First, the diagnostics area is completely cleared. So if the
+        SIGNAL is in a DECLARE HANDLER then any pending errors or warnings
+        are gone. So is 'row count'.
+
+    This has roots in the SQL standard specification for SIGNAL.
+  */
+
   thd->stmt_da->reset_diagnostics_area();
-  thd->row_count_func= 0;
+  thd->set_row_count_func(0);
   thd->warning_info->clear_warning_info(thd->query_id);
 
   result= raise_condition(thd, &cond);
