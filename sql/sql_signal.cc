@@ -75,10 +75,6 @@ const LEX_STRING Diag_statement_item_names[]=
   { C_STRING_WITH_LEN("TRANSACTION_ACTIVE") }
 };
 
-Set_signal_information::Set_signal_information()
-{
-  clear();
-}
 
 Set_signal_information::Set_signal_information(
   const Set_signal_information& set)
