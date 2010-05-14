@@ -110,6 +110,9 @@ int brt_loader_call_error_function(brtloader_error_callback);
 int brt_loader_set_error_and_callback(brtloader_error_callback, int error, DB *db, int which_db, DBT *key, DBT *val);
 
 struct brtloader_s {
+    BOOL panic;
+    int panic_errno;
+    
     generate_row_for_put_func generate_row_for_put;
     brt_compare_func *bt_compare_funs;
 
@@ -126,9 +129,6 @@ struct brtloader_s {
     toku_pthread_t     extractor_thread;     // the thread that takes primary rowset and does extraction and the first level sort and write to file.
     BOOL extractor_live;
 
-    BOOL panic;
-    int panic_errno;
-    
     struct rowset *rows; // secondary rows that have been put, but haven't been sorted and written to a file.
     u_int64_t n_rows; // how many rows have been put?
     struct merge_fileset *fs;
