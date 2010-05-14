@@ -66,7 +66,7 @@ bool select_union::send_data(List<Item> &values)
     /* create_myisam_from_heap will generate error if needed */
     if (table->file->is_fatal_error(error, HA_CHECK_DUP) &&
         create_myisam_from_heap(thd, table, tmp_table_param.start_recinfo, 
-                                &tmp_table_param.recinfo, error, 1))
+                                &tmp_table_param.recinfo, error, TRUE, NULL))
       return 1;
   }
   return 0;
