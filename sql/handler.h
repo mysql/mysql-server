@@ -22,6 +22,7 @@
 #pragma interface			/* gcc class implementation */
 #endif
 
+#include <my_global.h>
 #include <my_handler.h>
 #include <ft_global.h>
 #include <keycache.h>
@@ -1183,7 +1184,7 @@ public:
   enum { MEM_COEFF=1 };
   enum { IMPORT_COEFF=1 };
 
-  COST_VECT() {}                              // keep gcc happy
+  COST_VECT() { zero(); }                              // keep gcc happy
 
   double total_cost() 
   {
@@ -1215,8 +1216,11 @@ public:
   void add_io(double add_io_cnt, double add_avg_cost)
   {
     double io_count_sum= io_count + add_io_cnt;
-    avg_io_cost= (io_count * avg_io_cost + 
-                  add_io_cnt * add_avg_cost) / io_count_sum;
+    if (io_count_sum != 0.0)
+      avg_io_cost= (io_count * avg_io_cost + 
+                    add_io_cnt * add_avg_cost) / io_count_sum;
+    DBUG_ASSERT(!isnan(avg_io_cost));
+    DBUG_ASSERT(isfinite(avg_io_cost));
     io_count= io_count_sum;
   }
 
