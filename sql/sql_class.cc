@@ -512,7 +512,7 @@ THD::THD()
   cuted_fields= 0L;
   sent_row_count= 0L;
   limit_found_rows= 0;
-  row_count_func= -1;
+  m_row_count_func= -1;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
   lex->current_select= 0;
@@ -804,7 +804,10 @@ MYSQL_ERROR* THD::raise_condition(uint sql_errno,
     else
     {
       if (! stmt_da->is_error())
+      {
+        set_row_count_func(-1);
         stmt_da->set_error_status(this, sql_errno, msg, sqlstate);
+      }
     }
   }
 
@@ -1805,11 +1808,6 @@ bool select_to_file::send_eof()
     error= 1;
   if (!error)
   {
-    /*
-      In order to remember the value of affected rows for ROW_COUNT()
-      function, SELECT INTO has to have an own SQLCOM.
-      TODO: split from SQLCOM_SELECT
-    */
     ::my_ok(thd,row_count);
   }
   file= -1;
@@ -2830,11 +2828,6 @@ bool select_dumpvar::send_eof()
   if (! row_count)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
-  /*
-    In order to remember the value of affected rows for ROW_COUNT()
-    function, SELECT INTO has to have an own SQLCOM.
-    TODO: split from SQLCOM_SELECT
-  */
   ::my_ok(thd,row_count);
   return 0;
 }
