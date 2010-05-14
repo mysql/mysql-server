@@ -5,8 +5,7 @@
 
 /* TODO:
  *
- * When loader is fixed to not crash on failed call to toku_os_write(),
- * get rid of INDUCE_BAD_WRITE and -e argument.
+ * When ready, add simulated errors on calls to pwrite() and malloc()
  *
  */
 
@@ -65,7 +64,6 @@ int NUM_ROWS=100000;
 //static int NUM_ROWS=50000000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
-int INDUCE_BAD_WRITE=0;
 int assert_temp_files = 0;
 enum {MAGIC=311};
 
@@ -568,20 +566,22 @@ static void run_test(enum test_type t, int trigger)
 
     generate_permute_tables();
 
+    write_count_trigger = 0;
+    fwrite_count_trigger = 0;
     fwrite_count = fwrite_enospc = 0;
     write_count  = write_enospc = 0;
-    if (t == enospc_f)
+    if (t == enospc_f) {
 	fwrite_count_trigger = trigger;
-    else
-	fwrite_count_trigger = 0;
-    if (t == enospc_w)
+    }
+    else if (t == enospc_w) {
 	write_count_trigger = trigger;
-    else
-	write_count_trigger = 0;
+    }
 
     db_env_set_func_loader_fwrite(bad_fwrite);
     db_env_set_func_write(bad_write);
-
+	
+    if (t == enospc_w && trigger == 1)
+	printf("Inducing enospc on first call to toku_os_write()\n");
     test_loader(t, dbs);
 
     for(int i=0;i<NUM_DBS;i++) {
@@ -611,34 +611,32 @@ static void run_all_tests(void) {
     if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
     run_test(abort_txn, 0);
 
-    if (INDUCE_BAD_WRITE) {
-	int i;
-	for (i = 1; i < 5; i++) {
-	    trigger = write_count_nominal / i;
-	    if (verbose) printf("\n\nTesting loader with enospc induced at write count %d\n", trigger);
-	    run_test(enospc_w, trigger);
-	}
-    }
-    {
+    enum test_type t[2] = {enospc_f, enospc_w};
+    char * write_type[2] = {"fwrite", "write"};
+    int * nomp[2] = {&fwrite_count_nominal, &write_count_nominal};
+    int j;
+    for (j = 0; j<2; j++) {
+	int nominal = *(nomp[j]);
+	printf("\nNow test with induced ENOSPC errors returned from %s, nominal = %d\n", write_type[j], nominal);
 	int i;
 	// induce write error at beginning of process
-	for (i = 1; i < 5 * NUM_DBS && i < fwrite_count_nominal; i++) {
+	for (i = 1; i < 5 * NUM_DBS && i < nominal; i++) {
 	    trigger = i;
-	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
-	    run_test(enospc_f, trigger);
+	    if (verbose) printf("\n\nTesting loader with enospc induced at %s count %d\n", write_type[j], trigger);
+	    run_test(t[j], trigger);
 	}
 	// induce write error sprinkled through process
-	for (i = 2; i < 5 && i < fwrite_count_nominal; i++) {
-	    trigger = fwrite_count_nominal / i;
-	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
-	    run_test(enospc_f, trigger);
+	for (i = 2; i < 5 && i < nominal; i++) {
+	    trigger = nominal / i;
+	    if (verbose) printf("\n\nTesting loader with enospc induced at %s count %d\n", write_type[j], trigger);
+	    run_test(t[j], trigger);
 	}
 	// induce write error at end of process
-	for (i = 0; i < 5 * NUM_DBS && i < fwrite_count_nominal; i++) {
-	    trigger =  fwrite_count_nominal - i;
+	for (i = 0; i < 5 * NUM_DBS && i < nominal; i++) {
+	    trigger =  nominal - i;
             assert(trigger > 0);
-	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
-	    run_test(enospc_f, trigger);
+	    if (verbose) printf("\n\nTesting loader with enospc induced at %s count %d\n", write_type[j], trigger);
+	    run_test(t[j], trigger);
 	}
     }
 }
@@ -671,7 +669,7 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows>\n%s\n", cmd);
+	    fprintf(stderr, "Usage: -h -c -s -p -d <num_dbs> -r <num_rows>\n%s\n", cmd);
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-d")==0) {
             argc--; argv++;
@@ -689,9 +687,6 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = LOADER_USE_PUTS;
 	    printf("Using puts\n");
-        } else if (strcmp(argv[0], "-e")==0) {
-	    INDUCE_BAD_WRITE = 1;
-	    printf("Using enospc return from toku_os_write()\n");
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
