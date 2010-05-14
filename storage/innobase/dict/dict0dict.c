@@ -2586,25 +2586,28 @@ dict_strip_comments(
 					/* out, own: SQL string stripped from
 					comments; the caller must free this
 					with mem_free()! */
-	const char*	sql_string)	/* in: SQL string */
+	const char*	sql_string,	/* in: SQL string */
+	size_t		sql_length)	/* in: length of sql_string */
 {
 	char*		str;
 	const char*	sptr;
+	const char*	eptr	= sql_string + sql_length;
 	char*		ptr;
 	/* unclosed quote character (0 if none) */
 	char		quote	= 0;
 
-	str = mem_alloc(strlen(sql_string) + 1);
+	str = mem_alloc(sql_length + 1);
 
 	sptr = sql_string;
 	ptr = str;
 
 	for (;;) {
 scan_more:
-		if (*sptr == '\0') {
+		if (sptr >= eptr || *sptr == '\0') {
+end_of_string:
 			*ptr = '\0';
 
-			ut_a(ptr <= str + strlen(sql_string));
+			ut_a(ptr <= str + sql_length);
 
 			return(str);
 		}
@@ -2623,30 +2626,35 @@ scan_more:
 			   || (sptr[0] == '-' && sptr[1] == '-'
 			       && sptr[2] == ' ')) {
 			for (;;) {
+				if (++sptr >= eptr) {
+					goto end_of_string;
+				}
+
 				/* In Unix a newline is 0x0A while in Windows
 				it is 0x0D followed by 0x0A */
 
-				if (*sptr == (char)0x0A
-				    || *sptr == (char)0x0D
-				    || *sptr == '\0') {
-
+				switch (*sptr) {
+				case (char) 0X0A:
+				case (char) 0x0D:
+				case '\0':
 					goto scan_more;
 				}
-
-				sptr++;
 			}
 		} else if (!quote && *sptr == '/' && *(sptr + 1) == '*') {
+			sptr += 2;
 			for (;;) {
-				if (*sptr == '*' && *(sptr + 1) == '/') {
-
-					sptr += 2;
-
-					goto scan_more;
+				if (sptr >= eptr) {
+					goto end_of_string;
 				}
 
-				if (*sptr == '\0') {
-
+				switch (*sptr) {
+				case '\0':
 					goto scan_more;
+				case '*':
+					if (sptr[1] == '/') {
+						sptr += 2;
+						goto scan_more;
+					}
 				}
 
 				sptr++;
@@ -3348,6 +3356,7 @@ dict_create_foreign_constraints(
 					name before it: test.table2; the
 					default database id the database of
 					parameter name */
+	size_t		sql_length,	/* in: length of sql_string */
 	const char*	name,		/* in: table full name in the
 					normalized form
 					database_name/table_name */
@@ -3362,7 +3371,7 @@ dict_create_foreign_constraints(
 	ut_a(trx);
 	ut_a(trx->mysql_thd);
 
-	str = dict_strip_comments(sql_string);
+	str = dict_strip_comments(sql_string, sql_length);
 	heap = mem_heap_create(10000);
 
 	err = dict_create_foreign_constraints_low(
@@ -3411,7 +3420,8 @@ dict_foreign_parse_drop_constraints(
 
 	*constraints_to_drop = mem_heap_alloc(heap, 1000 * sizeof(char*));
 
-	str = dict_strip_comments(*(trx->mysql_query_str));
+	str = dict_strip_comments(*trx->mysql_query_str,
+				  *trx->mysql_query_len);
 	ptr = str;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
