@@ -1270,6 +1270,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                                 system_charset_info, packet, db_length,
                                 thd->charset(), &dummy_errors);
     db_buff[db_length]= '\0';
+    if (check_table_name(db_buff, db_length, FALSE))
+    {
+      my_error(ER_WRONG_TABLE_NAME, MYF(0), db_buff);
+      break;
+    }
     table_list.alias= table_list.table_name= db_buff;
     if (!(fields= (char *) thd->memdup(wildcard, query_length + 1)))
       break;
@@ -6276,7 +6281,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     DBUG_RETURN(0);				// End of memory
   alias_str= alias ? alias->str : table->table.str;
   if (!test(table_options & TL_OPTION_ALIAS) && 
-      check_table_name(table->table.str, table->table.length))
+      check_table_name(table->table.str, table->table.length, FALSE))
   {
     my_error(ER_WRONG_TABLE_NAME, MYF(0), table->table.str);
     DBUG_RETURN(0);
