@@ -3360,9 +3360,10 @@ srv_purge_coordinator_thread(
 			ulint	sleep_ms = ut_rnd_gen_ulint() % 10000;
 
 			do {
+				ulint	n_purged;
 				ulint	rnd = ut_rnd_gen_ulint();
 
-				trx_purge(
+				n_purged = trx_purge(
 					srv_n_purge_threads,
 				       	srv_purge_batch_size);
 
@@ -3385,6 +3386,8 @@ srv_purge_coordinator_thread(
 				if (!srv_check_activity(count)
 				    && trx_sys->rseg_history_len > 100) {
 					sleep_ms = 1;
+				} else if (n_purged == 0) {
+					sleep_ms = 100000;
 				} else if (trx_sys->rseg_history_len > 50000) {
 					sleep_ms -= rnd % 10000;
 				} else if (trx_sys->rseg_history_len > 25000) {
