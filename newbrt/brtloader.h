@@ -44,9 +44,12 @@ void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FIL
 // For test purposes only
 void toku_brtloader_set_size_factor (uint32_t factor);
 
+int toku_brt_loader_finish_extractor(BRTLOADER bl);
+
+int toku_brt_loader_get_error(BRTLOADER bl, int *loader_errno);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
-};
+}
 #endif
 
 #endif // BRTLOADER_H
