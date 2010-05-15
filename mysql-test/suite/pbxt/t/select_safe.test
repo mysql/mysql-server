@@ -3,7 +3,7 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists t1,t2;
 --enable_warnings
 
 SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=4, SQL_MAX_JOIN_SIZE=9;
@@ -15,8 +15,13 @@ delete from t1 where a=1;
 insert into t1 values(1,"test"),(2,"test2");
 SELECT SQL_BUFFER_RESULT * from t1 order by a; # PBXT required for consistent result
 update t1 set b="a" where a=1;
-analyze table t1; # PBXT: required to get the correct COUNT(*)
-select 1 from t1,t1 as t2,t1 as t3;
+
+# Test MAX_JOIN_SIZE in a fresh table, as insert/delete combination
+# makes PBXT statistics non-deterministic
+create table t2 like t1;
+insert into t2 select * from t1;
+analyze table t2; # PBXT: required to get the correct COUNT(*)
+select 1 from t2 as t1,t2,t2 as t3;
 
 # The following should give errors:
 --error 1175
@@ -64,7 +69,7 @@ set MAX_SEEKS_FOR_KEY=1;
 explain select STRAIGHT_JOIN * from t1,t1 as t2 where t1.b=t2.b;
 SET MAX_SEEKS_FOR_KEY=DEFAULT;
 
-drop table t1;
+drop table t1, t2;
 
 # BUG#8726
 create table t1 (a int);
