@@ -136,6 +136,8 @@ struct brtloader_s {
     const char *temp_file_template;
 
     CACHETABLE cachetable;
+    uint64_t   reserved_memory; // how much memory are we allowed to use?
+
     /* To make it easier to recover from errors, we don't use FILE*, instead we use an index into the file_infos. */
     struct file_infos file_infos;
 

@@ -267,8 +267,11 @@ static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
     toku_free(bl->fractal_queues);
     toku_free(bl->fractal_threads_live);
 
+    toku_cachetable_release_reserved_memory(bl->cachetable, bl->reserved_memory);
+
     brt_loader_destroy_error_callback(&bl->error_callback);
     brt_loader_destroy_poll_callback(&bl->poll_callback);
+
     toku_free(bl);
 }
 
@@ -311,6 +314,7 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
 
     bl->generate_row_for_put = g;
     bl->cachetable = cachetable;
+    bl->reserved_memory = toku_cachetable_reserve_memory(cachetable, 0.5);
 
     bl->src_db = src_db;
     bl->N = N;
