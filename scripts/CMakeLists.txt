@@ -56,22 +56,22 @@ SET(pkgdatadir          ${prefix}/share)
 SET(localstatedir       ${prefix}/data)
 
 CONFIGURE_FILE(mysql_config.pl.in
-               scripts/mysql_config.pl ESCAPE_QUOTES @ONLY)
+               ${CMAKE_BINARY_DIR}/scripts/mysql_config.pl ESCAPE_QUOTES @ONLY)
 
 CONFIGURE_FILE(mysql_convert_table_format.sh
-               scripts/mysql_convert_table_format.pl ESCAPE_QUOTES @ONLY)
+               ${CMAKE_BINARY_DIR}/scripts/mysql_convert_table_format.pl ESCAPE_QUOTES @ONLY)
 
 CONFIGURE_FILE(mysql_install_db.pl.in
-               scripts/mysql_install_db.pl ESCAPE_QUOTES @ONLY)
+               ${CMAKE_BINARY_DIR}/scripts/mysql_install_db.pl ESCAPE_QUOTES @ONLY)
 
 CONFIGURE_FILE(mysql_secure_installation.pl.in
-               scripts/mysql_secure_installation.pl ESCAPE_QUOTES @ONLY)
+               ${CMAKE_BINARY_DIR}/scripts/mysql_secure_installation.pl ESCAPE_QUOTES @ONLY)
 
 CONFIGURE_FILE(mysqld_multi.sh
-               scripts/mysqld_multi.pl ESCAPE_QUOTES @ONLY)
+               ${CMAKE_BINARY_DIR}/scripts/mysqld_multi.pl ESCAPE_QUOTES @ONLY)
 
 CONFIGURE_FILE(mysqldumpslow.sh
-               scripts/mysqldumpslow.pl ESCAPE_QUOTES @ONLY)
+               ${CMAKE_BINARY_DIR}/scripts/mysqldumpslow.pl ESCAPE_QUOTES @ONLY)
 
 CONFIGURE_FILE(mysqlhotcopy.sh
-               scripts/mysqlhotcopy.pl ESCAPE_QUOTES @ONLY)
+               ${CMAKE_BINARY_DIR}/scripts/mysqlhotcopy.pl ESCAPE_QUOTES @ONLY)
