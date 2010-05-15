@@ -40,7 +40,9 @@ BOOST_CXXFLAGS =	-frtti -fexceptions -fimplicit-templates
 #   (automatically gets enabled anyway by -O* on some architectures)
 BOOST_CXXFLAGS+=	-O3 -fstrict-aliasing
 BOOST_CXXFLAGS+=	-falign-loops
+if HAVE_FVISIBILITY_INLINES_HIDDEN
 BOOST_CXXFLAGS+=	-fvisibility-inlines-hidden
+endif
 BOOST_CXXFLAGS+=	-funroll-loops -fno-trapping-math
 
 EXTRA_DIST =	ha_oqgraph.h ha_oqgraph.cc graphcore.cc \
