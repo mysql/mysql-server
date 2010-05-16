@@ -345,27 +345,19 @@ SET AUTOCOMMIT = 1;
 BEGIN;
 INSERT INTO tndb VALUES (147);
 INSERT INTO tinnodb SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
-Warnings:
-Note	1592	Statement may not be safe to log in statement format.
 COMMIT;
 INSERT INTO tndb VALUES (148);
 BEGIN;
 INSERT INTO tinnodb SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
-Warnings:
-Note	1592	Statement may not be safe to log in statement format.
 INSERT INTO tndb VALUES (149);
 COMMIT;
 BEGIN;
 INSERT INTO tndb VALUES (150);
 INSERT INTO tmyisam SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
-Warnings:
-Note	1592	Statement may not be safe to log in statement format.
 COMMIT;
 INSERT INTO tndb VALUES (151);
 BEGIN;
 INSERT INTO tmyisam SELECT * FROM tndb ORDER BY a DESC LIMIT 1;
-Warnings:
-Note	1592	Statement may not be safe to log in statement format.
 INSERT INTO tndb VALUES (152);
 COMMIT;
 ==== Verify the result ====
