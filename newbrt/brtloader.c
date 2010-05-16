@@ -1077,7 +1077,7 @@ int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_d
     if (r1!=0) return r1;
     if (r2!=0) return r2;
 
-    struct row *MALLOC_N(n, tmp);
+    struct row *MALLOC_N(n, tmp); assert(tmp); // LAZY
     {
 	int r = merge_row_arrays(tmp, rows, mid, rows+mid, n-mid, which_db, dest_db, compare, bl, rowset);
 	if (r!=0) {
@@ -2332,7 +2332,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
     // allocate space for the compressed bufer
     int bound = get_sum_compressed_size_bound(n_sub_blocks, sub_block);
     unsigned char *MALLOC_N(header_len + bound, compressed_buf);
-    assert(compressed_buf);
+    assert(compressed_buf); // LAZY
 
     // compress and checksum the sub blocks
     int compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, 

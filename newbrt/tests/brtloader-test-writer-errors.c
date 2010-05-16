@@ -6,6 +6,7 @@
 // test the loader write dbfile function
 
 #define DONT_DEPRECATE_WRITES
+#define DONT_DEPRECATE_MALLOC
 #include "includes.h"
 #include "test.h"
 #include "brtloader-internal.h"
@@ -14,21 +15,33 @@
 extern "C" {
 #endif
 
-static int write_count, write_count_trigger, write_enospc;
 
-static void reset_write_counts(void) {
-    write_count = write_count_trigger = write_enospc = 0;
+static int event_count, event_count_trigger;
+
+static void reset_event_counts(void) {
+    event_count = event_count_trigger = 0;
 }
 
-static void count_enospc(void) {
-    write_enospc++;
+static void event_hit(void) {
+}
+
+static int loader_poll_callback(void *UU(extra), float UU(progress)) {
+    int r;
+    event_count++;
+    if (event_count_trigger == event_count) {
+        event_hit();
+        r = 1;
+    } else {
+        r = 0;
+    }
+    return r;
 }
 
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    write_count++;
+    event_count++;
     size_t r;
-    if (write_count_trigger == write_count) {
-        count_enospc();
+    if (event_count_trigger == event_count) {
+        event_hit();
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -42,9 +55,9 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
 
 static ssize_t bad_write(int fd, const void * bp, size_t len) {
     ssize_t r;
-    write_count++;
-    if (write_count_trigger == write_count) {
-        count_enospc();
+    event_count++;
+    if (event_count_trigger == event_count) {
+        event_hit();
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -55,15 +68,41 @@ static ssize_t bad_write(int fd, const void * bp, size_t len) {
 
 static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
     ssize_t r;
-    write_count++;
-    if (write_count_trigger == write_count) {
-        count_enospc();
+    event_count++;
+    if (event_count_trigger == event_count) {
+        event_hit();
 	errno = ENOSPC;
 	r = -1;
     } else {
 	r = pwrite(fd, bp, len, off);
     }
     return r;
+}
+
+static int my_malloc_event = 0;
+static int my_malloc_count = 0, my_big_malloc_count = 0;
+
+static void reset_my_malloc_counts(void) {
+    my_malloc_count = my_big_malloc_count = 0;
+}
+
+static void *my_malloc(size_t n) {
+    void *caller = __builtin_return_address(0);
+    if ((void*)toku_malloc <= caller && caller <= (void*)toku_xcalloc) {
+        my_malloc_count++;
+        if (n >= 64*1024) {
+            my_big_malloc_count++;
+            if (my_malloc_event) {
+                event_count++;
+                if (event_count == event_count_trigger) {
+                    event_hit();
+                    errno = ENOMEM;
+                    return NULL;
+                }
+            }
+        }
+    }
+    return malloc(n);
 }
 
 static int qsort_compare_ints (const void *a, const void *b) {
@@ -85,44 +124,6 @@ static int compare_ints (DB *dest_db, const DBT *akey, const DBT *bkey) {
 static void err_cb(DB *db UU(), int dbn UU(), int err UU(), DBT *key UU(), DBT *val UU(), void *extra UU()) {
     fprintf(stderr, "error in test");
     abort();
-}
-
-static void verify_dbfile(int n, const char *name) {
-    if (verbose) printf("verify\n");
-
-    int r;
-
-    CACHETABLE ct;
-    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
-
-    TOKUTXN const null_txn = NULL;
-    BRT t = NULL;
-    r = toku_brt_create(&t); assert(r == 0);
-    r = toku_brt_set_bt_compare(t, compare_ints); assert(r == 0);
-    r = toku_brt_open(t, name, 0, 0, ct, null_txn, 0); assert(r==0);
-
-    BRT_CURSOR cursor = NULL;
-    r = toku_brt_cursor(t, &cursor, NULL, TXNID_NONE, FALSE); assert(r == 0);
-
-    int i;
-    for (i=0; ; i++) {
-	int kk = i;
-	int vv = i;
-	struct check_pair pair = {sizeof kk, &kk, sizeof vv, &vv, 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
-        if (r != 0) {
-	    assert(pair.call_count ==0);
-	    break;
-	}
-	assert(pair.call_count==1);
-    }
-
-    assert(i == n);
-
-    r = toku_brt_cursor_close(cursor); assert(r == 0);
-    r = toku_close_brt(t, 0); assert(r==0);
-    r = toku_cachetable_close(&ct);assert(r==0);
-    if (verbose) printf("verify done\n");
 }
 
 static void write_dbfile (char *template, int n, char *output_name, BOOL expect_error) {
@@ -151,6 +152,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
 
     brt_loader_init_error_callback(&bl.error_callback);
     brt_loader_set_error_function(&bl.error_callback, err_cb, NULL);
+    brt_loader_init_poll_callback(&bl.poll_callback);
     r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
     // destroy_rowset(&aset);
 
@@ -197,24 +199,28 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     int fd = open(output_name, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
 
+    toku_set_func_malloc(my_malloc);
     brtloader_set_os_fwrite(bad_fwrite);
     toku_set_func_write(bad_write);
     toku_set_func_pwrite(bad_pwrite);
+    brt_loader_set_poll_function(&bl.poll_callback, loader_poll_callback, NULL);
 
     r = toku_loader_write_brt_from_q_in_C(&bl, &desc, fd, 1000, q2);
     assert(expect_error ? r != 0 : r == 0);
 
+    toku_set_func_malloc(NULL);
     brtloader_set_os_fwrite(NULL);
     toku_set_func_write(NULL);
     toku_set_func_pwrite(NULL);
+
+    brt_loader_destroy_error_callback(&bl.error_callback);
+    brt_loader_destroy_poll_callback(&bl.poll_callback);
     
     r = queue_destroy(q2);
     assert(r==0);
    
     destroy_merge_fileset(&fs);
     brtloader_fi_destroy(&bl.file_infos, expect_error);
-
-    brt_loader_destroy_error_callback(&bl.error_callback);
 }
 
 static int usage(const char *progname, int n) {
@@ -238,6 +244,8 @@ int test_main (int argc, const char *argv[]) {
             n = atoi(argv[0]);
         } else if (strcmp(argv[0],"-s") == 0) {
             toku_brtloader_set_size_factor(1);
+        } else if (strcmp(argv[0],"-m") == 0) {
+            my_malloc_event = 1;
 	} else if (argc!=1) {
             return usage(progname, n);
 	}
@@ -265,14 +273,16 @@ int test_main (int argc, const char *argv[]) {
     r = system(unlink_all); CKERR(r);
     r = toku_os_mkdir(directory, 0755); CKERR(r);
     write_dbfile(template, n, output_name, FALSE);
-    if (0) verify_dbfile(n, output_name);
 
-    int write_error_limit = write_count;
-    if (verbose) printf("write_error_limit=%d\n", write_error_limit);
+    if (verbose) printf("my_malloc_count=%d big_count=%d\n", my_malloc_count, my_big_malloc_count);
 
-    for (int i = 1; i <= write_error_limit; i++) {
-        reset_write_counts();
-        write_count_trigger = i;
+    int event_limit = event_count;
+    if (verbose) printf("event_limit=%d\n", event_limit);
+
+    for (int i = 1; i <= event_limit; i++) {
+        reset_event_counts();
+        reset_my_malloc_counts();
+        event_count_trigger = i;
         r = system(unlink_all); CKERR(r);
         r = toku_os_mkdir(directory, 0755); CKERR(r);
         write_dbfile(template, n, output_name, TRUE);
