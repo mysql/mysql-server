@@ -5154,63 +5154,75 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
       set with all the capabilities bits set and one with no
       capabilities bits set.
      */
-    handler::Table_flags flags_some_set= 0;
-    handler::Table_flags flags_all_set=
+    handler::Table_flags flags_write_some_set= 0;
+    handler::Table_flags flags_access_some_set= 0;
+    handler::Table_flags flags_write_all_set=
       HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE;
 
-    my_bool multi_engine= FALSE;
-    void* prev_ht= NULL;
+    /*
+       If different types of engines are about to be updated.
+       For example: Innodb and Falcon; Innodb and MyIsam.
+    */
+    my_bool multi_write_engine= FALSE;
+    void* prev_write_ht= NULL;
+
+    /*
+       If different types of engines are about to be accessed
+       and any of them is about to be updated. For example:
+       Innodb and Falcon; Innodb and MyIsam.
+    */
+    my_bool multi_access_engine= FALSE;
+    void* prev_access_ht= NULL;
     for (TABLE_LIST *table= tables; table; table= table->next_global)
     {
       if (table->placeholder())
         continue;
       if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE)
         thd->lex->set_stmt_unsafe();
+      ulonglong const flags= table->table->file->ha_table_flags();
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
-        ulonglong const flags= table->table->file->ha_table_flags();
         DBUG_PRINT("info", ("table: %s; ha_table_flags: %s%s",
                             table->table_name,
                             FLAGSTR(flags, HA_BINLOG_STMT_CAPABLE),
                             FLAGSTR(flags, HA_BINLOG_ROW_CAPABLE)));
-        if (prev_ht && prev_ht != table->table->file->ht)
-          multi_engine= TRUE;
-        prev_ht= table->table->file->ht;
-        flags_all_set &= flags;
-        flags_some_set |= flags;
+        if (prev_write_ht && prev_write_ht != table->table->file->ht)
+          multi_write_engine= TRUE;
+        prev_write_ht= table->table->file->ht;
+        flags_write_all_set &= flags;
+        flags_write_some_set |= flags;
       }
+      if (prev_access_ht && prev_access_ht != table->table->file->ht)
+        multi_access_engine= TRUE;
+      prev_access_ht= table->table->file->ht;
+      flags_access_some_set |= flags;
     }
 
-    DBUG_PRINT("info", ("flags_all_set: %s%s",
-                        FLAGSTR(flags_all_set, HA_BINLOG_STMT_CAPABLE),
-                        FLAGSTR(flags_all_set, HA_BINLOG_ROW_CAPABLE)));
-    DBUG_PRINT("info", ("flags_some_set: %s%s",
-                        FLAGSTR(flags_some_set, HA_BINLOG_STMT_CAPABLE),
-                        FLAGSTR(flags_some_set, HA_BINLOG_ROW_CAPABLE)));
+    DBUG_PRINT("info", ("flags_write_all_set: %s%s",
+                        FLAGSTR(flags_write_all_set, HA_BINLOG_STMT_CAPABLE),
+                        FLAGSTR(flags_write_all_set, HA_BINLOG_ROW_CAPABLE)));
+    DBUG_PRINT("info", ("flags_write_some_set: %s%s",
+                        FLAGSTR(flags_write_some_set, HA_BINLOG_STMT_CAPABLE),
+                        FLAGSTR(flags_write_some_set, HA_BINLOG_ROW_CAPABLE)));
+    DBUG_PRINT("info", ("flags_access_some_set: %s%s",
+                        FLAGSTR(flags_access_some_set, HA_BINLOG_STMT_CAPABLE),
+                        FLAGSTR(flags_access_some_set, HA_BINLOG_ROW_CAPABLE)));
+    DBUG_PRINT("info", ("multi_write_engine: %s",
+                        multi_write_engine ? "TRUE" : "FALSE"));
+    DBUG_PRINT("info", ("multi_access_engine: %s",
+                        multi_access_engine ? "TRUE" : "FALSE"));
     DBUG_PRINT("info", ("thd->variables.binlog_format: %ld",
                         thd->variables.binlog_format));
-    DBUG_PRINT("info", ("multi_engine: %s",
-                        multi_engine ? "TRUE" : "FALSE"));
-    /*
-      Reading from a self-logging engine and updating another engine
-      generates changes that are written to the binary log in the
-      statement format and may make slaves to diverge. In the mixed
-      mode, such changes should be written to the binary log in the
-      row format.
-    */
-    if (multi_engine &&
-        (flags_some_set & HA_HAS_OWN_BINLOGGING))
-      thd->lex->set_stmt_unsafe();
 
     int error= 0;
-    if (flags_all_set == 0)
+    if (flags_write_all_set == 0)
     {
       my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
                "Statement cannot be logged to the binary log in"
                " row-based nor statement-based format");
     }
     else if (thd->variables.binlog_format == BINLOG_FORMAT_STMT &&
-             (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+             (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
     {
       my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
                 "Statement-based format required for this statement,"
@@ -5218,7 +5230,7 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     }
     else if ((thd->variables.binlog_format == BINLOG_FORMAT_ROW ||
               thd->lex->is_stmt_unsafe()) &&
-             (flags_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
+             (flags_write_all_set & HA_BINLOG_ROW_CAPABLE) == 0)
     {
       my_error((error= ER_BINLOG_LOGGING_IMPOSSIBLE), MYF(0),
                 "Row-based format required for this statement,"
@@ -5231,8 +5243,8 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
       statement cannot be logged atomically, so we generate an error
       rather than allowing the binlog to become corrupt.
      */
-    if (multi_engine &&
-        (flags_some_set & HA_HAS_OWN_BINLOGGING))
+    if (multi_write_engine &&
+        (flags_write_some_set & HA_HAS_OWN_BINLOGGING))
     {
       error= ER_BINLOG_LOGGING_IMPOSSIBLE;
       my_error(error, MYF(0),
@@ -5240,6 +5252,16 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
                " than one engine involved and at least one engine"
                " is self-logging");
     }
+    /*
+      Reading from a self-logging engine and updating another engine
+      generates changes that are written to the binary log in the
+      statement format and may make slaves to diverge. In the mixed
+      mode, such changes should be written to the binary log in the
+      row format.
+    */
+    else if (multi_access_engine &&
+             (flags_access_some_set & HA_HAS_OWN_BINLOGGING))
+      thd->lex->set_stmt_unsafe();
 
     DBUG_PRINT("info", ("error: %d", error));
 
@@ -5259,7 +5281,7 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
       here.
     */
     if (thd->lex->is_stmt_unsafe() ||
-        (flags_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
+        (flags_write_all_set & HA_BINLOG_STMT_CAPABLE) == 0)
     {
       thd->set_current_stmt_binlog_row_based_if_mixed();
     }
