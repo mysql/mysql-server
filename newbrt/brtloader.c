@@ -57,6 +57,10 @@ extern "C" {
 #endif
 #endif
 
+#define lazy_assert(a) assert(a) // indicates code is incomplete 
+#define invariant(a) assert(a) // indicates a code invariant that must be true
+#define resource_assert(a) assert(a) // indicates resource must be available, otherwise unrecoverable
+
 static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
     os_fwrite_fun=fwrite_fun;
@@ -287,7 +291,7 @@ static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
     toku_free(bl->fs);
 
     for (int i=0; i<bl->N; i++) {
-	assert(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.
+	lazy_assert(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.
     }
     toku_free(bl->fractal_threads);
     toku_free(bl->fractal_queues);
