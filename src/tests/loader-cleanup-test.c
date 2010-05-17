@@ -52,7 +52,8 @@ enum test_type {commit,                  // close loader, commit txn
 		abort_loader,            // abort loader, abort txn
 		abort_via_poll,          // close loader, but poll function returns non-zero, abort txn
 		enospc_w,                // close loader, but close fails due to enospc return from toku_os_write
-		enospc_f};               // either loader->put() or loader->close() fails due to enospc return from do_fwrite()
+		enospc_f,                // either loader->put() or loader->close() fails due to enospc return from do_fwrite()
+		enospc_p};               // loader->close() fails due to enospc return from toku_os_pwrite()
 
 int abort_on_poll = 0;  // set when test_loader() called with test_type of abort_via_poll
 
@@ -76,9 +77,11 @@ static int count_temp(char * dirname);
 static void get_inames(DBT* inames, DB** dbs);
 static int verify_file(char * dirname, char * filename);
 static void assert_inames_missing(DBT* inames);
-static ssize_t bad_write(int, const void *, size_t);
 static void run_all_tests(void);
 static void free_inames(DBT* inames);
+
+
+#define NUM_ENOSPC_TYPES 3
 
 int fwrite_count = 0;
 int fwrite_enospc = 0;
@@ -89,6 +92,29 @@ int write_count = 0;
 int write_enospc = 0;
 int write_count_nominal = 0;  // number of write calls for normal operation, initially zero
 int write_count_trigger = 0;  // sequence number of write call that will fail (zero disables induced failure)
+
+int pwrite_count = 0;
+int pwrite_enospc = 0;
+int pwrite_count_nominal = 0;  // number of pwrite calls for normal operation, initially zero
+int pwrite_count_trigger = 0;  // sequence number of pwrite call that will fail (zero disables induced failure)
+
+const char * fwrite_str = "fwrite";
+const char *  write_str = "write";
+const char * pwrite_str = "pwrite";
+
+static const char *
+enospc_type_str (enum test_type t){
+    const char * rval;
+    if (t == enospc_f)
+	rval = fwrite_str;
+    else if (t == enospc_w)
+	rval = write_str;
+    else if (t == enospc_p)
+	rval = pwrite_str;
+    else
+	assert(0);
+    return rval;
+}
 
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
     fwrite_count++;
@@ -107,7 +133,7 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
 }
 
 
-ssize_t 
+static ssize_t 
 bad_write(int fd, const void * bp, size_t len) {
     ssize_t r;
     write_count++;
@@ -121,10 +147,24 @@ bad_write(int fd, const void * bp, size_t len) {
     return r;
 }
 
+static ssize_t
+bad_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
+    int r;
+    pwrite_count++;
+    if (pwrite_count_trigger == pwrite_count) {
+        pwrite_enospc++;
+	errno = ENOSPC;
+	r = -1;
+    } else {
+	r = pwrite(fd, buf, len, off);
+    }
+    return r;
+}
+
 
 
 // return number of temp files
-int
+static int
 count_temp(char * dirname) {
     int n = 0;
     
@@ -143,7 +183,7 @@ count_temp(char * dirname) {
 
 
 // return non-zero if file exists
-int 
+static int 
 verify_file(char * dirname, char * filename) {
     int n = 0;
     DIR * dir = opendir(dirname);
@@ -158,7 +198,7 @@ verify_file(char * dirname, char * filename) {
     return n;
 }
 
-void
+static void
 get_inames(DBT* inames, DB** dbs) {
     int i;
     for (i = 0; i < NUM_DBS; i++) {
@@ -175,7 +215,7 @@ get_inames(DBT* inames, DB** dbs) {
 }
 
 
-void 
+static void 
 assert_inames_missing(DBT* inames) {
     int i;
     char * dir = env->i->real_data_dir;
@@ -199,8 +239,7 @@ void free_inames(DBT* inames) {
 }
 
 #if 0
-void print_inames(DB** dbs);
-void
+static void
 print_inames(DB** dbs) {
     int i;
     for (i = 0; i < NUM_DBS; i++) {
@@ -449,7 +488,7 @@ static void test_loader(enum test_type t, DB **dbs)
         dbt_init(&key, &k, sizeof(unsigned int));
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
-	if (t == enospc_f || t == enospc_w)
+	if (t == enospc_f || t == enospc_w || t == enospc_p)
 	    failed_put = r;
 	else
 	    CKERR(r);
@@ -482,9 +521,10 @@ static void test_loader(enum test_type t, DB **dbs)
 	r = loader->close(loader);
 	assert(r);  // not defined what close() returns when poll function returns non-zero
     }
-    else if ((t == enospc_f || t == enospc_w)
+    else if ((t == enospc_f || t == enospc_w || t == enospc_p)
 	     && !failed_put) {
-	printf("closing, but expecting failure from enospc\n");
+	const char * type = enospc_type_str(t);
+	printf("closing, but expecting failure from enospc %s\n", type);
 	r = loader->close(loader);
 	if (!USE_PUTS)
 	    assert(r);
@@ -505,8 +545,10 @@ static void test_loader(enum test_type t, DB **dbs)
 
     if (t == commit) {
 	fwrite_count_nominal = fwrite_count;  // capture how many fwrites were required for normal operation
-	write_count_nominal  = write_count;   // capture how many  writes were required for normal operation
-	if (verbose) printf("Calls to fwrite nominal: %d, calls to write nominal: %d\n", fwrite_count_nominal, write_count_nominal);
+	write_count_nominal  =  write_count;  // capture how many  writes were required for normal operation
+	pwrite_count_nominal = pwrite_count;  // capture how many pwrites were required for normal operation
+	if (verbose) printf("Calls to fwrite nominal: %d, calls to write nominal: %d, calls to pwrite nominal: %d\n", 
+			    fwrite_count_nominal, write_count_nominal, pwrite_count_nominal);
 	r = txn->commit(txn, 0);
 	CKERR(r);
 	if (!USE_PUTS) {
@@ -566,22 +608,24 @@ static void run_test(enum test_type t, int trigger)
 
     generate_permute_tables();
 
-    write_count_trigger = 0;
-    fwrite_count_trigger = 0;
-    fwrite_count = fwrite_enospc = 0;
-    write_count  = write_enospc = 0;
+    fwrite_count_trigger = fwrite_count = fwrite_enospc = 0;
+    write_count_trigger  =  write_count =  write_enospc = 0;
+    pwrite_count_trigger = pwrite_count = pwrite_enospc = 0;
+
     if (t == enospc_f) {
 	fwrite_count_trigger = trigger;
     }
     else if (t == enospc_w) {
 	write_count_trigger = trigger;
     }
+    else if (t == enospc_p) {
+	pwrite_count_trigger = trigger;
+    }
 
     db_env_set_func_loader_fwrite(bad_fwrite);
     db_env_set_func_write(bad_write);
+    db_env_set_func_pwrite(bad_pwrite);
 	
-    if (t == enospc_w && trigger == 1)
-	printf("Inducing enospc on first call to toku_os_write()\n");
     test_loader(t, dbs);
 
     for(int i=0;i<NUM_DBS;i++) {
@@ -611,32 +655,36 @@ static void run_all_tests(void) {
     if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
     run_test(abort_txn, 0);
 
-    enum test_type t[2] = {enospc_f, enospc_w};
-    char * write_type[2] = {"fwrite", "write"};
-    int * nomp[2] = {&fwrite_count_nominal, &write_count_nominal};
+    enum test_type et[NUM_ENOSPC_TYPES] = {enospc_f, enospc_w, enospc_p};
+    int * nomp[NUM_ENOSPC_TYPES] = {&fwrite_count_nominal, &write_count_nominal, &pwrite_count_nominal};
+    int limit = NUM_DBS * 5;
     int j;
-    for (j = 0; j<2; j++) {
+    for (j = 0; j<NUM_ENOSPC_TYPES; j++) {
+	enum test_type t = et[j];
+	const char * write_type = enospc_type_str(t);
 	int nominal = *(nomp[j]);
-	printf("\nNow test with induced ENOSPC errors returned from %s, nominal = %d\n", write_type[j], nominal);
+	printf("\nNow test with induced ENOSPC errors returned from %s, nominal = %d\n", write_type, nominal);
 	int i;
 	// induce write error at beginning of process
-	for (i = 1; i < 5 * NUM_DBS && i < nominal; i++) {
+	for (i = 1; i < limit && i < nominal+1; i++) {
 	    trigger = i;
-	    if (verbose) printf("\n\nTesting loader with enospc induced at %s count %d\n", write_type[j], trigger);
-	    run_test(t[j], trigger);
+	    if (verbose) printf("\n\nTesting loader with enospc induced at %s count %d (of %d)\n", write_type, trigger, nominal);
+	    run_test(t, trigger);
 	}
-	// induce write error sprinkled through process
-	for (i = 2; i < 5 && i < nominal; i++) {
-	    trigger = nominal / i;
-	    if (verbose) printf("\n\nTesting loader with enospc induced at %s count %d\n", write_type[j], trigger);
-	    run_test(t[j], trigger);
-	}
-	// induce write error at end of process
-	for (i = 0; i < 5 * NUM_DBS && i < nominal; i++) {
-	    trigger =  nominal - i;
-            assert(trigger > 0);
-	    if (verbose) printf("\n\nTesting loader with enospc induced at %s count %d\n", write_type[j], trigger);
-	    run_test(t[j], trigger);
+	if (nominal > limit)  {  // if we didn't already test every possible case
+	    // induce write error sprinkled through process
+	    for (i = 2; i < 5; i++) {
+		trigger = nominal / i;
+		if (verbose) printf("\n\nTesting loader with enospc induced at %s count %d (of %d)\n", write_type, trigger, nominal);
+		run_test(t, trigger);
+	    }
+	    // induce write error at end of process
+	    for (i = 0; i < limit; i++) {
+		trigger =  nominal - i;
+		assert(trigger > 0);
+		if (verbose) printf("\n\nTesting loader with enospc induced at %s count %d (of %d)\n", write_type, trigger, nominal);
+		run_test(t, trigger);
+	    }
 	}
     }
 }
