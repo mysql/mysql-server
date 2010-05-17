@@ -386,7 +386,7 @@ select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
 select * from t2
 where id in (select id from t2 as x1 where (t2.cur_date is null));
-set @@optimizer_switch='';
+set @@optimizer_switch=default;
 drop table t1,t2;
 
 
