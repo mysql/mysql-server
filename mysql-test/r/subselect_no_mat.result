@@ -5116,7 +5116,7 @@ WHERE t1.a = d1.a;
 ERROR 42S22: Unknown column 'd1.a' in 'where clause'
 DROP TABLE t1;
 End of 5.1 tests.
-set optimizer_switch='';
+set optimizer_switch=default;
 show variables like 'optimizer_switch';
 Variable_name	Value
-optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=off,semijoin=on,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
+optimizer_switch	index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,materialization=on,semijoin=on,loosescan=on,firstmatch=on,mrr=on,mrr_cost_based=off,index_condition_pushdown=on
