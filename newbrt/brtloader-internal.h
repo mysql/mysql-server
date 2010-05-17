@@ -47,13 +47,14 @@ struct row {
     int   klen,vlen;
 };
 struct rowset {
+    uint64_t memory_budget;
     size_t n_rows, n_rows_limit;
     struct row *rows;
     size_t n_bytes, n_bytes_limit;
     char *data;
 };
 
-int init_rowset (struct rowset *rows);
+int init_rowset (struct rowset *rows, uint64_t memory_budget);
 void destroy_rowset (struct rowset *rows);
 void add_row (struct rowset *rows, DBT *key, DBT *val);
 

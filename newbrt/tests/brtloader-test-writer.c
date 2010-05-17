@@ -91,7 +91,7 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
 
     // put rows in the row set
     struct rowset aset;
-    init_rowset(&aset);
+    init_rowset(&aset, toku_brtloader_get_rowset_budget_for_testing());
     for (int i=0; i<n; i++) {
 	DBT key = {.size=sizeof i,
 		   .data=&i};

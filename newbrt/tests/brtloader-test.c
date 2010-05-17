@@ -230,7 +230,7 @@ static void fill_rowset (struct rowset *rows,
 			 int keys[],
 			 const char *vals[],
 			 int n) {
-    init_rowset(rows);
+    init_rowset(rows, toku_brtloader_get_rowset_budget_for_testing());
     for (int i=0; i<n; i++) {
 	DBT key = {.size=sizeof(keys[i]),
 		   .data=&keys[i]};
