@@ -141,8 +141,8 @@ void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
 {
     int r = toku_pthread_mutex_destroy(&fi->lock); lazy_assert(r == 0);
     if (!is_error) {
-	assert(fi->n_files_open==0);
-	assert(fi->n_files_extant==0);
+	invariant(fi->n_files_open==0);
+	invariant(fi->n_files_extant==0);
     }
     for (int i=0; i<fi->n_files; i++) {
 	if (fi->file_infos[i].is_open) {
@@ -667,7 +667,7 @@ void add_row (struct rowset *rows, DBT *key, DBT *val)
 	while (next_off > rows->n_bytes_limit) {
 	    rows->n_bytes_limit = rows->n_bytes_limit*2; 
 	}
-	assert(next_off <= rows->n_bytes_limit);
+	invariant(next_off <= rows->n_bytes_limit);
 	REALLOC_N(rows->n_bytes_limit, rows->data);
     }
     memcpy(rows->data+off,           key->data, key->size);
@@ -853,7 +853,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 	
 	    {
 		int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &skey, &sval, &pkey, &pval, NULL);
-		assert(r==0); // LAZY
+		lazy_assert(r==0); // LAZY
 	    }
 
 	    if (row_wont_fit(rows, skey.size + sval.size)) {
@@ -906,7 +906,7 @@ static int process_primary_rows_internal (BRTLOADER bl, struct rowset *primary_r
 	for (int i=0; i<bl->N; i++) {
 	    if (error_codes[i]) r = error_codes[i];
 	}
-	assert(r); // found the error 
+	lazy_assert(r); // found the error 
     }
     toku_free(error_codes);
     BL_TRACE(blt_extractor);
@@ -1533,7 +1533,7 @@ int merge_files (struct merge_fileset *fs,
 	int progress_allocation_for_this_pass = progress_allocation/n_passes_left;
 	progress_allocation -= progress_allocation_for_this_pass;
 
-	assert(fs->n_temp_files>0);
+	invariant(fs->n_temp_files>0);
 	struct merge_fileset next_file_set;
 	BOOL to_queue = (BOOL)(fs->n_temp_files <= mergelimit);
 	init_merge_fileset(&next_file_set);
@@ -2027,7 +2027,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     }
 
     {
-	assert(sts.n_subtrees==1);
+	invariant(sts.n_subtrees==1);
 	BLOCKNUM root_block = make_blocknum(sts.subtrees[0].block);
 	toku_free(sts.subtrees); sts.subtrees = NULL;
 
@@ -2046,7 +2046,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	    toku_serialize_descriptor_contents_to_wbuf(&wbuf, descriptor);
 	    u_int32_t checksum = x1764_finish(&wbuf.checksum);
 	    wbuf_int(&wbuf, checksum);
-	    assert(wbuf.ndone==desc_size);
+	    invariant(wbuf.ndone==desc_size);
 	    r = toku_os_write(out.fd, wbuf.buf, wbuf.ndone);
 	    out.current_off += desc_size;
 	    toku_free(buf);    // wbuf_destroy
@@ -2149,7 +2149,7 @@ static int loader_do_i (BRTLOADER bl,
     {
 	mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	int fd = open(new_fname, O_RDWR| O_CREAT | O_BINARY, mode);
-	assert(fd>=0);
+	lazy_assert(fd>=0);
 
 	// This structure must stay live until the join below.
         struct fractal_thread_args fta = {bl,
@@ -2166,7 +2166,7 @@ static int loader_do_i (BRTLOADER bl,
 	    // ignore r2, since we already have an error
 	    goto error;
 	}
-	assert(bl->fractal_threads_live[which_db]==FALSE);
+	invariant(bl->fractal_threads_live[which_db]==FALSE);
 	bl->fractal_threads_live[which_db] = TRUE;
 
 	r = merge_files(fs, bl, which_db, dest_db, compare, allocation_for_merge, bl->fractal_queues[which_db]);
@@ -2221,7 +2221,7 @@ static int toku_brt_loader_close_internal (BRTLOADER bl)
 	if (result!=0) goto error;
         toku_free((void*)bl->new_fnames_in_env[i]);
 	bl->new_fnames_in_env[i] = NULL;
-	assert(0<=bl->progress && bl->progress <= PROGRESS_MAX);
+	invariant(0<=bl->progress && bl->progress <= PROGRESS_MAX);
 	result = update_progress(0, bl, "did index");
 	if (result) goto error;
     }
@@ -2645,7 +2645,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	ci->have_fullhash       = FALSE;
 	ci->fullhash            = 0;
 	int r = toku_fifo_create(&ci->buffer);
-	assert(r==0);
+	resource_assert(r==0);
 	ci->n_bytes_in_buffer = 0;
     }
 
