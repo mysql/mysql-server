@@ -82,8 +82,11 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
     if (verbose) traceit("test start");
 
     DB *dest_db = NULL;
-    struct brtloader_s bl = {.panic              = 0,
-			     .temp_file_template = template};
+    struct brtloader_s bl = {
+        .panic              = 0,
+        .temp_file_template = template,
+        .reserved_memory = 512*1024*1024,
+    };
     int r = brtloader_init_file_infos(&bl.file_infos);
     CKERR(r);
     struct merge_fileset fs;
