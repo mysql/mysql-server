@@ -22,6 +22,11 @@
 #include "brt-internal.h"
 #include "toku_atomic.h"
 
+
+#define lazy_assert(a) assert(a) // indicates code is incomplete 
+#define invariant(a) assert(a) // indicates a code invariant that must be true
+#define resource_assert(a) assert(a) // indicates resource must be available, otherwise unrecoverable
+
 enum {MAX_FILE_SIZE=256};
 
 static LOADER_STATUS_S status;  // accountability
@@ -222,7 +227,7 @@ int toku_loader_create_loader(DB_ENV *env,
 		rval = r;
 		goto create_exit;
 	    }
-	    toku_brt_loader_open(&loader->i->brt_loader,
+	    r = toku_brt_loader_open(&loader->i->brt_loader,
 				 loader->i->env->i->cachetable,
 				 loader->i->env->i->generate_row_for_put,
 				 src_db,
@@ -233,6 +238,7 @@ int toku_loader_create_loader(DB_ENV *env,
 				 compare_functions,
 				 loader->i->temp_file_template,
 				 load_lsn);
+            lazy_assert(r == 0);
 	    loader->i->inames_in_env = new_inames_in_env;
 	    toku_free(descriptors);
 	    rval = 0;
