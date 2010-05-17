@@ -2205,25 +2205,29 @@ static int toku_brt_loader_close_internal (BRTLOADER bl)
 {
     BL_TRACE(blt_do_put);
     int result = 0;
-    int remaining_progress = PROGRESS_MAX;
-    for (int i=0; i<bl->N; i++) {
-        char * fname_in_cwd = toku_cachetable_get_fname_in_cwd(bl->cachetable, bl->new_fnames_in_env[i]);
-	// Take the unallocated progress and divide it among the unfinished jobs.
-	// This calculation allocates all of the PROGRESS_MAX bits of progress to some job.
-	int allocate_here = remaining_progress/(bl->N - i);
-	remaining_progress -= allocate_here;
-	//printf("%s:%d do_i(%d)\n", __FILE__, __LINE__, i);
-	BL_TRACE(blt_close);
-	result = loader_do_i(bl, i, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd,
-			     allocate_here
-                             );
-        toku_free(fname_in_cwd);
-	if (result!=0) goto error;
-        toku_free((void*)bl->new_fnames_in_env[i]);
-	bl->new_fnames_in_env[i] = NULL;
-	invariant(0<=bl->progress && bl->progress <= PROGRESS_MAX);
-	result = update_progress(0, bl, "did index");
-	if (result) goto error;
+    if (bl->N == 0)
+        result = update_progress(PROGRESS_MAX, bl, "done");
+    else {
+        int remaining_progress = PROGRESS_MAX;
+        for (int i=0; i<bl->N; i++) {
+            char * fname_in_cwd = toku_cachetable_get_fname_in_cwd(bl->cachetable, bl->new_fnames_in_env[i]);
+            // Take the unallocated progress and divide it among the unfinished jobs.
+            // This calculation allocates all of the PROGRESS_MAX bits of progress to some job.
+            int allocate_here = remaining_progress/(bl->N - i);
+            remaining_progress -= allocate_here;
+            //printf("%s:%d do_i(%d)\n", __FILE__, __LINE__, i);
+            BL_TRACE(blt_close);
+            result = loader_do_i(bl, i, bl->dbs[i], bl->bt_compare_funs[i], bl->descriptors[i], fname_in_cwd,
+                                 allocate_here
+                                 );
+            toku_free(fname_in_cwd);
+            if (result!=0) goto error;
+            toku_free((void*)bl->new_fnames_in_env[i]);
+            bl->new_fnames_in_env[i] = NULL;
+            invariant(0<=bl->progress && bl->progress <= PROGRESS_MAX);
+            result = update_progress(0, bl, "did index");
+            if (result) goto error;
+        }
     }
     invariant(bl->file_infos.n_files_open   == 0);
     invariant(bl->file_infos.n_files_extant == 0);

@@ -14,7 +14,7 @@ static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT *UU(dest_k
     return ENOMEM;
 }
 
-static void loader_open_abort(void) {
+static void loader_open_abort(int ndb) {
     int r;
 
     r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
@@ -28,15 +28,31 @@ static void loader_open_abort(void) {
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r); 
     env->set_errfile(env, stderr);
 
+    DB *dbs[ndb];
+    uint32_t db_flags[ndb];
+    uint32_t dbt_flags[ndb];
+    for (int i = 0; i < ndb; i++) {
+        db_flags[i] = DB_NOOVERWRITE;
+        dbt_flags[i] = 0;
+        r = db_create(&dbs[i], env, 0); CKERR(r);
+        char name[32];
+        sprintf(name, "db%d", i);
+        r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
+    }
+
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
 
     DB_LOADER *loader;
-    r = env->create_loader(env, txn, &loader, NULL, 0, NULL, NULL, NULL, loader_flags); CKERR(r);
+    r = env->create_loader(env, txn, &loader, dbs[0], ndb, dbs, db_flags, dbt_flags, loader_flags); CKERR(r);
     
     r = loader->close(loader); CKERR(r);
 
     r = txn->commit(txn, 0); CKERR(r);
+
+    for (int i = 0; i < ndb; i++) {
+        r = dbs[i]->close(dbs[i], 0); CKERR(r);
+    }
 
     r = env->close(env, 0); CKERR(r);
 }
@@ -49,7 +65,7 @@ static void do_args(int argc, char * const argv[]) {
         if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows>\n%s\n", cmd);
+	    fprintf(stderr, "Usage: %s -h -v -q -p\n", cmd);
 	    exit(resultcode);
 	} else if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
@@ -70,6 +86,8 @@ static void do_args(int argc, char * const argv[]) {
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    loader_open_abort();
+    loader_open_abort(0);
+    loader_open_abort(1);
+    loader_open_abort(2);
     return 0;
 }
