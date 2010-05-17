@@ -249,11 +249,12 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
 {
     int result = 0;
     char *fname = toku_strdup(bl->temp_file_template);
+    FILE *f = NULL;
     int fd = mkstemp(fname);
     if (fd < 0) { 
         result = errno;
     } else {
-        FILE *f = fdopen(fd, "r+");
+        f = fdopen(fd, "r+");
         if (f == NULL)
             result = errno;
         else 
@@ -262,6 +263,8 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
     if (result != 0) {
         if (fd >= 0)
             close(fd);
+        if (f != NULL)
+            fclose(f);
         if (fname != NULL)
             toku_free(fname);
     }
@@ -639,8 +642,6 @@ void destroy_rowset (struct rowset *rows) {
     toku_free(rows->rows);
     zero_rowset(rows);
 }
-
-
 
 static int row_wont_fit (struct rowset *rows, size_t size)
 /* Effect: Return nonzero if adding a row of size SIZE would be too big (bigger than the buffer limit) */ 
@@ -1866,6 +1867,18 @@ static void add_pair_to_leafnode (struct leaf_buf *lbuf, unsigned char *key, int
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p);
 static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn);
 
+static void drain_writer_q(QUEUE q) {
+    struct rowset *rowset;
+    while (1) {
+        int r = queue_deq(q, (void *) &rowset, NULL, NULL);
+        if (r == EOF)
+            break;
+        assert(r == 0);
+        destroy_rowset(rowset);
+        toku_free(rowset);
+    }
+}
+
 CILK_BEGIN
 static int toku_loader_write_brt_from_q (BRTLOADER bl,
 					 const struct descriptor *descriptor,
@@ -1885,7 +1898,9 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     r = brtloader_open_temp_file (bl, &pivots_file);
     if (r) {
-        result = r; return result; // RFP2578 goto error?
+        result = r; 
+        drain_writer_q(q); 
+        return result;
     }
     FILE *pivots_stream = toku_bl_fidx2file(bl, pivots_file);
 
@@ -1899,7 +1914,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     if (out.translation == NULL) {
         result = errno;
         dbout_destroy(&out);
-        return result; // RFP2578 goto error?
+        drain_writer_q(q);
+        return result;
     }
 
     // The blocks_array will contain all the block numbers that correspond to the pivots.  Generally there should be one more block than pivot.
@@ -1913,7 +1929,8 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
         result = errno;
         subtrees_info_destroy(&sts);
         dbout_destroy(&out);
-        return result; // RFP2578 goto error?
+        drain_writer_q(q);
+        return result;
     }
 
     out.translation[0].off = -2LL; out.translation[0].size = 0; // block 0 is NULL
@@ -2062,7 +2079,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
  error: 
     {
-        int rr = close(out.fd);
+        int rr = close(fd);
         if (rr) 
             result = errno;
     }
@@ -2070,6 +2087,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
     subtrees_info_destroy(&sts);
     dbout_destroy(&out);
+    drain_writer_q(q);
     BL_TRACE(blt_fractal_thread);
 
     return result;

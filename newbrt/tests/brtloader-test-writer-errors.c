@@ -222,8 +222,8 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     brt_loader_destroy_poll_callback(&bl.poll_callback);
     
     r = queue_destroy(q2);
-    if (r != 0) printf("WARNING%d r=%d\n", __LINE__, r);
-    //assert(r==0);
+    //if (r != 0) printf("WARNING%d r=%d\n", __LINE__, r);
+    assert(r==0);
    
     destroy_merge_fileset(&fs);
     brtloader_fi_destroy(&bl.file_infos, expect_error);
