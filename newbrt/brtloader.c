@@ -1109,7 +1109,8 @@ int mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_d
     if (r1!=0) return r1;
     if (r2!=0) return r2;
 
-    struct row *MALLOC_N(n, tmp); assert(tmp); // LAZY
+    struct row *MALLOC_N(n, tmp); 
+    if (tmp == NULL) return errno;
     {
 	int r = merge_row_arrays(tmp, rows, mid, rows+mid, n-mid, which_db, dest_db, compare, bl, rowset);
 	if (r!=0) {
@@ -1868,12 +1869,13 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 static int write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk, BLOCKNUM root_blocknum_on_disk, LSN load_lsn);
 
 static void drain_writer_q(QUEUE q) {
-    struct rowset *rowset;
+    void *item;
     while (1) {
-        int r = queue_deq(q, (void *) &rowset, NULL, NULL);
+        int r = queue_deq(q, &item, NULL, NULL);
         if (r == EOF)
             break;
         assert(r == 0);
+        struct rowset *rowset = (struct rowset *) item;
         destroy_rowset(rowset);
         toku_free(rowset);
     }
