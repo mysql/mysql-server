@@ -117,6 +117,27 @@ calc_len(Uint32 rvalue, int maxlen)
   return minlen + (rvalue % (maxlen - minlen));
 }
 
+static
+Uint32
+calc_blobLen(Uint32 rvalue, int maxlen)
+{
+  int minlen = 1000;
+
+  if ((rvalue >> 16) < 4096)
+    minlen = 5000;
+  else if ((rvalue >> 16) < 8192)
+    minlen = 8000;
+  else if ((rvalue >> 16) < 16384)
+    minlen = 12000;
+  else
+    minlen = 16000;
+
+  if (maxlen <= minlen)
+    return maxlen;
+
+  return minlen + (rvalue % (maxlen - minlen));
+}
+
 const char* 
 HugoCalculator::calcValue(int record, 
 			  int attrib, 
@@ -240,6 +261,9 @@ write_char:
     break;
   }
   case NdbDictionary::Column::Blob:
+    * outlen = calc_blobLen(myRand(&seed), len);
+    // Don't set any actual data...
+    break;
   case NdbDictionary::Column::Undefined:
   case NdbDictionary::Column::Text:
   case NdbDictionary::Column::Year:
