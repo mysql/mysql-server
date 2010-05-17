@@ -23,7 +23,7 @@ perl;
   while (<F>) {
     next if 1../The following groups are read/;
     # formatting, skip line consisting entirely of dashes and blanks
-    next if /^[\- ]+$/;
+    next if /^[\- ]+\s?$/;
     next if /Value \(after reading options\)/; # skip table header
     next if /^($re1) /;
     next if /^($re2)-/;
