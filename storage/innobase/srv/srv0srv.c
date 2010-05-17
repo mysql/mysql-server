@@ -1649,11 +1649,15 @@ srv_suspend_mysql_thread(
 	innodb_lock_wait_timeout, because trx->mysql_thd == NULL. */
 	lock_wait_timeout = thd_lock_wait_timeout(trx->mysql_thd);
 
-	if (trx_is_interrupted(trx)
-	    || (lock_wait_timeout < 100000000
-		&& wait_time > (double) lock_wait_timeout)) {
+	if (lock_wait_timeout < 100000000
+	    && wait_time > (double) lock_wait_timeout) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
+	}
+
+	if (trx_is_interrupted(trx)) {
+
+		trx->error_state = DB_INTERRUPTED;
 	}
 }
 
@@ -3083,8 +3087,12 @@ srv_purge_thread(
 		srv_sync_log_buffer_in_background();
 	}
 
+	mutex_enter(&kernel_mutex);
+
 	/* Decrement the active count. */
 	srv_suspend_thread();
+
+	mutex_exit(&kernel_mutex);
 
 	/* Free the thread local memory. */
 	thr_local_free(os_thread_get_curr_id());
