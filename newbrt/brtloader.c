@@ -134,7 +134,10 @@ int brtloader_init_file_infos (struct file_infos *fi) {
     fi->n_files_extant = 0;
     MALLOC_N(fi->n_files_limit, fi->file_infos);
     if (fi->file_infos) return 0;
-    else return errno;
+    else {
+        toku_pthread_mutex_destroy(&fi->lock);
+        return errno;
+    }
 }
 
 void brtloader_fi_destroy (struct file_infos *fi, BOOL is_error)
@@ -335,7 +338,7 @@ static uint64_t memory_per_rowset (BRTLOADER bl) {
 }
 
 
-// LAZY cleanup on error paths, ticket #2591
+// lazy cleanup on error paths, ticket #2591
 int toku_brt_loader_open (/* out */ BRTLOADER *blp,
                           CACHETABLE cachetable,
 			  generate_row_for_put_func g,
@@ -400,29 +403,52 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
     MY_CALLOC_N(N, bl->fractal_threads_live);
     for (int i=0; i<N; i++) bl->fractal_threads_live[i] = FALSE;
 
-    {int r = brtloader_init_file_infos(&bl->file_infos); lazy_assert(r==0);}
+    {
+        int r = brtloader_init_file_infos(&bl->file_infos); 
+        if (r!=0) { brtloader_destroy(bl, TRUE); return r; }
+    }
 
     SET_TO_MY_STRDUP(bl->temp_file_template, temp_file_template);
 
     bl->n_rows   = 0; 
     bl->progress = 0;
 
-    bl->rows = (struct rowset *) toku_malloc(N*sizeof(struct rowset));                   if (bl->rows == NULL) return errno;
-    bl->fs   = (struct merge_fileset *) toku_malloc(N*sizeof(struct merge_fileset));     if (bl->rows == NULL) return errno;
-
+    MY_CALLOC_N(N, bl->rows);
+    MY_CALLOC_N(N, bl->fs);
     for(int i=0;i<N;i++) {
-        { int r = init_rowset(&bl->rows[i], memory_per_rowset(bl)); if (r!=0) return r; }
+        { 
+            int r = init_rowset(&bl->rows[i], memory_per_rowset(bl)); 
+            if (r!=0) {brtloader_destroy(bl, TRUE); return r; } 
+        }
         init_merge_fileset(&bl->fs[i]);
     }
-
-    brt_loader_init_error_callback(&bl->error_callback);
+    { // note : currently brt_loader_init_error_callback always returns 0
+        int r = brt_loader_init_error_callback(&bl->error_callback);
+        if (r!=0) { brtloader_destroy(bl, TRUE); return r; }
+    }
+        
     brt_loader_init_poll_callback(&bl->poll_callback);
 
-    { int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); if (r!=0) return r; }
-    { int r = queue_create(&bl->primary_rowset_queue, EXTRACTOR_QUEUE_DEPTH); if (r!=0) return r; }
+    { 
+        int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); 
+        if (r!=0) { brtloader_destroy(bl, TRUE); return r; }
+    }
+    {   int r = queue_create(&bl->primary_rowset_queue, EXTRACTOR_QUEUE_DEPTH); 
+        if (r!=0) { brtloader_destroy(bl, TRUE); return r; }
+    }
     //printf("%s:%d toku_pthread_create\n", __FILE__, __LINE__);
-    { int r = toku_pthread_mutex_init(&bl->mutex, NULL); if (r != 0) return r; }
-    { int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); if (r!=0) return r; }
+    {   
+        int r = toku_pthread_mutex_init(&bl->mutex, NULL); 
+        if (r != 0) { brtloader_destroy(bl, TRUE); return r; }
+    }
+    {   
+        int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); 
+        if (r!=0) { 
+            toku_pthread_mutex_destroy(&bl->mutex);
+            brtloader_destroy(bl, TRUE);
+            return r; 
+        }
+    }
     bl->extractor_live = TRUE;
 
     *blp = bl;
