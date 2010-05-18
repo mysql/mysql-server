@@ -499,7 +499,7 @@ static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FILE *stream, BRTLOAD
 	    e = errno;        // ... then there is no error in the stream, but there is one in errno
 	else
 	    e = ferror(stream);
-	assert(e!=0);
+	invariant(e!=0);
 	return e;
     }
     return 0;
@@ -521,6 +521,7 @@ static int bl_fread (void *ptr, size_t size, size_t nmemb, FILE *stream)
 	else {
 	do_error: ;
 	    int e = ferror(stream);
+            invariant(e!=0);
 	    return e;
 	}
     } else if (r<nmemb) {
@@ -547,7 +548,7 @@ static int bl_read_dbt (/*in*/DBT *dbt, FILE *stream)
     {
 	int r;
 	if ((r = bl_fread(&len, sizeof(len), 1, stream))) return r;
-	assert(len>=0);
+	invariant(len>=0);
     }
     if ((int)dbt->ulen<len) { dbt->ulen=len; dbt->data=toku_xrealloc(dbt->data, len); }
     {
@@ -817,7 +818,7 @@ static void enqueue_for_extraction (BRTLOADER bl) {
     *enqueue_me = bl->primary_rowset;
     zero_rowset(&bl->primary_rowset);
     int r = queue_enq(bl->primary_rowset_queue, (void*)enqueue_me, 1, NULL);
-    assert(r==0);
+    resource_assert(r==0); 
 }
 
 static int loader_do_put(BRTLOADER bl,
@@ -1845,7 +1846,7 @@ static void putbuf_bytes (struct dbuf *dbuf, const void *bytes, int nbytes) {
 	dbuf->buflen += dbuf->off + nbytes;
 	dbuf->buflen *= 2;
 	REALLOC_N(dbuf->buflen, dbuf->buf);
-	assert(dbuf->buf);
+	lazy_assert(dbuf->buf);
     }
     memcpy(dbuf->buf + dbuf->off, bytes, nbytes);
     dbuf->off += nbytes;
@@ -1869,7 +1870,7 @@ static void putbuf_int32_at(struct dbuf *dbuf, int off, int v) {
 	dbuf->buflen += dbuf->off + nbytes;
 	dbuf->buflen *= 2;
 	REALLOC_N(dbuf->buflen, dbuf->buf);
-	assert(dbuf->buf);
+	lazy_assert(dbuf->buf);
     }
     memcpy(dbuf->buf + off, &v, 4);
 }
@@ -1901,7 +1902,7 @@ static inline long int loader_random(void) {
 static struct leaf_buf *start_leaf (struct dbout *out, const struct descriptor *desc, int64_t lblocknum) {
     invariant(lblocknum < out->n_translations_limit);
     struct leaf_buf *MALLOC(lbuf);
-    assert(lbuf);
+    resource_assert(lbuf);
     lbuf->blocknum = lblocknum;
     dbuf_init(&lbuf->dbuf);
     int height=0;
@@ -1949,7 +1950,7 @@ static void drain_writer_q(QUEUE q) {
         int r = queue_deq(q, &item, NULL, NULL);
         if (r == EOF)
             break;
-        assert(r == 0);
+        invariant(r == 0);
         struct rowset *rowset = (struct rowset *) item;
         destroy_rowset(rowset);
         toku_free(rowset);
@@ -2254,15 +2255,16 @@ static int loader_do_i (BRTLOADER bl,
 	    int r2 = toku_pthread_join(bl->fractal_threads[which_db], &toku_pthread_retval);
 	    invariant(fta.bl==bl); // this is a gratuitous assertion to make sure that the fta struct is still live here.  A previous bug but that struct into a C block statement.
 	    BL_TRACE(blt_join_on_fractal);
-	    resource_assert(r2==0 && toku_pthread_retval==NULL);
-	    assert(bl->fractal_threads_live[which_db]);
+	    resource_assert(r2==0);
+            invariant(toku_pthread_retval==NULL);
+	    invariant(bl->fractal_threads_live[which_db]);
 	    bl->fractal_threads_live[which_db] = FALSE;
 	    if (r == 0) r = fta.errno_result;
 	}
 	
 	{
 	    int r2 = queue_destroy(bl->fractal_queues[which_db]);
-	    assert(r2==0);
+	    invariant(r2==0);
 	    bl->fractal_queues[which_db]=NULL;
 	}
     }
@@ -2467,8 +2469,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
 
     // initialize the sub blocks
     // struct sub_block sub_block[n_sub_blocks]; RFP cilk++ dynamic array bug, use malloc instead
-    struct sub_block *MALLOC_N(n_sub_blocks, sub_block);
-    assert(sub_block);
+    struct sub_block *XMALLOC_N(n_sub_blocks, sub_block);
     for (int i = 0; i < n_sub_blocks; i++) 
         sub_block_init(&sub_block[i]);
     set_all_sub_block_sizes(uncompressed_len, sub_block_size, n_sub_blocks, sub_block);
@@ -2675,8 +2676,7 @@ static int setup_nonleaf_block (int n_children,
         memset(&new_subtree_estimates, 0, sizeof new_subtree_estimates);
         new_subtree_estimates.exact = TRUE;
 
-        struct subtree_info *MALLOC_N(n_children, subtrees_array);
-        assert(subtrees_array);
+        struct subtree_info *XMALLOC_N(n_children, subtrees_array);
         int32_t fingerprint = 0;
         for (int i = 0; i < n_children; i++) {
             int64_t from_blocknum = first_child_offset_in_subtrees + i;
@@ -2721,7 +2721,7 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     unsigned int totalchildkeylens = 0;
     for (int i=0; i<n_children-1; i++) {
 	struct kv_pair *childkey = kv_pair_malloc(pivots[i].data, pivots[i].size, NULL, 0);
-	assert(childkey);
+	lazy_assert(childkey);
 	node->u.n.childkeys[i] = childkey;
 	totalchildkeylens += kv_pair_keylen(childkey);
     }
@@ -2836,7 +2836,7 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
         int64_t n_blocks_left = sts->n_subtrees - n_subtrees_used;
         if (result == 0) {
             // Now we have a one or two blocks at the end to handle.
-            assert(n_blocks_left>=2);
+            invariant(n_blocks_left>=2);
             if (n_blocks_left > n_per_block) {
                 // Write half the remaining blocks
                 int64_t n_first = n_blocks_left/2;
@@ -2882,9 +2882,9 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
         if (result == 0 && bl->panic) // pick up write_nonleaf_node errors
             result = bl->panic_errno;
 
-	// Now set things up for the nexxt iteration.
-	int r = brtloader_fi_close(&bl->file_infos, pivots_fidx); assert(r==0);
-	r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx);    assert(r==0);
+	// Now set things up for the next iteration.
+	int r = brtloader_fi_close(&bl->file_infos, pivots_fidx); lazy_assert(r==0);
+	r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx);    resource_assert(r==0);
 	pivots_fidx = next_pivots_file;
 	toku_free(sts->subtrees); sts->subtrees = NULL;
 	*sts = next_sts;
@@ -2893,8 +2893,8 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
         if (result)
             break;
     }
-    { int r = brtloader_fi_close (&bl->file_infos, pivots_fidx); assert(r==0); }
-    { int r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx); assert(r==0); }
+    { int r = brtloader_fi_close (&bl->file_infos, pivots_fidx); lazy_assert(r==0); }
+    { int r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx); resource_assert(r==0); }
     return result;
 }
 
