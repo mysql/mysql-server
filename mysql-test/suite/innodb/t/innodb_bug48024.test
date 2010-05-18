@@ -10,6 +10,8 @@ ADD CONSTRAINT FOREIGN KEY(b) REFERENCES bug48024_b(b);
 
 DROP TABLE bug48024,bug48024_b;
 
+# Work around Bug #53750 (failure in mysql-test-run --ps-protocol)
+-- disable_ps_protocol
 delimiter |;
 CREATE TABLE bug48024(a int PRIMARY KEY,b int NOT NULL,KEY(b)) ENGINE=InnoDB;
 CREATE TABLE bug48024_b(b int PRIMARY KEY) ENGINE=InnoDB;
