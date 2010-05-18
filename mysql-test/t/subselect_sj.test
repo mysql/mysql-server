@@ -115,22 +115,48 @@ while ($i)
                 (SELECT COUNT(*) from t2),
                 (SELECT COUNT(*) from t3);
 
-#        TODO: The RIGHT join query here generates wrong result for rowcount
-#        (t1 t2 t3) == (2 0 2)   and    (t1 t2 t3) == (2 1 2)
-#        when we execute with join_cache_level=6 
+         let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+         eval EXPLAIN $query;
+         eval $query;
+
+         let $query=
          SELECT * FROM t1 WHERE (t1.i) IN 
            (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
-         SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+         eval EXPLAIN $query;
+         eval $query;
 
+         let $query=
+         SELECT * FROM t1 WHERE (t1.i) IN 
+           (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+         eval EXPLAIN $query;
+         eval $query;
+
+         let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+         eval EXPLAIN $query;
+         eval $query;
+
+         let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+         eval EXPLAIN $query;
+         eval $query;
+
+         let $query=
          SELECT * FROM t1 WHERE (11) IN 
            (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
-         SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+         eval EXPLAIN $query;
+         eval $query;
+
+         let $query=
+         SELECT * FROM t1 WHERE (11) IN 
+           (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+         eval EXPLAIN $query;
+         eval $query;
+
 	 dec $k;
 	 eval INSERT INTO t3 VALUES ($k);
        }
