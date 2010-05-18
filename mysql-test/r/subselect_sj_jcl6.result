@@ -215,24 +215,54 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 0	0	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
 SELECT (SELECT COUNT(*) from t1),
@@ -240,24 +270,54 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 0	0	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
 SELECT (SELECT COUNT(*) from t1),
@@ -265,24 +325,58 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 0	0	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
@@ -292,24 +386,54 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 0	1	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
 SELECT (SELECT COUNT(*) from t1),
@@ -317,24 +441,54 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 0	1	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
 SELECT (SELECT COUNT(*) from t1),
@@ -342,24 +496,62 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 0	1	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
@@ -369,24 +561,54 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 0	2	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
 SELECT (SELECT COUNT(*) from t1),
@@ -394,24 +616,58 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 0	2	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
 SELECT (SELECT COUNT(*) from t1),
@@ -419,24 +675,62 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 0	2	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
@@ -448,24 +742,54 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 1	0	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
 SELECT (SELECT COUNT(*) from t1),
@@ -473,25 +797,57 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 1	0	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
 SELECT (SELECT COUNT(*) from t1),
@@ -499,25 +855,65 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 1	0	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
@@ -527,24 +923,54 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 1	1	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
 SELECT (SELECT COUNT(*) from t1),
@@ -552,27 +978,63 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 1	1	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
 SELECT (SELECT COUNT(*) from t1),
@@ -580,27 +1042,71 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 1	1	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
@@ -610,24 +1116,58 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 1	2	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; End materialize; Using join buffer
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; End materialize; Using join buffer
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
 SELECT (SELECT COUNT(*) from t1),
@@ -635,27 +1175,69 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 1	2	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t3)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch(t1)
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
 SELECT (SELECT COUNT(*) from t1),
@@ -663,27 +1245,71 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 1	2	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1)
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
@@ -695,24 +1321,54 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 2	0	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
 SELECT (SELECT COUNT(*) from t1),
@@ -720,25 +1376,59 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 2	0	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
 SELECT (SELECT COUNT(*) from t1),
@@ -746,26 +1436,66 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 2	0	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1); Using join buffer
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
+2
 1
-1
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1); Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1); Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
@@ -775,24 +1505,58 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 2	1	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
 SELECT (SELECT COUNT(*) from t1),
@@ -800,27 +1564,63 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 2	1	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
 SELECT (SELECT COUNT(*) from t1),
@@ -828,29 +1628,73 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 2	1	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Start materialize; Scan
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; End materialize; Using join buffer
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 1
 1
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1); Using join buffer
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 2
 1
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t2)
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1); Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; FirstMatch(t1); Using join buffer
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
@@ -860,24 +1704,62 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 2	2	0
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	FirstMatch(t1); Using join buffer
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize; Scan
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	End materialize; Using join buffer
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; End materialize; Using join buffer
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (2);
 SELECT (SELECT COUNT(*) from t1),
@@ -885,27 +1767,69 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 2	2	1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize; Scan
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; End materialize; Using join buffer
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Materialize
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize; Scan
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	End materialize; Using join buffer
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 2
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; End temporary; Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; FirstMatch
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (1);
 SELECT (SELECT COUNT(*) from t1),
@@ -913,30 +1837,74 @@ SELECT (SELECT COUNT(*) from t1),
 (SELECT COUNT(*) from t3);
 (SELECT COUNT(*) from t1)	(SELECT COUNT(*) from t2)	(SELECT COUNT(*) from t3)
 2	2	2
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End materialize; Using join buffer
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
 2
 1
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Start materialize
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; End materialize; Using join buffer
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 2
 1
-SELECT * FROM t1 WHERE (t1.i) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	End materialize; Using join buffer
+SELECT * FROM t1 WHERE (t1.i) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 2
 1
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End materialize; Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; Start temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using join buffer
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i WHERE t1.i);
 i
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Start materialize
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; End materialize; Using join buffer
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
-SELECT * FROM t1 WHERE (11) IN (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+EXPLAIN SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Start materialize
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; End materialize; Using join buffer
+SELECT * FROM t1 WHERE (11) IN 
+(SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 INSERT INTO t3 VALUES (0);
 DELETE FROM t3;
