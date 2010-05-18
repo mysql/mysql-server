@@ -1453,8 +1453,7 @@ static int merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE
 
     struct rowset *output_rowset = NULL;
     if (to_q) {
-	MALLOC(output_rowset);
-	assert(output_rowset);
+	XMALLOC(output_rowset);
 	int r = init_rowset(output_rowset, memory_per_rowset(bl));
 	assert(r==0);
     }
