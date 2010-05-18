@@ -831,7 +831,11 @@ static int loader_do_put(BRTLOADER bl,
 	BL_TRACE(blt_do_put);
 	enqueue_for_extraction(bl);
 	BL_TRACE(blt_extract_enq);
-	{int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); lazy_assert(r==0);}
+	{
+            int r = init_rowset(&bl->primary_rowset, memory_per_rowset(bl)); 
+            // bl->primary_rowset will get destroyed by toku_brt_loader_abort
+            if ( r != 0 ) return r;
+        }
     }
     return 0;
 }
