@@ -26,6 +26,7 @@
 #include <string.h>
 
 bool pfs_initialized= false;
+ulonglong pfs_allocated_memory= 0;
 
 /**
   Memory allocation for the performance schema.
@@ -38,7 +39,9 @@ void *pfs_malloc(size_t size, myf flags)
   DBUG_ASSERT(size > 0);
 
   void *ptr= malloc(size);
-  if (ptr && (flags & MY_ZEROFILL))
+  if (likely(ptr != NULL))
+    pfs_allocated_memory+= size;
+  if (likely((ptr != NULL) && (flags & MY_ZEROFILL)))
     memset(ptr, 0, size);
   return ptr;
 }
