@@ -36,7 +36,7 @@ connection slave;
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=762;
 --source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 # 41 #
+--replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 #
 query_vertical SHOW SLAVE STATUS;
 
 # Now we skip *one* table map event. If the execution starts right
@@ -74,7 +74,7 @@ START SLAVE;
 --source include/wait_for_slave_to_start.inc
 sync_with_master;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 # 41 #
+--replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 #
 query_vertical SHOW SLAVE STATUS;
 
 --echo **** On Master ****

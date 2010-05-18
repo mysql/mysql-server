@@ -58,7 +58,6 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	#
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	2
@@ -104,6 +103,5 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	2
-Master_Info_File	#
 STOP SLAVE;
 DROP TABLE t1;

@@ -47,7 +47,6 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	#
 LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -90,7 +89,6 @@ Last_SQL_Errno	1593
 Last_SQL_Error	Fatal error: Not enough memory
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	#
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 DROP TABLE t1;
