@@ -2289,6 +2289,8 @@ int toku_brt_loader_close (BRTLOADER bl,
 			   brt_loader_poll_func  poll_function,  void *poll_extra
 			   )
 {
+    int result = 0;
+
     int r;
 
     //printf("Closing\n");
@@ -2299,48 +2301,56 @@ int toku_brt_loader_close (BRTLOADER bl,
 
     if (bl->extractor_live) {
         r = finish_extractor(bl);
-        lazy_assert(r == 0); // LAZY !!! should check this error code and cleanup if needed.
+        if (r)
+            result = r;
         invariant(!bl->extractor_live);
     }
 
     // check for an error during extraction
-    r = brt_loader_call_error_function(&bl->error_callback);
-    if (r) {
-        brtloader_destroy(bl, TRUE);
-        return r;
+    if (result == 0) {
+        r = brt_loader_call_error_function(&bl->error_callback);
+        if (r)
+            result = r;
     }
 
-    r = toku_brt_loader_close_internal(bl);
+    if (result == 0) {
+        r = toku_brt_loader_close_internal(bl);
+        if (r && result == 0)
+            result = r;
+    } else
+        brtloader_destroy(bl, TRUE);
 
-    return r;
+    return result;
 }
 
 int toku_brt_loader_finish_extractor(BRTLOADER bl) {
     int result = 0;
-    if (!bl->extractor_live)
-        result = EINVAL;
-    else {
+    if (bl->extractor_live) {
         int r = finish_extractor(bl);
         if (r)
             result = r;
-    }
+        invariant(!bl->extractor_live);
+    } else
+        result = EINVAL;
     return result;
 }
 
 int toku_brt_loader_abort(BRTLOADER bl, BOOL is_error) 
 /* Effect : Abort the bulk loader, free brtloader resources */
 {
+    int result = 0;
+
     // cleanup the extractor thread
     if (bl->extractor_live) {
         int r = finish_extractor(bl);
-        assert(r == 0);
-        assert(!bl->extractor_live);
+        if (r)
+            result = r;
+        invariant(!bl->extractor_live);
     }
 
     for (int i = 0; i < bl->N; i++)
-	assert(!bl->fractal_threads_live[i]);
+	invariant(!bl->fractal_threads_live[i]);
 
-    int result = 0;
     brtloader_destroy(bl, is_error);
     return result;
 }
