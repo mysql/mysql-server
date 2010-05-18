@@ -688,7 +688,7 @@ private:
   bool check_if_pushable(const NdbQueryOperationTypeWrapper& type,
                          uint idx= MAX_KEY) const;
   bool check_is_pushed() const;
-  NdbQuery* create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
+  int create_pushed_join(NdbQueryParamValue* paramValues, uint paramOffs= 0);
 
   uint set_up_partition_info(partition_info *part_info,
                              TABLE *table,
@@ -775,10 +775,10 @@ private:
                                                const uchar *key, uchar *buf,
                                                NdbOperation::LockMode lm,
                                                Uint32 *ppartition_id);
-  NdbQuery* pk_unique_index_read_key_pushed(uint idx, 
-					    const uchar *key, 
-					    NdbOperation::LockMode lm,
-					    Uint32 *ppartition_id);
+  int pk_unique_index_read_key_pushed(uint idx, 
+                                      const uchar *key,
+                                      NdbOperation::LockMode lm,
+                                      Uint32 *ppartition_id);
 
   int read_multi_range_fetch_next();
   
