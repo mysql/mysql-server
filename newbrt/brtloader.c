@@ -304,6 +304,8 @@ static void brtloader_destroy (BRTLOADER bl, BOOL is_error) {
         destroy_merge_fileset(&bl->fs[i]);
     toku_free(bl->fs);
 
+    destroy_rowset(&bl->primary_rowset);
+
     for (int i=0; i<bl->N; i++) {
 	invariant(bl->fractal_queues[i]==NULL); // !!! If this isn't true, we may have to kill the pthreads and destroy the fractal trees.  For now just barf.
     }
