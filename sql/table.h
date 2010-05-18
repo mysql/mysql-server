@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright 2000-2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
+/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1776,6 +1776,27 @@ struct TABLE_LIST
      respectively.
    */
   char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+
+  /**
+    @brief Returns whether the table (or join nest) that this TABLE_LIST 
+    represents, is part of an outer-join nest.
+
+    @details There are two kinds of join nests, outer-join nests and semi-join 
+    nests.  This function returns @c TRUE in the following cases:
+      @li 1. If this table/nest is embedded in a nest and this nest IS NOT a 
+             semi-join nest.  (In other words, it is an outer-join nest.)
+      @li 2. If this table/nest is embedded in a nest and this nest IS a 
+             semi-join nest, but this semi-join nest is embedded in another 
+             nest. (This other nest will be an outer-join nest, since all inner 
+             joined nested semi-join nests have been merged in 
+             @c simplify_joins() ).
+    Note: This function assumes that @c simplify_joins() has been performed.
+    Before that, join nests will be present for all types of join.
+   */
+  bool in_outer_join_nest() const
+  { 
+    return (embedding && (!embedding->sj_on_expr || embedding->embedding)); 
+  }
 
 private:
   bool prep_check_option(THD *thd, uint8 check_opt_type);

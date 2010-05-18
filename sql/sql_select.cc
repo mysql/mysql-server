@@ -1614,7 +1614,8 @@ JOIN::optimize()
       /* 
         If tbl->embedding!=NULL that means that this table is in the inner
         part of the nested outer join, and we can't do partition pruning
-        (TODO: check if this limitation can be lifted)
+        (TODO: check if this limitation can be lifted. 
+               This also excludes semi-joins.  Is that intentional?)
       */
       if (!tbl->embedding)
       {
@@ -3704,9 +3705,7 @@ bool JOIN::flatten_subqueries()
   // joins.
   for (TABLE_LIST *tbl= select_lex->leaf_tables; tbl; tbl=tbl->next_leaf)
   {
-    TABLE_LIST *embedding= tbl->embedding;
-    if (tbl->on_expr || (tbl->embedding && !(embedding->sj_on_expr && 
-                                            !embedding->embedding)))
+    if (tbl->on_expr || tbl->in_outer_join_nest())
     {
       in_subq= sj_subselects.front();
       arena= thd->activate_stmt_arena_if_needed(&backup);
@@ -4227,7 +4226,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
        tables;
        s++, tables= tables->next_leaf, i++)
   {
-    TABLE_LIST *embedding= tables->embedding;
     stat_vector[i]=s;
     s->keys.init();
     s->const_keys.init();
@@ -4260,9 +4258,10 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
     {
       /* s is the only inner table of an outer join */
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      if ((!table->file->stats.records || table->no_partitions_used) && !embedding)
+      if ((!table->file->stats.records || table->no_partitions_used) && 
+          !tables->in_outer_join_nest())
 #else
-      if (!table->file->stats.records && !embedding)
+      if (!table->file->stats.records && !tables->in_outer_join_nest())
 #endif
       {						// Empty table
         s->dependent= 0;                        // Ignore LEFT JOIN depend.
@@ -4271,23 +4270,25 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       }
       outer_join|= table->map;
       s->embedding_map= 0;
-      for (;embedding; embedding= embedding->embedding)
+      for (TABLE_LIST *embedding= tables->embedding;
+           embedding;
+           embedding= embedding->embedding)
         s->embedding_map|= embedding->nested_join->nj_map;
       continue;
     }
-    if (embedding && !(embedding->sj_on_expr && ! embedding->embedding))
+    if (tables->in_outer_join_nest())
     {
       /* s belongs to a nested join, maybe to several embedded joins */
       s->embedding_map= 0;
-      do
+      for (TABLE_LIST *embedding= tables->embedding;
+           embedding;
+           embedding= embedding->embedding)
       {
         NESTED_JOIN *nested_join= embedding->nested_join;
         s->embedding_map|=nested_join->nj_map;
         s->dependent|= embedding->dep_tables;
-        embedding= embedding->embedding;
         outer_join|= nested_join->used_tables;
       }
-      while (embedding);
       continue;
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -4423,11 +4424,11 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
       if (s->dependent)				// If dependent on some table
       {
 	// All dep. must be constants
-	if (s->dependent & ~(found_const_table_map))
+        if (s->dependent & ~(join->const_table_map))
 	  continue;
 	if (table->file->stats.records <= 1L &&
 	    (table->file->ha_table_flags() & HA_STATS_RECORDS_IS_EXACT) &&
-            !table->pos_in_table_list->embedding)
+            !table->pos_in_table_list->in_outer_join_nest())
 	{					// system table
 	  int tmp= 0;
 	  s->type=JT_SYSTEM;
@@ -4469,7 +4470,6 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
 	    keyuse++;
 	  } while (keyuse->table == table && keyuse->key == key);
 
-          TABLE_LIST *embedding= table->pos_in_table_list->embedding;
           /*
             TODO (low priority): currently we ignore the const tables that
             are within a semi-join nest which is within an outer join nest.
@@ -4478,7 +4478,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
           */
 	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
               !table->fulltext_searched && 
-              (!embedding || (embedding->sj_on_expr && !embedding->embedding)))
+              !table->pos_in_table_list->in_outer_join_nest())
 	  {
             if (table->key_info[key].flags & HA_NOSAME)
             {
@@ -12443,10 +12443,9 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
        left_item->collation.collation == value->collation.collation))
   {
     Item *tmp=value->clone_item();
-    tmp->collation.set(right_item->collation);
-    
     if (tmp)
     {
+      tmp->collation.set(right_item->collation);
       thd->change_item_tree(args + 1, tmp);
       func->update_used_tables();
       if ((functype == Item_func::EQ_FUNC || functype == Item_func::EQUAL_FUNC)
@@ -12467,10 +12466,9 @@ change_cond_ref_to_const(THD *thd, I_List<COND_CMP> *save_list,
             right_item->collation.collation == value->collation.collation))
   {
     Item *tmp= value->clone_item();
-    tmp->collation.set(left_item->collation);
-    
     if (tmp)
     {
+      tmp->collation.set(left_item->collation);
       thd->change_item_tree(args, tmp);
       value= tmp;
       func->update_used_tables();
