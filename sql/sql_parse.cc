@@ -2814,7 +2814,7 @@ end_with_restore_list:
           goto error;
       }
       else
-#else
+#endif
       {
         if (check_access(thd, priv_needed, first_table->db,
                          &first_table->grant.privilege,
@@ -2829,7 +2829,6 @@ end_with_restore_list:
                                      create_info.merge_list.first))
           goto error;				/* purecov: inspected */
       }
-#endif
 
       if (check_grant(thd, priv_needed, all_tables, FALSE, UINT_MAX, FALSE))
         goto error;
