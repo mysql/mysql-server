@@ -57,7 +57,7 @@ eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$mast
 # Here table should be still not deleted
 SELECT * FROM t1;
 --replace_result $master_pos_drop_t1 MASTER_POS_DROP_T1
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 # 41 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 #
 query_vertical SHOW SLAVE STATUS;
 
 # This should fail right after start
@@ -66,7 +66,7 @@ START SLAVE UNTIL MASTER_LOG_FILE='master-no-such-bin.000001', MASTER_LOG_POS=29
 # again this table should be still not deleted
 SELECT * FROM t1;
 --replace_result $master_pos_drop_t1 MASTER_POS_DROP_T1
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 # 41 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 #
 query_vertical SHOW SLAVE STATUS;
 
 # Try replicate all up to and not including the second insert to t2;
@@ -77,7 +77,7 @@ eval START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', RELAY_LOG_POS=$r
 --source include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t2;
 --replace_result $relay_pos_insert1_t2 RELAY_POS_INSERT1_T2 $master_pos_insert1_t2 MASTER_POS_INSERT1_T2
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 # 41 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 #
 query_vertical SHOW SLAVE STATUS;
 
 # clean up
@@ -99,7 +99,7 @@ let $slave_param_value= $master_pos_create_t2;
 # here the sql slave thread should be stopped
 --replace_result bin.000005 bin.000004 bin.000006 bin.000004 bin.000007 bin.000004
 --replace_result $master_pos_create_t2 MASTER_POS_CREATE_T2 $master_pos_drop_t2 MASTER_POS_DROP_T2
---replace_column 1 # 4 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 # 41 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 #
 query_vertical SHOW SLAVE STATUS;
 
 #testing various error conditions

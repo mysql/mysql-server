@@ -159,7 +159,6 @@ Last_SQL_Errno	0
 Last_SQL_Error	<Last_SQL_Error>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	<Master-Info-File>
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
 SHOW SLAVE STATUS;
@@ -203,7 +202,6 @@ Last_SQL_Errno	1677
 Last_SQL_Error	<Last_SQL_Error>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	<Master-Info-File>
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (5);
@@ -249,7 +247,6 @@ Last_SQL_Errno	1677
 Last_SQL_Error	<Last_SQL_Error>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	<Master-Info-File>
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (6);
@@ -295,7 +292,6 @@ Last_SQL_Errno	1677
 Last_SQL_Error	<Last_SQL_Error>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	<Master-Info-File>
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (6);
@@ -340,7 +336,6 @@ Last_SQL_Errno	0
 Last_SQL_Error	<Last_SQL_Error>
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
-Master_Info_File	<Master-Info-File>
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
 SELECT * FROM t7 ORDER BY a;
