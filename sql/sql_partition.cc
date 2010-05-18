@@ -4616,7 +4616,7 @@ uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
 bool compare_partition_options(HA_CREATE_INFO *table_create_info,
                                partition_element *part_elem)
 {
-  const char *option_name= NULL;
+  bool error= FALSE;
   DBUG_ENTER("compare_partition_options");
   /*
     Note that there are not yet any engine supporting tablespace together
@@ -4625,23 +4625,37 @@ bool compare_partition_options(HA_CREATE_INFO *table_create_info,
   DBUG_ASSERT(!part_elem->tablespace_name &&
               !table_create_info->tablespace);
   if (part_elem->tablespace_name || table_create_info->tablespace)
-    option_name= "TABLESPACE";
-  if (part_elem->part_max_rows != table_create_info->max_rows)
-    option_name= "MAX_ROWS";
-  if (part_elem->part_min_rows != table_create_info->min_rows)
-    option_name= "MIN_ROWS";
-  if (part_elem->data_file_name || table_create_info->data_file_name)
-    option_name= "DATA DIRECTORY";
-  if (part_elem->index_file_name || table_create_info->index_file_name)
-    option_name= "INDEX DIRECTORY";
-
-  if (option_name)
   {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
-             option_name);
-    DBUG_RETURN(TRUE);
+             "TABLESPACE");
+    error= TRUE;
   }
-  DBUG_RETURN(FALSE);
+  if (part_elem->part_max_rows != table_create_info->max_rows)
+  {
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             "MAX_ROWS");
+    error= TRUE;
+  }
+  if (part_elem->part_min_rows != table_create_info->min_rows)
+  {
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             "MIN_ROWS");
+    error= TRUE;
+  }
+  if (part_elem->data_file_name || table_create_info->data_file_name)
+  {
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             "DATA DIRECTORY");
+    error= TRUE;
+  }
+  if (part_elem->index_file_name || table_create_info->index_file_name)
+  {
+    my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
+             "INDEX DIRECTORY");
+    error= TRUE;
+  }
+
+  DBUG_RETURN(error);
 }
 
 
