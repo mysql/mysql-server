@@ -7,6 +7,7 @@
 #include "toku_atomic.h"
 #include <db.h>
 #include <sys/stat.h>
+#include "ydb-internal.h"
 
 DB_ENV *env;
 enum {MAX_NAME=128};
@@ -32,6 +33,29 @@ int inv[MAX_DBS][32];
 #if defined(__cilkplusplus) || defined (__cplusplus)
 extern "C" {
 #endif
+
+static const char *loader_temp_prefix = "tokuld"; // #2536
+
+// return number of temp files
+static int
+count_temp(char * dirname) {
+    int n = 0;
+    
+    DIR * dir = opendir(dirname);
+    
+    struct dirent *ent;
+    while ((ent=readdir(dir))) {
+	if (ent->d_type==DT_REG && strncmp(ent->d_name, loader_temp_prefix, 6)==0) {
+	    n++;
+	    if (verbose) {
+		printf("Temp files (%d)\n", n);
+		printf("  %s/%s\n", dirname, ent->d_name);
+	    } 
+	}
+    }
+    closedir(dir);
+    return n;
+}
 
 // rotate right and left functions
 static inline unsigned int rotr32(const unsigned int x, const unsigned int num) {
@@ -254,6 +278,9 @@ static void test_loader(DB **dbs)
         
     poll_count=0;
 
+    int n = count_temp(env->i->real_data_dir);
+    if (verbose) printf("Num temp files = %d\n", n);
+
     // close the loader
     printf("%9.6fs closing\n", elapsed_time());
     r = loader->close(loader);
@@ -364,6 +391,7 @@ static void do_args(int argc, char * const argv[]) {
 	    fprintf(stderr, "        -e <env>         uses <env> to construct the directory (so that different tests of loader-stress-test can run concurrently)\n");
 	    fprintf(stderr, "        -m <m>           use m MB of memeory for the cachetable (defualt is %d MB)\n", default_cachesize);
 	    fprintf(stderr, "        -M               use half of physical memory for the cachetable\n");
+	    fprintf(stderr, "        -s               use size factor of 1 and count temporary files\n");
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-d")==0) {
             argc--; argv++;
@@ -400,6 +428,9 @@ static void do_args(int argc, char * const argv[]) {
 	    CACHESIZE = (toku_os_get_phys_memory_size()/(1024*1024))/2;
         } else if (strcmp(argv[0], "-y")==0) {
             ALLOW_DUPS = 1;
+        } else if (strcmp(argv[0], "-s")==0) {
+	    printf("\nTesting loader with size_factor=1\n");
+	    db_env_set_loader_size_factor(1);            
 	} else if (strcmp(argv[0], "-b")==0) {
 	    argc--; argv++;
 	    char *end;
