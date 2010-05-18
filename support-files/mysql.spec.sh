@@ -1,4 +1,4 @@
-# Copyright (C) 2000-2008 MySQL AB, 2008-2010 Sun Microsystems, Inc.
+# Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,125 +20,200 @@
 
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
-%define mysql_old_vendor	MySQL AB
-%define mysql_vendor_2		Sun Microsystems, Inc.
-%define mysql_vendor		Oracle and/or its affiliates
+%define mysql_old_vendor        MySQL AB
+%define mysql_vendor_2          Sun Microsystems, Inc.
+%define mysql_vendor            Oracle and/or its affiliates
 
-%define mysql_version @VERSION@
+%define mysql_version   @VERSION@
 
-%define mysqld_user    mysql
-%define mysqld_group   mysql
-%define mysqldatadir   /var/lib/mysql
-%define see_base For a description of MySQL see the base MySQL RPM or http://www.mysql.com
+%define mysqld_user     mysql
+%define mysqld_group    mysql
+%define mysqldatadir    /var/lib/mysql
 
-# ------------------------------------------------------------------------------
-# On SuSE 9 no separate "debuginfo" package is built. To enable basic
-# debugging on that platform, we don't strip binaries on SuSE 9. We
-# disable the strip of binaries by redefining the RPM macro
-# "__os_install_post" leaving out the script calls that normally does
-# this. We do this in all cases, as on platforms where "debuginfo" is
-# created, a script "find-debuginfo.sh" will be called that will do
-# the strip anyway, part of separating the executable and debug
-# information into separate files put into separate packages.
+%define release         1
+
 #
-# Some references (shows more advanced conditional usage):
-# http://www.redhat.com/archives/rpm-list/2001-November/msg00257.html
-# http://www.redhat.com/archives/rpm-list/2003-February/msg00275.html
-# http://www.redhat.com/archives/rhl-devel-list/2004-January/msg01546.html
-# http://lists.opensuse.org/archive/opensuse-commit/2006-May/1171.html
-# ------------------------------------------------------------------------------
-%define __os_install_post /usr/lib/rpm/brp-compress
+# Macros we use which are not available in all supported versions of RPM
+#
+# - defined/undefined are missing on RHEL4
+#
+%if %{expand:%{?defined:0}%{!?defined:1}}
+%define defined()       %{expand:%%{?%{1}:1}%%{!?%{1}:0}}
+%endif
+%if %{expand:%{?undefined:0}%{!?undefined:1}}
+%define undefined()     %{expand:%%{?%{1}:0}%%{!?%{1}:1}}
+%endif
 
-# ------------------------------------------------------------------------------
-# We don't package all files installed into the build root by intention -
-# See BUG#998 for details.
-# ------------------------------------------------------------------------------
-%define _unpackaged_files_terminate_build 0
-
-# ------------------------------------------------------------------------------
-# RPM build tools now automatically detects Perl module dependencies. This
-# detection gives problems as it is broken in some versions, and it also
-# give unwanted dependencies from mandatory scripts in our package.
-# Might not be possible to disable in all RPM tool versions, but here we
-# try. We keep the "AutoReqProv: no" for the "test" sub package, as disabling
-# here might fail, and that package has the most problems.
-# See http://fedoraproject.org/wiki/Packaging/Perl#Filtering_Requires:_and_Provides
-#     http://www.wideopen.com/archives/rpm-list/2002-October/msg00343.html
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+# RPM build tools now automatically detect Perl module dependencies.  This
+# detection causes problems as it is broken in some versions, and it also
+# provides unwanted dependencies from mandatory scripts in our package.
+# It might not be possible to disable this in all versions of RPM, but here we
+# try anyway.  We keep the "AutoReqProv: no" for the "test" sub package, as
+# disabling here might fail, and that package has the most problems.
+# See:
+#  http://fedoraproject.org/wiki/Packaging/Perl#Filtering_Requires:_and_Provides
+#  http://www.wideopen.com/archives/rpm-list/2002-October/msg00343.html
+# ----------------------------------------------------------------------------
 %undefine __perl_provides
 %undefine __perl_requires
 
 ##############################################################################
 # Command line handling
 ##############################################################################
+#
+# To set options:
+#
+#   $ rpmbuild --define="option <x>" ...
+#
 
-# ----------------------------------------------------------------------
-# use "rpmbuild --with yassl" or "rpm --define '_with_yassl 1'" (for RPM 3.x)
-# to build with yaSSL support (off by default)
-# ----------------------------------------------------------------------
-%{?_with_yassl:%define YASSL_BUILD 1}
-%{!?_with_yassl:%define YASSL_BUILD 0}
-
-# ----------------------------------------------------------------------
-# use "rpmbuild --without bundled_zlib" or "rpm --define '_without_bundled_zlib 1'"
-# (for RPM 3.x) to not build using the bundled zlib (on by default)
-# ----------------------------------------------------------------------
-%{!?_with_bundled_zlib: %{!?_without_bundled_zlib: %define WITH_BUNDLED_ZLIB 1}}
-%{?_with_bundled_zlib:%define WITH_BUNDLED_ZLIB 1}
-%{?_without_bundled_zlib:%define WITH_BUNDLED_ZLIB 0}
-
-# ----------------------------------------------------------------------
-# support optional "tcmalloc" stuff (experimental)
-# ----------------------------------------------------------------------
-%{?malloc_lib_target:%define WITH_TCMALLOC 1}
-%{!?malloc_lib_target:%define WITH_TCMALLOC 0}
-
-# ----------------------------------------------------------------------
-# use "rpmbuild --with cluster" or "rpm --define '_with_cluster 1'" (for RPM 3.x)
-# to build with cluster support (off by default)
-# ----------------------------------------------------------------------
-%{?_with_cluster:%define CLUSTER_BUILD 1}
-%{!?_with_cluster:%define CLUSTER_BUILD 0}
-
-##############################################################################
-# Product definitions - set for a "community" package
-##############################################################################
-
-%define server_suffix  -community
-%define package_suffix -community
-%define ndbug_comment MySQL Community Server (GPL)
-%define debug_comment MySQL Community Server - Debug (GPL)
+# ----------------------------------------------------------------------------
+# Commercial builds
+# ----------------------------------------------------------------------------
+%if %{undefined commercial}
 %define commercial 0
-%define EMBEDDED_BUILD 1
-%define PARTITION_BUILD 1
-# Default for CLUSTER_BUILD is "0", but command line option may override it
-%define COMMUNITY_BUILD 1
-%define INNODB_BUILD 1
-%define NORMAL_TEST_MODE test-bt
-%define DEBUG_TEST_MODE test-bt-debug
+%endif
 
-%define release 1.glibc23
+# ----------------------------------------------------------------------------
+# Source name
+# ----------------------------------------------------------------------------
+%if %{undefined src_base}
+%define src_base mysql
+%endif
+%define src_dir %{src_base}-%{mysql_version}
 
-%define mysql_license GPL
-%define src_dir mysql-%{mysql_version}
+# ----------------------------------------------------------------------------
+# Feature set (storage engines, options).  Default to community (everything)
+# ----------------------------------------------------------------------------
+%if %{undefined feature_set}
+%define feature_set community
+%endif
+
+# ----------------------------------------------------------------------------
+# Server comment strings
+# ----------------------------------------------------------------------------
+%if %{undefined compilation_comment_debug}
+%define compilation_comment_debug       MySQL Community Server - Debug (GPL)
+%endif
+%if %{undefined compilation_comment_release}
+%define compilation_comment_release     MySQL Community Server (GPL)
+%endif
+
+# ----------------------------------------------------------------------------
+# Product and server suffixes
+# ----------------------------------------------------------------------------
+%if %{undefined product_suffix}
+  %if %{defined short_product_tag}
+    %define product_suffix      -%{short_product_tag}
+  %else
+    %define product_suffix      %{nil}
+  %endif
+%endif
+
+%if %{undefined server_suffix}
+%define server_suffix   %{nil}
+%endif
+
+# ----------------------------------------------------------------------------
+# Distribution support
+# ----------------------------------------------------------------------------
+%if %{undefined distro_specific}
+%define distro_specific 0
+%endif
+%if %{distro_specific}
+  %if %(test -f /etc/redhat-release && echo 1 || echo 0)
+    %define elver %(rpm -qf --qf '%%{version}\\n' /etc/redhat-release | sed -e 's/^\\([0-9]*\\).*/\\1/g')
+    %if "%elver" == "4"
+      %define distro_description        Enterprise Linux 4
+      %define distro_releasetag         el4
+      %define distro_buildreq           gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+      %define distro_requires           chkconfig coreutils grep procps shadow-utils
+    %else
+      %if "%elver" == "5"
+        %define distro_description      Enterprise Linux 5
+        %define distro_releasetag       el5
+        %define distro_buildreq         gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+        %define distro_requires         chkconfig coreutils grep procps shadow-utils
+      %else
+        %{error:Enterprise Linux %{elver} is unsupported}
+      %endif
+    %endif
+  %else
+    %if %(test -f /etc/SuSE-release && echo 1 || echo 0)
+      %define susever %(rpm -qf --qf '%%{version}\\n' /etc/SuSE-release)
+      %if "%susever" == "10"
+        %define distro_description      SUSE Linux Enterprise Server 10
+        %define distro_releasetag       sles10
+        %define distro_buildreq         gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client readline-devel zlib-devel
+        %define distro_requires         aaa_base coreutils grep procps pwdutils
+      %else
+        %if "%susever" == "11"
+          %define distro_description    SUSE Linux Enterprise Server 11
+          %define distro_releasetag     sles11
+          %define distro_buildreq       gcc-c++ gdbm-devel gperf ncurses-devel openldap2-client procps pwdutils readline-devel zlib-devel
+          %define distro_requires       aaa_base coreutils grep procps pwdutils
+        %else
+          %{error:SuSE %{susever} is unsupported}
+        %endif
+      %endif
+    %else
+      %{error:Unsupported distribution}
+    %endif
+  %endif
+%else
+  %define generic_kernel %(uname -r | cut -d. -f1-2)
+  %define distro_description            Generic Linux (kernel %{generic_kernel})
+  %define distro_releasetag             linux%{generic_kernel}
+  %define distro_buildreq               gcc-c++ gperf ncurses-devel perl readline-devel time zlib-devel
+  %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
+%endif
+
+# Avoid debuginfo RPMs, leaves binaries unstripped
+%define debug_package   %{nil}
+
+# Hack to work around bug in RHEL5 __os_install_post macro, wrong inverted
+# test for __debug_package
+%define __strip         /bin/true
+
+# ----------------------------------------------------------------------------
+# Support optional "tcmalloc" library (experimental)
+# ----------------------------------------------------------------------------
+%if %{defined malloc_lib_target}
+%define WITH_TCMALLOC 1
+%else
+%define WITH_TCMALLOC 0
+%endif
+
+##############################################################################
+# Configuration based upon above user input, not to be set directly
+##############################################################################
+
+%if %{commercial}
+%define license_files_server    %{src_dir}/LICENSE.mysql
+%define license_type            Commercial
+%else
+%define license_files_devel     %{src_dir}/EXCEPTIONS-CLIENT
+%define license_files_server    %{src_dir}/COPYING %{src_dir}/README
+%define license_type            GPL
+%endif
 
 ##############################################################################
 # Main spec file section
 ##############################################################################
 
-Name:		MySQL
-Summary:	MySQL: a very fast and reliable SQL database server
-Group:		Applications/Databases
-Version:	@MYSQL_U_SCORE_VERSION@
-Release:	%{release}
-License:	Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.  Use is subject to license terms.  Under %{mysql_license} license as shown in the Description field.
-Source:		http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
-URL:		http://www.mysql.com/
-Packager:	%{mysql_vendor} Product Engineering Team <build@mysql.com>
-Vendor:		%{mysql_vendor}
-Provides:	msqlormysql MySQL-server mysql
-BuildRequires: ncurses-devel
-Obsoletes:	mysql
+Name:           MySQL%{product_suffix}
+Summary:        MySQL: a very fast and reliable SQL database server
+Group:          Applications/Databases
+Version:        @MYSQL_U_SCORE_VERSION@
+Release:        %{release}%{?distro_releasetag:.%{distro_releasetag}}
+Distribution:   %{distro_description}
+License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}.  All rights reserved.  Use is subject to license terms.  Under %{license_type} license as shown in the Description field.
+Source:         http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
+URL:            http://www.mysql.com/
+Packager:       MySQL Build Team <build@mysql.com>
+Vendor:         %{mysql_vendor}
+Provides:       msqlormysql MySQL-server mysql
+BuildRequires:  %{distro_buildreq}
 
 # Think about what you use here since the first step is to
 # run a rm -rf
@@ -152,11 +227,12 @@ is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 %{mysql_vendor}
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.
-Use is subject to license terms.
-
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,
-and you are welcome to modify and redistribute it under the GPL license.
+The MySQL software has Dual Licensing, which means you can use the MySQL
+software free of charge under the GNU General Public License
+(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
+the GPL. See the chapter "Licensing and Support" in the manual for
+further info.
 
 The MySQL web site (http://www.mysql.com/) provides the latest
 news and information about the MySQL software. Also please see the
@@ -166,436 +242,234 @@ documentation and the manual for more information.
 # Sub package definition
 ##############################################################################
 
-%package server
-Summary:	MySQL: a very fast and reliable SQL database server
-Group:		Applications/Databases
-Requires: coreutils grep procps /usr/sbin/useradd /usr/sbin/groupadd /sbin/chkconfig
-Provides:	msqlormysql mysql-server mysql MySQL
-Obsoletes:	MySQL mysql mysql-server
+%package -n MySQL-server%{product_suffix}
+Summary:        MySQL: a very fast and reliable SQL database server
+Group:          Applications/Databases
+Requires:       %{distro_requires}
+Provides:       msqlormysql mysql-server mysql MySQL MySQL-server
+Obsoletes:      MySQL mysql mysql-server MySQL-server
 
-%description server
+%description -n MySQL-server%{product_suffix}
 The MySQL(TM) software delivers a very fast, multi-threaded, multi-user,
 and robust SQL (Structured Query Language) database server. MySQL Server
 is intended for mission-critical, heavy-load production systems as well
 as for embedding into mass-deployed software. MySQL is a trademark of
 %{mysql_vendor}
 
-Copyright 2000-2008 MySQL AB, @MYSQL_COPYRIGHT_YEAR@ %{mysql_vendor}  All rights reserved.
-Use is subject to license terms.
+The MySQL software has Dual Licensing, which means you can use the MySQL
+software free of charge under the GNU General Public License
+(http://www.gnu.org/licenses/). You can also purchase commercial MySQL
+licenses from %{mysql_vendor} if you do not wish to be bound by the terms of
+the GPL. See the chapter "Licensing and Support" in the manual for
+further info.
 
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,
-and you are welcome to modify and redistribute it under the GPL license.
+The MySQL web site (http://www.mysql.com/) provides the latest news and 
+information about the MySQL software.  Also please see the documentation
+and the manual for more information.
 
-The MySQL web site (http://www.mysql.com/) provides the latest
-news and information about the MySQL software. Also please see the
-documentation and the manual for more information.
-
-This package includes the MySQL server binary
-%if %{INNODB_BUILD}
-(configured including InnoDB)
-%endif
-as well as related utilities to run and administer a MySQL server.
+This package includes the MySQL server binary as well as related utilities
+to run and administer a MySQL server.
 
 If you want to access and work with the database, you have to install
-package "MySQL-client" as well!
+package "MySQL-client%{product_suffix}" as well!
 
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+%package -n MySQL-client%{product_suffix}
+Summary:        MySQL - Client
+Group:          Applications/Databases
+Obsoletes:      mysql-client MySQL-client
+Provides:       mysql-client MySQL-client
 
-%package client
-Summary: MySQL - Client
-Group: Applications/Databases
-Obsoletes: mysql-client
-Provides: mysql-client
-
-%description client
+%description -n MySQL-client%{product_suffix}
 This package contains the standard MySQL clients and administration tools.
 
-%{see_base}
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+%package -n MySQL-test%{product_suffix}
+Requires:       MySQL-client%{product_suffix} perl
+Summary:        MySQL - Test suite
+Group:          Applications/Databases
+Provides:       mysql-test
+Obsoletes:      mysql-bench mysql-test
+AutoReqProv:    no
 
-%if %{CLUSTER_BUILD}
-%package ndb-storage
-Summary:	MySQL - ndbcluster storage engine
-Group:		Applications/Databases
-
-%description ndb-storage
-This package contains the ndbcluster storage engine.
-It is necessary to have this package installed on all
-computers that should store ndbcluster table data.
-
-%{see_base}
-
-# ------------------------------------------------------------------------------
-
-%package ndb-management
-Summary:	MySQL - ndbcluster storage engine management
-Group:		Applications/Databases
-
-%description ndb-management
-This package contains ndbcluster storage engine management.
-It is necessary to have this package installed on at least
-one computer in the cluster.
-
-%{see_base}
-
-# ------------------------------------------------------------------------------
-
-%package ndb-tools
-Summary:	MySQL - ndbcluster storage engine basic tools
-Group:		Applications/Databases
-
-%description ndb-tools
-This package contains ndbcluster storage engine basic tools.
-
-%{see_base}
-
-# ------------------------------------------------------------------------------
-
-%package ndb-extra
-Summary:	MySQL - ndbcluster storage engine extra tools
-Group:		Applications/Databases
-
-%description ndb-extra
-This package contains some extra ndbcluster storage engine tools for the advanced user.
-They should be used with caution.
-
-%{see_base}
-%endif
-
-# ------------------------------------------------------------------------------
-
-%package test
-Requires: %{name}-client perl
-Summary: MySQL - Test suite
-Group: Applications/Databases
-Provides: mysql-test
-Obsoletes: mysql-bench mysql-test
-AutoReqProv: no
-
-%description test
+%description -n MySQL-test%{product_suffix}
 This package contains the MySQL regression test suite.
 
-%{see_base}
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
+%package -n MySQL-devel%{product_suffix}
+Summary:        MySQL - Development header files and libraries
+Group:          Applications/Databases
+Provides:       mysql-devel
+Obsoletes:      mysql-devel
 
-%package devel
-Summary: MySQL - Development header files and libraries
-Group: Applications/Databases
-Provides: mysql-devel
-Obsoletes: mysql-devel
+%description -n MySQL-devel%{product_suffix}
+This package contains the development header files and libraries necessary
+to develop MySQL client applications.
 
-%description devel
-This package contains the development header files and libraries
-necessary to develop MySQL client applications.
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
-%{see_base}
+# ----------------------------------------------------------------------------
+%package -n MySQL-shared%{product_suffix}
+Summary:        MySQL - Shared libraries
+Group:          Applications/Databases
 
-# ------------------------------------------------------------------------------
+%description -n MySQL-shared%{product_suffix}
+This package contains the shared libraries (*.so*) which certain languages
+and applications need to dynamically load and use MySQL.
 
-%package shared
-Summary: MySQL - Shared libraries
-Group: Applications/Databases
+# ----------------------------------------------------------------------------
+%package -n MySQL-embedded%{product_suffix}
+Summary:        MySQL - embedded library
+Group:          Applications/Databases
+Requires:       MySQL-devel%{product_suffix}
+Obsoletes:      mysql-embedded
 
-%description shared
-This package contains the shared libraries (*.so*) which certain
-languages and applications need to dynamically load and use MySQL.
-
-# ------------------------------------------------------------------------------
-
-%if %{EMBEDDED_BUILD}
-
-%package embedded
-Requires: %{name}-devel
-Summary: MySQL - embedded library
-Group: Applications/Databases
-Obsoletes: mysql-embedded
-
-%description embedded
+%description -n MySQL-embedded%{product_suffix}
 This package contains the MySQL server as an embedded library.
 
-The embedded MySQL server library makes it possible to run a
-full-featured MySQL server inside the client application.
-The main benefits are increased speed and more simple management
-for embedded applications.
+The embedded MySQL server library makes it possible to run a full-featured
+MySQL server inside the client application. The main benefits are increased
+speed and more simple management for embedded applications.
 
 The API is identical for the embedded MySQL version and the
 client/server version.
 
-%{see_base}
-
-%endif
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 
 ##############################################################################
-#
-##############################################################################
-
 %prep
-# We unpack the source two times, for 'debug' and 'release' build.
-%setup -T -a 0 -c -n mysql-%{mysql_version}
-mv mysql-%{mysql_version} mysql-debug-%{mysql_version}
-%setup -D -T -a 0 -n mysql-%{mysql_version}
-mv mysql-%{mysql_version} mysql-release-%{mysql_version}
+%setup -T -a 0 -c -n %{src_dir}
 
 ##############################################################################
-# The actual build
-##############################################################################
-
 %build
 
-BuildMySQL() {
-# Let "MYSQL_BUILD_*FLAGS" take precedence.
-CFLAGS=${MYSQL_BUILD_CFLAGS:-$CFLAGS}
-CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-$CXXFLAGS}
-LDFLAGS=${MYSQL_BUILD_LDFLAGS:-$LDFLAGS}
-# Fall back on RPM_OPT_FLAGS (part of RPM environment) if no flags are given.
-CFLAGS=${CFLAGS:-$RPM_OPT_FLAGS}
-CXXFLAGS=${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti }
-# Evaluate current setting of $DEBUG
-if [ $DEBUG -gt 0 ] ; then
-	OPT_COMMENT='--with-comment="%{debug_comment}"'
-	OPT_DEBUG='--with-debug'
-	CFLAGS=`echo   " $CFLAGS "   | \
-	    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
-	        -e 's/^ //' -e 's/ $//'`
-	CXXFLAGS=`echo " $CXXFLAGS " | \
-	    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
-	        -e 's/^ //' -e 's/ $//'`
-else
-	OPT_COMMENT='--with-comment="%{ndbug_comment}"'
-	OPT_DEBUG=''
-fi
-# The --enable-assembler simply does nothing on systems that does not
-# support assembler speedups.
-sh -c  "PATH=\"${MYSQL_BUILD_PATH:-$PATH}\" \
-	CC=\"${MYSQL_BUILD_CC:-$CC}\" \
-	CXX=\"${MYSQL_BUILD_CXX:-$CXX}\" \
-	CFLAGS=\"$CFLAGS\" \
-	CXXFLAGS=\"$CXXFLAGS\" \
-	LDFLAGS=\"$LDFLAGS\" \
-	./configure \
- 	    $* \
-	    --with-mysqld-ldflags='-static' \
-	    --with-client-ldflags='-static' \
-	    --enable-assembler \
-	    --enable-local-infile \
-	    --with-fast-mutexes \
-	    --with-mysqld-user=%{mysqld_user} \
-	    --with-unix-socket-path=/var/lib/mysql/mysql.sock \
-	    --with-pic \
-	    --prefix=/ \
-%if %{CLUSTER_BUILD}
-	    --with-extra-charsets=all \
-%else
-	    --with-extra-charsets=complex \
-%endif
-%if %{YASSL_BUILD}
-	    --with-ssl \
-%else
-	    --without-ssl \
-%endif
-	    --exec-prefix=%{_exec_prefix} \
-	    --libexecdir=%{_sbindir} \
-	    --libdir=%{_libdir} \
-	    --sysconfdir=%{_sysconfdir} \
-	    --datadir=%{_datadir} \
-	    --localstatedir=%{mysqldatadir} \
-	    --infodir=%{_infodir} \
-	    --includedir=%{_includedir} \
-	    --mandir=%{_mandir} \
-	    --enable-thread-safe-client \
-	    $OPT_COMMENT \
-	    $OPT_DEBUG \
-	    --with-readline \
-%if %{WITH_BUNDLED_ZLIB}
-	    --with-zlib-dir=bundled \
-%endif
-%if %{CLUSTER_BUILD}
-		--with-plugin-ndbcluster \
-%else
-		--without-plugin-ndbcluster \
-%endif
-%if %{INNODB_BUILD}
-		--with-plugin-innobase \
-%else
-		--without-plugin-innobase \
-%endif
-%if %{PARTITION_BUILD}
-		--with-plugin-partition \
-%else
-		--without-plugin-partition \
-%endif
-		--with-plugin-csv \
-		--with-plugin-archive \
-		--with-plugin-blackhole \
-		--with-plugin-federated \
-		--with-perfschema \
-		--without-plugin-daemon_example \
-		--without-plugin-ftexample \
-%if %{EMBEDDED_BUILD}
-		--with-embedded-server \
-%else
-		--without-embedded-server \
-%endif
-		--with-big-tables \
-		--enable-shared \
-		"
- make
-}
-# end of function definition "BuildMySQL"
+# Be strict about variables, bail at earliest opportunity, etc.
+set -eu
 
-# Use our own copy of glibc
+# Optional package files
+touch optional-files-devel
 
-OTHER_LIBC_DIR=/usr/local/mysql-glibc
-USE_OTHER_LIBC_DIR=""
-if test -d "$OTHER_LIBC_DIR"
-then
-  USE_OTHER_LIBC_DIR="--with-other-libc=$OTHER_LIBC_DIR"
-fi
+#
+# Set environment in order of preference, MYSQL_BUILD_* first, then variable
+# name, finally a default.  RPM_OPT_FLAGS is assumed to be a part of the
+# default RPM build environment.
+#
+# We set CXX=gcc by default to support so-called 'generic' binaries, where we
+# do not have a dependancy on libgcc/libstdc++.  This only works while we do
+# not require C++ features such as exceptions, and may need to be removed at
+# a later date.
+#
+
+# This is a hack, $RPM_OPT_FLAGS on ia64 hosts contains flags which break
+# the compile in cmd-line-utils/readline - needs investigation, but for now
+# we simply unset it and use those specified directly in cmake.
+%if "%{_arch}" == "ia64"
+RPM_OPT_FLAGS=
+%endif
+
+export PATH=${MYSQL_BUILD_PATH:-$PATH}
+export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
+export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
+export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
+export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
+export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
+
+# Build debug mysqld and libmysqld.a
+mkdir debug
+(
+  cd debug
+  # Attempt to remove any optimisation flags from the debug build
+  CFLAGS=`echo " ${CFLAGS} " | \
+            sed -e 's/ -O[0-9]* / /' \
+                -e 's/ -unroll2 / /' \
+                -e 's/ -ip / /' \
+                -e 's/^ //' \
+                -e 's/ $//'`
+  CXXFLAGS=`echo " ${CXXFLAGS} " | \
+              sed -e 's/ -O[0-9]* / /' \
+                  -e 's/ -unroll2 / /' \
+                  -e 's/ -ip / /' \
+                  -e 's/^ //' \
+                  -e 's/ $//'`
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
+  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
+  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=Debug \
+           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
+           -DFEATURE_SET="%{feature_set}" \
+           -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
+           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  make VERBOSE=1
+)
+# Build full release
+mkdir release
+(
+  cd release
+  # XXX: MYSQL_UNIX_ADDR should be in cmake/* but mysql_version is included before
+  # XXX: install_layout so we can't just set it based on INSTALL_LAYOUT=RPM
+  ${CMAKE} ../%{src_dir} -DBUILD_CONFIG=mysql_release -DINSTALL_LAYOUT=RPM \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DMYSQL_UNIX_ADDR="/var/lib/mysql/mysql.sock" \
+           -DFEATURE_SET="%{feature_set}" \
+           -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
+           -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
+  make VERBOSE=1
+)
 
 # Use the build root for temporary storage of the shared libraries.
-
 RBR=$RPM_BUILD_ROOT
 
 # Clean up the BuildRoot first
-[ "$RBR" != "/" ] && [ -d $RBR ] && rm -rf $RBR;
-mkdir -p $RBR%{_libdir}/mysql
+[ "$RBR" != "/" ] && [ -d "$RBR" ] && rm -rf "$RBR";
 
-#
-# Use MYSQL_BUILD_PATH so that we can use a dedicated version of gcc
-#
-PATH=${MYSQL_BUILD_PATH:-/bin:/usr/bin}
-export PATH
-
-# Build the Debug binary.
-
-# Use gcc for C and C++ code (to avoid a dependency on libstdc++ and
-# including exceptions into the code
-if [ -z "$CXX" -a -z "$CC" ] ; then
-	export CC="gcc" CXX="gcc"
-fi
-
-
-##############################################################################
-#
-#  Build the debug version
-#
-##############################################################################
-
-(
-# We are in a subshell, so we can modify variables just for one run.
-
-# Add -g and --with-debug.
-DEBUG=1
-cd mysql-debug-%{mysql_version} &&
-CFLAGS="$CFLAGS" \
-CXXFLAGS="$CXXFLAGS" \
-BuildMySQL 
-)
-
-# We might want to save the config log file
-if test -n "$MYSQL_DEBUGCONFLOG_DEST"
-then
-  cp -fp mysql-debug-%{mysql_version}/config.log "$MYSQL_DEBUGCONFLOG_DEST"
-fi
-
-(cd mysql-debug-%{mysql_version} ; make test-bt-debug)
-
-##############################################################################
-#
-#  Build the release binary
-#
-##############################################################################
-
-DEBUG=0
-(cd mysql-release-%{mysql_version} &&
-CFLAGS="$CFLAGS" \
-CXXFLAGS="$CXXFLAGS" \
-BuildMySQL 
-)
-# We might want to save the config log file
-if test -n "$MYSQL_CONFLOG_DEST"
-then
-  cp -fp  mysql-release-%{mysql_version}/config.log "$MYSQL_CONFLOG_DEST"
-fi
-
-(cd mysql-release-%{mysql_version} ; make test-bt)
-
-##############################################################################
-
-# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921)
-# Some "icc" calls may have "gcc" in the argument string, so we should first
-# check for "icc". (If we don't check, the "--print-libgcc-file" call will fail.)
-if expr "$CC" : ".*icc.*" > /dev/null ;
-then
-    %define WITH_LIBGCC 0
-    :
-elif expr "$CC" : ".*gcc.*" > /dev/null ;
+# For gcc builds, include libgcc.a in the devel subpackage (BUG 4921).  This
+# needs to be during build phase as $CC is not set during install.
+if "$CC" -v 2>&1 | grep '^gcc.version' >/dev/null 2>&1
 then
   libgcc=`$CC $CFLAGS --print-libgcc-file`
   if [ -f $libgcc ]
   then
-    %define WITH_LIBGCC 1
+    mkdir -p $RBR%{_libdir}/mysql
     install -m 644 $libgcc $RBR%{_libdir}/mysql/libmygcc.a
-  else
-    %define WITH_LIBGCC 0
-    :
+    echo "%{_libdir}/mysql/libmygcc.a" >>optional-files-devel
   fi
-else
-    %define WITH_LIBGCC 0
-    :
 fi
 
 ##############################################################################
-
 %install
+
 RBR=$RPM_BUILD_ROOT
-MBD=$RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-release-%{mysql_version}
+MBD=$RPM_BUILD_DIR/%{src_dir}
 
 # Ensure that needed directories exists
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
 install -d $RBR%{_datadir}/mysql-test
+install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
 install -d $RBR%{_sbindir}
 
-# Get the plugin files from the debug build
-mkdir $RBR/tmp-debug-plugin $MBD/plugin/debug
-( cd $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/plugin
-  make install DESTDIR=$RBR/tmp-debug-plugin
-  mv $RBR/tmp-debug-plugin/usr/lib*/mysql/plugin/* $MBD/plugin/debug/
-  # From here, the install hook in "plugin/Makefile.am" will do the rest.
-)
-rmdir -p $RBR/tmp-debug-plugin/usr/lib*/mysql/plugin || true
-
 # Install all binaries
-(cd $MBD && make install DESTDIR=$RBR testroot=%{_datadir})
-# Old packages put shared libs in %{_libdir}/ (not %{_libdir}/mysql), so do
-# the same here.
-mv $RBR/%{_libdir}/mysql/*.so* $RBR/%{_libdir}/
+(
+  cd $MBD/release
+  make DESTDIR=$RBR install
+)
 
-# install "mysqld-debug"
-$MBD/libtool --mode=execute install -m 755 \
-                 $RPM_BUILD_DIR/mysql-%{mysql_version}/mysql-debug-%{mysql_version}/sql/mysqld \
-                 $RBR%{_sbindir}/mysqld-debug
-
-# install saved perror binary with NDB support (BUG#13740)
-install -m 755 $MBD/extra/perror $RBR%{_bindir}/perror
+# FIXME: at some point we should stop doing this and just install everything
+# FIXME: directly into %{_libdir}/mysql - perhaps at the same time as renaming
+# FIXME: the shared libraries to use libmysql*-$major.$minor.so syntax
+mv -v $RBR/%{_libdir}/*.a $RBR/%{_libdir}/mysql/
 
 # Install logrotate and autostart
-install -m 644 $MBD/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
-install -m 755 $MBD/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
-
-%if %{EMBEDDED_BUILD}
-# Install embedded server library in the build root
-install -m 644 $MBD/libmysqld/libmysqld.a $RBR%{_libdir}/mysql/
-%endif
-
-# in RPMs, it is unlikely that anybody should use "sql-bench"
-rm -fr $RBR%{_datadir}/sql-bench
+install -m 644 $MBD/release/support-files/mysql-log-rotate $RBR%{_sysconfdir}/logrotate.d/mysql
+install -m 755 $MBD/release/support-files/mysql.server $RBR%{_sysconfdir}/init.d/mysql
 
 # Create a symlink "rcmysql", pointing to the init.script. SuSE users
 # will appreciate that, as all services usually offer this.
@@ -605,6 +479,10 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 # Just to make sure it's in the file list and marked as a config file
 touch $RBR%{_sysconfdir}/my.cnf
 
+# Install SELinux files in datadir
+install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
+  $RBR%{_datadir}/mysql/SELinux/RHEL4
+
 %if %{WITH_TCMALLOC}
 # Even though this is a shared library, put it under /usr/lib*/mysql, so it
 # doesn't conflict with possible shared lib by the same name in /usr/lib*.  See
@@ -612,11 +490,15 @@ touch $RBR%{_sysconfdir}/my.cnf
 install -m 644 "%{malloc_lib_source}" "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
 
+# Remove man pages we explicitly do not want to package, avoids 'unpackaged
+# files' warning.
+rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
 
-%pre server
+%pre -n MySQL-server%{product_suffix}
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
@@ -687,12 +569,12 @@ fi
 
 # Shut down a previously installed server first
 if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-	%{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
-	echo "Giving mysqld 5 seconds to exit nicely"
-	sleep 5
+        %{_sysconfdir}/init.d/mysql stop > /dev/null 2>&1
+        echo "Giving mysqld 5 seconds to exit nicely"
+        sleep 5
 fi
 
-%post server
+%post -n MySQL-server%{product_suffix}
 mysql_datadir=%{mysqldatadir}
 
 # ----------------------------------------------------------------------
@@ -707,10 +589,10 @@ if [ ! -d $mysql_datadir/test ] ; then mkdir $mysql_datadir/test; fi
 # ----------------------------------------------------------------------
 # use insserv for older SuSE Linux versions
 if [ -x /sbin/insserv ] ; then
-	/sbin/insserv %{_sysconfdir}/init.d/mysql
-# use chkconfig on Red Hat and newer SuSE releases
+        /sbin/insserv %{_sysconfdir}/init.d/mysql
+# use chkconfig on Enterprise Linux and newer SuSE releases
 elif [ -x /sbin/chkconfig ] ; then
-	/sbin/chkconfig --add mysql
+        /sbin/chkconfig --add mysql
 fi
 
 # ----------------------------------------------------------------------
@@ -760,28 +642,20 @@ sleep 2
 #scheduled service packs and more.  Visit www.mysql.com/enterprise for more
 #information."
 
-%if %{CLUSTER_BUILD}
-%post ndb-storage
-mysql_clusterdir=/var/lib/mysql-cluster
-
-# Create cluster directory if needed
-if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
-%endif
-
-%preun server
+%preun -n MySQL-server%{product_suffix}
 if [ $1 = 0 ] ; then
-	# Stop MySQL before uninstalling it
-	if [ -x %{_sysconfdir}/init.d/mysql ] ; then
-		%{_sysconfdir}/init.d/mysql stop > /dev/null
-		# Remove autostart of MySQL
-		# For older SuSE Linux versions
-		if [ -x /sbin/insserv ] ; then
-			/sbin/insserv -r %{_sysconfdir}/init.d/mysql
-		# use chkconfig on Red Hat and newer SuSE releases
-		elif [ -x /sbin/chkconfig ] ; then
-			/sbin/chkconfig --del mysql
-		fi
-	fi
+        # Stop MySQL before uninstalling it
+        if [ -x %{_sysconfdir}/init.d/mysql ] ; then
+                %{_sysconfdir}/init.d/mysql stop > /dev/null
+                # Remove autostart of MySQL
+                # For older SuSE Linux versions
+                if [ -x /sbin/insserv ] ; then
+                        /sbin/insserv -r %{_sysconfdir}/init.d/mysql
+                # use chkconfig on Enterprise Linux and newer SuSE releases
+                elif [ -x /sbin/chkconfig ] ; then
+                        /sbin/chkconfig --del mysql
+                fi
+        fi
 fi
 
 # We do not remove the mysql user since it may still own a lot of
@@ -797,20 +671,18 @@ fi
 #  Files section
 ##############################################################################
 
-%files server
+%files -n MySQL-server%{product_suffix}
 %defattr(-,root,root,0755)
 
-%doc mysql-release-%{mysql_version}/COPYING mysql-release-%{mysql_version}/README
-%doc mysql-release-%{mysql_version}/support-files/my-*.cnf
-%if %{CLUSTER_BUILD}
-%doc mysql-release-%{mysql_version}/support-files/ndb-*.ini
+%if %{defined license_files_server}
+%doc %{license_files_server}
 %endif
+%doc %{src_dir}/Docs/ChangeLog
+%doc release/support-files/my-*.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
-%if %{INNODB_BUILD}
 %doc %attr(644, root, man) %{_mandir}/man1/innochecksum.1*
-%endif
 %doc %attr(644, root, man) %{_mandir}/man1/my_print_defaults.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisam_ftdump.1*
 %doc %attr(644, root, man) %{_mandir}/man1/myisamchk.1*
@@ -840,9 +712,7 @@ fi
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
-%if %{INNODB_BUILD}
 %attr(755, root, root) %{_bindir}/innochecksum
-%endif
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk
@@ -867,17 +737,19 @@ fi
 %attr(755, root, root) %{_bindir}/resolve_stack_dump
 %attr(755, root, root) %{_bindir}/resolveip
 
-%if %{WITH_TCMALLOC}
-%attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
-%endif
-
 %attr(755, root, root) %{_sbindir}/mysqld
 %attr(755, root, root) %{_sbindir}/mysqld-debug
 %attr(755, root, root) %{_sbindir}/rcmysql
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so*
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so*
+%attr(755, root, root) %{_libdir}/mysql/plugin/audit_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/daemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_null.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/daemon_example.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
@@ -888,13 +760,17 @@ fi
 
 %attr(755, root, root) %{_datadir}/mysql/
 
-%files client
+# ----------------------------------------------------------------------------
+%files -n MySQL-client%{product_suffix}
+
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/msql2mysql
 %attr(755, root, root) %{_bindir}/mysql
 %attr(755, root, root) %{_bindir}/mysql_find_rows
 %attr(755, root, root) %{_bindir}/mysql_waitpid
 %attr(755, root, root) %{_bindir}/mysqlaccess
+# XXX: This should be moved to %{_sysconfdir}
+%attr(644, root, root) %{_bindir}/mysqlaccess.conf
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
 %attr(755, root, root) %{_bindir}/mysqlcheck
@@ -916,68 +792,12 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlshow.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlslap.1*
 
-%post shared
-/sbin/ldconfig
-
-%postun shared
-/sbin/ldconfig
-
-%if %{CLUSTER_BUILD}
-%files ndb-storage
-%defattr(-,root,root,0755)
-%attr(755, root, root) %{_sbindir}/ndbd
-%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
-
-%files ndb-management
-%defattr(-,root,root,0755)
-%attr(755, root, root) %{_sbindir}/ndb_mgmd
-%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
-
-%files ndb-tools
-%defattr(-,root,root,0755)
-%attr(755, root, root) %{_bindir}/ndb_config
-%attr(755, root, root) %{_bindir}/ndb_desc
-%attr(755, root, root) %{_bindir}/ndb_error_reporter
-%attr(755, root, root) %{_bindir}/ndb_mgm
-%attr(755, root, root) %{_bindir}/ndb_print_backup_file
-%attr(755, root, root) %{_bindir}/ndb_print_schema_file
-%attr(755, root, root) %{_bindir}/ndb_print_sys_file
-%attr(755, root, root) %{_bindir}/ndb_restore
-%attr(755, root, root) %{_bindir}/ndb_select_all
-%attr(755, root, root) %{_bindir}/ndb_select_count
-%attr(755, root, root) %{_bindir}/ndb_show_tables
-%attr(755, root, root) %{_bindir}/ndb_size.pl
-%attr(755, root, root) %{_bindir}/ndb_test_platform
-%attr(755, root, root) %{_bindir}/ndb_waiter
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_config.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_desc.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_error_reporter.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_mgm.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_restore.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_backup_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_schema_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_print_sys_file.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_all.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_select_count.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_show_tables.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_size.pl.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_waiter.1*
-
-%files ndb-extra
-%defattr(-,root,root,0755)
-%attr(755, root, root) %{_bindir}/ndb_delete_all
-%attr(755, root, root) %{_bindir}/ndb_drop_index
-%attr(755, root, root) %{_bindir}/ndb_drop_table
-%attr(755, root, root) %{_sbindir}/ndb_cpcd
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb_cpcd.1*
-%endif
-
-%files devel
+# ----------------------------------------------------------------------------
+%files -n MySQL-devel%{product_suffix} -f optional-files-devel
 %defattr(-, root, root, 0755)
-%doc mysql-release-%{mysql_version}/EXCEPTIONS-CLIENT
+%if %{defined license_files_devel}
+%doc %{license_files_devel}
+%endif
 %doc %attr(644, root, man) %{_mandir}/man1/comp_err.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_config.1*
 %attr(755, root, root) %{_bindir}/mysql_config
@@ -985,63 +805,40 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %{_includedir}/mysql/*
 %{_datadir}/aclocal/mysql.m4
-%{_libdir}/mysql/libdbug.a
-%{_libdir}/mysql/libheap.a
-%if %{WITH_LIBGCC}
-%{_libdir}/mysql/libmygcc.a
-%endif
-%{_libdir}/mysql/libmyisam.a
-%{_libdir}/mysql/libmyisammrg.a
 %{_libdir}/mysql/libmysqlclient.a
-%{_libdir}/mysql/libmysqlclient.la
 %{_libdir}/mysql/libmysqlclient_r.a
-%{_libdir}/mysql/libmysqlclient_r.la
 %{_libdir}/mysql/libmysqlservices.a
-%{_libdir}/mysql/libmystrings.a
-%{_libdir}/mysql/libmysys.a
-%if %{CLUSTER_BUILD}
-%{_libdir}/mysql/libndbclient.a
-%{_libdir}/mysql/libndbclient.la
-%endif
-%{_libdir}/mysql/libvio.a
-%{_libdir}/mysql/libz.a
-%{_libdir}/mysql/libz.la
-%{_libdir}/mysql/plugin/semisync_master.a
-%{_libdir}/mysql/plugin/semisync_master.la
-%{_libdir}/mysql/plugin/semisync_slave.a
-%{_libdir}/mysql/plugin/semisync_slave.la
-%{_libdir}/mysql/plugin/debug/semisync_master.a
-%{_libdir}/mysql/plugin/debug/semisync_master.la
-%{_libdir}/mysql/plugin/debug/semisync_slave.a
-%{_libdir}/mysql/plugin/debug/semisync_slave.la
 
-%files shared
+# ----------------------------------------------------------------------------
+%files -n MySQL-shared%{product_suffix}
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
-%if %{CLUSTER_BUILD}
-%{_libdir}/libndb*.so*
-%endif
 
-%files test
+%post -n MySQL-shared%{product_suffix}
+/sbin/ldconfig
+
+%postun -n MySQL-shared%{product_suffix}
+/sbin/ldconfig
+
+# ----------------------------------------------------------------------------
+%files -n MySQL-test%{product_suffix}
 %defattr(-, root, root, 0755)
 %attr(-, root, root) %{_datadir}/mysql-test
 %attr(755, root, root) %{_bindir}/mysql_client_test
+%attr(755, root, root) %{_bindir}/mysql_client_test_embedded
+%attr(755, root, root) %{_bindir}/mysqltest_embedded
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-stress-test.pl.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql-test-run.pl.1*
-%if %{EMBEDDED_BUILD}
-%attr(755, root, root) %{_bindir}/mysql_client_test_embedded
-%attr(755, root, root) %{_bindir}/mysqltest_embedded
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_client_test_embedded.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest_embedded.1*
-%endif
 
-%if %{EMBEDDED_BUILD}
-%files embedded
+# ----------------------------------------------------------------------------
+%files -n MySQL-embedded%{product_suffix}
 %defattr(-, root, root, 0755)
 %attr(644, root, root) %{_libdir}/mysql/libmysqld.a
-%endif
+%attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 
 ##############################################################################
 # The spec file changelog only includes changes made to the spec file
@@ -1049,6 +846,16 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed May 12 2010 Jonathan Perkin <jonathan.perkin@oracle.com>
+
+- Large number of changes to build using CMake
+- Introduce distribution-specific RPMs
+- Drop debuginfo, build all binaries with debug/symbols
+- Remove __os_install_post, use native macro
+- Remove _unpackaged_files_terminate_build, make it an error to have
+  unpackaged files
+- Remove cluster RPMs
+
 * Wed Mar 24 2010 Joerg Bruehe <joerg.bruehe@sun.com>
 
 - Add "--with-perfschema" to the configure options.
@@ -1658,7 +1465,7 @@ fi
 
 - Reworked the build steps a little bit: the Max binary is supposed
   to include OpenSSL, which cannot be linked statically, thus trying
-	to statically link against a special glibc is futile anyway
+  to statically link against a special glibc is futile anyway
 - because of this, it is not required to make yet another build run
   just to compile the shared libs (saves a lot of time)
 - updated package description of the Max subpackage
@@ -1669,7 +1476,7 @@ fi
 - Updated Packager information
 - Fixed the build options: the regular package is supposed to
   include InnoDB and linked statically, while the Max package
-	should include BDB and SSL support
+  should include BDB and SSL support
 
 * Fri May 03 2002 Lenz Grimmer <lenz@mysql.com>
 
