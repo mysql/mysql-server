@@ -521,7 +521,7 @@ static int bl_fread (void *ptr, size_t size, size_t nmemb, FILE *stream)
 	else {
 	do_error: ;
 	    int e = ferror(stream);
-            invariant(e!=0);
+            // r == 0 && !feof && e == 0, how does this happen? invariant(e!=0);
 	    return e;
 	}
     } else if (r<nmemb) {
