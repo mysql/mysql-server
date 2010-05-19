@@ -274,6 +274,7 @@ row_merge_buf_add(
 	const dict_index_t*	index;
 	dfield_t*		entry;
 	dfield_t*		field;
+	const dict_field_t*	ifield;
 
 	if (buf->n_tuples >= buf->max_tuples) {
 		return(FALSE);
@@ -292,14 +293,14 @@ row_merge_buf_add(
 	data_size = 0;
 	extra_size = UT_BITS_IN_BYTES(index->n_nullable);
 
-	for (i = 0; i < n_fields; i++, field++) {
-		const dict_field_t*	ifield;
+	ifield = dict_index_get_nth_field(index, 0);
+
+	for (i = 0; i < n_fields; i++, field++, ifield++) {
 		const dict_col_t*	col;
 		ulint			col_no;
 		const dfield_t*		row_field;
 		ulint			len;
 
-		ifield = dict_index_get_nth_field(index, i);
 		col = ifield->col;
 		col_no = dict_col_get_no(col);
 		row_field = dtuple_get_nth_field(row, col_no);
