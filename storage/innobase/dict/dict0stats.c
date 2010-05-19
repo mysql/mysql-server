@@ -382,10 +382,11 @@ let N = srv_stats_persistent_sample_pages
 
 dict_stats_analyze_index()
   for each n_prefix
-    search for good enough level
+    search for good enough level:
       dict_stats_analyze_index_level() // only called if level has <= N pages
         // full scan of the level in one mtr
         collect statistics about the given level
+      if we are not satisfied with the level, search next lower level
     we have found a good enough level here
     dict_stats_analyze_index_for_n_prefix(that level, stats collected above)
       // full scan of the level in one mtr
