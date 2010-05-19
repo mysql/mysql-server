@@ -70,6 +70,3 @@ storage/ndbd.dsp: Makefile \
 	@$(top_srcdir)/storage/ndb/config/win-includes $@ $(INCLUDES)
 	@$(top_srcdir)/storage/ndb/config/win-sources $@ $(ndbd_SOURCES)
 	@$(top_srcdir)/storage/ndb/config/win-libraries $@ LINK $(LDADD)
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
