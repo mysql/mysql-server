@@ -14,7 +14,7 @@ SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 # accept all errors
 --disable_abort_on_error
---replace_regex /#sqlx-[0-9a-f_]*/#sqlx-nnnn_nnnn/i
+--replace_regex /#sqlx-[0-9a-f_]*/#sqlx-nnnn_nnnn/i /errno: [0-9]*/errno: n/
 --eval $fail_statement
 --enable_abort_on_error
 --echo # State after failure
