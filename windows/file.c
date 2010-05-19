@@ -252,7 +252,7 @@ toku_os_full_pwrite (int fd, const void *org_buf, size_t len, toku_off_t off)
     assert(len == 0);
 }
 
-int
+ssize_t
 toku_os_pwrite (int fd, const void *org_buf, size_t len, toku_off_t off)
 {
     const uint8_t *buf = org_buf;
