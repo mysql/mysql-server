@@ -1,0 +1,46 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+## case #1 - last_null_bit_pos==0 in record_compare without X bit
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 varchar(1) DEFAULT '', c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0, c8 bigint(20) DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
+INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
+UPDATE t1 SET c5 = 'a';
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE t1;
+## case #1.1 - last_null_bit_pos==0 in record_compare with X bit
+##             (1 column less and no varchar)
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (c1 bigint(20) DEFAULT 0, c2 bigint(20) DEFAULT 0, c3 bigint(20) DEFAULT 0, c4 bigint(20) DEFAULT 0, c5 bigint(20) DEFAULT 0, c6 bigint(20) DEFAULT 0, c7 bigint(20) DEFAULT 0) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 ( c5, c6 ) VALUES ( 1   , 35 );
+INSERT INTO t1 ( c5, c6 ) VALUES ( NULL, 35 );
+UPDATE t1 SET c5 = 'a';
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE t1;
+## case #2 - X bit is wrongly set.
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 (c1 int, c2 varchar(1) default '') ENGINE=InnoDB DEFAULT CHARSET= latin1;
+INSERT INTO t1(c1) VALUES (10);
+INSERT INTO t1(c1) VALUES (NULL);
+UPDATE t1 SET c1= 0;
+Comparing tables master:test.t1 and slave:test.t1
+DROP TABLE t1;
