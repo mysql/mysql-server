@@ -1623,6 +1623,7 @@ void execute_ddl_log_recovery()
   THD *thd;
   DDL_LOG_ENTRY ddl_log_entry;
   char file_name[FN_REFLEN];
+  char recover_query_string[]= "INTERNAL DDL LOG RECOVER IN PROGRESS";
   DBUG_ENTER("execute_ddl_log_recovery");
 
   /*
@@ -1641,6 +1642,10 @@ void execute_ddl_log_recovery()
     DBUG_VOID_RETURN;
   thd->thread_stack= (char*) &thd;
   thd->store_globals();
+
+  /* Needed for InnoDB, since it checks for DROP FOREIGN KEY */
+  thd->query_string.str= recover_query_string;
+  thd->query_string.length= strlen(recover_query_string);
 
   /* this also initialize LOCK_gdl */
   num_entries= read_ddl_log_header();
@@ -6785,8 +6790,8 @@ static bool exchange_name_with_ddl_log(THD *thd,
   exchange_entry.handler_name= ha_resolve_storage_engine_name(ht);
 
   mysql_mutex_lock(&LOCK_gdl);
-  /* write to the ddl log what to do */
   /*
+    write to the ddl log what to do by:
     1) write the action entry (i.e. which names to be exchanged)
     2) write the execution entry with a link to the action entry
   */
@@ -6923,7 +6928,6 @@ bool mysql_exchange_partition(THD *thd,
   handlerton *table_hton;
   partition_element *part_elem;
   char *partition_name;
-  //char *part_file_name_end;
   char temp_name[FN_REFLEN+1];
   char part_file_name[FN_REFLEN+1];
   char swap_file_name[FN_REFLEN+1];
