@@ -502,7 +502,12 @@ success:
 		mutex_exit(mutex);
 	} else if (i == buf_buddy_get_slot(sizeof(buf_page_t))) {
 		/* This must be a buf_page_t object. */
+#if UNIV_WORD_SIZE == 4
+		/* On 32-bit systems, there is no padding in
+		buf_page_t.  On other systems, Valgrind could complain
+		about uninitialized pad bytes. */
 		UNIV_MEM_ASSERT_RW(src, size);
+#endif
 		if (buf_buddy_relocate_block(src, dst)) {
 
 			goto success;
