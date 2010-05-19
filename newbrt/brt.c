@@ -415,11 +415,11 @@ brtnode_memory_size (BRTNODE node)
 }
 
 // assign unique dictionary id
-static uint32_t dict_id_serial = 1;
+static uint64_t dict_id_serial = 1;
 static DICTIONARY_ID
 next_dict_id(void) {
-    uint32_t i = toku_sync_fetch_and_increment_uint32(&dict_id_serial);
-    assert(i);
+    uint32_t i = toku_sync_fetch_and_increment_uint64(&dict_id_serial);
+    assert(i);  // guarantee unique dictionary id by asserting 64-bit counter never wraps
     DICTIONARY_ID d = {.dictid = i};
     return d;
 }
