@@ -63,6 +63,7 @@ typedef int64_t toku_off_t;
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <stdio.h>
 
 #endif 
 
@@ -75,6 +76,7 @@ typedef int64_t toku_off_t;
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+#include <stdio.h>
 #if __FreeBSD__
 #include <stdarg.h>
 #endif
@@ -156,6 +158,14 @@ void toku_os_full_write (int fd, const void *buf, size_t len) __attribute__((__v
 ssize_t toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off) __attribute__((__visibility__("default")));
 int toku_os_write (int fd, const void *buf, size_t len) __attribute__((__visibility__("default")));
 
+// wrappers around file system calls
+FILE * toku_os_fdopen(int fildes, const char *mode);    
+FILE * toku_os_fopen(const char *filename, const char *mode);
+int toku_os_open(const char *path, int oflag, int mode);
+int toku_os_close(int fd);
+int toku_os_fclose(FILE * stream);
+
+
 // wrapper around fsync
 int toku_file_fsync_without_accounting(int fd);
 int toku_file_fsync(int fd);
@@ -172,10 +182,15 @@ int toku_set_func_fsync (int (*fsync_function)(int));
 int toku_set_func_malloc  (void *(*)(size_t));
 int toku_set_func_realloc (void *(*)(void*,size_t));
 int toku_set_func_free    (void (*)(void*));
-int toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, toku_off_t));
-int toku_set_func_full_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, toku_off_t));
-int toku_set_func_write (ssize_t (*pwrite_fun)(int, const void *, size_t));
-int toku_set_func_full_write (ssize_t (*pwrite_fun)(int, const void *, size_t));
+int toku_set_func_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t));
+int toku_set_func_full_pwrite (ssize_t (*)(int, const void *, size_t, toku_off_t));
+int toku_set_func_write (ssize_t (*)(int, const void *, size_t));
+int toku_set_func_full_write (ssize_t (*)(int, const void *, size_t));
+int toku_set_func_fdopen (FILE * (*)(int, const char *));
+int toku_set_func_fopen (FILE * (*)(const char *, const char *));
+int toku_set_func_open (int (*)(const char *, int, int));  // variadic form not implemented until needed
+int toku_set_func_fclose(int (*)(FILE*));
+
 
 int toku_portability_init    (void);
 int toku_portability_destroy (void);

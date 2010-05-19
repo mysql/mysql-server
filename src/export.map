@@ -13,6 +13,10 @@
    db_env_set_func_full_pwrite;
    db_env_set_func_write;
    db_env_set_func_full_write;
+   db_env_set_func_fdopen;
+   db_env_set_func_fopen;
+   db_env_set_func_open;
+   db_env_set_func_fclose;
    db_env_set_func_loader_fwrite;
    db_env_set_checkpoint_callback;
    db_env_set_checkpoint_callback2;

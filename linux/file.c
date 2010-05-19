@@ -10,6 +10,10 @@
 #include <string.h>
 #include <time.h>
 #include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 
 static int toku_assert_on_write_enospc = 0;
 static const int toku_write_enospc_sleep = 1;
@@ -98,7 +102,10 @@ static ssize_t (*t_write)(int, const void *, size_t) = 0;
 static ssize_t (*t_full_write)(int, const void *, size_t) = 0;
 static ssize_t (*t_pwrite)(int, const void *, size_t, off_t) = 0;
 static ssize_t (*t_full_pwrite)(int, const void *, size_t, off_t) = 0;
-
+static FILE *  (*t_fdopen)(int, const char *) = 0;
+static FILE *  (*t_fopen)(const char *, const char *) = 0;
+static int     (*t_open)(const char *, int, int) = 0;  // no implementation of variadic form until needed
+static int     (*t_fclose)(FILE *) = 0;
 
 int 
 toku_set_func_write (ssize_t (*write_fun)(int, const void *, size_t)) {
@@ -112,8 +119,6 @@ toku_set_func_full_write (ssize_t (*write_fun)(int, const void *, size_t)) {
     return 0;
 }
 
-
-
 int 
 toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
     t_pwrite = pwrite_fun;
@@ -123,6 +128,32 @@ toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
 int 
 toku_set_func_full_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t)) {
     t_full_pwrite = pwrite_fun;
+    return 0;
+}
+
+int 
+toku_set_func_fdopen(FILE * (*fdopen_fun)(int, const char *)) {
+    t_fdopen = fdopen_fun;
+    return 0;
+}
+
+
+int 
+toku_set_func_fopen(FILE * (*fopen_fun)(const char *, const char *)) {
+    t_fopen = fopen_fun;
+    return 0;
+}
+
+
+int 
+toku_set_func_open(int (*open_fun)(const char *, int, int)) {
+    t_open = open_fun;
+    return 0;
+}
+
+int 
+toku_set_func_fclose(int (*fclose_fun)(FILE*)) {
+    t_fclose = fclose_fun;
     return 0;
 }
 
@@ -214,6 +245,65 @@ toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
     return result;
 }
 
+FILE * 
+toku_os_fdopen(int fildes, const char *mode) {
+    FILE * rval;
+    if (t_fdopen)
+	rval = t_fdopen(fildes, mode);
+    else 
+	rval = fdopen(fildes, mode);
+    return rval;
+}
+    
+
+FILE *
+toku_os_fopen(const char *filename, const char *mode){
+    FILE * rval;
+    if (t_fopen)
+	rval = t_fopen(filename, mode);
+    else
+	rval = fopen(filename, mode);
+    return rval;
+}
+
+int 
+toku_os_open(const char *path, int oflag, int mode) {
+    int rval;
+    if (t_open)
+	rval = t_open(path, oflag, mode);
+    else
+	rval = open(path, oflag, mode);
+    return rval;
+}
+
+int
+toku_os_fclose(FILE * stream) {  
+    int rval = -1;
+    if (t_fclose)
+	rval = t_fclose(stream);
+    else {                      // if EINTR, retry until success
+	while (rval != 0) {
+	    rval = fclose(stream);
+	    if (rval && (errno != EINTR))
+		break;
+	}
+    }
+    return rval;
+}
+
+int 
+toku_os_close (int fd) {  // if EINTR, retry until success
+    int r = -1;
+    while (r != 0) {
+	r = close(fd);
+	if (r) {
+	    int rr = errno;
+	    if (rr!=EINTR) printf("rr=%d (%s)\n", rr, strerror(rr));
+	    assert(rr==EINTR);
+	}
+    }
+    return r;
+}
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
