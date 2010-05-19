@@ -227,6 +227,8 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 				   const char *temp_file_template,
 				   LSN load_lsn);
 
+void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error);
+
 C_END
 
 #endif

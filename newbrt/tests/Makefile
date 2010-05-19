@@ -92,7 +92,7 @@ check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	@# one argument, "ok" should not error
 	$(VGRIND) ./$< ok $(SUMMARIZE_CMD)
 
-check_brtloader-test-merge-files-dbufio: EXTRA_ARGS=dir.$@
+check_brtloader-test-merge-files-dbufio: EXTRA_ARGS=-r 8000 -s dir.$@
 
 check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.$@
 
