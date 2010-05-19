@@ -1,3 +1,9 @@
+2010-05-03	The InnoDB Team
+
+	* buf0buf.c:
+	Fix Bug#53248 compressed tables page checksum mismatch after
+	re-enabling innodb_checksums
+
 2010-04-28	The InnoDB Team
 
 	* log/log0recv.h, log/log0recv.c:
