@@ -189,14 +189,44 @@ DROP DATABASE mysqltest;
 --exec $NDB_RESTORE --no-defaults -b 1 -n 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup_before_native_default >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b 1 -n 2 -r $MYSQL_TEST_DIR/std_data/ndb_backup_before_native_default >> $NDB_TOOLS_OUTPUT
 
+####
+# Bug# 53539 Ndb : MySQLD default values in frm embedded in backup not endian-converted
+# Bug# 53818 Default values in .frm file not byte-order-independent
+# Due to this, on big-endian platforms the backup file restored above
+# has corrupt values for the endian-sensitive defaults (int, float, double)
+# Until this is fixed we cannot robustly examine the MySQL schema.
+# Workaround is to offline-alter the defaults to what they should be.
+#
+
+# Show that restored tables have no native defaults
+--let ndb_desc_opts= -d test t1
+--source include/ndb_desc_print.inc
+
+--let ndb_desc_opts= -d test bit1
+--source include/ndb_desc_print.inc
+
 USE test;
 --sorted_result
 SHOW TABLES;
-SHOW CREATE TABLE t1;
+# SHOW CREATE TABLE t1; # Disabled til bug#53539 fixed as it show junk on big-endian
 SHOW CREATE TABLE bit1;
 --replace_column 12 CURRENT_TIMESTAMP
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
+
+# bug#53539 workaround - overwrites bad default values from frm in 
+# opposite-byte-order case. 
+ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6,
+               CHANGE COLUMN f f FLOAT NOT NULL DEFAULT 6.6,
+               CHANGE COLUMN d d DOUBLE DEFAULT 8.8;
+
+# Show that the MySQL defaults are now ok.
+SHOW CREATE TABLE t1;
+
+# Show that the defaults are now native
+--let ndb_desc_opts= -d test t1
+--source include/ndb_desc_print.inc
+
 --disable_warnings
 INSERT INTO t1 VALUES();
 UPDATE t1 SET ch = "RESTORE FROM 6.3" WHERE i = 12;
@@ -205,25 +235,29 @@ REPLACE INTO t1(i, j, ch) VALUES(20, 20, "RESTORE FROM 6.3");
 --replace_column 12 CURRENT_TIMESTAMP
 SELECT i, j, f, d, d2, ch, vch, HEX(b), HEX(vb), HEX(blob1), text1, timestamp_c FROM t1 ORDER BY i;
 
+# Show that table with MySQL, but no native defaults is still handled
+# correctly.
+# (This works as bit defaults have no endian problems)
 INSERT INTO bit1 VALUES();
 UPDATE bit1 SET b5=b'1111111' WHERE pk = 1;
 REPLACE INTO bit1(pk, b3) VALUES(6, B'110011');
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
 
+# Following commented-out as it's done above due to bug#53539
 #########################################################################
 # OFFLINE ALTER OF 'OLD' TABLE WITH NO DEFAULTS TO 'NEW' TABLE 
-# WITH NATIVE DEFAULTS.
+# WITH NATIVE DEFAULTS. (This is done above with bug#53539 workaround)
 #########################################################################
---echo ********************************************************************************
---echo * Alter table restoring from 6.3 backup to new table with native default support
---echo ********************************************************************************
---let ndb_desc_opts= -d test t1
---source include/ndb_desc_print.inc
-
-ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6;
-
---let ndb_desc_opts= -d test t1
---source include/ndb_desc_print.inc
+#--echo ********************************************************************************
+#--echo * Alter table restoring from 6.3 backup to new table with native default support
+#--echo ********************************************************************************
+#--let ndb_desc_opts= -d test t1
+#--source include/ndb_desc_print.inc
+#
+#ALTER TABLE t1 CHANGE COLUMN j j INT DEFAULT 6;
+#
+#--let ndb_desc_opts= -d test t1
+#--source include/ndb_desc_print.inc
 
 --disable_warnings
 INSERT INTO t1(i, ch) VALUES(99, "native default support");
