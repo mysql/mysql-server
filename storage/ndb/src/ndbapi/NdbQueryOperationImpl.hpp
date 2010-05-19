@@ -58,6 +58,11 @@ public:
   /** Return number of operations in query.*/
   Uint32 getNoOfOperations() const;
 
+  /**
+   * return number of leaf-operations
+   */
+  Uint32 getNoOfLeafOperations() const;
+
   // Get a specific NdbQueryOperation instance by ident specified
   // when the NdbQueryOperationDef was created.
   NdbQueryOperationImpl& getQueryOperation(Uint32 ident) const;
@@ -644,6 +649,11 @@ private:
 
   /** Count number of descendant operations (excluding the operation itself) */
   Int32 getNoOfDescendantOperations() const;
+
+  /**
+   * Count number of leaf operations below/including self
+   */
+  Uint32 getNoOfLeafOperations() const;
 
   /** Serialize parameter values.
    *  @return possible error code.*/
