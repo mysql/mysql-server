@@ -1494,8 +1494,13 @@ alloc:
 
 				ut_ad(prev_b->in_LRU_list);
 				ut_ad(buf_page_in_file(prev_b));
+#if UNIV_WORD_SIZE == 4
+				/* On 32-bit systems, there is no
+				padding in buf_page_t.  On other
+				systems, Valgrind could complain about
+				uninitialized pad bytes. */
 				UNIV_MEM_ASSERT_RW(prev_b, sizeof *prev_b);
-
+#endif
 				UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU,
 						     prev_b, b);
 
