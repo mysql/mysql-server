@@ -92,19 +92,19 @@ check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	@# one argument, "ok" should not error
 	$(VGRIND) ./$< ok $(SUMMARIZE_CMD)
 
-check_brtloader-test-merge-files-dbufio: EXTRA_ARGS=dir.brtloader-test-merge-files-dbufio
+check_brtloader-test-merge-files-dbufio: EXTRA_ARGS=dir.$@
 
-check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.brtloader-test
+check_brtloader-test$(BINSUF): EXTRA_ARGS=dir.$@
 
-check_brtloader-test-bad-generate$(BINSUF): EXTRA_ARGS=dir.brtloader-test-bad-generate
+check_brtloader-test-bad-generate$(BINSUF): EXTRA_ARGS=dir.$@
 
-check_brtloader-test-extractor-errors$(BINSUF): EXTRA_ARGS=-s -f -m -r 1 dir.brtloader-test-extractor-errors
+check_brtloader-test-extractor-errors$(BINSUF): EXTRA_ARGS=-f -m -u -r 1 dir.$@
 
-check_brtloader-test-open$(BINSUF): EXTRA_ARGS=dir.brtloader-test-open
+check_brtloader-test-open$(BINSUF): EXTRA_ARGS=dir_$@
 
-check_brtloader-test-writer$(BINSUF): EXTRA_ARGS=-r 1000000 dir.brtloader-test-writer
+check_brtloader-test-writer$(BINSUF): EXTRA_ARGS=-r 1000000 dir.$@
 
-check_brtloader-test-writer-errors$(BINSUF): EXTRA_ARGS=-s -f -m -u -r 10000 dir.brtloader-test-writer-errors
+check_brtloader-test-writer-errors$(BINSUF): EXTRA_ARGS=-f -m -u -r 1000000 dir.$@
 
 brtloader-%$(BINSUF): brtloader-%.$(OEXT)
 ifeq ($(BRTLOADER),cilk)

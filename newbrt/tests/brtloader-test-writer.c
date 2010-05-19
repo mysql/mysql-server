@@ -169,25 +169,31 @@ static void test_write_dbfile (char *template, int n, char *output_name) {
     brt_loader_destroy_error_callback(&bl.error_callback);
 }
 
+static int nrows = 1;
+
+static int usage(const char *progname) {
+     fprintf(stderr, "Usage:\n %s [-h] [-v] [-q] [-r %d] [-s] directory\n", progname, nrows);
+     return 1;
+}
+
 int test_main (int argc, const char *argv[]) {
     const char *progname=argv[0];
-    int n = 1;
     argc--; argv++;
     while (argc>0) {
-	if (strcmp(argv[0],"-v")==0) {
+	if (strcmp(argv[0],"-h")==0) {
+	    return usage(progname);
+        } else if (strcmp(argv[0],"-v")==0) {
 	    verbose=1;
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose=0;
         } else if (strcmp(argv[0],"-r") == 0) {
             argc--; argv++;
-            n = atoi(argv[0]);
+            nrows = atoi(argv[0]);
         } else if (strcmp(argv[0],"-s") == 0) {
             toku_brtloader_set_size_factor(1);
 	} else if (argc!=1) {
-	    fprintf(stderr, "Usage:\n %s [-v] [-q] [-r %d] [-s] directory\n", progname, n);
-	    exit(1);
-	}
-        else {
+            return usage(progname);
+	} else {
             break;
         }
 	argc--; argv++;
@@ -211,8 +217,7 @@ int test_main (int argc, const char *argv[]) {
     int  olen = snprintf(output_name, templen, "%s/test.tokudb", directory);
     assert (olen>0 && olen<templen);
 
-    test_write_dbfile(template, n, output_name);
-    
+    test_write_dbfile(template, nrows, output_name);
     return 0;
 }
 

@@ -25,6 +25,19 @@ static void reset_event_counts(void) {
 static void event_hit(void) {
 }
 
+static int do_user_errors = 0;
+
+static int loader_poll_callback(void *UU(extra), float UU(progress)) {
+    int r;
+    if (do_user_errors && event_count_trigger == ++event_count) {
+        event_hit();
+        r = 1;
+    } else {
+        r = 0;
+    }
+    return r;
+}
+
 static int do_write_errors = 0;
 
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
@@ -192,12 +205,14 @@ static void test_extractor(int nrows, int nrowsets, BOOL expect_fail) {
         populate_rowset(rowset[i], i, nrows);
     }
 
+
     // setup error injection
     toku_set_func_malloc(my_malloc);
     toku_set_func_realloc(my_realloc);
     brtloader_set_os_fwrite(bad_fwrite);
     toku_set_func_write(bad_write);
     toku_set_func_pwrite(bad_pwrite);
+    brt_loader_set_poll_function(&loader->poll_callback, loader_poll_callback, NULL);
 
     // feed rowsets to the extractor
     for (int i = 0; i < nrowsets; i++) {
@@ -267,6 +282,8 @@ int test_main (int argc, const char *argv[]) {
             do_write_errors = 1;
         } else if (strcmp(argv[0],"-m") == 0) {
             do_malloc_errors = 1;
+        } else if (strcmp(argv[0],"-u") == 0) {
+            do_user_errors = 1;
         } else if (strcmp(argv[0],"--max_error_limit") == 0 && argc >= 1) {
             argc--; argv++;
             max_error_limit = atoi(argv[0]);
