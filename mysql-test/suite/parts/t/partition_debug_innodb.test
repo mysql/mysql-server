@@ -28,3 +28,5 @@ let $create_statement2= CREATE TABLE t2 (a INT, b VARCHAR(64)) ENGINE = InnoDB;
 let $insert_statement2= INSERT INTO t2 VALUES (5, "Original from table t2"), (6, "Original from table t2"), (7, "Original from table t2"), (8, "Original from table t2");
 let $crash_statement= ALTER TABLE t1 EXCHANGE PARTITION p0 WITH TABLE t2;
 --source suite/parts/inc/partition_crash_exchange.inc
+let $fail_statement= $crash_statement;
+--source suite/parts/inc/partition_fail_exchange.inc
