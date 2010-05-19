@@ -1049,14 +1049,21 @@ ha_ndbcluster::create_pushed_join(NdbQueryParamValue* paramValues, uint paramOff
   if (unlikely(query==NULL))
     ERR_RETURN(m_thd_ndb->trans->getNdbError());
 
-  // Append filters for pushed conditions on query root
-  if (m_cond && m_pushed_join->get_query_def().isScanQuery())
+  // Append filters for for pushed conditions where available
+  for (uint i= 1; i < m_pushed_join->get_operation_count(); i++)
   {
-    NdbInterpretedCode code(m_table);
-    if (unlikely(m_cond->generate_scan_filter(&code, NULL) != 0))
-      ERR_RETURN(code.getNdbError());
-    if (unlikely(query->getQueryOperation(0U)->setInterpretedCode(code) != 0))
-      ERR_RETURN(query->getNdbError());
+    const TABLE* const tab= m_pushed_join->get_table(i);
+    ha_ndbcluster* handler= static_cast<ha_ndbcluster*>(tab->file);
+
+    if (handler->m_cond)
+    {
+      NdbInterpretedCode code(handler->m_table);
+      if (handler->m_cond->generate_scan_filter(&code, NULL) != 0)
+        ERR_RETURN(code.getNdbError());
+
+      if (query->getQueryOperation(i)->setInterpretedCode(code) != 0)
+        ERR_RETURN(query->getNdbError());
+    }
   }
 
   // Bind to result buffers
