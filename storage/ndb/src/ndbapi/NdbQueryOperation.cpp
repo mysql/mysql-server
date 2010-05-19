@@ -3808,7 +3808,7 @@ NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
   {
     cnt += getNoOfLeafOperations();
   }
-  getQuery().m_rootFrags[0].incrOutstandingResults(- cnt);
+  getQuery().m_rootFrags[0].incrOutstandingResults(- Int32(cnt));
 
   bool ret = false;
   if (getQuery().m_rootFrags[0].isFragBatchComplete()) { 
