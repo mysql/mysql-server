@@ -559,7 +559,8 @@ public:
    * meaning that 'code' may be destroyed as soon as this method returns.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
-  int setInterpretedCode(NdbInterpretedCode& code);
+  int setInterpretedCode(const NdbInterpretedCode& code);
+  bool hasInterpretedCode() const;
 
   NdbResultStream& getResultStream(Uint32 rootFragNo) const;
 
@@ -699,7 +700,7 @@ private:
    * interpreter code to a buffer.
    * @param attrInfo The buffer to which the code should be appended.
    * @return possible error code */
-  int prepareScanFilter(Uint32Buffer& attrInfo) const;
+  int prepareInterpretedCode(Uint32Buffer& attrInfo) const;
 
   /** Returns true if this operation reads from any disk column. */
   bool diskInUserProjection() const

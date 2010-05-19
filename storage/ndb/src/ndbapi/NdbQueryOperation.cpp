@@ -748,7 +748,7 @@ NdbQueryOperation::getOrdering() const
   return m_impl.getOrdering();
 }
 
-int NdbQueryOperation::setInterpretedCode(NdbInterpretedCode& code) const
+int NdbQueryOperation::setInterpretedCode(const NdbInterpretedCode& code) const
 {
   return m_impl.setInterpretedCode(code);
 }
@@ -1871,7 +1871,8 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   Ndb& ndb = *m_transaction.getNdb();
   TransporterFacade *tp = ndb.theImpl->m_transporter_facade;
 
-  const NdbQueryOperationDefImpl& rootDef = getRoot().getQueryOperationDef();
+  const NdbQueryOperationImpl& root = getRoot();
+  const NdbQueryOperationDefImpl& rootDef = root.getQueryOperationDef();
   const NdbTableImpl* const rootTable = rootDef.getIndex()
     ? rootDef.getIndex()->getIndexTable()
     : &rootDef.getTable();
@@ -1899,7 +1900,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       tupScan = false;
     }
     const Uint32 descending = 
-      getRoot().getOrdering()==NdbScanOrdering_descending ? 1 : 0;
+      root.getOrdering()==NdbScanOrdering_descending ? 1 : 0;
     assert(descending==0 || (int) rootTable->m_indexType ==
            (int) NdbDictionary::Index::OrderedIndex);
 
@@ -1925,8 +1926,8 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     Uint32 batchRows = m_maxBatchRows;
     Uint32 batchByteSize, firstBatchRows;
     NdbReceiver::calculate_batch_size(tp,
-                                      getRoot().m_ndbRecord,
-                                      getRoot().m_firstRecAttr,
+                                      root.m_ndbRecord,
+                                      root.m_firstRecAttr,
                                       0, // Key size.
                                       getRootFragCount(),
                                       batchRows,
@@ -1942,7 +1943,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
     ScanTabReq::setDescendingFlag(reqInfo, descending);
     ScanTabReq::setTupScanFlag(reqInfo, tupScan);
-    ScanTabReq::setNoDiskFlag(reqInfo, !getRoot().diskInUserProjection());
+    ScanTabReq::setNoDiskFlag(reqInfo, !root.diskInUserProjection());
 
     // Assume LockMode LM_ReadCommited, set related lock flags
     ScanTabReq::setLockMode(reqInfo, false);  // not exclusive
@@ -2010,7 +2011,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
 
     const Uint64 transId = m_transaction.getTransactionId();
     tcKeyReq->apiConnectPtr   = m_transaction.theTCConPtr;
-    tcKeyReq->apiOperationPtr = getRoot().getIdOfReceiver();
+    tcKeyReq->apiOperationPtr = root.getIdOfReceiver();
     tcKeyReq->tableId = tTableId;
     tcKeyReq->tableSchemaVersion = tSchemaVersion;
     tcKeyReq->transId1 = (Uint32) transId;
@@ -2022,14 +2023,17 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
     tcKeyReq->attrLen = attrLen;
 
     Uint32 reqInfo = 0;
+    Uint32 interpretedFlag= root.hasInterpretedCode() && 
+                            rootDef.getType() == NdbQueryOperationDef::PrimaryKeyAccess;
+
     TcKeyReq::setOperationType(reqInfo, NdbOperation::ReadRequest);
     TcKeyReq::setViaSPJFlag(reqInfo, true);
     TcKeyReq::setKeyLength(reqInfo, 0);            // This is a long signal
     TcKeyReq::setAIInTcKeyReq(reqInfo, 0);         // Not needed
-    TcKeyReq::setInterpretedFlag(reqInfo, false);  // Encoded in QueryTree
+    TcKeyReq::setInterpretedFlag(reqInfo, interpretedFlag);
     TcKeyReq::setStartFlag(reqInfo, m_startIndicator);
     TcKeyReq::setExecuteFlag(reqInfo, lastFlag);
-    TcKeyReq::setNoDiskFlag(reqInfo, !getRoot().diskInUserProjection());
+    TcKeyReq::setNoDiskFlag(reqInfo, !root.diskInUserProjection());
     TcKeyReq::setAbortOption(reqInfo, NdbOperation::AO_IgnoreError);
 
     TcKeyReq::setDirtyFlag(reqInfo, true);
@@ -2084,6 +2088,8 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   // Shrink memory footprint by removing structures not required after ::execute()
   m_keyInfo.releaseExtend();
   m_attrInfo.releaseExtend();
+
+  // TODO: Release m_interpretedCode now?
 
   /* Todo : Consider calling NdbOperation::postExecuteRelease()
    * Ideally it should be called outside TP mutex, so not added
@@ -2767,6 +2773,7 @@ NdbQueryOperationImpl::~NdbQueryOperationImpl()
   assert (m_batchBuffer == NULL);
   assert (m_resultStreams == NULL);
   assert (m_firstRecAttr == NULL);
+  assert (m_interpretedCode == NULL);
 } //NdbQueryOperationImpl::~NdbQueryOperationImpl()
 
 /**
@@ -2812,6 +2819,7 @@ NdbQueryOperationImpl::postFetchRelease()
     *m_resultRef = NULL;
   }
 
+  // TODO: Consider if interpretedCode can be deleted imm. after ::doSend
   delete m_interpretedCode;
   m_interpretedCode = NULL;
 } //NdbQueryOperationImpl::postFetchRelease()
@@ -3353,13 +3361,13 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     Uint32 length = attrInfo.getSize() - startPos;
     if (unlikely(length > 0xFFFF)) {
       return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
-    } else {
-      QueryNodeParameters::setOpLen(param->len,
-                                    def.isScanOperation()
-                                      ?QueryNodeParameters::QN_SCAN_FRAG
-                                      :QueryNodeParameters::QN_LOOKUP,
-				    length);
     }
+    QueryNodeParameters::setOpLen(param->len,
+                                  def.isScanOperation()
+                                    ?QueryNodeParameters::QN_SCAN_FRAG
+                                    :QueryNodeParameters::QN_LOOKUP,
+                                  length);
+
 #ifdef __TRACE_SERIALIZATION
     ndbout << "Serialized params for index node " 
            << m_operationDef.getQueryOperationId()-1 << " : ";
@@ -3388,11 +3396,11 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     attrInfo.append(m_params);    
   }
 
-  if (m_interpretedCode!=NULL && m_interpretedCode->m_instructions_length>0)
+  if (hasInterpretedCode())
   {
     requestInfo |= DABits::PI_ATTR_INTERPRET;
-    const int error = getRoot().prepareScanFilter(attrInfo);
-    if (unlikely(error != 0)) 
+    const int error= prepareInterpretedCode(attrInfo);
+    if (unlikely(error)) 
     {
       return error;
     }
@@ -3404,14 +3412,14 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
     return error;
   }
 
-  if(diskInUserProjection())
+  if (diskInUserProjection())
   {
     requestInfo |= DABits::PI_DISK_ATTR;
   }
 
   QN_LookupParameters* param = reinterpret_cast<QN_LookupParameters*>(attrInfo.addr(startPos)); 
   if (unlikely(param==NULL))
-     return Err_MemoryAlloc;
+    return Err_MemoryAlloc;
 
   //ndbout << "requestInfo:" << hex << requestInfo << endl;
   param->requestInfo = requestInfo;
@@ -3419,13 +3427,12 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo)
   Uint32 length = attrInfo.getSize() - startPos;
   if (unlikely(length > 0xFFFF)) {
     return QRY_DEFINITION_TOO_LARGE; //Query definition too large.
-  } else {
-    QueryNodeParameters::setOpLen(param->len,
-                                  def.isScanOperation()
-                                    ?QueryNodeParameters::QN_SCAN_FRAG
-                                    :QueryNodeParameters::QN_LOOKUP,
-                                  length);
   }
+  QueryNodeParameters::setOpLen(param->len,
+                                def.isScanOperation()
+                                  ?QueryNodeParameters::QN_SCAN_FRAG
+                                  :QueryNodeParameters::QN_LOOKUP,
+                                length);
 
 #ifdef __TRACE_SERIALIZATION
   ndbout << "Serialized params for node " 
@@ -3905,8 +3912,13 @@ NdbQueryOperationImpl::setOrdering(NdbScanOrdering ordering)
   return 0;
 } // NdbQueryOperationImpl::setOrdering()
 
-int NdbQueryOperationImpl::setInterpretedCode(NdbInterpretedCode& code)
+int NdbQueryOperationImpl::setInterpretedCode(const NdbInterpretedCode& code)
 {
+  if (code.m_instructions_length == 0)
+  {
+    return 0;
+  }
+
   const NdbTableImpl& table = getQueryOperationDef().getTable();
   // Check if operation and interpreter code use the same table
   if (unlikely(table.getTableId() != code.getTable()->getTableId()
@@ -3917,37 +3929,26 @@ int NdbQueryOperationImpl::setInterpretedCode(NdbInterpretedCode& code)
     return -1;
   }
 
-  if (likely(getQueryOperationDef().isScanOperation()))
+  // Allocate an interpreted code object if we do not have one already.
+  if (likely(m_interpretedCode == NULL))
   {
-    // Allocate an interpreted code object if we do not have one already.
-    if (likely(m_interpretedCode == NULL))
+    m_interpretedCode = new NdbInterpretedCode();
+
+    if (unlikely(m_interpretedCode==NULL))
     {
-      m_interpretedCode = new NdbInterpretedCode();
-
-      if (unlikely(m_interpretedCode==NULL))
-      {
-        getQuery().setErrorCodeAbort(Err_MemoryAlloc);
-        return -1;
-      }
-    }
-
-    /* 
-     * Make a deep copy, such that 'code' can be destroyed when this method 
-     * returns.
-     */
-    const int retVal = m_interpretedCode->copy(code);
-
-    if (unlikely(retVal!=0))
-    {
-      getQuery().setErrorCodeAbort(retVal);
+      getQuery().setErrorCodeAbort(Err_MemoryAlloc);
       return -1;
     }
   }
-  else
+
+  /* 
+   * Make a deep copy, such that 'code' can be destroyed when this method 
+   * returns.
+   */
+  const int error = m_interpretedCode->copy(code);
+  if (unlikely(error))
   {
-    // Lookup operation
-    assert(m_interpretedCode==NULL);
-    getQuery().setErrorCodeAbort(QRY_WRONG_OPERATION_TYPE);
+    getQuery().setErrorCodeAbort(error);
     return -1;
   }
   return 0;
@@ -3961,15 +3962,19 @@ NdbQueryOperationImpl::getResultStream(Uint32 rootFragNo) const
   return *m_resultStreams[rootFragNo];
 }
 
+bool
+NdbQueryOperationImpl::hasInterpretedCode() const
+{
+  return m_interpretedCode && m_interpretedCode->m_instructions_length > 0;
+} // NdbQueryOperationImpl::hasInterpretedCode
 
 int
-NdbQueryOperationImpl::prepareScanFilter(Uint32Buffer& attrInfo) const
+NdbQueryOperationImpl::prepareInterpretedCode(Uint32Buffer& attrInfo) const
 {
-  assert(getQueryOperationDef().isScanOperation());
-  // There should be no subroutines in a scan filter.
+  // There should be no subroutines in a filter.
   assert(m_interpretedCode->m_first_sub_instruction_pos==0);
 
-  if ((m_interpretedCode->m_flags & NdbInterpretedCode::Finalised) == 0)
+  if (unlikely(m_interpretedCode->m_flags & NdbInterpretedCode::Finalised) == 0)
   {
     //  NdbInterpretedCode::finalise() not called.
     return Err_FinaliseNotCalled;
@@ -3991,7 +3996,7 @@ NdbQueryOperationImpl::prepareScanFilter(Uint32Buffer& attrInfo) const
          m_interpretedCode->m_buffer, 
          m_interpretedCode->m_instructions_length * sizeof(Uint32));
   return 0;
-}
+} // NdbQueryOperationImpl::prepareInterpretedCode
 
 
 Uint32 
