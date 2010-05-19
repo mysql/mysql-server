@@ -80,9 +80,6 @@ IF(FEATURE_SET)
   ENDFOREACH()
 ENDIF()
 
-SET(WITHOUT_AUDIT_NULL ON CACHE BOOL "")
-SET(WITHOUT_DAEMON_EXAMPLE ON CACHE BOOL "")
-
 OPTION(ENABLE_LOCAL_INFILE "" ON)
 SET(WITH_SSL bundled CACHE STRING "")
 SET(WITH_ZLIB bundled CACHE STRING "")
@@ -122,8 +119,12 @@ IF(UNIX)
   IF(CMAKE_SYSTEM_NAME MATCHES "HP-UX")
     IF(CMAKE_C_COMPILER_ID MATCHES "HP")
       IF(CMAKE_SYSTEM_PROCESSOR MATCHES "ia64")
-        SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-g +O2 +DD64 +DSitanium2 -mt -AC99")
-        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g +O2 +DD64 +DSitanium2 -mt -Aa")
+        SET(CMAKE_C_FLAGS 
+          "${CMAKE_C_FLAGS} +DD64 +DSitanium2 -mt -AC99")
+        SET(CMAKE_CXX_FLAGS 
+          "${CMAKE_CXX_FLAGS} +DD64 +DSitanium2 -mt -Aa")
+        SET(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS} +O2")
+        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS} +O2")
       ENDIF()
     ENDIF()
     SET(WITH_SSL)
@@ -132,15 +133,16 @@ IF(UNIX)
   # Linux flags
   IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     IF(CMAKE_C_COMPILER_ID MATCHES "Intel")
-      SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-static-intel -g -O3 -unroll2 -ip -mp -restrict")
-      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-static-intel -g -O3 -unroll2 -ip -mp -restrict")
+      SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-static-intel -static-libgcc -g -O3 -unroll2 -ip -mp -restrict -no-ftz -no-prefetch")
+      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-static-intel -static-libgcc -g -O3 -unroll2 -ip -mp -restrict -no-ftz -no-prefetch")
+      SET(WITH_SSL no)
     ENDIF()
   ENDIF()
   
   # OSX flags
   IF(APPLE)
-   SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-Os ${CMAKE_C_FLAGS_RELWITHDEBINFO}")
-   SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-Os ${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
+   SET(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -Os -fno-common")
+   SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g -Os -felide-constructors -fno-common")
   ENDIF()
   
   # Solaris flags
