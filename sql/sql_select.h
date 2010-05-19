@@ -1300,6 +1300,13 @@ typedef struct st_position
   */
   uint n_sj_tables;
 
+  /**
+    Bitmap of semi-join inner tables that are in the join prefix and for
+    which there's no provision yet for how to eliminate semi-join duplicates
+    which they produce.
+  */
+  table_map dups_producing_tables;
+
 /* LooseScan strategy members */
 
   /* The first (i.e. driving) table we're doing loose scan for */
@@ -1335,7 +1342,6 @@ typedef struct st_position
     of using FirstMatch strategy.
    */
   table_map firstmatch_need_tables;
-
 
 /* Duplicate Weedout strategy */
   /* The first table that the strategy will need to handle */
@@ -1526,13 +1532,6 @@ public:
     nests that have their tables both in and outside of the join prefix.
   */
   table_map cur_sj_inner_tables;
-  
-  /*
-    Bitmap of semi-join inner tables that are in the join prefix and for
-    which there's no provision for how to eliminate semi-join duplicates
-    they produce.
-  */
-  table_map cur_dups_producing_tables;
 
   /* We also maintain a stack of join optimization states in * join->positions[] */
 /******* Join optimization state members end *******/

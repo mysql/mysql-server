@@ -465,3 +465,31 @@ WHERE ( 1, 2 ) IN ( SELECT SUBQUERY1_t1.pk AS SUBQUERY1_field1,
 ;
 
 drop table t1;
+
+--echo #
+--echo # BUG#53298 "wrong result with semijoin (no semijoin strategy chosen)"
+--echo #
+
+create table t1 (uid int, fid int);
+insert into t1 values (1,1), (3,1);
+
+create table t2 (uid int, name varchar(128));
+insert into t2 values (1, "A"), (2, "B");
+
+create table t3 (uid int, fid int, index(uid));
+insert into t3 values (1,3), (1,3);
+
+create table t4 (uid int);
+insert into t4 values (3);
+
+explain select t2.uid from t2, t1 
+  where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
+        and t2.uid=t1.fid;
+
+--sorted_result
+select t2.uid from t2, t1 
+  where t1.uid in (select t4.uid from t4, t3 where t3.uid=1 and t4.uid=t3.fid)
+        and t2.uid=t1.fid;
+
+drop table t1,t2,t3,t4;
+
