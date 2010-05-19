@@ -1232,7 +1232,6 @@ Dbspj::lookup_start(Signal* signal,
   Uint32 requestInfo = src->requestInfo;
   Uint32 attrLen = src->attrLen; // fragdist-key is in here
   Uint32 interpretedFlag = LqhKeyReq::getInterpretedFlag(requestInfo);
-  Uint32 noDiskFlag = LqhKeyReq::getNoDiskFlag(requestInfo);
 
   /**
    * assertions
@@ -1248,10 +1247,6 @@ Dbspj::lookup_start(Signal* signal,
   ndbassert(LqhKeyReq::getLastReplicaNo(requestInfo) == 0);
   ndbassert(LqhKeyReq::getApplicationAddressFlag(requestInfo) != 0);
   ndbassert(LqhKeyReq::getSameClientAndTcFlag(requestInfo) == 0);
-  /**
-   * Handled using tree
-   */
-  ndbassert(LqhKeyReq::getInterpretedFlag(requestInfo) == 0);
 
 #if TODO
   /**
@@ -1263,10 +1258,13 @@ Dbspj::lookup_start(Signal* signal,
 
   LqhKeyReq * dst = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
   Uint32 dst_requestInfo = dst->requestInfo;
-  dst_requestInfo &= ~Uint32(1 << RI_INTERPRETED_SHIFT);
-  LqhKeyReq::setInterpretedFlag(dst_requestInfo, interpretedFlag);
-
-  ndbassert(noDiskFlag == 1 || LqhKeyReq::getNoDiskFlag(dst_requestInfo) == 0);
+  /**
+   * 'InterpretedFlag' and 'NoDiskFlag' should agree with information in treeNode
+   */
+  ndbassert(LqhKeyReq::getInterpretedFlag(requestInfo) ==
+            LqhKeyReq::getInterpretedFlag(dst_requestInfo));
+  ndbassert(LqhKeyReq::getNoDiskFlag(requestInfo) ==
+            LqhKeyReq::getNoDiskFlag(dst_requestInfo));
 
   dst->hashValue = hashValue;
   dst->requestInfo = dst_requestInfo;
@@ -1997,7 +1995,6 @@ Dbspj::scanFrag_start(Signal* signal,
   Uint32 tupScanFlag = ScanFragReq::getTupScanFlag(requestInfo);
   Uint32 rangeScanFlag = ScanFragReq::getRangeScanFlag(requestInfo);
   Uint32 descendingFlag = ScanFragReq::getDescendingFlag(requestInfo);
-  Uint32 noDiskFlag = ScanFragReq::getNoDiskFlag(requestInfo);
   Uint32 scanPrio = ScanFragReq::getScanPrio(requestInfo);
 
   if (rangeScanFlag)
@@ -2011,12 +2008,15 @@ Dbspj::scanFrag_start(Signal* signal,
 
   ScanFragReq * dst =(ScanFragReq*)treeNodePtr.p->m_scanfrag_data.m_scanFragReq;
   Uint32 dst_requestInfo = dst->requestInfo;
+  /**
+   * 'NoDiskFlag' should agree with information in treeNode
+   */
+  ndbassert(ScanFragReq::getNoDiskFlag(requestInfo) ==
+            ScanFragReq::getNoDiskFlag(dst_requestInfo));
 
   ScanFragReq::setTupScanFlag(dst_requestInfo,tupScanFlag);
   ScanFragReq::setRangeScanFlag(dst_requestInfo,rangeScanFlag);
   ScanFragReq::setDescendingFlag(dst_requestInfo,descendingFlag);
-  ndbassert(noDiskFlag == 1 || 
-            ScanFragReq::getNoDiskFlag(dst_requestInfo) == 0);
   ScanFragReq::setScanPrio(dst_requestInfo,scanPrio);
 
   dst->fragmentNoKeyLen = fragId;
@@ -3185,8 +3185,8 @@ Dbspj::parseDA(Build_context& ctx,
     }
 
     err = DbspjErr::InvalidTreeParametersSpecificationKeyParamBitsMissmatch;
-    if (unlikely(! (((treeBits  & DABits::NI_KEY_PARAMS)==0) ==
-                    ((paramBits & DABits::PI_KEY_PARAMS)==0))))
+    if (unlikely( ((treeBits  & DABits::NI_KEY_PARAMS)==0) !=
+                  ((paramBits & DABits::PI_KEY_PARAMS)==0)))
     {
       DEBUG_CRASH();
       break;
@@ -3213,8 +3213,8 @@ Dbspj::parseDA(Build_context& ctx,
       Local_pattern_store pattern(pool, treeNodePtr.p->m_keyPattern);
 
       err = DbspjErr::InvalidTreeParametersSpecificationIncorrectKeyParamCount;
-      if (unlikely(!(((cnt==0) == ((treeBits & DABits::NI_KEY_PARAMS) == 0)) &&
-                     ((cnt==0) == ((paramBits & DABits::PI_KEY_PARAMS) == 0)))))
+      if (unlikely( ((cnt==0) != ((treeBits & DABits::NI_KEY_PARAMS) == 0)) ||
+                    ((cnt==0) != ((paramBits & DABits::PI_KEY_PARAMS) == 0))))
       {
         DEBUG_CRASH();
         break;
@@ -3440,6 +3440,7 @@ Dbspj::parseDA(Build_context& ctx,
           sectionptrs[4] = subroutine_len;
           param.ptr += subroutine_len;
         }
+        treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
       }
 
       Uint32 sum_read = 0;
