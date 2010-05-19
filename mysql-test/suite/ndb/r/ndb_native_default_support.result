@@ -134,7 +134,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 13
 Number of primary keys: 1
-Length of frm data: 518
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -172,7 +172,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 6
 Number of primary keys: 1
-Length of frm data: 324
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -306,7 +306,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 12
 Number of primary keys: 1
-Length of frm data: 484
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -344,7 +344,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 12
 Number of primary keys: 1
-Length of frm data: 487
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -414,7 +414,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 4
 Number of primary keys: 1
-Length of frm data: 331
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -461,7 +461,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 3
 Number of primary keys: 1
-Length of frm data: 267
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -502,7 +502,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 9
 Number of primary keys: 1
-Length of frm data: 409
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
@@ -551,7 +551,7 @@ Max load factor: 80
 Temporary table: no
 Number of attributes: 3
 Number of primary keys: 1
-Length of frm data: 284
+Length of frm data: XXX
 Row Checksum: 1
 Row GCI: 1
 SingleUserMode: 0
