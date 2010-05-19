@@ -6972,10 +6972,9 @@ bool mysql_exchange_partition(THD *thd,
   */
 
   /*
-    TODO: Verify that we allow crashed partition to be swapped!
-    May not be possible, since we need some info from the engine to
-    be able to verify the structure/metadata.
-    (waiting on bug#51327)
+    NOTE: It is not possible to exchange a crashed partition/table since
+    we need som info from the engine, which we can only access after open,
+    to be able to verify the structure/metadata.
   */
   if (open_and_lock_tables(thd, table_list, FALSE,
                            MYSQL_OPEN_TAKE_UPGRADABLE_MDL,
@@ -7057,14 +7056,6 @@ bool mysql_exchange_partition(THD *thd,
 
   DEBUG_SYNC(thd, "swap_partition_after_wait");
 
-  /*
-    No need to take LOCK_open since we have exclusive lock
-    TODO: Verify with runtime team.
-  */
-  /*
-    TODO: Should one skip wait_while_table_is_used above and use
-    wait_for_refresh below with close_cached_tables?
-  */
   close_all_tables_for_name(thd, swap_table->s, FALSE);
   close_all_tables_for_name(thd, part_table->s, FALSE);
   DEBUG_SYNC(thd, "swap_partition_before_rename");
@@ -7077,7 +7068,6 @@ bool mysql_exchange_partition(THD *thd,
   if (thd->locked_tables_list.reopen_tables(thd))
     goto err_with_exclusive_lock;
 
-  /* TODO: verify bin-log handling */
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
   {
     /*
@@ -7094,7 +7084,6 @@ bool mysql_exchange_partition(THD *thd,
   table_list->table= NULL;			// For query cache
   table_list->next_local->table= NULL;
   query_cache_invalidate3(thd, table_list, 0);
-  /* TODO: unlock_table_names ? (as an optimization) */
   DBUG_RETURN(FALSE);
 err:
 err_with_exclusive_lock:
