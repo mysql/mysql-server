@@ -64,10 +64,13 @@ enum ddl_log_action_code
     DDL_LOG_REPLACE_ACTION:
       Rename an entity after removing the previous entry with the
       new name, that is replace this entry.
+    DDL_LOG_EXCHANGE_ACTION:
+      Exchange two entities by renaming them a -> tmp, b -> a, tmp -> b.
   */
   DDL_LOG_DELETE_ACTION = 'd',
   DDL_LOG_RENAME_ACTION = 'r',
-  DDL_LOG_REPLACE_ACTION = 's'
+  DDL_LOG_REPLACE_ACTION = 's',
+  DDL_LOG_EXCHANGE_ACTION = 'e'
 };
 
 
@@ -76,6 +79,7 @@ typedef struct st_ddl_log_entry
   const char *name;
   const char *from_name;
   const char *handler_name;
+  const char *tmp_name;
   uint next_entry;
   uint entry_pos;
   enum ddl_log_entry_code entry_type;
@@ -84,7 +88,7 @@ typedef struct st_ddl_log_entry
     Most actions have only one phase. REPLACE does however have two
     phases. The first phase removes the file with the new name if
     there was one there before and the second phase renames the
-    old name to the new name.
+    old name to the new name. EXCHANGE have three phases.
   */
   char phase;
 } DDL_LOG_ENTRY;
@@ -123,6 +127,10 @@ enum enum_explain_filename_mode
 #define NO_FRM_RENAME   (1 << 2)
 #define FRM_ONLY        (1 << 3)
 
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+bool mysql_exchange_partition(THD *thd, TABLE_LIST *table_list,
+                              Alter_info *alter_info, bool ignore);
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
 uint filename_to_tablename(const char *from, char *to, uint to_length);
 uint tablename_to_filename(const char *from, char *to, uint to_length);
 uint check_n_cut_mysql50_prefix(const char *from, char *to, uint to_length);

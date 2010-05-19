@@ -2804,18 +2804,38 @@ end_with_restore_list:
 
       /* Must be set in the parser */
       DBUG_ASSERT(select_lex->db);
-      if (check_access(thd, priv_needed, first_table->db,
-                       &first_table->grant.privilege,
-                       &first_table->grant.m_internal,
-                       0, 0) ||
-          check_access(thd, INSERT_ACL | CREATE_ACL, select_lex->db,
-                       &priv,
-                       NULL, /* Do not use first_table->grant with select_lex->db */
-                       0, 0) ||
-	  check_merge_table_access(thd, first_table->db,
-				   (TABLE_LIST *)
-				   create_info.merge_list.first))
-	goto error;				/* purecov: inspected */
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      /* also check the table to be exchanged with the partition */
+      if (alter_info.flags & ALTER_EXCHANGE_PARTITION)
+      {
+        priv_needed|= DROP_ACL | INSERT_ACL | CREATE_ACL;
+        if (check_access(thd, priv_needed, first_table->db,
+                         &first_table->grant.privilege,
+                         &first_table->grant.m_internal,
+                         0, 0) ||
+            check_access(thd, priv_needed, first_table->next_local->db,
+                         &first_table->next_local->grant.privilege,
+                         &first_table->next_local->grant.m_internal,
+                         0, 0))
+          goto error;
+      }
+      else
+#endif
+      {
+        if (check_access(thd, priv_needed, first_table->db,
+                         &first_table->grant.privilege,
+                         &first_table->grant.m_internal,
+                         0, 0) ||
+            check_access(thd, INSERT_ACL | CREATE_ACL, select_lex->db,
+                         &priv,
+                         NULL, /* Don't use first_tab->grant with sel_lex->db */
+                         0, 0) ||
+            check_merge_table_access(thd, first_table->db,
+                                     (TABLE_LIST *)
+                                     create_info.merge_list.first))
+          goto error;				/* purecov: inspected */
+      }
+
       if (check_grant(thd, priv_needed, all_tables, FALSE, UINT_MAX, FALSE))
         goto error;
       if (lex->name.str && !test_all_bits(priv,INSERT_ACL | CREATE_ACL))
@@ -2842,13 +2862,19 @@ end_with_restore_list:
       create_info.data_file_name= create_info.index_file_name= NULL;
 
       thd->enable_slow_log= opt_log_slow_admin_statements;
-      res= mysql_alter_table(thd, select_lex->db, lex->name.str,
-                             &create_info,
-                             first_table,
-                             &alter_info,
-                             select_lex->order_list.elements,
-                             (ORDER *) select_lex->order_list.first,
-                             lex->ignore);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+      if (alter_info.flags & ALTER_EXCHANGE_PARTITION)
+        res= mysql_exchange_partition(thd, first_table, &alter_info,
+                                      lex->ignore);
+      else
+#endif
+        res= mysql_alter_table(thd, select_lex->db, lex->name.str,
+                               &create_info,
+                               first_table,
+                               &alter_info,
+                               select_lex->order_list.elements,
+                               (ORDER *) select_lex->order_list.first,
+                               lex->ignore);
       break;
     }
   case SQLCOM_RENAME_TABLE:
@@ -2944,7 +2970,7 @@ end_with_restore_list:
           contains any table-specific privilege.
         */
         DBUG_PRINT("debug", ("first_table->grant.privilege: %x",
-                             first_table->grant.privilege));
+                             (uint) first_table->grant.privilege));
         if (check_some_access(thd, SHOW_CREATE_TABLE_ACLS, first_table) ||
             (first_table->grant.privilege & SHOW_CREATE_TABLE_ACLS) == 0)
         {

@@ -954,6 +954,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  EVENTS_SYM
 %token  EVENT_SYM
 %token  EVERY_SYM                     /* SQL-2003-N */
+%token  EXCHANGE_SYM
 %token  EXECUTE_SYM                   /* SQL-2003-R */
 %token  EXISTS                        /* SQL-2003-R */
 %token  EXIT_SYM
@@ -6370,8 +6371,7 @@ alter_commands:
   From here we insert a number of commands to manage the partitions of a
   partitioned table such as adding partitions, dropping partitions,
   reorganising partitions in various manners. In future releases the list
-  will be longer and also include moving partitions to a
-  new table and so forth.
+  will be longer.
 */
         | add_partition_rule
         | DROP PARTITION_SYM alt_part_name_list
@@ -6437,6 +6437,26 @@ alter_commands:
             lex->check_opt.init();
           }
         | reorg_partition_rule
+        | EXCHANGE_SYM PARTITION_SYM alt_part_name_item
+          WITH TABLE_SYM table_ident have_partitioning
+          {
+            LEX *lex=Lex;
+            THD *thd= YYTHD;
+            size_t dummy;
+            lex->select_lex.db=$6->db.str;
+            if (lex->select_lex.db == NULL &&
+                lex->copy_db_to(&lex->select_lex.db, &dummy))
+            {
+              MYSQL_YYABORT;
+            }
+            lex->name= $6->table;
+            lex->alter_info.flags|= ALTER_EXCHANGE_PARTITION;
+            if (!lex->select_lex.add_table_to_list(thd, $6, NULL,
+                                                   TL_OPTION_UPDATING,
+                                                   TL_WRITE_ALLOW_READ))
+              MYSQL_YYABORT;
+          }
+          opt_ignore
         ;
 
 remove_partitioning:
@@ -12337,6 +12357,7 @@ keyword_sp:
         | EVENT_SYM                {}
         | EVENTS_SYM               {}
         | EVERY_SYM                {}
+        | EXCHANGE_SYM             {}
         | EXPANSION_SYM            {}
         | EXTENDED_SYM             {}
         | EXTENT_SIZE_SYM          {}
