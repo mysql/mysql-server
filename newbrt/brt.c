@@ -5842,3 +5842,19 @@ toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) {
     return r;
 }
 
+int toku_brt_strerror_r(int error, char *buf, size_t buflen)
+{
+    if (error>=0) {
+	return strerror_r(error, buf, buflen);
+    } else {
+	switch (error) {
+	case DB_KEYEXIST:
+	    snprintf(buf, buflen, "Key exists");
+	    return 0;
+	default:
+	    snprintf(buf, buflen, "Unknown error %d", error);
+	    errno = EINVAL;
+	    return -1;
+	}
+    }
+}

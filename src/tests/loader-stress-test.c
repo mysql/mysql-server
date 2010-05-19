@@ -330,7 +330,7 @@ static void run_test(void)
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
+    r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     r = env->checkpointing_set_period(env, 60);                                                                CKERR(r);
 
@@ -391,7 +391,7 @@ static void do_args(int argc, char * const argv[]) {
 	do_usage:
 	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows> [ -b <num_calls> ] [-m <megabytes>] [-M]\n%s\n", cmd);
 	    fprintf(stderr, "  where -b <num_calls>   causes the poll function to return nonzero after <num_calls>\n");
-	    fprintf(stderr, "        -e <env>         uses <env> to construct the directory (so that different tests of loader-stress-test can run concurrently)\n");
+	    fprintf(stderr, "        -e <env>         uses <env> to construct the directory (so that different tests can run concurrently)\n");
 	    fprintf(stderr, "        -m <m>           use m MB of memeory for the cachetable (defualt is %d MB)\n", default_cachesize);
 	    fprintf(stderr, "        -M               use half of physical memory for the cachetable\n");
 	    fprintf(stderr, "        -s               use size factor of 1 and count temporary files\n");

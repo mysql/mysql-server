@@ -129,8 +129,9 @@ int brtloader_init_file_infos (struct file_infos *fi) {
     MALLOC_N(fi->n_files_limit, fi->file_infos);
     if (fi->file_infos) return 0;
     else {
+	int result = errno;
         toku_pthread_mutex_destroy(&fi->lock);
-        return errno;
+        return result;
     }
 }
 
@@ -1447,6 +1448,8 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
  * The fidxs are not closed by this function.
  */
 {
+    int result = 0;
+
     FILE *dest_stream = to_q ? NULL : toku_bl_fidx2file(bl, dest_data);
 
     //printf(" merge_some_files progress=%d fin at %d\n", bl->progress, bl->progress+progress_allocation);
@@ -1487,6 +1490,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
             }
             pqueue_free(pq);
             toku_free(pq_nodes);
+	    printf("%s:%d returning %d\n", __FILE__, __LINE__, r); // remove this printf when we know that this path is tested.
             return r;
         }
 
@@ -1519,6 +1523,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
                 }
                 pqueue_free(pq);
                 toku_free(pq_nodes);
+		printf("%s:%d returning\n", __FILE__, __LINE__);
                 return r;
             }
             mini = node->i;
@@ -1553,6 +1558,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 		    toku_free(keys[mini].data);
 		    toku_free(vals[mini].data);
 		} else {
+		    printf("%s:%d returning\n", __FILE__, __LINE__);
 		    return r;
 		}
 	    }
@@ -1561,13 +1567,13 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
                 pq_nodes[mini].key = &keys[mini];
                 r = pqueue_insert(pq, &pq_nodes[mini]);
                 if (r!=0) {
+		    // Note: This error path tested by loader-dup-test1.tdbrun
                     for (int i=0; i<n_sources; i++) {
                         toku_free(keys[i].data);
                         toku_free(vals[i].data);
                     }
-                    pqueue_free(pq);
-                    toku_free(pq_nodes);
-                    return r;
+                    result = r;
+		    break;
                 }
             }
         }
@@ -1584,15 +1590,26 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	    if (r!=0) return r;
 	}
     }
-    if (to_q) {
+    if (result==0 && to_q) {
 	BL_TRACE(blt_do_i);
 	int r = queue_enq(q, (void*)output_rowset, 1, NULL);
 	BL_TRACE(blt_fractal_enq);
-	assert(r==0);
+	assert(r==0); // 	if (r!=0) result = r;
+	output_rowset = NULL;
+    }
+
+    // cleanup
+    if (output_rowset) {
+	destroy_rowset(output_rowset);
+	toku_free(output_rowset);
     }
     pqueue_free(pq);
     toku_free(pq_nodes);
-    return update_progress(progress_allocation, bl, "end of merge_some_files");
+    {
+	int r = update_progress(progress_allocation, bl, "end of merge_some_files");
+	if (r!=0 && result==0) result = r;
+    }
+    return result;
 }
 
 static int merge_some_files (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sources, FIDX srcs_fidxs[/*n_sources*/], BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare, int progress_allocation)

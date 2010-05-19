@@ -229,6 +229,11 @@ BOOL toku_brt_is_recovery_logging_suppressed (BRT);
 #define TOKU_MULTIPLE_MAIN_THREADS 0
 #endif
 
+int toku_brt_strerror_r(int error, char *buf, size_t buflen);
+// Effect: LIke the XSI-compliant strerorr_r, extended to db_strerror().
+// If error>=0 then the result is to do strerror_r(error, buf, buflen), that is fill buf with a descriptive error message.
+// If error<0 then return a TokuDB-specific error code.  For unknown cases, we return -1 and set errno=EINVAL, even for cases that *should* be known.  (Not all DB errors are known by this function which is a bug.)
+
 C_END
 
 #endif

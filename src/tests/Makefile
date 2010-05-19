@@ -651,3 +651,8 @@ test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 	./$< -a -thread_stack 16384         && \
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)
 
+
+loader-dup-test.tdbrun:  loader-dup-test1.tdbrun
+
+loader-dup-test1.tdbrun: loader-dup-test.tdb$(BINSUF)
+	$(VGRIND) ./loader-dup-test.tdb -d 1 -r 500000 -e 1 $(SUMMARIZE_CMD)

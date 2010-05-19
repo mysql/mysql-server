@@ -269,12 +269,20 @@ static void test_loader(DB **dbs)
     }
 }
 
+char *free_me = NULL;
+char *env_dir = ENVDIR; // the default env_dir
 
 static void run_test(void) 
 {
     int r;
-    r = system("rm -rf " ENVDIR);                                                                             CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
+    {
+	int len = strlen(env_dir) + 20;
+	char syscmd[len];
+	r = snprintf(syscmd, len, "rm -rf %s", env_dir);
+	assert(r<len);
+	r = system(syscmd);                                                                                   CKERR(r);
+    }
+    r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
@@ -282,7 +290,7 @@ static void run_test(void)
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOG | DB_CREATE | DB_PRIVATE;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
+    r = env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
     //Disable auto-checkpointing
     r = env->checkpointing_set_period(env, 0);                                                                CKERR(r);
@@ -338,6 +346,7 @@ int test_main(int argc, char * const *argv) {
 	    run_test();
 	}
     }
+    if (free_me) toku_free(free_me);
     return 0;
 }
 
@@ -349,8 +358,17 @@ static void do_args(int argc, char * const argv[]) {
         if (strcmp(argv[0], "-h")==0) {
             resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: %s -h -c -d %d -r %d\n", cmd, NUM_DBS, NUM_ROWS);
+	    fprintf(stderr, "Usage: %s -h -c -d %d -r %d [ -e <envdir> ]\n", cmd, NUM_DBS, NUM_ROWS);
+	    fprintf(stderr, " where -e <env>         uses <env> to construct the directory (so that different tests of loader-stress-test can run concurrently)\n");
 	    exit(resultcode);
+	} else if (strcmp(argv[0], "-e")==0) {
+            argc--; argv++;
+	    if (free_me) toku_free(free_me);
+	    int len = strlen(ENVDIR) + strlen(argv[0]) + 2;
+	    char full_env_dir[len];
+	    int r = snprintf(full_env_dir, len, "%s.%s", ENVDIR, argv[0]);
+	    assert(r<len);
+	    free_me = env_dir = toku_strdup(full_env_dir);
 	} else if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
 	} else if (strcmp(argv[0],"-q")==0) {
