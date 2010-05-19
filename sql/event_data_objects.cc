@@ -834,8 +834,9 @@ bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   }
   else
   {
-    long diff_months= (long) (local_now.year - local_start.year)*12 +
-                      (local_now.month - local_start.month);
+    long diff_months= ((long) local_now.year - (long) local_start.year)*12 +
+                      ((long) local_now.month - (long) local_start.month);
+
     /*
       Unlike for seconds above, the formula below returns the interval
       that, when added to the local_start, will give the time in the
