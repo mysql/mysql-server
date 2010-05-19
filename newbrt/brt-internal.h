@@ -18,10 +18,9 @@
 #include "leafentry.h"
 #include "block_table.h"
 #include "leaflock.h"
+#include "c_dialects.h"
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+C_BEGIN
 
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
@@ -365,9 +364,6 @@ int toku_db_badformat(void);
 int toku_brt_remove_on_commit(TOKUTXN child, DBT* iname_dbt_p);
 int toku_brt_remove_now(CACHETABLE ct, DBT* iname_dbt_p);
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
-
+C_END
 
 #endif

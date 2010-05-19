@@ -24,6 +24,7 @@
 #include "pqueue.h"
 #include "trace_mem.h"
 #include "dbufio.h"
+#include "c_dialects.h"
 
 // to turn on tracing, 
 //   cd .../newbrt
@@ -35,8 +36,6 @@
 #include <cilk.h>
 #include <cilk_mutex.h>
 #include <fake_mutex.h>
-#define CILK_BEGIN extern "Cilk++" {
-#define CILK_END };
 #else
 // maybe #include <cilk_stub.h>
 #if !defined(CILK_STUB)
@@ -45,17 +44,10 @@
 #define cilk_sync
 #define cilk_for for
 #endif
-#define CILK_BEGIN
-#define CILK_END
 #endif
 
 // mark everything as C and selectively mark cilk functions
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#if 0
-} // make emacs happy about matching parens....
-#endif
-#endif
+C_BEGIN
 
 static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
 void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {
@@ -360,28 +352,17 @@ static int merge_fanin (BRTLOADER bl)
     return result;
 }
 
-// LAZY cleanup on error paths, ticket #2591
-int toku_brt_loader_open (/* out */ BRTLOADER *blp,
-                          CACHETABLE cachetable,
-			  generate_row_for_put_func g,
-			  DB *src_db,
-			  int N, DB*dbs[/*N*/],
-			  const struct descriptor *descriptors[/*N*/],
-			  const char *new_fnames_in_env[/*N*/],
-			  brt_compare_func bt_compare_functions[/*N*/],
-			  const char *temp_file_template,
-                          LSN load_lsn)
-/* Effect: called by DB_ENV->create_loader to create a brt loader.
- * Arguments:
- *   blp                  Return the brt loader here.
- *   g                    The function for generating a row
- *   src_db               The source database.  Needed by g.  May be NULL if that's ok with g.
- *   N                    The number of dbs to create.
- *   dbs                  An array of open databases.  Used by g.  The data will be put in these database.
- *   new_fnames           The file names (these strings are owned by the caller: we make a copy for our own purposes).
- *   temp_file_template   A template suitable for mkstemp()
- * Return value: 0 on success, an error number otherwise.
- */
+int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
+				   CACHETABLE cachetable,
+				   generate_row_for_put_func g,
+				   DB *src_db,
+				   int N, DB*dbs[/*N*/],
+				   const struct descriptor *descriptors[/*N*/],
+				   const char *new_fnames_in_env[/*N*/],
+				   brt_compare_func bt_compare_functions[/*N*/],
+				   const char *temp_file_template,
+				   LSN load_lsn)
+// Effect: Allocate and initialize a BRTLOADER, but do not create the extractor thread.
 {
     BRTLOADER CALLOC(bl); // initialized to all zeros (hence CALLOC)
     if (!bl) return errno;
@@ -463,19 +444,59 @@ int toku_brt_loader_open (/* out */ BRTLOADER *blp,
         int r = toku_pthread_mutex_init(&bl->mutex, NULL); 
         if (r != 0) { brtloader_destroy(bl, TRUE); return r; }
     }
-    {   
-        int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); 
-        if (r!=0) { 
-            toku_pthread_mutex_destroy(&bl->mutex);
-            brtloader_destroy(bl, TRUE);
-            return r; 
-        }
-    }
+
     bl->extractor_live = TRUE;
 
     *blp = bl;
-    BL_TRACE(blt_open);
+
     return 0;
+}
+
+// LAZY cleanup on error paths, ticket #2591
+int toku_brt_loader_open (/* out */ BRTLOADER *blp,
+                          CACHETABLE cachetable,
+			  generate_row_for_put_func g,
+			  DB *src_db,
+			  int N, DB*dbs[/*N*/],
+			  const struct descriptor *descriptors[/*N*/],
+			  const char *new_fnames_in_env[/*N*/],
+			  brt_compare_func bt_compare_functions[/*N*/],
+			  const char *temp_file_template,
+                          LSN load_lsn)
+/* Effect: called by DB_ENV->create_loader to create a brt loader.
+ * Arguments:
+ *   blp                  Return the brt loader here.
+ *   g                    The function for generating a row
+ *   src_db               The source database.  Needed by g.  May be NULL if that's ok with g.
+ *   N                    The number of dbs to create.
+ *   dbs                  An array of open databases.  Used by g.  The data will be put in these database.
+ *   new_fnames           The file names (these strings are owned by the caller: we make a copy for our own purposes).
+ *   temp_file_template   A template suitable for mkstemp()
+ * Return value: 0 on success, an error number otherwise.
+ */
+{
+    int result = 0;
+    {
+	int r = toku_brt_loader_internal_init(blp, cachetable, g, src_db,
+					      N, dbs,
+					      descriptors,
+					      new_fnames_in_env,
+					      bt_compare_functions,
+					      temp_file_template,
+					      load_lsn);
+	if (r!=0) result = r;
+    }
+    if (result==0) {
+	BRTLOADER bl = *blp;
+        int r = toku_pthread_create(&bl->extractor_thread, NULL, extractor_thread, (void*)bl); 
+        if (r!=0) { 
+	    result = r;
+            toku_pthread_mutex_destroy(&bl->mutex);
+            brtloader_destroy(bl, TRUE);
+        }
+    }
+    BL_TRACE(blt_open);
+    return result;
 }
 
 static void brt_loader_set_panic(BRTLOADER bl, int error) {
@@ -1384,7 +1405,7 @@ int brt_loader_sort_and_write_rows (struct rowset *rows, struct merge_fileset *f
 #endif
 }
 
-static int merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sources, DBUFIO_FILESET bfs, FIDX srcs_fidxs[/*n_sources*/], BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare, int progress_allocation)
+int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sources, DBUFIO_FILESET bfs, FIDX srcs_fidxs[/*n_sources*/], BRTLOADER bl, int which_db, DB *dest_db, brt_compare_func compare, int progress_allocation)
 /* Effect: Given an array of FILE*'s each containing sorted, merge the data and write it to an output.  All the files remain open after the merge.
  *   This merge is performed in one pass, so don't pass too many files in.  If you need a tree of merges do it elsewhere.
  *   If TO_Q is true then we write rowsets into queue Q.  Otherwise we write into dest_data.
@@ -1571,7 +1592,7 @@ static int merge_some_files (const BOOL to_q, FIDX dest_data, QUEUE q, int n_sou
     }
 	
     if (result==0) {
-	int r = merge_some_files_using_dbufio (to_q, dest_data, q, n_sources, bfs, srcs_fidxs, bl, which_db, dest_db, compare, progress_allocation);
+	int r = toku_merge_some_files_using_dbufio (to_q, dest_data, q, n_sources, bfs, srcs_fidxs, bl, which_db, dest_db, compare, progress_allocation);
 	if (r!=0) { result = r; }
     }
 
@@ -2955,6 +2976,5 @@ int brt_loader_write_file_to_dbfile (int outfile, FIDX infile, BRTLOADER bl, con
 }
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-}
-#endif
+C_END
+

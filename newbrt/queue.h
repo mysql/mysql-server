@@ -6,10 +6,9 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "brttypes.h"
+#include "c_dialects.h"
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+C_BEGIN
 
 // The abstraction:
 //
@@ -54,7 +53,5 @@ int queue_destroy (QUEUE q);
 // Requires: The queue must be empty and no consumer should try to dequeue after this (one way to do this is to make sure the consumer saw EOF).
 // Returns 0 on success.   If the queue is not empty, returns EINVAL.  Other errors are likely to be bad (some sort of mutex or condvar failure).
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
+C_END
 #endif
