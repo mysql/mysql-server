@@ -1583,7 +1583,12 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
 	    int progress_just_done = fraction_of_remaining_we_just_did * progress_allocation;
 	    progress_allocation -= progress_just_done;
 	    r = update_progress(progress_just_done, bl, "in file merge");
-	    if (r!=0) return r;
+	    //printf("%s:%d Progress=%d\n", __FILE__, __LINE__, r);
+	    if (r!=0) {
+		invariant(result==0);
+		result=r;
+		break;
+	    }
 	}
     }
     if (result==0 && to_q) {
@@ -1607,6 +1612,7 @@ int toku_merge_some_files_using_dbufio (const BOOL to_q, FIDX dest_data, QUEUE q
     toku_free(pq_nodes);
     {
 	int r = update_progress(progress_allocation, bl, "end of merge_some_files");
+	//printf("%s:%d Progress=%d\n", __FILE__, __LINE__, r);
 	if (r!=0 && result==0) result = r;
     }
     return result;

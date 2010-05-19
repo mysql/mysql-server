@@ -5851,6 +5851,9 @@ int toku_brt_strerror_r(int error, char *buf, size_t buflen)
 	case DB_KEYEXIST:
 	    snprintf(buf, buflen, "Key exists");
 	    return 0;
+	case TOKUDB_CANCELED:
+	    snprintf(buf, buflen, "User canceled operation");
+	    return 0;
 	default:
 	    snprintf(buf, buflen, "Unknown error %d", error);
 	    errno = EINVAL;
