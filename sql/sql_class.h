@@ -428,7 +428,7 @@ typedef struct system_variables
 
   uint binlog_format; ///< binlog format for this thd (see enum_binlog_format)
   my_bool binlog_direct_non_trans_update;
-  ulong binlog_row_image; 
+  uint binlog_row_image; 
   uint completion_type;
   uint query_cache_type;
   uint tx_isolation;

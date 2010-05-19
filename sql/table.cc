@@ -4657,7 +4657,7 @@ void TABLE::mark_columns_needed_for_update()
   we only want to log a PK and we needed other fields for
   execution).
  */
-void st_table::mark_columns_per_binlog_row_image()
+void TABLE::mark_columns_per_binlog_row_image()
 {
   DBUG_ENTER("mark_columns_per_binlog_row_image");
   DBUG_ASSERT(read_set->bitmap);
