@@ -332,18 +332,22 @@ static void *extractor_thread (void*);
 static uint64_t memory_per_rowset (BRTLOADER bl)
 // Return how much memory can be allocated for each rowset.
 {
-    // There is a primary rowset being maintained by the foreground thread.
-    // There could be two more in the queue.
-    // There is one rowset for each index (bl->N) being filled in.
-    // Later we may have sort_and_write operations spawning in parallel, and will need to account for that.
-    int n_copies = (1 // primary rowset
-		    +2  // the two primaries in the queue
-		    +bl->N // the N rowsets being constructed by the extrator thread.
-		    +1     // Give the extractor thread one more so that it can have temporary space for sorting.  This is overkill.
-		    );
-    int64_t extra_reserved_memory = bl->N * FILE_BUFFER_SIZE;  // for each index we are writing to a file at any given time.
-    int64_t tentative_rowset_size = ((int64_t)(bl->reserved_memory - extra_reserved_memory))/(n_copies);
-    return MAX(tentative_rowset_size, (int64_t)MIN_ROWSET_MEMORY);
+    if (size_factor==1) {
+	return 16*1024;
+    } else {
+	// There is a primary rowset being maintained by the foreground thread.
+	// There could be two more in the queue.
+	// There is one rowset for each index (bl->N) being filled in.
+	// Later we may have sort_and_write operations spawning in parallel, and will need to account for that.
+	int n_copies = (1 // primary rowset
+			+2  // the two primaries in the queue
+			+bl->N // the N rowsets being constructed by the extrator thread.
+			+1     // Give the extractor thread one more so that it can have temporary space for sorting.  This is overkill.
+			);
+	int64_t extra_reserved_memory = bl->N * FILE_BUFFER_SIZE;  // for each index we are writing to a file at any given time.
+	int64_t tentative_rowset_size = ((int64_t)(bl->reserved_memory - extra_reserved_memory))/(n_copies);
+	return MAX(tentative_rowset_size, (int64_t)MIN_ROWSET_MEMORY);
+    }
 }
 
 static int merge_fanin (BRTLOADER bl)
