@@ -483,10 +483,6 @@ const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 TYPELIB binlog_format_typelib=
   { array_elements(binlog_format_names) - 1, "",
     binlog_format_names, NULL };
-const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
-TYPELIB binlog_row_image_typelib=
-  { array_elements(binlog_row_image_names) - 1, "",
-    binlog_row_image_names, NULL };
 #ifdef HAVE_INITGROUPS
 static bool calling_initgroups= FALSE; /**< Used in SIGSEGV handler. */
 #endif

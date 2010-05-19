@@ -647,7 +647,6 @@ enum enum_binlog_row_image {
   /** All columns in both before and after image. */
   BINLOG_ROW_IMAGE_FULL= 2
 };
-extern TYPELIB binlog_row_image_typelib;
 
 enum enum_binlog_format {
   BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
