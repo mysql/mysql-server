@@ -536,7 +536,7 @@ static int poll_function (void *extra, float progress) {
     return abort_on_poll;
 }
 
-static void test_loader(enum test_type t, DB **dbs)
+static void test_loader(enum test_type t, DB **dbs, int trigger)
 {
     int failed_put = 0;
     int error_injection;  // are we expecting simulated errors from system calls?
@@ -632,6 +632,10 @@ static void test_loader(enum test_type t, DB **dbs)
 	if (verbose)
 	    printf("closing, but expecting abort via poll\n");
 	r = loader->close(loader);
+	if (r == 0) {
+	    printf("loader->close() returned 0 but should have failed due to non-zero return from polling function.\n");
+	    fflush(stdout);
+	}
 	assert(r);  // not defined what close() returns when poll function returns non-zero
     }
     else if (error_injection && !failed_put) {
@@ -639,8 +643,14 @@ static void test_loader(enum test_type t, DB **dbs)
 	if (verbose)
 	    printf("closing, but expecting failure from simulated error (enospc or einval)%s\n", type);
 	r = loader->close(loader);
-	if (!USE_PUTS)
+	if (!USE_PUTS) {
+	    if (r == 0) {
+		printf("loader->close() reutrned 0 but should have failed due to injected error from %s on call %d\n",
+		       err_type_str(t), trigger);
+		fflush(stdout);
+	    }
 	    assert(r);
+	}
 	else
 	    CKERR(r);  // if using puts, "outer" loader should close just fine
     }
@@ -783,7 +793,7 @@ static void run_test(enum test_type t, int trigger)
     db_env_set_func_open(bad_open);
     db_env_set_func_fclose(bad_fclose);
 	
-    test_loader(t, dbs);
+    test_loader(t, dbs, trigger);
 
     for(int i=0;i<NUM_DBS;i++) {
         dbs[i]->close(dbs[i], 0);                                                                             CKERR(r);
