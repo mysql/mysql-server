@@ -206,12 +206,15 @@ dict_stats_table_check(
 			/* columns in both arrays are not in the same order,
 			do a full scan of the second array */
 			for (j = 0; j < table->n_def; j++) {
+				const char*	name;
+
+				name = dict_table_get_col_name(table, j);
 
 				if (strcasecmp(req_schema->columns[i].name,
-					       dict_table_get_col_name(table, j))
-				    == 0) {
+					       name) == 0) {
 
-					/* found the column on j'th position */
+					/* found the column on j'th
+					position */
 					break;
 				}
 			}
@@ -526,9 +529,9 @@ dict_stats_analyze_index_level(
 
 			rec_offs_init(offsets_prev_rec_onstack);
 
-			offsets_prev_rec = rec_get_offsets(prev_rec, index,
-							   offsets_prev_rec_onstack,
-							   n_uniq, &heap);
+			offsets_prev_rec = rec_get_offsets(
+				prev_rec, index, offsets_prev_rec_onstack,
+				n_uniq, &heap);
 
 			cmp_rec_rec_with_match(rec,
 					       prev_rec,
@@ -541,24 +544,27 @@ dict_stats_analyze_index_level(
 			for (i = matched_fields + 1; i <= n_uniq; i++) {
 
 				if (n_diff_boundaries != NULL) {
-					/* push the index of the previous record,
-					that is - the last one from a group of equal
-					keys */
+					/* push the index of the previous
+					record, that is - the last one from
+					a group of equal keys */
 
 					void*		p;
 					ib_uint64_t	idx;
 
-					/* the index of the current record is
-					total_recs - 1, the index of the
+					/* the index of the current record
+					is total_recs - 1, the index of the
 					previous record is total_recs - 2;
-					we know that idx is not going to become
-					negative here because if we are in this
-					branch then there is a previous record
-					and thus total_recs >= 2 */
+					we know that idx is not going to
+					become negative here because if we
+					are in this branch then there is a
+					previous record and thus
+					total_recs >= 2 */
 					idx = *total_recs - 2;
 
-					p = dyn_array_push(&n_diff_boundaries[i],
-							   sizeof(ib_uint64_t));
+					p = dyn_array_push(
+						&n_diff_boundaries[i],
+						sizeof(ib_uint64_t));
+
 					memcpy(p, &idx, sizeof(ib_uint64_t));
 				}
 
@@ -579,9 +585,9 @@ dict_stats_analyze_index_level(
 		to the next and then rec and prev_rec will be on different
 		pages and btr_pcur_move_to_next_user_rec() will release
 		the latch on the page that prev_rec is on */
-		prev_rec = rec_copy_prefix_to_buf(rec, index,
-						  rec_offs_n_fields(offsets_rec),
-						  &prev_rec_buf, &prev_rec_buf_size);
+		prev_rec = rec_copy_prefix_to_buf(
+			rec, index, rec_offs_n_fields(offsets_rec),
+			&prev_rec_buf, &prev_rec_buf_size);
 
 		/* increment the pages counter at the end of each page */
 		if (page_rec_is_supremum(page_rec_get_next(rec))) {
@@ -599,12 +605,13 @@ dict_stats_analyze_index_level(
 		*total_pages = 1;
 	}
 
-	/* if there are records on this level and boundaries should be saved */
+	/* if there are records on this level and boundaries
+	should be saved */
 	if (*total_recs > 0 && n_diff_boundaries != NULL) {
 
 		/* remember the index of the last record on the level as the
-		last one from the last group of equal keys; this holds for all
-		possible prefixes */
+		last one from the last group of equal keys; this holds for
+		all possible prefixes */
 		for (i = 1; i <= n_uniq; i++) {
 			void*		p;
 			ib_uint64_t	idx;
@@ -637,7 +644,8 @@ dict_stats_analyze_index_level(
 				ib_uint64_t	idx;
 
 				idx = *(ib_uint64_t*) dyn_array_get_element(
-					&n_diff_boundaries[i], j * sizeof(ib_uint64_t));
+					&n_diff_boundaries[i],
+					j * sizeof(ib_uint64_t));
 
 				printf("%lld=%llu, ", j, idx);
 			}
@@ -765,7 +773,8 @@ dict_stats_analyze_index_below_pcur(
 
 			offsets_next_rec = rec_get_offsets(next_rec, index,
 							   offsets_next_rec,
-							   ULINT_UNDEFINED, &heap);
+							   ULINT_UNDEFINED,
+							   &heap);
 
 			/* check whether rec != next_rec when looking at
 			the first n_prefix fields */
@@ -876,23 +885,27 @@ void
 dict_stats_analyze_index_for_n_prefix(
 /*==================================*/
 	dict_index_t*	index,			/*!< in/out: index */
-	ulint		level,			/*!< in: level, must be >= 1 */
+	ulint		level,			/*!< in: level,
+						must be >= 1 */
 	ib_uint64_t	total_recs_on_level,	/*!< in: total number of
 						records on the given level */
-	ulint		n_prefix,		/*!< in: look at first n_prefix
-						columns when comparing records */
+	ulint		n_prefix,		/*!< in: look at first
+						n_prefix columns when
+						comparing records */
 	ib_uint64_t	n_diff_for_this_prefix,	/*!< in: number of distinct
-						records on the given level, when
-						looking at the first n_prefix
-						columns */
+						records on the given level,
+						when looking at the first
+						n_prefix columns */
 
 	dyn_array_t*	boundaries)		/*!< in: array that contains
-						n_diff_for_this_prefix integers
-						each of which represents the
-						index (on the level, counting from
+						n_diff_for_this_prefix
+						integers each of which
+						represents the index (on the
+						level, counting from
 						left/smallest to right/biggest
-						from 0) of the last record from
-						each group of distinct keys */
+						from 0) of the last record
+						from each group of distinct
+						keys */
 {
 	mem_heap_t*	heap;
 	dtuple_t*	dtuple;
@@ -1003,7 +1016,8 @@ dict_stats_analyze_index_for_n_prefix(
 		then we select a random record from each segment and dive
 		below it */
 		left = n_diff_for_this_prefix * i / n_recs_to_dive_below;
-		right = n_diff_for_this_prefix * (i + 1) / n_recs_to_dive_below - 1;
+		right = n_diff_for_this_prefix * (i + 1)
+			/ n_recs_to_dive_below - 1;
 
 		ut_a(left <= right);
 		ut_a(right <= last_idx_on_level);
@@ -1142,7 +1156,7 @@ dict_stats_analyze_index(
 					       index->stat_n_diff_key_vals,
 					       &total_recs,
 					       &total_pages,
-					       NULL /* boundaries not needed */);
+					       NULL /*boundaries not needed*/);
 
 		for (i = 1; i <= n_uniq; i++) {
 			index->stat_n_sample_sizes[i] = total_pages;
@@ -1155,9 +1169,11 @@ dict_stats_analyze_index(
 	/* else */
 
 	/* set to zero */
-	n_diff_on_level = (ib_uint64_t*) mem_zalloc((n_uniq + 1) * sizeof(ib_uint64_t));
+	n_diff_on_level = (ib_uint64_t*) mem_zalloc((n_uniq + 1)
+						    * sizeof(ib_uint64_t));
 
-	n_diff_boundaries = (dyn_array_t*) mem_alloc((n_uniq + 1) * sizeof(dyn_array_t));
+	n_diff_boundaries = (dyn_array_t*) mem_alloc((n_uniq + 1)
+						     * sizeof(dyn_array_t));
 
 	for (i = 1; i <= n_uniq; i++) {
 		/* initialize the dynamic arrays, the first one
@@ -1282,8 +1298,8 @@ found_level:
 
 		ut_ad(level_is_analyzed);
 
-		/* pick some records from this level and dive below them for the
-		given n_prefix */
+		/* pick some records from this level and dive below them for
+		the given n_prefix */
 
 		dict_stats_analyze_index_for_n_prefix(
 			index, level, total_recs, n_prefix,
@@ -1347,7 +1363,8 @@ dict_stats_update_persistent(
 
 		dict_stats_analyze_index(index);
 
-		table->stat_sum_of_other_index_sizes += index->stat_index_size;
+		table->stat_sum_of_other_index_sizes
+			+= index->stat_index_size;
 	}
 
 	table->stat_initialized = TRUE;
@@ -1399,7 +1416,8 @@ dict_stats_save_index_stat(
 	pars_info_add_uint64_literal(pinfo, "stat_value", stat_value);
 
 	if (sample_size != NULL) {
-		pars_info_add_uint64_literal(pinfo, "sample_size", *sample_size);
+		pars_info_add_uint64_literal(pinfo, "sample_size",
+					     *sample_size);
 	} else {
 		pars_info_add_literal(pinfo, "sample_size", NULL,
 				      UNIV_SQL_NULL, DATA_FIXBINARY, 0);
@@ -1545,7 +1563,8 @@ dict_stats_save(
 			   "  stats_timestamp = :stats_timestamp,\n"
 			   "  n_rows = :n_rows,\n"
 			   "  clustered_index_size = :clustered_index_size,\n"
-			   "  sum_of_other_index_sizes = :sum_of_other_index_sizes\n"
+			   "  sum_of_other_index_sizes = "
+			   "    :sum_of_other_index_sizes\n"
 			   "  WHERE\n"
 			   "  database_name = :database_name AND\n"
 			   "  table_name = :table_name;\n"
@@ -1745,7 +1764,7 @@ dict_stats_fetch_table_stats_step(
 	SELECT n_rows,clustered_index_size,sum_of_other_index_sizes
 	to select less columns from table_stats without adjusting here;
 	if i > 3 we would have ut_error'ed earlier */
-	ut_a(i == 3 /* n_rows,clustered_index_size,sum_of_other_index_sizes */);
+	ut_a(i == 3 /*n_rows,clustered_index_size,sum_of_other_index_sizes*/);
 
 	/* XXX this is not used but returning non-NULL is necessary */
 	return((void*) 1);
@@ -1898,7 +1917,8 @@ dict_stats_fetch_index_stats_step(
 
 	if (strncasecmp("size", stat_name, stat_name_len) == 0) {
 		index->stat_index_size = stat_value;
-	} else if (strncasecmp("n_leaf_pages", stat_name, stat_name_len) == 0) {
+	} else if (strncasecmp("n_leaf_pages", stat_name, stat_name_len)
+		   == 0) {
 		index->stat_n_leaf_pages = stat_value;
 	} else if (strncasecmp(PFX, stat_name,
 			       ut_min(strlen(PFX), stat_name_len)) == 0) {
@@ -2176,8 +2196,9 @@ dict_stats_update(
 					" InnoDB: Recalculation of persistent "
 					"statistics requested but the required "
 					"persistent storage is not present "
-					"or is corrupted. Using quick transient "
-					"stats instead.\n");
+					"or is corrupted. "
+					"Using quick transient stats "
+					"instead.\n");
 			}
 
 			dict_stats_update_transient(table);
@@ -2658,9 +2679,12 @@ test_dict_stats_save()
 	       "table_name = '%s' AND\n"
 	       "index_name = '%s' AND\n"
 	       "(\n"
-	       " (stat_name = 'size' AND stat_value = %d AND sample_size IS NULL) OR\n"
-	       " (stat_name = 'n_leaf_pages' AND stat_value = %d AND sample_size IS NULL) OR\n"
-	       " (stat_name = 'n_diff_pfx01' AND stat_value = %d AND sample_size = '%d' AND stat_description = '%s')\n"
+	       " (stat_name = 'size' AND stat_value = %d AND"
+	       "  sample_size IS NULL) OR\n"
+	       " (stat_name = 'n_leaf_pages' AND stat_value = %d AND"
+	       "  sample_size IS NULL) OR\n"
+	       " (stat_name = 'n_diff_pfx01' AND stat_value = %d AND"
+	       "  sample_size = '%d' AND stat_description = '%s')\n"
 	       ");\n"
 	       "\n",
 	       TEST_DATABASE_NAME,
@@ -2679,12 +2703,18 @@ test_dict_stats_save()
 	       "table_name = '%s' AND\n"
 	       "index_name = '%s' AND\n"
 	       "(\n"
-	       " (stat_name = 'size' AND stat_value = %d AND sample_size IS NULL) OR\n"
-	       " (stat_name = 'n_leaf_pages' AND stat_value = %d AND sample_size IS NULL) OR\n"
-	       " (stat_name = 'n_diff_pfx01' AND stat_value = %d AND sample_size = '%d' AND stat_description = '%s') OR\n"
-	       " (stat_name = 'n_diff_pfx02' AND stat_value = %d AND sample_size = '%d' AND stat_description = '%s,%s') OR\n"
-	       " (stat_name = 'n_diff_pfx03' AND stat_value = %d AND sample_size = '%d' AND stat_description = '%s,%s,%s') OR\n"
-	       " (stat_name = 'n_diff_pfx04' AND stat_value = %d AND sample_size = '%d' AND stat_description = '%s,%s,%s,%s')\n"
+	       " (stat_name = 'size' AND stat_value = %d AND"
+	       "  sample_size IS NULL) OR\n"
+	       " (stat_name = 'n_leaf_pages' AND stat_value = %d AND"
+	       "  sample_size IS NULL) OR\n"
+	       " (stat_name = 'n_diff_pfx01' AND stat_value = %d AND"
+	       "  sample_size = '%d' AND stat_description = '%s') OR\n"
+	       " (stat_name = 'n_diff_pfx02' AND stat_value = %d AND"
+	       "  sample_size = '%d' AND stat_description = '%s,%s') OR\n"
+	       " (stat_name = 'n_diff_pfx03' AND stat_value = %d AND"
+	       "  sample_size = '%d' AND stat_description = '%s,%s,%s') OR\n"
+	       " (stat_name = 'n_diff_pfx04' AND stat_value = %d AND"
+	       "  sample_size = '%d' AND stat_description = '%s,%s,%s,%s')\n"
 	       ");\n"
 	       "\n",
 	       TEST_DATABASE_NAME,
@@ -2693,8 +2723,7 @@ test_dict_stats_save()
 	       TEST_IDX2_INDEX_SIZE,
 	       TEST_IDX2_N_LEAF_PAGES,
 	       TEST_IDX2_N_DIFF1,
-	       TEST_IDX2_N_DIFF1_SAMPLE_SIZE,
-	       TEST_IDX2_COL1_NAME,
+	       TEST_IDX2_N_DIFF1_SAMPLE_SIZE, TEST_IDX2_COL1_NAME,
 	       TEST_IDX2_N_DIFF2,
 	       TEST_IDX2_N_DIFF2_SAMPLE_SIZE,
 	       TEST_IDX2_COL1_NAME, TEST_IDX2_COL2_NAME,
@@ -2703,7 +2732,8 @@ test_dict_stats_save()
 	       TEST_IDX2_COL1_NAME, TEST_IDX2_COL2_NAME, TEST_IDX2_COL3_NAME,
 	       TEST_IDX2_N_DIFF4,
 	       TEST_IDX2_N_DIFF4_SAMPLE_SIZE,
-	       TEST_IDX2_COL1_NAME, TEST_IDX2_COL2_NAME, TEST_IDX2_COL3_NAME, TEST_IDX2_COL4_NAME);
+	       TEST_IDX2_COL1_NAME, TEST_IDX2_COL2_NAME, TEST_IDX2_COL3_NAME,
+	       TEST_IDX2_COL4_NAME);
 }
 /* @} */
 
@@ -2753,7 +2783,8 @@ test_dict_stats_fetch_from_ps()
 
 	ut_a(table.stat_n_rows == TEST_N_ROWS);
 	ut_a(table.stat_clustered_index_size == TEST_CLUSTERED_INDEX_SIZE);
-	ut_a(table.stat_sum_of_other_index_sizes == TEST_SUM_OF_OTHER_INDEX_SIZES);
+	ut_a(table.stat_sum_of_other_index_sizes
+	     == TEST_SUM_OF_OTHER_INDEX_SIZES);
 
 	ut_a(index1.stat_index_size == TEST_IDX1_INDEX_SIZE);
 	ut_a(index1.stat_n_leaf_pages == TEST_IDX1_N_LEAF_PAGES);
