@@ -31,7 +31,6 @@ class Ndb;
 struct NdbError;
 class NdbOperation;
 class NdbParamOperand;
-class NdbQueryDef;
 class NdbQueryOperation;
 class NdbQueryOperationDef;
 class NdbRecAttr;
@@ -300,7 +299,7 @@ public:
    * meaning that 'code' may be destroyed as soon as this method returns.
    * @return 0 if ok, -1 in case of error (call getNdbError() for details.)
    */
-  int setInterpretedCode(NdbInterpretedCode& code) const;
+  int setInterpretedCode(const NdbInterpretedCode& code) const;
 
 private:
   // Opaque implementation class instance.
