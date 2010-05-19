@@ -1,0 +1,43 @@
+#
+# Test Description
+# ================
+#  
+#   In this file we will run tests that mix engines, indexes
+#   and blobs.
+#  
+#   See WL#5096 for details.
+#
+-- source include/rpl_chained_3_hosts.inc
+-- source include/have_binlog_format_row.inc
+
+-- connection mysqld_a
+-- source include/have_innodb.inc
+-- connection mysqld_b
+-- source include/have_innodb.inc
+-- connection mysqld_c
+-- source include/have_innodb.inc
+-- connection mysqld_a
+
+-- echo ###################################################################
+-- echo ###################################################################
+-- echo # engines and binlog-row-image mixes                              #
+-- echo ###################################################################
+-- echo ###################################################################
+-- let $row_img_test_script= extra/rpl_tests/rpl_row_img.test
+-- source include/rpl_row_img_general_loop.inc
+
+-- echo ###################################################################
+-- echo ###################################################################
+-- echo # engines and binlog-row-image mix for different index structures #
+-- echo ###################################################################
+-- echo ###################################################################
+-- let $row_img_test_script= extra/rpl_tests/rpl_row_img_diff_indexes.test
+-- source include/rpl_row_img_general_loop.inc
+
+-- echo ###################################################################
+-- echo ###################################################################
+-- echo # engines and binlog-row-image mixes for blobs                    #
+-- echo ###################################################################
+-- echo ###################################################################
+-- let $row_img_test_script= extra/rpl_tests/rpl_row_img_blobs.test
+-- source include/rpl_row_img_general_loop.inc
