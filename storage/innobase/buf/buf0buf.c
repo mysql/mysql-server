@@ -872,6 +872,8 @@ buf_block_init(
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
 
+	block->is_hashed = FALSE;
+
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
 	block->page.in_zip_hash = FALSE;
