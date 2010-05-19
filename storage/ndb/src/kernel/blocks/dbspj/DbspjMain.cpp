@@ -29,6 +29,7 @@
 #include <AttributeHeader.hpp>
 #include <KeyDescriptor.hpp>
 #include <md5_hash.hpp>
+#include <signaldata/TcKeyConf.hpp>
 
 // Use DEBUG to print messages that should be
 // seen only when we debug the product
@@ -1377,6 +1378,24 @@ Dbspj::lookup_send(Signal* signal,
   sendSignal(ref, GSN_LQHKEYREQ, signal,
 	     NDB_ARRAY_SIZE(treeNodePtr.p->m_lookup_data.m_lqhKeyReq),
              JBB, &handle);
+
+  if (requestPtr.p->isLookup() && treeNodePtr.p->isLeaf())
+  {
+    jam();
+    Uint32 resultRef = treeNodePtr.p->m_lookup_data.m_api_resultRef;
+    Uint32 resultData = treeNodePtr.p->m_lookup_data.m_api_resultData;
+    TcKeyConf* conf = (TcKeyConf*)signal->getDataPtr();
+    conf->apiConnectPtr = RNIL;
+    conf->confInfo = 0;
+    conf->gci_hi = 0;
+    TcKeyConf::setNoOfOperations(conf->confInfo, 1);
+    conf->transId1 = requestPtr.p->m_transId[0];
+    conf->transId2 = requestPtr.p->m_transId[1];
+    conf->operations[0].apiOperationPtr = resultData;
+    conf->operations[0].attrInfoLen = TcKeyConf::DirtyReadBit |(refToNode(ref));
+    sendSignal(resultRef, GSN_TCKEYCONF, signal,
+               TcKeyConf::StaticLength + 2, JBB);
+  }
 
   Uint32 add = 2;
   if (treeNodePtr.p->isLeaf())

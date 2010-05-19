@@ -374,13 +374,19 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
   switch (tSignalNumber){
   case GSN_TCKEYCONF:
     {
-      tFirstDataPtr = int2void(tFirstData);
-      if (tFirstDataPtr == 0) goto InvalidSignal;
-
       const TcKeyConf * const keyConf = (TcKeyConf *)tDataPtr;
+      if (tFirstData != RNIL)
+      {
+        tFirstDataPtr = int2void(tFirstData);
+        if (tFirstDataPtr == 0) goto InvalidSignal;
+        tCon = void2con(tFirstDataPtr);
+      }
+      else
+      {
+        tCon = lookupTransactionFromOperation(keyConf);
+      }
       const BlockReference aTCRef = aSignal->theSendersBlockRef;
 
-      tCon = void2con(tFirstDataPtr);
       if ((tCon->checkMagicNumber() == 0) &&
           (tCon->theSendStatus == NdbTransaction::sendTC_OP)) {
         tReturnCode = tCon->receiveTCKEYCONF(keyConf, tLen);
@@ -1548,4 +1554,21 @@ done:
     tp->unlock_mutex();
   }
   return ret;
+}
+
+NdbTransaction*
+Ndb::lookupTransactionFromOperation(const TcKeyConf * conf)
+{
+  assert(TcKeyConf::getNoOfOperations(conf->confInfo) > 0);
+  Uint32 opPtr = conf->operations[0].apiOperationPtr;
+  void * voidptr = int2void(opPtr);
+  if (voidptr)
+  {
+    NdbReceiver* rec = void2rec(voidptr);
+    if (rec)
+    {
+      return rec->getTransaction();
+    }
+  }
+  return 0;
 }

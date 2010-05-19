@@ -149,12 +149,19 @@ public:
   void reset();
 
   void incrOutstandingResults(Int32 delta)
-  { m_outstandingResults += delta;}
+  {
+    m_outstandingResults += delta;
+  }
 
   void setConfReceived()
   { 
     assert(!m_confReceived);
     m_confReceived = true; 
+  }
+
+  void setConfReceivedNoCheck()
+  {
+    m_confReceived = true;
   }
 
   /** 
@@ -1228,6 +1235,12 @@ NdbQueryImpl::getNoOfOperations() const
   return m_countOperations;
 }
 
+Uint32
+NdbQueryImpl::getNoOfLeafOperations() const
+{
+  return getQueryOperation(Uint32(0)).getNoOfLeafOperations();
+}
+
 NdbQueryOperationImpl&
 NdbQueryImpl::getQueryOperation(Uint32 index) const
 {
@@ -1554,11 +1567,9 @@ NdbQueryImpl::execTCKEYCONF()
   }
   assert(!getQueryDef().isScanQuery());
 
-  m_rootFrags[0].setConfReceived();
-
-  // Result rows counted on root operation only.
-  // Initially we assume all child results to be returned.
-  m_rootFrags[0].incrOutstandingResults(1+getRoot().getNoOfDescendantOperations());
+  // We will get 1 + #leaf-nodes TCKEYCONF for a lookup...
+  m_rootFrags[0].setConfReceivedNoCheck();
+  m_rootFrags[0].incrOutstandingResults(-1);
 
   bool ret = false;
   if (m_rootFrags[0].isFragBatchComplete()) { 
@@ -2066,6 +2077,8 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
       return FetchResult_sendFail;
     }
     m_transaction.OpSent();
+    m_rootFrags[0].incrOutstandingResults(1 + getNoOfOperations() +
+                                          getNoOfLeafOperations());
   } // if
 
   // Shrink memory footprint by removing structures not required after ::execute()
@@ -2838,6 +2851,22 @@ Int32 NdbQueryOperationImpl::getNoOfDescendantOperations() const
   return children;
 }
 
+Uint32
+NdbQueryOperationImpl::getNoOfLeafOperations() const
+{
+  if (getNoOfChildOperations() == 0)
+  {
+    return 1;
+  }
+  else
+  {
+    Uint32 sum = 0;
+    for (unsigned i = 0; i < getNoOfChildOperations(); i++)
+      sum += getChildOperation(i).getNoOfLeafOperations();
+
+    return sum;
+  }
+}
 
 NdbRecAttr*
 NdbQueryOperationImpl::getValue(
@@ -3771,9 +3800,15 @@ NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
   }
 
   // Compensate for children results not produced.
-  // (TCKEYCONF assumed all child results to be materialized)
-  getQuery().m_rootFrags[0]
-    .incrOutstandingResults(-getNoOfDescendantOperations()-1);
+  // (doSend() assumed all child results to be materialized)
+  Uint32 cnt = 0;
+  cnt += 1; // self
+  cnt += getNoOfDescendantOperations();
+  if (getNoOfChildOperations() > 0)
+  {
+    cnt += getNoOfLeafOperations();
+  }
+  getQuery().m_rootFrags[0].incrOutstandingResults(- cnt);
 
   bool ret = false;
   if (getQuery().m_rootFrags[0].isFragBatchComplete()) { 
