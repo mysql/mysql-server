@@ -6815,7 +6815,11 @@ static bool exchange_name_with_ddl_log(THD *thd,
     we sent OK to the client.
   */
   /* call rename table from table to tmp-name */
-  DBUG_EXECUTE_IF("exchange_partition_fail_3", goto err_rename;);
+  DBUG_EXECUTE_IF("exchange_partition_fail_3",
+                  my_error(ER_ERROR_ON_RENAME, MYF(0),
+                           name, tmp_name);
+                  error_set= TRUE;
+                  goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_3", abort(););
   if (file->ha_rename_table(name, tmp_name))
   {
@@ -6830,7 +6834,11 @@ static bool exchange_name_with_ddl_log(THD *thd,
     goto err_rename;
 
   /* call rename table from partition to table */
-  DBUG_EXECUTE_IF("exchange_partition_fail_5", goto err_rename;);
+  DBUG_EXECUTE_IF("exchange_partition_fail_5",
+                  my_error(ER_ERROR_ON_RENAME, MYF(0),
+                           from_name, name);
+                  error_set= TRUE;
+                  goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_5", abort(););
   if (file->ha_rename_table(from_name, name))
   {
@@ -6845,7 +6853,11 @@ static bool exchange_name_with_ddl_log(THD *thd,
     goto err_rename;
 
   /* call rename table from tmp-nam to partition */
-  DBUG_EXECUTE_IF("exchange_partition_fail_7", goto err_rename;);
+  DBUG_EXECUTE_IF("exchange_partition_fail_7",
+                  my_error(ER_ERROR_ON_RENAME, MYF(0),
+                           tmp_name, from_name);
+                  error_set= TRUE;
+                  goto err_rename;);
   DBUG_EXECUTE_IF("exchange_partition_abort_7", abort(););
   if (file->ha_rename_table(tmp_name, from_name))
   {
@@ -6872,7 +6884,7 @@ err_rename:
     will log to the error log about the failures...
   */
   /* execute the ddl log entry to revert the renames */
-  (void) execute_ddl_log_entry(current_thd, exec_log_entry->entry_pos);
+  (void) execute_ddl_log_entry(current_thd, log_entry->entry_pos);
   mysql_mutex_lock(&LOCK_gdl);
   /* mark the execute log entry done */
   (void) write_execute_ddl_log_entry(0, TRUE, &exec_log_entry);
@@ -6890,11 +6902,6 @@ err_no_action_written:
 }
 
 
-/*
-  TODO: verify what happens when renaming between filesystems,
-  i.e. full file copy. Can it really happen? DATA DIR must be same...
-  But how about exchanging between databases?
-*/
 /**
   @brief Swap places between a partition and a table.
 
