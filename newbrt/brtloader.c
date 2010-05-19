@@ -216,33 +216,41 @@ int brtloader_fi_reopen (struct file_infos *fi, FIDX idx, const char *mode) {
 
 int brtloader_fi_close (struct file_infos *fi, FIDX idx)
 {
+    int result = 0;
     { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert(r2==0); }
-    invariant(fi->n_files_open>0);   // ### loader-cleanup-test failure
-    fi->n_files_open--;
     invariant(idx.idx >=0 && idx.idx < fi->n_files);
-    invariant(fi->file_infos[idx.idx].is_open);
-    fi->file_infos[idx.idx].is_open = FALSE;
-    int r = toku_os_fclose(fi->file_infos[idx.idx].file);
-    lazy_assert(r == 0);  // Barry added this 5/18  // ### loader-cleanup-test failure
+    if (fi->file_infos[idx.idx].is_open) {
+        invariant(fi->n_files_open>0);   // loader-cleanup-test failure
+        fi->n_files_open--;
+        fi->file_infos[idx.idx].is_open = FALSE;
+        int r = toku_os_fclose(fi->file_infos[idx.idx].file);
+        if (r != 0)
+            result = errno;
+    } else 
+        result = EINVAL;
     { int r2 = toku_pthread_mutex_unlock(&fi->lock); resource_assert(r2==0); }
-    if (r!=0) return errno;
-    else return 0;
+    return result;
 }
 
 int brtloader_fi_unlink (struct file_infos *fi, FIDX idx) {
+    int result = 0;
     { int r2 = toku_pthread_mutex_lock(&fi->lock); resource_assert(r2==0); }
-    invariant(fi->n_files_extant>0);
-    fi->n_files_extant--;
     int id = idx.idx;
     invariant(id >=0 && id < fi->n_files);
-    invariant(!fi->file_infos[id].is_open); // must be closed before we unlink
-    invariant(fi->file_infos[id].is_extant); // must still exist
-    fi->file_infos[id].is_extant = FALSE;
-    int r = unlink(fi->file_infos[id].fname);  if (r!=0) r=errno;
-    toku_free(fi->file_infos[id].fname);
-    fi->file_infos[id].fname = NULL;
+    if (fi->file_infos[id].is_extant) { // must still exist
+        invariant(fi->n_files_extant>0);
+        fi->n_files_extant--;
+        invariant(!fi->file_infos[id].is_open); // must be closed before we unlink
+        fi->file_infos[id].is_extant = FALSE;
+        int r = unlink(fi->file_infos[id].fname);  
+        if (r != 0) 
+            result = errno;
+        toku_free(fi->file_infos[id].fname);
+        fi->file_infos[id].fname = NULL;
+    } else
+        result = EINVAL;
     { int r2 = toku_pthread_mutex_unlock(&fi->lock); resource_assert(r2==0); }
-    return r;
+    return result;
 }
 
 int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
@@ -2354,15 +2362,15 @@ static int loader_do_i (BRTLOADER bl,
 	    bl->fractal_threads_live[which_db] = FALSE;
 	    if (r == 0) r = fta.errno_result;
 	}
-	
-	{
-	    int r2 = queue_destroy(bl->fractal_queues[which_db]);
-	    invariant(r2==0);
-	    bl->fractal_queues[which_db]=NULL;
-	}
     }
 
  error: // this is the cleanup code.  Even if r==0 (no error) we fall through to here.
+    {
+        int r2 = queue_destroy(bl->fractal_queues[which_db]);
+        invariant(r2==0);
+        bl->fractal_queues[which_db]=NULL;
+    }
+
     // if we get here we need to free up the merge_fileset and the rowset, as well as the keys
     toku_free(rows->data); rows->data = NULL;
     toku_free(rows->rows); rows->rows = NULL;
@@ -2981,8 +2989,8 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
             result = bl->panic_errno;
 
 	// Now set things up for the next iteration.
-	int r = brtloader_fi_close(&bl->file_infos, pivots_fidx); lazy_assert(r==0);
-	r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx);    resource_assert(r==0);
+	int r = brtloader_fi_close(&bl->file_infos, pivots_fidx); if (r != 0 && result == 0) result = r;
+	r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx);    if (r != 0 && result == 0) result = r;
 	pivots_fidx = next_pivots_file;
 	toku_free(sts->subtrees); sts->subtrees = NULL;
 	*sts = next_sts;
@@ -2991,8 +2999,8 @@ static int write_nonleaves (BRTLOADER bl, FIDX pivots_fidx, struct dbout *out, s
         if (result)
             break;
     }
-    { int r = brtloader_fi_close (&bl->file_infos, pivots_fidx); lazy_assert(r==0); }
-    { int r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx); resource_assert(r==0); }
+    { int r = brtloader_fi_close (&bl->file_infos, pivots_fidx); if (r != 0 && result == 0) result = r; }
+    { int r = brtloader_fi_unlink(&bl->file_infos, pivots_fidx); if (r != 0 && result == 0) result = r; }
     return result;
 }
 
