@@ -68,6 +68,7 @@ enum {
         TOKUDB_DICTIONARY_TOO_NEW   = -100005,
         TOKUDB_DICTIONARY_NO_HEADER = -100006,
         TOKUDB_CANCELED             = -100007,
+        TOKUDB_NO_DATA              = -100008,
 };
 
 static void print_defines (void) {
@@ -197,6 +198,7 @@ static void print_defines (void) {
     dodefine(TOKUDB_DICTIONARY_TOO_NEW);
     dodefine(TOKUDB_DICTIONARY_NO_HEADER);
     dodefine(TOKUDB_CANCELED);
+    dodefine(TOKUDB_NO_DATA);
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");

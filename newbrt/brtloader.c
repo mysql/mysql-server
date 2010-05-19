@@ -610,7 +610,7 @@ static int bl_read_dbt_from_dbufio (/*in*/DBT *dbt, DBUFIO_FILESET bfs, int file
 	if (r!=0) {
 	    result = r;
 	} else if (n_read<sizeof(len)) {
-	    result = ENODATA; // must have run out of data prematurely.  This is not EOF, it's a real error.
+	    result = TOKUDB_NO_DATA; // must have run out of data prematurely.  This is not EOF, it's a real error.
 	}
     }
     if (result==0) {
@@ -630,7 +630,7 @@ static int bl_read_dbt_from_dbufio (/*in*/DBT *dbt, DBUFIO_FILESET bfs, int file
 	if (r!=0) {
 	    result = r;
 	} else if (n_read<len) {
-	    result = ENODATA; // must have run out of data prematurely.  This is not EOF, it's a real error.
+	    result = TOKUDB_NO_DATA; // must have run out of data prematurely.  This is not EOF, it's a real error.
 	} else {
 	    dbt->size = len;
 	}
