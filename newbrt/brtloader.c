@@ -1911,7 +1911,7 @@ static int64_t allocate_block (struct dbout *out)
 
 static void putbuf_bytes (struct dbuf *dbuf, const void *bytes, int nbytes) {
     if (dbuf->off + nbytes > dbuf->buflen) {
-        void *oldbuf = dbuf->buf;
+        unsigned char *oldbuf = dbuf->buf;
         int oldbuflen = dbuf->buflen;
 	dbuf->buflen += dbuf->off + nbytes;
 	dbuf->buflen *= 2;
@@ -1944,7 +1944,7 @@ static void putbuf_int64 (struct dbuf *dbuf, unsigned long long v) {
 static void putbuf_int32_at(struct dbuf *dbuf, int off, int v) {
     const int nbytes = 4;
     if (off+nbytes > dbuf->buflen) {
-        void *oldbuf = dbuf->buf;
+        unsigned char *oldbuf = dbuf->buf;
         int oldbuflen = dbuf->buflen;
 	dbuf->buflen += dbuf->off + nbytes;
 	dbuf->buflen *= 2;
