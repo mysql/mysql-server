@@ -3179,15 +3179,35 @@ row_sel_push_cache_row_for_mysql(
 		ut_error;
 	}
         if (start_field_no) {
+		/* If index condition pushdown is used, the table
+		   columns start at start_field_no. Columns from 0 to
+		   start_field_no are index columns. Table columns
+		   were copied above; now copy the index columns. */
           for (i=0; i < start_field_no; i++) {
             register ulint offs;
 	    mysql_row_templ_t* templ;
             templ = prebuilt->mysql_template + i;
 
             if (templ->mysql_null_bit_mask) {
-              offs= templ->mysql_null_byte_offset;
-              *(prebuilt->fetch_cache[prebuilt->n_fetch_cached] + offs) ^= 
-                (*(remainder_buf + offs) & templ->mysql_null_bit_mask);
+              /* 
+				   Store a pointer to the null byte in
+				   the record in the fetch cache
+				   (the mysql record). Update this null
+				   byte as follows:
+				   1. Clear the null bit for this index entry.
+				   2. Set the correct value for the
+				      null bit based on the null bit
+				      in the internal record representation 
+				      found in remainder_buf.
+				*/ 
+				register byte* null_byte;
+				offs= templ->mysql_null_byte_offset;
+				null_byte= prebuilt->fetch_cache[
+					  prebuilt->n_fetch_cached]+offs;
+
+				(*null_byte)&= ~templ->mysql_null_bit_mask;
+				(*null_byte)|= (*(remainder_buf + offs) & 
+						templ->mysql_null_bit_mask);
             }
             offs= templ->mysql_col_offset;
             memcpy(prebuilt->fetch_cache[prebuilt->n_fetch_cached] + offs,
