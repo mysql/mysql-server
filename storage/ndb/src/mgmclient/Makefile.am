@@ -44,9 +44,6 @@ LDADD_LOC = $(noinst_LTLIBRARIES) \
 
 ndb_mgm_LDFLAGS = @ndb_bin_am_ldflags@
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: ndb_mgm.dsp libndbmgmclient.dsp
 
 ndb_mgm.dsp: Makefile \
