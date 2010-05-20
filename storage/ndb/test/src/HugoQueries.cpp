@@ -1,19 +1,19 @@
 /*
-   Copyright (C) 2003 MySQL AB
-    All rights reserved. Use is subject to license terms.
+  Copyright (C) 2003 MySQL AB
+  All rights reserved. Use is subject to license terms.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; version 2 of the License.
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 #include "HugoQueries.hpp"
@@ -116,6 +116,10 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
   int r = 0;
   int retryAttempt = 0;
 
+  m_rows_found.clear();
+  Uint32 zero = 0;
+  m_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
+
   if (batch == 0) {
     g_info << "ERROR: Argument batch == 0 in runLookupQuery. Not allowed."
            << endl;
@@ -132,9 +136,13 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     if (retryAttempt >= m_retryMax)
     {
       g_info << "ERROR: has retried this operation " << retryAttempt
-	     << " times, failing!" << endl;
+             << " times, failing!" << endl;
       return NDBT_FAILED;
     }
+
+    Vector<Uint32> batch_rows_found;
+    batch_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
+    Vector<NdbQuery*> queries;
 
     NdbTransaction * pTrans = pNdb->startTransaction();
     if (pTrans == NULL)
@@ -142,23 +150,22 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       const NdbError err = pNdb->getNdbError();
 
       if (err.status == NdbError::TemporaryError){
-	ERR(err);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
+        ERR(err);
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
       }
       ERR(err);
       return NDBT_FAILED;
     }
 
-    NdbQuery * query = 0;
     for (int b = 0; b<batch; b++)
     {
       char buf[NDB_MAX_TUPLE_SIZE];
       NdbQueryParamValue params[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
       equalForParameters(buf, * m_ops[0].m_calc, params, b + r);
 
-      query = pTrans->createQuery(m_query_def, params);
+      NdbQuery * query = pTrans->createQuery(m_query_def, params);
       if (query == 0)
       {
         const NdbError err = pTrans->getNdbError();
@@ -171,41 +178,49 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
         NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
         HugoQueries::getValueForQueryOp(pOp, m_ops[o].m_rows[b]);
       }
+      queries.push_back(query);
     }
 
     int check = pTrans->execute(NoCommit, AbortOnError);
     if (check == -1)
     {
       const NdbError err = pTrans->getNdbError();
-      if (err.status == NdbError::TemporaryError){
-	ERR(err);
-	pTrans->close();
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
-      }
       ERR(err);
+      if (err.status == NdbError::TemporaryError){
+        pTrans->close();
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
+      }
       pTrans->close();
       return NDBT_FAILED;
     }
 
     for (int b = 0; b<batch; b++)
     {
-      for (size_t o = 0; o<m_ops.size(); o++)
+      NdbQuery * query = queries[b];
+      if (query->nextResult() == NdbQuery::NextResult_gotRow)
       {
-        NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
-        if (!pOp->isRowNULL())
+        for (size_t o = 0; o<m_ops.size(); o++)
         {
-          if (m_ops[o].m_calc->verifyRowValues(m_ops[o].m_rows[b]) != 0)
+          NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
+          if (!pOp->isRowNULL())
           {
-            pTrans->close();
-            return NDBT_FAILED;
+            batch_rows_found[o]++;
+            if (m_ops[o].m_calc->verifyRowValues(m_ops[o].m_rows[b]) != 0)
+            {
+              pTrans->close();
+              return NDBT_FAILED;
+            }
           }
         }
       }
     }
     pTrans->close();
     r += batch;
+
+    for (size_t i = 0; i<batch_rows_found.size(); i++)
+      m_rows_found[i] += batch_rows_found[i];
   }
 
   return NDBT_OK;
@@ -223,18 +238,20 @@ HugoQueries::runScanQuery(Ndb * pNdb,
 
   while (retryAttempt < m_retryMax)
   {
+    m_rows_found.clear();
+    Uint32 zero = 0;
+    m_rows_found.fill(m_query_def->getNoOfOperations() - 1, zero);
+
     NdbTransaction * pTrans = pNdb->startTransaction();
     if (pTrans == NULL)
     {
       const NdbError err = pNdb->getNdbError();
-
-      if (err.status == NdbError::TemporaryError){
-	ERR(err);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
-      }
       ERR(err);
+      if (err.status == NdbError::TemporaryError){
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
+      }
       return NDBT_FAILED;
     }
 
@@ -260,26 +277,45 @@ HugoQueries::runScanQuery(Ndb * pNdb,
     if (check == -1)
     {
       const NdbError err = pTrans->getNdbError();
-      if (err.status == NdbError::TemporaryError){
-	ERR(err);
-	pTrans->close();
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
-      }
       ERR(err);
+      if (err.status == NdbError::TemporaryError){
+        pTrans->close();
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
+      }
       pTrans->close();
       return NDBT_FAILED;
+    }
+
+    int r = rand() % 100;
+    if (r < abort && ((r & 1) == 0))
+    {
+      ndbout_c("Query aborted!");
+      query->close();
+      pTrans->close();
+      m_rows_found.clear();
+      return NDBT_OK;
     }
 
     NdbQuery::NextResultOutcome res;
     while ((res = query->nextResult()) == NdbQuery::NextResult_gotRow)
     {
+      if (r < abort && ((r & 1) == 1))
+      {
+        ndbout_c("Query aborted 2!");
+        query->close();
+        pTrans->close();
+        m_rows_found.clear();
+      return NDBT_OK;
+      }
+
       for (size_t o = 0; o<m_ops.size(); o++)
       {
         NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
         if (!pOp->isRowNULL())
         {
+          m_rows_found[o]++;
           if (m_ops[o].m_calc->verifyRowValues(m_ops[o].m_rows[0]) != 0)
           {
             pTrans->close();
@@ -289,16 +325,17 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       }
     }
 
+    const NdbError err = query->getNdbError();
+    query->close();
     pTrans->close();
     if (res == NdbQuery::NextResult_error)
     {
-      const NdbError err = query->getNdbError();
+      ERR(err);
       if (err.status == NdbError::TemporaryError)
       {
-	ERR(err);
-	NdbSleep_MilliSleep(50);
-	retryAttempt++;
-	continue;
+        NdbSleep_MilliSleep(50);
+        retryAttempt++;
+        continue;
       }
       return NDBT_FAILED;
     }
@@ -314,3 +351,4 @@ HugoQueries::runScanQuery(Ndb * pNdb,
 }
 
 template class Vector<HugoQueries::Op>;
+template class Vector<NdbQuery*>;

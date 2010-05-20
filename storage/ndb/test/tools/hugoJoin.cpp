@@ -56,7 +56,7 @@ static struct my_option my_long_options[] =
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "loops", 'l', "Loops",
     (uchar**) &_loops, 0,
-    0, GET_INT, REQUIRED_ARG, _loops, -1, 0, 0, 0, 0},
+    0, GET_INT, REQUIRED_ARG, _loops, 0, 0, 0, 0, 0},
   { "verbose", 'v', "verbosity",
     (uchar**) &_verbose, 0,
     0, GET_INT, REQUIRED_ARG, _verbose, 0, 0, 0, 0, 0},
@@ -182,8 +182,9 @@ int main(int argc, char** argv){
     _seed = (unsigned)NdbTick_CurrentMillisecond();
   }
   ndbout << "--seed=" << _seed << endl;
+  srand(_seed);
 
-  for (int i = 0; (_loops == -1) || (i < _loops);)
+  for (int i = 0; (_loops == 0) || (i < _loops);)
   {
     if (_verbose >= 1)
     {
@@ -192,7 +193,7 @@ int main(int argc, char** argv){
     HugoQueryBuilder builder(&MyNdb, tables.getBase(), mask);
     builder.setJoinLevel(_depth);
     const NdbQueryDef * q = builder.createQuery(&MyNdb);
-    for (int j = 0; j < _loops_per_query && ((_loops == -1) || (i < _loops));
+    for (int j = 0; j < _loops_per_query && ((_loops == 0) || (i < _loops));
          i++, j++)
     {
       int res = 0;
@@ -208,6 +209,15 @@ int main(int argc, char** argv){
       if (res != 0)
       {
         return NDBT_ProgramExit(NDBT_FAILED);
+      }
+      if (hq.m_rows_found.size() != 0)
+      {
+        printf("\tfound: [ ");
+        for (size_t i = 0; i<hq.m_rows_found.size(); i++)
+        {
+          printf("%u ", (Uint32)hq.m_rows_found[i]);
+        }
+        ndbout_c("]");
       }
     }
   }

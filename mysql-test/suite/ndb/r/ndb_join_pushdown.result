@@ -2151,6 +2151,20 @@ k	b	k	b	k	b	k	b
 3	1	1	1	1	1	1	1
 4	1	1	1	1	1	1	1
 drop table t1;
+CREATE TABLE t1 (
+a int NOT NULL auto_increment,
+b char(255) not null,
+c int NOT NULL,
+d char(255) not null,
+PRIMARY KEY (`a`,`b`)
+) ENGINE=ndbcluster;
+select count(*)
+from t1 
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
+count(*)
+2996
+drop table t1;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 1M

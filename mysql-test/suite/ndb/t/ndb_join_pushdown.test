@@ -1476,6 +1476,34 @@ where t2.k = 1;
 
 drop table t1;
 
+##
+# Try with higher row-count to test batching/flow control
+#
+CREATE TABLE t1 (
+  a int NOT NULL auto_increment,
+  b char(255) not null,
+  c int NOT NULL,
+  d char(255) not null,
+  PRIMARY KEY (`a`,`b`)
+) ENGINE=ndbcluster;
+
+let $1=1000;
+disable_query_log;
+while ($1)
+{
+ eval insert into t1(a,b,c,d) values
+ ($1, 'a', $1, 'a'),($1, 'b', $1+1, 'b'),($1, 'c', $1-1, 'c');
+ dec $1;
+}
+enable_query_log;
+
+select count(*)
+from t1 
+join t1 as t2 on t2.a = t1.c and t2.b = t1.d
+join t1 as t3 on t3.a = t2.c and t3.b = t2.d;
+
+drop table t1;
+
 # Pushed join accessing disk data.
 
 CREATE LOGFILE GROUP lg1

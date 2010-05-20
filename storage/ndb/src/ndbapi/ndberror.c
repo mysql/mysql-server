@@ -139,6 +139,7 @@ ErrorBundle ErrorCodes[] = {
     "Transaction was committed but all read information was not "
     "received due to node crash" },
   { 4119, DMEC, NR, "Simple/dirty read failed due to node failure" },
+  { 20016, DMEC, NR, "Query aborted due to node failure" },
   
   /**
    * Node shutdown

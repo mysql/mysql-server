@@ -42,12 +42,13 @@ public:
   /**
    * Head/anchor for data buffer
    */
-  struct Head {
-    Head() ;
-
+  struct HeadPOD
+  {
     Uint32 used;       // Words used
     Uint32 firstItem;  // First segment (or RNIL)
     Uint32 lastItem;   // Last segment (or RNIL)
+
+    void init() { used = 0; firstItem = lastItem = RNIL; }
 
     /**
      * Get size of databuffer, in words
@@ -58,6 +59,18 @@ public:
      * Get segment size in words (template argument)
      */
     static Uint32 getSegmentSize() { return sz;}
+  };
+
+  struct Head : public HeadPOD
+  {
+    Head();
+
+    Head& operator=(const HeadPOD& src) {
+      this->used = src.used;
+      this->firstItem = src.firstItem;
+      this->lastItem = src.lastItem;
+      return *this;
+    }
   };
 
   /** Constructor */
@@ -171,7 +184,7 @@ template<Uint32 sz, typename Pool>
 class LocalDataBuffer2 : public DataBuffer2<sz, Pool> {
 public:
   LocalDataBuffer2(typename DataBuffer2<sz, Pool>::DataBufferPool & thePool,
-                   typename DataBuffer2<sz, Pool>::Head & _src)
+                   typename DataBuffer2<sz, Pool>::HeadPOD & _src)
     : DataBuffer2<sz, Pool>(thePool), src(_src)
   {
     this->head = src;
@@ -181,15 +194,13 @@ public:
     src = this->head;
   }
 private:
-  typename DataBuffer2<sz, Pool>::Head & src;
+  typename DataBuffer2<sz, Pool>::HeadPOD & src;
 };
 
 template<Uint32 sz, typename Pool>
 inline
 DataBuffer2<sz, Pool>::Head::Head(){
-  used = 0;
-  firstItem = RNIL;
-  lastItem = RNIL;
+  this->init();
 }
 
 template<Uint32 sz, typename Pool>
@@ -287,7 +298,7 @@ void DataBuffer2<sz, Pool>::print(FILE* out) const {
 
   Uint32 acc = 0;
   for(; ptr.i != RNIL; ){
-    thePool.getPtr(ptr);
+    ptr.p = (Segment*)thePool.getPtr(ptr.i);
     const Uint32 * rest = ptr.p->data;
     for(Uint32 i = 0; i<sz; i++){
       fprintf(out, " H'%.8x", rest[i]);

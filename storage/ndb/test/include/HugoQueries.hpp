@@ -31,9 +31,12 @@ public:
   HugoQueries(const NdbQueryDef & query);
   virtual ~HugoQueries();
 
+  // Rows for for each of the operations
+  Vector<Uint32> m_rows_found;
+
   int runLookupQuery(Ndb*, int records, int batchsize = 1);
   int runScanQuery(Ndb*,
-                   int abort = 0,
+                   int abort = 4,
                    int parallelism = 0,
                    int scan_flags = 0);
 

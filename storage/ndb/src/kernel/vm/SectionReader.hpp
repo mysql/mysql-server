@@ -70,6 +70,11 @@ public:
   PosInfo getPos();
   bool setPos(PosInfo posinfo);
 
+  /**
+   * Update word at current position to <em>value</em>
+   */
+  bool updateWord(Uint32 value) const ;
+
 private:
   Uint32 m_pos;
   Uint32 m_len;

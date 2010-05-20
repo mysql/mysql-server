@@ -135,11 +135,13 @@ int main(int argc, char** argv)
   NdbTransaction * pTrans = MyNdb.startTransaction();
   NdbScanOperation * pOp = pTrans->scanTable(pTab->getDefaultRecord(), 
                                              NdbOperation::LM_CommittedRead);
+
+  bool scanindexchild = false;
 #if 0
   /**
-   * select STRAIGHT_JOIN *
-   * from t1 join t1 as t2 
-   * where t2.a = t1.b and t1.b <= 100 and t2.b <= 3;
+     select STRAIGHT_JOIN *
+     from t1 join t1 as t2 
+     where t2.a = t1.b and t1.b <= 100 and t2.b <= 3;
    *
    * - ScanFrag
    * PI_ATTR_INTERPRET w/ values inlined
@@ -164,7 +166,7 @@ int main(int argc, char** argv)
     0x00000001, // table version
     0x00000001, // parent list
     0x00000001, // key pattern: #parameters/#len
-    0x00020000, // P_COL col = 0
+    QueryPattern::col(0), // P_COL col = 0
 
     // ScanFragParameters
     0x000c0002, // type/len
@@ -186,8 +188,8 @@ int main(int argc, char** argv)
     0x1000001c, // result data
 
     0x00020004, // #len subroutine / #len interpreted program
-    0x0003301a, // p0: BRANCH_ATTR_OP_COL | LE | OFFSET-JUMP
-    0x00000000, // p0: param ref 0
+    0x0003301a, // p0: BRANCH_ATTR_OP_COL2 | LE | OFFSET-JUMP
+    0x00010000, // p0: attrid: 1, param ref 0
     0x00000012, // p1: EXIT_OK
     0x03830013, // p2: EXIT_NOK
     0x00000004, // param 0 header
@@ -229,14 +231,14 @@ int main(int argc, char** argv)
     0x00000001, // table version
     0x00000001, // parent list
     0x00000001, // key pattern: #parameters/#len
-    0x00020000, // P_COL col = 0
+    QueryPattern::col(0), // P_COL col = 0
     0x00010004, // attrinfo pattern: #len-pattern / #len interpreted program
     0x0003301a, // p0: BRANCH_ATTR_OP_COL_2 | LE | OFFSET-JUMP
     0x00010000, // p0: attrid: 1 / program param 0
     0x00000012, // p1: EXIT_OK
     0x03830013, // p2: EXIT_NOK
     0x00000001, // attr-param pattern: #parameters
-    0x00060000, // attr-param pattern: P_PARAM_WITH_HEADER col=0
+    QueryPattern::paramHeader(0), // P_PARAM_WITH_HEADER col=0
 
     // ScanFragParameters
     0x000c0002, // type/len
@@ -262,7 +264,7 @@ int main(int argc, char** argv)
     0xfff00002, // read all
     0xffe90000  // read any value
   };
-#else
+#elif 0
   /**
    *
    * select STRAIGHT_JOIN *
@@ -294,14 +296,14 @@ int main(int argc, char** argv)
     0x00000001, // table version
     0x00000001, // parent list
     0x00000001, // key pattern: #parameters/#len
-    0x00020000, // P_COL col = 0
+    QueryPattern::col(0), // P_COL col = 0
     0x00010004, // attrinfo pattern: #len-pattern / #len interpreted program
     0x0003301a, // p0: BRANCH_ATTR_OP_COL_2 | LE | OFFSET-JUMP
     0x00010000, // p0: attrid: 1 / program param 0
     0x00000012, // p1: EXIT_OK
     0x03830013, // p2: EXIT_NOK
     0x00000000, // attr-param pattern: #parameters
-    0x00070000, // attr-param pattern: P_ATTRINFO col=0
+    QueryPattern::attrInfo(0), // attr-param pattern: P_ATTRINFO col=0
 
     // ScanFragParameters
     0x000c0002, // type/len
@@ -325,7 +327,59 @@ int main(int argc, char** argv)
     0xfff00002, // read all
     0xffe90000  // read any value
   };
+#else
+  /**
+     select STRAIGHT_JOIN *
+     from t1 join t1 as t2 on t2.a >= t1.b;
+  */
+
+  scanindexchild = true;
+  Uint32 request[] = {
+    // pos: 0
+    0x000d0002, 
+
+    // pos: 1 ScanFragNode
+    0x00050002, // len-type
+    DABits::NI_LINKED_ATTR, // bits
+    0x0000000c, // table id
+    0x00000001, // table version
+    0x00010001, // #cnt, linked attr
+
+    // pos: 6 ScanIndexNode
+    0x00090003, // type len
+    DABits::NI_HAS_PARENT | DABits::NI_KEY_LINKED, // bits
+    0x0000000b, // table id
+    0x00000001, // table version
+    0x00000001, // parent list
+    0x00000003, // key pattern (cnt/len)
+    QueryPattern::data(1), // P_DATA len = 1
+    0x00000002, // BoundLE
+    QueryPattern::attrInfo(0), // P_ATTRINFO col = 0
+
+    // pos: 15 ScanFragParameters
+    0x00080002, // type len
+    0x00000009, // bits
+    0x10000020, // result data
+    0x00000001, // param/len interpret program
+    0x00000012, // p1 = exit ok
+    0x00000002, // len user projection
+    0xfff00002, // up 1 - read all
+    0xffe90000, // up 2 - read any value
+
+    // pos: 23 ScanIndexParameters
+    0x000a0003, // type/len
+    0x00020009, // bits
+    0xffff0100, // batch size
+    0x10000024, // result data
+    0x00000001, // param/len interpret program
+    0x00000012, // p1 = exit ok
+    0x00000003, // len user projection
+    0xfff00002, // up 1 - read all
+    0xffe90000, // up 2 - read any value
+    0xfffb0000
+  };
 #endif
+
   Uint32 n0 = (request[1] >> 16);
   Uint32 n1 = (request[1 + n0] >> 16);
   request[0] = ((1 + n0 + n1) << 16) | 2;
@@ -333,8 +387,16 @@ int main(int argc, char** argv)
   request[1+2] = pTab->getObjectId();
   request[1+3] = pTab->getObjectVersion();
 
-  request[1 + n0 + 2] = pTab->getObjectId();
-  request[1 + n0 + 3] = pTab->getObjectVersion();
+  if (scanindexchild == false)
+  {
+    request[1 + n0 + 2] = pTab->getObjectId();
+    request[1 + n0 + 3] = pTab->getObjectVersion();
+  }
+  else
+  {
+    request[1 + n0 + 2] = pIdx->getObjectId();
+    request[1 + n0 + 3] = pIdx->getObjectVersion();
+  }
 
   NdbScanFilterImpl::setIsLinkedFlag(pOp);
   NdbScanFilterImpl::set(pOp, request, NDB_ARRAY_SIZE(request));
@@ -344,3 +406,4 @@ int main(int argc, char** argv)
 
   return NDBT_ProgramExit(NDBT_OK);
 }
+
