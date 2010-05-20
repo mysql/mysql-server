@@ -44,7 +44,8 @@
 
 #include "ydb-internal.h"
 
-enum test_type {commit,                  // close loader, commit txn
+enum test_type {event,                   // any event
+		commit,                  // close loader, commit txn
 		abort_txn,               // close loader, abort txn
 		abort_loader,            // abort loader, abort txn
 		abort_via_poll,          // close loader, but poll function returns non-zero, abort txn
@@ -66,6 +67,8 @@ int NUM_ROWS=100000;
 //static int NUM_ROWS=50000000;
 int CHECK_RESULTS=0;
 int USE_PUTS=0;
+int event_trigger_lo=0;  // what event triggers to use?
+int event_trigger_hi =0; // 0 and 0 mean none.
 int assert_temp_files = 0;
 enum {MAGIC=311};
 
@@ -84,6 +87,10 @@ static void free_inames(DBT* inames);
 
 // how many different system calls are intercepted with error injection
 #define NUM_ERR_TYPES 7
+
+int64_t event_count = 0;          // number of calls of all types so far (in this run)
+int64_t event_count_nominal = 0;  // number of calls of all types in the nominally error-free run.
+int64_t event_count_trigger = 0;  // which call will we complain about
 
 int fwrite_count = 0;
 int fwrite_count_nominal = 0;  // number of fwrite calls for normal operation, initially zero
@@ -114,45 +121,31 @@ int fclose_count_nominal = 0;  // number of fclose calls for normal operation, i
 int fclose_count_trigger = 0;  // sequence number of fclose call that will fail (zero disables induced failure)
 
 
-
-
-const char * fwrite_str = "fwrite";
-const char *  write_str = "write";
-const char * pwrite_str = "pwrite";
-const char * fdopen_str = "fdopen";
-const char * fopen_str  = "fopen";
-const char * open_str   = "open";
-const char * fclose_str = "fclose";
-
-
 static const char *
 err_type_str (enum test_type t) {
-    const char * rval;
     switch(t) {
-    case enospc_f:
-	rval = fwrite_str;      break;
-    case enospc_w:
-	rval = write_str;       break;
-    case enospc_p:
-	rval = pwrite_str;      break;
-    case einval_fdo:
-	rval = fdopen_str;      break;
-    case einval_fo:
-	rval = fopen_str;       break;
-    case einval_o:
-	rval = open_str;        break;
-    case enospc_fc:
-	rval = fclose_str;      break;
-    default:
-	assert(0);
+    case event:          return "anyevent";
+    case enospc_f:       return "fwrite";
+    case enospc_w:       return "write";
+    case enospc_p:       return "pwrite";
+    case einval_fdo:     return "fdopen";
+    case einval_fo:      return "fopen";
+    case einval_o:       return "open";
+    case enospc_fc:      return "fclose";
+    case commit:         assert(0);
+    case abort_txn:      assert(0);
+    case abort_loader:   assert(0);
+    case abort_via_poll: assert(0);
     }
-    return rval;
+    // I know that Barry prefers the single-return case, but writing the code this way means that the compiler will complain if I forget something in the enum. -Bradley
+    assert(0);
 }
 
 static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stream) {
     fwrite_count++;
+    event_count++;
     size_t r;
-    if (fwrite_count_trigger == fwrite_count) {
+    if (fwrite_count_trigger == fwrite_count || event_count == event_count_trigger) {
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -169,7 +162,8 @@ static ssize_t
 bad_write(int fd, const void * bp, size_t len) {
     ssize_t r;
     write_count++;
-    if (write_count_trigger == write_count) {
+    event_count++;
+    if (write_count_trigger == write_count || event_count == event_count_trigger) {
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -182,7 +176,8 @@ static ssize_t
 bad_pwrite (int fd, const void *buf, size_t len, toku_off_t off) {
     int r;
     pwrite_count++;
-    if (pwrite_count_trigger == pwrite_count) {
+    event_count++;
+    if (pwrite_count_trigger == pwrite_count || event_count == event_count_trigger) {
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -197,7 +192,8 @@ static FILE *
 bad_fdopen(int fd, const char * mode) {
     FILE * rval;
     fdopen_count++;
-    if (fdopen_count_trigger == fdopen_count) {
+    event_count++;
+    if (fdopen_count_trigger == fdopen_count || event_count == event_count_trigger) {
 	errno = EINVAL;
 	rval  = NULL;
     } else {
@@ -210,7 +206,8 @@ static FILE *
 bad_fopen(const char *filename, const char *mode) {
     FILE * rval;
     fopen_count++;
-    if (fopen_count_trigger == fopen_count) {
+    event_count++;
+    if (fopen_count_trigger == fopen_count || event_count == event_count_trigger) {
 	errno = EINVAL;
 	rval  = NULL;
     } else {
@@ -224,7 +221,8 @@ static int
 bad_open(const char *path, int oflag, int mode) {
     int rval;
     open_count++;
-    if (open_count_trigger == open_count) {
+    event_count++;
+    if (open_count_trigger == open_count || event_count == event_count_trigger) {
 	errno = EINVAL;
 	rval = -1;
     } else {
@@ -239,11 +237,14 @@ static int
 bad_fclose(FILE * stream) {
     int rval;
     fclose_count++;
-    if (fclose_count_trigger == fclose_count) {
-	errno = ENOSPC;
-	rval = -1;
-    } else {
-	rval = fclose(stream);
+    event_count++;
+    // Must close the stream even in the "error case" because otherwise there is no way to get the memory back.
+    rval = fclose(stream);
+    if (rval==0) {
+	if (fclose_count_trigger == fclose_count || event_count == event_count_trigger) {
+	    errno = ENOSPC;
+	    rval = -1;
+	}
     }
     return rval;
 }
@@ -748,6 +749,7 @@ static void run_test(enum test_type t, int trigger)
 
     generate_permute_tables();
 
+    event_count_trigger  = event_count  = 0;
     fwrite_count_trigger = fwrite_count = 0;
     write_count_trigger  =  write_count = 0;
     pwrite_count_trigger = pwrite_count = 0;
@@ -762,6 +764,8 @@ static void run_test(enum test_type t, int trigger)
     case abort_loader:
     case abort_via_poll:
 	break;
+    case event:
+	event_count_trigger  = trigger;      break;
     case enospc_f:
 	fwrite_count_trigger = trigger;      break;
     case enospc_w:
@@ -821,6 +825,13 @@ static void run_all_tests(void) {
     if (verbose) printf("\n\nTesting loader with loader close and txn abort\n");
     run_test(abort_txn, 0);
 
+    if (event_trigger_lo || event_trigger_hi) {
+	if (verbose) printf("\n\nDoing events %d-%d\n", event_trigger_lo, event_trigger_hi);
+	for (int i=event_trigger_lo; i<=event_trigger_hi; i++)
+	    run_test(event, i);
+	return;
+    }
+
     enum test_type et[NUM_ERR_TYPES] = {enospc_f, enospc_w, enospc_p, einval_fdo, einval_fo, einval_o, enospc_fc};
     int * nomp[NUM_ERR_TYPES] = {&fwrite_count_nominal, &write_count_nominal, &pwrite_count_nominal,
 				 &fdopen_count_nominal, &fopen_count_nominal, &open_count_nominal, &fclose_count_nominal};
@@ -868,6 +879,7 @@ int test_main(int argc, char * const *argv) {
     db_env_set_loader_size_factor(1);
     assert_temp_files = 1;
     run_all_tests();
+    printf("\nTotal event_trigger count is %" PRId64 ".  (Use with -t N M, where 1<=N<=M<=%" PRId64 "\n", event_count, event_count);
 
     return 0;
 }
@@ -903,6 +915,12 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-p")==0) {
             USE_PUTS = LOADER_USE_PUTS;
 	    printf("Using puts\n");
+	} else if (strcmp(argv[0], "-t")==0) {
+	    assert(argc>2);
+	    argc--; argv++;
+	    event_trigger_lo = atoi(argv[0]);
+	    argc--; argv++;
+	    event_trigger_hi = atoi(argv[0]);
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
 	    resultcode=1;
