@@ -22,6 +22,7 @@
 */
 
 extern bool pfs_initialized;
+extern ulonglong pfs_allocated_memory;
 
 void *pfs_malloc(size_t size, myf flags);
 #define PFS_MALLOC_ARRAY(n, T, f) \

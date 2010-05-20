@@ -11,6 +11,16 @@ select @@debug;
 set debug= '-P';
 select @@debug;
 
+#
+# Bug#38054: "SET SESSION debug" modifies @@global.debug variable
+#
+
+SELECT @@session.debug, @@global.debug;
+
+SET SESSION debug = '';
+
+SELECT @@session.debug, @@global.debug;
+
 --echo #
 --echo # Bug #52629: memory leak from sys_var_thd_dbug in 
 --echo #  binlog.binlog_write_error
