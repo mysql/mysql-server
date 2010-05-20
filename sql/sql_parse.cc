@@ -274,22 +274,20 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_CREATE_TRIGGER]= CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DROP_TRIGGER]=   CF_AUTO_COMMIT_TRANS;
 
-  sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE | CF_PROTECT_AGAINST_GRL;
-  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
-                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE |
+                                            CF_PROTECT_AGAINST_GRL;
+  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE;
   sql_command_flags[SQLCOM_SET_OPTION]=     CF_REEXECUTION_FRAGILE | CF_AUTO_COMMIT_TRANS;
   sql_command_flags[SQLCOM_DO]=             CF_REEXECUTION_FRAGILE;
@@ -367,8 +365,7 @@ void init_update_queries(void)
     last called (or executed) statement is preserved.
     See mysql_execute_command() for how CF_ROW_COUNT is used.
   */
-  sql_command_flags[SQLCOM_CALL]=      CF_HAS_ROW_COUNT | CF_REEXECUTION_FRAGILE;
-  sql_command_flags[SQLCOM_EXECUTE]=   CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_CALL]=      CF_REEXECUTION_FRAGILE;
 
   /*
     The following admin table operations are allowed
@@ -461,7 +458,6 @@ static void handle_bootstrap_impl(THD *thd)
 {
   MYSQL_FILE *file= bootstrap_file;
   char *buff;
-  const char* found_semicolon= NULL;
 
   DBUG_ENTER("handle_bootstrap");
 
@@ -534,7 +530,8 @@ static void handle_bootstrap_impl(THD *thd)
       mode we have only one thread.
     */
     thd->set_time();
-    mysql_parse(thd, thd->query(), length, & found_semicolon);
+    Parser_state parser_state(thd, thd->query(), length);
+    mysql_parse(thd, thd->query(), length, &parser_state);
     close_thread_tables(thd);			// Free tables
 
     bootstrap_error= thd->is_error();
@@ -1077,19 +1074,21 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       (char *) thd->security_ctx->host_or_ip);
     char *packet_end= thd->query() + thd->query_length();
     /* 'b' stands for 'buffer' parameter', special for 'my_snprintf' */
-    const char* end_of_stmt= NULL;
 
     general_log_write(thd, command, thd->query(), thd->query_length());
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 #if defined(ENABLED_PROFILING)
     thd->profiling.set_query_source(thd->query(), thd->query_length());
 #endif
+    Parser_state parser_state(thd, thd->query(), thd->query_length());
 
-    mysql_parse(thd, thd->query(), thd->query_length(), &end_of_stmt);
+    mysql_parse(thd, thd->query(), thd->query_length(), &parser_state);
 
-    while (!thd->killed && (end_of_stmt != NULL) && ! thd->is_error())
+    while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
+           ! thd->is_error())
     {
-      char *beginning_of_next_stmt= (char*) end_of_stmt;
+      char *beginning_of_next_stmt= (char*)
+        parser_state.m_lip.found_semicolon;
 
       thd->protocol->end_statement();
       query_cache_end_of_result(thd);
@@ -1130,8 +1129,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       */
       statistic_increment(thd->status_var.questions, &LOCK_status);
       thd->set_time(); /* Reset the query start time. */
+      parser_state.reset(beginning_of_next_stmt, length);
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
-      mysql_parse(thd, beginning_of_next_stmt, length, &end_of_stmt);
+      mysql_parse(thd, beginning_of_next_stmt, length, &parser_state);
     }
 
     DBUG_PRINT("info",("query ready"));
@@ -3184,7 +3184,7 @@ end_with_restore_list:
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
                       lex->duplicates, lex->ignore);
-    MYSQL_INSERT_DONE(res, (ulong) thd->row_count_func);
+    MYSQL_INSERT_DONE(res, (ulong) thd->get_row_count_func());
     /*
       If we have inserted into a VIEW, and the base table has
       AUTO_INCREMENT column, but this column is not accessible through
@@ -3250,7 +3250,7 @@ end_with_restore_list:
         delete sel_result;
       }
       /* revert changes for SP */
-      MYSQL_INSERT_SELECT_DONE(res, (ulong) thd->row_count_func);
+      MYSQL_INSERT_SELECT_DONE(res, (ulong) thd->get_row_count_func());
       select_lex->table_list.first= (uchar*) first_table;
     }
     /*
@@ -3296,7 +3296,7 @@ end_with_restore_list:
                        &select_lex->order_list,
                        unit->select_limit_cnt, select_lex->options,
                        FALSE);
-    MYSQL_DELETE_DONE(res, (ulong) thd->row_count_func);
+    MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -4299,8 +4299,9 @@ create_sp_error:
         thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)
-          my_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 :
-                              thd->row_count_func));
+        {
+          my_ok(thd, (thd->get_row_count_func() < 0) ? 0 : thd->get_row_count_func());
+        }
 	else
         {
           DBUG_ASSERT(thd->is_error() || thd->killed);
@@ -4686,15 +4687,6 @@ create_sp_error:
   */
   if (thd->one_shot_set && lex->sql_command != SQLCOM_SET_OPTION)
     reset_one_shot_variables(thd);
-
-  /*
-    The return value for ROW_COUNT() is "implementation dependent" if the
-    statement is not DELETE, INSERT or UPDATE, but -1 is what JDBC and ODBC
-    wants. We also keep the last value in case of SQLCOM_CALL or
-    SQLCOM_EXECUTE.
-  */
-  if (!(sql_command_flags[lex->sql_command] & CF_HAS_ROW_COUNT))
-    thd->row_count_func= -1;
 
   goto finish;
 
@@ -5732,7 +5724,7 @@ void mysql_init_multi_delete(LEX *lex)
 */
 
 void mysql_parse(THD *thd, const char *inBuf, uint length,
-                 const char ** found_semicolon)
+                 Parser_state *parser_state)
 {
   int error;
   DBUG_ENTER("mysql_parse");
@@ -5762,10 +5754,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
   {
     LEX *lex= thd->lex;
 
-    Parser_state parser_state(thd, inBuf, length);
-
-    bool err= parse_sql(thd, & parser_state, NULL);
-    *found_semicolon= parser_state.m_lip.found_semicolon;
+    bool err= parse_sql(thd, parser_state, NULL);
 
     if (!err)
     {
@@ -5780,6 +5769,7 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
       {
 	if (! thd->is_error())
 	{
+          const char *found_semicolon= parser_state->m_lip.found_semicolon;
           /*
             Binlog logs a string starting from thd->query and having length
             thd->query_length; so we set thd->query_length correctly (to not
@@ -5790,12 +5780,12 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
             PROCESSLIST.
             Note that we don't need LOCK_thread_count to modify query_length.
           */
-          if (*found_semicolon && (ulong) (*found_semicolon - thd->query()))
+          if (found_semicolon && (ulong) (found_semicolon - thd->query()))
             thd->set_query_inner(thd->query(),
-                                 (uint32) (*found_semicolon -
+                                 (uint32) (found_semicolon -
                                            thd->query() - 1));
           /* Actually execute the query */
-          if (*found_semicolon)
+          if (found_semicolon)
           {
             lex->safe_to_cache_query= 0;
             thd->server_status|= SERVER_MORE_RESULTS_EXISTS;
@@ -5831,11 +5821,6 @@ void mysql_parse(THD *thd, const char *inBuf, uint length,
     thd->end_statement();
     thd->cleanup_after_query();
     DBUG_ASSERT(thd->change_list.is_empty());
-  }
-  else
-  {
-    /* There are no multi queries in the cache. */
-    *found_semicolon= NULL;
   }
 
   DBUG_VOID_RETURN;

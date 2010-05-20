@@ -27,6 +27,6 @@ MACRO (MY_ADD_TEST name)
 ENDMACRO()
 
 
-FOREACH(testname bitmap base64 my_vsnprintf my_atomic my_rdtsc lf)
+FOREACH(testname bitmap base64 my_vsnprintf my_atomic my_rdtsc lf waiting_threads)
   MY_ADD_TEST(${testname})
 ENDFOREACH()

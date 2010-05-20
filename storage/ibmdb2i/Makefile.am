@@ -50,5 +50,3 @@ libibmdb2i_a_SOURCES=	$(ha_ibmdb2i_la_SOURCES)
 
 
 EXTRA_DIST =		CMakeLists.txt plug.in
-# Don't update the files from bitkeeper
-%::SCCS/s.%
