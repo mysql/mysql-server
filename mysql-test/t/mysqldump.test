@@ -1983,6 +1983,7 @@ drop table if exists `load`;
 create table `load` (a varchar(255));
 
 --copy_file std_data/words.dat $MYSQLTEST_VARDIR/tmp/load.txt
+--chmod 0644 $MYSQLTEST_VARDIR/tmp/load.txt
 
 --exec $MYSQL_IMPORT --ignore test $MYSQLTEST_VARDIR/tmp/load.txt
 
