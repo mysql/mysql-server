@@ -82,9 +82,9 @@ memory is read outside the allocated blocks. */
 
 /* Make a non-inline debug version */
 
-#ifdef HAVE_purify
+#if defined HAVE_VALGRIND
 # define UNIV_DEBUG_VALGRIND
-#endif /* HAVE_purify */
+#endif /* HAVE_VALGRIND */
 #if 0
 #define UNIV_DEBUG_VALGRIND			/* Enable extra
 						Valgrind instrumentation */
