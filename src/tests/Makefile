@@ -673,3 +673,12 @@ loader-dup-test4.tdbrun: loader-dup-test.tdb$(BINSUF)
 loader-dup-test5.tdbrun: loader-dup-test.tdb$(BINSUF)
 	$(VGRIND) ./loader-dup-test.tdb -d 1 -s -r 1000 -E -e 5 $(SUMMARIZE_CMD)
 
+loader-cleanup-test.tdbrun: $(patsubst %,loader-cleanup-test%.tdbrun, 1)
+	true $(SUMMARIZE_CMD) #State that this has passed.
+
+## Cannot run loader-cleanup-test parallel till we fix #2645.
+#loader-cleanup-test0.tdbrun: loader-cleanup-test.tdb$(BINSUF)
+#	./loader-cleanup-test.tdb $(SUMMARIZE_CMD)
+
+loader-cleanup-test1.tdbrun: loader-cleanup-test.tdb$(BINSUF)
+	$(VGRIND) ./loader-cleanup-test.tdb -r 1000 $(SUMMARIZE_CMD)

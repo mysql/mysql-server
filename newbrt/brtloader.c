@@ -1724,9 +1724,10 @@ int merge_files (struct merge_fileset *fs,
 	    }
 	    for (int i=0; i<n_to_merge; i++) {
 		int idx = fs->n_temp_files -1 -i;
-		data_fidxs[i] = fs->data_fidxs[idx];
-		result = brtloader_fi_reopen(&bl->file_infos, data_fidxs[i], "r");
-		if (result) { printf("%s:%d r=%d\n", __FILE__, __LINE__, result); break; }
+		FIDX fidx = fs->data_fidxs[idx];
+		result = brtloader_fi_reopen(&bl->file_infos, fidx, "r");
+		if (result) break;
+		data_fidxs[i] = fidx;
 	    }
 	    if (result==0 && !to_queue) {
 		result = extend_fileset(bl, &next_file_set,  &merged_data);
@@ -1777,6 +1778,7 @@ int merge_files (struct merge_fileset *fs,
 
 	if (result!=0) break;
     }
+    if (result) brt_loader_set_panic(bl, result);
     {
 	int r = queue_eof(output_q);
 	if (r!=0 && result==0) result = r;
