@@ -2339,7 +2339,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
       TODO During the optimization phase we should evaluate only inexpensive
            single-lookup subqueries.
     */
-    if (check_stack_overrun(thd, 3*STACK_MIN_SIZE, NULL))
+    if (check_stack_overrun(thd, 3*STACK_MIN_SIZE + sizeof(PARAM), NULL))
       DBUG_RETURN(0);                           // Fatal error flag is set
 
     /* set up parameter that is passed to all functions */
