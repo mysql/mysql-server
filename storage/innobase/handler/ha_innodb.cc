@@ -759,6 +759,10 @@ convert_error_code_to_mysql(
 	} else if (error == DB_UNSUPPORTED) {
 
 		return(HA_ERR_UNSUPPORTED);
+	} else if (error == DB_INTERRUPTED) {
+
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		return(-1);
     	} else {
     		return(-1);			// Unknown error
     	}
