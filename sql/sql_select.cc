@@ -589,6 +589,7 @@ JOIN::prepare(Item ***rref_pointer_array,
       1) this join is inside a subquery (of any type except FROM-clause 
          subquery) and
       2) we aren't just normalizing a VIEW
+      3) we aren't in a DESCRIBE
 
     Then perform early unconditional subquery transformations:
      - Convert subquery predicate into semi-join, or
@@ -696,6 +697,11 @@ JOIN::prepare(Item ***rref_pointer_array,
         2. Subquery is a single SELECT (not a UNION)
         3. Subquery is not a table-less query. In this case there is no
            point in materializing.
+           3A The upper query is not a confluent SELECT ... FROM DUAL. We
+             can't do materialization for SELECT .. FROM DUAL because it
+             does not call setup_subquery_materialization(). We could make 
+             SELECT ... FROM DUAL call that function but that doesn't seem
+             to be the case that is worth handling.
         4. Subquery predicate is a top-level predicate
            (this implies it is not negated)
            TODO: this is a limitation that should be lifted once we
