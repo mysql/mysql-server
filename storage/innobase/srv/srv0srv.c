@@ -814,7 +814,6 @@ srv_table_get_nth_slot(
 /*===================*/
 	ulint	index)		/*!< in: index of the slot */
 {
-	ut_ad(srv_sys_mutex_own());
 	ut_a(index < OS_THREAD_MAX_N);
 
 	return(srv_sys->sys_threads + index);
@@ -1102,6 +1101,8 @@ srv_free(void)
 	mem_free(srv_conc_slots);
 	srv_conc_slots = NULL;
 
+	mutex_free(&srv_sys->mutex);
+	mutex_free(&srv_sys->tasks_mutex);
 	mem_free(srv_sys);
 	srv_sys = NULL;
 
