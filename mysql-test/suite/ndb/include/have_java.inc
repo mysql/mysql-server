@@ -66,7 +66,6 @@ my $pathsep = "/";
 
 if(!IS_WINDOWS)
 {
-  push(@arch_paths, ('/usr/local/jdk', '/usr/local/java', '/usr/local/java/jdk'));
   push(@arch_paths, ('/usr/lib/jvm/java', '/usr/lib64/jvm/java'));
 
   $java_args = "-d32";
@@ -76,6 +75,10 @@ if(!IS_WINDOWS)
   if ($bits == 64) {
     map { $_ . "-64" } @arch_paths;
     $java_args = "-d64";
+    push(@arch_paths, ('/usr/local/jdk', '/usr/local/java', '/usr/local/java/jdk'));
+    push(@arch_paths, ('/usr/java-local/jdk-64/', '/usr/local/jdk-64', '/usr/local/java/jdk-64'));
+  } else {
+    push(@arch_paths, ('/usr/local/jdk', '/usr/local/java', '/usr/local/java/jdk'));
   }
 }
 else
@@ -105,7 +108,7 @@ sub java_exists {
    my $devnull = "/dev/null";
    $devnull = "NUL" if IS_WINDOWS;
 
-   system($exists . " -version > " . $devnull);
+   system($exists . " " . $java_args . " -version > " . $devnull);
    my $ret =  $exists if ($? == 0);
    return $ret; 
 }
