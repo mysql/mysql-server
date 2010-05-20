@@ -3109,13 +3109,19 @@ loop:
 	for the 'very fast' shutdown, because the InnoDB layer may have
 	committed or prepared transactions and we don't want to lose them. */
 
+	trx_sys_mutex_enter();
+
 	if (trx_n_mysql_transactions > 0
 	    || UT_LIST_GET_LEN(trx_sys->trx_list) > 0) {
 
 		mutex_exit(&kernel_mutex);
 
+		trx_sys_mutex_exit();
+
 		goto loop;
 	}
+
+	trx_sys_mutex_exit();
 
 	if (srv_fast_shutdown == 2) {
 		/* In this fastest shutdown we do not flush the buffer pool:

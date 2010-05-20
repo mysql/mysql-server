@@ -453,17 +453,13 @@ lock_check_trx_id_sanity(
 	trx_id_t	trx_id,		/*!< in: trx id */
 	const rec_t*	rec,		/*!< in: user record */
 	dict_index_t*	index,		/*!< in: index */
-	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index) */
-	ibool		has_kernel_mutex)/*!< in: TRUE if the caller owns the
-					kernel mutex */
+	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
 {
 	ibool	is_ok		= TRUE;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (!has_kernel_mutex) {
-		mutex_enter(&kernel_mutex);
-	}
+	trx_sys_mutex_enter();
 
 	/* A sanity check: the trx_id in rec must be smaller than the global
 	trx id counter */
@@ -487,9 +483,7 @@ lock_check_trx_id_sanity(
 		is_ok = FALSE;
 	}
 
-	if (!has_kernel_mutex) {
-		mutex_exit(&kernel_mutex);
-	}
+	trx_sys_mutex_exit();
 
 	return(is_ok);
 }
@@ -1605,7 +1599,7 @@ lock_sec_rec_some_has_impl_off_kernel(
 	implicit x-lock. We have to look in the clustered index. */
 
 	if (!lock_check_trx_id_sanity(page_get_max_trx_id(page),
-				      rec, index, offsets, TRUE)) {
+				      rec, index, offsets)) {
 		buf_page_print(page, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning
@@ -3275,12 +3269,16 @@ retry:
 	does not produce a cycle. First mark all active transactions
 	with 0: */
 
+	trx_sys_mutex_enter();
+
 	mark_trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (mark_trx) {
 		mark_trx->deadlock_mark = 0;
 		mark_trx = UT_LIST_GET_NEXT(trx_list, mark_trx);
 	}
+
+	trx_sys_mutex_exit();
 
 	ret = lock_deadlock_recursive(trx, trx, lock, &cost, 0);
 
@@ -4031,8 +4029,12 @@ lock_release_off_kernel(
 
 				table = lock->un_member.tab_lock.table;
 
+				trx_sys_mutex_enter();
+
 				table->query_cache_inv_trx_id
 					= trx_sys->max_trx_id;
+
+				trx_sys_mutex_exit();
 			}
 
 			lock_table_dequeue(lock);
@@ -4921,6 +4923,8 @@ lock_validate(void)
 
 	lock_mutex_enter_kernel();
 
+	trx_sys_mutex_enter();
+
 	trx = UT_LIST_GET_FIRST(trx_sys->trx_list);
 
 	while (trx) {
@@ -4938,6 +4942,8 @@ lock_validate(void)
 
 		trx = UT_LIST_GET_NEXT(trx_list, trx);
 	}
+
+	trx_sys_mutex_exit();
 
 	for (i = 0; i < hash_get_n_cells(lock_sys->rec_hash); i++) {
 

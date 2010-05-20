@@ -101,13 +101,6 @@ trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 /********************************************************************//**
-Frees a transaction object. */
-UNIV_INTERN
-void
-trx_free(
-/*=====*/
-	trx_t*	trx);	/*!< in, own: trx object */
-/********************************************************************//**
 Frees a transaction object for MySQL. */
 UNIV_INTERN
 void

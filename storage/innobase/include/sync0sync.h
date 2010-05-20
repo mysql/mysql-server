@@ -588,6 +588,9 @@ Kernel mutex				If a kernel operation needs a file
 |					fsp x-latch before acquiring the kernel
 |					mutex.
 V
+trx_sys_mutex				Mutex protecting trx_sys_t
+|
+V
 Threads mutex				Thread scheduling mutex
 |
 V
@@ -661,9 +664,10 @@ or row lock! */
 /*------------------------------------- MySQL binlog mutex */
 /*-------------------------------*/
 #define	SYNC_KERNEL		300
-#define SYNC_THREADS		299
-#define SYNC_REC_LOCK		298
-#define	SYNC_TRX_LOCK_HEAP	297
+#define SYNC_TRX_SYS		299
+#define SYNC_THREADS		298
+#define SYNC_REC_LOCK		297
+#define	SYNC_TRX_LOCK_HEAP	296
 #define SYNC_TRX_SYS_HEADER	290
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	147

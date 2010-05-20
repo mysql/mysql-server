@@ -129,11 +129,17 @@ void
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
-Creates and initializes the transaction system at the database creation. */
+Creates the trx_sys instance and initializes its mutex only. */
 UNIV_INTERN
 void
 trx_sys_create(void);
 /*================*/
+/*****************************************************************//**
+Creates and initializes the transaction system at the database creation. */
+UNIV_INTERN
+void
+trx_sys_create_sys_pages(void);
+/*==========================*/
 /****************************************************************//**
 Looks for a free slot for a rollback segment in the trx system file copy.
 @return	slot index or ULINT_UNDEFINED if not found */
@@ -220,13 +226,6 @@ Allocates a new transaction id.
 UNIV_INLINE
 trx_id_t
 trx_sys_get_new_trx_id(void);
-/*========================*/
-/*****************************************************************//**
-Allocates a new transaction number.
-@return	new, allocated trx number */
-UNIV_INLINE
-trx_id_t
-trx_sys_get_new_trx_no(void);
 /*========================*/
 #endif /* !UNIV_HOTBACKUP */
 /*****************************************************************//**
@@ -598,6 +597,10 @@ struct trx_doublewrite_struct{
 /** The transaction system central memory data structure; protected by the
 kernel mutex */
 struct trx_sys_struct{
+	mutex_t		mutex;		/*!< mutex protecting all the fields
+					in this structure except rseg_list.
+					That is protected by the purge_sys
+					mutex */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
@@ -631,6 +634,19 @@ two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 #define TRX_SYS_TRX_ID_WRITE_MARGIN	256
 #endif /* !UNIV_HOTBACKUP */
+
+/** Test if trx_sys->mutex mutex is owned. */
+#define trx_sys_mutex_own() mutex_own(&trx_sys->mutex)
+
+/** Acquire the trx_sys->mutex. */
+#define trx_sys_mutex_enter() do {		\
+	mutex_enter(&trx_sys->mutex);		\
+} while (0)
+
+/** Release the trx_sys->mutex. */
+#define trx_sys_mutex_exit() do {		\
+	mutex_exit(&trx_sys->mutex);		\
+} while (0)
 
 #ifndef UNIV_NONINL
 #include "trx0sys.ic"

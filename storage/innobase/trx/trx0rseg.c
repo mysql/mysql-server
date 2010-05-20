@@ -50,11 +50,15 @@ trx_rseg_get_on_id(
 {
 	trx_rseg_t*	rseg;
 
+	trx_sys_mutex_enter();
+
 	rseg = UT_LIST_GET_FIRST(trx_sys->rseg_list);
 
 	while (rseg && rseg->id != id) {
 		rseg = UT_LIST_GET_NEXT(rseg_list, rseg);
 	}
+
+	trx_sys_mutex_exit();
 
 	return(rseg);
 }
@@ -81,7 +85,6 @@ trx_rseg_header_create(
 	buf_block_t*	block;
 
 	ut_ad(mtr);
-	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(mtr_memo_contains(mtr, fil_space_get_latch(space, NULL),
 				MTR_MEMO_X_LOCK));
 
@@ -195,8 +198,6 @@ trx_rseg_mem_create(
 	trx_ulogf_t*	undo_log_hdr;
 	ulint		sum_of_undo_sizes;
 
-	ut_ad(mutex_own(&kernel_mutex));
-
 	rseg = mem_zalloc(sizeof(trx_rseg_t));
 
 	rseg->id = id;
@@ -300,10 +301,8 @@ trx_rseg_create(void)
 	mtr_start(&mtr);
 
 	/* To obey the latching order, acquire the file space
-	x-latch before the kernel mutex. */
+	x-latch before the trx_sys->mutex. */
 	mtr_x_lock(fil_space_get_latch(TRX_SYS_SPACE, NULL), &mtr);
-
-	mutex_enter(&kernel_mutex);
 
 	slot_no = trx_sysf_rseg_find_free(&mtr);
 
@@ -318,8 +317,6 @@ trx_rseg_create(void)
 
 		ut_a(page_no != FIL_NULL);
 
-		ut_ad(!trx_rseg_get_on_id(slot_no));
-
 		sys_header = trx_sysf_get(&mtr);
 
 		space = trx_sysf_rseg_get_space(sys_header, slot_no, &mtr);
@@ -330,7 +327,6 @@ trx_rseg_create(void)
 			slot_no, space, zip_size, page_no, &mtr);
 	}
 
-	mutex_exit(&kernel_mutex);
 	mtr_commit(&mtr);
 
 	return(rseg);

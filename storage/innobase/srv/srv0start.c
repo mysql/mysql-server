@@ -1531,6 +1531,8 @@ innobase_start_or_create_for_mysql(void)
 
 	trx_sys_file_format_init();
 
+	trx_sys_create();
+
 	if (create_new_db) {
 		mtr_start(&mtr);
 
@@ -1542,9 +1544,12 @@ innobase_start_or_create_for_mysql(void)
 		the first rollback segment before the double write buffer.
 		All the remaining rollback segments will be created later,
 		after the double write buffer has been created. */
-		trx_sys_create();
+		trx_sys_create_sys_pages();
 
 		trx_sys_init_at_db_start();
+
+		/* The purge system needs to create the purge view and
+		therefore requires that the trx_sys is inited. */
 
 		trx_purge_sys_create(srv_n_purge_threads);
 
@@ -1569,9 +1574,12 @@ innobase_start_or_create_for_mysql(void)
 
 		dict_boot();
 
-		trx_purge_sys_create(srv_n_purge_threads);
-
 		trx_sys_init_at_db_start();
+
+		/* The purge system needs to create the purge view and
+		therefore requires that the trx_sys is inited. */
+
+		trx_purge_sys_create(srv_n_purge_threads);
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
 
@@ -1628,7 +1636,11 @@ innobase_start_or_create_for_mysql(void)
 		works for space 0. */
 
 		dict_boot();
+
 		trx_sys_init_at_db_start();
+
+		/* The purge system needs to create the purge view and
+		therefore requires that the trx_sys is inited. */
 
 		trx_purge_sys_create(srv_n_purge_threads);
 
@@ -1723,8 +1735,6 @@ innobase_start_or_create_for_mysql(void)
 	os_thread_create(&srv_monitor_thread, NULL,
 			 thread_ids + 4 + SRV_MAX_N_IO_THREADS);
 
-	srv_is_being_started = FALSE;
-
 	if (trx_doublewrite == NULL) {
 		/* Create the doublewrite buffer to a new tablespace */
 
@@ -1744,6 +1754,8 @@ innobase_start_or_create_for_mysql(void)
 	if (err != DB_SUCCESS) {
 		return((int)DB_ERROR);
 	}
+
+	srv_is_being_started = FALSE;
 
 	/* Create the master thread which does purge and other utility
 	operations */

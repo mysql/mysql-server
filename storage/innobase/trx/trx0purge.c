@@ -140,9 +140,9 @@ trx_purge_sys_create(
 /*=================*/
 	ulint	n_purge_threads)	/*!< in: number of purge threads */
 {
-	mutex_enter(&kernel_mutex);
+	ibool	success;
 
-	purge_sys = mem_zalloc(sizeof(*purge_sys));
+	purge_sys = mem_zalloc(sizeof(trx_purge_t));
 
 	rw_lock_create(trx_purge_latch_key,
 		       &purge_sys->latch, SYNC_PURGE_LATCH);
@@ -163,13 +163,21 @@ trx_purge_sys_create(
 
 	purge_sys->trx->is_purge = 1;
 
+	success = trx_start_low(purge_sys->trx, ULINT_UNDEFINED);
+	ut_a(success);
+
 	purge_sys->query = trx_purge_graph_build(
 		purge_sys->trx, n_purge_threads);
 
-	purge_sys->view = read_view_oldest_copy_or_open_new(
-		ut_dulint_zero, purge_sys->heap);
+	/* FIXME: This is not really required, we need to get rid of this
+	depenedency on the kernel mutex. */
+	mutex_enter(&kernel_mutex);
 
-	ut_a(trx_start_low(purge_sys->trx, ULINT_UNDEFINED));
+	trx_sys_mutex_enter();
+
+	purge_sys->view = read_view_purge_open(purge_sys->heap);
+
+	trx_sys_mutex_exit();
 
 	mutex_exit(&kernel_mutex);
 }
@@ -194,14 +202,17 @@ trx_purge_sys_close(void)
 	purge_sys->sess = NULL;
 
 	if (purge_sys->view != NULL) {
-		/* Because acquiring the kernel mutex is a pre-condition
-		of read_view_close(). We don't really need it here. */
 		mutex_enter(&kernel_mutex);
 
-		read_view_close(purge_sys->view);
-		purge_sys->view = NULL;
+		trx_sys_mutex_enter();
+
+		read_view_remove(purge_sys->view);
+
+		trx_sys_mutex_exit();
 
 		mutex_exit(&kernel_mutex);
+
+		purge_sys->view = NULL;
 	}
 
 	rw_lock_free(&purge_sys->latch);
@@ -275,13 +286,7 @@ trx_purge_add_update_undo_to_history(
 	flst_add_first(rseg_header + TRX_RSEG_HISTORY,
 		       undo_header + TRX_UNDO_HISTORY_NODE, mtr);
 
-	os_atomic_inc_ulint(&kernel_mutex, &trx_sys->rseg_history_len, 1);
-
-	//if (trx_sys->rseg_history_len > 10000) {
-
-		/* Inform the purge thread that there is work to do. */
-		//srv_wake_purge_thread_if_not_active();
-	//}
+	os_atomic_inc_ulint(&trx_sys->mutex, &trx_sys->rseg_history_len, 1);
 
 	/* Write the trx number to the undo log header */
 	mlog_write_dulint(undo_header + TRX_UNDO_TRX_NO, trx->no, mtr);
@@ -375,7 +380,7 @@ loop:
 		     log_hdr + TRX_UNDO_HISTORY_NODE, n_removed_logs, &mtr);
 
 	os_atomic_dec_ulint(
-		&kernel_mutex, &trx_sys->rseg_history_len, n_removed_logs);
+		&trx_sys->mutex, &trx_sys->rseg_history_len, n_removed_logs);
 
 	freed = FALSE;
 
@@ -457,9 +462,8 @@ loop:
 	}
 
 	if (cmp >= 0) {
-
 		os_atomic_dec_ulint(
-			&kernel_mutex, &trx_sys->rseg_history_len,
+			&trx_sys->mutex, &trx_sys->rseg_history_len,
 		       	n_removed_logs);
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
@@ -586,7 +590,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		mutex_enter(&kernel_mutex);
+		trx_sys_mutex_enter();
 
 		/* Add debug code to track history list corruption reported
 		on the MySQL mailing list on Nov 9, 2004. The fut0lst.c
@@ -608,7 +612,7 @@ trx_purge_rseg_get_next_history_log(
 				(ulong) trx_sys->rseg_history_len);
 		}
 
-		mutex_exit(&kernel_mutex);
+		trx_sys_mutex_exit();
 
 		return;
 	}
@@ -1027,6 +1031,8 @@ trx_purge_dml_delay(void)
 	thread. */
 	ulint	delay = 0; /* in microseconds; default: no delay */
 
+	ut_ad(trx_sys_mutex_own());
+
 	/* If we cannot advance the 'purge view' because of an old
 	'consistent read view', then the DML statements cannot be delayed.
 	Also, srv_max_purge_lag <= 0 means 'infinity'. */
@@ -1089,8 +1095,6 @@ trx_purge(
 {
 	que_thr_t*	thr = NULL;
 
-	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
-
 	mutex_enter(&purge_sys->mutex);
 
 	/* The number of tasks submitted should be completed. */
@@ -1098,18 +1102,23 @@ trx_purge(
 
 	rw_lock_x_lock(&purge_sys->latch);
 
+	/* FIXME: This is only required because of read view create and
+	we should get rid of this dependency. */
 	mutex_enter(&kernel_mutex);
 
-	/* Close and free the old purge view */
-
-	read_view_close(purge_sys->view);
-	purge_sys->view = NULL;
-	mem_heap_empty(purge_sys->heap);
+	trx_sys_mutex_enter();
 
 	srv_dml_needed_delay = trx_purge_dml_delay();
 
-	purge_sys->view = read_view_oldest_copy_or_open_new(
-		ut_dulint_zero, purge_sys->heap);
+	read_view_remove(purge_sys->view);
+
+	purge_sys->view = NULL;
+
+	mem_heap_empty(purge_sys->heap);
+
+	purge_sys->view = read_view_purge_open(purge_sys->heap);
+
+	trx_sys_mutex_exit();
 
 	mutex_exit(&kernel_mutex);
 
