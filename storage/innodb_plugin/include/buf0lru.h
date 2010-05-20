@@ -96,7 +96,7 @@ buf_LRU_insert_zip_clean(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns BUF_LRU_FREED, it will not temporarily
+NOTE: If this function returns BUF_LRU_FREED, it will temporarily
 release buf_pool_mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
