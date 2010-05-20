@@ -916,6 +916,10 @@ static void destroy_cond_v1(PSI_cond* cond)
   destroy_cond(pfs);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::get_table_share.
+*/
 static PSI_table_share*
 get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
 {
@@ -929,6 +933,10 @@ get_table_share_v1(my_bool temporary, TABLE_SHARE *share)
   return reinterpret_cast<PSI_table_share*> (pfs_share);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::release_table_share.
+*/
 static void release_table_share_v1(PSI_table_share* share)
 {
   DBUG_ASSERT(share != NULL);
@@ -940,6 +948,10 @@ static void release_table_share_v1(PSI_table_share* share)
   purge_table_share(pfs_thread, pfs);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::drop_table_share.
+*/
 static void
 drop_table_share_v1(const char *schema_name, int schema_name_length,
                     const char *table_name, int table_name_length)
@@ -952,6 +964,10 @@ drop_table_share_v1(const char *schema_name, int schema_name_length,
                    table_name, table_name_length);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::open_table.
+*/
 static PSI_table*
 open_table_v1(PSI_table_share *share, const void *identity)
 {
@@ -966,6 +982,10 @@ open_table_v1(PSI_table_share *share, const void *identity)
   return reinterpret_cast<PSI_table *> (pfs_table);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::close_table.
+*/
 static void close_table_v1(PSI_table *table)
 {
   PFS_table *pfs= reinterpret_cast<PFS_table*> (table);
@@ -1287,6 +1307,10 @@ get_thread_cond_locker_v1(PSI_cond *cond, PSI_mutex * /* unused: mutex */,
   return reinterpret_cast<PSI_cond_locker*> (pfs_locker);
 }
 
+/**
+  Implementation of the table instrumentation interface.
+  @sa PSI_v1::get_thread_table_locker.
+*/
 static PSI_table_locker*
 get_thread_table_locker_v1(PSI_table *table, PSI_table_operation op, ulong flags)
 {

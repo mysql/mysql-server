@@ -240,11 +240,17 @@ enum PSI_file_operation
 /** Operation performed on an instrumented table. */
 enum PSI_table_operation
 {
+  /** Table lock, in the server layer. */
   PSI_TABLE_LOCK= 0,
+  /** Table lock, in the storage engine layer. */
   PSI_TABLE_EXTERNAL_LOCK= 1,
+  /** Row fetch. */
   PSI_TABLE_FETCH_ROW= 2,
+  /** Row write. */
   PSI_TABLE_WRITE_ROW= 3,
+  /** Row update. */
   PSI_TABLE_UPDATE_ROW= 4,
+  /** Row delete. */
   PSI_TABLE_DELETE_ROW= 5
 };
 
@@ -542,6 +548,13 @@ typedef struct PSI_table_share* (*get_table_share_v1_t)
 */
 typedef void (*release_table_share_v1_t)(struct PSI_table_share *share);
 
+/**
+  Drop a table share.
+  @param schema_name the table schema name
+  @param schema_name_length the table schema name length
+  @param table_name the table name
+  @param table_name_length the table name length
+*/
 typedef void (*drop_table_share_v1_t)
   (const char *schema_name, int schema_name_length,
    const char *table_name, int table_name_length);

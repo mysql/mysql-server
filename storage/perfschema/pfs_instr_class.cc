@@ -116,7 +116,16 @@ PFS_instr_class global_table_class=
   { &flag_events_waits_current, NULL, 0, 0, 0, 0} /* wait stat chain */
 };
 
-/** Hash table for instrumented tables.  */
+/**
+  Hash index for instrumented table shares.
+  This index is searched by table fully qualified name (@c PFS_table_share_key),
+  and points to instrumented table shares (@c PFS_table_share).
+  @sa table_share_array
+  @sa PFS_table_share_key
+  @sa PFS_table_share
+  @sa table_share_hash_get_key
+  @sa get_table_share_hash_pins
+*/
 static LF_HASH table_share_hash;
 /** True if table_share_hash is initialized. */
 static bool table_share_hash_inited= false;
@@ -256,6 +265,9 @@ void cleanup_table_share(void)
   table_share_max= 0;
 }
 
+/**
+  get_key function for @c table_share_hash.
+*/
 static uchar *table_share_hash_get_key(const uchar *entry, size_t *length,
                                        my_bool)
 {
@@ -293,6 +305,11 @@ void cleanup_table_share_hash(void)
   }
 }
 
+/**
+  Get the hash pins for @table_share_hash.
+  @param thread The running thread.
+  @returns The LF_HASH pins for the thread.
+*/
 LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
 {
   if (! table_share_hash_inited)
@@ -302,6 +319,15 @@ LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
   return thread->m_table_share_hash_pins;
 }
 
+/**
+  Set a table share hash key.
+  @param [out] key The key to polulate.
+  @param temporary True for TEMPORARY TABLE.
+  @param schema_name The table schema name.
+  @param schema_name_length The table schema name length.
+  @param table_name The table name.
+  @param table_name_length The table name length.
+*/
 static void set_table_share_key(PFS_table_share_key *key,
                                 bool temporary,
                                 const char *schema_name, uint schema_name_length,
@@ -847,6 +873,12 @@ search:
   return NULL;
 }
 
+/**
+  Purge an instrumented table share from the performance schema buffers.
+  The table share is removed from the hash index, and freed.
+  @param thread The running thread
+  @param pfs The table share to purge
+*/
 void purge_table_share(PFS_thread *thread, PFS_table_share *pfs)
 {
   if (pfs->m_refcount == 1)
@@ -859,6 +891,15 @@ void purge_table_share(PFS_thread *thread, PFS_table_share *pfs)
   }
 }
 
+/**
+  Drop the instrumented table share associated with a table.
+  @param thread The running thread
+  @param temporary True for TEMPORARY TABLE
+  @param schema_name The table schema name
+  @param schema_name_length The table schema name length
+  @param table_name The table name
+  @parem table_name_length The table name length
+*/
 void drop_table_share(PFS_thread *thread,
                       bool temporary,
                       const char *schema_name, uint schema_name_length,
@@ -884,6 +925,11 @@ void drop_table_share(PFS_thread *thread,
   }
 }
 
+/**
+  Sanitize an unsafe table_share pointer.
+  @param unsafe The possibly corrupt pointer.
+  @return A valid table_safe_pointer, or NULL.
+*/
 PFS_table_share *sanitize_table_share(PFS_table_share *unsafe)
 {
   SANITIZE_ARRAY_BODY(table_share_array, table_share_max, unsafe);

@@ -29,6 +29,16 @@
   @{
 */
 
+/**
+  @def MYSQL_START_TABLE_WAIT
+  Instrumentation helper for table waits.
+  This instrumentation marks the start of a wait event.
+  @param PSI The instrumented table
+  @param OP The table operation to be performed
+  @param INDEX The table index used if any, or MAY_KEY.
+  @param FLAGS Per table operation flags.
+  @sa MYSQL_END_TABLE_WAIT.
+*/
 #ifdef HAVE_PSI_INTERFACE
   #define MYSQL_START_TABLE_WAIT(PSI, OP, INDEX, FLAGS) \
     inline_mysql_start_table_wait(PSI, OP, INDEX, FLAGS, __FILE__, __LINE__)
@@ -37,6 +47,12 @@
     NULL
 #endif
 
+/**
+  @def MYSQL_END_TABLE_WAIT
+  Instrumentation helper for table waits.
+  This instrumentation marks the end of a wait event.
+  @sa MYSQL_START_TABLE_WAIT.
+*/
 #ifdef HAVE_PSI_INTERFACE
   #define MYSQL_END_TABLE_WAIT(L) \
     inline_mysql_end_table_wait(L)
@@ -46,6 +62,10 @@
 #endif
 
 #ifdef HAVE_PSI_INTERFACE
+/**
+  Instrumentation calls for MYSQL_START_TABLE_WAIT.
+  @sa MYSQL_START_TABLE_WAIT.
+*/
 static inline struct PSI_table_locker *
 inline_mysql_start_table_wait(struct PSI_table *psi, enum PSI_table_operation op,
                               uint index, ulong flags,
@@ -61,6 +81,10 @@ inline_mysql_start_table_wait(struct PSI_table *psi, enum PSI_table_operation op
   return locker;
 }
 
+/**
+  Instrumentation calls for MYSQL_END_TABLE_WAIT.
+  @sa MYSQL_END_TABLE_WAIT.
+*/
 static inline void
 inline_mysql_end_table_wait(struct PSI_table_locker *locker)
 {
