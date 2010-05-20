@@ -3896,7 +3896,8 @@ void get_full_part_id_from_key(const TABLE *table, uchar *buf,
 /**
   @brief Verify that all rows in a table is in the given partition
 
-  @param table      Table which rows will be checked if it is the partition.
+  @param table      Table which contains the data that will be checked if
+                    it is matching the partition definition.
   @param part_table Partitioned table containing the partition to check.
   @param part_id    Which partition to match with.
 */
@@ -3904,7 +3905,7 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
                                 uint32 part_id)
 {
   uint32 found_part_id;
-  longlong func_value;                     // Unused
+  longlong func_value;                     /* Unused */
   handler *file;
   int error;
   uchar *old_rec;
@@ -3912,16 +3913,17 @@ bool verify_data_with_partition(TABLE *table, TABLE *part_table,
   DBUG_ENTER("verify_data_with_partition");
   DBUG_ASSERT (table && table->file && part_table && part_table->part_info &&
                part_table->file);
+
   /*
     Verify all table rows.
     First implementation uses full scan + evaluates partition functions for
-    every row. TODO: add optimization to use index if possible.
+    every row. TODO: add optimization to use index if possible, see WL#5397.
 
     1) Open both tables (already done) and set the row buffers to use
        the same buffer (to avoid copy).
     2) Init rnd on table.
     3) loop over all rows.
-      4) verify that partition_id on the row is correct. Break if error.
+      3.1) verify that partition_id on the row is correct. Break if error.
   */
   file= table->file;
   part_info= part_table->part_info;
@@ -4610,20 +4612,21 @@ uint set_part_state(Alter_info *alter_info, partition_info *tab_part_info,
   @retval FALSE if they are equal, otherwise TRUE.
 
   @note Any differens that would cause a change in the frm file is prohibited.
-  Such as data_file_name, index_file_name, min_rows, max_rows etc. comment is
-  allowed to differ.
+  Such options as data_file_name, index_file_name, min_rows, max_rows etc. are
+  not allowed to differ. But comment is allowed to differ.
 */
 bool compare_partition_options(HA_CREATE_INFO *table_create_info,
                                partition_element *part_elem)
 {
   bool error= FALSE;
   DBUG_ENTER("compare_partition_options");
+  DBUG_ASSERT(!part_elem->tablespace_name &&
+              !table_create_info->tablespace);
+
   /*
     Note that there are not yet any engine supporting tablespace together
     with partitioning. TODO: when there are, add compare.
   */
-  DBUG_ASSERT(!part_elem->tablespace_name &&
-              !table_create_info->tablespace);
   if (part_elem->tablespace_name || table_create_info->tablespace)
   {
     my_error(ER_PARTITION_EXCHANGE_DIFFERENT_OPTION, MYF(0),
