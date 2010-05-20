@@ -3342,7 +3342,7 @@ srv_purge_coordinator_thread(
 
 	srv_sys_mutex_exit();
 
-	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+	for (;;) {
 
 		if (srv_shutdown_state != 0 && srv_fast_shutdown) {
 			break;
