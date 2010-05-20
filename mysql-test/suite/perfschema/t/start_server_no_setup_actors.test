@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,17 +13,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
 
-##############################################################################
-#
-#  List the test cases that are to be disabled temporarily.
-#
-#  Separate the test case name and the comment with ':'.
-#
-#    <testcasename> : BUG#<xxxx> <date disabled> <disabler> <comment>
-#
-#  Do not use any TAB characters for whitespace.
-#
-##############################################################################
+# Tests for PERFORMANCE_SCHEMA
 
-pfs_upgrade : Waiting to merge WL#5291
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--source ../include/start_server_common.inc
+
+# Expect no setup_actors
+show variables like "performance_schema_setup_actors_size";
+
+# Expect no setup_actors
+select count(*) from performance_schema.SETUP_ACTORS;
 
