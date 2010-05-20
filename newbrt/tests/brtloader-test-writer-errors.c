@@ -190,7 +190,7 @@ static void write_dbfile (char *template, int n, char *output_name, BOOL expect_
     brt_loader_init_error_callback(&bl.error_callback);
     brt_loader_set_error_function(&bl.error_callback, err_cb, NULL);
     brt_loader_init_poll_callback(&bl.poll_callback);
-    r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
+    r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints);  CKERR(r);
     // destroy_rowset(&aset);
 
     QUEUE q;
