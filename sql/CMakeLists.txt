@@ -280,7 +280,8 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
     ALL
     DEPENDS  ${CMAKE_CURRENT_BINARY_DIR}/data/mysql/user.frm
   )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data/mysql DESTINATION data)
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
+    PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql)
