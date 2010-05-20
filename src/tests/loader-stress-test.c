@@ -208,17 +208,30 @@ static void check_results(DB **dbs)
 static void *expect_poll_void = &expect_poll_void;
 static uint64_t poll_count=0;
 static uint64_t bomb_after_poll_count=UINT64_MAX;
+
+static struct progress_info {
+    double time;
+    double progress;
+} *progress_infos=NULL;
+static int progress_infos_count=0;
+static int progress_infos_limit=0;
+
+// timing
+static BOOL did_start=FALSE;
+static struct timeval start;
+
 static int poll_function (void *extra, float progress) {
-    if (0) {
-	static int did_one=0;
-	static struct timeval start;
+    if (verbose>=2) {
+	assert(did_start);
 	struct timeval now;
 	gettimeofday(&now, 0);
-	if (!did_one) {
-	    start=now;
-	    did_one=1;
+	double elapsed = now.tv_sec - start.tv_sec + 1e-6*(now.tv_usec - start.tv_usec);
+	printf("Progress: %6.6fs %5.1f%%\n", elapsed, progress*100);
+	if (progress_infos_count>=progress_infos_limit) {
+	    progress_infos_limit = 2*progress_infos_limit + 1;
+	    XREALLOC_N(progress_infos_limit, progress_infos);
 	}
-	printf("%6.6f %5.1f%%\n", now.tv_sec - start.tv_sec + 1e-6*(now.tv_usec - start.tv_usec), progress*100);
+	progress_infos[progress_infos_count++] = (struct progress_info){elapsed, progress};	    
     }
     assert(extra==expect_poll_void);
     assert(0.0<=progress && progress<=1.0);
@@ -281,6 +294,9 @@ static void test_loader(DB **dbs)
 
     int n = count_temp(env->i->real_data_dir);
     if (verbose) printf("Num temp files = %d\n", n);
+
+    did_start = TRUE;
+    gettimeofday(&start, 0);
 
     // close the loader
     printf("%9.6fs closing\n", elapsed_time());
@@ -374,6 +390,17 @@ int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
     run_test();
     if (free_me) toku_free(free_me);
+
+    if (progress_infos) {
+	if (verbose>=2) {
+	    double ratio=progress_infos[progress_infos_count-1].time/progress_infos[progress_infos_count-1].progress;
+	    printf("Progress ratios:\n");
+	    for (int i=0; i<progress_infos_count; i++) {
+		printf(" %5.3f\n", (progress_infos[i].time/progress_infos[i].progress)/ratio);
+	    }
+	}
+	toku_free(progress_infos);
+    }
     return 0;
 }
 
