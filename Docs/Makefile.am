@@ -37,6 +37,3 @@ uninstall-local:
 	  @RM@ -f $(DESTDIR)$(infodir)/mysql.info ; \
 	  @RM@ -f $(DESTDIR)$(pkgdatadir)/ChangeLog ; \
 	fi
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

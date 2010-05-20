@@ -22,9 +22,6 @@ libtrace_la_SOURCES = SignalLoggerManager.cpp DebuggerNames.cpp BlockNames.cpp E
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp: libtrace.dsp
 
 libtrace.dsp: Makefile \
