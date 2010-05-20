@@ -60,6 +60,3 @@ DEFS =			-DMYSQL_CLIENT_NO_THREADS
 
 thread_test.o:		thread_test.c
 			$(COMPILE) -c $(INCLUDES) $<
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

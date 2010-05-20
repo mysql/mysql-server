@@ -37,7 +37,7 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			heap.h my_bitmap.h my_uctype.h password.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
-			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h \
+			my_nosys.h my_alarm.h queues.h rijndael.h sha1.h sha2.h \
 			my_aes.h my_tree.h my_trie.h hash.h thr_alarm.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
 			my_handler.h my_time.h service_versions.h \
@@ -45,7 +45,7 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
 			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
 			atomic/gcc_builtins.h my_libwrap.h my_stacktrace.h \
-			atomic/solaris.h
+			atomic/solaris.h mysql/innodb_priv.h
 
 EXTRA_DIST =        mysql.h.pp mysql/plugin.h.pp probes_mysql.d.base \
 			CMakeLists.txt \
@@ -96,6 +96,3 @@ endif
 
 probes_mysql_nodtrace.h: $(DTRACEPROVIDER)
 	@PERL@ $(top_srcdir)/scripts/dheadgen.pl -f $(DTRACEPROVIDER) > $@
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

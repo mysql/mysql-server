@@ -1618,7 +1618,7 @@ UNIV_INTERN
 ulint
 lock_number_of_rows_locked(
 /*=======================*/
-	trx_t*	trx)	/*!< in: transaction */
+	const trx_t*	trx)	/*!< in: transaction */
 {
 	lock_t*	lock;
 	ulint   n_records = 0;

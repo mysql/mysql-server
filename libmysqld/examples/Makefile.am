@@ -32,7 +32,7 @@ link_sources:
 	done
 	echo timestamp > link_sources
 
-DEFS = 		-DEMBEDDED_LIBRARY
+DEFS = 		-DEMBEDDED_LIBRARY @DEFS@
 INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir) \
 		-I$(top_srcdir) -I$(top_srcdir)/client -I$(top_srcdir)/regex \
 		$(openssl_includes)
@@ -50,6 +50,3 @@ mysql_LDADD = @readline_link@ @TERMCAP_LIB@ $(LDADD)
 
 mysql_client_test_embedded_LINK = $(CXXLINK)
 nodist_mysql_client_test_embedded_SOURCES = mysql_client_test.c
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

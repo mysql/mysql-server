@@ -405,6 +405,16 @@ bool String::append(const char *s)
 }
 
 
+
+bool String::append_ulonglong(ulonglong val)
+{
+  if (realloc(str_length+MAX_BIGINT_WIDTH+2))
+    return TRUE;
+  char *end= (char*) longlong10_to_str(val, (char*) Ptr + str_length, 10);
+  str_length= end - Ptr;
+  return FALSE;
+}
+
 /*
   Append a string in the given charset to the string
   with character set recoding
