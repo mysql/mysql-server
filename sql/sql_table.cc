@@ -1205,6 +1205,10 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
       char *file_entry_buf= (char*)&global_ddl_log.file_entry_buf;
       /* not yet implemented for frm */
       DBUG_ASSERT(!frm_action);
+      /*
+        Using a case-switch here to revert all currently done phases,
+        since it will fall through until the first phase is undone.
+      */
       switch (ddl_log_entry->phase) {
         case 2:
           /* tmp_name -> from_name possibly done */
@@ -1489,6 +1493,7 @@ bool write_execute_ddl_log_entry(uint first_entry,
     release_ddl_log_memory_entry(*active_entry);
     DBUG_RETURN(TRUE);
   }
+  (void) sync_ddl_log_no_lock();
   if (write_header)
   {
     if (write_ddl_log_header())
@@ -1497,7 +1502,6 @@ bool write_execute_ddl_log_entry(uint first_entry,
       DBUG_RETURN(TRUE);
     }
   }
-  (void) sync_ddl_log_no_lock();
   DBUG_RETURN(FALSE);
 }
 
@@ -6574,6 +6578,7 @@ err:
 static bool check_exchange_partition(TABLE *table, TABLE *part_table)
 {
   DBUG_ENTER("check_exchange_partition");
+
   /* Both tables must exist */
   if (!part_table || !table)
   {
@@ -6772,7 +6777,7 @@ static bool exchange_name_with_ddl_log(THD *thd,
   bool error= TRUE;
   bool error_set= FALSE;
   handler *file= NULL;
-  DBUG_ENTER("write_ddl_log_exchange_partition");
+  DBUG_ENTER("exchange_name_with_ddl_log");
 
   if (!(file= get_new_handler((TABLE_SHARE*) 0, thd->mem_root, ht)))
   {
@@ -6943,9 +6948,9 @@ bool mysql_exchange_partition(THD *thd,
   uint part_file_name_len;
   Alter_table_prelocking_strategy alter_prelocking_strategy(alter_info);
   DBUG_ENTER("mysql_exchange_partition");
+  DBUG_ASSERT(alter_info->flags & ALTER_EXCHANGE_PARTITION);
 
   partition_name= alter_info->partition_names.head();
-  DBUG_ASSERT(alter_info->flags & ALTER_EXCHANGE_PARTITION);
 
   /* Clear open tables from the threads table handler cache */
   mysql_ha_rm_tables(thd, table_list);
@@ -7066,13 +7071,14 @@ bool mysql_exchange_partition(THD *thd,
 
   /* Reopen tables under LOCK TABLES */
   if (thd->locked_tables_list.reopen_tables(thd))
-    goto err_with_exclusive_lock;
+    goto err;
 
   if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
   {
     /*
       Should we only report failure, even if the operation was successful,
-      or should we also revert the operation? We continue as it didn't happen!
+      or should we also revert the operation? We continue and only report the
+      failed bin log call.
     */
     sql_print_error("Failed to write to binlog in mysql_exchange_partition:"
                     " ALTER TABLE ... EXCHANGE PARTITION ... WITH TABLE ..."
@@ -7086,7 +7092,6 @@ bool mysql_exchange_partition(THD *thd,
   query_cache_invalidate3(thd, table_list, 0);
   DBUG_RETURN(FALSE);
 err:
-err_with_exclusive_lock:
   DBUG_RETURN(TRUE);
 }
 #endif
