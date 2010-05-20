@@ -978,6 +978,11 @@ srv_release_threads(
 			if (count == n) {
 				break;
 			}
+		/* We have only one master thread and it should be the
+		first entry always. */
+		} else if (slot->type == SRV_MASTER) {
+			ut_a(i == 0);
+			break;
 		}
 	}
 
@@ -2555,26 +2560,12 @@ loop:
 
 /******************************************************************//**
 Increment the server activity count. */
-UNIV_INLINE
-void
-srv_inc_activity_count_low(void)
-/*============================*/
-{
-	srv_sys_mutex_enter();
-
-	++srv_sys->activity_count;
-
-	srv_sys_mutex_exit();
-}
-
-/******************************************************************//**
-Increment the server activity count. */
 UNIV_INTERN
 void
 srv_inc_activity_count(void)
 /*========================*/
 {
-	srv_inc_activity_count_low();
+	os_atomic_inc_ulint(&srv_sys->mutex, &srv_sys->activity_count, 1);
 }
 
 /**********************************************************************//**
@@ -2616,11 +2607,28 @@ srv_active_wake_master_thread(void)
 	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(!srv_sys_mutex_own());
 
-	srv_inc_activity_count_low();
+	srv_inc_activity_count();
 
 	if (srv_sys->n_threads_active[SRV_MASTER] == 0) {
+		srv_slot_t*	slot;
 
-		srv_release_threads(SRV_MASTER, 1);
+		slot = srv_table_get_nth_slot(0);
+
+		ut_a(slot->in_use);
+	        ut_a(slot->type == SRV_MASTER);
+
+		srv_sys_mutex_enter();
+
+	       	if (slot->suspended) {
+
+			slot->suspended = FALSE;
+
+			++srv_sys->n_threads_active[SRV_MASTER];
+
+			os_event_set(slot->event);
+		}
+
+		srv_sys_mutex_exit();
 	}
 }
 
@@ -2655,7 +2663,7 @@ srv_wake_master_thread(void)
 	ut_ad(!mutex_own(&kernel_mutex));
 	ut_ad(!srv_sys_mutex_own());
 
-	srv_inc_activity_count_low();
+	srv_inc_activity_count();
 
 	srv_release_threads(SRV_MASTER, 1);
 }
@@ -2703,15 +2711,7 @@ srv_check_activity(
 /*===============*/
 	ulint		old_activity_count)	/*!< old activity count */
 {
-	ibool		ret;
-
-	srv_sys_mutex_enter();
-
-	ret = srv_sys->activity_count != old_activity_count;
-
-	srv_sys_mutex_exit();
-
-	return(ret);
+	return(srv_sys->activity_count != old_activity_count);
 }
 
 /**********************************************************************
@@ -2773,6 +2773,7 @@ srv_master_thread(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	ulint		slot;
 	buf_pool_stat_t buf_stat;
 	os_event_t	event;
 	ulint		old_activity_count;
@@ -2802,7 +2803,8 @@ srv_master_thread(
 
 	srv_sys_mutex_enter();
 
-	srv_table_reserve_slot(SRV_MASTER);
+	slot = srv_table_reserve_slot(SRV_MASTER);
+	ut_a(slot == 0);
 
 	srv_sys->n_threads_active[SRV_MASTER]++;
 
