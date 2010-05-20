@@ -122,6 +122,8 @@ check_brtloader-test-writer-errors-2: brtloader-test-writer-errors$(BINSUF)
 	$(VGRIND) ./$< -q -s -w -m -u -r 10000 dir.$@ $(SUMMARIZE_CMD)
 check_brtloader-test-writer-errors-3: brtloader-test-writer-errors$(BINSUF)
 	$(VGRIND) ./$< -q -s -r 10000 --malloc_limit 0 --realloc_errors dir.$@ $(SUMMARIZE_CMD)
+check_brtloader-test-writer-errors-4: brtloader-test-writer-errors$(BINSUF)
+	$(VGRIND) ./$< -q -s -m --malloc_limit 0 -r 10000 dir.$@ $(SUMMARIZE_CMD)
 
 brtloader-%$(BINSUF): brtloader-%.$(OEXT)
 ifeq ($(BRTLOADER),cilk)
