@@ -8,6 +8,10 @@
 # NOTE: PLEASE SEE ps_1general.test (bottom) 
 #       BEFORE ADDING NEW TEST CASES HERE !!!
 
+# See Bug#38999 valgrind warnings for update statement in function
+# compare_record()
+-- source include/not_valgrind.inc
+
 use test;
 
 -- source include/have_innodb.inc
