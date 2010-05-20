@@ -67,6 +67,7 @@
   #define PFS_WAITS_HISTORY_LONG_SIZE 10000
 #endif
 
+/** Performance schema global sizing parameters. */
 struct PFS_global_param
 {
   bool m_enabled;
@@ -74,12 +75,20 @@ struct PFS_global_param
   ulong m_rwlock_class_sizing;
   ulong m_cond_class_sizing;
   ulong m_thread_class_sizing;
+  /**
+    Maximum number of instrumented table share.
+    @sa table_share_lost.
+  */
   ulong m_table_share_sizing;
   ulong m_file_class_sizing;
   ulong m_mutex_sizing;
   ulong m_rwlock_sizing;
   ulong m_cond_sizing;
   ulong m_thread_sizing;
+  /**
+    Maximum number of instrumented table handles.
+    @sa table_lost.
+  */
   ulong m_table_sizing;
   ulong m_file_sizing;
   ulong m_file_handle_sizing;

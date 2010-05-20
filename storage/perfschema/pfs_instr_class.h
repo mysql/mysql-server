@@ -143,12 +143,6 @@ struct PFS_table_share_key
   uint m_key_length;
 };
 
-struct PFS_table_key
-{
-  char m_name[NAME_LEN];
-  uint m_name_length;
-};
-
 /** Instrumentation metadata for a table share. */
 struct PFS_table_share
 {
