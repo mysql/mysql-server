@@ -105,7 +105,7 @@ FUNCTION(MY_SEARCH_LIBS func libs result)
   FOREACH(lib  ${libs})
     CHECK_LIBRARY_EXISTS(${lib} ${func} "" HAVE_${func}_IN_${lib}) 
     IF(HAVE_${func}_IN_${lib})
-      SET(${result} ${lib} PARENT_SCOPE)
+      SET(${result} HAVE_${lib} PARENT_SCOPE)
       RETURN()
     ENDIF()
   ENDFOREACH()
@@ -167,6 +167,7 @@ CHECK_INCLUDE_FILES (alloca.h HAVE_ALLOCA_H)
 CHECK_INCLUDE_FILES (aio.h HAVE_AIO_H)
 CHECK_INCLUDE_FILES (arpa/inet.h HAVE_ARPA_INET_H)
 CHECK_INCLUDE_FILES (crypt.h HAVE_CRYPT_H)
+CHECK_INCLUDE_FILES (cxxabi.h HAVE_CXXABI_H)
 CHECK_INCLUDE_FILES (dirent.h HAVE_DIRENT_H)
 CHECK_INCLUDE_FILES (dlfcn.h HAVE_DLFCN_H)
 CHECK_INCLUDE_FILES (execinfo.h HAVE_EXECINFO_H)
@@ -479,6 +480,7 @@ ENDIF(HAVE_STDINT_H)
 IF(NOT APPLE)
   # Prevent some checks on OSX, they return ambigious results
   # on universal 32/64 bit binariess
+  MY_CHECK_TYPE_SIZE("void *" VOIDP)
   MY_CHECK_TYPE_SIZE("char *" CHARP)
   MY_CHECK_TYPE_SIZE(long LONG)
   MY_CHECK_TYPE_SIZE(size_t SIZE_T)
@@ -776,7 +778,7 @@ ENDIF(NOT HAVE_POSIX_SIGNALS)
 # Assume regular sprintf
 SET(SPRINTFS_RETURNS_INT 1)
 
-IF(CMAKE_COMPILER_IS_GNUXX)
+IF(CMAKE_COMPILER_IS_GNUXX AND HAVE_CXXABI_H)
 CHECK_CXX_SOURCE_COMPILES("
  #include <cxxabi.h>
  int main(int argc, char **argv) 
@@ -786,9 +788,6 @@ CHECK_CXX_SOURCE_COMPILES("
     return 0;
   }"
   HAVE_ABI_CXA_DEMANGLE)
-IF(HAVE_ABI_CXA_DEMANGLE)
- SET(HAVE_CXXABI_H 1)
-ENDIF()
 ENDIF()
 
 CHECK_C_SOURCE_COMPILES("
