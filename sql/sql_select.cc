@@ -6995,7 +6995,6 @@ choose_plan(JOIN *join, table_map join_tables)
   DBUG_ENTER("choose_plan");
 
   join->cur_embedding_map= 0;
-  join->cur_dups_producing_tables= 0;
   reset_nj_counters(join->join_list);
   qsort2_cmp jtab_sort_func;
 
@@ -13262,6 +13261,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   /* Initialize the state or copy it from prev. tables */
   if (idx == join->const_tables)
   {
+    pos->dups_producing_tables= 0;
     pos->first_firstmatch_table= MAX_TABLES;
     pos->first_loosescan_table= MAX_TABLES; 
     pos->dupsweedout_tables= 0;
@@ -13270,6 +13270,8 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   }
   else
   {
+    pos->dups_producing_tables= pos[-1].dups_producing_tables;
+
     // FirstMatch
     pos->first_firstmatch_table=
       (pos[-1].sj_strategy == SJ_OPT_FIRST_MATCH) ?
@@ -13447,14 +13449,14 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
   if ((emb_sj_nest= new_join_tab->emb_sj_nest))
   {
     join->cur_sj_inner_tables |= emb_sj_nest->sj_inner_tables;
-    join->cur_dups_producing_tables |= emb_sj_nest->sj_inner_tables;
+    pos->dups_producing_tables |= emb_sj_nest->sj_inner_tables;
 
     /* Remove the sj_nest if all of its SJ-inner tables are in cur_table_map */
     if (!(remaining_tables &
           emb_sj_nest->sj_inner_tables & ~new_join_tab->table->map))
       join->cur_sj_inner_tables &= ~emb_sj_nest->sj_inner_tables;
   }
-  join->cur_dups_producing_tables &= ~handled_by_fm_or_ls;
+  pos->dups_producing_tables &= ~handled_by_fm_or_ls;
 
   /* 4. MaterializeLookup and MaterializeScan strategy handler */
   const int sjm_strategy=
@@ -13508,7 +13510,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
     mat_read_time += mat_info->materialization_cost.total_cost() +
                      prefix_rec_count * mat_info->lookup_cost.total_cost();
 
-    if (mat_read_time < *current_read_time || join->cur_dups_producing_tables)
+    if (mat_read_time < *current_read_time || pos->dups_producing_tables)
     {
       /*
         NOTE: When we pick to use SJM[-Scan] we don't memcpy its POSITION
@@ -13519,7 +13521,7 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       pos->sj_strategy= SJ_OPT_MATERIALIZE_LOOKUP;
       *current_read_time=    mat_read_time;
       *current_record_count= prefix_rec_count;
-      join->cur_dups_producing_tables&=
+      pos->dups_producing_tables &=
         ~new_join_tab->emb_sj_nest->sj_inner_tables;
     }
   }
@@ -13575,12 +13577,12 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
       comparing cost without semi-join duplicate removal with cost with
       duplicate removal is not an apples-to-apples comparison.
     */
-    if (prefix_cost < *current_read_time || join->cur_dups_producing_tables)
+    if (prefix_cost < *current_read_time || pos->dups_producing_tables)
     {
       pos->sj_strategy= SJ_OPT_MATERIALIZE_SCAN;
       *current_read_time=    prefix_cost;
       *current_record_count= prefix_rec_count;
-      join->cur_dups_producing_tables&= ~mat_nest->sj_inner_tables;
+      pos->dups_producing_tables &= ~mat_nest->sj_inner_tables;
 
     }
   }
@@ -13685,12 +13687,12 @@ void advance_sj_state(JOIN *join, table_map remaining_tables,
         to consider (it needs "the most" tables in the prefix) and we can't
         leave duplicate-producing tables not handled by any strategy.
       */
-      if (dups_cost < *current_read_time || join->cur_dups_producing_tables)
+      if (dups_cost < *current_read_time || pos->dups_producing_tables)
       {
         pos->sj_strategy= SJ_OPT_DUPS_WEEDOUT;
         *current_read_time= dups_cost;
         *current_record_count= prefix_rec_count * sj_outer_fanout;
-        join->cur_dups_producing_tables &= ~dups_removed_fanout;
+        pos->dups_producing_tables &= ~dups_removed_fanout;
       }
     }
   }
