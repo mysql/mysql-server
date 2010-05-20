@@ -1682,6 +1682,34 @@ DROP USER nonpriv;
 DROP TABLE db1.t1;
 DROP DATABASE db1;
 End of 5.1 tests.
+create function f1 (p1 int, p2 datetime, p3 decimal(10,2))
+returns char(10) return null;
+create procedure p1 (p1 float(8,5), p2 char(32), p3 varchar(10)) begin end;
+create procedure p2 (p1 enum('c', 's'), p2 blob, p3 text) begin end;
+select * from information_schema.parameters where specific_schema='test';
+SPECIFIC_CATALOG	SPECIFIC_SCHEMA	SPECIFIC_NAME	ORDINAL_POSITION	PARAMETER_MODE	PARAMETER_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	CHARACTER_SET_NAME	COLLATION_NAME	DTD_IDENTIFIER	ROUTINE_TYPE
+def	test	f1	0	NULL	NULL	char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)	FUNCTION
+def	test	f1	1	IN	p1	int	NULL	NULL	10	0	NULL	NULL	int(11)	FUNCTION
+def	test	f1	2	IN	p2	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime	FUNCTION
+def	test	f1	3	IN	p3	decimal	NULL	NULL	10	2	NULL	NULL	decimal(10,2)	FUNCTION
+def	test	p1	1	IN	p1	float	NULL	NULL	8	5	NULL	NULL	float(8,5)	PROCEDURE
+def	test	p1	2	IN	p2	char	32	32	NULL	NULL	latin1	latin1_swedish_ci	char(32)	PROCEDURE
+def	test	p1	3	IN	p3	varchar	10	10	NULL	NULL	latin1	latin1_swedish_ci	varchar(10)	PROCEDURE
+def	test	p2	1	IN	p1	enum	1	1	NULL	NULL	latin1	latin1_swedish_ci	enum('c','s')	PROCEDURE
+def	test	p2	2	IN	p2	blob	65535	65535	NULL	NULL	NULL	NULL	blob	PROCEDURE
+def	test	p2	3	IN	p3	text	65535	65535	NULL	NULL	latin1	latin1_swedish_ci	text	PROCEDURE
+select data_type, character_maximum_length,
+character_octet_length, numeric_precision,
+numeric_scale, character_set_name,
+collation_name, dtd_identifier
+from information_schema.routines where routine_schema='test';
+data_type	character_maximum_length	character_octet_length	numeric_precision	numeric_scale	character_set_name	collation_name	dtd_identifier
+char	10	10	NULL	NULL	latin1	latin1_swedish_ci	char(10)
+	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+drop procedure p1;
+drop procedure p2;
+drop function f1;
 #
 # Additional test for WL#3726 "DDL locking for all metadata objects"
 # To avoid possible deadlocks process of filling of I_S tables should
@@ -1771,6 +1799,12 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 LOCK TABLES t1 READ, information_schema.tables READ;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
 DROP TABLE t1;
+create function f1() returns int return 1;
+select routine_name, routine_type from information_schema.routines
+where routine_schema = 'test';
+routine_name	routine_type
+f1	FUNCTION
+drop function f1;
 SELECT *
 FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
 LEFT JOIN INFORMATION_SCHEMA.COLUMNS

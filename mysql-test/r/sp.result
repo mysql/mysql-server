@@ -2590,11 +2590,11 @@ row_count()
 call bug4905()|
 select row_count()|
 row_count()
--1
+0
 call bug4905()|
 select row_count()|
 row_count()
--1
+0
 select * from t3|
 s1
 1
