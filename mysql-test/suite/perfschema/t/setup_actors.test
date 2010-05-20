@@ -1,0 +1,109 @@
+# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+truncate table performance_schema.SETUP_ACTORS;
+
+insert into performance_schema.SETUP_ACTORS
+  values ('hosta', 'user1', '%');
+
+insert into performance_schema.SETUP_ACTORS
+  values ('%', 'user2', '%');
+
+insert into performance_schema.SETUP_ACTORS
+  values ('localhost', 'user3', '%');
+
+insert into performance_schema.SETUP_ACTORS
+  values ('hostb', '%', '%');
+
+select * from performance_schema.SETUP_ACTORS
+  order by USER, HOST, ROLE;
+
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+
+flush privileges;
+
+connect (con1, localhost, user1, , );
+
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+  from performance_schema.THREADS
+  where PROCESSLIST_ID=connection_id();
+
+--disconnect con1
+
+connect (con2, localhost, user2, , );
+
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+  from performance_schema.THREADS
+  where PROCESSLIST_ID=connection_id();
+
+--disconnect con2
+
+connect (con3, localhost, user3, , );
+
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+  from performance_schema.THREADS
+  where PROCESSLIST_ID=connection_id();
+
+--disconnect con3
+
+connect (con4, localhost, user4, , );
+
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+  from performance_schema.THREADS
+  where PROCESSLIST_ID=connection_id();
+
+--disconnect con4
+
+--connection default
+
+insert into performance_schema.SETUP_ACTORS
+  values ('%', 'localhost', '%');
+
+select * from performance_schema.SETUP_ACTORS
+  order by USER, HOST, ROLE;
+
+connect (con4b, localhost, user4, , );
+
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+  from performance_schema.THREADS
+  where PROCESSLIST_ID=connection_id();
+
+--disconnect con4b
+
+--connection default
+
+revoke all privileges, grant option from user1@localhost;
+revoke all privileges, grant option from user2@localhost;
+revoke all privileges, grant option from user3@localhost;
+revoke all privileges, grant option from user4@localhost;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+flush privileges;
+
+truncate table performance_schema.SETUP_ACTORS;
+
+insert into performance_schema.SETUP_ACTORS
+  values ('%', '%', '%');
+
+select * from performance_schema.SETUP_ACTORS;
+

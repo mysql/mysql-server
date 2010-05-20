@@ -1,0 +1,71 @@
+truncate table performance_schema.SETUP_ACTORS;
+insert into performance_schema.SETUP_ACTORS
+values ('hosta', 'user1', '%');
+insert into performance_schema.SETUP_ACTORS
+values ('%', 'user2', '%');
+insert into performance_schema.SETUP_ACTORS
+values ('localhost', 'user3', '%');
+insert into performance_schema.SETUP_ACTORS
+values ('hostb', '%', '%');
+select * from performance_schema.SETUP_ACTORS
+order by USER, HOST, ROLE;
+HOST	USER	ROLE
+hostb	%	%
+hosta	user1	%
+%	user2	%
+localhost	user3	%
+grant ALL on *.* to user1@localhost;
+grant ALL on *.* to user2@localhost;
+grant ALL on *.* to user3@localhost;
+grant ALL on *.* to user4@localhost;
+flush privileges;
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.THREADS
+where PROCESSLIST_ID=connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	NO	user1	localhost
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.THREADS
+where PROCESSLIST_ID=connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	YES	user2	localhost
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.THREADS
+where PROCESSLIST_ID=connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	YES	user3	localhost
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.THREADS
+where PROCESSLIST_ID=connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	NO	user4	localhost
+insert into performance_schema.SETUP_ACTORS
+values ('%', 'localhost', '%');
+select * from performance_schema.SETUP_ACTORS
+order by USER, HOST, ROLE;
+HOST	USER	ROLE
+hostb	%	%
+%	localhost	%
+hosta	user1	%
+%	user2	%
+localhost	user3	%
+select NAME, TYPE, INSTRUMENTED, PROCESSLIST_USER, PROCESSLIST_HOST
+from performance_schema.THREADS
+where PROCESSLIST_ID=connection_id();
+NAME	TYPE	INSTRUMENTED	PROCESSLIST_USER	PROCESSLIST_HOST
+thread/sql/one_connection	FOREGROUND	NO	user4	localhost
+revoke all privileges, grant option from user1@localhost;
+revoke all privileges, grant option from user2@localhost;
+revoke all privileges, grant option from user3@localhost;
+revoke all privileges, grant option from user4@localhost;
+drop user user1@localhost;
+drop user user2@localhost;
+drop user user3@localhost;
+drop user user4@localhost;
+flush privileges;
+truncate table performance_schema.SETUP_ACTORS;
+insert into performance_schema.SETUP_ACTORS
+values ('%', '%', '%');
+select * from performance_schema.SETUP_ACTORS;
+HOST	USER	ROLE
+%	%	%
