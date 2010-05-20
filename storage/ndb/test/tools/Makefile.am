@@ -43,7 +43,4 @@ include $(top_srcdir)/storage/ndb/config/type_ndbapitest.mk.am
 ndb_cpcc_LDADD = $(LDADD)
 ndb_cpcc_LDFLAGS = -static
 
-# Don't update the files from bitkeeper
-%::SCCS/s.%
-
 windoze-dsp:
