@@ -27,6 +27,3 @@ libpstack_a_SOURCES =	bucomm.c filemode.c linuxthreads.c rddbg.c \
 			debug.c ieee.c pstack.c stabs.c
 noinst_HEADERS =	bucomm.h debug.h ieee.h budbg.h demangle.h \
 			linuxthreads.h pstack.h pstacktrace.h
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

@@ -190,7 +190,3 @@ SUFFIXES = .sh
 	$< > $@-t
 	@CHMOD@ +x $@-t
 	@MV@ $@-t $@
-
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

@@ -83,6 +83,3 @@ probes_mysql.o: $(DTRACEPROVIDER) $(DTRACEFILES)
 	$(DTRACE) $(DTRACEFLAGS) -G -s $(DTRACEPROVIDER) $(DTRACEFILES) -o $@
 
 endif
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%
