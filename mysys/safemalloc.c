@@ -190,9 +190,12 @@ void *_mymalloc(size_t size, const char *filename, uint lineno, myf MyFlags)
   sf_malloc_count++;
   pthread_mutex_unlock(&THR_LOCK_malloc);
 
+  MEM_CHECK_ADDRESSABLE(data, size);
   /* Set the memory to the aribtrary wierd value */
   if ((MyFlags & MY_ZEROFILL) || !sf_malloc_quick)
     bfill(data, size, (char) (MyFlags & MY_ZEROFILL ? 0 : ALLOC_VAL));
+  if (!(MyFlags & MY_ZEROFILL))
+    MEM_UNDEFINED(data, size);
   /* Return a pointer to the real data */
   DBUG_PRINT("exit",("ptr: %p", data));
   if (sf_min_adress > data)
@@ -309,7 +312,9 @@ void _myfree(void *ptr, const char *filename, uint lineno, myf myflags)
   if (!sf_malloc_quick)
     bfill(ptr, irem->datasize, (pchar) FREE_VAL);
 #endif
+  MEM_NOACCESS(ptr, irem->datasize);
   *((uint32*) ((char*) ptr- sizeof(uint32)))= ~MAGICKEY;
+  MEM_NOACCESS((char*) ptr - sizeof(uint32), sizeof(uint32));
   /* Actually free the memory */
   free((char*) irem);
   DBUG_VOID_RETURN;
