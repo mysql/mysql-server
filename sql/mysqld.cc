@@ -3822,7 +3822,7 @@ static int init_server_auto_options()
 {
   bool flush= false;
   char fname[FN_REFLEN];
-  char name[]= "auto";
+  char *name= "auto";
   const char *groups[]= {"auto", NULL};
   char *uuid= 0;
   my_option auto_options[]= {
@@ -3838,7 +3838,7 @@ static int init_server_auto_options()
     DBUG_RETURN(1);
 
   /* load_defaults require argv[0] is not null */
-  char **argv= (char **)(&name);
+  char **argv= &name;
   int argc= 1;
   /* load all options in 'auto.cnf'. */
   if (my_load_defaults(fname, groups, &argc, &argv, NULL))
