@@ -4,5 +4,5 @@
 # masked out log positions
 
 --replace_result $MASTER_MYPORT MASTER_PORT $DEFAULT_MASTER_PORT 3306
---replace_column 1 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
+--replace_column 1 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 # 41 #
 query_vertical SHOW SLAVE STATUS;

@@ -148,6 +148,9 @@ void PFS_engine_table_share::check_one_table(THD *thd)
       m_checked= true;
     close_thread_tables(thd);
   }
+  else
+    sql_print_error(ER(ER_WRONG_NATIVE_TABLE_STRUCTURE),
+                    PERFORMANCE_SCHEMA_str.str, m_name.str);
 
   lex_end(&dummy_lex);
   thd->lex= old_lex;
@@ -824,42 +827,42 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       total_memory+= size;
       break;
     case 44:
-      name= "SETUP_ACTORS.ROW_SIZE";
-      size= sizeof(PFS_setup_actor);
-      break;
-    case 45:
-      name= "SETUP_ACTORS.ROW_COUNT";
-      size= setup_actor_max;
-      break;
-    case 46:
-      name= "SETUP_ACTORS.MEMORY";
-      size= setup_actor_max * sizeof(PFS_setup_actor);
-      total_memory+= size;
-      break;
-    case 47:
       name= "(PFS_TABLE_SHARE).ROW_SIZE";
       size= sizeof(PFS_table_share);
       break;
-    case 48:
+    case 45:
       name= "(PFS_TABLE_SHARE).ROW_COUNT";
       size= table_share_max;
       break;
-    case 49:
+    case 46:
       name= "(PFS_TABLE_SHARE).MEMORY";
       size= table_share_max * sizeof(PFS_table_share);
       total_memory+= size;
       break;
-    case 50:
+    case 47:
       name= "(PFS_TABLE).ROW_SIZE";
       size= sizeof(PFS_table);
       break;
-    case 51:
+    case 48:
       name= "(PFS_TABLE).ROW_COUNT";
       size= table_max;
       break;
-    case 52:
+    case 49:
       name= "(PFS_TABLE).MEMORY";
       size= table_max * sizeof(PFS_table);
+      total_memory+= size;
+      break;
+    case 50:
+      name= "SETUP_ACTORS.ROW_SIZE";
+      size= sizeof(PFS_setup_actor);
+      break;
+    case 51:
+      name= "SETUP_ACTORS.ROW_COUNT";
+      size= setup_actor_max;
+      break;
+    case 52:
+      name= "SETUP_ACTORS.MEMORY";
+      size= setup_actor_max * sizeof(PFS_setup_actor);
       total_memory+= size;
       break;
     /*
@@ -869,6 +872,8 @@ bool pfs_show_status(handlerton *hton, THD *thd,
     case 53:
       name= "PERFORMANCE_SCHEMA.MEMORY";
       size= total_memory;
+      /* This will fail if something is not advertised here */
+      DBUG_ASSERT(size == pfs_allocated_memory);
       break;
     default:
       goto end;
