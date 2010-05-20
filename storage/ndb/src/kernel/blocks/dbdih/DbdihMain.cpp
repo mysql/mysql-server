@@ -2568,7 +2568,8 @@ void Dbdih::execINCL_NODECONF(Signal* signal)
   blocklist[2] = cdictblockref;
   blocklist[3] = numberToRef(BACKUP, getOwnNodeId());
   blocklist[4] = numberToRef(SUMA, getOwnNodeId());
-  blocklist[5] = 0;
+  blocklist[5] = numberToRef(DBSPJ, getOwnNodeId());
+  blocklist[6] = 0;
   
   for (Uint32 i = 0; blocklist[i] != 0; i++)
   {

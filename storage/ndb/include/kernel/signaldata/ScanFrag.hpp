@@ -167,7 +167,7 @@ class ScanFragConf {
   friend class Backup;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 6 );
+  STATIC_CONST( SignalLength = 7 );
   
 public:
   Uint32 senderData;
@@ -176,6 +176,7 @@ public:
   Uint32 transId1;
   Uint32 transId2;
   Uint32 total_len;
+  Uint32 fragId;
 };
 
 class ScanFragRef {
@@ -191,7 +192,7 @@ class ScanFragRef {
   friend class Backup;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
 public:
   enum ErrorCode {
     ZNO_FREE_TC_CONREC_ERROR = 484,
@@ -210,6 +211,7 @@ public:
   Uint32 transId1;
   Uint32 transId2;
   Uint32 errorCode;
+  Uint32 fragId;
 };
 
 /**

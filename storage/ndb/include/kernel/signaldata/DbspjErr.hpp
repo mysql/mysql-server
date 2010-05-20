@@ -33,6 +33,9 @@ struct DbspjErr
     ,BothTreeAndParametersContainInterpretedProgram = 20011
     ,InvalidTreeParametersSpecificationKeyParamBitsMissmatch = 20012
     ,InvalidTreeParametersSpecificationIncorrectKeyParamCount = 20013
+    ,InternalError = 20014
+    ,OutOfRowMemory = 20015
+    ,NodeFailure = 20016
   };
 };
 

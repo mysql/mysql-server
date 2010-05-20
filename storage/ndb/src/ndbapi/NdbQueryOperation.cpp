@@ -17,14 +17,17 @@
 */
 
 
-#include "NdbQueryOperationImpl.hpp"
 #include <ndb_global.h>
-#include "NdbQueryBuilder.hpp"
+#include <NdbQueryBuilder.hpp>
 #include "NdbQueryBuilderImpl.hpp"
-#include "signaldata/TcKeyReq.hpp"
-#include "signaldata/TcKeyRef.hpp"
-#include "signaldata/ScanTab.hpp"
-#include "signaldata/QueryTree.hpp"
+
+#include "NdbQueryOperationImpl.hpp"
+
+#include <signaldata/TcKeyReq.hpp>
+#include <signaldata/TcKeyRef.hpp>
+#include <signaldata/ScanTab.hpp>
+#include <signaldata/QueryTree.hpp>
+#include <signaldata/DbspjErr.hpp>
 
 #include "AttributeHeader.hpp"
 #include "NdbRecord.hpp"
@@ -151,6 +154,11 @@ public:
   void incrOutstandingResults(Int32 delta)
   {
     m_outstandingResults += delta;
+  }
+
+  void clearOutstandingResults()
+  {
+    m_outstandingResults = 0;
   }
 
   void setConfReceived()
@@ -3806,16 +3814,24 @@ NdbQueryOperationImpl::execTCKEYREF(NdbApiSignal* aSignal){
     }
   }
 
-  // Compensate for children results not produced.
-  // (doSend() assumed all child results to be materialized)
-  Uint32 cnt = 0;
-  cnt += 1; // self
-  cnt += getNoOfDescendantOperations();
-  if (getNoOfChildOperations() > 0)
+  if (ref->errorCode != DbspjErr::NodeFailure)
   {
-    cnt += getNoOfLeafOperations();
+    // Compensate for children results not produced.
+    // (doSend() assumed all child results to be materialized)
+    Uint32 cnt = 0;
+    cnt += 1; // self
+    cnt += getNoOfDescendantOperations();
+    if (getNoOfChildOperations() > 0)
+    {
+      cnt += getNoOfLeafOperations();
+    }
+    getQuery().m_rootFrags[0].incrOutstandingResults(- Int32(cnt));
   }
-  getQuery().m_rootFrags[0].incrOutstandingResults(- Int32(cnt));
+  else
+  {
+    // consider frag-batch complete
+    getQuery().m_rootFrags[0].clearOutstandingResults();
+  }
 
   bool ret = false;
   if (getQuery().m_rootFrags[0].isFragBatchComplete()) { 
