@@ -82,6 +82,7 @@ static ssize_t bad_pwrite(int fd, const void * bp, size_t len, toku_off_t off) {
 static int do_malloc_errors = 0;
 static int my_malloc_count = 0, my_big_malloc_count = 0;
 static int my_realloc_count = 0, my_big_realloc_count = 0;
+static size_t my_big_malloc_limit = 64*1024;
    
 static void reset_my_malloc_counts(void) {
     my_malloc_count = my_big_malloc_count = 0;
@@ -93,7 +94,7 @@ static void *my_malloc(size_t n) {
     if (!((void*)toku_malloc <= caller && caller <= (void*)toku_free))
         goto skip;
     my_malloc_count++;
-    if (n >= 64*1024) {
+    if (n >= my_big_malloc_limit) {
         my_big_malloc_count++;
         if (do_malloc_errors) {
             caller = __builtin_return_address(1);
@@ -116,7 +117,7 @@ static void *my_realloc(void *p, size_t n) {
     if (!((void*)toku_realloc <= caller && caller <= (void*)toku_free))
         goto skip;
     my_realloc_count++;
-    if (n >= 64*1024) {
+    if (n >= my_big_malloc_limit) {
         my_big_realloc_count++;
         if (do_malloc_errors) {
             caller = __builtin_return_address(1);
@@ -254,7 +255,8 @@ static int usage(const char *progname) {
     fprintf(stderr, "[--rowsets %d] set the number of rowsets\n", nrowsets);
     fprintf(stderr, "[-s] set the small loader size factor\n");
     fprintf(stderr, "[-m] inject big malloc and realloc errors\n");
-    fprintf(stderr, "[-f] inject write errors\n");
+    fprintf(stderr, "[--malloc_limit %u] set the threshold for failing malloc and realloc\n", (unsigned) my_big_malloc_limit);
+    fprintf(stderr, "[-w] inject write errors\n");
     fprintf(stderr, "[-u] inject user errors\n");
     return 1;
 }
@@ -278,12 +280,15 @@ int test_main (int argc, const char *argv[]) {
             nrowsets = atoi(argv[0]);
         } else if (strcmp(argv[0],"-s") == 0) {
             toku_brtloader_set_size_factor(1);
-        } else if (strcmp(argv[0],"-f") == 0) {
+        } else if (strcmp(argv[0],"-w") == 0) {
             do_write_errors = 1;
         } else if (strcmp(argv[0],"-m") == 0) {
             do_malloc_errors = 1;
         } else if (strcmp(argv[0],"-u") == 0) {
             do_user_errors = 1;
+        } else if (strcmp(argv[0],"--malloc_limit") == 0 && argc > 1) {
+            argc--; argv++;
+            my_big_malloc_limit = atoi(argv[0]);
         } else if (strcmp(argv[0],"--max_error_limit") == 0 && argc >= 1) {
             argc--; argv++;
             max_error_limit = atoi(argv[0]);

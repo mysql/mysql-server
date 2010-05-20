@@ -261,17 +261,22 @@ int brtloader_open_temp_file (BRTLOADER bl, FIDX *file_idx)
  */
 {
     int result = 0;
-    char *fname = toku_strdup(bl->temp_file_template);
     FILE *f = NULL;
-    int fd = mkstemp(fname);
-    if (fd < 0) { 
+    int fd = -1;
+    char *fname = toku_strdup(bl->temp_file_template);    
+    if (fname == NULL)
         result = errno;
-    } else {
-        f = toku_os_fdopen(fd, "r+");
-        if (f == NULL)
+    else {
+        fd = mkstemp(fname);
+        if (fd < 0) { 
             result = errno;
-        else
-            result = open_file_add(&bl->file_infos, f, fname, file_idx);
+        } else {
+            f = toku_os_fdopen(fd, "r+");
+            if (f == NULL)
+                result = errno;
+            else
+                result = open_file_add(&bl->file_infos, f, fname, file_idx);
+        }
     }
     if (result != 0) {
         if (fd >= 0) {
@@ -1865,7 +1870,10 @@ static inline void dbout_init(struct dbout *out) {
 }
 
 static inline void dbout_destroy(struct dbout *out) {
-    invariant(out->fd == -1);
+    if (out->fd >= 0) {
+        toku_os_close(out->fd);
+        out->fd = -1;
+    }
     toku_free(out->translation);
     out->translation = NULL;
 }
@@ -1918,21 +1926,31 @@ static void dbuf_destroy (struct dbuf *dbuf) {
     toku_free(dbuf->buf); dbuf->buf = NULL;
 }
 
-static int64_t allocate_block (struct dbout *out)
+static int allocate_block (struct dbout *out, int64_t *ret_block_number)
 // Return the new block number
 {
+    int result = 0;
     dbout_lock(out);
-    int64_t result = out->n_translations;
-    if (result >= out->n_translations_limit) {
+    int64_t block_number = out->n_translations;
+    if (block_number >= out->n_translations_limit) {
+        int64_t old_n_translations_limit = out->n_translations_limit;
+        struct translation *old_translation = out->translation;
 	if (out->n_translations_limit==0) {
 	    out->n_translations_limit = 1;
 	} else {
 	    out->n_translations_limit *= 2;
 	}
 	REALLOC_N(out->n_translations_limit, out->translation);
-        lazy_assert(out->translation);
+        if (out->translation == NULL) {
+            result = errno;
+            out->n_translations_limit = old_n_translations_limit;
+            out->translation = old_translation;
+        }
     }
-    out->n_translations++;
+    if (result == 0) {
+        out->n_translations++;
+        *ret_block_number = block_number;
+    }
     dbout_unlock(out);
     return result;
 }
@@ -2130,7 +2148,9 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
     out.translation[1].off = -1;                                // block 1 is the block translation, filled in later
     out.translation[2].off = -1;                                // block 2 is the descriptor
     seek_align(&out);
-    int64_t lblock = allocate_block(&out);
+    int64_t lblock;
+    result = allocate_block(&out, &lblock);
+    lazy_assert(result == 0); // can not fail since translations reserved above
     struct leaf_buf *lbuf = start_leaf(&out, descriptor, lblock);
     struct subtree_estimates est = zero_estimates;
     est.exact = TRUE;
@@ -2153,6 +2173,7 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	}
 	struct rowset *output_rowset = (struct rowset *)item;
 
+        if (result == 0)
 	for (unsigned int i = 0; i < output_rowset->n_rows; i++) {
 	    DBT key = make_dbt(output_rowset->data+output_rowset->rows[i].off,                               output_rowset->rows[i].klen);
 	    DBT val = make_dbt(output_rowset->data+output_rowset->rows[i].off + output_rowset->rows[i].klen, output_rowset->rows[i].vlen);
@@ -2183,12 +2204,19 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 
 		if ((r = bl_write_dbt(&key, pivots_stream, NULL, bl))) {
 		    brt_loader_set_panic(bl, r); // error after cilk sync
+                    if (result == 0) result = r;
 		    break;
 		}
 	    
 		cilk_spawn finish_leafnode(&out, lbuf, progress_this_node, bl);
+                lbuf = NULL;
 
-		lblock = allocate_block(&out);
+		r = allocate_block(&out, &lblock);
+                if (r != 0) {
+                    brt_loader_set_panic(bl, r);
+                    if (result == 0) result = r;
+                    break;
+                }
 		lbuf = start_leaf(&out, descriptor, lblock);
 	    }
 	
@@ -2203,11 +2231,13 @@ static int toku_loader_write_brt_from_q (BRTLOADER bl,
 	toku_free(output_rowset);
     }
 
-    allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
-    {
-	int p = progress_allocation/2;
-	finish_leafnode(&out, lbuf, p, bl);
-	progress_allocation -= p;
+    if (lbuf) {
+        allocate_node(&sts, lblock, est, lbuf->local_fingerprint);
+        {
+            int p = progress_allocation/2;
+            finish_leafnode(&out, lbuf, p, bl);
+            progress_allocation -= p;
+        }
     }
 
     cilk_sync;
@@ -2704,8 +2734,11 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
     }
     unsigned int checksum = x1764_memory(ttable.buf, ttable.off);
     putbuf_int32(&ttable, checksum);
-    invariant(bt_size_on_disk==ttable.off);
-    int result = toku_os_pwrite(out->fd, ttable.buf, ttable.off, off_of_translation);
+    int result = ttable.error;
+    if (result == 0) {
+        invariant(bt_size_on_disk==ttable.off);
+        result = toku_os_pwrite(out->fd, ttable.buf, ttable.off, off_of_translation);
+    }
     dbuf_destroy(&ttable);
     *off_of_translation_p = off_of_translation;
     return result;
@@ -2794,19 +2827,15 @@ static int setup_nonleaf_block (int n_children,
 
     if (result == 0) {
         int r = read_some_pivots(pivots_file, n_children, bl, pivots);
-        if (r) {
-            delete_pivots(pivots, n_children);
+        if (r)
             result = r;
-        }
     }
 
     if (result == 0) {
         FILE *next_pivots_stream = toku_bl_fidx2file(bl, next_pivots_file);
         int r = bl_write_dbt(&pivots[n_children-1], next_pivots_stream, NULL, bl);
-        if (r) {
-            delete_pivots(pivots, n_children);
+        if (r)
             result = r;
-        }
     }
 
     if (result == 0) {
@@ -2827,11 +2856,22 @@ static int setup_nonleaf_block (int n_children,
             fingerprint += subtrees->subtrees[from_blocknum].fingerprint;
         }
 
-        *blocknum = allocate_block(out);
-        allocate_node(next_subtrees, *blocknum, new_subtree_estimates, fingerprint);
+        int r = allocate_block(out, blocknum);
+        if (r) {
+            toku_free(subtrees_array);
+            result = r;
+        } else {
+            allocate_node(next_subtrees, *blocknum, new_subtree_estimates, fingerprint);
+            
+            *pivots_p = pivots;
+            *subtrees_info_p = subtrees_array;
+        }
+    }
 
-        *pivots_p = pivots;
-        *subtrees_info_p = subtrees_array;
+    if (result != 0) {
+        if (pivots) {
+            delete_pivots(pivots, n_children); pivots = NULL;
+        }
     }
 
     return result;
@@ -2860,10 +2900,15 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
     node->rand4fingerprint = loader_random();
 
     XMALLOC_N(n_children-1, node->u.n.childkeys);
+    for (int i=0; i<n_children-1; i++) 
+        node->u.n.childkeys[i] = NULL;
     unsigned int totalchildkeylens = 0;
     for (int i=0; i<n_children-1; i++) {
 	struct kv_pair *childkey = kv_pair_malloc(pivots[i].data, pivots[i].size, NULL, 0);
-	lazy_assert(childkey);
+	if (childkey == NULL) {
+            result = errno;
+            break;
+        }
 	node->u.n.childkeys[i] = childkey;
 	totalchildkeylens += kv_pair_keylen(childkey);
     }
@@ -2882,27 +2927,29 @@ static void write_nonleaf_node (BRTLOADER bl, struct dbout *out, int64_t blocknu
 	ci->n_bytes_in_buffer = 0;
     }
 
-    size_t n_bytes;
-    char *bytes;
-    int r;
-    r = toku_serialize_brtnode_to_memory(node, 1, 1, &n_bytes, &bytes);
-    if (r) {
-        result = r;
-    } else {
-        dbout_lock(out);
-        out->translation[blocknum_of_new_node].off = out->current_off;
-        out->translation[blocknum_of_new_node].size = n_bytes;
-        //fprintf(stderr, "Wrote internal node at %ld (%ld bytes)\n", out->current_off, n_bytes);
-        //for (uint32_t i=0; i<n_bytes; i++) { unsigned char b = bytes[i]; printf("%d:%02x (%d) ('%c')\n", i, b, b, (b>=' ' && b<128) ? b : '*'); }
-        r = write_literal(out, bytes, n_bytes); 
-        if (r)
+    if (result == 0) {
+        size_t n_bytes;
+        char *bytes;
+        int r;
+        r = toku_serialize_brtnode_to_memory(node, 1, 1, &n_bytes, &bytes);
+        if (r) {
             result = r;
-        else
-            seek_align_locked(out);
-        dbout_unlock(out);
+        } else {
+            dbout_lock(out);
+            out->translation[blocknum_of_new_node].off = out->current_off;
+            out->translation[blocknum_of_new_node].size = n_bytes;
+            //fprintf(stderr, "Wrote internal node at %ld (%ld bytes)\n", out->current_off, n_bytes);
+            //for (uint32_t i=0; i<n_bytes; i++) { unsigned char b = bytes[i]; printf("%d:%02x (%d) ('%c')\n", i, b, b, (b>=' ' && b<128) ? b : '*'); }
+            r = write_literal(out, bytes, n_bytes); 
+            if (r)
+                result = r;
+            else
+                seek_align_locked(out);
+            dbout_unlock(out);
+            toku_free(bytes);
+        }
     }
 
-    toku_free(bytes);
     for (int i=0; i<n_children-1; i++) {
 	toku_free(pivots[i].data);
 	toku_free(node->u.n.childkeys[i]);
