@@ -483,6 +483,7 @@ handle_new_error:
 	} else if (err == DB_ROW_IS_REFERENCED
 		   || err == DB_NO_REFERENCED_ROW
 		   || err == DB_CANNOT_ADD_CONSTRAINT
+		   || err == DB_INTERRUPTED
 		   || err == DB_TOO_MANY_CONCURRENT_TRXS) {
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
