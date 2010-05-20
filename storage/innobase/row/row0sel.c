@@ -4559,8 +4559,6 @@ row_search_check_if_query_cache_permitted(
 		return(FALSE);
 	}
 
-	mutex_enter(&kernel_mutex);
-
 	/* Start the transaction if it is not started yet */
 
 	trx_start_if_not_started_low(trx);
@@ -4569,6 +4567,8 @@ row_search_check_if_query_cache_permitted(
 	cache up to our trx id, then ret = FALSE.
 	We do not check what type locks there are on the table, though only
 	IX type locks actually would require ret = FALSE. */
+
+	mutex_enter(&kernel_mutex);
 
 	if (UT_LIST_GET_LEN(table->locks) == 0
 	    && ut_dulint_cmp(trx->id,
@@ -4582,9 +4582,14 @@ row_search_check_if_query_cache_permitted(
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
 		    && !trx->read_view) {
 
+			trx_sys_mutex_enter();
+
 			trx->read_view = read_view_open_now(
 				trx->id, trx->global_read_view_heap);
+
 			trx->global_read_view = trx->read_view;
+
+			trx_sys_mutex_exit();
 		}
 	}
 

@@ -41,8 +41,6 @@ sess_open(void)
 {
 	sess_t*	sess;
 
-	ut_ad(mutex_own(&kernel_mutex));
-
 	sess = mem_alloc(sizeof(sess_t));
 
 	sess->state = SESS_ACTIVE;
