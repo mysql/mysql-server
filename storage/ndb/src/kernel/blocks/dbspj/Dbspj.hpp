@@ -379,6 +379,12 @@ public:
        */
       T_USER_PROJECTION = 0x20,
 
+      /**
+       * Is this a unique index lookup (on index table)
+       *   (implies some extra error handling code)
+       */
+      T_UNIQUE_INDEX_LOOKUP = 0x40,
+
       // End marker...
       T_END = 0
     };

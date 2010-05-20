@@ -1159,6 +1159,11 @@ Dbspj::lookup_build(Build_context& ctx,
       break;
     }
 
+    if (treeBits & QN_LookupNode::L_UNIQUE_INDEX)
+    {
+      jam();
+      treeNodePtr.p->m_bits |= TreeNode::T_UNIQUE_INDEX_LOOKUP;
+    }
 
     Uint32 tableId = node->tableId;
     Uint32 schemaVersion = node->tableVersion;
@@ -1496,6 +1501,40 @@ Dbspj::lookup_execLQHKEYREF(Signal* signal,
 
     sendSignal(resultRef, GSN_TCKEYREF, signal,
                TcKeyRef::SignalLength, JBB);
+
+    if (treeNodePtr.p->m_bits & TreeNode::T_UNIQUE_INDEX_LOOKUP)
+    {
+      /**
+       * If this is a "leaf" unique index lookup
+       *   emit extra TCKEYCONF as would have been done with ordinary
+       *   operation
+       */
+      LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+      Local_dependency_map list(pool, treeNodePtr.p->m_dependent_nodes);
+      Dependency_map::ConstDataBufferIterator it;
+      ndbrequire(list.first(it));
+      ndbrequire(list.getSize() == 1); // should only be 1 child
+      Ptr<TreeNode> childPtr;
+      m_treenode_pool.getPtr(childPtr, * it.data);
+      if (childPtr.p->m_bits & TreeNode::T_LEAF)
+      {
+        jam();
+        Uint32 resultRef = childPtr.p->m_lookup_data.m_api_resultRef;
+        Uint32 resultData = childPtr.p->m_lookup_data.m_api_resultData;
+        TcKeyConf* conf = (TcKeyConf*)signal->getDataPtr();
+        conf->apiConnectPtr = RNIL;
+        conf->confInfo = 0;
+        conf->gci_hi = 0;
+        TcKeyConf::setNoOfOperations(conf->confInfo, 1);
+        conf->transId1 = requestPtr.p->m_transId[0];
+        conf->transId2 = requestPtr.p->m_transId[1];
+        conf->operations[0].apiOperationPtr = resultData;
+        conf->operations[0].attrInfoLen =
+          TcKeyConf::DirtyReadBit |getOwnNodeId();
+        sendSignal(resultRef, GSN_TCKEYCONF, signal,
+                   TcKeyConf::StaticLength + 2, JBB);
+      }
+    }
   }
 
   Uint32 cnt = 2;

@@ -1282,6 +1282,13 @@ select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
 a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	31	47	1	31
 explain
+select * from t3 x, t3 y where x.d3=0 and y.a3=x.d3 and y.b3=x.b3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x	const	t3_d3	t3_d3	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	8	const,test.x.b3	1	Child of pushed join@1
+select * from t3 x, t3 y where x.d3=0 and y.a3=x.d3 and y.b3=x.b3;
+a3	b3	c3	d3	a3	b3	c3	d3
+explain
 select * from t1 x, t3 y where y.d3=x.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	x	ALL	NULL	NULL	NULL	NULL	3	Parent of 2 pushed join@1
@@ -1299,6 +1306,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t3 x, t3 y where x.d3=31 and y.d3=x.b3;
 a3	b3	c3	d3	a3	b3	c3	d3
 31	47	1	31	47	63	2	47
+explain
+select * from t3 x, t3 y where x.d3=31 and y.d3=x.c3;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	x	const	t3_d3	t3_d3	4	const	1	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	t3_d3	t3_d3	4	test.x.c3	1	Child of pushed join@1
+select * from t3 x, t3 y where x.d3=31 and y.d3=x.c3;
+a3	b3	c3	d3	a3	b3	c3	d3
 explain
 select * from t3 x, t3 y 
 where ((x.a3=0x2f and x.b3=0x3f) or x.d3=0x1f)
