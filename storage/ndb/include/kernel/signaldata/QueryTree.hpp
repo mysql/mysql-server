@@ -140,6 +140,16 @@ struct QN_LookupNode // Is a QueryNode subclass
    */
   Uint32 optional[1];
 
+  enum LookupBits
+  {
+    /**
+     * This is lookup on index table,
+     */
+    L_UNIQUE_INDEX = 0x10000,
+
+    L_END = 0
+  };
+
 //Uint32 getLength() const { return len >> 16;}
 //void setOpLen(Uint32 o, Uint32 l) { len = (l << 16) | o;}
 };

@@ -807,6 +807,11 @@ explain
   select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
   select * from t3 x, t3 y where x.d3=31 and y.a3=x.d3 and y.b3=x.b3;
 
+# No data-found on unique key lookup root
+explain
+  select * from t3 x, t3 y where x.d3=0 and y.a3=x.d3 and y.b3=x.b3;
+  select * from t3 x, t3 y where x.d3=0 and y.a3=x.d3 and y.b3=x.b3;
+
 # Use an unique key to lookup joined child tables
 explain
   select * from t1 x, t3 y where y.d3=x.b;
@@ -817,6 +822,11 @@ explain
 explain
   select * from t3 x, t3 y where x.d3=31 and y.d3=x.b3;
   select * from t3 x, t3 y where x.d3=31 and y.d3=x.b3;
+
+# No data-found on unique key lookup child
+explain
+  select * from t3 x, t3 y where x.d3=31 and y.d3=x.c3;
+  select * from t3 x, t3 y where x.d3=31 and y.d3=x.c3;
 
 # 'index_merge' between PRIMARY and index t3.d3
 # NOTE: currently unhandled

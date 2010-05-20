@@ -1901,7 +1901,7 @@ NdbQueryIndexOperationDefImpl
     // 'length' and 'requestInfo' has been calculated.
     Uint32 startPos = serializedDef.getSize();
     serializedDef.alloc(QN_LookupNode::NodeSize);
-    Uint32 requestInfo = 0;
+    Uint32 requestInfo = QN_LookupNode::L_UNIQUE_INDEX;
 
     // Optional part1: Make list of parent nodes.
     assert (getQueryOperationId() > 0);
