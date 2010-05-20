@@ -2779,23 +2779,50 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, COND *conds,
        This will speed up the plan search for many cases with outer joins,
        as well as allow us to catch illegal cross references/
        Warshall's algorithm is used to build the transitive closure.
-       As we use bitmaps to represent the relation the complexity
-       of the algorithm is O((number of tables)^2). 
+       As we may restart the outer loop upto 'table_count' times, the
+       complexity of the algorithm is O((number of tables)^3).
+       However, most if the iterations will be shortcircuted when
+       there are no pedendencies to propogate.
     */
-    for (i= 0, s= stat ; i < table_count ; i++, s++)
+    /**
+     *  SPJ MERGE TODO Bug#52005: (Together with #52357 it also fixes Bug#48971)
+     *  Permanent fix has not been merged to this branch yet.
+     *  Needed as this was a showstopper for further RQG testing of SPJ.
+     */
+    for (i= 0 ; i < table_count ; i++)
     {
-      for (uint j= 0 ; j < table_count ; j++)
+      uint j;
+      table= stat[i].table;
+
+      if (!table->reginfo.join_tab->dependent)
+        continue;
+
+      /* Add my dependencies to other tables depending on me */
+      for (j= 0, s= stat ; j < table_count ; j++, s++)
       {
-        table= stat[j].table;
         if (s->dependent & table->map)
+        {
+          table_map was_dependent= s->dependent;
           s->dependent |= table->reginfo.join_tab->dependent;
+          /*
+            If we change dependencies for a table we already have
+            processed: Redo dependency propagation from this table.
+          */
+          if (i > j && s->dependent != was_dependent)
+          {
+            i = j-1;
+            break;
+          }
+        }
       }
-      if (outer_join & s->table->map)
-        s->table->maybe_null= 1;
     }
+
     /* Catch illegal cross references for outer joins */
     for (i= 0, s= stat ; i < table_count ; i++, s++)
     {
+      if (outer_join & s->table->map)
+        s->table->maybe_null= 1;
+
       if (s->dependent & s->table->map)
       {
         join->tables=0;			// Don't use join->table
@@ -8769,6 +8796,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
   NESTED_JOIN *nested_join;
   TABLE_LIST *prev_table= 0;
   List_iterator<TABLE_LIST> li(*join_list);
+  bool straight_join= test(join->select_options & SELECT_STRAIGHT_JOIN);
   DBUG_ENTER("simplify_joins");
 
   /* 
@@ -8879,7 +8907,7 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top)
     if (prev_table)
     {
       /* The order of tables is reverse: prev_table follows table */
-      if (prev_table->straight)
+      if (prev_table->straight || straight_join)
         prev_table->dep_tables|= used_tables;
       if (prev_table->on_expr)
       {
