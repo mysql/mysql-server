@@ -127,6 +127,3 @@ testdoc: DUMMY
 	cd $(top_srcdir)/storage/ndb ; $(DOXYGEN) $(DOXYDIR)/Doxyfile.test
 
 windoze-dsp:
-
-# Don't update the files from bitkeeper
-%::SCCS/s.%

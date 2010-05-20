@@ -105,7 +105,6 @@ extern mysql_pfs_key_t	rw_lock_mutex_key;
 extern mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;
 extern mysql_pfs_key_t	srv_innodb_monitor_mutex_key;
 extern mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
-extern mysql_pfs_key_t	srv_threads_mutex_key;
 extern mysql_pfs_key_t	srv_monitor_file_mutex_key;
 extern mysql_pfs_key_t	syn_arr_mutex_key;
 # ifdef UNIV_SYNC_DEBUG

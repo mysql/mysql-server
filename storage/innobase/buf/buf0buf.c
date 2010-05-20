@@ -872,6 +872,8 @@ buf_block_init(
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
 
+	block->is_hashed = FALSE;
+
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
 	block->page.in_zip_hash = FALSE;
@@ -3000,7 +3002,12 @@ wait_until_unfixed:
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
 	mutex_enter(&block->mutex);
+#if UNIV_WORD_SIZE == 4
+	/* On 32-bit systems, there is no padding in buf_page_t.  On
+	other systems, Valgrind could complain about uninitialized pad
+	bytes. */
 	UNIV_MEM_ASSERT_RW(&block->page, sizeof block->page);
+#endif
 
 	buf_block_buf_fix_inc(block, file, line);
 

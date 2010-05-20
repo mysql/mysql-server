@@ -571,7 +571,7 @@ page_zip_dir_encode(
 	/* Traverse the list of stored records in the collation order,
 	starting from the first user record. */
 
-	rec = page + PAGE_NEW_INFIMUM, TRUE;
+	rec = page + PAGE_NEW_INFIMUM;
 
 	i = 0;
 
@@ -3117,8 +3117,13 @@ page_zip_validate_low(
 	temp_page_zip in a debugger when running valgrind --db-attach. */
 	VALGRIND_GET_VBITS(page, temp_page, UNIV_PAGE_SIZE);
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
+# if UNIV_WORD_SIZE == 4
 	VALGRIND_GET_VBITS(page_zip, &temp_page_zip, sizeof temp_page_zip);
+	/* On 32-bit systems, there is no padding in page_zip_des_t.
+	On other systems, Valgrind could complain about uninitialized
+	pad bytes. */
 	UNIV_MEM_ASSERT_RW(page_zip, sizeof *page_zip);
+# endif
 	VALGRIND_GET_VBITS(page_zip->data, temp_page,
 			   page_zip_get_size(page_zip));
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));

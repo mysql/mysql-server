@@ -93,6 +93,10 @@ IF(CMAKE_GENERATOR MATCHES "Makefiles")
   # No multiconfig build - use CMAKE_C_FLAGS
   SET(CFLAGS "@CMAKE_C_FLAGS@")
   SET(CXXFLAGS "@CMAKE_CXX_FLAGS@")
+  FOREACH(ARCH ${CMAKE_OSX_ARCHITECTURES})
+    SET(CFLAGS   "${CFLAGS} -arch ${ARCH}")
+    SET(CXXFLAGS "${CXXFLAGS} -arch ${ARCH}")
+  ENDFOREACH()
 ELSE()
   # Multiconfig build - use CMAKE_C_FLAGS_RELWITHDEBINFO
   SET(CFLAGS "@CMAKE_C_FLAGS_RELWITHDEBINFO@")
@@ -134,10 +138,9 @@ ELSE()
   SET(CHECK_PID "kill -s SIGCONT $PID  > /dev/null 2> /dev/null")
 ENDIF()
 
+SET(HOSTNAME "hostname")
+
 ENDIF(UNIX)
-
-
-
 
 # Really ugly, one script, "mysql_install_db", needs prefix set to ".",
 # i.e. makes access relative the current directory. This matches
@@ -261,7 +264,7 @@ IF(WIN32)
   SET(PLIN_FILES mysql_config mysql_secure_installation)
   # Input files with .sh extension
 
-  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow 
+  SET(SH_FILES mysql_convert_table_format mysqld_multi mysqldumpslow
     mysqlhotcopy)
 
   FOREACH(file ${PLIN_FILES})
@@ -298,14 +301,13 @@ ELSE()
     mysql_secure_installation
     mysql_zap
     mysqlaccess
+    mysqlaccess.conf
     mysqlbug
     mysql_convert_table_format
     mysql_find_rows
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi
-    mysqlaccess
-    mysqlaccess.conf
     mysqld_safe
   )
   FOREACH(file ${BIN_SCRIPTS})
