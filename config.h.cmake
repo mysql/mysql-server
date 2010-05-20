@@ -308,21 +308,21 @@
   #else
     #define SIZEOF_LONG 4
   #endif
+  #define SIZEOF_VOIDP   SIZEOF_LONG
   #define SIZEOF_CHARP   SIZEOF_LONG
   #define SIZEOF_SIZE_T  SIZEOF_LONG
 #else
-  #cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
-  #cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
-  #cmakedefine SIZEOF_SIZE_T @SIZEOF_CHARP@
+# No indentation, to fetch the lines from verification scripts
+#cmakedefine SIZEOF_LONG   @SIZEOF_LONG@
+#cmakedefine SIZEOF_VOIDP  @SIZEOF_VOIDP@
+#cmakedefine SIZEOF_CHARP  @SIZEOF_CHARP@
+#cmakedefine SIZEOF_SIZE_T @SIZEOF_CHARP@
 #endif
 
 #cmakedefine SIZEOF_CHAR @SIZEOF_CHAR@
 #cmakedefine HAVE_CHAR 1
 #cmakedefine HAVE_LONG 1
 #cmakedefine HAVE_CHARP 1
-#if SIZEOF_CHARP
-# define SIZEOF_VOIDP SIZEOF_CHARP 
-#endif
 #cmakedefine SIZEOF_SHORT @SIZEOF_SHORT@
 #cmakedefine HAVE_SHORT 1
 #cmakedefine SIZEOF_INT @SIZEOF_INT@
@@ -333,7 +333,6 @@
 #cmakedefine HAVE_OFF_T 1
 #cmakedefine SIZEOF_SIGSET_T @SIZEOF_SIGSET_T@
 #cmakedefine HAVE_SIGSET_T 1
-#cmakedefine SIZEOF_SIZE_T @SIZEOF_SIZE_T@
 #cmakedefine HAVE_SIZE_T 1
 #cmakedefine SIZEOF_UCHAR @SIZEOF_UCHAR@
 #cmakedefine HAVE_UCHAR 1
@@ -518,7 +517,7 @@
 #cmakedefine FN_NO_CASE_SENSE 1
 
 #cmakedefine HAVE_CHARSET_armscii8 1
-#cmakedefine HAVE_CHARSET_ascii 
+#cmakedefine HAVE_CHARSET_ascii 1
 #cmakedefine HAVE_CHARSET_big5 1
 #cmakedefine HAVE_CHARSET_cp1250 1
 #cmakedefine HAVE_CHARSET_cp1251 1
