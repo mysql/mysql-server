@@ -980,7 +980,7 @@ srv_release_threads(
 			}
 		/* We have only one master thread and it should be the
 		first entry always. */
-		} else if (slot->type == SRV_MASTER) {
+		} else if (type == SRV_MASTER) {
 			ut_a(i == 0);
 			break;
 		}
