@@ -506,6 +506,10 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int32_t        loader_max;              /* max number of loaders extant simultaneously    */ \n");
     printf("  u_int64_t        logsuppress;             /* number of times logging is suppressed */ \n");
     printf("  u_int64_t        logsuppressfail;         /* number of times logging cannot be suppressed  */ \n");
+    printf("  u_int64_t        upgrade_env_status;      /* Was an environment upgrade done?  What was done?  */ \n");
+    printf("  u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ \n");
+    printf("  u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ \n");
+    printf("  u_int64_t        upgrade_leaf;            /* how many brt leaf nodes were upgraded? */ \n");
     printf("} ENGINE_STATUS;\n");
 
     print_dbtype();

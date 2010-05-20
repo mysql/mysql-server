@@ -143,6 +143,10 @@ typedef struct __toku_engine_status {
   u_int32_t        loader_max;              /* max number of loaders extant simultaneously    */ 
   u_int64_t        logsuppress;             /* number of times logging is suppressed */ 
   u_int64_t        logsuppressfail;         /* number of times logging cannot be suppressed  */ 
+  u_int64_t        upgrade_env_status;      /* Was an environment upgrade done?  What was done?  */ 
+  u_int64_t        upgrade_header;          /* how many brt headers were upgraded? */ 
+  u_int64_t        upgrade_nonleaf;         /* how many brt nonleaf nodes  were upgraded? */ 
+  u_int64_t        upgrade_leaf;            /* how many brt leaf nodes were upgraded? */ 
 } ENGINE_STATUS;
 typedef enum {
  DB_BTREE=1,

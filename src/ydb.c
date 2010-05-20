@@ -1663,6 +1663,13 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->logsuppress     = logsuppress;
 	    engstat->logsuppressfail = logsuppressfail;
 	}
+	{
+	    // dummy values until upgrade logic is complete and counters are available
+	    engstat->upgrade_env_status = 1;
+	    engstat->upgrade_header     = 2;
+	    engstat->upgrade_nonleaf    = 3;
+	    engstat->upgrade_leaf       = 4;
+	}
     }
     return r;
 }
@@ -1760,6 +1767,10 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     n += snprintf(buff + n, bufsiz - n, "loader_max                       %"PRIu32"\n", engstat.loader_max);
     n += snprintf(buff + n, bufsiz - n, "logsuppress                      %"PRIu64"\n", engstat.logsuppress);
     n += snprintf(buff + n, bufsiz - n, "logsuppressfail                  %"PRIu64"\n", engstat.logsuppressfail);
+    n += snprintf(buff + n, bufsiz - n, "upgrade_env_status               %"PRIu64"\n", engstat.upgrade_env_status);
+    n += snprintf(buff + n, bufsiz - n, "upgrade_header                   %"PRIu64"\n", engstat.upgrade_header);
+    n += snprintf(buff + n, bufsiz - n, "upgrade_nonleaf                  %"PRIu64"\n", engstat.upgrade_nonleaf);
+    n += snprintf(buff + n, bufsiz - n, "upgrade_leaf                     %"PRIu64"\n", engstat.upgrade_leaf);
     if (n > bufsiz) {
 	char * errmsg = "BUFFER TOO SMALL\n";
 	int len = strlen(errmsg) + 1;
