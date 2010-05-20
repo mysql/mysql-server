@@ -1065,9 +1065,10 @@ Dbspj::batchComplete(Signal* signal, Ptr<Request> requestPtr)
      */
     jam();
 
-    if (requestPtr.p->m_state & Request::RS_ABORTING == 0)
+    if ((requestPtr.p->m_state & Request::RS_ABORTING) != 0)
+    {
       ndbassert(is_complete);
-    
+    }
     sendConf(signal, requestPtr, is_complete);
   }
   else if (is_complete && need_complete_phase)
