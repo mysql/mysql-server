@@ -1,0 +1,51 @@
+# Read Java cluster version from configure.in 
+
+MACRO(GET_JAVA_VERSION)
+
+  IF(NOT NDB_VERSION_STRING)
+    IF(EXISTS ${CMAKE_SOURCE_DIR}/configure.in)
+
+      FILE(STRINGS  ${CMAKE_SOURCE_DIR}/configure.in  MAJOR REGEX "NDB_VERSION_MAJOR")
+      FILE(STRINGS  ${CMAKE_SOURCE_DIR}/configure.in  MINOR REGEX "NDB_VERSION_MINOR")
+      FILE(STRINGS  ${CMAKE_SOURCE_DIR}/configure.in  BUILD REGEX "NDB_VERSION_BUILD")
+      FILE(STRINGS  ${CMAKE_SOURCE_DIR}/configure.in  STATUS REGEX NDB_VERSION_STATUS)
+
+      STRING(REGEX REPLACE "NDB_VERSION_MAJOR=([0-9]+)" \\1 NDB_VERSION_MAJOR ${MAJOR})
+      STRING(REGEX REPLACE "NDB_VERSION_MINOR=([0-9]+)" \\1 NDB_VERSION_MINOR ${MINOR})
+      STRING(REGEX REPLACE "NDB_VERSION_BUILD=([0-9]+)" \\1 NDB_VERSION_BUILD ${BUILD})
+      STRING(REGEX REPLACE "NDB_VERSION_STATUS=([a-zA-Z0-9]+)" \\1 STATUS ${STATUS})
+
+      # in case regex does not match STATUS contains org string
+      IF(${STATUS} MATCHES "NDB_VERSION_STATUS=.*")
+        SET(NDB_VERSION_STATUS "")
+        SET(JAVA_NDB_VERSION "${NDB_VERSION_MAJOR}.${NDB_VERSION_MINOR}.${NDB_VERSION_BUILD}") 
+      ELSE()
+        SET(NDB_VERSION_STATUS ${STATUS})
+        SET(JAVA_NDB_VERSION "${NDB_VERSION_MAJOR}.${NDB_VERSION_MINOR}.${NDB_VERSION_BUILD}.${NDB_VERSION_STATUS}") 
+      ENDIF()
+
+      FILE(STRINGS  ${CMAKE_SOURCE_DIR}/configure.in  str REGEX "AC_INIT")
+      STRING(REGEX MATCH "[0-9]+\\.[0-9]+\\.[0-9]+-ndb-[0-9]+\\.[0-9]+\\.[0-9]+" NDB_VERSION_STRING "${str}")
+
+    ENDIF()
+  ENDIF()
+
+
+  IF(NOT NDB_VERSION_STRING)
+    MESSAGE(FATAL_ERROR
+  "VERSION_STRING cannot be parsed, please specify -DVERSION_STRING=major.minor.patch-extra"
+  "when calling cmake")
+  ENDIF()
+
+  # Remove trailing (non-numeric) part of the version string
+  STRING(REGEX REPLACE "[^\\.0-9].*" "" NDB_VERSION_STRING ${NDB_VERSION_STRING})
+
+  MESSAGE(STATUS "version: ${NDB_VERSION_STRING}")
+  MESSAGE(STATUS "Java version: ${JAVA_NDB_VERSION}")
+  
+
+ENDMACRO()
+
+GET_JAVA_VERSION()
+
+
