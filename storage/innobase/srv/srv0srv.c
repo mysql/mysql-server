@@ -1135,6 +1135,7 @@ srv_general_init(void)
 	sync_init();
 	mem_init(srv_mem_pool_size);
 	thr_local_init();
+	que_init();
 }
 
 /*======================= InnoDB Server FIFO queue =======================*/

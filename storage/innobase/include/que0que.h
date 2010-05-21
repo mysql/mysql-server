@@ -41,6 +41,9 @@ Created 5/27/1996 Heikki Tuuri
 of SQL execution in the UNIV_SQL_DEBUG version */
 extern ibool	que_trace_on;
 
+/** Mutex protecting the query threads. */
+extern mutex_t	que_thr_mutex;
+
 /***********************************************************************//**
 Adds a query graph to the session's list of graphs. */
 UNIV_INTERN
@@ -157,17 +160,6 @@ void
 que_run_threads(
 /*============*/
 	que_thr_t*	thr);	/*!< in: query thread */
-/**********************************************************************//**
-After signal handling is finished, returns control to a query graph error
-handling routine. (Currently, just returns the control to the root of the
-graph so that the graph can communicate an error message to the client.) */
-UNIV_INTERN
-void
-que_fork_error_handle(
-/*==================*/
-	trx_t*	trx,	/*!< in: trx */
-	que_t*	fork);	/*!< in: query graph which was run before signal
-			handling started, NULL not allowed */
 /**********************************************************************//**
 Moves a suspended query thread to the QUE_THR_RUNNING state and releases
 a single worker thread to execute it. This function should be used to end
@@ -356,6 +348,20 @@ que_fork_scheduler_round_robin(
 	que_fork_t*	fork,		/*!< in: a query fork */
 	que_thr_t*	thr);		/*!< in: current pos */
 
+/*********************************************************************//**
+Initialise the query sub-system. */
+UNIV_INTERN
+void
+que_init(void);
+/*==========*/
+
+/*********************************************************************//**
+Close the query sub-system. */
+UNIV_INTERN
+void
+que_close(void);
+/*===========*/
+
 /* Query graph query thread node: the fields are protected by the kernel
 mutex with the exceptions named below */
 
@@ -404,7 +410,7 @@ struct que_thr_struct{
 #define QUE_THR_MAGIC_N		8476583
 #define QUE_THR_MAGIC_FREED	123461526
 
-/* Query graph fork node: its fields are protected by the kernel mutex */
+/* Query graph fork node: its fields are protected by the query thread mutex */
 struct que_fork_struct{
 	que_common_t	common;		/*!< type: QUE_NODE_FORK */
 	que_t*		graph;		/*!< query graph of this node */
@@ -535,6 +541,40 @@ struct que_fork_struct{
 #define	QUE_CUR_END		3
 
 
+#if 1
+/** Test if query_thr_mutex can be acquired without waiting. */
+#define query_mutex_enter_nowait() mutex_enter_nowait(&que_thr_mutex)
+
+/** Test if query_thr_mutex is owned. */
+#define query_mutex_own() mutex_own(&que_thr_mutex)
+
+/** Acquire the query_thr_mutex. */
+#define query_mutex_enter() do {		\
+	mutex_enter(&que_thr_mutex);		\
+} while (0)
+
+/** Release the query_thr_mutex. */
+#define query_mutex_exit() do {			\
+	mutex_exit(&que_thr_mutex);		\
+} while (0)
+#else
+/** Test if kernel_mutex can be acquired without waiting. */
+#define query_mutex_enter_nowait() mutex_enter_nowait(&kernel_mutex)
+
+/** Test if kernel_mutex is owned. */
+#define query_mutex_own() mutex_own(&kernel_mutex)
+
+/** Acquire the kernel_mutex. */
+#define query_mutex_enter() do {		\
+	mutex_enter(&kernel_mutex);		\
+} while (0)
+
+/** Release the kernel_mutex. */
+#define query_mutex_exit() do {			\
+	mutex_exit(&kernel_mutex);		\
+} while (0)
+
+#endif
 #ifndef UNIV_NONINL
 #include "que0que.ic"
 #endif

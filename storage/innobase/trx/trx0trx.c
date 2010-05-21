@@ -1321,11 +1321,6 @@ trx_end_signal_handling(
 	trx->handling_signals = FALSE;
 
 	trx->graph = trx->graph_before_signal_handling;
-
-	if (trx->graph && (trx->sess->state == SESS_ERROR)) {
-
-		que_fork_error_handle(trx, trx->graph);
-	}
 }
 
 /****************************************************************//**
