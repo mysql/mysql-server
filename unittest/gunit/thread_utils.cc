@@ -13,6 +13,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include <gtest/gtest.h>
 #include "thread_utils.h"
 
 namespace thread {
@@ -24,6 +25,15 @@ void *thread_start_routine(void *arg)
   Thread::run_wrapper(thread);
   return NULL;
 }
+
+// We cannot use ASSERT_FALSE in constructors/destructors,
+// so we add a local helper routine.
+#define LOCAL_ASSERT_FALSE(arg) assert_false(arg, __LINE__)
+void assert_false(int arg, int line)
+{
+  ASSERT_FALSE(arg) << "failed with arg " << arg << " at line " << line;
+}
+
 }  // namespace
 
 Thread::~Thread()
@@ -40,14 +50,14 @@ int Thread::start()
 void Thread::join()
 {
   int failed= pthread_join(m_thread_id, NULL);
-  DBUG_ASSERT(!failed);
+  ASSERT_FALSE(failed);
 }
 
 
 void Thread::run_wrapper(Thread *thread)
 {
   const my_bool error= my_thread_init();
-  DBUG_ASSERT(!error);
+  ASSERT_FALSE(error);
   thread->run();
   my_thread_end();
 }
@@ -62,16 +72,16 @@ Mutex_lock::Mutex_lock(pthread_mutex_t *mutex) : m_mutex(mutex)
 Mutex_lock::~Mutex_lock()
 {
   const int failed= pthread_mutex_unlock(m_mutex);
-  DBUG_ASSERT(!failed);
+  LOCAL_ASSERT_FALSE(failed);
 }
 
 
 Notification::Notification() : m_notified(FALSE)
 {
   const int failed1= pthread_cond_init(&m_cond, NULL);
-  DBUG_ASSERT(!failed1);
+  LOCAL_ASSERT_FALSE(failed1);
   const int failed2= pthread_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST);
-  DBUG_ASSERT(!failed2);
+  LOCAL_ASSERT_FALSE(failed2);
 }
 
 Notification::~Notification()
@@ -92,7 +102,7 @@ void Notification::wait_for_notification()
   while (!m_notified)
   {
     const int failed= pthread_cond_wait(&m_cond, &m_mutex);
-    DBUG_ASSERT(!failed);
+    ASSERT_FALSE(failed);
   }
 }
 
@@ -101,7 +111,7 @@ void Notification::notify()
   Mutex_lock lock(&m_mutex);
   m_notified= TRUE;
   const int failed= pthread_cond_broadcast(&m_cond);
-  DBUG_ASSERT(!failed);
+  ASSERT_FALSE(failed);
 }
 
 
