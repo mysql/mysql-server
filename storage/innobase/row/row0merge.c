@@ -728,7 +728,7 @@ row_merge_read(
 }
 
 /********************************************************************//**
-Read a merge block from the file system.
+Write a merge block to the file system.
 @return	TRUE if request was successful, FALSE if fail */
 static
 ibool
