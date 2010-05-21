@@ -1037,12 +1037,14 @@ buf_flush_write_block_low(
 /*======================*/
 	buf_page_t*	bpage)	/*!< in: buffer block to write */
 {
+	ulint	zip_size	= buf_page_get_zip_size(bpage);
+	page_t*	frame		= NULL;
+
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ut_ad(!buf_pool_mutex_own(buf_pool));
 #endif
-	ulint	zip_size	= buf_page_get_zip_size(bpage);
-	page_t*	frame		= NULL;
+
 #ifdef UNIV_LOG_DEBUG
 	static ibool univ_log_debug_warned;
 #endif /* UNIV_LOG_DEBUG */
