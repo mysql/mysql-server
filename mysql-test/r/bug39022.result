@@ -12,7 +12,7 @@ INSERT INTO t2 VALUES (0),(1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
 START TRANSACTION;
 # in thread2
 REPLACE INTO t2 VALUES (-17);
-SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d);
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE;
 d
 # in thread1
 REPLACE INTO t1(a,b) VALUES (67,20);
@@ -21,10 +21,10 @@ COMMIT;
 START TRANSACTION;
 REPLACE INTO t1(a,b) VALUES (65,-50);
 REPLACE INTO t2 VALUES (-91);
-SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d);
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE;
 # in thread1
 # should not crash
-SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d);
+SELECT d FROM t2,t1 WHERE d=(SELECT MAX(a) FROM t1 WHERE t1.a > t2.d) LOCK IN SHARE MODE;
 ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
 # in thread2
 d
