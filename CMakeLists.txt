@@ -263,6 +263,7 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)
+INCLUDE(cmake/tags.cmake)
 
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/my_config.h)
 CONFIGURE_FILE(config.h.cmake   ${CMAKE_BINARY_DIR}/include/config.h)
