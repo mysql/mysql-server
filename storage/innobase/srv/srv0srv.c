@@ -854,19 +854,27 @@ srv_table_reserve_slot(
 	enum srv_thread_type	type)	/*!< in: type of the thread */
 {
 	srv_slot_t*	slot;
-	ulint		i;
+	ulint		i = 0;
 
 	ut_ad(srv_sys_mutex_own());
 
 	ut_a(type > 0);
 	ut_a(type <= SRV_MASTER);
 
-	i = 0;
-	slot = srv_table_get_nth_slot(i);
+	if (type != SRV_MASTER) {
 
-	while (slot->in_use) {
-		i++;
-		slot = srv_table_get_nth_slot(i);
+		i = 1;
+
+		/* Find an empty slot. */
+		for (slot = srv_table_get_nth_slot(i);
+		     slot->in_use;
+		     slot = srv_table_get_nth_slot(i)) {
+
+			++i;
+		}
+
+	} else {
+		slot = srv_table_get_nth_slot(0);
 	}
 
 	ut_a(slot->in_use == FALSE);
