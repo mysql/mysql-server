@@ -3985,19 +3985,32 @@ recover_from_failed_open(THD *thd, MDL_request *mdl_request,
           replication as the table on the slave might contain other data
           (ie: general_log is enabled on the slave). The statement will
           be marked as unsafe for SBR in decide_logging_format().
+  @remark Note that even in prelocked mode it is important to correctly
+          determine lock type value. In this mode lock type is passed to
+          handler::start_stmt() method and can be used by storage engine,
+          for example, to determine what kind of row locks it should acquire
+          when reading data from the table.
 */
 
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
                                        TABLE_LIST *table_list)
 {
-  bool log_on= mysql_bin_log.is_open() && (thd->variables.option_bits & OPTION_BIN_LOG);
+  /*
+    In cases when this function is called for a sub-statement executed in
+    prelocked mode we can't rely on OPTION_BIN_LOG flag in THD::options
+    bitmap to determine that binary logging is turned on as this bit can
+    be cleared before executing sub-statement. So instead we have to look
+    at THD::sql_log_bin_toplevel member.
+  */
+  bool log_on= mysql_bin_log.is_open() && thd->sql_log_bin_toplevel;
   ulong binlog_format= thd->variables.binlog_format;
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
       !(is_update_query(prelocking_ctx->sql_command) ||
-        table_list->prelocking_placeholder))
+        table_list->prelocking_placeholder ||
+        (thd->locked_tables_mode > LTM_LOCK_TABLES)))
     return TL_READ;
   else
     return TL_READ_NO_INSERT;
@@ -5001,35 +5014,49 @@ handle_view(THD *thd, Query_tables_list *prelocking_ctx,
 }
 
 
-/*
+/**
   Check that lock is ok for tables; Call start stmt if ok
 
-  SYNOPSIS
-    check_lock_and_start_stmt()
-    thd			Thread handle
-    table_list		Table to check
-    lock_type		Lock used for table
+  @param thd             Thread handle.
+  @param prelocking_ctx  Prelocking context.
+  @param table_list      Table list element for table to be checked.
 
-  RETURN VALUES
-  0	ok
-  1	error
+  @retval FALSE - Ok.
+  @retval TRUE  - Error.
 */
 
-static bool check_lock_and_start_stmt(THD *thd, TABLE *table,
-				      thr_lock_type lock_type)
+static bool check_lock_and_start_stmt(THD *thd,
+                                      Query_tables_list *prelocking_ctx,
+                                      TABLE_LIST *table_list)
 {
   int error;
+  thr_lock_type lock_type;
   DBUG_ENTER("check_lock_and_start_stmt");
 
+  /*
+    TL_WRITE_DEFAULT and TL_READ_DEFAULT are supposed to be parser only
+    types of locks so they should be converted to appropriate other types
+    to be passed to storage engine. The exact lock type passed to the
+    engine is important as, for example, InnoDB uses it to determine
+    what kind of row locks should be acquired when executing statement
+    in prelocked mode or under LOCK TABLES with @@innodb_table_locks = 0.
+  */
+  if (table_list->lock_type == TL_WRITE_DEFAULT)
+    lock_type= thd->update_lock_default;
+  else if (table_list->lock_type == TL_READ_DEFAULT)
+    lock_type= read_lock_type_for_table(thd, prelocking_ctx, table_list);
+  else
+    lock_type= table_list->lock_type;
+
   if ((int) lock_type >= (int) TL_WRITE_ALLOW_READ &&
-      (int) table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
+      (int) table_list->table->reginfo.lock_type < (int) TL_WRITE_ALLOW_READ)
   {
-    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),table->alias);
+    my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_list->alias);
     DBUG_RETURN(1);
   }
-  if ((error=table->file->start_stmt(thd, lock_type)))
+  if ((error= table_list->table->file->start_stmt(thd, lock_type)))
   {
-    table->file->print_error(error,MYF(0));
+    table_list->table->file->print_error(error, MYF(0));
     DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -5174,7 +5201,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     table->grant= table_list->grant;
     if (thd->locked_tables_mode)
     {
-      if (check_lock_and_start_stmt(thd, table, lock_type))
+      if (check_lock_and_start_stmt(thd, thd->lex, table_list))
 	table= 0;
     }
     else
@@ -5402,7 +5429,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         if (!table->placeholder())
         {
           table->table->query_id= thd->query_id;
-          if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
+          if (check_lock_and_start_stmt(thd, thd->lex, table))
           {
             mysql_unlock_tables(thd, thd->lock);
             thd->lock= 0;
@@ -5456,7 +5483,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         }
       }
 
-      if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
+      if (check_lock_and_start_stmt(thd, thd->lex, table))
       {
 	DBUG_RETURN(TRUE);
       }

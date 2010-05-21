@@ -58,9 +58,10 @@ drop table t1;
 
 --echo #
 --echo # Old lock method (where LOCK TABLE was ignored by InnoDB) no longer
---echo # works due to fix for bugs  #46272 "MySQL 5.4.4, new MDL: unnecessary
---echo # deadlock" and bug #37346 "innodb does not detect deadlock between
---echo # update and alter table".
+--echo # works when LOCK TABLE ... WRITE is used due to fix for bugs #46272
+--echo # "MySQL 5.4.4, new MDL: unnecessary and bug #37346 "innodb does not
+--echo # detect deadlock between update and alter table". But it still works
+--echo # for LOCK TABLE ... READ.
 --echo #
 
 set @@innodb_table_locks=0;
@@ -102,6 +103,26 @@ unlock tables;
 
 --echo # Connection 'con1'.
 connection con1;
+
+select * from t1 where id = 0 for update;
+
+--echo # Connection 'con2'.
+connection con2;
+--echo # The below statement should not be blocked as LOCK TABLES ... READ
+--echo # does not take strong SQL-level lock on t1. SELECTs which do not
+--echo # conflict with transaction in the first connections should not be
+--echo # blocked.
+lock table t1 read;
+select * from t1;
+select * from t1 where id = 1 lock in share mode;
+unlock tables;
+select * from t1;
+commit;
+
+--echo # Connection 'con1'.
+connection con1;
+commit;
+
 drop table t1;
 
 # End of 4.1 tests

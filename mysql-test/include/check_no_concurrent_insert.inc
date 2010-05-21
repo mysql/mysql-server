@@ -20,6 +20,9 @@
 --disable_result_log
 --disable_query_log
 
+# Reset DEBUG_SYNC facility for safety.
+set debug_sync= "RESET";
+
 if (`SELECT '$restore_table' <> ''`)
 {
 --eval create table t_backup select * from $restore_table;
@@ -70,6 +73,9 @@ if (`SELECT '$restore_table' <> ''`)
 --eval insert into $restore_table select * from t_backup;
 drop table t_backup;
 }
+
+# Clean-up. Reset DEBUG_SYNC facility after use.
+set debug_sync= "RESET";
 
 --enable_result_log
 --enable_query_log
