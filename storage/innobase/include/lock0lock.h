@@ -817,7 +817,7 @@ struct lock_sys_struct{
 /** The lock system */
 extern lock_sys_t*	lock_sys;
 
-#if 0
+#if 1
 /** Test if lock_sys->mutex can be acquired without waiting. */
 #define lock_mutex_enter_nowait() mutex_enter_nowait(&lock_sys->mutex)
 

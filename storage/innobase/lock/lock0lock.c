@@ -4005,18 +4005,13 @@ lock_release_off_kernel(
 	trx_t*	trx)	/*!< in: transaction */
 {
 	dict_table_t*	table;
-	ulint		count;
 	lock_t*		lock;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	lock_mutex_enter();
 
-	lock = UT_LIST_GET_LAST(trx->trx_locks);
-
-	count = 0;
-
-	while (lock != NULL) {
-
-		count++;
+	for (lock = UT_LIST_GET_LAST(trx->trx_locks);
+	     lock != NULL;
+	     lock = UT_LIST_GET_LAST(trx->trx_locks)) {
 
 		if (lock_get_type_low(lock) == LOCK_REC) {
 
@@ -4043,24 +4038,13 @@ lock_release_off_kernel(
 
 			lock_table_dequeue(lock);
 		}
-
-		if (count == LOCK_RELEASE_KERNEL_INTERVAL) {
-			/* Release the kernel mutex for a while, so that we
-			do not monopolize it */
-
-			lock_mutex_exit();
-
-			lock_mutex_enter();
-
-			count = 0;
-		}
-
-		lock = UT_LIST_GET_LAST(trx->trx_locks);
 	}
 
 	ut_a(ib_vector_size(trx->autoinc_locks) == 0);
 
 	mem_heap_empty(trx->lock_heap);
+
+	lock_mutex_exit();
 }
 
 /*********************************************************************//**

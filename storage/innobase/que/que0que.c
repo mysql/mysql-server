@@ -53,6 +53,14 @@ of SQL execution in the UNIV_SQL_DEBUG version */
 UNIV_INTERN ibool	que_trace_on		= FALSE;
 #endif /* UNIV_DEBUG */
 
+#ifdef UNIV_PFS_MUTEX
+/* Key to register query thread mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	que_thr_mutex_key;
+#endif /* UNIV_PFS_MUTEX */
+
+/** Mutex protecting the query threads. */
+UNIV_INTERN mutex_t	que_thr_mutex;
+
 /* Short introduction to query graphs
    ==================================
 
@@ -143,7 +151,7 @@ que_graph_publish(
 	que_t*	graph,	/*!< in: graph */
 	sess_t*	sess)	/*!< in: session */
 {
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(query_mutex_own());
 
 	UT_LIST_ADD_LAST(graphs, sess->graphs, graph);
 }
@@ -166,30 +174,19 @@ que_fork_create(
 
 	ut_ad(heap);
 
-	fork = mem_heap_alloc(heap, sizeof(que_fork_t));
+	fork = mem_heap_zalloc(heap, sizeof(*fork));
+
+	fork->heap = heap;
+
+	fork->fork_type = fork_type;
+
+	fork->common.parent = parent;
 
 	fork->common.type = QUE_NODE_FORK;
-	fork->n_active_thrs = 0;
 
 	fork->state = QUE_FORK_COMMAND_WAIT;
 
-	if (graph != NULL) {
-		fork->graph = graph;
-	} else {
-		fork->graph = fork;
-	}
-
-	fork->common.parent = parent;
-	fork->fork_type = fork_type;
-
-	fork->caller = NULL;
-
-	UT_LIST_INIT(fork->thrs);
-
-	fork->sym_tab = NULL;
-	fork->info = NULL;
-
-	fork->heap = heap;
+	fork->graph = (graph != NULL) ? graph : fork;
 
 	return(fork);
 }
@@ -208,24 +205,19 @@ que_thr_create(
 
 	ut_ad(parent && heap);
 
-	thr = mem_heap_alloc(heap, sizeof(que_thr_t));
+	thr = mem_heap_zalloc(heap, sizeof(*thr));
 
-	thr->common.type = QUE_NODE_THR;
+	thr->graph = parent->graph;
+
 	thr->common.parent = parent;
 
 	thr->magic_n = QUE_THR_MAGIC_N;
 
-	thr->graph = parent->graph;
+	thr->common.type = QUE_NODE_THR;
 
 	thr->state = QUE_THR_COMMAND_WAIT;
 
-	thr->is_active = FALSE;
-
-	thr->run_node = NULL;
-	thr->resource = 0;
 	thr->lock_state = QUE_THR_LOCK_NOLOCK;
-
-	thr->slot = NULL;
 
 	UT_LIST_ADD_LAST(thrs, parent->thrs, thr);
 
@@ -254,7 +246,7 @@ que_thr_end_wait(
 {
 	ibool	was_active;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(query_mutex_own());
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
 	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
@@ -294,7 +286,7 @@ que_thr_end_wait_no_next_thr(
 
 	ut_a(thr->state == QUE_THR_LOCK_WAIT);	/* In MySQL this is the
 						only possible state here */
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(query_mutex_own());
 	ut_ad(thr);
 	ut_ad((thr->state == QUE_THR_LOCK_WAIT)
 	      || (thr->state == QUE_THR_PROCEDURE_WAIT)
@@ -345,7 +337,7 @@ que_fork_scheduler_round_robin(
 	que_fork_t*	fork,		/*!< in: a query fork */
 	que_thr_t*	thr)		/*!< in: current pos */
 {
-	mutex_enter(&kernel_mutex);
+	query_mutex_enter();
 
 	/* If no current, start first available. */
 	if (thr == NULL) {
@@ -375,7 +367,7 @@ que_fork_scheduler_round_robin(
 		}
 	}
 
-	mutex_exit(&kernel_mutex);
+	query_mutex_exit();
 
 	return(thr);
 }
@@ -468,47 +460,6 @@ que_fork_start_command(
 	}
 
 	return(thr);
-}
-
-/**********************************************************************//**
-After signal handling is finished, returns control to a query graph error
-handling routine. (Currently, just returns the control to the root of the
-graph so that the graph can communicate an error message to the client.) */
-UNIV_INTERN
-void
-que_fork_error_handle(
-/*==================*/
-	trx_t*	trx __attribute__((unused)),	/*!< in: trx */
-	que_t*	fork)	/*!< in: query graph which was run before signal
-			handling started, NULL not allowed */
-{
-	que_thr_t*	thr;
-
-	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad(trx->sess->state == SESS_ERROR);
-	ut_ad(UT_LIST_GET_LEN(trx->reply_signals) == 0);
-	ut_ad(UT_LIST_GET_LEN(trx->wait_thrs) == 0);
-
-	thr = UT_LIST_GET_FIRST(fork->thrs);
-
-	while (thr != NULL) {
-		ut_ad(!thr->is_active);
-		ut_ad(thr->state != QUE_THR_SIG_REPLY_WAIT);
-		ut_ad(thr->state != QUE_THR_LOCK_WAIT);
-
-		thr->run_node = thr;
-		thr->prev_node = thr->child;
-		thr->state = QUE_THR_COMPLETED;
-
-		thr = UT_LIST_GET_NEXT(thrs, thr);
-	}
-
-	thr = UT_LIST_GET_FIRST(fork->thrs);
-
-	que_thr_move_to_run_state(thr);
-
-	ut_error;
-	srv_que_task_enqueue_low(thr);
 }
 
 /****************************************************************//**
@@ -777,11 +728,11 @@ que_thr_node_step(
 		return(thr);
 	}
 
-	mutex_enter(&kernel_mutex);
+	query_mutex_enter();
 
 	if (que_thr_peek_stop(thr)) {
 
-		mutex_exit(&kernel_mutex);
+		query_mutex_exit();
 
 		return(thr);
 	}
@@ -790,7 +741,7 @@ que_thr_node_step(
 
 	thr->state = QUE_THR_COMPLETED;
 
-	mutex_exit(&kernel_mutex);
+	query_mutex_exit();
 
 	return(NULL);
 }
@@ -853,7 +804,7 @@ que_thr_dec_refer_count(
 	fork = thr->common.parent;
 	trx = thr_get_trx(thr);
 
-	mutex_enter(&kernel_mutex);
+	query_mutex_enter();
 
 	ut_a(thr->is_active);
 
@@ -882,7 +833,7 @@ que_thr_dec_refer_count(
 				srv_que_task_enqueue_low(thr);
 			}
 
-			mutex_exit(&kernel_mutex);
+			query_mutex_exit();
 
 			return;
 		}
@@ -895,7 +846,7 @@ que_thr_dec_refer_count(
 
 	if (trx->n_active_thrs > 0) {
 
-		mutex_exit(&kernel_mutex);
+		query_mutex_exit();
 
 		return;
 	}
@@ -943,7 +894,7 @@ que_thr_dec_refer_count(
 		trx_end_signal_handling(trx);
 	}
 
-	mutex_exit(&kernel_mutex);
+	query_mutex_exit();
 }
 
 /**********************************************************************//**
@@ -961,7 +912,7 @@ que_thr_stop(
 	que_t*	graph;
 	ibool	ret	= TRUE;
 
-	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(query_mutex_own());
 
 	graph = thr->graph;
 	trx = graph->trx;
@@ -1010,7 +961,7 @@ que_thr_stop_for_mysql(
 
 	ut_a(!trx->is_purge);
 
-	mutex_enter(&kernel_mutex);
+	query_mutex_enter();
 
 	if (thr->state == QUE_THR_RUNNING) {
 
@@ -1024,7 +975,7 @@ que_thr_stop_for_mysql(
 			already released, or this transaction was chosen
 			as a victim in selective deadlock resolution */
 
-			mutex_exit(&kernel_mutex);
+			query_mutex_exit();
 
 			return;
 		}
@@ -1039,7 +990,7 @@ que_thr_stop_for_mysql(
 
 	trx->n_active_thrs--;
 
-	mutex_exit(&kernel_mutex);
+	query_mutex_exit();
 }
 
 /**********************************************************************//**
@@ -1339,7 +1290,7 @@ que_run_threads_low(
 
 	ut_ad(thr->state == QUE_THR_RUNNING);
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
-	ut_ad(!mutex_own(&kernel_mutex));
+	ut_ad(!query_mutex_own());
 
 	/* cumul_resource counts how much resources the OS thread (NOT the
 	query thread) has spent in this function */
@@ -1397,7 +1348,7 @@ loop:
 	ut_a(thr_get_trx(thr)->error_state == DB_SUCCESS);
 	que_run_threads_low(thr);
 
-	mutex_enter(&kernel_mutex);
+	query_mutex_enter();
 
 	switch (thr->state) {
 
@@ -1405,12 +1356,12 @@ loop:
 		/* There probably was a lock wait, but it already ended
 		before we came here: continue running thr */
 
-		mutex_exit(&kernel_mutex);
+		query_mutex_exit();
 
 		goto loop;
 
 	case QUE_THR_LOCK_WAIT:
-		mutex_exit(&kernel_mutex);
+		query_mutex_exit();
 
 		/* The ..._mysql_... function works also for InnoDB's
 		internal threads. Let us wait that the lock wait ends. */
@@ -1439,7 +1390,7 @@ loop:
 		ut_error;
 	}
 
-	mutex_exit(&kernel_mutex);
+	query_mutex_exit();
 }
 
 /*********************************************************************//**
@@ -1485,4 +1436,25 @@ que_eval_sql(
 	que_graph_free(graph);
 
 	return(trx->error_state);
+}
+
+/*********************************************************************//**
+Initialise the query sub-system. */
+UNIV_INTERN
+void
+que_init(void)
+/*==========*/
+{
+	mutex_create(que_thr_mutex_key, &que_thr_mutex, SYNC_QUERY_THREADS);
+}
+
+/*********************************************************************//**
+Close the query sub-system. */
+UNIV_INTERN
+void
+que_close(void)
+/*===========*/
+{
+	mutex_free(&que_thr_mutex);
+	memset(&que_thr_mutex, 0x0, sizeof(que_thr_mutex));
 }

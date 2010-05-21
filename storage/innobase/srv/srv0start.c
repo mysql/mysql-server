@@ -2112,6 +2112,7 @@ innobase_shutdown_for_mysql(void)
 	/* 3. Free all InnoDB's own mutexes and the os_fast_mutexes inside
 	them */
 	os_aio_free();
+	que_close();
 	sync_close();
 	srv_free();
 	fil_close();
