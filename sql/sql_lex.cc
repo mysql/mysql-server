@@ -110,39 +110,31 @@ st_parsing_options::reset()
   allows_derived= TRUE;
 }
 
-Lex_input_stream::Lex_input_stream(THD *thd,
-                                   const char* buffer,
-                                   unsigned int length)
-: m_thd(thd),
-  yylineno(1),
-  yytoklen(0),
-  yylval(NULL),
-  m_ptr(buffer),
-  m_tok_start(NULL),
-  m_tok_end(NULL),
-  m_end_of_query(buffer + length),
-  m_tok_start_prev(NULL),
-  m_buf(buffer),
-  m_buf_length(length),
-  m_echo(TRUE),
-  m_cpp_tok_start(NULL),
-  m_cpp_tok_start_prev(NULL),
-  m_cpp_tok_end(NULL),
-  m_body_utf8(NULL),
-  m_cpp_utf8_processed_ptr(NULL),
-  next_state(MY_LEX_START),
-  found_semicolon(NULL),
-  ignore_space(test(thd->variables.sql_mode & MODE_IGNORE_SPACE)),
-  stmt_prepare_mode(FALSE),
-  in_comment(NO_COMMENT),
-  m_underscore_cs(NULL)
-{
-  m_cpp_buf= (char*) thd->alloc(length + 1);
-  m_cpp_ptr= m_cpp_buf;
-}
 
-Lex_input_stream::~Lex_input_stream()
-{}
+bool Lex_input_stream::init(THD *thd, const char *buff, unsigned int length)
+{
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("+d,simulate_out_of_memory"););
+
+  m_cpp_buf= (char*) thd->alloc(length + 1);
+
+  DBUG_EXECUTE_IF("bug42064_simulate_oom",
+                  DBUG_SET("-d,bug42064_simulate_oom");); 
+
+  if (m_cpp_buf == NULL)
+    return FALSE;
+
+  m_cpp_ptr= m_cpp_buf;
+  m_thd= thd;
+  m_ptr= buff;
+  m_end_of_query= buff + length;
+  m_buf= buff;
+  m_buf_length= length;
+  ignore_space= test(thd->variables.sql_mode & MODE_IGNORE_SPACE);
+
+  return FALSE;
+  }
+
 
 /**
   The operation is called from the parser in order to

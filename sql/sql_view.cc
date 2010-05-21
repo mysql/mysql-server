@@ -1190,9 +1190,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     char old_db_buf[NAME_LEN+1];
     LEX_STRING old_db= { old_db_buf, sizeof(old_db_buf) };
     bool dbchanged;
-    Parser_state parser_state(thd,
-                              table->select_stmt.str,
-                              table->select_stmt.length);
+    Parser_state parser_state;
+    if (parser_state.init(thd, table->select_stmt.str,
+                          table->select_stmt.length))
+        goto err;
 
     /* 
       Use view db name as thread default database, in order to ensure

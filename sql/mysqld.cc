@@ -2933,6 +2933,9 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       DBUG_RETURN(0);
     }
 
+    /* When simulating OOM, skip writing to error log to avoid mtr errors */
+    DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(0););
+
     if (!thd->no_warnings_for_error &&
         !(MyFlags & ME_NO_WARNING_FOR_ERROR))
     {
@@ -2945,6 +2948,10 @@ int my_message_sql(uint error, const char *str, myf MyFlags)
       thd->no_warnings_for_error= FALSE;
     }
   }
+
+  /* When simulating OOM, skip writing to error log to avoid mtr errors */
+  DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_RETURN(0););
+
   if (!thd || MyFlags & ME_NOREFRESH)
     sql_print_error("%s: %s",my_progname,str); /* purecov: inspected */
   DBUG_RETURN(0);
