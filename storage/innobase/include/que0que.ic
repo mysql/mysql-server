@@ -259,7 +259,7 @@ que_thr_peek_stop(
 
 	if (graph->state != QUE_FORK_ACTIVE
 	    || trx->que_state == TRX_QUE_LOCK_WAIT
-	    || (UT_LIST_GET_LEN(trx->signals) > 0
+	    || (trx->sig.type != TRX_SIG_NO_SIGNAL
 		&& trx->que_state == TRX_QUE_RUNNING)) {
 
 		return(TRUE);

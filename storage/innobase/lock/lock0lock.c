@@ -1763,8 +1763,6 @@ lock_rec_enqueue_waiting(
 
 	if (UNIV_UNLIKELY(que_thr_stop(thr))) {
 
-		ut_error;
-
 		return(DB_QUE_THR_SUSPENDED);
 	}
 

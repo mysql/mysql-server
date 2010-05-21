@@ -800,7 +800,7 @@ err_exit:
 	dict_locked = FALSE;
 
 	ut_a(trx->n_active_thrs == 0);
-	ut_a(UT_LIST_GET_LEN(trx->signals) == 0);
+	ut_a(trx->sig.type == TRX_SIG_NO_SIGNAL);
 
 	if (UNIV_UNLIKELY(new_primary)) {
 		/* A primary key is to be built.  Acquire an exclusive
