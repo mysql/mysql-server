@@ -169,8 +169,7 @@ static void test_mergesort_row_array (void) {
 }
 
 static void test_read_write_rows (char *template) {
-    struct brtloader_s bl = {.panic              = 0,
-			     .temp_file_template = template};
+    struct brtloader_s bl = { .temp_file_template = template};
     int r = brtloader_init_file_infos(&bl.file_infos);
     CKERR(r);
     FIDX file;
@@ -280,7 +279,6 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     static void test_merge_files (const char *template, const char *output_name) {
     DB *dest_db = NULL;
     struct brtloader_s bl = {
-        .panic              = 0,
         .temp_file_template = template,
         .reserved_memory = 512*1024*1024,
     };

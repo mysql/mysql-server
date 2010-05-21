@@ -84,14 +84,14 @@ void brt_loader_set_poll_function(brtloader_poll_callback, brt_loader_poll_func 
 int brt_loader_call_poll_function(brtloader_poll_callback, float progress);
 
 struct error_callback_s {
+    int error;
     brt_loader_error_func error_callback;
     void *extra;
-    int did_callback;
-    int error;
     DB *db;
     int which_db;
     DBT key;
     DBT val;
+    BOOL did_callback;
     toku_pthread_mutex_t mutex;
 };
 typedef struct error_callback_s *brtloader_error_callback;
@@ -111,9 +111,10 @@ int brt_loader_call_error_function(brtloader_error_callback);
 int brt_loader_set_error_and_callback(brtloader_error_callback, int error, DB *db, int which_db, DBT *key, DBT *val);
 
 struct brtloader_s {
-    BOOL panic;
-    int panic_errno;
-    
+    // These two are set in the close function, and used while running close
+    struct error_callback_s error_callback;
+    struct poll_callback_s poll_callback;
+
     generate_row_for_put_func generate_row_for_put;
     brt_compare_func *bt_compare_funs;
 
@@ -148,11 +149,6 @@ struct brtloader_s {
     int progress;       // Progress runs from 0 to PROGRESS_MAX.  When we call the poll function we convert to a float from 0.0 to 1.0
     // We use an integer so that we can add to the progress using a fetch-and-add instruction.
 
-    // These two are set in the close function, and used while running close
-    struct error_callback_s error_callback;
-    struct poll_callback_s poll_callback;
-
-    int user_said_stop; // 0 if the poll_function always returned zero.  If it ever returns nonzero, then store that value here.
     LSN load_lsn; //LSN of the fsynced 'load' log entry.  Write this LSN (as checkpoint_lsn) in brt headers made by this loader.
 
     QUEUE *fractal_queues; // an array of work queues, one for each secondary index.
@@ -233,6 +229,13 @@ int toku_brt_loader_internal_init (/* out */ BRTLOADER *blp,
 void toku_brtloader_internal_destroy (BRTLOADER bl, BOOL is_error);
 
 enum { disksize_row_overhead = 9 }; // how much overhead for a row in the fractal tree
+
+// For test purposes only.  (In production, the rowset size is determined by negotation with the cachetable for some memory.  See #2613.)
+uint64_t toku_brtloader_get_rowset_budget_for_testing (void);
+
+int toku_brt_loader_finish_extractor(BRTLOADER bl);
+
+int toku_brt_loader_get_error(BRTLOADER bl, int *loader_errno);
 
 C_END
 

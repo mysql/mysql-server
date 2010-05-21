@@ -39,17 +39,10 @@ int toku_brt_loader_close (BRTLOADER bl,
 int toku_brt_loader_abort(BRTLOADER bl, 
                           BOOL is_error);
 
-void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*));
-
 // For test purposes only
 void toku_brtloader_set_size_factor (uint32_t factor);
-// For test purposes only.  (In production, the rowset size is determined by negotation with the cachetable for some memory.  See #2613.)
-uint64_t toku_brtloader_get_rowset_budget_for_testing (void);
 
-
-int toku_brt_loader_finish_extractor(BRTLOADER bl);
-
-int toku_brt_loader_get_error(BRTLOADER bl, int *loader_errno);
+void brtloader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*));
 
 C_END
 
