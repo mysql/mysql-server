@@ -51,6 +51,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 start slave;
 include/stop_slave.inc
 SHOW SLAVE STATUS;
@@ -94,6 +95,7 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 Replicate_Ignore_Server_Ids	
 Master_Server_Id	1
+Master_Info_File	#
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
